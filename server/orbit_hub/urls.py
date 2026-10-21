@@ -2,6 +2,10 @@
 
 from urllib.parse import urlsplit
 
+# The names and addresses plain HTTP is admitted on when the configuration asks
+# for localhost development: a provider URL, the hub's own listener and a client.
+LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
 
 def protected_url(value: str, *, allow_insecure_localhost: bool):
     url = urlsplit(value)
@@ -15,9 +19,7 @@ def protected_url(value: str, *, allow_insecure_localhost: bool):
     ):
         raise ValueError("A plain URL must not contain credentials, query or fragment")
     if url.scheme != "https" and not (
-        url.scheme == "http"
-        and allow_insecure_localhost
-        and url.hostname in {"localhost", "127.0.0.1", "::1"}
+        url.scheme == "http" and allow_insecure_localhost and url.hostname in LOOPBACK_HOSTS
     ):
         raise ValueError("URL requires HTTPS, except explicit localhost development")
     _ = url.port

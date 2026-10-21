@@ -47,7 +47,7 @@ async def test_bridge_request_envelope_limit_names_bytes_and_ceiling(bridged):
     assert refused.json()["refusal"]["max_bytes"] == REQUEST_BYTES
 
 
-async def test_ref406_global_bridge_waiter_refusal_reaches_caller_with_count(bridged):
+async def test_global_bridge_waiter_refusal_reaches_caller_with_count(bridged):
     app, store, adapter, owner = bridged
     async with app.router.lifespan_context(app):
         await connect(app, store, adapter, owner)
@@ -214,7 +214,7 @@ async def test_a_refusal_from_the_mac_is_not_reported_as_an_error(bridged):
         }
 
 
-async def test_dei07_a5_named_action_refusal_survives_in_the_pending_operation(bridged):
+async def test_named_action_refusal_survives_in_the_pending_operation(bridged):
     app, store, adapter, owner = bridged
     async with app.router.lifespan_context(app):
         await connect(app, store, adapter, owner)
@@ -308,7 +308,7 @@ async def test_an_unsigned_or_tampered_request_is_refused(bridged):
             assert swapped.status_code == 401
 
 
-async def test_dei04_a1_signed_device_inventory_is_decrypted_live_and_excludes_revoked(bridged):
+async def test_signed_device_inventory_is_decrypted_live_and_excludes_revoked(bridged):
     app, store, adapter, connected = bridged
     disconnected = store.pair(store.create_code(700), "Mac de salón", 701)
     revoked = store.pair(store.create_code(800), "Mac retirado", 801)
@@ -389,7 +389,7 @@ async def test_an_unknown_device_is_answered_exactly_like_a_disconnected_one(bri
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app), base_url="https://localhost"
         ) as client:
-            # Both under one op (SIM-22), so the bodies can be compared whole.
+            # Both under one op, so the bodies can be compared whole.
             op = {"X-Orbit-Op": "op-unknown-or-silent"}
             missing = body(device_id=str(uuid4()))
             absent = await client.post(PATH, content=missing, headers=signed(missing) | op)

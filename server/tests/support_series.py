@@ -36,7 +36,7 @@ def recording(store, owner, *, text="Hablamos del presupuesto.") -> str:
 
 
 def with_event(store, owner: str, recording: str, event: dict) -> None:
-    """The calendar event a Mac sends in the closing manifest (SIM-40), set in place."""
+    """The calendar event a Mac sends in the closing manifest, set in place."""
     context = f"manifest:{owner}:{recording}"
     with store.transaction() as db:
         row = db.execute(
@@ -61,7 +61,6 @@ class Bench:
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.worker = NotesWorker(
             NoteRepository(store),
-            self.model.configuration,
             lambda: self.clock["now"],
             signal=asyncio.Event(),
             store_executor=self.executor,

@@ -13,14 +13,15 @@ from conftest import connect_bridge as connect
 
 from orbit_hub.bridge_route import PATH, _action_outcome
 from orbit_mcp.hub import HubClientError
-from orbit_mcp.server import _error, _general_action
+from orbit_mcp.refusals import error_result
+from orbit_mcp.server import _general_action
 
 pytestmark = pytest.mark.anyio
 
 ACTION_RESULT_PATH = "/internal/v1/device/action-result"
 
 
-def test_ref406_translator_action_boundary_carries_size_and_ceiling():
+def test_translator_action_boundary_carries_size_and_ceiling():
     def action_of_size(size):
         action = {"tool": "x", "arguments": {"data": ""}}
         empty = len(json.dumps(action, separators=(",", ":")).encode())
@@ -31,7 +32,7 @@ def test_ref406_translator_action_boundary_carries_size_and_ceiling():
     assert _general_action(action_of_size(16_384))
     with pytest.raises(HubClientError) as refusal:
         _general_action(action_of_size(16_385))
-    text = _error(refusal.value).content[0].text
+    text = error_result(refusal.value).content[0].text
     assert "16385" in text and "16384" in text
 
 
@@ -55,9 +56,7 @@ async def action_result(client, owner, operation_id):
     )
 
 
-async def test_a5_perform_action_returns_a_durable_pending_operation_immediately(
-    bridged, monkeypatch
-):
+async def test_perform_action_returns_a_durable_pending_operation_immediately(bridged, monkeypatch):
     import orbit_hub.bridge_route as module
 
     monkeypatch.setattr(module, "REQUEST_TIMEOUT_SECONDS", 0.05)
@@ -77,7 +76,7 @@ async def test_a5_perform_action_returns_a_durable_pending_operation_immediately
             assert response.status_code == 202
             pending = response.json()
             assert pending["state"] == "pending"
-            # DEI-16 renamed this state: the Mac has the action and it has
+            # This state was renamed: the Mac has the action and it has
             # not finished. Nobody is being asked to permit anything.
             assert pending["outcome"] == "in_progress"
             operation_id = pending["operation_id"]
@@ -150,7 +149,7 @@ async def test_engine_refusal_is_actionable_and_never_no_answer(bridged, monkeyp
     assert result["refusal"]["detail"] == "El motor todavía no está conectado en este Mac"
     assert result["refusal"]["code"] == "engine_unavailable"
     assert result["refusal"]["cause"] == "not_running"
-    # REF-04 A5: it used to require "Ajustes" here, which pinned the pointer to
+    # It used to require "Ajustes" here, which pinned the pointer to
     # «Ajustes › Aplicaciones», a section Orbit does not have. The actionable
     # part is the typed cause and its detail, with a next step that is true.
     assert "Consulta la causa" in result["next_step"]
@@ -158,7 +157,7 @@ async def test_engine_refusal_is_actionable_and_never_no_answer(bridged, monkeyp
     assert "no_answer" not in json.dumps(result)
 
 
-async def test_a6_orphaned_pending_action_becomes_unknown_instead_of_retryable(bridged):
+async def test_orphaned_pending_action_becomes_unknown_instead_of_retryable(bridged):
     app, store, _adapter, owner = bridged
     operation_id = str(uuid4())
     store.reserve_operation(
@@ -189,7 +188,7 @@ async def test_a6_orphaned_pending_action_becomes_unknown_instead_of_retryable(b
     assert store.operation(owner["device_id"], operation_id)["status"] == "completed"
 
 
-def test_a6_connection_lost_after_publish_is_unknown_and_forbids_retry():
+def test_connection_lost_after_publish_is_unknown_and_forbids_retry():
     outcome = _action_outcome(
         {
             "refusal": {

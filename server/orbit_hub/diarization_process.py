@@ -1,6 +1,7 @@
-"""Run with diarization-runtime/.venv/bin/python, never with the hub's Python.
+"""Run with the Python of ``[diarization] python``, never with the hub's own.
 
-Input: mono 16 kHz WAV, local community-1 bundle, Whisper's shared flock path.
+Input: mono 16 kHz WAV, the local ``[diarization] bundle`` and the
+``[diarization] gpu_lock`` file shared with the transcription service.
 Output: JSON only. The hub redacts stderr and bounds runtime/output.
 """
 

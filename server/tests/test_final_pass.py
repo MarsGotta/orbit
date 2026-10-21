@@ -135,7 +135,7 @@ def fake_whisper(*, missing_words=False, status=200):
         assert b"OggS" in request.content
         assert b'name="timestamp_granularities[]"' in request.content
         assert b'name="vad_filter"' in request.content
-        # The service takes no VAD parameters (SIM-82): none are sent.
+        # The service takes no VAD parameters: none are sent.
         assert b'name="vad_parameters"' not in request.content
         assert b'name="prompt"' not in request.content
         words = [

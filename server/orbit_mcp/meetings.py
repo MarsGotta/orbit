@@ -1,4 +1,4 @@
-"""What Deimos reads about Mars's meetings: the listing, a note and a transcript.
+"""What Deimos reads about the user's meetings: the listing, a note and a transcript.
 
 Everything here turns a hub answer into text for Deimos, from numbers and
 fixed words; no meeting content is logged or invented.
@@ -255,7 +255,8 @@ def render_transcript(payload: dict, after_index: int) -> str:
     if payload.get("speaker_names") == "tracks":
         lines.append(
             "Hablantes sin nombre: el Mac aún no le ha dicho al hub quién es su dueño. "
-            "«Micrófono local» es el micrófono del Mac de Mars; «Persona 1», «Persona 2»… "
+            "«Micrófono local» es el micrófono del Mac de quien usa Orbit; «Persona 1», "
+            "«Persona 2»… "
             "son voces separadas sin nombre; «Otra persona», audio aún sin voz identificada."
         )
     final = payload.get("final_pass")
@@ -318,10 +319,13 @@ def _note_text(payload: dict) -> str:
             if flag
         ]
         if changed:
-            lines.append(f"Mars editó {' y '.join(changed)}; lo que sigue es su versión.")
+            lines.append(
+                f"Quien usa Orbit editó {' y '.join(changed)}; lo que sigue es su versión."
+            )
         if payload.get("superseded_edits"):
             lines.append(
-                "Al reescribir la nota quedaron apartadas ediciones anteriores de Mars; "
+                "Al reescribir la nota quedaron apartadas ediciones anteriores de quien usa "
+                "Orbit; "
                 "la app se las muestra."
             )
         lines.append(f"Resumen corto: {short}")

@@ -1,4 +1,4 @@
-"""SIM-94: synthetic meetings only; real routes/store/readers, fake providers."""
+"""Synthetic meetings only; real routes/store/readers, fake providers."""
 
 import json
 from uuid import uuid4
@@ -256,8 +256,8 @@ def test_bounds_ownership_encryption_and_no_terms_in_logs(environment, caplog):
     recording = meeting(store, owner["device_id"], texts=TEXTS)
     headers = {"Authorization": "Bearer " + owner["token"]}
     with client(environment) as http:
-        dictionary = create(http, headers, "Nombre privado SIM94")
-        correct(http, headers, recording, dictionary, "forma privada", "Término privado SIM94")
+        dictionary = create(http, headers, "Nombre privado QZX94")
+        correct(http, headers, recording, dictionary, "forma privada", "Término privado QZX94")
         from orbit_hub.meetings.dictionaries import MAX_TERM_CHARS, MAX_TERMS
 
         response = http.post(
@@ -291,7 +291,7 @@ def test_bounds_ownership_encryption_and_no_terms_in_logs(environment, caplog):
         assert response.json()["refusal"]["terms"] == MAX_TERMS
         assert response.json()["refusal"]["max_terms"] == MAX_TERMS
         # Another wrong spelling is still accepted when the term list is full.
-        correct(http, headers, recording, dictionary, "otra forma", "Término privado SIM94")
+        correct(http, headers, recording, dictionary, "otra forma", "Término privado QZX94")
         foreign = {"Authorization": "Bearer " + stranger["token"]}
         assert http.get("/v1/meeting-dictionaries", headers=foreign).json()["dictionaries"] == []
         response = http.post(
@@ -302,9 +302,9 @@ def test_bounds_ownership_encryption_and_no_terms_in_logs(environment, caplog):
         assert response.status_code == 200  # Same id belongs to a different device.
         with store.read_snapshot() as db:
             blobs = [bytes(r[0]) for r in db.execute("SELECT body FROM meeting_dictionaries")]
-        assert all(b"SIM94" not in blob and b"wrong" not in blob for blob in blobs)
-    assert "Término privado SIM94" not in caplog.text
-    assert "Nombre privado SIM94" not in caplog.text
+        assert all(b"QZX94" not in blob and b"wrong" not in blob for blob in blobs)
+    assert "Término privado QZX94" not in caplog.text
+    assert "Nombre privado QZX94" not in caplog.text
 
 
 async def test_draft_and_every_final_window_send_the_recent_terms_and_retranscription_keeps_them(
@@ -433,7 +433,7 @@ async def test_draft_and_every_final_window_send_the_recent_terms_and_retranscri
             assert (
                 db.execute("SELECT state FROM recording_final_passes").fetchone()[0] == "completed"
             )
-    assert len(requests) == 4  # Two tracks, twice, through the SIM-93 path.
+    assert len(requests) == 4  # Two tracks, twice, through the final pass.
     assert all(r["prompt"].decode() == expected for r in requests)
     assert all(r["timestamp_granularities[]"] == b"word" for r in requests)
 

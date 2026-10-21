@@ -11,7 +11,7 @@ from ..log import report, stop_if_asked, supervised
 from ..meeting_final_pass import note_ready, status
 from ..meetings import repository as meetings
 from ..meetings import turns
-from ..processing import ProcessingClient, ProcessingConfiguration, ProcessingError
+from ..processing import ProcessingClient, ProcessingError
 from ..protocol import HubError
 from .custom_templates import TemplateRepository
 from .generation import (
@@ -58,7 +58,6 @@ class NotesWorker:
     def __init__(
         self,
         repository: NoteRepository,
-        configuration: ProcessingConfiguration | None,
         now: Callable[[], float],
         *,
         signal: asyncio.Event,
@@ -67,7 +66,7 @@ class NotesWorker:
         default_language: str | None = None,
         recording_changed=None,
     ):
-        self.repository, self.configuration, self.now = repository, configuration, now
+        self.repository, self.now = repository, now
         self.signal, self.executor = signal, store_executor
         self.client = client
         # `[meeting_transcription] language`: what a group transcribed before
@@ -135,7 +134,7 @@ class NotesWorker:
 
     def material(self, device: str, recording: str):
         """The transcript as every reader sees it, its readiness, the private
-        notes and Mars's name for the meeting (None when she gave none)."""
+        notes and the user's name for the meeting (None when they gave none)."""
         store = self.repository.store
         with store.read_snapshot() as db:
             ready = note_ready(store, db, device, recording)

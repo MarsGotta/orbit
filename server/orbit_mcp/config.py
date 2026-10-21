@@ -25,20 +25,20 @@ class ConfigError(ValueError):
 def _field_errors(values: dict, required: set[str], allowed: set[str], prefix: str) -> list[str]:
     errors = []
     for names, cause in (
-        (required - values.keys(), "ausentes"),
-        (values.keys() - allowed, "desconocidos"),
+        (required - values.keys(), "missing"),
+        (values.keys() - allowed, "unknown"),
     ):
         if names:
             fields = ", ".join(prefix + name for name in sorted(names))
-            errors.append(f"campos {cause} ({len(names)}): {fields}")
+            errors.append(f"{cause} fields ({len(names)}): {fields}")
     return errors
 
 
 class _KeyFailure(Exception):
     def __init__(self, _status: int, _code: str):
         super().__init__(
-            "La clave no es válida: debe ser un archivo regular propio, sin enlace simbólico, "
-            "con permisos 0600 y una longitud de 32 bytes"
+            "The key is not valid: it must be a regular file owned by this user, not a "
+            "symbolic link, with mode 0600 and a length of 32 bytes"
         )
 
 
@@ -71,9 +71,7 @@ class Config:
                 values = tomllib.load(handle)
             source_mtime_ns = source_path.stat().st_mtime_ns
         except (OSError, tomllib.TOMLDecodeError):
-            raise ConfigError(
-                "No se pudo leer una configuración TOML válida para Orbit MCP"
-            ) from None
+            raise ConfigError("Could not read a valid TOML configuration for Orbit MCP") from None
         try:
             return replace(
                 cls._validated(values),
@@ -83,7 +81,7 @@ class Config:
         except ConfigError:
             raise
         except (KeyError, TypeError, ValueError):
-            raise ConfigError("La configuración de Orbit MCP tiene campos no válidos") from None
+            raise ConfigError("The Orbit MCP configuration has invalid fields") from None
 
     def reload_if_changed(self) -> Config:
         if self.source_path is None:
@@ -91,7 +89,7 @@ class Config:
         try:
             current_mtime_ns = self.source_path.stat().st_mtime_ns
         except OSError:
-            raise ConfigError("No se pudo releer la configuración de Orbit MCP") from None
+            raise ConfigError("Could not read the Orbit MCP configuration again") from None
         if current_mtime_ns == self.source_mtime_ns:
             return self
         return type(self).load(self.source_path)
@@ -109,14 +107,14 @@ class Config:
                     )
                 )
         if errors:
-            raise ConfigError("La configuración de Orbit MCP tiene " + "; ".join(errors))
+            raise ConfigError("The Orbit MCP configuration has " + "; ".join(errors))
         hub_url = cls._hub_url(values["hub_url"])
         bridge = cls._credentials(values["device_bridge"])
         meetings = cls._credentials(values["meetings"]) if "meetings" in values else None
         devices = cls._devices(values["devices"])
         default_device = values["default_device"]
         if not cls._valid_device_name(default_device):
-            raise ConfigError("default_device debe nombrar un dispositivo válido")
+            raise ConfigError("default_device must name a valid device")
         return cls(
             hub_url=hub_url,
             device_bridge=bridge,
@@ -128,25 +126,25 @@ class Config:
     @staticmethod
     def _hub_url(value: object) -> str:
         if not isinstance(value, str) or len(value) > 2048:
-            raise ConfigError("hub_url no es válido")
+            raise ConfigError("hub_url is not valid")
         try:
             protected_url(value, allow_insecure_localhost=True)
         except ValueError:
             raise ConfigError(
-                "hub_url requiere HTTPS salvo en loopback, sin credenciales ni consulta"
+                "hub_url requires HTTPS except on loopback, without credentials or query"
             ) from None
         return value.rstrip("/")
 
     @staticmethod
     def _credentials(value: object) -> Credentials:
         if not isinstance(value, dict):
-            raise ConfigError("La configuración de credenciales está incompleta")
+            raise ConfigError("The credentials configuration is incomplete")
         key_id = value["key_id"]
         key_file = value["key_file"]
         if not isinstance(key_id, str) or KEY_ID.fullmatch(key_id) is None:
-            raise ConfigError("key_id no es válido")
+            raise ConfigError("key_id is not valid")
         if not isinstance(key_file, str) or not key_file or "\x00" in key_file:
-            raise ConfigError("key_file no es válido")
+            raise ConfigError("key_file is not valid")
         try:
             key = read_key(Path(key_file).expanduser(), _KeyFailure)
         except _KeyFailure as exc:
@@ -156,7 +154,7 @@ class Config:
     @staticmethod
     def _devices(value: object) -> dict[str, str]:
         if not isinstance(value, dict) or len(value) > 128:
-            raise ConfigError("[devices] no es una tabla de dispositivos válida")
+            raise ConfigError("[devices] is not a valid table of devices")
         devices: dict[str, str] = {}
         for name, device_id in value.items():
             if (
@@ -164,7 +162,7 @@ class Config:
                 or not isinstance(device_id, str)
                 or not 1 <= len(device_id) <= 128
             ):
-                raise ConfigError("[devices] contiene un nombre o identificador no válido")
+                raise ConfigError("[devices] contains an invalid name or identifier")
             devices[name] = device_id
         return devices
 

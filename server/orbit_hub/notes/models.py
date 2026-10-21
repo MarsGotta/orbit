@@ -1,4 +1,4 @@
-"""The note of a recording: what the Mac sends, what the model writes, what Mars edits."""
+"""The note of a recording: what the Mac sends, what the model writes, what the user edits."""
 
 import hashlib
 from typing import Annotated, Literal
@@ -9,17 +9,17 @@ from ..meetings.bounds import MAX_PERSON_NAME_CHARS
 from .series_key import valid_series_key
 from .templates import MAX_NAME_CHARS, MAX_SECTIONS
 
-# Private notes are typed by Mars during a meeting. 65 536 characters is about
+# Private notes are typed by the user during a meeting. 65 536 characters is about
 # ten thousand words, far beyond what anyone types live; the bound keeps one
 # request (`PUT …/private-notes`) and the prompt built from it small.
 MAX_PRIVATE_NOTES_CHARS = 64 * 1024
 # Attendees and voices name people in the prompt. Calendars cap invitations
 # far above this, but a meeting with more than 200 invitees or 64 distinct
-# voices is a broadcast, and its note would not name them all anyway. Since
-# SIM-40 the voices' names are one request of their own (`PUT …/speakers`).
+# voices is a broadcast, and its note would not name them all anyway. The
+# voices' names are one request of their own (`PUT …/speakers`).
 MAX_ATTENDEES = 200
 MAX_SPEAKERS = 64
-# The calendar event of a recording (P9-11): its title is context for the
+# The calendar event of a recording: its title is context for the
 # prompt, and an address longer than RFC 5321's 254 characters is not one.
 # The Mac keeps within both (`recording_notes::event_context`).
 MAX_EVENT_TITLE_CHARS = 512
@@ -33,16 +33,6 @@ MAX_LIST_ITEMS = 40
 MAX_ITEM_CHARS = 1000
 MAX_TITLE_CHARS = 200
 
-NoteState = Literal[
-    "not_configured",
-    "waiting_transcript",
-    "queued",
-    "generating",
-    "ready",
-    "failed",
-]
-
-
 TEMPLATE_ID_PATTERN = r"^[a-z0-9][a-z0-9_-]*$"
 MAX_TEMPLATE_ID_CHARS = 64
 
@@ -51,7 +41,7 @@ TemplateId = Annotated[
     str, Field(min_length=1, max_length=MAX_TEMPLATE_ID_CHARS, pattern=TEMPLATE_ID_PATTERN)
 ]
 # How the template of a note was chosen: named in the request, assigned to the
-# event's series (P9-05), or the default because neither applied.
+# event's series, or the default because neither applied.
 TemplateSource = Literal["requested", "series", "default"]
 
 
@@ -70,7 +60,7 @@ class EventContext(Strict):
     starts_at_ms: int | None = Field(default=None, ge=0)
     ends_at_ms: int | None = Field(default=None, ge=0)
     attendees: tuple[Attendee, ...] = Field(default=(), max_length=MAX_ATTENDEES)
-    # P9-05: the calendar's stable identifier of the event, shared by every
+    # The calendar's stable identifier of the event, shared by every
     # occurrence of a recurring one. It picks the series' template when the
     # request names none. A Mac that does not send it gets the default.
     calendar_item_id: SeriesKey | None = None
@@ -88,12 +78,12 @@ class NoteInputs(BaseModel):
 
     model_config = ConfigDict(extra="ignore", frozen=True, hide_input_in_errors=True)
     # None lets the hub choose: the template assigned to the event's series,
-    # else General. A template Mars picked by hand is always named here.
+    # else General. A template the user picked by hand is always named here.
     dictionary_terms: tuple[str, ...] = ()
     template_id: TemplateId | None = None
     title: str = Field(default="", max_length=512)
     event: EventContext | None = None
-    # The local microphone is Mars; this is how the note names her.
+    # The local microphone is the user's; this is how the note names them.
     owner_name: str = Field(default="Yo", min_length=1, max_length=MAX_PERSON_NAME_CHARS)
     private_notes: str = Field(default="", max_length=MAX_PRIVATE_NOTES_CHARS)
     language: str = Field(default="es", pattern=r"^[a-z]{2}(-[A-Z]{2})?$")
@@ -127,7 +117,8 @@ class GeneratedNote(Strict):
     open_topics: tuple[str, ...] = Field(max_length=MAX_LIST_ITEMS)
     template_id: str
     template_name: str
-    # Absent in notes written before P9-05, which always named their template.
+    # Absent in notes written before templates could be assigned to a series;
+    # those always named their template.
     template_source: TemplateSource | None = None
     model: str = Field(max_length=128)
     generated_at_ms: int = Field(ge=0)
@@ -138,7 +129,7 @@ class GeneratedNote(Strict):
 
 
 class NoteEdits(Strict):
-    """Mars's own changes, kept apart from what the model wrote."""
+    """The user's own changes, kept apart from what the model wrote."""
 
     title: str | None = Field(default=None, max_length=MAX_TITLE_CHARS)
     sections: tuple[Section, ...] | None = Field(default=None, max_length=MAX_SECTIONS)
@@ -155,9 +146,9 @@ class EditRequest(Strict):
 class GenerateRequest(Strict):
     """`POST …/note`: write the note again, or for the first time.
 
-    The hub asks for a meeting's note itself when it is finalized (SIM-40);
+    The hub asks for a meeting's note itself when it is finalized;
     this is for another template, "write it again", or a recording older than
-    notes. Mars's edits are kept aside, never lost: the document returns them
+    notes. The user's edits are kept aside, never lost: the document returns them
     as `superseded_edits`. None lets the hub choose the series' template, else
     General.
     """

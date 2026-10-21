@@ -1,4 +1,4 @@
-"""A note written by a fake model, for tests that read notes (P9-07).
+"""A note written by a fake model, for tests that read notes.
 
 `FakeModel` answers like the processing client with a fixed, valid note; the
 note worker that uses it is the real one, against the real store. No provider
@@ -56,9 +56,7 @@ class FakeModel:
     def last(self, purpose: str) -> dict:
         return [call for call in self.calls if call["purpose"] == purpose][-1]
 
-    async def complete_json(
-        self, *, purpose, messages, schema_name, schema, max_completion_tokens=None
-    ):
+    async def complete_json(self, *, purpose, messages, schema_name, schema):
         self.calls.append(
             {"purpose": purpose, "messages": messages, "schema_name": schema_name, "schema": schema}
         )
@@ -89,7 +87,7 @@ async def write_note(
 ) -> NotesWorker:
     """Ask for the note and run the real worker once on it, as the hub would.
 
-    What Alina adds is the hub's own data since SIM-40: the device's owner, the
+    What the user adds is the hub's own data: the device's owner, the
     recording's private notes and the names of its voices.
     """
     if owner_name is not None:
@@ -103,7 +101,6 @@ async def write_note(
     model.script("note", *answers)
     worker = NotesWorker(
         NoteRepository(store),
-        model.configuration,
         lambda: now,
         signal=asyncio.Event(),
         store_executor=executor,

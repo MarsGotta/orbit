@@ -53,9 +53,9 @@ def _symlinked_key(directory, name):
         ("symlink", _symlinked_key, ("enlace", "symlink", "symbolic")),
     ],
 )
-async def test_a8_the_process_refuses_to_start_on_an_unusable_key(tmp_path, defect, build, markers):
-    # The bridge key is the one the translator opens. REF-10 retired the
-    # calendar key: its section is ignored, so a defect there stops nothing.
+async def test_the_process_refuses_to_start_on_an_unusable_key(tmp_path, defect, build, markers):
+    # The bridge key is the one the translator opens. The calendar key is
+    # retired: its section is ignored, so a defect there stops nothing.
     bridge_key = build(tmp_path, "defective-bridge.key")
     config_path = write_mcp_config(
         tmp_path,
@@ -76,10 +76,10 @@ async def test_a8_the_process_refuses_to_start_on_an_unusable_key(tmp_path, defe
     except TimeoutError:
         process.kill()
         await process.wait()
-        pytest.fail(f"orbit-mcp siguió en marcha con una clave defectuosa ({defect})")
+        pytest.fail(f"orbit-mcp kept running with a defective key ({defect})")
     message = stderr.decode("utf-8", "replace")
     assert process.returncode != 0
-    assert message.strip(), "el problema debe decirse en stderr"
+    assert message.startswith("Orbit MCP cannot start: "), message
     assert any(marker in message.lower() for marker in markers), message
     # Neither the whole path nor the key content is printed.
     assert str(bridge_key) not in message

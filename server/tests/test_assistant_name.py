@@ -33,25 +33,27 @@ def test_name_comes_from_toml_or_environment_and_defaults_to_deimos(tmp_path, mo
     monkeypatch.setenv("ORBIT_HUB_ASSISTANT_NAME", "Átlas Azul")
     assert Settings.load(path).assistant_name == "Átlas Azul"
     monkeypatch.setenv("ORBIT_HUB_ASSISTANT_NAME", "")
-    with pytest.raises(ValueError, match="assistant_name.*vacío.*0.*48"):
+    with pytest.raises(ValueError, match="assistant_name is empty: 0 characters; maximum 48"):
         Settings.load(path)
 
 
 @pytest.mark.parametrize(
     "name,cause,count",
     [
-        ("", "vacío", 0),
-        ("  ", "vacío", 2),
-        ("A" * 49, "largo", 49),
-        ("At\nlas", "control", 6),
-        ("At\x7flas", "control", 6),
+        ("", "is empty", 0),
+        ("  ", "is empty", 2),
+        ("A" * 49, "is too long", 49),
+        ("At\nlas", "contains control characters", 6),
+        ("At\x7flas", "contains control characters", 6),
     ],
 )
 def test_invalid_name_refuses_startup_with_cause_count_and_ceiling(tmp_path, name, cause, count):
     import json
 
     path = config_file(tmp_path, f"assistant_name = {json.dumps(name)}\n")
-    with pytest.raises(ValueError, match=rf"assistant_name.*{cause}.*{count}.*48"):
+    with pytest.raises(
+        ValueError, match=rf"assistant_name {cause}: {count} characters; maximum 48"
+    ):
         Settings.load(path)
 
 

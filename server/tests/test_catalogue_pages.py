@@ -1,11 +1,11 @@
 from support_orbit_mcp import serving
 
-"""DEI-14: the engine catalogue reaches Deimos in pages, and silence is over.
+"""The engine catalogue reaches Deimos in pages, and silence is over.
 
 Every earlier test of this path declared a toy catalogue of a few hundred
 bytes, which is exactly what let the real size reach the Mac twice. The
 catalogue here is of the order the real engine publishes — 147 909 bytes,
-measured on Alina's Mac on 2026-09-23 — and it crosses the same private route,
+measured on a real Mac on 2026-09-23 — and it crosses the same private route,
 the same signed envelope and the same translator the Mac's answer crosses.
 """
 
@@ -71,14 +71,14 @@ def catalogue_of(target: int) -> list[dict]:
     return tools
 
 
-async def test_a1_a_real_sized_catalogue_reaches_deimos_entire_in_pages(tmp_path):
+async def test_a_real_sized_catalogue_reaches_deimos_entire_in_pages(tmp_path):
     catalogue = catalogue_of(150 * 1024)
     catalogue_bytes = encoded(catalogue)
     assert REAL_CATALOGUE_BYTES <= catalogue_bytes <= REAL_CATALOGUE_BYTES * 2, (
-        f"la prueba usa un catálogo del orden del real, no uno de juguete: {catalogue_bytes} bytes"
+        f"the test uses a catalogue of the real size, not a toy one: {catalogue_bytes} bytes"
     )
     assert catalogue_bytes > MAX_HUB_FRAME_BYTES, (
-        "el catálogo entero no cabe en una trama: por eso se pide por partes"
+        "the whole catalogue does not fit one frame: that is why it is asked in pages"
     )
 
     # The translator consumes pages; the real Mac paginator is exercised in
@@ -93,7 +93,7 @@ async def test_a1_a_real_sized_catalogue_reaches_deimos_entire_in_pages(tmp_path
         },
         {"tools": catalogue[split:], "after_index": split, "total": len(catalogue)},
     ]
-    assert len(pages) == 2, "el catálogo real cuesta dos vueltas, no una docena"
+    assert len(pages) == 2, "the real catalogue takes two round trips, not a dozen"
     for page in pages:
         # What the Mac has to put on the link for this page, envelope included.
         frame = {
@@ -103,7 +103,7 @@ async def test_a1_a_real_sized_catalogue_reaches_deimos_entire_in_pages(tmp_path
             "params": {"request_id": "x" * 36, "result": page},
         }
         assert encoded(frame) <= MAX_HUB_FRAME_BYTES, (
-            f"una página tiene que caber en la trama del hub: {encoded(frame)} bytes"
+            f"a page has to fit the hub's frame: {encoded(frame)} bytes"
         )
 
     hub = FakeHub(device_replies=[answered(page) for page in pages])
@@ -127,16 +127,16 @@ async def test_a1_a_real_sized_catalogue_reaches_deimos_entire_in_pages(tmp_path
     ]
     assert all(request["device_id"] == DEVICES[DEFAULT_DEVICE] for request in hub.device_requests)
 
-    # R1: the whole catalogue arrived, in order, with the schemas Deimos needs
+    # The whole catalogue arrived, in order, with the schemas Deimos needs
     # to name a tool and give it arguments.
     assembled = json.loads(text_of(listed))
     assert assembled == catalogue
-    assert assembled[-1]["name"] == catalogue[-1]["name"], "la última página también llega"
-    assert assembled[-1]["input_schema"]["properties"], "los esquemas llegan intactos"
+    assert assembled[-1]["name"] == catalogue[-1]["name"], "the last page arrives too"
+    assert assembled[-1]["input_schema"]["properties"], "the schemas arrive intact"
 
 
 async def test_catalogue_without_required_counters_names_the_missing_field(tmp_path):
-    """The hub model already required counters before SIM-73; MCP now owns it."""
+    """The hub model used to require the counters; MCP now owns that check."""
     catalogue = catalogue_of(2 * 1024)
     hub = FakeHub(device_replies=[answered({"tools": catalogue})])
     async with serving(tmp_path, hub) as (_client, server):
@@ -148,8 +148,8 @@ async def test_catalogue_without_required_counters_names_the_missing_field(tmp_p
     assert len(hub.device_requests) == 1
 
 
-async def test_a2_a_refused_frame_reaches_the_caller_with_its_cause(tmp_path):
-    """R3: the link refusing a reply is an answer, not a wait that times out."""
+async def test_a_refused_frame_reaches_the_caller_with_its_cause(tmp_path):
+    """The link refusing a reply is an answer, not a wait that times out."""
     hub = FakeHub(
         device_replies=[
             device_refused(
@@ -188,7 +188,7 @@ async def test_a2_a_refused_frame_reaches_the_caller_with_its_cause(tmp_path):
         {"tools": [], "after_index": 1, "total": 2},
     ],
 )
-async def test_a2_a_walk_that_cannot_be_trusted_is_refused_rather_than_assembled(tmp_path, second):
+async def test_a_walk_that_cannot_be_trusted_is_refused_rather_than_assembled(tmp_path, second):
     first = {
         "tools": [realistic_tool(0)],
         "after_index": 0,
@@ -207,7 +207,7 @@ async def test_a2_a_walk_that_cannot_be_trusted_is_refused_rather_than_assembled
     assert "invalid_response" in text_of(result)
 
 
-async def test_a2_a_catalogue_that_changes_mid_walk_is_named_not_mixed(tmp_path):
+async def test_a_catalogue_that_changes_mid_walk_is_named_not_mixed(tmp_path):
     first = {
         "tools": [realistic_tool(0)],
         "after_index": 0,

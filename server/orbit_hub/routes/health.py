@@ -1,18 +1,18 @@
 """`GET /health/deps`: whether the services the hub is configured to use answer.
 
-For a monitor outside the machine (Uptime Kuma on the test server runs in a Docker
-bridge and cannot reach the hub's loopback services). It is anonymous, so it
+For a monitor that cannot reach the hub's loopback services itself, such as
+one running in a container network or on another machine. It is anonymous, so it
 says nothing but fixed names: never a URL, a host, an error text or anything a
 dependency answered. Why one failed goes to the hub's own log.
 
 Probed, in parallel, each the cheapest real way:
 - ``whisper``: the meeting STT (``[meeting_transcription]``), ``GET /health``,
   which must answer 2xx. The configured service must expose that route.
-- ``hermes``: the Hermes serve the chat uses (``hermes_url``). Its source was
-  not available to this change, so no health route of it is known: any HTTP
-  answer below 500 to ``GET /`` counts, which proves the server is up and
-  answering HTTP, not that a turn would succeed. Voice STT and TTS go through
-  the same Hermes, so they are not a separate dependency.
+- ``hermes``: the Hermes serve the chat uses (``hermes_url``). No health route
+  of Hermes is relied on: any HTTP answer below 500 to ``GET /`` counts, which
+  proves the server is up and answering HTTP, not that a turn would succeed.
+  Voice STT and TTS go through the same Hermes, so they are not a separate
+  dependency.
 - ``processing``: the notes model (``[processing]``), only when configured;
   any HTTP answer below 500 to ``GET`` on its endpoint. A 5xx is what a proxy
   in front of a stopped model answers. No credential is sent.
@@ -31,8 +31,8 @@ from ..log import logger
 # Total bound of one probe, connection included. The dependencies answer a
 # health request in milliseconds when they are up (unmeasured here: the live
 # services are out of reach of development); three seconds ride out a pause
-# without making the monitor wait long, and are far below Uptime Kuma's own
-# request timeout (48 s by default). It is not a measure of transcription or
+# without making the monitor wait long, and are far below a typical monitor's
+# own request timeout (Uptime Kuma's is 48 s by default). It is not a measure of transcription or
 # turn latency.
 PROBE_TIMEOUT_SECONDS = 3.0
 # How long one round of probes answers every caller. The route is anonymous,

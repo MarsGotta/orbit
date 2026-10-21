@@ -1,4 +1,4 @@
-"""P0-08: a final-message persistence failure never drops the Hermes connection."""
+"""A final-message persistence failure never drops the Hermes connection."""
 
 from uuid import uuid4
 
@@ -14,7 +14,7 @@ from orbit_hub.protocol import HubError, SendParams
 from orbit_hub.runtime import DeviceRuntime
 
 
-async def test_a1_quota_failure_completes_turn_without_upstream_loss(isolated):
+async def test_quota_failure_completes_turn_without_upstream_loss(isolated):
     runtime, session, turn, upstream = await streaming_turn(isolated)
     queue = runtime.subscribe()
     assert queue.get_nowait()["event"] == "state.snapshot"
@@ -44,7 +44,7 @@ async def test_a1_quota_failure_completes_turn_without_upstream_loss(isolated):
     await runtime.close()
 
 
-async def test_a2_healthy_persistence_reports_persisted_true(environment):
+async def test_healthy_persistence_reports_persisted_true(environment):
     _, store, adapter = environment
     owner = device(store)["device_id"]
     runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
@@ -63,7 +63,7 @@ async def test_a2_healthy_persistence_reports_persisted_true(environment):
 
 
 @pytest.mark.parametrize("payload", [["not", "an", "object"], "plain-text-payload"])
-async def test_a3_non_object_payload_warns_and_keeps_connection(isolated, payload):
+async def test_non_object_payload_warns_and_keeps_connection(isolated, payload):
     runtime, session, _, upstream = await streaming_turn(isolated)
     queue = runtime.subscribe()
     assert queue.get_nowait()["event"] == "state.snapshot"

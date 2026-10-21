@@ -75,7 +75,7 @@ def template_id_of(value: str) -> str:
 
 
 def template_routes(app, worker, identity, bounded_body, run):
-    """P9-05: Mars's own templates and their assignment to a series."""
+    """The user's own templates and their assignment to a series."""
     templates = worker.templates
 
     async def body_of(request: Request, model):

@@ -43,7 +43,6 @@ def notes(environment):
     clock = {"now": NOW}
     worker = NotesWorker(
         NoteRepository(store),
-        model.configuration,
         lambda: clock["now"],
         signal=asyncio.Event(),
         store_executor=executor,
@@ -63,7 +62,7 @@ async def step(worker, clock):
 
 
 def request(worker, owner, recording_id, *, owner_name=None, template_id=None):
-    """Ask for the note as the hub does; the owner's name is the device's profile (SIM-40)."""
+    """Ask for the note as the hub does; the owner's name is the device's profile."""
     if owner_name is not None:
         meetings.set_owner_name(worker.repository.store, owner, owner_name, NOW)
     return worker.repository.request(

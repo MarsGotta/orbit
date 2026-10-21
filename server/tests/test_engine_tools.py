@@ -1,6 +1,6 @@
 from support_orbit_mcp import serving
 
-"""DEI-12 A3/A4: the catalogue is the engine's, and no engine is said out loud."""
+"""The catalogue is the engine's, and no engine is said out loud."""
 
 import pytest
 from support_orbit_mcp import (
@@ -32,7 +32,7 @@ TOOLS = {
 }
 
 
-async def test_a4_the_catalogue_is_read_from_the_engine_not_from_a_list_in_orbit(tmp_path):
+async def test_the_catalogue_is_read_from_the_engine_not_from_a_list_in_orbit(tmp_path):
     hub = FakeHub(
         device_replies=[answered(TOOLS), answered({"tools": [], "after_index": 0, "total": 0})]
     )
@@ -56,7 +56,7 @@ async def test_a4_the_catalogue_is_read_from_the_engine_not_from_a_list_in_orbit
     assert all(request["device_id"] == DEVICES[DEFAULT_DEVICE] for request in hub.device_requests)
 
 
-async def test_a4_perform_action_forwards_a_tool_orbit_does_not_know(tmp_path):
+async def test_perform_action_forwards_a_tool_orbit_does_not_know(tmp_path):
     receipt = {
         "receipt": {
             "tool": "a_tool_invented_by_a_newer_engine",
@@ -101,7 +101,7 @@ async def test_a4_perform_action_forwards_a_tool_orbit_does_not_know(tmp_path):
         {"tool": "type_text", "arguments": {"text": "x" * 20_000}},
     ],
 )
-async def test_a4_a_malformed_action_is_refused_by_shape_before_any_connection(tmp_path, action):
+async def test_a_malformed_action_is_refused_by_shape_before_any_connection(tmp_path, action):
     hub = FakeHub()
     context = serving(tmp_path, hub)
     _client, server = await context.__aenter__()
@@ -118,7 +118,7 @@ async def test_a4_a_malformed_action_is_refused_by_shape_before_any_connection(t
     assert hub.device_requests == []
 
 
-async def test_a3_without_an_engine_the_answer_names_the_cause(tmp_path):
+async def test_without_an_engine_the_answer_names_the_cause(tmp_path):
     hub = FakeHub(device_replies=[hub_rejected(409, "engine_unavailable")])
     context = serving(tmp_path, hub)
     _client, server = await context.__aenter__()
@@ -141,6 +141,6 @@ async def test_a3_without_an_engine_the_answer_names_the_cause(tmp_path):
     assert "motor" in text_of(result).lower()
 
 
-# REF-11 (b): «there is no helper» and «the helper has not said yet» are two
+# «There is no helper» and «the helper has not said yet» are two
 # causes with two codes. Only the second invites asking again in a moment; the
 # first will not answer by itself however often Deimos retries.

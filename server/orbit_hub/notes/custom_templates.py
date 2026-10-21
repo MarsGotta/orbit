@@ -1,4 +1,4 @@
-"""Mars's own note templates and the series each one is assigned to (P9-05).
+"""The user's own note templates and the series each one is assigned to.
 
 Per paired device. A custom template is encrypted at rest and has the same
 bounds as the built-in ones (`templates.py`). The built-ins are never changed:
@@ -30,9 +30,9 @@ from .templates import (
     builtin,
 )
 
-# Custom templates per device. What it protects: the Settings list Mars
+# Custom templates per device. What it protects: the Settings list the user
 # scrolls and the listing the daemon reads on every connection. Why this size:
-# six built-ins plus 32 of her own is more kinds of meeting than anyone keeps a
+# six built-ins plus 32 of their own is more kinds of meeting than anyone keeps a
 # template for. What it is not: a bound on one template, which has its own.
 MAX_CUSTOM_TEMPLATES = 32
 # Bytes of the whole `GET /v1/note-templates` answer. What it protects: the
@@ -71,7 +71,7 @@ class TemplateDraft(Strict):
     name: str = Field(min_length=1, max_length=MAX_NAME_CHARS)
     context: str = Field(default="", max_length=MAX_CONTEXT_CHARS)
     sections: tuple[TemplateSection, ...] = Field(min_length=1, max_length=MAX_SECTIONS)
-    # The template this one was copied from, when Mars edited it; kept from
+    # The template this one was copied from, when the user edited it; kept from
     # the first save, so replacing a copy never rewrites its origin.
     forked_from: TemplateId | None = None
 
@@ -124,11 +124,6 @@ class TemplateRepository:
     def __init__(self, store):
         self.store = store
 
-    def initialize(self) -> None:
-        with self.store.transaction() as db:
-            for statement in filter(None, (s.strip() for s in SCHEMA.split(";"))):
-                db.execute(statement)
-
     def _seal(self, device: str, template_id: str, value: dict) -> bytes:
         return self.store.encrypt(_encoded(value), f"note-template:{device}:{template_id}")
 
@@ -151,20 +146,10 @@ class TemplateRepository:
         return None if row is None else self._open(device, row)
 
     def listing(self, device: str) -> dict:
-        """Built-ins first, in their fixed order, then Mars's own in creation order."""
+        """Built-ins first, in their fixed order, then the user's own in creation order."""
         with self.store.read_snapshot() as db:
             customs = self._customs(db, device)
         return {"templates": [builtin_view(t) for t in BUILTIN_TEMPLATES] + customs}
-
-    def get(self, device: str, template_id: str) -> dict:
-        fixed = builtin(template_id)
-        if fixed is not None:
-            return builtin_view(fixed)
-        with self.store.read_snapshot() as db:
-            found = self._custom(db, device, template_id)
-        if found is None:
-            raise not_found(template_id)
-        return found
 
     def put(self, device: str, template_id: str, draft: TemplateDraft, now: float):
         """Create or replace `template_id`; returns the template and whether it is new.

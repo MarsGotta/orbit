@@ -1,10 +1,10 @@
-"""El puente entrega al asistente los bytes que el Mac subió por HTTP.
+"""The bridge hands the assistant the bytes the Mac uploaded over HTTP.
 
-Sin websocket real y sin Mac real: un Mac falso recoge la pregunta del mismo
-sitio del que la leería uno de verdad, sube la captura por la ruta de capturas
-con el emparejado del dispositivo y contesta con su identificador por el mismo
-futuro que resuelve el manejador del websocket. La firma del asistente es la
-misma que usa test_bridge_route: el Authenticator de verdad, sin atajos.
+No real websocket and no real Mac: a fake Mac picks the question up where a
+real one would read it, uploads the capture through the captures route with the
+device's pairing and answers with its identifier through the same future the
+websocket handler resolves. The assistant's signature is the one
+test_bridge_route uses: the real Authenticator, no shortcuts.
 """
 
 import asyncio
@@ -30,7 +30,7 @@ PNG = b"\x89PNG\r\n\x1a\n" + b"captura sintetica del techo" * 32
 
 
 class Clock:
-    """El reloj inyectado del hub, en segundos, movible a mano."""
+    """The hub's injected clock, in seconds, moved by hand."""
 
     def __init__(self, seconds):
         self.seconds = seconds
@@ -87,17 +87,17 @@ async def connect(app, store, adapter, owner, clock):
 
 
 async def next_question(service):
-    """Espera, como haría un Mac conectado, a que la pregunta llegue al puente."""
+    """Wait, as a connected Mac would, for the question to reach the bridge."""
     for _ in range(200):
         pending = list(service.bridge.pending.values())
         if pending:
             return pending[0]
         await asyncio.sleep(0.01)
-    raise AssertionError("la pregunta nunca llegó al Mac")
+    raise AssertionError("the question never reached the Mac")
 
 
 def resolve(service, entry, reply):
-    """Contesta por el mismo camino que el manejador del websocket."""
+    """Answer through the same path as the websocket handler."""
     claimed = service.bridge.resolve(entry.request_id, entry.device)
     waiter = service.waiters.get(entry.request_id)
     if claimed is not None and waiter is not None and not waiter.done():
@@ -105,7 +105,7 @@ def resolve(service, entry, reply):
 
 
 async def upload_capture(http, owner, request_id, capture_id, body=PNG):
-    """El PUT que hace el daemon: bearer del dispositivo, tipo y resumen."""
+    """The PUT the daemon makes: the device's bearer, type and digest."""
     response = await http.put(
         f"/v1/captures/{capture_id}",
         content=body,
@@ -160,7 +160,7 @@ async def test_a_replied_capture_is_delivered_as_exact_bytes_without_the_id(brid
             response = await asking
         assert response.status_code == 200, response.text
         result = response.json()["result"]
-        # El asistente sigue viendo la forma de DEI-01: los bytes, no un puntero.
+        # The assistant still sees the original shape: the bytes, not a pointer.
         assert result["data_base64"] == base64.b64encode(PNG).decode()
         assert "capture_id" not in result
         assert result["application"] == "TextEdit"
@@ -181,7 +181,7 @@ async def test_an_unknown_capture_id_is_refused_by_name(bridged):
 
             async def mac():
                 entry = await next_question(service)
-                # El Mac contesta con un identificador que nadie subió.
+                # The Mac answers with an identifier nobody uploaded.
                 resolve(service, entry, capture_reply(str(uuid4())))
 
             asking = asyncio.create_task(
@@ -223,8 +223,8 @@ async def test_the_capture_is_consumed_on_delivery_and_cannot_answer_twice(bridg
             first = await asking
         assert first.status_code == 200, first.text
 
-        # La captura se borró al entregarse: la misma respuesta, o la misma
-        # captura reenviada para otra pregunta, ya no tiene bytes que llevar.
+        # The capture was deleted when handed over: the same answer, or the same
+        # capture resent for another question, has no bytes left to carry.
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app), base_url="https://localhost"
         ) as client:
@@ -263,7 +263,7 @@ async def test_an_expired_capture_is_refused_like_a_missing_one(bridged):
             )
             entry = await next_question(service)
             await upload_capture(client, owner, entry.request_id, capture_id)
-            # Cinco minutos de TTL: la captura caduca antes de que el Mac conteste.
+            # Five minutes of TTL: the capture expires before the Mac answers.
             clock.advance(301)
             resolve(service, entry, capture_reply(capture_id))
             response = await asking

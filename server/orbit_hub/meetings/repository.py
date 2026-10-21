@@ -1,5 +1,5 @@
-"""What Mars adds to a recording on the hub: her name, her voices' names, her notes,
-the meeting's name and the language it is transcribed in.
+"""What the user adds to a recording on the hub: their name, their voices' names,
+their notes, the meeting's name and the language it is transcribed in.
 
 Encrypted like every other piece of a meeting, scoped by device, and read
 inside the caller's snapshot (`db`). The writes take the store's writer.
@@ -111,7 +111,7 @@ def set_owner_name(store, device: str, name: str, now: float) -> str:
     return name
 
 
-# The names Mars gave the voices of one recording, by speaker key.
+# The names the user gave the voices of one recording, by speaker key.
 
 
 def speaker_changes(store, db, device: str, recording: str) -> dict:
@@ -131,7 +131,7 @@ def speaker_changes(store, db, device: str, recording: str) -> dict:
 
 
 def canonical_speaker_key(changes: dict, key: str) -> str:
-    """Follow Mars's explicit voice merges, stopping at a cycle."""
+    """Follow the user's explicit voice merges, stopping at a cycle."""
     seen = set()
     while key in changes["same_as"] and key not in seen:
         seen.add(key)
@@ -259,7 +259,7 @@ def rename(
         )
 
 
-# Mars's private notes of one recording, with the revision they were saved at.
+# The user's private notes of one recording, with the revision they were saved at.
 
 
 def private_notes(store, db, device: str, recording: str) -> tuple[str, int]:
@@ -306,7 +306,7 @@ def save_private_notes(
     return current + 1
 
 
-# SIM-52: the name Mars gave a meeting. It wins over the manifest's title
+# The name the user gave a meeting. It wins over the manifest's title
 # wherever the meeting is named; the note already written keeps its own.
 
 
@@ -344,7 +344,7 @@ def title(store, db, device: str, recording: str) -> str | None:
 
 
 def set_title(store, device: str, recording: str, value: str, now: float) -> None:
-    """Keep Mars's name for the meeting; an empty one gives it back its own."""
+    """Keep the user's name for the meeting; an empty one gives it back its own."""
     name = meeting_title(value)
     with store.transaction() as db:
         require(db, device, recording)
@@ -364,13 +364,13 @@ def set_title(store, device: str, recording: str, value: str, now: float) -> Non
         )
 
 
-# SIM-52: the language a recording is transcribed in, once Mars chose one.
+# The language a recording is transcribed in, once the user chose one.
 # Until then it is the configured one (`[meeting_transcription] language`).
 # A language code, not content: kept in clear like each group's.
 
 
 def language(db, device: str, recording: str) -> tuple[str, int] | None:
-    """The language Mars chose and how many groups that choice repeated."""
+    """The language the user chose and how many groups that choice repeated."""
     row = db.execute(
         "SELECT language, repeated FROM recording_languages WHERE device_id=? AND recording=?",
         (device, recording),

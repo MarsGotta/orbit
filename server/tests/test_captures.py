@@ -1,9 +1,8 @@
-"""PUT /v1/captures/{id}: los bytes de una captura remota, con techo y caducidad.
+"""PUT /v1/captures/{id}: the bytes of a remote capture, with a ceiling and an expiry.
 
-La captura que el Mac no puede mandar por WebSocket (la trama no cabe) sube
-por HTTP como los fragmentos de audio. Aquí se comprueban los límites de la
-ruta y el almacén en memoria que hay detrás: nada de esto toca un dispositivo
-o una pantalla reales.
+A capture the Mac cannot send over the WebSocket (the frame does not fit) goes
+up over HTTP like the audio chunks. These cases check the route's limits and
+the in-memory store behind it: none of this touches a real device or screen.
 """
 
 import hashlib
@@ -12,7 +11,7 @@ from uuid import uuid4
 from conftest import device
 from support_app import client
 
-# El techo de una captura en PNG: el registro de constantes, copiado en el hub.
+# The ceiling of a PNG capture: the constants registry, copied into the hub.
 from orbit_hub.captures import MAX_CAPTURE_BYTES, MAX_SAVED_CAPTURES_PER_DEVICE
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"captura sintetica" * 64
@@ -76,28 +75,28 @@ def test_each_device_gets_max_pending_captures_and_then_is_told_to_wait(environm
         assert saturated.json()["refusal"]["resource"] == "capture"
         assert saturated.json()["refusal"]["count"] == MAX_SAVED_CAPTURES_PER_DEVICE + 1
         assert saturated.json()["refusal"]["max"] == MAX_SAVED_CAPTURES_PER_DEVICE
-        # El cupo es por dispositivo: la memoria de un Mac no ocupa la de otro.
+        # The quota is per device: one Mac's memory does not take another's.
         neighbour = http.put(**upload(other))
         assert neighbour.status_code == 200, neighbour.text
 
 
 def test_capture_store_hands_each_capture_over_exactly_once():
-    from orbit_hub.captures import CaptureStore  # símbolo fijado por la spec de DEI-03
+    from orbit_hub.captures import CaptureStore
 
     clock = [1_000.0]
     store = CaptureStore(now=lambda: clock[0])
     store.put("dispositivo", "captura-1", "puente-1", PNG)
-    # Se entrega una vez, con los bytes exactos; la entrega la consume.
+    # It is handed over once, with the exact bytes; handing it over consumes it.
     assert store.take("dispositivo", "captura-1", "puente-1") == PNG
     assert store.take("dispositivo", "captura-1", "puente-1") is None
-    # Y una captura de otro dispositivo o de otra petición no se entrega cruzada.
+    # And a capture of another device or another request is not handed across.
     store.put("dispositivo", "captura-2", "puente-2", PNG)
     assert store.take("otro", "captura-2", "puente-2") is None
     assert store.take("dispositivo", "captura-2", "puente-otro") is None
 
 
 def test_capture_store_expires_after_five_minutes_with_an_injected_clock():
-    from orbit_hub.captures import CaptureStore  # símbolo fijado por la spec de DEI-03
+    from orbit_hub.captures import CaptureStore
 
     clock = [1_000.0]
     store = CaptureStore(now=lambda: clock[0])

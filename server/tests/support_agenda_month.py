@@ -1,4 +1,4 @@
-"""Synthetic months of agenda, in the proportions REF-20 measured.
+"""Synthetic months of agenda, in the proportions measured on a real agenda.
 
 Names and domains retain the original character lengths, so the pinned size
 checks measure the same distribution with invented data.

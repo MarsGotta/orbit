@@ -1,4 +1,4 @@
-"""REF-04 A7: the conversation list does not break by growing.
+"""The conversation list does not break by growing.
 
 The hub keeps every conversation a Mac ever opened and each hub restart opens
 new ones, so the list only grows. It used to be served whole, and the daemon
@@ -13,8 +13,7 @@ from conftest import device
 from support_app import client
 
 # What the daemon reads (`crates/orbit-daemon/src/hub.rs`): pages of at most
-# 128 entries, each with a non-empty id of at most 121 bytes and its times
-# (SIM-30).
+# 128 entries, each with a non-empty id of at most 121 bytes and its times.
 PUBLISHED_DAEMON_MAX_SESSIONS = 128
 CONVERSATIONS = 500
 FIRST_CREATED = 1_700_000_000.0
@@ -51,7 +50,7 @@ def _session_rows(store, device_id: str) -> int:
     return row["n"]
 
 
-def test_a7_the_most_recent_conversations_come_with_the_total(environment):
+def test_the_most_recent_conversations_come_with_the_total(environment):
     _, store, _ = environment
     paired = device(store)
     opened = _open_conversations(store, paired["device_id"], CONVERSATIONS)
@@ -68,7 +67,7 @@ def test_a7_the_most_recent_conversations_come_with_the_total(environment):
     )
 
 
-def test_ref211_five_hundred_conversations_continue_by_cursor(environment):
+def test_five_hundred_conversations_continue_by_cursor(environment):
     _, store, _ = environment
     paired = device(store)
     opened = _open_conversations(store, paired["device_id"], CONVERSATIONS)
@@ -95,7 +94,7 @@ def test_ref211_five_hundred_conversations_continue_by_cursor(environment):
     assert seen == list(reversed(opened))
 
 
-def test_ref211_cursor_respects_device_and_equal_creation_times(environment):
+def test_cursor_respects_device_and_equal_creation_times(environment):
     _, store, _ = environment
     owner = device(store, "owner")
     other = device(store, "other")
@@ -126,7 +125,7 @@ def test_ref211_cursor_respects_device_and_equal_creation_times(environment):
     assert second["next"] is None
 
 
-def test_a7_the_page_is_one_a_published_daemon_accepts(environment):
+def test_the_page_is_one_a_published_daemon_accepts(environment):
     _, store, _ = environment
     paired = device(store)
     _open_conversations(store, paired["device_id"], CONVERSATIONS)
@@ -145,7 +144,7 @@ def test_a7_the_page_is_one_a_published_daemon_accepts(environment):
         assert session["message_count"] == 0
 
 
-def test_a7_listing_deletes_nothing(environment):
+def test_listing_deletes_nothing(environment):
     _, store, _ = environment
     paired = device(store)
     _open_conversations(store, paired["device_id"], CONVERSATIONS)
@@ -157,7 +156,7 @@ def test_a7_listing_deletes_nothing(environment):
     assert _session_rows(store, paired["device_id"]) == CONVERSATIONS
 
 
-def test_a7_a_short_list_is_whole_and_counts_only_this_mac(environment):
+def test_a_short_list_is_whole_and_counts_only_this_mac(environment):
     _, store, _ = environment
     paired = device(store)
     other = device(store, "otro")

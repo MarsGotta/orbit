@@ -1,10 +1,10 @@
-"""P7-04: moving status ownership into HubError preserves the public HTTP contract."""
+"""Moving status ownership into HubError preserves the public HTTP contract."""
 
 import pytest
 
 from orbit_hub.protocol import HubError
 
-# P9-08, SIM-02 and SIM-41: the codes of retired verticals left with the
+# The codes of retired verticals left with the
 # routes that answered them.
 CASES = {
     401: "unauthorized",
@@ -24,9 +24,8 @@ def test_every_pre_refactor_code_keeps_its_http_status(status, code):
     assert HubError(code, "redacted").http_status == status
 
 
-def test_explicit_http_and_websocket_codes_override_defaults():
-    error = HubError("synthetic", "redacted", http_status=418, ws_code=4444)
-    assert (error.http_status, error.ws_code) == (418, 4444)
+def test_an_explicit_http_status_overrides_the_default():
+    assert HubError("synthetic", "redacted", http_status=418).http_status == 418
 
 
 @pytest.mark.parametrize("code", ["note_queued", "note_generating", "note_waiting_transcript"])

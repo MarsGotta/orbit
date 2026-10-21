@@ -1,6 +1,6 @@
-"""SIM-40: the hub's workers stop when asked, even if a call swallowed the request.
+"""The hub's workers stop when asked, even if a call swallowed the request.
 
-Found while testing SIM-40: the hub, closed while a meeting group's STT answer
+Found while testing the hub's meeting routes: the hub, closed while a meeting group's STT answer
 was arriving, never finished closing (3 of 6 runs of one test). The call
 returned normally under the cancel (`stt ok` with `cancelling() == 2`), and the
 worker then waited on its 5 s tick for ever, each timeout turned into the
@@ -77,7 +77,6 @@ async def test_the_notes_worker_stops_even_if_its_model_call_swallowed_the_cance
     executor = ThreadPoolExecutor(max_workers=1)
     worker = NotesWorker(
         NoteRepository(store),
-        model.configuration,
         lambda: 1_800_000_000.0,
         signal=asyncio.Event(),
         store_executor=executor,

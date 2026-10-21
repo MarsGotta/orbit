@@ -1,4 +1,4 @@
-"""REF-403: a refusal keeps its cause across the Mac, hub and MCP boundary."""
+"""A refusal keeps its cause across the Mac, hub and MCP boundary."""
 
 import asyncio
 import json
@@ -26,7 +26,8 @@ from orbit_hub.protocol import DeviceReplyParams
 from orbit_mcp.calendar import render
 from orbit_mcp.config import Config
 from orbit_mcp.hub import HubClient, HubClientError
-from orbit_mcp.server import _error, _unexpected, build_server
+from orbit_mcp.refusals import error_result, unexpected_result
+from orbit_mcp.server import build_server
 
 
 def _through_websocket(app, owner, refusal, capability="screen_sources"):
@@ -84,7 +85,7 @@ def _real_mcp(http, owner, tmp_path):
     return build_server(config, hub_client)
 
 
-def test_a2_typed_refusal_crosses_the_actual_websocket(bridged):
+def test_typed_refusal_crosses_the_actual_websocket(bridged):
     app, _store, _adapter, owner = bridged
     refusal = {
         "code": "too_large",
@@ -98,7 +99,7 @@ def test_a2_typed_refusal_crosses_the_actual_websocket(bridged):
     assert response.json()["refusal"] == refusal
     from orbit_mcp.hub import _failure
 
-    translated = _text(_error(_failure(response.json(), response.status_code)))
+    translated = _text(error_result(_failure(response.json(), response.status_code)))
     assert "120000" in translated and "98304" in translated
 
 
@@ -110,7 +111,7 @@ def test_capture_capacity_counts_reach_the_mcp_reader():
         "max": 4,
         "retry": {"kind": "after_fix"},
     }
-    rendered = _text(_error(HubClientError("too_many", detail={"refusal": refusal})))
+    rendered = _text(error_result(HubClientError("too_many", detail={"refusal": refusal})))
     assert "5" in rendered and "4" in rendered
     assert "300" in rendered and "capturas" in rendered
     assert "petición contiene más elementos" not in rendered
@@ -128,13 +129,13 @@ def test_upstream_http_429_keeps_its_service_without_guessing_capture_capacity()
             }
         },
     )
-    rendered = _text(_error(error))
+    rendered = _text(error_result(error))
     assert "Falló el servicio del que depende esa operación." in rendered
     assert "servicio: hub" in rendered and "estado HTTP: 429" in rendered
     assert "capturas" not in rendered and "subida" not in rendered
 
 
-def test_a11_uncertain_action_stays_uncertain_through_websocket_and_result_route(
+def test_uncertain_action_stays_uncertain_through_websocket_and_result_route(
     bridged, monkeypatch, tmp_path
 ):
     from orbit_hub import bridge_route
@@ -180,7 +181,7 @@ def test_a11_uncertain_action_stays_uncertain_through_websocket_and_result_route
             accepted = pending.result(timeout=10)
             assert accepted.status_code == 202
             ws.send_json(frame)
-            assert completed.wait(5), "el hub no asentó el resultado de la acción"
+            assert completed.wait(5), "the hub did not settle the action's outcome"
             query = json.dumps(
                 {
                     "protocol": PROTOCOL,
@@ -237,7 +238,7 @@ def test_a11_uncertain_action_stays_uncertain_through_websocket_and_result_route
         ),
     ],
 )
-def test_a2_typed_permission_reaches_the_actual_mcp_tool(
+def test_typed_permission_reaches_the_actual_mcp_tool(
     bridged,
     tmp_path,
     tool_name,
@@ -297,9 +298,9 @@ def test_a2_typed_permission_reaches_the_actual_mcp_tool(
         ),
     ],
 )
-def test_a2_typed_permission_from_mac_keeps_specific_guidance(permission, code, expected):
+def test_typed_permission_from_mac_keeps_specific_guidance(permission, code, expected):
     refusal = {"code": code, "permission": permission, "retry": {"kind": "after_fix"}}
-    rendered = _text(_error(HubClientError(code, detail={"refusal": refusal})))
+    rendered = _text(error_result(HubClientError(code, detail={"refusal": refusal})))
     assert all(phrase in rendered for phrase in expected), rendered
 
 
@@ -314,9 +315,11 @@ def test_a2_typed_permission_from_mac_keeps_specific_guidance(permission, code, 
         ("initialization_failed", "arrancar"),
     ],
 )
-def test_a3_engine_cause_has_true_guidance_at_the_mcp_boundary(cause, expected):
+def test_engine_cause_has_true_guidance_at_the_mcp_boundary(cause, expected):
     refusal = {"code": "engine_unavailable", "cause": cause, "retry": {"kind": "after_fix"}}
-    rendered = _text(_error(HubClientError("engine_unavailable", detail={"refusal": refusal})))
+    rendered = _text(
+        error_result(HubClientError("engine_unavailable", detail={"refusal": refusal}))
+    )
     assert expected in rendered, rendered
     if cause == "unsupported":
         assert "lo está levantando" not in rendered
@@ -329,14 +332,14 @@ def test_a3_engine_cause_has_true_guidance_at_the_mcp_boundary(cause, expected):
         {"code": "engine_unavailable", "cause": {}, "retry": {"kind": "after_fix"}},
     ],
 )
-def test_a3_a_malformed_typed_field_keeps_the_code_message(refusal):
+def test_a_malformed_typed_field_keeps_the_code_message(refusal):
     """Malformed optional fields use the code's message without raising."""
-    rendered = _text(_error(HubClientError(refusal["code"], detail={"refusal": refusal})))
+    rendered = _text(error_result(HubClientError(refusal["code"], detail={"refusal": refusal})))
     assert rendered, rendered
     assert "no conoce el código" not in rendered, rendered
 
 
-def test_a2_device_reply_accepts_a_typed_refusal():
+def test_device_reply_accepts_a_typed_refusal():
     refusal = {
         "code": "too_large",
         "resource": "calendar",
@@ -352,7 +355,7 @@ def test_a2_device_reply_accepts_a_typed_refusal():
         )
 
 
-async def test_a2_typed_refusal_crosses_the_private_route(bridged):
+async def test_typed_refusal_crosses_the_private_route(bridged):
     app, store, adapter, owner = bridged
     refusal = {
         "code": "too_large",
@@ -375,7 +378,7 @@ async def test_a2_typed_refusal_crosses_the_private_route(bridged):
     assert response.json()["refusal"] == refusal
     from orbit_mcp.hub import _failure
 
-    translated = _text(_error(_failure(response.json(), response.status_code)))
+    translated = _text(error_result(_failure(response.json(), response.status_code)))
     assert "120000" in translated and "98304" in translated
 
 
@@ -391,21 +394,21 @@ async def test_a2_typed_refusal_crosses_the_private_route(bridged):
         ),
     ],
 )
-def test_ref304_a4_new_work_refusals_reach_deimos_with_numbers(code, fields, expected):
+def test_new_work_refusals_reach_deimos_with_numbers(code, fields, expected):
     refusal = {"code": code, "retry": {"kind": "check_outcome"}, **fields}
-    spoken = _text(_error(HubClientError(code, detail={"refusal": refusal})))
+    spoken = _text(error_result(HubClientError(code, detail={"refusal": refusal})))
     assert all(part in spoken for part in expected), spoken
     assert "El traductor no conoce" not in spoken
 
 
-def test_ref207_eventkit_unavailable_names_the_backend_in_deimos():
-    message = _text(_error(HubClientError("calendar_backend_unavailable", 403)))
+def test_eventkit_unavailable_names_the_backend_in_deimos():
+    message = _text(error_result(HubClientError("calendar_backend_unavailable", 403)))
     assert "EventKit" in message
     assert "Orbit está abierto" not in message
     assert "agenda esté vacía" in message
 
 
-def test_ref211_invalid_row_names_rows_in_this_page_not_all_conversations():
+def test_invalid_row_names_rows_in_this_page_not_all_conversations():
     refusal = {
         "code": "hub_session_invalid_row",
         "position": 7,
@@ -415,12 +418,12 @@ def test_ref211_invalid_row_names_rows_in_this_page_not_all_conversations():
         "max_bytes": 121,
         "retry": {"kind": "after_fix"},
     }
-    message = _text(_error(HubClientError(refusal["code"], detail={"refusal": refusal})))
+    message = _text(error_result(HubClientError(refusal["code"], detail={"refusal": refusal})))
     assert "filas de la página: 128" in message
     assert "conversaciones totales" not in message
 
 
-def test_a3_numbers_reach_deimos_without_a_generic_fallback():
+def test_numbers_reach_deimos_without_a_generic_fallback():
     refusal = {
         "code": "too_large",
         "resource": "calendar",
@@ -428,14 +431,14 @@ def test_a3_numbers_reach_deimos_without_a_generic_fallback():
         "max_bytes": 98304,
         "retry": {"kind": "after_fix"},
     }
-    message = _text(_error(HubClientError("too_large", 403, {"refusal": refusal})))
+    message = _text(error_result(HubClientError("too_large", 403, {"refusal": refusal})))
     assert "120000" in message and "98304" in message and "calendar" in message
     assert "Orbit rechazó la petición" not in message
-    unknown = _text(_error(HubClientError("future_code", 403)))
+    unknown = _text(error_result(HubClientError("future_code", 403)))
     assert "future_code" in unknown and "Orbit rechazó la petición" not in unknown
 
 
-def test_a6_empty_calendar_render_and_internal_error_keep_their_cause():
+def test_empty_calendar_render_and_internal_error_keep_their_cause():
     reading = {
         "requested": {"start_unix_ms": 1789000000000, "end_unix_ms": 1789086400000},
         "events_returned": 0,
@@ -445,7 +448,7 @@ def test_a6_empty_calendar_render_and_internal_error_keep_their_cause():
     text = render(reading)
     assert "0 eventos" in text
     assert "tamaño" not in text
-    internal = _text(_unexpected(None, 0))
+    internal = _text(unexpected_result(None, 0))
     assert internal.startswith("internal_error:")
     assert "too_large" not in internal
 
@@ -548,7 +551,7 @@ def test_a6_empty_calendar_render_and_internal_error_keep_their_cause():
 )
 def test_refusal_recovery_words_live_at_the_mcp_boundary(refusal, words, absent_words):
     refusal = {**refusal, "retry": {"kind": "after_fix"}}
-    rendered = _text(_error(HubClientError(refusal["code"], detail={"refusal": refusal})))
+    rendered = _text(error_result(HubClientError(refusal["code"], detail={"refusal": refusal})))
     for word in words:
         assert word in rendered, rendered
     for word in absent_words:
@@ -614,6 +617,6 @@ def test_refusal_recovery_words_live_at_the_mcp_boundary(refusal, words, absent_
 )
 def test_new_typed_refusals_keep_their_facts_at_the_mcp_boundary(refusal, words):
     refusal = {**refusal, "retry": {"kind": "after_fix"}}
-    rendered = _text(_error(HubClientError(refusal["code"], detail={"refusal": refusal})))
+    rendered = _text(error_result(HubClientError(refusal["code"], detail={"refusal": refusal})))
     for word in words:
         assert word in rendered, rendered

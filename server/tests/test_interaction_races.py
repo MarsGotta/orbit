@@ -1,4 +1,4 @@
-"""R1: synthetic RPC replies interleaved with real runtime events, never live Hermes."""
+"""Synthetic RPC replies interleaved with real runtime events, never live Hermes."""
 
 import asyncio
 from uuid import uuid4
@@ -80,7 +80,7 @@ def answer(runtime, session, *, question="q1"):
 
 
 @pytest.mark.parametrize("terminal", ["clarify.expire", "message.complete"])
-async def test_r1_partial_reply_cannot_restore_terminal_interaction(
+async def test_partial_reply_cannot_restore_terminal_interaction(
     race_runtime, monkeypatch, terminal
 ):
     runtime, session, turn, upstream = race_runtime

@@ -1,4 +1,4 @@
-"""SIM-22: `GET /health/deps` for an outside monitor, against fake dependencies on loopback.
+"""`GET /health/deps` for an outside monitor, against fake dependencies on loopback.
 
 Every dependency here is a server this process bound (support_client_e2e.tcp_server):
 none of the machine's real services is ever asked.

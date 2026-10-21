@@ -1,13 +1,13 @@
 """Durable notes of recordings, encrypted at rest, scoped by device.
 
 One row per recording. `state` says where the note is; `revision` grows on
-every change Mars or the model makes, so an edit based on an older version is
+every change the user or the model makes, so an edit based on an older version is
 refused instead of silently overwriting it.
 """
 
 import json
+from contextlib import nullcontext
 
-from ..group_storage import GroupRepository
 from ..meeting_final_pass import note_ready
 from ..meetings import repository as meetings
 from ..protocol import HubError
@@ -43,7 +43,6 @@ class NoteRepository:
 
     def __init__(self, store):
         self.store = store
-        self.groups = GroupRepository(store)
 
     def initialize(self) -> None:
         """The notes' tables and their custom templates."""
@@ -64,7 +63,7 @@ class NoteRepository:
     def requeue_unconfigured(self, now: float) -> int:
         """A model is configured now: notes asked for without one are written.
 
-        Mars's edits and inputs stay; only the state moves, and the note waits
+        The user's edits and inputs stay; only the state moves, and the note waits
         for its transcript like a new request.
         """
         with self.store.transaction() as db:
@@ -88,7 +87,7 @@ class NoteRepository:
     def planned(self, db, device: str, recording: str, template_id: str | None) -> NoteInputs:
         """What the note is asked with: the template, and the meeting's title and event.
 
-        Both come from the recording's final manifest (SIM-40); a recording
+        Both come from the recording's final manifest; a recording
         still open has neither yet.
         """
         row = db.execute(
@@ -313,7 +312,7 @@ class NoteRepository:
 
     def document(self, device: str, recording: str, *, db=None) -> dict:
         reader = db if db is not None else self.store._db
-        with self.store._lock if db is None else _noop():
+        with self.store._lock if db is None else nullcontext():
             row = reader.execute(
                 "SELECT * FROM recording_notes WHERE device_id=? AND recording=?",
                 (device, recording),
@@ -352,11 +351,3 @@ class NoteRepository:
         if row is None:
             return None
         return NoteInputs.model_validate(self._open("inputs", row, device, recording))
-
-
-class _noop:
-    def __enter__(self):
-        return None
-
-    def __exit__(self, *exc):
-        return False

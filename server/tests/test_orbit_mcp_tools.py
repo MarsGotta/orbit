@@ -75,7 +75,7 @@ async def test_internal_error_keeps_its_server_message_when_cause_matches_a_nati
         "full_screen debe ser verdadero o falso",
     ],
 )
-async def test_ref403_modern_invalid_parameter_keeps_the_specific_field(tmp_path, detail):
+async def test_modern_invalid_parameter_keeps_the_specific_field(tmp_path, detail):
     hub = FakeHub(
         device_replies=[
             typed_refused(
@@ -106,7 +106,7 @@ async def test_ref403_modern_invalid_parameter_keeps_the_specific_field(tmp_path
         ),
     ],
 )
-async def test_ref403_hub_code_survives_its_refusal_family(
+async def test_hub_code_survives_its_refusal_family(
     tmp_path,
     original,
     family,
@@ -132,7 +132,7 @@ async def test_ref403_hub_code_survives_its_refusal_family(
     assert phrase in text_of(result)
 
 
-async def test_a1_screenshot_with_names_returns_the_hubs_image_and_names_the_window(tmp_path):
+async def test_screenshot_with_names_returns_the_hubs_image_and_names_the_window(tmp_path):
     hub = FakeHub(device_replies=[answered(SCREENSHOT_ANSWER)])
     async with serving(tmp_path, hub) as (_client, server):
         result = await server.call_tool(
@@ -164,7 +164,7 @@ async def test_a1_screenshot_with_names_returns_the_hubs_image_and_names_the_win
 
 
 @pytest.mark.parametrize("tool", ["orbit_screenshot", "orbit_selected_text"])
-async def test_ref44_unknown_capture_filter_is_refused_before_hub(tmp_path, tool):
+async def test_unknown_capture_filter_is_refused_before_hub(tmp_path, tool):
     hub = FakeHub(device_replies=[answered(SCREENSHOT_ANSWER)])
     async with serving(tmp_path, hub) as (_client, server):
         result = await server.call_tool(tool, {"window": "Safari"})
@@ -176,7 +176,7 @@ async def test_ref44_unknown_capture_filter_is_refused_before_hub(tmp_path, tool
     assert not hub.device_requests
 
 
-async def test_ref44_uncertain_remote_action_keeps_its_retirement_cause_for_deimos(tmp_path):
+async def test_uncertain_remote_action_keeps_its_retirement_cause_for_deimos(tmp_path):
     operation_id = "10000000-0000-4000-8000-000000000001"
     hub = FakeHub(
         device_replies=[
@@ -203,7 +203,7 @@ async def test_ref44_uncertain_remote_action_keeps_its_retirement_cause_for_deim
     assert "Privacidad detenida" not in body
 
 
-async def test_a2_look_without_parameters_inventories_then_captures_without_parameters(tmp_path):
+async def test_look_without_parameters_inventories_then_captures_without_parameters(tmp_path):
     hub = FakeHub(
         device_replies=[
             answered({"windows": [BACKGROUND_WINDOW, FOREGROUND_WINDOW]}),
@@ -232,7 +232,7 @@ async def test_a2_look_without_parameters_inventories_then_captures_without_para
         assert FOREGROUND_WINDOW["title"] in text
 
 
-async def test_a3_rejections_and_timeouts_are_tool_results_and_service_continues(tmp_path):
+async def test_rejections_and_timeouts_are_tool_results_and_service_continues(tmp_path):
     hub = FakeHub(
         device_replies=[
             hub_rejected(404, "device_unavailable"),
@@ -273,7 +273,7 @@ async def test_a3_rejections_and_timeouts_are_tool_results_and_service_continues
 
 
 @pytest.mark.parametrize("requested", ["Sample Mac", "SÁMPLE"], ids=["exact", "unique-prefix"])
-async def test_dei04_a2_name_resolution_ignores_case_and_accents(tmp_path, requested):
+async def test_name_resolution_ignores_case_and_accents(tmp_path, requested):
     device_id = "5f1d0000-0000-4000-8000-000000000041"
     hub = FakeHub(
         devices=[
@@ -294,7 +294,7 @@ async def test_dei04_a2_name_resolution_ignores_case_and_accents(tmp_path, reque
     assert hub.device_requests[0]["device_id"] == device_id
 
 
-async def test_dei04_a2_duplicate_name_uses_the_newest_connected_identity_and_says_so(tmp_path):
+async def test_duplicate_name_uses_the_newest_connected_identity_and_says_so(tmp_path):
     older_id = "5f1d0000-0000-4000-8000-000000000042"
     newer_id = "5f1d0000-0000-4000-8000-000000000043"
     hub = FakeHub(
@@ -325,7 +325,7 @@ async def test_dei04_a2_duplicate_name_uses_the_newest_connected_identity_and_sa
     assert "conectada más reciente" in text
 
 
-async def test_dei04_a4_devices_names_connection_and_last_seen_without_ids(tmp_path):
+async def test_devices_names_connection_and_last_seen_without_ids(tmp_path):
     connected_id = "5f1d0000-0000-4000-8000-000000000044"
     disconnected_id = "5f1d0000-0000-4000-8000-000000000045"
     hub = FakeHub(
@@ -362,11 +362,9 @@ async def test_dei04_a4_devices_names_connection_and_last_seen_without_ids(tmp_p
     assert connected_id not in text and disconnected_id not in text
 
 
-async def test_dei06_a6_recent_bridge_activity_is_described_as_less_than_a_minute(
-    tmp_path, monkeypatch
-):
+async def test_recent_bridge_activity_is_described_as_less_than_a_minute(tmp_path, monkeypatch):
     now = 2_000.0
-    monkeypatch.setattr("orbit_mcp.server.time.time", lambda: now)
+    monkeypatch.setattr("orbit_mcp.devices.time.time", lambda: now)
     hub = FakeHub(
         devices=[
             {
@@ -385,8 +383,8 @@ async def test_dei06_a6_recent_bridge_activity_is_described_as_less_than_a_minut
     assert "visto por última vez hace menos de un minuto" in text_of(result)
 
 
-# DAE-09 A4: APP-22 removed the sharing switch and the agenda now shares itself,
-# so no message may send Mars to press something that is no longer there. The
+# The sharing switch is gone and the agenda now shares itself,
+# so no message may send the user to press something that is no longer there. The
 # autonomy switches are named as Ajustes actually labels them.
 RETIRED_CONTROLS = (
     "Compartir con Deimos",
@@ -400,17 +398,17 @@ RETIRED_CONTROLS = (
 )
 
 
-def test_dae09_a4_no_message_sends_mars_to_a_control_that_no_longer_exists():
-    from orbit_mcp.server import ERROR_MESSAGES
+def test_no_message_sends_the_user_to_a_control_that_no_longer_exists():
+    from orbit_mcp.refusals import ERROR_MESSAGES
 
     for code, message in ERROR_MESSAGES.items():
         for phrase in RETIRED_CONTROLS:
             assert phrase.lower() not in message.lower(), (
-                f"{code} still sends Alina to «{phrase}», which the app no longer has"
+                f"{code} still sends the user to «{phrase}», which the app no longer has"
             )
 
 
-async def test_dei06_a3_unknown_device_names_known_macs_and_marks_the_default(tmp_path):
+async def test_unknown_device_names_known_macs_and_marks_the_default(tmp_path):
     hub = FakeHub(
         devices=[
             {
@@ -439,7 +437,7 @@ async def test_dei06_a3_unknown_device_names_known_macs_and_marks_the_default(tm
     assert hub.device_requests == []
 
 
-async def test_dei06_a4_revoked_identity_is_not_listed_or_resolved_by_name(tmp_path):
+async def test_revoked_identity_is_not_listed_or_resolved_by_name(tmp_path):
     hub = FakeHub(
         devices=[
             {
@@ -464,8 +462,8 @@ async def test_dei06_a4_revoked_identity_is_not_listed_or_resolved_by_name(tmp_p
     assert hub.device_requests == []
 
 
-async def test_sim56_a_full_screen_tells_deimos_what_its_coordinates_are(tmp_path):
-    """SIM-56: the Mac fits a full screen into what a capture can carry and
+async def test_a_full_screen_tells_deimos_what_its_coordinates_are(tmp_path):
+    """The Mac fits a full screen into what a capture can carry and
     says, with both sizes, that desktop coordinates are given on that image.
     The sentence survives the hub's reply contract and reaches Deimos."""
     from orbit_mcp.bridge import ScreenshotResult

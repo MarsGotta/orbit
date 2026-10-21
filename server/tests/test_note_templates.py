@@ -1,4 +1,4 @@
-"""P9-05: Alina's own note templates and their assignment to an event or series.
+"""The user's own note templates and their assignment to an event or series.
 
 Routes against the real hub app and store; the note worker is the real one,
 driven a job at a time with a scripted model (`support_series`). No provider,
@@ -28,10 +28,10 @@ def draft(name="Comité de dirección", sections=("Estado", "Riesgos"), **change
     }
 
 
-# A1: create, edit, reorder and delete a custom template by the real path.
+# Create, edit, reorder and delete a custom template by the real path.
 
 
-async def test_a1_create_edit_reorder_and_delete_a_custom_template(environment):
+async def test_create_edit_reorder_and_delete_a_custom_template(environment):
     async with hub(environment) as (client, headers, _owner, _app, _model):
         created = await client.put("/v1/note-templates/comite", json=draft(), headers=headers)
         assert created.status_code == 201, created.text
@@ -64,10 +64,10 @@ async def test_a1_create_edit_reorder_and_delete_a_custom_template(environment):
         assert await listed_template(client, headers, "comite") is None
 
 
-async def test_a1_a_custom_template_is_stored_encrypted(environment):
+async def test_a_custom_template_is_stored_encrypted(environment):
     _, store, _ = environment
     async with hub(environment) as (client, headers, _owner, _app, _model):
-        secret = "Instrucción sintética P905"
+        secret = "Instrucción sintética 7c43"
         body = draft(sections=("Estado",))
         body["sections"][0]["instructions"] = secret
         assert (
@@ -83,7 +83,7 @@ async def test_a1_a_custom_template_is_stored_encrypted(environment):
                 assert secret not in text and "Comité de dirección" not in text
 
 
-async def test_a1_bounds_are_the_builtin_ones_and_refusals_carry_the_numbers(environment):
+async def test_bounds_are_the_builtin_ones_and_refusals_carry_the_numbers(environment):
     async with hub(environment) as (client, headers, _owner, _app, _model):
         too_many = await client.put(
             "/v1/note-templates/larga",
@@ -108,7 +108,7 @@ async def test_a1_bounds_are_the_builtin_ones_and_refusals_carry_the_numbers(env
         assert bad_id.json()["code"] == "invalid_note_template"
 
 
-async def test_a1_a_device_never_sees_another_devices_templates(environment):
+async def test_a_device_never_sees_another_devices_templates(environment):
     _, store, _ = environment
     async with hub(environment) as (client, headers, _owner, _app, _model):
         mine = await client.put("/v1/note-templates/mia", json=draft(), headers=headers)
@@ -119,7 +119,7 @@ async def test_a1_a_device_never_sees_another_devices_templates(environment):
         assert "mia" not in {t["id"] for t in listing}
 
 
-async def test_a1_the_number_of_custom_templates_is_bounded_with_its_numbers(environment):
+async def test_the_number_of_custom_templates_is_bounded_with_its_numbers(environment):
     from orbit_hub.notes.custom_templates import MAX_CUSTOM_TEMPLATES
 
     async with hub(environment) as (client, headers, _owner, _app, _model):
@@ -137,10 +137,10 @@ async def test_a1_the_number_of_custom_templates_is_bounded_with_its_numbers(env
         ).status_code == 200
 
 
-# A2: editing a built-in creates a custom copy and leaves the built-in alone.
+# Editing a built-in creates a custom copy and leaves the built-in alone.
 
 
-async def test_a2_editing_a_builtin_creates_a_copy_that_names_its_origin(environment):
+async def test_editing_a_builtin_creates_a_copy_that_names_its_origin(environment):
     async with hub(environment) as (client, headers, _owner, _app, _model):
         before = await listed_template(client, headers, "general")
         assert before["builtin"] is True
@@ -175,10 +175,10 @@ async def test_a2_editing_a_builtin_creates_a_copy_that_names_its_origin(environ
         assert unknown_origin.json()["refusal"]["template_id"] == "no-existe"
 
 
-# A3: a recording linked to an event whose series has a template uses it.
+# A recording linked to an event whose series has a template uses it.
 
 
-async def test_a3_links_are_put_listed_and_deleted_by_series_key(environment):
+async def test_links_are_put_listed_and_deleted_by_series_key(environment):
     async with hub(environment) as (client, headers, _owner, _app, _model):
         await client.put("/v1/note-templates/comite", json=draft(), headers=headers)
         linked = await client.put(
@@ -245,7 +245,7 @@ def link(series, template_id):
     return LinkRequest(calendar_item_id=series, template_id=template_id)
 
 
-async def test_a3_the_assigned_template_writes_the_note_unless_one_is_chosen(bench):
+async def test_the_assigned_template_writes_the_note_unless_one_is_chosen(bench):
     templates = bench.worker.templates
     templates.put(bench.owner, "comite", template_draft("Comité", ("Estado", "Riesgos")), NOW)
     templates.link(bench.owner, link(SERIES, "comite"), NOW)
@@ -273,7 +273,7 @@ async def test_a3_the_assigned_template_writes_the_note_unless_one_is_chosen(ben
     assert manual["note"]["template_source"] == "requested"
 
 
-async def test_a3_without_a_link_or_an_event_the_note_uses_general(bench):
+async def test_without_a_link_or_an_event_the_note_uses_general(bench):
     plain = recording(bench.store, bench.owner)
     bench.request(plain)
     other_series = recording(bench.store, bench.owner)
@@ -284,7 +284,7 @@ async def test_a3_without_a_link_or_an_event_the_note_uses_general(bench):
         assert note["template_id"] == "general" and note["template_source"] == "default"
 
 
-def test_a3_old_requests_stay_valid_and_the_series_key_is_bounded():
+def test_old_requests_stay_valid_and_the_series_key_is_bounded():
     from orbit_hub.notes.series_key import MAX_SERIES_KEY_BYTES
 
     old = NoteInputs.model_validate(
@@ -298,10 +298,10 @@ def test_a3_old_requests_stay_valid_and_the_series_key_is_bounded():
             EventContext(calendar_item_id=wrong)
 
 
-# A4: deleting an assigned template returns those series to General.
+# Deleting an assigned template returns those series to General.
 
 
-async def test_a4_deleting_an_assigned_template_returns_its_series_to_general(bench):
+async def test_deleting_an_assigned_template_returns_its_series_to_general(bench):
     templates = bench.worker.templates
     templates.put(bench.owner, "comite", template_draft("Comité", ("Estado", "Riesgos")), NOW)
     templates.link(bench.owner, link(SERIES, "comite"), NOW)
@@ -324,7 +324,7 @@ async def test_a4_deleting_an_assigned_template_returns_its_series_to_general(be
     assert written["template_name"] == "Comité"
 
 
-async def test_a4_a_note_that_names_a_deleted_template_says_which(bench):
+async def test_a_note_that_names_a_deleted_template_says_which(bench):
     templates = bench.worker.templates
     templates.put(bench.owner, "efimera", template_draft("Efímera", ("Una",)), NOW)
     templates.delete(bench.owner, "efimera")

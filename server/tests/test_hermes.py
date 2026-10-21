@@ -314,7 +314,7 @@ async def test_large_resume_keeps_other_hermes_session_connected(environment, tm
             await runtime.close()
 
 
-async def test_dei06_a2_session_create_declares_orbit_and_the_device(environment, tmp_path):
+async def test_session_create_declares_orbit_and_the_device(environment, tmp_path):
     settings, _, _ = environment
     received = []
 
@@ -392,7 +392,7 @@ async def test_transcription_contract_is_json_not_multipart(environment, tmp_pat
     }
 
 
-async def test_ref308_http_failure_names_provider_status(environment, tmp_path, monkeypatch):
+async def test_http_failure_names_provider_status(environment, tmp_path, monkeypatch):
     settings, _, _ = environment
     configured = replace(settings, hermes_credential_file=credential(tmp_path))
     original = httpx.AsyncClient
@@ -413,7 +413,7 @@ async def test_ref308_http_failure_names_provider_status(environment, tmp_path, 
     assert "private body" not in str(failure.value)
 
 
-async def test_ref308_connect_timeout_uses_connection_budget(environment, tmp_path, monkeypatch):
+async def test_connect_timeout_uses_connection_budget(environment, tmp_path, monkeypatch):
     settings, _, _ = environment
     configured = replace(settings, hermes_credential_file=credential(tmp_path))
 

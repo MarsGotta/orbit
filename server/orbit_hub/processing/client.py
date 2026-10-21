@@ -147,8 +147,8 @@ class ProcessingClient:
             raise ValueError("processing credential must be one printable token")
         self.configuration = configuration
         self._credential = credential
-        # One call at a time: the model host serves Deimos and other tools too,
-        # and a note waiting its turn costs nothing.
+        # One call at a time: the model host may serve other clients too, and
+        # a note waiting its turn costs nothing.
         self._slot = asyncio.Semaphore(1)
         self._http = httpx.AsyncClient(
             timeout=configuration.timeout_seconds,
@@ -167,9 +167,8 @@ class ProcessingClient:
         messages: list[dict[str, str]],
         schema_name: str,
         schema: dict[str, Any],
-        max_completion_tokens: int | None = None,
     ) -> Completion:
-        limit = max_completion_tokens or self.configuration.max_completion_tokens
+        limit = self.configuration.max_completion_tokens
         body = request_body(self.configuration, messages, schema_name, schema, limit)
         async with self._slot:
             started = time.monotonic()

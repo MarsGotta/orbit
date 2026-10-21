@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from orbit_hub.bridge_route import ACTION_RESULT_PATH, PATH
 from orbit_hub.ws import report
 from orbit_mcp.hub import HubClientError, validate_mac_payload
-from orbit_mcp.server import _error
+from orbit_mcp.refusals import error_result
 
 
 @pytest.mark.parametrize("capability", ["screen_sources", "perform_action"])
@@ -89,7 +89,7 @@ def test_bad_reply_is_relayed_and_mcp_reports_the_field(bridged, capability):
             assert error.value.detail["refusal"]["retry"]["kind"] == (
                 "check_outcome" if capability == "perform_action" else "after_fix"
             )
-            translated = _error(error.value).content[0].text
+            translated = error_result(error.value).content[0].text
             assert field in translated and "0.7.0-test" in translated
             if capability == "screen_sources":
                 assert "lista" in translated
@@ -244,7 +244,7 @@ def test_malformed_unknown_reply_id_still_gets_a_field_refusal(bridged):
 def test_missing_mac_version_is_named_without_broken_grammar():
     with pytest.raises(HubClientError) as error:
         validate_mac_payload("screen_sources", {"result": {"windows": 7}})
-    assert "versión del Mac: no comunicada" in _error(error.value).content[0].text
+    assert "versión del Mac: no comunicada" in error_result(error.value).content[0].text
 
 
 async def test_unanswered_action_expires_with_injected_deadline_and_frees_slot(bridged):
@@ -303,7 +303,7 @@ async def test_unanswered_action_expires_with_injected_deadline_and_frees_slot(b
                 assert result.status_code == 200
                 assert result.json()["refusal"]["deadline_ms"] == 30_000
                 translated = (
-                    _error(
+                    error_result(
                         HubClientError(
                             "device_reply_timeout",
                             detail={"refusal": result.json()["refusal"]},

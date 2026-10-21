@@ -15,7 +15,7 @@ class StrictModel(BaseModel):
 
 
 # Bounds the human recording title copied into the final manifest, and the
-# name Mars gives a meeting since SIM-52 (`meetings.repository.meeting_title`):
+# name the user gives a meeting (`meetings.repository.meeting_title`):
 # the same title, so the same bound, which the Mac keeps in
 # `orbit_core::MAX_MANIFEST_TITLE_CHARACTERS` (both in contracts/constants.json
 # as MAX_MEETING_TITLE_CHARS, compared by scripts/tests/test_constants_copies.py).
@@ -55,7 +55,7 @@ class Frame(StrictModel):
         "device.reply",
     ]
     params: dict = Field(default_factory=dict)
-    # The action this frame belongs to (SIM-21 «Contrato con SIM-22»). Not part
+    # The action this frame belongs to (`log.OP_PATTERN`). Not part
     # of the request: an operation's fingerprint leaves it out, and one that is
     # not valid is replaced rather than refusing the frame (`log.bind_op`).
     op: Any = None
@@ -73,13 +73,13 @@ class InterruptParams(SessionParams):
 
 
 class VoiceParams(StrictModel):
-    """SIM-30: the turn is a voice note of this length; its audio stays on the Mac."""
+    """The turn is a voice note of this length; its audio stays on the Mac."""
 
     duration_ms: int = Field(ge=0, le=2**63 - 1)
 
 
 class MeetingParams(StrictModel):
-    """SIM-30: the turn is a question about this meeting; the hub adds its
+    """The turn is a question about this meeting; the hub adds its
     last `minutes` of transcript. The title is the Mac's: the hub only learns
     it when the recording is finalized."""
 
@@ -94,7 +94,7 @@ class SendParams(StrictModel):
     text: str = Field(min_length=1, max_length=32000)
     session_id: str | None = Field(default=None, max_length=80)
     call_active: bool = False
-    # SIM-30: the Mac's id for the message, kept in the user's row so the Mac
+    # The Mac's id for the message, kept in the user's row so the Mac
     # can tell its own turn and its voice note's audio. A UUID; 80 is the
     # session id's bound.
     client_id: str | None = Field(default=None, min_length=1, max_length=80)
@@ -173,11 +173,11 @@ class RecordingManifest(StrictModel):
     started_at_ms: int = Field(ge=0, le=2**63 - 1)
     finalized_at_ms: int = Field(ge=0, le=2**63 - 1)
     title: str | None = Field(default=None, max_length=MAX_RECORDING_TITLE_CHARACTERS)
-    # SIM-40: the Mac uploads its voice calls (⌃⌥D) as recordings too
+    # The Mac uploads its voice calls (⌃⌥D) as recordings too
     # (`recording_kind: voice_call`); a call is not a meeting, so the hub asks
     # for no note and the meetings list leaves it out. Absent: a meeting.
     kind: Literal["meeting", "voice_call"] = "meeting"
-    # SIM-40: the calendar event the recording was started from (P9-11), so
+    # The calendar event the recording was started from, so
     # the note the hub asks for at finalize has its title, invitees and series.
     # The finalize route validates it as `notes.models.EventContext`.
     event: dict | None = None

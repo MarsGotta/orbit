@@ -19,6 +19,9 @@ from .protocol import HubError
 from .secret_file import read_secret
 from .transcription_failure import from_provider
 
+# How Hermes begins the error of a resume whose stored transcript it could not
+# read; the rest of its message is Hermes's detail and is never relayed.
+RESUME_HISTORY_ERROR_PREFIX = "Could not reopen that session (its transcript could not be read)."
 MAX_SPEECH_CLIP_BYTES = 4 * 1024 * 1024
 MAX_SPEECH_RESPONSE_BYTES = 6 * 1024 * 1024
 # Existing 180 s provider and 10 s connection budgets, shared with the
@@ -119,13 +122,11 @@ class HermesConnection:
         if method not in {
             "session.create",
             "session.resume",
-            "session.history",
             "session.status",
             "prompt.submit",
             "session.interrupt",
             "approval.respond",
             "clarify.respond",
-            "image.attach_bytes",
         }:
             raise HubError("method_forbidden", "Método Hermes fuera de contrato")
         request_id = str(uuid4())
@@ -202,9 +203,7 @@ class HermesConnection:
                     if (
                         code == 5000
                         and isinstance(reason, str)
-                        and reason.startswith(
-                            "Could not reopen that session (its transcript could not be read)."
-                        )
+                        and reason.startswith(RESUME_HISTORY_ERROR_PREFIX)
                     ):
                         raise HubError(
                             "session_resume_history_unreadable",
@@ -305,13 +304,10 @@ class HermesAdapter:
             raise HubError("configuration", "Credencial Hermes ausente o no válida")
         return value
 
-    def ws_url(self, path: str, *, profile: bool = False) -> str:
+    def ws_url(self, path: str) -> str:
         base = self.settings.hermes_url.rstrip("/")
         base = ("wss" if base.startswith("https:") else "ws") + base[base.index(":") :]
-        query = {"token": self.credential()}
-        if profile:
-            query["profile"] = self.settings.profile
-        return base + path + "?" + urlencode(query)
+        return base + path + "?" + urlencode({"token": self.credential()})
 
     def connection(self, callback: Callable[[dict], Awaitable[None]]) -> HermesConnection:
         return HermesConnection(self, callback)

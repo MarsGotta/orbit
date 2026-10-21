@@ -1,12 +1,12 @@
 from support_orbit_mcp import serving
 
-"""DEI-16 A1/A2/A6/A7: an action in flight is not an action awaiting consent.
+"""An action in flight is not an action awaiting consent.
 
 The bridge answers `state: pending` the moment it hands an action to the Mac.
 That means the action is on its way, not that anybody has been asked to approve
-it — Alina granted Orbit the use of her computer once, in macOS. Naming that
-state «awaiting_approval» made the assistant tell her the page had been left
-pending her approval when it was already open.
+it — the user granted Orbit the use of their computer once, in macOS. Naming
+that state «awaiting_approval» made the assistant tell them the page had been
+left pending their approval when it was already open.
 
 No Mac, no Hermes and no external network: the hub routes here are the real
 ones, verified by the real private authenticator.
@@ -47,7 +47,7 @@ ADAPTER_ID = "00000000-0000-4000-8000-000000000501"
 EFFECT_ID = "00000000-0000-4000-8000-000000000701"
 OPERATION_ID = "00000000-0000-4000-8000-0000000016a1"
 
-# Any word Mars could read as «somebody has to say yes to this». An action in
+# Any word the user could read as «somebody has to say yes to this». An action in
 # flight must not carry one.
 APPROVAL_WORDS = re.compile(r"aprob|approval|autoriz|consent|permis", re.IGNORECASE)
 
@@ -112,10 +112,10 @@ def with_action_result(hub: FakeHub, outcome: dict) -> FakeHub:
     return hub
 
 
-# --- A1 ---------------------------------------------------------------------
+# --- the defect ---------------------------------------------------------------
 
 
-async def test_a1_an_action_in_flight_is_never_called_awaiting_approval(tmp_path):
+async def test_an_action_in_flight_is_never_called_awaiting_approval(tmp_path):
     """The exact defect: `state: pending` produced the approval wording."""
     hub = FakeHub(device_replies=[pending("in_progress")])
     context = serving(tmp_path, hub)
@@ -134,7 +134,7 @@ async def test_a1_an_action_in_flight_is_never_called_awaiting_approval(tmp_path
     assert not APPROVAL_WORDS.search(json.dumps(answer, ensure_ascii=False)), answer
 
 
-async def test_a1_the_tool_tells_the_assistant_the_action_is_under_way(tmp_path):
+async def test_the_tool_tells_the_assistant_the_action_is_under_way(tmp_path):
     hub = FakeHub(device_replies=[pending("in_progress")])
     context = serving(tmp_path, hub)
     _client, server = await context.__aenter__()
@@ -158,7 +158,7 @@ async def test_a1_the_tool_tells_the_assistant_the_action_is_under_way(tmp_path)
     assert not APPROVAL_WORDS.search(answer["next_step"])
 
 
-async def test_a1_the_hub_route_names_an_accepted_action_in_progress(bridged):
+async def test_the_hub_route_names_an_accepted_action_in_progress(bridged):
     """The wire itself, not only the client that reads it."""
     app, store, adapter, owner = bridged
     async with app.router.lifespan_context(app):
@@ -181,10 +181,10 @@ async def test_a1_the_hub_route_names_an_accepted_action_in_progress(bridged):
     assert "in_progress" in ACTION_OUTCOMES
 
 
-# --- A2 ---------------------------------------------------------------------
+# --- the outcome while it runs ------------------------------------------------
 
 
-async def test_a2_asking_for_the_outcome_while_it_is_still_running_says_so(tmp_path):
+async def test_asking_for_the_outcome_while_it_is_still_running_says_so(tmp_path):
     hub = with_action_result(FakeHub(), {"outcome": "in_progress"})
     context = serving(tmp_path, hub)
     client, _server = await context.__aenter__()
@@ -198,10 +198,10 @@ async def test_a2_asking_for_the_outcome_while_it_is_still_running_says_so(tmp_p
     assert not APPROVAL_WORDS.search(json.dumps(answer, ensure_ascii=False)), answer
 
 
-# --- A6/A7 ------------------------------------------------------------------
+# --- the catalogue walk -------------------------------------------------------
 
 
-async def test_a6_a7_a_tool_described_at_length_survives_the_walk(tmp_path):
+async def test_a_tool_described_at_length_survives_the_walk(tmp_path):
     """The client assembles what the Mac declares, whole, and counts it."""
     tools = [
         {"name": "launch_app", "description": "Abre una aplicación.", "input_schema": {}},

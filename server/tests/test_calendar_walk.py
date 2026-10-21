@@ -1,25 +1,25 @@
 from support_orbit_mcp import serving
 
-"""REF-10: Deimos asks about any range once, and gets all of it.
+"""Deimos asks about any range once, and gets all of it.
 
-Before REF-10 a month took Deimos four questions: the Mac read at most eight
+A month used to take Deimos four questions: the Mac read at most eight
 days and two hundred events per read, and the answer said «no está completo,
-sigue desde aquí». Mars decided the macOS permission is the only thing between
-Deimos and her agenda, and that no ceiling of Orbit's is ever seen. So the Mac
+sigue desde aquí». The user decided the macOS permission is the only thing
+between Deimos and their agenda, and that no ceiling of Orbit's is ever seen. So the Mac
 reads in pieces and the translator joins them: ``orbit_calendar`` is still one
 call, however long the range and however full the day.
 
 These cases cover the translator's half:
 
-* A2: the walk over the Mac's pages, with the exact continuation it sends,
+* The walk over the Mac's pages, with the exact continuation it sends,
   and nothing in the answer that says «incompleto» or «sigue desde aquí».
-* A3: one event split across two pages because its own invitees did not fit
+* One event split across two pages because its own invitees did not fit
   one frame comes back as one event.
-* A5: ``orbit_calendar_ask`` does not exist; ``orbit_calendar`` is the only
+* ``orbit_calendar_ask`` does not exist; ``orbit_calendar`` is the only
   agenda tool.
 * The retired ``[calendar]`` section in ``mcp.toml`` is rejected at load;
   that configuration boundary is covered in ``test_settings.py``.
-* A8/A9: each missing condition arrives as itself, and an unknown permission
+* Each missing condition arrives as itself, and an unknown permission
   is neither granted nor denied.
 """
 
@@ -119,10 +119,10 @@ async def ask(server, start=OCTOBER_MS, end=OCTOBER_MS + 31 * DAY_MS):
     return await server.call_tool("orbit_calendar", {"start_ms": start, "end_ms": end})
 
 
-# --------------------------------------------------------------------------- A2
+# ------------------------------------------------------- the walk over pages
 
 
-async def test_a2_a_month_in_three_pages_is_one_call_and_one_answer(tmp_path):
+async def test_a_month_in_three_pages_is_one_call_and_one_answer(tmp_path):
     first = [event(i, OCTOBER_MS + i * 3_600_000) for i in range(3)]
     second = [event(i, OCTOBER_MS + 9 * DAY_MS + i * 3_600_000) for i in range(3, 6)]
     third = [event(i, OCTOBER_MS + 20 * DAY_MS + i * 3_600_000) for i in range(6, 8)]
@@ -161,11 +161,11 @@ async def test_a2_a_month_in_three_pages_is_one_call_and_one_answer(tmp_path):
     # The first line is the whole summary: count, range in the Mac's zone and
     # calendars, so that a preview of the answer already says what came.
     assert body.splitlines()[0] == (
-        "Agenda de Mars: 8 eventos del jue 1 oct 2026 00:00 al sáb 31 oct 2026 23:00 "
+        "Agenda: 8 eventos del jue 1 oct 2026 00:00 al sáb 31 oct 2026 23:00 "
         "(hora de Europe/Madrid, la del Mac), en 3 calendarios, leída en el Mac el "
         "mié 30 sep 2026 23:59."
     )
-    # A2: nothing tells Deimos the answer is short because of Orbit.
+    # Nothing tells Deimos the answer is short because of Orbit.
     for words in ("range_fully_read", "unread_from", "incompleto", "sigue desde"):
         assert words not in body, (words, body)
     # And a reader can tell whether it received all of it: the count opens and
@@ -173,7 +173,7 @@ async def test_a2_a_month_in_three_pages_is_one_call_and_one_answer(tmp_path):
     assert body.rstrip().endswith("Fin de la lectura: 8 eventos.")
 
 
-async def test_a2_a_single_page_answer_costs_one_request(tmp_path):
+async def test_a_single_page_answer_costs_one_request(tmp_path):
     hub = FakeHub(device_replies=[page([event(0, OCTOBER_MS)])])
     async with serving(tmp_path, hub) as (_client, server):
         result = await ask(server)
@@ -181,18 +181,18 @@ async def test_a2_a_single_page_answer_costs_one_request(tmp_path):
     assert len(hub.device_requests) == 1
 
 
-async def test_a2_an_empty_range_is_an_answer_not_an_error(tmp_path):
+async def test_an_empty_range_is_an_answer_not_an_error(tmp_path):
     hub = FakeHub(device_replies=[page([])])
     async with serving(tmp_path, hub) as (_client, server):
         result = await ask(server)
     body = calendar_body(result)
     assert not result.is_error, body
     assert event_lines(body) == []
-    assert body.startswith("Agenda de Mars: 0 eventos del ")
+    assert body.startswith("Agenda: 0 eventos del ")
     assert body.rstrip().endswith("Fin de la lectura: 0 eventos.")
 
 
-async def test_a2_a_cursor_that_does_not_advance_is_not_followed_forever(tmp_path):
+async def test_a_cursor_that_does_not_advance_is_not_followed_forever(tmp_path):
     """A Mac that keeps asking for the same page is a fault, named as one."""
     stuck = page([event(0, OCTOBER_MS)], after=(OCTOBER_MS, 0))
     hub = FakeHub(device_replies=[stuck, stuck, stuck])
@@ -206,10 +206,10 @@ async def test_a2_a_cursor_that_does_not_advance_is_not_followed_forever(tmp_pat
     assert len(hub.device_requests) == 1
 
 
-# --------------------------------------------------------------------------- A3
+# ----------------------------------------------- an event split across pages
 
 
-async def test_a3_an_event_split_across_pages_comes_back_whole(tmp_path):
+async def test_an_event_split_across_pages_comes_back_whole(tmp_path):
     invitees = [
         {
             "participant_url": f"mailto:persona{i}@example.invalid",
@@ -276,7 +276,7 @@ async def test_d4_an_event_that_could_not_travel_is_named_by_itself(tmp_path):
     assert body.rstrip().endswith("Fin de la lectura: 3 eventos.")
 
 
-async def test_a3_a_cursor_inside_one_event_must_still_move_forward(tmp_path):
+async def test_a_cursor_inside_one_event_must_still_move_forward(tmp_path):
     """Inside one event the invitee position is the progress; standing still is a fault."""
     head = event(0, OCTOBER_MS, invitees_status="provided", invitees=[])
     head["invitees_continued"] = True
@@ -289,7 +289,7 @@ async def test_a3_a_cursor_inside_one_event_must_still_move_forward(tmp_path):
     assert len(hub.device_requests) == 2
 
 
-# ----------------------------------------------------------------------- A8 A9
+# ------------------------------------------- each missing condition as itself
 
 
 @pytest.mark.parametrize(
@@ -298,7 +298,7 @@ async def test_a3_a_cursor_inside_one_event_must_still_move_forward(tmp_path):
         ("calendar_backend_unavailable", "EventKit", "permiso"),
     ],
 )
-async def test_a8_each_missing_condition_arrives_as_itself(tmp_path, code, must_say, must_not_say):
+async def test_each_missing_condition_arrives_as_itself(tmp_path, code, must_say, must_not_say):
     hub = FakeHub(device_replies=[refused({"code": code}, "lo que diga el Mac")])
     async with serving(tmp_path, hub) as (_client, server):
         result = await ask(server)
@@ -365,7 +365,7 @@ async def test_a8_each_missing_condition_arrives_as_itself(tmp_path, code, must_
         ({"code": "helper_refused", "helper_code": "calendar_clock_unavailable"}, "reloj"),
     ],
 )
-async def test_a8_calendar_failure_is_named_and_never_an_empty_agenda(tmp_path, refusal, must_say):
+async def test_calendar_failure_is_named_and_never_an_empty_agenda(tmp_path, refusal, must_say):
     code = refusal["code"]
     notice = "Frase del Mac con sus números: 786432 bytes."
     hub = FakeHub(device_replies=[refused(refusal, notice)])
@@ -380,7 +380,7 @@ async def test_a8_calendar_failure_is_named_and_never_an_empty_agenda(tmp_path, 
     assert "Fin de la lectura" not in body, body
 
 
-async def test_a8_a_mac_that_is_not_connected_is_named_as_that(tmp_path):
+async def test_a_mac_that_is_not_connected_is_named_as_that(tmp_path):
     hub = FakeHub(device_replies=[hub_rejected(404, "device_unavailable")])
     async with serving(tmp_path, hub) as (_client, server):
         result = await ask(server)
@@ -389,7 +389,7 @@ async def test_a8_a_mac_that_is_not_connected_is_named_as_that(tmp_path):
     assert body.startswith("device_unavailable: El Mac no está conectado a Orbit."), body
 
 
-async def test_a8_a_mac_that_is_not_paired_is_named_as_that(tmp_path):
+async def test_a_mac_that_is_not_paired_is_named_as_that(tmp_path):
     hub = FakeHub(devices=[])
     async with serving(tmp_path, hub) as (_client, server):
         result = await server.call_tool(

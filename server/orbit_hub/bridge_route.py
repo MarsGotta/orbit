@@ -72,14 +72,14 @@ class ActionResultRequest(PrivateModel):
     operation_id: str = Field(min_length=36, max_length=36)
 
 
-# DEI-16: what an action that has been handed to the Mac and has not finished
+# What an action that has been handed to the Mac and has not finished
 # yet is called. It used to be `awaiting_approval`, which said the opposite of
 # what was happening — the action was on its way, nobody was being asked — and
-# the assistant repeated the label to Mars as if her page were still closed.
+# the assistant repeated the label to the user as if their page were still closed.
 IN_FLIGHT = "in_progress"
 
 # Completed operations remain readable after an upgrade. Older journals can
-# hold DEI-08 outcomes; new Mac receipts are handled only by _action_outcome.
+# hold outcomes from older Macs; new Mac receipts are handled only by _action_outcome.
 ACTION_OUTCOMES = frozenset({IN_FLIGHT, "performed", "unknown", "failed", "expired", "rejected"})
 
 
@@ -101,14 +101,12 @@ class BridgeService:
         timestamp,
         captures,
         store,
-        *,
-        monotonic_clock=monotonic,
     ):
         self.configuration = (
             BridgeConfiguration.model_validate(configuration) if configuration is not None else None
         )
         self.runtimes, self.bridge, self.waiters = runtimes, bridge, waiters
-        self.timestamp, self.monotonic = timestamp, monotonic_clock
+        self.timestamp, self.monotonic = timestamp, monotonic
         self.captures, self.store = captures, store
         self.requests = asyncio.Semaphore(CONCURRENT_REQUESTS)
         self.wait_for_reply = asyncio.wait_for
@@ -125,30 +123,21 @@ class BridgeService:
         if self.auth is not None or self.configuration is None:
             return
         key = read_key(self.configuration.credential_file, BridgeError)
-        self.auth = Authenticator(
-            self.configuration.key_id,
-            key,
-            protocol=PROTOCOL,
-            path=PATH,
-            header_prefix=HEADER_PREFIX,
-            failure=BridgeError,
-        )
-        self.action_result_auth = Authenticator(
-            self.configuration.key_id,
-            key,
-            protocol=PROTOCOL,
-            path=ACTION_RESULT_PATH,
-            header_prefix=HEADER_PREFIX,
-            failure=BridgeError,
-        )
-        self.devices_auth = Authenticator(
-            self.configuration.key_id,
-            key,
-            protocol=PROTOCOL,
-            path=DEVICES_PATH,
-            header_prefix=HEADER_PREFIX,
-            failure=BridgeError,
-        )
+
+        # One key, one authenticator per route: a signature names its path.
+        def authenticator(path):
+            return Authenticator(
+                self.configuration.key_id,
+                key,
+                protocol=PROTOCOL,
+                path=path,
+                header_prefix=HEADER_PREFIX,
+                failure=BridgeError,
+            )
+
+        self.auth = authenticator(PATH)
+        self.action_result_auth = authenticator(ACTION_RESULT_PATH)
+        self.devices_auth = authenticator(DEVICES_PATH)
 
     def close(self):
         self._closed = True
@@ -166,8 +155,6 @@ class BridgeService:
 
     def devices(self, headers) -> list[dict]:
         self.check()
-        if self.devices_auth is None:
-            raise BridgeError(503, "unavailable")
         self.devices_auth.admit(headers, b"", int(self.timestamp()), self.monotonic())
         result = []
         for row in self.store.active_devices():
@@ -397,8 +384,6 @@ class BridgeService:
 
     def action_result(self, headers, body) -> dict:
         self.check()
-        if self.action_result_auth is None:
-            raise BridgeError(503, "unavailable")
         self.action_result_auth.admit(headers, body, int(self.timestamp()), self.monotonic())
         try:
             request = ActionResultRequest.model_validate_json(body)

@@ -3,7 +3,7 @@
 import re
 from bisect import bisect_left, bisect_right
 
-# SIM-82 second real measurement: -48 dB / 300 ms located the pauses for
+# Second real measurement (October 2026): -48 dB / 300 ms located the pauses for
 # 45 s windows that recovered 98% of the failed synthetic recording. This
 # chooses cut points; sound is never used to infer missing speech.
 SILENCE_NOISE_DB = -48
@@ -15,7 +15,7 @@ SILENCE_DURATION_MS = 300
 MIN_DRAFT_WORDS = 6
 MIN_FINAL_WORD_DIVISOR = 4
 DRAFT_MARGIN_MS = 1000
-# Retained SIM-82 separators: forged loop 130/291 words, legitimate short
+# Separators retained from that measurement: forged loop 130/291 words, legitimate short
 # repetition three words -> midpoint 66 words and half the forged share,
 # floored to 223 permille. Real windows + VAD peaked at 19/1102 words, below
 # both limits. These detect sustained loops, not ordinary emphasis or WER.
@@ -60,7 +60,7 @@ def loop_word_count(words):
 
 
 def measure(groups, words):
-    """Match the reviewer's numeric comparison; empty/unwritten drafts add no loss."""
+    """Draft groups against the final words, by time; empty or unwritten drafts add no loss."""
     starts = sorted(word["start_ms"] for word in words)
     compared, lost = 0, []
     for start, end, count in groups:

@@ -1,4 +1,4 @@
-"""The hub's tests connect only to ports this test process bound itself (REF-13).
+"""The hub's tests connect only to ports this test process bound itself.
 
 On the server where the gate runs, fixed ports of this machine are live
 services: the real speech-to-text among them. A test that names one, or builds
@@ -48,8 +48,8 @@ class Fence:
             self._refused.append(described)
         return ConnectionRefusedError(
             errno.ECONNREFUSED,
-            f"REF-13: un test del hub sólo se conecta a puertos que abrió este proceso; "
-            f"{described} no lo es (¿un servicio real de esta máquina?)",
+            f"a hub test only connects to ports this process opened; "
+            f"{described} is not one (a real service on this machine?)",
         )
 
     def refusals(self) -> int:

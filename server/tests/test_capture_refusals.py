@@ -34,7 +34,7 @@ def capture_upload_refused() -> Response:
 
 
 @pytest.mark.parametrize("tool", ["orbit_screenshot", "orbit_look"])
-async def test_a5_a_capture_that_could_not_be_uploaded_says_so(tmp_path, tool):
+async def test_a_capture_that_could_not_be_uploaded_says_so(tmp_path, tool):
     hub = FakeHub(
         device_replies=([answered({"windows": []})] if tool == "orbit_look" else [])
         + [capture_upload_refused()]

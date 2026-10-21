@@ -39,7 +39,8 @@ def _metadata(store, device: str, chunk_id: str, blob) -> dict:
     return value if isinstance(value, dict) else {}
 
 
-def _length_ms(metadata: dict) -> int:
+def length_ms(metadata: dict) -> int:
+    """How long a chunk or a group lasts, from its frames and rate; 0 when unknown."""
     frames, rate = metadata.get("frames"), metadata.get("sample_rate")
     if type(frames) is int and type(rate) is int and rate > 0 and frames >= 0:
         return frames * 1000 // rate
@@ -65,7 +66,7 @@ def _edge(db, device: str, recording: str, track: str, order: str):
 # two. Two seconds or more in the first microphone chunk of an open recording
 # with no other chunk is therefore a voice note, never a meeting. A note
 # shorter than that cannot be told from a meeting's first second and stays
-# listed. Since SIM-41 the Mac no longer uploads voice notes.
+# listed. The Mac no longer uploads voice notes.
 VOICE_NOTE_MIN_SECONDS = 2
 
 
@@ -111,7 +112,7 @@ def open_capture(store, db, device: str, recording: str) -> dict:
         if type(opening.get("started_at_ms")) is int:
             starts.append(opening["started_at_ms"])
         if type(closing.get("started_at_ms")) is int:
-            ends.append(closing["started_at_ms"] + _length_ms(closing))
+            ends.append(closing["started_at_ms"] + length_ms(closing))
         if last["received"] is not None:
             received.append(int(last["received"] * 1000))
     started = min(starts) if starts else None
@@ -143,7 +144,7 @@ def pending_audio(store, db, device: str, recording: str) -> dict:
     ).fetchall()
     per_track: dict[str, int] = {}
     for row in rows:
-        length = _length_ms(_metadata(store, device, row["id"], row["metadata"]))
+        length = length_ms(_metadata(store, device, row["id"], row["metadata"]))
         per_track[row["track"]] = per_track.get(row["track"], 0) + length
     return {
         "pending_chunks": len(rows),

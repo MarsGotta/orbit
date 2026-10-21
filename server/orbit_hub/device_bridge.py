@@ -27,8 +27,8 @@ REQUEST_TIMEOUT_SECONDS = 30.0
 # 30 s. This outer 30 s bound covers that validated ceiling and frees one of
 # four pending bridge slots even if the response never arrives. Five synthetic
 # action-suite runs on 2026-09-30 took at most 0.65 s per suite, with the
-# slowest action call at 0.08 s (uptime 10d19h, load 1.06/1.98/2.91); these
-# do not measure macOS input. This bound is not an input retry or proof that a
+# slowest action call at 0.08 s, on a loaded host; these do not measure macOS
+# input. This bound is not an input retry or proof that a
 # real action finishes within it.
 ACTION_REPLY_TIMEOUT_SECONDS = 30.0
 

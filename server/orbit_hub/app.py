@@ -38,6 +38,7 @@ from .protocol import HubError, emit
 from .runtime import DeviceRuntime, TurnInputTracker
 from .storage import Store
 from .transcription import TranscriptionWorker
+from .urls import LOOPBACK_HOSTS
 
 
 def hub_version() -> str:
@@ -65,11 +66,7 @@ def allowed_transport(scope, settings: Settings) -> bool:
     if scope["scheme"] in {"https", "wss"}:
         return True
     host = scope.get("client", ("",))[0]
-    return settings.allow_insecure_localhost and host in {
-        "127.0.0.1",
-        "::1",
-        "localhost",
-    }
+    return settings.allow_insecure_localhost and host in LOOPBACK_HOSTS
 
 
 async def bounded_body(request: Request, maximum: int) -> bytes:
@@ -123,11 +120,11 @@ def create_app(
     # easier to get right when they are not owned by the connection.
     bridge = DeviceBridge()
     bridge_waiters: dict[str, asyncio.Future] = {}
-    device_versions: dict[str, str | None] = {}
     captures = CaptureStore(now=now)
-    # One thread for all Store mutations and heavy reads: the loop must never
-    # run sha256, AES, BEGIN IMMEDIATE or the decrypt-and-assemble of a meeting
-    # group. A single worker keeps writes ordered for the SQLite WAL.
+    # One thread for the Store's heavy work: hashing and encrypting uploads,
+    # assembling a meeting group, reading transcripts. Small transactions
+    # (a message, a status, a receipt) still run on the loop under the
+    # Store's lock. A single worker keeps these writes ordered for the WAL.
     store_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="orbit-store")
     # Fired whenever a new chunk is persisted or a recording is finalized, so
     # the transcription worker can react to fresh work without polling.
@@ -145,14 +142,14 @@ def create_app(
     pair_attempts: dict[str, tuple[float, int]] = {}
     # Durable meetings use hub-owned STT; Hermes remains interactive-only.
     meeting_transcriber = MeetingTranscriber(settings.meeting_transcription)
-    # What a transcript group stored without a language reads as (SIM-40).
+    # What a transcript group stored without a language reads as.
     meeting_language = meeting_transcriber.configuration.language
     meetings_bridge = MeetingsBridgeService(
         store, settings.meetings_bridge, now, default_language=meeting_language
     )
 
     def recording_changed(device: str, recording: str) -> None:
-        """SIM-40: tell the owning device's connections, and no other, to read it again."""
+        """Tell the owning device's connections, and no other, to read it again."""
         runtime = runtimes.get(device)
         if runtime is not None:
             runtime.offer(emit("recording.changed", {"recording_id": recording}))
@@ -164,7 +161,6 @@ def create_app(
         processing_client = open_processing_client(settings.processing)
     notes = NotesWorker(
         NoteRepository(store),
-        settings.processing,
         now,
         signal=notes_signal,
         store_executor=store_executor,
@@ -278,15 +274,12 @@ def create_app(
     app.state.store = store
     app.state.notes = notes
     app.state.device_bridge = device_bridge
-    app.state.meetings_bridge = meetings_bridge
-    app.state.captures = captures
-    app.state.device_versions = device_versions
 
     @app.exception_handler(HubError)
     async def hub_error(_request, exc):
         return http_response(
             exc.code,
-            getattr(exc, "public_message", str(exc)),
+            exc.message,
             exc.http_status,
             numbers=exc.numbers,
         )
@@ -439,7 +432,6 @@ def create_app(
         bridge,
         bridge_waiters,
         hub_version,
-        device_versions,
     )
 
     return app

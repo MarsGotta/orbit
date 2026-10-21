@@ -39,10 +39,10 @@ SCHEMA: tuple[str, ...] = (
     "elapsed_ms",
 )
 
-# The identifier of one action from end to end (SIM-21 «Contrato con SIM-22»):
-# the Mac sends it, every log line of the request carries it, every error body
-# returns it, and the generic failure the user sees shows its first six
-# characters. The shape is the contract's; it bounds nothing else.
+# The identifier of one action from end to end: the Mac sends it, every log
+# line of the request carries it, every error body returns it, and the generic
+# failure the user sees shows its first six characters. The shape is the
+# contract's; it bounds nothing else.
 OP_PATTERN = re.compile(r"[A-Za-z0-9-]{8,64}")
 _OP: ContextVar[str | None] = ContextVar("orbit_op", default=None)
 
@@ -172,25 +172,26 @@ def stop_if_asked() -> None:
     closes a response inside an anyio shield). The request to stop is still
     pending on the task (`cancelling()`), and each later `wait_for` turns its
     own timeout into the `TimeoutError` the loop ignores, so a worker would
-    never stop and the hub would never finish closing (SIM-40).
+    never stop and the hub would never finish closing.
     """
     task = asyncio.current_task()
     if task is not None and task.cancelling():
         raise asyncio.CancelledError
 
 
-async def supervised(
-    name: str,
-    factory: Callable[[], Awaitable[None]],
-    *,
-    backoff: tuple[int, ...] = (1, 2, 4, 8, 16, 30),
-) -> None:
+# Seconds before each relaunch of a crashed worker: quick after a passing
+# failure, never a busy loop on a lasting one. The last one is the cap: every
+# relaunch after it waits that long. It paces relaunches; it bounds nothing else.
+RELAUNCH_BACKOFF_SECONDS = (1, 2, 4, 8, 16, 30)
+
+
+async def supervised(name: str, factory: Callable[[], Awaitable[None]]) -> None:
     """Loop ``factory``; on crash, report ``task_crashed`` and relaunch with backoff.
 
     A normal return ends the loop. ``CancelledError`` propagates so that shutdown
-    remains a single cancellation signal. The cap is the last element of
-    ``backoff``: once reached, every subsequent relaunch waits that long.
+    remains a single cancellation signal.
     """
+    backoff = RELAUNCH_BACKOFF_SECONDS
     attempt = 0
     while True:
         try:

@@ -1,9 +1,10 @@
-"""SIM-52: a meeting's language and its name, on the hub.
+"""A meeting's language and its name, on the hub.
 
 The language: Whisper receives the recording's own language (the configured
-one until Alina picks another); picking another on a finished meeting repeats
-every group in it with the audio the hub keeps, then writes the note again in
-it, with Alina's edits set aside. The name: Alina's name for a meeting wins over
+one until the user picks another); picking another on a finished meeting
+repeats every group in it with the audio the hub keeps, then writes the note
+again in it, with the user's edits set aside. The name: the user's name for a
+meeting wins over
 the manifest's in the list, the document, Deimos's list and the next note, and
 the note already written is left as it is.
 
@@ -77,7 +78,7 @@ class LanguageStt:
 
 @pytest.fixture
 def hub(environment, tmp_path):
-    """SIM-40's hub: Spanish configured, Deimos's bridge on, a fake note model."""
+    """The hub: Spanish configured, Deimos's bridge on, a fake note model."""
     settings, store, adapter = environment
     key = tmp_path / "meetings.key"
     key.write_bytes(KEY)
@@ -142,7 +143,7 @@ async def until_transcribed(http, paired, recording, *, budget=500):
         ):
             return document
         await asyncio.sleep(0.01)
-    raise AssertionError("la transcripción no terminó")
+    raise AssertionError("the transcript did not finish")
 
 
 def groups(store, recording):
@@ -254,7 +255,7 @@ async def test_english_on_a_finished_meeting_repeats_every_group_and_writes_the_
     assert done["transcript"].get("retranscribing") is None
     # The empty group said something this time: four turns, one per group.
     assert [turn["text"] for turn in after] == [ENGLISH] * 4
-    # The note again, in English, and Mars's edits set aside.
+    # The note again, in English, and the user's edits set aside.
     assert len(model.calls) == 2
     assert "Escribes en inglés" in model.calls[-1]["messages"][0]["content"]
     assert ENGLISH in model.calls[-1]["messages"][1]["content"]
@@ -411,7 +412,7 @@ async def test_renaming_names_the_meeting_everywhere_and_leaves_the_written_note
     # The note already written stays as it was written.
     assert document["note"]["revision"] == written["revision"]
     assert document["note"]["note"] == written["note"]
-    # The next note is asked with Mars's name.
+    # The next note is asked with the user's name.
     assert len(model.calls) == 2
     assert "Título previsto: Presupuesto 2027" in model.calls[-1]["messages"][1]["content"]
     # An empty title gives the meeting back its own.
@@ -439,7 +440,7 @@ async def test_a_title_is_one_line_within_the_meetings_ceiling(hub):
     assert missing.status_code == 404 and missing.json()["code"] == "recording_not_found"
 
 
-# Each change reaches the owning device as `recording.changed`, as SIM-40's do.
+# Each change reaches the owning device as `recording.changed`, as the other meeting changes do.
 
 
 async def test_a_rename_and_a_language_change_are_announced_to_the_owner(environment):

@@ -2,9 +2,9 @@
 
 One rule for every reader of a transcript: the Mac's routes, Deimos's meetings
 bridge, the note the model writes and the context of a question asked about a
-meeting. Before SIM-40 the Mac rebuilt it on its own and got the times (the
-chunks' wall clock), the names («Hablante sin identificar») and the empty
-groups wrong; nothing else here may decide them again.
+meeting. When the Mac rebuilt it on its own, it got the times (the chunks'
+wall clock), the names («Hablante sin identificar») and the empty groups wrong;
+nothing else here may decide them again.
 
 `read` is the only part that touches the store, inside the caller's snapshot;
 the rest is pure.
@@ -14,8 +14,8 @@ import json
 from collections import Counter
 from dataclasses import dataclass
 
-from ..meetings_bridge.capture import open_capture
 from . import dictionaries, repository
+from .open_recordings import length_ms, open_capture
 
 # How the local microphone is named before the Mac has said who owns it
 # (`PUT /v1/device/profile`). It is the track, not a person.
@@ -74,8 +74,9 @@ class Line:
 def speaker_key(track: str, label: str | None) -> str:
     """The recognizer's label when a group has one, else its track.
 
-    Diarization left in SIM-02, so every group says "unknown" and the key is the
-    track. Renaming is keyed by this, so it never changes for a stored group.
+    The live draft carries no speaker, so its groups say "unknown" and the key
+    is the track; the final pass labels each separated voice `voice_N`.
+    Renaming is keyed by this, so it never changes for a stored group.
     """
     if label and label != "unknown":
         return label
@@ -83,7 +84,7 @@ def speaker_key(track: str, label: str | None) -> str:
 
 
 def speaker_name(key: str, track: str, renames: dict[str, str], owner: str | None) -> str:
-    """Mars's name for the voice; else the owner for the local microphone; else nobody."""
+    """The user's name for the voice; else the owner for the local microphone; else nobody."""
     if key in renames:
         return renames[key]
     if track == "mic_local":
@@ -155,7 +156,7 @@ class Transcript:
     # transcribed meeting is, for the note's length.
     audio_ms: int
     # The name the local microphone carries, whether or not it spoke: who
-    # records the meeting, as the note's prompt calls her.
+    # records the meeting, as the note's prompt calls them.
     local_name: str
     final: bool = False
     dictionary_terms: tuple[dict, ...] = ()
@@ -171,13 +172,6 @@ class Transcript:
 
     def lines(self) -> list[Line]:
         return [Line(turn.at_ms, self.name(turn.speaker_key), turn.text) for turn in self.turns]
-
-
-def _length_ms(manifest: dict) -> int:
-    frames, rate = manifest.get("frames"), manifest.get("sample_rate")
-    if type(frames) is int and type(rate) is int and rate > 0 and frames >= 0:
-        return frames * 1000 // rate
-    return 0
 
 
 def started_at(store, db, device: str, recording: str) -> int | None:
@@ -207,7 +201,7 @@ def read(
     Only `Transcript.language` depends on it.
 
     Every group with a text is read: a group being transcribed again in
-    another language (SIM-52) keeps its old text until the new one arrives,
+    another language keeps its old text until the new one arrives,
     so the meeting never reads emptier while it is repeated.
     """
     started = started_at(store, db, device, recording)
@@ -225,7 +219,7 @@ def read(
         body = json.loads(store.decrypt(row["body"], f"group-transcript:{device}:{row['id']}"))
         wall = group.get("started_at_ms")
         at_ms = max(0, wall - started) if type(wall) is int and type(started) is int else 0
-        end = max(end, at_ms + _length_ms(group))
+        end = max(end, at_ms + length_ms(group))
         label = group.get("speaker")
         key = speaker_key(row["track"], label if isinstance(label, str) else None)
         keys.setdefault(key, row["track"])
@@ -242,7 +236,7 @@ def read(
                 first_index=row["first_sequence"],
                 last_index=row["last_sequence"],
                 language=language if isinstance(language, str) else default_language,
-                end_ms=at_ms + _length_ms(group),
+                end_ms=at_ms + length_ms(group),
             )
         )
     final = db.execute(
@@ -336,7 +330,7 @@ def read(
         ),
         dictionary_terms=tuple(terms),
         speakers=speakers,
-        # Mars's choice; else what the groups are in; else the configured one.
+        # The user's choice; else what the groups are in; else the configured one.
         language=(chosen[0] if chosen else None) or language_of(in_order) or default_language,
         groups=len(rows),
         audio_ms=end,

@@ -1,4 +1,4 @@
-"""REF-04 A6: with the Mac disconnected, every tool says so.
+"""With the Mac disconnected, every tool says so.
 
 `orbit_calendar` handed its refusal the requested device *name* where a device
 selection belongs, so a disconnected Mac made it raise
@@ -44,7 +44,7 @@ def _disconnected_devices() -> list[dict]:
     ]
 
 
-async def test_a6_orbit_calendar_says_the_mac_is_not_connected(tmp_path):
+async def test_orbit_calendar_says_the_mac_is_not_connected(tmp_path):
     hub = FakeHub(
         devices=_disconnected_devices(),
         device_replies=[hub_rejected(404, "device_unavailable")],
@@ -95,7 +95,7 @@ class DisconnectedHub:
     async def note(self, *_args):
         await self._unavailable("note")
 
-    # REF-10: `orbit_calendar` walks the Mac's pages through `calendar_read`;
+    # `orbit_calendar` walks the Mac's pages through `calendar_read`;
     # `calendar_query` served the retired stored copy.
     async def calendar_read(self, *_args):
         await self._unavailable("calendar_read")
@@ -121,7 +121,7 @@ def _server(tmp_path, hub):
     return build_server(config, hub)
 
 
-async def test_a6_the_sweep_covers_every_tool_that_addresses_a_mac(tmp_path):
+async def test_the_sweep_covers_every_tool_that_addresses_a_mac(tmp_path):
     server = _server(tmp_path, DisconnectedHub())
     addressing = {
         tool.name
@@ -132,7 +132,7 @@ async def test_a6_the_sweep_covers_every_tool_that_addresses_a_mac(tmp_path):
 
 
 @pytest.mark.parametrize("tool", sorted(ARGUMENTS))
-async def test_a6_every_tool_says_the_mac_is_not_connected(tmp_path, tool):
+async def test_every_tool_says_the_mac_is_not_connected(tmp_path, tool):
     hub = DisconnectedHub()
     server = _server(tmp_path, hub)
 

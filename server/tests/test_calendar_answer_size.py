@@ -1,4 +1,4 @@
-"""REF-10: how many characters Deimos receives for a month of agenda.
+"""How many characters Deimos receives for a month of agenda.
 
 Hermes, not Orbit, bounds what reaches Deimos (measured by the reviewer in the
 installed Hermes): a tool result stays whole in Deimos's context up to 50,000
@@ -10,7 +10,7 @@ middle (`tools/mcp_tool_content.py:24`).
 So the answer is written to say everything the Mac's JSON said in far fewer
 characters, and its first lines are the summary a 1,500-character preview can
 show. These cases pin the sizes for a typical and a busy month in the
-proportions REF-20 measured (`support_agenda_month.py`), check that nothing of
+measured proportions (`support_agenda_month.py`), check that nothing of
 any event was dropped to get there, and that the preview carries the summary.
 """
 
@@ -44,8 +44,8 @@ def reading_of(events):
 
 # (name, events a working day, guest mix, events, guests, JSON chars, text chars)
 MONTHS = [
-    ("típico", 8, TYPICAL, 210, 1_171, 402_366, 100_432),
-    ("cargado", 17, HEAVY, 435, 7_328, 1_865_589, 367_146),
+    ("típico", 8, TYPICAL, 210, 1_171, 402_366, 100_446),
+    ("cargado", 17, HEAVY, 435, 7_328, 1_865_589, 367_160),
 ]
 
 
@@ -66,7 +66,7 @@ def test_a_month_of_agenda_in_characters(name, per_day, mix, count, guests, as_j
     assert len(text) < HERMES_HARD_CUT_CHARS
     preview = text[:HERMES_PREVIEW_CHARS]
     first, per_day_line = preview.splitlines()[:2]
-    assert first.startswith(f"Agenda de Mars: {count} eventos del ")
+    assert first.startswith(f"Agenda: {count} eventos del ")
     assert "en 28 calendarios" in first
     assert per_day_line.startswith("Por día: ") and per_day_line.endswith(".")
     assert text.rstrip().endswith(f"Fin de la lectura: {count} eventos.")

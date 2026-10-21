@@ -1,4 +1,4 @@
-"""REF-407: isolated Hermes adapter and durable hub session bindings."""
+"""Isolated Hermes adapter and durable hub session bindings."""
 
 import asyncio
 from types import SimpleNamespace
@@ -110,7 +110,7 @@ async def sent(runtime, text, session_id=None):
     return result["session_id"]
 
 
-async def test_a1_only_inflight_session_becomes_unknown_on_upstream_loss(environment):
+async def test_only_inflight_session_becomes_unknown_on_upstream_loss(environment):
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
@@ -154,7 +154,7 @@ async def test_lost_hermes_keeps_reconnect_snapshot_for_unknown_turn(environment
     await runtime.close()
 
 
-async def test_a2_new_hub_runtime_resumes_existing_hermes_history(environment):
+async def test_new_hub_runtime_resumes_existing_hermes_history(environment):
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
@@ -182,7 +182,7 @@ async def test_a2_new_hub_runtime_resumes_existing_hermes_history(environment):
     await restarted.close()
 
 
-async def test_a3_hermes_epoch_change_resumes_stored_session(environment):
+async def test_hermes_epoch_change_resumes_stored_session(environment):
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
@@ -203,7 +203,7 @@ async def test_a3_hermes_epoch_change_resumes_stored_session(environment):
     await runtime.close()
 
 
-async def test_a5_unknown_turn_is_never_resumed_or_resent(environment):
+async def test_unknown_turn_is_never_resumed_or_resent(environment):
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
@@ -222,7 +222,7 @@ async def test_a5_unknown_turn_is_never_resumed_or_resent(environment):
     await runtime.close()
 
 
-async def test_a4_missing_hermes_history_has_a_specific_refusal(environment):
+async def test_missing_hermes_history_has_a_specific_refusal(environment):
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
@@ -414,8 +414,8 @@ async def test_interrupt_and_new_send_do_not_wait_for_history(environment):
     duplicate = asyncio.create_task(sent(runtime, "segundo intento", session_id))
     try:
         await asyncio.sleep(0)
-        assert interrupt.done(), "el control quedó detrás de la hidratación"
-        assert duplicate.done(), "otro envío quedó esperando el mismo runtime_id"
+        assert interrupt.done(), "the control waited behind the history load"
+        assert duplicate.done(), "another send was left waiting on the same runtime_id"
         with pytest.raises(HubError) as error:
             await interrupt
         assert error.value.code == "stale_turn"
@@ -455,7 +455,7 @@ async def test_other_new_session_can_send_while_history_waits(environment):
     other_send = asyncio.create_task(sent(runtime, "otra conversación"))
     try:
         await asyncio.sleep(0)
-        assert other_send.done(), "la sesión nueva quedó detrás de la hidratación"
+        assert other_send.done(), "the new session waited behind the history load"
         other = await other_send
         assert other != session_id
         assert [method for method, _ in connection.calls] == [
@@ -598,7 +598,7 @@ async def test_ending_runtime_wakes_history_wait_with_its_cause(environment, end
         else:
             await getattr(runtime, ending)()
         await asyncio.sleep(0)
-        assert sending.done(), f"{ending} dejó pendiente la hidratación"
+        assert sending.done(), f"{ending} left the history load pending"
         with pytest.raises(HubError) as error:
             await sending
         assert error.value.code == ("session_resume_closed" if ending == "close" else "revoked")

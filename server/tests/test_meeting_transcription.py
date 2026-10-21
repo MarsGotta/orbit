@@ -22,7 +22,7 @@ from orbit_hub.protocol import HubError
 from orbit_hub.transcription import TranscriptionWorker
 
 # Loopback over plain http, as in production, on the one port nothing can listen
-# on: every request in this file goes through an httpx.MockTransport (REF-13).
+# on: every request in this file goes through an httpx.MockTransport.
 LOCAL = "http://127.0.0.1:0"
 
 
@@ -97,7 +97,7 @@ def test_a_worker_without_a_meeting_transcriber_is_rejected():
 
 
 @pytest.mark.asyncio
-async def test_ref308_remote_protocol_failure_names_transport():
+async def test_remote_protocol_failure_names_transport():
     def broken_client():
         def disconnect(_request):
             raise httpx.RemoteProtocolError("synthetic upstream disconnected")
@@ -112,7 +112,7 @@ async def test_ref308_remote_protocol_failure_names_transport():
 
 
 @pytest.mark.asyncio
-async def test_ref308_timeout_names_the_meeting_request_budget():
+async def test_timeout_names_the_meeting_request_budget():
     def broken_client():
         def expire(_request):
             raise httpx.ReadTimeout("synthetic timeout")
@@ -188,7 +188,7 @@ async def test_audio_outside_the_bounds_is_refused_before_any_request():
     assert recorder.requests == []
 
 
-# SIM-25 (2026-10-17): Whisper invented «¿Qué pasa con el presupuesto?» over a
+# On 2026-10-17 Whisper invented «¿Qué pasa con el presupuesto?» over a
 # group that began with seconds of digital silence, and lost the meeting's first
 # twenty seconds. The same audio, trimmed, came back right.
 

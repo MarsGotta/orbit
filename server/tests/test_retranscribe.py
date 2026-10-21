@@ -1,4 +1,4 @@
-"""SIM-93: manual final passes through HTTP, using only synthetic meetings."""
+"""Manual final passes through HTTP, using only synthetic meetings."""
 
 from dataclasses import replace
 

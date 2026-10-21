@@ -31,7 +31,7 @@ class Settings:
     max_assistant_name_chars: ClassVar[int] = 48
     hermes_ws_auth: Literal["token"] = "token"
     allow_insecure_localhost: bool = False
-    allowed_hosts: tuple[str, ...] = ("localhost", "127.0.0.1", "testserver")
+    allowed_hosts: tuple[str, ...] = ("localhost", "127.0.0.1")
     # Preserve the published 8 MiB upload ceiling: it bounds one HTTP
     # allocation and admits grouped PCM with its WAV header. It is independent
     # of websocket frames and does not limit a durable meeting's length.
@@ -40,7 +40,8 @@ class Settings:
     # its HTTP allocation, not the length of a durable meeting.
     max_audio_bytes: ClassVar[int] = 24 * 1024 * 1024
     # Shared with the daemon's outgoing frame ceiling, guarded across languages.
-    # Kept as a field until SIM-67 changes the two guards that inspect this field.
+    # A field rather than a ClassVar because contracts/constants.json reads its
+    # default through `__dataclass_fields__`.
     max_frame_bytes: int = 128 * 1024
     # Preventive DB+WAL+SHM growth admission, not a filesystem quota. 10 GiB
     # leaves room for durable audio while retaining revocation/state headroom.
@@ -55,17 +56,17 @@ class Settings:
         protected_url(self.hermes_url, allow_insecure_localhost=self.allow_insecure_localhost)
         count = len(self.assistant_name)
         if any(unicodedata.category(c) == "Cc" for c in self.assistant_name):
-            cause = "contiene caracteres de control"
+            cause = "contains control characters"
         elif not self.assistant_name.strip():
-            cause = "vacío"
+            cause = "is empty"
         elif count > self.max_assistant_name_chars:
-            cause = "demasiado largo"
+            cause = "is too long"
         else:
             cause = None
         if cause is not None:
             raise ValueError(
-                f"assistant_name {cause}: {count} caracteres; "
-                f"máximo {self.max_assistant_name_chars}"
+                f"assistant_name {cause}: {count} characters; "
+                f"maximum {self.max_assistant_name_chars}"
             )
         if not self.profile or len(self.profile) > 64 or "/" in self.profile:
             raise ValueError("Invalid server-selected Hermes profile")
@@ -75,7 +76,7 @@ class Settings:
         with path.open("rb") as handle:
             values = tomllib.load(handle)
         if "meetings" in values:
-            raise ValueError("La sección [meetings] se llama ahora [meetings_bridge]")
+            raise ValueError("The [meetings] section is now called [meetings_bridge]")
         for key in ("data_dir", "key_file", "hermes_credential_file"):
             if key in values:
                 values[key] = Path(values[key]).expanduser()

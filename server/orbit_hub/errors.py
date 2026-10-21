@@ -15,18 +15,12 @@ class HubError(Exception):
         code: str,
         message: str,
         http_status: int | None = None,
-        ws_code: int | None = None,
         numbers: dict[str, int] | None = None,
     ):
         super().__init__(message)
         self.code, self.message = code, message
         self.numbers = numbers
         self.http_status = _http_status(code) if http_status is None else http_status
-        self.ws_code = (
-            {401: 4401, 403: 4403, 429: 4429}.get(self.http_status, 4400)
-            if ws_code is None
-            else ws_code
-        )
 
 
 _CHECK_OUTCOME = {
@@ -159,12 +153,10 @@ def http_response(
     *,
     payload: dict | None = None,
     numbers: dict[str, int] | None = None,
-    headers: dict | None = None,
 ) -> JSONResponse:
     return JSONResponse(
         render(code, message, payload=payload, numbers=numbers),
         status_code=status,
-        headers=headers,
     )
 
 

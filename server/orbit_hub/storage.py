@@ -23,13 +23,13 @@ from .meetings.repository import SCHEMA as MEETINGS_SCHEMA
 from .protocol import HubError
 from .secret_file import read_secret
 
-# P7-03 R4: an operation's durable receipt is bounded public frame data (the
+# An operation's durable receipt is bounded public frame data (the
 # largest interaction acknowledgement stays a few KiB). Its headroom is
 # reserved when the operation is admitted, so recording the outcome of an
 # already-applied operation can never fail on the content quota.
 OPERATION_RECEIPT_RESERVE_BYTES = 16 * 1024
 
-# REF-04 A7: the conversations `/v1/sessions` lists for a Mac, the most recent
+# The conversations `/v1/sessions` lists for a Mac, the most recent
 # ones. The hub keeps every conversation ever opened and each restart opens new
 # ones, so the whole list only grows.
 # What it protects: the Mac that reads the list, which keeps at most 128 of
@@ -40,7 +40,7 @@ OPERATION_RECEIPT_RESERVE_BYTES = 16 * 1024
 # many there are (`total`), and older conversations stay stored.
 SESSION_LIST_LIMIT = 128
 
-# SIM-30: one page of a conversation's messages (`GET /v1/sessions/{id}/messages`).
+# One page of a conversation's messages (`GET /v1/sessions/{id}/messages`).
 # What it protects: the Mac that reads it, whose HTTP reader stops at 1 MiB
 # (`MAX_HUB_HTTP_BODY_BYTES`) and which passes the page on to the app inside
 # one 640 KiB read (`SessionMessages`, crates/orbit-core/src/reads.rs). Why
@@ -149,7 +149,7 @@ class Store:
         }
         if "title" not in manifest_columns:
             self._db.execute("ALTER TABLE recording_manifests ADD COLUMN title BLOB")
-        # SIM-30: when each message was written, whether it was a voice note
+        # When each message was written, whether it was a voice note
         # and the Mac's id for it. Rows from before stay without a time, as text.
         message_columns = {row["name"] for row in self._db.execute("PRAGMA table_info(messages)")}
         for column, definition in (
@@ -167,7 +167,7 @@ class Store:
             row["name"] for row in self._db.execute("PRAGMA table_info(transcription_groups)")
         }
         if "language" not in group_columns:
-            # SIM-40: the language each group was transcribed in. Groups stored
+            # The language each group was transcribed in. Groups stored
             # before it read as the configured language (`meetings.turns.read`).
             self._db.execute("ALTER TABLE transcription_groups ADD COLUMN language TEXT")
         self._db.executescript(safety.SCHEMA)
@@ -205,9 +205,10 @@ class Store:
                 raise
             else:
                 self._db.execute("COMMIT")
-                # A commit may include writes from any owner of this connection
-                # (e.g. the calendar journal's admin revoke), so the cached
-                # revocation signal cannot outlive a successful COMMIT.
+                # A commit may include any write of this connection, a revocation
+                # among them, so the cached revocation signal cannot outlive a
+                # successful COMMIT. A revocation from the CLI, in another
+                # process, is seen when the cache's TTL runs out.
                 self._active_cache.clear()
 
     def close(self) -> None:
@@ -727,7 +728,7 @@ class Store:
     ) -> dict:
         # The HTTP close asks for the final pass atomically with the manifest.
         # Importers/fixtures of historical recordings retain their draft unless
-        # explicitly requested, as required by SIM-80a.
+        # explicitly requested.
         tracks = {track["track"]: track for track in manifest["tracks"]}
         if (
             len(tracks) != len(manifest["tracks"])

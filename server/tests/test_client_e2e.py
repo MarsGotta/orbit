@@ -18,6 +18,7 @@ from support_client_e2e import (
     DAEMON_E2E_TIMEOUT_SECONDS,
     RustDevice,
     SyntheticHermes,
+    grouped_transcript,
     tcp_server,
     until,
 )
@@ -35,7 +36,7 @@ pytestmark = pytest.mark.skipif(
 
 
 def turn_of(state):
-    """SIM-30: the Mac's state carries only the turn in progress, or the last."""
+    """The Mac's state carries only the turn in progress, or the last."""
     turn = state.get("turn") or {}
     return [message for message in (turn.get("user"), turn.get("answer")) if message]
 
@@ -65,7 +66,7 @@ async def test_rust_daemon_pair_chat_privacy_recording_and_recovery():
 
         store.put_chunk = observe_upload
         hermes = SyntheticHermes()
-        # P7-06: the hub transcribes meetings against its own STT, not Hermes.
+        # The hub transcribes meetings against its own STT, not Hermes.
         stt = SyntheticStt("Audio sintético de prueba.")
         device = RustDevice(binary, root / "device")
         try:
@@ -81,7 +82,7 @@ async def test_rust_daemon_pair_chat_privacy_recording_and_recovery():
                     allowed_hosts=("127.0.0.1", "localhost"),
                 )
                 async with tcp_server(create_app(settings, store=store)) as hub:
-                    # The running daemon pairs (DAE-01), with the hub it is given,
+                    # The running daemon pairs, with the hub it is given,
                     # so it starts before the code is redeemed.
                     await device.start()
                     await device.request(
@@ -102,7 +103,7 @@ async def test_rust_daemon_pair_chat_privacy_recording_and_recovery():
                     )
                     assert turn_of(state)[-1]["text"] == "Respuesta final sintética E2E_BASE"
                     assert hermes.prompts == ["E2E_BASE"]
-                    # DEI-05: the turn reached Hermes saying where it came from.
+                    # The turn reached Hermes saying where it came from.
                     assert hermes.contexts == ["[Orbit · Synthetic E2E device · texto]"]
 
                     # Provider failures must not promote partial output to a completed answer.
@@ -110,9 +111,9 @@ async def test_rust_daemon_pair_chat_privacy_recording_and_recovery():
                     state = await until(device.state, lambda state: state["active_request"] is None)
                     assert turn_of(state)[-1]["complete"] is False
                     assert turn_of(state)[-1]["text"] == "Texto parcial."
-                    # SIM-21: the daemon says a code, never the hub's sentence.
+                    # The daemon says a code, never the hub's sentence.
                     assert state["notice"]["code"] == "assistant_failed"
-                    # SIM-30: the conversation is read from the hub, through
+                    # The conversation is read from the hub, through
                     # the daemon; the failed answer was never stored.
                     read = await device.request(
                         {
@@ -204,7 +205,7 @@ async def test_rust_daemon_pair_chat_privacy_recording_and_recovery():
 
                     async def transcript():
                         try:
-                            value = store.groups.transcript(owner, recording)
+                            value = grouped_transcript(store, owner, recording)
                         except HubError:
                             value = {}  # nothing of this recording reached the hub yet
                         value["e2e_uploads"] = [
@@ -243,14 +244,14 @@ async def test_rust_daemon_pair_chat_privacy_recording_and_recovery():
                         for segment in receipt["segments"]
                         for source in segment["sources"]
                     }
-                    # P7-06: both groups went to the hub's STT, none to Hermes.
+                    # Both groups went to the hub's STT, none to Hermes.
                     assert len(stt.audio) == 2 and hermes.audio_calls == 0
                     assert any(
                         "Audio sintético de prueba." in segment.get("text", "")
                         for segment in receipt["segments"]
                     )
 
-                    # SIM-41: the app reads the meeting through the daemon,
+                    # The app reads the meeting through the daemon,
                     # which reads it from the hub's routes and passes it on.
                     meeting = await until(
                         lambda: device.read({"kind": "note_detail", "id": recording}),
@@ -307,7 +308,7 @@ async def test_rust_daemon_pair_chat_privacy_recording_and_recovery():
                     await device.close(crash=True)
                     await device.start()
                     recovered = await device.state()
-                    # REF-12 A1: a crash nobody asked for comes back working.
+                    # A crash nobody asked for comes back working.
                     assert recovered["privacy_stopped"] is False
                     assert recovered["generation"] > before_crash["generation"]
                     assert recovered["recording"]["sealed_chunks"] == 40

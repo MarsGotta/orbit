@@ -1,7 +1,7 @@
 """The hub's storage quota, refused with its numbers.
 
 `Store.ensure_capacity` refuses a write past the configured quota with a bare
-`quota_exceeded`. A note, a memory or a preparation that cannot be stored must
+`quota_exceeded`. A note, a template or a dictionary that cannot be stored must
 say that, and how much: the bytes it needed, what the hub already uses and the
 quota, so whoever reads the failure knows it is the hub's disk and not the
 model, and by how much.

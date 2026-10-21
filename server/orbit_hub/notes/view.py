@@ -1,14 +1,14 @@
-"""The note as Mars sees it: what the model wrote, with her own edits applied.
+"""The note as the user sees it: what the model wrote, with their own edits applied.
 
 Pure: no store, clock or network. The repository keeps the model's note and
-Mars's edits apart so that a regeneration never overwrites her work silently;
-whoever reads the note on her behalf (Deimos, through the meetings bridge)
-must see the result of both, never the model's version alone.
+the user's edits apart so that a regeneration never overwrites their work
+silently; whoever reads the note on their behalf (Deimos, through the meetings
+bridge) must see the result of both, never the model's version alone.
 """
 
 
 def as_seen(note: dict, edits: dict | None) -> tuple[dict, dict]:
-    """The note with Mars's title, sections and done marks, and what she edited.
+    """The note with the user's title, sections and done marks, and what they edited.
 
     An edited title or section list replaces the model's whole; a done mark
     applies to the task with that id, and a task without a mark is not done.

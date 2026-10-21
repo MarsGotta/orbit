@@ -1,4 +1,4 @@
-"""SIM-30: the hub is the only source of the conversations.
+"""The hub is the only source of the conversations.
 
 Each message keeps when it was written, whether it was a voice note and the
 Mac's id for it; a meeting question is built here from the hub's own

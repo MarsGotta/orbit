@@ -38,7 +38,7 @@ _LANGUAGE = re.compile(r"^([a-z]{2})(?:[-_][a-z]{2})?$")
 # or near-exact zeros are trimmed: the system-audio track while nobody plays
 # anything, or a virtual device. Whisper invents words over leading digital
 # silence — «¿Qué pasa con el presupuesto?» for 3 to 6 s of zeros before the
-# first word (SIM-25, 2026-10-17; reproduced with json and verbose_json
+# first word (2026-10-17; reproduced with json and verbose_json
 # alike) — and answers the same audio correctly once it is trimmed.
 DIGITAL_SILENCE_PEAK = 4
 
@@ -128,10 +128,10 @@ class MeetingTranscriber:
     def form(self, language: str | None = None, prompt: str = "") -> dict:
         """The non-audio fields of the request.
 
-        `verbose_json` is `json` plus the language of the transcript (SIM-40);
+        `verbose_json` is `json` plus the language of the transcript;
         a server that leaves it out still answers the text. An empty prompt is
         omitted because some servers treat it as a prompt. `language` is the
-        recording's own (SIM-52); without one, the configured one.
+        recording's own; without one, the configured one.
         """
         fields = {"model": self.configuration.model, "response_format": "verbose_json"}
         language = language or self.configuration.language
@@ -149,7 +149,7 @@ class MeetingTranscriber:
     async def transcribe(
         self, audio: bytes, language: str | None = None, *, final: bool = False, prompt: str = ""
     ) -> Transcription:
-        """`language` is the recording's (SIM-52); None sends the configured one."""
+        """`language` is the recording's; None sends the configured one."""
         url = self.url
         sent = language or self.configuration.language
         if not audio or len(audio) > MAX_AUDIO_BYTES:
@@ -187,8 +187,6 @@ class MeetingTranscriber:
                 text = payload.get("text")
                 if not isinstance(text, str):
                     raise TypeError("Invalid transcription response")
-                # Whisper names its language in words ("english"): the
-                # group is then in the language it was sent.
                 words = timed_words(payload.get("words", []))
                 if final and text.strip() and not words:
                     raise HubError(
@@ -196,6 +194,8 @@ class MeetingTranscriber:
                         "Whisper no devolvió tiempos por palabra",
                         numbers={"words": 0, "characters": len(text)},
                     )
+                # Whisper names its language in words ("english"): the
+                # group is then in the language it was sent.
                 return Transcription(text, language_from(payload.get("language"), sent), words)
         except HubError:
             raise
@@ -211,8 +211,8 @@ class MeetingTranscriber:
             ) from exc
 
 
-# SIM-82 second real measurement supersedes SIM-80a: whole failed audio
-# without VAD lost the same opening in 8/8 runs (78–79% recall); VAD recovered
+# The second real measurement (October 2026) supersedes the first: whole
+# failed audio without VAD lost the same opening in 8/8 runs (78–79% recall); VAD recovered
 # 97% in 3/3. Windows + VAD lost zero draft groups on all nine real tracks,
 # vs two groups on two tracks with windows and no VAD. The service applies
 # faster-whisper's own VAD settings (it takes `vad_filter` and no parameters),

@@ -1,15 +1,15 @@
 """The key of a meeting series: the calendar's stable identifier of the event.
 
-A recurring event shares one `calendar_item_id` across its occurrences (P9-11,
-P9-21), so the recordings linked to them form a series. A single event has
-one too, and assigning it a template works the same way.
+A recurring event shares one `calendar_item_id` across its occurrences, so the
+recordings linked to them form a series. A single event has one too, and
+assigning it a template works the same way.
 """
 
 # Bound of a series key, in UTF-8 bytes. What it protects: the rows keyed by
-# it (template links, series memories) and the path of
-# `/v1/series/{key}/...`. Why this size: it is the calendar's own bound on an
-# identifier — `MAX_LABEL_BYTES` in `orbit-core` and `contracts/constants.json`
-# (1 024 bytes) — so the Mac never sends a key the hub refuses, and
+# it (template links) and the event of every note request. Why this size: it
+# is the calendar's own bound on an identifier — `MAX_LABEL_BYTES` in
+# `orbit-core` and `contracts/constants.json` (1 024 bytes) — so the Mac never
+# sends a key the hub refuses, and
 # `tests/test_note_templates.py` compares both copies. What it is not: a
 # limit on how many series exist. EventKit's identifiers measure under 100
 # bytes; the bound only refuses something that is not an identifier.

@@ -3,11 +3,11 @@
 Private bridge between Orbit devices and an existing assistant profile in Hermes.
 Importing it does not install another agent, change the profile or start services.
 
-The hub keeps no calendar copy (REF-10). The assistant reads it directly from
+The hub keeps no calendar copy. The assistant reads it directly from
 the Mac through the device bridge's `calendar_read` capability; macOS Calendar
 permission is the sole authority.
 
-On 2026-10-15 (SIM-02), the hub removed people search, voiceprints, proposals
+On 2026-10-15 the hub removed people search, voiceprints, proposals
 and their distillation, publications and “activity”, diarization, live voice,
 the vault, search, memory and preparation for a meeting series, and assistant
 notifications when transcription finishes. Their SQLite tables remain in place,
@@ -15,7 +15,7 @@ without being read or deleted. Remove retired configuration tables before
 starting the new hub: it rejects unknown sections and keys. See the
 [self-hosting guide](../docs/self-hosting.md) for current configuration.
 Speaker separation returned in 0.8.0 in a different form: local, after each
-meeting, without storing voiceprints (SIM-80a).
+meeting, without storing voiceprints.
 
 From `server/`, prepare the environment with `uv sync --frozen` (for tests,
 `uv sync --frozen --group dev`). Deployments use a published version through
@@ -94,7 +94,7 @@ Other errors only end it if `session.status` establishes that the agent is no
 longer running. That query is read-only: it does not resume or replay.
 If reconciliation fails, a warning is retained and the user can interrupt.
 
-The hub is the sole source of conversations (SIM-30). `GET /v1/sessions` lists
+The hub is the sole source of conversations. `GET /v1/sessions` lists
 those belonging to the device, newest first, with
 `{id, created_at_ms, last_at_ms, message_count}` and `next` for the next page.
 `GET /v1/sessions/{id}/messages?before=&limit=` returns an ordered page of messages,
@@ -142,7 +142,7 @@ has not been validated with real meetings. Earlier transcripts remain as v1 grou
 with one source, without requesting ASR again.
 
 `GET /v1/recordings/{uuid}/transcript`, paginated `/archive` and
-`/live-transcript` were removed in SIM-41: the Mac no longer copies meetings,
+`/live-transcript` were removed: the Mac no longer copies meetings,
 and these routes return 404; the assistant reads transcripts through internal routes.
 `POST /v1/recordings/{uuid}/finalize` verifies a closure manifest against durable
 tracks, sequences and frames. The payload contains
@@ -155,14 +155,14 @@ tracks without discontinuities, and `transcript_ready` requires all STT jobs to
 be confirmed. Closing a meeting requests its note. External notes are neither
 published nor modified.
 
-Since SIM-40, the Mac reads its meetings from the hub (`GET /v1/recordings`,
+The Mac reads its meetings from the hub (`GET /v1/recordings`,
 each document and its turns) and stores the owner's name, voice names and private
 notes there; the WebSocket notifies it with `recording.changed`.
 Turns are computed once in `orbit_hub/meetings/turns.py`, for the Mac,
 the assistant and the note.
 
-The `/v1/recordings/{uuid}/context` routes were removed in P9-15 along with
-their sole consumer, `orbit context ask`; they return 404.
+The `/v1/recordings/{uuid}/context` routes were removed along with their sole
+consumer, a development command; they return 404.
 Contract: `../contracts/hub-v1.md`.
 
 Keep a consistent SQLite backup together with its key. Without the key,
@@ -196,7 +196,7 @@ Tools: `orbit_devices`, `orbit_windows`, `orbit_screenshot`,
 See [Hermes and orbit-mcp setup](../docs/self-hosting.md#hermes-and-orbit-mcp)
 and [hub deployment](../docs/self-hosting.md#install-and-configure-the-hub).
 
-## Failures, `op` and Sentry (SIM-22)
+## Failures, `op` and Sentry
 
 Every failure goes through `orbit_hub.log.report`: a content-free JSON line with
 `event`, `op`, route template, `code`, status and numbers, plus a Sentry event

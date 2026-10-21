@@ -1,4 +1,4 @@
-"""REF-402: additive hub compatibility at the public boundaries."""
+"""Additive hub compatibility at the public boundaries."""
 
 import json
 from uuid import uuid4
@@ -32,7 +32,7 @@ from orbit_hub.storage import Store, initialize
 
 @pytest.fixture(scope="module")
 def route_client(tmp_path_factory, unit_stt):
-    root = tmp_path_factory.mktemp("ref402-routes")
+    root = tmp_path_factory.mktemp("additive-routes")
     data, key = root / "data", root / "key"
     initialize(data, key)
     settings = Settings(
@@ -117,37 +117,37 @@ def test_boundary_preserves_existing_refusal_and_error_headers(route_client):
         },
     }
     route_client.app.add_api_route(
-        "/ref402-existing-refusal",
+        "/fixture-existing-refusal",
         lambda: Response(
             content=json.dumps(original),
             status_code=504,
             media_type="application/json",
-            headers={"X-Ref402": "kept"},
+            headers={"X-Fixture": "kept"},
         ),
     )
-    response = route_client.get("/ref402-existing-refusal", headers={"X-Orbit-Op": "op-ref402-1"})
+    response = route_client.get("/fixture-existing-refusal", headers={"X-Orbit-Op": "op-fixture-1"})
     assert response.status_code == 504
-    # SIM-22: kept as it was, plus the op of the request it answers.
-    assert response.json() == {**original, "op": "op-ref402-1"}
-    assert response.headers["X-Ref402"] == "kept"
+    # Kept as it was, plus the op of the request it answers.
+    assert response.json() == {**original, "op": "op-fixture-1"}
+    assert response.headers["X-Fixture"] == "kept"
 
 
 @pytest.mark.parametrize("body", [b"{", b"[1]"])
 def test_boundary_preserves_unrecognized_json_error_body_and_headers(route_client, body):
-    path = "/ref402-unrecognized-json-" + ("invalid" if body == b"{" else "array")
+    path = "/fixture-unrecognized-json-" + ("invalid" if body == b"{" else "array")
     route_client.app.add_api_route(
         path,
         lambda: Response(
             content=body,
             status_code=418,
             media_type="application/json",
-            headers={"X-Ref402": "kept"},
+            headers={"X-Fixture": "kept"},
         ),
     )
     response = route_client.get(path)
     assert response.status_code == 418
     assert response.content == body
-    assert response.headers["X-Ref402"] == "kept"
+    assert response.headers["X-Fixture"] == "kept"
 
 
 @pytest.mark.parametrize(
@@ -281,7 +281,7 @@ def test_device_summary_rejects_unknown_hub_output_field():
         )
 
 
-def test_ready_versions_and_device_version_saved(environment):
+def test_ready_versions_and_device_version_echoed(environment):
     _, store, _ = environment
     paired = device(store)
     with client(environment) as http:
@@ -296,12 +296,10 @@ def test_ready_versions_and_device_version_saved(environment):
             assert ready["hub_protocol"] == 1
             assert isinstance(ready["hub_version"], str) and ready["hub_version"]
             assert ready["device_version"] == "0.3.12"
-            assert http.app.state.device_versions[paired["device_id"]] == "0.3.12"
         with http.websocket_connect(
             "wss://localhost/v1/ws", headers={"Authorization": "Bearer " + paired["token"]}
         ) as ws:
             assert ws.receive_json()["data"]["device_version"] is None
-            assert http.app.state.device_versions[paired["device_id"]] is None
 
 
 def test_ready_and_health_share_protocol_version(environment):
@@ -333,7 +331,6 @@ def test_oversized_device_version_is_ignored_and_logged(environment, caplog):
         ) as ws,
     ):
         assert ws.receive_json()["data"]["device_version"] is None
-        assert http.app.state.device_versions[paired["device_id"]] is None
     assert "device_version_ignored" in caplog.text
     assert "x" * 129 not in caplog.text
 

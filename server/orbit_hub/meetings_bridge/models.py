@@ -23,7 +23,7 @@ class ListRequest(PrivateModel):
     device_id: str = Field(min_length=1, max_length=128)
     since_ms: int = Field(ge=0, le=2**63 - 1)
     limit: int = Field(ge=1, le=100)
-    # P9-07: continue a listing that answered `more: true`, from before the
+    # Continue a listing that answered `more: true`, from before the
     # start of the last meeting it returned.
     before_ms: int | None = Field(default=None, ge=1, le=2**63 - 1)
 

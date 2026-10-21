@@ -136,7 +136,7 @@ def test_wer_counts_insertions_deletions_and_substitutions_after_normalization()
         "word_errors": 3,
         "wer_pct": 75.0,
     }
-    with pytest.raises(ValueError, match="no contiene palabras"):
+    with pytest.raises(ValueError, match="contains no reference words"):
         word_error_rate("...", "algo")
 
 

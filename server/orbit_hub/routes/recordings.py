@@ -9,7 +9,7 @@ from ..log import in_store
 from ..notes.models import EventContext
 from ..protocol import RecordingManifest
 
-# A closing manifest: the tracks' counts, the title and, since SIM-40, the
+# A closing manifest: the tracks' counts, the title and the
 # calendar event the meeting was started from. The event is what makes it
 # large: up to 200 invitees of 160-character names and 254-character
 # addresses, a 512-character title and the series key, about 83 000
@@ -33,7 +33,7 @@ def mount(
 ):
     @app.post("/v1/recordings/{recording_id}/finalize")
     async def finalize_recording(recording_id: str, request: Request):
-        """Close a recording; a meeting's note is asked for at once (SIM-40)."""
+        """Close a recording; a meeting's note is asked for at once."""
         device = identity(request)
         try:
             recording_id = canonical_uuid(recording_id)

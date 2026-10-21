@@ -57,7 +57,7 @@ def native_state_result(permissions=None):
 
 
 def stale_binary_cause(binary):
-    """Why ``binary`` is older than its code, or None (REF-02 A4).
+    """Why ``binary`` is older than its code, or None.
 
     Cargo writes next to a built binary the list of every source it came from
     (``orbit.d``). A source changed after the build, or gone, means the e2e
@@ -159,7 +159,7 @@ async def tcp_server(app):
             bound.close()
 
 
-# DEI-05: every chat turn reaches Hermes behind one line saying where it came
+# Every chat turn reaches Hermes behind one line saying where it came
 # from, e.g. `[Orbit · Sample Mac · texto]`; the transcript the user sees has none.
 TURN_CONTEXT = re.compile(
     r"\[Orbit · (?P<device>[^\n]+) · (?P<input>texto|nota de voz transcrita|"
@@ -178,9 +178,9 @@ def split_turn(text):
 class SyntheticHermes:
     """Deliberately minimal protocol peer, not an AI/provider emulator.
 
-    ``prompts`` holds what the user wrote, as before DEI-05; ``contexts`` the
-    DEI-05 line each of those turns carried, or None for a turn without one.
-    Meeting audio is not Hermes's since P7-06 (see support_synthetic_stt);
+    ``prompts`` holds what the user wrote; ``contexts`` the context line each
+    of those turns carried, or None for a turn without one. Meeting audio is
+    not Hermes's (see support_synthetic_stt);
     ``audio_calls`` counts interactive dictation only.
     """
 
@@ -376,7 +376,7 @@ class RustDevice:
         await self.events.drain()
 
     def _relay(self):
-        """REF-06: the daemon launches its helper with --helper, as in
+        """The daemon launches its helper with --helper, as in
         production; a shell relay stands where OrbitNative stands and copies
         the daemon's pipes to two FIFOs this harness owns."""
         # A fresh relay per launch: a restarted daemon launches its own helper,
@@ -454,7 +454,9 @@ class RustDevice:
                         pass
                 await asyncio.sleep(0.01)
             await asyncio.gather(connect, return_exceptions=True)
-            raise AssertionError(f"el daemon no lanzó su helper de prueba: {self.stderr.decode()}")
+            raise AssertionError(
+                f"the daemon did not launch its test helper: {self.stderr.decode()}"
+            )
         connect.result()
         self.reader = asyncio.create_task(self._native_host())
         ready = json.loads(
@@ -520,7 +522,7 @@ class RustDevice:
                 result = native_state_result()
                 result.update(privacy_stopped=True, drain_complete=True)
             elif name == "capture_stop":
-                # REF-12: the daemon's cut (a failure, closing, a revocation)
+                # The daemon's cut (a failure, closing, a revocation)
                 # stops capture without the helper's latch.
                 self.streams.clear()
                 result = native_state_result()
@@ -579,3 +581,29 @@ class RustDevice:
             self.events.close()
             self.events = None
         self.process = None
+
+
+def grouped_transcript(store, device: str, recording: str) -> dict:
+    """What the hub holds of a recording: its capture state and each transcript
+    group with its sources and text, read straight from the store.
+
+    An e2e inspection aid only: no route returns this shape. Ungrouped chunks
+    are not listed; the e2e waits on `pending_chunks == 0`, when there are none.
+    """
+    result = store.groups.capture(device, recording)
+    with store.read_snapshot() as db:
+        rows = db.execute(
+            """SELECT g.*, t.body AS transcript FROM transcription_groups g
+            LEFT JOIN group_transcripts t ON t.device_id=g.device_id AND t.group_id=g.id
+            WHERE g.device_id=? AND g.recording=? ORDER BY g.first_sequence, g.track""",
+            (device, recording),
+        ).fetchall()
+    segments = []
+    for row in rows:
+        segment = {**store.groups.manifest(row), "state": row["state"]}
+        if row["transcript"]:
+            context = f"group-transcript:{row['device_id']}:{row['id']}"
+            segment.update(json.loads(store.decrypt(row["transcript"], context)))
+        segments.append(segment)
+    result["segments"] = segments
+    return result

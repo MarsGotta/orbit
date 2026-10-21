@@ -43,7 +43,7 @@ class TranscriptionWorker:
         recording_changed=None,
     ):
         if meetings is None:
-            raise ValueError("meeting_transcription requiere un transcriptor de reuniones")
+            raise ValueError("meeting_transcription requires a meeting transcriber")
         self.store, self.adapter, self.now = store, adapter, now
         self.meetings = meetings
         self.interactive: asyncio.Queue[Utterance] = asyncio.Queue(maxsize=8)

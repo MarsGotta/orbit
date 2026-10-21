@@ -67,7 +67,7 @@ def mount(app, store, identity, bounded_body, now, pair_attempts, store_executor
 
     @app.get("/v1/sessions")
     async def sessions(request: Request, before: str | None = None, limit: int | None = None):
-        # REF-04 A7: the most recent conversations, a page of at most
+        # The most recent conversations, a page of at most
         # SESSION_LIST_LIMIT, and how many the hub holds.
         device = identity(request)
         if before:
@@ -84,7 +84,7 @@ def mount(app, store, identity, bounded_body, now, pair_attempts, store_executor
     async def session_messages(
         session_id: str, request: Request, before: int | None = None, limit: int | None = None
     ):
-        # SIM-30: the Mac reads a conversation from here, newest page first.
+        # The Mac reads a conversation from here, newest page first.
         device = identity(request)
         return await in_store(
             store_executor,

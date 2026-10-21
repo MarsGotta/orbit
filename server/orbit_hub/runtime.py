@@ -6,6 +6,7 @@ import math
 from collections.abc import Callable
 from concurrent.futures import Executor
 
+from .hermes import RESUME_HISTORY_ERROR_PREFIX
 from .interactions import TERMINAL_ERRORS, decode_response, pending_data
 from .log import current_op, in_store, logger, report
 from .meeting_context import MeetingTurn, meeting_context, read_meeting
@@ -19,7 +20,6 @@ TRANSCRIBED_TURN_TTL_SECONDS = 120
 # Hermes waits up to 300 s for resume_history_ready (server.py:_await_resume_history),
 # so this matches its own bound, not a model-turn or transcript-size ceiling.
 RESUME_HISTORY_TIMEOUT_SECONDS = 300.0
-RESUME_HISTORY_ERROR_PREFIX = "Could not reopen that session (its transcript could not be read)."
 
 
 class TurnInputTracker:
@@ -123,7 +123,7 @@ class DeviceRuntime:
             )
         return {**payload, "questions": valid}
 
-    async def _run_store(self, loop: asyncio.AbstractEventLoop, function: Callable[[], object]):
+    async def _run_store(self, function: Callable[[], object]):
         """Dispatch a Store call onto the shared single-thread executor when available."""
         if self.store_executor is None:
             return function()
@@ -782,12 +782,11 @@ class DeviceRuntime:
             }
 
     async def _meeting_turn(self, params) -> MeetingTurn:
-        """SIM-30: the question with the meeting the hub holds; refused as
+        """The question with the meeting the hub holds; refused as
         `meeting_not_found` before anything reaches Hermes."""
         meeting = params.meeting
         lines, started, pending = await self._run_store(
-            asyncio.get_running_loop(),
-            lambda: read_meeting(self.store, self.device, meeting.recording_id),
+            lambda: read_meeting(self.store, self.device, meeting.recording_id)
         )
         elapsed = None if started is None else round(self.now() * 1000) - started
         return meeting_context(
@@ -841,7 +840,7 @@ class DeviceRuntime:
         sent = meeting.text if meeting is not None else params.text
         upstream_text = f"[Orbit · {self.device_name} · {input_type}]\n{sent}"
         self.turn_ids[session_id] = request_id
-        # The conversation keeps what Mars sees: a meeting question without
+        # The conversation keeps what the user sees: a meeting question without
         # the transcript that went with it.
         self.store.append_message(
             session_id,
@@ -985,7 +984,7 @@ class DeviceRuntime:
         """Stop this device's live sessions even when it has no connected viewers.
 
         Interruption is best effort and cannot undo an action already executed upstream.
-        This path is not used for a normal client/TUI disconnect.
+        This path is not used for a normal client disconnect.
         """
         if self.revoked:
             return

@@ -1,4 +1,4 @@
-"""P7-03: an explicit turn state machine; synthetic upstreams, never live Hermes."""
+"""An explicit turn state machine; synthetic upstreams, never live Hermes."""
 
 import asyncio
 import threading
@@ -79,7 +79,7 @@ def unconfirmed(environment, monkeypatch):
     return environment
 
 
-async def test_a2_unconfirmed_submit_marks_outcome_unknown_and_blocks_resend(unconfirmed):
+async def test_unconfirmed_submit_marks_outcome_unknown_and_blocks_resend(unconfirmed):
     _, store, adapter = unconfirmed
     owner = device(store)["device_id"]
     runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
@@ -148,7 +148,7 @@ def held(environment, monkeypatch):
     return environment
 
 
-async def test_ref30_submitting_interrupt_never_returns_to_streaming(held):
+async def test_submitting_interrupt_never_returns_to_streaming(held):
     _, store, adapter = held
     owner = device(store)["device_id"]
     runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
@@ -191,7 +191,7 @@ class InterruptRefusedConnection(FakeConnection):
         self.calls.append((method, params))
         if method == "session.interrupt":
             raise HubError("upstream_rejected", "Hermes no aceptó interrumpir el turno")
-        # Sin callbacks: el turno queda `streaming`, vivo y sin respuesta.
+        # No callbacks: the turn stays `streaming`, alive and unanswered.
         return {"status": "streaming" if method == "prompt.submit" else "ok"}
 
 
@@ -208,7 +208,7 @@ def refused_interrupt(environment, monkeypatch):
     return environment
 
 
-def test_ref30_rejected_interrupt_publishes_a_snapshot_with_the_live_turn(refused_interrupt):
+def test_rejected_interrupt_publishes_a_snapshot_with_the_live_turn(refused_interrupt):
     """A refused interrupt changes no state, so `changed()` never fires; without
     a republished snapshot the daemon keeps discarding the turn it hid."""
     _, store, adapter = refused_interrupt
@@ -260,7 +260,7 @@ def test_ref30_rejected_interrupt_publishes_a_snapshot_with_the_live_turn(refuse
     ]
 
 
-def test_a3_websocket_interrupt_is_answered_while_submit_waits_for_hermes(held):
+def test_websocket_interrupt_is_answered_while_submit_waits_for_hermes(held):
     _, store, adapter = held
     paired = device(store)
     headers = {"Authorization": "Bearer " + paired["token"]}

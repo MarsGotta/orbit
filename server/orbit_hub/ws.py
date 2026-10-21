@@ -42,10 +42,10 @@ MAX_DEVICE_VERSION_LENGTH = 128
 
 
 def error_event(code, message, request_id, *, status=None, numbers=None):
-    legacy = {"op": current_op()}
+    payload = {"op": current_op()}
     if status is not None:
-        legacy["status"] = status
-    return emit("error", render(code, message, payload=legacy, numbers=numbers), request_id)
+        payload["status"] = status
+    return emit("error", render(code, message, payload=payload, numbers=numbers), request_id)
 
 
 def mount(
@@ -59,7 +59,6 @@ def mount(
     bridge,
     bridge_waiters,
     hub_version,
-    device_versions,
 ):
     @app.websocket("/v1/ws")
     async def websocket(ws: WebSocket):
@@ -92,7 +91,6 @@ def mount(
                 exc_info=False,
             )
             device_version = None
-        device_versions[device] = device_version
         if len(runtime.listeners) >= 4:
             await ws.close(code=4429)
             return
@@ -378,7 +376,7 @@ def mount(
                             )
 
                     if METHODS[frame.method] is MethodRoute.SUBMIT_LANE:
-                        # R3: prompt.submit runs in its own lane so controls and
+                        # prompt.submit runs in its own lane so controls and
                         # pings are answered while Hermes has not acknowledged.
                         # The lane is never cancelled: its receipt is durable and
                         # a submit that may have reached Hermes is not retried.

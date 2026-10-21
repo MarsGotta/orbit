@@ -73,7 +73,7 @@ def test_full_storage_blocks_new_payloads_but_preserves_reads_retries_and_revoke
             lambda: constrained.create_session(owner, "new", "new", "epoch", 1000),
             lambda: constrained.append_message(session, "assistant", "BLOCKED", now_ms=2),
             lambda: constrained.reserve_operation(owner, str(uuid4()), {}),
-            # P7-03 R4: the quota is enforced at the reservation, before the
+            # The quota is enforced at the reservation, before the
             # operation is applied; finish_operation no longer consults it.
             lambda: constrained.reserve_operation(owner, str(uuid4()), {"event": "BLOCKED"}),
             lambda: constrained.put_chunk(

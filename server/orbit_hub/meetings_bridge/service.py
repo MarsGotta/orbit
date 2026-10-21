@@ -1,11 +1,11 @@
 """Bounded reads of a paired device's meetings.
 
-REF-11: Deimos sees the meetings always. Mars retired the «Reuniones» switch on
+Deimos sees the meetings always. The «Reuniones» switch was retired on
 2026-09-25, so nothing here reads a sharing record; the private routes are
 authenticated and the device is the one the request names, and that is all.
 An existing ``meeting_sharing`` table, written by earlier versions, is left
 where it is and never read; so is ``deimos_meeting_notifications``, from the
-notice Deimos got when a transcript finished, retired in SIM-02.
+notice Deimos got when a transcript finished, retired on 2026-10-15.
 """
 
 import json
@@ -13,10 +13,11 @@ from time import monotonic
 
 from ..meetings import repository as meetings
 from ..meetings import turns, views
+from ..meetings.note_state import progress
+from ..meetings.open_recordings import pending_audio
 from ..notes import NoteRepository
 from ..private_auth import Authenticator, read_key
 from ..transcription_failure import durable_details
-from .capture import pending_audio
 from .models import (
     HEADER_PREFIX,
     LIST_PATH,
@@ -29,7 +30,6 @@ from .models import (
     NoteRequest,
     TranscriptRequest,
 )
-from .note_state import progress
 from .page import cut
 
 # Errors reading a stored manifest or transcript: a damaged row is the hub's
@@ -111,7 +111,7 @@ class MeetingsBridgeService:
         return page
 
     def note(self, headers, body: bytes) -> dict:
-        """The note as Mars sees it, or its state with the numbers that explain it."""
+        """The note as the user sees it, or its state with the numbers that explain it."""
         if self.note_auth is None:
             raise MeetingsBridgeError(503, "unavailable")
         self.note_auth.admit(headers, body, int(self.now() * 1000), monotonic())
@@ -159,7 +159,7 @@ class MeetingsBridgeService:
         if state == "failed":
             raise MeetingsBridgeError(503, "note_failed", numbers)
         if state == "queued":
-            next_ms = numbers.get("next_attempt_ms")
+            next_ms = numbers.get("retry_at_ms")
             wait = next_ms - int(self.now() * 1000) if isinstance(next_ms, int) else None
             numbers["retry_after_ms"] = max(1000, wait) if wait is not None else NOTE_WRITE_MS
             raise MeetingsBridgeError(503, "note_queued", numbers)
@@ -194,7 +194,7 @@ class MeetingsBridgeService:
 
         A recording still open answers with what is transcribed so far and how
         much audio the hub holds untranscribed. The turns and their names are
-        the ones the Mac shows (`meetings.turns`): Mars's names for the voices,
+        the ones the Mac shows (`meetings.turns`): the user's names for the voices,
         the device owner's for the local microphone, and the answer says when
         the Mac has not said who that is yet.
         """

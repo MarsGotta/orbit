@@ -13,7 +13,7 @@ def wav_fixture() -> bytes:
     return wav_bytes(b"\0\0" * 160)
 
 
-async def test_a1_text_turn_declares_orbit_only_to_hermes(environment):
+async def test_text_turn_declares_orbit_only_to_hermes(environment):
     _, store, adapter = environment
     owner = device(store, "Sample Mac")["device_id"]
     runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
@@ -38,7 +38,7 @@ async def test_a1_text_turn_declares_orbit_only_to_hermes(environment):
     assert "[Orbit ·" not in json.dumps(public_frames, ensure_ascii=False)
 
 
-async def test_dei06_a1_active_call_reaches_only_the_hermes_header(environment):
+async def test_active_call_reaches_only_the_hermes_header(environment):
     _, store, adapter = environment
     owner = device(store, "Sample Mac")["device_id"]
     runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
@@ -65,7 +65,7 @@ async def test_dei06_a1_active_call_reaches_only_the_hermes_header(environment):
     assert "llamada de voz en curso" not in json.dumps(public_frames, ensure_ascii=False)
 
 
-def test_a2_transcription_marker_is_device_scoped_and_consumed(environment):
+def test_transcription_marker_is_device_scoped_and_consumed(environment):
     _, store, adapter = environment
     owner = device(store, "Sample Mac")
     other = device(store, "Otra Mac")
@@ -130,9 +130,7 @@ def test_a2_transcription_marker_is_device_scoped_and_consumed(environment):
             )
 
 
-async def test_dei06_a5_prompt_submit_omits_unproven_source_without_retry_or_log(
-    environment, monkeypatch
-):
+async def test_prompt_submit_omits_unproven_source_without_retry_or_log(environment, monkeypatch):
     logged = []
 
     async def reject_source(connection, method, params):

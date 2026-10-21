@@ -24,7 +24,7 @@ from support_orbit_mcp import text_of as _text_of
 LIST_TIMEOUT = DAEMON_E2E_TIMEOUT_SECONDS
 
 
-async def test_a6_stdio_client_lists_every_tool_and_calls_devices_end_to_end(tmp_path):
+async def test_stdio_client_lists_every_tool_and_calls_devices_end_to_end(tmp_path):
     hub = FakeHub()
     async with tcp_server(hub.app) as url:
         config_path = write_mcp_config(tmp_path, url)
@@ -50,7 +50,7 @@ async def test_a6_stdio_client_lists_every_tool_and_calls_devices_end_to_end(tmp
     assert DEVICES[OTHER_DEVICE] not in text
 
 
-async def test_dei04_a3_mcp_toml_reload_changes_the_next_call_without_restart(tmp_path):
+async def test_mcp_toml_reload_changes_the_next_call_without_restart(tmp_path):
     old_id = "5f1d0000-0000-4000-8000-000000000046"
     new_id = "5f1d0000-0000-4000-8000-000000000047"
     hub = FakeHub(devices=[])

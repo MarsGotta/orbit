@@ -14,10 +14,10 @@ from .group_storage import GroupRepository
 from .log import report, supervised
 from .meeting_diarization import separate
 from .meeting_transcription import MAX_AUDIO_BYTES, REQUEST_TIMEOUT_SECONDS
-from .meetings import repository, turns
+from .meetings import open_recordings, repository, turns
 from .protocol import HubError
 
-# SIM-82 second real measurement: at most 45 s, selecting the longest pause
+# Second real measurement (October 2026): at most 45 s, selecting the longest pause
 # after 15 s, recovered 98% of the failed recording (whole track: 78–79%
 # in eight runs), and 98% on the good ones in half the time. These bound
 # Whisper's context, not meeting duration or upload size; windows + VAD lost
@@ -25,11 +25,12 @@ from .protocol import HubError
 WINDOW_SECONDS = 45
 MIN_WINDOW_SECONDS = 15
 OPUS_BITRATE = 24_000
-# Worst CPU separation in SIM-80: 382 s for 7.4 min (444 s), on a loaded host.
+# Worst CPU separation measured in October 2026: 382 s for 7.4 min (444 s),
+# on a loaded host.
 # This is a measured worst case, not a p99 of the new complete pipeline.
 CPU_SECONDS_PER_AUDIO_SECOND = 382 / 444
-# Allow boundary jitter up to 250 ms, not arbitrary words in silence. SIM-80:
-# this retains all 1339 synthetic words (WER 2.2% unchanged), while removing
+# Allow boundary jitter up to 250 ms, not arbitrary words in silence. Measured
+# in October 2026, this retains all 1339 synthetic words (WER 2.2% unchanged), while removing
 # 70 of 79 real-meeting artifacts, over 1 s from speech, median duration 0 ms.
 MAX_WORD_VOICE_GAP_MS = 250
 
@@ -205,7 +206,11 @@ class FinalPassRepository:
                 wall = group.get("started_at_ms")
                 at = max(0, wall - began) if type(wall) is int and type(began) is int else 0
                 groups.append(
-                    (at, at + turns._length_ms(group), len(str(body.get("text") or "").split()))
+                    (
+                        at,
+                        at + open_recordings.length_ms(group),
+                        len(str(body.get("text") or "").split()),
+                    )
                 )
             return groups
 
@@ -384,7 +389,7 @@ def encode_window(pcm):
 
 
 def window_ends(frames, diagnostics):
-    """Use the reviewer's longest-silence midpoint, at exact PCM sample boundaries."""
+    """Cut each window at the midpoint of its longest silence, on exact PCM sample boundaries."""
     quiet = integrity.silences(diagnostics)
     ends, at = [], 0
     while frames - at > WINDOW_SECONDS * 16000:

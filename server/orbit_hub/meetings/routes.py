@@ -1,4 +1,4 @@
-"""The device's routes for its meetings (SIM-40), authenticated as every device route.
+"""The device's routes for its meetings, authenticated as every device route.
 
 Every refusal is a `HubError` with its code and numbers; the app's handler
 renders it in the step-2 format, with the request's `op`.
@@ -16,7 +16,7 @@ from ..notes.models import MAX_PRIVATE_NOTES_CHARS, MAX_SPEAKERS
 from . import dictionaries, repository, turns, views
 
 # Bodies of the small requests: one name (≤ 128 characters), a few voices'
-# names, a meeting's title (≤ 256, SIM-52) or a language code. Each character
+# names, a meeting's title (≤ 256) or a language code. Each character
 # escaped as `\uXXXX` takes six bytes, so 16 KiB holds the largest valid one
 # many times over and refuses anything else with its size before it is parsed.
 MAX_SMALL_BODY_BYTES = 16 * 1024
@@ -226,7 +226,7 @@ def mount(
 
     @app.put("/v1/recordings/{recording_id}/title")
     async def put_title(recording_id: str, request: Request):
-        """SIM-52: Mars's name for the meeting; an empty one gives it back its own."""
+        """The user's name for the meeting; an empty one gives it back its own."""
         device, recording = identity(request), recording_of(recording_id)
         payload = await body_of(request, TitleRequest, MAX_SMALL_BODY_BYTES)
         await run(lambda: repository.set_title(store, device, recording, payload.title, now()))
@@ -238,10 +238,10 @@ def mount(
 
     @app.put("/v1/recordings/{recording_id}/language")
     async def put_language(recording_id: str, request: Request):
-        """SIM-52: transcribe the meeting in this language, and again what it has.
+        """Transcribe the meeting in this language, and again what it has.
 
         The note, if one was asked for, is written again once the transcript
-        is complete, with its template; Mars's edits are set aside as when the
+        is complete, with its template; the user's edits are set aside as when the
         template changes.
         """
         device, recording = identity(request), recording_of(recording_id)

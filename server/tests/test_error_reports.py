@@ -1,4 +1,4 @@
-"""SIM-22: one global handler, the `op` of each request, and Sentry with nothing but codes.
+"""One global handler, the `op` of each request, and Sentry with nothing but codes.
 
 The privacy test runs the real Sentry SDK against a fake Sentry on 127.0.0.1:
 nothing in this file ever reaches sentry.io.
@@ -39,8 +39,8 @@ from orbit_mcp.config import Config
 from orbit_mcp.hub import HubClient
 from orbit_mcp.server import build_server
 
-MARKER = "MARCADOR-PRIVADO-SIM22-7c41"
-OP = "op-sim22-0001abcd"
+MARKER = "MARCADOR-PRIVADO-7c41"
+OP = "op-test-0001abcd"
 OP_SHAPE = re.compile(r"^[A-Za-z0-9-]{8,64}$")
 RECORDING = "6f1d2c1e-5b8a-4c11-9d0e-2a3b4c5d6e7f"
 
@@ -188,7 +188,7 @@ def test_op_is_not_part_of_an_operation_fingerprint(environment):
         receipt = ws.receive_json()
         while not (receipt["event"] == "chat.session" and "status" in receipt["data"]):
             receipt = ws.receive_json()
-        ws.send_json(sent | {"op": "op-sim22-retry-0002"})
+        ws.send_json(sent | {"op": "op-test-retry-0002"})
         replay = ws.receive_json()
         while replay["event"] == "state.snapshot":
             replay = ws.receive_json()
@@ -270,7 +270,7 @@ class FakeSentry:
                 elif encoding == "deflate":
                     raw = zlib.decompress(raw)
                 elif encoding:
-                    raise AssertionError(f"compresión no prevista: {encoding}")
+                    raise AssertionError(f"unexpected compression: {encoding}")
                 bodies.append(raw)
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
@@ -326,7 +326,7 @@ def test_privacy_nothing_but_codes_reaches_sentry(environment, monkeypatch):
     )
     owner = device(store)
     headers = {"Authorization": "Bearer " + owner["token"]}
-    ws_op = "op-sim22-ws-0003"
+    ws_op = "op-test-ws-0003"
     with FakeSentry() as sentry:
         settings = replace(base, error_reports={"dsn": sentry.dsn})
         with _http(environment, settings) as http:

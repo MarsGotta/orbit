@@ -23,7 +23,7 @@ def test_retired_fields_are_rejected_and_nested_configuration_stays_typed(enviro
         ("[meeting_synthesis]\nenabled = true\n", "meeting_synthesis"),
         (
             '[meetings]\nkey_id = "k"\ncredential_file = "/fixture/key"\n',
-            r"\[meetings\].*\[meetings_bridge\]",
+            r"\[meetings\] section is now called \[meetings_bridge\]",
         ),
         (
             '[device_bridge]\nenabled = true\nkey_id = "k"\ncredential_file = "/fixture/key"\n',
@@ -58,8 +58,8 @@ def test_mcp_configuration_lists_every_missing_and_unknown_root_field(tmp_path):
     with pytest.raises(ConfigError) as raised:
         Config.load(path)
     message = str(raised.value)
-    assert "ausentes (4): default_device, device_bridge, devices, hub_url" in message
-    assert "desconocidos (2): calendar, obsolete" in message
+    assert "missing fields (4): default_device, device_bridge, devices, hub_url" in message
+    assert "unknown fields (2): calendar, obsolete" in message
     assert "secret" not in message
 
 
@@ -78,8 +78,8 @@ def test_mcp_configuration_names_missing_and_unknown_credential_fields(tmp_path,
     with pytest.raises(ConfigError) as raised:
         Config.load(path)
     message = str(raised.value)
-    assert f"ausentes (1): {section}.key_file" in message
-    assert f"desconocidos (1): {section}.wrong_file" in message
+    assert f"missing fields (1): {section}.key_file" in message
+    assert f"unknown fields (1): {section}.wrong_file" in message
     assert "secret-value" not in message
 
 
@@ -105,3 +105,30 @@ model = "fixture-model"
     assert Settings.load(path).profile == "fixture-assistant"
     monkeypatch.setenv("ORBIT_HUB_PROFILE", "configured-assistant")
     assert Settings.load(path).profile == "configured-assistant"
+
+
+def test_the_example_configuration_loads_with_every_optional_table(tmp_path, monkeypatch):
+    """Every key the example shows, commented or not, is one the hub accepts."""
+    from pathlib import Path
+
+    from orbit_hub.config import Settings
+
+    monkeypatch.delenv("ORBIT_HUB_PROFILE", raising=False)
+    monkeypatch.delenv("ORBIT_HUB_ASSISTANT_NAME", raising=False)
+    example = Path(__file__).parents[1] / "config.example.toml"
+    lines = []
+    for line in example.read_text(encoding="utf-8").splitlines():
+        uncommented = line.removeprefix("# ")
+        if line.startswith("# ") and (
+            uncommented.startswith("[") or " = " in uncommented.split("#")[0]
+        ):
+            line = uncommented
+        if line.startswith("dsn = "):
+            line = 'dsn = "https://0123456789abcdef@sentry.example.test/1"'
+        lines.append(line)
+    path = tmp_path / "orbit.toml"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    settings = Settings.load(path)
+    assert settings.processing is not None
+    assert settings.device_bridge is not None and settings.meetings_bridge is not None
+    assert settings.error_reports is not None and settings.diarization is not None

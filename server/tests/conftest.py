@@ -23,14 +23,14 @@ BRIDGE_KEY = bytes(range(32))
 BRIDGE_KEY_ID = "bridge-test-key"
 BRIDGE_NOW_MS = 1_000_000
 
-# REF-13: installed on import, before any test opens a socket. A test may only
+# Installed on import, before any test opens a socket. A test may only
 # connect to a port this process bound; see support_network_fence.
 FENCE = install()
 
 
 @pytest.fixture(scope="session", autouse=True)
 def unit_stt():
-    """The suite's own meeting STT, for fixtures that must name one (REF-13)."""
+    """The suite's own meeting STT, for fixtures that must name one."""
     stt = start_session_stt()
     yield stt
     stop_session_stt()
@@ -43,9 +43,9 @@ def only_ports_this_process_bound():
     yield
     refused = FENCE.refused_since(mark)
     assert not refused, (
-        f"Este test intentó conectar con {', '.join(refused)}: no son puertos que abriera "
-        "este proceso, así que eran servicios reales de la máquina u otros ajenos. Usa un "
-        "servicio sintético en un puerto efímero propio (support_client_e2e.tcp_server)"
+        f"This test tried to connect to {', '.join(refused)}: they are not ports this "
+        "process opened, so they were real services on this machine or someone else's. "
+        "Use a synthetic service on an ephemeral port of its own (support_client_e2e.tcp_server)"
     )
 
 
@@ -145,7 +145,7 @@ def device(store, name="fixture"):
 
 
 def said(store, owner, session):
-    """What the conversation keeps, role and text, oldest first (SIM-30)."""
+    """What the conversation keeps, role and text, oldest first."""
     page = store.session_messages(owner, session, None, SESSION_MESSAGES_PAGE_LIMIT)
     return [{"role": message["role"], "text": message["text"]} for message in page["messages"]]
 
@@ -190,7 +190,7 @@ async def answer_bridge_once(service, reply):
                 waiter.set_result(reply)
             return entry
         await asyncio.sleep(0.01)
-    raise AssertionError("la pregunta nunca llegó al Mac")
+    raise AssertionError("the question never reached the Mac")
 
 
 @pytest.fixture

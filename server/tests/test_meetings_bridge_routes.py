@@ -1,10 +1,10 @@
-"""DEI-02 A2: the private meetings routes answer a paired device's meetings.
+"""The private meetings routes answer a paired device's meetings.
 
 The two routes are exercised against the real ``Authenticator`` of
 ``orbit_hub.private_auth``, exactly as the production routes bind it: unsigned
-or tampered requests never pass. REF-11 retired the «Reuniones» switch: there
-is no sharing record to consult, and Deimos sees the meetings always (the
-REF-11 cases at the end of this file). No Hermes, no Mac, no external network.
+or tampered requests never pass. The «Reuniones» switch is retired: there is
+no sharing record to consult, and Deimos sees the meetings always (the cases
+at the end of this file). No Hermes, no Mac, no external network.
 """
 
 import io
@@ -27,13 +27,14 @@ from orbit_hub.meetings_bridge import (
     TRANSCRIPT_PATH,
 )
 from orbit_hub.private_auth import sign_request
+from orbit_hub.processing import ProcessingError
 
 KEY = bytes(range(32, 64))
 KEY_ID = "meetings-bridge-test-key"
 NOW_MS = 1_000_000
 ONE_MIB = 1024 * 1024
 TWO_MIB = 2 * ONE_MIB
-TRANSCRIPT_SECRET = "SECRETO_SINTETICO_DEI_02"
+TRANSCRIPT_SECRET = "SECRETO_SINTETICO_DE_TRANSCRIPCION"
 
 
 def signed(path, payload, *, key=KEY, key_id=KEY_ID, issued=NOW_MS, nonce=None):
@@ -74,7 +75,7 @@ def recording_with_transcript(store, owner, text, *, title, started_at_ms=1_000,
     return recording
 
 
-async def test_ref308_failed_transcript_is_a_causal_refusal_for_deimos(meetings_hub_app):
+async def test_failed_transcript_is_a_causal_refusal_for_deimos(meetings_hub_app):
     app, store = meetings_hub_app
     owner = device(store)
     recording = str(uuid4())
@@ -113,7 +114,7 @@ async def test_ref308_failed_transcript_is_a_causal_refusal_for_deimos(meetings_
     assert refusal["attempts"] == 5
 
 
-async def test_ref308_partial_transcript_returns_completed_track_and_failed_group_cause(
+async def test_partial_transcript_returns_completed_track_and_failed_group_cause(
     meetings_hub_app,
 ):
     app, store = meetings_hub_app
@@ -166,7 +167,7 @@ async def test_ref308_partial_transcript_returns_completed_track_and_failed_grou
     assert listed.json()["meetings"][0]["transcript"] == "partial"
     assert response.status_code == 200, response.text
     payload = response.json()
-    # P9-07: one line per turn with its speaker; no note, so the track names it.
+    # One line per turn with its speaker; no note, so the track names it.
     assert payload["text"] == "[00:00:00] Micrófono local: Texto completado de micrófono."
     assert payload["incomplete_groups"] == [
         {
@@ -180,7 +181,7 @@ async def test_ref308_partial_transcript_returns_completed_track_and_failed_grou
     ]
 
 
-async def test_ref308_pending_transcript_reports_previous_failure_and_retry(meetings_hub_app):
+async def test_pending_transcript_reports_previous_failure_and_retry(meetings_hub_app):
     app, store = meetings_hub_app
     owner = device(store)
     recording = str(uuid4())
@@ -252,7 +253,7 @@ def bearer(owner):
     return {"Authorization": "Bearer " + owner["token"]}
 
 
-async def test_a2_meetings_routes_answer_signed_requests_for_a_paired_device(meetings_hub_app):
+async def test_meetings_routes_answer_signed_requests_for_a_paired_device(meetings_hub_app):
     app, store = meetings_hub_app
     owner = device(store)
     long_transcript = TRANSCRIPT_SECRET + "a" * TWO_MIB
@@ -280,7 +281,7 @@ async def test_a2_meetings_routes_answer_signed_requests_for_a_paired_device(mee
         meetings = listed.json()["meetings"]
         assert [row["recording_id"] for row in meetings] == [recording]
         row = meetings[0]
-        # P9-07: the fixed `summary: "none"` became the real state of the note,
+        # The fixed `summary: "none"` became the real state of the note,
         # and each meeting says whether the Mac has closed it.
         assert set(row) == {
             "recording_id",
@@ -337,7 +338,7 @@ async def test_a2_meetings_routes_answer_signed_requests_for_a_paired_device(mee
         assert combined == "[00:00:00] Micrófono local: " + long_transcript
 
 
-async def test_a5_meetings_routes_log_no_transcript_text(meetings_hub_app):
+async def test_meetings_routes_log_no_transcript_text(meetings_hub_app):
     app, store = meetings_hub_app
     owner = device(store)
     recording = recording_with_transcript(
@@ -376,12 +377,12 @@ async def test_a5_meetings_routes_log_no_transcript_text(meetings_hub_app):
     assert TRANSCRIPT_SECRET not in captured.getvalue()
 
 
-# REF-11 A6 and A10: Deimos sees the meetings always; no switch stands before
-# them. Mars retired «Reuniones» on 2026-09-25, and a Mac of the previous
+# Deimos sees the meetings always; no switch stands before them. «Reuniones»
+# was retired on 2026-09-25, and a Mac of the previous
 # version that still reports its switch — even a «false» — blocks nothing.
 
 
-# P9-07: the note route behind `orbit_note` has its own `Authenticator`, bound
+# The note route behind `orbit_note` has its own `Authenticator`, bound
 # to its own path like the list and transcript routes, so a signature made for
 # another route never opens it; nothing of a note reaches the hub's log; and
 # the listing pages with `more` and `before_ms` instead of stopping in silence.
@@ -420,6 +421,34 @@ async def test_the_note_route_answers_only_a_signature_made_for_it(meetings_hub_
     assert note["note"]["action_items"][0]["done"] is False
     assert missing.status_code == 404
     assert missing.json()["code"] == "recording_not_found"
+
+
+async def test_a_queued_note_suggests_waiting_until_its_retry(meetings_hub_app):
+    app, store = meetings_hub_app
+    owner = device(store)["device_id"]
+    recording = recording_with_transcript(store, owner, "texto sintético", title="Daily")
+    # The note fails at 1000 s and the worker retries it thirty seconds later.
+    await write_note(
+        store,
+        owner,
+        recording,
+        now=NOW_MS / 1000,
+        answers=[ProcessingError("provider_timeout", timeout_seconds=300)],
+    )
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="https://localhost") as http,
+    ):
+        body, headers = signed(NOTE_PATH, {"device_id": owner, "recording_id": recording})
+        queued = await http.post(NOTE_PATH, content=body, headers=headers)
+
+    assert queued.status_code == 503, queued.text
+    refusal = queued.json()["refusal"]
+    assert refusal["code"] == "note_queued"
+    assert refusal["retry_at_ms"] == NOW_MS + 30_000
+    # The wait is the time left until that retry, not the generic note time.
+    assert refusal["retry_after_ms"] == 30_000
+    assert refusal["retry"] == {"kind": "after_ms", "ms": 30_000}
 
 
 async def test_the_note_route_logs_no_note_content(meetings_hub_app):

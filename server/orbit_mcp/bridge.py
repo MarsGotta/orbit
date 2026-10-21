@@ -181,7 +181,7 @@ class ScreenshotMetadata(WireModel):
     height: int
     mime_type: str
     sha256: str
-    # SIM-56: on a full screen, the Mac's sentence on what its coordinates
+    # On a full screen, the Mac's sentence on what its coordinates
     # are (the image is fitted; desktop actions are given on it).
     coordinates: str | None = None
 
@@ -295,7 +295,7 @@ class CalendarEvent(WireModel):
     event_url: str | None = None
     event_url_status: Literal["not_requested", "not_provided", "provided"]
     invitees_continued: bool | None = None
-    # P9-21: optional EventKit fields consumed by the agenda renderer.
+    # Optional EventKit fields consumed by the agenda renderer.
     location: str | None = None
     notes: str | None = None
     notes_left_out: CalendarFieldLeftOut | None = None
@@ -303,7 +303,7 @@ class CalendarEvent(WireModel):
     availability: Literal["busy", "free", "tentative", "unavailable", "not_supported"] | None = None
     recurrence: CalendarRecurrence | None = None
     can_edit: bool | None = None
-    # P9-22: the event's reminders, in minutes before its start, and how many
+    # The event's reminders, in minutes before its start, and how many
     # more it has that Orbit does not edit (absolute or by location).
     alarms_minutes: list[int] | None = None
     alarms_not_editable: int | None = None

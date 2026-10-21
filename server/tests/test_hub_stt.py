@@ -162,9 +162,7 @@ def multipart_value(body: bytes, field: str) -> str:
     return value.decode()
 
 
-async def test_a1_group_uses_configured_stt_without_opening_hermes(
-    environment, tmp_path, monkeypatch
-):
+async def test_group_uses_configured_stt_without_opening_hermes(environment, tmp_path, monkeypatch):
     base, store, _ = environment
     owner = device(store)["device_id"]
     recording = seal_one_group(store, owner)
@@ -187,7 +185,7 @@ async def test_a1_group_uses_configured_stt_without_opening_hermes(
     assert hermes.transcription_attempts == 0
 
 
-async def test_a2_empty_stt_text_is_stored_as_completed_silence(environment, tmp_path, monkeypatch):
+async def test_empty_stt_text_is_stored_as_completed_silence(environment, tmp_path, monkeypatch):
     base, store, _ = environment
     owner = device(store)["device_id"]
     recording = seal_one_group(store, owner)
@@ -204,7 +202,7 @@ async def test_a2_empty_stt_text_is_stored_as_completed_silence(environment, tmp
     assert group_row(store, recording) == {"state": "completed", "attempts": 1, "error_code": None}
 
 
-async def test_a3_http_error_and_timeout_remain_pending_and_increment_attempts(
+async def test_http_error_and_timeout_remain_pending_and_increment_attempts(
     environment, tmp_path, monkeypatch
 ):
     monkeypatch.setattr(meeting_transcription, "REQUEST_TIMEOUT_SECONDS", 0.05)
@@ -240,7 +238,7 @@ async def test_a3_http_error_and_timeout_remain_pending_and_increment_attempts(
     assert hermes.transcription_attempts == 0
 
 
-def test_a4_cli_refuses_to_start_without_meeting_transcription(tmp_path, monkeypatch, capsys):
+def test_cli_refuses_to_start_without_meeting_transcription(tmp_path, monkeypatch, capsys):
     path = tmp_path / "orbit.toml"
     path.write_text(
         "\n".join(
@@ -268,7 +266,7 @@ def test_a4_cli_refuses_to_start_without_meeting_transcription(tmp_path, monkeyp
     assert started == []
 
 
-async def test_a5_authenticated_retry_route_requeues_and_worker_completes(
+async def test_authenticated_retry_route_requeues_and_worker_completes(
     environment, tmp_path, monkeypatch
 ):
     base, store, _ = environment
@@ -337,7 +335,7 @@ async def test_a5_authenticated_retry_route_requeues_and_worker_completes(
     assert len(provider.requests) == 1
 
 
-async def test_a6_missing_language_is_omitted_from_multipart(environment, tmp_path, monkeypatch):
+async def test_missing_language_is_omitted_from_multipart(environment, tmp_path, monkeypatch):
     base, store, _ = environment
     owner = device(store)["device_id"]
     recording = seal_one_group(store, owner)

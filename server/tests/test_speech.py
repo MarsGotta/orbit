@@ -1,4 +1,4 @@
-"""SYS-03 contract against synthetic Hermes transports; no real profile is contacted."""
+"""The speech contract against synthetic Hermes transports; no real profile is contacted."""
 
 import base64
 import json
@@ -42,7 +42,7 @@ def install_http(monkeypatch, reply):
         ("audio/wav", b"RIFFsynthetic-wave", "synthetic-profile-b"),
     ],
 )
-async def test_a1_default_uses_profile_clip_without_opening_stream(
+async def test_default_uses_profile_clip_without_opening_stream(
     environment, tmp_path, monkeypatch, mime_type, audio, provider
 ):
     settings, _, _ = environment
@@ -110,7 +110,7 @@ async def test_unavailable_speech_and_oversized_clip_are_typed(environment, tmp_
 
 
 @pytest.mark.parametrize("mime_type", ["audio/mpeg", "audio/wav"])
-def test_a1_route_preserves_clip_headers_and_bytes(environment, mime_type):
+def test_route_preserves_clip_headers_and_bytes(environment, mime_type):
     settings, store, _ = environment
     audio = b"synthetic-clip"
 

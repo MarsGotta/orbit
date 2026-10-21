@@ -68,17 +68,17 @@ def signed(protocol=BRIDGE_PROTOCOL, path=BRIDGE_PATH, nonce=None):
     )
 
 
-def test_a7_sign_request_is_admitted_by_the_real_authenticator_of_each_route():
+def test_sign_request_is_admitted_by_the_real_authenticator_of_each_route():
     for protocol, path, prefix in (
         (BRIDGE_PROTOCOL, BRIDGE_PATH, BRIDGE_HEADER_PREFIX),
-        # REF-10 retired the calendar consumer route; the meetings bridge is the
+        # The calendar consumer route is gone; the meetings bridge is the
         # other private route that signs with its own key.
         (MEETINGS_PROTOCOL, MEETINGS_PATH, MEETINGS_HEADER_PREFIX),
     ):
         admit(authenticator(protocol, path, prefix), signed(protocol, path), BODY)
 
 
-def test_a7_the_same_signature_is_refused_on_another_path_or_protocol():
+def test_the_same_signature_is_refused_on_another_path_or_protocol():
     headers = signed()
     for protocol, path in ((BRIDGE_PROTOCOL, OTHER_PATH), (OTHER_PROTOCOL, BRIDGE_PATH)):
         with pytest.raises(Rejected) as rejected:
@@ -87,7 +87,7 @@ def test_a7_the_same_signature_is_refused_on_another_path_or_protocol():
         assert rejected.value.code == "unauthorized"
 
 
-def test_a7_a_repeated_nonce_is_refused_as_a_replay():
+def test_a_repeated_nonce_is_refused_as_a_replay():
     nonce = str(uuid4())
     headers = signed(nonce=nonce)
     auth = authenticator(BRIDGE_PROTOCOL, BRIDGE_PATH, BRIDGE_HEADER_PREFIX)

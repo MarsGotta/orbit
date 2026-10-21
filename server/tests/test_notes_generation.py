@@ -27,7 +27,7 @@ def segment(at_ms, track, text, label="unknown"):
 
 
 def test_the_local_microphone_is_its_owner_and_renamed_voices_use_their_names():
-    """SIM-40: the rule `meetings.turns` applies for every reader, the note's included."""
+    """The rule `meetings.turns` applies for every reader, the note's included."""
     renames = {"Speaker 2": "Lucía"}
     names = [
         speaker_name(item.speaker_key, item.track, renames, "Alina")
@@ -122,7 +122,7 @@ def test_the_prompt_carries_template_private_notes_event_and_transcript():
     [("en", "inglés (English)"), ("fr", "francés (Français)"), ("es", "español")],
 )
 def test_the_language_is_the_last_thing_the_model_reads(language, named):
-    """SIM-52 on the real model (2026-10-18): a meeting changed to English got
+    """On the real model (2026-10-18): a meeting changed to English got
     its note rewritten in Spanish. The language was one phrase at the top of a
     prompt written in Spanish over a transcript half in Spanish; it now closes
     every request, after the transcript, named in both languages."""

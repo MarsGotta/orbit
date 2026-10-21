@@ -11,7 +11,7 @@ def main() -> int:
     try:
         config = Config.from_env()
     except ConfigError as exc:
-        print(f"Orbit MCP no puede arrancar: {exc}", file=sys.stderr)
+        print(f"Orbit MCP cannot start: {exc}", file=sys.stderr)
         return 1
     build_server(config, HubClient(config)).run("stdio")
     return 0

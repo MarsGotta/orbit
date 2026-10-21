@@ -86,7 +86,7 @@ def section_keys(template: Template) -> list[str]:
 
 
 def lengths(duration_ms: int) -> tuple[int, int]:
-    """Bullets per section that scale with the meeting, as Mars expects."""
+    """Bullets per section that scale with the meeting."""
     minutes = max(1, duration_ms // 60_000)
     return min(6, max(2, minutes // 15)), min(15, max(4, minutes // 6))
 
@@ -113,7 +113,7 @@ def template_block(template: Template) -> str:
     return "\n".join(rows)
 
 
-# The languages a meeting can be picked in (SIM-52), as the prompt names
+# The languages a meeting can be picked in, as the prompt names
 # them; another code the transcriber gave is named by its code.
 LANGUAGE_NAMES = {
     "es": "español",
@@ -139,7 +139,7 @@ OWN_NAMES = {
 
 
 def language_block(inputs: NoteInputs) -> str:
-    """The last thing the model reads (SIM-52). The prompt is written in
+    """The last thing the model reads. The prompt is written in
     Spanish and a meeting may be half in another language: one phrase at the
     top of the system message was not enough, and a meeting changed to
     English got its note rewritten in Spanish (Qwen, 2026-10-18)."""

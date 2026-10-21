@@ -1,4 +1,4 @@
-"""SIM-40: the hub serves meetings and notes to the Mac, and Deimos reads the same.
+"""The hub serves meetings and notes to the Mac, and Deimos reads the same.
 
 The defects these cover (issues 1 to 4) came from the
 Mac rebuilding what the hub already knew: absolute times, every voice called
@@ -39,7 +39,7 @@ from orbit_hub.notes.generation import clock
 from orbit_hub.private_auth import sign_request
 
 KEY = bytes(range(64, 96))
-KEY_ID = "sim40-meetings-key"
+KEY_ID = "test-meetings-key"
 NOW = 1_800_000_000.0
 # The recording's own start, a real wall-clock instant: what made fallo 1 show
 # «497829:12:38» when the Mac used it as the turn's time.
@@ -171,7 +171,7 @@ async def transcribed(http, paired, recording, *, budget=500):
             assert document["transcript"]["state"] == "ready", document["transcript"]
             return document
         await asyncio.sleep(0.01)
-    raise AssertionError("la transcripción no terminó")
+    raise AssertionError("the transcript did not finish")
 
 
 @asynccontextmanager
@@ -305,7 +305,7 @@ async def test_c2_deimos_and_the_device_read_the_same_transcript(hub):
         device_view = seen_by_the_device(document, await all_turns(http, paired, recording))
         deimos_view = await seen_by_deimos(http, paired, recording)
     assert deimos_view == device_view
-    # And a question about the meeting (SIM-30's `meeting_context`) reads the same.
+    # And a question about the meeting (`meeting_context`) reads the same.
     with store.read_snapshot() as db:
         assert render(read(store, db, paired["device_id"], recording).lines()) == device_view
     assert deimos_view.splitlines() == [
@@ -373,7 +373,7 @@ async def ready_note(http, paired, recording, *, budget=200):
             assert document["note"]["state"] == "ready", document["note"]
             return document["note"]
         await asyncio.sleep(0.01)
-    raise AssertionError("la nota no llegó a escribirse")
+    raise AssertionError("the note was never written")
 
 
 # Criterion 4: finalizing asks for the note with the meeting's title and the owner.

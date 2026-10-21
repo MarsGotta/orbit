@@ -1,9 +1,10 @@
-"""Meeting speech-to-text, played by the test process itself (REF-13).
+"""Meeting speech-to-text, played by the test process itself.
 
-Since P7-06 the hub sends a meeting's audio straight to the service named in
+The hub sends a meeting's audio straight to the service named in
 ``[meeting_transcription]``: ``POST {endpoint}/v1/audio/transcriptions``,
 multipart with ``file`` (a WAV), ``model`` and ``response_format``
-(``verbose_json`` since SIM-40), answered with ``{"text": ...}``. ``SyntheticStt`` is that service with scripted answers.
+(``verbose_json``), answered with ``{"text": ...}``. ``SyntheticStt`` is that
+service with scripted answers.
 A test serves it on a port it binds itself (``support_client_e2e.tcp_server``),
 so the hub's real client crosses a real socket to it and to nothing else.
 
@@ -117,11 +118,11 @@ class SyntheticStt:
                 fields = form_fields(content_type, body)
                 audio = meeting_wav(fields, self.model)
             except ValueError as exc:
-                return self._refuse(f"petición al STT sintético no válida: {exc}")
+                return self._refuse(f"invalid request to the synthetic STT: {exc}")
             outcome = self.outcomes[min(len(self.audio), len(self.outcomes) - 1)]
             if outcome is UNAVAILABLE:
                 return JSONResponse(
-                    {"error": "STT sintético de la suite unitaria: no transcribe"},
+                    {"error": "the unit suite's synthetic STT does not transcribe"},
                     status_code=503,
                 )
             self.audio.append(audio)
@@ -135,9 +136,7 @@ class SyntheticStt:
             try:
                 return {"text": outcome(len(self.audio), audio)}
             except AssertionError as exc:
-                return self._refuse(
-                    f"el STT sintético rechazó la petición {len(self.audio)}: {exc}"
-                )
+                return self._refuse(f"the synthetic STT refused request {len(self.audio)}: {exc}")
 
     def _refuse(self, cause: str) -> JSONResponse:
         self.refusals.append(cause)
@@ -179,8 +178,8 @@ class UnitStt:
         while not self._server.started:
             if not self._thread.is_alive() or time.monotonic() > deadline:
                 raise RuntimeError(
-                    f"el STT sintético de la suite no arrancó en {START_TIMEOUT_SECONDS} s "
-                    f"en {self.endpoint}"
+                    f"the suite's synthetic STT did not start within {START_TIMEOUT_SECONDS} s "
+                    f"at {self.endpoint}"
                 )
             time.sleep(0.01)
         return self
@@ -215,7 +214,7 @@ def unit_stt_configuration() -> dict:
     """The mandatory section for a unit test that does not test transcription."""
     if _SESSION is None:
         raise RuntimeError(
-            "el STT sintético de la suite no está en marcha; lo arranca conftest.py "
-            "antes del primer test, así que esto no puede llamarse al importar"
+            "the suite's synthetic STT is not running; conftest.py starts it before the "
+            "first test, so this cannot be called at import time"
         )
     return _SESSION.configuration()

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Callable
 from uuid import uuid4
 
 import httpx
@@ -35,8 +34,7 @@ from .config import Config, Credentials
 # This is the translator's HTTP wait, not a retry of an input action.
 BRIDGE_TIMEOUT_SECONDS = 35.0
 # The device listing and an action's outcome are answered by the hub itself,
-# without a round trip to the Mac, so they get the shorter wait. (Before REF-10
-# this was named after the calendar consumer route, which is gone.)
+# without a round trip to the Mac, so they get the shorter wait.
 ROUTE_TIMEOUT_SECONDS = 10.0
 MEETINGS_TIMEOUT_SECONDS = 10.0
 DEVICES_CACHE_SECONDS = 10.0
@@ -45,12 +43,12 @@ DEVICES_CACHE_SECONDS = 10.0
 # for a Mac whose pages are small without ever letting the walk run forever.
 CATALOGUE_PAGES = 64
 
-# DEI-16: an action the hub has handed to the Mac is in flight, and that is the
-# only word for it. REF-11: the tolerance for the approval word an older hub
-# used is gone, because the hub and this translator ship and restart together
-# from one version folder (REF-05); any other word is an invalid response and
-# is never repeated to the assistant. Mars granted Orbit the use of her computer
-# in macOS; nothing downstream of that is waiting on her.
+# An action the hub has handed to the Mac is in flight, and that is the only
+# word for it. The tolerance for the approval word an older hub used is gone,
+# because the hub and this translator ship and restart together from one
+# version folder; any other word is an invalid response and is never repeated
+# to the assistant. The user granted Orbit the use of their computer in macOS;
+# nothing downstream of that is waiting on them.
 IN_FLIGHT_OUTCOMES = frozenset({IN_FLIGHT_OUTCOME})
 IN_FLIGHT_NOTICE = "La acción ya está en curso en el Mac."
 IN_FLIGHT_NEXT_STEP = "Consulta su desenlace con orbit_action_result y este operation_id."
@@ -58,7 +56,7 @@ IN_FLIGHT_NEXT_STEP = "Consulta su desenlace con orbit_action_result y este oper
 # current Mac may emit. Removing old values would make durable receipts unreadable.
 SETTLED_OUTCOMES = frozenset({"performed", "unknown", "failed", "expired", "rejected"})
 
-# CAL-06 A5: how much of the Mac's own sentence travels back to whoever asked.
+# How much of the Mac's own sentence travels back to whoever asked.
 # Long enough for any refusal the Mac actually writes — the longest one today is
 # under 200 characters — and short enough that a Mac answering with something
 # else cannot use a refusal as a channel.
@@ -70,8 +68,8 @@ logger = get_logger("orbit_hub.orbit_mcp")
 def _in_flight(operation_id: str | None = None) -> dict:
     """What an action still under way is called, and where to read its end.
 
-    Never the word approval: saying so made the assistant tell Mars a page had
-    been left pending her approval when it was already open on her screen.
+    Never the word approval: saying so made the assistant tell the user a page
+    had been left pending their approval when it was already open on their screen.
     """
     answer: dict = {
         "outcome": IN_FLIGHT_OUTCOME,
@@ -89,7 +87,7 @@ class HubClientError(RuntimeError):
         self.status = status
         # Numbers the hub measured for this one refusal, kept apart from the
         # fixed message so the tool decides what is safe to say out of them.
-        # CAL-06 widened the same channel to carry `mac_notice`: the one
+        # The same channel carries `mac_notice`: the one
         # sentence the Mac wrote about this refusal, already bounded.
         self.detail = detail if isinstance(detail, dict) else {}
         super().__init__(code)
@@ -197,11 +195,10 @@ def validate_mac_payload(capability, payload):
 
 
 class HubClient:
-    def __init__(self, config: Config, *, client_factory=None, clock=None, nonce=None):
+    def __init__(self, config: Config, *, client_factory=None, clock=None):
         self.config = config
         self._client_factory = client_factory or httpx.AsyncClient
         self._clock = clock or (lambda: int(time.time() * 1000))
-        self._nonce = nonce or uuid4
         self._devices_cache: tuple[float, list[dict]] | None = None
 
     def update_config(self, config: Config) -> None:
@@ -272,10 +269,10 @@ class HubClient:
                 raise HubClientError("invalid_response", response.status_code)
             validate_mac_payload(capability, payload)
         if response.status_code >= 400 or payload.get("state") != "answered":
-            # CAL-06 A3/A4: the Mac explains its own refusals in a sentence and
+            # The Mac explains its own refusals in a sentence and
             # this is where that sentence used to die, leaving the caller the
             # code and the fixed table entry — which is how `orbit_calendar`
-            # spent its first day telling Mars her parameters were wrong
+            # spent its first day telling the user their parameters were wrong
             # without ever saying which one or why. Every capability's refusal
             # comes through here, so every one of them now carries its cause.
             failure = _failure(payload, response.status_code)
@@ -293,8 +290,9 @@ class HubClient:
         round trips are between this process and the Mac, never between Deimos
         and this process.
 
-        A Mac that does not page — an older one, or one whose catalogue fits —
-        answers without a continuation and the walk ends on the first page.
+        Every page is validated as `ControlToolsResult` first, so its counters
+        are there; a catalogue that fits one page comes without a continuation
+        and the walk ends on it.
         """
         after_index = 0
         tools: list[dict] = []
@@ -302,26 +300,19 @@ class HubClient:
         for _ in range(CATALOGUE_PAGES):
             parameters = {"after_index": after_index} if after_index else {}
             result = await self.device_request(device_id, "control_tools", parameters)
-            page = result.get("tools")
-            if not isinstance(page, list):
+            declared = result["total"]
+            if result["after_index"] != after_index or declared < 0:
                 raise HubClientError("invalid_response")
-            current = result.get("after_index", after_index)
-            if type(current) is not int or current != after_index:
-                raise HubClientError("invalid_response")
-            declared = result.get("total")
-            if declared is not None:
-                if type(declared) is not int or declared < 0:
-                    raise HubClientError("invalid_response")
-                # A catalogue that changed size mid-walk would assemble into a
-                # list that never existed on the Mac. Say so rather than hand
-                # Deimos a mixture of two engines.
-                if total is not None and declared != total:
-                    raise HubClientError("catalogue_changed")
-                total = declared
-            tools.extend(page)
+            # A catalogue that changed size mid-walk would assemble into a
+            # list that never existed on the Mac. Say so rather than hand
+            # Deimos a mixture of two engines.
+            if total is not None and declared != total:
+                raise HubClientError("catalogue_changed")
+            total = declared
+            tools.extend(result["tools"])
             following = result.get("next_after_index")
             if following is None:
-                if total is not None and len(tools) != total:
+                if len(tools) != total:
                     raise HubClientError("invalid_response")
                 return tools
             if type(following) is not int or following <= after_index:
@@ -363,9 +354,9 @@ class HubClient:
         }
 
     async def calendar_read(self, device_id: str, start_ms: int, end_ms: int) -> dict:
-        """Mars's whole agenda for ``[start_ms, end_ms)``, however many pages it takes.
+        """The user's whole agenda for ``[start_ms, end_ms)``, however many pages it takes.
 
-        REF-10 A2: Deimos asks once. The Mac answers ``calendar_read`` a page at
+        Deimos asks once. The Mac answers ``calendar_read`` a page at
         a time and says where the next one starts; the walk lives here, like the
         catalogue's, so the extra round trips are between this process and the
         Mac and never between Deimos and this process.
@@ -472,7 +463,7 @@ class HubClient:
         return payload
 
     async def note(self, device_id: str, recording_id: str) -> dict:
-        """The note as Mars sees it; a note not written yet is the hub's refusal."""
+        """The note as the user sees it; a note not written yet is the hub's refusal."""
         payload = await self._meetings_call(
             NOTE_PATH, {"device_id": device_id, "recording_id": recording_id}, device_id
         )
@@ -530,7 +521,6 @@ class HubClient:
             issued_at_ms = self._clock()
             if type(issued_at_ms) is not int:
                 raise HubClientError("client_clock")
-            nonce_value = self._nonce() if isinstance(self._nonce, Callable) else self._nonce
             headers = sign_request(
                 protocol,
                 path,
@@ -538,7 +528,7 @@ class HubClient:
                 credentials.key,
                 body,
                 issued_at_ms=issued_at_ms,
-                nonce=str(nonce_value),
+                nonce=str(uuid4()),
             )
             headers["content-type"] = "application/json"
             headers["X-Orbit-Op"] = current_op() or new_op()

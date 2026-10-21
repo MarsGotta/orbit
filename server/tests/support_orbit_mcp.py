@@ -62,7 +62,7 @@ SELECTED_TEXT_ANSWER = {
     "title": FOREGROUND_WINDOW["title"],
     "text": "Texto seleccionado sintético de la ventana.",
 }
-# REF-11: what a Mac says when macOS withholds the screen. There is no switch
+# What a Mac says when macOS withholds the screen. There is no switch
 # of Orbit left for a refusal to name.
 OBSERVATION_REFUSED_NOTICE = (
     "macOS no concede a Orbit el permiso de Grabación de pantalla en este Mac, y sin él "
@@ -79,11 +79,11 @@ TOOL_NAMES = (
     "orbit_control_tools",
     "orbit_perform_action",
     "orbit_action_result",
-    # REF-10: the only agenda tool; the stored-copy one went with the copy.
+    # The only agenda tool; the stored-copy one went with the copy.
     "orbit_calendar",
     "orbit_meetings",
     "orbit_transcript",
-    # P9-07: the note of a recording, as Mars sees it.
+    # The note of a recording, as the user sees it.
     "orbit_note",
 )
 
@@ -153,7 +153,7 @@ class FakeHub:
         self.app = FastAPI()
         self.device_requests = []
         self.device_list_requests = 0
-        # The X-Orbit-Op of every request, in arrival order (SIM-22).
+        # The X-Orbit-Op of every request, in arrival order.
         self.ops = []
         self.device_replies = list(device_replies or [])
         self.devices = list(

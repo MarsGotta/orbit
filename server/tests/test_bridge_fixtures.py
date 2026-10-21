@@ -35,7 +35,7 @@ def test_request_fixture_is_consumed_by_mcp_parameter_model(capability):
     raw = read(ROOT / "requests" / f"{capability}.json")
     assert raw["event"] == "device.request"
     parameters = PARAMETER_MODELS[capability].model_validate(raw["data"]["parameters"])
-    # Every field Rust emits must be understood by the consumer (CAL-08).
+    # Every field Rust emits must be understood by the consumer.
     assert parameters.model_dump(exclude_none=True) == raw["data"]["parameters"]
 
 

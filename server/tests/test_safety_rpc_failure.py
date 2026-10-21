@@ -1,4 +1,4 @@
-"""P0-09: a control whose RPC fails never leaves an open safety receipt.
+"""A control whose RPC fails never leaves an open safety receipt.
 
 Synthetic upstream counts interrupt RPCs and can fail them with the same typed
 errors the real transport produces (upstream_rejected, outcome_unknown).
@@ -67,7 +67,7 @@ def stored_receipt(store, device_id, target):
     return json.loads(store.decrypt(row["response"], f"safety:{device_id}:{target}"))
 
 
-def test_a1_rejected_interrupt_closes_error_receipt_and_new_uuid_reaches_upstream(counted):
+def test_rejected_interrupt_closes_error_receipt_and_new_uuid_reaches_upstream(counted):
     _, store, adapter = counted
     paired = device(store)
     headers = {"Authorization": "Bearer " + paired["token"]}
@@ -93,7 +93,7 @@ def test_a1_rejected_interrupt_closes_error_receipt_and_new_uuid_reaches_upstrea
         assert interrupt_calls(connection) == 2
 
 
-def test_a2_same_uuid_retry_after_error_replays_recorded_response_without_new_rpc(counted):
+def test_same_uuid_retry_after_error_replays_recorded_response_without_new_rpc(counted):
     _, store, adapter = counted
     paired = device(store)
     headers = {"Authorization": "Bearer " + paired["token"]}
@@ -115,7 +115,7 @@ def test_a2_same_uuid_retry_after_error_replays_recorded_response_without_new_rp
         assert interrupt_calls(connection) == 1
 
 
-def test_a3_unconfirmed_interrupt_records_outcome_unknown_and_new_uuid_is_admitted(counted):
+def test_unconfirmed_interrupt_records_outcome_unknown_and_new_uuid_is_admitted(counted):
     _, store, adapter = counted
     paired = device(store)
     headers = {"Authorization": "Bearer " + paired["token"]}
@@ -141,7 +141,7 @@ def test_a3_unconfirmed_interrupt_records_outcome_unknown_and_new_uuid_is_admitt
         assert interrupt_calls(connection) == 2
 
 
-def test_a4_successful_interrupt_deduplicates_by_target_without_new_rpc(counted):
+def test_successful_interrupt_deduplicates_by_target_without_new_rpc(counted):
     _, store, adapter = counted
     paired = device(store)
     headers = {"Authorization": "Bearer " + paired["token"]}

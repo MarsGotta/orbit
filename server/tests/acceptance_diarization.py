@@ -1,7 +1,9 @@
 """Explicit real boundary check for the reviewer; excluded from normal test discovery.
 
-Requires ORBIT_DIARIZATION_WAV (synthetic mono 16 kHz WAV) and
-ORBIT_DIARIZATION_GPU_LOCK (the exact lock used by Whisper). Never run in CI.
+Requires ORBIT_DIARIZATION_WAV (synthetic mono 16 kHz WAV),
+ORBIT_DIARIZATION_PYTHON and ORBIT_DIARIZATION_BUNDLE (the `[diarization]`
+python and bundle of the hub under test) and ORBIT_DIARIZATION_GPU_LOCK (the
+exact lock used by Whisper). Never run in CI.
 Only counts and timings leave this check; no audio or transcript is saved.
 """
 
@@ -17,8 +19,8 @@ from orbit_hub.meeting_final_pass import memory_file
 
 async def test_real_local_diarization_boundary():
     configuration = DiarizationConfiguration(
-        python=Path("/home/example/orbit-bundles/diarization-runtime/.venv/bin/python"),
-        bundle=Path("/home/example/orbit-bundles/diarization-community-1"),
+        python=Path(os.environ["ORBIT_DIARIZATION_PYTHON"]),
+        bundle=Path(os.environ["ORBIT_DIARIZATION_BUNDLE"]),
         gpu_lock=Path(os.environ["ORBIT_DIARIZATION_GPU_LOCK"]),
     )
     source = Path(os.environ["ORBIT_DIARIZATION_WAV"])

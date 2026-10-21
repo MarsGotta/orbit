@@ -37,13 +37,13 @@ def test_sessions_created_preserves_real_number_and_fraction(environment):
     paired = device(store)
     created = 1789668184.393808
     session_id = store.create_session(
-        paired["device_id"], "runtime-dae07", "stored-dae07", "epoch-dae07", created
+        paired["device_id"], "runtime-1", "stored-1", "epoch-1", created
     )
 
     with client(environment) as http:
         response = http.get("/v1/sessions", headers={"Authorization": "Bearer " + paired["token"]})
 
-    # SIM-30: the hub sends milliseconds, the fraction rounded, never cut.
+    # The hub sends milliseconds, the fraction rounded, never cut.
     assert response.status_code == 200
     assert response.json() == {
         "sessions": [

@@ -5,6 +5,7 @@ from contextlib import nullcontext
 
 from .grouping import MAX_GROUP_SOURCES, Source, assemble_wav, group_manifest, select_window
 from .log import report
+from .meetings import repository as meetings
 from .protocol import HubError
 
 SCHEMA = '\nCREATE TABLE IF NOT EXISTS chunk_receipts (\n    device_id TEXT NOT NULL, chunk_id TEXT NOT NULL, received REAL NOT NULL,\n    PRIMARY KEY(device_id,chunk_id),\n    FOREIGN KEY(device_id,chunk_id) REFERENCES chunks(device_id,id));\nCREATE TABLE IF NOT EXISTS transcription_groups (\n    device_id TEXT NOT NULL, id TEXT NOT NULL, recording TEXT NOT NULL, track TEXT NOT NULL,\n    first_sequence INTEGER NOT NULL, last_sequence INTEGER NOT NULL, manifest BLOB NOT NULL,\n    state TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,\n    next_attempt REAL NOT NULL DEFAULT 0, error_code TEXT, created REAL NOT NULL,\n    PRIMARY KEY(device_id,id));\nCREATE TABLE IF NOT EXISTS transcription_group_chunks (\n    device_id TEXT NOT NULL, chunk_id TEXT NOT NULL, group_id TEXT NOT NULL,\n    PRIMARY KEY(device_id,chunk_id),\n    FOREIGN KEY(device_id,chunk_id) REFERENCES chunks(device_id,id),\n    FOREIGN KEY(device_id,group_id) REFERENCES transcription_groups(device_id,id));\nCREATE TABLE IF NOT EXISTS group_transcripts (\n    device_id TEXT NOT NULL, group_id TEXT NOT NULL, body BLOB NOT NULL,\n    PRIMARY KEY(device_id,group_id),\n    FOREIGN KEY(device_id,group_id) REFERENCES transcription_groups(device_id,id));\nCREATE INDEX IF NOT EXISTS groups_recording ON transcription_groups(device_id,recording,last_sequence DESC);\nCREATE INDEX IF NOT EXISTS group_members ON transcription_group_chunks(device_id,group_id);\nCREATE INDEX IF NOT EXISTS groups_pending ON transcription_groups(state,next_attempt,created);\n'  # fmt: skip
@@ -119,7 +120,7 @@ class GroupRepository:
                 "UPDATE transcription_groups SET state='running',attempts=attempts+1 WHERE device_id=? AND id=?",
                 (row["device_id"], row["id"]),
             )
-            # SIM-52: the language Mars chose for the recording, read as the
+            # The language the user chose for the recording, read as the
             # group is claimed; None sends the configured one.
             chosen = db.execute(
                 "SELECT language FROM recording_languages WHERE device_id=? AND recording=?",
@@ -165,7 +166,7 @@ class GroupRepository:
         body stays `{"text"}`, the shape the archive reader checks. The text is
         kept even when empty: an empty group is audio without speech, and the
         readers leave it out. A group transcribed again in another language
-        (SIM-52) has its old text replaced.
+        has its old text replaced.
         """
         device, group_id = job["device_id"], job["group_id"]
         encoded = json.dumps({"text": text}).encode()
@@ -215,17 +216,7 @@ class GroupRepository:
     def retry(self, device: str, recording: str, now: float) -> int:
         """Requeue exhausted groups for one device-owned recording."""
         with self.store.transaction() as db:
-            exists = db.execute(
-                """SELECT 1 FROM chunks WHERE device_id=? AND recording=?
-                UNION ALL
-                SELECT 1 FROM recording_manifests WHERE device_id=? AND recording=?
-                LIMIT 1""",
-                (device, recording, device, recording),
-            ).fetchone()
-            if exists is None:
-                raise HubError(
-                    "recording_not_found", "Grabación no disponible para este dispositivo"
-                )
+            meetings.require(db, device, recording)
             return db.execute(
                 """UPDATE transcription_groups
                 SET state='pending',attempts=0,error_code=NULL,next_attempt=?
@@ -266,73 +257,3 @@ class GroupRepository:
             "capture_complete": manifest is not None and manifest["gaps"] == 0 and not missing,
             "transcript_ready": manifest is not None and pending == 0,
         }
-
-    def segment(self, row) -> dict:
-        result = {
-            **self.manifest(row),
-            "state": row["state"],
-            "error_code": row["error_code"],
-        }
-        if row["state"] != "completed":
-            result["attempts"] = row["attempts"]
-            result["next_attempt_ms"] = int(row["next_attempt"] * 1000)
-        if row["transcript"]:
-            result.update(
-                json.loads(
-                    self.store.decrypt(
-                        row["transcript"], f"group-transcript:{row['device_id']}:{row['id']}"
-                    )
-                )
-            )
-        return result
-
-    def transcript(self, device: str, recording: str, *, db=None) -> dict:
-        result, segments, size = self.capture(device, recording, db=db), [], 4096
-        reader = db if db is not None else self.store._db
-        with nullcontext() if db is not None else self.store._lock:
-            rows = reader.execute(
-                """SELECT g.*,t.body AS transcript FROM transcription_groups g
-                LEFT JOIN group_transcripts t ON t.device_id=g.device_id AND t.group_id=g.id
-                WHERE g.device_id=? AND g.recording=? ORDER BY g.first_sequence,g.track""",
-                (device, recording),
-            )
-            for row in rows:
-                size += len(row["manifest"]) + len(row["transcript"] or b"")
-                if size > 1024 * 1024:
-                    raise HubError(
-                        "too_large", "Transcript demasiado grande; conserva los originales"
-                    )
-                segments.append(self.segment(row))
-            pending = reader.execute(
-                """SELECT c.device_id,c.id,c.sequence,c.sha256,c.size,c.recording,c.track,j.metadata,j.state,j.error_code,t.body AS transcript,coalesce(r.received,0) AS received
-                FROM chunks c LEFT JOIN transcription_jobs j ON j.device_id=c.device_id AND j.chunk_id=c.id
-                LEFT JOIN transcripts t ON t.device_id=c.device_id AND t.chunk_id=c.id
-                LEFT JOIN chunk_receipts r ON r.device_id=c.device_id AND r.chunk_id=c.id
-                LEFT JOIN transcription_group_chunks m ON m.device_id=c.device_id AND m.chunk_id=c.id
-                WHERE c.device_id=? AND c.recording=? AND m.chunk_id IS NULL ORDER BY c.sequence,c.track""",
-                (device, recording),
-            )
-            for row in pending:
-                size += len(row["metadata"] or b"") + len(row["transcript"] or b"") + 512
-                if size > 1024 * 1024:
-                    raise HubError(
-                        "too_large", "Transcript demasiado grande; conserva los originales"
-                    )
-                segment = {
-                    "chunk_id": row["id"],
-                    "track": row["track"],
-                    "sequence": row["sequence"],
-                    "state": "failed"
-                    if row["state"] == "failed"
-                    else ("awaiting_group" if row["metadata"] else "not_scheduled"),
-                    "error_code": row["error_code"],
-                }
-                if row["metadata"]:
-                    segment.update(
-                        source_chunk_ids=[row["id"]], sources=[self.source(row).provenance()]
-                    )
-                segments.append(segment)
-        result["segments"] = sorted(segments, key=lambda item: (item["sequence"], item["track"]))
-        if len(json.dumps(result).encode()) > 1024 * 1024:
-            raise HubError("too_large", "Transcript demasiado grande; conserva los originales")
-        return result

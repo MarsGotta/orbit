@@ -1,9 +1,13 @@
 """Explicit turn state machine for chat turns.
 
-The session status persisted by the hub is exactly one ``TurnState``. The only
-legal evolutions are the rows of :data:`TRANSITIONS`; there is no edge from
-``outcome_unknown`` back into an active turn, so a turn whose result is unknown
-can never be resumed or overwritten by a new submit on the same session.
+The session status persisted by the hub is exactly one ``TurnState``. Every
+move the hub decides goes through :func:`advance`, which admits only the rows
+of :data:`TRANSITIONS`; there is no edge from ``outcome_unknown`` back into an
+active turn, so a turn whose result is unknown can never be resumed or
+overwritten by a new submit on the same session. A fact observed upstream —
+a terminal event, the loss of Hermes, a submit Hermes no longer knows — is
+written as it happened (``runtime.DeviceRuntime``), whatever sub-state the hub
+had recorded.
 
 Transition table:
 
@@ -17,8 +21,8 @@ Transition table:
 
 ``submitting`` covers the window in which ``prompt.submit`` has been sent but
 not acknowledged; it may be interrupted while that RPC waits. An upstream
-event observed in that window proves the turn is live, so it first advances to
-``streaming`` before any terminal transition.
+event observed in that window proves the turn is live, so it advances to
+``streaming``.
 ``interrupting`` keeps ``completed``/``failed`` because Hermes may still deliver
 a final result while an interruption request is in flight. ``completed`` and
 ``failed`` return to ``idle``: only then can a new submit start. An

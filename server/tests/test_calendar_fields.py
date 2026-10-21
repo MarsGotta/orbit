@@ -1,7 +1,7 @@
-"""P9-21: the fields the Mac reads of each event reach Deimos.
+"""The fields the Mac reads of each event reach Deimos.
 
-El hub conserva la respuesta tal cual. Los modelos del consumidor orbit-mcp
-validan estos campos y el renderizador de agenda debe decirlos a Deimos.
+The hub keeps the answer as it is. The orbit-mcp consumer's models validate
+these fields and the agenda renderer must tell them to Deimos.
 
 """
 
@@ -123,7 +123,7 @@ def test_deimos_reads_the_new_fields_in_the_event_line():
 
 
 def test_deimos_reads_the_reminders_of_an_event():
-    """P9-22: the Mac now reads each event's reminders; Deimos says them."""
+    """The Mac now reads each event's reminders; Deimos says them."""
     forwarded = _validated_by_mcp(
         _result(_event(alarms_minutes=[10, 0, 1440], alarms_not_editable=1))
     )

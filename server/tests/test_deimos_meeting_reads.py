@@ -1,4 +1,4 @@
-"""P9-07: Deimos reads the new notes and the meetings still in progress.
+"""Deimos reads the new notes and the meetings still in progress.
 
 Every test here runs the MCP tools Deimos calls against the real hub app over
 loopback, with the real store, the real signed private routes and a note
@@ -122,7 +122,7 @@ async def deimos(environment, tmp_path, owner):
         )
 
 
-async def test_a1_orbit_note_returns_the_note_with_mars_edits_applied(environment, tmp_path):
+async def test_orbit_note_returns_the_note_with_the_user_edits_applied(environment, tmp_path):
     _, store, _ = environment
     owner = device(store)["device_id"]
     identity = finished_meeting(store, owner)
@@ -154,26 +154,24 @@ async def test_a1_orbit_note_returns_the_note_with_mars_edits_applied(environmen
 
     text = text_of(result)
     assert not result.is_error, text
-    # The note as Mars sees it: her title and her sections, not the model's.
+    # The note as the user sees it: their title and their sections, not the model's.
     assert "Comité, versión de Alina" in text
     assert "Alina reescribió este punto" in text and "cerrar el presupuesto" in text
     assert "- punto 1" not in text
-    assert "Mars editó el título y las secciones" in text
-    # The model's own parts that Mars did not touch.
+    assert "Quien usa Orbit editó el título y las secciones" in text
+    # The model's own parts that the user did not touch.
     assert "Resumen corto." in text
     assert "[hecha] Lucía: Enviar el acta" in text
     assert "Aprobado" in text
     assert "Temas abiertos" in text and "Ninguno." in text
-    # Her private notes, the template, the model and the date it was written.
+    # Their private notes, the template, the model and the date it was written.
     assert f"Notas privadas de Alina\n{PRIVATE_NOTES}" in text
     assert "plantilla General" in text
     assert "qwen3.8-flash-next" in text
     assert "1970-01-01 00:16 UTC" in text
 
 
-async def test_a2_orbit_note_of_a_failed_note_names_the_cause_with_its_numbers(
-    environment, tmp_path
-):
+async def test_orbit_note_of_a_failed_note_names_the_cause_with_its_numbers(environment, tmp_path):
     _, store, _ = environment
     owner = device(store)["device_id"]
     identity = finished_meeting(store, owner)
@@ -207,7 +205,7 @@ async def test_a2_orbit_note_of_a_failed_note_names_the_cause_with_its_numbers(
     assert "orbit_transcript" in text_of(never)
 
 
-async def test_a2_a_note_waiting_for_its_retry_says_when(environment, tmp_path):
+async def test_a_note_waiting_for_its_retry_says_when(environment, tmp_path):
     _, store, _ = environment
     owner = device(store)["device_id"]
     identity = finished_meeting(store, owner)
@@ -231,7 +229,7 @@ async def test_a2_a_note_waiting_for_its_retry_says_when(environment, tmp_path):
     assert "1970-01-01 00:17:10 UTC" in text
 
 
-async def test_a3_orbit_meetings_lists_the_meeting_in_progress_and_each_notes_state(
+async def test_orbit_meetings_lists_the_meeting_in_progress_and_each_notes_state(
     environment, tmp_path
 ):
     _, store, _ = environment
@@ -269,7 +267,7 @@ async def test_a3_orbit_meetings_lists_the_meeting_in_progress_and_each_notes_st
     assert "nota fallida" in broken and "HTTP 401" in broken
 
 
-async def test_a4_orbit_transcript_of_a_meeting_in_progress_is_partial_and_uses_the_notes_names(
+async def test_orbit_transcript_of_a_meeting_in_progress_is_partial_and_uses_the_notes_names(
     environment, tmp_path
 ):
     _, store, _ = environment
@@ -285,7 +283,7 @@ async def test_a4_orbit_transcript_of_a_meeting_in_progress_is_partial_and_uses_
             put(store, owner, live, track, sequence)
     repository = NoteRepository(store)
     repository.initialize()
-    # SIM-40: the local microphone is named by the device's owner, from its profile.
+    # The local microphone is named by the device's owner, from its profile.
     meetings.set_owner_name(store, owner, "Alina", NOW)
     repository.request(owner, live, NOW, True)
 
@@ -304,7 +302,7 @@ async def test_a4_orbit_transcript_of_a_meeting_in_progress_is_partial_and_uses_
     assert "Speaker" not in text and "mic_local" not in text
 
 
-async def test_a4_a_finished_transcript_names_diarized_voices_as_the_device_does(
+async def test_a_finished_transcript_names_diarized_voices_as_the_device_does(
     environment, tmp_path
 ):
     _, store, _ = environment
@@ -318,8 +316,8 @@ async def test_a4_a_finished_transcript_names_diarized_voices_as_the_device_does
         before = await server.call_tool(
             "orbit_transcript", {"device": DEFAULT_DEVICE, "recording_id": unnamed}
         )
-    # SIM-40: the names are the hub's, the ones the Mac shows: the device's
-    # owner for the local microphone and Mars's names for the voices.
+    # The names are the hub's, the ones the Mac shows: the device's
+    # owner for the local microphone and the user's names for the voices.
     await write_note(store, owner, identity, owner_name="Alina", speakers={"Speaker 1": "Lucía"})
     async with deimos(environment, tmp_path, owner) as server:
         named = await server.call_tool(
@@ -333,7 +331,7 @@ async def test_a4_a_finished_transcript_names_diarized_voices_as_the_device_does
     assert "Alina: Abrimos el comité." in text_of(named)
     assert "Lucía: Yo envío el acta el viernes." in text_of(named)
     assert "Speaker 1" not in text_of(named)
-    # A voice Mars has not named is «Otra persona», never the recognizer's label.
+    # A voice the user has not named is «Otra persona», never the recognizer's label.
     assert "Otra persona: Yo envío el acta el viernes." in text_of(labelled)
     assert "Alina: Abrimos el comité." in text_of(labelled)
     assert "Speaker 1" not in text_of(labelled)
@@ -416,7 +414,7 @@ async def test_deimos_reconstructs_a_transcript_of_at_least_three_pages(environm
             cursor = int(continuation[1])
             assert cursor == end
         else:
-            assert False, "La transcripción de la fixture no terminó en diez páginas"
+            assert False, "The fixture's transcript did not end within ten pages"
     assert len(pages) >= 3
     reconstructed = "".join(pages)
     assert len(reconstructed) == len(expected)
@@ -442,7 +440,7 @@ def failed_meeting(store, owner, *, partial=False, pending=False):
     return identity
 
 
-async def test_ref308_deimos_receives_failed_transcription_cause(environment, tmp_path):
+async def test_deimos_receives_failed_transcription_cause(environment, tmp_path):
     _, store, _ = environment
     owner = device(store)["device_id"]
     identity = failed_meeting(store, owner)
@@ -455,7 +453,7 @@ async def test_ref308_deimos_receives_failed_transcription_cause(environment, tm
     assert "no se reintentará automáticamente" in message.lower()
 
 
-async def test_ref308_deimos_receives_completed_text_and_missing_track_cause(environment, tmp_path):
+async def test_deimos_receives_completed_text_and_missing_track_cause(environment, tmp_path):
     _, store, _ = environment
     owner = device(store)["device_id"]
     identity = failed_meeting(store, owner, partial=True)
@@ -470,7 +468,7 @@ async def test_ref308_deimos_receives_completed_text_and_missing_track_cause(env
     assert "no se reintentará automáticamente" in message.lower()
 
 
-async def test_ref308_deimos_receives_pending_retry_details(environment, tmp_path):
+async def test_deimos_receives_pending_retry_details(environment, tmp_path):
     _, store, _ = environment
     owner = device(store)["device_id"]
     identity = failed_meeting(store, owner, pending=True)

@@ -58,12 +58,12 @@ def seed_recording(root, source):
     initialize(data, key)
     store = Store(data, key)
     try:
-        device = store.pair(store.create_code(1000), "Aceptación SIM-80a", 1001)["device_id"]
+        device = store.pair(store.create_code(1000), "Final pass acceptance", 1001)["device_id"]
         recording, sequence, frames = str(uuid4()), 0, 0
         with wave.open(str(source), "rb") as audio:
             channels, width, rate = audio.getnchannels(), audio.getsampwidth(), audio.getframerate()
             if channels not in (1, 2) or width != 2 or not 8000 <= rate <= 192000:
-                raise ValueError("Formato WAV fuera del contrato de captura")
+                raise ValueError("WAV format outside the capture contract")
             # Ten seconds match ordinary capture chunks. At 192 kHz stereo,
             # the upload ceiling can be tighter; account for its WAV header.
             chunk_frames = min(rate * 10, (Settings.max_chunk_bytes - 44) // (channels * width))
@@ -95,9 +95,9 @@ def seed_recording(root, source):
                 frames += count
                 sequence += 1
             if frames != audio.getnframes():
-                raise ValueError("WAV truncada respecto a su cabecera")
+                raise ValueError("WAV truncated relative to its header")
         if not frames:
-            raise ValueError("La WAV no contiene frames")
+            raise ValueError("The WAV contains no frames")
         store.finalize_recording(
             device,
             recording,
@@ -172,10 +172,10 @@ def read_rttm(path):
             continue
         fields = line.split()
         if len(fields) != 10 or fields[0] != "SPEAKER":
-            raise ValueError("RTTM requiere filas SPEAKER de diez campos")
+            raise ValueError("RTTM requires SPEAKER rows of ten fields")
         start, duration = float(fields[3]), float(fields[4])
         if not math.isfinite(start) or not math.isfinite(duration) or start < 0 or duration <= 0:
-            raise ValueError("Intervalo RTTM no válido")
+            raise ValueError("Invalid RTTM interval")
         recordings.add((fields[1], fields[2]))
         spans.append(
             {
@@ -185,7 +185,7 @@ def read_rttm(path):
             }
         )
     if not spans or len(recordings) != 1:
-        raise ValueError("RTTM requiere una sola grabación y canal con voz")
+        raise ValueError("RTTM requires a single recording and channel with speech")
     return spans
 
 
@@ -224,7 +224,7 @@ def word_error_rate(reference, hypothesis):
     expected = re.findall(r"[^\W_]+", reference.casefold())
     heard = re.findall(r"[^\W_]+", hypothesis.casefold())
     if not expected:
-        raise ValueError("El guion no contiene palabras de referencia")
+        raise ValueError("The script contains no reference words")
     previous = list(range(len(heard) + 1))
     for index, word in enumerate(expected, 1):
         current = [index]
@@ -379,7 +379,9 @@ def test_real_final_pass():
         [sys.executable, __file__], capture_output=True, text=True, check=False, timeout=budget
     )
     if completed.returncode:
-        raise AssertionError(f"Aceptación final: proceso terminó con código {completed.returncode}")
+        raise AssertionError(
+            f"Final pass acceptance: the process exited with code {completed.returncode}"
+        )
     print(completed.stdout.strip())
 
 

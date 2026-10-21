@@ -1,10 +1,10 @@
 from support_orbit_mcp import serving
 
-"""CAL-03: Deimos asks about a date, and Orbit reads it then.
+"""Deimos asks about a date, and Orbit reads it then.
 
-Alina asked, days running, for Deimos to see **all** of her calendar from the
-moment she grants the macOS permission. CAL-01 made the copy land and stay;
-Deimos still answered her with this:
+The user asked, days running, for Deimos to see **all** of their calendar from
+the moment they grant the macOS permission. A stored copy landed and stayed;
+Deimos still answered them with this:
 
     «La que me acaba de devolver abarca del 20 al 27 de septiembre y contiene
      44 eventos. Dentro de esa copia puedo consultar tu agenda, pero no irme,
@@ -14,9 +14,9 @@ These cases cover the hub and MCP halves of the fix: the bridge learns a third
 capability, and Deimos gets a tool that reads the Mac at the moment it asks.
 The Mac half lives in ``crates/orbit-daemon/src/daemon/calendar/``.
 
-REF-10 took the rest of the way: no stored copy, no second agenda tool, and any
+A later change took the rest of the way: no stored copy, no second agenda tool, and any
 range in one call (``test_calendar_walk.py``). What stays here is what
-CAL-03 established and still holds — the range travels with the question, a
+this fix established and still holds — the range travels with the question, a
 refusal is never an empty agenda, and a malformed range never reaches the Mac.
 """
 
@@ -63,8 +63,8 @@ READING = {
 }
 
 
-async def test_a1_a_december_question_reaches_the_mac_with_december_in_it(tmp_path):
-    """A1/A2: the range travels with the question instead of being Orbit's to choose."""
+async def test_a_december_question_reaches_the_mac_with_december_in_it(tmp_path):
+    """The range travels with the question instead of being Orbit's to choose."""
     hub = FakeHub(device_replies=[answered(READING)])
     async with serving(tmp_path, hub) as (_client, server):
         result = await server.call_tool(
@@ -73,16 +73,16 @@ async def test_a1_a_december_question_reaches_the_mac_with_december_in_it(tmp_pa
         )
     assert not result.is_error, text_of(result)
     assert hub.device_requests[0]["capability"] == "calendar_read"
-    # CAL-06: this line used to read `str(DECEMBER_MS)`, which is precisely the
+    # This line used to read `str(DECEMBER_MS)`, which is precisely the
     # shape the Mac refuses — the fake bridge never ran that parsing, so the
     # case stayed green while the tool failed every call. The pair is held
     # together in `test_bridge_contract.py` now.
     assert hub.device_requests[0]["parameters"]["start_ms"] == DECEMBER_MS
     body = text_of(result)
     assert "Cena de diciembre" in body
-    # A3: the answer says when the Mac actually read, so nobody has to guess
+    # The answer says when the Mac actually read, so nobody has to guess
     # whether they are holding something six hours old.
-    # REF-10: in the Mac's zone, in the summary line (00:59:59 there on 1 Dec).
+    # In the Mac's zone, in the summary line (00:59:59 there on 1 Dec).
     assert "leída en el Mac el mar 1 dic 2026 00:59." in body.splitlines()[0]
 
 
@@ -105,7 +105,7 @@ def refused_with(code: str, notice: str) -> Response:
     )
 
 
-async def test_a6_a_refusal_never_arrives_looking_like_an_empty_agenda(tmp_path):
+async def test_a_refusal_never_arrives_looking_like_an_empty_agenda(tmp_path):
     """Whatever the cause, a refusal is an error result and carries no events."""
     hub = FakeHub(
         device_replies=[

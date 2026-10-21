@@ -8,12 +8,12 @@ import json
 from datetime import UTC, datetime
 
 from ..meeting_final_pass import status as final_status
-from ..meetings_bridge.capture import open_capture, open_recordings, pending_audio, voice_note
-from ..meetings_bridge.note_state import progress
 from ..notes.view import as_seen
 from ..protocol import MAX_RECORDING_TITLE_CHARACTERS, HubError
 from ..transcription_failure import durable_details
 from . import dictionaries, repository, turns
+from .note_state import progress
+from .open_recordings import open_capture, open_recordings, pending_audio, voice_note
 
 # Meetings per page of `GET /v1/recordings`. The Mac's Notes list shows them a
 # screen at a time and asks for the next page from the last one's start; 50
@@ -48,7 +48,7 @@ def title(manifest: dict, started_at_ms: int) -> str:
 
 
 def named(store, db, device: str, recording: str, own: str) -> str:
-    """Mars's name for the meeting (SIM-52), else its own title."""
+    """The user's name for the meeting, else its own title."""
     return repository.title(store, db, device, recording) or own
 
 
@@ -368,7 +368,7 @@ def document(store, notes, db, device: str, recording: str, *, default_language)
 
 
 def retranscribing(db, device: str, recording: str) -> dict | None:
-    """SIM-52: while a change of language repeats the meeting, how far it got.
+    """While a change of language repeats the meeting, how far it got.
 
     `total` are the groups the change sent again; `done` those of them back
     with their new text. None once none is left, and for a meeting never

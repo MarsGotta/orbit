@@ -1,4 +1,4 @@
-"""SIM-41: what the Mac sends and expects, checked against the real routes.
+"""What the Mac sends and expects, checked against the real routes.
 
 The closing manifests are the Mac's own (`contracts/fixtures/recording-manifest-*`,
 written by `finalize.rs`); the voice notes are shaped as the daemon seals them
