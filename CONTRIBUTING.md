@@ -64,8 +64,8 @@ without running them. Pass one or more zones to run only those:
 | Zone | What it checks |
 |---|---|
 | `rust` | `cargo fmt`, strict Clippy, `cargo test` for every workspace crate in two Cargo feature groups (the daemon and its crates; the app), `orbit-core` with the `pruebas` feature, and that the generated TypeScript is current |
-| `guards` | The Python guards in `scripts/tests`: shared constants and their copies, packaging, installer and release scripts, the real-test harness's dry run |
-| `hub` | Ruff and Ruff format over the hub and the harness, and the hub's pytest suite, including end-to-end tests against the real daemon binary |
+| `guards` | The Python guards in `scripts/tests`: shared constants and their copies, packaging, installer and release scripts |
+| `hub` | Ruff and Ruff format over the hub and the harness, the hub's pytest suite, including end-to-end tests against the real daemon binary, and the real-test harness's dry run |
 | `ui` | Lint, typecheck, Vitest and the production build of `apps/desktop` |
 
 Run the whole gate before asking for review; a single zone can miss what

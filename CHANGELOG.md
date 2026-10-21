@@ -23,6 +23,11 @@ is in Spanish; the labels quoted below are the ones it shows.
   built with `scripts/e2e-mac/build-test-app.sh`.
 - The `orbit-update` crate is now a module of `orbit-app-core`.
 
+### Fixed
+
+- When a meeting note is queued for a retry, the refusal the assistant gets
+  now says how long until that retry, instead of a fixed 45 seconds.
+
 ## [0.9.0] - 2026-10-21
 
 The first open beta.
