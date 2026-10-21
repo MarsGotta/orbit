@@ -24,7 +24,7 @@ store/
   chunks/                 encrypted file per audio chunk
 cua/                      engine socket and temporary desktop screenshot
 computer-control.json     control history, at most 256 rows
-logs/                     daemon.log, report-daemon.log, report-app.log (1 MiB each)
+logs/                     daemon.log, report-daemon.log, report-app.log, updates.log (1 MiB each)
 ```
 
 Keychain holds the storage key and device token in accounts `storage` and `device`.

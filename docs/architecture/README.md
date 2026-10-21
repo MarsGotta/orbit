@@ -20,7 +20,7 @@ Details: [process chain](process-chain.md), [local storage](storage.md),
 |---|---|---|---|
 | UI | `apps/desktop/src`, React/Vite in WKWebView | Views and Spanish product copy in `src/i18n/` | Business decisions, hub traffic, `@tauri-apps/*` imports outside `src/bridge/` |
 | Tauri shell | `apps/desktop/src-tauri` | App instance, window, tray, floating call panel, commands and daemon thread | Business rules or separate signal handlers |
-| app-core | `crates/orbit-app-core` | In-memory daemon client, topic subscriptions, reads, commands, view projections, generated TypeScript and updater | Open the store, talk to the hub or depend on Tauri |
+| app-core | `crates/orbit-app-core` | In-memory daemon client, topic subscriptions, reads, commands, view projections, generated TypeScript and updater (release manifest and installer download) | Open the store, talk to the hub or depend on Tauri |
 | Daemon | `crates/orbit-daemon` | Capture, durable state/jobs, helper/engine lifecycle, hub connection, Keychain, privacy stop and assistant bridge | Cache hub meetings/notes/conversations, decide presentation or hold provider credentials |
 | Native helper | `native/macos`, `OrbitNative --stdio --managed` | macOS effects and global shortcuts | Network, launch a daemon, or create another managed-mode icon/login item/instance lock |
 | Control engine | Bundled `cua-driver` 0.28.2 | Its declared computer-use tools | Network access or arbitrary executable/socket selection |
@@ -45,8 +45,7 @@ privacy latch. `orbit-mcp` exposes `orbit_devices`, `orbit_windows`,
 | `orbit-store` | Encrypted storage; receives its key, never opens Keychain or reads clocks |
 | `orbit-ipc` | Typed local transports, paths, configuration and reports |
 | `orbit-daemon` | Runtime composition, capture, hub, helper and engine; standalone binary is development-only |
-| `orbit-app-core` | App client and projections without Tauri |
-| `orbit-update` | Manifest/installer download adapter |
+| `orbit-app-core` | App client, projections and updater, without Tauri |
 | `orbit-desktop` | Tauri shell linking the daemon into the app |
 
 ## Boundaries and contracts
@@ -221,7 +220,7 @@ its tools without the hub.
 
 ## Verification
 
-Run the whole gate described in [AGENTS.md](../../AGENTS.md) before integration.
+Run the whole gate described in [CONTRIBUTING.md](../../CONTRIBUTING.md) before integration.
 The standalone daemon binary and “Orbit Pruebas” support isolated acceptance
 fixtures. Tests against synthetic peers establish protocol decisions, not real
 macOS permissions, audio quality, focus behavior, AEC or Hermes acceptance.

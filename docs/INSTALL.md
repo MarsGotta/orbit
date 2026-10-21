@@ -15,7 +15,7 @@ The bundle script requires the published `cua-driver` version recorded in
 `crates/orbit-daemon/src/cua.rs` (currently 0.28.2):
 
 ```sh
-ORBIT_CUA_DRIVER_BINARY=/absolute/path/to/cua-driver bash scripts/bundle-macos.sh
+ORBIT_CUA_DRIVER_BINARY=/absolute/path/to/cua-driver bash scripts/macos/bundle.sh
 ```
 
 The default output directory is `dist/`; the script refuses to overwrite an
@@ -57,17 +57,22 @@ source commit, architecture and whether the build tree was dirty. Checksums
 establish byte equality with the supplied manifest; they do not establish
 publisher identity, signing or notarization.
 
-Quit Orbit, unzip the package and place `Orbit.app` in `~/Applications`. Open it
+Quit Orbit, unzip the package and place `Orbit.app` in `/Applications`. Open it
 and enter the hub origin and pairing code. If your operator supplies `install.sh`,
 inspect it before running it and use the operator's configured origin. There is
 no repository-wide download host.
 
-The installer checks package checksums, installs without `sudo`, and keeps the
-most recently replaced app as `Orbit.app.anterior-<date>`. It refuses while an
-Orbit app/helper is running and reports the processes it found. With no options
-it does not launch the app, grant permissions, capture audio, enable login launch,
-edit shell files or delete data. It removes a legacy `~/.local/bin/orbit` link
-only if it points inside Orbit.app; the product no longer ships a CLI.
+The installer checks package checksums and installs in `/Applications` without
+`sudo`; it refuses, naming the folder, if your user cannot write there. It sets
+the replaced app aside as `Orbit.app.anterior-<date>` and refuses while an Orbit
+app/helper is running, reporting the processes it found. With no options it does
+not launch the app, grant permissions, capture audio, enable login launch, edit
+shell files or delete data.
+
+The set-aside copy, and an older `~/Applications/Orbit.app` from versions before
+0.9.0, remain until the new app has opened its local data. Its next start then
+removes them, unless one of them is still running; the reasons are written to
+`logs/updates.log` in the data directory.
 
 ## Pair the Mac
 
@@ -123,26 +128,34 @@ the Dock icon or open the app from Finder to show the window again. If the
 daemon exits unexpectedly, the app exits too; reopen it to recover. If an
 installer reports a remaining process, quit it in Activity Monitor and retry.
 
-With an update origin configured, **Ajustes › Actualizaciones** compares the
-installed version with `latest.txt`. **Instalar y reiniciar** downloads the
-installer and verifies its hash, then the installer waits up to 30 seconds for
-the app/helper to exit, checks the package, preserves the previous app and reopens
-Orbit. Without a configured origin, automatic checking is disabled.
+With an update origin configured, Orbit compares the installed version with
+`latest.txt` at startup and every six hours. A newer version shows a notice with
+**Actualizar** and a line in the menu bar menu; nothing installs by itself, and
+installation waits while a recording or call is in progress.
+**Ajustes › Actualizaciones** offers the same check and **Instalar y reiniciar**.
+Installing downloads the installer and verifies its hash, then the installer waits
+up to 30 seconds for the app/helper to exit, checks the package, sets the previous
+app aside and reopens Orbit. Without a configured origin, update checks are
+disabled.
 
 When upgrading an old 0.5.x installation, macOS may ask twice to read Keychain
 entries originally created by the separately signed daemon: one for storage,
 one for the device. **Permitir siempre** permits subsequent access.
 
-To restore the previous app, quit Orbit, move aside the current app and rename
-`Orbit.app.anterior-<date>` to `Orbit.app`. Confirm hub compatibility with your
-operator before downgrading. Normally upgrade the hub before the Mac and roll
-back the Mac before the hub; schema and protocol compatibility still need review.
+The previous app is removed once the new one has started, so restoring an older
+version means installing its package again: quit Orbit, delete
+`/Applications/Orbit.app` and install the older package with its own installer
+(versions before 0.9.0 install in `~/Applications`). Confirm hub compatibility
+with your operator before downgrading. Normally upgrade the hub before the Mac
+and roll back the Mac before the hub; schema and protocol compatibility still
+need review. Meeting audio already confirmed by the hub has left the Mac and
+stays on the hub.
 
 ## Login launch and removal
 
 Use **Ajustes › Arranque › Abrir Orbit al iniciar sesión** to enable login launch.
 
-Quit Orbit and delete `~/Applications/Orbit.app` to remove the app. This leaves
+Quit Orbit and delete `/Applications/Orbit.app` to remove the app. This leaves
 its local data and Keychain entries intact. The actual data directory and
 Keychain service are defined in `crates/orbit-core/src/orbit_bundle.rs` and
 `crates/orbit-ipc/src/paths.rs`; use those for the identity of your own build.

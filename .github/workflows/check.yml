@@ -1,0 +1,93 @@
+# The whole repository gate (scripts/check.sh) on Linux, for every pull request
+# and every push to main. What needs a Mac does not run here: the Swift helper,
+# the app bundle, signing, macOS permissions, audio, Keychain and the real-test
+# harness (see CONTRIBUTING.md, "What needs a Mac").
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A newer push to the same pull request makes the running check obsolete;
+# runs on main are never cancelled, so every commit there gets its result.
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  gate:
+    name: gate (Linux)
+    runs-on: ubuntu-24.04
+    # The gate takes about 12 minutes on a 32-core machine; with six build jobs
+    # on a loaded one it took 17 min 41 s (2026-10-21), about two thirds of it
+    # compiling Rust; a second run's hub tests took 13 minutes instead of 3
+    # under heavier load. A standard runner has 4 vCPUs, so compiling takes
+    # roughly twice as long as with six jobs: an estimated 30-40 minutes with
+    # setup.
+    # 90 minutes leaves more than twice that for a slow or cold runner, and
+    # still ends a hung test long before GitHub's 6-hour default.
+    timeout-minutes: 90
+    env:
+      # One gate run in a fresh target directory wrote 23 GB, 6.8 GB of it
+      # incremental-compilation state that a fresh checkout never reuses.
+      CARGO_INCREMENTAL: "0"
+    steps:
+      # The rest of the build (about 16 GB) exceeds the 14 GB of SSD GitHub
+      # documents for a standard runner; these preinstalled SDKs are not used
+      # by the gate.
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # What the Tauri shell links against on Linux, a C toolchain and
+      # pkg-config, and ffmpeg, which the hub's final-pass tests run.
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config \
+            libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            librsvg2-dev libssl-dev libdbus-1-dev \
+            ffmpeg
+
+      # The channel and components come from rust-toolchain.toml, the single
+      # source; rustup is preinstalled on GitHub-hosted runners.
+      - name: Install the pinned Rust toolchain
+        run: |
+          channel="$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)"
+          test -n "$channel"
+          rustup toolchain install "$channel" --profile minimal \
+            --component clippy --component rustfmt
+
+      # Node 22: Node 26 breaks the current Vitest setup.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          package-manager-cache: false
+
+      # pnpm's version comes from the packageManager field (pnpm@9.15.4).
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: apps/desktop/package.json
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+
+      # --install creates server/.venv and apps/desktop/node_modules from the
+      # lockfiles, then runs every zone: rust, guards, hub and ui.
+      - name: Run the gate
+        run: bash scripts/check.sh --install

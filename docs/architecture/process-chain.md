@@ -92,12 +92,15 @@ network range; see `validate_hub_url` in `crates/orbit-daemon/src/config.rs`.
 
 ## Acceptance identity and development binary
 
-`ORBIT_PRUEBAS=1 bash scripts/bundle-macos.sh` enables the `pruebas` feature and
+`ORBIT_PRUEBAS=1 bash scripts/macos/bundle.sh` enables the `pruebas` feature and
 builds “Orbit Pruebas”, with a separate bundle identity, data directory and
 Keychain service, plus its restricted HTTP test-network exception. See
 `crates/orbit-core/src/orbit_bundle.rs` for exact identities. The helper's own
 lock/log paths are independent of the feature. Use your own stable test signing
-identity; acceptance is not established by an ad hoc build.
+identity; acceptance is not established by an ad hoc build. On the Mac,
+`scripts/e2e-mac/build-test-app.sh` builds and installs it with that identity
+for the real-test harness described in
+[CONTRIBUTING](../../CONTRIBUTING.md#the-real-test-harness-and-orbit-pruebas).
 
 The standalone `orbit` (`crates/orbit-daemon/src/main.rs`) is used by hub e2e,
 app-core and daemon process tests. `--parent-pid` prevents it outliving the test.

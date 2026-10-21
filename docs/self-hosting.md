@@ -61,7 +61,7 @@ environment, not just the shell that later launches the app. For example:
 ORBIT_UPDATE_BASE_URL=https://updates.example.test \
 VITE_ORBIT_HUB_URL=https://hub.example \
 ORBIT_CUA_DRIVER_BINARY=/absolute/path/to/cua-driver \
-bash scripts/bundle-macos.sh
+bash scripts/macos/bundle.sh
 ```
 
 Omit the two origin variables for a build without automatic updates or a

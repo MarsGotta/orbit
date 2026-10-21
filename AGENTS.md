@@ -3,8 +3,8 @@
 Orbit is the macOS companion for a personal assistant running in Hermes, with
 its own hub for meetings, notes and conversations. Product copy is Spanish;
 repository documentation is English; code uses clear English names. Read the
-[architecture](docs/architecture/README.md) and [self-hosting guide](docs/self-hosting.md).
-The historical Orbit agent harness is unrelated.
+[architecture](docs/architecture/README.md), [self-hosting guide](docs/self-hosting.md)
+and [contributing guide](CONTRIBUTING.md). The historical Orbit agent harness is unrelated.
 
 ## Boundaries
 
@@ -82,17 +82,21 @@ use invented people, organizations, meetings and addresses; use documentation
 addresses such as `100.64.0.1`, `hub.example` and `example.test`.
 
 **The gate** is `bash scripts/check.sh`; `--plan` lists its steps. Put **Node 22**
-first on `PATH`; Node 26 breaks the current Vitest setup. `--instalar` prepares
+first on `PATH`; Node 26 breaks the current Vitest setup. `--install` prepares
 locked Python/frontend dependencies. The zones are `rust`, `guards`, `hub` and
 `ui`. The full gate covers every workspace crate in two Cargo feature groups,
 hub e2e, Ruff over the hub and native harness, guards and frontend checks.
+`.github/workflows/check.yml` runs the same gate on Linux for every pull request
+and push to `main`.
 Excluding an additional crate can hide a defect from the app build. Run the
 whole gate before integration; a macOS release build alone does not check the
 hub and frontend. Use timeouts for test commands.
 
 **On macOS**, native acceptance requires consented fixtures. Skipped is not
-passed. The `scripts/e2e-mac` harness sends real keys: use the separate “Orbit
-Pruebas” identity, an isolated hub/profile, and a Mac with nobody at the keyboard.
+passed. The real-test harness (`scripts/e2e-mac/real_test.py`) sends real keys:
+use the separate “Orbit Pruebas” identity (built with
+`scripts/e2e-mac/build-test-app.sh`), an isolated hub/profile, and a Mac with
+nobody at the keyboard.
 Calls and meeting wake-phrase turns also need real voice trials; macOS can duck
 synthetic audio. Record what was measured, with repetitions for rate claims,
 and keep private evidence outside the public repository.
