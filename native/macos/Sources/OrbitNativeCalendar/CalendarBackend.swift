@@ -3,10 +3,10 @@ import Synchronization
 import OrbitNativeProtocol
 
 /// Only value DTOs leave the backend actor; EKEventStore and EKObject never do.
-/// REF-10: both reads cover every calendar the permission allows; nothing is
+/// Both reads cover every calendar the permission allows; nothing is
 /// selected, and the controller cuts the results into pages.
 ///
-/// P9-21: the backend also writes. It offers values to decide on (a
+/// The backend also writes. It offers values to decide on (a
 /// calendar, an occurrence) and three commits; the controller decides —
 /// whether the calendar admits changes, whether someone else organized the
 /// event, whether the dates still make sense — before any commit is asked for.
@@ -48,7 +48,7 @@ public struct CalendarStoredOccurrence: Equatable, Sendable {
     public let end: Int64
     /// The calendar's `allowsContentModifications`.
     public let calendarCanEdit: Bool
-    /// The event has an organizer who is not Mars.
+    /// The event has an organizer who is not the Mac's user.
     public let organizedBySomeoneElse: Bool
     public init(calendar: CalendarReference, start: Int64, end: Int64, calendarCanEdit: Bool,
                 organizedBySomeoneElse: Bool) {
@@ -92,8 +92,8 @@ public enum CalendarResult: Sendable {
     case deleted(CalendarDeleteResult)
 }
 
-/// What the helper says about the calendar without reading it. REF-10: no
-/// selection, so no `connected` or `scope`. P9-21: no `read_only` either —
+/// What the helper says about the calendar without reading it. There is no
+/// selection, so no `connected` or `scope`; and no `read_only` either —
 /// the helper writes, and its `calendar` capability says so.
 public struct CalendarStatus: Encodable, Sendable {
     public let authorization: CalendarAuthorization

@@ -4,7 +4,7 @@ import XCTest
 @testable import OrbitNativeProtocol
 @testable import OrbitNativeCalendar
 
-// P9-21 criterion 2: the controller's writes against a synthetic backend —
+// The controller's writes against a synthetic backend —
 // create in the default calendar, move an occurrence with `this` and with
 // `future`, delete, and refuse a read-only calendar and an event organized by
 // someone else, by cause; every save answers with the resulting occurrence.
@@ -154,7 +154,7 @@ private func stored() -> [CalendarOccurrenceTarget: CalendarStoredOccurrence] {
         guard case .saved(let saved) = try await controller(backend).perform(.save(CalendarSaveRequest(create: draft))) else {
             return XCTFail("a create must answer with the saved occurrence")
         }
-        XCTAssertEqual(saved.occurrence.calendar.calendar_id, "home", "sin calendario: el de por defecto")
+        XCTAssertEqual(saved.occurrence.calendar.calendar_id, "home", "no calendar given: the default one")
         XCTAssertEqual(saved.occurrence.title, "Café con Ada")
         XCTAssertEqual(saved.occurrence.start_unix_ms, start)
         XCTAssertEqual(saved.native_instance_id, host)

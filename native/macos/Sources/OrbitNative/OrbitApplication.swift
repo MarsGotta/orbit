@@ -18,7 +18,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     private let hotkeys = GlobalHotkeys()
     private lazy var windowScreenshots = WindowScreenshots(diagnostics: diagnostics)
     private let microphoneActivity = MicrophoneActivityObserver()
-    /// P9-12: «Oye Deimos» on the meeting's microphone.
+    /// «Oye Deimos» on the meeting's microphone.
     private lazy var assistantTrigger = AssistantVoiceTrigger(channel: channel)
     private var calendars: CalendarController?
     private var calendarCommandInFlight = false
@@ -53,7 +53,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         self.latch = latch
         self.launchOptions = launchOptions
         self.diagnostics = diagnostics
-        // Only the daemon's own child leaves when its daemon is gone (REF-06 A2).
+        // Only the daemon's own child leaves when its daemon is gone.
         self.quitPolicy = NativeQuitPolicy()
         super.init()
     }
@@ -130,9 +130,9 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// REF-06 A2: the daemon that owned this helper closed the pipe — an
+    /// The daemon that owned this helper closed the pipe — an
     /// orderly shutdown or a crash — and nobody can command it again. It stops
-    /// capture, without writing a latch nobody pressed (REF-12), then leaves;
+    /// capture, without writing a latch nobody pressed (`StopPolicy`), then leaves;
     /// if that stop does not finish within `orphanExitGrace`, it leaves anyway.
     /// Leaving releases the global shortcuts, so the next helper can register
     /// them.
@@ -205,10 +205,10 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         case .calendarDisconnect:
             invalidateCalendars(.invalidated)
             channel.respond(command, result: calendarState())
-        // REF-10: `calendar_select` is gone; decoding refuses it by name.
+        // `calendar_select` is gone; decoding refuses it by name.
         case .calendarSources, .calendarSnapshot:
             receiveCalendar(command)
-        // P9-21: writes share the single EventKit slot and its admission.
+        // Writes share the single EventKit slot and its admission.
         case .calendarSave, .calendarDelete:
             receiveCalendar(command, writes: true)
         case .privacyStop:
@@ -419,7 +419,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
                     }
                     applicationPID = pid
                 }
-                // P9-11: the application's audio is captured by its PID, the
+                // The application's audio is captured by its PID, the
                 // one `microphone_activity` reported; no identity receipt
                 // travels with the start (the meeting rules that sent one were
                 // retired).
@@ -435,7 +435,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             microphonePurpose = wire.fields.purpose
             return ["stream_id": wire.fields.stream_id, "purpose": wire.fields.purpose.rawValue]
         case .audioWakePhrase(let wire):
-            // P9-12: «Oye Deimos» goes with the meeting recording, on the
+            // «Oye Deimos» goes with the meeting recording, on the
             // live microphone stream whoever opened it: the daemon turns it
             // on when the meeting starts or resumes and off when it pauses
             // or ends, also while a voice note keeps the stream open.
@@ -626,8 +626,8 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
 
     private func receiveCalendar(_ command: NativeWireCommand, writes: Bool = false) {
         guard connected, !screenAuthorization().stopped else {
-            // The same code covers her latch and a stop still cleaning up; the
-            // message says which, and only her latch needs a rearm.
+            // The same code covers the user's latch and a stop still cleaning up;
+            // the message says which, and only the user's latch needs a rearm.
             let message = latch.stopped
                 ? "Orbit está detenido por tu parada de privacidad; rearma para usar los calendarios."
                 : "Orbit está terminando de parar la captura o no está conectado; vuelve a intentarlo en unos segundos."
@@ -672,7 +672,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// P9-21: one write, answered with what EventKit did. A refusal travels
+    /// One calendar write, answered with what EventKit did. A refusal travels
     /// with its numbers in `error.detail`. Before the controller takes the
     /// slot nothing was written, so a stop says `privacy_stopped`; once it
     /// may have been, a withheld answer says the outcome is unknown.
@@ -762,8 +762,8 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             latches: latches)
     }
 
-    /// Stops capture and playback for `reason`. Only Mars's own brake writes
-    /// the durable latch (`StopPolicy`, REF-12): every other reason leaves it
+    /// Stops capture and playback for `reason`. Only the user's own brake writes
+    /// the durable latch (`StopPolicy`): every other reason leaves it
     /// as it was, so a sleeping Mac, a changed audio route, a silent service
     /// or a closing never leaves Orbit stopped after a restart. The event says
     /// which of the two happened: `privacy_stop` or `capture_stopped`.
@@ -772,7 +772,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         // The reason is the single most useful line in the log: it separates a
         // deliberate stop from a dead daemon, a sleeping Mac or a lost device.
         diagnostics.recordOffMain(latches ? "privacy_stopped" : "capture_stopped", ["reason": reason])
-        // P9-12: «Oye Deimos» stops first, with every stop — her brake
+        // «Oye Deimos» stops first, with every stop — the user's brake
         // included — even when nothing else is live (a listener can still be
         // preparing its model).
         assistantTrigger.stop()
@@ -800,14 +800,14 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         audioSession.stop()
         windowScreenshots.invalidate()
         applicationIdentities.invalidate()
-        // Her brake silences the microphone observer too; any other stop
+        // The user's brake silences the microphone observer too; any other stop
         // (sleep, a changed device) leaves it watching for the next call.
         if latches { microphoneActivity.stop() }
         channel.send(.makeStop(latches: latches, reason: reason, stopped: latch.stopped,
             drainComplete: false))
         privacyCleanupInFlight += 1
         Task { @MainActor in
-            async let latchSaved = self.persistLatchIfHers(latches)
+            async let latchSaved = self.persistLatchIfUserBrake(latches)
             let drained = await self.privacyDrainBarrier.complete { @MainActor in
                 async let microphoneDrained = self.microphone.stop()
                 async let systemDrained = self.systemAudio.stop()
@@ -822,17 +822,17 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         publishState()
     }
 
-    /// Starts watching which applications hold the microphone, unless her
-    /// brake is on. The first answer goes out at once, so the daemon never
+    /// Starts watching which applications hold the microphone, unless the
+    /// user's brake is on. The first answer goes out at once, so the daemon never
     /// reads the silence before it as "no call".
     private func resumeMicrophoneActivity() {
         guard !launchOptions.isIsolatedFixture, !latch.stopped else { return }
         microphoneActivity.start()
     }
 
-    /// Writes the durable latch only for her brake; any other stop has
+    /// Writes the durable latch only for the user's brake; any other stop has
     /// nothing to persist.
-    private func persistLatchIfHers(_ latches: Bool) async -> Bool {
+    private func persistLatchIfUserBrake(_ latches: Bool) async -> Bool {
         guard latches else { return true }
         return await persistPrivacyStop()
     }
@@ -918,7 +918,8 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         microphone.disableImmediately()
         playback.stop()
         audioSession.stop()
-        // The shortcuts go explicitly, not only with the process (REF-06 A2).
+        // The shortcuts go explicitly, not only with the process, so the next
+        // helper can register them.
         hotkeys.unregister()
     }
 }

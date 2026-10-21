@@ -5,7 +5,7 @@ import XCTest
 /// 2026-10-17: every call with Deimos failed to open the microphone with
 /// «com.apple.coreaudio.avfaudio -10875». The mixer was created only when the
 /// player was connected, after voice processing was turned on, and an engine
-/// in that order never starts (measured on Mars's MacBook Pro). The graph has
+/// in that order never starts (measured on a MacBook Pro). The graph has
 /// its mixer from the start. Nothing here starts the engine or opens a device.
 final class SharedAudioSessionGraphTests: XCTestCase {
     func testTheGraphHasItsMixerBeforeAnyModeIsChosen() {

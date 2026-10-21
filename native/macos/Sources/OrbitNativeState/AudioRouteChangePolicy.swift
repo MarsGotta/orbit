@@ -7,7 +7,7 @@ public enum AudioRouteChangeAction: Equatable, Sendable {
     case stop(reason: String)
 }
 
-/// Facts from the host, without opening a device. A drain or her brake is never
+/// Facts from the host, without opening a device. A drain or the user's brake is never
 /// authority to restart; continuous voice retains its processing safety cut.
 public enum AudioRouteChangePolicy {
     public static func decide(stopped: Bool, closing: Bool, microphone: CaptureSlot,

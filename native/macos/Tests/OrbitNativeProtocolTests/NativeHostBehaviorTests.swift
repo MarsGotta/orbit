@@ -90,7 +90,7 @@ final class NativeHostBehaviorTests: XCTestCase {
         XCTAssertEqual(try CalendarBridge.operation(command("calendar_snapshot",
             fields: ["calendar_query": ["start_unix_ms": 0, "end_unix_ms": 1_000, "after_index": 2]])),
             .read(CalendarReadQuery(start: 0, end: 1_000, afterIndex: 2)))
-        // REF-10: there is nothing to select any more; a daemon that asks is told so.
+        // There is nothing to select any more; a daemon that asks is told so.
         XCTAssertThrowsError(try command("calendar_select"))
         for name in ["status"] {
             XCTAssertThrowsError(try CalendarBridge.operation(command(name))) {
@@ -99,7 +99,7 @@ final class NativeHostBehaviorTests: XCTestCase {
         }
     }
 
-    /// P9-21: each write maps to its operation with exactly its own field.
+    /// Each write maps to its operation with exactly its own field.
     func testCalendarBridgeMapsTheWritesWithTheirOwnFieldOnly() throws {
         let delete: [String: Any] = ["calendar_item_id": "item-1", "occurrence_start_ms": 1_000, "span": "this"]
         XCTAssertEqual(try CalendarBridge.operation(command("calendar_delete", fields: ["calendar_delete": delete])),
@@ -157,11 +157,11 @@ final class NativeHostBehaviorTests: XCTestCase {
         XCTAssertEqual(activity.snapshot().active, false)
     }
 
-    /// REF-06 A2: a leaving helper releases its shortcuts explicitly, and the
+    /// A leaving helper releases its shortcuts explicitly, and the
     /// same release runs again when the object goes. Neither may touch Carbon
     /// for shortcuts that were never registered — this test registers none, so
     /// it takes nothing from the machine that runs it.
-    func testA2ReleasingShortcutsThatWereNeverRegisteredIsANoOp() {
+    func testReleasingShortcutsThatWereNeverRegisteredIsANoOp() {
         let hotkeys = GlobalHotkeys()
         hotkeys.unregister()
         hotkeys.unregister()

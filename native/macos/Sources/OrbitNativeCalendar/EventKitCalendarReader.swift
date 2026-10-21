@@ -6,11 +6,11 @@ import OrbitNativeProtocol
 /// EventKit ownership never leaves this actor. No EKEventStore at initialization
 /// and no fetch with write-only access.
 ///
-/// REF-10: both reads cover every event calendar the macOS permission allows.
+/// Both reads cover every event calendar the macOS permission allows.
 /// Nothing is selected, and no count of calendars, events or invitees is
 /// refused here: the controller cuts the results into pages for the daemon.
 ///
-/// P9-21: it also saves and removes events Mars changes from Orbit
+/// It also saves and removes events the user changes from Orbit
 /// (`EventKitCalendarWriter.swift`), with full access only — the permission is
 /// the whole decision — and only after the controller decided the write may go.
 public actor EventKitCalendarReader: CalendarBackend {

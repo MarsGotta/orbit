@@ -222,7 +222,7 @@ final class WindowSelectionTests: XCTestCase {
         XCTAssertEqual(command.fields.window_binding, binding())
     }
 
-    func testA4SelectedWindowMayBeJoinedWithAnUntitledAuxiliaryWindowForTheSamePID() {
+    func testSelectedWindowMayBeJoinedWithAnUntitledAuxiliaryWindowForTheSamePID() {
         XCTAssertTrue(WindowIdentityJoin.containsSelectedWindow(42,
             screenCaptureWindowIDs: [42], coreGraphicsWindowIDs: [42, 99]))
         XCTAssertFalse(WindowIdentityJoin.containsSelectedWindow(42,

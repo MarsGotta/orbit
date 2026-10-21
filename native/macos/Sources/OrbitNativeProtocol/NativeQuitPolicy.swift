@@ -13,7 +13,7 @@ public enum NativeQuitEffect: Equatable, Sendable {
 /// identities and observations; this policy owns no clock, task, pipe,
 /// process, retry or mutable global state.
 ///
-/// Since REF-06 the helper never hosts the daemon: in production it is the
+/// The helper never hosts the daemon: in production it is the
 /// daemon's managed child (`--stdio --managed`), and a managed helper whose
 /// daemon has closed the pipe — an orderly shutdown or a crash alike — has no
 /// one left who can ever command it. It leaves, and with it go the global
@@ -34,7 +34,7 @@ public struct NativeQuitPolicy: Equatable, Sendable {
     /// capture. It must stay under the daemon's `HELPER_EXIT_GRACE` (3 s,
     /// `crates/orbit-daemon/src/native.rs`), so that in an orderly shutdown the
     /// helper leaves by itself before the daemon kills it. The two are kept
-    /// in step by hand (SIM-00 removed the guard that compared them).
+    /// in step by hand; `NativeQuitPolicyTests` checks this one is under 3 s.
     ///
     /// What it is not: a wait for the daemon. The daemon is gone when this runs.
     public static let orphanExitGrace: TimeInterval = 2

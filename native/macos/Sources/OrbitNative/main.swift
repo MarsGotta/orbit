@@ -9,13 +9,13 @@ import Darwin
 // registering shortcuts or selecting the user's state root. The helper always
 // speaks over its standard input and output: in production it is the daemon's
 // managed child (`--stdio --managed`), and it never starts a daemon itself
-// (REF-06 retired that mode, its login item and its instance lock).
+// (that mode, its login item and its instance lock were retired).
 let launchOptions: NativeLaunchOptions
 let latch: PrivacyLatch
 do {
     launchOptions = try NativeLaunchOptions.parse(Array(CommandLine.arguments.dropFirst()))
 } catch {
-    fputs("Orbit: argumentos de inicio no válidos.\n", stderr)
+    fputs("Orbit: invalid launch arguments.\n", stderr)
     exit(2)
 }
 let diagnostics: DiagnosticLog
@@ -23,7 +23,7 @@ if let path = launchOptions.stateDirectory {
     let root: URL
     do { root = try NativeFixtureDirectory.validate(path) }
     catch {
-        fputs("Orbit: directorio de prueba no válido.\n", stderr)
+        fputs("Orbit: invalid test state directory.\n", stderr)
         exit(3)
     }
     // The isolated protocol reports through stdio and must leave only its latch.
@@ -34,7 +34,7 @@ if let path = launchOptions.stateDirectory {
     do { try latch.stop() } // Durably stopped before any command arrives.
     catch {
         diagnostics.record("fixture_latch_unconfirmed")
-        fputs("Orbit: no se confirmó el latch de prueba.\n", stderr)
+        fputs("Orbit: the test latch was not confirmed.\n", stderr)
         exit(4)
     }
 } else {

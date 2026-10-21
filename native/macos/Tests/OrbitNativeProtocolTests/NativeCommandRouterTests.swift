@@ -10,7 +10,7 @@ final class NativeCommandRouterTests: XCTestCase {
         return try NativeWireCommand.decode(JSONSerialization.data(withJSONObject: value))
     }
 
-    func testA1StalledCommandRejectsItsQueueWhilePlaybackUsesItsOwnLane() throws {
+    func testStalledCommandRejectsItsQueueWhilePlaybackUsesItsOwnLane() throws {
         let slow = try command("slow", "permissions", fields: ["request": ["calendars"]])
         let waiting = try command("waiting", "screen_sources")
         let playback = try command("playback", "playback", fields: [

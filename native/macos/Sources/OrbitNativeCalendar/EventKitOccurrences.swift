@@ -8,8 +8,8 @@ enum CalendarOccurrenceOmission: String, Error {
 }
 
 extension EventKitCalendarReader {
-    /// REF-10: invitees and the event URL are always read — the macOS permission
-    /// is the only consent. P9-21: so are the location, the notes (up to
+    /// Invitees and the event URL are always read — the macOS permission
+    /// is the only consent. So are the location, the notes (up to
     /// `maximumNotesBytes`; longer ones are named by size), the organizer, the
     /// availability, the first repetition rule and whether Orbit may change
     /// the event. Still no Contacts queries, conference extraction or URL
@@ -72,7 +72,7 @@ extension EventKitCalendarReader {
         try authorize(gate)
         let calendarCanEdit = calendar.allowsContentModifications
 
-        // REF-10, decision 4: a field past its bound leaves this event out by
+        // A field past its bound leaves this event out by
         // name — its dates, identifier, field and sizes — never the read.
         do {
             var invitees: [CalendarInvitee]?
@@ -151,7 +151,7 @@ extension EventKitCalendarReader {
             participantType: type, isCurrentUser: currentUser)
     }
 
-    /// P9-22: what decides whether Orbit edits a reminder.
+    /// What decides whether Orbit edits a reminder.
     nonisolated static func alarmFacts(_ alarm: EKAlarm) -> CalendarAlarmFacts {
         CalendarAlarmFacts(relativeOffset: alarm.relativeOffset,
                            hasAbsoluteDate: alarm.absoluteDate != nil,

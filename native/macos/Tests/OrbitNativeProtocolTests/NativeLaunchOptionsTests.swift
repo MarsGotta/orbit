@@ -6,7 +6,7 @@ final class NativeLaunchOptionsTests: XCTestCase {
         try NativeLaunchOptions.parse(["--stdio", "--test-state-directory", path])
     }
 
-    /// REF-06 A6: without arguments the helper used to become the menu bar
+    /// Without arguments the helper used to become the menu bar
     /// host that launched the daemon. That chain is gone; the helper only runs
     /// as the daemon's child or by hand over stdio, so no arguments is refused.
     func testNoArgumentsIsRefusedNowThatTheHelperNeverHostsTheDaemon() {
@@ -119,10 +119,10 @@ final class NativeLaunchOptionsTests: XCTestCase {
         }
     }
 
-    /// SYS-02 A1: `--stdio --managed` is the production reverse mode the daemon
+    /// `--stdio --managed` is the production reverse mode the daemon
     /// launches. It keeps the pipe transport and admits `rearm` over it, with
     /// the readiness checks living in the application.
-    func testA1ManagedStdioParsesWithStdioAndManagedSemanticsAndAdmitsRearm() throws {
+    func testManagedStdioParsesWithStdioAndManagedSemanticsAndAdmitsRearm() throws {
         let options = try NativeLaunchOptions.parse(["--stdio", "--managed"])
         XCTAssertEqual(options.mode, .managedStdio)
         XCTAssertTrue(options.isManaged)

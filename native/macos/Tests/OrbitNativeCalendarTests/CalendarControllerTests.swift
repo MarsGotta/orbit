@@ -94,7 +94,7 @@ private actor FakeCalendarBackend: CalendarBackend {
             omitted: untitled == 0 ? [] : [.init(reason: "missing_title", count: untitled)])
     }
     func release() { held = false; let complete = reply; reply = nil; complete?.resume() }
-    // P9-21: this fake only reads; `CalendarWriteTests` has the writing one.
+    // This fake only reads; `CalendarWriteTests` has the writing one.
     func writableCalendar(_ id: String?, gate: CalendarReadGate) throws -> CalendarWriteCalendar {
         throw CalendarFailure.invalidRequest
     }
@@ -165,9 +165,9 @@ private actor FakeCalendarBackend: CalendarBackend {
         catch { XCTAssertEqual(error as? CalendarFailure, .privacyStopped) }
     }
 
-    /// REF-10 A1: with the permission granted, a read needs nothing else — no
+    /// With the permission granted, a read needs nothing else — no
     /// listing, no selection — and an empty window is an answer, not an error.
-    func testA1AReadNeedsOnlyThePermission() async throws {
+    func testAReadNeedsOnlyThePermission() async throws {
         let backend = FakeCalendarBackend(); let facts = FactBox()
         let value = controller(backend, facts: facts)
         let empty = try await page(value, window)
@@ -193,10 +193,10 @@ private actor FakeCalendarBackend: CalendarBackend {
         XCTAssertEqual(omitted.first?["count"] as? Int, 1)
     }
 
-    /// REF-10 A3: a window with more events than a page holds is read in pages,
+    /// A window with more events than a page holds is read in pages,
     /// in one order, every event exactly once, every page under the limit the
     /// daemon admits — and no event is counted as left out.
-    func testA3AFullWindowArrivesWholeInOrderedPages() async throws {
+    func testAFullWindowArrivesWholeInOrderedPages() async throws {
         let events = (0..<1_500).map {
             FakeCalendarEvent(observationID: uuid(10_000 + $0), calendarID: "calendar-\($0 % 7)",
                 calendarItemID: "item-\($0)", title: "Reunión número \($0) con un título de longitud normal",
@@ -226,9 +226,9 @@ private actor FakeCalendarBackend: CalendarBackend {
         XCTAssertEqual(collected.map(\.start_unix_ms), collected.map(\.start_unix_ms).sorted())
     }
 
-    /// REF-10 A3: no constant limits the calendars listed. A thousand calendars
+    /// No constant limits the calendars listed. A thousand calendars
     /// come in pages, ordered, each under the limit, and all of them arrive.
-    func testA3EveryCalendarIsListedWhateverTheirNumber() async throws {
+    func testEveryCalendarIsListedWhateverTheirNumber() async throws {
         let value = controller(FakeCalendarBackend(calendars: 3_000), facts: FactBox())
         var names = [String]()
         var after: UInt32 = 0
@@ -336,10 +336,10 @@ private actor FakeCalendarBackend: CalendarBackend {
         await fulfillment(of: [started], timeout: 1)
         facts.update { $0.now += CalendarLimits.readLifetimeNanoseconds }
         XCTAssertTrue(value.status().physical_read_pending,
-                      "la petición caducó mientras el diálogo seguía en pantalla")
+                      "the request expired while the dialog was still on screen")
         await backend.release()
         guard case .success(.authorization(let granted)) = await request.result else {
-            return XCTFail("la respuesta del diálogo se descartó")
+            return XCTFail("the dialog's answer was discarded")
         }
         XCTAssertEqual(granted, .fullAccess)
         try await settle(value)
@@ -361,8 +361,8 @@ private actor FakeCalendarBackend: CalendarBackend {
         await backend.release(); try await settle(value)
     }
 
-    /// REF-10 A9: withdrawing the permission cuts the next read, by name.
-    func testA9WithdrawingThePermissionCutsTheNextRead() async throws {
+    /// Withdrawing the permission cuts the next read, by name.
+    func testWithdrawingThePermissionCutsTheNextRead() async throws {
         let backend = FakeCalendarBackend(events: [
             FakeCalendarEvent(observationID: uuid(8), calendarID: "work", calendarItemID: "one", title: "Uno")
         ])

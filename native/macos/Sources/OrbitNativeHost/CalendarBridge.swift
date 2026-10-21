@@ -25,9 +25,9 @@ package enum CalendarBridge {
         }
     }
 
-    /// REF-10: two reads and nothing to select. `calendar_select` is gone, so
+    /// Two reads and nothing to select. `calendar_select` is gone, so
     /// a daemon that still sends it is refused by name rather than obeyed.
-    /// P9-21: and two writes, each with exactly its own field.
+    /// And two writes, each with exactly its own field.
     package static func operation(_ command: NativeWireCommand) throws -> CalendarOperation {
         switch command {
         case .calendarSources(let wire): return .sources(afterIndex: wire.fields.calendar_page?.after_index ?? 0)

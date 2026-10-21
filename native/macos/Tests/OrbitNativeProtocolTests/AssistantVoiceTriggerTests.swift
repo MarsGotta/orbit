@@ -4,7 +4,7 @@ import XCTest
 import OrbitNativeProtocol
 import OrbitNativeTransport
 
-/// P9-12: what the helper says about «Oye Deimos» and the question it
+/// What the helper says about «Oye Deimos» and the question it
 /// sends. The detector itself needs macOS 26 and a microphone: the reviewer
 /// measures it on the Mac.
 /// A listener that records what the host does to it.
@@ -55,7 +55,7 @@ final class AssistantVoiceTriggerTests: XCTestCase {
         trigger.stop()
     }
 
-    /// Review 2: the trigger's `stop` — what every helper stop, her privacy
+    /// The trigger's `stop` — what every helper stop, the user's privacy
     /// brake included, calls first — stops its listener at once, and a
     /// second stop does nothing more.
     func testStoppingTheTriggerStopsItsListenerAtOnce() {
@@ -73,7 +73,7 @@ final class AssistantVoiceTriggerTests: XCTestCase {
         XCTAssertEqual(fake.recorded, ["begin", "stop"])
     }
 
-    /// Review 2: when the microphone stream ends, its listener is finished
+    /// When the microphone stream ends, its listener is finished
     /// before the stop returns, and it receives nothing after.
     func testAStreamThatEndsFinishesItsListenerBeforeTheStopReturns() async throws {
         let channel = channel()
@@ -163,7 +163,7 @@ final class AssistantVoiceTriggerTests: XCTestCase {
                              elapsedMS: UInt64(policy.maximumSeconds * 1_000), silentMS: 0)
     }
 
-    /// SIM-23: a question her stop or a new stream does not let leave is
+    /// A question the user's stop or a new stream does not let leave is
     /// said as dropped, without its text; one that may leave is sent.
     @MainActor
     func testAQuestionThatMayNotLeaveIsSaidAsDroppedWithoutItsText() async throws {
@@ -191,7 +191,7 @@ final class AssistantVoiceTriggerTests: XCTestCase {
         XCTAssertEqual(sent["event"] as? String, "assistant_question")
     }
 
-    /// R1: the phrase is turned on and off on a live stream by its own
+    /// The phrase is turned on and off on a live stream by its own
     /// order, so it follows the meeting whoever opened the microphone.
     func testThePhraseHasItsOwnOrderOnALiveStream() throws {
         let on = try NativeWireCommand.decode(JSONSerialization.data(withJSONObject: [

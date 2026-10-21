@@ -12,7 +12,7 @@ without arguments.
 ```sh
 swift build --package-path native/macos
 swift test --package-path native/macos
-bash scripts/bundle-macos.sh
+bash scripts/macos/bundle.sh
 ```
 
 Requires macOS 15 and Xcode 16 or later. Protocol and ring tests do not record
@@ -25,7 +25,7 @@ directory, starts with privacy stopped and keeps stdin open until normal exit:
 ```sh
 swift build --package-path native/macos --configuration release
 orbit_native_bin_dir="$(swift build --package-path native/macos --configuration release --show-bin-path)"
-python3 -B scripts/smoke-native-macos.py --binary "$orbit_native_bin_dir/OrbitNative"
+python3 -B scripts/macos/smoke-native.py --binary "$orbit_native_bin_dir/OrbitNative"
 ```
 
 Run it only against a trusted build of your own that includes

@@ -13,7 +13,7 @@ final class CalendarEventTests: XCTestCase {
             invitees: nil, inviteesStatus: "not_provided", eventURL: nil, eventURLStatus: "not_provided")
     }
 
-    /// REF-10 A10 and decision 4: the field bounds are named once, mirror
+    /// The field bounds are named once, mirror
     /// orbit-core's, let a 5 KB title through and name the field, its bytes and
     /// the bound one byte past it — so the reader can leave that one event out.
     func testFieldBoundsAreNamedAndOneBytePastThemNamesTheField() throws {
@@ -92,7 +92,7 @@ final class CalendarEventTests: XCTestCase {
         XCTAssertEqual(Array(value.title.utf8), Array(title.utf8))
         // The bound comes from the constant, never a number written here: a
         // four-byte character that straddles it is one byte too many, and the
-        // same characters exactly at it pass whole (REF-10, decision 4).
+        // same characters exactly at it pass whole.
         let atTheBound = String(repeating: "🪐", count: CalendarLimits.maximumTitleBytes / 4)
         XCTAssertEqual(try event(title: atTheBound).title.utf8.count, CalendarLimits.maximumTitleBytes)
         let straddling = String(repeating: "x", count: CalendarLimits.maximumTitleBytes - 3) + "🪐"
@@ -105,7 +105,7 @@ final class CalendarEventTests: XCTestCase {
             responseStatus: "unknown", participantType: "unknown", isCurrentUser: false))
     }
 
-    /// REF-10 A3: a page takes whole items while they fit, always at least one,
+    /// A page takes whole items while they fit, always at least one,
     /// and says where the next page starts; walking the pages returns every
     /// item once. An index past the end belongs to another enumeration.
     func testPagingTakesWholeItemsAndNeverStalls() throws {
@@ -144,7 +144,7 @@ final class CalendarEventTests: XCTestCase {
         XCTAssertEqual(payload["next_after_index"] as? Int, 1)
     }
 
-    /// P9-22: the reminders Orbit edits are the relative ones at or before
+    /// The reminders Orbit edits are the relative ones at or before
     /// the start, in whole minutes; the rest are counted, never dropped, and a
     /// list past `maximumAlarms` does not travel at all.
     func testRemindersOrbitEditsAreReadAndTheOthersCounted() throws {

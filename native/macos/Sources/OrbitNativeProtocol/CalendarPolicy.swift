@@ -1,9 +1,9 @@
 import Foundation
 
-/// REF-10: nothing is listed for choosing and nothing is selected. The helper
+/// Nothing is listed for choosing and nothing is selected. The helper
 /// asks macOS for the permission, lists every calendar, and reads a window of
 /// every calendar; the permission is the only thing any of them waits on.
-/// P9-21: it also saves and deletes events Mars changes from Orbit, under the
+/// It also saves and deletes events the user changes from Orbit, under the
 /// same permission and in the same single EventKit slot.
 public enum CalendarOperation: Equatable, Sendable {
     case requestAccess

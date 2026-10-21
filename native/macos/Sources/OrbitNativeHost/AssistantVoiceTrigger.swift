@@ -18,7 +18,7 @@ protocol PhraseListening: MicrophoneFrameSink {
 }
 
 /// What the detector says: about itself (`voice_trigger`), or a step of the
-/// phrase for the daemon's log (`notice`, SIM-23).
+/// phrase for the daemon's log (`notice`), so a lost question can be followed.
 enum VoiceTriggerReport: Equatable {
     case unavailable(cause: String, osVersion: String?)
     case idle
@@ -48,9 +48,9 @@ enum VoiceTriggerReport: Equatable {
     }
 }
 
-/// P9-12: «Oye Deimos» on the meeting's microphone. It runs only while a
-/// meeting recording captures Mars's microphone (the daemon's
-/// `audio_wake_phrase`), with her stop off; it is fed from that same stream; and
+/// «Oye Deimos» on the meeting's microphone. It runs only while a
+/// meeting recording captures the user's microphone (the daemon's
+/// `audio_wake_phrase`), with the user's stop off; it is fed from that same stream; and
 /// nothing it hears leaves the Mac except the question that follows the
 /// phrase, as text. On macOS before 26 it says it is unavailable, with the
 /// system's version, and «Preguntar a Deimos» still works.
@@ -101,7 +101,7 @@ package final class AssistantVoiceTrigger {
     }
 
     /// Starts listening on the meeting microphone `streamID`. `allow` is
-    /// asked on the main actor before a question leaves: her stop off and
+    /// asked on the main actor before a question leaves: the user's stop off and
     /// the stream still the active microphone.
     package func start(streamID: String, assistantName: String? = nil,
                        allow: @escaping @MainActor (String) -> Bool) -> MicrophoneFrameSink? {
@@ -134,7 +134,7 @@ package final class AssistantVoiceTrigger {
     }
 
     /// Sends a heard question if `allow` still lets it leave; otherwise says
-    /// only that it was dropped (SIM-23), never its text.
+    /// only that it was dropped, never its text.
     @MainActor static func deliver(_ question: NativeEvent, streamID: String,
                                    allow: @MainActor (String) -> Bool,
                                    channel: NativeChannel) {
@@ -145,7 +145,7 @@ package final class AssistantVoiceTrigger {
         }
     }
 
-    /// Stops listening now: the recording stopped, paused, or her stop.
+    /// Stops listening now: the recording stopped, paused, or the user's stop.
     package func stop() {
         guard let listener else { return }
         listener.stop()

@@ -81,11 +81,11 @@ final class NativeQuitPolicyTests: XCTestCase {
         XCTAssertEqual(NativeQuitPolicy(), original)
     }
 
-    // MARK: REF-06 A2 — the managed helper does not outlive its daemon.
+    // MARK: The managed helper does not outlive its daemon.
 
     /// The daemon closed the pipe — an orderly shutdown's EOF or a crash's —
     /// and nobody can command this helper again: it stops and leaves, once.
-    func testA2ManagedHelperLeavesWhenItsDaemonClosesThePipe() {
+    func testManagedHelperLeavesWhenItsDaemonClosesThePipe() {
         for reason in Self.failures {
             var policy = NativeQuitPolicy()
             XCTAssertEqual(policy.disconnected(reason: reason), .stopThenTerminate, reason)
@@ -101,7 +101,7 @@ final class NativeQuitPolicyTests: XCTestCase {
     /// The daemon sends `shutdown` and then closes the pipe, so the EOF can
     /// arrive while the helper is still flushing its answer. It leaves anyway;
     /// the flush's late success adds nothing.
-    func testA2ManagedHelperLeavesWhenTheEOFArrivesDuringItsShutdownFlush() {
+    func testManagedHelperLeavesWhenTheEOFArrivesDuringItsShutdownFlush() {
         var policy = NativeQuitPolicy()
         XCTAssertTrue(policy.beginFlush(id: id(1)))
         XCTAssertEqual(policy.disconnected(reason: "daemon_disconnected"), .stopThenTerminate)
@@ -111,7 +111,7 @@ final class NativeQuitPolicyTests: XCTestCase {
 
     /// A failed flush used to leave the helper latched and alive for good.
     /// Managed, the EOF that follows still makes it leave.
-    func testA2ManagedHelperLeavesOnEOFAfterAFailedFlush() {
+    func testManagedHelperLeavesOnEOFAfterAFailedFlush() {
         var policy = NativeQuitPolicy()
         XCTAssertTrue(policy.beginFlush(id: id(1)))
         XCTAssertEqual(policy.completeFlush(id: id(1), succeeded: false), .none)
@@ -123,7 +123,7 @@ final class NativeQuitPolicyTests: XCTestCase {
 
     /// The helper must be able to leave by itself before the daemon kills it:
     /// the daemon's `HELPER_EXIT_GRACE` is 3 s.
-    func testA2TheOrphanGraceIsShortAndUnderTheDaemonsKillGrace() {
+    func testTheOrphanGraceIsShortAndUnderTheDaemonsKillGrace() {
         XCTAssertGreaterThan(NativeQuitPolicy.orphanExitGrace, 0)
         XCTAssertLessThan(NativeQuitPolicy.orphanExitGrace, 3)
     }

@@ -2,7 +2,7 @@ import XCTest
 @testable import OrbitNativeState
 
 final class CaptureSlotTests: XCTestCase {
-    func testA1EveryCaptureSlotTransitionIncludingFailedStart() {
+    func testEveryCaptureSlotTransitionIncludingFailedStart() {
         let reason = "capture_callback_at_stop_boundary"
         let unconfirmed = CaptureSlot.unconfirmed(reason: reason)
         XCTAssertFalse(unconfirmed.isActive)

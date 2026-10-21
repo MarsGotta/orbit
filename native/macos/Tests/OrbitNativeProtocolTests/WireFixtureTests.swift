@@ -33,7 +33,7 @@ final class WireFixtureTests: XCTestCase {
             case .audioStart(let wire):
                 XCTAssertNil(wire.fields.application_pid)
                 XCTAssertEqual(wire.fields.capture_scope, .system)
-            default: XCTFail("Comando de fixture no reconocido: \(frame.command)")
+            default: XCTFail("Unrecognized fixture command: \(frame.command)")
             }
         }
     }

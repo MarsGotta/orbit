@@ -1,8 +1,8 @@
 /// Launch syntax and command admission only. Filesystem ownership, symlinks and
 /// an empty private state directory must be checked by the host before startup.
 ///
-/// The helper always speaks over its standard input and output. Since REF-06
-/// it never hosts the daemon: production launches it as the daemon's managed
+/// The helper always speaks over its standard input and output. It never
+/// hosts the daemon: production launches it as the daemon's managed
 /// child, and a launch without arguments — the retired mode in which the helper
 /// started the daemon itself — is refused like any other unknown syntax.
 public struct NativeLaunchOptions: Equatable, Sendable {

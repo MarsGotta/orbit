@@ -10,7 +10,7 @@ import Foundation
 /// confirms its drain produces another failure, so the redundant case is not
 /// rare: it is a loop.
 ///
-/// Since REF-12 a stop either writes Mars's durable latch (`latches`) or only
+/// A stop either writes the user's durable latch (`latches`) or only
 /// cuts capture and playback; the second kind has nothing left to do once
 /// nothing is live, whatever the latch says.
 public struct PrivacyStopWork: Equatable, Sendable {

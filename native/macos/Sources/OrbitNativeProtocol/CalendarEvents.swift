@@ -2,7 +2,7 @@ import Foundation
 
 /// A field past its bound, by name and size. Raised while an event is built;
 /// the reader turns it into a `CalendarOversizedEvent` for that event and goes
-/// on with the rest of the window (REF-10, decision 4).
+/// on with the rest of the window: a field is never a reason to lose the read.
 public struct CalendarOversizedField: Error, Equatable, Sendable {
     public let field: String
     public let bytes: Int
@@ -17,8 +17,8 @@ public struct CalendarOversizedField: Error, Equatable, Sendable {
     }
 }
 
-/// One event that could not travel, named instead of trimmed (REF-10,
-/// decision 4). The window's other events arrive; this says which event it
+/// One event that could not travel, named instead of trimmed. The
+/// window's other events arrive; this says which event it
 /// was and why. `calendar_item_id` is absent only when it is the field to blame.
 public struct CalendarOversizedEvent: Codable, Equatable, Sendable, Error {
     public let calendar: CalendarReference
@@ -94,8 +94,8 @@ public struct CalendarInvitee: Codable, Equatable, Sendable {
     }
 }
 
-/// A field that did not travel because it is longer than its limit (P9-21:
-/// the notes): its bytes and the limit, both UTF-8 bytes.
+/// A field that did not travel because it is longer than its limit (the
+/// notes): its bytes and the limit, both UTF-8 bytes.
 public struct CalendarFieldLeftOut: Codable, Equatable, Sendable {
     public let bytes: Int
     public let limit: Int
@@ -122,7 +122,7 @@ public struct CalendarOccurrence: Codable, Equatable, Sendable {
     public let invitees_status: String
     public let event_url: String?
     public let event_url_status: String
-    // P9-21: what the edit needs. Absent only from a helper that predates them.
+    // What the edit needs. Absent only from a helper that predates them.
     public let location: String?
     public let notes: String?
     /// Notes longer than `maximumNotesBytes` stay behind, by their size.
@@ -133,11 +133,11 @@ public struct CalendarOccurrence: Codable, Equatable, Sendable {
     /// The calendar admits changes and the event was not organized by
     /// someone else.
     public let can_edit: Bool?
-    /// P9-22: the reminders Orbit edits (relative, at or before the start),
+    /// The reminders Orbit edits (relative, at or before the start),
     /// in minutes before it, within the write's own limits; `nil` when not
     /// read or when there are more than `maximumAlarms`.
     public let alarms_minutes: [Int]?
-    /// P9-22: how many reminders Orbit does not edit (at a date, by place,
+    /// How many reminders Orbit does not edit (at a date, by place,
     /// after the start, or past the limits); `nil` for none, never 0.
     public let alarms_not_editable: Int?
 
@@ -190,7 +190,7 @@ public struct CalendarOccurrence: Codable, Equatable, Sendable {
 }
 
 /// One reminder as EventKit holds it, reduced to what decides whether Orbit
-/// edits it (P9-22). Pure: no EventKit here.
+/// edits it. Pure: no EventKit here.
 public struct CalendarAlarmFacts: Equatable, Sendable {
     /// Seconds from the start; negative is before it.
     public let relativeOffset: Double
@@ -213,7 +213,7 @@ public struct CalendarAlarmFacts: Equatable, Sendable {
     }
 }
 
-/// An event's reminders as a read carries them (P9-22).
+/// An event's reminders as a read carries them.
 public struct CalendarAlarmReading: Equatable, Sendable {
     public let minutes: [Int]?
     public let notEditable: Int?
@@ -255,7 +255,7 @@ public struct CalendarEventBatch: Equatable, Sendable {
     public let systemTimezone: String
     public let events: [CalendarOccurrence]
     public let omitted: [CalendarEventOmission]
-    /// Events of the window that could not travel, named (decision 4).
+    /// Events of the window that could not travel, named.
     public let oversized: [CalendarOversizedEvent]
     public init(systemTimezone: String, events: [CalendarOccurrence], omitted: [CalendarEventOmission] = [],
                 oversized: [CalendarOversizedEvent] = []) {
@@ -266,7 +266,7 @@ public struct CalendarEventBatch: Equatable, Sendable {
     }
 }
 
-/// One page of one window of every calendar. REF-10: no scope — every event
+/// One page of one window of every calendar. No scope — every event
 /// carries its own calendar, and invitees and URL are always read.
 public struct CalendarReadPage: Encodable, Equatable, Sendable {
     public let read_id: String

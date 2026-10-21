@@ -20,7 +20,7 @@ final class AudioFrameRelay {
     private let failed: ((String) -> Void)?
     private(set) var lastFrameEndNS: UInt64?
     private let playbackActivity: PlaybackActivity?
-    /// P9-12: the «Oye Deimos» listener of a meeting's microphone, fed from
+    /// The «Oye Deimos» listener of a meeting's microphone, fed from
     /// this drain, never from the audio callback. Read and written only on
     /// `queue`, so it can be attached to a live stream and taken off it.
     private var frameSink: MicrophoneFrameSink?
@@ -49,7 +49,7 @@ final class AudioFrameRelay {
         self.failed = failed
     }
 
-    /// P9-12: attaches (or, with `nil`, takes off) the phrase listener on
+    /// Attaches (or, with `nil`, takes off) the phrase listener on
     /// this live stream. The previous listener, if another, is finished.
     func setFrameSink(_ sink: MicrophoneFrameSink?) {
         queue.async { [self] in
@@ -299,7 +299,7 @@ package final class MicrophoneCapture {
         return (drained, AudioRouteResume(previousEndNS: previous?.lastFrameEndNS))
     }
 
-    /// P9-12: feeds the live microphone stream `streamID` to `sink` (or
+    /// Feeds the live microphone stream `streamID` to `sink` (or
     /// stops, with `nil`). Refused when that stream is not the active one.
     @MainActor package func setFrameSink(_ sink: MicrophoneFrameSink?, streamID: String) throws {
         guard let relay, relay.streamID == streamID else {

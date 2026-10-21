@@ -2,7 +2,7 @@ import Foundation
 import XCTest
 @testable import OrbitNativeProtocol
 
-/// P9-21 criterion 1, Swift side: the calendar fixtures orbit-core generates
+/// The Swift side of the shared calendar contract: the calendar fixtures orbit-core generates
 /// reach production codecs here — typed commands and encoded reads, writes
 /// and one refusal per code. Swift refusals carry exactly the detail Rust decodes.
 final class CalendarWriteWireTests: XCTestCase {
@@ -72,7 +72,7 @@ final class CalendarWriteWireTests: XCTestCase {
         let create = try JSONDecoder().decode(NativeWireCommand.self, from: fixture("commands/calendar_save.json"))
         if case .calendarSave(let envelope) = create {
             let draft = try XCTUnwrap(envelope.fields.calendar_save.create)
-            XCTAssertNil(draft.calendar_id, "sin calendario: el de por defecto")
+            XCTAssertNil(draft.calendar_id, "no calendar given: the default one")
             XCTAssertEqual(draft.recurrence?.days_of_week, [CalendarRecurrenceDay(day: .wednesday)])
             XCTAssertEqual(draft.alarms_minutes, [10, 0])
         }

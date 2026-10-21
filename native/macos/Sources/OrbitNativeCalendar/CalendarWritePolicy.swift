@@ -2,7 +2,7 @@ import Foundation
 import OrbitNativeProtocol
 
 /// What the controller decides about a write before EventKit is asked for a
-/// commit (P9-21). Pure: values in, a refusal with its cause out.
+/// commit. Pure: values in, a refusal with its cause out.
 ///
 /// An event Orbit may not change is refused by name: a calendar that does not
 /// admit changes, or an event someone else organized — an invitation is moved
@@ -34,7 +34,7 @@ public enum CalendarWritePolicy {
 /// store is shared by every read and write of the helper; an event changed in
 /// memory and then refused (an unknown zone, a failed `save`/`remove`, a gate
 /// that closed) would otherwise stay changed in it, and a later read — or the
-/// next commit — would show or apply a change Mars was told did not happen.
+/// next commit — would show or apply a change the user was told did not happen.
 /// On any failure the store is reset; the failure goes on unchanged.
 enum CalendarStoreTransaction {
     static func run<T>(reset: () -> Void, _ body: () throws -> T) throws -> T {

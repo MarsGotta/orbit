@@ -43,7 +43,7 @@ final class CalendarPolicyTests: XCTestCase {
         }
     }
 
-    /// REF-10: a window as wide as EventKit reads without shortening it is a
+    /// A window as wide as EventKit reads without shortening it is a
     /// valid query, and one day wider is not — EventKit would drop the rest.
     func testQueryWindowIsBoundedByEventKitNotByOrbit() {
         XCTAssertTrue(CalendarReadQuery(start: 0, end: CalendarLimits.maximumQueryMilliseconds).isValid)
@@ -93,7 +93,7 @@ final class CalendarPolicyTests: XCTestCase {
         XCTAssertThrowsError(try value.validate(permit, now: now + 1, generation: 2, stopped: false, authorization: .denied))
     }
 
-    /// REF-10: the wire has no selection any more. A read names its window and
+    /// The wire has no selection any more. A read names its window and
     /// its position; a listing names only its position.
     func testWireCommandsCarryAWindowOrAPageAndNoSelection() throws {
         let read = Data("{\"v\":1,\"id\":\"read\",\"command\":\"calendar_snapshot\",\"calendar_query\":{\"start_unix_ms\":0,\"end_unix_ms\":\(day),\"after_index\":7}}".utf8)

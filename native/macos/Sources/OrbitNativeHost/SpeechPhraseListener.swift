@@ -4,14 +4,14 @@ import Foundation
 import OrbitNativeProtocol
 import Speech
 
-/// P9-12: on-device recognition of «Oye Deimos» with macOS 26's
+/// On-device recognition of «Oye Deimos» with macOS 26's
 /// `SpeechAnalyzer` + `SpeechTranscriber` (Spanish, `es_ES`), fed with the
-/// meeting microphone's samples. Measured on Mars's Mac
-///: the Spanish model downloads once through
+/// meeting microphone's samples. Measured on a Mac: the Spanish model
+/// downloads once through
 /// `AssetInventory`, analysis runs on the Mac without network, and analysing
 /// audio Orbit already has asked for no permission. The live path (this
 /// file) is not measured yet: latency, CPU over an hour and any prompt are
-/// the reviewer's measurements in that evidence file.
+/// still to be measured on a Mac.
 ///
 /// Threads: `receive` runs on the relay's drain queue, results on the
 /// analyzer's task, `stop` on the main actor; one lock guards the state.
@@ -26,8 +26,8 @@ final class SpeechPhraseListener: PhraseListening, @unchecked Sendable {
     static let maximumPendingBuffers = 512
     /// Voice above this level (RMS, dBFS) keeps a question open; below it
     /// the 1.5 s pause runs. Speech on a laptop microphone sits well above
-    /// it and a quiet room well below; unmeasured with Mars's voice, see the
-    /// evidence file. It is not a recording threshold.
+    /// it and a quiet room well below; not yet measured against a real
+    /// speaker's voice. It is not a recording threshold.
     static let speechLevelDBFS = -45.0
     /// The detector reports the model download at most this often.
     static let progressInterval: Duration = .milliseconds(500)

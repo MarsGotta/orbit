@@ -29,9 +29,9 @@ public enum NativeWireCaptureScope: String, Decodable, Sendable {
 }
 public struct NativeCalendarSourcesFields: Decodable, Sendable { public let calendar_page: CalendarPageRequest? }
 public struct NativeCalendarSnapshotFields: Decodable, Sendable { public let calendar_query: CalendarReadQuery }
-/// P9-21: create an event or change an occurrence.
+/// Create an event or change an occurrence.
 public struct NativeCalendarSaveFields: Decodable, Sendable { public let calendar_save: CalendarSaveRequest }
-/// P9-21: delete an occurrence, or it and the ones after it.
+/// Delete an occurrence, or it and the ones after it.
 public struct NativeCalendarDeleteFields: Decodable, Sendable { public let calendar_delete: CalendarDeleteRequest }
 public struct NativePermissionsFields: Decodable, Sendable { public let request: [NativeWirePermission]? }
 public enum NativeMicrophonePurpose: String, Decodable, Sendable {
@@ -50,7 +50,7 @@ public struct NativeAudioStartFields: Decodable, Sendable {
     public let application_pid: Int32?
     public let capture_scope: NativeWireCaptureScope?
 }
-/// P9-12: «Oye Deimos» on (or off) on the live microphone stream.
+/// «Oye Deimos» on (or off) on the live microphone stream.
 public struct NativeAudioWakePhraseFields: Decodable, Sendable {
     public let assistant_name: String?
     public let stream_id: String
@@ -313,8 +313,8 @@ public struct NativeReadyEventFields: Encodable {
     public let launch_mode: String
     public let fixture: Bool?
 }
-/// `detail` carries a refusal's names and numbers by code (P9-21: the
-/// calendar write refusals); absent from every other error.
+/// `detail` carries a refusal's names and numbers by code (the calendar
+/// write refusals); absent from every other error.
 public struct NativeWireError: Encodable {
     public let code: String
     public let message: String
@@ -349,7 +349,7 @@ public struct NativeHotkeyEventFields: Encodable {
 public struct NativeMicrophoneActivityFields: Encodable {
     public let applications: [NativeWireMeetingApplication]
 }
-/// P9-12: the question Mars asked after «Oye Deimos» on the meeting's
+/// The question the user asked after «Oye Deimos» on the meeting's
 /// microphone, as text. `started_ms`/`ended_ms` are Unix milliseconds of the
 /// phrase's start and the question's end. Nothing else heard is sent.
 public struct NativeAssistantQuestionFields: Encodable {
@@ -358,7 +358,7 @@ public struct NativeAssistantQuestionFields: Encodable {
     public let started_ms: Int64
     public let ended_ms: Int64
 }
-/// P9-12: where the «Oye Deimos» detector is: `unavailable` (with `cause`
+/// Where the «Oye Deimos» detector is: `unavailable` (with `cause`
 /// and `os_version`), `idle`, `downloading` (with `percent`), `listening` or
 /// `failed` (with `cause` and Apple's `detail`, never what was heard).
 public struct NativeVoiceTriggerFields: Encodable {
@@ -368,7 +368,7 @@ public struct NativeVoiceTriggerFields: Encodable {
     public let percent: UInt8?
     public let os_version: String?
 }
-/// SIM-23: a step the helper reports that answers no order, as a code the
+/// A step the helper reports that answers no order, as a code the
 /// daemon records (`wake_phrase_heard`, `wake_phrase_abandoned`,
 /// `wake_phrase_question_dropped`). Never words that were said.
 public struct NativeNoticeEventFields: Encodable {
@@ -556,7 +556,7 @@ public enum NativeEvent: Encodable {
             result: nil, error: .init(code: code, message: message))))
     }
 
-    /// A refusal with its numbers (P9-21). A detail that cannot be expressed
+    /// A refusal with its numbers. A detail that cannot be expressed
     /// as JSON is a programming error; the refusal still goes, by its code.
     public static func makeRejection(id: String, code: String, message: String,
                                      detail: [String: Any]) -> NativeEvent {

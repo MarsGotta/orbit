@@ -11,11 +11,11 @@ public struct CalendarCommandTicket: Equatable, Sendable {
 /// Main-thread admission and response ownership. The independent backend actor
 /// performs synchronous EventKit reads, never on Main and never in the audio queue.
 ///
-/// REF-10: there is no selection to keep. Each read covers every calendar the
+/// There is no selection to keep. Each read covers every calendar the
 /// macOS permission allows and is answered in pages; the only state held here
 /// is the single physical EventKit slot and the reply waiting on it.
 ///
-/// P9-21: the same slot carries writes. A write is validated before it takes
+/// The same slot carries writes. A write is validated before it takes
 /// the slot, and refused by name — a read-only calendar, an event someone
 /// else organized, the end before the start — before EventKit is asked for a
 /// commit. Once a commit may have started, nothing the controller does can
@@ -268,7 +268,7 @@ public struct CalendarCommandTicket: Equatable, Sendable {
                 throw CalendarFailure.invalidRequest
             }
             // Done. A stop or a new epoch since then withholds the answer —
-            // what was written is not sent after her stop — and says which.
+            // what was written is not sent after the user's stop — and says which.
             let current = host()
             if current.stopped {
                 return .failure(CalendarWriteRefusal.outcomeUnknown(cause: "privacy_stopped"))

@@ -51,7 +51,7 @@ package final class SharedAudioSession {
             // mode is chosen. Created only after voice processing was turned
             // on, the engine never starts: «com.apple.coreaudio.avfaudio
             // -10875», and every call with Deimos failed to open the
-            // microphone (measured on Mars's MacBook Pro, 2026-10-17: created
+            // microphone (measured on a MacBook Pro, 2026-10-17: created
             // before, the same voice-processing graph starts).
             _ = engine.mainMixerNode
         }

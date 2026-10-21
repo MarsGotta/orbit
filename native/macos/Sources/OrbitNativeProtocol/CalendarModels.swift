@@ -16,12 +16,12 @@ public enum CalendarFailure: String, Error, Codable, Equatable, Sendable {
     case readFailed = "calendar_read_failed"
     case clockUnavailable = "calendar_clock_unavailable"
     case privacyStopped = "privacy_stopped"
-    /// REF-10: one event whose own fields do not fit the largest page the
+    /// One event whose own fields do not fit the largest page the
     /// daemon admits (thousands of invitees). Named, never trimmed or dropped.
     case eventTooLarge = "calendar_event_too_large"
 }
 
-/// REF-10: what the daemon asks for — every calendar, one window, from one
+/// What the daemon asks for — every calendar, one window, from one
 /// position in the window's ordered events. Nothing selects calendars.
 public struct CalendarReadQuery: Codable, Equatable, Sendable {
     public let start_unix_ms: Int64
@@ -60,7 +60,7 @@ public struct CalendarEntry: Codable, Equatable, Sendable {
     public let title: String
     public let source_title: String
     public let calendar_type: String
-    /// P9-21: the calendar's color in sRGB, `#RRGGBB`; absent when macOS gave
+    /// The calendar's color in sRGB, `#RRGGBB`; absent when macOS gave
     /// one that cannot be expressed so.
     public let color: String?
     /// `allowsContentModifications`.
@@ -86,7 +86,7 @@ public struct CalendarEntry: Codable, Equatable, Sendable {
     }
 }
 
-/// One page of the list of every calendar on the Mac. REF-10: nothing is
+/// One page of the list of every calendar on the Mac. Nothing is
 /// offered for choosing; the list says how many calendars there are and names
 /// them. It is paged so no number of calendars needs one oversized message.
 public struct CalendarInventoryPage: Encodable, Equatable, Sendable {
@@ -125,7 +125,7 @@ public enum CalendarLimits {
     /// EventKit's limit, not Orbit's: the daemon reads 31-day windows. Mirrors
     /// `orbit_core::calendar::EVENTKIT_MAX_QUERY_MS` (1,460 × 86,400,000).
     public static let maximumQueryMilliseconds: Int64 = 126_144_000_000
-    /// Field bounds. REF-10, decision 4: a field is not a reason to leave an
+    /// Field bounds. A field is not a reason to leave an
     /// event out while the event fits a page on its own, so titles, names and
     /// URLs may be as large as a whole device-bridge page (96 KiB) — larger
     /// could never reach Deimos. Identifiers and zones keep a shape check (an
@@ -134,24 +134,24 @@ public enum CalendarLimits {
     /// its dates, identifier, the field, its bytes and the bytes that fit) and
     /// the rest of the read arrives; it is never trimmed and never stops the
     /// read. Mirror `MAX_TITLE_BYTES`, `MAX_URL_BYTES`, `MAX_LABEL_BYTES` and
-    /// `MAX_TIMEZONE_BYTES` in `orbit_core::calendar`, kept equal by hand
-    /// (SIM-00 removed the guard that compared them).
+    /// `MAX_TIMEZONE_BYTES` in `orbit_core::calendar`; `contracts/constants.json`
+    /// registers both copies and its guard compares them.
     public static let maximumTitleBytes = 98_304
     public static let maximumURLBytes = 98_304
     public static let maximumLabelBytes = 1_024
     public static let maximumTimezoneBytes = 128
-    /// P9-21. The longest notes that travel with an event, in bytes. They
+    /// The longest notes that travel with an event, in bytes. They
     /// must not crowd out the events sharing a page — above all the 96 KiB
     /// bridge page Deimos reads. A read carries the event without longer notes
     /// and says so (`notes_left_out`: their bytes and this limit); a write
     /// with longer notes is refused with the same numbers. Mirrors
-    /// `orbit_core::calendar::MAX_NOTES_BYTES` (32 KiB), kept equal by hand
-    /// (SIM-00 removed the guard that compared them).
+    /// `orbit_core::calendar::MAX_NOTES_BYTES` (32 KiB); `contracts/constants.json`
+    /// registers both copies and its guard compares them.
     public static let maximumNotesBytes = 32 * 1024
-    /// P9-21. How many alarms one written event may carry: a shape check on
+    /// How many alarms one written event may carry: a shape check on
     /// one write command (Calendar offers two). Mirrors `MAX_EVENT_ALARMS`.
     public static let maximumAlarms = 16
-    /// P9-21. The furthest an alarm may sound before its event, in minutes
+    /// The furthest an alarm may sound before its event, in minutes
     /// (four weeks): a shape check. Mirrors `MAX_ALARM_MINUTES`.
     public static let maximumAlarmMinutes = 40_320
     /// The largest single event a helper page carries: `maximumPageBytes` less
@@ -160,7 +160,7 @@ public enum CalendarLimits {
     /// out by name, never trimmed, and the rest of the window arrives.
     public static let maximumEventBytes = 720_896
     public static let readLifetimeNanoseconds: UInt64 = 5_000_000_000
-    /// P9-21. How long one EventKit save or removal may hold the slot before
+    /// How long one EventKit save or removal may hold the slot before
     /// the answer is that its outcome is unknown. A local commit takes
     /// milliseconds; unlike a late read, a late write may already be applied,
     /// so it is never answered as expired and never retried. Mirrors

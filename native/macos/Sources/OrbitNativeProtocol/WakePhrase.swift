@@ -1,12 +1,12 @@
 import Foundation
 
-/// P9-12: «Oye Deimos». Mars's decision (2026-10-15): «Oye Deimos», also
+/// «Oye Deimos». The product decision (2026-10-15): «Oye Deimos», also
 /// «Hola Deimos» and «Deimos,» at the start of a phrase. macOS's on-device
 /// Spanish transcription writes «Deimos» as «Demos» every time
 /// so «Demos» is accepted too, but only at
 /// the start of a phrase and followed by a pause or a comma: «Oye, demos
-/// por cerrado…» never opens a question. Mars accepted the small risk of
-/// «oye, demos, …».
+/// por cerrado…» never opens a question. The small risk of «oye, demos, …»
+/// was accepted.
 ///
 /// Pure: it reads transcribed text, never audio. Which microphone it is fed
 /// from and when it listens is the host's decision.
@@ -156,7 +156,7 @@ public struct HeardSegment: Equatable, Sendable {
     }
 }
 
-/// SIM-23: a step of «Oye Deimos» the helper reports to the daemon's log
+/// A step of «Oye Deimos» the helper reports to the daemon's log
 /// (`notice`), so a question lost on the way can be followed: the phrase
 /// was heard, it was heard and no question followed, or a question was heard
 /// and not sent. A question sent says itself (`assistant_question`). Its
@@ -208,7 +208,7 @@ public struct SpokenQuestion: Equatable, Sendable {
     }
 }
 
-/// P9-12: from transcription results and the microphone's level to one
+/// From transcription results and the microphone's level to one
 /// spoken question. Idle, it looks for the phrase at the start of a phrase
 /// of any result; once heard, the question is what follows, until
 /// `pauseSeconds` without voice or `maximumSeconds` from the phrase. The pause
@@ -225,14 +225,15 @@ public struct SpokenQuestionPolicy {
     /// The longest question (`NativeLimits.maximumAssistantQuestionMilliseconds`).
     public let maximumSeconds: Double
     /// After the phrase with nothing following it, how long the policy waits
-    /// for the question before forgetting the phrase: Mars may pause after
+    /// for the question before forgetting the phrase: the user may pause after
     /// «Oye Deimos». Four pauses; it is not a recognition timeout.
     public var waitSeconds: Double { pauseSeconds * 4 }
     /// Results kept while idle: the newest ones, for the phrase. Bounds the
     /// policy's memory over an hour-long meeting; a phrase is in the last few.
     public static let maximumSegments = 64
     /// After the pause, how much longer the question waits for the final
-    /// result of its words. SIM-25 runs 21 and 22: when the pause ended only
+    /// result of its words. Measured on a Mac (runs 21 and 22 of the
+    /// wake-phrase trials): when the pause ended only
     /// volatile results had come, whose range covered the whole voice but
     /// whose words stopped at «de qué estamos» and «de qué»; in earlier runs
     /// the late final result then asked the same question again. Twice the
@@ -281,7 +282,7 @@ public struct SpokenQuestionPolicy {
         // By its start, not its end: the final result for a question arrives
         // after the question was sent, and its range can run on through the
         // pause that ended it. Taken by its end, it opened the same question
-        // again (SIM-25: one phrase asked twice in 2 of 4 runs).
+        // again (one phrase asked twice in 2 of 4 runs on a Mac).
         guard segment.start >= ignoreBefore else { return nil }
         segments.removeAll { known in
             let replaced = !known.isFinal && known.start >= segment.start - 0.05
@@ -330,7 +331,7 @@ public struct SpokenQuestionPolicy {
     /// Where the transcription should finalize its results now, once per
     /// question: the pause has come and only volatile words hold the
     /// question. macOS's transcriber keeps the last word of a phrase volatile
-    /// while only silence follows (SIM-25 runs 25 to 27: «hablando» never
+    /// while only silence follows (wake-phrase trial runs 25 to 27: «hablando» never
     /// came in the 3 s of catch-up), so the listener asks it to finalize
     /// through `now`, all the audio fed so far.
     public mutating func finalizationDue() -> Double? {

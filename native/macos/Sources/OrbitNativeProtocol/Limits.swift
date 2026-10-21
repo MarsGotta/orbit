@@ -17,7 +17,7 @@ public enum NativeLimits {
     // The window inventory's 160 KiB includes its 2 KiB reserved envelope;
     // it is not a bound on a screenshot's bytes.
     public static let maximumWindowInventoryBytes = 160 * 1024
-    // P9-12: a spoken question («Oye Deimos, …») ends after this much
+    // A spoken question («Oye Deimos, …») ends after this much
     // silence, the pause between spoken phrases (orbit-core
     // `QUESTION_PAUSE_MS`). It is not a recognition timeout.
     public static let assistantQuestionPauseMilliseconds = 1_500

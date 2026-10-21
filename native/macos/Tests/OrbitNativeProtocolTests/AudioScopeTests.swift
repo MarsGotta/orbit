@@ -3,13 +3,13 @@ import XCTest
 @testable import OrbitNativeHost
 import OrbitNativeProtocol
 
-/// SYS-01 A5: the pure scope decision behind `audio_start` for `remote_app`.
+/// The pure scope decision behind `audio_start` for `remote_app`.
 ///
 /// The executable target that owns the router (`OrbitNative`) cannot be
 /// imported by this test bundle, so the rule the router applies — which
 /// ScreenCaptureKit filter shape each `capture_scope` needs, and when a
 /// positive PID is still required — must live in a pure OrbitNativeHost
-/// function, exactly what SYS-01 R4 asks for.
+/// function, where this bundle can test it.
 final class AudioScopeTests: XCTestCase {
     private func audioStart(_ fields: [String: Any]) throws -> NativeWireCommand {
         var value: [String: Any] = ["v": 1, "id": "scope-test", "command": "audio_start",
@@ -18,7 +18,7 @@ final class AudioScopeTests: XCTestCase {
         return try NativeWireCommand.decode(JSONSerialization.data(withJSONObject: value))
     }
 
-    func testA5SystemScopeExcludesOrbitAndApplicationScopeIncludesOnlyThatApp() throws {
+    func testSystemScopeExcludesOrbitAndApplicationScopeIncludesOnlyThatApp() throws {
         let system = try SystemAudioCapture.scopeFilter(for: audioStart(["capture_scope": "system"]))
         XCTAssertEqual(system, .excludeApplications(["app.orbit.companion"]))
 
@@ -27,7 +27,7 @@ final class AudioScopeTests: XCTestCase {
         XCTAssertEqual(application, .includeApplication(processID: 42))
     }
 
-    func testA5SystemScopeNeedsNoPidWhileApplicationStillRequiresAPositiveOne() throws {
+    func testSystemScopeNeedsNoPidWhileApplicationStillRequiresAPositiveOne() throws {
         let accepted = try SystemAudioCapture.scopeFilter(for: audioStart(["capture_scope": "system"]))
         XCTAssertEqual(accepted, .excludeApplications(["app.orbit.companion"]))
 
@@ -36,7 +36,7 @@ final class AudioScopeTests: XCTestCase {
                         ["capture_scope": "application", "application_pid": -1]] {
             XCTAssertThrowsError(
                 try SystemAudioCapture.scopeFilter(for: audioStart(invalid)),
-                "application sin PID positivo debe seguir rechazándose: \(invalid)"
+                "application without a positive PID must still be refused: \(invalid)"
             ) { error in
                 XCTAssertEqual(error as? AudioScopeRejection, .applicationPIDRequired)
             }

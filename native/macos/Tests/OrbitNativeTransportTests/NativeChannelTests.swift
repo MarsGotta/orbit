@@ -120,7 +120,7 @@ final class NativeChannelTests: XCTestCase {
         XCTAssertEqual((refusal["error"] as? [String: Any])?["code"] as? String, "invalid_native_command")
     }
 
-    func testA1SaturatedAudioQueueReportsOneCountedGapAndStaysAlive() async throws {
+    func testSaturatedAudioQueueReportsOneCountedGapAndStaysAlive() async throws {
         let probe = RecoveringOutputProbe()
         defer { probe.release.signal() }
         let channel = NativeChannel(
@@ -176,7 +176,7 @@ final class NativeChannelTests: XCTestCase {
         XCTAssertEqual(disconnections.withLock { $0 }, [])
     }
 
-    func testA3OutputBudgetAdmitsTenSecondsOfTwoTrackAudio() async throws {
+    func testOutputBudgetAdmitsTenSecondsOfTwoTrackAudio() async throws {
         let probe = RecoveringOutputProbe()
         defer { probe.release.signal() }
         let channel = NativeChannel(

@@ -2,7 +2,7 @@ import Foundation
 import EventKit
 import OrbitNativeProtocol
 
-/// P9-21: the writes. EventKit objects never leave the actor; the controller
+/// The writes. EventKit objects never leave the actor; the controller
 /// sees values and has already decided the write may go (the calendar admits
 /// changes, nobody else organized the event, the dates make sense).
 ///
@@ -114,7 +114,7 @@ extension EventKitCalendarReader {
         }
         if let rule = changes.recurrence { event.addRecurrenceRule(Self.eventKit(rule)) }
         if let minutes = changes.alarms_minutes {
-            // P9-22: the list replaces the reminders Orbit edits; the
+            // The list replaces the reminders Orbit edits; the
             // others (at a date, by place, after the start) stay.
             let kept = preservingOtherAlarms ? (event.alarms ?? []).filter {
                 EventKitCalendarReader.alarmFacts($0).editableMinutes == nil

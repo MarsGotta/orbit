@@ -28,7 +28,7 @@ public enum MeetingApplications {
     /// How many applications travel with a hotkey press.
     ///
     /// Bounded because this rides on a keystroke: an unbounded list would put
-    /// the whole running-process table on the wire every time Mars starts a
+    /// the whole running-process table on the wire every time the user starts a
     /// meeting.
     public static let maximum = 16
 

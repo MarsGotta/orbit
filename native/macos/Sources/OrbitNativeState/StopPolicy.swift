@@ -1,6 +1,6 @@
 import Foundation
 
-/// Which stops are Mars's own brake (REF-12).
+/// Which stops are the user's own brake.
 ///
 /// Only these write the durable latch, so only they survive a restart of the
 /// helper and of the daemon. Every other reason — the session going inactive,
@@ -11,7 +11,7 @@ import Foundation
 /// Mirrored in Rust by `orbit_core::privacy_stop::LATCHING_HELPER_CODES`,
 /// compared by tests against `contracts/fixtures/native-latching-stops.json`.
 public enum StopPolicy {
-    /// ⌃⌥Esc and the daemon passing on her order.
+    /// ⌃⌥Esc and the daemon passing on the user's order.
     public static let latchingReasons: Set<String> = ["local_hotkey", "daemon_requested"]
 
     /// The reason the helper gives when the daemon asks it to cut the capture

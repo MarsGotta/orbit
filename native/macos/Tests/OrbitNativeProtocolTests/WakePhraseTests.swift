@@ -1,9 +1,9 @@
 import XCTest
 @testable import OrbitNativeProtocol
 
-/// P9-12: «Oye Deimos» on transcribed text. The accepted lines are the ones
-/// macOS's on-device Spanish transcription wrote in the measurement
-/// plus Mars's spelled forms.
+/// «Oye Deimos» on transcribed text. The accepted lines are the ones
+/// macOS's on-device Spanish transcription wrote when measured on a Mac,
+/// plus the forms a person would spell.
 final class WakePhraseTests: XCTestCase {
     func testThePhraseAsMacOSTranscribesItOpensTheQuestion() {
         let cases: [(String, String)] = [
@@ -164,7 +164,7 @@ final class WakePhraseTests: XCTestCase {
         XCTAssertEqual(levels(&policy, from: 9, to: 11, speaking: false).map(\.text), ["¿y ahora?"])
     }
 
-    /// SIM-25: one phrase asked twice. The question leaves with its final
+    /// One phrase asked twice (seen on a Mac). The question leaves with its final
     /// result; another final result for the same audio, later and with its
     /// range running on through the pause, never asks again.
     func testALateFinalResultThatRunsPastTheQuestionNeverAsksAgain() {
@@ -184,7 +184,7 @@ final class WakePhraseTests: XCTestCase {
         XCTAssertEqual(levels(&policy, from: 13.01, to: 15, speaking: false).map(\.text), ["¿y ahora?"])
     }
 
-    /// SIM-25 runs 21 and 22: the pause after the voice came before the
+    /// Wake-phrase trial runs 21 and 22 on a Mac: the pause after the voice came before the
     /// question's words, and it left as «de qué estamos» or «de qué». A
     /// volatile result's range covers the whole voice while its words are
     /// still cut: the question waits for the final result.
@@ -232,7 +232,7 @@ final class WakePhraseTests: XCTestCase {
         XCTAssertEqual(sent.map(\.text), ["¿de qué estamos"])
     }
 
-    /// SIM-23: the steps the helper reports to the daemon's log: the phrase
+    /// The steps the helper reports to the daemon's log: the phrase
     /// heard, the phrase with no question after it, and nothing when the
     /// question itself is asked (the question says itself).
     func testStepsSayThePhraseHeardAndThePhraseAbandonedButNotAnAskedQuestion() {

@@ -1,6 +1,6 @@
 import Foundation
 
-// P9-21: the events Mars creates, moves, edits and deletes from Orbit. The
+// The events the user creates, moves, edits and deletes from Orbit. The
 // macOS permission (full access) is the whole decision: nothing here asks for
 // a confirmation. Mirrors `orbit_core::calendar::writes`; the fixtures in
 // `contracts/fixtures/native/calendar/` are decoded on both sides.
@@ -310,7 +310,7 @@ public enum CalendarWriteRefusal: Error, Equatable, Sendable {
     }
 
     /// Spanish, for the log-free diagnostic message next to the code. The
-    /// daemon builds what Mars reads from the code and the detail.
+    /// daemon builds what the user reads from the code and the detail.
     public var message: String {
         switch self {
         case .eventNotFound: "No hay ninguna ocurrencia de ese evento en esa fecha; no se cambió nada."
