@@ -1,0 +1,13 @@
+{
+  "event": "hotkey",
+  "v": 1,
+  "action": "meeting_toggle",
+  "phase": "pressed",
+  "applications": [
+    {
+      "application_pid": 4242,
+      "bundle_id": "com.example.meeting",
+      "name": "Fixture"
+    }
+  ]
+}

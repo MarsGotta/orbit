@@ -1,0 +1,7 @@
+{
+  "event": "capture_stopped",
+  "v": 1,
+  "reason": "session_inactive",
+  "privacy_stopped": false,
+  "drain_complete": true
+}

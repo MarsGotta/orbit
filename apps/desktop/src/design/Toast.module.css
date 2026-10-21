@@ -1,0 +1,91 @@
+.stack {
+  position: fixed;
+  z-index: 80;
+  top: 68px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 84px);
+  overflow-y: auto;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--o-line-strong);
+  border-radius: var(--o-radius-16);
+  background: var(--o-s2);
+  box-shadow: 0 16px 44px var(--o-shadow-medium);
+  color: var(--o-fg);
+  font-size: var(--o-font-13);
+  pointer-events: auto;
+  animation: o-in 200ms cubic-bezier(0.2, 0.6, 0.2, 1);
+}
+
+/* Three cards fit the corner of the smallest Orbit window. Further notices
+   stay mounted until a slot opens; this never discards a failure or operation. */
+.stack > :nth-child(n + 4) {
+  display: none;
+}
+
+.toast[data-kind="done"] {
+  animation:
+    o-in 200ms cubic-bezier(0.2, 0.6, 0.2, 1),
+    notice-out 200ms ease calc(var(--notice-duration) - 200ms) forwards;
+}
+
+.toast[data-kind="fixable"] {
+  background: var(--o-orange-soft);
+}
+
+.toast[data-kind="failed"] {
+  background: var(--o-red-soft);
+  color: var(--o-red);
+}
+
+.embedded {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.message {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.toast > button {
+  height: var(--o-control-compact);
+  min-height: var(--o-control-compact);
+  flex-shrink: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--o-radius-8);
+  background: transparent;
+  color: inherit;
+  font-family: var(--o-font-body);
+  font-size: var(--o-font-12);
+  cursor: pointer;
+}
+
+.toast > button:hover {
+  background: var(--o-press);
+}
+
+@keyframes notice-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .toast[data-kind="done"] {
+    animation: none;
+  }
+}

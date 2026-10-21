@@ -1,0 +1,16 @@
+{
+  "event": "response",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000911",
+  "ok": false,
+  "error": {
+    "code": "calendar_invalid_change",
+    "message": "El título es demasiado largo.",
+    "detail": {
+      "bytes": 100000,
+      "field": "title",
+      "limit": 98304,
+      "problem": "too_large"
+    }
+  }
+}

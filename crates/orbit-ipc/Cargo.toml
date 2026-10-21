@@ -1,0 +1,24 @@
+[package]
+name = "orbit-ipc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+orbit-core = { path = "../orbit-core" }
+anyhow.workspace = true
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+tokio = { version = "1.48", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
+directories = "6.0"
+rustix = { version = "1.1", features = ["process", "fs"] }
+toml = "0.9"
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { version = "1.48", features = ["full", "test-util"] }
+
+[lints]
+workspace = true

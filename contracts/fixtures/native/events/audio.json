@@ -1,0 +1,21 @@
+{
+  "event": "audio",
+  "v": 1,
+  "source": "mic_local",
+  "stream_id": "stream-1",
+  "sequence": 0,
+  "sample_rate": 32000,
+  "channels": 1,
+  "frames": 1,
+  "monotonic_ns": 100,
+  "clock_domain": "mach_absolute_time",
+  "pcm_s16le_base64": "AQI=",
+  "processing": "unprocessed",
+  "processing_enabled": false,
+  "processing_bypassed": true,
+  "agc_enabled": false,
+  "playback_reference": "none",
+  "pipeline_id": "fixture",
+  "playback_active": true,
+  "playback_id": "play-1"
+}

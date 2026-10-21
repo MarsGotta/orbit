@@ -1,0 +1,13 @@
+.card {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--o-line);
+  border-radius: 20px;
+  background: var(--o-s1);
+  box-shadow: none;
+}
+
+.content {
+  padding: 18px;
+}

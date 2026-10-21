@@ -1,0 +1,27 @@
+[package]
+name = "orbit-app-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+build = "build.rs"
+
+[dependencies]
+chrono.workspace = true
+iana-time-zone = "0.1"
+orbit-core = { path = "../orbit-core", features = ["ts"] }
+orbit-ipc = { path = "../orbit-ipc" }
+orbit-update = { path = "../orbit-update" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tempfile.workspace = true
+tokio = { version = "1.48", features = ["io-util", "macros", "process", "rt", "sync", "time"] }
+ts-rs = { version = "11", features = ["serde-compat"] }
+
+[dev-dependencies]
+orbit-daemon = { path = "../orbit-daemon" }
+serde_json.workspace = true
+tokio = { version = "1.48", features = ["macros", "net", "rt-multi-thread", "time"] }
+
+[lints]
+workspace = true

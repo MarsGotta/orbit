@@ -1,0 +1,8 @@
+{
+  "event": "playback_progress",
+  "v": 1,
+  "playback_id": "play-1",
+  "state": "started",
+  "playback_active": true,
+  "sequence": 0
+}

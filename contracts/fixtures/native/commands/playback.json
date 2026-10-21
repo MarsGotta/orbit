@@ -1,0 +1,10 @@
+{
+  "command": "playback",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000911",
+  "playback_id": "play-1",
+  "sequence": 0,
+  "sample_rate": 32000,
+  "channels": 1,
+  "pcm_s16le_base64": "AQI="
+}

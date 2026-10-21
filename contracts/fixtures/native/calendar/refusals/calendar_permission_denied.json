@@ -1,0 +1,13 @@
+{
+  "event": "response",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000911",
+  "ok": false,
+  "error": {
+    "code": "calendar_permission_denied",
+    "message": "macOS no da acceso completo a Calendarios.",
+    "detail": {
+      "authorization": "write_only"
+    }
+  }
+}

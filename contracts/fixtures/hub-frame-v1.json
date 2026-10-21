@@ -1,0 +1,19 @@
+{
+  "schema": "orbit.hub-frame.v1",
+  "frames": [
+    {
+      "v": 1,
+      "id": "00000000-0000-4000-8000-000000000901",
+      "method": "ping",
+      "params": {}
+    },
+    {
+      "v": 1,
+      "id": "00000000-0000-4000-8000-000000000902",
+      "method": "chat.send",
+      "params": {
+        "text": "mensaje sintético"
+      }
+    }
+  ]
+}

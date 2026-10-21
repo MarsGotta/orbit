@@ -1,0 +1,112 @@
+{
+  "fixture": "Synthetic page of an all-calendar read (REF-10): no selection, no scope, invitees and URL always read; no EventKit, permission, synchronization or identity evidence. The helper (Swift) encodes this shape and the daemon (Rust) decodes it.",
+  "canonical_utf8": "{\"after_index\":0,\"capture_completed_monotonic_ns\":18446744070100000000,\"capture_started_monotonic_ns\":18446744070000000000,\"clock_domain\":\"mach_absolute_time\",\"enumeration\":\"bounded_local_read\",\"events\":[{\"calendar\":{\"calendar_id\":\"synthetic-work\",\"source_id\":\"synthetic-caldav\"},\"calendar_item_id\":\"synthetic-series-1\",\"end_unix_ms\":1699167600000,\"event_id\":\"synthetic-detached-1\",\"event_timezone\":\"America/New_York\",\"event_url\":\"https://calendar.example.invalid/event?x=1&y=%C3%A9#synthetic\",\"event_url_status\":\"provided\",\"interpreted_timezone\":\"America/New_York\",\"invitees\":[{\"email\":\"Álex+Orbit@example.invalid\",\"is_current_user\":false,\"name\":\"Álex — invitado previsto, no identidad confirmada\",\"participant_type\":\"person\",\"participant_url\":\"MAILTO:%C3%81lex%2BOrbit@example.invalid\",\"response_status\":\"accepted\",\"role\":\"required\"},{\"is_current_user\":false,\"participant_type\":\"room\",\"participant_url\":\"urn:synthetic:room:7\",\"response_status\":\"unknown\",\"role\":\"non_participant\"}],\"invitees_status\":\"provided\",\"is_all_day\":false,\"is_detached\":true,\"is_floating\":false,\"last_modified_unix_ms\":1699156800000,\"observation_id\":\"33333333-3333-4333-8333-333333333333\",\"original_occurrence_unix_ms\":1699160400000,\"start_unix_ms\":1699162200000,\"status\":\"tentative\",\"title\":\"Revisión é / é 🪐\\n\\\"roadmap\\\" \\\\ prueba\"},{\"calendar\":{\"calendar_id\":\"synthetic-personal\",\"source_id\":\"synthetic-local\"},\"calendar_item_id\":\"synthetic-all-day\",\"end_unix_ms\":1699246800000,\"event_url_status\":\"not_provided\",\"interpreted_timezone\":\"America/New_York\",\"invitees_status\":\"not_provided\",\"is_all_day\":true,\"is_detached\":false,\"is_floating\":true,\"observation_id\":\"44444444-4444-4444-8444-444444444444\",\"start_unix_ms\":1699070400000,\"status\":\"canceled\",\"title\":\"Día completo; tiempos sin recortar\"},{\"calendar\":{\"calendar_id\":\"synthetic-work\",\"source_id\":\"synthetic-caldav\"},\"calendar_item_id\":\"synthetic-point\",\"end_unix_ms\":1699142400000,\"event_timezone\":\"UTC\",\"event_url\":\"\",\"event_url_status\":\"provided\",\"interpreted_timezone\":\"UTC\",\"invitees\":[],\"invitees_status\":\"provided\",\"is_all_day\":false,\"is_detached\":false,\"is_floating\":false,\"observation_id\":\"55555555-5555-4555-8555-555555555555\",\"start_unix_ms\":1699142400000,\"status\":\"none\",\"title\":\"\"}],\"native_instance_id\":\"22222222-2222-4222-8222-222222222222\",\"observed_at_unix_ms\":1699162500000,\"omitted\":[{\"count\":1,\"reason\":\"missing_title\"}],\"privacy_generation\":9007199254740993,\"provider_sync_status\":\"unknown\",\"read_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"system_timezone\":\"America/New_York\",\"total\":3,\"window\":{\"end_unix_ms\":1699228800000,\"start_unix_ms\":1699142400000}}",
+  "canonical_bytes": 2622,
+  "sha256": "fbfa243109561d5434bd7516681ee9bc2957138d1d1465cb00628d37b7fbc41d",
+  "page": {
+    "read_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "native_instance_id": "22222222-2222-4222-8222-222222222222",
+    "privacy_generation": 9007199254740993,
+    "window": {
+      "start_unix_ms": 1699142400000,
+      "end_unix_ms": 1699228800000
+    },
+    "clock_domain": "mach_absolute_time",
+    "capture_started_monotonic_ns": 18446744070000000000,
+    "capture_completed_monotonic_ns": 18446744070100000000,
+    "observed_at_unix_ms": 1699162500000,
+    "system_timezone": "America/New_York",
+    "provider_sync_status": "unknown",
+    "enumeration": "bounded_local_read",
+    "events": [
+      {
+        "observation_id": "33333333-3333-4333-8333-333333333333",
+        "calendar": {
+          "calendar_id": "synthetic-work",
+          "source_id": "synthetic-caldav"
+        },
+        "calendar_item_id": "synthetic-series-1",
+        "event_id": "synthetic-detached-1",
+        "original_occurrence_unix_ms": 1699160400000,
+        "start_unix_ms": 1699162200000,
+        "end_unix_ms": 1699167600000,
+        "event_timezone": "America/New_York",
+        "interpreted_timezone": "America/New_York",
+        "is_floating": false,
+        "is_all_day": false,
+        "is_detached": true,
+        "title": "Revisión é / é 🪐\n\"roadmap\" \\ prueba",
+        "status": "tentative",
+        "last_modified_unix_ms": 1699156800000,
+        "invitees": [
+          {
+            "name": "Álex — invitado previsto, no identidad confirmada",
+            "participant_url": "MAILTO:%C3%81lex%2BOrbit@example.invalid",
+            "email": "Álex+Orbit@example.invalid",
+            "role": "required",
+            "response_status": "accepted",
+            "participant_type": "person",
+            "is_current_user": false
+          },
+          {
+            "participant_url": "urn:synthetic:room:7",
+            "role": "non_participant",
+            "response_status": "unknown",
+            "participant_type": "room",
+            "is_current_user": false
+          }
+        ],
+        "invitees_status": "provided",
+        "event_url": "https://calendar.example.invalid/event?x=1&y=%C3%A9#synthetic",
+        "event_url_status": "provided"
+      },
+      {
+        "observation_id": "44444444-4444-4444-8444-444444444444",
+        "calendar": {
+          "calendar_id": "synthetic-personal",
+          "source_id": "synthetic-local"
+        },
+        "calendar_item_id": "synthetic-all-day",
+        "start_unix_ms": 1699070400000,
+        "end_unix_ms": 1699246800000,
+        "interpreted_timezone": "America/New_York",
+        "is_floating": true,
+        "is_all_day": true,
+        "is_detached": false,
+        "title": "Día completo; tiempos sin recortar",
+        "status": "canceled",
+        "invitees_status": "not_provided",
+        "event_url_status": "not_provided"
+      },
+      {
+        "observation_id": "55555555-5555-4555-8555-555555555555",
+        "calendar": {
+          "calendar_id": "synthetic-work",
+          "source_id": "synthetic-caldav"
+        },
+        "calendar_item_id": "synthetic-point",
+        "start_unix_ms": 1699142400000,
+        "end_unix_ms": 1699142400000,
+        "event_timezone": "UTC",
+        "interpreted_timezone": "UTC",
+        "is_floating": false,
+        "is_all_day": false,
+        "is_detached": false,
+        "title": "",
+        "status": "none",
+        "invitees": [],
+        "invitees_status": "provided",
+        "event_url": "",
+        "event_url_status": "provided"
+      }
+    ],
+    "omitted": [
+      {
+        "reason": "missing_title",
+        "count": 1
+      }
+    ],
+    "after_index": 0,
+    "total": 3
+  }
+}

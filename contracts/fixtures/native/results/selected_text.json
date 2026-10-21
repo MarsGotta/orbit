@@ -1,0 +1,27 @@
+{
+  "ax_binding_quality": "unique_owner_title_bounds",
+  "binding": {
+    "application_instance_id": "00000000-0000-4000-8000-000000000911",
+    "application_pid": 4242,
+    "binding_quality": "observed_owner_and_window",
+    "descriptor_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "inventory_id": "00000000-0000-4000-8000-000000000911",
+    "native_instance_id": "00000000-0000-4000-8000-000000000911",
+    "privacy_generation": 1,
+    "selection_token": "00000000-0000-4000-8000-000000000911",
+    "window_id": 42
+  },
+  "capture_completed_monotonic_ns": 200,
+  "capture_started_monotonic_ns": 100,
+  "clock_domain": "mach_absolute_time",
+  "mime_type": "text/plain; charset=utf-8",
+  "range": {
+    "length": 15,
+    "location": 0,
+    "unit": "utf16_code_units"
+  },
+  "selection_scope": "application_focused_element",
+  "sensitivity": "not_certified",
+  "source": "native_selected_text",
+  "text": "texto sintético"
+}

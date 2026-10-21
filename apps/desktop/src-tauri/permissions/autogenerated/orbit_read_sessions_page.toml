@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-orbit-read-sessions-page"
+description = "Enables the orbit_read_sessions_page command without any pre-configured scope."
+commands.allow = ["orbit_read_sessions_page"]
+
+[[permission]]
+identifier = "deny-orbit-read-sessions-page"
+description = "Denies the orbit_read_sessions_page command without any pre-configured scope."
+commands.deny = ["orbit_read_sessions_page"]

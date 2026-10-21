@@ -1,0 +1,9 @@
+{
+  "command": "playback_clip",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000911",
+  "playback_id": "play-1",
+  "mime_type": "audio/mpeg",
+  "provider": "fixture",
+  "audio_base64": "AQI="
+}

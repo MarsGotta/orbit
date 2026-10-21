@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "panel",
+  "description": "Panel flotante de llamadas (P9-11): escucha sus marcos, lee el estado inicial y sólo responde a una llamada (orbit_panel_send) y registra sus fallos (orbit_report). No emite eventos ni invoca otras órdenes.",
+  "windows": ["panel"],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "allow-orbit-snapshot",
+    "allow-orbit-panel-send",
+    "allow-orbit-report"
+  ]
+}

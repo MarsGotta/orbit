@@ -1,0 +1,114 @@
+/* P9-12: the question to Deimos and its answer, in the floating panel and
+   under the recording pill. Orbit's tokens only. */
+.card,
+.ask {
+  background: var(--o-s1);
+  border: 1px solid var(--o-line-strong);
+  border-radius: 12px;
+  box-sizing: border-box;
+  color: var(--o-fg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 12px 14px;
+}
+
+.card {
+  flex: 1 1 auto;
+}
+
+.failed {
+  border-color: var(--o-orange);
+}
+
+.question {
+  color: var(--o-muted);
+  font-size: 12px;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.answer {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.status {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.text {
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+  user-select: text;
+  white-space: pre-wrap;
+}
+
+.cause {
+  color: var(--o-fg);
+  font-size: 12px;
+  margin: 0;
+}
+
+.hint {
+  color: var(--o-muted);
+  flex: 1 1 auto;
+  font-size: 11px;
+  margin: 0;
+}
+
+.actions {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.field {
+  background: var(--o-bg);
+  border: 1px solid var(--o-line-strong);
+  border-radius: 8px;
+  color: var(--o-fg);
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  resize: none;
+}
+
+.windows {
+  display: flex;
+  gap: 4px;
+}
+
+.window {
+  background: transparent;
+  border: 1px solid var(--o-line-strong);
+  border-radius: 999px;
+  color: var(--o-muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
+.window[aria-checked="true"] {
+  background: var(--o-s2);
+  color: var(--o-fg);
+}
+
+/* «Preguntar a Deimos» under the recording pill. */
+.popover {
+  font-weight: 400;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  white-space: normal;
+  width: 320px;
+  z-index: 20;
+}

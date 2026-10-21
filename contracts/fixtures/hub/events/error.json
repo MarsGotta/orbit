@@ -1,0 +1,12 @@
+{
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000901",
+  "event": "error",
+  "data": {
+    "code": "invalid_request",
+    "message": "Mensaje fuera de contrato",
+    "session_id": null,
+    "status": null,
+    "numbers": null
+  }
+}

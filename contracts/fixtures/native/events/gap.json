@@ -1,0 +1,10 @@
+{
+  "event": "gap",
+  "v": 1,
+  "source": "mic_local",
+  "stream_id": "stream-1",
+  "reason": "audio_device_changed",
+  "frames": 0,
+  "duration_unknown": false,
+  "duration_ns": 2000000000
+}

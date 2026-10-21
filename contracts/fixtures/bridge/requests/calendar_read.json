@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "id": null,
+  "event": "device.request",
+  "data": {
+    "request_id": "00000000-0000-4000-8000-000000000405",
+    "capability": "calendar_read",
+    "parameters": {
+      "start_ms": 1790200800000,
+      "end_ms": 1790287200000
+    }
+  }
+}

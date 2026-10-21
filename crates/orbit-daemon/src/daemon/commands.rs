@@ -1,0 +1,355 @@
+//! Local command dispatch.
+use super::recording_notes::NoteOrder;
+use super::*;
+use orbit_core::MAX_MANIFEST_TITLE_CHARACTERS;
+
+impl Runtime {
+    /// Starts a recording: by hand, from «Grabar» on an event, or for a call
+    /// (P9-11). `event` links it to its calendar event by stable reference;
+    /// the manifest keeps it, and the note asks the hub with it. Returns the
+    /// recording's id.
+    pub(super) async fn start_meeting(
+        &mut self,
+        title: String,
+        audio: orbit_core::protocol::MeetingAudio,
+        duration_minutes: u16,
+        event: Option<orbit_core::call_detection::LinkedEvent>,
+        origin: &'static str,
+    ) -> Result<String> {
+        // REF-41 A5 · the over-long title is its own refusal, with
+        // its length and the maximum: whoever reads it can fix the
+        // title in one step, which the old `InvalidMeeting` never
+        // allowed. The guarded comparison stays inline in this
+        // chain because REF-24's guard reads it here.
+        if title.trim().is_empty()
+            || title.chars().count() > MAX_MANIFEST_TITLE_CHARACTERS
+            || matches!(
+                audio,
+                orbit_core::protocol::MeetingAudio::Application {
+                    application_pid: i32::MIN..=0
+                }
+            )
+        {
+            if title.chars().count() > MAX_MANIFEST_TITLE_CHARACTERS {
+                return Err(orbit_core::refusal::Refusal::InvalidParameter {
+                    parameter: orbit_core::refusal::Parameter::Title,
+                    expected: orbit_core::refusal::Expected::TitleLength {
+                        characters: title.chars().count() as u64,
+                        max_characters: MAX_MANIFEST_TITLE_CHARACTERS as u64,
+                    },
+                }
+                .into());
+            }
+            return Err(orbit_core::refusal::Refusal::InvalidParameter {
+                parameter: orbit_core::refusal::Parameter::Meeting,
+                expected: orbit_core::refusal::Expected::ValidMeeting,
+            }
+            .into());
+        }
+        if let Some(event) = &event {
+            event
+                .check()
+                .context("No se empezó a grabar: el evento enlazado no es válido")?;
+        }
+        let recording_id = id();
+        self.apply(Event::StartMeeting {
+            id: recording_id.clone(),
+            title: title.clone(),
+            audio,
+            duration_ms: i64::from(duration_minutes) * 60_000,
+        })
+        .await?;
+        let application_pid = match audio {
+            orbit_core::protocol::MeetingAudio::Application { application_pid } => {
+                Some(application_pid)
+            }
+            orbit_core::protocol::MeetingAudio::System
+            | orbit_core::protocol::MeetingAudio::MicrophoneOnly => None,
+        };
+        let mut payload = json!({"recording_id":recording_id,"title":title,"application_pid":application_pid,"duration_minutes":duration_minutes,"origin":origin});
+        if let Some(event) = event {
+            payload["event"] = serde_json::to_value(event)?;
+        }
+        let job = Job {
+            id: format!("recording-{recording_id}"),
+            kind: orbit_store::QueueKind::RecordingManifest.into(),
+            payload,
+            state: JobState::Succeeded,
+            created_at: now(),
+        };
+        self.store_actor
+            .run(move |store| Ok(store.enqueue_job(&job)?))
+            .await?;
+        Ok(recording_id)
+    }
+
+    pub(super) fn ensure_conversation_can_change(&self) -> Result<()> {
+        use orbit_core::refusal::{Operation, Refusal};
+        let operation = if self.state.durable.active_request.is_some() {
+            Some(Operation::Chat)
+        } else if self.capture.buffer.voice.is_some() {
+            Some(Operation::Audio)
+        } else if self.conversation.voice_task.active().is_some() {
+            Some(Operation::VoiceTranscription)
+        } else {
+            None
+        };
+        if let Some(operation) = operation {
+            return Err(Refusal::Busy {
+                operation,
+                retry_after_ms: None,
+            }
+            .into());
+        }
+        Ok(())
+    }
+
+    /// SIM-23 «Enviar informes de errores anónimos»: stored with the other
+    /// settings first, then in force at once.
+    pub(super) fn set_error_reports(&mut self, enabled: bool) -> Result<()> {
+        let settings = Settings {
+            error_reports: enabled,
+            ..self.settings.clone()
+        };
+        self.paths
+            .save_settings(&settings)
+            .context("No se pudo guardar «Enviar informes de errores anónimos»")?;
+        self.settings = settings;
+        self.error_reports.set_enabled(enabled);
+        Ok(())
+    }
+
+    pub(super) async fn command(&mut self, command: Command) -> Result<()> {
+        match command {
+            Command::SubscribeTopics { .. } | Command::Read { .. } => {}
+            Command::Pair {
+                hub_url,
+                code,
+                device_name,
+            } => {
+                self.retire_device_request_reads().await?;
+                self.pair_device(hub_url, code, device_name).await?;
+            }
+            Command::SessionOpen { id } => self.open_session(id).await?,
+            Command::TranscriptRetranscribe { recording_id } => {
+                self.note_order(recording_id, NoteOrder::Retranscribe)?
+            }
+            Command::TranscriptRetry { recording_id } => {
+                self.note_order(recording_id, NoteOrder::RetryTranscript)?
+            }
+            Command::NotePrivateSave {
+                recording_id,
+                markdown,
+                base_revision,
+            } => {
+                self.note_private_save(recording_id, markdown, base_revision)
+                    .await?
+            }
+            Command::NoteEdit {
+                recording_id,
+                sections,
+                done,
+                base_revision,
+            } => self.note_order(
+                recording_id,
+                NoteOrder::Edit {
+                    sections,
+                    done,
+                    base_revision,
+                },
+            )?,
+            Command::NoteRegenerate {
+                recording_id,
+                template_id,
+            } => self.note_order(recording_id, NoteOrder::Write { template_id })?,
+            Command::NoteRestoreSuperseded { recording_id } => {
+                self.note_order(recording_id, NoteOrder::RestoreSuperseded)?
+            }
+            Command::SpeakerRename {
+                recording_id,
+                key,
+                name,
+                scope,
+            } => self.note_order(recording_id, NoteOrder::Rename { key, name, scope })?,
+            Command::MeetingLanguage {
+                recording_id,
+                language,
+            } => self.note_order(recording_id, NoteOrder::Language { language })?,
+            Command::MeetingRename {
+                recording_id,
+                title,
+            } => self.note_order(recording_id, NoteOrder::Title { title })?,
+            Command::NoteLibrary { request } => self.note_library(request),
+            Command::Status => {
+                // Apply receipts that already exist, but never wait here for a
+                // future disk receipt: this command runs inside the select loop
+                // that owes the IPC response. The projection still reports only
+                // durable seals; a later Status observes later receipts.
+                self.collect_ready_seals(sealing::OPPORTUNISTIC_RECEIPT_WAIT, false)?;
+            }
+            Command::Calendar { request } => self.calendar_command(request)?,
+            Command::AudioSourcesRefresh => self.refresh_audio_sources()?,
+            Command::CallRecord { call_id } => {
+                self.apply_call(orbit_core::call_detection::CallInput::Record { call_id })
+                    .await?
+            }
+            Command::CallDismiss { call_id } => {
+                self.apply_call(orbit_core::call_detection::CallInput::Dismiss { call_id })
+                    .await?
+            }
+            Command::RecordingKeep { recording_id } => {
+                self.apply_call(orbit_core::call_detection::CallInput::Keep { recording_id })
+                    .await?
+            }
+            Command::CallPreference { preference } => self.set_call_preference(preference).await?,
+            Command::ErrorReports { enabled } => self.set_error_reports(enabled)?,
+            // Already in the app's report log: it only goes to the client.
+            Command::Report { report } => self
+                .error_reports
+                .report(&report, std::time::Instant::now()),
+            Command::MeetingAsk { question, minutes } => {
+                self.ask_meeting(
+                    question,
+                    minutes,
+                    orbit_core::meeting_question::QuestionOrigin::Typed,
+                )
+                .await?
+            }
+            Command::MeetingQuestionClose { id } => self.close_meeting_question(&id),
+            Command::Chat { text } => {
+                if self.capture.buffer.voice.is_some()
+                    || self.conversation.voice_task.active().is_some()
+                {
+                    bail!("Termina o interrumpe el turno actual antes de enviar otro mensaje");
+                }
+                self.apply(Event::Submit { id: id(), text }).await?;
+            }
+            Command::NewSession => {
+                self.ensure_conversation_can_change()?;
+                self.apply(Event::NewSession).await?;
+            }
+            Command::Interrupt => {
+                self.meeting_question_interrupted();
+                self.apply(Event::Interrupt).await?;
+            }
+            Command::PrivacyStop => {
+                self.privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+                    .await
+            }
+            Command::Shutdown => {
+                self.close_for_exit(
+                    orbit_core::privacy_stop::StopCause::Shutdown,
+                    "Orbit se está cerrando a petición del servicio.",
+                )
+                .await;
+                self.retry_seals()?;
+                // The single pending list is the only gate; every vertical
+                // that still holds work is named through `has_any_pending`.
+                let pending = self.has_any_pending();
+                if !pending.is_empty() {
+                    bail!(
+                        "Orbit no sale todavía: queda pendiente de guardar {}; la captura ya está cortada y lo recibido se conserva",
+                        pending.join(", ")
+                    );
+                }
+            }
+            Command::Rearm => {
+                if self.state.capabilities().native_helper() {
+                    // Hand it to the helper rather than refusing: this command
+                    // arrived on this user's own 0600 socket on this Mac, which
+                    // is the presence the latch actually requires, and the menu
+                    // bar is only one way to supply it. The helper owns the
+                    // durable latch, so it answers with a `local_rearm` event
+                    // and that single path rearms the daemon. Remote traffic
+                    // still cannot reach this socket.
+                    self.native_send("rearm", json!({})).await?;
+                    return Ok(());
+                }
+                self.apply(Event::LocalRearm).await?;
+                self.connect();
+            }
+            Command::VoiceStart => self.apply(Event::VoiceStart).await?,
+            Command::VoiceEnd => self.apply(Event::VoiceEnd).await?,
+            Command::VoiceNoteAudio { .. } => {}
+            Command::CallStart { duration_minutes } => {
+                self.apply(Event::CallStart {
+                    id: id(),
+                    duration_ms: i64::from(duration_minutes) * 60_000,
+                })
+                .await?
+            }
+            Command::CallStop => self.apply(Event::CallStop).await?,
+            Command::MeetingStart {
+                title,
+                audio,
+                duration_minutes,
+                event,
+            } => {
+                // P9-11: «Grabar» on an event during a call records the
+                // call's application when the helper says which one holds the
+                // microphone; otherwise the system, as before.
+                let audio = match (&event, audio) {
+                    (Some(_), orbit_core::protocol::MeetingAudio::System) => self
+                        .features
+                        .call
+                        .detector
+                        .holding_call()
+                        .map_or(audio, |app| {
+                            orbit_core::protocol::MeetingAudio::Application {
+                                application_pid: app.application_pid,
+                            }
+                        }),
+                    _ => audio,
+                };
+                self.start_meeting(title, audio, duration_minutes, event, "explicit")
+                    .await?;
+            }
+            Command::MeetingPause => self.apply(Event::PauseMeeting).await?,
+            Command::MeetingResume => self.apply(Event::ResumeMeeting).await?,
+            Command::MeetingFinish => self.apply(Event::FinishMeeting).await?,
+            Command::Approval { approved } => {
+                let approval = self
+                    .state
+                    .durable
+                    .pending_approval
+                    .as_ref()
+                    .context("No hay ninguna aprobación pendiente")?;
+                if approval.clarification {
+                    bail!("Este turno necesita una respuesta escrita");
+                }
+                self.respond_interaction("approval.respond", json!({"session_id":self.state.session_id(),"request_id":approval.request_id,"approved":approved})).await?;
+            }
+            Command::Clarify { answer } => {
+                let approval = self
+                    .state
+                    .durable
+                    .pending_approval
+                    .as_ref()
+                    .context("No hay ninguna aclaración pendiente")?;
+                if !approval.clarification {
+                    bail!("Este turno necesita permitir o rechazar");
+                }
+                self.respond_interaction("clarify.respond", json!({"session_id":self.state.session_id(),"request_id":approval.request_id,"answer":answer})).await?;
+            }
+            Command::Permissions { request } => {
+                if request
+                    .iter()
+                    .any(|permission| permission == crate::permissions::CALENDARS)
+                {
+                    if request != [crate::permissions::CALENDARS] {
+                        bail!(
+                            "Solicita el permiso de calendario por separado de los demás permisos"
+                        );
+                    }
+                    self.calendar_command(
+                        orbit_core::calendar_control::CalendarCommand::RequestPermission,
+                    )?;
+                    return Ok(());
+                }
+                self.native_send("permissions", json!({"request":request}))
+                    .await?
+            }
+        }
+        Ok(())
+    }
+}

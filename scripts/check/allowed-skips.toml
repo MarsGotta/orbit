@@ -1,0 +1,23 @@
+# Saltos permitidos de scripts/check.sh (REF-02 A2).
+#
+# Un test saltado no es un test pasado. La puerta falla con cualquier salto
+# (o fallo esperado) que no esté aquí con su suite, su test y su motivo.
+#
+# - suite: el identificador del paso que lo ejecuta (`scripts/check.sh --plan`).
+# - test: como lo nombra el informe de esa suite:
+#     pytest, vitest              ->  clase::nombre del informe JUnit
+#     cargo test                  ->  binario-sin-hash::ruta::del::test
+#     guards (unittest)           ->  modulo.Clase.test
+# - reason: por qué no puede correr aquí. Sin motivo no hay salto.
+#
+# Los e2e del hub no están ni pueden estar: la puerta les da ORBIT_TEST_BINARY.
+
+[[skip]]
+suite = "rust-test"
+test = "orbit_daemon::daemon::finalize::tests::write_ref24_manifest_fixtures"
+reason = "no es una prueba: regenera los tres manifiestos contractuales de REF-24; la comparación semántica de sus valores JSON sí corre siempre"
+
+[[skip]]
+suite = "rust-test"
+test = "orbit_daemon::daemon::topics::measurement_tests::measure_worst_case_projections"
+reason = "medida manual repetible de SIM-74 en el Mac (la orden está junto al test); imprime tiempos y no comprueba nada"

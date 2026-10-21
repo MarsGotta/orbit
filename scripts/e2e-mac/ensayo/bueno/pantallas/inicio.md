@@ -1,0 +1,7 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXHeading
+      - AXStaticText = "Bienvenida a Orbit"
+    - AXStaticText = "Configura una vez el hub y los permisos del sistema."
+    - [1] AXButton "Saltar este paso" [actions=[press]]
+    - [2] AXButton "Continuar" [actions=[press]]

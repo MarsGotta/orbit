@@ -1,0 +1,165 @@
+.panel {
+  width: 288px;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--o-line);
+  background: var(--o-s1);
+}
+
+.panel[data-narrow="true"] {
+  width: 244px;
+}
+
+.header {
+  height: 46px;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--o-line);
+  font-size: var(--o-font-13);
+}
+
+.header span,
+.meta {
+  color: var(--o-subtle);
+  font-family: var(--o-font-mono);
+  font-size: var(--o-font-10);
+}
+
+.groups {
+  flex: 1;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+.group {
+  margin: 0 0 10px;
+  padding: 0;
+}
+
+.group h2 {
+  margin: 0;
+  padding: 6px 8px;
+  color: var(--o-subtle);
+  font-size: var(--o-font-10);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.row {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 2px;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--o-radius-10);
+  background: transparent;
+  color: var(--o-fg);
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--o-hover);
+}
+
+.row[data-active="true"] {
+  background: var(--o-accent-soft);
+}
+
+.initial {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  flex: none;
+  margin-top: 1px;
+  place-items: center;
+  border-radius: var(--o-radius-6);
+  background: var(--o-accent-soft);
+  color: var(--o-accent-ink);
+  font-size: var(--o-font-10);
+  font-weight: 700;
+  position: relative;
+}
+
+.row[data-turn-active="true"] .initial::after {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid var(--o-s1);
+  border-radius: var(--o-radius-pill);
+  background: var(--o-orange);
+  content: "";
+  animation: session-pulse 1.4s ease-out infinite;
+}
+
+.copy {
+  min-width: 0;
+  display: grid;
+  flex: 1;
+}
+
+.copy strong,
+.copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy strong {
+  font-size: var(--o-font-12-5);
+  font-weight: 500;
+}
+
+.copy small {
+  margin-top: 1px;
+  color: var(--o-subtle);
+  font-size: var(--o-font-11-5);
+}
+
+.meta {
+  margin-top: 2px;
+}
+
+@keyframes session-pulse {
+  50% {
+    box-shadow: 0 0 0 5px var(--o-orange-soft);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row[data-turn-active="true"] .initial::after {
+    animation: none;
+  }
+}
+
+/* P9-04: a note's line says it is recording, being worked on or failed. */
+.copy small[data-tone="live"],
+.copy small[data-tone="failed"] {
+  color: var(--o-red);
+}
+
+.copy small[data-tone="working"] {
+  color: var(--o-muted);
+  font-style: italic;
+}
+
+.copy small[data-tone="live"]::before {
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+  margin-right: 6px;
+  border-radius: var(--o-radius-pill);
+  background: var(--o-red);
+  content: "";
+  vertical-align: 1px;
+}

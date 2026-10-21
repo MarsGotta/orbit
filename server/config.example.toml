@@ -1,0 +1,51 @@
+# Ajustar rutas y URL al servidor real. Nunca guardar secretos aquí.
+data_dir = "/srv/orbit/data"
+key_file = "/srv/orbit/secrets/storage.key"
+hermes_url = "http://127.0.0.1:8643"
+hermes_credential_file = "/srv/orbit/secrets/hermes-token"
+hermes_ws_auth = "token"
+profile = "default"
+allow_insecure_localhost = true
+allowed_hosts = ["localhost", "127.0.0.1", "orbit.example.ts.net"]
+
+# Transcripción de reuniones. Obligatoria (P7-06): sin esta tabla el hub no
+# arranca. Un servicio compatible con la API de transcripción de OpenAI; por
+# http sólo en loopback. Sin `language`, Whisper detecta el idioma él mismo.
+[meeting_transcription]
+endpoint = "http://127.0.0.1:6394"
+model = "openai/whisper-large-v3"
+
+# El modelo que escribe las notas de reunión: título, resumen por
+# plantilla, tareas, decisiones y temas abiertos. Cualquier API compatible con
+# OpenAI que respete `response_format: json_schema`. Sin esta tabla las
+# reuniones se transcriben igual y su nota dice que no hay modelo configurado.
+# La clave vive sólo aquí, en un fichero 0600 del usuario del hub.
+# [processing]
+# endpoint = "https://model.example.test/v1/chat/completions"
+# model = "qwen3.8-flash-next"
+# credential_file = "/srv/orbit/secrets/llm-procesamiento.key"
+# "off" pide no razonar antes de contestar (Qwen: 30 s en vez de 75 s por una
+# reunión de 2 h, ambas válidas). "provider_default" no manda nada.
+# reasoning = "off"
+# timeout_seconds = 300
+# max_completion_tokens = 8192
+# context_tokens = 131072
+
+# Puente de dispositivos: Deimos ve la pantalla, el texto seleccionado y la
+# agenda del Mac, y lo controla, a través de orbit-mcp. La clave firma las
+# peticiones privadas de orbit-mcp; fichero 0600 de 32 bytes.
+# [device_bridge]
+# key_id = "deimos-bridge"
+# credential_file = "/srv/orbit/secrets/device-bridge.key"
+
+# Reuniones para Deimos: orbit_meetings, orbit_transcript y orbit_note de
+# orbit-mcp. Misma forma que el puente, con su propia clave.
+# [meetings_bridge]
+# key_id = "deimos-meetings"
+# credential_file = "/srv/orbit/secrets/meetings.key"
+
+# Informes de errores a Sentry (SIM-22). Sin esta tabla no sale nada. Sólo se
+# envían códigos, la `op`, la ruta como plantilla y números: nunca el texto de
+# una excepción ni contenido. Ver docs/self-hosting.md.
+# [error_reports]
+# dsn = "https://<clave pública>@<organización>.ingest.<región>.sentry.io/<proyecto>"

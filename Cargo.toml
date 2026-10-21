@@ -1,0 +1,49 @@
+[workspace]
+members = [
+    "crates/orbit-core",
+    "crates/orbit-update",
+    "crates/orbit-store",
+    "crates/orbit-ipc",
+    "crates/orbit-daemon",
+    "crates/orbit-app-core",
+    "apps/desktop/src-tauri",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.9.0"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT"
+
+[workspace.dependencies]
+anyhow = "1.0"
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+semver = "1.0"
+serde_path_to_error = "0.1"
+thiserror = "2.0"
+uuid = { version = "1.18", features = ["v4", "serde"] }
+sha2 = "0.10"
+sha1 = "0.10"
+tempfile = "3.23"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+
+[profile.release]
+lto = "thin"
+strip = true
+codegen-units = 1
+# Line tables in a dSYM beside the binary, never inside it: the shipped binary
+# stays stripped, and the release's dSYM goes to Sentry so a panic of the app
+# (the daemon runs inside it since SIM-51) gets its function names and lines
+# (scripts/release/upload-symbols.sh).
+debug = "line-tables-only"
+split-debuginfo = "packed"

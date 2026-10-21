@@ -1,0 +1,37 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Vistas)
+      - [1] AXButton (Briefing de hoy) [actions=[press]]
+      - [2] AXButton (Calendario) [actions=[press]]
+      - [3] AXButton (Notas) [actions=[press]]
+      - [4] AXButton (Asistente) [actions=[press]]
+      - [5] AXButton (Ajustes) [actions=[press]]
+    - AXHeading
+      - [6] AXTextField = "Reunión 16/10/26, 10:00" (Título de la reunión) [actions=[confirm]]
+    - AXStaticText = "Se revisó el presupuesto y el calendario de obras."
+    - AXGroup
+      - [30] AXButton "Preguntar a Deimos" [actions=[press]]
+      - AXGroup
+        - AXStaticText = "Idioma"
+        - [31] AXPopUpButton = "Español" (Idioma) [actions=[press,showmenu]]
+    - AXTabGroup (Notas)
+      - [7] AXRadioButton "Notas privadas" [actions=[press]]
+      - [8] AXRadioButton "Resumen" [actions=[press]]
+      - [9] AXRadioButton "Acciones" [actions=[press]]
+      - [10] AXRadioButton "Transcripción" [actions=[press]]
+    - AXGroup
+      - [11] AXButton "Copiar todas" [actions=[press]]
+      - AXHeading
+        - AXStaticText = "Laura"
+      - [12] AXCheckBox "Llamar al proveedor para pedir un descuento" = "0" [actions=[press]]
+      - AXStaticText = "Plazo: viernes"
+      - AXHeading
+        - AXStaticText = "Alina Pérez"
+      - [13] AXCheckBox "Enviar los planos firmados al arquitecto" = "0" [actions=[press]]
+      - AXStaticText = "Plazo: lunes"
+      - AXHeading
+        - AXStaticText = "Pedro"
+      - [14] AXCheckBox "Escribir al ayuntamiento para pedir el almacén" = "0" [actions=[press]]
+      - AXStaticText = "Plazo: esta semana"
+    - AXGroup (Panel de contexto)
+      - [40] AXButton "R Reunión 16/10/26, 10:00 › Se revisó el presupuesto y el calendario de obras 16 oct" [actions=[press]]

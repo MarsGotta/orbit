@@ -1,0 +1,47 @@
+{
+  "schema": "orbit.device-bridge-request.v1",
+  "requests": [
+    {
+      "capability": "calendar_read",
+      "parameters": {
+        "start_ms": 1790200800000,
+        "end_ms": 1790287200000
+      }
+    },
+    {
+      "capability": "control_tools",
+      "parameters": {
+        "after_index": 2
+      }
+    },
+    {
+      "capability": "screenshot",
+      "parameters": {
+        "full_screen": true
+      }
+    }
+  ],
+  "continuations": [
+    {
+      "capability": "calendar_read",
+      "parameters": {
+        "start_ms": 1790200800000,
+        "end_ms": 1790287200000,
+        "read_id": "7a1b0000-0000-4000-8000-00000000c0de",
+        "after_ms": 1790200800000,
+        "after_index": 40
+      }
+    },
+    {
+      "capability": "calendar_read",
+      "parameters": {
+        "start_ms": 1790200800000,
+        "end_ms": 1790287200000,
+        "read_id": "7a1b0000-0000-4000-8000-00000000c0de",
+        "after_ms": 1790200800000,
+        "after_index": 40,
+        "after_invitee": 250
+      }
+    }
+  ]
+}

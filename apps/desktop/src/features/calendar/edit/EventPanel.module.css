@@ -1,0 +1,267 @@
+/* P9-22: the event panel when it edits. The same surface as P9-20's
+   detail (CalendarView.module.css .eventDetails); only Orbit's tokens. */
+.panel {
+  display: flex;
+  max-height: calc(100% - 74px);
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  animation: o-in 160ms cubic-bezier(0.2, 0.6, 0.2, 1);
+}
+
+.title {
+  min-width: 0;
+  flex: 1;
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--o-fg);
+  font-family: var(--o-font-display);
+  font-size: var(--o-font-19);
+  font-weight: 600;
+  outline: none;
+}
+
+.title::placeholder {
+  color: var(--o-subtle);
+}
+
+.title:focus {
+  border-bottom-color: var(--o-accent);
+}
+
+/* The underline is the focus here; the global ring would box the heading. */
+.title:focus-visible {
+  outline: none;
+}
+
+.locked {
+  margin: 0;
+  padding: 7px 10px;
+  border-radius: var(--o-radius-9);
+  background: var(--o-hover);
+  color: var(--o-muted);
+  font-size: var(--o-font-12);
+}
+
+.when {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.label {
+  color: var(--o-subtle);
+  font-size: var(--o-font-11);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.dates,
+.row,
+.repeat,
+.interval,
+.toggle {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.row {
+  justify-content: space-between;
+}
+
+.toggle {
+  color: var(--o-muted);
+  font-size: var(--o-font-12);
+}
+
+.dates input,
+.time,
+.interval input,
+.select,
+.repeat select,
+.text,
+.notes {
+  min-width: 0;
+  height: var(--o-control-small);
+  padding: 0 8px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-7);
+  background: var(--o-s1);
+  color: var(--o-fg);
+  font: inherit;
+  font-size: var(--o-font-12-5);
+  color-scheme: inherit;
+}
+
+.dates input:focus-visible,
+.time:focus-visible,
+.interval input:focus-visible,
+.select:focus-visible,
+.repeat select:focus-visible,
+.text:focus-visible,
+.notes:focus-visible {
+  border-color: var(--o-accent);
+  outline: none;
+}
+
+.interval input {
+  width: 52px;
+}
+
+.time {
+  width: 64px;
+  font-family: var(--o-font-mono);
+  text-align: center;
+}
+
+.interval span {
+  color: var(--o-muted);
+  font-size: var(--o-font-12);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.text {
+  width: 100%;
+}
+
+.notes {
+  width: 100%;
+  height: auto;
+  min-height: 52px;
+  padding: 6px 8px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.select {
+  flex: 1;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: var(--o-radius-pill);
+  background: var(--event-color);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.chips .label {
+  width: 100%;
+}
+
+.chip {
+  height: var(--o-control-compact);
+  padding: 0 9px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-pill);
+  background: transparent;
+  color: var(--o-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--o-font-11-5);
+}
+
+.chip:hover {
+  background: var(--o-hover);
+  color: var(--o-fg);
+}
+
+.chip[aria-pressed="true"] {
+  border-color: var(--o-accent);
+  background: var(--o-accent-soft);
+  color: var(--o-accent-ink);
+}
+
+.hint {
+  width: 100%;
+  margin: 0;
+  color: var(--o-subtle);
+  font-size: var(--o-font-11);
+  line-height: 1.4;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--o-line);
+}
+
+.actions kbd {
+  margin-left: 8px;
+}
+
+.delete {
+  margin-left: auto;
+  color: var(--o-red);
+}
+
+.delete + .delete {
+  margin-left: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+}
+
+/* What a write ended in. A refusal and an unknown outcome are red and
+   orange; a gesture Orbit did not try is the calm accent; an undo on its
+   way is plain. */
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 8px 4px 16px;
+  background: var(--o-red-soft);
+  color: var(--o-red);
+  font-size: var(--o-font-11-5);
+  line-height: 1.4;
+  animation: o-in 160ms ease;
+}
+
+.notice[data-kind="unknown"] {
+  background: var(--o-orange-soft);
+  color: var(--o-orange);
+}
+
+.notice[data-kind="blocked"] {
+  background: var(--o-accent-soft);
+  color: var(--o-accent-ink);
+}
+
+.notice[data-kind="info"] {
+  background: var(--o-hover);
+  color: var(--o-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notice {
+    animation: none;
+  }
+}

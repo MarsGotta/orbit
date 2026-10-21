@@ -1,0 +1,10 @@
+{
+  "event": "notice",
+  "v": 1,
+  "code": "wake_phrase_abandoned",
+  "abandonment": {
+    "cause": "phrase_revised",
+    "elapsed_ms": 1800,
+    "silent_ms": 0
+  }
+}

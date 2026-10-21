@@ -1,0 +1,25 @@
+[project]
+name = "orbit-hub"
+version = "0.9.0"
+description = "Authenticated device bridge for Orbit and the Hermes Deimos profile"
+requires-python = ">=3.11"
+dependencies = ["cryptography", "fastapi", "httpx", "mcp>=2.2,<3", "pydantic", "PyYAML==6.0.3", "sentry-sdk==2.71.0", "uvicorn", "websockets"]
+
+[project.scripts]
+orbit-hub = "orbit_hub.cli:main"
+orbit-mcp = "orbit_mcp.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest", "pytest-asyncio", "ruff"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100

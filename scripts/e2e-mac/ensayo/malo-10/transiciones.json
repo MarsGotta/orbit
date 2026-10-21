@@ -1,0 +1,19 @@
+{
+ "grabando": {
+  "click:Terminar": {
+   "a": "guardada",
+   "registro": {
+    "report-daemon.log": {
+     "op": "7f3a2c11-sim25",
+     "code": "capture_cut",
+     "class": "failed",
+     "source": "daemon",
+     "data": {
+      "fragments": 2,
+      "cause": "helper_lost"
+     }
+    }
+   }
+  }
+ }
+}

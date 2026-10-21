@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000901",
+  "event": "interaction.resolved",
+  "data": {
+    "session_id": "00000000-0000-4000-8000-000000000902",
+    "request_id": "approval-1",
+    "status": "ok",
+    "applied": true,
+    "resolved": 1,
+    "remaining": null,
+    "stale_interaction": null,
+    "turn_id": null
+  }
+}

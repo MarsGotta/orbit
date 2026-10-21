@@ -1,0 +1,98 @@
+.overlay {
+  position: fixed;
+  z-index: 40;
+  inset: 44px 0 0;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: 32px;
+  background:
+    radial-gradient(circle at 50% 15%, var(--o-accent-soft), transparent 34%), var(--o-bg);
+  pointer-events: none;
+}
+
+.overlay > section {
+  width: min(100%, 620px);
+}
+
+.step {
+  display: grid;
+  gap: 16px;
+  min-height: 330px;
+  align-content: center;
+  padding: 28px;
+}
+
+.step button,
+.step input {
+  pointer-events: auto;
+}
+
+.step h1 {
+  margin: 0;
+  font-family: var(--o-font-display);
+  font-size: var(--o-font-27);
+  letter-spacing: -0.02em;
+}
+
+.step p {
+  max-width: 54ch;
+  margin: 0;
+  color: var(--o-muted);
+  font-size: var(--o-font-14);
+  line-height: 1.55;
+}
+
+.step label {
+  display: grid;
+  gap: 6px;
+  color: var(--o-muted);
+  font-size: var(--o-font-12);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 8px;
+}
+
+.permissionList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.permissionList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 46px;
+  padding: 8px 12px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-12);
+  background: var(--o-s2);
+}
+
+.pairError {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: var(--o-radius-10);
+  background: var(--o-red-soft);
+  color: var(--o-red);
+  font-size: var(--o-font-12);
+}
+
+@media (max-width: 600px) {
+  .overlay {
+    padding: 16px;
+  }
+
+  .step {
+    min-height: 0;
+    padding: 18px;
+  }
+}

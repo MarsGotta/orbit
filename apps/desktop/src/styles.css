@@ -1,0 +1,48 @@
+:root {
+  font-family: var(--o-font-body);
+  color: var(--o-fg);
+  background: var(--o-bg);
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--o-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--o-accent-ink);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: var(--o-radius-pill);
+  background: var(--o-scrollbar);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}

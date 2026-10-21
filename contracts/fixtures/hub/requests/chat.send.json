@@ -1,0 +1,19 @@
+{
+  "method": "chat.send",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000901",
+  "params": {
+    "text": "mensaje sintético",
+    "session_id": "00000000-0000-4000-8000-000000000902",
+    "call_active": false,
+    "client_id": "00000000-0000-4000-8000-000000000903",
+    "voice": {
+      "duration_ms": 4200
+    },
+    "meeting": {
+      "recording_id": "00000000-0000-4000-8000-000000000904",
+      "minutes": 2,
+      "title": "Reunión sintética"
+    }
+  }
+}

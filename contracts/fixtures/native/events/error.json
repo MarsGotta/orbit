@@ -1,0 +1,7 @@
+{
+  "event": "error",
+  "v": 1,
+  "code": "audio_route_start_failed",
+  "os_domain": "NSOSStatusErrorDomain",
+  "os_status": -50
+}

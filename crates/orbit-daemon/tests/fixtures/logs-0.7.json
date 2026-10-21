@@ -1,0 +1,4 @@
+{
+  "diagnostic": {"time":"2026-10-16T09:30:00.123Z", "pid":0, "event":"fixture_log", "fields":{"attempt":"1"}},
+  "report": {"ts":"2026-10-16T09:30:00.123Z", "op":"0123abcd-ef", "code":"capture_cut", "class":"failed", "source":"daemon", "data":{"fragments":3,"cause":"helper_lost"}}
+}

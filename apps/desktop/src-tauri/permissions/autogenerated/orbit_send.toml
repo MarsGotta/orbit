@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-orbit-send"
+description = "Enables the orbit_send command without any pre-configured scope."
+commands.allow = ["orbit_send"]
+
+[[permission]]
+identifier = "deny-orbit-send"
+description = "Denies the orbit_send command without any pre-configured scope."
+commands.deny = ["orbit_send"]

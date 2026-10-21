@@ -1,0 +1,149 @@
+/* P9-20: the month as whole weeks; a row of 22 px per event. */
+.month {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.weekdays,
+.week {
+  display: grid;
+  grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+}
+
+.weekdays {
+  flex: none;
+  border-bottom: 1px solid var(--o-line);
+}
+
+.weekdays > div {
+  padding: 8px 10px;
+  color: var(--o-muted);
+  font-size: var(--o-font-11);
+  text-transform: capitalize;
+}
+
+.week {
+  min-height: 0;
+  flex: 1;
+  border-bottom: 1px solid var(--o-line);
+}
+
+.cell {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  padding: 3px 4px 4px;
+  border-left: 1px solid var(--o-line);
+}
+
+.week .cell:first-child {
+  border-left: 0;
+}
+
+.outside {
+  background: var(--o-hover);
+}
+
+.outside .number {
+  color: var(--o-subtle);
+}
+
+.number,
+.todayNumber {
+  display: grid;
+  min-width: 22px;
+  height: 22px;
+  flex: none;
+  place-items: center;
+  align-self: flex-start;
+  margin-bottom: 2px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--o-radius-pill);
+  background: transparent;
+  color: var(--o-fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--o-font-12);
+  font-weight: 600;
+}
+
+.number:hover {
+  background: var(--o-hover);
+}
+
+.todayNumber {
+  background: var(--o-accent);
+  color: var(--o-white);
+}
+
+.row,
+.bar {
+  display: flex;
+  height: 22px;
+  min-width: 0;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  padding: 0 6px 0 5px;
+  border: 0;
+  border-left: 3px solid var(--event-color);
+  border-radius: var(--o-radius-5);
+  background: transparent;
+  color: var(--o-fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--o-font-11-5);
+  text-align: left;
+}
+
+.row:hover {
+  background: var(--o-hover);
+}
+
+.bar {
+  background: var(--event-bg);
+  font-weight: 600;
+}
+
+.striped {
+  background-image: repeating-linear-gradient(-45deg, transparent 0 5px, var(--o-press) 5px 9px);
+}
+
+.title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row time {
+  flex: none;
+  color: var(--o-muted);
+  font-family: var(--o-font-mono);
+  font-size: var(--o-font-10);
+}
+
+.more {
+  align-self: flex-start;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--o-radius-5);
+  background: transparent;
+  color: var(--o-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--o-font-11);
+  font-weight: 600;
+}
+
+.more:hover {
+  background: var(--o-hover);
+  color: var(--o-fg);
+}

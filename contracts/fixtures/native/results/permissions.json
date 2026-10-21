@@ -1,0 +1,6 @@
+{
+  "accessibility": true,
+  "calendars": "full_access",
+  "microphone": "authorized",
+  "screen": true
+}

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>NSCalendarsFullAccessUsageDescription</key><string>Orbit necesita acceso completo a tus calendarios para leer tus eventos y para crear, mover, editar y borrar los eventos que tú cambies desde Orbit.</string>
+  <key>CFBundleIdentifier</key><string>app.orbit.companion</string>
+  <key>CFBundleName</key><string>Orbit</string>
+  <key>CFBundleDisplayName</key><string>Orbit</string>
+  <key>CFBundleExecutable</key><string>Orbit</string>
+  <key>CFBundleIconFile</key><string>icon.icns</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>0.9.0</string>
+  <key>CFBundleVersion</key><string>2</string>
+  <key>LSMinimumSystemVersion</key><string>15.0</string>
+  <key>NSHighResolutionCapable</key><true/>
+  <key>NSMicrophoneUsageDescription</key><string>Orbit usa el micrófono solo cuando activas una conversación o autorizas una grabación.</string>
+  <key>NSAudioCaptureUsageDescription</key><string>Orbit captura el audio de la aplicación que autorizas para conservar tu reunión.</string>
+  <key>NSScreenCaptureUsageDescription</key><string>Orbit ve la pantalla solo durante una llamada activa o cuando se lo pides.</string>
+</dict></plist>

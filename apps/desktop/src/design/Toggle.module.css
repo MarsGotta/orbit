@@ -1,0 +1,37 @@
+.toggle {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  min-height: 24px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--o-radius-pill);
+  background: var(--o-s3);
+  cursor: pointer;
+}
+
+.checked {
+  background: var(--o-accent);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--o-accent-ink);
+  outline-offset: 2px;
+}
+
+.knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--o-radius-pill);
+  background: var(--o-white);
+  box-shadow: 0 1px 3px var(--o-shadow-medium);
+  transition: transform 160ms ease;
+}
+
+.checked .knob {
+  transform: translateX(18px);
+}

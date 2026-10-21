@@ -1,0 +1,39 @@
+.avatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: var(--o-radius-pill);
+  color: var(--o-white);
+  font-weight: 700;
+}
+
+.accent {
+  background: var(--o-accent);
+}
+
+.orange {
+  background: var(--o-orange);
+}
+
+.blue {
+  background: var(--o-blue);
+}
+
+.green {
+  background: var(--o-green);
+}
+
+.gray {
+  background: var(--o-muted);
+}
+
+.size18 {
+  width: 18px;
+  font-size: var(--o-font-9);
+}
+
+.size30 {
+  width: 30px;
+  font-size: var(--o-font-12);
+}

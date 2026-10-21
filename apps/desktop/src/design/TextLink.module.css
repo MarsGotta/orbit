@@ -1,0 +1,17 @@
+.link {
+  color: var(--o-accent-ink);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+.link:focus-visible {
+  border-radius: var(--o-radius-5);
+  outline: 2px solid var(--o-accent-ink);
+  outline-offset: 2px;
+}

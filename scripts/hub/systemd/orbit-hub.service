@@ -1,0 +1,27 @@
+[Unit]
+# Render with scripts/hub/render-unit.sh; see docs/self-hosting.md.
+# The hub binds loopback; its reverse proxy terminates TLS.
+Description=Orbit Hub - active release
+After=network-online.target hermes-serve-orbit.service
+Wants=network-online.target
+# The hub reconnects while its backend starts; restarting one need not stop both.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+EnvironmentFile=@ORBIT_HUB_ENV_FILE@
+ExecStart=@ORBIT_HUB_BASE@/current/.venv/bin/orbit-hub --config @ORBIT_HUB_CONFIG@ serve --host 127.0.0.1 --port 8700
+WorkingDirectory=@ORBIT_HUB_BASE@/current
+Environment="PATH=%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+UMask=0077
+Restart=always
+RestartSec=5
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,17 @@
+{
+  "method": "device.reply",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000405",
+  "params": {
+    "request_id": "00000000-0000-4000-8000-000000000405",
+    "result": {
+      "capture_id": "capture-1",
+      "application": "Safari",
+      "title": "Correo",
+      "width": 100,
+      "height": 80,
+      "mime_type": "image/png",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  }
+}

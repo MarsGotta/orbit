@@ -1,0 +1,31 @@
+{
+  "applications": [
+    {
+      "application_name": "Fixture",
+      "application_pid": 4242,
+      "binding": {
+        "application_instance_id": "00000000-0000-4000-8000-000000000911",
+        "application_pid": 4242,
+        "clock_domain": "mach_absolute_time",
+        "expires_monotonic_ns": 200,
+        "identity": {
+          "bundle_id": "com.example.meeting",
+          "bundle_path": "/Applications/Fixture.app",
+          "designated_requirement_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "identity_token": "00000000-0000-4000-8000-000000000911",
+        "native_instance_id": "00000000-0000-4000-8000-000000000911",
+        "observed_monotonic_ns": 100,
+        "privacy_generation": 1
+      },
+      "bundle_id": "com.example.meeting",
+      "unavailable_reason": null
+    }
+  ],
+  "clock_domain": "mach_absolute_time",
+  "completed_monotonic_ns": 200,
+  "native_instance_id": "00000000-0000-4000-8000-000000000911",
+  "observed_monotonic_ns": 100,
+  "omitted_count": 0,
+  "privacy_generation": 1
+}

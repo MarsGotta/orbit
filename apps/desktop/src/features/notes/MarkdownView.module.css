@@ -1,0 +1,72 @@
+.markdown {
+  font-size: var(--o-font-14-5);
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown p,
+.markdown ul,
+.markdown ol {
+  margin: 0 0 10px;
+}
+
+.markdown ul,
+.markdown ol {
+  padding-left: 20px;
+}
+
+.markdown li + li {
+  margin-top: 4px;
+}
+
+.markdown h3,
+.markdown h4,
+.markdown h5 {
+  margin: 14px 0 6px;
+  font-size: var(--o-font-14-5);
+  font-weight: 600;
+}
+
+.markdown a {
+  color: var(--o-accent-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown .tasks {
+  padding-left: 0;
+  list-style: none;
+}
+
+.tasks li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.box {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  margin-top: 4px;
+  border: 1.5px solid var(--o-line-strong);
+  border-radius: 5px;
+}
+
+.tasks li[data-checked="true"] .box {
+  border-color: var(--o-accent);
+  background: var(--o-accent);
+}
+
+.tasks li[data-checked="true"] > span:last-child {
+  color: var(--o-muted);
+  text-decoration: line-through;
+}

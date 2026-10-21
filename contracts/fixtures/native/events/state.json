@@ -1,0 +1,32 @@
+{
+  "event": "state",
+  "v": 1,
+  "privacy_stopped": false,
+  "connected": true,
+  "native_instance_id": "00000000-0000-4000-8000-000000000911",
+  "privacy_generation": 1,
+  "selected_text_available": true,
+  "microphone": false,
+  "system_audio": false,
+  "playing": false,
+  "supported_audio_processing": [
+    "unprocessed",
+    "voice_processing"
+  ],
+  "voice_processing_available": false,
+  "playback_reference_available": false,
+  "audio_processing": {
+    "mode": "unprocessed",
+    "enabled": false,
+    "bypassed": true,
+    "agc_enabled": false,
+    "playback_reference": "none",
+    "pipeline_id": "fixture",
+    "engine_running": false,
+    "render_sample_rate": 48000
+  },
+  "calendar": {
+    "authorization": "full_access",
+    "physical_read_pending": false
+  }
+}

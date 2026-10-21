@@ -1,0 +1,5 @@
+{"ts": "2026-10-16T10:00:01.000Z", "op": "0b1e2f30-pair", "code": "paired", "class": "done", "source": "daemon", "data": {}}
+{"ts": "2026-10-16T10:00:05.000Z", "op": "0b1e2f31-rec", "code": "wake_phrase_listening", "class": "silent", "source": "daemon", "data": {}}
+{"ts": "2026-10-16T10:02:11.000Z", "op": "0b1e2f32-fin", "code": "recording_finished", "class": "done", "source": "daemon", "data": {}}
+{"ts": "2026-10-16T10:02:12.000Z", "op": "0b1e2f32-fin", "code": "transcript_pending", "class": "working", "source": "daemon", "data": {}}
+{"ts": "2026-10-16T10:03:30.000Z", "op": "0b1e2f32-fin", "code": "transcript_saved", "class": "done", "source": "daemon", "data": {}}

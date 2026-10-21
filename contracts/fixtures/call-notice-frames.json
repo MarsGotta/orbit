@@ -1,0 +1,260 @@
+[
+  {
+    "notice": {
+      "code": "voice_transcribing",
+      "op": "call-transcription-0",
+      "sequence": 4
+    },
+    "notices": [
+      {
+        "code": "call_starting",
+        "sequence": 1
+      },
+      {
+        "code": "call_active",
+        "sequence": 2
+      },
+      {
+        "code": "voice_note_saved",
+        "op": "call-transcription-0",
+        "sequence": 3
+      },
+      {
+        "code": "voice_transcribing",
+        "op": "call-transcription-0",
+        "sequence": 4
+      }
+    ]
+  },
+  {
+    "notice": {
+      "code": "assistant_interrupt_requested",
+      "op": "call-barge-in-0",
+      "sequence": 6
+    },
+    "notices": [
+      {
+        "code": "call_starting",
+        "sequence": 1
+      },
+      {
+        "code": "call_active",
+        "sequence": 2
+      },
+      {
+        "code": "voice_note_saved",
+        "op": "call-transcription-0",
+        "sequence": 3
+      },
+      {
+        "code": "voice_transcribing",
+        "op": "call-transcription-0",
+        "sequence": 4
+      },
+      {
+        "code": "voice_turn_cancelled",
+        "op": "call-transcription-0",
+        "sequence": 5
+      },
+      {
+        "code": "assistant_interrupt_requested",
+        "op": "call-barge-in-0",
+        "sequence": 6
+      }
+    ]
+  },
+  {
+    "notice": {
+      "code": "voice_transcribing",
+      "op": "call-transcription-1",
+      "sequence": 8
+    },
+    "notices": [
+      {
+        "code": "call_starting",
+        "sequence": 1
+      },
+      {
+        "code": "call_active",
+        "sequence": 2
+      },
+      {
+        "code": "voice_note_saved",
+        "op": "call-transcription-0",
+        "sequence": 3
+      },
+      {
+        "code": "voice_transcribing",
+        "op": "call-transcription-0",
+        "sequence": 4
+      },
+      {
+        "code": "voice_turn_cancelled",
+        "op": "call-transcription-0",
+        "sequence": 5
+      },
+      {
+        "code": "assistant_interrupt_requested",
+        "op": "call-barge-in-0",
+        "sequence": 6
+      },
+      {
+        "code": "voice_note_saved",
+        "op": "call-transcription-1",
+        "sequence": 7
+      },
+      {
+        "code": "voice_transcribing",
+        "op": "call-transcription-1",
+        "sequence": 8
+      }
+    ]
+  },
+  {
+    "notice": {
+      "code": "assistant_interrupt_requested",
+      "op": "call-barge-in-1",
+      "sequence": 10
+    },
+    "notices": [
+      {
+        "code": "voice_note_saved",
+        "op": "call-transcription-0",
+        "sequence": 3
+      },
+      {
+        "code": "voice_transcribing",
+        "op": "call-transcription-0",
+        "sequence": 4
+      },
+      {
+        "code": "voice_turn_cancelled",
+        "op": "call-transcription-0",
+        "sequence": 5
+      },
+      {
+        "code": "assistant_interrupt_requested",
+        "op": "call-barge-in-0",
+        "sequence": 6
+      },
+      {
+        "code": "voice_note_saved",
+        "op": "call-transcription-1",
+        "sequence": 7
+      },
+      {
+        "code": "voice_transcribing",
+        "op": "call-transcription-1",
+        "sequence": 8
+      },
+      {
+        "code": "voice_turn_cancelled",
+        "op": "call-transcription-1",
+        "sequence": 9
+      },
+      {
+        "code": "assistant_interrupt_requested",
+        "op": "call-barge-in-1",
+        "sequence": 10
+      }
+    ]
+  },
+  {
+    "notice": {
+      "code": "voice_transcribing",
+      "op": "call-transcription-2",
+      "sequence": 12
+    },
+    "notices": [
+      {
+        "code": "voice_turn_cancelled",
+        "op": "call-transcription-0",
+        "sequence": 5
+      },
+      {
+        "code": "assistant_interrupt_requested",
+        "op": "call-barge-in-0",
+        "sequence": 6
+      },
+      {
+        "code": "voice_note_saved",
+        "op": "call-transcription-1",
+        "sequence": 7
+      },
+      {
+        "code": "voice_transcribing",
+        "op": "call-transcription-1",
+        "sequence": 8
+      },
+      {
+        "code": "voice_turn_cancelled",
+        "op": "call-transcription-1",
+        "sequence": 9
+      },
+      {
+        "code": "assistant_interrupt_requested",
+        "op": "call-barge-in-1",
+        "sequence": 10
+      },
+      {
+        "code": "voice_note_saved",
+        "op": "call-transcription-2",
+        "sequence": 11
+      },
+      {
+        "code": "voice_transcribing",
+        "op": "call-transcription-2",
+        "sequence": 12
+      }
+    ]
+  },
+  {
+    "notice": {
+      "code": "assistant_interrupt_requested",
+      "op": "call-barge-in-2",
+      "sequence": 14
+    },
+    "notices": [
+      {
+        "code": "voice_note_saved",
+        "op": "call-transcription-1",
+        "sequence": 7
+      },
+      {
+        "code": "voice_transcribing",
+        "op": "call-transcription-1",
+        "sequence": 8
+      },
+      {
+        "code": "voice_turn_cancelled",
+        "op": "call-transcription-1",
+        "sequence": 9
+      },
+      {
+        "code": "assistant_interrupt_requested",
+        "op": "call-barge-in-1",
+        "sequence": 10
+      },
+      {
+        "code": "voice_note_saved",
+        "op": "call-transcription-2",
+        "sequence": 11
+      },
+      {
+        "code": "voice_transcribing",
+        "op": "call-transcription-2",
+        "sequence": 12
+      },
+      {
+        "code": "voice_turn_cancelled",
+        "op": "call-transcription-2",
+        "sequence": 13
+      },
+      {
+        "code": "assistant_interrupt_requested",
+        "op": "call-barge-in-2",
+        "sequence": 14
+      }
+    ]
+  }
+]

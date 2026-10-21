@@ -1,0 +1,85 @@
+import hashlib
+from uuid import uuid4
+
+import pytest
+from conftest import device
+from cryptography.exceptions import InvalidTag
+
+from orbit_hub.protocol import HubError
+from orbit_hub.storage import Store
+
+
+def test_pairing_single_use_expiry_and_revocation(environment):
+    _, store, _ = environment
+    code = store.create_code(1000)
+    paired = store.pair(code, "synthetic-name", 1001)
+    assert store.authenticate(paired["token"]) == paired["device_id"]
+    with pytest.raises(HubError, match="Código"):
+        store.pair(code, "duplicate", 1001)
+    with pytest.raises(HubError):
+        store.pair(store.create_code(1000, 30), "expired", 1031)
+    store.revoke(paired["device_id"])
+    with pytest.raises(HubError):
+        store.authenticate(paired["token"])
+
+
+def test_encrypted_history_ownership_and_restart(environment):
+    settings, store, _ = environment
+    a, b = device(store), device(store)
+    session = store.create_session(a["device_id"], "runtime", "stored", "epoch", 1000)
+    store.append_message(session, "user", "SYNTHETIC-SECRET-CANARY", now_ms=1)
+    store.status(session, "streaming")
+    with pytest.raises(HubError):
+        store.session_messages(b["device_id"], session, None, 1)
+    for path in settings.data_dir.iterdir():
+        if path.is_file():
+            assert b"SYNTHETIC-SECRET-CANARY" not in path.read_bytes()
+    second = Store(settings.data_dir, settings.key_file)
+    assert (
+        second.session(a["device_id"], session)["status"] == "streaming"
+    )  # admin open is harmless
+    second.recover_interrupted()
+    assert second.session(a["device_id"], session)["status"] == "outcome_unknown"
+    second.close()
+
+
+def test_cipher_detects_context_substitution_and_modification(environment):
+    _, store, _ = environment
+    encrypted = store.encrypt(b"fixture", "context-a")
+    with pytest.raises(InvalidTag):
+        store.decrypt(encrypted, "context-b")
+    with pytest.raises(InvalidTag):
+        store.decrypt(encrypted[:-1] + bytes([encrypted[-1] ^ 1]), "context-a")
+
+
+def test_operation_dedup_and_uncertain_receipt(environment):
+    _, store, _ = environment
+    owner = device(store)["device_id"]
+    op = str(uuid4())
+    payload = {"text": "synthetic"}
+    assert store.reserve_operation(owner, op, payload) is None
+    with pytest.raises(HubError) as error:
+        store.reserve_operation(owner, op, payload)
+    assert error.value.code == "outcome_unknown"
+    store.finish_operation(owner, op, {"event": "chat.session"})
+    assert store.reserve_operation(owner, op, payload) == {"event": "chat.session"}
+    with pytest.raises(HubError) as error:
+        store.reserve_operation(owner, op, {"text": "different"})
+    assert error.value.code == "operation_conflict"
+
+
+def test_chunks_idempotent_conflicting_and_revoked(environment):
+    _, store, _ = environment
+    owner, chunk, recording = device(store)["device_id"], str(uuid4()), str(uuid4())
+    body = b"synthetic audio bytes"
+    digest = hashlib.sha256(body).hexdigest()
+    result = store.put_chunk(owner, chunk, recording, "mic_local", 0, digest, body)
+    assert result["durable"]
+    assert store.put_chunk(owner, chunk, recording, "mic_local", 0, digest, body) == result
+    with pytest.raises(HubError):
+        store.put_chunk(owner, chunk, recording, "remote_app", 0, digest, body)
+    with pytest.raises(HubError):
+        store.put_chunk(owner, str(uuid4()), recording, "mic_local", 0, digest, body)
+    store.revoke(owner)
+    with pytest.raises(HubError):
+        store.put_chunk(owner, str(uuid4()), recording, "mic_local", 1, digest, body)

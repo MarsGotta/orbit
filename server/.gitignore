@@ -1,0 +1,9 @@
+/.venv/
+/.uv-tool/
+/.pytest_cache/
+/.ruff_cache/
+*.sqlite*
+*.key
+*.pem
+.env
+

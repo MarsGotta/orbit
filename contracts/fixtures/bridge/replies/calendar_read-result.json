@@ -1,0 +1,73 @@
+{
+  "method": "device.reply",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000405",
+  "params": {
+    "request_id": "00000000-0000-4000-8000-000000000405",
+    "result": {
+      "read_id": "read-1",
+      "requested": {
+        "start_unix_ms": 1790200800000,
+        "end_unix_ms": 1790287200000
+      },
+      "read_at_unix_ms": 1790200800001,
+      "system_timezone": "Europe/Madrid",
+      "provider_sync_status": "unknown",
+      "enumeration": "bounded_local_read",
+      "events_returned": 1,
+      "events": [
+        {
+          "calendar": {
+            "calendar_id": "work",
+            "source_id": "account"
+          },
+          "calendar_item_id": "item-1",
+          "end_unix_ms": 1790204430000,
+          "event_url_status": "not_requested",
+          "interpreted_timezone": "Europe/Madrid",
+          "invitees": [
+            {
+              "email": "guest@example.invalid",
+              "is_current_user": false,
+              "name": "Invitada sintética",
+              "participant_type": "person",
+              "participant_url": "mailto:guest@example.invalid",
+              "response_status": "accepted",
+              "role": "required"
+            }
+          ],
+          "invitees_status": "provided",
+          "is_all_day": false,
+          "is_detached": false,
+          "is_floating": true,
+          "observation_id": "00000000-0000-4000-8000-000000000406",
+          "start_unix_ms": 1790200830000,
+          "status": "confirmed",
+          "title": "Reunión sintética"
+        }
+      ],
+      "omitted": [
+        {
+          "reason": "read_limit",
+          "count": 1
+        }
+      ],
+      "oversized": [
+        {
+          "calendar": {
+            "calendar_id": "work",
+            "source_id": "account"
+          },
+          "calendar_item_id": "item-oversized",
+          "start_unix_ms": 1790200840000,
+          "end_unix_ms": 1790204440000,
+          "field": "title",
+          "bytes": 100000,
+          "limit": 98304
+        }
+      ],
+      "next_after_ms": 1790200860000,
+      "next_after_index": 1
+    }
+  }
+}

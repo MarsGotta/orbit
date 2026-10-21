@@ -1,0 +1,12 @@
+{
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000901",
+  "event": "ready",
+  "data": {
+    "assistant_name": "Atlas",
+    "device_id": "device-1",
+    "hub_protocol": 1,
+    "hub_version": "0.3.12",
+    "device_version": null
+  }
+}

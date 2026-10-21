@@ -1,0 +1,124 @@
+/* prettier-ignore */
+:root{
+  --o-bg:#0A0A0A; --o-s1:#121214; --o-s2:#1A1A1D; --o-s3:#232327;
+  --o-line:rgba(255,255,255,0.09); --o-line-strong:rgba(255,255,255,0.18);
+  --o-fg:#F2F2F4; --o-muted:rgba(255,255,255,0.58); --o-subtle:rgba(255,255,255,0.38);
+  --o-accent:#845ABE; --o-accent-soft:rgba(132,90,190,0.20); --o-accent-ink:#C9B4E8;
+  --o-orange:#E9603A; --o-orange-soft:rgba(233,96,58,0.18);
+  --o-blue:#4E8BF0; --o-blue-soft:rgba(78,139,240,0.16);
+  --o-green:#3AA981; --o-green-soft:rgba(58,169,129,0.16);
+  --o-hover:rgba(255,255,255,0.06); --o-press:rgba(255,255,255,0.12);
+}
+/* prettier-ignore */
+body > div { --o-accent: #845ABE; }
+/* prettier-ignore */
+.o-light{
+  --o-bg:#FFFFFF; --o-s1:#F9F9FA; --o-s2:#F2F2F4; --o-s3:#ECECF0;
+  --o-line:rgba(0,0,0,0.08); --o-line-strong:rgba(0,0,0,0.18);
+  --o-fg:#0A0C11; --o-muted:rgba(10,12,17,0.62); --o-subtle:rgba(10,12,17,0.44);
+  --o-accent:#5F3993; --o-accent-soft:rgba(132,90,190,0.14); --o-accent-ink:#5F3993;
+  --o-orange-soft:rgba(233,96,58,0.14); --o-blue-soft:rgba(78,139,240,0.12); --o-green-soft:rgba(58,169,129,0.12);
+  --o-hover:rgba(0,0,0,0.04); --o-press:rgba(0,0,0,0.09);
+}
+
+:root {
+  --o-white: #ffffff;
+  --o-black: #000000;
+  --o-red: #f05149;
+  --o-red-soft: rgba(240, 81, 73, 0.16);
+  --o-overlay: rgba(10, 12, 17, 0.48);
+  --o-glass: rgba(18, 18, 20, 0.92);
+  --o-glass-fg: #f2f2f4;
+  --o-glass-muted: rgba(255, 255, 255, 0.62);
+  --o-glass-line: rgba(255, 255, 255, 0.18);
+  --o-glass-footer: rgba(0, 0, 0, 0.25);
+  --o-shadow-soft: rgba(0, 0, 0, 0.24);
+  --o-shadow-medium: rgba(0, 0, 0, 0.45);
+  --o-shadow-strong: rgba(0, 0, 0, 0.5);
+  --o-scrollbar: rgba(128, 128, 128, 0.32);
+  --o-avatar-start: #e64241;
+  --o-avatar-end: #e9603a;
+  --o-orb-start: #845abe;
+  --o-orb-end: #5f3993;
+  --o-font-9: 9px;
+  --o-font-10: 10px;
+  --o-font-10-5: 10.5px;
+  --o-font-11: 11px;
+  --o-font-11-5: 11.5px;
+  --o-font-12: 12px;
+  --o-font-12-5: 12.5px;
+  --o-font-13: 13px;
+  --o-font-13-5: 13.5px;
+  --o-font-14: 14px;
+  --o-font-14-5: 14.5px;
+  --o-font-15: 15px;
+  --o-font-16: 16px;
+  --o-font-19: 19px;
+  --o-font-22: 22px;
+  --o-font-24: 24px;
+  --o-font-25: 25px;
+  --o-font-27: 27px;
+  --o-font-30: 30px;
+  --o-radius-5: 5px;
+  --o-radius-6: 6px;
+  --o-radius-7: 7px;
+  --o-radius-8: 8px;
+  --o-radius-9: 9px;
+  --o-radius-10: 10px;
+  --o-radius-12: 12px;
+  --o-radius-14: 14px;
+  --o-radius-16: 16px;
+  --o-radius-18: 18px;
+  --o-radius-20: 20px;
+  --o-radius-22: 22px;
+  --o-radius-pill: 99px;
+  --o-control-compact: 26px;
+  --o-control-small: 28px;
+  --o-control-medium: 30px;
+  --o-control-large: 34px;
+  --o-font-body: "Inter Tight", system-ui, sans-serif;
+  --o-font-display: "Sora", system-ui, sans-serif;
+  --o-font-mono: "JetBrains Mono", monospace;
+}
+
+@keyframes o-bar {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes o-ring {
+  0% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+@keyframes o-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

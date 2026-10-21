@@ -1,0 +1,7 @@
+dist
+node_modules
+pnpm-lock.yaml
+src/bridge/generated/*.ts
+src-tauri/gen
+*.tsbuildinfo
+test-results

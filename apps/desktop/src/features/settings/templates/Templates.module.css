@@ -1,0 +1,120 @@
+.page {
+  display: grid;
+  gap: 8px;
+}
+
+.title {
+  margin: 0 0 4px;
+  color: var(--o-fg);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.hint {
+  margin: 0;
+  color: var(--o-muted);
+  font-size: 12px;
+}
+
+.alert {
+  margin: 0;
+  color: var(--o-orange);
+  font-size: 12px;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) 1fr;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.list ul {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--o-fg);
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--o-hover);
+}
+
+.row[aria-current="true"] {
+  background: var(--o-accent-soft);
+}
+
+.row small {
+  color: var(--o-subtle);
+}
+
+.editor {
+  display: grid;
+  gap: 10px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  color: var(--o-muted);
+  font-size: 12px;
+}
+
+.field input,
+.field textarea,
+.sectionFields input,
+.sectionFields textarea {
+  background: var(--o-s2);
+  color: var(--o-fg);
+  border: 1px solid var(--o-line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.sections ol {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.section {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid var(--o-line);
+  border-radius: 8px;
+  background: var(--o-s1);
+}
+
+.handle {
+  cursor: grab;
+  color: var(--o-subtle);
+  padding-top: 6px;
+  user-select: none;
+}
+
+.sectionFields {
+  display: grid;
+  gap: 4px;
+}

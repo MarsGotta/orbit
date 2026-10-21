@@ -1,0 +1,14 @@
+{
+  "event": "response",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000911",
+  "ok": false,
+  "error": {
+    "code": "calendar_not_editable",
+    "message": "Este evento lo organizó otra persona.",
+    "detail": {
+      "calendar_id": "local-calendar",
+      "reason": "organized_by_someone_else"
+    }
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "generation": 37,
+  "privacy_stopped": true,
+  "privacy_stop_by": "mars",
+  "connection": "online",
+  "session_id": "synthetic-session",
+  "active_request": "synthetic-request",
+  "turn": {
+    "user": {
+      "id": "synthetic-user",
+      "role": "user",
+      "text": "Pregunta sintética",
+      "complete": true,
+      "at_ms": 1234
+    },
+    "answer": {
+      "id": "synthetic-answer",
+      "role": "assistant",
+      "text": "Respuesta sintética",
+      "complete": false,
+      "at_ms": 2345
+    }
+  },
+  "recording": {
+    "id": "synthetic-recording",
+    "title": "Reunión sintética",
+    "started_at_ms": 1000,
+    "expires_at_ms": 9000,
+    "application_pid": null,
+    "phase": "recording",
+    "sealed_chunks": 7,
+    "gaps": 2
+  },
+  "voice_active": true,
+  "call": {
+    "id": "synthetic-call",
+    "phase": "waiting",
+    "started_at_ms": 1000,
+    "expires_at_ms": 9000,
+    "turns": 3
+  },
+  "pending_approval": {
+    "request_id": "synthetic-approval",
+    "description": "Aprobación sintética",
+    "clarification": true
+  },
+  "capabilities": {
+    "native_helper": true,
+    "microphone": true,
+    "microphone_state": "granted",
+    "screen_audio": false,
+    "accessibility": false,
+    "wake_word": true
+  },
+  "notice": {
+    "code": "privacy_stop_kept",
+    "data": {
+      "attributed": true
+    }
+  },
+  "notice_log": {
+    "records": [
+      {
+        "code": "privacy_stop_kept",
+        "data": {
+          "attributed": true
+        }
+      }
+    ]
+  },
+  "pending_jobs": 5,
+  "source_inventory": null,
+  "source_request": null,
+  "source_receipt": null,
+  "recovery": {
+    "state": "ready"
+  },
+  "account": {
+    "device_name": "Mac sintético"
+  },
+  "draining_since_ms": 1234,
+  "calendar": {
+    "authorization": "unknown",
+    "calendars": null,
+    "writes": []
+  },
+  "computer_control": {
+    "request_id": "synthetic-control",
+    "stage": "ready",
+    "connected": true,
+    "connection_epoch": "synthetic-epoch",
+    "detail": "Disponible",
+    "observation": null
+  }
+}

@@ -1,0 +1,449 @@
+//! Hub event dispatch.
+use super::*;
+use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
+use orbit_core::wire::hub::{
+    CompletedData, DeltaData, ErrorData, ErrorDetail, HubEvent as WireHubEvent, HubEventKind,
+    ReadyData, RequiredData, SessionData,
+};
+
+/// Bounds names retained only to suppress repeated diagnostics: 128 distinct
+/// names cover eight times the 16 event names in hub v1. Keys hold at most 64
+/// Unicode scalars (256 UTF-8 bytes), so the name payload is at most 32 KiB.
+/// This is a memory/cardinality guard, not a wire or authorization limit.
+/// Extra unknown events stay ignored.
+const MAX_UNRECOGNIZED_HUB_EVENTS: usize = 128;
+
+/// serde errors can quote the rejected value. Diagnostics retain only schema
+/// fields and type classes, never a hub-supplied value or map key.
+fn safe_decode_error(reason: &str) -> (&'static str, &'static str, &'static str) {
+    const FIELDS: &[&str] = &[
+        "v",
+        "id",
+        "data",
+        "device_id",
+        "hub_protocol",
+        "hub_version",
+        "device_version",
+        "session_id",
+        "turn_id",
+        "text",
+        "status",
+        "kind",
+        "state",
+        "request_id",
+        "description",
+        "description/question",
+        "question",
+        "questions",
+        "qid",
+        "expires_at",
+        "choices",
+        "revision",
+        "sessions",
+        "pending",
+        "omitted",
+        "message",
+        "persisted",
+        "warning",
+        "applied",
+        "resolved",
+        "remaining",
+        "stale_interaction",
+        "capability",
+        "parameters",
+        "code",
+        "numbers",
+        "refusal",
+        "retry",
+        "ms",
+        "operation",
+        "resource",
+        "bytes",
+        "max_bytes",
+        "retry_after_ms",
+        "last_seen_ms",
+        "waited_ms",
+        "deadline_ms",
+    ];
+    let path = reason.split_once(':').map_or(reason, |(path, _)| path);
+    let field_name = reason
+        .split_once("missing field `")
+        .and_then(|(_, tail)| tail.split_once('`').map(|(field, _)| field))
+        .or_else(|| path.rsplit(['.', '[', ']']).find(|part| !part.is_empty()))
+        .unwrap_or("data");
+    let field = FIELDS
+        .iter()
+        .copied()
+        .find(|known| *known == field_name)
+        .unwrap_or("data");
+    let actual = if reason.contains("missing field") {
+        "missing"
+    } else {
+        match reason.split_once("invalid type: ").map(|(_, tail)| tail) {
+            Some(tail) if tail.starts_with("string") => "string",
+            Some(tail) if tail.starts_with("integer") => "integer",
+            Some(tail) if tail.starts_with("floating point") => "number",
+            Some(tail) if tail.starts_with("boolean") => "boolean",
+            Some(tail) if tail.starts_with("null") => "null",
+            Some(tail) if tail.starts_with("sequence") => "array",
+            Some(tail) if tail.starts_with("map") => "object",
+            Some(_) | None => "invalid",
+        }
+    };
+    let expected = match reason.split_once("expected ").map(|(_, tail)| tail) {
+        Some(tail) if tail.starts_with("a string") || tail.starts_with("string") => "string",
+        Some(tail)
+            if tail.starts_with("u64")
+                || tail.starts_with("i64")
+                || tail.starts_with("u8")
+                || tail.starts_with("integer") =>
+        {
+            "integer"
+        }
+        Some(tail) if tail.starts_with("a sequence") || tail.starts_with("array") => "array",
+        Some(tail) if tail.starts_with("a map") || tail.starts_with("object") => "object",
+        Some(tail) if tail.starts_with("a boolean") || tail.starts_with("boolean") => "boolean",
+        Some(_) | None => "unknown",
+    };
+    (field, actual, expected)
+}
+
+impl Runtime {
+    pub(super) async fn hub_event(&mut self, event: HubEvent) -> Result<()> {
+        if self.state.privacy_stopped() {
+            return Ok(());
+        }
+        match event {
+            HubEvent::Connected => self.on_hub_connected().await?,
+            HubEvent::Disconnected => self.on_hub_disconnected().await?,
+            HubEvent::Problem(message) => {
+                // The link's state is on screen already; the cause is logged.
+                self.log("hub_problem", &[("cause", &message)]);
+                self.say(NoticeCode::HubProblem);
+            }
+            HubEvent::Revoked => self.apply(Event::Connect(Connection::Revoked)).await?,
+            HubEvent::Frame(frame) => self.on_hub_frame(frame).await?,
+            HubEvent::Decoded(frame) => self.on_hub_decoded_frame(*frame).await?,
+            HubEvent::InvalidFrame { event, reason } => {
+                self.record_invalid_hub_frame(&event, &reason)
+            }
+        }
+        // P9-12: the question's turn may have ended with this event.
+        self.follow_meeting_question();
+        Ok(())
+    }
+
+    async fn on_hub_connected(&mut self) -> Result<()> {
+        self.apply(Event::HubTransportReady).await?;
+        self.snapshot_revision = None;
+        self.hub_protocol_version = None;
+        self.unrecognized_hub_events.clear();
+        self.conversation.interaction_response = None;
+        // The interrupt answer this connection owed can no longer
+        // arrive; the interrupted-turn memory itself survives.
+        self.conversation.interrupted_turns.forget_pending_ack();
+        self.apply(Event::Connect(Connection::Connecting)).await?;
+        Ok(())
+    }
+
+    async fn on_hub_disconnected(&mut self) -> Result<()> {
+        // The engine and a claimed input do not depend on the hub.
+        // A request still waiting on the hub is released below.
+        // This path also retires pending bridge and journal work. A later
+        // ready(Online) only closes its local verticals and context.
+        self.apply(Event::HubDisconnected).await?;
+        Ok(())
+    }
+
+    async fn on_hub_frame(&mut self, mut frame: Value) -> Result<()> {
+        // The socket has already checked v. Older synthetic in-process callers
+        // submit Frame directly without a version; preserve that internal API.
+        if let Some(object) = frame.as_object_mut() {
+            object.entry("v").or_insert_with(|| json!(1));
+        }
+        match WireHubEvent::decode(frame.clone()) {
+            Ok(decoded) => self.on_hub_decoded_frame(decoded).await,
+            Err(reason) => {
+                if frame.get("event").and_then(Value::as_str) == Some("device.request")
+                    && let Some(data) = frame.get("data")
+                    && data.get("request_id").and_then(Value::as_str).is_some()
+                {
+                    return self.device_request_raw(data).await;
+                }
+                self.record_invalid_hub_frame(crate::hub::invalid_event_name(&reason), &reason);
+                Ok(())
+            }
+        }
+    }
+
+    fn record_invalid_hub_frame(&self, event: &str, reason: &str) {
+        if let Some(diagnostics) = &self.diagnostics {
+            let (field, actual, expected) = safe_decode_error(reason);
+            diagnostics.record(
+                "hub_event_invalid",
+                &[
+                    ("event", event),
+                    ("field", field),
+                    ("actual_type", actual),
+                    ("expected_type", expected),
+                ],
+            );
+        }
+    }
+
+    async fn on_hub_decoded_frame(&mut self, frame: WireHubEvent) -> Result<()> {
+        let frame_id = frame.id.as_deref();
+        let turn_session = match &frame.kind {
+            HubEventKind::ChatSession(_) => None,
+            HubEventKind::ChatDelta(data) => data.session_id.as_deref(),
+            HubEventKind::ChatCompleted(data) => data.session_id.as_deref(),
+            HubEventKind::ApprovalRequired(data) | HubEventKind::ClarifyRequired(data) => {
+                Some(data.session_id.as_str())
+            }
+            HubEventKind::Ready(_)
+            | HubEventKind::Pong(_)
+            | HubEventKind::ChatInterrupted(_)
+            | HubEventKind::ChatStatus(_)
+            | HubEventKind::InteractionResolved(_)
+            | HubEventKind::InteractionExpired(_)
+            | HubEventKind::DeviceRequest(_)
+            | HubEventKind::StateSnapshot(_)
+            | HubEventKind::Error(_)
+            | HubEventKind::Revoked(_)
+            | HubEventKind::RecordingChanged(_)
+            | HubEventKind::Unrecognized { .. } => None,
+        };
+        let is_turn_event = matches!(
+            frame.kind,
+            HubEventKind::ChatSession(_)
+                | HubEventKind::ChatDelta(_)
+                | HubEventKind::ChatCompleted(_)
+                | HubEventKind::ApprovalRequired(_)
+                | HubEventKind::ClarifyRequired(_)
+        );
+        if is_turn_event
+            && (self.state.durable.active_request.is_none()
+                || frame_id != self.state.durable.active_request.as_deref())
+        {
+            return Ok(());
+        }
+        if matches!(
+            frame.kind,
+            HubEventKind::ChatDelta(_) | HubEventKind::ChatCompleted(_)
+        ) && turn_session != self.state.session_id().as_deref()
+        {
+            return Ok(());
+        }
+        if let Some(session) = turn_session
+            && Some(session) != self.state.session_id().as_deref()
+        {
+            return Ok(());
+        }
+        match frame.kind {
+            HubEventKind::StateSnapshot(data) => self.reconcile_typed_snapshot(&data).await?,
+            HubEventKind::InteractionResolved(data) => {
+                self.interaction_result_typed(true, frame_id, &data).await?
+            }
+            HubEventKind::InteractionExpired(data) => {
+                self.interaction_result_typed(false, frame_id, &data)
+                    .await?
+            }
+            HubEventKind::Ready(data) => self.on_hub_ready(&data).await?,
+            HubEventKind::Pong(_) => {}
+            HubEventKind::Revoked(_) => self.apply(Event::Connect(Connection::Revoked)).await?,
+            HubEventKind::RecordingChanged(data) => self.on_recording_changed(&data.recording_id),
+            HubEventKind::ChatSession(SessionData { session_id }) => {
+                self.apply(Event::Session(session_id)).await?;
+            }
+            HubEventKind::ChatDelta(data) => self.on_hub_chat_delta(data).await?,
+            HubEventKind::ChatCompleted(data) => self.on_hub_chat_completed(&data).await?,
+            HubEventKind::ApprovalRequired(data) => {
+                self.on_hub_approval_required(&data, false, "approval.required")
+                    .await?
+            }
+            HubEventKind::ClarifyRequired(data) => {
+                self.on_hub_approval_required(&data, true, "clarify.required")
+                    .await?
+            }
+            HubEventKind::DeviceRequest(data) => self.device_request(&data).await?,
+            HubEventKind::Error(data) => self.on_hub_error(frame_id, &data).await?,
+            HubEventKind::ChatStatus(data) => {
+                // A progress notice is informational; only terminal receipts
+                // or snapshots change the turn's authoritative state.
+                if self.state.session_id().as_deref() == Some(data.session_id.as_str())
+                    && !data.text.trim().is_empty()
+                {
+                    // The hub's progress line is about the conversation; the
+                    // chat shows the turn, so it is only recorded.
+                    self.say(NoticeCode::AssistantProgress);
+                }
+            }
+            HubEventKind::ChatInterrupted(_) => {
+                // The local interrupt already hid the turn. Its terminal state
+                // is reconciled from state.snapshot, not this request ACK.
+            }
+            HubEventKind::Unrecognized { name } => {
+                let tracked_name: String = name.chars().take(64).collect();
+                if self.unrecognized_hub_events.len() < MAX_UNRECOGNIZED_HUB_EVENTS
+                    && self.unrecognized_hub_events.insert(tracked_name)
+                {
+                    let version = self
+                        .hub_protocol_version
+                        .map_or("sin anunciar".into(), |value| value.to_string());
+                    if let Some(diagnostics) = &self.diagnostics {
+                        diagnostics.record(
+                            "hub_event_unrecognized",
+                            &[
+                                ("name", &name),
+                                (
+                                    "daemon_protocol",
+                                    &orbit_core::wire::hub::HUB_PROTOCOL.to_string(),
+                                ),
+                                ("hub_protocol", &version),
+                            ],
+                        );
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    async fn on_hub_ready(&mut self, data: &ReadyData) -> Result<()> {
+        self.hub_protocol_version = data.hub_protocol;
+        if !self.settings.device_id.as_deref().is_some_and(|expected| {
+            !expected.is_empty() && data.device_id.as_deref() == Some(expected)
+        }) {
+            self.apply(Event::Connect(Connection::Revoked)).await?;
+            if data.device_id.is_none() {
+                self.record_invalid_hub_frame(
+                    "ready",
+                    "missing field `device_id`: expected string",
+                );
+                self.say(NoticeCode::HubDeviceIdentityMissing);
+            } else if self
+                .settings
+                .device_id
+                .as_deref()
+                .is_some_and(|expected| !expected.is_empty())
+            {
+                self.say(
+                    Notice::new(NoticeCode::DevicePairingMismatch)
+                        .with_token(NoticeKey::Cause, "other_device"),
+                );
+            } else {
+                self.say(
+                    Notice::new(NoticeCode::DevicePairingMismatch)
+                        .with_token(NoticeKey::Cause, "no_local_identity"),
+                );
+            }
+        } else {
+            if let Some(name) = &data.assistant_name
+                && self.settings.assistant_name.as_ref() != Some(name)
+            {
+                let mut settings = self.settings.clone();
+                settings.assistant_name = Some(name.clone());
+                self.paths.save_settings(&settings)?;
+                self.settings = settings;
+                if let Some(stream) = self.features.question.wake_stream.clone() {
+                    self.send_wake_order(stream, true).await;
+                }
+            }
+            self.notes_hub_ready();
+            self.apply(Event::Connect(Connection::Online)).await?;
+        }
+        Ok(())
+    }
+
+    async fn on_hub_chat_delta(&mut self, data: DeltaData) -> Result<()> {
+        if let Some(request_id) = self.state.durable.active_request.clone() {
+            self.apply(Event::Delta {
+                request_id,
+                text: data.text,
+            })
+            .await?;
+        }
+        Ok(())
+    }
+
+    async fn on_hub_chat_completed(&mut self, data: &CompletedData) -> Result<()> {
+        if let Some(request_id) = self.state.durable.active_request.clone() {
+            if data.status.as_deref() == Some("error") {
+                self.conversation.speak_next = false;
+                self.meeting_question_turn_failed();
+                self.apply(Event::Failure("assistant_error".into())).await?;
+            } else {
+                self.apply(Event::Completed {
+                    request_id,
+                    text: Some(data.text.clone()),
+                })
+                .await?;
+                self.start_speech();
+            }
+        }
+        Ok(())
+    }
+
+    async fn on_hub_approval_required(
+        &mut self,
+        data: &RequiredData,
+        clarification: bool,
+        event_name: &str,
+    ) -> Result<()> {
+        if self.state.durable.pending_approval.is_some() {
+            return Ok(());
+        }
+        let Some(description) = data.description.as_deref().or(data.question.as_deref()) else {
+            self.record_invalid_hub_frame(
+                event_name,
+                "missing field `description/question`: expected string",
+            );
+            return Ok(());
+        };
+        self.apply(Event::Approval(Approval {
+            request_id: data.request_id.clone(),
+            description: description.into(),
+            clarification,
+        }))
+        .await?;
+        Ok(())
+    }
+
+    async fn on_hub_error(&mut self, frame_id: Option<&str>, data: &ErrorData) -> Result<()> {
+        // REF-30 A4: an error answering our own chat.interrupt
+        // already said its cause with what to do about it; the
+        // generic notice below must not talk over it.
+        let interrupt_refused = self.interrupt_error(frame_id, data).await?;
+        self.interaction_error(frame_id).await?;
+        let code = data.code.as_deref().unwrap_or("not_reported");
+        let numbers = data.numbers.as_ref().map(|numbers| {
+            let numeric = numbers
+                .iter()
+                .filter_map(|(key, value)| match value {
+                    ErrorDetail::Number(number) => Some((key.clone(), json!(number))),
+                    ErrorDetail::Text(_) | ErrorDetail::Flag(_) => None,
+                })
+                .collect::<serde_json::Map<String, Value>>();
+            Value::Object(numeric).to_string()
+        });
+        let mut fields = vec![("code", code)];
+        if let Some(numbers) = numbers.as_deref() {
+            fields.push(("numbers", numbers));
+        }
+        if self.state.durable.active_request.is_some()
+            && frame_id == self.state.durable.active_request.as_deref()
+        {
+            self.meeting_question_hub_error(data.code.as_deref(), &data.message);
+            self.conversation.speak_next = false;
+            self.log("chat_rejected", &fields);
+            self.apply(Event::Failure(code.into())).await?;
+        } else if !interrupt_refused {
+            self.log("hub_error", &fields);
+            self.say(Notice::new(NoticeCode::HubError).with_token(
+                NoticeKey::Code,
+                data.code.as_deref().unwrap_or("not_reported"),
+            ));
+        }
+        Ok(())
+    }
+}

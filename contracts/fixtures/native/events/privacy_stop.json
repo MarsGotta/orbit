@@ -1,0 +1,7 @@
+{
+  "event": "privacy_stop",
+  "v": 1,
+  "reason": "local_hotkey",
+  "privacy_stopped": true,
+  "drain_complete": true
+}

@@ -1,0 +1,582 @@
+import AVFoundation
+import ScreenCaptureKit
+import CoreMedia
+import Darwin
+import OrbitAudioRing
+import OrbitNativeProtocol
+import OrbitNativeState
+import OrbitNativeTransport
+
+/// Owns one single-producer ring for each capture source. No file, JSON or network
+/// operations occur in the audio callback. The poller runs on a separate queue.
+final class AudioFrameRelay {
+    let ring: OpaquePointer
+    let streamID: String
+    let source: String
+    private let channel: NativeChannel
+    private let processing: AudioProcessingObservation?
+    private let converter: MicrophonePCMConverter?
+    private var routeResume: AudioRouteResume?
+    private let failed: ((String) -> Void)?
+    private(set) var lastFrameEndNS: UInt64?
+    private let playbackActivity: PlaybackActivity?
+    /// P9-12: the «Oye Deimos» listener of a meeting's microphone, fed from
+    /// this drain, never from the audio callback. Read and written only on
+    /// `queue`, so it can be attached to a live stream and taken off it.
+    private var frameSink: MicrophoneFrameSink?
+    private let queue = DispatchQueue(label: "orbit.native.audio.drain")
+    private var timer: DispatchSourceTimer?
+    private var lastFramesAt = ProcessInfo.processInfo.systemUptime
+    private var warnedAboutMissingFrames = false
+    private var deliveryFailed = false
+    private var warnedAboutTiming = false
+    private var conversionFailed = false
+    private var emptyConvertedBlocks: UInt64 = 0
+
+    init(streamID: String, source: String, channel: NativeChannel,
+         processing: AudioProcessingObservation?, playbackActivity: PlaybackActivity? = nil,
+         outputRate: UInt32? = nil, routeResume: AudioRouteResume? = nil,
+         failed: ((String) -> Void)? = nil) throws {
+        guard let ring = orbit_ring_create() else { throw NativeFailure("audio_memory_unavailable") }
+        self.ring = ring
+        self.streamID = streamID
+        self.source = source
+        self.channel = channel
+        self.processing = processing
+        self.playbackActivity = playbackActivity
+        converter = outputRate.map { MicrophonePCMConverter(outputRate: $0) }
+        self.routeResume = routeResume
+        self.failed = failed
+    }
+
+    /// P9-12: attaches (or, with `nil`, takes off) the phrase listener on
+    /// this live stream. The previous listener, if another, is finished.
+    func setFrameSink(_ sink: MicrophoneFrameSink?) {
+        queue.async { [self] in
+            let previous = frameSink
+            frameSink = sink
+            if let previous, previous !== sink { previous.finish() }
+        }
+    }
+
+    func start() {
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now(), repeating: .milliseconds(10))
+        timer.setEventHandler { [weak self] in self?.drain() }
+        self.timer = timer
+        timer.resume()
+    }
+
+    func stop() async -> Bool {
+        orbit_ring_set_enabled(ring, false)
+        timer?.cancel()
+        timer = nil
+        let drained = await withCheckedContinuation { continuation in
+            queue.async { self.finishDrain(attempts: 250, continuation: continuation) }
+        }
+        // The stream ended: so does any listener on it, before stop returns.
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            queue.async { [self] in
+                let previous = frameSink
+                frameSink = nil
+                previous?.finish()
+                continuation.resume()
+            }
+        }
+        return drained
+    }
+
+    private func finishDrain(attempts: Int, continuation: CheckedContinuation<Bool, Never>) {
+        guard orbit_ring_is_quiescent(ring) else {
+            guard attempts > 0 else { continuation.resume(returning: false); return }
+            queue.asyncAfter(deadline: .now() + .milliseconds(1)) {
+                self.finishDrain(attempts: attempts - 1, continuation: continuation)
+            }
+            return
+        }
+        drain()
+        let captureLoss = orbit_ring_admitted_frames(ring) > 0
+            && orbit_ring_has_timing_failure(ring)
+        continuation.resume(returning: !deliveryFailed && !captureLoss)
+    }
+
+    private func drain() {
+        guard !conversionFailed else { return }
+        if orbit_ring_admitted_frames(ring) > 0 && orbit_ring_has_timing_failure(ring) {
+            if !warnedAboutTiming {
+                warnedAboutTiming = true
+                if !channel.send(.makeGap(source: source, streamID: streamID,
+                    reason: "capture_clock_unavailable", frames: 0,
+                    preStopPossible: true, durationUnknown: true)) { deliveryFailed = true }
+            }
+        }
+        let dropped = orbit_ring_take_dropped_frames(ring)
+        if dropped > 0 {
+            if !channel.send(.makeGap(source: source, streamID: streamID,
+                reason: "audio_ring_overflow", frames: dropped)) { deliveryFailed = true }
+        }
+        var block = OrbitAudioBlock()
+        while orbit_ring_pop(ring, &block) {
+            lastFramesAt = ProcessInfo.processInfo.systemUptime
+            warnedAboutMissingFrames = false
+            let frames = Int(block.frames)
+            let original = withUnsafeBytes(of: &block.samples) { Data($0.prefix(frames * 2)) }
+            let data: Data
+            do { data = try converter?.convert(original, sampleRate: block.sample_rate) ?? original }
+            catch {
+                deliveryFailed = true
+                conversionFailed = true
+                orbit_ring_set_enabled(ring, false)
+                let reason = reportAudioRouteFailure(error, channel: channel)
+                DispatchQueue.main.async { [failed] in failed?(reason) }
+                return
+            }
+            guard !data.isEmpty else { emptyConvertedBlocks += 1; continue }
+            if let routeResume {
+                let duration = routeResume.durationNS(until: block.monotonic_ns)
+                guard channel.send(.makeGap(source: source, streamID: streamID,
+                    reason: "audio_device_changed", frames: 0, durationUnknown: duration == nil,
+                    durationNS: duration)) else { deliveryFailed = true; return }
+                self.routeResume = nil
+            }
+            let sampleRate = converter?.outputRate ?? block.sample_rate
+            let measured = PCMLevel(pcm16: data)
+            frameSink?.receive(pcm16: data, sampleRate: sampleRate, rmsDBFS: measured.rmsDBFS)
+            let typed = NativeEvent.makeAudio(source: source, streamID: streamID,
+                sequence: block.sequence - emptyConvertedBlocks, sampleRate: sampleRate, frames: UInt32(data.count / 2),
+                monotonicNS: block.monotonic_ns, pcmBase64: data.base64EncodedString(),
+                processing: processing, playback: playbackActivity?.snapshot())
+            guard channel.send(typed) else { deliveryFailed = true; break }
+            let end = block.monotonic_ns.addingReportingOverflow(
+                UInt64(block.frames) * 1_000_000_000 / UInt64(block.sample_rate))
+            lastFrameEndNS = end.overflow ? nil : end.partialValue
+        }
+        if !warnedAboutMissingFrames && ProcessInfo.processInfo.systemUptime - lastFramesAt > 3 {
+            warnedAboutMissingFrames = true
+            if !channel.send(.makeGap(source: source, streamID: streamID,
+                reason: "no_capture_frames", frames: 0, durationUnknown: true)) { deliveryFailed = true }
+        }
+    }
+
+    deinit {
+        timer?.cancel()
+        orbit_ring_destroy(ring)
+    }
+}
+
+package struct NativeFailure: Error {
+    package let code: String
+    /// The macOS error under it, when there was one: its domain and number,
+    /// never its text. «audio_processing_configuration_failed» alone could
+    /// not say why a call's microphone did not open (2026-10-17).
+    package let underlying: NSError?
+    package init(_ code: String, underlying: Error? = nil) {
+        self.code = code
+        self.underlying = underlying.map { $0 as NSError }
+    }
+}
+
+package func reportAudioRouteFailure(_ error: Error, channel: NativeChannel) -> String {
+    let failure = error as? NativeFailure
+    let code = failure?.code ?? "audio_route_start_failed"
+    let underlying = failure?.underlying ?? (failure == nil ? error as NSError : nil)
+    let detail = osErrorDetail(underlying)
+    channel.send(.makeError(code: code, osDomain: detail?["domain"] as? String,
+        osStatus: detail?["os_status"] as? Int))
+    return code
+}
+
+/// The detail a rejection carries for a macOS error: its domain and number.
+package func osErrorDetail(_ error: NSError?) -> [String: Any]? {
+    guard let error else { return nil }
+    return ["domain": String(error.domain.prefix(64)), "os_status": error.code]
+}
+
+/// Captures the single shared engine's input. Provenance is immutable per stream.
+package final class MicrophoneCapture {
+    private let session: SharedAudioSession
+    private(set) var relay: AudioFrameRelay?
+    package private(set) var slot = CaptureSlot.idle
+    package var streamID: String? { relay?.streamID }
+    private let channel: NativeChannel
+    private var tapInstalled = false
+    private var stopTask: Task<Bool, Never>?
+    package private(set) var sampleRate: UInt32?
+    package var failed: ((String) -> Void)?
+    package init(session: SharedAudioSession, channel: NativeChannel) {
+        self.session = session
+        self.channel = channel
+    }
+
+    /// A retained relay may be draining; it is not authority for a new receipt.
+    @MainActor package var activeStreamID: String? {
+        guard slot == .active, tapInstalled, stopTask == nil, session.captureActive,
+              session.engine.isRunning, let relay,
+              !orbit_ring_has_timing_failure(relay.ring) else { return nil }
+        return relay.streamID
+    }
+
+    package func start(streamID: String, processing: AudioProcessingMode,
+                       outputRate: UInt32? = nil, routeResume: AudioRouteResume? = nil) throws -> [String: Any] {
+        guard stopTask == nil, slot.transition(to: .starting) else {
+            throw NativeFailure("microphone_already_active")
+        }
+        relay = nil
+        var started = false
+        defer {
+            if !started { _ = slot.transition(to: .idle) }
+        }
+        guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else {
+            throw NativeFailure("microphone_permission_required")
+        }
+        try session.prepareCapture(mode: processing)
+        let input = session.engine.inputNode
+        let format = input.outputFormat(forBus: 0)
+        guard format.channelCount > 0, format.channelCount <= 32,
+              format.sampleRate >= 8_000, format.sampleRate <= 192_000,
+              format.commonFormat == .pcmFormatFloat32, !format.isInterleaved else {
+            throw NativeFailure("unsupported_microphone_format")
+        }
+        let wireRate = outputRate ?? UInt32(format.sampleRate)
+        let observation = session.observation
+        let relay = try AudioFrameRelay(streamID: streamID, source: "mic_local", channel: channel,
+            processing: observation, playbackActivity: session.playbackActivity,
+            outputRate: wireRate, routeResume: routeResume, failed: failed)
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [relay] buffer, time in
+            let ring = relay.ring
+            orbit_ring_callback_begin(ring)
+            defer { orbit_ring_callback_end(ring) }
+            guard let planes = buffer.floatChannelData, time.isHostTimeValid,
+                  let ns = CaptureClock.nanoseconds(CMClockMakeHostTimeFromSystemUnits(time.hostTime)) else {
+                orbit_ring_mark_timing_failure(ring)
+                return
+            }
+            // CoreAudio owns the planes for this callback; the C ring copies samples now.
+            let pointers = UnsafeRawPointer(planes).assumingMemoryBound(to: UnsafePointer<Float>?.self)
+            _ = orbit_ring_push_planar(ring, pointers, buffer.format.channelCount,
+                                       buffer.frameLength, UInt32(buffer.format.sampleRate), ns)
+        }
+        tapInstalled = true
+        do {
+            try session.start()
+            guard processing != .voiceProcessing || session.observation.usableForContinuousVoice else {
+                throw NativeFailure("voice_processing_reference_unavailable")
+            }
+            let effective = input.outputFormat(forBus: 0)
+            guard session.observation == observation, effective.sampleRate == format.sampleRate,
+                  effective.channelCount == format.channelCount else {
+                throw NativeFailure("microphone_processing_changed_during_start")
+            }
+        } catch {
+            input.removeTap(onBus: 0)
+            tapInstalled = false
+            session.stop()
+            throw error
+        }
+        self.relay = relay
+        self.sampleRate = wireRate
+        session.captureDidStart()
+        relay.start()
+        guard slot.transition(to: .active) else {
+            input.removeTap(onBus: 0)
+            tapInstalled = false
+            session.captureDidStop()
+            session.stop()
+            self.relay = nil
+            throw NativeFailure("operation_cancelled_by_stop")
+        }
+        started = true
+        var result: [String: Any] = ["stream_id": streamID, "source": "mic_local", "sample_rate": Int(wireRate),
+                "channels": 1, "input_channels": Int(format.channelCount),
+                "echo_control": processing == .voiceProcessing ? "apple_voice_processing_unvalidated" : "unprocessed"]
+        result.merge(session.observation.fields) { _, observed in observed }
+        return result
+    }
+
+    @MainActor package func stopForRouteChange() async -> (drained: Bool, resume: AudioRouteResume) {
+        let previous = relay
+        let drained = await stop()
+        return (drained, AudioRouteResume(previousEndNS: previous?.lastFrameEndNS))
+    }
+
+    /// P9-12: feeds the live microphone stream `streamID` to `sink` (or
+    /// stops, with `nil`). Refused when that stream is not the active one.
+    @MainActor package func setFrameSink(_ sink: MicrophoneFrameSink?, streamID: String) throws {
+        guard let relay, relay.streamID == streamID else {
+            throw NativeFailure("stream_not_found")
+        }
+        if sink != nil, activeStreamID != streamID {
+            throw NativeFailure("stream_not_found")
+        }
+        relay.setFrameSink(sink)
+    }
+
+    package func disableImmediately() {
+        if slot == .starting || slot == .active { _ = slot.transition(to: .draining) }
+        if let relay {
+            if let cutoff = CaptureClock.nanoseconds(CMClockGetTime(CMClockGetHostTimeClock())) {
+                orbit_ring_set_capture_cutoff_ns(relay.ring, cutoff)
+            } else {
+                orbit_ring_mark_timing_failure(relay.ring)
+                orbit_ring_set_enabled(relay.ring, false)
+            }
+        }
+        if tapInstalled { session.engine.inputNode.removeTap(onBus: 0); tapInstalled = false }
+        session.captureDidStop()
+    }
+
+    @MainActor package func stop() async -> Bool {
+        disableImmediately()
+        if let stopTask { return await stopTask.value }
+        guard let stoppedRelay = relay else {
+            _ = slot.transition(to: .idle)
+            return true
+        }
+        let task = Task { @MainActor in
+            let drained = await stoppedRelay.stop()
+            if self.relay === stoppedRelay {
+                self.relay = nil
+                let destination: CaptureSlot = drained
+                    ? .idle : .unconfirmed(reason: "audio_drain_incomplete")
+                _ = self.slot.transition(to: destination)
+            }
+            self.stopTask = nil
+            return drained
+        }
+        stopTask = task
+        return await task.value
+    }
+
+}
+
+/// Main-thread ownership of a single physical producer and its fixed destination.
+/// Normal stop keeps this session through the queue/drain barrier; a failed
+/// startup is then released without turning its missing receipt into drain loss.
+private final class SystemAudioSession {
+    let stream: SCStream
+    let output: SystemAudioOutput
+    let relay: AudioFrameRelay
+    var starting: Task<Void, Error>?
+
+    init(stream: SCStream, relay: AudioFrameRelay, queue: DispatchQueue) {
+        self.stream = stream
+        self.relay = relay
+        output = SystemAudioOutput(stream: stream, relay: relay, queue: queue)
+    }
+}
+
+package enum AudioScopeFilter: Equatable {
+    case excludeApplications([String])
+    case includeApplication(processID: pid_t)
+}
+
+package enum AudioScopeRejection: Error, Equatable {
+    case applicationPIDRequired
+    case unknownScope(String)
+}
+
+package final class SystemAudioCapture: NSObject, SCStreamDelegate {
+    private static let orbitBundleIDs = ["app.orbit.companion"]
+    private var session: SystemAudioSession?
+    var relay: AudioFrameRelay? { session?.relay }
+    package private(set) var slot = CaptureSlot.idle
+    package var streamID: String? { relay?.streamID }
+    private let channel: NativeChannel
+    private let queue = DispatchQueue(label: "orbit.native.system-audio")
+    private var stopTask: Task<Bool, Never>?
+    private var stoppingFailedStart = false
+    package var failed: ((String) -> Void)?
+
+    package init(channel: NativeChannel) { self.channel = channel }
+
+    @MainActor package var activeStreamID: String? {
+        guard slot == .active, let session, session.starting == nil, stopTask == nil,
+              let relay, !orbit_ring_has_timing_failure(relay.ring) else { return nil }
+        return relay.streamID
+    }
+
+    package static func scopeFilter(for scope: String?, applicationPID: Int32?) throws -> AudioScopeFilter {
+        switch scope ?? "system" {
+        case "system":
+            return .excludeApplications(orbitBundleIDs)
+        case "application":
+            guard let applicationPID, applicationPID > 0 else {
+                throw AudioScopeRejection.applicationPIDRequired
+            }
+            return .includeApplication(processID: applicationPID)
+        case let scope:
+            throw AudioScopeRejection.unknownScope(scope)
+        }
+    }
+
+    package static func scopeFilter(for command: NativeWireCommand) throws -> AudioScopeFilter {
+        guard case .audioStart(let wire) = command else { throw ProtocolError.invalidCommand }
+        return try scopeFilter(for: wire.fields.capture_scope?.rawValue, applicationPID: wire.fields.application_pid)
+    }
+
+    @MainActor package func start(streamID: String, captureScope: String?, applicationPID: Int32?,
+                          expectedBundleID: String? = nil,
+                          validateApplication: () -> Bool = { true },
+                          allowStart: () -> Bool) async throws -> [String: Any] {
+        let scopeFilter = try Self.scopeFilter(for: captureScope, applicationPID: applicationPID)
+        guard stopTask == nil, slot.transition(to: .starting) else {
+            throw NativeFailure("system_audio_already_active")
+        }
+        session = nil
+        stoppingFailedStart = false
+        var started = false
+        defer {
+            if !started { _ = slot.transition(to: .idle) }
+        }
+        guard CGPreflightScreenCaptureAccess() else { throw NativeFailure("screen_permission_required") }
+        let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false)
+        guard allowStart() else { throw NativeFailure("operation_cancelled_by_stop") }
+        guard slot == .starting, session == nil, stopTask == nil else {
+            throw NativeFailure("operation_cancelled_by_stop")
+        }
+        guard let display = content.displays.first else {
+            throw NativeFailure("display_not_available")
+        }
+        let filter: SCContentFilter
+        let selectedApplication: SCRunningApplication?
+        let actualScope: String
+        switch scopeFilter {
+        case .excludeApplications(let bundleIDs):
+            let applications = content.applications.filter { bundleIDs.contains($0.bundleIdentifier) }
+            filter = SCContentFilter(display: display, excludingApplications: applications,
+                                     exceptingWindows: [])
+            selectedApplication = nil
+            actualScope = "system"
+        case .includeApplication(let processID):
+            guard validateApplication() else { throw NativeFailure("application_binding_changed") }
+            guard let application = content.applications.first(where: { $0.processID == processID }) else {
+                throw NativeFailure("application_not_available")
+            }
+            guard expectedBundleID == nil || expectedBundleID == application.bundleIdentifier else {
+                throw NativeFailure("application_binding_changed")
+            }
+            guard processID != ProcessInfo.processInfo.processIdentifier else {
+                throw NativeFailure("cannot_capture_orbit_audio")
+            }
+            filter = SCContentFilter(display: display, including: [application], exceptingWindows: [])
+            selectedApplication = application
+            actualScope = "application"
+        }
+        let configuration = SCStreamConfiguration()
+        configuration.capturesAudio = true
+        configuration.excludesCurrentProcessAudio = true
+        configuration.captureMicrophone = false
+        configuration.sampleRate = 48_000
+        configuration.channelCount = 1
+        configuration.width = 2
+        configuration.height = 2
+        configuration.minimumFrameInterval = CMTime(value: 1, timescale: 1)
+        let relay = try AudioFrameRelay(streamID: streamID, source: "remote_app", channel: channel,
+            processing: nil)
+        let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
+        let session = SystemAudioSession(stream: stream, relay: relay, queue: queue)
+        self.session = session
+        do {
+            try stream.addStreamOutput(session.output, type: .audio, sampleHandlerQueue: queue)
+            // This task owns only the SDK start, not this outer start method.
+            // A simultaneous stop can await it even if the catch below awaits stop.
+            let starting = Task { try await stream.startCapture() }
+            session.starting = starting
+            try await starting.value
+            session.starting = nil
+            guard allowStart(), stopTask == nil, self.session === session else {
+                throw NativeFailure("operation_cancelled_by_stop")
+            }
+            if selectedApplication != nil {
+                guard validateApplication() else { throw NativeFailure("application_binding_changed") }
+            }
+            guard let clock = stream.synchronizationClock,
+                  CaptureClock.nanoseconds(CMClockGetTime(clock)) != nil,
+                  CaptureClock.hostNanoseconds(CMClockGetTime(clock), from: clock) != nil else {
+                throw NativeFailure("system_audio_clock_unavailable")
+            }
+        } catch {
+            session.starting = nil // The SDK task has returned (or was never started).
+            if self.session === session { _ = await stop() }
+            throw error
+        }
+        relay.start()
+        guard slot.transition(to: .active) else {
+            _ = await stop()
+            throw NativeFailure("operation_cancelled_by_stop")
+        }
+        stoppingFailedStart = false
+        started = true
+        var result: [String: Any] = ["stream_id": streamID, "source": "remote_app",
+                                     "sample_rate": 48_000, "channels": 1,
+                                     "capture_scope": actualScope]
+        if case .includeApplication(let processID) = scopeFilter, let selectedApplication {
+            result["application_pid"] = processID
+            result["bundle_id"] = selectedApplication.bundleIdentifier
+        }
+        return result
+    }
+
+    @MainActor package func stop() async -> Bool {
+        disableImmediately()
+        if let stopTask { return await stopTask.value }
+        guard let session else {
+            _ = slot.transition(to: .idle)
+            return true
+        }
+        let starting = session.starting
+        let task = Task { @MainActor in
+            if let starting { _ = await starting.result }
+            var stopped = true
+            do { try await session.stream.stopCapture() }
+            catch { stopped = false; self.channel.send(.makeError(code: "system_audio_stop_failed")) }
+            // stopCapture completing precedes this FIFO marker. All callbacks
+            // queued before the stopped producer must finish before relay.stop.
+            await withCheckedContinuation { continuation in
+                self.queue.async { continuation.resume() }
+            }
+            let drained = await session.relay.stop()
+            let failedStart = self.stoppingFailedStart
+            let drainHealthy = failedStart || (stopped && drained)
+            if self.session === session {
+                self.session = nil
+                let reason = stopped ? "audio_drain_incomplete" : "system_audio_stop_failed"
+                let destination: CaptureSlot = drainHealthy
+                    ? .idle : .unconfirmed(reason: reason)
+                _ = self.slot.transition(to: destination)
+            }
+            self.stoppingFailedStart = false
+            self.stopTask = nil
+            return drainHealthy
+        }
+        stopTask = task
+        return await task.value
+    }
+
+    package func disableImmediately() {
+        let startWasPending = slot == .starting
+        if startWasPending { stoppingFailedStart = true }
+        if startWasPending || slot == .active { _ = slot.transition(to: .draining) }
+        guard let session else { return }
+        let relay = session.relay
+        if let clock = session.stream.synchronizationClock,
+           let cutoff = CaptureClock.nanoseconds(CMClockGetTime(clock)) {
+            // Do NOT disable admission here: SCK can have pre-stop PCM waiting
+            // on its sampleHandlerQueue. Its PTS, not callback arrival, gates it.
+            orbit_ring_set_capture_cutoff_ns(relay.ring, cutoff)
+        } else {
+            if !startWasPending { orbit_ring_mark_timing_failure(relay.ring) }
+            orbit_ring_set_enabled(relay.ring, false)
+        }
+    }
+
+    package func stream(_ stream: SCStream, didStopWithError error: Error) {
+        // Keep the observed object alive across the dispatch hop: an unretained
+        // ObjectIdentifier could match a new stream reusing its old address.
+        DispatchQueue.main.async { [weak self, stream] in
+            guard let self, let current = self.session,
+                  current.stream === stream else { return }
+            self.failed?("system_audio_stream_stopped")
+        }
+    }
+}

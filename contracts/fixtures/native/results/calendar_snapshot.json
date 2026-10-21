@@ -1,0 +1,135 @@
+{
+  "after_index": 0,
+  "capture_completed_monotonic_ns": 200,
+  "capture_started_monotonic_ns": 100,
+  "clock_domain": "mach_absolute_time",
+  "enumeration": "bounded_local_read",
+  "events": [
+    {
+      "alarms_minutes": [
+        0,
+        10
+      ],
+      "availability": "busy",
+      "calendar": {
+        "calendar_id": "local-calendar",
+        "source_id": "local-source"
+      },
+      "calendar_item_id": "item-911",
+      "can_edit": true,
+      "end_unix_ms": 1792062000000,
+      "event_id": "event-911",
+      "event_timezone": "Europe/Madrid",
+      "event_url": "https://meet.example.test/abc",
+      "event_url_status": "provided",
+      "interpreted_timezone": "Europe/Madrid",
+      "invitees": [
+        {
+          "email": "ada@example.test",
+          "is_current_user": false,
+          "name": "Ada",
+          "participant_type": "person",
+          "participant_url": "mailto:ada@example.test",
+          "response_status": "accepted",
+          "role": "required"
+        }
+      ],
+      "invitees_status": "provided",
+      "is_all_day": false,
+      "is_detached": false,
+      "is_floating": false,
+      "last_modified_unix_ms": 1791972000000,
+      "location": "Sala 3",
+      "notes": "Orden del día sintético.",
+      "observation_id": "00000000-0000-4000-8000-000000000912",
+      "organizer": {
+        "email": "alina@example.test",
+        "is_current_user": true,
+        "name": "Alina",
+        "participant_type": "person",
+        "participant_url": "mailto:alina@example.test",
+        "response_status": "accepted",
+        "role": "chair"
+      },
+      "original_occurrence_unix_ms": 1792058400000,
+      "recurrence": {
+        "days_of_week": [
+          {
+            "day": "wednesday"
+          }
+        ],
+        "end": {
+          "count": 10
+        },
+        "frequency": "weekly",
+        "interval": 1
+      },
+      "start_unix_ms": 1792058400000,
+      "status": "confirmed",
+      "title": "Revisión semanal"
+    },
+    {
+      "alarms_minutes": [
+        15
+      ],
+      "alarms_not_editable": 1,
+      "availability": "tentative",
+      "calendar": {
+        "calendar_id": "local-calendar",
+        "source_id": "local-source"
+      },
+      "calendar_item_id": "item-913",
+      "can_edit": false,
+      "end_unix_ms": 1792067400000,
+      "event_url_status": "not_provided",
+      "interpreted_timezone": "Europe/Madrid",
+      "invitees_status": "not_provided",
+      "is_all_day": false,
+      "is_detached": true,
+      "is_floating": true,
+      "notes_left_out": {
+        "bytes": 40000,
+        "limit": 32768
+      },
+      "observation_id": "00000000-0000-4000-8000-000000000913",
+      "organizer": {
+        "email": "comite@example.test",
+        "is_current_user": false,
+        "participant_type": "person",
+        "participant_url": "mailto:comite@example.test",
+        "response_status": "accepted",
+        "role": "chair"
+      },
+      "original_occurrence_unix_ms": 1792065600000,
+      "recurrence": {
+        "days_of_week": [
+          {
+            "day": "friday",
+            "week": -1
+          }
+        ],
+        "end": {
+          "until_ms": 1823594400000
+        },
+        "frequency": "monthly",
+        "interval": 2,
+        "rules_count": 2
+      },
+      "start_unix_ms": 1792065600000,
+      "status": "tentative",
+      "title": "Comité"
+    }
+  ],
+  "native_instance_id": "00000000-0000-4000-8000-000000000911",
+  "observed_at_unix_ms": 1792058400000,
+  "omitted": [],
+  "privacy_generation": 1,
+  "provider_sync_status": "unknown",
+  "read_id": "00000000-0000-4000-8000-000000000911",
+  "system_timezone": "Europe/Madrid",
+  "total": 2,
+  "window": {
+    "end_unix_ms": 1792144800000,
+    "start_unix_ms": 1792058400000
+  }
+}

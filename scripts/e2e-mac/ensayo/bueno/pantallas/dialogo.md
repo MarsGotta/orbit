@@ -1,0 +1,19 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Vistas)
+      - [1] AXButton (Briefing de hoy) [actions=[press]]
+      - [2] AXButton (Calendario) [actions=[press]]
+      - [3] AXButton (Notas) [actions=[press]]
+      - [4] AXButton (Asistente) [actions=[press]]
+      - [5] AXButton (Ajustes) [actions=[press]]
+    - AXHeading
+      - AXStaticText = "Notas"
+    - [6] AXButton "Grabar reunión ahora" [actions=[press]]
+    - AXGroup (Nueva grabación de reunión)
+      - AXHeading
+        - AXStaticText = "Nueva grabación de reunión"
+      - [7] AXButton "×" (Cerrar) [actions=[press]]
+      - [8] AXTextField = "Reunión 16/10/26, 10:00" (Título) [actions=[confirm]]
+      - [9] AXPopUpButton = "Sistema" (Fuente de audio) [actions=[press,showmenu]]
+      - [10] AXButton "Cerrar" [actions=[press]]
+      - [11] AXButton "Grabar" [actions=[press]]

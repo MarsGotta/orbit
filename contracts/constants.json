@@ -1,0 +1,1393 @@
+[
+  {
+    "copies": [],
+    "name": "TOPIC_TRANSPORT_MAX_BYTES",
+    "resource": "largest topic transport page",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 299008
+  },
+  {
+    "copies": [],
+    "name": "READ_MAX_PAGE_BYTES",
+    "resource": "largest paged read",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 655360
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/sources.rs",
+        "name": "MAX_SOURCE_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/Limits.swift",
+        "name": "maximumScreenshotPNGBytes",
+        "unit": "bytes"
+      },
+      {
+        "file": "server/orbit_hub/captures.py",
+        "name": "MAX_CAPTURE_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_SOURCE_BYTES",
+    "resource": "capture PNG",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 700000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/limits.rs",
+        "name": "MAX_IPC_LINE_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "scripts/e2e-mac/mac.py",
+        "name": "MAX_LINEA_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_IPC_LINE_BYTES",
+    "resource": "app IPC line",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 1048576
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/limits.rs",
+        "name": "MAX_COMMAND_RESPONSE_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_COMMAND_RESPONSE_BYTES",
+    "resource": "command response",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 1048576
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/limits.rs",
+        "name": "MAX_DEFAULT_COMMAND_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_DEFAULT_COMMAND_BYTES",
+    "resource": "default command",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 1048576
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/limits.rs",
+        "name": "MAX_HELPER_COMMAND_LINE_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/Limits.swift",
+        "name": "maximumCommandLineBytes",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_HELPER_COMMAND_LINE_BYTES",
+    "resource": "helper stdin line",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 6291456
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/limits.rs",
+        "name": "MAX_HELPER_EVENT_LINE_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/Limits.swift",
+        "name": "maximumEventLineBytes",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_HELPER_EVENT_LINE_BYTES",
+    "resource": "helper stdout line",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 1048576
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/limits.rs",
+        "name": "MAX_HUB_INCOMING_FRAME_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_HUB_INCOMING_FRAME_BYTES",
+    "resource": "hub inbound WebSocket frame",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 1048576
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/limits.rs",
+        "name": "MAX_HUB_HTTP_BODY_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_HUB_HTTP_BODY_BYTES",
+    "resource": "hub HTTP response body",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 1048576
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/limits.rs",
+        "name": "MAX_HUB_OUTGOING_FRAME_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "server/orbit_hub/config.py",
+        "name": "Settings.__dataclass_fields__.max_frame_bytes.default",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_HUB_OUTGOING_FRAME_BYTES",
+    "resource": "hub outbound WebSocket frame",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 131072
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/limits.rs",
+        "name": "MAX_ACTION_RECEIPT_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_ACTION_RECEIPT_BYTES",
+    "resource": "engine action receipt",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 32768
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/limits.rs",
+        "name": "MAX_ACTION_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "server/orbit_hub/bridge_route.py",
+        "name": "MAX_ACTION_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "server/orbit_mcp/bridge.py",
+        "name": "MAX_ACTION_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_ACTION_BYTES",
+    "resource": "serialized engine action",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 16384
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/bridge_route.py",
+        "name": "REQUEST_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_BRIDGE_REQUEST_BODY_BYTES",
+    "resource": "private action request body: 16,384-byte action + measured 235-byte envelope",
+    "source": "registry",
+    "unit": "bytes",
+    "value": 16619
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/bridge_route.py",
+        "name": "NON_ACTION_REQUEST_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_BRIDGE_NON_ACTION_BODY_BYTES",
+    "resource": "private non-action request body: existing 8,192-byte admission, not the action envelope",
+    "source": "registry",
+    "unit": "bytes",
+    "value": 8192
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/device_bridge.py",
+        "name": "MAX_PENDING_REQUESTS",
+        "unit": "requests"
+      }
+    ],
+    "name": "MAX_BRIDGE_PENDING_REQUESTS",
+    "resource": "global bridge waiters: four bound pending request memory, not saved captures",
+    "source": "registry",
+    "unit": "requests",
+    "value": 4
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/captures.py",
+        "name": "MAX_SAVED_CAPTURES_PER_DEVICE",
+        "unit": "captures"
+      }
+    ],
+    "name": "MAX_SAVED_CAPTURES_PER_DEVICE",
+    "resource": "one device's saved captures: four one-shot screenshots, not global waiters",
+    "source": "registry",
+    "unit": "captures",
+    "value": 4
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/limits.rs",
+        "name": "CAPTURE_UPLOAD_TIMEOUT_SECONDS",
+        "unit": "seconds"
+      }
+    ],
+    "name": "CAPTURE_UPLOAD_TIMEOUT_SECONDS",
+    "resource": "capture upload",
+    "source": "rust",
+    "unit": "seconds",
+    "value": 20
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/device_bridge.py",
+        "name": "REQUEST_TIMEOUT_SECONDS",
+        "unit": "seconds"
+      }
+    ],
+    "name": "BRIDGE_REQUEST_TIMEOUT_SECONDS",
+    "resource": "hub bridge waiter: 30 seconds, after the 20-second upload and before the translator deadline",
+    "source": "registry",
+    "unit": "seconds",
+    "value": 30
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_mcp/hub.py",
+        "name": "BRIDGE_TIMEOUT_SECONDS",
+        "unit": "seconds"
+      }
+    ],
+    "name": "TRANSLATOR_BRIDGE_TIMEOUT_SECONDS",
+    "resource": "translator bridge call: 35 seconds, after the 30-second hub waiter; not a retry timer",
+    "source": "registry",
+    "unit": "seconds",
+    "value": 35
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/limits.rs",
+        "name": "MAX_SPEECH_CLIP_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/Limits.swift",
+        "name": "maximumPlaybackClipBytes",
+        "unit": "bytes"
+      },
+      {
+        "file": "server/orbit_hub/hermes.py",
+        "name": "MAX_SPEECH_CLIP_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_SPEECH_CLIP_BYTES",
+    "resource": "speech playback clip",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 4194304
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/limits.rs",
+        "name": "MAX_WINDOW_INVENTORY_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/Limits.swift",
+        "name": "maximumWindowInventoryBytes",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_WINDOW_INVENTORY_BYTES",
+    "resource": "window selection inventory",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 163840
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/notes.rs",
+        "name": "MAX_PRIVATE_NOTES_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "server/orbit_hub/notes/models.py",
+        "name": "MAX_PRIVATE_NOTES_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_PRIVATE_NOTES_CHARS",
+    "resource": "private notes of one recording",
+    "source": "rust",
+    "unit": "characters",
+    "value": 65536
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/notes.rs",
+        "name": "MAX_SECTIONS",
+        "unit": "sections"
+      },
+      {
+        "file": "server/orbit_hub/notes/templates.py",
+        "name": "MAX_SECTIONS",
+        "unit": "sections"
+      }
+    ],
+    "name": "MAX_NOTE_SECTIONS",
+    "resource": "note template sections",
+    "source": "rust",
+    "unit": "sections",
+    "value": 12
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/notes.rs",
+        "name": "MAX_NAME_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "server/orbit_hub/notes/templates.py",
+        "name": "MAX_NAME_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_NOTE_NAME_CHARS",
+    "resource": "note section or template name",
+    "source": "rust",
+    "unit": "characters",
+    "value": 80
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/model.rs",
+        "name": "MAX_MANIFEST_TITLE_CHARACTERS",
+        "unit": "characters"
+      },
+      {
+        "file": "server/orbit_hub/protocol.py",
+        "name": "MAX_RECORDING_TITLE_CHARACTERS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_MEETING_TITLE_CHARS",
+    "resource": "meeting title, at its start and when renamed",
+    "source": "rust",
+    "unit": "characters",
+    "value": 256
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/notes.rs",
+        "name": "MAX_PERSON_NAME_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "server/orbit_hub/meetings/bounds.py",
+        "name": "MAX_PERSON_NAME_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "scripts/e2e-mac/mac.py",
+        "name": "MAX_NOMBRE_PERSONA",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_PERSON_NAME_CHARS",
+    "resource": "owner or speaker name",
+    "source": "rust",
+    "unit": "characters",
+    "value": 128
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/notes.rs",
+        "name": "LIST_PAGE",
+        "unit": "meetings"
+      },
+      {
+        "file": "server/orbit_hub/meetings/views.py",
+        "name": "MAX_LIST_PAGE",
+        "unit": "meetings"
+      }
+    ],
+    "name": "NOTES_LIST_PAGE",
+    "resource": "meetings per page of the hub's list",
+    "source": "rust",
+    "unit": "meetings",
+    "value": 50
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/notes.rs",
+        "name": "TURN_PAGE_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "server/orbit_hub/meetings/views.py",
+        "name": "MAX_TURN_PAGE_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "NOTE_TURN_PAGE_BYTES",
+    "resource": "turns per page of the hub's transcript",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 262144
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/notes.rs",
+        "name": "MAX_EVENT_TITLE_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "server/orbit_hub/notes/models.py",
+        "name": "MAX_EVENT_TITLE_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_NOTE_EVENT_TITLE_CHARS",
+    "resource": "linked event title in a closing manifest",
+    "source": "rust",
+    "unit": "characters",
+    "value": 512
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/notes.rs",
+        "name": "MAX_EVENT_ATTENDEES",
+        "unit": "guests"
+      },
+      {
+        "file": "server/orbit_hub/notes/models.py",
+        "name": "MAX_ATTENDEES",
+        "unit": "guests"
+      }
+    ],
+    "name": "MAX_NOTE_EVENT_ATTENDEES",
+    "resource": "linked event guests in a closing manifest",
+    "source": "rust",
+    "unit": "guests",
+    "value": 200
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/notes.rs",
+        "name": "MAX_ATTENDEE_NAME_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "server/orbit_hub/notes/models.py",
+        "name": "Attendee.model_fields.name.metadata.0.max_length",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_NOTE_ATTENDEE_NAME_CHARS",
+    "resource": "linked event guest name",
+    "source": "rust",
+    "unit": "characters",
+    "value": 160
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/notes.rs",
+        "name": "MAX_ATTENDEE_EMAIL_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "server/orbit_hub/notes/models.py",
+        "name": "MAX_EMAIL_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_NOTE_ATTENDEE_EMAIL_CHARS",
+    "resource": "linked event guest address",
+    "source": "rust",
+    "unit": "characters",
+    "value": 254
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/call_detection.rs",
+        "name": "CALL_CONFIRM_MS",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "CALL_CONFIRM_MS",
+    "resource": "microphone hold before a call counts",
+    "source": "rust",
+    "unit": "milliseconds",
+    "value": 3000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/call_detection.rs",
+        "name": "CALL_RELEASE_MS",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "CALL_RELEASE_MS",
+    "resource": "microphone release before a call is over",
+    "source": "rust",
+    "unit": "milliseconds",
+    "value": 3000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/call_detection.rs",
+        "name": "AUTO_STOP_COUNTDOWN_MS",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "AUTO_STOP_COUNTDOWN_MS",
+    "resource": "countdown before a call's recording ends",
+    "source": "rust",
+    "unit": "milliseconds",
+    "value": 13000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/call_detection.rs",
+        "name": "EVENT_LOOKAHEAD_MS",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "CALL_EVENT_LOOKAHEAD_MS",
+    "resource": "how soon an event starts to be a call's event",
+    "source": "rust",
+    "unit": "milliseconds",
+    "value": 600000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/notes.rs",
+        "name": "MAX_CONTEXT_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "server/orbit_hub/notes/templates.py",
+        "name": "MAX_CONTEXT_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_NOTE_TEMPLATE_CONTEXT_CHARS",
+    "resource": "note template context",
+    "source": "rust",
+    "unit": "characters",
+    "value": 4000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/notes.rs",
+        "name": "MAX_INSTRUCTIONS_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "server/orbit_hub/notes/templates.py",
+        "name": "MAX_INSTRUCTIONS_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_NOTE_TEMPLATE_INSTRUCTIONS_CHARS",
+    "resource": "note template section instructions",
+    "source": "rust",
+    "unit": "characters",
+    "value": 2000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/notes.rs",
+        "name": "MAX_CUSTOM_TEMPLATES",
+        "unit": "templates"
+      },
+      {
+        "file": "server/orbit_hub/notes/custom_templates.py",
+        "name": "MAX_CUSTOM_TEMPLATES",
+        "unit": "templates"
+      }
+    ],
+    "name": "MAX_CUSTOM_NOTE_TEMPLATES",
+    "resource": "custom note templates of one device",
+    "source": "rust",
+    "unit": "templates",
+    "value": 32
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/meeting_question.rs",
+        "name": "MAX_QUESTION_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_MEETING_QUESTION_BYTES",
+    "resource": "one question to Deimos during a meeting",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 1024
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/meeting_question.rs",
+        "name": "DEFAULT_WINDOW_MINUTES",
+        "unit": "minutes"
+      }
+    ],
+    "name": "MEETING_DEFAULT_WINDOW_MINUTES",
+    "resource": "transcript sent with a meeting question by default",
+    "source": "rust",
+    "unit": "minutes",
+    "value": 2
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/meeting_question.rs",
+        "name": "ANSWER_SHOWN_MS",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "MEETING_ANSWER_SHOWN_MS",
+    "resource": "an answer in the floating panel",
+    "source": "rust",
+    "unit": "milliseconds",
+    "value": 45000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/meeting_question.rs",
+        "name": "FAILURE_SHOWN_MS",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "MEETING_FAILURE_SHOWN_MS",
+    "resource": "a failed question in the floating panel",
+    "source": "rust",
+    "unit": "milliseconds",
+    "value": 8000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/meeting_question.rs",
+        "name": "QUESTION_PAUSE_MS",
+        "unit": "milliseconds"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/Limits.swift",
+        "name": "assistantQuestionPauseMilliseconds",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "MEETING_QUESTION_PAUSE_MS",
+    "resource": "silence that ends a spoken question",
+    "source": "rust",
+    "unit": "milliseconds",
+    "value": 1500
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/meeting_question.rs",
+        "name": "MAX_SPOKEN_QUESTION_MS",
+        "unit": "milliseconds"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/Limits.swift",
+        "name": "maximumAssistantQuestionMilliseconds",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "MAX_SPOKEN_QUESTION_MS",
+    "resource": "one spoken question from the phrase to its end",
+    "source": "rust",
+    "unit": "milliseconds",
+    "value": 30000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/meeting_question.rs",
+        "name": "MAX_VOICE_TRIGGER_DETAIL_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_VOICE_TRIGGER_DETAIL_BYTES",
+    "resource": "the helper's detail about the «Oye Deimos» detector",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 256
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/calendar.rs",
+        "name": "MAX_NATIVE_PAGE_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/CalendarModels.swift",
+        "name": "maximumPageBytes",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_NATIVE_PAGE_BYTES",
+    "resource": "calendar helper page",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 786432
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/calendar.rs",
+        "name": "NATIVE_PAGE_EVENT_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/CalendarModels.swift",
+        "name": "pageEventBytes",
+        "unit": "bytes"
+      }
+    ],
+    "name": "NATIVE_PAGE_EVENT_BYTES",
+    "resource": "calendar page event budget",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 262144
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/calendar.rs",
+        "name": "EVENTKIT_MAX_QUERY_MS",
+        "unit": "milliseconds"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/CalendarModels.swift",
+        "name": "maximumQueryMilliseconds",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "EVENTKIT_MAX_QUERY_MS",
+    "resource": "EventKit query window",
+    "source": "rust",
+    "unit": "milliseconds",
+    "value": 126144000000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/calendar.rs",
+        "name": "MAX_TITLE_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/CalendarModels.swift",
+        "name": "maximumTitleBytes",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_TITLE_BYTES",
+    "resource": "calendar title",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 98304
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/calendar.rs",
+        "name": "MAX_URL_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/CalendarModels.swift",
+        "name": "maximumURLBytes",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_URL_BYTES",
+    "resource": "calendar URL",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 98304
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/calendar.rs",
+        "name": "MAX_LABEL_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/CalendarModels.swift",
+        "name": "maximumLabelBytes",
+        "unit": "bytes"
+      },
+      {
+        "file": "server/orbit_hub/notes/series_key.py",
+        "name": "MAX_SERIES_KEY_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_LABEL_BYTES",
+    "resource": "calendar label",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 1024
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/calendar.rs",
+        "name": "MAX_TIMEZONE_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/CalendarModels.swift",
+        "name": "maximumTimezoneBytes",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_TIMEZONE_BYTES",
+    "resource": "calendar timezone",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 128
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/calendar.rs",
+        "name": "READ_LIFETIME_NS",
+        "unit": "nanoseconds"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/CalendarModels.swift",
+        "name": "readLifetimeNanoseconds",
+        "unit": "nanoseconds"
+      }
+    ],
+    "name": "READ_LIFETIME_NS",
+    "resource": "calendar read lifetime",
+    "source": "rust",
+    "unit": "nanoseconds",
+    "value": 5000000000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/calendar.rs",
+        "name": "PERMISSION_LIFETIME_NS",
+        "unit": "nanoseconds"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/CalendarModels.swift",
+        "name": "permissionLifetimeNanoseconds",
+        "unit": "nanoseconds"
+      }
+    ],
+    "name": "PERMISSION_LIFETIME_NS",
+    "resource": "calendar permission response lifetime",
+    "source": "rust",
+    "unit": "nanoseconds",
+    "value": 120000000000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/calendar.rs",
+        "name": "MAX_GRID_DAYS",
+        "unit": "days"
+      },
+      {
+        "file": "apps/desktop/src/features/calendar/range.ts",
+        "name": "MAX_GRID_DAYS",
+        "unit": "days"
+      }
+    ],
+    "name": "MAX_GRID_DAYS",
+    "resource": "widest N-day calendar grid",
+    "source": "rust",
+    "unit": "days",
+    "value": 14
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/calendar.rs",
+        "name": "MAX_NOTES_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/CalendarModels.swift",
+        "name": "maximumNotesBytes",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_NOTES_BYTES",
+    "resource": "calendar event notes",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 32768
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/calendar.rs",
+        "name": "MAX_EVENT_ALARMS",
+        "unit": "alarms"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/CalendarModels.swift",
+        "name": "maximumAlarms",
+        "unit": "alarms"
+      }
+    ],
+    "name": "MAX_EVENT_ALARMS",
+    "resource": "alarms of one written calendar event",
+    "source": "rust",
+    "unit": "alarms",
+    "value": 16
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/calendar.rs",
+        "name": "MAX_ALARM_MINUTES",
+        "unit": "minutes"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/CalendarModels.swift",
+        "name": "maximumAlarmMinutes",
+        "unit": "minutes"
+      }
+    ],
+    "name": "MAX_ALARM_MINUTES",
+    "resource": "calendar alarm offset before its event",
+    "source": "rust",
+    "unit": "minutes",
+    "value": 40320
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/calendar.rs",
+        "name": "WRITE_LIFETIME_NS",
+        "unit": "nanoseconds"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/CalendarModels.swift",
+        "name": "writeLifetimeNanoseconds",
+        "unit": "nanoseconds"
+      },
+      {
+        "file": "apps/desktop/src/features/calendar/edit/pending.ts",
+        "name": "WRITE_LIFETIME_MS",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "WRITE_LIFETIME_NS",
+    "resource": "calendar write lifetime before its outcome is unknown",
+    "source": "rust",
+    "unit": "nanoseconds",
+    "value": 5000000000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-update/src/lib.rs",
+        "name": "INSTALLER_CEILING_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "scripts/publish-macos.sh",
+        "name": "INSTALLER_CEILING_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "crates/orbit-update/src/ceiling_tests.rs",
+        "name": "INSTALLER_CEILING_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "INSTALLER_CEILING_BYTES",
+    "resource": "installer download: measured 11,171-byte SYS-06 baseline + 50% headroom, not signature verification",
+    "source": "registry",
+    "unit": "bytes",
+    "value": 16756
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/wire/native.rs",
+        "name": "NATIVE_PROTOCOL",
+        "unit": "version"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/Protocol.swift",
+        "name": "version",
+        "unit": "version"
+      }
+    ],
+    "name": "NATIVE_PROTOCOL",
+    "resource": "native wire protocol version",
+    "source": "registry",
+    "unit": "version",
+    "value": 1
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-daemon/src/daemon/audio_sources.rs",
+        "name": "MAX_APPLICATIONS",
+        "unit": "applications"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/ApplicationIdentity.swift",
+        "name": "maximumApplications",
+        "unit": "applications"
+      }
+    ],
+    "name": "APPLICATION_INVENTORY_MAX_APPLICATIONS",
+    "resource": "audio application inventory: rows per helper response",
+    "source": "registry",
+    "unit": "applications",
+    "value": 32
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-daemon/src/daemon/audio_sources.rs",
+        "name": "MAX_BUNDLE_IDS",
+        "unit": "bundle identifiers"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/ApplicationIdentity.swift",
+        "name": "maximumBundleIDs",
+        "unit": "bundle identifiers"
+      }
+    ],
+    "name": "APPLICATION_INVENTORY_MAX_BUNDLE_IDS",
+    "resource": "audio application inventory: bundle identifiers per helper read",
+    "source": "registry",
+    "unit": "bundle identifiers",
+    "value": 8
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-daemon/src/daemon/audio_sources.rs",
+        "name": "MAX_READ_NS",
+        "unit": "nanoseconds"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/ApplicationIdentity.swift",
+        "name": "lifetimeNanoseconds",
+        "unit": "nanoseconds"
+      }
+    ],
+    "name": "APPLICATION_INVENTORY_MAX_READ_NS",
+    "resource": "audio application inventory: freshness of identity observations",
+    "source": "registry",
+    "unit": "nanoseconds",
+    "value": 15000000000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-daemon/src/daemon/audio_sources.rs",
+        "name": "MAX_RESPONSE_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/ApplicationIdentity.swift",
+        "name": "maximumResponseBytes",
+        "unit": "bytes"
+      }
+    ],
+    "name": "APPLICATION_INVENTORY_MAX_RESPONSE_BYTES",
+    "resource": "audio application inventory: one helper response allocation",
+    "source": "registry",
+    "unit": "bytes",
+    "value": 196608
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/computer_control.rs",
+        "name": "MAX_TOOL_NAME_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "server/orbit_mcp/bridge.py",
+        "name": "MAX_TOOL_NAME_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_TOOL_NAME_BYTES",
+    "resource": "engine tool identifier (ASCII)",
+    "source": "registry",
+    "unit": "bytes",
+    "value": 128
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/wire/bridge.rs",
+        "name": "MAX_READ_ID_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "server/orbit_mcp/bridge.py",
+        "name": "MAX_READ_ID_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "server/orbit_mcp/calendar.py",
+        "name": "MAX_READ_ID_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_READ_ID_BYTES",
+    "resource": "retained calendar cursor metadata",
+    "source": "registry",
+    "unit": "bytes",
+    "value": 128
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-daemon/src/daemon/bridge.rs",
+        "name": "MAX_BRIDGE_CODE_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "server/orbit_mcp/bridge.py",
+        "name": "MAX_BRIDGE_CODE_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "server/orbit_hub/protocol.py",
+        "name": "MAX_BRIDGE_CODE_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_BRIDGE_CODE_BYTES",
+    "resource": "bridge cause label",
+    "source": "registry",
+    "unit": "bytes",
+    "value": 64
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-daemon/src/daemon/bridge.rs",
+        "name": "MAX_BRIDGE_DETAIL_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "server/orbit_mcp/bridge.py",
+        "name": "MAX_BRIDGE_DETAIL_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_BRIDGE_DETAIL_CHARS",
+    "resource": "sanitized bridge refusal detail",
+    "source": "registry",
+    "unit": "characters",
+    "value": 400
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_mcp/bridge.py",
+        "name": "MAX_FILTER_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_FILTER_CHARS",
+    "resource": "MCP window filter metadata",
+    "source": "registry",
+    "unit": "characters",
+    "value": 1024
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/protocol.py",
+        "name": "HUB_PROTOCOL",
+        "unit": "version"
+      },
+      {
+        "file": "crates/orbit-core/src/wire/hub.rs",
+        "name": "HUB_PROTOCOL",
+        "unit": "version"
+      },
+      {
+        "file": "crates/orbit-daemon/src/hub.rs",
+        "name": "TYPED_REFUSAL_HUB_PROTOCOL",
+        "unit": "version"
+      }
+    ],
+    "name": "HUB_PROTOCOL",
+    "resource": "hub wire protocol including typed refusals",
+    "source": "python",
+    "unit": "version",
+    "value": 1
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/transcription.py",
+        "name": "INTERACTIVE_TRANSCRIPTION_TIMEOUT_SECONDS",
+        "unit": "seconds"
+      },
+      {
+        "file": "crates/orbit-daemon/src/hub.rs",
+        "name": "HUB_VOICE_DEADLINE_SECONDS",
+        "unit": "seconds"
+      }
+    ],
+    "name": "INTERACTIVE_TRANSCRIPTION_TIMEOUT_SECONDS",
+    "resource": "interactive voice queue and provider deadline, before daemon timeout",
+    "source": "python",
+    "unit": "seconds",
+    "value": 240
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/orbit_bundle.rs",
+        "name": "SYSTEM_APPLICATIONS",
+        "unit": "path"
+      },
+      {
+        "file": "scripts/install.sh",
+        "name": "SYSTEM_APPLICATIONS",
+        "unit": "path"
+      }
+    ],
+    "name": "SYSTEM_APPLICATIONS",
+    "resource": "official Orbit installation path; Pruebas keeps its separate user bundle",
+    "source": "registry",
+    "unit": "path",
+    "value": "/Applications"
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/orbit_bundle.rs",
+        "name": "INSTALL_DATA_DIRECTORY",
+        "unit": "path"
+      },
+      {
+        "file": "scripts/install.sh",
+        "name": "INSTALL_DATA_DIRECTORY",
+        "unit": "path"
+      }
+    ],
+    "name": "INSTALL_DATA_DIRECTORY",
+    "resource": "official Orbit installation path; Pruebas keeps its separate user bundle",
+    "source": "registry",
+    "unit": "path",
+    "value": "Library/Application Support/com.MarsGotta.Orbit"
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/orbit_bundle.rs",
+        "name": "ENGINE_RELATIVE_PATH",
+        "unit": "path"
+      },
+      {
+        "file": "scripts/bundle-macos.sh",
+        "name": "CUA_ENGINE_RELATIVE_PATH",
+        "unit": "path"
+      },
+      {
+        "file": "scripts/e2e-mac/mac.py",
+        "name": "CUA_ENGINE_RELATIVE_PATH",
+        "unit": "path"
+      },
+      {
+        "file": "scripts/verify-macos-archive.py",
+        "name": "CUA_ENGINE_RELATIVE_PATH",
+        "unit": "path"
+      }
+    ],
+    "name": "CUA_ENGINE_RELATIVE_PATH",
+    "resource": "engine executable inside its own nested app; relative to Orbit Contents",
+    "source": "registry",
+    "unit": "path",
+    "value": "Helpers/Orbit Engine.app/Contents/MacOS/cua-driver"
+  }
+]

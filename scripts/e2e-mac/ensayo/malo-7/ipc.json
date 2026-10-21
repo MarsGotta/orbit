@@ -1,0 +1,98 @@
+{
+ "esperas": {
+  "respuesta": [
+   {
+    "topic": "recording",
+    "knowledge": {
+     "state": "present",
+     "value": {
+      "recording": {
+       "id": "9f1c2d3e-0000-4000-8000-000000000001",
+       "title": "Reunión 16/10/26, 10:00",
+       "started_at_ms": 1760608800000,
+       "ended_at_ms": null,
+       "expires_at_ms": 1760612400000,
+       "application_pid": null,
+       "audio": "microphone_only",
+       "phase": "recording",
+       "sealed_chunks": 0,
+       "gaps": 0,
+       "finalizing_since_ms": null
+      },
+      "recording_signal": null,
+      "pending_jobs": 0,
+      "offline": false,
+      "applications": {
+       "state": "unknown",
+       "why": "not_observed_yet"
+      },
+      "voice_trigger": {
+       "state": "listening"
+      },
+      "question": {
+       "id": "q1",
+       "recording_id": "9f1c2d3e-0000-4000-8000-000000000001",
+       "question": "de qué estamos hablando?",
+       "minutes": 2,
+       "origin": "voice",
+       "asked_at_ms": 1760608870000,
+       "lines_sent": 4,
+       "lines_left_out": 0,
+       "sent": true,
+       "stage": "thinking"
+      }
+     },
+     "as_of_ms": null
+    }
+   },
+   {
+    "topic": "recording",
+    "knowledge": {
+     "state": "present",
+     "value": {
+      "recording": {
+       "id": "9f1c2d3e-0000-4000-8000-000000000001",
+       "title": "Reunión 16/10/26, 10:00",
+       "started_at_ms": 1760608800000,
+       "ended_at_ms": null,
+       "expires_at_ms": 1760612400000,
+       "application_pid": null,
+       "audio": "microphone_only",
+       "phase": "recording",
+       "sealed_chunks": 0,
+       "gaps": 0,
+       "finalizing_since_ms": null
+      },
+      "recording_signal": null,
+      "pending_jobs": 0,
+      "offline": false,
+      "applications": {
+       "state": "unknown",
+       "why": "not_observed_yet"
+      },
+      "voice_trigger": {
+       "state": "listening"
+      },
+      "question": {
+       "id": "q1",
+       "recording_id": "9f1c2d3e-0000-4000-8000-000000000001",
+       "question": "de qué estamos hablando?",
+       "minutes": 2,
+       "origin": "voice",
+       "asked_at_ms": 1760608870000,
+       "lines_sent": 4,
+       "lines_left_out": 0,
+       "sent": true,
+       "stage": "failed",
+       "cause": {
+        "cause": "no_answer"
+       },
+       "finished_at_ms": 1760608990000
+      }
+     },
+     "as_of_ms": null
+    }
+   }
+  ]
+ }
+}

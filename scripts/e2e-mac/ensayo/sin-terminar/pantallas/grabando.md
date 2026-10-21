@@ -1,0 +1,14 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Vistas)
+      - [1] AXButton (Briefing de hoy) [actions=[press]]
+      - [2] AXButton (Calendario) [actions=[press]]
+      - [3] AXButton (Notas) [actions=[press]]
+      - [4] AXButton (Asistente) [actions=[press]]
+      - [5] AXButton (Ajustes) [actions=[press]]
+    - [6] AXGroup (Grabando · Reunión 16/10/26, 10:00 · 01:02) [actions=[scrolltovisible,showmenu]]
+      - AXStaticText = "Grabando · Reunión 16/10/26, 10:00 · 01:02"
+      - AXStaticText = "«Oye Deimos» escucha"
+    - AXHeading
+      - AXStaticText = "Notas"
+    - [7] AXButton "R Reunión 16/10/26, 10:00 Grabando 16 oct, 10:00" [actions=[press]]

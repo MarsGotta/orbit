@@ -1,0 +1,212 @@
+.event {
+  position: absolute;
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 4px;
+  overflow: hidden;
+  padding: 3px 6px 3px 7px;
+  border: 0;
+  border-left: 3px solid var(--event-color);
+  border-radius: var(--o-radius-6);
+  background: var(--event-bg);
+  box-shadow: 0 0 0 1px var(--o-bg);
+  color: var(--o-fg);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: filter 120ms ease;
+}
+
+.event:hover {
+  filter: brightness(1.15);
+}
+
+.event:focus-visible {
+  outline: 2px solid var(--o-accent);
+  outline-offset: 1px;
+}
+
+/* Maybe, or not answered yet: 45-degree stripes over the fill. */
+.striped {
+  background-image: repeating-linear-gradient(-45deg, transparent 0 5px, var(--o-press) 5px 9px);
+}
+
+.event[data-done="true"],
+.event[data-declined="true"] {
+  text-decoration-color: var(--o-subtle);
+}
+
+.copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.copy strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--o-font-11-5);
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.copy time,
+.place {
+  overflow: hidden;
+  color: var(--o-muted);
+  font-size: var(--o-font-10);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy time {
+  font-family: var(--o-font-mono);
+}
+
+.compact {
+  align-items: center;
+  padding-block: 0;
+}
+
+.compact .copy {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.compact .copy strong {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+.recording {
+  box-shadow:
+    0 0 0 1px var(--o-bg),
+    0 0 0 2px var(--o-red);
+}
+
+.recording .copy time {
+  color: var(--o-red);
+  font-family: var(--o-font-body);
+}
+
+.pulse {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--o-radius-pill);
+  background: var(--o-red);
+}
+
+.pulse::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--o-red);
+  animation: o-ring 1.6s ease-out infinite;
+  content: "";
+}
+
+/* Not answered yet: a dot, the card's one icon on the right. */
+.unanswered {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  margin-top: 4px;
+  border-radius: var(--o-radius-pill);
+  background: var(--event-color);
+  box-shadow: 0 0 0 2px var(--event-bg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse::after {
+    animation: none;
+  }
+}
+
+/* P9-22: the bottom edge stretches the event. A strip, not a target that
+   steals the card: four pixels, the resize cursor and nothing drawn until
+   the pointer is there. */
+.resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.resize::after {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  width: 18px;
+  height: 2px;
+  margin-left: -9px;
+  border-radius: var(--o-radius-pill);
+  background: var(--event-color);
+  content: "";
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.event:hover .resize::after {
+  opacity: 0.8;
+}
+
+/* A draft: not in the calendar yet. */
+.event[data-draft="true"] {
+  border: 1px dashed var(--event-color);
+  border-left-width: 3px;
+  border-left-style: solid;
+  background: var(--o-s2);
+}
+
+/* Being moved: it stays where it was, faint, under the card that moves. */
+.event[data-dragging="true"] {
+  opacity: 0.45 !important;
+}
+
+.event[data-ghost="true"] {
+  box-shadow:
+    0 0 0 1px var(--event-color),
+    0 10px 26px var(--o-shadow-medium);
+  cursor: grabbing;
+  pointer-events: none;
+}
+
+/* A write on its way: in its new place, breathing until the calendar says. */
+.event[data-saving="true"] {
+  cursor: progress;
+  animation: o-saving 1.2s ease-in-out infinite;
+}
+
+.event[data-saving="true"] .copy time {
+  color: var(--o-accent-ink);
+  font-family: var(--o-font-body);
+}
+
+@keyframes o-saving {
+  0%,
+  100% {
+    filter: none;
+  }
+  50% {
+    filter: saturate(0.6) brightness(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .event[data-saving="true"] {
+    animation: none;
+  }
+}

@@ -1,0 +1,29 @@
+.input {
+  width: 100%;
+  min-height: var(--o-control-large);
+  padding: 7px 10px;
+  border-radius: var(--o-radius-10);
+  color: var(--o-fg);
+  background: transparent;
+  font-family: var(--o-font-body);
+  font-size: var(--o-font-12-5);
+}
+
+.input::placeholder {
+  color: var(--o-subtle);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--o-accent-ink);
+  outline-offset: 2px;
+}
+
+.transparent {
+  border: 1px solid transparent;
+}
+
+.dotted {
+  border-width: 1px;
+  border-style: dotted;
+  border-color: var(--o-line-strong);
+}

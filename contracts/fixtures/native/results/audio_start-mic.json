@@ -1,0 +1,14 @@
+{
+  "agc_enabled": false,
+  "channels": 1,
+  "echo_control": "apple_voice_processing_unvalidated",
+  "input_channels": 9,
+  "pipeline_id": "fixture",
+  "playback_reference": "shared_engine",
+  "processing": "voice_processing",
+  "processing_bypassed": false,
+  "processing_enabled": true,
+  "sample_rate": 48000,
+  "source": "mic_local",
+  "stream_id": "stream-1"
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "orbit.native-frame.v1",
+  "frames": [
+    {
+      "v": 1,
+      "id": "00000000-0000-4000-8000-000000000911",
+      "command": "privacy_stop"
+    },
+    {
+      "v": 1,
+      "id": "00000000-0000-4000-8000-000000000913",
+      "command": "audio_start",
+      "stream_id": "meeting-remote-1",
+      "source": "remote_app",
+      "capture_scope": "system"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Vistas)
+      - [1] AXButton (Briefing de hoy) [actions=[press]]
+      - [2] AXButton (Calendario) [actions=[press]]
+      - [3] AXButton (Notas) [actions=[press]]
+      - [4] AXButton (Asistente) [actions=[press]]
+      - [5] AXButton (Ajustes) [actions=[press]]
+    - AXHeading
+      - [6] AXTextField = "Reunión 16/10/26, 10:00" (Título de la reunión) [actions=[confirm]]
+    - AXStaticText = "Se revisó el presupuesto y el calendario de obras."
+    - AXGroup
+      - [30] AXButton "Preguntar a Deimos" [actions=[press]]
+      - AXGroup
+        - AXStaticText = "Idioma"
+        - [31] AXPopUpButton = "Español" (Idioma) [actions=[press,showmenu]]
+    - AXTabGroup (Notas)
+      - [7] AXRadioButton "Notas privadas" [actions=[press]]
+      - [8] AXRadioButton "Resumen" [actions=[press]]
+      - [9] AXRadioButton "Acciones" [actions=[press]]
+      - [10] AXRadioButton "Transcripción" [actions=[press]]
+    - AXGroup
+      - [11] AXButton "Copiar resumen" [actions=[press]]
+      - AXHeading
+        - AXStaticText = "Resumen"
+      - [12] AXButton (Editar «Resumen») [actions=[press]]
+      - AXGroup
+        - AXStaticText = "Se revisó el presupuesto de las estanterías, por encima de lo previsto, y se confirmó el calendario de obras."
+      - AXHeading
+        - AXStaticText = "Próximos pasos"
+      - [12] AXButton (Editar «Próximos pasos») [actions=[press]]
+      - AXGroup
+        - AXStaticText = "Laura negocia con el proveedor y Pedro pide el almacén al ayuntamiento."
+    - AXGroup (Panel de contexto)
+      - [40] AXButton "R Reunión 16/10/26, 10:00 › Se revisó el presupuesto y el calendario de obras 16 oct" [actions=[press]]

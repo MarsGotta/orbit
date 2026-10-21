@@ -1,0 +1,59 @@
+export const dictionary = {
+  dictionary: {
+    label: "Diccionario",
+    plural: "Diccionarios de reuniones",
+    name: "Nombre del diccionario",
+    inherit: "Usar el de la serie",
+    create: "Crear un diccionario",
+    correctText: "Corregir texto",
+    correctForm: "Forma correcta",
+    saveCorrection: "Guardar corrección",
+    saving: "Guardando en el hub…",
+    unread: "El diccionario aún no se ha podido leer del hub.",
+    selected: (text: string) => `Texto seleccionado: «${text}»`,
+    help: "Corrige todas las apariciones de esta forma en las reuniones que usan el diccionario. La nota ya escrita cambia al volver a escribirla.",
+    empty: "Todavía no hay diccionarios. Crea uno al corregir una palabra de una transcripción.",
+    emptyTerms: "Sin términos.",
+    noSeries: "Ninguna serie lo usa siempre.",
+    series: (names: string) => `Series: ${names}`,
+    removeEntry: "Quitar",
+    remove: (term: string) => `Quitar ${term}`,
+    refused: (code: string, detail: string, numbers: Record<string, number>) => {
+      const causes: Record<string, string> = {
+        not_paired: "Orbit no está emparejado con el hub",
+        privacy_stopped: "La parada de privacidad está activada",
+        hub_unreachable: detail,
+
+        dictionary_full: "El diccionario está lleno",
+        dictionary_text_too_long: "El término o nombre es demasiado largo",
+        dictionary_forms_full: "El término tiene demasiadas formas equivocadas",
+        dictionaries_full: "Hay demasiados diccionarios",
+        dictionary_too_large: "El diccionario ocupa demasiados bytes",
+        dictionaries_too_large: "La lista de diccionarios ocupa demasiados bytes",
+        dictionary_series_full: "Hay demasiadas series asignadas",
+        dictionary_series_missing: "La reunión no tiene serie de calendario",
+        dictionary_not_found: "El diccionario no existe",
+        dictionary_text_invalid: "El término o nombre está vacío o contiene controles",
+      };
+      const labels: Record<string, string> = {
+        terms: "términos",
+        max_terms: "máximo de términos",
+        forms: "formas",
+        max_forms: "máximo de formas",
+        characters: "caracteres",
+        max_characters: "máximo de caracteres",
+        dictionaries: "diccionarios",
+        max_dictionaries: "máximo de diccionarios",
+        series: "series",
+        max_series: "máximo de series",
+        bytes: "bytes",
+        max_bytes: "máximo de bytes",
+        used_bytes: "bytes ocupados",
+      };
+      const values = Object.entries(numbers)
+        .map(([key, value]) => `${labels[key] ?? key}: ${value}`)
+        .join(", ");
+      return `${causes[code] ?? detail}${values ? ` (${values})` : ""}.`;
+    },
+  },
+} as const;

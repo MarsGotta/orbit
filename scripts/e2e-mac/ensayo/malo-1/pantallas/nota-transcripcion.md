@@ -1,0 +1,56 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Vistas)
+      - [1] AXButton (Briefing de hoy) [actions=[press]]
+      - [2] AXButton (Calendario) [actions=[press]]
+      - [3] AXButton (Notas) [actions=[press]]
+      - [4] AXButton (Asistente) [actions=[press]]
+      - [5] AXButton (Ajustes) [actions=[press]]
+    - AXHeading
+      - [6] AXTextField = "Reunión 16/10/26, 10:00" (Título de la reunión) [actions=[confirm]]
+    - AXStaticText = "Se revisó el presupuesto y el calendario de obras."
+    - AXGroup
+      - [30] AXButton "Preguntar a Deimos" [actions=[press]]
+      - AXGroup
+        - AXStaticText = "Idioma"
+        - [31] AXPopUpButton = "Español" (Idioma) [actions=[press,showmenu]]
+    - AXTabGroup (Notas)
+      - [7] AXRadioButton "Notas privadas" [actions=[press]]
+      - [8] AXRadioButton "Resumen" [actions=[press]]
+      - [9] AXRadioButton "Acciones" [actions=[press]]
+      - [10] AXRadioButton "Transcripción" [actions=[press]]
+    - AXGroup
+      - AXStaticText = "Idioma de la transcripción: English"
+      - [11] AXButton "Copiar transcripción" [actions=[press]]
+      - AXGroup
+        - AXStaticText = "00:00"
+        - [12] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Good morning, we start the follow-up meeting of the library project."
+      - AXGroup
+        - AXStaticText = "00:21"
+        - [13] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Item number 1 of the agenda was reviewed by the team today."
+      - AXGroup
+        - AXStaticText = "00:42"
+        - [14] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Item number 2 of the agenda was reviewed by the team today."
+      - AXGroup
+        - AXStaticText = "01:03"
+        - [15] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Item number 3 of the agenda was reviewed by the team today."
+      - AXGroup
+        - AXStaticText = "01:24"
+        - [16] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Item number 4 of the agenda was reviewed by the team today."
+      - AXGroup
+        - AXStaticText = "01:45"
+        - [17] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Item number 5 of the agenda was reviewed by the team today."
+    - AXGroup (Panel de contexto)
+      - [40] AXButton "R Reunión 16/10/26, 10:00 › Se revisó el presupuesto y el calendario de obras 16 oct" [actions=[press]]

@@ -1,0 +1,8 @@
+{
+  "command": "audio_wake_phrase",
+  "assistant_name": "Atlas",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000911",
+  "stream_id": "stream-1",
+  "enabled": true
+}

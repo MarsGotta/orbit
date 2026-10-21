@@ -1,0 +1,271 @@
+/* P9-20: day, N days and week. 24 hours, a rail of hours on the left, the
+   all-day lane above, Orbit's tokens only. */
+.grid {
+  --rail: 56px;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.dayHeader,
+.gridBody,
+.allDay {
+  display: grid;
+  grid-template-columns: var(--rail) repeat(var(--columns), minmax(0, 1fr));
+}
+
+.dayHeader {
+  flex: none;
+  border-bottom: 1px solid var(--o-line);
+}
+
+.timezone {
+  align-self: center;
+  padding: 0 8px 0 4px;
+  color: var(--o-subtle);
+  font-size: var(--o-font-10);
+  text-align: right;
+}
+
+.dayHeading {
+  display: flex;
+  height: 36px;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-left: 1px solid var(--o-line);
+  color: var(--o-muted);
+  font-size: var(--o-font-12);
+  white-space: nowrap;
+}
+
+.weekendHeading {
+  color: var(--o-subtle);
+}
+
+.dayNumber,
+.todayPill {
+  display: grid;
+  min-width: 22px;
+  height: 22px;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: var(--o-radius-pill);
+  color: var(--o-fg);
+  font-size: var(--o-font-12);
+  font-weight: 600;
+}
+
+.todayPill {
+  background: var(--o-accent);
+  color: var(--o-white);
+}
+
+.allDay {
+  flex: none;
+  border-bottom: 1px solid var(--o-line);
+}
+
+.allDayRail {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 3px 4px 3px 0;
+}
+
+.allDayToggle {
+  max-width: 100%;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: var(--o-radius-5);
+  background: transparent;
+  color: var(--o-subtle);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--o-font-9);
+  line-height: 1.2;
+  text-align: right;
+}
+
+.allDayToggle:hover:not(:disabled) {
+  background: var(--o-hover);
+  color: var(--o-fg);
+}
+
+.allDayToggle:disabled {
+  cursor: default;
+}
+
+.allDayBars {
+  display: grid;
+  grid-column: 2 / -1;
+  grid-auto-rows: 24px;
+  grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+  gap: 2px 0;
+  padding: 3px 0;
+}
+
+.allDayBar {
+  overflow: hidden;
+  margin: 0 3px;
+  padding: 0 8px;
+  border: 0;
+  border-left: 3px solid var(--event-color);
+  border-radius: var(--o-radius-5);
+  background: var(--event-bg);
+  color: var(--o-fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--o-font-11-5);
+  font-weight: 600;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Cut by the view: the edge is square, so the bar reads as going on. */
+.allDayBar[data-clipped-start="true"] {
+  margin-left: 0;
+  border-left-style: dashed;
+  border-bottom-left-radius: 0;
+  border-top-left-radius: 0;
+}
+
+.allDayBar[data-clipped-end="true"] {
+  margin-right: 0;
+  border-bottom-right-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.allDayBar:hover {
+  filter: brightness(1.15);
+}
+
+.gridScroll {
+  min-height: 0;
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.gridBody {
+  position: relative;
+}
+
+.timeRail {
+  position: relative;
+}
+
+.timeRail span {
+  position: absolute;
+  right: 8px;
+  color: var(--o-subtle);
+  font-family: var(--o-font-mono);
+  font-size: var(--o-font-10);
+}
+
+.timeRail .nowLabel {
+  z-index: 1;
+  padding-left: 4px;
+  background: var(--o-bg);
+  color: var(--o-accent-ink);
+  font-weight: 600;
+}
+
+.dayColumn {
+  position: relative;
+  min-width: 0;
+  border-left: 1px solid var(--o-line);
+}
+
+.weekendColumn {
+  background: var(--o-hover);
+}
+
+.hourLine {
+  position: absolute;
+  right: 0;
+  left: 0;
+  border-top: 1px solid var(--o-line);
+}
+
+.nowLine,
+.nowLineFaint {
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  left: 0;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--o-accent);
+  pointer-events: none;
+}
+
+.nowLine::before {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  width: 2px;
+  height: 8px;
+  border-radius: var(--o-radius-pill);
+  background: var(--o-accent);
+  content: "";
+}
+
+.nowLineFaint {
+  opacity: 0.15;
+}
+
+/* P9-22: the grid takes gestures. Text is not selected while dragging, and
+   the lane keeps one row even empty, so a drag across it drafts an event. */
+.gridBody {
+  user-select: none;
+}
+
+.gridBody[data-editing="true"] {
+  cursor: grabbing;
+}
+
+.allDayBars {
+  min-height: 30px;
+  user-select: none;
+}
+
+.allDayBar {
+  position: relative;
+}
+
+.allDayBar[data-draft="true"] {
+  border: 1px dashed var(--event-color, var(--o-accent));
+  border-left-width: 3px;
+  border-left-style: solid;
+  background: var(--o-s2);
+}
+
+.allDayBar[data-dragging="true"] {
+  box-shadow: 0 8px 22px var(--o-shadow-medium);
+  cursor: grabbing;
+}
+
+.allDayBar[data-saving="true"] {
+  cursor: progress;
+  opacity: 0.8;
+}
+
+.barSide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.barSide[data-resize="start"] {
+  left: 0;
+}
+
+.barSide[data-resize="end"] {
+  right: 0;
+}

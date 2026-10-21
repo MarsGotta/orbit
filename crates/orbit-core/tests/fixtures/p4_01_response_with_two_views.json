@@ -1,0 +1,66 @@
+{
+  "v": 1,
+  "id": "p4-01-golden",
+  "ok": true,
+  "state": {
+    "schema": 1,
+    "generation": 7,
+    "privacy_stopped": false,
+    "connection": "offline",
+    "session_id": "sesion-durable",
+    "active_request": null,
+    "source_inventory": null,
+    "source_request": null,
+    "source_receipt": null,
+    "proposal_review": null,
+    "proposal_progress": null,
+    "proposal_receipt": null,
+    "meeting_proposal": {
+      "review": null,
+      "progress": null,
+      "receipt": null
+    },
+    "publication": {
+      "review": null,
+      "progress": null,
+      "receipt": null
+    },
+    "messages": [
+      {
+        "id": "mensaje-1",
+        "role": "assistant",
+        "text": "Estado durable de la fixture",
+        "complete": true
+      }
+    ],
+    "recording": null,
+    "voice_active": false,
+    "call": null,
+    "pending_approval": null,
+    "capabilities": {
+      "native_helper": false,
+      "microphone": false,
+      "screen_audio": false,
+      "accessibility": false,
+      "wake_word": false,
+      "voice_processing_supported": false,
+      "voice_processing_available": false,
+      "playback_reference_available": false,
+      "calendar": null
+    },
+    "notice": {
+      "code": "recording_started",
+      "op": "fixture-p4-01"
+    },
+    "notice_log": {
+      "records": [
+        {
+          "code": "recording_started",
+          "op": "fixture-p4-01"
+        }
+      ]
+    },
+    "pending_jobs": 0
+  },
+  "error": null
+}

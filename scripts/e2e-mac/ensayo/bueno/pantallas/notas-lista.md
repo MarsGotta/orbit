@@ -1,0 +1,14 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Vistas)
+      - [1] AXButton (Briefing de hoy) [actions=[press]]
+      - [2] AXButton (Calendario) [actions=[press]]
+      - [3] AXButton (Notas) [actions=[press]]
+      - [4] AXButton (Asistente) [actions=[press]]
+      - [5] AXButton (Ajustes) [actions=[press]]
+    - AXHeading
+      - AXStaticText = "Notas"
+    - [6] AXButton "Actualizar" [actions=[press]]
+    - AXHeading
+      - AXStaticText = "Hoy"
+    - [7] AXButton "R Reunión 16/10/26, 10:00 Se revisó el presupuesto y el calendario de obras 16 oct, 10:00" [actions=[press]]

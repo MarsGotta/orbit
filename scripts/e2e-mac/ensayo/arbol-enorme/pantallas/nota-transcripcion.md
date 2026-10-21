@@ -1,0 +1,2056 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Vistas)
+      - [1] AXButton (Briefing de hoy) [actions=[press]]
+      - [2] AXButton (Calendario) [actions=[press]]
+      - [3] AXButton (Notas) [actions=[press]]
+      - [4] AXButton (Asistente) [actions=[press]]
+      - [5] AXButton (Ajustes) [actions=[press]]
+    - AXHeading
+      - [6] AXTextField = "Reunión 16/10/26, 10:00" (Título de la reunión) [actions=[confirm]]
+    - AXStaticText = "Se revisó el presupuesto y el calendario de obras."
+    - AXGroup
+      - [30] AXButton "Preguntar a Deimos" [actions=[press]]
+      - AXGroup
+        - AXStaticText = "Idioma"
+        - [31] AXPopUpButton = "Español" (Idioma) [actions=[press,showmenu]]
+    - AXTabGroup (Notas)
+      - [7] AXRadioButton "Notas privadas" [actions=[press]]
+      - [8] AXRadioButton "Resumen" [actions=[press]]
+      - [9] AXRadioButton "Acciones" [actions=[press]]
+      - [10] AXRadioButton "Transcripción" [actions=[press]]
+    - AXGroup
+      - AXStaticText = "Idioma de la transcripción: Español"
+      - [11] AXButton "Copiar transcripción" [actions=[press]]
+      - AXGroup
+        - AXStaticText = "00:00"
+        - [12] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Buenos días. Empezamos la reunión de seguimiento del proyecto de la biblioteca municipal. Buenos días. Yo traigo el estado del presupuesto y del calendario de obras. Perfecto. Primero el presupuesto: la semana pasada quedamos en revisar el coste de las estanterías nuevas. Sí. El proveedor ha mandado una oferta de doce mil euros, un poco por encima de lo previsto."
+      - AXGroup
+        - AXStaticText = "00:21"
+        - [13] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Entonces hay que negociar. Laura, ¿puedes llamar al proveedor antes del viernes para pedir un descuento? De acuerdo, llamo al proveedor el jueves por la mañana y os cuento el resultado. Bien. Sobre el calendario, las obras de la sala de lectura empiezan el tres de noviembre."
+      - AXGroup
+        - AXStaticText = "00:42"
+        - [14] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "El arquitecto confirmó esa fecha, pero necesita los planos firmados antes del veintiocho de octubre. ¿Y el permiso de obras? La última vez el ayuntamiento tardó casi un mes en contestar. Ya está concedido. Llegó el martes por correo y lo tengo guardado en la carpeta del proyecto. Oye Deimos, ¿de qué estamos hablando?"
+      - AXGroup
+        - AXStaticText = "01:03"
+        - [15] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Gracias. Sigamos. Decidimos mantener la fecha del tres de noviembre para empezar las obras. Me parece bien. Yo me encargo de enviar los planos firmados al arquitecto el lunes. Queda un tema abierto: la mudanza de los libros durante las obras. Todavía no sabemos dónde guardarlos."
+      - AXGroup
+        - AXStaticText = "01:24"
+        - [16] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Podemos preguntar al ayuntamiento si nos deja el almacén del polideportivo. Buena idea. Pedro, escribe al ayuntamiento esta semana para pedir el almacén. Apuntado. También conviene avisar a los usuarios de la biblioteca con un cartel en la entrada. De acuerdo, el cartel lo preparamos la semana que viene."
+      - AXGroup
+        - AXStaticText = "01:45"
+        - [17] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Y la próxima reunión la hacemos el martes que viene a las diez. Perfecto. Resumen: Laura llama al proveedor, Pedro escribe al ayuntamiento y los planos salen el lunes. Gracias a todos. Hasta el martes."
+      - AXGroup
+        - AXStaticText = "02:11"
+        - [18] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 0 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "02:31"
+        - [19] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 1 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "02:51"
+        - [20] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 2 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "03:11"
+        - [21] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 3 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "03:31"
+        - [22] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 4 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "03:51"
+        - [23] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 5 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "04:11"
+        - [24] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 6 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "04:31"
+        - [25] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 7 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "04:51"
+        - [26] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 8 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "05:11"
+        - [27] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 9 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "05:31"
+        - [28] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 10 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "05:51"
+        - [29] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 11 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "06:11"
+        - [30] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 12 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "06:31"
+        - [31] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 13 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "06:51"
+        - [32] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 14 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "07:11"
+        - [33] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 15 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "07:31"
+        - [34] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 16 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "07:51"
+        - [35] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 17 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "08:11"
+        - [36] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 18 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "08:31"
+        - [37] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 19 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "08:51"
+        - [38] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 20 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "09:11"
+        - [39] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 21 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "09:31"
+        - [40] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 22 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "09:51"
+        - [41] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 23 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "10:11"
+        - [42] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 24 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "10:31"
+        - [43] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 25 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "10:51"
+        - [44] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 26 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "11:11"
+        - [45] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 27 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "11:31"
+        - [46] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 28 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "11:51"
+        - [47] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 29 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "12:11"
+        - [48] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 30 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "12:31"
+        - [49] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 31 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "12:51"
+        - [50] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 32 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "13:11"
+        - [51] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 33 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "13:31"
+        - [52] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 34 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "13:51"
+        - [53] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 35 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "14:11"
+        - [54] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 36 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "14:31"
+        - [55] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 37 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "14:51"
+        - [56] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 38 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "15:11"
+        - [57] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 39 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "15:31"
+        - [58] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 40 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "15:51"
+        - [59] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 41 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "16:11"
+        - [60] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 42 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "16:31"
+        - [61] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 43 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "16:51"
+        - [62] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 44 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "17:11"
+        - [63] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 45 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "17:31"
+        - [64] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 46 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "17:51"
+        - [65] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 47 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "18:11"
+        - [66] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 48 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "18:31"
+        - [67] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 49 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "18:51"
+        - [68] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 50 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "19:11"
+        - [69] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 51 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "19:31"
+        - [70] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 52 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "19:51"
+        - [71] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 53 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "20:11"
+        - [72] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 54 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "20:31"
+        - [73] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 55 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "20:51"
+        - [74] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 56 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "21:11"
+        - [75] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 57 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "21:31"
+        - [76] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 58 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "21:51"
+        - [77] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 59 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "22:11"
+        - [78] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 60 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "22:31"
+        - [79] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 61 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "22:51"
+        - [80] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 62 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "23:11"
+        - [81] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 63 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "23:31"
+        - [82] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 64 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "23:51"
+        - [83] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 65 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "24:11"
+        - [84] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 66 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "24:31"
+        - [85] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 67 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "24:51"
+        - [86] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 68 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "25:11"
+        - [87] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 69 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "25:31"
+        - [88] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 70 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "25:51"
+        - [89] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 71 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "26:11"
+        - [90] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 72 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "26:31"
+        - [91] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 73 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "26:51"
+        - [92] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 74 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "27:11"
+        - [93] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 75 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "27:31"
+        - [94] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 76 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "27:51"
+        - [95] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 77 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "28:11"
+        - [96] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 78 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "28:31"
+        - [97] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 79 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "28:51"
+        - [98] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 80 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "29:11"
+        - [99] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 81 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "29:31"
+        - [100] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 82 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "29:51"
+        - [101] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 83 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "30:11"
+        - [102] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 84 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "30:31"
+        - [103] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 85 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "30:51"
+        - [104] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 86 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "31:11"
+        - [105] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 87 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "31:31"
+        - [106] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 88 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "31:51"
+        - [107] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 89 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "32:11"
+        - [108] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 90 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "32:31"
+        - [109] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 91 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "32:51"
+        - [110] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 92 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "33:11"
+        - [111] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 93 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "33:31"
+        - [112] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 94 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "33:51"
+        - [113] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 95 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "34:11"
+        - [114] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 96 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "34:31"
+        - [115] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 97 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "34:51"
+        - [116] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 98 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "35:11"
+        - [117] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 99 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "35:31"
+        - [118] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 100 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "35:51"
+        - [119] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 101 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "36:11"
+        - [120] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 102 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "36:31"
+        - [121] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 103 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "36:51"
+        - [122] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 104 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "37:11"
+        - [123] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 105 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "37:31"
+        - [124] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 106 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "37:51"
+        - [125] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 107 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "38:11"
+        - [126] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 108 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "38:31"
+        - [127] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 109 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "38:51"
+        - [128] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 110 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "39:11"
+        - [129] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 111 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "39:31"
+        - [130] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 112 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "39:51"
+        - [131] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 113 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "40:11"
+        - [132] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 114 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "40:31"
+        - [133] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 115 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "40:51"
+        - [134] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 116 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "41:11"
+        - [135] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 117 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "41:31"
+        - [136] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 118 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "41:51"
+        - [137] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 119 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "42:11"
+        - [138] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 120 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "42:31"
+        - [139] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 121 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "42:51"
+        - [140] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 122 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "43:11"
+        - [141] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 123 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "43:31"
+        - [142] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 124 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "43:51"
+        - [143] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 125 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "44:11"
+        - [144] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 126 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "44:31"
+        - [145] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 127 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "44:51"
+        - [146] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 128 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "45:11"
+        - [147] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 129 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "45:31"
+        - [148] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 130 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "45:51"
+        - [149] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 131 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "46:11"
+        - [150] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 132 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "46:31"
+        - [151] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 133 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "46:51"
+        - [152] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 134 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "47:11"
+        - [153] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 135 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "47:31"
+        - [154] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 136 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "47:51"
+        - [155] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 137 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "48:11"
+        - [156] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 138 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "48:31"
+        - [157] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 139 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "48:51"
+        - [158] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 140 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "49:11"
+        - [159] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 141 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "49:31"
+        - [160] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 142 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "49:51"
+        - [161] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 143 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "50:11"
+        - [162] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 144 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "50:31"
+        - [163] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 145 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "50:51"
+        - [164] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 146 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "51:11"
+        - [165] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 147 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "51:31"
+        - [166] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 148 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "51:51"
+        - [167] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 149 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "52:11"
+        - [168] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 150 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "52:31"
+        - [169] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 151 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "52:51"
+        - [170] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 152 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "53:11"
+        - [171] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 153 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "53:31"
+        - [172] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 154 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "53:51"
+        - [173] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 155 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "54:11"
+        - [174] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 156 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "54:31"
+        - [175] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 157 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "54:51"
+        - [176] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 158 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "55:11"
+        - [177] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 159 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "55:31"
+        - [178] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 160 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "55:51"
+        - [179] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 161 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "56:11"
+        - [180] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 162 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "56:31"
+        - [181] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 163 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "56:51"
+        - [182] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 164 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "57:11"
+        - [183] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 165 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "57:31"
+        - [184] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 166 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "57:51"
+        - [185] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 167 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "58:11"
+        - [186] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 168 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "58:31"
+        - [187] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 169 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "58:51"
+        - [188] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 170 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "59:11"
+        - [189] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 171 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "59:31"
+        - [190] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 172 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "59:51"
+        - [191] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 173 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "60:11"
+        - [192] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 174 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "60:31"
+        - [193] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 175 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "60:51"
+        - [194] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 176 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "61:11"
+        - [195] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 177 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "61:31"
+        - [196] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 178 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "61:51"
+        - [197] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 179 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "62:11"
+        - [198] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 180 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "62:31"
+        - [199] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 181 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "62:51"
+        - [200] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 182 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "63:11"
+        - [201] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 183 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "63:31"
+        - [202] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 184 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "63:51"
+        - [203] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 185 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "64:11"
+        - [204] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 186 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "64:31"
+        - [205] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 187 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "64:51"
+        - [206] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 188 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "65:11"
+        - [207] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 189 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "65:31"
+        - [208] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 190 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "65:51"
+        - [209] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 191 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "66:11"
+        - [210] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 192 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "66:31"
+        - [211] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 193 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "66:51"
+        - [212] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 194 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "67:11"
+        - [213] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 195 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "67:31"
+        - [214] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 196 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "67:51"
+        - [215] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 197 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "68:11"
+        - [216] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 198 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "68:31"
+        - [217] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 199 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "68:51"
+        - [218] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 200 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "69:11"
+        - [219] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 201 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "69:31"
+        - [220] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 202 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "69:51"
+        - [221] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 203 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "70:11"
+        - [222] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 204 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "70:31"
+        - [223] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 205 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "70:51"
+        - [224] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 206 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "71:11"
+        - [225] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 207 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "71:31"
+        - [226] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 208 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "71:51"
+        - [227] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 209 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "72:11"
+        - [228] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 210 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "72:31"
+        - [229] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 211 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "72:51"
+        - [230] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 212 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "73:11"
+        - [231] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 213 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "73:31"
+        - [232] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 214 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "73:51"
+        - [233] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 215 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "74:11"
+        - [234] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 216 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "74:31"
+        - [235] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 217 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "74:51"
+        - [236] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 218 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "75:11"
+        - [237] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 219 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "75:31"
+        - [238] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 220 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "75:51"
+        - [239] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 221 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "76:11"
+        - [240] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 222 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "76:31"
+        - [241] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 223 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "76:51"
+        - [242] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 224 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "77:11"
+        - [243] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 225 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "77:31"
+        - [244] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 226 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "77:51"
+        - [245] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 227 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "78:11"
+        - [246] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 228 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "78:31"
+        - [247] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 229 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "78:51"
+        - [248] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 230 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "79:11"
+        - [249] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 231 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "79:31"
+        - [250] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 232 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "79:51"
+        - [251] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 233 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "80:11"
+        - [252] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 234 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "80:31"
+        - [253] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 235 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "80:51"
+        - [254] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 236 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "81:11"
+        - [255] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 237 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "81:31"
+        - [256] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 238 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "81:51"
+        - [257] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 239 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "82:11"
+        - [258] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 240 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "82:31"
+        - [259] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 241 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "82:51"
+        - [260] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 242 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "83:11"
+        - [261] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 243 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "83:31"
+        - [262] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 244 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "83:51"
+        - [263] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 245 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "84:11"
+        - [264] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 246 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "84:31"
+        - [265] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 247 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "84:51"
+        - [266] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 248 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "85:11"
+        - [267] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 249 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "85:31"
+        - [268] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 250 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "85:51"
+        - [269] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 251 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "86:11"
+        - [270] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 252 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "86:31"
+        - [271] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 253 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "86:51"
+        - [272] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 254 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "87:11"
+        - [273] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 255 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "87:31"
+        - [274] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 256 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "87:51"
+        - [275] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 257 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "88:11"
+        - [276] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 258 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "88:31"
+        - [277] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 259 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "88:51"
+        - [278] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 260 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "89:11"
+        - [279] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 261 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "89:31"
+        - [280] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 262 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "89:51"
+        - [281] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 263 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "90:11"
+        - [282] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 264 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "90:31"
+        - [283] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 265 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "90:51"
+        - [284] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 266 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "91:11"
+        - [285] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 267 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "91:31"
+        - [286] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 268 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "91:51"
+        - [287] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 269 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "92:11"
+        - [288] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 270 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "92:31"
+        - [289] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 271 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "92:51"
+        - [290] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 272 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "93:11"
+        - [291] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 273 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "93:31"
+        - [292] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 274 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "93:51"
+        - [293] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 275 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "94:11"
+        - [294] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 276 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "94:31"
+        - [295] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 277 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "94:51"
+        - [296] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 278 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "95:11"
+        - [297] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 279 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "95:31"
+        - [298] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 280 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "95:51"
+        - [299] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 281 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "96:11"
+        - [300] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 282 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "96:31"
+        - [301] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 283 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "96:51"
+        - [302] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 284 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "97:11"
+        - [303] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 285 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "97:31"
+        - [304] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 286 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "97:51"
+        - [305] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 287 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "98:11"
+        - [306] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 288 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "98:31"
+        - [307] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 289 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "98:51"
+        - [308] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 290 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "99:11"
+        - [309] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 291 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "99:31"
+        - [310] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 292 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "99:51"
+        - [311] AXButton "Alina Pérez" [actions=[press]]
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 293 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "100:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 294 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "100:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 295 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "100:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 296 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "101:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 297 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "101:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 298 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "101:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 299 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "102:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 300 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "102:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 301 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "102:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 302 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "103:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 303 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "103:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 304 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "103:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 305 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "104:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 306 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "104:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 307 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "104:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 308 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "105:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 309 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "105:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 310 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "105:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 311 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "106:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 312 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "106:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 313 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "106:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 314 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "107:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 315 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "107:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 316 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "107:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 317 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "108:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 318 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "108:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 319 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "108:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 320 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "109:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 321 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "109:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 322 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "109:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 323 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "110:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 324 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "110:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 325 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "110:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 326 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "111:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 327 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "111:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 328 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "111:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 329 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "112:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 330 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "112:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 331 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "112:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 332 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "113:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 333 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "113:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 334 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "113:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 335 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "114:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 336 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "114:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 337 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "114:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 338 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "115:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 339 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "115:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 340 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "115:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 341 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "116:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 342 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "116:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 343 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "116:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 344 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "117:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 345 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "117:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 346 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "117:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 347 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "118:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 348 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "118:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 349 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "118:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 350 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "119:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 351 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "119:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 352 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "119:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 353 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "120:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 354 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "120:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 355 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "120:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 356 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "121:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 357 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "121:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 358 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "121:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 359 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "122:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 360 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "122:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 361 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "122:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 362 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "123:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 363 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "123:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 364 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "123:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 365 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "124:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 366 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "124:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 367 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "124:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 368 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "125:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 369 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "125:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 370 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "125:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 371 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "126:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 372 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "126:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 373 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "126:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 374 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "127:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 375 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "127:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 376 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "127:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 377 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "128:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 378 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "128:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 379 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "128:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 380 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "129:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 381 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "129:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 382 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "129:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 383 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "130:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 384 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "130:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 385 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "130:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 386 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "131:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 387 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "131:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 388 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "131:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 389 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "132:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 390 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "132:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 391 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "132:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 392 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "133:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 393 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "133:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 394 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "133:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 395 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "134:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 396 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "134:31"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 397 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "134:51"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 398 del orden del día y lo dejamos apuntado para la próxima reunión."
+      - AXGroup
+        - AXStaticText = "135:11"
+        - AXStaticText = "Alina Pérez"
+        - AXGroup
+          - AXStaticText = "Seguimos con el punto 399 del orden del día y lo dejamos apuntado para la próxima reunión."
+    - AXGroup (Panel de contexto)
+      - [40] AXButton "R Reunión 16/10/26, 10:00 › Se revisó el presupuesto y el calendario de obras 16 oct" [actions=[press]]

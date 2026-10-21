@@ -1,0 +1,66 @@
+{
+ "inicio": {
+  "click:Saltar este paso": "briefing"
+ },
+ "briefing": {
+  "click:Notas": "notas-vacia"
+ },
+ "notas-vacia": {
+  "click:Grabar reunión ahora": "dialogo"
+ },
+ "dialogo": {
+  "click:Sistema Fuente de audio": "dialogo-menu"
+ },
+ "dialogo-menu": {
+  "press_key:down": "dialogo-menu-bajado"
+ },
+ "dialogo-menu-bajado": {
+  "press_key:return": "dialogo-microfono"
+ },
+ "dialogo-microfono": {
+  "click:Grabar": "grabando"
+ },
+ "grabando": {
+  "click:Terminar": "guardada"
+ },
+ "guardada": {
+  "click:Abrir nota": "nota-resumen"
+ },
+ "nota-resumen": {
+  "click:Resumen": "nota-resumen",
+  "click:Acciones": "nota-acciones",
+  "click:Transcripción": "nota-transcripcion",
+  "click:Notas": "notas-lista",
+  "click:Asistente": "asistente"
+ },
+ "nota-acciones": {
+  "click:Resumen": "nota-resumen",
+  "click:Acciones": "nota-acciones",
+  "click:Transcripción": "nota-transcripcion",
+  "click:Notas": "notas-lista",
+  "click:Asistente": "asistente"
+ },
+ "nota-transcripcion": {
+  "click:Resumen": "nota-resumen",
+  "click:Acciones": "nota-acciones",
+  "click:Transcripción": "nota-transcripcion",
+  "click:Notas": "notas-lista",
+  "click:Asistente": "asistente"
+ },
+ "notas-lista": {
+  "click:R Reunión 16/10/26, 10:00 Se revisó el presupuesto y el calendario de obras 16 oct, 10:00": "nota-resumen",
+  "click:Asistente": "asistente"
+ },
+ "asistente": {
+  "type_text:Escribe o usa el micrófono para dictar… Mensaje": "asistente-escrito"
+ },
+ "asistente-escrito": {
+  "click:Enviar": "asistente-respondido"
+ },
+ "asistente-respondido": {
+  "click:Nueva conversación Nueva conversación": "asistente-nueva"
+ },
+ "asistente-nueva": {
+  "click:1 16 de octubre de 2025, 10:01 › 16 de octubre de 2025, 10:01 16 oct": "asistente-reabierta"
+ }
+}

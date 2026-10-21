@@ -1,0 +1,484 @@
+.calendarView {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 100%;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--o-bg);
+}
+
+.toolbar {
+  display: flex;
+  min-height: 46px;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--o-line);
+}
+
+.month {
+  font-family: var(--o-font-display);
+  font-size: var(--o-font-15);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.weekNumber {
+  color: var(--o-muted);
+  font-family: var(--o-font-mono);
+  font-size: var(--o-font-12);
+}
+
+.separator {
+  margin: 0 -6px;
+  color: var(--o-subtle);
+}
+
+.weekActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+}
+
+.toolbarSpacer {
+  flex: 1;
+}
+
+.calendarSelector {
+  position: relative;
+  flex: none;
+}
+
+.calendarCount {
+  display: flex;
+  height: 30px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: var(--o-radius-6);
+  background: transparent;
+  color: var(--o-muted);
+  font-size: var(--o-font-12);
+  cursor: pointer;
+}
+
+.calendarCount:hover,
+.calendarCount[aria-expanded="true"] {
+  border-color: var(--o-line-strong);
+  color: var(--o-fg);
+}
+
+.calendarCount:focus-visible {
+  outline: 2px solid var(--o-accent);
+  outline-offset: 2px;
+}
+
+.calendarChoices {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(300px, calc(100vw - 32px));
+  border: 1px solid var(--o-line-strong);
+  border-radius: var(--o-radius-9);
+  background: var(--o-s1);
+  box-shadow: 0 12px 30px var(--o-shadow-soft);
+}
+
+.choicesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--o-line);
+  font-size: var(--o-font-12);
+}
+
+.choicesList {
+  max-height: min(420px, calc(100vh - 150px));
+  overflow-y: auto;
+}
+
+.calendarChoice {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: var(--o-font-12);
+}
+
+.calendarChoice:hover {
+  background: var(--o-s2);
+}
+
+.calendarChoice > :nth-child(2) {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.calendarChoice input {
+  accent-color: var(--o-accent);
+}
+
+.dotStack {
+  display: flex;
+}
+
+.calendarDot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: var(--o-radius-pill);
+  box-shadow: 0 0 0 1.5px var(--o-bg);
+}
+
+.dotStack .calendarDot + .calendarDot {
+  margin-left: -3px;
+}
+
+/* Calendar colors for the dots of the visibility selector. */
+.accent {
+  background: var(--o-accent);
+}
+
+.blue {
+  background: var(--o-blue);
+}
+
+.orange {
+  background: var(--o-orange);
+}
+
+.green {
+  background: var(--o-green);
+}
+
+.stale {
+  padding: 4px 16px;
+  background: var(--o-accent-soft);
+  color: var(--o-accent-ink);
+  font-size: var(--o-font-11);
+}
+
+.readWarning {
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--o-line);
+  background: var(--o-orange-soft);
+  color: var(--o-orange);
+  font-size: var(--o-font-11);
+}
+
+.calendarError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 16px;
+  background: var(--o-red-soft);
+  color: var(--o-red);
+  font-size: var(--o-font-11);
+}
+
+.empty {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  padding: 32px;
+  text-align: center;
+}
+
+.empty > div {
+  max-width: 420px;
+  padding: 28px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-20);
+  background: var(--o-s1);
+}
+
+.empty h1,
+.dialog h2,
+.eventDetails h2 {
+  margin: 0;
+  font-family: var(--o-font-display);
+  font-size: var(--o-font-19);
+}
+
+.empty p,
+.eventDetails p {
+  color: var(--o-muted);
+  line-height: 1.5;
+}
+
+.dialog,
+.eventDetails {
+  position: absolute;
+  z-index: 10;
+  top: 58px;
+  right: 16px;
+  width: min(360px, calc(100% - 32px));
+  padding: 16px;
+  border: 1px solid var(--o-line-strong);
+  border-radius: var(--o-radius-16);
+  background: var(--o-s2);
+  box-shadow: 0 18px 48px var(--o-shadow-medium);
+}
+
+.dialogHeader,
+.dialogActions {
+  display: flex;
+  align-items: center;
+}
+
+.dialogHeader {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dialogHeader p {
+  margin: 4px 0 0;
+}
+
+.dialogActions {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.eventDetails ul {
+  margin: 8px 0 16px;
+  padding-left: 20px;
+  color: var(--o-muted);
+}
+
+.eventDetails a {
+  margin-right: auto;
+}
+
+@media (max-width: 900px) {
+  .toolbar {
+    gap: 7px;
+  }
+}
+
+/* P9-20: the view selector and its options. */
+.viewButton {
+  display: flex;
+  height: 28px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-10);
+  background: transparent;
+  color: var(--o-fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--o-font-12);
+  font-weight: 500;
+}
+
+.viewButton:hover,
+.viewButton[aria-expanded="true"] {
+  background: var(--o-hover);
+}
+
+.viewButton:focus-visible {
+  outline: 2px solid var(--o-accent);
+  outline-offset: 2px;
+}
+
+.caret {
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-right: 1.5px solid var(--o-muted);
+  border-bottom: 1.5px solid var(--o-muted);
+  transform: rotate(45deg);
+}
+
+.viewList {
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border-bottom: 1px solid var(--o-line);
+}
+
+.viewOption {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--o-radius-6);
+  background: transparent;
+  color: var(--o-fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--o-font-12-5);
+  text-align: left;
+}
+
+.viewOption:hover {
+  background: var(--o-hover);
+}
+
+.viewOption[aria-pressed="true"] {
+  background: var(--o-accent-soft);
+  color: var(--o-accent-ink);
+  font-weight: 600;
+}
+
+.viewOptions {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--o-line);
+}
+
+.weekStart {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 6px 12px;
+  border: 0;
+  font-size: var(--o-font-12);
+}
+
+.weekStart legend {
+  float: left;
+  margin-right: 4px;
+  padding: 0;
+  color: var(--o-muted);
+}
+
+.weekStart label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.weekStart input {
+  accent-color: var(--o-accent);
+}
+
+.zoom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 12px;
+  color: var(--o-muted);
+  font-size: var(--o-font-12);
+}
+
+.zoom button {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-8);
+  background: transparent;
+  color: var(--o-fg);
+  cursor: pointer;
+  font: inherit;
+}
+
+.zoom button:disabled {
+  color: var(--o-subtle);
+  cursor: default;
+}
+
+.viewKeys {
+  margin: 0;
+  padding: 8px 12px 10px;
+  color: var(--o-subtle);
+  font-size: var(--o-font-10-5);
+  line-height: 1.5;
+}
+
+/* P9-20: the detail adds her answer and each guest's. */
+.selfResponse {
+  display: inline-flex;
+  margin: 12px 0 0;
+  padding: 3px 9px;
+  border-radius: var(--o-radius-pill);
+  background: var(--o-green-soft);
+  color: var(--o-green);
+  font-size: var(--o-font-12);
+  font-weight: 600;
+}
+
+.selfResponse[data-response="tentative"],
+.selfResponse[data-response="needs_action"] {
+  background: var(--o-orange-soft);
+  color: var(--o-orange);
+}
+
+.selfResponse[data-response="declined"] {
+  background: var(--o-red-soft);
+  color: var(--o-red);
+}
+
+.eventDetails .attendees {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.attendees li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--o-fg);
+  font-size: var(--o-font-12-5);
+}
+
+.attendees li span + span {
+  color: var(--o-muted);
+  font-size: var(--o-font-11-5);
+}
+
+.attendees li[data-response="declined"] span:first-child {
+  color: var(--o-muted);
+  text-decoration: line-through;
+}
+
+.dialogActions button svg {
+  margin-right: 6px;
+}
+
+/* P9-20: the period on screen; dimmed while its read has not arrived. */
+.period {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  transition: opacity 160ms ease;
+}
+
+.period[aria-busy="true"] {
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .period {
+    transition: none;
+  }
+}

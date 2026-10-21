@@ -1,0 +1,34 @@
+{
+  "command": "calendar_save",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000911",
+  "calendar_save": {
+    "create": {
+      "title": "Revisión semanal",
+      "start_ms": 1792058400000,
+      "end_ms": 1792062000000,
+      "all_day": false,
+      "time_zone": "Europe/Madrid",
+      "location": "Sala 3",
+      "notes": "Orden del día sintético.",
+      "url": "https://meet.example.test/abc",
+      "availability": "busy",
+      "recurrence": {
+        "frequency": "weekly",
+        "interval": 1,
+        "days_of_week": [
+          {
+            "day": "wednesday"
+          }
+        ],
+        "end": {
+          "count": 10
+        }
+      },
+      "alarms_minutes": [
+        10,
+        0
+      ]
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "event": "response",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000911",
+  "ok": false,
+  "error": {
+    "code": "calendar_event_not_found",
+    "message": "No hay ninguna ocurrencia de ese evento en esa fecha.",
+    "detail": {
+      "calendar_item_id": "item-911",
+      "occurrence_start_ms": 1792058400000
+    }
+  }
+}

@@ -1,0 +1,25 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Vistas)
+      - [1] AXButton (Briefing de hoy) [actions=[press]]
+      - [2] AXButton (Calendario) [actions=[press]]
+      - [3] AXButton (Notas) [actions=[press]]
+      - [4] AXButton (Asistente) [actions=[press]]
+      - [5] AXButton (Ajustes) [actions=[press]]
+    - AXHeading
+      - AXStaticText = "Asistente"
+    - AXStaticText = "Conversación"
+    - AXGroup
+      - AXStaticText = "Aún no hay mensajes. Escribe o dicta tu pregunta."
+    - [6] AXTextArea = "Escribe o usa el micrófono para dictar…" (Mensaje) [actions=[confirm]]
+    - [7] AXButton (Nota de voz) [actions=[press]]
+    - [8] AXButton (Enviar) [actions=[press]]
+    - AXGroup (Panel de contexto)
+      - AXStaticText = "Sesiones"
+      - AXHeading
+        - AXStaticText = "Activas"
+      - [30] AXButton "1 16 de octubre de 2025, 10:01 › ahora" [actions=[press]]
+      - [31] AXButton "Nueva conversación Nueva conversación" [actions=[press]]
+      - AXHeading
+        - AXStaticText = "Recientes"
+      - [32] AXButton "1 15 de octubre de 2025, 03:46 › 15 de octubre de 2025, 03:46 15 oct" [actions=[press]]

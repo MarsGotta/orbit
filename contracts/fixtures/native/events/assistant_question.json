@@ -1,0 +1,8 @@
+{
+  "event": "assistant_question",
+  "v": 1,
+  "stream_id": "stream-1",
+  "text": "¿Qué dijo Lucía del presupuesto?",
+  "started_ms": 1800000000000,
+  "ended_ms": 1800000004200
+}

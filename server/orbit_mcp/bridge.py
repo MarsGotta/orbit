@@ -1,0 +1,397 @@
+"""Device capability payloads consumed and constructed by orbit-mcp."""
+
+import json
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic_core import PydanticCustomError
+
+
+def present_value(value):
+    if value is None:
+        raise ValueError("Un campo presente no puede ser nulo")
+    return value
+
+
+class WireModel(BaseModel):
+    # Rust fixtures pin this boundary; additions require updating this consumer.
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+
+# Retains the existing 1024-character filter metadata budget, independently
+# of the PNG and the transport frame.
+MAX_FILTER_CHARS = 1024
+# Mac calendar read identities are UUIDs; 128 bytes bounds retained cursor metadata.
+MAX_READ_ID_BYTES = 128
+# Engine identifiers are ASCII; this matches ToolCall::validate on the Mac.
+MAX_TOOL_NAME_BYTES = 128
+# Bounds the complete canonical engine action, not the HTTP envelope.
+MAX_ACTION_BYTES = 16_384
+# Bounds sanitized Mac detail retained in a refusal, not conversation content.
+MAX_BRIDGE_DETAIL_CHARS = 400
+# Bounds the helper's diagnostic cause code, independently of its detail.
+MAX_BRIDGE_CODE_BYTES = 64
+
+
+class EmptyParameters(WireModel):
+    pass
+
+
+class ScreenshotParameters(WireModel):
+    # None means the caller omitted a filter. A wrong type is never omission.
+    application: str | None = Field(
+        default=None, max_length=MAX_FILTER_CHARS, exclude_if=lambda value: value is None
+    )
+    title: str | None = Field(
+        default=None, max_length=MAX_FILTER_CHARS, exclude_if=lambda value: value is None
+    )
+    full_screen: bool | None = Field(default=None, exclude_if=lambda value: value is None)
+
+    _present_values = field_validator("application", "title", "full_screen", mode="before")(
+        present_value
+    )
+
+
+class SelectedTextParameters(WireModel):
+    application: str | None = Field(
+        default=None, max_length=MAX_FILTER_CHARS, exclude_if=lambda value: value is None
+    )
+    title: str | None = Field(
+        default=None, max_length=MAX_FILTER_CHARS, exclude_if=lambda value: value is None
+    )
+
+    _present_values = field_validator("application", "title", mode="before")(present_value)
+
+
+class ControlToolsParameters(WireModel):
+    after_index: int | None = Field(default=None, ge=0, exclude_if=lambda value: value is None)
+
+    _present_values = field_validator("after_index", mode="before")(present_value)
+
+
+class ToolAction(WireModel):
+    tool: str = Field(
+        min_length=1,
+        max_length=MAX_TOOL_NAME_BYTES,
+        pattern=r"^[A-Za-z0-9_-]+$",
+        description="Nombre del catálogo orbit_control_tools; 1 a 128 letras ASCII, cifras, _ o -.",
+    )
+    arguments: dict = Field(
+        default={}, description="Argumentos de la herramienta; vacío por defecto."
+    )
+
+
+class PerformActionParameters(WireModel):
+    action: ToolAction
+
+    @model_validator(mode="after")
+    def bounded_action(self):
+        size = len(
+            json.dumps(
+                self.action.model_dump(), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            ).encode("utf-8")
+        )
+        if size > MAX_ACTION_BYTES:
+            raise PydanticCustomError(
+                "action_size",
+                "Acción demasiado grande",
+                {"field": "action", "bytes": size, "max_bytes": MAX_ACTION_BYTES},
+            )
+        return self
+
+
+def bounded_read_id(value):
+    if value is not None and not 0 < len(value.encode("utf-8")) <= MAX_READ_ID_BYTES:
+        raise PydanticCustomError(
+            "cursor_size",
+            "Identidad de lectura fuera de límite",
+            {"bytes": len(value.encode("utf-8")), "max_bytes": MAX_READ_ID_BYTES},
+        )
+    return value
+
+
+class CalendarReadParameters(WireModel):
+    start_ms: int
+    end_ms: int
+    read_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    after_ms: int | None = Field(default=None, exclude_if=lambda value: value is None)
+    after_index: int | None = Field(default=None, ge=0, exclude_if=lambda value: value is None)
+    after_invitee: int | None = Field(default=None, ge=0, exclude_if=lambda value: value is None)
+
+    _present_values = field_validator(
+        "read_id", "after_ms", "after_index", "after_invitee", mode="before"
+    )(present_value)
+
+    _bounded_read_id = field_validator("read_id")(bounded_read_id)
+
+    @model_validator(mode="after")
+    def valid_range_and_cursor(self):
+        if self.end_ms <= self.start_ms:
+            raise PydanticCustomError(
+                "calendar_range",
+                "Rango inválido",
+                {
+                    "field": "end_ms",
+                    "expected": "posterior a start_ms",
+                    "start_ms": self.start_ms,
+                    "end_ms": self.end_ms,
+                },
+            )
+        cursor = (self.read_id, self.after_ms, self.after_index)
+        if any(value is not None for value in (*cursor, self.after_invitee)) and any(
+            value is None for value in cursor
+        ):
+            for field, required in (
+                ("read_id", "texto"),
+                ("after_ms", "entero en milisegundos"),
+                ("after_index", "entero no negativo"),
+            ):
+                if getattr(self, field) is None:
+                    raise PydanticCustomError(
+                        "calendar_cursor",
+                        "Cursor incompleto",
+                        {"field": field, "expected": required},
+                    )
+        return self
+
+
+PARAMETER_MODELS = {
+    "screenshot": ScreenshotParameters,
+    "screen_sources": EmptyParameters,
+    "selected_text": SelectedTextParameters,
+    "control_tools": ControlToolsParameters,
+    "perform_action": PerformActionParameters,
+    "calendar_read": CalendarReadParameters,
+}
+
+
+class WindowSummary(WireModel):
+    application: str
+    title: str
+
+
+class ScreenSourcesResult(WireModel):
+    windows: list[WindowSummary]
+
+
+class ScreenshotMetadata(WireModel):
+    application: str
+    title: str
+    width: int
+    height: int
+    mime_type: str
+    sha256: str
+    # SIM-56: on a full screen, the Mac's sentence on what its coordinates
+    # are (the image is fitted; desktop actions are given on it).
+    coordinates: str | None = None
+
+
+class ScreenshotResult(ScreenshotMetadata):
+    capture_id: str
+
+
+class ScreenshotContentResult(ScreenshotMetadata):
+    data_base64: str
+
+
+class SelectedTextResult(WireModel):
+    application: str
+    title: str
+    text: str
+
+
+class EngineTool(WireModel):
+    name: str
+    description: str = ""
+    input_schema: object = None
+
+
+class ControlToolsResult(WireModel):
+    tools: list[EngineTool]
+    after_index: int
+    total: int
+    next_after_index: int | None = None
+
+
+class ActionReceipt(WireModel):
+    operation_id: str
+    tool: str
+    state: str
+    attempted: bool
+    driver_receipt: object
+    retry: str
+
+
+class PerformActionResult(WireModel):
+    receipt: ActionReceipt
+
+
+class CalendarRequested(WireModel):
+    start_unix_ms: int
+    end_unix_ms: int
+
+
+class CalendarOmission(WireModel):
+    reason: str
+    count: int
+
+
+class CalendarReference(WireModel):
+    calendar_id: str
+    source_id: str
+
+
+class CalendarInvitee(WireModel):
+    name: str | None = None
+    participant_url: str
+    email: str | None = None
+    role: str
+    response_status: str
+    participant_type: str
+    is_current_user: bool
+
+
+class CalendarFieldLeftOut(WireModel):
+    bytes: int
+    limit: int
+
+
+class CalendarRecurrenceDay(WireModel):
+    day: Literal["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
+    week: int | None = None
+
+
+class CalendarRecurrenceEnd(WireModel):
+    until_ms: int | None = None
+    count: int | None = None
+
+
+class CalendarRecurrence(WireModel):
+    frequency: Literal["daily", "weekly", "monthly", "yearly"]
+    interval: int
+    days_of_week: list[CalendarRecurrenceDay] | None = None
+    end: CalendarRecurrenceEnd | None = None
+    rules_count: int | None = None
+
+
+class CalendarEvent(WireModel):
+    observation_id: str
+    calendar: CalendarReference
+    calendar_item_id: str
+    event_id: str | None = None
+    original_occurrence_unix_ms: int | None = None
+    start_unix_ms: int
+    end_unix_ms: int
+    event_timezone: str | None = None
+    interpreted_timezone: str
+    is_floating: bool
+    is_all_day: bool
+    is_detached: bool
+    title: str
+    status: str
+    last_modified_unix_ms: int | None = None
+    invitees: list[CalendarInvitee] | None = None
+    invitees_status: Literal["not_requested", "not_provided", "provided"]
+    event_url: str | None = None
+    event_url_status: Literal["not_requested", "not_provided", "provided"]
+    invitees_continued: bool | None = None
+    # P9-21: optional EventKit fields consumed by the agenda renderer.
+    location: str | None = None
+    notes: str | None = None
+    notes_left_out: CalendarFieldLeftOut | None = None
+    organizer: CalendarInvitee | None = None
+    availability: Literal["busy", "free", "tentative", "unavailable", "not_supported"] | None = None
+    recurrence: CalendarRecurrence | None = None
+    can_edit: bool | None = None
+    # P9-22: the event's reminders, in minutes before its start, and how many
+    # more it has that Orbit does not edit (absolute or by location).
+    alarms_minutes: list[int] | None = None
+    alarms_not_editable: int | None = None
+
+
+class CalendarOversizedEvent(WireModel):
+    calendar: CalendarReference
+    calendar_item_id: str | None = None
+    start_unix_ms: int
+    end_unix_ms: int
+    field: str
+    bytes: int
+    limit: int
+
+
+class CalendarReadResult(WireModel):
+    read_id: str
+    requested: CalendarRequested
+    read_at_unix_ms: int | None
+    system_timezone: str | None
+    provider_sync_status: str
+    enumeration: str
+    events_returned: int
+    events: list[CalendarEvent]
+    omitted: list[CalendarOmission]
+    oversized: list[CalendarOversizedEvent] | None = None
+    next_after_ms: int | None = None
+    next_after_index: int | None = None
+    next_after_invitee: int | None = None
+
+    _bounded_read_id = field_validator("read_id")(bounded_read_id)
+
+
+RESULT_MODELS = {
+    "screenshot": ScreenshotResult,
+    "screen_sources": ScreenSourcesResult,
+    "selected_text": SelectedTextResult,
+    "control_tools": ControlToolsResult,
+    "perform_action": PerformActionResult,
+    "calendar_read": CalendarReadResult,
+}
+
+
+class RetryDisposition(WireModel):
+    kind: Literal["after_ms", "after_fix", "check_outcome", "never"]
+    ms: int | None = None
+
+
+class BridgeRefusal(WireModel):
+    model_config = ConfigDict(strict=True, extra="allow")
+    code: str = Field(min_length=1, max_length=MAX_BRIDGE_CODE_BYTES, pattern=r"^[a-z0-9_]+$")
+    retry: RetryDisposition
+    detail: str | None = Field(default=None, max_length=MAX_BRIDGE_DETAIL_CHARS)
+
+
+def validation_detail(error, prefix):
+    """Describe a schema failure without echoing the untrusted payload."""
+    first = error.errors()[0]
+    location = ".".join(str(part) for part in first["loc"])
+    field = ".".join(part for part in (prefix, location) if part)
+    expected = {
+        "list_type": "lista",
+        "string_type": "texto",
+        "int_type": "entero",
+        "bool_type": "verdadero o falso",
+        "dict_type": "objeto",
+        "model_type": "objeto",
+        "extra_forbidden": "ninguna clave adicional",
+        "missing": "campo obligatorio",
+        "greater_than_equal": "entero no negativo",
+        "string_pattern_mismatch": f"nombre ASCII de 1 a {MAX_TOOL_NAME_BYTES} bytes con letras, cifras, _ o -",
+        "string_too_long": "texto dentro del límite indicado",
+    }.get(first["type"], "valor válido del contrato")
+    context = first.get("ctx", {})
+    numbers = {key: value for key, value in context.items() if type(value) is int}
+    if first["type"] == "missing":
+        expected = {
+            "action": "objeto",
+            "action.tool": "texto",
+            "start_ms": "entero",
+            "end_ms": "entero",
+        }.get(location, expected)
+    if first["type"] == "string_too_long":
+        numbers = {"chars": len(first["input"]), "max_chars": context["max_length"]}
+        expected = f"texto de hasta {context['max_length']} caracteres"
+    if first["type"] == "value_error" and location in {"application", "title", "full_screen"}:
+        expected = "verdadero o falso" if location == "full_screen" else "texto"
+    if first["type"] in {"calendar_cursor", "calendar_range", "action_size"}:
+        field = context["field"]
+        expected = context.get("expected", expected)
+    return {"field": field, "expected": expected, **numbers}

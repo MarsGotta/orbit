@@ -1,0 +1,7 @@
+{
+  "capture_scope": "system",
+  "channels": 1,
+  "sample_rate": 48000,
+  "source": "remote_app",
+  "stream_id": "stream-1"
+}

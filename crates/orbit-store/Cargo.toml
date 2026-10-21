@@ -1,0 +1,26 @@
+[package]
+name = "orbit-store"
+description = "Encrypted local persistence and durable transport records for Orbit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+base64.workspace = true
+orbit-core = { path = "../orbit-core" }
+chacha20poly1305 = "0.10.1"
+rand_core = { version = "0.6.4", features = ["getrandom"] }
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+rusqlite = { version = "0.40.2", features = ["limits"] }
+png = "0.18.1"
+
+[lints]
+workspace = true

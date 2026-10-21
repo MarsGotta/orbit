@@ -1,0 +1,336 @@
+.view {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.view > div:has(> [role="dialog"]) {
+  transform: translate(-280px, calc(-100% - 24px));
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.header {
+  height: 46px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--o-line);
+}
+
+.header strong {
+  font-size: var(--o-font-13);
+}
+.header span {
+  flex: 1;
+  color: var(--o-subtle);
+  font-size: var(--o-font-11-5);
+}
+.conversation {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+.thread {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.activity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--o-muted);
+  font-size: var(--o-font-12);
+}
+.activityOrb {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: var(--o-radius-pill);
+  background: var(--o-accent-soft);
+  color: var(--o-accent-ink);
+}
+.activityOrb i {
+  width: 2px;
+  height: 9px;
+  border-radius: var(--o-radius-pill);
+  background: currentColor;
+  animation: activity 0.8s ease-in-out infinite alternate;
+}
+.activityOrb i:nth-child(2) {
+  height: 13px;
+  animation-delay: 140ms;
+}
+.activityOrb i:nth-child(3) {
+  animation-delay: 280ms;
+}
+.empty {
+  margin: auto;
+  color: var(--o-subtle);
+  text-align: center;
+}
+.message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.message[data-role="user"] {
+  align-items: flex-end;
+}
+
+.bubble {
+  max-width: 100%;
+  padding: 13px 16px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-16);
+  background: var(--o-s1);
+  font-size: var(--o-font-14);
+  line-height: 1.65;
+}
+
+.message[data-role="user"] .bubble {
+  max-width: 72%;
+  border-color: transparent;
+  border-bottom-right-radius: var(--o-radius-6);
+  background: var(--o-accent-soft);
+}
+
+.bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+  text-wrap: pretty;
+}
+.messageLabel {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--o-subtle);
+  font-size: var(--o-font-10);
+  letter-spacing: 0.1em;
+}
+.cursor {
+  width: 2px;
+  height: 1em;
+  display: inline-block;
+  margin-left: 3px;
+  vertical-align: -2px;
+  background: var(--o-accent-ink);
+  animation: cursor 0.9s steps(1) infinite;
+}
+.receipts {
+  margin: 12px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--o-line);
+  list-style: none;
+}
+.receipts li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 0;
+  color: var(--o-muted);
+  font-size: var(--o-font-12);
+}
+.receipts code {
+  overflow: hidden;
+  color: var(--o-subtle);
+  font-family: var(--o-font-mono);
+  font-size: var(--o-font-10-5);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.receiptCheck {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--o-radius-5);
+  background: var(--o-green-soft);
+  color: var(--o-green);
+}
+.voiceNote {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.voiceNote button {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--o-radius-pill);
+  background: var(--o-accent);
+  color: var(--o-white);
+  cursor: pointer;
+}
+.voiceNote button:disabled {
+  background: var(--o-s3);
+  color: var(--o-subtle);
+  cursor: not-allowed;
+}
+.voiceNote time {
+  color: var(--o-subtle);
+  font-family: var(--o-font-mono);
+  font-size: var(--o-font-11);
+}
+.waveform {
+  height: 20px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.waveform i {
+  width: 3px;
+  height: 16px;
+  border-radius: var(--o-radius-pill);
+  background: var(--o-accent-ink);
+  opacity: 0.8;
+}
+.waveform i:nth-child(2n) {
+  height: 8px;
+}
+.waveform i:nth-child(3n) {
+  height: 19px;
+}
+.voiceProgress {
+  width: 100%;
+  height: 3px;
+  display: block;
+  margin-top: 8px;
+  accent-color: var(--o-accent);
+}
+.voiceTranscript {
+  margin-top: 8px !important;
+  color: var(--o-muted);
+  font-size: var(--o-font-12);
+}
+
+.pending {
+  max-width: 520px;
+  padding: 16px;
+  border: 1px solid var(--o-line-strong);
+  border-radius: var(--o-radius-16);
+  background: var(--o-s2);
+}
+
+.pending p {
+  margin: 0 0 12px;
+  font-size: var(--o-font-14);
+}
+.pending > div {
+  display: flex;
+  gap: 8px;
+}
+.pending > button {
+  margin-top: 10px;
+}
+.composerArea {
+  flex: none;
+  padding: 14px 24px 22px;
+}
+.availability {
+  max-width: 760px;
+  margin: 0 auto 8px;
+  color: var(--o-orange);
+  font-size: var(--o-font-12);
+  text-align: center;
+}
+
+.composer {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 12px 14px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-18);
+  background: var(--o-s1);
+  box-shadow: 0 8px 28px var(--o-shadow-soft);
+}
+
+.composer textarea {
+  width: 100%;
+  min-height: 38px;
+  resize: none;
+  padding: 4px 2px 10px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--o-fg);
+  font: inherit;
+  font-size: var(--o-font-14);
+}
+.composer textarea::placeholder {
+  color: var(--o-subtle);
+}
+.composerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.composerActions > span {
+  flex: 1;
+  color: var(--o-subtle);
+  font-size: var(--o-font-11-5);
+}
+.listening {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 2px 10px;
+  color: var(--o-green);
+  font-size: var(--o-font-12);
+}
+.listening meter {
+  width: 110px;
+  accent-color: var(--o-green);
+}
+
+@keyframes cursor {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes activity {
+  to {
+    transform: scaleY(0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activityOrb i {
+    animation: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .conversation {
+    padding: 16px;
+  }
+  .composerArea {
+    padding: 10px 16px 16px;
+  }
+  .composerActions > span {
+    display: none;
+  }
+  .message[data-role="user"] .bubble {
+    max-width: 88%;
+  }
+}

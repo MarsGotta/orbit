@@ -1,0 +1,23 @@
+export const esAssistant = {
+  call: "Llamar",
+  orbit: "ORBIT",
+  listening: "Escuchando…",
+  microphoneLevel: "Nivel del micrófono",
+  voiceNote: "Nota de voz",
+  playVoiceNote: "Reproducir nota de voz",
+  callEnded: "Llamada terminada",
+  sessions: "Sesiones",
+  newSession: "Nueva conversación",
+  activeSessions: "Activas",
+  recentSessions: "Recientes",
+  emptySessionTitle: "Conversación nueva",
+  /** SIM-30: the open conversation; the list names each one by its date. */
+  openSessionTitle: "Conversación",
+  pairHub: "Empareja Orbit con tu hub en Ajustes",
+  composerPlaceholder: "Escribe o usa el micrófono para dictar…",
+  clarifyPlaceholder: "Escribe tu respuesta…",
+  paletteVoice: "Mandar nota de voz",
+  paletteVoiceSubtitle: "Abre el chat y graba con el botón del micrófono",
+  paletteBriefing: "Preparar siguiente reunión",
+  paletteBriefingSubtitle: "Abre el briefing de tu próxima reunión",
+} as const;

@@ -1,0 +1,16 @@
+{
+  "command": "screenshot",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000911",
+  "window_binding": {
+    "native_instance_id": "00000000-0000-4000-8000-000000000911",
+    "privacy_generation": 1,
+    "inventory_id": "00000000-0000-4000-8000-000000000911",
+    "selection_token": "00000000-0000-4000-8000-000000000911",
+    "window_id": 42,
+    "application_pid": 4242,
+    "application_instance_id": "00000000-0000-4000-8000-000000000911",
+    "binding_quality": "observed_owner_and_window",
+    "descriptor_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

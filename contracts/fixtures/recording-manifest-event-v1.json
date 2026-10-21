@@ -1,0 +1,39 @@
+{
+  "event": {
+    "attendees": [
+      {
+        "email": "alina@example.com",
+        "is_self": true,
+        "name": "Alina"
+      },
+      {
+        "email": "",
+        "is_self": false,
+        "name": "Ada"
+      }
+    ],
+    "calendar_item_id": "serie-comite",
+    "ends_at_ms": 1700003600000,
+    "starts_at_ms": 1700000000000,
+    "title": "Comité de dirección"
+  },
+  "finalized_at_ms": 1700000010000,
+  "gaps": 2,
+  "kind": "meeting",
+  "started_at_ms": 1700000000000,
+  "title": "Comité de dirección",
+  "tracks": [
+    {
+      "chunk_count": 3,
+      "last_sequence": 2,
+      "total_frames": 48000,
+      "track": "mic_local"
+    },
+    {
+      "chunk_count": 2,
+      "last_sequence": 1,
+      "total_frames": 32000,
+      "track": "remote_app"
+    }
+  ]
+}

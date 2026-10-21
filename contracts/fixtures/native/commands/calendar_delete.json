@@ -1,0 +1,10 @@
+{
+  "command": "calendar_delete",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000911",
+  "calendar_delete": {
+    "calendar_item_id": "item-911",
+    "occurrence_start_ms": 1792058400000,
+    "span": "future"
+  }
+}

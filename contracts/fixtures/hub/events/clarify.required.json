@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000901",
+  "event": "clarify.required",
+  "data": {
+    "session_id": "00000000-0000-4000-8000-000000000902",
+    "request_id": "clarify-1",
+    "description": null,
+    "question": "¿Confirmas?",
+    "kind": "clarify",
+    "state": "pending",
+    "expires_at": null,
+    "choices": null,
+    "questions": null
+  }
+}

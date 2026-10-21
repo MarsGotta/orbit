@@ -1,0 +1,25 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permisos mínimos de la ventana principal de Orbit",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "allow-orbit-snapshot",
+    "allow-orbit-read-sessions-page",
+    "allow-orbit-read-session-messages",
+    "allow-orbit-send",
+    "allow-orbit-report",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://*"
+        },
+        {
+          "url": "http://*"
+        }
+      ]
+    }
+  ]
+}

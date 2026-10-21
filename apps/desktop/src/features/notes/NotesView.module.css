@@ -1,0 +1,283 @@
+.detail,
+.listView,
+.empty {
+  min-height: 100%;
+}
+
+.listView,
+.empty {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 32px 24px 120px;
+}
+
+.listView h1,
+.empty h1,
+.noteBody h1 {
+  margin: 0 0 18px;
+  font-family: var(--o-font-display);
+  font-size: var(--o-font-27);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.listHeader {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.listHeader h1 {
+  margin-bottom: 0;
+}
+
+.listGroup {
+  margin-top: 24px;
+}
+
+.listGroup h2,
+.voiceShare h2 {
+  margin: 0 0 10px;
+  color: var(--o-subtle);
+  font-size: var(--o-font-10);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.listRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+  padding: 12px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-12);
+  background: var(--o-s1);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.listRow:hover,
+.listRow:focus-visible {
+  border-color: var(--o-line-strong);
+  background: var(--o-hover);
+}
+
+.listInitial {
+  display: grid;
+  flex: none;
+  place-items: center;
+  color: var(--o-white);
+  font-weight: 700;
+}
+
+.listInitial {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--o-radius-8);
+  background: var(--o-accent);
+  font-size: var(--o-font-11);
+}
+
+.listCopy {
+  min-width: 0;
+  display: grid;
+  flex: 1;
+}
+
+.listCopy strong,
+.listCopy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listCopy small,
+.listRow time,
+.empty small {
+  color: var(--o-muted);
+}
+
+.listRow time {
+  font-family: var(--o-font-mono);
+  font-size: var(--o-font-10);
+}
+
+.noteBar {
+  min-height: 46px;
+  display: flex;
+  position: sticky;
+  z-index: 4;
+  top: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--o-line);
+  background: var(--o-bg);
+  font-size: var(--o-font-12-5);
+}
+
+.noteBar > span:first-child {
+  color: var(--o-muted);
+}
+
+.noteBody {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 32px 24px 140px;
+}
+
+.noteBody h1 {
+  margin-bottom: 8px;
+}
+
+.voiceShare {
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-14);
+  background: var(--o-s1);
+}
+
+.voiceShare {
+  margin-top: 18px;
+  padding: 14px 16px;
+}
+
+.shareRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: var(--o-font-12-5);
+}
+
+.shareRow > span:first-child {
+  width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shareTrack {
+  height: 6px;
+  flex: 1;
+  overflow: hidden;
+  border-radius: var(--o-radius-pill);
+  background: var(--o-s3);
+}
+
+.shareTrack span {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: var(--speaker-color);
+  width: var(--speaker-share);
+}
+
+.shareRow strong {
+  width: 38px;
+  color: var(--o-muted);
+  font-family: var(--o-font-mono);
+  font-size: var(--o-font-11);
+  text-align: right;
+}
+
+.empty {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+}
+
+.empty button,
+.failed button {
+  min-height: var(--o-control-large);
+  padding: 0 14px;
+  border: 1px solid var(--o-line-strong);
+  border-radius: var(--o-radius-10);
+  background: var(--o-accent);
+  color: var(--o-white);
+  font: inherit;
+  cursor: pointer;
+}
+
+.failed,
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  font-size: var(--o-font-12-5);
+}
+
+.failed,
+.progress {
+  padding: 10px 12px;
+  border-radius: var(--o-radius-10);
+  background: var(--o-orange-soft);
+  color: var(--o-orange);
+}
+
+.failed button {
+  min-height: var(--o-control-small);
+  margin-left: auto;
+  background: transparent;
+  color: inherit;
+}
+
+.progress progress {
+  flex: 1;
+  accent-color: var(--o-accent);
+}
+
+@media (max-width: 900px) {
+  .shareRow > span:first-child {
+    width: 100px;
+  }
+}
+
+/* P9-04: the row's line says recording, in progress or failed. */
+.listCopy small[data-tone="live"],
+.listCopy small[data-tone="failed"] {
+  color: var(--o-red);
+}
+
+.listCopy small[data-tone="working"] {
+  font-style: italic;
+}
+
+.listCopy small[data-tone="live"]::before {
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+  margin-right: 6px;
+  border-radius: var(--o-radius-pill);
+  background: var(--o-red);
+  content: "";
+  vertical-align: 1px;
+}
+
+.emptyBody {
+  max-width: 440px;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin: 72px auto 0;
+}
+
+.emptyBody h2 {
+  margin: 0;
+  font-family: var(--o-font-display);
+  font-size: var(--o-font-19);
+  font-weight: 600;
+}
+
+.emptyBody p {
+  margin: 0 0 8px;
+  color: var(--o-muted);
+  font-size: var(--o-font-14);
+  line-height: 1.6;
+  text-wrap: pretty;
+}

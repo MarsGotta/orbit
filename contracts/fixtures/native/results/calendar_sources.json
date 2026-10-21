@@ -1,0 +1,24 @@
+{
+  "after_index": 0,
+  "calendars": [
+    {
+      "calendar_type": "caldav",
+      "can_edit": true,
+      "color": "#1BADF8",
+      "is_default": true,
+      "reference": {
+        "calendar_id": "local-calendar",
+        "source_id": "local-source"
+      },
+      "source_title": "iCloud",
+      "title": "Trabajo"
+    }
+  ],
+  "clock_domain": "mach_absolute_time",
+  "completed_monotonic_ns": 200,
+  "inventory_id": "00000000-0000-4000-8000-000000000911",
+  "native_instance_id": "00000000-0000-4000-8000-000000000911",
+  "observed_monotonic_ns": 100,
+  "privacy_generation": 1,
+  "total": 1
+}

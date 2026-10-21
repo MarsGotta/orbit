@@ -1,0 +1,14 @@
+{
+  "event": "ready",
+  "v": 1,
+  "protocol": 1,
+  "platform": "macos",
+  "selected_text_available": true,
+  "supported_audio_processing": [
+    "unprocessed",
+    "voice_processing"
+  ],
+  "voice_processing_available": false,
+  "playback_reference_available": false,
+  "launch_mode": "managed_stdio"
+}

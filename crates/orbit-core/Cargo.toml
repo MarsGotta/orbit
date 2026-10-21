@@ -1,0 +1,30 @@
+[package]
+name = "orbit-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+base64.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+semver.workspace = true
+serde_path_to_error.workspace = true
+thiserror.workspace = true
+sha2.workspace = true
+uuid = { version = "1.18", default-features = false, features = ["serde"] }
+png = "=0.18.1"
+crc32fast = "=1.5.1"
+url = "=2.5.8"
+ts-rs = { version = "11", features = ["serde-compat"], optional = true }
+
+[features]
+# The interface uses the core commands and calendar/note types directly.
+# Enabled by orbit-app-core, whose tests write their TypeScript bindings.
+ts = ["dep:ts-rs"]
+# SIM-25: «Orbit Pruebas», the copy the real test on the Mac installs beside
+# Orbit (`orbit_bundle`). Only `ORBIT_PRUEBAS=1 scripts/bundle-macos.sh` sets it.
+pruebas = []
+
+[lints]
+workspace = true

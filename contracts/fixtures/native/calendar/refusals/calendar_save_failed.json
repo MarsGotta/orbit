@@ -1,0 +1,14 @@
+{
+  "event": "response",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000911",
+  "ok": false,
+  "error": {
+    "code": "calendar_save_failed",
+    "message": "EventKit rechazó el cambio.",
+    "detail": {
+      "error_code": 12,
+      "error_domain": "EKErrorDomain"
+    }
+  }
+}
