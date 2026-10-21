@@ -44,9 +44,11 @@ def route_client(tmp_path_factory, unit_stt):
         allowed_hosts=("localhost",),
     )
     store = Store(data, key)
+    fake = FakeAdapter()
     try:
         with TestClient(
-            create_app(settings, store=store, adapter=FakeAdapter()), base_url="https://localhost"
+            create_app(settings, store=store, assistant=fake, speech=fake),
+            base_url="https://localhost",
         ) as http:
             yield http
     finally:

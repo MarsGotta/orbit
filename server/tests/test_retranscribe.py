@@ -19,7 +19,8 @@ def app_for(environment, tmp_path, *, configured=True):
     return create_app(
         replace(settings, diarization=fake_separator(tmp_path) if configured else None),
         store=store,
-        adapter=adapter,
+        assistant=adapter,
+        speech=adapter,
         now=lambda: 1000,
         processing_client=FakeModel(),
     )

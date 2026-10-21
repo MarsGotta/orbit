@@ -320,7 +320,7 @@
         "unit": "bytes"
       },
       {
-        "file": "server/orbit_hub/hermes.py",
+        "file": "server/orbit_hub/assistant/speech.py",
         "name": "MAX_SPEECH_CLIP_BYTES",
         "unit": "bytes"
       }

@@ -33,7 +33,7 @@ class TranscriptionWorker:
     def __init__(
         self,
         store,
-        adapter,
+        speech,
         now,
         *,
         meetings,
@@ -44,7 +44,7 @@ class TranscriptionWorker:
     ):
         if meetings is None:
             raise ValueError("meeting_transcription requires a meeting transcriber")
-        self.store, self.adapter, self.now = store, adapter, now
+        self.store, self.speech, self.now = store, speech, now
         self.meetings = meetings
         self.interactive: asyncio.Queue[Utterance] = asyncio.Queue(maxsize=8)
         self.prepare_signal = prepare_signal if prepare_signal is not None else asyncio.Event()
@@ -126,7 +126,7 @@ class TranscriptionWorker:
                 try:
                     if not self.store.is_active(request.device):
                         raise HubError("revoked", "Dispositivo revocado")
-                    text = await self.adapter.transcribe(request.body)
+                    text = await self.speech.transcribe(request.body)
                     if not request.result.done():
                         request.result.set_result(text)
                 except HubError as exc:

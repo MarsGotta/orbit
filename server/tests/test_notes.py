@@ -232,7 +232,9 @@ async def test_a_note_being_written_when_the_hub_stopped_is_written_again(notes)
 async def test_the_routes_request_read_and_edit_a_note(environment):
     settings, store, adapter = environment
     model = FakeModel()
-    app = create_app(settings, store=store, adapter=adapter, processing_client=model)
+    app = create_app(
+        settings, store=store, assistant=adapter, speech=adapter, processing_client=model
+    )
     owner = device(store)
     identity = recording(store, owner["device_id"])
     headers = {"Authorization": "Bearer " + owner["token"]}

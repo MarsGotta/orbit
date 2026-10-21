@@ -1,28 +1,56 @@
-"""Version-specific Hermes transport. Device credentials never reach Hermes."""
+"""Hermes as the hub's assistant and voice. Device credentials never reach Hermes.
+
+The chat goes over Hermes's gateway WebSocket (`/api/ws`, JSON-RPC); this
+module turns its methods and events into the typed interface of `backend`.
+Dictation and read-aloud go over the same Hermes's HTTP audio endpoints.
+"""
 
 import asyncio
 import base64
 import json
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import Sequence
 from contextlib import suppress
-from dataclasses import dataclass
 from urllib.parse import urlencode
 from uuid import uuid4
 
 import httpx
 from websockets.asyncio.client import connect
 
-from .config import Settings
-from .log import clear_op, logger, report
-from .protocol import HubError
-from .secret_file import read_secret
-from .transcription_failure import from_provider
+from ..config import Settings
+from ..log import clear_op, logger, report
+from ..protocol import HubError
+from ..secret_file import read_secret
+from ..transcription_failure import from_provider
+from .backend import (
+    Capabilities,
+    ClarificationReceipt,
+    ClarificationRequest,
+    ClarificationRequested,
+    ConnectionLost,
+    ContentBlock,
+    EventSink,
+    HistoryLoaded,
+    MessageChunk,
+    MessageComplete,
+    OpenedSession,
+    PermissionReceipt,
+    PermissionRequest,
+    PermissionRequested,
+    RequestExpired,
+    ResumedSession,
+    StatusNotice,
+    TurnError,
+    UnreadableReceipt,
+    UnreadableUpdate,
+)
+from .speech import MAX_SPEECH_CLIP_BYTES, SpeechClip
 
 # How Hermes begins the error of a resume whose stored transcript it could not
 # read; the rest of its message is Hermes's detail and is never relayed.
 RESUME_HISTORY_ERROR_PREFIX = "Could not reopen that session (its transcript could not be read)."
-MAX_SPEECH_CLIP_BYTES = 4 * 1024 * 1024
+# Hermes errors that end a turn before the agent ran, without a message.complete.
+TERMINAL_ERRORS = {'Context injection refused.', 'Turn cancelled before the agent was ready', 'Session no longer running before the agent was ready'}  # fmt: skip
 MAX_SPEECH_RESPONSE_BYTES = 6 * 1024 * 1024
 # Existing 180 s provider and 10 s connection budgets, shared with the
 # refusal's millisecond numbers. They bound one dictation call, not meeting
@@ -31,19 +59,32 @@ TRANSCRIPTION_TIMEOUT_SECONDS = 180
 TRANSCRIPTION_CONNECT_TIMEOUT_SECONDS = 10
 
 
-@dataclass(frozen=True)
-class SpeechClip:
-    mime_type: str
-    provider: str
-    body: bytes
+def credential(settings: Settings) -> str:
+    value = read_secret(settings.hermes_credential_file, 64 * 1024).decode().strip()
+    if not value or len(value) > 4096:
+        raise HubError("configuration", "Credencial Hermes ausente o no válida")
+    return value
+
+
+def _choices(payload: dict) -> tuple[str, ...] | None:
+    choices = payload.get("choices")
+    if not isinstance(choices, list):
+        return None
+    return tuple(choice for choice in choices if isinstance(choice, str))
 
 
 class HermesConnection:
-    def __init__(self, adapter: "HermesAdapter", on_event: Callable[[dict], Awaitable[None]]):
-        self.adapter, self.on_event = adapter, on_event
+    """One device's gateway WebSocket, and what its events mean to the hub."""
+
+    def __init__(
+        self, backend: "HermesBackend | None", on_event: EventSink, device: str, device_name: str
+    ):
+        if not 1 <= len(device_name) <= 80 or any(ord(char) < 32 for char in device_name):
+            raise HubError("configuration", "Nombre de dispositivo no válido")
+        self.backend, self.on_event = backend, on_event
+        self.device, self.device_name = device, device_name
         self.epoch = ""
         self.live_sessions: set[str] = set()
-        self.device_name: str | None = None
         self._ws = None
         self._reader = None
         self._pending: dict[str, asyncio.Future] = {}
@@ -54,15 +95,10 @@ class HermesConnection:
     def connected(self) -> bool:
         return self._reader is not None and not self._reader.done()
 
-    def bind_device(self, device_name: str) -> None:
-        if not 1 <= len(device_name) <= 80 or any(ord(char) < 32 for char in device_name):
-            raise HubError("configuration", "Nombre de dispositivo no válido")
-        self.device_name = device_name
-
     async def open(self) -> None:
         try:
             self._ws = await connect(
-                self.adapter.ws_url("/api/ws"),
+                self.backend.ws_url("/api/ws"),
                 max_size=4 * 1024 * 1024,
                 max_queue=32,
                 open_timeout=10,
@@ -93,7 +129,7 @@ class HermesConnection:
                         self.epoch = str(params.get("payload", {}).get("replay_epoch") or "")
                         self._ready.set()
                     else:
-                        await self.on_event(params)
+                        await self.receive(params)
                 elif (future := self._pending.pop(str(frame.get("id")), None)) is not None:
                     if not future.done():
                         future.set_result(frame)
@@ -114,7 +150,136 @@ class HermesConnection:
                     )
             self._pending.clear()
             if not self._closing:
-                await self.on_event({"type": "orbit.upstream_lost"})
+                await self.on_event(ConnectionLost())
+
+    async def receive(self, params: dict) -> None:
+        """One Hermes event, as the typed event it means; the rest is dropped."""
+        kind = params.get("type")
+        session_id = params.get("session_id")
+        if not isinstance(session_id, str):
+            return
+        payload = params.get("payload")
+        if payload is not None and type(payload) is not dict:
+            # A non-object upstream payload is a transport-level warning,
+            # never a turn event. It must not propagate: a protocol mistake
+            # cannot be allowed to falsely retire every live session.
+            await self.on_event(
+                UnreadableUpdate(
+                    session_id, "Hermes envió un payload que no es un objeto JSON; se ignoró"
+                )
+            )
+            return
+        payload = payload or {}
+        if kind == "session.resume_progress":
+            if payload.get("phase") == "history" and payload.get("status") in {
+                "complete",
+                "failed",
+            }:
+                await self.on_event(HistoryLoaded(session_id, payload["status"] == "complete"))
+            return
+        if kind == "error":
+            message = payload.get("message")
+            if isinstance(message, str) and message.startswith(RESUME_HISTORY_ERROR_PREFIX):
+                cause = "history_unreadable"
+            elif isinstance(message, str) and message in TERMINAL_ERRORS:
+                cause = "terminal"
+            else:
+                cause = "unconfirmed"
+            await self.on_event(TurnError(session_id, cause))
+        elif kind == "message.delta":
+            if isinstance(text := payload.get("text"), str):
+                await self.on_event(MessageChunk(session_id, text))
+        elif kind == "message.complete":
+            text = payload.get("text")
+            status = str(payload.get("status") or "completed")
+            history_error = payload.get("error") or payload.get("text")
+            await self.on_event(
+                MessageComplete(
+                    session_id,
+                    text if isinstance(text, str) else "",
+                    status,
+                    history_unreadable=(
+                        status == "error"
+                        and isinstance(surface := payload.get("error_surface"), dict)
+                        and surface.get("code") == "agent_init_failed"
+                        and isinstance(history_error, str)
+                        and history_error.startswith(RESUME_HISTORY_ERROR_PREFIX)
+                    ),
+                )
+            )
+        elif kind == "approval.request":
+            if isinstance(request_id := payload.get("request_id"), str):
+                description = str(
+                    payload.get("description")
+                    or payload.get("command")
+                    or "Hermes solicita autorización"
+                )
+                await self.on_event(
+                    PermissionRequested(
+                        session_id, PermissionRequest(request_id, description, _choices(payload))
+                    )
+                )
+        elif kind == "clarify.request":
+            if isinstance(request_id := payload.get("request_id"), str):
+                question = str(payload.get("question") or "Responde a las preguntas de Hermes")
+                await self.on_event(
+                    ClarificationRequested(
+                        session_id,
+                        ClarificationRequest(
+                            request_id, question, self._questions(kind, payload), _choices(payload)
+                        ),
+                    )
+                )
+        elif kind in {"clarify.expire", "approval.expire"}:
+            request_id = payload.get("request_id")
+            if not isinstance(request_id, str):
+                report(
+                    event="hermes_field_invalid",
+                    code=f"{kind}.request_id:{type(request_id).__name__}",
+                    device=self.device,
+                    exc_info=False,
+                )
+                return
+            await self.on_event(RequestExpired(session_id, request_id))
+        elif kind == "status.update":
+            await self.on_event(
+                StatusNotice(
+                    session_id,
+                    str(payload.get("kind") or "status"),
+                    str(payload.get("text") or ""),
+                )
+            )
+
+    def _questions(self, event: str, payload: dict) -> tuple[dict, ...] | None:
+        questions = payload.get("questions")
+        if questions is None:
+            return None
+        if not isinstance(questions, list):
+            report(
+                event="hermes_field_invalid",
+                code=f"{event}.questions:{type(questions).__name__}",
+                device=self.device,
+                exc_info=False,
+            )
+            return ()
+        valid = []
+        for index, question in enumerate(questions):
+            if not isinstance(question, dict):
+                field, value = "item", question
+            elif not isinstance(question.get("qid"), str):
+                field, value = "qid", question.get("qid")
+            elif not isinstance(question.get("question"), str):
+                field, value = "question", question.get("question")
+            else:
+                valid.append(question)
+                continue
+            report(
+                event="hermes_field_invalid",
+                code=f"{event}.questions[{index}].{field}:{type(value).__name__}",
+                device=self.device,
+                exc_info=False,
+            )
+        return tuple(valid)
 
     async def rpc(self, method: str, params: dict) -> dict:
         if not self.connected:
@@ -227,14 +392,13 @@ class HermesConnection:
         finally:
             self._pending.pop(request_id, None)
 
-    async def create_session(self) -> dict:
-        title = "Orbit" if self.device_name is None else f"Orbit · {self.device_name}"
+    async def create_session(self) -> OpenedSession:
         result = await self.rpc(
             "session.create",
             {
-                "profile": self.adapter.settings.profile,
+                "profile": self.backend.settings.profile,
                 "close_on_disconnect": False,
-                "title": title,
+                "title": f"Orbit · {self.device_name}",
                 "source": "orbit",
                 "follow_profile_config": True,
             },
@@ -242,15 +406,15 @@ class HermesConnection:
         if not result.get("session_id") or not result.get("stored_session_id"):
             raise HubError("upstream_protocol", "Hermes omitió la identidad durable")
         self.live_sessions.add(result["session_id"])
-        return result
+        return OpenedSession(result["session_id"], result["stored_session_id"])
 
-    async def resume_session(self, stored_session_id: str) -> dict:
+    async def resume_session(self, stored_id: str) -> ResumedSession:
         try:
             result = await self.rpc(
                 "session.resume",
                 {
-                    "profile": self.adapter.settings.profile,
-                    "session_id": stored_session_id,
+                    "profile": self.backend.settings.profile,
+                    "session_id": stored_id,
                     "source": "orbit",
                     "close_on_disconnect": False,
                     # Bound the WS reply while Hermes hydrates model history.
@@ -269,18 +433,69 @@ class HermesConnection:
         runtime_id = result.get("session_id")
         if not isinstance(runtime_id, str) or not runtime_id:
             raise HubError("upstream_protocol", "Hermes omitió la sesión reanudada")
-        resumed = result.get("resumed") or result.get("stored_session_id") or stored_session_id
+        resumed = result.get("resumed") or result.get("stored_session_id") or stored_id
         if not isinstance(resumed, str) or not resumed:
             raise HubError("upstream_protocol", "Hermes omitió la identidad guardada")
         self.live_sessions.add(runtime_id)
         count = result.get("message_count")
         hydrating = result.get("hydrating")
-        return {
-            "session_id": runtime_id,
-            "stored_session_id": resumed,
-            **({"message_count": count} if type(count) is int and count > 0 else {}),
-            **({"hydrating": hydrating} if type(hydrating) is bool else {}),
-        }
+        return ResumedSession(
+            runtime_id,
+            resumed,
+            count if type(count) is int and count > 0 else None,
+            hydrating if type(hydrating) is bool else None,
+        )
+
+    async def prompt(self, session_id: str, blocks: Sequence[ContentBlock]) -> None:
+        # Hermes takes a turn as one text; the hub sends it one text block.
+        text = "".join(block.text for block in blocks)
+        await self.rpc("prompt.submit", {"session_id": session_id, "text": text})
+
+    async def cancel(self, session_id: str) -> None:
+        await self.rpc("session.interrupt", {"session_id": session_id})
+
+    async def respond_permission(
+        self, session_id: str, request_id: str, allow: bool
+    ) -> PermissionReceipt:
+        result = await self.rpc(
+            "approval.respond",
+            {
+                "session_id": session_id,
+                "request_id": request_id,
+                "choice": "once" if allow else "deny",
+            },
+        )
+        resolved = result.get("resolved")
+        if type(resolved) is not int or resolved not in {0, 1}:
+            raise UnreadableReceipt(
+                "upstream_protocol", "Hermes no confirmó una aprobación individual; no se repetirá"
+            )
+        return PermissionReceipt(applied=resolved == 1)
+
+    async def respond_clarification(
+        self, session_id: str, request_id: str, answer: str, question_id: str | None
+    ) -> ClarificationReceipt:
+        params = {"session_id": session_id, "request_id": request_id, "answer": answer}
+        if question_id:
+            params["question_id"] = question_id
+        result = await self.rpc("clarify.respond", params)
+        status, remaining = result.get("status"), result.get("remaining", [])
+        if (
+            status not in {"ok", "expired"}
+            or not isinstance(remaining, list)
+            or len(remaining) > 32
+            or not all(isinstance(item, str) and 1 <= len(item) <= 128 for item in remaining)
+        ):
+            raise UnreadableReceipt(
+                "upstream_protocol", "Hermes no confirmó la aclaración; no se repetirá"
+            )
+        return ClarificationReceipt(status, tuple(remaining))
+
+    async def turn_stopped(self, session_id: str) -> bool:
+        result = await self.rpc("session.status", {"session_id": session_id})
+        output = result.get("output")
+        lines = output.splitlines() if isinstance(output, str) else []
+        return lines.count("Agent Running: No") == 1 and "Agent Running: Yes" not in lines
 
     async def close(self) -> None:
         self._closing = True
@@ -294,23 +509,29 @@ class HermesConnection:
                 await asyncio.gather(self._reader, return_exceptions=True)
 
 
-class HermesAdapter:
+class HermesBackend:
+    """The assistant is the Hermes profile `settings.profile`."""
+
+    # Images: Orbit's turns carry none (see `Capabilities.images`).
+    capabilities = Capabilities(images=False, resume=True, history=True, voice=True)
+
     def __init__(self, settings: Settings):
         self.settings = settings
-
-    def credential(self) -> str:
-        value = read_secret(self.settings.hermes_credential_file, 64 * 1024).decode().strip()
-        if not value or len(value) > 4096:
-            raise HubError("configuration", "Credencial Hermes ausente o no válida")
-        return value
 
     def ws_url(self, path: str) -> str:
         base = self.settings.hermes_url.rstrip("/")
         base = ("wss" if base.startswith("https:") else "ws") + base[base.index(":") :]
-        return base + path + "?" + urlencode({"token": self.credential()})
+        return base + path + "?" + urlencode({"token": credential(self.settings)})
 
-    def connection(self, callback: Callable[[dict], Awaitable[None]]) -> HermesConnection:
-        return HermesConnection(self, callback)
+    def connection(self, device: str, device_name: str, on_event: EventSink) -> HermesConnection:
+        return HermesConnection(self, on_event, device, device_name)
+
+
+class HermesSpeech:
+    """Dictation and read-aloud by the same Hermes profile."""
+
+    def __init__(self, settings: Settings):
+        self.settings = settings
 
     async def transcribe(self, audio: bytes) -> str:
         async with httpx.AsyncClient(
@@ -323,7 +544,7 @@ class HermesAdapter:
                 response = await client.post(
                     self.settings.hermes_url.rstrip("/") + "/api/audio/transcribe",
                     params={"profile": self.settings.profile},
-                    headers={"X-Hermes-Session-Token": self.credential()},
+                    headers={"X-Hermes-Session-Token": credential(self.settings)},
                     json={
                         "data_url": "data:audio/wav;base64," + base64.b64encode(audio).decode(),
                         "mime_type": "audio/wav",
@@ -351,7 +572,7 @@ class HermesAdapter:
                 client.stream(
                     "POST",
                     self.settings.hermes_url.rstrip("/") + "/api/audio/speak",
-                    headers={"X-Hermes-Session-Token": self.credential()},
+                    headers={"X-Hermes-Session-Token": credential(self.settings)},
                     json={"text": text, "profile": self.settings.profile},
                 ) as response,
             ):

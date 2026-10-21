@@ -5,9 +5,28 @@ import json
 import math
 from collections.abc import Callable
 from concurrent.futures import Executor
+from dataclasses import replace
 
-from .hermes import RESUME_HISTORY_ERROR_PREFIX
-from .interactions import TERMINAL_ERRORS, decode_response, pending_data
+from .assistant.backend import (
+    AssistantBackend,
+    AssistantConnection,
+    AssistantEvent,
+    ClarificationRequest,
+    ClarificationRequested,
+    ConnectionLost,
+    HistoryLoaded,
+    MessageChunk,
+    MessageComplete,
+    PermissionRequest,
+    PermissionRequested,
+    RequestExpired,
+    StatusNotice,
+    TextBlock,
+    TurnError,
+    UnreadableReceipt,
+    UnreadableUpdate,
+)
+from .interactions import pending_data, public_receipt
 from .log import current_op, in_store, logger, report
 from .meeting_context import MeetingTurn, meeting_context, read_meeting
 from .protocol import HubError, emit
@@ -50,16 +69,16 @@ class DeviceRuntime:
         self,
         device: str,
         store: Store,
-        adapter,
+        assistant: AssistantBackend,
         now: Callable[[], float],
         *,
         store_executor: Executor | None = None,
         input_tracker: TurnInputTracker | None = None,
     ):
-        self.device, self.store, self.adapter, self.now = device, store, adapter, now
+        self.device, self.store, self.assistant, self.now = device, store, assistant, now
         self.device_name = self._device_name()
         self.input_tracker = input_tracker or TurnInputTracker(now)
-        self.connection = None
+        self.connection: AssistantConnection | None = None
         self.bindings: dict[str, str] = {}
         self.resumed_message_counts: dict[str, int | None] = {}
         self.resuming_ack = False
@@ -69,7 +88,7 @@ class DeviceRuntime:
         self.resume_deadline: float | None = None
         self.turn_ids: dict[str, str] = {}
         self.interrupt_deadlines: dict[str, float] = {}
-        self.pending: dict[str, tuple[str, str, dict]] = {}
+        self.pending: dict[str, tuple[str, str, PermissionRequest | ClarificationRequest]] = {}
         self.listeners: set[asyncio.Queue] = set()
         self.lock = asyncio.Lock()
         self.revoked = False
@@ -92,37 +111,6 @@ class DeviceRuntime:
             queue.put_nowait(emit("state.snapshot", self.snapshot()))
         return queue
 
-    def _normalize_questions(self, event: str, payload: dict) -> dict:
-        questions = payload.get("questions")
-        if questions is None:
-            return payload
-        if not isinstance(questions, list):
-            report(
-                event="hermes_field_invalid",
-                code=f"{event}.questions:{type(questions).__name__}",
-                device=self.device,
-                exc_info=False,
-            )
-            return {**payload, "questions": []}
-        valid = []
-        for index, question in enumerate(questions):
-            if not isinstance(question, dict):
-                field, value = "item", question
-            elif not isinstance(question.get("qid"), str):
-                field, value = "qid", question.get("qid")
-            elif not isinstance(question.get("question"), str):
-                field, value = "question", question.get("question")
-            else:
-                valid.append(question)
-                continue
-            report(
-                event="hermes_field_invalid",
-                code=f"{event}.questions[{index}].{field}:{type(value).__name__}",
-                device=self.device,
-                exc_info=False,
-            )
-        return {**payload, "questions": valid}
-
     async def _run_store(self, function: Callable[[], object]):
         """Dispatch a Store call onto the shared single-thread executor when available."""
         if self.store_executor is None:
@@ -136,13 +124,13 @@ class DeviceRuntime:
         for session_id, turn_id in list(self.turn_ids.items())[-64:]:
             binding = self.store.session(self.device, session_id)
             pending = []
-            for request_id, (owner, kind, payload) in self.pending.items():
+            for owner, kind, request in self.pending.values():
                 if owner != session_id:
                     continue
                 if len(pending) == 128:
                     omitted = True
                     continue
-                value = pending_data(request_id, kind, payload)
+                value = pending_data(kind, request)
                 pending.append(value)
                 if len(json.dumps([sessions, pending]).encode()) > 100 * 1024:
                     pending.pop()
@@ -236,15 +224,13 @@ class DeviceRuntime:
 
     async def reconcile_error(self, runtime_id: str, session_id: str, turn_id: str) -> None:
         try:
-            result = await self.connection.rpc("session.status", {"session_id": runtime_id})
+            stopped = await self.connection.turn_stopped(runtime_id)
             if self.turn_ids.get(session_id) != turn_id:
                 return
             status = self.store.session(self.device, session_id)["status"]
             if status != "streaming":
                 return
-            output = result.get("output")
-            lines = output.splitlines() if isinstance(output, str) else []
-            if lines.count("Agent Running: No") == 1 and "Agent Running: Yes" not in lines:
+            if stopped:
                 await self.fail_turn(session_id, turn_id)
             else:
                 await self.publish(
@@ -303,17 +289,13 @@ class DeviceRuntime:
 
     async def connect(self):
         if self.connection is None or not self.connection.connected:
-            connection = self.adapter.connection(self.on_upstream)
-            bind_device = getattr(connection, "bind_device", None)
-            if bind_device is not None:
-                bind_device(self.device_name)
+            connection = self.assistant.connection(self.device, self.device_name, self.on_event)
             self.connection = connection
             await self.connection.open()
         return self.connection
 
-    async def on_upstream(self, params: dict) -> None:
-        kind = params.get("type")
-        if kind == "orbit.upstream_lost":
+    async def on_event(self, event: AssistantEvent) -> None:
+        if isinstance(event, ConnectionLost):
             if self.resume_waiter is not None and not self.resume_waiter[1].done():
                 self.resume_waiter[1].set_result("lost")
             self.early_resume_progress = None
@@ -343,86 +325,59 @@ class DeviceRuntime:
             return
         if not self.store.is_active(self.device):
             return
-        runtime_id = params.get("session_id")
-        payload = params.get("payload")
-        if kind == "session.resume_progress" and isinstance(payload, dict):
-            if payload.get("phase") == "history" and payload.get("status") in {
-                "complete",
-                "failed",
-            }:
-                self.record_resume_progress(runtime_id, payload["status"])
+        runtime_id = event.session_id
+        if isinstance(event, HistoryLoaded):
+            self.record_resume_progress(runtime_id, "complete" if event.loaded else "failed")
             return
         if (
-            kind == "error"
-            and isinstance(payload, dict)
-            and isinstance(payload.get("message"), str)
-            and payload["message"].startswith(RESUME_HISTORY_ERROR_PREFIX)
+            isinstance(event, TurnError)
+            and event.cause == "history_unreadable"
             and (
                 self.record_resume_progress(runtime_id, "failed")
                 or (
-                    isinstance(runtime_id, str)
-                    and runtime_id in self.bindings
+                    runtime_id in self.bindings
                     and self.connection is not None
                     and runtime_id not in self.connection.live_sessions
                 )
             )
         ):
             return
-        session_id = self.bindings.get(params.get("session_id"))
+        session_id = self.bindings.get(runtime_id)
         if session_id is None:
             return
-        raw_payload = params.get("payload")
-        if raw_payload is not None and type(raw_payload) is not dict:
-            # A non-object upstream payload is a transport-level warning,
-            # never a turn event. It must not propagate: a protocol mistake
-            # cannot be allowed to falsely retire every live session via
-            # orbit.upstream_lost.
+        if isinstance(event, UnreadableUpdate):
+            # Never a turn event: an unreadable update must not end or retire anything.
             await self.publish(
                 emit(
                     "chat.status",
-                    {
-                        "session_id": session_id,
-                        "kind": "warning",
-                        "text": "Hermes envió un payload que no es un objeto JSON; se ignoró",
-                    },
+                    {"session_id": session_id, "kind": "warning", "text": event.text},
                     self.turn_ids.get(session_id),
                 )
             )
             return
-        payload = raw_payload if isinstance(raw_payload, dict) else {}
         data = {"session_id": session_id}
         turn_id = self.turn_ids.get(session_id)
         if turn_id is None:
             return
-        if kind == "error":
-            if payload.get("message") in TERMINAL_ERRORS:
+        if isinstance(event, TurnError):
+            if event.cause == "terminal":
                 await self.fail_turn(session_id, turn_id)
             elif (session_id, turn_id) not in self.reconciliations:
                 self.reconciliations[(session_id, turn_id)] = asyncio.create_task(
-                    self.reconcile_error(params["session_id"], session_id, turn_id)
+                    self.reconcile_error(runtime_id, session_id, turn_id)
                 )
             return
-        if kind == "message.delta":
-            if isinstance(text := payload.get("text"), str):
-                await self.publish(emit("chat.delta", {**data, "text": text}, turn_id))
-        elif kind == "message.complete":
-            text = payload.get("text")
-            status = str(payload.get("status") or "completed")
-            is_resumed = params["session_id"] in self.resumed_message_counts
-            resumed_count = self.resumed_message_counts.pop(params["session_id"], None)
-            history_error = payload.get("error") or payload.get("text")
-            resume_failed = (
-                status == "error"
-                and is_resumed
-                and isinstance(surface := payload.get("error_surface"), dict)
-                and surface.get("code") == "agent_init_failed"
-                and isinstance(history_error, str)
-                and history_error.startswith(RESUME_HISTORY_ERROR_PREFIX)
-            )
+        if isinstance(event, MessageChunk):
+            await self.publish(emit("chat.delta", {**data, "text": event.text}, turn_id))
+        elif isinstance(event, MessageComplete):
+            text, status = event.text, event.status
+            is_resumed = runtime_id in self.resumed_message_counts
+            resumed_count = self.resumed_message_counts.pop(runtime_id, None)
+            resume_failed = event.history_unreadable and is_resumed
             # Failed output remains a live partial, never an authoritative history message.
             persisted = True
             warning_code: str | None = None
-            if status != "error" and isinstance(text, str) and text:
+            if status != "error" and text:
                 try:
                     self.store.append_message(
                         session_id, "assistant", text, now_ms=round(self.now() * 1000)
@@ -442,7 +397,7 @@ class DeviceRuntime:
             }
             completed_data: dict = {
                 **data,
-                "text": text if isinstance(text, str) else "",
+                "text": text,
                 "status": status,
                 "persisted": persisted,
             }
@@ -452,7 +407,7 @@ class DeviceRuntime:
                 completed_data["text"] = ""
             await self.publish(emit("chat.completed", completed_data, turn_id))
             if resume_failed:
-                self.connection.live_sessions.discard(params["session_id"])
+                self.connection.live_sessions.discard(runtime_id)
                 count_text = (
                     f"({resumed_count} mensajes en el último tramo)"
                     if resumed_count is not None
@@ -472,60 +427,29 @@ class DeviceRuntime:
                     )
                 )
             await self.changed()
-        elif kind == "approval.request":
-            if isinstance(request_id := payload.get("request_id"), str):
-                self.pending[request_id] = (session_id, "approval", payload)
-                await self.publish(
-                    emit(
-                        "approval.required",
-                        {**data, **pending_data(request_id, "approval", payload)},
-                        turn_id,
-                    )
-                )
-                await self.changed()
-        elif kind == "clarify.request":
-            if isinstance(request_id := payload.get("request_id"), str):
-                payload = self._normalize_questions(kind, payload)
-                self.pending[request_id] = (session_id, "clarify", payload)
-                await self.publish(
-                    emit(
-                        "clarify.required",
-                        {**data, **pending_data(request_id, "clarify", payload)},
-                        turn_id,
-                    )
-                )
-                await self.changed()
-        elif kind in {"clarify.expire", "approval.expire"}:
-            request_id = payload.get("request_id")
-            if not isinstance(request_id, str):
-                report(
-                    event="hermes_field_invalid",
-                    code=f"{kind}.request_id:{type(request_id).__name__}",
-                    device=self.device,
-                    session=session_id,
-                    exc_info=False,
-                )
-                return
-            self.pending.pop(request_id, None)
+        elif isinstance(event, PermissionRequested | ClarificationRequested):
+            kind, name = (
+                ("approval", "approval.required")
+                if isinstance(event, PermissionRequested)
+                else ("clarify", "clarify.required")
+            )
+            request = event.request
+            self.pending[request.request_id] = (session_id, kind, request)
+            await self.publish(emit(name, {**data, **pending_data(kind, request)}, turn_id))
+            await self.changed()
+        elif isinstance(event, RequestExpired):
+            self.pending.pop(event.request_id, None)
             await self.publish(
                 emit(
                     "interaction.expired",
-                    {**data, "request_id": request_id},
+                    {**data, "request_id": event.request_id},
                     turn_id,
                 )
             )
             await self.changed()
-        elif kind == "status.update":
+        elif isinstance(event, StatusNotice):
             await self.publish(
-                emit(
-                    "chat.status",
-                    {
-                        **data,
-                        "kind": str(payload.get("kind") or "status"),
-                        "text": str(payload.get("text") or ""),
-                    },
-                    turn_id,
-                )
+                emit("chat.status", {**data, "kind": event.kind, "text": event.text}, turn_id)
             )
 
     def require_live(self, session_id: str) -> dict:
@@ -652,18 +576,15 @@ class DeviceRuntime:
         self.store.resume_session(
             self.device,
             session_id,
-            resumed["session_id"],
-            resumed["stored_session_id"],
+            resumed.session_id,
+            resumed.stored_id,
             connection.epoch,
         )
         self.bindings.pop(binding["runtime_id"], None)
         self.resumed_message_counts.pop(binding["runtime_id"], None)
-        self.bindings[resumed["session_id"]] = session_id
-        count = resumed.get("message_count")
-        self.resumed_message_counts[resumed["session_id"]] = (
-            count if type(count) is int and count > 0 else None
-        )
-        return self.store.session(self.device, session_id), resumed.get("hydrating")
+        self.bindings[resumed.session_id] = session_id
+        self.resumed_message_counts[resumed.session_id] = resumed.message_count
+        return self.store.session(self.device, session_id), resumed.loading_history
 
     def log_chat_rejection(self, code, numbers=None):
         logger.info(
@@ -690,10 +611,10 @@ class DeviceRuntime:
             if not self.store.is_active(self.device):
                 raise HubError("revoked", "Dispositivo revocado")
             binding = self.require_live(params.session_id)
-            upstream = {"session_id": binding["runtime_id"]}
+            runtime_id = binding["runtime_id"]
             if method == "chat.interrupt":
                 self.safety_target(method, params)
-                await self.connection.rpc("session.interrupt", upstream)
+                await self.connection.cancel(runtime_id)
                 state = self.turn_state(params.session_id)
                 if state in {TurnState.SUBMITTING, TurnState.STREAMING}:
                     # Only Hermes's acknowledgement of the interruption request
@@ -720,38 +641,46 @@ class DeviceRuntime:
                 and params.turn_id != self.turn_ids.get(params.session_id)
             ):
                 raise HubError("stale_turn", "La respuesta no pertenece al turno actual")
-            upstream["request_id"] = params.request_id
             if kind == "approval":
-                upstream["choice"] = "once" if params.approved else "deny"
-                if upstream["choice"] not in pending[2].get("choices", ["once", "deny"]):
+                choices = pending[2].choices
+                if ("once" if params.approved else "deny") not in (
+                    ("once", "deny") if choices is None else choices
+                ):
                     raise HubError("approval_not_allowed", "Hermes no permite esta respuesta")
-            else:
-                upstream["answer"] = params.answer
-                if params.question_id:
-                    upstream["question_id"] = params.question_id
-            result = await connection.rpc(method, upstream)
-            # An entry's object identity is its generation: every request/partial
-            # update replaces the tuple, including reuse of an identical request ID.
-            # The RPC reader remains unlocked and can expire/complete/replace it.
-            current = (
-                self.pending.get(params.request_id) is pending
-                and turn_id is not None
-                and self.turn_ids.get(params.session_id) == turn_id
-                and self.connection is connection
-                and connection.connected
-                and connection.epoch == epoch
-                and binding["runtime_id"] in connection.live_sessions
-                and not self.revoked
-                and self.store.is_active(self.device)
-                and self.store.session(self.device, params.session_id)["status"] == "streaming"
-            )
+
+            def still_current() -> bool:
+                # An entry's object identity is its generation: every request/partial
+                # update replaces the tuple, including reuse of an identical request ID.
+                # The event reader remains unlocked and can expire/complete/replace it.
+                return (
+                    self.pending.get(params.request_id) is pending
+                    and turn_id is not None
+                    and self.turn_ids.get(params.session_id) == turn_id
+                    and self.connection is connection
+                    and connection.connected
+                    and connection.epoch == epoch
+                    and runtime_id in connection.live_sessions
+                    and not self.revoked
+                    and self.store.is_active(self.device)
+                    and self.store.session(self.device, params.session_id)["status"] == "streaming"
+                )
+
             try:
-                remaining, receipt = decode_response(kind, result)
-            except HubError:
-                if current:
+                if kind == "approval":
+                    answered = await connection.respond_permission(
+                        runtime_id, params.request_id, params.approved
+                    )
+                else:
+                    answered = await connection.respond_clarification(
+                        runtime_id, params.request_id, params.answer, params.question_id
+                    )
+            except UnreadableReceipt:
+                if still_current():
                     self.pending.pop(params.request_id, None)
                     await self.changed()
                 raise
+            current = still_current()
+            remaining, receipt = public_receipt(answered)
             if not current:
                 # Preserve a genuinely applied historical ACK, but never use it
                 # to mutate a terminal/replaced interaction. Clients must consume
@@ -762,14 +691,16 @@ class DeviceRuntime:
             elif kind == "clarify":
                 # Batch replies acknowledge individual qids. Reconnection must
                 # not present an already answered question as still pending.
-                updated = dict(pending[2])
-                if isinstance(questions := updated.get("questions"), list):
-                    updated["questions"] = [
-                        question
-                        for question in questions
-                        if isinstance(question, dict)
-                        and question.get("qid") in receipt["remaining"]
-                    ]
+                updated = pending[2]
+                if updated.questions is not None:
+                    updated = replace(
+                        updated,
+                        questions=tuple(
+                            question
+                            for question in updated.questions
+                            if question.get("qid") in receipt["remaining"]
+                        ),
+                    )
                 self.pending[params.request_id] = (params.session_id, kind, updated)
             # Boundary emits the result first, then this authoritative cached snapshot.
             self.revision, self._snapshot_cache = self.revision + 1, None
@@ -914,12 +845,12 @@ class DeviceRuntime:
                     raise HubError("revoked", "Dispositivo revocado")
                 session_id = self.store.create_session(
                     self.device,
-                    created["session_id"],
-                    created["stored_session_id"],
+                    created.session_id,
+                    created.stored_id,
                     connection.epoch,
                     self.now(),
                 )
-                self.bindings[created["session_id"]] = session_id
+                self.bindings[created.session_id] = session_id
             self.expire_stale_interrupt(session_id)
             state = self.turn_state(session_id)
             if state is TurnState.OUTCOME_UNKNOWN:
@@ -957,9 +888,8 @@ class DeviceRuntime:
             finally:
                 self.resume_pending.discard(session_id)
                 self.resume_deadline = None
-        upstream = {"session_id": binding["runtime_id"], "text": upstream_text}
         try:
-            await connection.rpc("prompt.submit", upstream)
+            await connection.prompt(binding["runtime_id"], (TextBlock(upstream_text),))
         except HubError as exc:
             # The submit may have reached Hermes; never resend it. A terminal
             # event observed during the RPC keeps its more authoritative state.
@@ -999,7 +929,7 @@ class DeviceRuntime:
                 async with asyncio.timeout(2):
                     await asyncio.gather(
                         *(
-                            connection.rpc("session.interrupt", {"session_id": runtime_id})
+                            connection.cancel(runtime_id)
                             for runtime_id in tuple(connection.live_sessions)
                         ),
                         return_exceptions=True,

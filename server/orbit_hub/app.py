@@ -18,13 +18,15 @@ from fastapi.responses import JSONResponse, Response
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from . import error_reports
+from .assistant.backend import AssistantBackend
+from .assistant.hermes import HermesBackend, HermesSpeech
+from .assistant.speech import SpeechBackend
 from .bridge_route import BridgeService
 from .bridge_route import mount as mount_device_bridge
 from .captures import CaptureStore
 from .config import Settings
 from .device_bridge import Bridge as DeviceBridge
 from .errors import http_response, render
-from .hermes import HermesAdapter
 from .log import bind_op, report, supervised
 from .meeting_final_pass import FinalPassWorker
 from .meeting_transcription import MeetingTranscriber
@@ -105,13 +107,15 @@ def create_app(
     settings: Settings,
     *,
     store: Store | None = None,
-    adapter=None,
+    assistant: AssistantBackend | None = None,
+    speech: SpeechBackend | None = None,
     now=time.time,
     processing_client=None,
 ) -> FastAPI:
     owned_store = store is None
     store = store or Store(settings.data_dir, settings.key_file, settings.storage_quota_bytes)
-    adapter = adapter or HermesAdapter(settings)
+    assistant = assistant or HermesBackend(settings)
+    speech = speech or HermesSpeech(settings)
     runtimes: dict[str, DeviceRuntime] = {}
     turn_inputs = TurnInputTracker(now)
     # Questions a remote assistant has put to a Mac, and the callers waiting on
@@ -179,7 +183,7 @@ def create_app(
     )
     transcriptions = TranscriptionWorker(
         store,
-        adapter,
+        speech,
         now,
         meetings=meeting_transcriber,
         prepare_signal=prepare_signal,
@@ -356,7 +360,7 @@ def create_app(
             DeviceRuntime(
                 device,
                 store,
-                adapter,
+                assistant,
                 now,
                 store_executor=store_executor,
                 input_tracker=turn_inputs,
@@ -393,7 +397,7 @@ def create_app(
         bounded_body,
         validate_wav,
         settings,
-        adapter,
+        speech,
         transcriptions,
         turn_inputs,
     )

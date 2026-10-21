@@ -107,7 +107,12 @@ async def deimos(environment, tmp_path, owner):
         allowed_hosts=("127.0.0.1", "localhost"),
     )
     app = create_app(
-        settings, store=store, adapter=adapter, now=lambda: NOW, processing_client=FakeModel()
+        settings,
+        store=store,
+        assistant=adapter,
+        speech=adapter,
+        now=lambda: NOW,
+        processing_client=FakeModel(),
     )
     async with tcp_server(app) as url:
         path = write_mcp_config(tmp_path, url, devices={DEFAULT_DEVICE: owner})

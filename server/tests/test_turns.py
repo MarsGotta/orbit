@@ -70,8 +70,8 @@ class UnconfirmedSubmitConnection(FakeConnection):
 def unconfirmed(environment, monkeypatch):
     _, _, adapter = environment
 
-    def connection(callback):
-        value = UnconfirmedSubmitConnection(callback)
+    def connection(device, device_name, callback):
+        value = UnconfirmedSubmitConnection(callback, device, device_name)
         adapter.connections.append(value)
         return value
 
@@ -102,7 +102,7 @@ async def test_unconfirmed_submit_marks_outcome_unknown_and_blocks_resend(unconf
     assert "session.new" in error.value.message
     assert [method for method, _ in runtime.connection.calls] == ["prompt.submit"]
     assert runtime.turn_ids.get(session) == turn  # Never reused or overwritten.
-    await runtime.on_upstream(
+    await runtime.connection.receive(
         {
             "type": "message.delta",
             "session_id": upstream,
@@ -118,8 +118,8 @@ async def test_unconfirmed_submit_marks_outcome_unknown_and_blocks_resend(unconf
 class HeldSubmitConnection(FakeConnection):
     """prompt.submit waits for an explicit release; controls must not queue behind it."""
 
-    def __init__(self, callback):
-        super().__init__(callback)
+    def __init__(self, callback, *device):
+        super().__init__(callback, *device)
         self.submit_arrived = asyncio.Event()
         self.release_submit = asyncio.Event()
 
@@ -137,8 +137,8 @@ def held(environment, monkeypatch):
     _, _, adapter = environment
     connection_created = asyncio.Event()
 
-    def connection(callback):
-        value = HeldSubmitConnection(callback)
+    def connection(device, device_name, callback):
+        value = HeldSubmitConnection(callback, device, device_name)
         adapter.connections.append(value)
         connection_created.set()
         return value
@@ -199,8 +199,8 @@ class InterruptRefusedConnection(FakeConnection):
 def refused_interrupt(environment, monkeypatch):
     _, _, adapter = environment
 
-    def connection(callback):
-        value = InterruptRefusedConnection(callback)
+    def connection(device, device_name, callback):
+        value = InterruptRefusedConnection(callback, device, device_name)
         adapter.connections.append(value)
         return value
 

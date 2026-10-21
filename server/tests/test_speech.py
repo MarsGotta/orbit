@@ -10,7 +10,8 @@ import pytest
 from conftest import device
 from support_app import client
 
-from orbit_hub.hermes import MAX_SPEECH_CLIP_BYTES, HermesAdapter, SpeechClip
+from orbit_hub.assistant.hermes import HermesSpeech
+from orbit_hub.assistant.speech import MAX_SPEECH_CLIP_BYTES, SpeechClip
 from orbit_hub.protocol import HubError
 
 ORIGINAL_ASYNC_CLIENT = httpx.AsyncClient
@@ -30,7 +31,7 @@ def credential(tmp_path):
 
 def install_http(monkeypatch, reply):
     monkeypatch.setattr(
-        "orbit_hub.hermes.httpx.AsyncClient",
+        "orbit_hub.assistant.hermes.httpx.AsyncClient",
         lambda **kwargs: ORIGINAL_ASYNC_CLIENT(transport=httpx.MockTransport(reply), **kwargs),
     )
 
@@ -62,9 +63,9 @@ async def test_default_uses_profile_clip_without_opening_stream(
 
     install_http(monkeypatch, reply)
     configured = replace(settings, hermes_credential_file=credential(tmp_path))
-    adapter = HermesAdapter(configured)
+    speech = HermesSpeech(configured)
 
-    result = await adapter.synthesize("frase sintética")
+    result = await speech.synthesize("frase sintética")
 
     assert result == SpeechClip(mime_type, provider, audio)
     assert len(requests) == 1
@@ -83,7 +84,7 @@ async def test_unavailable_speech_and_oversized_clip_are_typed(environment, tmp_
 
     configured = replace(settings, hermes_credential_file=credential(tmp_path))
     with pytest.raises(HubError) as error:
-        await HermesAdapter(configured).synthesize("frase")
+        await HermesSpeech(configured).synthesize("frase")
     assert error.value.code == "speech_unavailable"
 
     oversized = b"x" * (MAX_SPEECH_CLIP_BYTES + 1)
@@ -105,7 +106,7 @@ async def test_unavailable_speech_and_oversized_clip_are_typed(environment, tmp_
         hermes_credential_file=credential(tmp_path),
     )
     with pytest.raises(HubError) as error:
-        await HermesAdapter(configured).synthesize("frase")
+        await HermesSpeech(configured).synthesize("frase")
     assert error.value.code == "speech_too_large"
 
 

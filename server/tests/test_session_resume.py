@@ -7,7 +7,8 @@ from uuid import uuid4
 import pytest
 from conftest import FakeConnection, device, said
 
-from orbit_hub.hermes import HermesConnection
+from orbit_hub.assistant.backend import ConnectionLost, ResumedSession
+from orbit_hub.assistant.hermes import HermesConnection
 from orbit_hub.protocol import HubError, InterruptParams, SendParams
 from orbit_hub.runtime import DeviceRuntime
 
@@ -15,6 +16,7 @@ from orbit_hub.runtime import DeviceRuntime
 class ResumableConnection(FakeConnection):
     def __init__(self, callback, stored_sessions, epoch, adapter):
         super().__init__(callback)
+        self.backend = adapter
         self.stored_sessions = stored_sessions
         self.epoch = epoch
         self.adapter = adapter
@@ -24,8 +26,8 @@ class ResumableConnection(FakeConnection):
 
     async def create_session(self):
         created = await super().create_session()
-        self.stored_sessions[created["stored_session_id"]] = []
-        self.runtime_to_stored[created["session_id"]] = created["stored_session_id"]
+        self.stored_sessions[created.stored_id] = []
+        self.runtime_to_stored[created.session_id] = created.stored_id
         return created
 
     async def rpc(self, method, params):
@@ -78,7 +80,7 @@ class ResumableConnection(FakeConnection):
 
     async def resume_session(self, stored_session_id):
         result = await HermesConnection.resume_session(self, stored_session_id)
-        self.resumed_runtime_ids.add(result["session_id"])
+        self.resumed_runtime_ids.add(result.session_id)
         return result
 
 
@@ -95,7 +97,7 @@ class ResumableAdapter:
         self.reuse_runtime_id = None
         self.settings = SimpleNamespace(profile="deimos")
 
-    def connection(self, callback):
+    def connection(self, device, device_name, callback):
         connection = ResumableConnection(
             callback, self.stored_sessions, f"synthetic-epoch-{len(self.connections)}", self
         )
@@ -121,7 +123,7 @@ async def test_only_inflight_session_becomes_unknown_on_upstream_loss(environmen
     assert store.session(owner, idle)["status"] == "completed"
     store.status(active, "streaming")
     queue = runtime.subscribe()
-    await runtime.on_upstream({"type": "orbit.upstream_lost"})
+    await runtime.on_event(ConnectionLost())
     errors = []
     while not queue.empty():
         frame = queue.get_nowait()
@@ -140,7 +142,7 @@ async def test_lost_hermes_keeps_reconnect_snapshot_for_unknown_turn(environment
     runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
     session_id = await sent(runtime, "primer turno")
     store.status(session_id, "streaming")
-    await runtime.on_upstream({"type": "orbit.upstream_lost"})
+    await runtime.on_event(ConnectionLost())
 
     viewer = runtime.subscribe()
     assert viewer.get_nowait()["data"]["sessions"] == [
@@ -191,7 +193,7 @@ async def test_hermes_epoch_change_resumes_stored_session(environment):
     old_binding = store.session(owner, session_id)
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_upstream({"type": "orbit.upstream_lost"})
+    await runtime.on_event(ConnectionLost())
 
     assert await sent(runtime, "mensaje tras reinicio", session_id) == session_id
     binding = store.session(owner, session_id)
@@ -244,10 +246,10 @@ async def test_missing_hermes_history_has_a_specific_refusal(environment):
 async def test_deferred_resume_history_failure_is_reported_and_next_turn_reopens(
     environment, monkeypatch
 ):
-    from orbit_hub import runtime as runtime_module
+    from orbit_hub.assistant import hermes as hermes_module
 
     monkeypatch.setattr(
-        runtime_module, "RESUME_HISTORY_ERROR_PREFIX", "Synthetic unreadable transcript."
+        hermes_module, "RESUME_HISTORY_ERROR_PREFIX", "Synthetic unreadable transcript."
     )
     _, store, _ = environment
     adapter = ResumableAdapter()
@@ -361,7 +363,7 @@ async def test_late_history_error_does_not_reconcile_completed_turn(environment)
     old_turn_id = runtime.turn_ids[session_id]
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_upstream({"type": "orbit.upstream_lost"})
+    await runtime.on_event(ConnectionLost())
     adapter.resume_progress = "failed"
     viewer = runtime.subscribe()
     viewer.get_nowait()
@@ -399,7 +401,7 @@ async def test_interrupt_and_new_send_do_not_wait_for_history(environment):
     old_turn_id = runtime.turn_ids[session_id]
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_upstream({"type": "orbit.upstream_lost"})
+    await runtime.on_event(ConnectionLost())
     adapter.resume_progress = None
     sending = asyncio.create_task(sent(runtime, "mensaje tras reconexión", session_id))
     await adapter.resume_called.wait()
@@ -447,7 +449,7 @@ async def test_other_new_session_can_send_while_history_waits(environment):
     session_id = await sent(runtime, "turno anterior")
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_upstream({"type": "orbit.upstream_lost"})
+    await runtime.on_event(ConnectionLost())
     adapter.resume_progress = None
     sending = asyncio.create_task(sent(runtime, "mensaje tras reconexión", session_id))
     await adapter.resume_called.wait()
@@ -515,7 +517,7 @@ async def test_other_disconnected_session_can_resume_without_pending_hydration(
     second_id = await sent(runtime, "segunda conversación")
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_upstream({"type": "orbit.upstream_lost"})
+    await runtime.on_event(ConnectionLost())
     adapter.resume_hydrating = hydrating
     adapter.resume_progress = progress
     await runtime.lock.acquire()
@@ -549,7 +551,7 @@ async def test_other_disconnected_session_refusal_names_remaining_history_time(e
     second_id = await sent(runtime, "segunda conversación")
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_upstream({"type": "orbit.upstream_lost"})
+    await runtime.on_event(ConnectionLost())
     adapter.resume_progress = None
     sending = asyncio.create_task(sent(runtime, "mensaje uno", first_id))
     await adapter.resume_called.wait()
@@ -584,7 +586,7 @@ async def test_ending_runtime_wakes_history_wait_with_its_cause(environment, end
     session_id = await sent(runtime, "turno anterior")
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_upstream({"type": "orbit.upstream_lost"})
+    await runtime.on_event(ConnectionLost())
     adapter.resume_progress = None
     sending = asyncio.create_task(sent(runtime, "mensaje tras reconexión", session_id))
     await adapter.resume_called.wait()
@@ -621,7 +623,7 @@ async def test_reused_live_runtime_keeps_early_history_completion(environment, m
     adapter.reuse_runtime_id = store.session(owner, session_id)["runtime_id"]
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_upstream({"type": "orbit.upstream_lost"})
+    await runtime.on_event(ConnectionLost())
     monkeypatch.setattr(runtime_module, "RESUME_HISTORY_TIMEOUT_SECONDS", 0.001)
     assert await sent(runtime, "mensaje nuevo", session_id) == session_id
     assert [method for method, _ in adapter.connections[1].calls] == [
@@ -875,7 +877,7 @@ async def test_replaced_resume_connection_has_its_own_cause(environment):
 
     async def replace_connection(_stored_id):
         runtime.connection = object()
-        return {"session_id": "new-runtime", "stored_session_id": "stored"}
+        return ResumedSession("new-runtime", "stored", None, None)
 
     connection.resume_session = replace_connection
     with pytest.raises(HubError) as error:

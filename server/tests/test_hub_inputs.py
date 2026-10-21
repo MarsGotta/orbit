@@ -5,7 +5,7 @@ from pydantic import ValidationError
 from support_review_regressions import reviewed as reviewed  # noqa: PLC0414
 from support_review_regressions import runtime_fixture
 
-import orbit_hub.runtime as runtime_module
+import orbit_hub.assistant.hermes as hermes_module
 
 
 def test_omitted_screenshot_filters_are_absent():
@@ -44,10 +44,10 @@ async def test_malformed_hermes_interaction_preserves_live_reader_and_snapshots(
 ):
     runtime, session, _, upstream = await runtime_fixture(reviewed)
     logged = []
-    monkeypatch.setattr(runtime_module, "report", lambda *args, **kwargs: logged.append(kwargs))
+    monkeypatch.setattr(hermes_module, "report", lambda *args, **kwargs: logged.append(kwargs))
     queue = runtime.subscribe()
     assert queue.get_nowait()["event"] == "state.snapshot"
-    await runtime.on_upstream({"type": kind, "session_id": upstream, "payload": payload})
+    await runtime.connection.receive({"type": kind, "session_id": upstream, "payload": payload})
     assert runtime.connection.live_sessions == {upstream}
     assert runtime.store.session(runtime.device, session)["status"] == "streaming"
     assert runtime.subscribe().get_nowait()["event"] == "state.snapshot"

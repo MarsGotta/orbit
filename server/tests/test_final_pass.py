@@ -691,7 +691,8 @@ async def test_http_close_runs_the_durable_pass_before_the_note(environment, tmp
     app = create_app(
         replace(settings, diarization=fake_separator(tmp_path)),
         store=store,
-        adapter=adapter,
+        assistant=adapter,
+        speech=adapter,
         processing_client=model,
     )
     ready = asyncio.Event()

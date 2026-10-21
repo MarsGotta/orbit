@@ -32,7 +32,9 @@ def hub(environment, tmp_path):
         settings,
         meetings_bridge={"key_id": KEY_ID, "credential_file": str(key)},
     )
-    return create_app(settings, store=store, adapter=adapter, now=lambda: NOW_MS / 1000), store
+    return create_app(
+        settings, store=store, assistant=adapter, speech=adapter, now=lambda: NOW_MS / 1000
+    ), store
 
 
 def app_client(app):

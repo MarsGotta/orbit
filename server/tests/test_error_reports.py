@@ -79,7 +79,9 @@ def lines():
 def _http(environment, settings=None):
     base, store, adapter = environment
     return TestClient(
-        create_app(settings or base, store=store, adapter=adapter, now=lambda: 1001),
+        create_app(
+            settings or base, store=store, assistant=adapter, speech=adapter, now=lambda: 1001
+        ),
         base_url="https://localhost",
     )
 

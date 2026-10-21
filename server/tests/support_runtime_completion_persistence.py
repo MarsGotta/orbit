@@ -28,8 +28,8 @@ class DeferredConnection(FakeConnection):
 def isolated(environment, monkeypatch):
     _, _, adapter = environment
 
-    def connection(callback):
-        value = DeferredConnection(callback)
+    def connection(device, device_name, callback):
+        value = DeferredConnection(callback, device, device_name)
         adapter.connections.append(value)
         return value
 

@@ -12,7 +12,7 @@ __all__ = ("client", "crash_the_revocation_pass")
 def client(environment):
     settings, store, adapter = environment
     return TestClient(
-        create_app(settings, store=store, adapter=adapter, now=lambda: 1001),
+        create_app(settings, store=store, assistant=adapter, speech=adapter, now=lambda: 1001),
         base_url="https://localhost",
     )
 

@@ -132,7 +132,8 @@ def hub(environment, tmp_path):
     app = create_app(
         settings,
         store=store,
-        adapter=adapter,
+        assistant=adapter,
+        speech=adapter,
         now=lambda: clock_now["now"],
         processing_client=model,
     )
@@ -155,7 +156,8 @@ async def transcribing(environment, answer="Hablamos del presupuesto."):
                 meeting_transcription={**stt.configuration(stt_url), "language": "es"},
             ),
             store=store,
-            adapter=adapter,
+            assistant=adapter,
+            speech=adapter,
             now=lambda: clock_now["now"],
             processing_client=model,
         )
@@ -762,7 +764,8 @@ async def test_c5_each_change_reaches_the_owning_device_and_no_other(environment
                 allowed_hosts=("127.0.0.1", "localhost"),
             ),
             store=store,
-            adapter=adapter,
+            assistant=adapter,
+            speech=adapter,
             now=lambda: clock_now["now"],
             processing_client=model,
         )

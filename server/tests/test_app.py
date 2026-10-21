@@ -9,6 +9,7 @@ from support_app import (
 )
 from support_audio import wav_bytes
 
+from orbit_hub.assistant.backend import PermissionRequest
 from orbit_hub.protocol import ApprovalParams, HubError, SendParams
 from orbit_hub.runtime import DeviceRuntime
 
@@ -112,7 +113,11 @@ async def test_interaction_cannot_cross_session_or_device(environment):
     runtime = DeviceRuntime(owner, store, adapter, lambda: 1000)
     _, first = await runtime.handle("chat.send", SendParams(text="synthetic"), str(uuid4()))
     _, second = await runtime.handle("chat.send", SendParams(text="synthetic"), str(uuid4()))
-    runtime.pending["request"] = (first["session_id"], "approval", {"choices": ["once", "deny"]})
+    runtime.pending["request"] = (
+        first["session_id"],
+        "approval",
+        PermissionRequest("request", "Hermes solicita autorización", ("once", "deny")),
+    )
     with pytest.raises(HubError) as error:
         await runtime.handle(
             "approval.respond",
@@ -139,7 +144,9 @@ async def test_failed_completion_is_not_an_authoritative_history_message(environ
     runtime.bindings[upstream] = session
     runtime.turn_ids[session] = str(uuid4())
     store.append_message(session, "user", "synthetic failed request", now_ms=1_000_000)
-    await runtime.on_upstream(
+    from conftest import FakeConnection
+
+    await FakeConnection(runtime.on_event).receive(
         {
             "type": "message.complete",
             "session_id": upstream,
@@ -198,7 +205,7 @@ async def test_revoked_runtime_drops_late_events_and_does_not_interrupt_another_
     store.revoke(owner)
     await runtime.revoke()
     assert queue.get_nowait()["event"] == "revoked"
-    await runtime.on_upstream(
+    await runtime.connection.receive(
         {
             "type": "message.delta",
             "session_id": next(iter(runtime.bindings)),

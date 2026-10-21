@@ -12,9 +12,11 @@ from support_network_fence import install
 from support_synthetic_stt import start_session_stt, stop_session_stt
 
 from orbit_hub.app import create_app
+from orbit_hub.assistant.backend import OpenedSession
+from orbit_hub.assistant.hermes import HermesConnection
+from orbit_hub.assistant.speech import SpeechClip
 from orbit_hub.bridge_route import PATH, PROTOCOL, BridgeConfiguration
 from orbit_hub.config import Settings
-from orbit_hub.hermes import SpeechClip
 from orbit_hub.private_auth import sign_request
 from orbit_hub.runtime import DeviceRuntime
 from orbit_hub.storage import SESSION_MESSAGES_PAGE_LIMIT, Store, initialize
@@ -49,12 +51,16 @@ def only_ports_this_process_bound():
     )
 
 
-class FakeConnection:
-    def __init__(self, callback):
-        self.callback = callback
+class FakeConnection(HermesConnection):
+    """Hermes's own connection over a synthetic transport: what Hermes says is
+    read by the real translation, and `callback` takes Hermes events."""
+
+    connected = False
+
+    def __init__(self, callback, device="fixture-device", device_name="fixture"):
+        super().__init__(None, callback, device, device_name)
+        self.callback = self.receive
         self.epoch = "synthetic-epoch"
-        self.connected = False
-        self.live_sessions = set()
         self.calls = []
 
     async def open(self):
@@ -63,7 +69,7 @@ class FakeConnection:
     async def create_session(self):
         runtime = str(uuid4())
         self.live_sessions.add(runtime)
-        return {"session_id": runtime, "stored_session_id": str(uuid4())}
+        return OpenedSession(runtime, str(uuid4()))
 
     async def rpc(self, method, params):
         self.calls.append((method, params))
@@ -95,8 +101,8 @@ class FakeAdapter:
         self.connections = []
         self.audio = []
 
-    def connection(self, callback):
-        connection = FakeConnection(callback)
+    def connection(self, device, device_name, callback):
+        connection = FakeConnection(callback, device, device_name)
         self.connections.append(connection)
         return connection
 
@@ -207,7 +213,9 @@ def bridged(environment, tmp_path):
         ),
     )
     owner = device(store)
-    app = create_app(settings, store=store, adapter=adapter, now=lambda: BRIDGE_NOW_MS / 1000)
+    app = create_app(
+        settings, store=store, assistant=adapter, speech=adapter, now=lambda: BRIDGE_NOW_MS / 1000
+    )
     return app, store, adapter, owner
 
 

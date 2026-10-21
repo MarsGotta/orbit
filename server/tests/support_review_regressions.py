@@ -19,8 +19,8 @@ __all__ = (
 
 
 class ControlledConnection(FakeConnection):
-    def __init__(self, callback):
-        super().__init__(callback)
+    def __init__(self, callback, *device):
+        super().__init__(callback, *device)
         self.approval_result = {"resolved": 1}
         self.clarify_result = {"status": "ok"}
         self.running = True
@@ -42,8 +42,8 @@ class ControlledConnection(FakeConnection):
 def reviewed(environment, monkeypatch):
     _, _, adapter = environment
 
-    def connection(callback):
-        value = ControlledConnection(callback)
+    def connection(device, device_name, callback):
+        value = ControlledConnection(callback, device, device_name)
         adapter.connections.append(value)
         return value
 

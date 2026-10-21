@@ -15,8 +15,8 @@ from orbit_hub.protocol import ApprovalParams, ClarifyParams, HubError
 def race_environment(environment, monkeypatch):
     _, _, adapter = environment
 
-    def connection(callback):
-        value = ControlledConnection(callback)
+    def connection(device, device_name, callback):
+        value = ControlledConnection(callback, device, device_name)
         adapter.connections.append(value)
         return value
 
@@ -34,7 +34,7 @@ async def race_runtime(race_environment):
 
 
 async def batch(runtime, upstream, *, request="batch", questions=None):
-    await runtime.on_upstream(
+    await runtime.connection.receive(
         {
             "type": "clarify.request",
             "session_id": upstream,
@@ -99,7 +99,7 @@ async def test_partial_reply_cannot_restore_terminal_interaction(
         )
         # The reader must progress while the command is waiting for its RPC reply.
         await asyncio.wait_for(
-            runtime.on_upstream(
+            runtime.connection.receive(
                 {
                     "type": terminal,
                     "session_id": upstream,
@@ -169,7 +169,7 @@ async def test_replaced_request_survives_old_partial_full_expired_and_invalid_ac
             assert receipt["stale_interaction"] is True and receipt["turn_id"] == turn
         assert runtime.pending["batch"] is replacement
         current = runtime.subscribe().get_nowait()["data"]["sessions"][0]
-        assert current["pending"][0]["questions"] == replacement[2]["questions"]
+        assert current["pending"][0]["questions"] == list(replacement[2].questions)
     finally:
         release.set()
         if not task.done():
@@ -191,7 +191,7 @@ async def test_rpc_requires_same_turn_connection_epoch_and_authority_after_await
         if change == "turn":
             runtime.turn_ids[session] = str(uuid4())
         elif change == "connection":
-            replacement = ControlledConnection(runtime.on_upstream)
+            replacement = ControlledConnection(runtime.on_event)
             await replacement.open()
             replacement.live_sessions.add(upstream)
             runtime.connection = replacement
@@ -227,7 +227,7 @@ async def test_unrelated_request_does_not_make_a_valid_partial_ack_stale(race_ru
         release.set()
         _, receipt = await asyncio.wait_for(task, 2)
         assert "stale_interaction" not in receipt
-        assert runtime.pending["batch"][2]["questions"] == [{"qid": "q2", "question": "second"}]
+        assert list(runtime.pending["batch"][2].questions) == [{"qid": "q2", "question": "second"}]
         assert runtime.pending["other"] is other
     finally:
         release.set()
@@ -249,7 +249,7 @@ async def test_two_responses_serialize_without_blocking_rpc_reader(race_runtime,
             arrived.set()
             await release.wait()
             return {"status": "ok", "remaining": ["q2"]}
-        assert runtime.pending["batch"][2]["questions"] == [{"qid": "q2", "question": "second"}]
+        assert list(runtime.pending["batch"][2].questions) == [{"qid": "q2", "question": "second"}]
         return {"status": "ok"}
 
     monkeypatch.setattr(runtime.connection, "rpc", rpc)
@@ -281,7 +281,7 @@ async def test_shared_approval_branch_does_not_consume_replacement(race_runtime,
         "session_id": upstream,
         "payload": {"request_id": "batch"},
     }
-    await runtime.on_upstream(request)
+    await runtime.connection.receive(request)
     arrived, release = paused_reply(
         runtime, monkeypatch, {"resolved": 1}, command="approval.respond"
     )
@@ -294,7 +294,7 @@ async def test_shared_approval_branch_does_not_consume_replacement(race_runtime,
     )
     try:
         await asyncio.wait_for(arrived.wait(), 2)
-        await runtime.on_upstream(request)
+        await runtime.connection.receive(request)
         replacement = runtime.pending["batch"]
         release.set()
         _, receipt = await asyncio.wait_for(task, 2)
@@ -365,4 +365,4 @@ def test_websocket_stale_ack_precedes_current_snapshot_and_stays_marked_on_cache
         ws.send_json(command)
         assert ws.receive_json() == receipt  # Ledger preserves stale flag; no new RPC or mutation.
         assert [method for method, _ in connection.calls].count("clarify.respond") == 1
-        assert runtime.pending["batch"][2]["questions"] == replacement_questions
+        assert list(runtime.pending["batch"][2].questions) == replacement_questions

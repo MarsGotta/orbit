@@ -98,7 +98,9 @@ async def hub(environment, model=None, now=None):
     settings, store, adapter = environment
     model = model or FakeModel()
     kwargs = {"now": now} if now is not None else {}
-    app = create_app(settings, store=store, adapter=adapter, processing_client=model, **kwargs)
+    app = create_app(
+        settings, store=store, assistant=adapter, speech=adapter, processing_client=model, **kwargs
+    )
     owner = device(store)
     headers = {"Authorization": "Bearer " + owner["token"]}
     async with app.router.lifespan_context(app):

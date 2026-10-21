@@ -424,7 +424,9 @@ async def test_an_unknown_capability_is_relayed_to_the_mac(bridged):
 async def test_the_route_is_closed_until_it_is_configured(environment):
     # Half a configuration must not look like a working bridge.
     settings, store, adapter = environment
-    app = create_app(settings, store=store, adapter=adapter, now=lambda: NOW_MS / 1000)
+    app = create_app(
+        settings, store=store, assistant=adapter, speech=adapter, now=lambda: NOW_MS / 1000
+    )
     async with app.router.lifespan_context(app):
         payload = body(device_id=str(uuid4()))
         async with httpx.AsyncClient(

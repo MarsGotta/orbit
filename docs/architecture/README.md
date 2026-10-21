@@ -58,7 +58,7 @@ privacy latch. `orbit-mcp` exposes `orbit_devices`, `orbit_windows`,
 | Daemon ↔ engine | MCP JSON-RPC via `cua-driver mcp --embedded` stdio, proxy to a private socket | [CUA](../../contracts/cua-v1.md), [control policy](../../contracts/control-policy-v1.md) |
 | Daemon ↔ hub | HTTPS and WSS `/v1/ws` with device token | [Hub protocol](../../contracts/hub-v1.md) |
 | Translator ↔ hub | HMAC-signed private HTTP routes for device requests/results and meetings | [Hub protocol](../../contracts/hub-v1.md) |
-| Hub ↔ Hermes | `/api/ws` JSON-RPC and HTTP audio endpoints | `server/orbit_hub/hermes.py`; [setup](../self-hosting.md) |
+| Hub ↔ assistant | Typed `AssistantBackend` and `SpeechBackend` interfaces; Hermes over `/api/ws` JSON-RPC and HTTP audio endpoints | `server/orbit_hub/assistant/`; [setup](../self-hosting.md) |
 | Hub ↔ transcriber | `POST <endpoint>/v1/audio/transcriptions` | [Transcripts](transcripts.md) |
 | App ↔ update origin | HTTPS | [Release manifest](../../contracts/release-manifest-v1.md) |
 

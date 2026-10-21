@@ -17,8 +17,8 @@ from orbit_hub.protocol import HubError
 
 
 class CountingConnection(FakeConnection):
-    def __init__(self, callback):
-        super().__init__(callback)
+    def __init__(self, callback, *device):
+        super().__init__(callback, *device)
         self.interrupt_errors = []
 
     async def rpc(self, method, params):
@@ -32,8 +32,8 @@ class CountingConnection(FakeConnection):
 def counted(environment, monkeypatch):
     _, _, adapter = environment
 
-    def connection(callback):
-        value = CountingConnection(callback)
+    def connection(device, device_name, callback):
+        value = CountingConnection(callback, device, device_name)
         adapter.connections.append(value)
         return value
 

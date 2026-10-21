@@ -31,7 +31,7 @@ async def test_f1_terminal_error_without_complete_releases_session(reviewed, mes
     runtime, session, turn, upstream = await runtime_fixture(reviewed)
     queue = runtime.subscribe()
     assert queue.get_nowait()["event"] == "state.snapshot"
-    await runtime.on_upstream(
+    await runtime.connection.receive(
         {"type": "error", "session_id": upstream, "payload": {"message": message}}
     )
     failed = queue.get_nowait()
@@ -49,7 +49,7 @@ async def test_f1_terminal_error_without_complete_releases_session(reviewed, mes
 async def test_f1_ambiguous_error_is_reconciled_not_blindly_terminal(reviewed, running):
     runtime, session, _, upstream = await runtime_fixture(reviewed)
     runtime.connection.running = running
-    await runtime.on_upstream(
+    await runtime.connection.receive(
         {
             "type": "error",
             "session_id": upstream,
@@ -74,7 +74,7 @@ async def test_f2_reconnect_and_history_restore_pending_without_resurrection(
     old = runtime.subscribe()
     if disconnect_before:
         runtime.listeners.discard(old)
-    await runtime.on_upstream(
+    await runtime.connection.receive(
         {
             "type": kind + ".request",
             "session_id": upstream,
@@ -94,7 +94,7 @@ async def test_f2_reconnect_and_history_restore_pending_without_resurrection(
         next(item for item in runtime.snapshot()["sessions"] if item["session_id"] == session)
         == current
     )
-    await runtime.on_upstream(
+    await runtime.connection.receive(
         {"type": kind + ".expire", "session_id": upstream, "payload": {"request_id": "request"}}
     )
     assert fresh.get_nowait()["event"] == "interaction.expired"
@@ -108,7 +108,7 @@ async def test_f2_reconnect_and_history_restore_pending_without_resurrection(
 @pytest.mark.parametrize("resolved", [0, 1, 2, True, None])
 async def test_f3_approval_ack_requires_exact_individual_resolution(reviewed, resolved):
     runtime, session, turn, upstream = await runtime_fixture(reviewed)
-    await runtime.on_upstream(
+    await runtime.connection.receive(
         {"type": "approval.request", "session_id": upstream, "payload": {"request_id": "request"}}
     )
     runtime.connection.approval_result = {"resolved": resolved}
@@ -134,7 +134,7 @@ async def test_f3_approval_ack_requires_exact_individual_resolution(reviewed, re
 )
 async def test_f3_clarify_preserves_its_own_remaining_contract(reviewed, result, expected):
     runtime, session, _, upstream = await runtime_fixture(reviewed)
-    await runtime.on_upstream(
+    await runtime.connection.receive(
         {
             "type": "clarify.request",
             "session_id": upstream,

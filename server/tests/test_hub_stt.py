@@ -28,7 +28,7 @@ class HermesMustStayDisconnected:
         self.connection_attempts = 0
         self.transcription_attempts = 0
 
-    def connection(self, _callback):
+    def connection(self, _device, _device_name, _callback):
         self.connection_attempts += 1
         raise AssertionError("meeting transcription must not open Hermes")
 
@@ -143,7 +143,7 @@ def observe_transcription_changes(store, monkeypatch):
 async def run_until_completed(
     settings, store, hermes, owner, recording, changes, *, now=lambda: 1000
 ):
-    app = create_app(settings, store=store, adapter=hermes, now=now)
+    app = create_app(settings, store=store, assistant=hermes, speech=hermes, now=now)
     async with app.router.lifespan_context(app):
         assert await wait_for(changes.get(), f"durable completion of group {recording}") == (
             recording,
@@ -216,7 +216,9 @@ async def test_http_error_and_timeout_remain_pending_and_increment_attempts(
 
     async with tcp_server(provider.app) as endpoint:
         settings = load_stt_settings(tmp_path, base, endpoint)
-        first_app = create_app(settings, store=store, adapter=hermes, now=lambda: 1000)
+        first_app = create_app(
+            settings, store=store, assistant=hermes, speech=hermes, now=lambda: 1000
+        )
         async with first_app.router.lifespan_context(first_app):
             assert await wait_for(changes.get(), f"first failed attempt of group {recording}") == (
                 recording,
@@ -224,7 +226,9 @@ async def test_http_error_and_timeout_remain_pending_and_increment_attempts(
             )
             first = group_row(store, recording)
 
-        second_app = create_app(settings, store=store, adapter=hermes, now=lambda: 1010)
+        second_app = create_app(
+            settings, store=store, assistant=hermes, speech=hermes, now=lambda: 1010
+        )
         async with second_app.router.lifespan_context(second_app):
             assert await wait_for(changes.get(), f"second failed attempt of group {recording}") == (
                 recording,
@@ -296,7 +300,7 @@ async def test_authenticated_retry_route_requeues_and_worker_completes(
 
     async with tcp_server(provider.app) as endpoint:
         settings = load_stt_settings(tmp_path, base, endpoint)
-        app = create_app(settings, store=store, adapter=hermes, now=lambda: 2000)
+        app = create_app(settings, store=store, assistant=hermes, speech=hermes, now=lambda: 2000)
         try:
             async with app.router.lifespan_context(app):
                 await wait_for(checked_empty.wait(), f"the idle worker declining group {recording}")

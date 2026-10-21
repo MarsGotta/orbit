@@ -92,7 +92,7 @@ def test_a_worker_without_a_meeting_transcriber_is_rejected():
     # There is no valid path from durable meeting audio to the dictation adapter.
     dictation = Dictation()
     with pytest.raises(ValueError):
-        TranscriptionWorker(store=None, adapter=dictation, now=lambda: 0, meetings=None)
+        TranscriptionWorker(store=None, speech=dictation, now=lambda: 0, meetings=None)
     assert dictation.calls == 0
 
 

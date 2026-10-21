@@ -245,7 +245,9 @@ def meetings_hub_app(environment, tmp_path):
         settings,
         meetings_bridge={"key_id": KEY_ID, "credential_file": str(key)},
     )
-    app = create_app(settings, store=store, adapter=adapter, now=lambda: NOW_MS / 1000)
+    app = create_app(
+        settings, store=store, assistant=adapter, speech=adapter, now=lambda: NOW_MS / 1000
+    )
     return app, store
 
 

@@ -66,7 +66,7 @@ async def hub(environment, *, whisper, hermes, processing=None, key=None):
             else None
         ),
     )
-    app = create_app(settings, store=store, adapter=adapter, now=lambda: 1001)
+    app = create_app(settings, store=store, assistant=adapter, speech=adapter, now=lambda: 1001)
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app), base_url="https://localhost"
     ) as client:

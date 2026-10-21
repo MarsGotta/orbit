@@ -9,7 +9,7 @@ from ..protocol import SpeechRequest
 
 
 def mount(
-    app, store, identity, bounded_body, validate_wav, settings, adapter, transcriptions, turn_inputs
+    app, store, identity, bounded_body, validate_wav, settings, voice, transcriptions, turn_inputs
 ):
     @app.post("/v1/audio/transcribe")
     async def transcribe(request: Request):
@@ -29,7 +29,7 @@ def mount(
             payload = SpeechRequest.model_validate_json(await bounded_body(request, 128 * 1024))
         except ValidationError as exc:
             raise HubError("invalid_request", "Texto de síntesis no válido") from exc
-        audio = await adapter.synthesize(payload.text)
+        audio = await voice.synthesize(payload.text)
         if not store.is_active(device):
             raise HubError("revoked", "Dispositivo revocado")
         return Response(

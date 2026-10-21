@@ -74,7 +74,7 @@ def bridged(environment, tmp_path):
     )
     owner = device(store)
     clock = Clock(NOW_MS / 1000)
-    app = create_app(settings, store=store, adapter=adapter, now=clock)
+    app = create_app(settings, store=store, assistant=adapter, speech=adapter, now=clock)
     return app, store, adapter, owner, clock
 
 

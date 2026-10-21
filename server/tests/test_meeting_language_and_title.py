@@ -90,7 +90,12 @@ def hub(environment, tmp_path):
     )
     model = FakeModel()
     app = create_app(
-        settings, store=store, adapter=adapter, now=lambda: NOW, processing_client=model
+        settings,
+        store=store,
+        assistant=adapter,
+        speech=adapter,
+        now=lambda: NOW,
+        processing_client=model,
     )
     return app, store, model, None
 
@@ -112,7 +117,8 @@ async def hub_with(environment, stt):
                 },
             ),
             store=store,
-            adapter=adapter,
+            assistant=adapter,
+            speech=adapter,
             now=lambda: clock_now["now"],
             processing_client=model,
         )
@@ -450,7 +456,8 @@ async def test_a_rename_and_a_language_change_are_announced_to_the_owner(environ
     app = create_app(
         replace(settings, allow_insecure_localhost=True, allowed_hosts=("127.0.0.1", "localhost")),
         store=store,
-        adapter=adapter,
+        assistant=adapter,
+        speech=adapter,
         now=lambda: NOW,
         processing_client=FakeModel(),
     )

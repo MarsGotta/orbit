@@ -141,7 +141,7 @@ class RawWebsocket:
 async def test_slow_client_is_evicted_within_ten_seconds_and_its_slot_freed(environment):
     settings, store, adapter = environment
     token = device(store)["token"]
-    app = create_app(settings, store=store, adapter=adapter, now=lambda: 1001)
+    app = create_app(settings, store=store, assistant=adapter, speech=adapter, now=lambda: 1001)
     sockets = []
     try:
         slow = RawWebsocket(app, token, stall_after=0)

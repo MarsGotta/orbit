@@ -11,7 +11,8 @@ import pytest
 from conftest import device
 from websockets.asyncio.server import serve
 
-from orbit_hub.hermes import HermesAdapter
+from orbit_hub.assistant.backend import MessageChunk, ResumedSession, TextBlock
+from orbit_hub.assistant.hermes import HermesBackend, HermesSpeech
 from orbit_hub.protocol import HubError, SendParams
 from orbit_hub.runtime import DeviceRuntime
 
@@ -126,21 +127,20 @@ async def test_gateway_handshake_rpc_stream_and_resume(environment, tmp_path):
             allow_insecure_localhost=True,
             hermes_credential_file=credential(tmp_path),
         )
-        connection = HermesAdapter(configured).connection(callback)
+        connection = HermesBackend(configured).connection("fixture-device", "fixture", callback)
         await connection.open()
         assert connection.epoch == "fixture-epoch"
-        assert (await connection.create_session())["stored_session_id"] == "stored-fixture"
-        await connection.rpc("prompt.submit", {"session_id": "runtime-fixture", "text": "fixture"})
+        assert (await connection.create_session()).stored_id == "stored-fixture"
+        await connection.prompt("runtime-fixture", (TextBlock("fixture"),))
         for _ in range(20):
             if events:
                 break
             await asyncio.sleep(0.01)
-        assert events[0]["payload"]["text"] == "synthetic"
+        assert events[0] == MessageChunk("runtime-fixture", "synthetic")
         assert received[0]["params"]["profile"] == "deimos"
-        assert await connection.resume_session("stored-fixture") == {
-            "session_id": "resumed-fixture",
-            "stored_session_id": "stored-fixture",
-        }
+        assert await connection.resume_session("stored-fixture") == ResumedSession(
+            "resumed-fixture", "stored-fixture", None, None
+        )
         assert received[-1]["params"] == {
             "profile": "deimos",
             "session_id": "stored-fixture",
@@ -152,9 +152,7 @@ async def test_gateway_handshake_rpc_stream_and_resume(environment, tmp_path):
         assert "resumed-fixture" in connection.live_sessions
         connection.live_sessions.add("missing-runtime")
         with pytest.raises(HubError) as error:
-            await connection.rpc(
-                "prompt.submit", {"session_id": "missing-runtime", "text": "synthetic"}
-            )
+            await connection.prompt("missing-runtime", (TextBlock("synthetic"),))
         assert error.value.code == "session_runtime_not_found"
         assert "missing-runtime" not in connection.live_sessions
         with pytest.raises(HubError) as error:
@@ -287,7 +285,7 @@ async def test_large_resume_keeps_other_hermes_session_connected(environment, tm
             allow_insecure_localhost=True,
             hermes_credential_file=credential(tmp_path),
         )
-        runtime = DeviceRuntime(owner, store, HermesAdapter(configured), lambda: 1001)
+        runtime = DeviceRuntime(owner, store, HermesBackend(configured), lambda: 1001)
         try:
             _, first = await runtime.handle(
                 "chat.send", SendParams(text="sesión quieta"), str(uuid4())
@@ -357,8 +355,7 @@ async def test_session_create_declares_orbit_and_the_device(environment, tmp_pat
             allow_insecure_localhost=True,
             hermes_credential_file=credential(tmp_path),
         )
-        connection = HermesAdapter(configured).connection(callback)
-        connection.bind_device("Sample Mac")
+        connection = HermesBackend(configured).connection("fixture-device", "Sample Mac", callback)
         await connection.open()
         await connection.create_session()
         await connection.close()
@@ -379,10 +376,10 @@ async def test_transcription_contract_is_json_not_multipart(environment, tmp_pat
 
     original = httpx.AsyncClient
     monkeypatch.setattr(
-        "orbit_hub.hermes.httpx.AsyncClient",
+        "orbit_hub.assistant.hermes.httpx.AsyncClient",
         lambda **kwargs: original(transport=httpx.MockTransport(reply), **kwargs),
     )
-    assert await HermesAdapter(configured).transcribe(b"fixture") == ""
+    assert await HermesSpeech(configured).transcribe(b"fixture") == ""
     assert requests[0].url.path == "/api/audio/transcribe"
     assert requests[0].url.params["profile"] == "deimos"
     assert requests[0].headers["X-Hermes-Session-Token"] == "synthetic-token-only"
@@ -397,7 +394,7 @@ async def test_http_failure_names_provider_status(environment, tmp_path, monkeyp
     configured = replace(settings, hermes_credential_file=credential(tmp_path))
     original = httpx.AsyncClient
     monkeypatch.setattr(
-        "orbit_hub.hermes.httpx.AsyncClient",
+        "orbit_hub.assistant.hermes.httpx.AsyncClient",
         lambda **kwargs: original(
             transport=httpx.MockTransport(
                 lambda _request: httpx.Response(503, text="private body")
@@ -407,7 +404,7 @@ async def test_http_failure_names_provider_status(environment, tmp_path, monkeyp
     )
 
     with pytest.raises(HubError) as failure:
-        await HermesAdapter(configured).transcribe(b"synthetic wav")
+        await HermesSpeech(configured).transcribe(b"synthetic wav")
     assert failure.value.code == "transcription_http_error"
     assert failure.value.numbers == {"provider_status": 503}
     assert "private body" not in str(failure.value)
@@ -422,10 +419,10 @@ async def test_connect_timeout_uses_connection_budget(environment, tmp_path, mon
 
     original = httpx.AsyncClient
     monkeypatch.setattr(
-        "orbit_hub.hermes.httpx.AsyncClient",
+        "orbit_hub.assistant.hermes.httpx.AsyncClient",
         lambda **kwargs: original(transport=httpx.MockTransport(expire), **kwargs),
     )
     with pytest.raises(HubError) as failure:
-        await HermesAdapter(configured).transcribe(b"synthetic wav")
+        await HermesSpeech(configured).transcribe(b"synthetic wav")
     assert failure.value.code == "transcription_connection_timeout"
     assert failure.value.numbers == {"timeout_ms": 10_000}
