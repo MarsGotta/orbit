@@ -18,8 +18,9 @@ from conftest import device
 from support_app import client
 from support_transcription import wav_fixture
 
+from orbit_hub.assistant.hermes import MAX_SPEECH_RESPONSE_BYTES, HermesSpeech
+from orbit_hub.assistant.speech import MAX_SPEECH_CLIP_BYTES
 from orbit_hub.captures import MAX_CAPTURE_BYTES
-from orbit_hub.hermes import MAX_SPEECH_CLIP_BYTES, MAX_SPEECH_RESPONSE_BYTES, HermesAdapter
 from orbit_hub.protocol import HubError
 from orbit_hub.storage import Store
 from orbit_mcp.meetings import cause_sentence
@@ -195,12 +196,12 @@ async def test_a_voice_clip_over_its_ceiling_says_its_size(
     settings, _, _ = environment
     original = httpx.AsyncClient
     monkeypatch.setattr(
-        "orbit_hub.hermes.httpx.AsyncClient",
+        "orbit_hub.assistant.hermes.httpx.AsyncClient",
         lambda **kwargs: original(transport=httpx.MockTransport(lambda _r: reply()), **kwargs),
     )
     configured = replace(settings, hermes_credential_file=_credential(tmp_path))
     with pytest.raises(HubError) as refused:
-        await HermesAdapter(configured).synthesize("frase sintética")
+        await HermesSpeech(configured).synthesize("frase sintética")
     assert refused.value.code == "speech_too_large"
     assert refused.value.numbers["max_bytes"] == maximum
     assert refused.value.numbers["bytes"] > maximum
