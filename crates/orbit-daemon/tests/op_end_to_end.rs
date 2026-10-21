@@ -1,4 +1,4 @@
-//! SIM-21 acceptance 4: the op of an order travels end to end. The real
+//! The op of an order travels end to end. The real
 //! daemon, spoken to through its socket as the app speaks it, pairs against a
 //! test hub that refuses: the request to the hub carries `X-Orbit-Op` with the
 //! order's op, the notice the refusal causes carries the same op, and the
@@ -91,7 +91,7 @@ fn wait_for_status(directory: &Path, child: &mut Child) -> Result<Value> {
 #[test]
 fn an_orders_op_reaches_the_hub_header_its_notice_and_the_report_log() -> Result<()> {
     let directory = tempfile::Builder::new()
-        .prefix("orbit-sim21-")
+        .prefix("orbit-op-")
         .tempdir_in("/tmp")?;
     let mut daemon = Daemon(
         Command::new(env!("CARGO_BIN_EXE_orbit"))
@@ -102,7 +102,7 @@ fn an_orders_op_reaches_the_hub_header_its_notice_and_the_report_log() -> Result
     );
     wait_for_status(directory.path(), &mut daemon.0)?;
     let (hub, heads) = refusing_hub()?;
-    let op = Op::parse("7f3a2c9e-sim21-acceptance").context("op")?;
+    let op = Op::parse("7f3a2c9e-op-end-to-end").context("op")?;
     let paths = orbit_ipc::Paths::resolve(Some(directory.path().to_owned()))?;
     let refused = thread::scope(|scope| {
         scope
@@ -114,8 +114,8 @@ fn an_orders_op_reaches_the_hub_header_its_notice_and_the_report_log() -> Result
                         &paths,
                         IpcCommand::Pair {
                             hub_url: hub.clone(),
-                            code: "codigo-de-prueba-sim21".into(),
-                            device_name: "Mac de prueba".into(),
+                            code: "test-pairing-code".into(),
+                            device_name: "Test Mac".into(),
                         },
                         op.clone(),
                     ))

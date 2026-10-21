@@ -2,7 +2,7 @@ use super::*;
 use crate::daemon::turn::said;
 use orbit_core::notice::NoticeCode;
 
-/// SIM-21: no current notice of `code`.
+/// No current notice of `code`.
 fn not_current(runtime: &Runtime, code: NoticeCode) -> bool {
     runtime.state.notice_code() != Some(code)
 }
@@ -30,7 +30,7 @@ async fn retired_system_start(
 ) -> Result<Value> {
     runtime
         .apply(Event::StartMeeting {
-            id: "old-ref307b".into(),
+            id: "old-recording".into(),
             title: "Old synthetic recording".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
             duration_ms: 60_000,
@@ -154,7 +154,7 @@ async fn retired_integrity_code_does_not_cut_a_new_recording(code: &str) -> Resu
     let old_remote = retired_system_start(&mut runtime, &mut receiver).await?;
     runtime
         .apply(Event::StartMeeting {
-            id: "new-ref307b".into(),
+            id: "next-recording".into(),
             title: "New synthetic recording".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
             duration_ms: 60_000,
@@ -377,7 +377,7 @@ async fn retired_stop_with_call(
 }
 
 #[tokio::test]
-async fn ref307b_r3_retired_stop_failure_leaves_call_and_names_code() -> Result<()> {
+async fn retired_stop_failure_leaves_call_and_names_code() -> Result<()> {
     let (runtime, _rx, _dir, _call, _old) = retired_stop_with_call(|id, _| {
         json!({"event":"response","id":id,"ok":false,
             "error":{"code":"audio_drain_incomplete","message":"x"}})
@@ -393,7 +393,7 @@ async fn ref307b_r3_retired_stop_failure_leaves_call_and_names_code() -> Result<
 }
 
 #[tokio::test]
-async fn ref307b_r3_retired_stop_without_receipt_blocks_nothing() -> Result<()> {
+async fn retired_stop_without_receipt_blocks_nothing() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let remote = retired_system_start(&mut runtime, &mut receiver).await?;
@@ -457,7 +457,7 @@ async fn ref307b_r3_retired_stop_without_receipt_blocks_nothing() -> Result<()> 
 }
 
 #[tokio::test]
-async fn ref307b_r3_live_system_clock_failure_still_contains() -> Result<()> {
+async fn live_system_clock_failure_still_contains() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
@@ -487,7 +487,7 @@ async fn ref307b_r3_live_system_clock_failure_still_contains() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref307b_r3_privacy_stop_during_starting_names_no_other_track() -> Result<()> {
+async fn privacy_stop_during_starting_names_no_other_track() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
@@ -536,7 +536,7 @@ async fn ref307b_r3_privacy_stop_during_starting_names_no_other_track() -> Resul
 }
 
 #[tokio::test]
-async fn ref307b_r3_retired_ack_during_full_stop_sends_nothing_more() -> Result<()> {
+async fn retired_ack_during_full_stop_sends_nothing_more() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
@@ -567,7 +567,7 @@ async fn ref307b_r3_retired_ack_during_full_stop_sends_nothing_more() -> Result<
 }
 
 #[tokio::test]
-async fn ref307b_r3_call_start_after_stop_receipt_does_not_touch_next_call() -> Result<()> {
+async fn call_start_after_stop_receipt_does_not_touch_next_call() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     {
@@ -646,8 +646,7 @@ async fn ref307b_r3_call_start_after_stop_receipt_does_not_touch_next_call() -> 
 }
 
 #[tokio::test]
-async fn ref307b_r3_retired_call_start_registry_refuses_a_sixty_fifth_unknown_start() -> Result<()>
-{
+async fn retired_call_start_registry_refuses_a_sixty_fifth_unknown_start() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     {
@@ -773,7 +772,7 @@ async fn closing_call_with_unanswered_start()
 }
 
 #[tokio::test]
-async fn ref307b_r3_unreadable_late_call_start_stops_its_commanded_stream() -> Result<()> {
+async fn unreadable_late_call_start_stops_its_commanded_stream() -> Result<()> {
     for result in [None, Some(json!({"source":"mic_local"}))] {
         let (mut runtime, mut receiver, _directory, start) =
             closing_call_with_unanswered_start().await?;
@@ -795,7 +794,7 @@ async fn ref307b_r3_unreadable_late_call_start_stops_its_commanded_stream() -> R
 }
 
 #[tokio::test]
-async fn ref307b_r3_late_call_start_naming_another_stream_cuts_uncertain_capture() -> Result<()> {
+async fn late_call_start_naming_another_stream_cuts_uncertain_capture() -> Result<()> {
     let (mut runtime, mut receiver, _directory, start) =
         closing_call_with_unanswered_start().await?;
     runtime
@@ -864,7 +863,7 @@ async fn invalid_retired_start_streams_leave_the_current_capture_alone() -> Resu
 }
 
 #[tokio::test]
-async fn ref307b_r3_invalid_retired_stop_receipts_name_each_cause() -> Result<()> {
+async fn invalid_retired_stop_receipts_name_each_cause() -> Result<()> {
     for (result, cause) in [
         (json!(null), "retired_audio_stop_result_absent"),
         (
@@ -902,7 +901,7 @@ async fn ref307b_r3_invalid_retired_stop_receipts_name_each_cause() -> Result<()
 }
 
 #[tokio::test]
-async fn ref307b_r3_retired_stop_capacity_cuts_instead_of_forgetting_an_order() -> Result<()> {
+async fn retired_stop_capacity_cuts_instead_of_forgetting_an_order() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -993,7 +992,7 @@ fn call_start_success(start: &Value) -> Value {
 }
 
 #[tokio::test]
-async fn ref307b_r4_failed_retired_call_start_finishes_the_hangup() -> Result<()> {
+async fn failed_retired_call_start_finishes_the_hangup() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver, start) = unanswered_call_start(directory.path()).await?;
     runtime.apply(Event::CallStop).await?;
@@ -1017,7 +1016,7 @@ async fn ref307b_r4_failed_retired_call_start_finishes_the_hangup() -> Result<()
 }
 
 #[tokio::test]
-async fn ref307c_failed_start_then_late_stop_is_read_as_retired() -> Result<()> {
+async fn failed_start_then_late_stop_is_read_as_retired() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let (mut runtime, mut receiver, start) = unanswered_call_start(dir.path()).await?;
     runtime.apply(Event::CallStop).await?;
@@ -1051,7 +1050,7 @@ async fn ref307c_failed_start_then_late_stop_is_read_as_retired() -> Result<()> 
 }
 
 #[tokio::test]
-async fn ref307c_late_success_then_first_stop_receipt_is_read_as_retired() -> Result<()> {
+async fn late_success_then_first_stop_receipt_is_read_as_retired() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let (mut runtime, mut receiver, start) = unanswered_call_start(dir.path()).await?;
     runtime.apply(Event::CallStop).await?;
@@ -1117,7 +1116,7 @@ async fn late_start_closes_only_after_the_late_stop_receipt() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref307c_playback_not_found_remains_a_player_rejection() -> Result<()> {
+async fn playback_not_found_remains_a_player_rejection() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let (mut runtime, mut receiver, _start) = unanswered_call_start(dir.path()).await?;
     runtime.apply(Event::CallStop).await?;
@@ -1144,7 +1143,7 @@ async fn ref307c_playback_not_found_remains_a_player_rejection() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref307c_answered_call_stop_not_found_is_not_overtaken() -> Result<()> {
+async fn answered_call_stop_not_found_is_not_overtaken() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let (mut runtime, mut receiver, start) = unanswered_call_start(dir.path()).await?;
     runtime.native_event(call_start_success(&start)).await?;
@@ -1168,7 +1167,7 @@ async fn ref307c_answered_call_stop_not_found_is_not_overtaken() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref307c_degraded_reply_names_its_command() -> Result<()> {
+async fn degraded_reply_names_its_command() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(dir.path())?;
     runtime
@@ -1189,7 +1188,7 @@ async fn ref307c_degraded_reply_names_its_command() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref307c_degraded_start_names_its_command() -> Result<()> {
+async fn degraded_start_names_its_command() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let (mut runtime, _receiver, start) = unanswered_call_start(dir.path()).await?;
     runtime
@@ -1209,7 +1208,7 @@ async fn ref307c_degraded_start_names_its_command() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref307c_confirmed_call_drain_replaces_wait_notice() -> Result<()> {
+async fn confirmed_call_drain_replaces_wait_notice() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let (mut runtime, mut receiver, start) = unanswered_call_start(dir.path()).await?;
     runtime.native_event(call_start_success(&start)).await?;
@@ -1237,7 +1236,7 @@ async fn ref307c_confirmed_call_drain_replaces_wait_notice() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref307c_r1_answered_stop_then_start_failure_leaves_no_debt() -> Result<()> {
+async fn answered_stop_then_start_failure_leaves_no_debt() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let (mut runtime, mut receiver, start) = unanswered_call_start(dir.path()).await?;
     runtime.apply(Event::CallStop).await?;
@@ -1260,7 +1259,7 @@ async fn ref307c_r1_answered_stop_then_start_failure_leaves_no_debt() -> Result<
 }
 
 #[tokio::test]
-async fn ref307c_r1_seventy_overtaken_hangups_do_not_cut_capture() -> Result<()> {
+async fn seventy_overtaken_hangups_do_not_cut_capture() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let (mut runtime, mut receiver, mut start) = unanswered_call_start(dir.path()).await?;
     for round in 0..70 {
@@ -1326,7 +1325,7 @@ async fn ref307c_r1_seventy_overtaken_hangups_do_not_cut_capture() -> Result<()>
 }
 
 #[tokio::test]
-async fn ref307c_r1_privacy_notice_survives_retired_start_failure() -> Result<()> {
+async fn privacy_notice_survives_retired_start_failure() -> Result<()> {
     for code in [
         "privacy_stopped",
         "operation_cancelled_by_stop",
@@ -1366,7 +1365,7 @@ async fn ref307c_r1_privacy_notice_survives_retired_start_failure() -> Result<()
 }
 
 #[tokio::test]
-async fn ref307c_r1_cut_cause_survives_retired_start_failure() -> Result<()> {
+async fn cut_cause_survives_retired_start_failure() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let (mut runtime, mut receiver, start) = unanswered_call_start(dir.path()).await?;
     runtime.apply(Event::CallStop).await?;
@@ -1433,7 +1432,7 @@ async fn an_old_stop_error_does_not_reopen_the_closed_call() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref307c_r1_retired_pending_stop_obeys_capacity() -> Result<()> {
+async fn retired_pending_stop_obeys_capacity() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let (mut runtime, mut receiver, start) = unanswered_call_start(dir.path()).await?;
     runtime.apply(Event::CallStop).await?;
@@ -1472,7 +1471,7 @@ async fn ref307c_r1_retired_pending_stop_obeys_capacity() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref307b_r4_overtaken_stop_is_not_a_playback_rejection() -> Result<()> {
+async fn overtaken_stop_is_not_a_playback_rejection() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver, _start) = unanswered_call_start(directory.path()).await?;
     runtime.apply(Event::CallStop).await?;
@@ -1543,22 +1542,22 @@ async fn privacy_stop_after_unanswered_call_start(
 }
 
 #[tokio::test]
-async fn ref307b_r4_privacy_receipt_after_retired_start_stop_keeps_her_cause() -> Result<()> {
+async fn privacy_receipt_after_retired_start_stop_keeps_the_users_cause() -> Result<()> {
     privacy_stop_after_unanswered_call_start(false, "privacy_stopped").await
 }
 
 #[tokio::test]
-async fn ref307b_r4_privacy_receipt_before_retired_start_stop_keeps_her_cause() -> Result<()> {
+async fn privacy_receipt_before_retired_start_stop_keeps_the_users_cause() -> Result<()> {
     privacy_stop_after_unanswered_call_start(true, "privacy_stopped").await
 }
 
 #[tokio::test]
-async fn ref307b_r4_cancelled_selective_stop_after_her_brake_stays_in_log() -> Result<()> {
+async fn cancelled_selective_stop_after_the_users_brake_stays_in_log() -> Result<()> {
     privacy_stop_after_unanswered_call_start(false, "operation_cancelled_by_stop").await
 }
 
 #[tokio::test]
-async fn ref307b_r4_start_then_hangup_receipts_finish_call_in_both_orders() -> Result<()> {
+async fn start_then_hangup_receipts_finish_call_in_both_orders() -> Result<()> {
     for retired_answer in ["stream_not_found", "confirmed"] {
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut receiver, start) = unanswered_call_start(directory.path()).await?;

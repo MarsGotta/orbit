@@ -31,7 +31,7 @@ fn cancel_remote_reads(reads: &mut Vec<JoinHandle<()>>) {
 }
 
 #[cfg(test)]
-mod ref215a_subscription_tests {
+mod subscription_tests {
     use super::*;
     use anyhow::bail;
     use orbit_core::{RecoveryStatus, topics::TopicId};
@@ -202,7 +202,7 @@ fn publish_privacy_epoch(stopped: bool, was_stopped: &mut bool, epoch: &watch::S
 }
 
 #[cfg(test)]
-mod ref213_privacy_read_tests {
+mod privacy_read_tests {
     use super::*;
     use orbit_core::topics::Knowledge;
 
@@ -387,7 +387,7 @@ fn record_ipc_reply_loss<T>(
 }
 
 #[cfg(test)]
-mod ref303_ipc_tests {
+mod ipc_tests {
     use super::*;
 
     #[test]
@@ -412,7 +412,7 @@ mod ref303_ipc_tests {
 }
 
 #[cfg(test)]
-mod ref401_refusal_tests {
+mod refusal_tests {
     use super::*;
     use orbit_core::refusal::Permission;
 
@@ -448,7 +448,7 @@ mod ref401_refusal_tests {
                 permission: orbit_core::refusal::Permission::Microphone
             }
         );
-        let upstream = anyhow::Error::new(crate::retry::Refused(403)).context("envío");
+        let upstream = anyhow::Error::new(crate::retry::Refused(403)).context("send");
         assert_eq!(
             refusal_from_error(&upstream),
             Refusal::UpstreamFailed {
@@ -464,12 +464,12 @@ mod ref401_refusal_tests {
                 ..
             }
         ));
-        let unknown = anyhow::anyhow!("causa sintética");
+        let unknown = anyhow::anyhow!("synthetic cause");
         assert_eq!(
             refusal_from_error(&unknown),
             Refusal::Internal {
                 cause: orbit_core::refusal::InternalCause::DaemonOperation {
-                    error: "causa sintética".into()
+                    error: "synthetic cause".into()
                 }
             }
         );
@@ -489,7 +489,7 @@ mod ref401_refusal_tests {
                 }
             );
         }
-        let error = anyhow::anyhow!("error sintético");
+        let error = anyhow::anyhow!("synthetic error");
         assert_eq!(
             refusal_from_error(&error),
             Refusal::Internal {
@@ -524,8 +524,8 @@ pub(crate) const MAX_PENDING_NATIVE: usize = 64;
 /// durability bound — a `Sealed` wake-up that does not fit is dropped while
 /// its receipt stays recorded in the actor, whose collector applies it within
 /// the 1 s maintenance tick, or within `SEAL_RETRY_DELAY` after a failed seal;
-/// a `StoreProblem` notice never takes that drop path (REF-41: it waits for
-/// room on the writer). Since REF-27 the writer never blocks on this channel,
+/// a `StoreProblem` notice never takes that drop path (it waits for room on
+/// the writer). The writer never blocks on this channel,
 /// so nothing may treat it as backpressure either.
 const WORK_EVENTS_CAPACITY: usize = 16;
 
@@ -539,8 +539,8 @@ mod call_detection;
 mod call_recovery;
 mod commands;
 mod computer_control;
-mod dae01;
 mod finalize;
+mod hub_account;
 mod hub_events;
 mod hub_link;
 mod interactions;
@@ -626,7 +626,7 @@ enum WorkResult {
 }
 
 impl WorkResult {
-    /// The op of the turn that started this work (SIM-21); a result with no
+    /// The op of the turn that started this work; a result with no
     /// ticket gets a new one.
     fn op(&self) -> orbit_core::notice::Op {
         let ticket = match self {
@@ -722,15 +722,15 @@ struct Runtime {
     development: bool,
     state: State,
     reader: orbit_store::ReadOnlyStore,
-    /// SIM-30: see `reads::VoiceAudioReader`.
+    /// Reads voice-note audio off the actor; see `reads::VoiceAudioReader`.
     voice_audio_reader: reads::VoiceAudioReader,
     store_actor: store_actor::StoreActor,
     /// `None` only in fixtures that assert nothing about the trail.
     diagnostics: Option<crate::diagnostics::DiagnosticLog>,
-    /// The local report log (SIM-21); `None` in fixtures, like `diagnostics`.
+    /// The local report log; `None` in fixtures, like `diagnostics`.
     report_log: Option<orbit_ipc::report::ReportLog>,
-    /// The Mac's one error-report client (SIM-23): what reaches the local
-    /// report log may also leave for Sentry, if she allowed it.
+    /// The Mac's one error-report client: what reaches the local report log
+    /// may also leave for Sentry, if the user allowed it.
     error_reports: crate::error_reports::ErrorReports,
     /// The op of the turn being handled and who it answers.
     turn: turn::Turn,
@@ -847,9 +847,9 @@ struct FeatureRuntime {
     calendar: calendar::CalendarRuntime,
     computer: computer_control::ComputerRuntime,
     meeting: meeting_runtime::MeetingRuntime,
-    /// P9-11: the call detection, its preference and the agenda around a call.
+    /// The call detection, its preference and the agenda around a call.
     call: call_detection::CallRuntime,
-    /// P9-12: the question to Deimos during a meeting and the «Oye Deimos»
+    /// The question to Deimos during a meeting and the «Oye Deimos»
     /// detector's state.
     question: meeting_question::QuestionRuntime,
     native_host: native_host::NativeHost,
@@ -864,7 +864,7 @@ pub async fn run(paths: Paths, development: bool) -> Result<()> {
 }
 
 /// The whole daemon, until its closure ends. Orbit.app runs it on a thread of
-/// its own (SIM-51, `apps/desktop/src-tauri/src/daemon_thread.rs`); the
+/// its own (`apps/desktop/src-tauri/src/daemon_thread.rs`); the
 /// development binary `orbit` runs it on its main thread.
 pub async fn run_with_helper(
     paths: Paths,
@@ -916,10 +916,10 @@ async fn run_with_helper_inner(
     {
         bail!("El helper debe tener una ruta absoluta");
     }
-    // Before anything starts, so SIGTERM is never the default kill (REF-06 A4).
+    // Before anything starts, so SIGTERM is never the default kill.
     // Process-wide: inside the app they are the app's too, and the app
     // installs none of its own, so a SIGTERM to Orbit closes the daemon in
-    // order and the app follows it (SIM-51).
+    // order and the app follows it.
     let mut signals = shutdown::Signals::install()?;
     paths.initialize()?;
     let _instance = ipc::lock_instance(&paths)?;
@@ -931,8 +931,8 @@ async fn run_with_helper_inner(
         bail!("Ya hay un servicio Orbit activo");
     }
     let settings = paths.load_settings()?;
-    // Before anything else runs, so a panic from here on is reported if she
-    // allowed it (SIM-23).
+    // Before anything else runs, so a panic from here on is reported if the
+    // user allowed it.
     let error_reports = crate::error_reports::ErrorReports::start(
         crate::error_reports::DSN,
         settings.error_reports,
@@ -1035,7 +1035,7 @@ async fn run_with_helper_inner(
     let (native_tx, native_commands) = mpsc::channel(64);
     // Sized for ten seconds of two-track audio (≈47 ev/s × 2 × 10 = 940,
     // rounded to 1000) so a stalled consumer pays in discarded frames, not
-    // in the helper's life (P2-01 R1).
+    // in the helper's life.
     let (native_events_tx, mut native_events) =
         mpsc::channel(crate::native::NATIVE_EVENTS_CAPACITY);
     let (hub_events, mut hub_rx) = mpsc::channel(128);
@@ -1208,7 +1208,7 @@ async fn run_with_helper_inner(
     runtime.store_actor.finish_startup().await?;
     runtime.state.views.recovery = orbit_core::RecoveryStatus::Ready;
     // Only now, with nothing left that can fail the startup: a helper launched
-    // earlier could be left behind by a startup error (REF-06 A4).
+    // earlier could be left behind by a startup error.
     let helper = native_available
         .then(|| native::Supervisor::spawn(helper_path, native_commands, native_events_tx));
     runtime.connect();
@@ -1273,7 +1273,7 @@ async fn run_with_helper_inner(
                 Some(call) = calls.recv() => {
                     loop_turns[1] += 1;
                     // The order's op, or a new one for a client that sent
-                    // none (SIM-21): everything this turn says carries it.
+                    // none: everything this turn says carries it.
                     runtime.begin_turn(
                         call.request.op.clone().unwrap_or_else(orbit_ipc::new_op),
                         orbit_core::notice::ReportSource::Daemon,
@@ -1377,7 +1377,7 @@ async fn run_with_helper_inner(
                     runtime.begin_fresh_turn(orbit_core::notice::ReportSource::Daemon);
                     // The call's health is judged with what the loop has not
                     // read yet: after a held loop, frames waiting here are
-                    // audio that arrived, not silence (SIM-55).
+                    // audio that arrived, not silence.
                     runtime.note_loop_tick(native_events.len(), last_tick);
                     topic_board.state_changed();
                     runtime.handle_audio_timeout().await;

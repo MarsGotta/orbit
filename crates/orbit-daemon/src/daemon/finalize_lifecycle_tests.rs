@@ -1,8 +1,8 @@
-//! LC1: losing the Idle snapshot owner must never lose its pending closure.
+//! Losing the Idle snapshot owner must never lose its pending closure.
 use super::*;
 use orbit_core::{Connection, Decision};
 
-/// What the actor loop does with the error (REF-12): it is contained by its
+/// What the actor loop does with the error: it is contained by its
 /// class, cut or said, and never latches a stop. Both failures here are the
 /// capture's own (closing the recording it sealed), so they are cut causes.
 async fn contained_like_event_loop(
@@ -21,14 +21,14 @@ async fn drained_idle_with_insert_fault(
     runtime.native_event(frame(&stream, 100)).await?;
     let database = rusqlite::Connection::open(runtime.paths.store.join("orbit.sqlite3"))?;
     database.execute_batch(
-        "CREATE TRIGGER lc1_close_failure BEFORE INSERT ON jobs
-        WHEN NEW.id='finalize-old' BEGIN SELECT RAISE(ABORT,'synthetic LC1 closure failure'); END;",
+        "CREATE TRIGGER synthetic_close_failure BEFORE INSERT ON jobs
+        WHEN NEW.id='finalize-old' BEGIN SELECT RAISE(ABORT,'synthetic closure failure'); END;",
     )?;
     let error = finish(runtime, receiver, &stream)
         .await
         .err()
         .context("closure INSERT should fail")?;
-    assert!(error.to_string().contains("synthetic LC1 closure failure"));
+    assert!(error.to_string().contains("synthetic closure failure"));
     contained_like_event_loop(
         runtime,
         orbit_core::privacy_stop::StopCause::CaptureEventFailed,
@@ -64,7 +64,7 @@ async fn drained_idle_with_insert_fault(
             .ended_at_ms
             .is_some()
     );
-    // REF-12: a closure that could not be written is said, not a stop.
+    // A closure that could not be written is said, not a stop.
     assert!(!runtime.state.privacy_stopped());
     assert!(runtime.fixture_store.get_job("finalize-old")?.is_none());
     assert_eq!(runtime.features.notes.head.revision, 0);
@@ -179,11 +179,11 @@ async fn replacement_after_insert_failure(
         error,
     )
     .await;
-    database.execute_batch("DROP TRIGGER lc1_close_failure")?;
+    database.execute_batch("DROP TRIGGER synthetic_close_failure")?;
     if restart_before {
         drop(runtime);
         (runtime, receiver) = reopen(directory.path()).await?;
-        // REF-12 A1: the restart invents no stop.
+        // The restart invents no stop.
         assert!(!runtime.state.privacy_stopped() && receiver.is_empty());
         let (observed, _) = fixture(tempfile::tempdir()?.path())?;
         {
@@ -204,7 +204,7 @@ async fn replacement_after_insert_failure(
     let closure = runtime
         .fixture_store
         .get_job("finalize-old")?
-        .context("LC1: drained Idle owner was replaced without preserving its closure")?;
+        .context("drained Idle owner was replaced without preserving its closure")?;
     assert!(
         runtime.features.notes.head.revision > 0,
         "the atomic replacement closure did not mark Notes"
@@ -248,22 +248,22 @@ async fn replacement_after_insert_failure(
 }
 
 #[tokio::test]
-async fn lc1_replacement_before_maintenance_preserves_drained_idle_closure() -> Result<()> {
+async fn replacement_before_maintenance_preserves_drained_idle_closure() -> Result<()> {
     replacement_after_insert_failure(false, false).await
 }
 
 #[tokio::test]
-async fn lc1_control_maintenance_before_replacement_preserves_same_closure() -> Result<()> {
+async fn control_maintenance_before_replacement_preserves_same_closure() -> Result<()> {
     replacement_after_insert_failure(true, false).await
 }
 
 #[tokio::test]
-async fn lc1_reopened_idle_owner_is_preserved_before_replacement() -> Result<()> {
+async fn reopened_idle_owner_is_preserved_before_replacement() -> Result<()> {
     replacement_after_insert_failure(false, true).await
 }
 
 #[tokio::test]
-async fn lc1_replacement_insert_failure_keeps_owner_snapshot_and_effects_unchanged() -> Result<()> {
+async fn replacement_insert_failure_keeps_owner_snapshot_and_effects_unchanged() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let database = drained_idle_with_insert_fault(&mut runtime, &mut receiver).await?;
@@ -280,7 +280,7 @@ async fn lc1_replacement_insert_failure_keeps_owner_snapshot_and_effects_unchang
         receiver.is_empty(),
         "no audio_start before the closure/snapshot commit"
     );
-    database.execute_batch("DROP TRIGGER lc1_close_failure")?;
+    database.execute_batch("DROP TRIGGER synthetic_close_failure")?;
     start(&mut runtime, &mut receiver, "next").await?;
     assert!(runtime.fixture_store.get_job("finalize-old")?.is_some());
     assert!(runtime.features.notes.head.revision > 0);
@@ -299,11 +299,11 @@ async fn lc1_replacement_insert_failure_keeps_owner_snapshot_and_effects_unchang
 }
 
 #[tokio::test]
-async fn lc1_replacement_second_write_failure_rolls_back_idle_closure_and_snapshot() -> Result<()> {
+async fn replacement_second_write_failure_rolls_back_idle_closure_and_snapshot() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let database = drained_idle_with_insert_fault(&mut runtime, &mut receiver).await?;
-    database.execute_batch("DROP TRIGGER lc1_close_failure")?;
+    database.execute_batch("DROP TRIGGER synthetic_close_failure")?;
     runtime.native_event(json!({"event":"local_rearm"})).await?;
     let previous = runtime.state.clone();
     let second_write = fail_second_write(&runtime)?;
@@ -319,7 +319,7 @@ async fn lc1_replacement_second_write_failure_rolls_back_idle_closure_and_snapsh
     );
     assert!(runtime.fixture_store.get_job("finalize-old")?.is_none());
     assert!(receiver.is_empty());
-    second_write.execute_batch("DROP TRIGGER r2_snapshot_failure")?;
+    second_write.execute_batch("DROP TRIGGER synthetic_snapshot_failure")?;
     drop(runtime);
     let (mut runtime, mut receiver) = reopen(directory.path()).await?;
     let (observed, _) = fixture(tempfile::tempdir()?.path())?;
@@ -334,7 +334,7 @@ async fn lc1_replacement_second_write_failure_rolls_back_idle_closure_and_snapsh
 }
 
 #[tokio::test]
-async fn lc1_existing_closure_remains_immutable_in_every_job_state() -> Result<()> {
+async fn existing_closure_remains_immutable_in_every_job_state() -> Result<()> {
     for state in [
         JobState::Queued,
         JobState::Running,
@@ -347,7 +347,7 @@ async fn lc1_existing_closure_remains_immutable_in_every_job_state() -> Result<(
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut receiver) = fixture(directory.path())?;
         let database = drained_idle_with_insert_fault(&mut runtime, &mut receiver).await?;
-        database.execute_batch("DROP TRIGGER lc1_close_failure")?;
+        database.execute_batch("DROP TRIGGER synthetic_close_failure")?;
         runtime.queue_finalize().await?;
         runtime.fixture_store.update_job("finalize-old", state)?;
         let previous = runtime
@@ -368,7 +368,7 @@ async fn lc1_existing_closure_remains_immutable_in_every_job_state() -> Result<(
 }
 
 #[tokio::test]
-async fn lc1_removing_the_snapshot_owner_preserves_its_closure_atomically() -> Result<()> {
+async fn removing_the_snapshot_owner_preserves_its_closure_atomically() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let database = drained_idle_with_insert_fault(&mut runtime, &mut receiver).await?;
@@ -388,7 +388,7 @@ async fn lc1_removing_the_snapshot_owner_preserves_its_closure_atomically() -> R
         Some(previous)
     );
     assert!(runtime.fixture_store.get_job("finalize-old")?.is_none());
-    database.execute_batch("DROP TRIGGER lc1_close_failure")?;
+    database.execute_batch("DROP TRIGGER synthetic_close_failure")?;
     runtime.execute_decision(decision()).await?;
     assert!(runtime.state.durable.recording.is_none());
     assert!(

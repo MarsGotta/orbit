@@ -43,7 +43,7 @@ async fn malformed_text_result_names_event_field_and_type_in_source_refusal() ->
     runtime.native_event(malformed).await?;
     assert!(runtime.state.views.source_receipt.is_none());
     // The notice says the source failed; its detail stays in the source's
-    // own view (SIM-21: no sentence in a notice).
+    // own view (a notice carries no sentence).
     assert_eq!(
         runtime.state.notice_code(),
         Some(orbit_core::notice::NoticeCode::SourceFailed),

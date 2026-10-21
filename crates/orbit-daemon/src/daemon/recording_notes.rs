@@ -1,7 +1,7 @@
-//! SIM-41: the meetings and their notes live on the hub; the daemon passes
-//! them to the app (`reads`) and carries Mars's orders to the hub. It keeps
-//! only her private notes until the hub confirms them (a durable outbox in
-//! the store), the account name that names her microphone, and the head that
+//! The meetings and their notes live on the hub; the daemon passes them to
+//! the app (`reads`) and carries the user's orders to the hub. It keeps only
+//! their private notes until the hub confirms them (a durable outbox in the
+//! store), the account name that names their microphone, and the head that
 //! tells the app what to read again.
 //!
 //! Every request runs off the daemon loop and its answer comes back as a
@@ -33,7 +33,7 @@ mod tests;
 /// notes.
 pub(super) const NOTE_EVENTS: usize = 8;
 /// Note orders (an edit, a rewrite, a rename, a retry) in flight at once.
-/// Mars gives them one by one; four let a slow answer not hold the next one
+/// The user gives them one by one; four let a slow answer not hold the next one
 /// back while one Mac never keeps more than four requests open on the hub.
 /// Past it the order is refused with both numbers, never dropped.
 const MAX_ORDERS_IN_FLIGHT: usize = 4;
@@ -47,7 +47,7 @@ const MAX_KEPT_RESTORES: usize = 4;
 /// After private notes or the profile could not reach the hub they go again
 /// no sooner than this: the hub is down or the network is, and once every
 /// thirty seconds keeps a failing hub from being asked every second while
-/// Mars types. Not a deadline: what is owed stays in the store.
+/// the user types. Not a deadline: what is owed stays in the store.
 const RETRY_AFTER_MS: i64 = 30_000;
 
 pub(super) enum NoteEvent {
@@ -128,7 +128,7 @@ async fn deliver(events: &mpsc::Sender<NoteEvent>, event: NoteEvent) {
     }
 }
 
-/// A note order Mars gave, as it goes to the hub.
+/// A note order the user gave, as it goes to the hub.
 #[derive(Debug, Clone)]
 pub(super) enum NoteOrder {
     Edit {
@@ -147,11 +147,11 @@ pub(super) enum NoteOrder {
     },
     RetryTranscript,
     Retranscribe,
-    /// SIM-52: the meeting's language.
+    /// The meeting's language.
     Language {
         language: String,
     },
-    /// SIM-52: the meeting's name; empty gives it back its own.
+    /// The meeting's name; empty gives it back its own.
     Title {
         title: String,
     },
@@ -161,7 +161,7 @@ pub(super) enum NoteOrder {
 pub(super) struct LibraryRuntime {
     in_flight: Ticketed<LibraryRequest>,
     dictionary_failures: VecDeque<core::DictionaryFailure>,
-    /// Orders not sent yet, one per target, in the order Mars gave them: two
+    /// Orders not sent yet, one per target, in the order the user gave them: two
     /// orders about the same template never reach the hub out of order.
     waiting: VecDeque<LibraryRequest>,
     refusals: VecDeque<LibraryRefusal>,
@@ -209,7 +209,7 @@ impl NotesRuntime {
         }
     }
 
-    /// Test runtimes name Mars without asking the host's account.
+    /// Test runtimes name the user without asking the host's account.
     #[cfg(test)]
     pub(super) fn for_tests(events: mpsc::Sender<NoteEvent>) -> Self {
         Self {
@@ -354,7 +354,7 @@ impl Runtime {
         notes.head.touch();
     }
 
-    /// SIM-40 `recording.changed`: the app reads that recording again.
+    /// `recording.changed`: the app reads that recording again.
     pub(super) fn on_recording_changed(&mut self, recording_id: &str) {
         if orbit_core::wire::canonical_uuid(recording_id) {
             self.features.notes.head.touch_recording(recording_id);
@@ -619,7 +619,7 @@ impl Runtime {
                 }
             }
             Outcome::Refused { .. } | Outcome::Unreachable { .. } => {
-                // They stay in the store; Mars keeps seeing what she typed.
+                // They stay in the store; the user keeps seeing what they typed.
                 self.log_outcome("private_notes_not_saved", &outcome);
                 self.features.notes.private_due_ms = now_ms.saturating_add(RETRY_AFTER_MS);
             }
@@ -662,7 +662,7 @@ impl Runtime {
                         ("code", code.as_deref().unwrap_or("none")),
                     ],
                 );
-                // SIM-52: audio the hub cannot read is said with how many
+                // Audio the hub cannot read is said with how many
                 // groups of how many, never as a generic refusal.
                 if let (Some("meeting_audio_unreadable"), Some(groups), Some(total)) =
                     (code.as_deref(), numbers.get("groups"), numbers.get("total"))
@@ -949,7 +949,7 @@ impl Runtime {
         Ok(())
     }
 
-    /// P9-05: a template or assignment order. It waits behind the one in
+    /// A template or assignment order. It waits behind the one in
     /// flight; an earlier order about the same thing not sent yet is
     /// replaced by this one.
     pub(super) fn note_library(&mut self, request: LibraryRequest) {
@@ -1091,7 +1091,7 @@ fn refuse_order(library: &mut LibraryRuntime, request: &LibraryRequest, status: 
 /// again for the current one, and the order goes once more on it. The Mac is
 /// the only writer of this device's private notes and edits, so the revision
 /// moves under it only when the hub itself rewrote the note or an earlier
-/// order of hers had not been answered yet.
+/// order of the user's had not been answered yet.
 fn conflict<T>(answer: &Answer<T>) -> bool {
     matches!(answer, Answer::Refused { status: 409, .. })
 }

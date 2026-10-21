@@ -38,7 +38,7 @@ async fn restart_closes_the_original_without_recapture_or_prompt_replay() -> Res
     drop(runtime);
 
     let (mut recovered, mut native) = reopen(directory.path()).await?;
-    // REF-12 A1: the restart invents no stop; nothing recaptures either.
+    // The restart invents no stop; nothing recaptures either.
     assert!(!recovered.state.privacy_stopped());
     assert!(recovered.state.durable.call.is_none() && recovered.capture.call_runtime.is_none());
     assert!(recovered.capture.mic_stream.is_none() && recovered.capture.buffer.voice.is_none());
@@ -411,9 +411,9 @@ async fn failed_recovery_snapshot_cannot_restore_capture_or_rewrite_a_sealed_clo
     Ok(())
 }
 
-// P0-02: the shared jobs table also holds padded domain rows. A store from
-// before SIM-03a still holds those of the retired source-reading and
-// voice-memory verticals; nothing reads them now, and recovery must step over
+// The shared jobs table also holds padded domain rows. A store from an older
+// Orbit still holds those of the retired source-reading and voice-memory
+// verticals; nothing reads them now, and recovery must step over
 // them. Every byte is synthetic.
 
 const DOMAIN_DEVICE: &str = "11111111-1111-4111-8111-111111111111";

@@ -1,11 +1,11 @@
 //! All exit causes share one local durability boundary. Losing IPC is not
 //! permission to abandon PCM, and closing cannot be cancelled by a late rearm.
 //! Closing cuts the capture without latching a stop: the next start comes
-//! back working unless Mars had pressed hers (REF-12 A1).
+//! back working unless the user had pressed theirs.
 //! Every door into the closure — the IPC `Shutdown`, SIGTERM and SIGINT —
 //! latches the same intent with the same bounded budget, so a disk that will never accept a seal cannot hold the daemon
 //! hostage forever, and whoever waits for the daemon knows the one number to
-//! wait for (REF-06 A5).
+//! wait for.
 use super::{Command, Runtime};
 use anyhow::{Context, Result};
 use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
@@ -31,8 +31,8 @@ use tokio::signal::unix::{Signal, SignalKind, signal};
 /// What it is not: the whole exit. After it the daemon still gives its helper
 /// [`crate::native::HELPER_EXIT_GRACE`] to leave, and everyone who waits for
 /// the daemon — the app, the installer — waits at least the
-/// sum. Those relations are kept by hand (SIM-00 removed the guard that
-/// checked them).
+/// sum. Those relations are kept by hand (the guard that checked them was
+/// removed).
 pub const SHUTDOWN_BUDGET: Duration = Duration::from_secs(10);
 
 /// Extra time for the final critical snapshot after the closure budget expires.
@@ -229,7 +229,7 @@ impl Signals {
 
 impl Runtime {
     /// The last line about the helper: whether it left by itself after
-    /// `shutdown` or had to be killed, with codes only (REF-06 A3).
+    /// `shutdown` or had to be killed, with codes only.
     pub(super) fn log_helper_end(&self, end: crate::native::HelperEnd) {
         let fields = end.fields();
         let fields: Vec<(&str, &str)> = fields
@@ -434,7 +434,7 @@ mod tests {
                 .await
                 .is_err()
         );
-        // REF-12: closing latches no stop; what keeps the capture closed while
+        // Closing latches no stop; what keeps the capture closed while
         // Orbit leaves is the closing gate itself.
         assert!(!runtime.state.privacy_stopped());
         assert!(!shutdown.allows_command(&Command::MeetingStart {
@@ -480,7 +480,7 @@ mod tests {
         let mut shutdown = Shutdown::default();
         shutdown.observe_listener(true, &mut runtime).await;
         assert!(shutdown.requested && shutdown.listener_failed);
-        // REF-12: losing the listener closes Orbit without latching a stop.
+        // Losing the listener closes Orbit without latching a stop.
         assert!(!runtime.state.privacy_stopped());
         assert!(!shutdown.ready(&runtime));
         assert!(runtime.maintain_capture().await.is_err());

@@ -192,11 +192,12 @@ fn unknown_capture_filter(
 }
 
 /// The windows a capture may take, of those that match what Deimos asked:
-/// the titled ones when there are any (SIM-56). macOS draws its own overlays —
-/// the cursor (CursorUIViewService, 128×128 in Mars's call), menu-bar items,
-/// banners — as untitled windows in front of every other, so the frontmost
-/// window is not the one Mars is looking at. A person's window has the title
-/// macOS shows in the Window menu and in Mission Control. An untitled window
+/// the titled ones when there are any. macOS draws its own overlays —
+/// the cursor (CursorUIViewService, 128×128 in a real call on 2026-10-18),
+/// menu-bar items, banners — as untitled windows in front of every other, so
+/// the frontmost window is not the one the user is looking at. A person's
+/// window has the title macOS shows in the Window menu and in Mission
+/// Control. An untitled window
 /// is still taken when no titled one matches, so an application whose window
 /// has no title can be captured by its name. Neither inventory carries a
 /// window's level, which is what macOS itself tells overlays apart by; size
@@ -231,7 +232,7 @@ fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
 /// The hub gives a bridge request 30 s (`REQUEST_TIMEOUT_SECONDS`), so an
 /// upload has to give up with enough margin for the refusal to travel. A
 /// capture still uploading at 20 s would not have been useful anyway, and a
-/// wait that outlives the caller's own is the silence DEI-14 just cured.
+/// wait that outlives the caller's own is a reply that never leaves the Mac.
 const CAPTURE_UPLOAD_TIMEOUT: DeadlineKind = DeadlineKind::new(
     "capture_upload",
     Duration::from_secs(orbit_core::limits::CAPTURE_UPLOAD_TIMEOUT_SECONDS),
@@ -354,7 +355,7 @@ pub(super) struct BridgeAsk {
     pub(super) catalogue_after: usize,
     /// The dates a `CalendarRead` asked about, as they were asked for.
     ///
-    /// Kept whole: REF-10 reads the whole range, in pages, whatever its width.
+    /// Kept whole: the read covers the whole range, in pages, whatever its width.
     pub(super) calendar_window: Option<(i64, i64)>,
     /// Where a `CalendarRead` continues, when it is not the first page.
     pub(super) calendar_cursor: Option<super::calendar::Cursor>,
@@ -721,13 +722,13 @@ impl Runtime {
                 // capture is allowed, and only one of them would be maintained.
                 self.source_windows().await.map_err(source_start_refusal)
             }
-            // R4: the catalogue comes from the engine, asked of it, not from
+            // The catalogue comes from the engine, asked of it, not from
             // a list Orbit keeps. A newer engine's tool appears here on its own.
             orbit_core::device_bridge::Capability::ControlTools => {
                 if !self.engine_is_ready() {
                     return Err(self.bridge_engine_refusal());
                 }
-                // R2: one page, never the whole catalogue. The engine's is
+                // One page, never the whole catalogue. The engine's is
                 // 147 909 bytes and the link refuses anything over 128 KiB, so
                 // a reply that asked for a whole frame was a reply that never
                 // left the Mac.
@@ -750,7 +751,7 @@ impl Runtime {
                 .await
                 .map_err(|_| orbit_core::refusal::Refusal::HubUnreachable { since_ms: None })
             }
-            // R3/R6: the engine or nothing. There is no adapter fallback
+            // The engine or nothing. There is no adapter fallback
             // left to divert into, and an absent engine is said out loud.
             orbit_core::device_bridge::Capability::PerformAction => {
                 let call = ask.tool_call.clone().ok_or({
@@ -762,7 +763,7 @@ impl Runtime {
                 self.call_engine_tool(call, "Deimos (canal no indicado)")
                     .map_err(|error| self.bridge_computer_start_failure(error))
             }
-            // CAL-03 A1/A2/A3 and REF-10: EventKit, for these dates, now, for
+            // EventKit, for these dates, now, for
             // every calendar, answered in pages. Every way this can fail is
             // named here and now rather than left to the caller's timeout,
             // because "no answer" about a calendar reads as "nothing in your
@@ -828,7 +829,7 @@ impl Runtime {
                 BridgeResult::ScreenSources(ScreenSourcesResult { windows }),
             ),
         ));
-        self.note_bridge_send(&sent, "la respuesta de ventanas del motor");
+        self.note_bridge_send(&sent, "the engine's windows reply");
         self.conversation.bridge_request = None;
         Ok(true)
     }
@@ -924,7 +925,7 @@ impl Runtime {
             .map(|_| true)
     }
 
-    /// SIM-56: the full screen, fitted, goes out as any engine capture does;
+    /// The full screen, fitted, goes out as any engine capture does;
     /// its scale is kept with the upload and becomes the one desktop actions
     /// are mapped with once Deimos has been sent this image.
     pub(super) async fn answer_bridge_with_desktop(
@@ -1058,7 +1059,7 @@ impl Runtime {
         let code = refusal.code().name();
         let frame = json!(DeviceReplyParams::refused(ask.id.clone(), refusal, None,));
         let sent = self.send_frame(hub::command(&ask.id, "device.reply", frame));
-        self.note_bridge_send(&sent, &format!("la negativa de la captura ({code})"));
+        self.note_bridge_send(&sent, &format!("the capture refusal ({code})"));
     }
 
     /// Sends the answer to a remote request once the helper has replied.
@@ -1093,7 +1094,7 @@ impl Runtime {
                 }
             };
             let result = self.send_frame(hub::command(&ask.id, "device.reply", payload));
-            self.note_bridge_send(&result, "la respuesta de ventanas");
+            self.note_bridge_send(&result, "the windows reply");
             self.conversation.bridge_request = None;
             return Ok(());
         }
@@ -1253,10 +1254,7 @@ impl Runtime {
             "device.reply",
             result_payload(&ask.id, result),
         ));
-        self.note_bridge_send(
-            &sent,
-            &format!("la lectura de pantalla: {application} · {title}"),
-        );
+        self.note_bridge_send(&sent, &format!("the screen read: {application} · {title}"));
         self.conversation.bridge_request = None;
         Ok(())
     }
@@ -1414,7 +1412,7 @@ impl Runtime {
                 },
                 CaptureUploadOutcome::Uploaded(sha256),
             ) => {
-                // SIM-56: this full screen is what Deimos now sees, so its
+                // This full screen is what Deimos now sees, so its
                 // scale is the one its desktop actions are mapped with.
                 let desktop = self
                     .features
@@ -1460,12 +1458,12 @@ impl Runtime {
         self.features.sources.bridge_upload.take();
         let subject = if from_engine {
             format!(
-                "la observación del motor: {} · {}",
+                "the engine observation: {} · {}",
                 screenshot.application, screenshot.title
             )
         } else {
             format!(
-                "la lectura de pantalla: {} · {}",
+                "the screen read: {} · {}",
                 screenshot.application, screenshot.title
             )
         };
@@ -1515,7 +1513,7 @@ impl Runtime {
                 }),
             ),
         ));
-        self.note_bridge_send(&result, "el recibo del único intento del motor");
+        self.note_bridge_send(&result, "the receipt of the engine's single attempt");
         self.conversation.bridge_request = None;
     }
 
@@ -1669,19 +1667,20 @@ impl Runtime {
         {
             self.note_bridge_send(
                 &hub_link::SendResult::Retired(hub_link::Retirement::PrivacyStop),
-                "la negativa de la solicitud remota",
+                "the remote request's refusal",
             );
             return;
         }
         // The disconnect handler sets Offline before releasing its request.
-        // Mars's stop also sets Offline, but after cutting capture it may
-        // still deliver this final refusal on the open link before retiring it.
+        // The user's privacy stop also sets Offline, but after cutting capture
+        // it may still deliver this final refusal on the open link before
+        // retiring it.
         if self.state.connection() == Connection::Offline
             && !(matches!(reason, BridgeReleaseReason::PrivacyStopped) && self.hub.is_some())
         {
             self.note_bridge_send(
                 &hub_link::SendResult::Disconnected,
-                "la negativa de la solicitud remota",
+                "the remote request's refusal",
             );
             return;
         }
@@ -1718,9 +1717,9 @@ impl Runtime {
         // caller is owed rather than a request that should be rebuffed.
         let result = self.send_frame(frame);
         let subject = if matches!(reason, BridgeReleaseReason::PrivacyStopped) {
-            "la negativa de la solicitud remota (privacy_stopped)"
+            "the remote request's refusal (privacy_stopped)"
         } else {
-            "la negativa de la solicitud remota"
+            "the remote request's refusal"
         };
         self.note_bridge_send(&result, subject);
         if matches!(reason, BridgeReleaseReason::CaptureUploadTimeout { .. }) {
@@ -1782,15 +1781,15 @@ impl Runtime {
     fn bridge_conditions(&self) -> orbit_core::device_bridge::Conditions {
         orbit_core::device_bridge::Conditions {
             privacy_stopped: self.state.privacy_stopped(),
-            // REF-11 A6: what macOS grants, as the helper last reported it and
+            // What macOS grants, as the helper last reported it and
             // as the daemon asks it again every few seconds. Nothing in Orbit's
             // settings is read: there is no switch left to consult.
             helper_connected: self.state.capabilities().native_helper(),
             accessibility: self.state.capabilities().accessibility_state(),
             screen_recording: self.state.capabilities().screen_state(),
-            // CAL-03 A7: read from the live permission the Mac reports, not from
-            // a switch in Orbit. This is the only decision Mars makes about her
-            // calendar, so it is the only thing consulted here. REF-10 A8: in
+            // Read from the live permission the Mac reports, not from
+            // a switch in Orbit. This is the only decision the user makes about
+            // their calendar, so it is the only thing consulted here. In
             // three values — a permission the Mac has not reported yet is
             // neither granted nor refused.
             calendar: orbit_core::device_bridge::CalendarPermission::from_authorization(
@@ -2001,20 +2000,20 @@ impl Runtime {
 }
 
 /// A refusal of what Deimos asked, said on the Mac with its code only:
-/// Deimos reads the full sentence in its reply and tells Mars.
+/// Deimos reads the full sentence in its reply and tells the user.
 fn bridge_refused(refusal: &orbit_core::refusal::Refusal) -> Notice {
     Notice::new(NoticeCode::BridgeRefused).with_token(NoticeKey::Code, refusal.code().name())
 }
 
 #[cfg(test)]
-mod ref403_tests {
+mod refusal_tests {
     use super::*;
 
     #[tokio::test(start_paused = true)]
-    async fn ref306_both_upload_paths_stop_at_the_bridge_deadline() {
+    async fn both_upload_paths_stop_at_the_bridge_deadline() {
         let outcome = capture_upload_outcome(std::future::pending::<Result<String>>()).await;
         let CaptureUploadOutcome::TimedOut { waited_ms } = outcome else {
-            panic!("la subida no venció con el plazo del puente");
+            panic!("the upload did not expire with the bridge deadline");
         };
         assert_eq!(waited_ms, 20_000);
     }
@@ -2035,7 +2034,7 @@ mod ref403_tests {
     }
 
     #[test]
-    fn a1_old_timeout_notice_keeps_the_measured_budget() {
+    fn old_timeout_notice_keeps_the_measured_budget() {
         let notice = BridgeReleaseReason::Timeout {
             waited_ms: 10_317,
             deadline_ms: 10_000,

@@ -1,4 +1,4 @@
-//! DAE-04 acceptance at the daemon boundary. Audio, HTTP and helper traffic
+//! Voice notes, transcription and speech notices at the daemon boundary. Audio, HTTP and helper traffic
 //! are synthetic fixtures; no provider, device or real profile is contacted.
 #![allow(clippy::unwrap_used)]
 
@@ -8,7 +8,7 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use orbit_core::{CallPhase, CallState, Event};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-const TOKEN: &str = "synthetic-not-a-credential-dae04";
+const TOKEN: &str = "synthetic-not-a-credential-voice";
 const SPEECH_NOTICE: &str = "Deimos no tiene voz configurada en Hermes; contesta por texto";
 
 fn frame(stream: &str, frames: usize) -> Value {
@@ -69,10 +69,10 @@ async fn one_shot_http(response: Vec<u8>) -> Result<reqwest::Url> {
     Ok(base)
 }
 
-/// A1 + A2. Durability and the message are observable before STT returns; the
+/// Durability and the message are observable before STT returns; the
 /// completion enriches that same message instead of replacing its old text.
 #[tokio::test]
-async fn a1_a2_voice_wav_is_readable_by_message_id_and_transcript_is_optional() -> Result<()> {
+async fn voice_wav_is_readable_by_message_id_and_transcript_is_optional() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     let (hub, _hub_rx) = mpsc::channel(4);
@@ -139,7 +139,7 @@ async fn a1_a2_voice_wav_is_readable_by_message_id_and_transcript_is_optional() 
 
     let transcribed = tokio::time::timeout(Duration::from_secs(5), work_events.recv())
         .await
-        .map_err(|_| anyhow::anyhow!("la transcripción sintética nunca llegó"))?
+        .map_err(|_| anyhow::anyhow!("the synthetic transcription never arrived"))?
         .context("canal de trabajos cerrado")?;
     runtime.work_event(transcribed).await?;
     let completed = &runtime
@@ -172,7 +172,7 @@ async fn a1_a2_voice_wav_is_readable_by_message_id_and_transcript_is_optional() 
 }
 
 #[tokio::test]
-async fn ref308_a1_failed_hub_transcription_replaces_pending_note_with_cause() -> Result<()> {
+async fn failed_hub_transcription_replaces_pending_note_with_cause() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     let (hub, _hub_rx) = mpsc::channel(4);
@@ -213,10 +213,7 @@ async fn ref308_a1_failed_hub_transcription_replaces_pending_note_with_cause() -
         .user
         .id
         .clone();
-    let failed = work_events
-        .recv()
-        .await
-        .context("respuesta sintética ausente")?;
+    let failed = work_events.recv().await.context("synthetic reply absent")?;
     let mut board = super::topics::TopicBoard::new("synthetic".into());
     let channels = board.channels();
     let _assistant = channels[&orbit_core::topics::TopicId::Assistant].subscribe();
@@ -257,11 +254,11 @@ async fn ref308_a1_failed_hub_transcription_replaces_pending_note_with_cause() -
             .durable
             .turn
             .as_ref()
-            .context("nota no persistida")?
+            .context("note not persisted")?
             .user,
     )
     .filter(|message| message.id == message_id)
-    .context("nota no persistida")?;
+    .context("note not persisted")?;
     assert_eq!(
         saved_note
             .voice
@@ -294,7 +291,7 @@ async fn ref308_a1_failed_hub_transcription_replaces_pending_note_with_cause() -
 }
 
 #[tokio::test]
-async fn ref308_oversized_hub_refusal_keeps_body_size_and_ceiling() -> Result<()> {
+async fn oversized_hub_refusal_keeps_body_size_and_ceiling() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let maximum = orbit_core::limits::MAX_HUB_HTTP_BODY_BYTES;
@@ -319,10 +316,10 @@ async fn ref308_oversized_hub_refusal_keeps_body_size_and_ceiling() -> Result<()
     Ok(())
 }
 
-/// A3. The HTTP code is translated at the boundary and the actor records it
+/// The HTTP code is translated at the boundary and the actor records it
 /// only once while the same call remains active.
 #[tokio::test]
-async fn a3_speech_unavailable_is_specific_and_once_per_call() -> Result<()> {
+async fn speech_unavailable_is_specific_and_once_per_call() -> Result<()> {
     let base = one_shot_http(json_response(
         "400 Bad Request",
         "{\"code\":\"speech_unavailable\",\"detail\":\"synthetic\"}",
@@ -349,7 +346,7 @@ async fn a3_speech_unavailable_is_specific_and_once_per_call() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     runtime.state.durable.call = Some(CallState {
-        id: "call-dae04".into(),
+        id: "call-speech".into(),
         phase: CallPhase::Responding,
         started_at_ms: 1,
         expires_at_ms: 60_001,
@@ -385,7 +382,7 @@ async fn a3_speech_unavailable_is_specific_and_once_per_call() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref211_a4_speech_refusal_reaches_the_assistant_topic_as_a_code() -> Result<()> {
+async fn speech_refusal_reaches_the_assistant_topic_as_a_code() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     let (work, mut work_events) = mpsc::channel(16);
@@ -410,7 +407,7 @@ async fn ref211_a4_speech_refusal_reaches_the_assistant_topic_as_a_code() -> Res
     }
     runtime.state.durable.turn = Some(orbit_core::Turn {
         user: orbit_core::Message {
-            id: "speech-ref211".into(),
+            id: "speech-refusal".into(),
             role: "user".into(),
             text: "Pregunta sintética".into(),
             complete: true,
@@ -418,7 +415,7 @@ async fn ref211_a4_speech_refusal_reaches_the_assistant_topic_as_a_code() -> Res
             voice: None,
         },
         answer: Some(orbit_core::Message {
-            id: "speech-ref211:assistant".into(),
+            id: "speech-refusal:assistant".into(),
             role: "assistant".into(),
             text: "Respuesta sintética".into(),
             complete: true,
@@ -429,7 +426,7 @@ async fn ref211_a4_speech_refusal_reaches_the_assistant_topic_as_a_code() -> Res
     runtime.start_speech();
     let completed = tokio::time::timeout(Duration::from_secs(5), work_events.recv())
         .await?
-        .context("el trabajo de voz no llegó")?;
+        .context("the speech work did not arrive")?;
     runtime.work_event(completed).await?;
     let mut board = super::topics::TopicBoard::new("synthetic".into());
     let channels = board.channels();
@@ -455,7 +452,7 @@ async fn ref211_a4_speech_refusal_reaches_the_assistant_topic_as_a_code() -> Res
 }
 
 #[tokio::test]
-async fn sim100_speech_unavailable_names_the_configured_assistant() -> Result<()> {
+async fn speech_unavailable_names_the_configured_assistant() -> Result<()> {
     let base = one_shot_http(json_response(
         "400 Bad Request",
         "{\"code\":\"speech_unavailable\"}",

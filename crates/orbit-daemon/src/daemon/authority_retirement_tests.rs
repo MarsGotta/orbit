@@ -1,8 +1,8 @@
 use super::*;
 use crate::daemon::audio::tests::fixture;
 
-/// P9-11: a call on offer, the call detection's own state. It is local:
-/// only Mars's stop, a revocation and closing retire it.
+/// A call on offer, the call detection's own state. It is local: only
+/// the user's stop, a revocation and closing retire it.
 fn offer_a_call(runtime: &mut Runtime) {
     use orbit_core::call_detection::{CallApp, CallFacts, CallInput, CallPreference};
     let facts = CallFacts {
@@ -248,7 +248,7 @@ async fn a_lost_hub_still_retires_the_bridge_and_keeps_the_call() -> Result<()> 
     });
     runtime.hub_event(HubEvent::Disconnected).await?;
     assert!(runtime.conversation.bridge_request.is_none());
-    // P9-11: a call on this Mac does not depend on the hub.
+    // A call on this Mac does not depend on the hub.
     assert!(
         call_offered(&runtime),
         "a lost hub withdrew the call on offer"

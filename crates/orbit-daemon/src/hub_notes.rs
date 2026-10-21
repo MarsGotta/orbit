@@ -1,6 +1,6 @@
-//! HTTP adapter for the hub's meeting, note and template routes (SIM-40
-//! «Contrato»). It performs one request and names what came back; no
-//! retries here, no note content in logs.
+//! HTTP adapter for the hub's meeting, note and template routes. It performs
+//! one request and names what came back; no retries here, no note content in
+//! logs.
 use orbit_core::{
     limits::MAX_HUB_HTTP_BODY_BYTES,
     notes::{
@@ -23,7 +23,7 @@ const MAX_ERROR_BYTES: usize = 4 * 1024;
 pub struct NoteHub {
     pub base: reqwest::Url,
     pub token: String,
-    /// The op every request of this worker carries (SIM-21).
+    /// The op every request of this worker carries.
     pub op: orbit_core::notice::Op,
 }
 
@@ -294,7 +294,7 @@ impl NoteHub {
         .await
     }
 
-    /// SIM-52 `PUT /v1/recordings/{id}/language`.
+    /// `PUT /v1/recordings/{id}/language`.
     pub async fn language(&self, recording: &str, language: &str) -> Answer<Value> {
         self.send(
             reqwest::Method::PUT,
@@ -304,7 +304,7 @@ impl NoteHub {
         .await
     }
 
-    /// SIM-52 `PUT /v1/recordings/{id}/title`; empty gives the meeting back
+    /// `PUT /v1/recordings/{id}/title`; empty gives the meeting back
     /// its own.
     pub async fn title(&self, recording: &str, title: &str) -> Answer<Value> {
         self.send(

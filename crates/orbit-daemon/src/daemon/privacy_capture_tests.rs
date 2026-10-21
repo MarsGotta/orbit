@@ -1,5 +1,5 @@
-//! REF-12 at the daemon actor: the only stop that lasts is the one Mars
-//! pressed, and every other cause that used to stop Orbit cuts the live
+//! The privacy stop at the daemon actor: the only stop that lasts is the one
+//! the user pressed, and every other cause that used to stop Orbit cuts the live
 //! capture or says its cause. Synthetic helper channel and real encrypted
 //! store; every event goes through the loop's own handlers
 //! (`handle_native_event`, `run_maintenance`), never a hand-written copy.
@@ -11,7 +11,7 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use orbit_core::protocol::MeetingAudio;
 
 #[tokio::test]
-async fn ref403_a2_typed_permission_frames_name_the_actual_mac_permission() -> Result<()> {
+async fn typed_permission_frames_name_the_actual_mac_permission() -> Result<()> {
     use orbit_core::{PermissionState, calendar::CalendarAuthorization};
     let cases = [
         (
@@ -142,7 +142,7 @@ fn names(commands: &[Value]) -> Vec<String> {
 
 /// Every notice said so far, oldest first, including the current one, as
 /// JSON so its code and data read; then every line of `daemon.log`, where
-/// the cause sentences are kept under the same op (SIM-21).
+/// the cause sentences are kept under the same op.
 fn said(runtime: &Runtime) -> Vec<String> {
     let mut texts: Vec<String> = runtime
         .state
@@ -164,7 +164,7 @@ fn said(runtime: &Runtime) -> Vec<String> {
 async fn start_recording(runtime: &mut Runtime, helper: &mut mpsc::Receiver<Value>) -> String {
     runtime
         .apply(Event::StartMeeting {
-            id: "ref12-meeting".into(),
+            id: "privacy-meeting".into(),
             title: "Reunión sintética".into(),
             audio: MeetingAudio::MicrophoneOnly,
             duration_ms: 600_000,
@@ -216,7 +216,7 @@ fn helper_state(privacy_stopped: bool) -> Value {
 }
 
 #[tokio::test]
-async fn ref12_a1_a_restarted_daemon_without_her_stop_comes_back_working() {
+async fn a_restarted_daemon_without_the_users_stop_comes_back_working() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -233,7 +233,7 @@ async fn ref12_a1_a_restarted_daemon_without_her_stop_comes_back_working() {
     for text in said(&runtime) {
         assert!(!text.contains("privacy_stop_kept"), "{text}");
     }
-    // Working means her next order is accepted, not refused as stopped.
+    // Working means the user's next order is accepted, not refused as stopped.
     runtime
         .apply(Event::StartMeeting {
             id: "after-restart".into(),
@@ -247,7 +247,7 @@ async fn ref12_a1_a_restarted_daemon_without_her_stop_comes_back_working() {
 }
 
 #[tokio::test]
-async fn ref12_a2_her_stop_after_a_restart_reaches_the_helper_and_both_agree() {
+async fn the_users_stop_after_a_restart_reaches_the_helper_and_both_agree() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -262,15 +262,16 @@ async fn ref12_a2_her_stop_after_a_restart_reaches_the_helper_and_both_agree() {
     );
     runtime.handle_native_event(helper_state(true)).await;
     assert!(runtime.state.privacy_stopped());
+    // "mars" is the user's stop as stored: wire/stored name kept for compatibility with 0.9.0.
     assert_eq!(
         serde_json::to_value(&runtime.state).unwrap()["privacy_stop_by"],
         "mars",
-        "the stop that survived is recorded as hers"
+        "the stop that survived is recorded as the user's"
     );
 }
 
 #[tokio::test]
-async fn ref12_a2_a_latch_the_helper_kept_is_adopted_so_both_agree() {
+async fn a_latch_the_helper_kept_is_adopted_so_both_agree() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, _helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -287,7 +288,7 @@ async fn ref12_a2_a_latch_the_helper_kept_is_adopted_so_both_agree() {
 }
 
 #[tokio::test]
-async fn ref12_a2_nothing_remote_rearms_her_stop() {
+async fn nothing_remote_rearms_the_users_stop() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, _helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -308,7 +309,7 @@ async fn ref12_a2_nothing_remote_rearms_her_stop() {
 }
 
 #[tokio::test]
-async fn ref12_a2_a_privacy_stopped_refusal_is_not_taken_for_her_stop() {
+async fn a_privacy_stopped_refusal_is_not_taken_for_the_users_stop() {
     // The helper refuses with `privacy_stopped` while its latch is set and
     // also while a capture stop is still cleaning up. Only its `state` says
     // which; a refusal alone must never become a durable stop.
@@ -343,7 +344,7 @@ fn inventory(rows: usize, omitted: u64) -> Value {
 }
 
 #[tokio::test]
-async fn ref12_a3_an_unverifiable_inventory_is_shown_with_its_numbers_and_stops_nothing() {
+async fn an_unverifiable_inventory_is_shown_with_its_numbers_and_stops_nothing() {
     for (rows, omitted, numbers) in [(40, 0, ["40", "32"]), (3, 1, ["1", "omit"])] {
         let directory = tempfile::tempdir().unwrap();
         let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
@@ -385,7 +386,7 @@ async fn ref12_a3_an_unverifiable_inventory_is_shown_with_its_numbers_and_stops_
             !names(&sent(&mut helper)).contains(&"privacy_stop".to_owned()),
             "{rows}/{omitted}"
         );
-        // The rest of Orbit keeps working: her next recording starts.
+        // The rest of Orbit keeps working: the next recording starts.
         runtime
             .apply(Event::StartMeeting {
                 id: format!("after-inventory-{rows}"),
@@ -400,7 +401,7 @@ async fn ref12_a3_an_unverifiable_inventory_is_shown_with_its_numbers_and_stops_
 }
 
 #[tokio::test]
-async fn ref12_a4_audio_that_cannot_be_kept_whole_cuts_the_recording_not_orbit() {
+async fn audio_that_cannot_be_kept_whole_cuts_the_recording_not_orbit() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -438,7 +439,7 @@ async fn ref12_a4_audio_that_cannot_be_kept_whole_cuts_the_recording_not_orbit()
 }
 
 #[tokio::test]
-async fn ref12_a4b_a_sleeping_mac_cuts_the_recording_and_orbit_comes_back_working() {
+async fn a_sleeping_mac_cuts_the_recording_and_orbit_comes_back_working() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -457,7 +458,7 @@ async fn ref12_a4b_a_sleeping_mac_cuts_the_recording_and_orbit_comes_back_workin
     );
     let notice = said(&runtime).join(" | ");
     assert!(notice.contains("session_inactive"), "{notice}");
-    // A cut, not her stop: nothing to rearm.
+    // A cut, not the user's stop: nothing to rearm.
     assert!(notice.contains("\"capture_cut\""), "{notice}");
     assert!(!notice.contains("\"privacy_stopped\""), "{notice}");
     assert!(!notice.contains("rearm"), "{notice}");
@@ -470,7 +471,7 @@ async fn ref12_a4b_a_sleeping_mac_cuts_the_recording_and_orbit_comes_back_workin
 }
 
 #[tokio::test]
-async fn ref12_a4b_closing_the_lid_without_a_recording_leaves_orbit_as_it_was() {
+async fn closing_the_lid_without_a_recording_leaves_orbit_as_it_was() {
     for event in [
         json!({"event":"capture_stopped","reason":"session_inactive",
             "privacy_stopped":false,"drain_complete":true}),
@@ -490,7 +491,7 @@ async fn ref12_a4b_closing_the_lid_without_a_recording_leaves_orbit_as_it_was() 
         assert!(!names(&sent(&mut helper)).contains(&"privacy_stop".to_owned()));
         for text in said(&runtime) {
             assert!(!text.contains("rearm"), "{event}: {text}");
-            // Review (c): with nothing recording, nothing was cut.
+            // With nothing recording, nothing was cut.
             assert!(!text.contains("\"capture_cut\""), "{event}: {text}");
         }
         assert!(
@@ -504,7 +505,7 @@ async fn ref12_a4b_closing_the_lid_without_a_recording_leaves_orbit_as_it_was() 
 }
 
 #[tokio::test]
-async fn ref12_a5_a_failure_in_the_loop_never_latches() {
+async fn a_failure_in_the_loop_never_latches() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -523,12 +524,12 @@ async fn ref12_a5_a_failure_in_the_loop_never_latches() {
         .await;
     // A maintenance whose retry of an unsaved fragment fails: the disk
     // refuses the chunk's path.
-    std::fs::create_dir_all(runtime.paths.store.join("chunks/ref12-mic_local-0.orbit")).unwrap();
+    std::fs::create_dir_all(runtime.paths.store.join("chunks/privacy-mic_local-0.orbit")).unwrap();
     let segment = crate::capture::Segment {
         metadata: orbit_store::ChunkMetadata {
             capture_epoch_id: None,
-            id: "ref12-mic_local-0".into(),
-            recording_id: "ref12".into(),
+            id: "privacy-mic_local-0".into(),
+            recording_id: "privacy".into(),
             track: "mic_local".into(),
             sequence: 0,
             sample_rate: 8_000,
@@ -553,7 +554,7 @@ async fn ref12_a5_a_failure_in_the_loop_never_latches() {
 }
 
 #[tokio::test]
-async fn ref12_a5_her_controls_are_still_the_stop_and_are_recorded_as_hers() {
+async fn the_users_controls_are_still_the_stop_and_are_recorded_as_theirs() {
     for control in ["order", "hotkey"] {
         let directory = tempfile::tempdir().unwrap();
         let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
@@ -571,6 +572,7 @@ async fn ref12_a5_her_controls_are_still_the_stop_and_are_recorded_as_hers() {
                 .await;
         }
         assert!(runtime.state.privacy_stopped(), "{control}");
+        // Stored value of the user's stop: wire/stored name kept for compatibility with 0.9.0.
         assert_eq!(
             serde_json::to_value(&runtime.state).unwrap()["privacy_stop_by"],
             "mars",
@@ -584,17 +586,17 @@ async fn ref12_a5_her_controls_are_still_the_stop_and_are_recorded_as_hers() {
             .unwrap();
         assert!(
             persisted.privacy_stopped(),
-            "{control}: her stop is durable"
+            "{control}: the user's stop is durable"
         );
     }
 }
 
-/// Review (a): the helper echoes `daemon_requested` for an order the daemon
-/// sent. Arriving with the daemon not stopped, it is not an order of hers the
+/// The helper echoes `daemon_requested` for an order the daemon sent.
+/// Arriving with the daemon not stopped, it is not an order of the user's the
 /// daemon can vouch for: the latch is adopted so both agree, and it is never
-/// recorded as hers.
+/// recorded as the user's.
 #[tokio::test]
-async fn ref12_a2_an_echo_of_the_daemons_order_is_never_taken_for_hers() {
+async fn an_echo_of_the_daemons_order_is_never_taken_for_the_users() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -606,10 +608,10 @@ async fn ref12_a2_an_echo_of_the_daemons_order_is_never_taken_for_hers() {
     assert_eq!(
         serde_json::to_value(&runtime.state).unwrap()["privacy_stop_by"],
         serde_json::Value::Null,
-        "an echo nobody can attribute is never hers: {:?}",
+        "an echo nobody can attribute is never the user's: {:?}",
         said(&runtime)
     );
-    // Her own control at the helper still is hers.
+    // The user's own control at the helper still is theirs.
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, _helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -617,6 +619,7 @@ async fn ref12_a2_an_echo_of_the_daemons_order_is_never_taken_for_hers() {
         .handle_native_event(json!({"event":"privacy_stop","reason":"local_hotkey",
             "privacy_stopped":true,"drain_complete":false}))
         .await;
+    // Stored value of the user's stop: wire/stored name kept for compatibility with 0.9.0.
     assert_eq!(
         serde_json::to_value(&runtime.state).unwrap()["privacy_stop_by"],
         "mars"
@@ -624,13 +627,13 @@ async fn ref12_a2_an_echo_of_the_daemons_order_is_never_taken_for_hers() {
     assert!(!names(&sent(&mut helper)).contains(&"capture_stop".to_owned()));
 }
 
-/// Review (b), the other vertical's side: a data fault outside the capture
+/// The other vertical's side: a data fault outside the capture
 /// is said with its cause, and the recording goes on: nothing is cut, nothing
 /// is sent to the helper, fault after fault. (The publication journal that
-/// used to fail here on demand left with SIM-03a; the fault now enters where
+/// used to fail here on demand is gone; the fault now enters where
 /// `run_maintenance` hands a vertical's maintenance error.)
 #[tokio::test]
-async fn ref12_b_a_fault_of_another_vertical_is_said_and_the_recording_goes_on() {
+async fn a_fault_of_another_vertical_is_said_and_the_recording_goes_on() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -678,10 +681,10 @@ async fn ref12_b_a_fault_of_another_vertical_is_said_and_the_recording_goes_on()
     assert!(!names(&sent(&mut helper)).contains(&"capture_stop".to_owned()));
 }
 
-/// Review (b), the capture's side: its own upkeep failing (a fragment the
+/// The capture's side: its own upkeep failing (a fragment the
 /// disk will not take) cuts the live recording with its cause.
 #[tokio::test]
-async fn ref12_b_a_fault_of_the_capture_itself_cuts_the_recording() {
+async fn a_fault_of_the_capture_itself_cuts_the_recording() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -691,14 +694,14 @@ async fn ref12_b_a_fault_of_the_capture_itself_cuts_the_recording() {
         runtime
             .paths
             .store
-            .join("chunks/ref12-cut-mic_local-0.orbit"),
+            .join("chunks/privacy-cut-mic_local-0.orbit"),
     )
     .unwrap();
     let segment = crate::capture::Segment {
         metadata: orbit_store::ChunkMetadata {
             capture_epoch_id: None,
-            id: "ref12-cut-mic_local-0".into(),
-            recording_id: "ref12-meeting".into(),
+            id: "privacy-cut-mic_local-0".into(),
+            recording_id: "privacy-meeting".into(),
             track: "mic_local".into(),
             sequence: 0,
             sample_rate: 8_000,
@@ -728,10 +731,10 @@ async fn ref12_b_a_fault_of_the_capture_itself_cuts_the_recording() {
     assert!(!runtime.state.privacy_stopped());
 }
 
-/// Review (b): which helper events are the capture's own. Read before the
+/// Which helper events are the capture's own. Read before the
 /// event is handled, while the order a response answers is still pending.
 #[tokio::test]
-async fn ref12_b_only_the_capture_s_own_events_count_as_capture_failures() {
+async fn only_the_capture_s_own_events_count_as_capture_failures() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -770,11 +773,11 @@ async fn ref12_b_only_the_capture_s_own_events_count_as_capture_failures() {
     }
 }
 
-/// Third review: `pending_native` is only a bounded diagnostic index. Losing
+/// `pending_native` is only a bounded diagnostic index. Losing
 /// an entry there cannot turn an `audio_stop` failure into another vertical's
 /// fault while the capture still owns that exact ID.
 #[tokio::test]
-async fn ref12_b_an_evicted_audio_stop_ack_still_cuts_and_closes_the_microphone() {
+async fn an_evicted_audio_stop_ack_still_cuts_and_closes_the_microphone() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -812,11 +815,11 @@ async fn ref12_b_an_evicted_audio_stop_ack_still_cuts_and_closes_the_microphone(
     assert!(!notice.contains("No se corta nada"), "{notice}");
 }
 
-/// Third review: expiry is capture upkeep because applying `Tick` sends the
+/// Expiry is capture upkeep because applying `Tick` sends the
 /// capture's `audio_stop`. A delivery deadline names that order and 500 ms in
 /// Spanish, then the whole-capture stop is retried once the helper drains.
 #[tokio::test]
-async fn ref12_b_tick_expiry_with_a_stalled_audio_stop_closes_the_microphone() {
+async fn tick_expiry_with_a_stalled_audio_stop_closes_the_microphone() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -857,7 +860,7 @@ async fn ref12_b_tick_expiry_with_a_stalled_audio_stop_closes_the_microphone() {
 }
 
 #[tokio::test]
-async fn ref12_privacy_stop_stalled_once_is_retried_until_the_microphone_closes() {
+async fn privacy_stop_stalled_once_is_retried_until_the_microphone_closes() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -895,11 +898,11 @@ async fn ref12_privacy_stop_stalled_once_is_retried_until_the_microphone_closes(
     assert!(runtime.state.privacy_stopped());
 }
 
-/// Review (e): what can still be capturing is also what the helper holds
+/// What can still be capturing is also what the helper holds
 /// open, not only what the state says. A stream or a start left in the
 /// helper with no recording in the state is still cut.
 #[tokio::test]
-async fn ref12_e_a_stream_still_open_in_the_helper_is_cut_whatever_the_state_says() {
+async fn a_stream_still_open_in_the_helper_is_cut_whatever_the_state_says() {
     for open in ["mic", "remote", "start"] {
         let directory = tempfile::tempdir().unwrap();
         let (mut runtime, mut helper) = fixture(directory.path()).unwrap();

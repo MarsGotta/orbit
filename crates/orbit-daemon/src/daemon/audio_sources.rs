@@ -2,7 +2,7 @@
 //!
 //! An inventory that cannot be verified is data, not a danger: it is shown as
 //! unavailable with its cause and its numbers, and nothing else in Orbit
-//! stops or waits for it (REF-12 A3).
+//! stops or waits for it.
 use super::{Runtime, id};
 use anyhow::Result;
 use orbit_core::refusal::{Expected, ReadInterruption, Refusal, Resource};
@@ -21,7 +21,7 @@ use std::collections::BTreeSet;
 /// (`ApplicationIdentityPolicy.maximumApplications`, the ceiling of one
 /// inventory), so a longer reply is a helper breaking its own rule. The two are
 /// compared by the guard of contracts/constants.json.
-/// What it is not: a limit on how many applications Mars may run.
+/// What it is not: a limit on how many applications the user may run.
 const MAX_APPLICATIONS: usize = 32;
 /// The largest inventory reply read, in bytes. The helper refuses to build a
 /// larger one (`ApplicationIdentityPolicy.maximumResponseBytes`); 192 KiB

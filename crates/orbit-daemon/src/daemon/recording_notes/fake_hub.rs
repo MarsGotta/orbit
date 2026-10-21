@@ -35,9 +35,9 @@ pub(crate) struct Hub {
     pub missing_turn: Option<(u64, u64)>,
     /// Hold every answer until this is notified.
     pub hold: Option<Arc<tokio::sync::Notify>>,
-    /// The meeting's own title, kept when Mars first renames it (SIM-52).
+    /// The meeting's own title, kept when the user first renames it.
     pub own_titles: BTreeMap<String, Value>,
-    /// SIM-52: groups whose audio the hub cannot read, of how many: a change
+    /// Groups whose audio the hub cannot read, of how many: a change
     /// of language is refused as the hub refuses it.
     pub unreadable_audio: Option<(u64, u64)>,
 }
@@ -80,7 +80,7 @@ pub(crate) fn document(recording: &str, title: &str, started_at_ms: i64) -> Valu
         "recording_id": recording, "title": title, "started_at_ms": started_at_ms,
         "duration_ms": 120_000, "capture": "closed", "language": "es",
         "speakers": [
-            {"key": "mic_local", "track": "mic_local", "name": "Mars"},
+            {"key": "mic_local", "track": "mic_local", "name": "Nerea"},
             {"key": "remote_app", "track": "remote_app", "name": "Otra persona"}
         ],
         "transcript": {"state": "ready", "pending_chunks": 0, "failed_groups": []},
@@ -96,7 +96,7 @@ pub(crate) fn note(revision: u64) -> Value {
         "note": {
             "title": "Comité", "short_summary": "Resumen corto.",
             "sections": [{"name": "Resumen", "markdown": "- punto"}],
-            "action_items": [{"id": "a0123456789ab", "owner": "Mars", "text": "Enviar el acta",
+            "action_items": [{"id": "a0123456789ab", "owner": "Nerea", "text": "Enviar el acta",
                 "due": null, "done": false}],
             "decisions": ["Aprobado"], "open_topics": ["Presupuesto"],
             "template_id": "general", "template_name": "General",
@@ -249,7 +249,7 @@ impl Hub {
                 }
                 (200, json!({"speakers": document["speakers"]}))
             }
-            // SIM-52 (`meetings/routes.py`): the same language repeats
+            // As `meetings/routes.py` does: the same language repeats
             // nothing; another repeats the meeting's four groups.
             ("PUT", ["v1", "recordings", id, "language"]) => {
                 if let Some((groups, total)) = self.unreadable_audio {
@@ -279,7 +279,7 @@ impl Hub {
                     json!({"language": body["language"], "requeued": requeued}),
                 )
             }
-            // Mars's name wins; an empty one gives the meeting back its own.
+            // The user's name wins; an empty one gives the meeting back its own.
             ("PUT", ["v1", "recordings", id, "title"]) => {
                 let Some(document) = self.documents.get_mut(*id) else {
                     return refusal(404, "recording_not_found", "Grabación no disponible");

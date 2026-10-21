@@ -393,7 +393,7 @@ mod tests {
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
-mod ref215a_tests {
+mod projection_tests {
     use super::*;
     use orbit_core::{
         State,
@@ -410,7 +410,7 @@ mod ref215a_tests {
     }
 
     #[test]
-    fn a1_notices_publish_every_new_notice() {
+    fn notices_publish_every_new_notice() {
         use orbit_core::notice::NoticeCode;
         let mut state = State::default();
         let initial = project(TopicId::Notices, &source(&state));
@@ -438,7 +438,7 @@ mod ref215a_tests {
         );
     }
 
-    /// SIM-21: a notice is a code, an op and closed data, so its frame has a
+    /// A notice is a code, an op and closed data, so its frame has a
     /// ceiling of its own. Every key filled with the longest token and the
     /// longest op still fits the registered frame.
     #[test]
@@ -458,14 +458,14 @@ mod ref215a_tests {
         ));
         let bytes = serde_json::to_vec(&data).unwrap().len();
         eprintln!(
-            "SIM21 notice keys={} frame_bytes={bytes}",
+            "notice frame: keys={} frame_bytes={bytes}",
             NoticeKey::ALL.len()
         );
         assert!(bytes <= TopicId::Notices.max_bytes());
     }
 
     #[test]
-    fn a3_assistant_call_is_known_and_missing_wire_defaults_to_unknown() {
+    fn assistant_call_is_known_and_missing_wire_defaults_to_unknown() {
         let mut state = State::default();
         let call = CallState {
             id: "synthetic".into(),
@@ -513,7 +513,7 @@ mod ref215a_tests {
     }
 
     #[test]
-    fn a6_command_publication_bypasses_audio_cadence() {
+    fn command_publication_bypasses_audio_cadence() {
         let mut state = State::default();
         let mut board = TopicBoard::new("synthetic".into());
         let receiver = board.channels()[&TopicId::Recording].subscribe();
@@ -529,7 +529,7 @@ mod ref215a_tests {
     }
 
     #[test]
-    fn a6_meeting_and_privacy_frames_match_command_receipt_revisions() -> anyhow::Result<()> {
+    fn meeting_and_privacy_frames_match_command_receipt_revisions() -> anyhow::Result<()> {
         use orbit_core::{CapturePhase, Recording, protocol::MeetingAudio};
         let directory = tempfile::tempdir()?;
         let (mut runtime, _helper) = crate::daemon::audio::tests::fixture(directory.path())?;

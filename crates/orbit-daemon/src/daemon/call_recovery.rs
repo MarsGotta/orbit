@@ -62,9 +62,9 @@ impl Runtime {
                     // An empty first-install store needs no recovery. Any prior
                     // call, however, must be reconciled before anything can
                     // capture: at startup, before the helper is spawned. This
-                    // used to lean on the stop every restart invented; since
-                    // REF-12 a restart invents none, and the guarantee is the
-                    // helper's absence itself.
+                    // used to lean on the stop every restart invented; now a
+                    // restart invents none, and the guarantee is the helper's
+                    // absence itself.
                     if self.state.capabilities().native_helper() || self.state.durable.voice_active
                     {
                         bail!(

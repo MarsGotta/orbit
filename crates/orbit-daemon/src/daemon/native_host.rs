@@ -33,11 +33,12 @@ pub(super) struct HostUpdate {
     pub authority_changed: bool,
     /// The same helper advanced exactly one epoch after its capture cut.
     pub capture_cut_rebound: bool,
-    /// The helper is privacy-stopped (her latch, as `privacy_stop` or its
+    /// The helper is privacy-stopped (the user's latch, as `privacy_stop` or its
     /// `state` says) or went away.
     pub privacy_stopped: bool,
-    /// The helper cut its capture without her latch (`capture_stopped`,
-    /// REF-12): the old epoch's bindings are gone like after her stop, but
+    /// The helper cut its capture without the user's latch
+    /// (`capture_stopped`): the old epoch's bindings are gone like after the
+    /// user's stop, but
     /// nothing is privacy-stopped, and consumers say what happened.
     pub capture_cut: bool,
 }
@@ -70,7 +71,6 @@ impl NativeHost {
         let Ok(header) = NativeEventHeader::from_value(event) else {
             return HostUpdate::default();
         };
-        // The REF-12 guard audits this exact stop arm when checking who may latch privacy.
         match Some(header.event) {
             Some("ready") => {
                 // Even a repeated ready invalidates the previous observations.
@@ -84,11 +84,11 @@ impl NativeHost {
                     ..HostUpdate::default()
                 }
             }
-            // A capture stop tears the helper down exactly like her stop does
-            // (new privacy epoch, bindings invalidated) and only differs in
+            // A capture stop tears the helper down exactly like the user's stop
+            // does (new privacy epoch, bindings invalidated) and only differs in
             // the durable latch, so the identity is stopped until the next
             // `state` says otherwise; it is reported as the cut it is, never
-            // as a privacy stop (REF-12).
+            // as a privacy stop.
             Some(name @ ("helper_disconnected" | "privacy_stop" | "capture_stopped")) => {
                 self.cut_from = if name == "capture_stopped" {
                     self.identity.clone()

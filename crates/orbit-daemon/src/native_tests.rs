@@ -15,7 +15,7 @@ fn pipes() -> Result<(pipe::Sender, pipe::Receiver, pipe::Receiver, pipe::Sender
 }
 
 #[tokio::test]
-async fn ref404c_bridge_pairs_replies_and_forwards_an_id_it_never_sent_unnamed() -> Result<()> {
+async fn bridge_pairs_replies_and_forwards_an_id_it_never_sent_unnamed() -> Result<()> {
     let (mut input, output, reader, writer) = pipes()?;
     let (send, commands) = mpsc::channel(4);
     let (events, mut received) = mpsc::channel(4);
@@ -93,7 +93,7 @@ async fn ref404c_bridge_pairs_replies_and_forwards_an_id_it_never_sent_unnamed()
 }
 
 #[test]
-fn ref404c_unanswered_heartbeats_do_not_evict_another_command() {
+fn unanswered_heartbeats_do_not_evict_another_command() {
     let mut pending = BTreeMap::new();
     retain_pending_command(&mut pending, "0-status".into(), "status".into());
     for index in 0..63 {
@@ -123,7 +123,7 @@ fn ref404c_unanswered_heartbeats_do_not_evict_another_command() {
 }
 
 #[test]
-fn ref404c_unpaired_response_is_reported_once_per_id_within_its_own_ceiling() {
+fn unpaired_response_is_reported_once_per_id_within_its_own_ceiling() {
     let mut reported = BTreeSet::new();
     assert_eq!(
         report_unpaired_response_once(&mut reported, "never-sent"),
@@ -172,8 +172,7 @@ async fn daemon_backpressure_gap_decodes_as_a_native_event() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref404b_known_event_with_wrong_field_type_is_not_delivered_and_link_survives() -> Result<()>
-{
+async fn known_event_with_wrong_field_type_is_not_delivered_and_link_survives() -> Result<()> {
     let (mut input, _output, reader, writer) = pipes()?;
     let (send, commands) = mpsc::channel(1);
     let (events, mut received) = mpsc::channel(2);
@@ -280,7 +279,7 @@ async fn native_audio_sample_rate_above_u8_still_decodes_as_audio() -> Result<()
 }
 
 #[tokio::test]
-async fn ref404b_unknown_event_is_skipped_without_ending_the_link() -> Result<()> {
+async fn unknown_event_is_skipped_without_ending_the_link() -> Result<()> {
     let (mut input, _output, reader, writer) = pipes()?;
     let (send, commands) = mpsc::channel(1);
     let (events, mut received) = mpsc::channel(2);
@@ -302,7 +301,7 @@ async fn ref404b_unknown_event_is_skipped_without_ending_the_link() -> Result<()
 }
 
 #[test]
-fn ref404b_malformed_notice_names_event_field_and_observed_type() -> Result<()> {
+fn malformed_notice_names_event_field_and_observed_type() -> Result<()> {
     let mut ready: Value = serde_json::from_str(include_str!(
         "../../../contracts/fixtures/native/events/ready.json"
     ))?;
@@ -321,7 +320,7 @@ fn ref404b_malformed_notice_names_event_field_and_observed_type() -> Result<()> 
 }
 
 #[test]
-fn ref404b_numeric_malformed_notice_names_the_actual_field() -> Result<()> {
+fn numeric_malformed_notice_names_the_actual_field() -> Result<()> {
     for number in [42, 1] {
         let mut ready: Value = serde_json::from_str(include_str!(
             "../../../contracts/fixtures/native/events/ready.json"
@@ -535,13 +534,13 @@ fn fixture_ready_line() -> Result<String> {
     Ok(ready.to_string())
 }
 
-/// P2-01 A1: a consumer that stops draining must cost buffered audio frames,
+/// A consumer that stops draining must cost buffered audio frames,
 /// never the helper's life. The discarded episode is reported on recovery as
 /// one synthetic gap event with the motive and the count, and audio keeps
 /// flowing afterwards. The two-slot channel models the stall compressed; the
 /// daemon sizes the real channel for ten seconds of two-track audio.
 #[tokio::test]
-async fn a1_a_stalled_consumer_gets_one_counted_gap_and_never_kills_the_bridge() -> Result<()> {
+async fn a_stalled_consumer_gets_one_counted_gap_and_never_kills_the_bridge() -> Result<()> {
     let (mut input, _output, reader, writer) = pipes()?;
     let (send, commands) = mpsc::channel(1);
     let (events, mut received) = mpsc::channel(2);
@@ -557,21 +556,21 @@ async fn a1_a_stalled_consumer_gets_one_counted_gap_and_never_kills_the_bridge()
         }
     })
     .await
-    .context("A1: the buffered audio must fill the event channel")?;
+    .context("the buffered audio must fill the event channel")?;
     // Let the reader account for every remaining frame before draining, so
     // the discarded count is exactly the eight frames beyond the capacity.
     tokio::time::sleep(Duration::from_millis(200)).await;
     assert!(
         !task.is_finished(),
-        "A1: a full event channel must not end the bridge or the helper"
+        "a full event channel must not end the bridge or the helper"
     );
     for buffered in 0..2 {
         let event = timeout(Duration::from_secs(1), received.recv())
             .await?
-            .with_context(|| format!("A1: buffered event {buffered} absent"))?;
+            .with_context(|| format!("buffered event {buffered} absent"))?;
         assert_eq!(
             event["event"], "audio",
-            "A1: the events buffered before the stall are audio"
+            "the events buffered before the stall are audio"
         );
     }
     // Recovery: the gap for the discarded episode must precede the audio that
@@ -579,45 +578,44 @@ async fn a1_a_stalled_consumer_gets_one_counted_gap_and_never_kills_the_bridge()
     input.write_all(stalled_audio_line(10)?.as_bytes()).await?;
     let gap = timeout(Duration::from_secs(1), received.recv())
         .await?
-        .context("A1: the synthetic gap must arrive after the channel recovers")?;
-    assert_eq!(gap["event"], "gap", "A1: the recovery event must be a gap");
+        .context("the synthetic gap must arrive after the channel recovers")?;
+    assert_eq!(gap["event"], "gap", "the recovery event must be a gap");
     assert_eq!(
         gap["source"], "mic_local",
-        "A1: the gap must name the source it covers"
+        "the gap must name the source it covers"
     );
     assert_eq!(
         gap["stream_id"], "stalled",
-        "A1: the gap must carry the audio stream so the daemon can attribute it"
+        "the gap must carry the audio stream so the daemon can attribute it"
     );
     assert_eq!(
         gap["reason"], "daemon_backpressure",
-        "A1: the gap must name the daemon backpressure as its motive"
+        "the gap must name the daemon backpressure as its motive"
     );
     assert_eq!(
         gap["frames"], 8,
-        "A1: the gap must report the ten frames sent minus the two buffered"
+        "the gap must report the ten frames sent minus the two buffered"
     );
-    assert_eq!(gap["v"], 1, "A1: the gap must carry the native-v1 version");
+    assert_eq!(gap["v"], 1, "the gap must carry the native-v1 version");
     let resumed = timeout(Duration::from_secs(1), received.recv())
         .await?
-        .context("A1: audio after the gap must be delivered")?;
+        .context("audio after the gap must be delivered")?;
     assert_eq!(resumed["event"], "audio");
     assert_eq!(resumed["sequence"], 10);
     assert!(
         !task.is_finished(),
-        "A1: the bridge must stay alive after the episode"
+        "the bridge must stay alive after the episode"
     );
     drop(send);
     timeout(Duration::from_secs(1), task).await???;
     Ok(())
 }
 
-/// P2-01 A2: malformed frames are counted and skipped while the stream stays
+/// Malformed frames are counted and skipped while the stream stays
 /// usable; only eight consecutive ones declare the bridge down. The valid
 /// frame in between proves the counter is really consecutive.
 #[tokio::test]
-async fn a2_malformed_frames_are_skipped_until_eight_consecutive_ones_end_the_bridge() -> Result<()>
-{
+async fn malformed_frames_are_skipped_until_eight_consecutive_ones_end_the_bridge() -> Result<()> {
     let (mut input, _output, reader, writer) = pipes()?;
     let (_send, commands) = mpsc::channel(1);
     let (events, mut received) = mpsc::channel(4);
@@ -630,29 +628,29 @@ async fn a2_malformed_frames_are_skipped_until_eight_consecutive_ones_end_the_br
         .await?;
     let delivered = timeout(Duration::from_secs(1), received.recv())
         .await?
-        .context("A2: the valid frame after seven malformed ones must be delivered")?;
+        .context("the valid frame after seven malformed ones must be delivered")?;
     assert_eq!(delivered["event"], "error");
     assert!(
         !task.is_finished(),
-        "A2: seven malformed frames must not end the bridge"
+        "seven malformed frames must not end the bridge"
     );
     for _ in 0..8 {
         input.write_all(b"not-json\n").await?;
     }
     let finished = timeout(Duration::from_secs(2), &mut task)
         .await
-        .context("A2: eight consecutive malformed frames must end the bridge")?
-        .context("A2: the bridge task must not panic")?;
+        .context("eight consecutive malformed frames must end the bridge")?
+        .context("the bridge task must not panic")?;
     assert!(
         finished.is_err(),
-        "A2: the eighth consecutive malformed frame must declare the bridge down"
+        "the eighth consecutive malformed frame must declare the bridge down"
     );
     Ok(())
 }
 
-/// REF-404b: the cause of a bridge that malformed audio took down reaches
+/// The cause of a bridge that malformed audio took down reaches
 /// the daemon in `helper_disconnected`, not only the log. Without this step
-/// Mars would see the generic notice again (review of round 4, mutation M3).
+/// the user would see the generic notice again.
 #[tokio::test]
 async fn malformed_audio_bridge_loss_carries_its_cause_to_the_daemon() -> Result<()> {
     let directory = tempfile::tempdir()?;
@@ -700,12 +698,12 @@ async fn malformed_audio_bridge_loss_carries_its_cause_to_the_daemon() -> Result
     Ok(())
 }
 
-/// SYS-02 A3: the daemon launches its helper as a managed child. The launch
+/// The daemon launches its helper as a managed child. The launch
 /// arguments are the observable contract — `--stdio --managed`, never plain
 /// `--stdio` — while the existing supervision keeps announcing the fall and
 /// relaunching with backoff.
 #[tokio::test]
-async fn a3_the_managed_helper_runs_with_stdio_managed_under_supervision() -> Result<()> {
+async fn the_managed_helper_runs_with_stdio_managed_under_supervision() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let args = directory.path().join("args");
     let counter = directory.path().join("launches");
@@ -725,21 +723,21 @@ async fn a3_the_managed_helper_runs_with_stdio_managed_under_supervision() -> Re
     let task = tokio::spawn(run(Some(script), commands, events, never));
     let first = timeout(Duration::from_secs(2), received.recv())
         .await?
-        .context("SYS-02 A3: the managed helper must report ready")?;
+        .context("the managed helper must report ready")?;
     assert_eq!(first["event"], "ready");
     let observed = std::fs::read_to_string(&args)
-        .context("SYS-02 A3: the helper must record the arguments it was launched with")?;
+        .context("the helper must record the arguments it was launched with")?;
     assert_eq!(
         observed.trim(),
         "--stdio --managed",
-        "SYS-02 A3: the daemon must launch the helper in managed mode, not development stdio"
+        "the daemon must launch the helper in managed mode, not development stdio"
     );
     let disconnected = timeout(Duration::from_secs(2), received.recv())
         .await?
-        .context("SYS-02 A3: the fall of a ready managed helper must be announced")?;
+        .context("the fall of a ready managed helper must be announced")?;
     assert_eq!(
         disconnected["event"], "helper_disconnected",
-        "SYS-02 A3: the daemon must learn the managed helper is gone"
+        "the daemon must learn the managed helper is gone"
     );
     let launches = || {
         std::fs::read_to_string(&counter)
@@ -752,16 +750,16 @@ async fn a3_the_managed_helper_runs_with_stdio_managed_under_supervision() -> Re
     }
     assert!(
         launches() >= 2,
-        "SYS-02 A3: the managed helper must stay under supervision (launches: {})",
+        "the managed helper must stay under supervision (launches: {})",
         launches()
     );
     let second = timeout(Duration::from_secs(2), received.recv())
         .await?
-        .context("SYS-02 A3: the relaunched managed helper must report ready again")?;
+        .context("the relaunched managed helper must report ready again")?;
     assert_eq!(second["event"], "ready");
     assert!(
         !task.is_finished(),
-        "la supervisión acabó tras relanzar el helper"
+        "the supervision ended after relaunching the helper"
     );
     drop(send);
     task.abort();
@@ -800,11 +798,11 @@ async fn helper_ready(events: &mut mpsc::Receiver<Value>) -> Result<()> {
     Ok(())
 }
 
-/// REF-06 A3: stopping the supervised helper sends it `shutdown`, then closes
+/// Stopping the supervised helper sends it `shutdown`, then closes
 /// its input; a helper that then leaves by itself is reported as such and is
 /// not killed.
 #[tokio::test]
-async fn ref06_a3_stop_sends_shutdown_closes_the_input_and_lets_the_helper_leave() -> Result<()> {
+async fn stop_sends_shutdown_closes_the_input_and_lets_the_helper_leave() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let received = directory.path().join("received");
     let script = helper_script(
@@ -827,7 +825,7 @@ async fn ref06_a3_stop_sends_shutdown_closes_the_input_and_lets_the_helper_leave
             signal: None,
             asked: true
         },
-        "REF-06 A3: a helper that leaves at the end of its input is not killed"
+        "a helper that leaves at the end of its input is not killed"
     );
     let sent = std::fs::read_to_string(&received)?;
     let last = sent
@@ -837,15 +835,15 @@ async fn ref06_a3_stop_sends_shutdown_closes_the_input_and_lets_the_helper_leave
     assert_eq!(
         serde_json::from_str::<Value>(last)?["command"],
         "shutdown",
-        "REF-06 A3: `shutdown` is the last thing the helper reads: {sent}"
+        "`shutdown` is the last thing the helper reads: {sent}"
     );
     Ok(())
 }
 
-/// REF-06 A3: a helper that ignores `shutdown`, its input and SIGTERM is
+/// A helper that ignores `shutdown`, its input and SIGTERM is
 /// killed, and only once its grace is over.
 #[tokio::test]
-async fn ref06_a3_a_helper_that_does_not_leave_is_killed_after_its_grace() -> Result<()> {
+async fn a_helper_that_does_not_leave_is_killed_after_its_grace() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let script = helper_script(
         directory.path(),
@@ -865,15 +863,15 @@ async fn ref06_a3_a_helper_that_does_not_leave_is_killed_after_its_grace() -> Re
     // A lower bound, so no clock decides it: it cannot be killed sooner.
     assert!(
         took >= HELPER_EXIT_GRACE,
-        "REF-06 A3: killed after {took:?}, before its {HELPER_EXIT_GRACE:?} grace"
+        "killed after {took:?}, before its {HELPER_EXIT_GRACE:?} grace"
     );
     Ok(())
 }
 
-/// REF-06 A3: a stop that arrives while the supervisor waits to relaunch a
+/// A stop that arrives while the supervisor waits to relaunch a
 /// fallen helper ends the supervision instead of launching another one.
 #[tokio::test]
-async fn ref06_a3_a_stop_during_the_relaunch_wait_launches_nothing_more() -> Result<()> {
+async fn a_stop_during_the_relaunch_wait_launches_nothing_more() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let launches = directory.path().join("launches");
     let script = helper_script(
@@ -892,12 +890,12 @@ async fn ref06_a3_a_stop_during_the_relaunch_wait_launches_nothing_more() -> Res
     let end = timeout(Duration::from_secs(2), helper.stop(&mut observed)).await?;
     assert_eq!(end, HelperEnd::NotRunning);
     let count = std::fs::read_to_string(&launches)?.lines().count();
-    assert_eq!(count, 1, "REF-06 A3: no helper is launched after the stop");
+    assert_eq!(count, 1, "no helper is launched after the stop");
     Ok(())
 }
 
 #[tokio::test]
-async fn review_evicted_live_capture_ack_still_crosses_the_bridge() -> Result<()> {
+async fn evicted_live_capture_ack_still_crosses_the_bridge() -> Result<()> {
     let (mut input, output, reader, writer) = pipes()?;
     let (send, commands) = mpsc::channel(128);
     let (events, mut received) = mpsc::channel(8);

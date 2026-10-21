@@ -1,5 +1,5 @@
-//! SIM-55: a call stops for lack of audio only when no audio is coming, and
-//! for Mars's silence only when she is silent and Deimos is not answering.
+//! A call stops for lack of audio only when no audio is coming, and for the
+//! user's silence only when they are silent and Deimos is not answering.
 //! The facts are given, never waited for: a past `last_audio`, a real channel
 //! holding the frames the loop has not read, and the frames' own timestamps.
 use super::*;
@@ -39,7 +39,7 @@ fn last_audio_at(runtime: &mut Runtime, at: Instant) -> Result<()> {
     Ok(())
 }
 
-/// Criterion 1: the helper kept sending (40 frames of 100 ms, four seconds),
+/// The helper kept sending (40 frames of 100 ms, four seconds),
 /// the loop was held and read none of them. The tick that comes first must
 /// not read the unread frames as silence.
 #[tokio::test]
@@ -79,7 +79,7 @@ async fn a_held_loop_does_not_cut_a_call_whose_frames_are_waiting() -> Result<()
     Ok(())
 }
 
-/// Criterion 2: no frame processed for four seconds and none waiting: the
+/// No frame processed for four seconds and none waiting: the
 /// call stops, and the log carries the numbers that say why.
 #[tokio::test]
 async fn a_call_with_no_audio_stops_and_says_its_numbers() -> Result<()> {
@@ -114,12 +114,12 @@ async fn a_call_with_no_audio_stops_and_says_its_numbers() -> Result<()> {
     Ok(())
 }
 
-/// Mars's call of 2026-10-18 (Orbit 0.6.0): the audio kept arriving, but a
-/// minute after her last turn the detector stopped the call `idle` while
+/// A real call on 2026-10-18 (Orbit 0.6.0): the audio kept arriving, but a
+/// minute after the user's last turn the detector stopped the call `idle` while
 /// Deimos was speaking. The frames carry `playback_active` and their own
 /// time; nothing here waits.
 #[tokio::test]
-async fn deimos_speaking_a_minute_after_her_last_turn_keeps_the_call() -> Result<()> {
+async fn deimos_speaking_a_minute_after_the_users_last_turn_keeps_the_call() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     logging(&mut runtime, directory.path());
@@ -138,7 +138,7 @@ async fn deimos_speaking_a_minute_after_her_last_turn_keeps_the_call() -> Result
         .await?;
     assert_eq!(action, orbit_core::voice::TurnAction::None);
     assert!(call_alive(&runtime), "the call stopped while Deimos spoke");
-    // He stops at +61 s; a minute of her silence after that does stop it.
+    // He stops at +61 s; a minute of the user's silence after that does stop it.
     let action = runtime
         .prepare_call_frame(&call_frame(&stream, 1, false), started + 121_000)
         .await?;
@@ -149,7 +149,7 @@ async fn deimos_speaking_a_minute_after_her_last_turn_keeps_the_call() -> Result
     assert!(!call_alive(&runtime));
     let line = last_logged(directory.path(), "call_stopped_idle")?;
     assert_eq!(line["cause"], "idle", "{line}");
-    assert_eq!(line["mars_silent_ms"], "60000", "{line}");
+    assert_eq!(line["user_silent_ms"], "60000", "{line}");
     assert_eq!(line["deimos_speaking"], "false", "{line}");
     Ok(())
 }

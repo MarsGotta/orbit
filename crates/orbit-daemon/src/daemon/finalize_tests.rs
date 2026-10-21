@@ -1,4 +1,4 @@
-//! R2 regressions use real encrypted SQLite and synthetic PCM/native receipts.
+//! These regressions use real encrypted SQLite and synthetic PCM/native receipts.
 //! No model, network request or physical capture is executed.
 use super::*;
 use crate::daemon::audio::tests::{fixture, receive_helper_command, settle_seal_receipts};
@@ -8,13 +8,13 @@ use orbit_core::notice::NoticeCode;
 use orbit_core::{Event, State};
 use tokio::sync::mpsc;
 
-const REF24_RECORDING: &str = "22222222-2222-4222-8222-222222222222";
+const MANIFEST_RECORDING: &str = "22222222-2222-4222-8222-222222222222";
 
 #[path = "capture_protocol_tests.rs"]
-mod ref307b;
+mod capture_protocol;
 
-fn ref24_manifest(title: Option<&str>) -> Result<Value> {
-    manifest_of(title.map(|title| json!({"recording_id":REF24_RECORDING,"title":title})))
+fn titled_manifest(title: Option<&str>) -> Result<Value> {
+    manifest_of(title.map(|title| json!({"recording_id":MANIFEST_RECORDING,"title":title})))
 }
 
 /// The closure `finalize.rs` writes for a recording whose own job
@@ -27,8 +27,8 @@ fn manifest_of(recording: Option<Value>) -> Result<Value> {
             runtime.fixture_store.seal_chunk(
                 &orbit_store::ChunkMetadata {
                     capture_epoch_id: None,
-                    id: format!("ref24-{track}-{sequence}"),
-                    recording_id: REF24_RECORDING.into(),
+                    id: format!("manifest-{track}-{sequence}"),
+                    recording_id: MANIFEST_RECORDING.into(),
                     track: track.into(),
                     sequence,
                     sample_rate: 16_000,
@@ -38,13 +38,13 @@ fn manifest_of(recording: Option<Value>) -> Result<Value> {
                     first_sample: sequence * 16_000,
                     started_at_ms: 1_700_000_001_000 + sequence as i64 * 1_000,
                 },
-                b"synthetic-ref24-audio",
+                b"synthetic-manifest-audio",
             )?;
         }
     }
     if let Some(payload) = recording {
         runtime.fixture_store.enqueue_job(&Job {
-            id: format!("recording-{REF24_RECORDING}"),
+            id: format!("recording-{MANIFEST_RECORDING}"),
             kind: "recording_manifest".into(),
             state: JobState::Succeeded,
             created_at: 1_700_000_000_000,
@@ -52,16 +52,16 @@ fn manifest_of(recording: Option<Value>) -> Result<Value> {
         })?;
     }
     Ok(runtime
-        .capture_finalize_job(REF24_RECORDING, 1_700_000_000_000, 1_700_000_010_000, 2)?
+        .capture_finalize_job(MANIFEST_RECORDING, 1_700_000_000_000, 1_700_000_010_000, 2)?
         .payload["manifest"]
         .clone())
 }
 
-/// SIM-41: a meeting linked to a calendar event, its invitees and series
-/// as the hub's `EventContext` admits them. Mars goes first; the address
+/// A meeting linked to a calendar event, its invitees and series as the
+/// hub's `EventContext` admits them. The user (`is_self`) goes first; the address
 /// longer than RFC 5321 allows is left out, never cut.
 fn linked_meeting() -> Value {
-    json!({"recording_id":REF24_RECORDING,"title":"Comité de dirección","event":{
+    json!({"recording_id":MANIFEST_RECORDING,"title":"Comité de dirección","event":{
     "calendar_item_id":"serie-comite","occurrence_start_ms":1_700_000_000_000_i64,
     "title":"Comité de dirección","starts_at_ms":1_700_000_000_000_i64,
     "ends_at_ms":1_700_003_600_000_i64,"recurring":true,
@@ -71,9 +71,9 @@ fn linked_meeting() -> Value {
     ]}})
 }
 
-fn ref24_manifest_variants() -> Result<[(&'static str, Value); 5]> {
-    let titled = ref24_manifest(Some("Reunión ágil"))?;
-    let null_title = ref24_manifest(None)?;
+fn contract_manifest_variants() -> Result<[(&'static str, Value); 5]> {
+    let titled = titled_manifest(Some("Reunión ágil"))?;
+    let null_title = titled_manifest(None)?;
     let mut legacy = null_title.clone();
     legacy
         .as_object_mut()
@@ -89,30 +89,30 @@ fn ref24_manifest_variants() -> Result<[(&'static str, Value); 5]> {
         ),
         (
             "recording-manifest-voice-call-v1.json",
-            manifest_of(Some(json!({"recording_id":REF24_RECORDING,
+            manifest_of(Some(json!({"recording_id":MANIFEST_RECORDING,
                 "recording_kind":"voice_call","started_at_ms":1_700_000_000_000_i64})))?,
         ),
     ])
 }
 
 #[test]
-fn ref24_manifest_fixtures_match_the_daemon_writer() -> Result<()> {
+fn manifest_fixtures_match_the_daemon_writer() -> Result<()> {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../contracts/fixtures");
-    for (name, generated) in ref24_manifest_variants()? {
+    for (name, generated) in contract_manifest_variants()? {
         let versioned: Value = serde_json::from_slice(&std::fs::read(root.join(name))?)?;
         assert_eq!(
             versioned, generated,
-            "{name} differs from finalize.rs; regenerate with `cargo test -p orbit-daemon write_ref24_manifest_fixtures -- --ignored`"
+            "{name} differs from finalize.rs; regenerate with `cargo test -p orbit-daemon write_manifest_fixtures -- --ignored`"
         );
     }
     Ok(())
 }
 
-/// SIM-41: the closure says what the recording is, so the hub lists a
+/// The closure says what the recording is, so the hub lists a
 /// meeting and asks for its note with the event's series template, and
 /// leaves a voice call out.
 #[test]
-fn sim41_the_closure_says_its_kind_and_carries_its_event() -> Result<()> {
+fn the_closure_says_its_kind_and_carries_its_event() -> Result<()> {
     let meeting = manifest_of(Some(linked_meeting()))?;
     assert_eq!(meeting["kind"], "meeting");
     assert_eq!(
@@ -124,10 +124,10 @@ fn sim41_the_closure_says_its_kind_and_carries_its_event() -> Result<()> {
             {"name":"Ada","email":"","is_self":false}
         ]})
     );
-    let untitled = ref24_manifest(None)?;
+    let untitled = titled_manifest(None)?;
     assert_eq!(untitled["kind"], "meeting");
     assert!(untitled.get("event").is_none());
-    let call = manifest_of(Some(json!({"recording_id":REF24_RECORDING,
+    let call = manifest_of(Some(json!({"recording_id":MANIFEST_RECORDING,
         "recording_kind":"voice_call","started_at_ms":1_700_000_000_000_i64})))?;
     assert_eq!(call["kind"], "voice_call");
     assert!(call.get("event").is_none());
@@ -135,10 +135,10 @@ fn sim41_the_closure_says_its_kind_and_carries_its_event() -> Result<()> {
 }
 
 #[test]
-#[ignore = "writes the REF-24 and SIM-41 manifest contract fixtures; run explicitly"]
-fn write_ref24_manifest_fixtures() -> Result<()> {
+#[ignore = "writes the recording manifest contract fixtures; run explicitly"]
+fn write_manifest_fixtures() -> Result<()> {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../contracts/fixtures");
-    for (name, generated) in ref24_manifest_variants()? {
+    for (name, generated) in contract_manifest_variants()? {
         let mut bytes = serde_json::to_vec_pretty(&generated)?;
         bytes.push(b'\n');
         std::fs::write(root.join(name), bytes)?;
@@ -157,7 +157,7 @@ async fn start(
     runtime
         .apply(Event::StartMeeting {
             id: id.into(),
-            title: "Synthetic R2 recording".into(),
+            title: "Synthetic recording".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
             duration_ms: 60_000,
         })
@@ -215,7 +215,7 @@ fn frame(stream: &str, frames: usize) -> Value {
 }
 
 #[tokio::test]
-async fn ref307_empty_privacy_interruption_closes_before_rearm_and_admits_call() -> Result<()> {
+async fn empty_privacy_interruption_closes_before_rearm_and_admits_call() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     {
@@ -253,7 +253,7 @@ async fn ref307_empty_privacy_interruption_closes_before_rearm_and_admits_call()
         recording.ended_at_ms.is_some(),
         "empty interruption stayed open"
     );
-    // SIM-21: the empty close is its own notice.
+    // The empty close is its own notice.
     assert!(
         said::has(&runtime.state, NoticeCode::RecordingEmpty),
         "current notice: {:?}; history: {:?}",
@@ -291,7 +291,7 @@ async fn ref307_empty_privacy_interruption_closes_before_rearm_and_admits_call()
 }
 
 #[tokio::test]
-async fn ref307_helper_loss_closes_empty_recording_and_allows_another() -> Result<()> {
+async fn helper_loss_closes_empty_recording_and_allows_another() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     start(&mut runtime, &mut receiver, "lost-helper").await?;
@@ -353,7 +353,7 @@ async fn ref307_helper_loss_closes_empty_recording_and_allows_another() -> Resul
 }
 
 #[tokio::test]
-async fn ref307_empty_capture_cut_preserves_its_cause_without_claiming_saved_audio() -> Result<()> {
+async fn empty_capture_cut_preserves_its_cause_without_claiming_saved_audio() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -364,7 +364,7 @@ async fn ref307_empty_capture_cut_preserves_its_cause_without_claiming_saved_aud
         .await?;
     settle_seal_receipts(&mut runtime).await?;
 
-    // SIM-21: the cut is said with its code and the empty close after it;
+    // The cut is said with its code and the empty close after it;
     // the helper's detailed cause is in daemon.log, not in the notice.
     let notice = &runtime.state.durable.notice;
     assert!(said::mentions(&runtime.state, "helper_lost"), "{notice:?}");
@@ -394,8 +394,7 @@ async fn ref307_empty_capture_cut_preserves_its_cause_without_claiming_saved_aud
 }
 
 #[tokio::test]
-async fn ref307_permission_refusal_closes_empty_capture_and_admits_call_immediately() -> Result<()>
-{
+async fn permission_refusal_closes_empty_capture_and_admits_call_immediately() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
@@ -441,7 +440,7 @@ async fn ref307_permission_refusal_closes_empty_capture_and_admits_call_immediat
 }
 
 #[tokio::test]
-async fn ref307_remote_start_refusal_stops_the_started_microphone_before_closing() -> Result<()> {
+async fn remote_start_refusal_stops_the_started_microphone_before_closing() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
@@ -515,7 +514,7 @@ async fn ref307_remote_start_refusal_stops_the_started_microphone_before_closing
 }
 
 #[tokio::test]
-async fn ref307b_retired_start_refusal_does_not_touch_the_next_call() -> Result<()> {
+async fn retired_start_refusal_does_not_touch_the_next_call() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -601,7 +600,7 @@ async fn ref307b_retired_start_refusal_does_not_touch_the_next_call() -> Result<
 }
 
 #[tokio::test]
-async fn ref307b_voice_refusal_during_starting_recording_keeps_permission_cause() -> Result<()> {
+async fn voice_refusal_during_starting_recording_keeps_permission_cause() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
@@ -653,7 +652,7 @@ async fn ref307b_voice_refusal_during_starting_recording_keeps_permission_cause(
 }
 
 #[tokio::test]
-async fn ref307b_second_refusal_keeps_first_cause_and_wait_notice() -> Result<()> {
+async fn second_refusal_keeps_first_cause_and_wait_notice() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
@@ -678,7 +677,7 @@ async fn ref307b_second_refusal_keeps_first_cause_and_wait_notice() -> Result<()
         .native_event(json!({"event":"response","id":microphone["id"],"ok":false,
             "error":{"code":"microphone_permission_required", "message":"Micrófono denegado"}}))
         .await?;
-    // SIM-21: both refusals are said, the second track's code included;
+    // Both refusals are said, the second track's code included;
     // the wait for the Mac's confirmation is no longer a sentence.
     assert!(
         said::has(&runtime.state, NoticeCode::ScreenPermissionMissing),
@@ -720,7 +719,7 @@ async fn ref307b_second_refusal_keeps_first_cause_and_wait_notice() -> Result<()
 }
 
 #[tokio::test]
-async fn ref307_expiry_closes_empty_capture_and_admits_call() -> Result<()> {
+async fn expiry_closes_empty_capture_and_admits_call() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     // This test has no hub token: keep the closure's unrelated upload worker
@@ -786,7 +785,7 @@ async fn ref307_expiry_closes_empty_capture_and_admits_call() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref307_live_expiry_closes_after_the_empty_audio_drain() -> Result<()> {
+async fn live_expiry_closes_after_the_empty_audio_drain() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     start(&mut runtime, &mut receiver, "live-expired").await?;
@@ -841,7 +840,7 @@ async fn ref307_live_expiry_closes_after_the_empty_audio_drain() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref307_finalize_deadline_closes_empty_capture_and_admits_call() -> Result<()> {
+async fn finalize_deadline_closes_empty_capture_and_admits_call() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     {
@@ -893,7 +892,7 @@ async fn ref307_finalize_deadline_closes_empty_capture_and_admits_call() -> Resu
 }
 
 #[tokio::test]
-async fn ref307_legacy_empty_interruption_is_closed_during_recovery() -> Result<()> {
+async fn legacy_empty_interruption_is_closed_during_recovery() -> Result<()> {
     {
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut receiver) = fixture(directory.path())?;
@@ -942,7 +941,7 @@ async fn ref307_legacy_empty_interruption_is_closed_during_recovery() -> Result<
 }
 
 #[tokio::test]
-async fn ref307_interrupted_recording_with_a_sealed_chunk_keeps_its_audio() -> Result<()> {
+async fn interrupted_recording_with_a_sealed_chunk_keeps_its_audio() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let stream = start(&mut runtime, &mut receiver, "with-audio").await?;
@@ -981,7 +980,7 @@ async fn ref307_interrupted_recording_with_a_sealed_chunk_keeps_its_audio() -> R
 }
 
 #[tokio::test]
-async fn ref307_recovery_keeps_an_existing_closure_and_continues() -> Result<()> {
+async fn recovery_keeps_an_existing_closure_and_continues() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime.state.durable.recording = Some(orbit_core::Recording {
@@ -1037,7 +1036,7 @@ async fn ref307_recovery_keeps_an_existing_closure_and_continues() -> Result<()>
 }
 
 #[tokio::test]
-async fn ref307_later_stop_keeps_the_earlier_empty_interruption_cause() -> Result<()> {
+async fn later_stop_keeps_the_earlier_empty_interruption_cause() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime.state.durable.recording = Some(orbit_core::Recording {
@@ -1075,7 +1074,7 @@ async fn ref307_later_stop_keeps_the_earlier_empty_interruption_cause() -> Resul
 }
 
 #[tokio::test]
-async fn ref307_later_cut_closes_an_earlier_empty_interruption_without_relabeling() -> Result<()> {
+async fn later_cut_closes_an_earlier_empty_interruption_without_relabeling() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime.state.durable.recording = Some(orbit_core::Recording {
@@ -1127,7 +1126,7 @@ async fn ref307_later_cut_closes_an_earlier_empty_interruption_without_relabelin
 }
 
 #[tokio::test]
-async fn ref307_live_cut_keeps_the_first_typed_interruption() -> Result<()> {
+async fn live_cut_keeps_the_first_typed_interruption() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     start(&mut runtime, &mut receiver, "typed-before-live-cut").await?;
@@ -1160,7 +1159,7 @@ async fn ref307_live_cut_keeps_the_first_typed_interruption() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref307_recovery_does_not_call_a_stale_zero_count_no_audio() -> Result<()> {
+async fn recovery_does_not_call_a_stale_zero_count_no_audio() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime.state.durable.recording = Some(orbit_core::Recording {
@@ -1237,7 +1236,7 @@ async fn interrupted(runtime: &mut Runtime, receiver: &mut mpsc::Receiver<Value>
         }
     }
     settle_seal_receipts(runtime).await?;
-    // P1-02 R2 routes `fail_closed` through the core decision, so the
+    // `fail_closed` goes through the core decision, so the
     // `StopPlayback` effect arrives at the helper right after the privacy
     // stop. Drain the trailing commands before the next start so the
     // helper pipe stays quiet.
@@ -1261,7 +1260,7 @@ fn fail_second_write(runtime: &Runtime) -> Result<rusqlite::Connection> {
     // Only the second write fails, after the same connection sees the closure
     // INSERT. No job INSERT or audio receipt write is blocked by this fixture.
     database.execute_batch(
-        "CREATE TRIGGER r2_snapshot_failure BEFORE UPDATE ON settings
+        "CREATE TRIGGER synthetic_snapshot_failure BEFORE UPDATE ON settings
         WHEN OLD.key = 'snapshot' AND EXISTS (SELECT 1 FROM jobs WHERE id = 'finalize-old')
         BEGIN SELECT RAISE(ABORT, 'synthetic second write failure'); END;",
     )?;
@@ -1279,7 +1278,7 @@ async fn finish(
         .native_event(json!({"event":"response","id":stop["id"],"ok":true,
         "result":{"stream_id":stream,"drain_complete":true}}))
         .await?;
-    // REF-03: the confirmation seals the tail, and the recording closes when
+    // The confirmation seals the tail, and the recording closes when
     // that seal's receipt lands, which is where a closure failure surfaces.
     settle_seal_receipts(runtime).await
 }
@@ -1326,9 +1325,9 @@ async fn replacement_snapshot_failure_rolls_back_closure_and_resume_closes_full_
     );
     assert!(
         runtime.fixture_store.get_job("finalize-old")?.is_none(),
-        "R2: a rolled-back replacement must not leave a premature immutable closure"
+        "a rolled-back replacement must not leave a premature immutable closure"
     );
-    database.execute_batch("DROP TRIGGER r2_snapshot_failure")?;
+    database.execute_batch("DROP TRIGGER synthetic_snapshot_failure")?;
 
     runtime.apply(Event::ResumeMeeting).await?;
     let resumed = start_ack(&mut runtime, &mut receiver).await?;
@@ -1357,7 +1356,7 @@ async fn replacement_snapshot_failure_rolls_back_closure_and_resume_closes_full_
     drop(runtime);
     let (mut runtime, receiver) = fixture(directory.path())?;
     runtime.state = recovered;
-    // REF-12 A1: the restart invents no stop; nothing restarts capture either.
+    // The restart invents no stop; nothing restarts capture either.
     assert!(!runtime.state.privacy_stopped());
     assert!(
         receiver.is_empty(),
@@ -1408,7 +1407,7 @@ async fn existing_closure_fences_resume_after_snapshot_failure_and_restart() -> 
             runtime.fixture_store.get_job("finalize-old")?,
             Some(closure.clone())
         );
-        database.execute_batch("DROP TRIGGER r2_snapshot_failure")?;
+        database.execute_batch("DROP TRIGGER synthetic_snapshot_failure")?;
         assert_eq!(
             runtime
                 .apply(Event::ResumeMeeting)
@@ -1514,8 +1513,7 @@ async fn unauthenticated_or_misbound_closure_cannot_grant_a_capture_restart() ->
 }
 
 #[tokio::test]
-async fn a6_finish_under_privacy_stop_rearm_and_new_meeting_leaves_a_durable_closure() -> Result<()>
-{
+async fn finish_under_privacy_stop_rearm_and_new_meeting_leaves_a_durable_closure() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let stream = start(&mut runtime, &mut receiver, "first").await?;
@@ -1536,7 +1534,7 @@ async fn a6_finish_under_privacy_stop_rearm_and_new_meeting_leaves_a_durable_clo
         }
     }
     settle_seal_receipts(&mut runtime).await?;
-    // P1-02 R2: the core's `StopPlayback` effect follows the privacy stop;
+    // The core's `StopPlayback` effect follows the privacy stop;
     // drain the trailing commands before the next capture so the helper
     // pipe stays quiet.
     while receiver.try_recv().is_ok() {}
@@ -1564,11 +1562,11 @@ async fn a6_finish_under_privacy_stop_rearm_and_new_meeting_leaves_a_durable_clo
     Ok(())
 }
 
-/// P2-02 A5: deciding whether a closure may run is two counts, not a walk
+/// Deciding whether a closure may run is two counts, not a walk
 /// that decrypts every chunk manifest and every upload receipt. Two thousand
 /// chunks make any per-chunk read impossible to miss in the decrypt budget.
 #[tokio::test]
-async fn a5_finalize_readiness_does_not_decrypt_chunks_or_upload_receipts() -> Result<()> {
+async fn finalize_readiness_does_not_decrypt_chunks_or_upload_receipts() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     const CHUNKS: u64 = 2000;
@@ -1576,8 +1574,8 @@ async fn a5_finalize_readiness_does_not_decrypt_chunks_or_upload_receipts() -> R
         runtime.fixture_store.seal_chunk(
             &orbit_store::ChunkMetadata {
                 capture_epoch_id: None,
-                id: format!("a5-budget-mic_local-{sequence}"),
-                recording_id: "a5-budget".into(),
+                id: format!("readiness-budget-mic_local-{sequence}"),
+                recording_id: "readiness-budget".into(),
                 track: "mic_local".into(),
                 sequence,
                 sample_rate: 8000,
@@ -1590,24 +1588,26 @@ async fn a5_finalize_readiness_does_not_decrypt_chunks_or_upload_receipts() -> R
             b"synthetic-audio",
         )?;
         runtime.fixture_store.update_job(
-            &format!("upload-a5-budget-mic_local-{sequence}"),
+            &format!("upload-readiness-budget-mic_local-{sequence}"),
             JobState::Succeeded,
         )?;
     }
-    runtime.queue_capture_finalize("a5-budget", 1, 2, 0).await?;
+    runtime
+        .queue_capture_finalize("readiness-budget", 1, 2, 0)
+        .await?;
     let closure = runtime
         .fixture_store
-        .get_job("finalize-a5-budget")?
+        .get_job("finalize-readiness-budget")?
         .context("closure absent")?;
     let before = runtime.reader.decryption_count();
     assert!(
         runtime.finalize_is_ready(&closure)?,
-        "A5: every fixture upload succeeded, so the closure must be ready"
+        "every fixture upload succeeded, so the closure must be ready"
     );
     let cost = runtime.reader.decryption_count() - before;
     assert!(
         cost <= 16,
-        "A5: readiness for {CHUNKS} chunks decrypted {cost} records; the decision must be counts, not chunk reads"
+        "readiness for {CHUNKS} chunks decrypted {cost} records; the decision must be counts, not chunk reads"
     );
     Ok(())
 }

@@ -24,7 +24,7 @@ async fn the_calendar_authorization_reported_by_the_helper_is_kept() -> Result<(
     let (mut runtime, _) = fixture(directory.path())?;
     assert_eq!(runtime.state.capabilities().calendar(), None);
     // The answer is paired with a status the daemon sent. An id it did not
-    // send is unpaired and is not read as permissions (REF-404c).
+    // send is unpaired and is not read as permissions.
     runtime.record_pending_native(&json!({"id": "status", "command": "status"}));
     runtime
         .native_event(status_with_calendar(json!("full_access")))
@@ -69,7 +69,8 @@ async fn bridge_fixture(
 }
 
 /// What macOS grants, set where the daemon reads it: the permissions the
-/// helper reports. REF-11 retired the two switches this used to write; Screen
+/// helper reports. Orbit once kept two switches of its own here; they are
+/// gone, because the macOS permission is the user's decision. Screen
 /// Recording is what lets the bridge look, and Accessibility with it is what
 /// lets it act. A value set here is what the next request is decided on.
 fn grant(
@@ -137,11 +138,11 @@ async fn malformed_screenshot_filter_cannot_select_an_unfiltered_window() -> Res
             runtime
                 .bridge_screenshot_target(&arbitrary_window)
                 .is_none(),
-            "el filtro inválido eligió una ventana ajena"
+            "the invalid filter chose an unrelated window"
         );
         let reply = hub
             .try_recv()
-            .context("sin negativa para el filtro inválido")?;
+            .context("no refusal for the invalid filter")?;
         assert_eq!(reply["params"]["refusal"]["code"], "invalid_parameter");
         let expected = &reply["params"]["refusal"]["expected"];
         assert_eq!(expected["kind"], "wire_field");
@@ -156,7 +157,7 @@ async fn malformed_screenshot_filter_cannot_select_an_unfiltered_window() -> Res
         );
         assert!(
             helper.try_recv().is_err(),
-            "se pidió una captura sin filtro"
+            "a capture was asked for without a filter"
         );
         assert!(runtime.conversation.bridge_request.is_none());
     }
@@ -323,7 +324,7 @@ async fn chat_status_only_updates_the_selected_session_with_text() -> Result<()>
         "event":"chat.status", "data":{"session_id":"selected","kind":"status","text":"procesando"}
     }))).await?;
     // The hub's progress line is about the conversation: recorded, never
-    // its text (SIM-21).
+    // its text.
     assert_eq!(
         runtime.state.notice_code(),
         Some(NoticeCode::AssistantProgress)
@@ -365,7 +366,7 @@ async fn missing_approval_description_is_not_invented() -> Result<()> {
 #[tokio::test]
 async fn remote_look_and_action_name_the_missing_permission_before_touching_the_helper()
 -> Result<()> {
-    // REF-11: nothing in Orbit is switched on or off. What refuses a look is
+    // Nothing in Orbit is switched on or off. What refuses a look is
     // macOS not granting Screen Recording, and the refusal names it.
     for (capability, screen, accessibility, permission) in [
         ("screenshot", false, true, "screen_recording"),
@@ -377,10 +378,7 @@ async fn remote_look_and_action_name_the_missing_permission_before_touching_the_
         ask(&mut runtime, capability).await?;
         // Nothing reached the Mac's helper: the refusal happened before any of it.
         assert!(helper.try_recv().is_err());
-        let reply = hub
-            .recv()
-            .await
-            .context("la petición quedó sin respuesta")?;
+        let reply = hub.recv().await.context("the request got no answer")?;
         assert_eq!(reply["method"], "device.reply");
         assert_eq!(reply["params"]["request_id"], "bridge-1");
         assert_eq!(
@@ -392,7 +390,7 @@ async fn remote_look_and_action_name_the_missing_permission_before_touching_the_
             "{reply}"
         );
         // Said and recorded with its code; Deimos tells the person the cause in
-        // its reply (SIM-21: the refusal is silent on the Mac's screen).
+        // its reply (the refusal is silent on the Mac's screen).
         assert!(said::has(&runtime.state, NoticeCode::BridgeRefused));
         assert!(said::mentions(&runtime.state, "permission_denied"));
         assert!(runtime.conversation.bridge_request.is_none());
@@ -420,11 +418,11 @@ async fn a_latched_privacy_stop_says_nothing_at_all_to_the_hub() -> Result<()> {
     }
     assert!(
         hub.try_recv().is_err(),
-        "un Mac con la privacidad detenida habló con el hub"
+        "a Mac with privacy stopped talked to the hub"
     );
     assert!(
         helper.try_recv().is_err(),
-        "un Mac con la privacidad detenida miró algo"
+        "a Mac with privacy stopped looked at something"
     );
     // And nothing was accepted for service either.
     assert!(runtime.conversation.bridge_request.is_none());
@@ -433,7 +431,7 @@ async fn a_latched_privacy_stop_says_nothing_at_all_to_the_hub() -> Result<()> {
 
 #[tokio::test]
 async fn an_admitted_request_tells_the_person_what_was_asked_for() -> Result<()> {
-    // The point of the bridge is that Mars can see it being used while it is
+    // The point of the bridge is that the user can see it being used while it is
     // being used, not afterwards in a log.
     let directory = tempfile::tempdir()?;
     let (mut runtime, _hub, mut helper) = bridge_fixture(directory.path()).await?;
@@ -444,7 +442,7 @@ async fn an_admitted_request_tells_the_person_what_was_asked_for() -> Result<()>
     // meant it was overwritten immediately and the person saw nothing.
     assert!(
         said::mentions(&runtime.state, "screen_sources"),
-        "el aviso del puente se perdió: {:?}",
+        "the bridge notice was lost: {:?}",
         runtime.state.durable.notice
     );
     assert_eq!(
@@ -456,7 +454,9 @@ async fn an_admitted_request_tells_the_person_what_was_asked_for() -> Result<()>
         Some("bridge-1")
     );
     // And the work actually started: the helper was asked to list windows.
-    let sent = helper.try_recv().context("no se pidió nada al helper")?;
+    let sent = helper
+        .try_recv()
+        .context("nothing was asked of the helper")?;
     assert_eq!(sent["command"], "screen_sources");
     Ok(())
 }
@@ -496,9 +496,11 @@ async fn the_helpers_window_list_comes_back_as_the_answer_to_the_request() -> Re
     let (mut runtime, mut hub, mut helper) = bridge_fixture(directory.path()).await?;
     grant(&mut runtime, true, false)?;
     ask(&mut runtime, "screen_sources").await?;
-    let sent = helper.try_recv().context("no se pidió nada al helper")?;
+    let sent = helper
+        .try_recv()
+        .context("nothing was asked of the helper")?;
     assert_eq!(sent["command"], "screen_sources");
-    let command_id = sent["id"].as_str().context("sin id de comando")?.to_owned();
+    let command_id = sent["id"].as_str().context("no command id")?.to_owned();
 
     runtime
         .native_event(json!({
@@ -540,15 +542,12 @@ async fn the_helpers_window_list_comes_back_as_the_answer_to_the_request() -> Re
         }))
         .await?;
 
-    let reply = hub
-        .recv()
-        .await
-        .context("la petición quedó sin respuesta")?;
+    let reply = hub.recv().await.context("the request got no answer")?;
     assert_eq!(reply["method"], "device.reply");
     assert_eq!(reply["params"]["request_id"], "bridge-1");
     let windows = reply["params"]["result"]["windows"]
         .as_array()
-        .with_context(|| format!("la respuesta no trae ventanas: {reply}"))?;
+        .with_context(|| format!("the reply carries no windows: {reply}"))?;
     assert_eq!(windows.len(), 1);
     assert_eq!(windows[0]["application"], "Safari");
     assert_eq!(windows[0]["title"], "Correo");
@@ -567,19 +566,19 @@ async fn the_helpers_window_list_comes_back_as_the_answer_to_the_request() -> Re
     let again = helper
         .recv()
         .await
-        .context("la segunda petición no se atendió")?;
+        .context("the second request was not served")?;
     assert_eq!(again["command"], "screen_sources");
     let refused = hub.try_recv();
     assert!(
         refused.is_err(),
-        "la segunda petición recibió una negativa: {refused:?}"
+        "the second request was refused: {refused:?}"
     );
     Ok(())
 }
 
 #[tokio::test]
 async fn a_privacy_stop_releases_the_in_flight_request_and_answers_the_hub() -> Result<()> {
-    // P0-05 A2: the stop is one of the endings of the operation that served
+    // The stop is one of the endings of the operation that served
     // the request. Holding the slot meant every later remote request was told
     // "ocupado" until the daemon restarted, so the stop releases it — and the
     // assistant whose request was already admitted gets the refusal rather
@@ -596,20 +595,23 @@ async fn a_privacy_stop_releases_the_in_flight_request_and_answers_the_hub() -> 
             .map(|ask| ask.id.as_str()),
         Some("bridge-1")
     );
-    assert!(helper.try_recv().is_ok(), "la petición no llegó al helper");
+    assert!(
+        helper.try_recv().is_ok(),
+        "the request did not reach the helper"
+    );
 
     runtime.apply(Event::PrivacyStop).await?;
 
     assert!(runtime.state.privacy_stopped());
     assert!(
         runtime.conversation.bridge_request.is_none(),
-        "la parada dejó ocupado el puente: {:?}",
+        "the stop left the bridge busy: {:?}",
         runtime.conversation.bridge_request
     );
     let reply = hub
         .recv()
         .await
-        .context("la petición en curso quedó sin respuesta")?;
+        .context("the request in flight got no answer")?;
     assert_eq!(reply["method"], "device.reply");
     assert_eq!(reply["params"]["request_id"], "bridge-1");
     assert_eq!(
@@ -621,53 +623,58 @@ async fn a_privacy_stop_releases_the_in_flight_request_and_answers_the_hub() -> 
 
 #[tokio::test]
 async fn a_hub_disconnect_releases_the_in_flight_request_without_answering() -> Result<()> {
-    // P0-05 A3: there is nobody left to answer once the hub is gone; holding
+    // There is nobody left to answer once the hub is gone; holding
     // the slot for a request that died with the connection only blocks the
     // next request after a reconnect.
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut hub, mut helper) = bridge_fixture(directory.path()).await?;
     grant(&mut runtime, true, false)?;
     ask(&mut runtime, "screen_sources").await?;
-    assert!(helper.try_recv().is_ok(), "la petición no llegó al helper");
+    assert!(
+        helper.try_recv().is_ok(),
+        "the request did not reach the helper"
+    );
 
     runtime.hub_event(HubEvent::Disconnected).await?;
 
     assert!(
         runtime.conversation.bridge_request.is_none(),
-        "la desconexión dejó ocupado el puente: {:?}",
+        "the disconnect left the bridge busy: {:?}",
         runtime.conversation.bridge_request
     );
     let sent_anyway = hub.try_recv();
     assert!(
         sent_anyway.is_err(),
-        "se contestó a un hub desconectado: {sent_anyway:?}"
+        "a disconnected hub was answered: {sent_anyway:?}"
     );
     Ok(())
 }
 
 #[tokio::test]
 async fn a_helper_restart_releases_the_in_flight_request_with_its_cause() -> Result<()> {
-    // P0-05 A4: "ready" restarts the helper's world and the enumeration the
+    // "ready" restarts the helper's world and the enumeration the
     // request was waiting on is cancelled without replay, so the request it
     // served cannot stay open waiting for an answer that will never come.
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut hub, mut helper) = bridge_fixture(directory.path()).await?;
     grant(&mut runtime, true, false)?;
     ask(&mut runtime, "screen_sources").await?;
-    let sent = helper.try_recv().context("no se pidió nada al helper")?;
+    let sent = helper
+        .try_recv()
+        .context("nothing was asked of the helper")?;
     assert_eq!(sent["command"], "screen_sources");
 
     runtime.native_event(json!({"event":"ready"})).await?;
 
     assert!(
         runtime.conversation.bridge_request.is_none(),
-        "la cancelación dejó ocupado el puente: {:?}",
+        "the cancellation left the bridge busy: {:?}",
         runtime.conversation.bridge_request
     );
     let reply = hub
         .recv()
         .await
-        .context("la petición en curso quedó sin respuesta")?;
+        .context("the request in flight got no answer")?;
     assert_eq!(reply["method"], "device.reply");
     assert_eq!(reply["params"]["request_id"], "bridge-1");
     assert_eq!(
@@ -740,7 +747,7 @@ async fn another_device_ready_latches_privacy_and_cancels_live_work() -> Result<
             .phase,
         CapturePhase::Interrupted
     );
-    // REF-12: a revocation stops capture in the helper without writing its
+    // A revocation stops capture in the helper without writing its
     // durable latch; the hub is asked again after a restart.
     assert_eq!(
         native.recv().await.context("capture stop absent")?["command"],
@@ -895,7 +902,7 @@ async fn unrelated_error_ids_cannot_finish_the_active_request() -> Result<()> {
         .await?;
     assert!(runtime.state.durable.active_request.is_none());
     assert!(!runtime.conversation.speak_next);
-    // The hub's message is free text: logged, never said (SIM-21).
+    // The hub's message is free text: logged, never said.
     assert_eq!(
         runtime.state.notice_code(),
         Some(NoticeCode::AssistantFailed)
@@ -957,7 +964,7 @@ async fn upload_refusal_blocks_the_job_and_arms_initial_retry_gate() -> Result<(
             .ready(after + Duration::from_secs(2))
     );
     assert!(runtime.work.worker.active().is_none());
-    // SIM-21: the upload's retry is said; the hub's status is in daemon.log.
+    // The upload's retry is said; the hub's status is in daemon.log.
     assert_eq!(
         runtime.state.notice_code(),
         Some(NoticeCode::UploadRetrying)
@@ -1115,8 +1122,8 @@ async fn the_helpers_own_rearm_event_is_what_clears_the_stop() -> Result<()> {
 async fn a_stop_from_the_mac_arrives_naming_its_cause() -> Result<()> {
     // Every stop used to print the same sentence, so an audio route change and
     // a deliberate brake were indistinguishable, and the daemon's own log could
-    // not explain afterwards why capture died. REF-12: an audio route change
-    // is not her brake, so it cuts what was live and never latches.
+    // not explain afterwards why capture died. An audio route change is not
+    // the user's brake, so it cuts what was live and never latches.
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
 
@@ -1146,7 +1153,7 @@ async fn a_stop_with_no_reason_still_says_so_instead_of_inventing_one() -> Resul
 
 #[tokio::test]
 async fn a_discontinuity_after_a_stop_does_not_ask_for_yet_another_stop() -> Result<()> {
-    // Five stops in eight seconds on Mars's Mac: a gap bailed, the daemon's
+    // Five stops in eight seconds on the developer's Mac: a gap bailed, the daemon's
     // error path ran fail_closed, fail_closed requested another native stop,
     // and the next tail frame gapped again. Dismantling the audio graph is
     // itself a source of discontinuities, so the teardown cannot be what
@@ -1201,7 +1208,7 @@ fn call_readback(audio_start: &serde_json::Value) -> serde_json::Value {
 
 #[tokio::test]
 async fn a_playback_rejection_during_a_live_call_is_a_notice_not_a_privacy_stop() -> Result<()> {
-    // A1: the helper legitimately refuses to queue more synthesized audio;
+    // The helper legitimately refuses to queue more synthesized audio;
     // that must preserve the call and the person's privacy.
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
@@ -1278,7 +1285,7 @@ async fn a_playback_rejection_during_a_live_call_is_a_notice_not_a_privacy_stop(
 #[tokio::test]
 async fn a_backpressured_permissions_answer_during_a_recording_is_a_notice_not_a_stop() -> Result<()>
 {
-    // A2: a full helper command queue refuses a permissions order; the meeting
+    // A full helper command queue refuses a permissions order; the meeting
     // that is already being recorded must not pay for it.
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
@@ -1333,7 +1340,7 @@ async fn a_backpressured_permissions_answer_during_a_recording_is_a_notice_not_a
 
 #[tokio::test]
 async fn a_privacy_stopped_rejection_of_a_queued_playback_keeps_the_original_cause() -> Result<()> {
-    // A3: the brake wins, and the helper's late refusal of an order queued
+    // The brake wins, and the helper's late refusal of an order queued
     // before it may neither rewrite the cause nor ask for a second stop.
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
@@ -1383,7 +1390,7 @@ async fn a_privacy_stopped_rejection_of_a_queued_playback_keeps_the_original_cau
 
 #[tokio::test]
 async fn a_second_entry_into_her_stop_does_not_ask_the_helper_to_stop_again() -> Result<()> {
-    // A4: once the helper confirmed the stop, a later control joining the same
+    // Once the helper confirmed the stop, a later control joining the same
     // stop is a new notice line, not another privacy_stop order.
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
@@ -1421,7 +1428,7 @@ async fn a_second_entry_into_her_stop_does_not_ask_the_helper_to_stop_again() ->
 
 #[tokio::test]
 async fn an_audio_start_integrity_failure_cuts_the_recording_without_latching() -> Result<()> {
-    // REF-12 A4: a capture order the Mac cannot honour with integrity cuts that
+    // A capture order the Mac cannot honour with integrity cuts that
     // recording, says why and asks for no rearm; the helper is told to stop
     // capturing without its latch.
     let directory = tempfile::tempdir()?;
@@ -1477,10 +1484,10 @@ async fn an_audio_start_integrity_failure_cuts_the_recording_without_latching() 
 
 #[tokio::test]
 async fn a_stop_cause_survives_the_wait_line_that_used_to_overwrite_it() -> Result<()> {
-    // The incident : fail_closed wrote the
+    // The incident: fail_closed wrote the
     // cause, then request_privacy_audio_stop replaced the whole notice with its
     // wait line, and every stop read identically. The sequence keeps both.
-    // REF-12: the route change cuts the live recording instead of latching,
+    // The route change cuts the live recording instead of latching,
     // and the cut's own wait line must not overwrite its cause either.
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
@@ -1495,7 +1502,7 @@ async fn a_stop_cause_survives_the_wait_line_that_used_to_overwrite_it() -> Resu
         .await?;
 
     assert!(!runtime.state.privacy_stopped());
-    // SIM-21: the cut says its cause as data (the helper's code), and the
+    // The cut says its cause as data (the helper's code), and the
     // wait for the Mac's confirmation is no longer a sentence on screen.
     assert!(said::mentions(&runtime.state, "audio_device_changed"));
     // The sequence holds the cause as its own entry, so a later notice cannot
@@ -1507,9 +1514,8 @@ async fn a_stop_cause_survives_the_wait_line_that_used_to_overwrite_it() -> Resu
 }
 
 #[tokio::test]
-async fn a1_a_helper_gap_in_a_live_recording_is_declared_and_the_recording_continues() -> Result<()>
-{
-    // P1-02 A1: a discontinuity costs one declared gap, never the recording.
+async fn a_helper_gap_in_a_live_recording_is_declared_and_the_recording_continues() -> Result<()> {
+    // A discontinuity costs one declared gap, never the recording.
     // The audit's product decision: a hole is reported, not a reason to brake
     // live capture.
     let directory = tempfile::tempdir()?;
@@ -1551,9 +1557,8 @@ async fn a1_a_helper_gap_in_a_live_recording_is_declared_and_the_recording_conti
 }
 
 #[tokio::test]
-async fn a2_a_rejected_clip_during_a_live_call_keeps_the_call_and_records_degradation() -> Result<()>
-{
-    // P1-02 A2: the helper refused to queue the synthesized answer. The
+async fn a_rejected_clip_during_a_live_call_keeps_the_call_and_records_degradation() -> Result<()> {
+    // The helper refused to queue the synthesized answer. The
     // taxonomy routes it as a degradation through the core decision, which
     // records its own notice entry, while the call and privacy stay intact.
     let directory = tempfile::tempdir()?;
@@ -1630,9 +1635,9 @@ async fn a2_a_rejected_clip_during_a_live_call_keeps_the_call_and_records_degrad
 }
 
 #[tokio::test]
-async fn a3_a_permission_refusal_of_audio_start_interrupts_the_recording_without_latching()
+async fn a_permission_refusal_of_audio_start_interrupts_the_recording_without_latching()
 -> Result<()> {
-    // P1-02 A3/R4: a refused audio_start leaves the recording Interrupted
+    // A refused audio_start leaves the recording Interrupted
     // with its gaps intact, names the missing permission and does not latch:
     // the brake stays reserved for integrity failures and the person's intent.
     let directory = tempfile::tempdir()?;
@@ -1681,7 +1686,7 @@ async fn a3_a_permission_refusal_of_audio_start_interrupts_the_recording_without
 }
 
 #[tokio::test]
-async fn ref307_later_privacy_stop_does_not_relabel_a_refused_audio_start() -> Result<()> {
+async fn a_later_privacy_stop_does_not_relabel_a_refused_audio_start() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
@@ -1731,8 +1736,8 @@ async fn ref307_later_privacy_stop_does_not_relabel_a_refused_audio_start() -> R
 }
 
 #[tokio::test]
-async fn a4_an_incomplete_drain_with_pending_audio_cuts_without_latching() -> Result<()> {
-    // P1-02 A4, changed by REF-12: audio_stop answered with
+async fn an_incomplete_drain_with_pending_audio_cuts_without_latching() -> Result<()> {
+    // audio_stop answered with
     // audio_drain_incomplete while the recording still holds audio is an
     // integrity failure; it cuts that recording and never latches.
     let directory = tempfile::tempdir()?;
@@ -1786,9 +1791,9 @@ async fn a4_an_incomplete_drain_with_pending_audio_cuts_without_latching() -> Re
 }
 
 #[tokio::test]
-async fn a5_two_entries_into_her_stop_keep_one_stop_two_causes_and_one_durable_snapshot()
+async fn two_entries_into_the_user_stop_keep_one_stop_two_causes_and_one_durable_snapshot()
 -> Result<()> {
-    // P1-02 A5/R3: the second entry into an already-latched stop extends the
+    // The second entry into an already-latched stop extends the
     // notice sequence, asks the helper for nothing and writes no new durable
     // state.
     let directory = tempfile::tempdir()?;
@@ -1841,8 +1846,8 @@ async fn a5_two_entries_into_her_stop_keep_one_stop_two_causes_and_one_durable_s
 }
 
 #[tokio::test]
-async fn a6_her_stop_stops_playback_at_the_helper() -> Result<()> {
-    // P1-02 A6/R2: her stop executes the core decision's effects instead of
+async fn the_user_stop_stops_playback_at_the_helper() -> Result<()> {
+    // The user's stop executes the core decision's effects instead of
     // reimplementing a partial teardown, so the helper hears the playback stop
     // too, not only the privacy stop.
     let directory = tempfile::tempdir()?;
@@ -1949,7 +1954,8 @@ fn screenshot_answer(command: &serde_json::Value) -> Result<serde_json::Value> {
 }
 
 /// The same helper answer, carrying the exact bytes the test wants the helper
-/// to have produced (A6 feeds the 700 000-byte maximum PNG through it).
+/// to have produced (the HTTP upload test feeds the 700 000-byte maximum PNG
+/// through it).
 fn screenshot_answer_of(command: &serde_json::Value, png: &[u8]) -> serde_json::Value {
     json!({"event":"response","id":command["id"],"ok":true,
         "result":{"binding":command["window_binding"],"clock_domain":"mach_absolute_time",
@@ -1983,7 +1989,7 @@ pub(in crate::daemon) fn maximal_png() -> Result<Vec<u8>> {
     let target = orbit_core::sources::MAX_SOURCE_BYTES;
     let padding = target
         .checked_sub(base.len() + 12)
-        .context("el PNG sintético no deja sitio al relleno")?;
+        .context("the synthetic PNG leaves no room for padding")?;
     let kind = *b"prIv";
     let mut checksum = Vec::with_capacity(4 + padding);
     checksum.extend_from_slice(&kind);
@@ -1994,7 +2000,10 @@ pub(in crate::daemon) fn maximal_png() -> Result<Vec<u8>> {
     png.extend(std::iter::repeat_n(0x36u8, padding));
     png.extend_from_slice(&crc32(&checksum).to_be_bytes());
     png.extend_from_slice(&base[base.len() - 12..]);
-    anyhow::ensure!(png.len() == target, "el PNG máximo no mide lo esperado");
+    anyhow::ensure!(
+        png.len() == target,
+        "the maximal PNG does not have the expected size"
+    );
     Ok(png)
 }
 
@@ -2162,8 +2171,8 @@ async fn helper_command(
 ) -> Result<serde_json::Value> {
     let sent = tokio::time::timeout(Duration::from_secs(2), helper.recv())
         .await
-        .map_err(|_| anyhow::anyhow!("el helper nunca recibió «{expected}»"))?
-        .context("el helper falso se desconectó")?;
+        .map_err(|_| anyhow::anyhow!("the helper never received «{expected}»"))?
+        .context("the fake helper disconnected")?;
     assert_eq!(
         sent["command"], expected,
         "orden inesperada al helper: {sent}"
@@ -2174,8 +2183,8 @@ async fn helper_command(
 async fn hub_reply(hub: &mut mpsc::Receiver<serde_json::Value>) -> Result<serde_json::Value> {
     tokio::time::timeout(Duration::from_secs(2), hub.recv())
         .await
-        .map_err(|_| anyhow::anyhow!("la petición remota quedó sin respuesta"))?
-        .context("el canal del hub se cerró")
+        .map_err(|_| anyhow::anyhow!("the remote request got no answer"))?
+        .context("the hub channel closed")
 }
 
 fn capture_work_receiver(runtime: &mut crate::daemon::Runtime) -> mpsc::Receiver<WorkResult> {
@@ -2193,7 +2202,7 @@ async fn finish_capture_upload(
     // deadline; production applies its own 20 s limit after local sealing.
     let completion = tokio::time::timeout(Duration::from_secs(100), completions.recv())
         .await?
-        .context("la subida no entregó un WorkResult al actor")?;
+        .context("the upload delivered no WorkResult to the actor")?;
     runtime.work_event(completion).await
 }
 
@@ -2218,7 +2227,7 @@ async fn bridge_picks_the_foreground_window_a_title_substring_or_refuses_by_name
     let mut completions = capture_work_receiver(&mut runtime);
     let (address, mut puts, release) = capture_hub(false).await?;
     runtime.settings.hub_url = Some(format!("http://{address}"));
-    runtime.token = Some("credencial sintética del dispositivo".to_owned());
+    runtime.token = Some("synthetic device credential".to_owned());
 
     remote_request(&mut runtime, "bridge-1", "screenshot", json!({})).await?;
     let list = helper_command(&mut helper, "screen_sources").await?;
@@ -2235,8 +2244,8 @@ async fn bridge_picks_the_foreground_window_a_title_substring_or_refuses_by_name
     runtime.native_event(screenshot_answer(&shot)?).await?;
     let _ = tokio::time::timeout(Duration::from_secs(2), puts.recv())
         .await
-        .map_err(|_| anyhow::anyhow!("el daemon no subió la captura por HTTP"))?
-        .context("el hub falso se apagó")?;
+        .map_err(|_| anyhow::anyhow!("the daemon did not upload the capture by HTTP"))?
+        .context("the fake hub shut down")?;
     finish_capture_upload(&mut runtime, &mut completions).await?;
     let reply = hub_reply(&mut hub).await?;
     assert_eq!(reply["params"]["result"]["application"], "Safari");
@@ -2261,14 +2270,14 @@ async fn bridge_picks_the_foreground_window_a_title_substring_or_refuses_by_name
     let shot = helper_command(&mut helper, "screenshot").await?;
     assert_eq!(
         shot["window_binding"]["selection_token"], TEXT_TOKEN,
-        "el título no casó por subcadena: {shot}"
+        "the title did not match as a substring: {shot}"
     );
     release.notify_one();
     runtime.native_event(screenshot_answer(&shot)?).await?;
     let _ = tokio::time::timeout(Duration::from_secs(2), puts.recv())
         .await
-        .map_err(|_| anyhow::anyhow!("el daemon no subió la captura por HTTP"))?
-        .context("el hub falso se apagó")?;
+        .map_err(|_| anyhow::anyhow!("the daemon did not upload the capture by HTTP"))?
+        .context("the fake hub shut down")?;
     finish_capture_upload(&mut runtime, &mut completions).await?;
     let reply = hub_reply(&mut hub).await?;
     assert_eq!(reply["params"]["result"]["application"], "TextEdit");
@@ -2299,7 +2308,7 @@ async fn bridge_picks_the_foreground_window_a_title_substring_or_refuses_by_name
     assert_eq!(reply["params"]["refusal"]["parameter"], "selection");
     assert!(
         helper.try_recv().is_err(),
-        "se pidió una captura sin haber casado ninguna ventana"
+        "a capture was asked for without matching any window"
     );
     assert!(runtime.conversation.bridge_request.is_none());
     Ok(())
@@ -2309,7 +2318,7 @@ async fn bridge_picks_the_foreground_window_a_title_substring_or_refuses_by_name
 async fn bridge_serves_the_selected_text_of_a_named_application() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut hub, mut helper) = bridge_fixture(directory.path()).await?;
-    // The selected text needs Accessibility besides the screen (REF-11).
+    // The selected text needs Accessibility besides the screen.
     grant(&mut runtime, true, true)?;
     remote_request(
         &mut runtime,
@@ -2330,7 +2339,7 @@ async fn bridge_serves_the_selected_text_of_a_named_application() -> Result<()> 
     let text = helper_command(&mut helper, "selected_text").await?;
     assert_eq!(
         text["window_binding"]["selection_token"], TEXT_TOKEN,
-        "se leyó la selección de otra ventana: {text}"
+        "the selection of another window was read: {text}"
     );
     runtime.native_event(selected_text_answer(&text)).await?;
 
@@ -2344,7 +2353,7 @@ async fn bridge_serves_the_selected_text_of_a_named_application() -> Result<()> 
     assert_eq!(
         result.as_object().map(|object| object.len()),
         Some(3),
-        "la respuesta trae campos fuera de la forma pactada: {result}"
+        "the reply carries fields outside the agreed shape: {result}"
     );
 
     let receipt = runtime
@@ -2352,20 +2361,20 @@ async fn bridge_serves_the_selected_text_of_a_named_application() -> Result<()> 
         .views
         .source_receipt
         .as_ref()
-        .context("no quedó recibo en memoria de lo que leyó Deimos")?;
+        .context("no receipt of what Deimos read was kept in memory")?;
     assert_eq!(receipt.intent.annotation, "Deimos");
     assert_eq!(receipt.sha256, sha256_hex(SELECTED_TEXT.as_bytes()));
 
     assert_eq!(
         runtime.state.notice_code(),
         Some(NoticeCode::BridgeReplySent),
-        "el aviso final debe distinguir envío de recepción: {:?}",
+        "the final notice must tell sending from receiving: {:?}",
         runtime.state.durable.notice
     );
     let said = serde_json::to_string(&runtime.state.durable.notice_log)?;
     assert!(
         !said.contains(SELECTED_TEXT),
-        "el aviso muestra el contenido de la selección: {said}"
+        "the notice shows the content of the selection: {said}"
     );
     assert!(runtime.conversation.bridge_request.is_none());
     Ok(())
@@ -2408,15 +2417,12 @@ async fn malformed_native_text_result_tells_the_remote_asker_the_field_and_type(
     );
     assert_eq!(reply["params"]["refusal"]["field"], "text", "{reply}");
     assert!(runtime.state.views.source_receipt.is_none());
-    assert!(
-        helper.try_recv().is_err(),
-        "la lectura inválida se reintentó"
-    );
+    assert!(helper.try_recv().is_err(), "the invalid read was retried");
     Ok(())
 }
 
 #[tokio::test]
-async fn ref303_a2_screen_read_reports_full_and_retired_hub_without_content() -> Result<()> {
+async fn screen_read_reports_full_and_retired_hub_without_content() -> Result<()> {
     for retired in [false, true] {
         let directory = tempfile::tempdir()?;
         let (mut runtime, _hub, mut helper) = bridge_fixture(directory.path()).await?;
@@ -2446,7 +2452,7 @@ async fn ref303_a2_screen_read_reports_full_and_retired_hub_without_content() ->
             .await?;
         let text = helper_command(&mut helper, "selected_text").await?;
         runtime.native_event(selected_text_answer(&text)).await?;
-        // SIM-21: not delivered is said; its cause (the stop, the full
+        // Not delivered is said; its cause (the stop, the full
         // channel) stays in daemon.log.
         let notice = &runtime.state.durable.notice;
         assert_eq!(
@@ -2466,19 +2472,19 @@ async fn ref303_a2_screen_read_reports_full_and_retired_hub_without_content() ->
 
 #[tokio::test]
 async fn bridge_uploads_a_maximal_capture_by_http_before_replying_by_websocket() -> Result<()> {
-    // El reparto de R4: los bytes por HTTP, el control por WebSocket. Con el
-    // PNG del techo del helper (700 000 bytes) la trama «device.reply» con
-    // base64 medía 933 542 bytes y el hub corta a 128 KiB, así que la
-    // contestación solo puede llevar el identificador de lo subido.
+    // The split: the bytes go by HTTP, the control by WebSocket. With the
+    // helper's ceiling PNG (700 000 bytes) the «device.reply» frame with
+    // base64 measured 933 542 bytes and the hub cuts at 128 KiB, so the
+    // reply can only carry the identifier of what was uploaded.
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut hub, mut helper) = bridge_fixture(directory.path()).await?;
     grant(&mut runtime, true, false)?;
     let mut completions = capture_work_receiver(&mut runtime);
     let png = maximal_png()?;
     orbit_core::sources::validate_png(&png, 2, 1)
-        .context("el PNG sintético del techo no es una imagen válida")?;
+        .context("the synthetic ceiling PNG is not a valid image")?;
     let (address, mut puts, release) = capture_hub(false).await?;
-    let token = "credencial sintética del dispositivo";
+    let token = "synthetic device credential";
     runtime.settings.hub_url = Some(format!("http://{address}"));
     runtime.token = Some(token.to_owned());
 
@@ -2502,29 +2508,29 @@ async fn bridge_uploads_a_maximal_capture_by_http_before_replying_by_websocket()
     assert_eq!(shot["window_binding"]["window_id"], 12);
     let answer = screenshot_answer_of(&shot, &png);
 
-    // El manejador deja libre al actor antes de que el hub confirme el PUT.
-    // La respuesta remota sigue esperando el recibo del mismo PNG máximo.
+    // The handler frees the actor before the hub confirms the PUT. The
+    // remote reply keeps waiting for the receipt of the same maximal PNG.
     runtime.native_event(answer).await?;
-    // Guarda de atasco, no presupuesto de subida: 100 s superan 2× la peor
-    // corrida completa medida (48,4 s, 10 corridas con 16 giradores y 8
-    // escritores en las CPU del test, REF-28B).
+    // A hang guard, not an upload budget: 100 s is over 2× the worst full run
+    // measured (48.4 s, 10 runs with 16 spinners and 8 writers on the test's
+    // CPUs).
     const PUT_HANG_GUARD: Duration = Duration::from_secs(100);
     let upload_wait_started = Instant::now();
     let record = tokio::time::timeout(PUT_HANG_GUARD, puts.recv())
         .await
         .map_err(|_| {
             anyhow::anyhow!(
-                "no se observó el PUT de captura tras {:.1} s (guarda de atasco: {} s)",
+                "no capture PUT was observed after {:.1} s (hang guard: {} s)",
                 Instant::now()
                     .duration_since(upload_wait_started)
                     .as_secs_f64(),
                 PUT_HANG_GUARD.as_secs()
             )
         })?
-        .context("el hub falso se apagó")?;
+        .context("the fake hub shut down")?;
     assert!(
         hub.try_recv().is_err(),
-        "llegó device.reply antes de confirmar la subida"
+        "device.reply arrived before the upload was confirmed"
     );
     release.notify_one();
     finish_capture_upload(&mut runtime, &mut completions).await?;
@@ -2536,7 +2542,7 @@ async fn bridge_uploads_a_maximal_capture_by_http_before_replying_by_websocket()
     let digest = sha256_hex(&png);
     assert_eq!(
         result["sha256"], digest,
-        "el sha256 no es el de los bytes subidos"
+        "the sha256 is not that of the uploaded bytes"
     );
     assert_eq!(result["application"], "TextEdit");
     assert_eq!(result["title"], "Presupuesto 2027");
@@ -2546,68 +2552,68 @@ async fn bridge_uploads_a_maximal_capture_by_http_before_replying_by_websocket()
     assert_eq!(
         result.as_object().map(|object| object.len()),
         Some(7),
-        "la respuesta trae campos fuera de la forma pactada: {result}"
+        "the reply carries fields outside the agreed shape: {result}"
     );
     let capture_id = result["capture_id"]
         .as_str()
-        .context("la respuesta no lleva capture_id")?
+        .context("the reply carries no capture_id")?
         .to_owned();
     assert!(
         !capture_id.is_empty(),
-        "el capture_id del PUT y del reply no puede estar vacío"
+        "the capture_id of the PUT and the reply cannot be empty"
     );
     assert!(
         result.get("data_base64").is_none(),
-        "la respuesta del puente lleva los bytes del PNG: {result}"
+        "the bridge reply carries the PNG bytes: {result}"
     );
     let wire = serde_json::to_vec(&reply)?;
     assert!(
         !String::from_utf8_lossy(&wire).contains(&STANDARD.encode(&png)),
-        "la trama del reply contiene el PNG entero"
+        "the reply frame contains the whole PNG"
     );
     assert!(
         wire.len() < crate::hub::MAX_OUTGOING_FRAME_BYTES,
-        "la trama de {} bytes no cabe en el máximo del WebSocket del hub ({} bytes)",
+        "the {}-byte frame does not fit the hub WebSocket maximum ({} bytes)",
         wire.len(),
         crate::hub::MAX_OUTGOING_FRAME_BYTES
     );
 
     assert_eq!(
         record.method, "PUT",
-        "no fue una subida PUT: {:?}",
+        "it was not a PUT upload: {:?}",
         record.path
     );
     assert_eq!(record.path, format!("/v1/captures/{capture_id}"));
     assert_eq!(
         record.header("authorization"),
         Some(format!("Bearer {token}").as_str()),
-        "la subida no lleva el emparejado del dispositivo"
+        "the upload does not carry the device pairing"
     );
     assert_eq!(
         record.header("x-orbit-request"),
         Some("bridge-1"),
-        "la subida no lleva el request_id del puente"
+        "the upload does not carry the bridge request_id"
     );
     assert_eq!(
         record.header("x-orbit-sha256"),
         Some(digest.as_str()),
-        "la cabecera sha256 no es el resumen del cuerpo"
+        "the sha256 header is not the digest of the body"
     );
     assert_eq!(
         record.header("content-type"),
         Some("image/png"),
-        "la subida no declara el tipo de la imagen"
+        "the upload does not declare the image type"
     );
     assert_eq!(
         record.body, png,
-        "no se subieron los bytes exactos del helper"
+        "the helper's exact bytes were not uploaded"
     );
     let receipt = runtime
         .state
         .views
         .source_receipt
         .as_ref()
-        .context("no quedó recibo en memoria de lo que vio Deimos")?;
+        .context("no receipt of what Deimos saw was kept in memory")?;
     assert_eq!(receipt.intent.annotation, "Deimos");
     assert_eq!(receipt.sha256, digest);
     assert_eq!(receipt.bytes, png.len() as u64);
@@ -2620,7 +2626,7 @@ async fn bridge_uploads_a_maximal_capture_by_http_before_replying_by_websocket()
 }
 
 #[tokio::test]
-async fn ref306_helper_capture_returns_to_actor_while_upload_is_held() -> Result<()> {
+async fn helper_capture_returns_to_actor_while_upload_is_held() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut hub, mut helper) = bridge_fixture(directory.path()).await?;
     grant(&mut runtime, true, false)?;
@@ -2630,8 +2636,8 @@ async fn ref306_helper_capture_returns_to_actor_while_upload_is_held() -> Result
     runtime.work.work_events = work;
     let (address, mut puts, release) = capture_hub(false).await?;
     runtime.settings.hub_url = Some(format!("http://{address}"));
-    runtime.token = Some("credencial sintética del dispositivo".into());
-    remote_request(&mut runtime, "ref306-helper", "screenshot", json!({})).await?;
+    runtime.token = Some("synthetic device credential".into());
+    remote_request(&mut runtime, "held-upload-capture", "screenshot", json!({})).await?;
     let list = helper_command(&mut helper, "screen_sources").await?;
     runtime
         .native_event(inventory_with_two_windows(
@@ -2647,14 +2653,14 @@ async fn ref306_helper_capture_returns_to_actor_while_upload_is_held() -> Result
         .await
         .map_err(|_| {
             anyhow::anyhow!(
-                "la respuesta del helper retuvo el actor {:.3} s mientras la subida sigue retenida",
+                "the helper answer held the actor {:.3} s while the upload is still held",
                 Instant::now().duration_since(started).as_secs_f64()
             )
         })??;
     drop(answer);
     let put = tokio::time::timeout(Duration::from_secs(5), puts.recv())
         .await?
-        .context("el hub falso cerró antes del PUT")?;
+        .context("the fake hub closed before the PUT")?;
     assert_eq!(put.method, "PUT");
     for sequence in 0..30 {
         runtime
@@ -2663,7 +2669,7 @@ async fn ref306_helper_capture_returns_to_actor_while_upload_is_held() -> Result
     }
     let held_status = measure_status_rounds(&mut runtime).await?;
     eprintln!(
-        "ref306_helper_status_us idle_p99={} idle_worst={} held_p99={} held_worst={} n=100",
+        "helper_capture_status_us idle_p99={} idle_worst={} held_p99={} held_worst={} n=100",
         idle_status.0, idle_status.1, held_status.0, held_status.1
     );
     assert_eq!(
@@ -2672,14 +2678,14 @@ async fn ref306_helper_capture_returns_to_actor_while_upload_is_held() -> Result
             .durable
             .recording
             .as_ref()
-            .context("sin grabación")?
+            .context("no recording")?
             .gaps,
         0,
-        "la captura introdujo huecos en las 30 tramas del helper"
+        "the capture introduced gaps in the helper's 30 frames"
     );
     assert!(
         hub.try_recv().is_err(),
-        "se respondió a Deimos antes de confirmar el PUT"
+        "Deimos was answered before the PUT was confirmed"
     );
     // A later local capture may replace the single volatile receipt before
     // the held upload finishes. The bridge already owns the validated metadata.
@@ -2687,10 +2693,10 @@ async fn ref306_helper_capture_returns_to_actor_while_upload_is_held() -> Result
     release.notify_one();
     let completion = tokio::time::timeout(Duration::from_secs(5), completions.recv())
         .await?
-        .context("no llegó el resultado de la subida")?;
+        .context("the upload result did not arrive")?;
     runtime.work_event(completion).await?;
     let reply = hub_reply(&mut hub).await?;
-    assert_eq!(reply["params"]["request_id"], "ref306-helper");
+    assert_eq!(reply["params"]["request_id"], "held-upload-capture");
     assert!(reply["params"]["result"]["capture_id"].is_string());
     assert!(runtime.conversation.bridge_request.is_none());
     Ok(())
@@ -2720,13 +2726,13 @@ fn attach_pending_upload(
 }
 
 #[tokio::test]
-async fn ref44_computer_revocation_keeps_an_unrelated_capture_and_its_upload() -> Result<()> {
+async fn computer_revocation_keeps_an_unrelated_capture_and_its_upload() -> Result<()> {
     use crate::daemon::bridge::{CaptureUploadOutcome, PendingCapture};
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut hub, _helper) = bridge_fixture(directory.path()).await?;
     grant(&mut runtime, true, false)?;
-    remote_request(&mut runtime, "ref44-capture", "screenshot", json!({})).await?;
-    let (ticket, abort) = attach_pending_upload(&mut runtime, "ref44-source")?;
+    remote_request(&mut runtime, "unrelated-capture", "screenshot", json!({})).await?;
+    let (ticket, abort) = attach_pending_upload(&mut runtime, "unrelated-source")?;
 
     runtime
         .revoke_computer(&orbit_core::refusal::Refusal::ReadInterrupted {
@@ -2746,9 +2752,9 @@ async fn ref44_computer_revocation_keeps_an_unrelated_capture_and_its_upload() -
     runtime
         .work_event(WorkResult::BridgeCaptureUpload {
             ticket,
-            request_id: "ref44-capture".into(),
+            request_id: "unrelated-capture".into(),
             capture: PendingCapture::Engine {
-                capture_id: "ref44-source".into(),
+                capture_id: "unrelated-source".into(),
                 application: "Fixture".into(),
                 title: "Fixture".into(),
                 width: 1,
@@ -2759,20 +2765,20 @@ async fn ref44_computer_revocation_keeps_an_unrelated_capture_and_its_upload() -
         })
         .await?;
     let reply = hub_reply(&mut hub).await?;
-    assert_eq!(reply["params"]["request_id"], "ref44-capture");
-    assert_eq!(reply["params"]["result"]["capture_id"], "ref44-source");
+    assert_eq!(reply["params"]["request_id"], "unrelated-capture");
+    assert_eq!(reply["params"]["result"]["capture_id"], "unrelated-source");
     assert!(runtime.conversation.bridge_request.is_none());
     Ok(())
 }
 
 #[tokio::test]
-async fn ref306_privacy_and_cancellation_abort_upload_and_answer_only_once() -> Result<()> {
+async fn privacy_and_cancellation_abort_upload_and_answer_only_once() -> Result<()> {
     use crate::daemon::bridge::{CaptureUploadOutcome, PendingCapture};
     for privacy in [true, false] {
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut hub, _helper) = bridge_fixture(directory.path()).await?;
         grant(&mut runtime, true, false)?;
-        remote_request(&mut runtime, "ref306-stop", "screenshot", json!({})).await?;
+        remote_request(&mut runtime, "stopped-upload", "screenshot", json!({})).await?;
         let (ticket, abort) = attach_pending_upload(&mut runtime, "late-source")?;
         if privacy {
             runtime.apply(Event::PrivacyStop).await?;
@@ -2783,7 +2789,7 @@ async fn ref306_privacy_and_cancellation_abort_upload_and_answer_only_once() -> 
             tokio::task::yield_now().await;
         }
         let reply = hub_reply(&mut hub).await?;
-        assert_eq!(reply["params"]["request_id"], "ref306-stop");
+        assert_eq!(reply["params"]["request_id"], "stopped-upload");
         if privacy {
             assert_eq!(reply["params"]["refusal"]["code"], "privacy_stopped");
         } else {
@@ -2793,7 +2799,7 @@ async fn ref306_privacy_and_cancellation_abort_upload_and_answer_only_once() -> 
         runtime
             .work_event(WorkResult::BridgeCaptureUpload {
                 ticket,
-                request_id: "ref306-stop".into(),
+                request_id: "stopped-upload".into(),
                 capture: PendingCapture::Helper {
                     source_id: "late-source".into(),
                 },
@@ -2802,24 +2808,24 @@ async fn ref306_privacy_and_cancellation_abort_upload_and_answer_only_once() -> 
             .await?;
         assert!(
             hub.try_recv().is_err(),
-            "un resultado tardío respondió por segunda vez"
+            "a late result answered a second time"
         );
     }
     Ok(())
 }
 
 #[tokio::test]
-async fn ref306_upload_timeout_names_wait_and_deadline_and_late_result_is_ignored() -> Result<()> {
+async fn upload_timeout_names_wait_and_deadline_and_late_result_is_ignored() -> Result<()> {
     use crate::daemon::bridge::{CaptureUploadOutcome, PendingCapture};
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut hub, _helper) = bridge_fixture(directory.path()).await?;
     grant(&mut runtime, true, false)?;
-    remote_request(&mut runtime, "ref306-timeout", "screenshot", json!({})).await?;
+    remote_request(&mut runtime, "timed-out-upload", "screenshot", json!({})).await?;
     let (ticket, abort) = attach_pending_upload(&mut runtime, "source")?;
     runtime
         .work_event(WorkResult::BridgeCaptureUpload {
             ticket: ticket.clone(),
-            request_id: "ref306-timeout".into(),
+            request_id: "timed-out-upload".into(),
             capture: PendingCapture::Helper {
                 source_id: "source".into(),
             },
@@ -2837,7 +2843,7 @@ async fn ref306_upload_timeout_names_wait_and_deadline_and_late_result_is_ignore
     runtime
         .work_event(WorkResult::BridgeCaptureUpload {
             ticket,
-            request_id: "ref306-timeout".into(),
+            request_id: "timed-out-upload".into(),
             capture: PendingCapture::Helper {
                 source_id: "source".into(),
             },
@@ -2846,18 +2852,24 @@ async fn ref306_upload_timeout_names_wait_and_deadline_and_late_result_is_ignore
         .await?;
     assert!(
         hub.try_recv().is_err(),
-        "un resultado tardío respondió por segunda vez"
+        "a late result answered a second time"
     );
     Ok(())
 }
 
 #[tokio::test]
-async fn ref306_old_generation_upload_cannot_answer_the_current_request() -> Result<()> {
+async fn old_generation_upload_cannot_answer_the_current_request() -> Result<()> {
     use crate::daemon::bridge::{CaptureUploadOutcome, PendingCapture};
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut hub, _helper) = bridge_fixture(directory.path()).await?;
     grant(&mut runtime, true, false)?;
-    remote_request(&mut runtime, "ref306-generation", "screenshot", json!({})).await?;
+    remote_request(
+        &mut runtime,
+        "old-generation-upload",
+        "screenshot",
+        json!({}),
+    )
+    .await?;
     let old_generation = runtime.state.generation();
     {
         let fixture_value = serde_json::json!(old_generation.wrapping_add(1));
@@ -2867,7 +2879,7 @@ async fn ref306_old_generation_upload_cannot_answer_the_current_request() -> Res
     runtime
         .work_event(WorkResult::BridgeCaptureUpload {
             ticket: crate::daemon::ticketed::WorkTicket::test(old_generation),
-            request_id: "ref306-generation".into(),
+            request_id: "old-generation-upload".into(),
             capture: PendingCapture::Helper {
                 source_id: "old-source".into(),
             },
@@ -2877,12 +2889,12 @@ async fn ref306_old_generation_upload_cannot_answer_the_current_request() -> Res
     abort.abort();
     assert!(
         hub.try_recv().is_err(),
-        "una generación antigua respondió al hub"
+        "an old generation answered the hub"
     );
     runtime
         .work_event(WorkResult::BridgeCaptureUpload {
             ticket,
-            request_id: "ref306-generation".into(),
+            request_id: "old-generation-upload".into(),
             capture: PendingCapture::Helper {
                 source_id: "old-source".into(),
             },
@@ -2891,7 +2903,7 @@ async fn ref306_old_generation_upload_cannot_answer_the_current_request() -> Res
         .await?;
     assert!(
         hub.try_recv().is_err(),
-        "una subida sustituida respondió al hub"
+        "a replaced upload answered the hub"
     );
     assert!(runtime.conversation.bridge_request.is_some());
     runtime.release_bridge_request(crate::daemon::BridgeReleaseReason::Cancelled);
@@ -2917,7 +2929,7 @@ async fn bridge_refuses_by_name_when_the_capture_upload_fails() -> Result<()> {
     let png = maximal_png()?;
     let (address, mut puts, _release) = capture_hub(true).await?;
     runtime.settings.hub_url = Some(format!("http://{address}"));
-    runtime.token = Some("credencial sintética del dispositivo".to_owned());
+    runtime.token = Some("synthetic device credential".to_owned());
 
     remote_request(
         &mut runtime,
@@ -2941,11 +2953,11 @@ async fn bridge_refuses_by_name_when_the_capture_upload_fails() -> Result<()> {
 
     let record = tokio::time::timeout(Duration::from_secs(2), puts.recv())
         .await
-        .map_err(|_| anyhow::anyhow!("el daemon no intentó subir la captura por HTTP"))?
-        .context("el hub falso se apagó")?;
+        .map_err(|_| anyhow::anyhow!("the daemon did not try to upload the capture by HTTP"))?
+        .context("the fake hub shut down")?;
     assert!(
         record.path.starts_with("/v1/captures/"),
-        "la subida no usó la ruta pactada: {}",
+        "the upload did not use the agreed route: {}",
         record.path
     );
 
@@ -2961,11 +2973,11 @@ async fn bridge_refuses_by_name_when_the_capture_upload_fails() -> Result<()> {
     let wire = serde_json::to_vec(&reply)?;
     assert!(
         !String::from_utf8_lossy(&wire).contains("capture_id"),
-        "la negativa filtró un capture_id: {reply}"
+        "the refusal leaked a capture_id: {reply}"
     );
     assert!(
         runtime.conversation.bridge_request.is_none(),
-        "el fallo de la subida dejó el hueco ocupado"
+        "the upload failure left the slot occupied"
     );
     Ok(())
 }
@@ -2979,7 +2991,7 @@ async fn helper_capture_capacity_reaches_device_reply_with_its_counts() -> Resul
     let png = maximal_png()?;
     let (address, mut puts) = capture_hub_at_capacity().await?;
     runtime.settings.hub_url = Some(format!("http://{address}"));
-    runtime.token = Some("credencial sintética del dispositivo".to_owned());
+    runtime.token = Some("synthetic device credential".to_owned());
 
     remote_request(
         &mut runtime,
@@ -3003,7 +3015,7 @@ async fn helper_capture_capacity_reaches_device_reply_with_its_counts() -> Resul
 
     let put = tokio::time::timeout(Duration::from_secs(2), puts.recv())
         .await?
-        .context("el helper no subió la captura")?;
+        .context("the helper did not upload the capture")?;
     assert!(put.path.starts_with("/v1/captures/"));
     finish_capture_upload(&mut runtime, &mut completions).await?;
     let reply = hub_reply(&mut hub).await?;
@@ -3047,7 +3059,7 @@ async fn bridge_answers_a_helper_capture_failure_with_the_helpers_code() -> Resu
         runtime
             .native_event(json!({
                 "event": "response", "id": shot["id"], "ok": false,
-                "error": {"code": helper_code, "message": "texto no confiable"}
+                "error": {"code": helper_code, "message": "untrusted text"}
             }))
             .await?;
 
@@ -3064,7 +3076,7 @@ async fn bridge_answers_a_helper_capture_failure_with_the_helpers_code() -> Resu
             assert_eq!(typed["code"], "helper_refused");
             assert_eq!(typed["helper_code"], helper_code);
         }
-        assert!(!typed.to_string().contains("texto no confiable"));
+        assert!(!typed.to_string().contains("untrusted text"));
         let reply = hub_reply(&mut hub).await?;
         assert_eq!(reply["method"], "device.reply");
         assert_eq!(reply["params"]["request_id"], "bridge-1");
@@ -3083,29 +3095,29 @@ async fn bridge_answers_a_helper_capture_failure_with_the_helpers_code() -> Resu
         assert_ne!(reply["params"]["refusal"]["text"], "native_refused");
         assert!(
             runtime.conversation.bridge_request.is_none(),
-            "el fallo del helper dejó el hueco ocupado"
+            "the helper failure left the slot occupied"
         );
         assert!(
             helper.try_recv().is_err(),
-            "se reintentó la captura tras el fallo del helper"
+            "the capture was retried after the helper failure"
         );
         assert!(runtime.state.views.source_receipt.is_none());
     }
     Ok(())
 }
 
-/// DAE-03 A3: the app's source dropdown reads the helper's application
+/// The app's source dropdown reads the helper's application
 /// inventory through the daemon. Refreshing asks the helper for
 /// `application_sources` and publishes the rows it answered; when the helper
 /// leaves, the published inventory empties.
 #[tokio::test]
-async fn dae03_a3_audio_sources_refresh_asks_the_helper_and_clears_when_it_leaves() -> Result<()> {
+async fn audio_sources_refresh_asks_the_helper_and_clears_when_it_leaves() -> Result<()> {
     use orbit_core::protocol::Command;
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     runtime.command(Command::AudioSourcesRefresh).await?;
     // The inventory asks in reads of eight; Chrome is answered by the read
-    // that names it, wherever the list puts it (P9-11 added call apps).
+    // that names it, wherever the list puts it (call apps made it longer).
     let mut unanswered = Vec::new();
     let request = loop {
         let request = helper.recv().await.context("inventory request absent")?;
@@ -3201,7 +3213,7 @@ async fn dae03_a3_audio_sources_refresh_asks_the_helper_and_clears_when_it_leave
 }
 
 #[tokio::test]
-async fn review_ref404c_audio_drain_incomplete_without_bridge_command_cuts_capture() -> Result<()> {
+async fn audio_drain_incomplete_without_bridge_command_cuts_capture() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let stream = start(&mut runtime, &mut receiver).await?;
@@ -3209,8 +3221,8 @@ async fn review_ref404c_audio_drain_incomplete_without_bridge_command_cuts_captu
     runtime.apply(Event::FinishMeeting).await?;
     let stop = receiver.recv().await.context("stop command absent")?;
     assert_eq!(stop["command"], "audio_stop");
-    // The generic index evicted the stop (review of REF-404c r2: without this
-    // the name came from `pending_native` and the test proved nothing): only
+    // The generic index evicted the stop (without this the name came from
+    // `pending_native` and the test proved nothing, as a review found): only
     // the capture registry can name it now.
     runtime.pending_native.clear();
 

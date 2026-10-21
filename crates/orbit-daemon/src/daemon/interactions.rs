@@ -14,7 +14,7 @@ use std::collections::VecDeque;
 /// the largest snapshot this module accepts. This is not a timeout or an
 /// authorization boundary: entries retire when a snapshot reports that exact
 /// turn as non-live (or oldest-first when this capacity is exhausted), and a
-/// daemon restart forgets them because only Mars's privacy stop is durable.
+/// daemon restart forgets them because only the user's privacy stop is durable.
 const MAX_INTERRUPTED_TURNS: usize = 128;
 
 struct InterruptedTurn {
@@ -22,7 +22,7 @@ struct InterruptedTurn {
     turn_id: String,
 }
 
-/// REF-30 A4. The `chat.interrupt` command whose hub answer is still pending.
+/// The `chat.interrupt` command whose hub answer is still pending.
 /// One conversation is visible at a time, so one interrupt is in flight at a
 /// time; a stale answer cannot match a newer command's id, and a success
 /// (`chat.interrupted`) needs no slot of its own because nothing is retired
@@ -72,7 +72,7 @@ impl InterruptedTurns {
         });
     }
 
-    /// REF-30 A4 follow-up. A reconnect ends every answer that had not
+    /// A reconnect ends every answer that had not
     /// arrived: the connection that owed this ack is gone, so no frame can
     /// match its command id again and the slot would forever describe an
     /// interrupt as answered-pending when nothing will answer it. The
@@ -82,7 +82,7 @@ impl InterruptedTurns {
         self.pending_ack = None;
     }
 
-    /// REF-30 A4. Whether `frame_id` answers the interrupt command still in
+    /// Whether `frame_id` answers the interrupt command still in
     /// flight, and if so ends that memory: the hub refused or could not
     /// perform the interruption, so the turn stays whatever the hub publishes
     /// instead of staying hidden here.
@@ -158,7 +158,7 @@ impl Runtime {
             .forget(&session_id, turn_id);
     }
 
-    /// REF-30 A4. The interrupt command left Orbit; its `error` answer, when
+    /// The interrupt command left Orbit; its `error` answer, when
     /// it comes, is what decides the memory, so keep the pair (command, turn)
     /// until then.
     pub(super) fn await_interrupt_ack(&mut self, command_id: &str, turn_id: &str) {
@@ -172,7 +172,7 @@ impl Runtime {
         );
     }
 
-    /// REF-30 A4. The interrupt request never left Orbit (channel saturated
+    /// The interrupt request never left Orbit (channel saturated
     /// or gone, privacy latched), so the hub still owns a live turn: stop
     /// hiding it and say why it stays on screen.
     pub(super) fn interrupt_not_delivered(&mut self, turn_id: &str, cause: &str) {
@@ -190,11 +190,11 @@ impl Runtime {
         self.say_failure(NoticeCode::AssistantInterruptUnconfirmed, &cause);
     }
 
-    /// REF-30 A4. The hub answered our `chat.interrupt` with `error`, naming
+    /// The hub answered our `chat.interrupt` with `error`, naming
     /// its own cause (turn already terminal, session gone, upstream refusal).
     /// With codes like `outcome_unknown` the order may still have arrived, so
     /// the notice must not claim Hermes did not interrupt: the turn is
-    /// whatever the hub still publishes, the memory retires, and Mars can
+    /// whatever the hub still publishes, the memory retires, and the user can
     /// interrupt again. Returns whether this frame was that answer.
     pub(super) async fn interrupt_error(
         &mut self,
@@ -364,10 +364,10 @@ impl Runtime {
         let Ok(turn_state) = serde_json::from_value::<TurnState>(Value::String(raw_status.clone()))
         else {
             // The hub runs from `main` and the Mac from its last release, so a
-            // newer hub may publish a state this version does not know (ADR
-            // 004: tolerant between hub and device). Nothing is decided on it:
+            // newer hub may publish a state this version does not know (the
+            // two are tolerant of each other). Nothing is decided on it:
             // the turn, its pending questions and the revision stay as they
-            // were, and Mars is told the value, cut to what a notice can show.
+            // were, and the user is told the value, cut to what a notice can show.
             self.log("unknown_turn_state", &[("status", raw_status)]);
             self.say(
                 Notice::new(NoticeCode::AssistantStateUnknown)

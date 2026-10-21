@@ -1,7 +1,7 @@
 //! The daemon's socket, spoken the way the app speaks it: `orbit_ipc::request`.
 //!
-//! Until SIM-01 these tests asked through `orbit status --json`, `orbit stop`
-//! and the rest of the retired command line. The answer is the same `State`
+//! Until 2026-10-15 these tests asked through `orbit status --json`, `orbit
+//! stop` and the rest of the command line retired that day. The answer is the same `State`
 //! that command printed, so assertions read it as the same JSON.
 #![allow(dead_code)]
 use anyhow::Result;
@@ -27,7 +27,7 @@ pub fn request(path: &Path, command: Command) -> Result<Response> {
                     .block_on(orbit_ipc::request(&paths, command))
             })
             .join()
-            .map_err(|_| anyhow::anyhow!("el hilo de la petición IPC falló"))?
+            .map_err(|_| anyhow::anyhow!("the IPC request thread failed"))?
     })
 }
 

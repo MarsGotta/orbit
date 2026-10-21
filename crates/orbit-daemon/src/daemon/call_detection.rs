@@ -1,10 +1,10 @@
-//! P9-11: what the daemon does with the call detection's decisions
+//! What the daemon does with the call detection's decisions
 //! (`orbit_core::call_detection`): it feeds it the helper's
-//! `microphone_activity`, Mars's answers and the time, reads the agenda
+//! `microphone_activity`, the user's answers and the time, reads the agenda
 //! around a call, starts the recording linked to the call's event, and ends
 //! one the call started when the detection says so.
 //!
-//! RAM only, except Mars's preference, which the store keeps encrypted. A
+//! RAM only, except the user's preference, which the store keeps encrypted. A
 //! restart knows nothing until the helper's first list.
 use super::*;
 use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
@@ -88,9 +88,9 @@ impl Runtime {
         }
     }
 
-    /// Reads Mars's preference at startup. Never chosen is «Avisarme»; a
+    /// Reads the user's preference at startup. Never chosen is «Avisarme»; a
     /// preference that cannot be read is said, and the detection behaves as
-    /// «Avisarme» until she chooses again.
+    /// «Avisarme» until they choose again.
     pub(super) fn recover_call_preference(&mut self) {
         self.features.call.preference = Some(match self.reader.load_call_preference() {
             Ok(preference) => Ok(preference.unwrap_or_default()),
@@ -220,7 +220,7 @@ impl Runtime {
         }
     }
 
-    /// Mars's stop, a revocation or closing (the retire plan's slot): the
+    /// The user's stop, a revocation or closing (the retire plan's slot): the
     /// offer and the recording the call started are forgotten, and nothing
     /// resumes on its own.
     pub(super) fn retire_call_detection(&mut self) {
@@ -254,7 +254,7 @@ impl Runtime {
     }
 
     /// Who started the capture of `recording_id`, kept with its epoch: a
-    /// call (P9-11) or Mars.
+    /// call or the user.
     pub(super) fn capture_origin(&self, recording_id: &str) -> &'static str {
         if self.features.call.starting
             || self.features.call.detector.owned_recording() == Some(recording_id)

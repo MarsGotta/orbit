@@ -1,6 +1,6 @@
 //! Keyed reads. Agenda pages come from the daemon's complete native read;
 //! control pages from the engine record; the conversations and their
-//! messages from one HTTP hub page each (SIM-30). The notes reads are the
+//! messages from one HTTP hub page each. The notes reads are the
 //! hub's (`recording_notes::reads`).
 use orbit_core::{
     calendar::{CalendarWindow, MAX_UNIX_MS, MIN_UNIX_MS},
@@ -24,12 +24,12 @@ use super::Runtime;
 /// conversation retention, or a user's action.
 const SESSION_READ_DEADLINE: Duration = Duration::from_secs(8);
 
-/// SIM-30: the store reader that tells a conversation's voice notes whose
+/// The store reader that tells a conversation's voice notes whose
 /// audio this Mac still holds. One of its own, so a page read off the actor
 /// never waits on the actor's reader; a page asks it once per voice note.
 pub(super) type VoiceAudioReader = std::sync::Arc<std::sync::Mutex<orbit_store::ReadOnlyStore>>;
 
-/// SIM-30: a read the daemon makes of the hub's conversations, captured on
+/// A read the daemon makes of the hub's conversations, captured on
 /// the actor and answered off it, so a slow hub never blocks audio.
 pub(super) struct HubReadContext {
     settings: crate::config::Settings,
@@ -56,7 +56,7 @@ impl HubReadContext {
     }
 
     /// Why the hub is not asked at all, if it is not. Without the hub there
-    /// is no chat (Mars, 2026-10-15): offline, the read says so.
+    /// is no chat (a product decision of 2026-10-15): offline, the read says so.
     fn refused_before_asking(&self) -> Result<String, Refusal> {
         crate::hub::access(
             &self.settings,
@@ -154,7 +154,7 @@ impl HubReadContext {
         )
     }
 
-    /// SIM-30: one page of a conversation, newest first without a cursor.
+    /// One page of a conversation, newest first without a cursor.
     /// Each voice note says whether this Mac still holds its audio.
     pub(super) async fn messages(
         self,
@@ -631,7 +631,7 @@ fn control_history(
 
 /// The engine's declared tool names, one page: MAX_ENGINE_TOOLS names of at
 /// most MAX_TOOL_NAME_BYTES fit the 96 KiB ceiling whole, matching how the
-/// catalogue already pages toward Deimos (DEI-13). Without a connected
+/// catalogue already pages toward Deimos. Without a connected
 /// engine there is no catalogue to page, and that is a refusal, not an
 /// empty list.
 fn engine_tools(runtime: &Runtime, cursor: Option<Cursor>) -> Knowledge<Page<serde_json::Value>> {
@@ -837,7 +837,7 @@ fn paginate<T: Serialize>(
 mod tests;
 
 #[cfg(test)]
-mod ref207_size_tests {
+mod size_tests {
     use super::*;
 
     #[test]
@@ -898,7 +898,7 @@ mod ref207_size_tests {
 
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used)]
-mod ref211_tests {
+mod hub_page_tests {
     use super::*;
 
     #[test]
@@ -906,10 +906,10 @@ mod ref211_tests {
         assert!(SESSION_READ_DEADLINE < orbit_ipc::KEYED_READ_TIMEOUT);
     }
 
-    /// SIM-30: the hub's whole page of conversations, 128 rows with
+    /// The hub's whole page of conversations, 128 rows with
     /// canonical ids and the longest numbers, fits the `Sessions` read.
     #[test]
-    fn sim30_a_full_sessions_page_fits_its_read() {
+    fn a_full_sessions_page_fits_its_read() {
         let rows = (0..128)
             .map(|index| orbit_core::SessionSummary {
                 id: format!("00000000-0000-4000-8000-{index:012}"),
@@ -923,16 +923,16 @@ mod ref211_tests {
         });
         let answer = bounded_page(&rows, next, u64::MAX, u64::MAX, ReadId::Sessions);
         let bytes = serde_json::to_vec(&answer).unwrap().len();
-        eprintln!("SIM-30: a full sessions page is {bytes} bytes");
+        eprintln!("a full sessions page is {bytes} bytes");
         assert!(matches!(answer, Knowledge::Present { .. }), "{answer:?}");
         assert!(bytes <= ReadId::Sessions.max_bytes());
     }
 
-    /// SIM-30: a hub page at its 512 KiB ceiling of JSON, in characters that
+    /// A hub page at its 512 KiB ceiling of JSON, in characters that
     /// escape the same on both sides, still fits the `SessionMessages` read
     /// with the ids and `audio_available` the daemon adds.
     #[test]
-    fn sim30_a_full_messages_page_fits_its_read() {
+    fn a_full_messages_page_fits_its_read() {
         let text = "\"".repeat(10 * 1024);
         let message = |index: usize| orbit_core::SessionMessage {
             id: format!("00000000-0000-4000-8000-{index:012}"),
@@ -960,7 +960,7 @@ mod ref211_tests {
         });
         let answer = bounded_page(&messages, next, u64::MAX, u64::MAX, ReadId::SessionMessages);
         let bytes = serde_json::to_vec(&answer).unwrap().len();
-        eprintln!("SIM-30: a full messages page is {bytes} bytes ({hub_bytes} from the hub)");
+        eprintln!("a full messages page is {bytes} bytes ({hub_bytes} from the hub)");
         assert!(matches!(answer, Knowledge::Present { .. }));
         assert!(bytes <= ReadId::SessionMessages.max_bytes());
     }

@@ -24,11 +24,11 @@ const VERIFIED_MCP_VERSION: &str = "2025-06-18";
 /// memory from a single message. 1 MiB because the largest message Orbit can
 /// use is a capture at the capture ceiling (`MAX_IMAGE_BASE64_BYTES`, the
 /// 700 000 bytes of PNG the sources and the hub admit, 933 336 in base64) with
-/// its envelope; the engine's whole catalogue measured 147 909 bytes on Mars's
-/// Mac. It is not an image bound, and a longer answer costs its request, not
+/// its envelope; the engine's whole catalogue measured 147 909 bytes on a
+/// MacBook. It is not an image bound, and a longer answer costs its request, not
 /// the connection: it is read to its end, dropped, and refused with its size.
 /// A Retina full screen is several MiB of base64, which is why it never comes
-/// inline: the engine writes it to a file of Orbit's (SIM-56).
+/// inline: the engine writes it to a file of Orbit's.
 const MAX_FRAME_BYTES: usize = 1_048_576;
 /// The base64 of the largest capture Orbit can deliver: the sources
 /// (`orbit_core::sources::MAX_SOURCE_BYTES`) and the hub's capture upload
@@ -57,7 +57,7 @@ const ENGINE_POLL_INTERVAL: Duration = Duration::from_millis(100);
 /// — to learn whether the process it started has died. An exit closes the
 /// process's pipes before its status can be collected, so at that instant the
 /// status is often not there yet: in half the broken pipes and 86 % of the
-/// ends of file REF-18 measured. Over 44,000 deaths at birth on Linux, with
+/// ends of file measured. Over 44,000 deaths at birth on Linux, with
 /// load averages of 44 to 91 and up to sixteen busy loops per CPU, the status
 /// arrived at p99 within 43 ms of the report and at worst within 77 ms; 500 ms
 /// is over six times that worst case. Linux only: tokio learns of the exit
@@ -164,7 +164,7 @@ pub struct CuaClient<R, W> {
 impl LocalCua {
     /// Starts the engine, makes its socket directory private, and connects.
     /// Nobody has to run anything by hand: the daemon calls this when macOS
-    /// grants Accessibility and Screen Recording (REF-11), and that is the
+    /// grants Accessibility and Screen Recording, and that is the
     /// whole ceremony.
     pub async fn connect(config: CuaConfig) -> Result<Self> {
         validate_path(&config.driver_path)?;
@@ -302,7 +302,7 @@ impl Drop for EngineGroup {
         match rustix::process::kill_process_group(self.pgid, rustix::process::Signal::KILL) {
             Ok(()) | Err(rustix::io::Errno::SRCH) => {}
             Err(error) => eprintln!(
-                "No se pudo detener el grupo del motor CUA (PGID {}): {error}",
+                "Could not stop the CUA engine group (PGID {}): {error}",
                 self.pgid.as_raw_pid()
             ),
         }
@@ -315,7 +315,7 @@ pub fn default_socket_path(root: &Path) -> PathBuf {
     root.join(SOCKET_DIRECTORY).join(SOCKET_FILE)
 }
 
-/// Where the engine writes one full-screen capture (SIM-56): Orbit's private
+/// Where the engine writes one full-screen capture: Orbit's private
 /// engine directory, the one that holds its socket, under a name of its own
 /// per request, so a capture never travels inside the engine's frame and two
 /// requests never share a file. The directory is made private first, since
@@ -596,7 +596,7 @@ where
     } = identity;
     let Ok(peer_pid) = u32::try_from(peer) else {
         eprintln!(
-            "El socket CUA previo ({}) informó el PID inválido {peer}; se retira la ruta sin señalar ningún proceso",
+            "The previous CUA socket ({}) reported the invalid PID {peer}; removing the path without signalling any process",
             socket.display()
         );
         return ListenerInspection::skipped(format!(
@@ -605,7 +605,7 @@ where
     };
     if peer_uid != own_uid {
         eprintln!(
-            "El socket CUA previo ({}) escucha al PID {peer_pid} del usuario {peer_uid}, no al usuario {own_uid} de Orbit; se retira la ruta sin señalarlo",
+            "The previous CUA socket ({}) is held by PID {peer_pid} of user {peer_uid}, not Orbit's user {own_uid}; removing the path without signalling it",
             socket.display()
         );
         return ListenerInspection::skipped(format!(
@@ -614,7 +614,7 @@ where
     }
     let Some(bundle) = orbit_bundle::bundle_of(binary, Member::Engine) else {
         eprintln!(
-            "El socket CUA previo ({}) escucha al PID {peer_pid}, pero {} no es el motor de un paquete Orbit; se retira la ruta sin señalarlo",
+            "The previous CUA socket ({}) is held by PID {peer_pid}, but {} is not the engine of an Orbit bundle; removing the path without signalling it",
             socket.display(),
             binary.display()
         );
@@ -632,7 +632,7 @@ where
         Ok(Ok(listing)) => listing,
         Ok(Err(error)) => {
             eprintln!(
-                "El socket CUA previo ({}) escucha al PID {peer_pid}, pero no se pudo censar su identidad: {error:#}; se retira la ruta sin señalarlo",
+                "The previous CUA socket ({}) is held by PID {peer_pid}, but its identity could not be checked: {error:#}; removing the path without signalling it",
                 socket.display()
             );
             return ListenerInspection::skipped(format!(
@@ -650,7 +650,7 @@ where
     {
         orbit_core::process_listing::EngineListenerDecision::Keep(reason) => {
             eprintln!(
-                "El socket CUA previo ({}) escucha al PID {peer_pid}; el censo no autoriza barrerlo ({reason}), así que se retira la ruta sin señalarlo",
+                "The previous CUA socket ({}) is held by PID {peer_pid}; the census does not authorise sweeping it ({reason}), so the path is removed without signalling it",
                 socket.display()
             );
             ListenerInspection::skipped(format!(
@@ -666,7 +666,7 @@ where
                     .and_then(rustix::process::Pid::from_raw)
                 else {
                     eprintln!(
-                        "No se pudo representar el PID {} del motor CUA huérfano en {}; se retira la ruta sin señalarlo",
+                        "The PID {} of the orphaned CUA engine at {} cannot be represented; removing the path without signalling it",
                         target.pid,
                         target.executable.display()
                     );
@@ -683,7 +683,7 @@ where
                     continue;
                 };
                 eprintln!(
-                    "Aviso: se barre el motor CUA PID {} en {} porque sobrevivió a su daemon y ya no desciende de ningún daemon vivo del paquete",
+                    "Warning: sweeping CUA engine PID {} at {} because it outlived its daemon and no longer descends from any live daemon of the bundle",
                     target.pid,
                     target.executable.display()
                 );
@@ -699,7 +699,7 @@ where
                     }
                     Err(error) => {
                         eprintln!(
-                            "Aviso: el motor CUA PID {} en {} sigue en marcha porque SIGKILL falló: {error}",
+                            "Warning: CUA engine PID {} at {} is still running because SIGKILL failed: {error}",
                             target.pid,
                             target.executable.display()
                         );
@@ -749,7 +749,7 @@ where
                     let (out, fail) = match outcome {
                         Some(ObservedCleanupOutcome::Survived) => {
                             eprintln!(
-                                "Aviso: el motor CUA PID {} en {} sobrevivió a SIGKILL; no se afirma que se haya detenido",
+                                "Warning: CUA engine PID {} at {} survived SIGKILL; it is not claimed to have stopped",
                                 target.pid,
                                 target.executable.display()
                             );
@@ -760,7 +760,7 @@ where
                         }
                         Some(ObservedCleanupOutcome::Stopped) => {
                             eprintln!(
-                                "Se confirmó el barrido del motor CUA PID {} en {}: motivo, huérfano de su daemon",
+                                "Confirmed the sweep of CUA engine PID {} at {}: reason, orphaned from its daemon",
                                 target.pid,
                                 target.executable.display()
                             );
@@ -1225,7 +1225,7 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
                 Ok(value)
             }
             // The answer was read to its end: the connection is in step, and
-            // the engine, which answered, is not killed for its size (SIM-56).
+            // the engine, which answered, is not killed for its size.
             // It is taken as this request's answer. Had it been a
             // notification instead, the real answer would reach the next
             // request with the wrong identity, and that request would be
@@ -1262,7 +1262,7 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
     /// When it is still running the connection really did close, and the
     /// message stays as it was: no death is attributed that did not happen.
     /// A write that finds the pipe broken is the same silence, found by the
-    /// write before the read gets to it (REF-18). What was in flight decides
+    /// write before the read gets to it. What was in flight decides
     /// what the death can truthfully be called: a death after the engine
     /// answered is named as that, not as a binary that never started.
     async fn name_the_death_behind_the_silence(
@@ -1353,7 +1353,7 @@ fn death_context(status: ExitStatus, sent: Sent<'_>, next_id: u64) -> String {
 
 /// Resolve the engine in its nested app unless development
 /// explicitly supplies an external absolute path. `daemon_executable` is the
-/// executable the daemon runs in: the app, `Contents/MacOS/Orbit` (SIM-51).
+/// executable the daemon runs in: the app, `Contents/MacOS/Orbit`.
 pub fn resolve_driver_path(configured: &str, daemon_executable: &Path) -> Result<PathBuf> {
     if !configured.is_empty() {
         return Ok(PathBuf::from(configured));
@@ -1407,7 +1407,7 @@ fn validate_private_socket(path: &Path) -> Result<()> {
 fn parse_observation(result: &Value) -> Result<NativeObservation> {
     if result["isError"] == true {
         // The engine's own words are the only cause there is; without them a
-        // refused read is indistinguishable from any other (SIM-25, run 4).
+        // refused read is indistinguishable from any other.
         // Bounded: the line goes to daemon.log, never to the report log.
         let said: String = result["content"]
             .as_array()
@@ -1511,7 +1511,7 @@ enum Sent<'a> {
 /// of file on what it writes, or a broken pipe on what Orbit writes to it. The
 /// exit of the process closes both, so either can be how Orbit first learns of
 /// a death; which one depends on whether Orbit's write lands before the exit
-/// or after it (REF-18 measured both on the same fixture). Every other failure
+/// or after it (both were measured on the same fixture). Every other failure
 /// is left exactly as it was.
 fn the_engine_end_is_gone(error: &anyhow::Error) -> bool {
     error.downcast_ref::<ConnectionClosed>().is_some()
@@ -1521,7 +1521,7 @@ fn the_engine_end_is_gone(error: &anyhow::Error) -> bool {
 }
 
 /// An answer of the engine refused for its size, with both numbers, so that
-/// whoever asked is told them (SIM-56). It is not an engine failure: the
+/// whoever asked is told them. It is not an engine failure: the
 /// engine answered, and the connection stays in step.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ResponseTooLarge {
@@ -1610,7 +1610,7 @@ impl LocalCua {
 }
 
 #[cfg(test)]
-mod ref46_process_cleanup_tests {
+mod process_cleanup_tests {
     #![allow(clippy::unwrap_used)]
 
     use super::{ObservedCleanupOutcome, observed_cleanup_outcome};
@@ -1618,8 +1618,7 @@ mod ref46_process_cleanup_tests {
     use std::path::PathBuf;
 
     #[tokio::test]
-    async fn sim98_the_serve_process_exit_is_observed_without_an_mcp_failure() -> anyhow::Result<()>
-    {
+    async fn the_serve_process_exit_is_observed_without_an_mcp_failure() -> anyhow::Result<()> {
         let mut child = tokio::process::Command::new("/bin/sh")
             .args(["-c", "exit 31"])
             .env_clear()
@@ -1665,7 +1664,7 @@ mod ref46_process_cleanup_tests {
     }
 
     #[test]
-    fn a2_an_exact_engine_still_listed_is_reported_as_surviving_sigkill() {
+    fn an_exact_engine_still_listed_is_reported_as_surviving_sigkill() {
         let listing = "43906 1 501 /Applications/Orbit.app/Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver\n";
         assert_eq!(
             observed_cleanup_outcome(listing, &target(), 501),
@@ -1674,7 +1673,7 @@ mod ref46_process_cleanup_tests {
     }
 
     #[test]
-    fn a2_absence_or_pid_reuse_is_reported_as_the_old_engine_stopped() {
+    fn absence_or_pid_reuse_is_reported_as_the_old_engine_stopped() {
         assert_eq!(
             observed_cleanup_outcome("", &target(), 501),
             ObservedCleanupOutcome::Stopped
@@ -1719,14 +1718,14 @@ mod ref46_process_cleanup_tests {
                 failure: None,
             }],
             None,
-            || Err(anyhow::anyhow!("falló el arranque sintético")),
+            || Err(anyhow::anyhow!("synthetic start failed")),
         )
         .await
         {
-            Ok(_) => panic!("el arranque sintético debía fallar"),
+            Ok(_) => panic!("the synthetic start had to fail"),
             Err(error) => format!("{error:#}"),
         };
-        assert!(error.contains("falló el arranque sintético"), "{error}");
+        assert!(error.contains("synthetic start failed"), "{error}");
         assert!(error.contains("PID 43906"), "{error}");
         assert!(
             error.contains("/Applications/Orbit.app/Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver"),
@@ -1736,7 +1735,7 @@ mod ref46_process_cleanup_tests {
     }
 
     #[tokio::test]
-    async fn a1_a_real_test_socket_routes_its_peer_into_the_synthetic_census() {
+    async fn a_real_test_socket_routes_its_peer_into_the_synthetic_census() {
         use std::sync::atomic::{AtomicUsize, Ordering};
         let directory = tempfile::tempdir().unwrap();
         let socket = directory.path().join("old.sock");
@@ -1776,7 +1775,7 @@ mod ref46_process_cleanup_tests {
     }
 
     #[tokio::test]
-    async fn a1_ps_fails_no_sweep() {
+    async fn ps_fails_no_sweep() {
         let binary = PathBuf::from(
             "/Applications/Orbit.app/Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver",
         );
@@ -1807,7 +1806,7 @@ mod ref46_process_cleanup_tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn a1_ps_deadline_expires_without_a_signal() {
+    async fn ps_deadline_expires_without_a_signal() {
         let binary = PathBuf::from(
             "/Applications/Orbit.app/Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver",
         );
@@ -1833,7 +1832,7 @@ mod ref46_process_cleanup_tests {
     }
 
     #[tokio::test]
-    async fn a1_sweeps_parent_serve_if_orphaned() {
+    async fn sweeps_parent_serve_if_orphaned() {
         let binary = PathBuf::from(
             "/Applications/Orbit.app/Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver",
         );
@@ -1870,7 +1869,7 @@ mod ref46_process_cleanup_tests {
     }
 
     #[tokio::test]
-    async fn a2_failed_census_after_sigkill_is_unconfirmed_with_cause() {
+    async fn failed_census_after_sigkill_is_unconfirmed_with_cause() {
         use std::sync::atomic::{AtomicUsize, Ordering};
         let binary = PathBuf::from(
             "/Applications/Orbit.app/Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver",
@@ -1909,7 +1908,7 @@ mod ref46_process_cleanup_tests {
     }
 
     #[tokio::test]
-    async fn a2_an_unrepresentable_parent_pid_keeps_its_failed_signal_receipt() {
+    async fn an_unrepresentable_parent_pid_keeps_its_failed_signal_receipt() {
         use std::sync::atomic::{AtomicUsize, Ordering};
         let binary = PathBuf::from(
             "/Applications/Orbit.app/Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver",

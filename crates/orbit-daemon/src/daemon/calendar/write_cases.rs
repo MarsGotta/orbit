@@ -1,4 +1,4 @@
-//! P9-21 criterion 4, through the daemon's real path to a synthetic helper:
+//! Calendar writes, through the daemon's real path to a synthetic helper:
 //! a write reaches the helper with its shape, its answer comes back typed, a
 //! refusal keeps its cause and numbers, and a lost answer is
 //! `calendar_write_outcome_unknown` — the agenda is read again and the write
@@ -94,7 +94,7 @@ fn write(runtime: &Runtime, request_id: &str) -> Result<CalendarWriteView> {
         .iter()
         .find(|write| write.request_id == request_id)
         .cloned()
-        .context("la escritura no está en la vista")
+        .context("the write is not in the view")
 }
 
 async fn ask(runtime: &mut Runtime, request: Request) -> Result<()> {
@@ -113,7 +113,7 @@ fn drained(receiver: &mut mpsc::Receiver<Value>) -> Vec<String> {
 /// A queue that is full refuses the next write by that cause, with the
 /// count and the limit, and sends nothing.
 #[tokio::test]
-async fn p9_21_a_full_queue_refuses_by_name_with_its_numbers() -> Result<()> {
+async fn a_full_queue_refuses_by_name_with_its_numbers() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;
@@ -123,7 +123,7 @@ async fn p9_21_a_full_queue_refuses_by_name_with_its_numbers() -> Result<()> {
     let error = ask(&mut runtime, delete_request("one-too-many"))
         .await
         .err()
-        .context("una escritura de más se aceptó")?;
+        .context("one write too many was accepted")?;
     assert_eq!(
         error.downcast_ref::<CalendarWriteRefusal>(),
         Some(&CalendarWriteRefusal::QueueFull {
@@ -144,7 +144,7 @@ async fn p9_21_a_full_queue_refuses_by_name_with_its_numbers() -> Result<()> {
 /// its occurrence; an occurrence past `MAX_WRITE_OCCURRENCE_BYTES` stays out of
 /// the record, which says its size.
 #[tokio::test]
-async fn p9_21_only_the_latest_saved_write_retains_a_bounded_occurrence() -> Result<()> {
+async fn only_the_latest_saved_write_retains_a_bounded_occurrence() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;
@@ -209,7 +209,7 @@ async fn next_window(runtime: &mut Runtime, receiver: &mut mpsc::Receiver<Value>
 /// A store that keeps changing under a long read ends it by name: restarts
 /// count for the whole read, not per window, so it cannot start over for ever.
 #[tokio::test]
-async fn p9_21_a_read_that_keeps_restarting_ends_by_name() -> Result<()> {
+async fn a_read_that_keeps_restarting_ends_by_name() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;
@@ -275,11 +275,11 @@ async fn p9_21_a_read_that_keeps_restarting_ends_by_name() -> Result<()> {
             return Ok(());
         }
     }
-    anyhow::bail!("la lectura se reinició ocho veces sin terminar")
+    anyhow::bail!("the read restarted eight times without finishing")
 }
 
 #[tokio::test]
-async fn p9_21_a_move_reaches_the_helper_and_its_answer_comes_back_typed() -> Result<()> {
+async fn a_move_reaches_the_helper_and_its_answer_comes_back_typed() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;
@@ -308,7 +308,9 @@ async fn p9_21_a_move_reaches_the_helper_and_its_answer_comes_back_typed() -> Re
         let outcome = write(&runtime, request_id)?;
         assert_eq!(outcome.operation, CalendarWriteOperation::Update);
         assert_eq!(outcome.stage, CalendarWriteStage::Saved);
-        let occurrence = outcome.occurrence.context("sin la ocurrencia resultante")?;
+        let occurrence = outcome
+            .occurrence
+            .context("without the resulting occurrence")?;
         assert_eq!(occurrence.start_unix_ms, START + HOUR);
         assert_eq!(occurrence.calendar_item_id, "item-1");
         assert!(outcome.refusal.is_none());
@@ -317,7 +319,7 @@ async fn p9_21_a_move_reaches_the_helper_and_its_answer_comes_back_typed() -> Re
 }
 
 #[tokio::test]
-async fn p9_21_a_create_and_a_delete_reach_the_helper_with_their_shapes() -> Result<()> {
+async fn a_create_and_a_delete_reach_the_helper_with_their_shapes() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;
@@ -327,7 +329,7 @@ async fn p9_21_a_create_and_a_delete_reach_the_helper_with_their_shapes() -> Res
     let create = &command["calendar_save"]["create"];
     assert!(
         create.get("calendar_id").is_none(),
-        "sin calendario: el que macOS usa por defecto"
+        "no calendar: the one macOS uses by default"
     );
     assert_eq!(create["title"], "Café con Ada");
     assert_eq!(create["alarms_minutes"], json!([10]));
@@ -362,7 +364,7 @@ async fn p9_21_a_create_and_a_delete_reach_the_helper_with_their_shapes() -> Res
 
 /// A refusal keeps its code and numbers to whoever asked, and is not retried.
 #[tokio::test]
-async fn p9_21_a_refusal_comes_back_by_name_with_its_numbers() -> Result<()> {
+async fn a_refusal_comes_back_by_name_with_its_numbers() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;
@@ -395,7 +397,7 @@ async fn p9_21_a_refusal_comes_back_by_name_with_its_numbers() -> Result<()> {
 /// A write Orbit can already tell is wrong never reaches the helper, and the
 /// refusal names the field and its numbers.
 #[tokio::test]
-async fn p9_21_an_invalid_write_is_refused_before_it_is_sent() -> Result<()> {
+async fn an_invalid_write_is_refused_before_it_is_sent() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;
@@ -415,12 +417,12 @@ async fn p9_21_an_invalid_write_is_refused_before_it_is_sent() -> Result<()> {
     let error = ask(&mut runtime, backwards)
         .await
         .err()
-        .context("una escritura al revés se aceptó")?;
+        .context("a reversed write was accepted")?;
     assert!(error.to_string().contains(&START.to_string()), "{error}");
     let outcome = write(&runtime, "backwards")?;
     assert_eq!(outcome.stage, CalendarWriteStage::Refused);
     let Some(CalendarWriteRefusal::InvalidChange(change)) = outcome.refusal else {
-        anyhow::bail!("sin causa: {:?}", outcome.refusal);
+        anyhow::bail!("without a cause: {:?}", outcome.refusal);
     };
     assert_eq!(change.problem, CalendarChangeProblem::EndBeforeStart);
     assert_eq!(
@@ -435,7 +437,7 @@ async fn p9_21_an_invalid_write_is_refused_before_it_is_sent() -> Result<()> {
 /// screen is read again; the write is not sent a second time, and its late
 /// answer does not turn the unknown into a fact.
 #[tokio::test]
-async fn p9_21_a_lost_answer_is_outcome_unknown_and_never_sent_twice() -> Result<()> {
+async fn a_lost_answer_is_outcome_unknown_and_never_sent_twice() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;
@@ -489,7 +491,7 @@ async fn p9_21_a_lost_answer_is_outcome_unknown_and_never_sent_twice() -> Result
     let sent = drained(&mut receiver);
     assert!(
         sent.contains(&"calendar_snapshot".to_owned()),
-        "la agenda no se volvió a leer: {sent:?}"
+        "the agenda was not read again: {sent:?}"
     );
     assert!(!sent.contains(&"calendar_save".to_owned()), "{sent:?}");
 
@@ -508,7 +510,7 @@ async fn p9_21_a_lost_answer_is_outcome_unknown_and_never_sent_twice() -> Result
 
 /// The helper itself can say the outcome is unknown (its EventKit deadline).
 #[tokio::test]
-async fn p9_21_the_helpers_own_unknown_outcome_keeps_its_cause() -> Result<()> {
+async fn the_helpers_own_unknown_outcome_keeps_its_cause() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;
@@ -533,7 +535,7 @@ async fn p9_21_the_helpers_own_unknown_outcome_keeps_its_cause() -> Result<()> {
 /// A helper that restarts while a write is with EventKit leaves its outcome
 /// unknown; the new helper is not sent the write again.
 #[tokio::test]
-async fn p9_21_a_restart_during_a_write_is_unknown_and_not_resent() -> Result<()> {
+async fn a_restart_during_a_write_is_unknown_and_not_resent() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;
@@ -558,10 +560,10 @@ async fn p9_21_a_restart_during_a_write_is_unknown_and_not_resent() -> Result<()
     Ok(())
 }
 
-/// Her privacy stop refuses a write that had not been sent — the store is
+/// The user's privacy stop refuses a write that had not been sent — the store is
 /// known to be unchanged — and refuses new ones without sending them.
 #[tokio::test]
-async fn p9_21_privacy_stop_refuses_unsent_writes_by_name() -> Result<()> {
+async fn privacy_stop_refuses_unsent_writes_by_name() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;
@@ -597,7 +599,7 @@ async fn p9_21_privacy_stop_refuses_unsent_writes_by_name() -> Result<()> {
 /// store changed under the read, so the windows already joined are stale and
 /// the read starts again from its first window — it never keeps old days.
 #[tokio::test]
-async fn p9_21_a_change_during_a_read_starts_the_read_again_from_its_first_window() -> Result<()> {
+async fn a_change_during_a_read_starts_the_read_again_from_its_first_window() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;

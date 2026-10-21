@@ -1,11 +1,11 @@
-//! Reads of Mars's agenda — for the agenda on screen and for Deimos (REF-10) —
-//! and the writes she makes from Orbit (P9-21, `writes.rs`).
+//! Reads of the user's agenda — for the agenda on screen and for Deimos —
+//! and the writes they make from Orbit (`writes.rs`).
 //!
 //! The macOS calendar permission is the only decision. Nothing is listed for
 //! choosing, selected, copied or renewed: a read asks the helper for one
 //! window of every calendar at a time, page by page, and joins the pages. The
 //! helper has one EventKit slot, so the requests are sent one after another:
-//! a write first, because Mars is waiting on it and it changes what a read
+//! a write first, because the user is waiting on it and it changes what a read
 //! would return; then Deimos's reads, because a question is waiting on them.
 //!
 //! RAM only. No storage, credentials or hub traffic here, except the answer
@@ -76,11 +76,11 @@ enum Purpose {
     Screen,
     /// A question Deimos is waiting on.
     Deimos,
-    /// P9-11: what is on now, for the event of a call.
+    /// What is on now, for the event of a call.
     Call,
 }
 
-/// P9-11: the agenda around a call, one short window read once.
+/// The agenda around a call, one short window read once.
 struct CallRead {
     window: CalendarWindow,
     sent: bool,
@@ -101,7 +101,7 @@ enum Job {
         read: Option<WindowRead>,
         epoch: u64,
     },
-    /// P9-21: one write Mars made, under her client's identifier.
+    /// One write the user made, under its client's identifier.
     Write {
         request_id: String,
         request: WriteRequest,
@@ -258,7 +258,7 @@ pub(super) struct CalendarRuntime {
     /// tried again first on the next turn so a half-read window is not lost.
     /// A parked write was never sent: sending it then is its first send.
     parked: Option<Job>,
-    /// P9-21: writes accepted and not yet sent, oldest first. Their records
+    /// Writes accepted and not yet sent, oldest first. Their records
     /// are in `view.writes`.
     write_queue: VecDeque<(String, WriteRequest)>,
     /// Bumped whenever the store or the helper changed underneath
@@ -272,7 +272,7 @@ pub(super) struct CalendarRuntime {
     screen_range: Option<CalendarWindow>,
     screen: Option<ScreenRead>,
     deimos: Option<deimos::Walk>,
-    /// P9-11: the window around a call, while it is wanted.
+    /// The window around a call, while it is wanted.
     call: Option<CallRead>,
     /// The exact walk retired by a Mac capture cut, so its next cursor can
     /// name the cut rather than falsely claiming the reader restarted.
@@ -417,7 +417,7 @@ impl Runtime {
             && self.features.native_host.identity().is_some()
     }
 
-    /// P9-11: reads `window` (now until the lookahead) for the event of a
+    /// Reads `window` (now until the lookahead) for the event of a
     /// call. A newer call replaces a read not answered yet.
     pub(super) fn read_calendar_for_call(&mut self, window: CalendarWindow) {
         self.features.calendar.call = Some(CallRead {

@@ -10,7 +10,7 @@ async fn exiting_service(tail: &str, marker: &std::path::Path) -> Result<(Action
         "read -r line\nprintf '%s\\n' '{initialize}'\nread -r line\nread -r line\nprintf '%s\\n' '{tools}'\n{tail}"
     );
     let child = tokio::process::Command::new("/bin/sh")
-        .args(["-c", &script, "sim98-fixture"])
+        .args(["-c", &script, "engine-exit-fixture"])
         .arg(marker)
         .env_clear()
         .stdin(std::process::Stdio::piped())
@@ -60,7 +60,7 @@ fn assert_exit_notice(runtime: &Runtime, code: &str, status: i64) -> Result<()> 
 }
 
 #[tokio::test]
-async fn sim98_idle_exit_is_said_once_with_status_and_releases_the_session() -> Result<()> {
+async fn idle_exit_is_said_once_with_status_and_releases_the_session() -> Result<()> {
     for (tail, code, status) in [
         ("exit 0", "exit", 0),
         ("exit 23", "exit", 23),
@@ -96,7 +96,7 @@ async fn sim98_idle_exit_is_said_once_with_status_and_releases_the_session() -> 
 }
 
 #[tokio::test]
-async fn sim98_exit_during_input_keeps_one_uncertain_receipt_and_never_replays() -> Result<()> {
+async fn exit_during_input_keeps_one_uncertain_receipt_and_never_replays() -> Result<()> {
     let mut h = Mac::new(false).await?;
     let marker = h._directory.path().join("input-count");
     let (service, _) = exiting_service(
@@ -124,7 +124,7 @@ async fn sim98_exit_during_input_keeps_one_uncertain_receipt_and_never_replays()
 }
 
 #[tokio::test]
-async fn sim98_an_ordered_close_does_not_report_an_unexpected_exit() -> Result<()> {
+async fn an_ordered_close_does_not_report_an_unexpected_exit() -> Result<()> {
     let mut h = Mac::new(false).await?;
     let (service, _) = exiting_service("read -r line", h._directory.path()).await?;
     h.runtime.features.computer.service = Some(service);

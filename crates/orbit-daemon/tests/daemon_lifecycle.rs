@@ -43,7 +43,7 @@ fn start(path: &Path) -> Daemon {
         );
         assert!(Instant::now() < deadline, "daemon did not become ready");
         // The socket answers `status` while the store is still recovering
-        // (REF-39), and every other order is refused until it ends with
+        // and every other order is refused until it ends with
         // «El almacén se está recuperando…». On macOS, with the tests of this
         // binary running in parallel, a restart's recovery outlived the first
         // `status` and the next order was refused (0.3.13 build, 29-09). Ready
@@ -81,17 +81,17 @@ fn privacy_stop_survives_real_daemon_restart_without_network() {
     assert_eq!(status(directory.path())["privacy_stopped"], false);
 }
 
-/// REF-12 A1 with the real binary: a crash or an update that nobody asked to
+/// With the real binary: a crash or an update that nobody asked to
 /// stop comes back working, and the recording it cut stays interrupted with
 /// its fragments, not resumed.
 #[test]
-fn ref12_a1_a_restart_nobody_stopped_comes_back_working() -> anyhow::Result<()> {
+fn a_restart_nobody_stopped_comes_back_working() -> anyhow::Result<()> {
     use base64::{Engine, engine::general_purpose::STANDARD};
     use orbit_core::{CapturePhase, Recording, State, protocol::MeetingAudio};
     use orbit_store::Store;
 
     let directory = tempfile::Builder::new()
-        .prefix("orbit-ref12-")
+        .prefix("orbit-restart-")
         .tempdir_in("/tmp")?;
     let path = directory.path();
     let mut first = start(path);
@@ -108,7 +108,7 @@ fn ref12_a1_a_restart_nobody_stopped_comes_back_working() -> anyhow::Result<()> 
         .load_snapshot::<State>()?
         .ok_or_else(|| anyhow::anyhow!("the first daemon left no snapshot"))?;
     snapshot.durable.recording = Some(Recording {
-        id: "ref12-crashed-recording".into(),
+        id: "crashed-recording".into(),
         title: "Reunión sintética".into(),
         started_at_ms: 1_000,
         ended_at_ms: None,
@@ -140,7 +140,7 @@ fn ref12_a1_a_restart_nobody_stopped_comes_back_working() -> anyhow::Result<()> 
 }
 
 #[test]
-fn ref307_real_restart_closes_mars_stopped_empty_recording_before_ready() -> anyhow::Result<()> {
+fn real_restart_closes_a_user_stopped_empty_recording_before_ready() -> anyhow::Result<()> {
     use base64::{Engine, engine::general_purpose::STANDARD};
     use orbit_core::{
         CapturePhase, Connection, Event, PermissionState, Recording, State, decide,
@@ -149,7 +149,7 @@ fn ref307_real_restart_closes_mars_stopped_empty_recording_before_ready() -> any
     use orbit_store::Store;
 
     let directory = tempfile::Builder::new()
-        .prefix("orbit-ref307-")
+        .prefix("orbit-stopped-")
         .tempdir_in("/tmp")?;
     let path = directory.path();
     let mut first = start(path);
@@ -167,7 +167,7 @@ fn ref307_real_restart_closes_mars_stopped_empty_recording_before_ready() -> any
         .ok_or_else(|| anyhow::anyhow!("the first daemon left no snapshot"))?;
     assert!(snapshot.privacy_stopped(), "the fixture lost Alina's stop");
     snapshot.durable.recording = Some(Recording {
-        id: "mars-interrupted-empty".into(),
+        id: "user-interrupted-empty".into(),
         title: "Reunión de Alina".into(),
         started_at_ms: 1_000,
         ended_at_ms: None,
@@ -190,7 +190,7 @@ fn ref307_real_restart_closes_mars_stopped_empty_recording_before_ready() -> any
     assert!(state["recording"]["ended_at_ms"].is_i64(), "{state}");
     let store = Store::open(path.join("store"), key)?;
     let closure = store
-        .get_job("finalize-mars-interrupted-empty")?
+        .get_job("finalize-user-interrupted-empty")?
         .ok_or_else(|| anyhow::anyhow!("durable closure absent after ready"))?;
     assert_eq!(closure.payload["interruption"]["cause"], "cause_not_saved");
 
@@ -229,13 +229,13 @@ fn ref307_real_restart_closes_mars_stopped_empty_recording_before_ready() -> any
 }
 
 #[test]
-fn ref307_real_restart_names_a_capture_that_was_live_in_the_snapshot() -> anyhow::Result<()> {
+fn real_restart_names_a_capture_that_was_live_in_the_snapshot() -> anyhow::Result<()> {
     use base64::{Engine, engine::general_purpose::STANDARD};
     use orbit_core::{CapturePhase, Recording, State, protocol::MeetingAudio};
     use orbit_store::Store;
 
     let directory = tempfile::Builder::new()
-        .prefix("orbit-ref307-live-")
+        .prefix("orbit-live-")
         .tempdir_in("/tmp")?;
     let path = directory.path();
     let mut first = start(path);
@@ -366,7 +366,7 @@ fn real_startup_recovers_a_durable_call_lifecycle_without_restoring_authority() 
     // This is the actual binary's startup, not a hand-reimplemented recovery call.
     let mut second = start(path);
     let state = status(path);
-    // REF-12 A1: the restart invents no stop; the call's authority is still gone.
+    // The restart invents no stop; the call's authority is still gone.
     assert_eq!(state["privacy_stopped"], false);
     assert!(state["call"].is_null() && state["active_request"].is_null());
     assert_eq!(state["voice_active"], false);

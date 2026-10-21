@@ -128,7 +128,7 @@ impl Runtime {
                 self.record_invalid_hub_frame(&event, &reason)
             }
         }
-        // P9-12: the question's turn may have ended with this event.
+        // A meeting question's turn may have ended with this event.
         self.follow_meeting_question();
         Ok(())
     }
@@ -410,7 +410,7 @@ impl Runtime {
     }
 
     async fn on_hub_error(&mut self, frame_id: Option<&str>, data: &ErrorData) -> Result<()> {
-        // REF-30 A4: an error answering our own chat.interrupt
+        // An error answering our own chat.interrupt
         // already said its cause with what to do about it; the
         // generic notice below must not talk over it.
         let interrupt_refused = self.interrupt_error(frame_id, data).await?;

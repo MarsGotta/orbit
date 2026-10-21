@@ -17,7 +17,7 @@ fn recovery_fixture() -> Result<(tempfile::TempDir, Paths)> {
     let mut store = Store::open(&paths.store, [0x42; 32])?;
     for serial in 0..12 {
         store.enqueue_job(&Job {
-            id: format!("ref39-upload-{serial:02}"),
+            id: format!("recovery-upload-{serial:02}"),
             kind: "chunk_upload".into(),
             payload: json!({"fixture": serial}),
             state: JobState::Running,
@@ -105,7 +105,7 @@ where
     // second daemon. Eight MiB gives this two-start fixture four times that
     // space; it is a test-thread stack, not a daemon resource limit.
     let worker = std::thread::Builder::new()
-        .name("ref39-restart-fixture".into())
+        .name("startup-restart-fixture".into())
         .stack_size(8 * 1024 * 1024)
         .spawn(move || -> Result<()> {
             let runtime = tokio::runtime::Builder::new_current_thread()
@@ -178,7 +178,7 @@ async fn recovery_event(paths: &Paths, field: &str, expected: &str) -> Result<Va
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn a2_socket_reports_recovery_and_rejects_store_commands() -> Result<()> {
+async fn socket_reports_recovery_and_rejects_store_commands() -> Result<()> {
     tokio::task::LocalSet::new()
         .run_until(async {
             let (_directory, paths) = recovery_fixture()?;
@@ -252,7 +252,7 @@ async fn a2_socket_reports_recovery_and_rejects_store_commands() -> Result<()> {
 }
 
 #[test]
-fn a3_privacy_stop_is_served_during_recovery_and_survives_restart() -> Result<()> {
+fn privacy_stop_is_served_during_recovery_and_survives_restart() -> Result<()> {
     run_restart_fixture(|| async {
         tokio::task::LocalSet::new()
             .run_until(async {
@@ -298,7 +298,7 @@ fn a3_privacy_stop_is_served_during_recovery_and_survives_restart() -> Result<()
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn a3_stop_during_environment_preparation_is_durable() -> Result<()> {
+async fn stop_during_environment_preparation_is_durable() -> Result<()> {
     tokio::task::LocalSet::new()
         .run_until(async {
             let (_directory, paths) = recovery_fixture()?;
@@ -343,7 +343,7 @@ async fn a3_stop_during_environment_preparation_is_durable() -> Result<()> {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn a3_mars_stop_during_recovery_attributes_an_old_unknown_stop() -> Result<()> {
+async fn a_user_stop_during_recovery_attributes_an_old_unknown_stop() -> Result<()> {
     tokio::task::LocalSet::new()
         .run_until(async {
             let (_directory, paths) = recovery_fixture()?;
@@ -382,8 +382,8 @@ async fn a3_mars_stop_during_recovery_attributes_an_old_unknown_stop() -> Result
 }
 
 #[test]
-fn ref39_daemon_child() -> Result<()> {
-    let Some(root) = std::env::var_os("ORBIT_REF39_CHILD_ROOT") else {
+fn startup_daemon_child() -> Result<()> {
+    let Some(root) = std::env::var_os("ORBIT_STARTUP_CHILD_ROOT") else {
         return Ok(());
     };
     let paths = Paths::resolve(Some(root.into()))?;
@@ -404,7 +404,7 @@ impl Drop for ChildDaemon {
 }
 
 #[test]
-fn a3_acknowledged_stop_survives_sigterm_during_preparation() -> Result<()> {
+fn acknowledged_stop_survives_sigterm_during_preparation() -> Result<()> {
     run_restart_fixture(|| signal_then_restart(false))
 }
 
@@ -421,9 +421,9 @@ async fn signal_then_restart(corrupt_stop: bool) -> Result<()> {
                 .open(&child_log)?;
             let child = std::process::Command::new(std::env::current_exe()?)
                 .arg("--exact")
-                .arg("ref39_daemon_child")
+                .arg("startup_daemon_child")
                 .arg("--nocapture")
-                .env("ORBIT_REF39_CHILD_ROOT", &paths.root)
+                .env("ORBIT_STARTUP_CHILD_ROOT", &paths.root)
                 .stdout(child_output.try_clone()?)
                 .stderr(child_output)
                 .spawn()?;
@@ -508,7 +508,7 @@ async fn listener_bind_failure_names_the_occupied_socket() -> Result<()> {
 }
 
 #[test]
-fn a3_a_lost_stop_restarts_with_an_assertion() -> Result<()> {
+fn a_lost_stop_restarts_with_an_assertion() -> Result<()> {
     let mismatch = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         run_restart_fixture(|| signal_then_restart(true))
     }));

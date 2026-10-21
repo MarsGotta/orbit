@@ -28,10 +28,10 @@ const MICROPHONE_SOURCE: &str = "mic_local";
 /// stay open looking as if it listened. Why 3 s: it is the window in which
 /// the helper declares the same loss on its side (`no_capture_frames` in
 /// `AudioCapture.swift`); the two are independent and need not agree. What it
-/// is not: Mars's silence, which is still audio and has its own minute
+/// is not: the user's silence, which is still audio and has its own minute
 /// (`VoicePolicy::idle_timeout_ms`), and not a budget for the daemon's loop:
 /// frames waiting in the loop's queue are audio arriving, so a loop that was
-/// held reads them before this is judged (SIM-55).
+/// held reads them before this is judged.
 const CALL_AUDIO_SILENCE_LIMIT: Duration = Duration::from_secs(3);
 
 /// Keeps unanswered call-start identities after hangup so a late success can
@@ -65,17 +65,17 @@ pub(super) struct CallRuntime {
     /// Whether the last frame said Deimos's voice was playing.
     playback_active: bool,
     /// The last turn sent to transcription, and the one the turn being
-    /// captured now carries (SIM-57).
+    /// captured now carries.
     submitted: Option<CallTurnAudio>,
     joined: Option<CallTurnAudio>,
-    /// What the main loop knew when the current tick began (SIM-55): the
+    /// What the main loop knew when the current tick began: the
     /// helper events it had not read yet, and how long the tick before took.
     queued_native_events: usize,
     last_tick: Duration,
 }
 
 /// A call turn's voice, kept while its transcription is in course so that
-/// what Mars says next, before it reaches Deimos, can carry it (SIM-57).
+/// what the user says next, before it reaches Deimos, can carry it.
 pub(super) struct CallTurnAudio {
     operation_id: String,
     sample_rate: u32,
@@ -333,7 +333,7 @@ impl Runtime {
             return Ok(());
         };
         // A chunk of this call the store has not confirmed yet is the closure
-        // waiting, not failing: maintenance comes back each tick (SIM-57).
+        // waiting, not failing: maintenance comes back each tick.
         let sealing = self
             .capture
             .pending_seals
@@ -567,7 +567,7 @@ impl Runtime {
                     // The interrupt retires the turn in course, as Esc does,
                     // and that reset the detector this frame just opened a
                     // turn in: the turn never ended and the next one found
-                    // its buffer taken (SIM-57).
+                    // its buffer taken.
                     if let (Some(call), Some(began)) = (self.capture.call_runtime.as_mut(), began) {
                         call.detector = began;
                     }
@@ -641,10 +641,10 @@ impl Runtime {
         Ok(())
     }
 
-    /// The turn whose transcription is still in course, when Mars speaks
-    /// again before it reached Deimos: her new words continue it, so its voice
-    /// goes first in the new turn instead of being cancelled and lost
-    /// (SIM-57). A turn already sent to Deimos is not carried: he has it.
+    /// The turn whose transcription is still in course, when the user speaks
+    /// again before it reached Deimos: their new words continue it, so its
+    /// voice goes first in the new turn instead of being cancelled and lost.
+    /// A turn already sent to Deimos is not carried: he has it.
     fn joinable_turn(&mut self) -> Option<CallTurnAudio> {
         if self.state.durable.active_request.is_some()
             || self.conversation.voice_task.active().is_none()
@@ -750,7 +750,7 @@ impl Runtime {
                 .saturating_sub(call.authorization.started_at_ms) as u64,
         );
         // A frame still in the loop's queue was sent; absence is judged only
-        // once nothing is waiting (SIM-55).
+        // once nothing is waiting.
         let no_audio =
             call.last_audio.elapsed() > CALL_AUDIO_SILENCE_LIMIT && call.queued_native_events == 0;
         let reason = if no_audio {
@@ -788,7 +788,7 @@ impl Runtime {
                     &call.last_audio.elapsed().as_millis().to_string(),
                 ),
                 (
-                    "mars_silent_ms",
+                    "user_silent_ms",
                     &now_ms
                         .saturating_sub(call.detector.last_activity_ms())
                         .to_string(),

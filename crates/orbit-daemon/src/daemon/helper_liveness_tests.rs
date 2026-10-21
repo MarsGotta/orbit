@@ -1,4 +1,5 @@
-//! DAE-05 acceptance at the daemon boundary. Time and native traffic are
+//! Helper liveness at the daemon boundary: a silent Mac cuts what was live
+//! with its numbers and never stops Orbit. Time and native traffic are
 //! synthetic; no helper, provider, device or real profile is contacted.
 
 use super::*;
@@ -33,7 +34,7 @@ async fn begin_call_drain(
     }
     runtime
         .apply(Event::CallStart {
-            id: "call-dae05".into(),
+            id: "call-liveness".into(),
             duration_ms: 60_000,
         })
         .await?;
@@ -51,7 +52,7 @@ fn audio_frame(stream: &str, sequence: u64) -> Value {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a1_live_helper_gets_fifteen_seconds_and_call_timeout_keeps_privacy_armed() -> Result<()> {
+async fn live_helper_gets_fifteen_seconds_and_call_timeout_keeps_privacy_armed() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     begin_call_drain(&mut runtime, &mut helper).await?;
@@ -67,7 +68,7 @@ async fn a1_live_helper_gets_fifteen_seconds_and_call_timeout_keeps_privacy_arme
             .native_event(json!({"event":"state", "privacy_stopped":false}))
             .await?;
         runtime.handle_audio_timeout().await;
-        assert!(!runtime.state.privacy_stopped(), "falló en {elapsed} s");
+        assert!(!runtime.state.privacy_stopped(), "failed at {elapsed} s");
         assert!(runtime.audio_is_draining());
     }
 
@@ -88,8 +89,8 @@ async fn a1_live_helper_gets_fifteen_seconds_and_call_timeout_keeps_privacy_arme
 }
 
 #[tokio::test(start_paused = true)]
-async fn a2_three_silent_seconds_cut_what_was_live_and_say_why_with_numbers() -> Result<()> {
-    // REF-12 A4: the silent Mac used to stop Orbit. Now what was live is cut,
+async fn three_silent_seconds_cut_what_was_live_and_say_why_with_numbers() -> Result<()> {
+    // The silent Mac used to stop Orbit. Now what was live is cut,
     // the cause carries the wait and its windows, and nothing latches.
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
@@ -100,7 +101,7 @@ async fn a2_three_silent_seconds_cut_what_was_live_and_say_why_with_numbers() ->
     runtime.handle_audio_timeout().await;
 
     assert!(!runtime.state.privacy_stopped());
-    // SIM-21: the cut names its cause as a code; the sentence with the wait
+    // The cut names its cause as a code; the sentence with the wait
     // and its windows is in daemon.log under the same op.
     assert!(
         crate::daemon::turn::said::mentions(&runtime.state, "audio_stop_unconfirmed"),
@@ -120,12 +121,12 @@ async fn a2_three_silent_seconds_cut_what_was_live_and_say_why_with_numbers() ->
 }
 
 #[tokio::test(start_paused = true)]
-async fn a3_silent_meeting_drain_cuts_the_recording_and_preserves_audio() -> Result<()> {
+async fn silent_meeting_drain_cuts_the_recording_and_preserves_audio() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     runtime
         .apply(Event::StartMeeting {
-            id: "meeting-dae05".into(),
+            id: "meeting-liveness".into(),
             title: "Reunión sintética".into(),
             audio: MeetingAudio::MicrophoneOnly,
             duration_ms: 60_000,
@@ -147,7 +148,7 @@ async fn a3_silent_meeting_drain_cuts_the_recording_and_preserves_audio() -> Res
     tokio::time::advance(Duration::from_secs(3)).await;
     runtime.handle_audio_timeout().await;
 
-    // REF-12 A4: the recording is cut with what was kept; Orbit is not stopped.
+    // The recording is cut with what was kept; Orbit is not stopped.
     assert!(!runtime.state.privacy_stopped());
     assert_eq!(runtime.fixture_store.diagnostics()?.chunk_count, 1);
     assert_eq!(
@@ -156,7 +157,7 @@ async fn a3_silent_meeting_drain_cuts_the_recording_and_preserves_audio() -> Res
             .durable
             .recording
             .as_ref()
-            .context("grabación ausente")?
+            .context("recording missing")?
             .phase,
         CapturePhase::Interrupted
     );
@@ -164,7 +165,7 @@ async fn a3_silent_meeting_drain_cuts_the_recording_and_preserves_audio() -> Res
     Ok(())
 }
 
-/// SYS-20 · the recording that was interrupted after the Mac had confirmed.
+/// The recording that was interrupted after the Mac had confirmed.
 ///
 /// `complete_audio_drain` will not declare a recording finalized while a chunk
 /// of it is still being written, which is right. It stores the intent and comes
@@ -188,7 +189,7 @@ async fn meeting_awaiting_only_its_finish(
 ) -> Result<()> {
     runtime
         .apply(Event::StartMeeting {
-            id: "meeting-sys20".into(),
+            id: "meeting-awaiting-finish".into(),
             title: "Reunión sintética".into(),
             audio: MeetingAudio::MicrophoneOnly,
             duration_ms: 60_000,
@@ -206,7 +207,7 @@ async fn meeting_awaiting_only_its_finish(
     runtime.native_event(audio_frame(&stream, 0)).await?;
     runtime.apply(Event::FinishMeeting).await?;
     let stop = next_command(helper, "audio_stop").await?;
-    // REF-03: the Mac answers and the daemon applies the answer through the
+    // The Mac answers and the daemon applies the answer through the
     // production path. That answer seals the tail, and the finish is deferred
     // behind the seal. Holding the store's writer keeps the seal in flight, so
     // the deferral is certain rather than the likely outcome of a race.
@@ -218,7 +219,7 @@ async fn meeting_awaiting_only_its_finish(
         .await?;
     assert!(
         !runtime.capture.pending_seals.is_empty(),
-        "la confirmación tenía que dejar en vuelo el sello del final del audio"
+        "the confirmation had to leave the seal of the audio tail in flight"
     );
     assert_eq!(
         runtime
@@ -226,10 +227,10 @@ async fn meeting_awaiting_only_its_finish(
             .durable
             .recording
             .as_ref()
-            .context("grabación")?
+            .context("recording")?
             .phase,
         CapturePhase::Finalizing,
-        "con el sello en vuelo el cierre tenía que quedar aplazado"
+        "with the seal in flight the finish had to be deferred"
     );
     writer.execute_batch("ROLLBACK")?;
     // The collector applies the receipt, and the collector does not resume the
@@ -246,15 +247,14 @@ fn finalizing_for(runtime: &mut Runtime, millis: i64) {
     }
 }
 
-/// SYS-20 A2 — what already arrived is acted on before any deadline judges it.
+/// What already arrived is acted on before any deadline judges it.
 ///
 /// Nothing is outstanding: the helper has confirmed and no seal is in flight.
 /// A maintenance turn has to finish the recording, and finish it before
 /// `Event::Tick` in the same turn can interrupt it, however long it has been
 /// finalizing.
 #[tokio::test]
-async fn sys20_a2_a_finish_owed_only_to_the_daemon_is_paid_before_the_deadline_judges_it()
--> Result<()> {
+async fn a_finish_owed_only_to_the_daemon_is_paid_before_the_deadline_judges_it() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     meeting_awaiting_only_its_finish(&mut runtime, &mut helper).await?;
@@ -275,34 +275,33 @@ async fn sys20_a2_a_finish_owed_only_to_the_daemon_is_paid_before_the_deadline_j
         .durable
         .recording
         .as_ref()
-        .context("grabación")?;
+        .context("recording")?;
     assert_ne!(
         recording.phase,
         CapturePhase::Interrupted,
-        "el Mac confirmó el cierre y el daemon lo tenía anotado: interrumpirla es mentir"
+        "the Mac confirmed the finish and the daemon had it recorded: interrupting it would be a lie"
     );
     assert_ne!(
         recording.phase,
         CapturePhase::Finalizing,
-        "no quedaba nada pendiente, así que la grabación tenía que cerrarse"
+        "nothing was pending, so the recording had to be finished"
     );
     assert_ne!(
         runtime.state.notice_code(),
         Some(orbit_core::notice::NoticeCode::RecordingCloseUnconfirmed),
-        "ese aviso dice algo que no pasó"
+        "that notice says something that did not happen"
     );
     Ok(())
 }
 
-/// SYS-20 A4 — a finish that is genuinely not ready is not forced through.
+/// A finish that is genuinely not ready is not forced through.
 ///
 /// The other half, and the one it would be easy to lose: a recording is not
 /// finalized while a chunk of it is unwritten. With a seal still in flight the
 /// resume must decline, the recording must stay in `Finalizing`, and the
 /// existing deadline must still interrupt it exactly as it does today.
 #[tokio::test]
-async fn sys20_a4_a_finish_still_waiting_on_a_seal_is_not_forced_and_still_times_out() -> Result<()>
-{
+async fn a_finish_still_waiting_on_a_seal_is_not_forced_and_still_times_out() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     meeting_awaiting_only_its_finish(&mut runtime, &mut helper).await?;
@@ -314,8 +313,8 @@ async fn sys20_a4_a_finish_still_waiting_on_a_seal_is_not_forced_and_still_times
         .push_back(crate::capture::Segment {
             metadata: orbit_store::ChunkMetadata {
                 capture_epoch_id: None,
-                id: "sys20-pendiente".into(),
-                recording_id: "sys20-pendiente".into(),
+                id: "pending-seal".into(),
+                recording_id: "pending-seal".into(),
                 track: "mic_local".into(),
                 sequence: 0,
                 sample_rate: 8_000,
@@ -336,10 +335,10 @@ async fn sys20_a4_a_finish_still_waiting_on_a_seal_is_not_forced_and_still_times
             .durable
             .recording
             .as_ref()
-            .context("grabación")?
+            .context("recording")?
             .phase,
         CapturePhase::Finalizing,
-        "con un fragmento sin escribir la grabación no está terminada"
+        "with a chunk unwritten the recording is not finished"
     );
 
     // And the deadline still does what it does today.
@@ -352,10 +351,10 @@ async fn sys20_a4_a_finish_still_waiting_on_a_seal_is_not_forced_and_still_times
             .durable
             .recording
             .as_ref()
-            .context("grabación")?
+            .context("recording")?
             .phase,
         CapturePhase::Interrupted,
-        "un cierre que de verdad no llega sigue interrumpiendo la grabación"
+        "a finish that really does not arrive still interrupts the recording"
     );
     assert_eq!(
         runtime.state.durable.notice,

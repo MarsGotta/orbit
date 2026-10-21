@@ -91,13 +91,13 @@ impl Runtime {
                 "state" => {
                     self.on_native_state(&event).await?;
                 }
-                // The helper stopped: her brake at the helper latches as hers;
-                // a latch the helper holds that the daemon did not ask for
-                // now is adopted so both say the same, attributed to nobody;
-                // any other stop cut the capture, and only that (REF-12
-                // A2/A4b). `daemon_requested` is the echo of the daemon's own
-                // order: with the daemon not stopped it is not an order of
-                // hers the daemon can vouch for, so it is never hers.
+                // The helper stopped: the user's brake at the helper latches
+                // as theirs; a latch the helper holds that the daemon did not
+                // ask for now is adopted so both say the same, attributed to
+                // nobody; any other stop cut the capture, and only that.
+                // `daemon_requested` is the echo of the daemon's own order:
+                // with the daemon not stopped it is not an order of the
+                // user's the daemon can vouch for, so it is never theirs.
                 "privacy_stop" | "capture_stopped" => {
                     self.on_native_capture_stopped(&event).await?;
                 }
@@ -192,8 +192,8 @@ impl Runtime {
         // then it is not known.
         self.call_signal_lost().await;
         self.observe_voice_capabilities(event)?;
-        // Her stop reaches a helper that came back without its
-        // latch, so both say the same (REF-12 A2). A revocation
+        // The user's stop reaches a helper that came back without its
+        // latch, so both say the same. A revocation
         // never writes the helper's durable latch.
         if orbit_core::privacy_stop::latches_helper(&self.state) {
             self.native_send("privacy_stop", json!({})).await?;
@@ -315,7 +315,7 @@ impl Runtime {
         }
         // The capture registries name an ACK after the generic index has
         // evicted it. That absence is unknown, not proof the ACK belongs to
-        // nobody (REF-12). An id no registry sent is still unpaired, below.
+        // nobody. An id no registry sent is still unpaired, below.
         if response.ok
             && let Some(result) = response.result.as_ref()
         {
@@ -567,7 +567,7 @@ impl Runtime {
                         // The helper says this only when a stop it was given
                         // overtook the order: the stop is what happened, and
                         // it says so with its own notice. A cancelled
-                        // `audio_stop` under a cut is not a refusal (SIM-57).
+                        // `audio_stop` under a cut is not a refusal.
                         self.log(
                             "native_order_cancelled_by_stop",
                             &[("step", command_kind), ("id", &response.id)],
@@ -594,7 +594,7 @@ impl Runtime {
                     return Ok(());
                 }
                 Outcome::IntegrityFailure { detail } => {
-                    // REF-12 A4: the audio at risk is cut with the
+                    // The audio at risk is cut with the
                     // helper's code; nothing latches.
                     let message = error.message.as_str();
                     self.contain_coded(
@@ -664,8 +664,8 @@ impl Runtime {
     async fn on_native_state(&mut self, event: &Value) -> Result<()> {
         self.observe_voice_capabilities(event)?;
         // The helper's `state` is the one exact word about its
-        // durable latch: set means her stop is held there, and
-        // both sides must say the same (REF-12 A2).
+        // durable latch: set means the user's stop is held there, and
+        // both sides must say the same.
         let state = NativeStateStop::deserialize(event)?;
         if state.privacy_stopped && !self.state.privacy_stopped() {
             self.privacy_stop(orbit_core::privacy_stop::MarsStop::HelperLatch { code: None })
@@ -694,7 +694,7 @@ impl Runtime {
             }
         } else {
             self.helper_capture_stop(code).await;
-            // P9-11: the call's application closed after its call.
+            // The call's application closed after its call.
             self.call_capture_cut(code).await;
         }
         Ok(())
@@ -940,7 +940,7 @@ impl Runtime {
         Ok(())
     }
 
-    /// SIM-23: every order the helper answered with an error is recorded,
+    /// Every order the helper answered with an error is recorded,
     /// whatever else the daemon does with the answer, so a failure on the
     /// Mac is never lost for want of a notice.
     fn record_failed_order(&self, response: &NativeResponseFields, named: Option<&str>) {
@@ -978,7 +978,7 @@ impl Runtime {
         self.record(notice);
     }
 
-    /// SIM-23: a step the helper reports that answers no order. A code this
+    /// A step the helper reports that answers no order. A code this
     /// daemon does not know is the helper's error, never silence.
     fn on_native_notice(&mut self, event: &Value) -> Result<()> {
         let orbit_core::wire::native::NativeEvent::Notice {

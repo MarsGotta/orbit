@@ -29,12 +29,12 @@ impl ProjectTopic for Projector {
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
-mod ref206_tests {
+mod tests {
     use super::*;
     use orbit_core::topics::Knowledge;
 
-    /// SIM-23: the switch is offered only by a build with a Sentry address,
-    /// and says her choice; turning it changes the topic.
+    /// The switch is offered only by a build with a Sentry address, and
+    /// says the user's choice; turning it changes the topic.
     #[tokio::test]
     async fn the_status_topic_offers_the_error_report_switch_only_with_an_address() {
         let directory = tempfile::tempdir().unwrap();

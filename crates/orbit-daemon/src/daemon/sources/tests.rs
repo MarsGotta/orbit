@@ -498,7 +498,7 @@ async fn expiring_an_inventory_retires_the_available_ui_state() -> Result<()> {
 
 #[tokio::test]
 async fn a_helper_timeout_releases_the_remote_request_and_answers_the_hub() -> Result<()> {
-    // P0-05 A1: the enumeration a remote request is waiting on can also end
+    // The enumeration a remote request is waiting on can also end
     // by timeout. That ending must release the bridge's single slot and
     // answer the hub, or every later remote request is refused as busy until
     // the daemon restarts. The deadline is back-dated here because the tick
@@ -507,7 +507,7 @@ async fn a_helper_timeout_releases_the_remote_request_and_answers_the_hub() -> R
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let (hub, mut hub_rx) = mpsc::channel(16);
     runtime.hub.install(hub);
-    // REF-11: what lets the bridge list windows is Screen Recording.
+    // What lets the bridge list windows is Screen Recording.
     {
         let fixture_value = serde_json::json!(orbit_core::PermissionState::Granted);
         crate::daemon::authority_fixture::set(
@@ -536,13 +536,10 @@ async fn a_helper_timeout_releases_the_remote_request_and_answers_the_hub() -> R
 
     assert!(
         runtime.conversation.bridge_request.is_none(),
-        "el vencimiento dejó ocupado el puente: {:?}",
+        "the expiry left the bridge busy: {:?}",
         runtime.conversation.bridge_request
     );
-    let reply = hub_rx
-        .recv()
-        .await
-        .context("la petición quedó sin respuesta")?;
+    let reply = hub_rx.recv().await.context("the request got no answer")?;
     assert_eq!(reply["method"], "device.reply");
     assert_eq!(reply["params"]["request_id"], "bridge-1");
     assert_eq!(reply["params"]["refusal"]["code"], "timeout", "{reply}");
@@ -556,18 +553,18 @@ async fn a_helper_timeout_releases_the_remote_request_and_answers_the_hub() -> R
     let again = receiver
         .recv()
         .await
-        .context("la segunda petición no se atendió")?;
+        .context("the second request was not served")?;
     assert_eq!(again["command"], "screen_sources");
     let refused = hub_rx.try_recv();
     assert!(
         refused.is_err(),
-        "la segunda petición recibió una negativa: {refused:?}"
+        "the second request was refused: {refused:?}"
     );
     Ok(())
 }
 
 #[tokio::test]
-async fn a_remote_read_refusal_reaches_deimos_without_a_failure_notice_for_mars() -> Result<()> {
+async fn a_remote_read_refusal_reaches_deimos_without_a_user_failure_notice() -> Result<()> {
     for (capability, code, capture) in [
         ("screen_sources", "screen_permission_required", false),
         ("screenshot", "window_identity_changed", true),

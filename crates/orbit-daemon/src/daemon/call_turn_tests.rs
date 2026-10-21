@@ -1,5 +1,5 @@
-//! SIM-57: speaking while the previous turn finishes never cuts the call and
-//! never loses what Mars said, and what a stop cancels on purpose is not a
+//! Speaking while the previous turn finishes never cuts the call and
+//! never loses what the user said, and what a stop cancels on purpose is not a
 //! failure. Synthetic frames of 100 ms (800 samples at 8 kHz); every fact is
 //! a frame or a helper reply given by hand, nothing waits on a clock.
 use super::*;
@@ -41,7 +41,7 @@ impl Call {
         Ok(())
     }
 
-    /// A turn: 400 ms of her voice, then the 800 ms of silence that end it.
+    /// A turn: 400 ms of the user's voice, then the 800 ms of silence that end it.
     async fn turn(&mut self) -> Result<()> {
         self.frames(4, true).await?;
         self.frames(8, false).await?;
@@ -79,9 +79,9 @@ impl Call {
     }
 }
 
-/// Mars's second call (2026-10-18, Orbit 0.6.0): her turn was being
-/// transcribed when she spoke again a second later. That second turn must
-/// end and carry the first one with it; when she speaks a third time the
+/// A second real call (2026-10-18, Orbit 0.6.0): the user's turn was being
+/// transcribed when they spoke again a second later. That second turn must
+/// end and carry the first one with it; when they speak a third time the
 /// call is still there.
 #[tokio::test]
 async fn speaking_while_a_turn_is_transcribed_keeps_the_call_and_both_turns() -> Result<()> {
@@ -91,7 +91,7 @@ async fn speaking_while_a_turn_is_transcribed_keeps_the_call_and_both_turns() ->
     assert!(call.runtime.conversation.voice_task.active().is_some());
     let first_pcm = call.voice_pcm(&first)?;
 
-    // She speaks again while it is transcribed: 200 ms of voice begin a turn.
+    // The user speaks again while it is transcribed: 200 ms of voice begin a turn.
     call.frames(2, true).await?;
     assert!(call.capturing(), "the new turn began and was cut at once");
     assert_eq!(
@@ -118,7 +118,7 @@ async fn speaking_while_a_turn_is_transcribed_keeps_the_call_and_both_turns() ->
     // its preroll, 4 of voice and the 7 of silence that ended it.
     assert_eq!(second_pcm.len() - first_pcm.len(), 12 * FRAME_BYTES);
 
-    // Later she speaks a third time: the call goes on.
+    // Later the user speaks a third time: the call goes on.
     call.frames(4, true).await?;
     assert!(call.alive(), "the call was cut");
     assert!(call.capturing());
@@ -152,8 +152,8 @@ fn failed_since(runtime: &Runtime, before: usize) -> Vec<orbit_core::notice::Not
         .collect()
 }
 
-/// Criterion 2: a call is closed while a chunk of it is still being written
-/// (Mars's cut: `capture_stop` answered with «El audio anterior todavía está
+/// A call is closed while a chunk of it is still being written
+/// (the real cut: `capture_stop` answered with «El audio anterior todavía está
 /// drenándose»). The closure waits for the chunk; it is not a failure, and
 /// the next maintenance closes the call once the chunk is in.
 #[tokio::test]
@@ -207,7 +207,7 @@ async fn closing_a_call_whose_audio_is_still_sealing_waits_instead_of_failing() 
     Ok(())
 }
 
-/// Criterion 2: a cut stops every source; the helper then cancels the call's
+/// A cut stops every source; the helper then cancels the call's
 /// own `audio_stop` because the whole stop overtook it. That cancellation is
 /// the stop doing its job, not a refusal of the Mac.
 #[tokio::test]

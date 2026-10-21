@@ -33,10 +33,10 @@ enum Fault {
     ServerRequest,
     WrongResponseId,
     Oversize,
-    /// SIM-56: the first tool call is answered with one complete frame the
+    /// The first tool call is answered with one complete frame the
     /// size of a Retina full-screen capture in base64; the rest normally.
     RetinaFrame,
-    /// SIM-56: an answer that fits in a message, carrying an image larger
+    /// An answer that fits in a message, carrying an image larger
     /// than any capture Orbit can deliver.
     ImageOverCaptureCeiling,
     Eof,
@@ -135,7 +135,8 @@ fn fixture_within(fault: Fault, request_timeout: Duration) -> (Client, Requests)
 }
 
 /// The base64 a Retina full-screen PNG takes: a 3024×1964 desktop is several
-/// MiB of PNG, so 6 MiB of base64 is the order of size Mars's call met.
+/// MiB of PNG, so 6 MiB of base64 is the order of size a real call met on
+/// 2026-10-18.
 const RETINA_BASE64_BYTES: usize = 6 * 1024 * 1024;
 
 fn retina_frame(id: &Value) -> Value {
@@ -145,12 +146,12 @@ fn retina_frame(id: &Value) -> Value {
         "isError":false}})
 }
 
-/// SIM-56: a whole answer larger than a message may be is refused with its
+/// A whole answer larger than a message may be is refused with its
 /// size and the ceiling, and it costs that one request only: the frame was
 /// read to its end, so the connection is still in step and the engine is not
 /// killed and restarted for having answered.
 #[tokio::test]
-async fn sim56_a_frame_over_the_ceiling_names_its_size_and_keeps_the_engine() {
+async fn a_frame_over_the_ceiling_names_its_size_and_keeps_the_engine() {
     let (mut client, history) = fixture_within(Fault::RetinaFrame, RETINA_FRAME_REQUEST);
     client.initialize().await.unwrap();
     let frame_bytes = serde_json::to_vec(&retina_frame(&json!(3))).unwrap().len() + 1;
@@ -161,15 +162,15 @@ async fn sim56_a_frame_over_the_ceiling_names_its_size_and_keeps_the_engine() {
         .to_string();
     assert!(
         error.contains(&frame_bytes.to_string()),
-        "el rechazo no dice el tamaño de la respuesta ({frame_bytes} bytes): {error}"
+        "the refusal does not say the answer's size ({frame_bytes} bytes): {error}"
     );
     assert!(
         error.contains("1048576"),
-        "el rechazo no dice el techo de un mensaje del motor: {error}"
+        "the refusal does not say the ceiling of an engine message: {error}"
     );
     assert!(
         client.is_connected(),
-        "una respuesta grande cerró la conexión con el motor: {error}"
+        "a large answer closed the connection with the engine: {error}"
     );
     assert_eq!(
         client
@@ -179,7 +180,7 @@ async fn sim56_a_frame_over_the_ceiling_names_its_size_and_keeps_the_engine() {
             .structured
             .unwrap()["fixture"],
         "list_apps",
-        "la petición siguiente no llegó por la misma conexión"
+        "the next request did not come through the same connection"
     );
     let calls = history
         .lock()
@@ -187,18 +188,18 @@ async fn sim56_a_frame_over_the_ceiling_names_its_size_and_keeps_the_engine() {
         .iter()
         .filter(|request| request["method"] == "tools/call")
         .count();
-    assert_eq!(calls, 2, "la petición rechazada se repitió");
+    assert_eq!(calls, 2, "the refused request was repeated");
 }
 
 /// Over the 933 336 bytes of base64 a 700 000-byte PNG takes, and still well
 /// inside one message.
 const IMAGE_OVER_CAPTURE_CEILING: usize = 1_000_000;
 
-/// SIM-56: an image no capture could carry is refused with its size and the
+/// An image no capture could carry is refused with its size and the
 /// capture ceiling, not as «fuera de formato o tamaño», and the connection
 /// stays.
 #[tokio::test]
-async fn sim56_an_image_over_the_capture_ceiling_names_its_size() {
+async fn an_image_over_the_capture_ceiling_names_its_size() {
     let (mut client, _) = fixture(Fault::ImageOverCaptureCeiling);
     client.initialize().await.unwrap();
     let error = client
@@ -216,7 +217,7 @@ async fn sim56_an_image_over_the_capture_ceiling_names_its_size() {
 async fn real_read_tool_names_are_preserved() {
     let (mut client, history) = fixture(Fault::None);
     client.initialize().await.unwrap();
-    // DEI-12 A4: the catalogue is whatever the engine declared, not a list
+    // The catalogue is whatever the engine declared, not a list
     // Orbit filters. A tool Orbit's own helpers never call still comes through,
     // so a newer engine reaches Deimos without a change here.
     assert_eq!(client.describe().len(), 4);
@@ -257,11 +258,11 @@ async fn unsupported_versions_and_tool_refusals_are_not_success() {
     let error = client.initialize().await.unwrap_err().to_string();
     assert!(
         error.contains("0.28.1"),
-        "falta la versión recibida: {error}"
+        "the received version is missing: {error}"
     );
     assert!(
         error.contains(VERIFIED_DRIVER_VERSION),
-        "falta la versión esperada: {error}"
+        "the expected version is missing: {error}"
     );
     assert!(client.call_tool("list_apps", json!({})).await.is_err());
     let (mut client, _) = fixture(Fault::ToolError);
@@ -270,7 +271,7 @@ async fn unsupported_versions_and_tool_refusals_are_not_success() {
 }
 
 #[test]
-fn sys05_a1_default_driver_is_resolved_inside_the_bundle_and_override_wins() {
+fn default_driver_is_resolved_inside_the_bundle_and_override_wins() {
     let daemon = PathBuf::from("/Applications/Orbit.app/Contents/MacOS/Orbit");
     assert_eq!(
         resolve_driver_path("", &daemon).unwrap(),
@@ -289,7 +290,7 @@ fn sys05_a1_default_driver_is_resolved_inside_the_bundle_and_override_wins() {
 /// exec, a copy of the test process holding every descriptor this process
 /// holds, and the tests run on several threads at once. Two starts that
 /// overlap copy each other's pipes: a write a test expects to find nobody
-/// reading lands in the copy (REF-18 measured 19 of 300 whole runs of this
+/// reading lands in the copy (measured in 19 of 300 whole runs of this
 /// file). A start that overlaps the writing of a script copies it open for
 /// writing, and the script then cannot be run, "Text file busy" (1 to 11 of
 /// 300). A test that starts a process without it brings both back.
@@ -324,7 +325,7 @@ async fn connect_failure(directory: &Path, name: &str) -> String {
     .await;
     drop(starting);
     match result {
-        Ok(_) => panic!("el driver {name} no debió conectar"),
+        Ok(_) => panic!("driver {name} should not have connected"),
         Err(error) => error.to_string(),
     }
 }
@@ -339,7 +340,7 @@ fn forge_engine_record(socket: &Path, pid: u32) {
 /// A foreign listener with a forged record naming its actual PID cannot be
 /// mistaken for an engine launched by this LocalCua instance.
 #[tokio::test]
-async fn ref33_a1_a_forged_matching_pid_does_not_reuse_the_listener() {
+async fn a_forged_matching_pid_does_not_reuse_the_listener() {
     let directory = tempfile::tempdir().unwrap();
     fs::set_permissions(directory.path(), fs::Permissions::from_mode(0o700)).unwrap();
     let driver = directory.path().join("cua-driver");
@@ -378,7 +379,7 @@ async fn ref33_a1_a_forged_matching_pid_does_not_reuse_the_listener() {
 /// Even an actual orphaned engine cannot be adopted by a new daemon. Its
 /// process remains alive; only the socket pathname is replaced.
 #[tokio::test]
-async fn ref33_a1_an_orphaned_engine_is_not_reused_or_killed() {
+async fn an_orphaned_engine_is_not_reused_or_killed() {
     let directory = tempfile::tempdir().unwrap();
     fs::set_permissions(directory.path(), fs::Permissions::from_mode(0o700)).unwrap();
     let driver = directory.path().join("cua-driver");
@@ -408,7 +409,7 @@ async fn ref33_a1_an_orphaned_engine_is_not_reused_or_killed() {
     while !std::os::unix::net::UnixStream::connect(&socket).is_ok() {
         assert!(
             std::time::Instant::now() < deadline,
-            "el motor de prueba no abrió su socket"
+            "the test engine did not open its socket"
         );
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
@@ -440,7 +441,7 @@ async fn ref33_a1_an_orphaned_engine_is_not_reused_or_killed() {
 /// A forged nonmatching PID also cannot turn a live listener into a refusal
 /// that prevents Orbit from starting its own engine.
 #[tokio::test]
-async fn ref33_a1_a_forged_different_pid_does_not_block_own_engine() {
+async fn a_forged_different_pid_does_not_block_own_engine() {
     let directory = tempfile::tempdir().unwrap();
     let driver = directory.path().join("cua-driver");
     write_driver(&driver, &fake_driver()).await;
@@ -472,7 +473,7 @@ async fn ref33_a1_a_forged_different_pid_does_not_block_own_engine() {
 /// descend from the child Orbit launched, rather than have the same PID.
 #[cfg(target_os = "linux")]
 #[tokio::test]
-async fn ref33_a1_a_descendant_of_the_launched_engine_can_serve() {
+async fn a_descendant_of_the_launched_engine_can_serve() {
     let directory = tempfile::tempdir().unwrap();
     let driver = directory.path().join("cua-driver");
     write_driver(&driver, &descendant_driver()).await;
@@ -521,7 +522,7 @@ async fn ref33_a1_a_descendant_of_the_launched_engine_can_serve() {
 
 /// A listener that races the new child to the pathname is still foreign.
 #[tokio::test]
-async fn ref33_a1_a_listener_racing_the_new_child_is_refused() {
+async fn a_listener_racing_the_new_child_is_refused() {
     let directory = tempfile::tempdir().unwrap();
     let driver = directory.path().join("cua-driver");
     write_driver(
@@ -567,7 +568,7 @@ async fn ref33_a1_a_listener_racing_the_new_child_is_refused() {
 }
 
 #[tokio::test]
-async fn sys05_a3_missing_and_unstartable_drivers_explain_the_failure() {
+async fn missing_and_unstartable_drivers_explain_the_failure() {
     let directory = tempfile::tempdir().unwrap();
     fs::set_permissions(directory.path(), fs::Permissions::from_mode(0o700)).unwrap();
     for (name, expected) in [
@@ -578,7 +579,7 @@ async fn sys05_a3_missing_and_unstartable_drivers_explain_the_failure() {
         ),
     ] {
         if name == "broken-cua-driver" {
-            // SYS-14 A1: this has to be a driver that genuinely cannot start
+            // This has to be a driver that genuinely cannot start
             // on the platform running the test. A plain text file with the
             // execute bit is not: Linux refuses it with ENOEXEC, but macOS
             // hands such a file to the shell, so there it starts, dies, and
@@ -593,15 +594,15 @@ async fn sys05_a3_missing_and_unstartable_drivers_explain_the_failure() {
             .await;
         }
         let error = connect_failure(directory.path(), name).await;
-        assert!(error.contains(expected), "fallo sin contexto: {error}");
+        assert!(error.contains(expected), "failure without context: {error}");
     }
 }
 
-/// SYS-14 A2. This is the failure the Mac actually produces: a driver binary
+/// This is the failure the Mac actually produces: a driver binary
 /// that starts and dies at once. Saying only that the connection closed is
 /// true and useless, so the message has to name the death and its code.
 #[tokio::test]
-async fn sys14_a2_an_engine_that_dies_at_birth_names_its_cause() {
+async fn an_engine_that_dies_at_birth_names_its_cause() {
     let directory = tempfile::tempdir().unwrap();
     fs::set_permissions(directory.path(), fs::Permissions::from_mode(0o700)).unwrap();
     write_driver(
@@ -612,22 +613,22 @@ async fn sys14_a2_an_engine_that_dies_at_birth_names_its_cause() {
     let error = connect_failure(directory.path(), "suicidal-cua-driver").await;
     assert!(
         error.contains("El motor CUA terminó"),
-        "el fallo no dice que el motor terminó: {error}"
+        "the failure does not say the engine ended: {error}"
     );
     assert!(
         error.contains('3'),
-        "el fallo no dice con qué código terminó: {error}"
+        "the failure does not say which code it ended with: {error}"
     );
     assert!(
         !error.contains("Conexión MCP cerrada"),
-        "el fallo se queda en que la conexión se cerró: {error}"
+        "the failure stops at the connection having closed: {error}"
     );
 }
 
-/// SYS-14 A4. The engine serves normally; its proxy closes stdout while
+/// The engine serves normally; its proxy closes stdout while
 /// remaining alive. No engine death may be attributed to it.
 #[tokio::test]
-async fn sys14_a4_a_connection_that_really_closes_keeps_its_message() {
+async fn a_connection_that_really_closes_keeps_its_message() {
     let directory = tempfile::tempdir().unwrap();
     fs::set_permissions(directory.path(), fs::Permissions::from_mode(0o700)).unwrap();
     // Closes stdout — Orbit sees EOF at once — and then stays alive well past
@@ -640,11 +641,11 @@ async fn sys14_a4_a_connection_that_really_closes_keeps_its_message() {
     let error = connect_failure(directory.path(), "mute-cua-driver").await;
     assert!(
         error.contains("Conexión MCP cerrada antes de responder"),
-        "la conexión cerrada perdió su mensaje: {error}"
+        "the closed connection lost its message: {error}"
     );
     assert!(
         !error.contains("terminó"),
-        "se le atribuye una muerte que no hubo: {error}"
+        "a death that did not happen is attributed to it: {error}"
     );
 }
 
@@ -657,7 +658,7 @@ async fn spawn_proxy(script: &str, arguments: &[&Path]) -> tokio::process::Child
     tokio::process::Command::new("/bin/sh")
         .arg("-c")
         .arg(script)
-        .arg("ref18-proxy")
+        .arg("engine-proxy")
         .args(arguments)
         .env_clear()
         .stdin(std::process::Stdio::piped())
@@ -692,33 +693,34 @@ async fn exited_but_not_collected(pid: u32) {
     // how each platform fills that record in.
     tokio::time::timeout(Duration::from_secs(60), waiting)
         .await
-        .expect("el proceso del fixture no terminó en 60 s")
+        .expect("the fixture process did not end within 60 s")
         .unwrap()
         .unwrap();
 }
 
-/// REF-18 A2. The race behind `sys14_a2`, with its outcome fixed: the engine
+/// The race behind `an_engine_that_dies_at_birth_names_its_cause`, with its
+/// outcome fixed: the engine
 /// has exited with code 3 before Orbit writes to it, so it is the write that
 /// finds it gone, with a broken pipe (run alone, 50 of 50 times before the
 /// fix). That is how the transport learns the engine is gone, never why; the
 /// message has to name the death, as it does for end of file.
 #[tokio::test]
-async fn ref18_a2_a_write_to_an_engine_already_dead_names_its_death() {
+async fn a_write_to_an_engine_already_dead_names_its_death() {
     let proxy = spawn_proxy("exit 3", &[]).await;
     exited_but_not_collected(proxy.id().unwrap()).await;
     let mut client = LocalCua::from_process(proxy, Duration::from_secs(1)).unwrap();
     let error = client.initialize().await.unwrap_err().to_string();
     assert!(
         error.contains("El motor CUA terminó nada más arrancar"),
-        "el fallo no dice que el motor terminó al arrancar: {error}"
+        "the failure does not say the engine ended at startup: {error}"
     );
     assert!(
         error.contains("exit status: 3"),
-        "el fallo no dice con qué código terminó: {error}"
+        "the failure does not say which code it ended with: {error}"
     );
     assert!(
         !error.contains("Broken pipe"),
-        "el fallo se queda en la tubería rota: {error}"
+        "the failure stops at the broken pipe: {error}"
     );
     assert!(!client.is_connected());
 }
@@ -735,13 +737,13 @@ fn initialize_answer() -> Value {
 const DEATH_AFTER_ANSWERING: &str =
     "sin responder a esta petición, tras haber respondido a las anteriores";
 
-/// REF-18 A2, after the handshake. The engine answered, so saying it died at
+/// After the handshake. The engine answered, so saying it died at
 /// birth without answering, with a binary that may be broken, would be false.
 /// The death is named with its code and as what it was, whichever side of the
 /// transport finds it: the next write, when the engine is already gone, or the
 /// read after it, when the engine takes the request and then exits.
 #[tokio::test]
-async fn ref18_a2_a_death_after_the_handshake_is_not_called_a_death_at_birth() {
+async fn a_death_after_the_handshake_is_not_called_a_death_at_birth() {
     let initialize = initialize_answer();
     let tools = json!({"jsonrpc":"2.0","id":2,"result":{"tools":[
         {"name":"list_apps","inputSchema":{"type":"object"}},
@@ -774,29 +776,29 @@ async fn ref18_a2_a_death_after_the_handshake_is_not_called_a_death_at_birth() {
             .to_string();
         assert!(
             error.contains("El motor CUA terminó (exit status: 3)"),
-            "el fallo no dice que el motor terminó, con su código: {error}"
+            "the failure does not say the engine ended, with its code: {error}"
         );
         assert!(
             error.contains(DEATH_AFTER_ANSWERING),
-            "el fallo no dice que esta petición se quedó sin respuesta: {error}"
+            "the failure does not say this request went unanswered: {error}"
         );
         assert!(
             !error.contains("nada más arrancar") && !error.contains("al protocolo MCP"),
-            "a un motor que respondió se le atribuye una muerte al arrancar: {error}"
+            "a death at startup is attributed to an engine that answered: {error}"
         );
         assert!(
             !error.contains("Broken pipe") && !error.contains("Conexión MCP cerrada"),
-            "el fallo se queda en el transporte: {error}"
+            "the failure stops at the transport: {error}"
         );
     }
 }
 
-/// REF-18, review (c). The engine answers `initialize`, reads the notification
+/// The engine answers `initialize`, reads the notification
 /// and `tools/list`, and exits with 3: the request that goes unanswered is the
 /// second one, the first that is not `initialize`. That is the boundary between
 /// a death at birth and a death after answering, and this is its edge.
 #[tokio::test]
-async fn ref18_a2_a_death_at_the_second_request_is_a_death_after_answering() {
+async fn a_death_at_the_second_request_is_a_death_after_answering() {
     let initialize = initialize_answer();
     let proxy = spawn_proxy(
         &format!(
@@ -809,24 +811,24 @@ async fn ref18_a2_a_death_at_the_second_request_is_a_death_after_answering() {
     let error = client.initialize().await.unwrap_err().to_string();
     assert!(
         !error.contains("nada más arrancar"),
-        "a un motor que respondió a initialize se le atribuye una muerte al arrancar: {error}"
+        "a death at startup is attributed to an engine that answered initialize: {error}"
     );
     assert!(
         error.contains("El motor CUA terminó (exit status: 3)"),
-        "el fallo no dice que el motor terminó, con su código: {error}"
+        "the failure does not say the engine ended, with its code: {error}"
     );
     assert!(
         error.contains(DEATH_AFTER_ANSWERING),
-        "el fallo no dice que esta petición se quedó sin respuesta: {error}"
+        "the failure does not say this request went unanswered: {error}"
     );
 }
 
-/// REF-18, review (a). The engine reads `initialize`, lets go of its stdin,
+/// The engine reads `initialize`, lets go of its stdin,
 /// and only then answers and exits with 3, so the `initialized` notification
 /// Orbit sends next finds nobody reading. That write is where Orbit learns of
 /// the death, and it is named with its code like a request's would be.
 #[tokio::test]
-async fn ref18_a2_a_death_before_the_initialized_notification_is_named() {
+async fn a_death_before_the_initialized_notification_is_named() {
     let initialize = initialize_answer();
     let proxy = spawn_proxy(
         &format!("read -r line\nexec <&-\nprintf '%s\\n' '{initialize}'\nexit 3\n"),
@@ -837,30 +839,30 @@ async fn ref18_a2_a_death_before_the_initialized_notification_is_named() {
     let error = client.initialize().await.unwrap_err().to_string();
     assert!(
         error.contains("El motor CUA terminó (exit status: 3)"),
-        "el fallo no dice que el motor terminó, con su código: {error}"
+        "the failure does not say the engine ended, with its code: {error}"
     );
     assert!(
         error.contains("sin recibir la notificación notifications/initialized"),
-        "el fallo no dice que fue la notificación lo que no llegó: {error}"
+        "the failure does not say it was the notification that did not arrive: {error}"
     );
     assert!(
         !error.contains("nada más arrancar") && !error.contains("Broken pipe"),
-        "el fallo no nombra la muerte tras responder a initialize: {error}"
+        "the failure does not name the death after answering initialize: {error}"
     );
     assert!(!client.is_connected());
 }
 
-/// REF-18, review (a). A notification that cannot be written in time is a
+/// A notification that cannot be written in time is a
 /// timeout, said as one with its ceiling, and not the same words as a death or
 /// a broken pipe. The peer answers `initialize` and then never reads again, on
 /// a transport too small to take the notification, so the write can only end
 /// by the timeout under test.
 #[tokio::test]
-async fn ref18_a_notification_that_cannot_be_written_in_time_says_it_timed_out() {
+async fn a_notification_that_cannot_be_written_in_time_says_it_timed_out() {
     let (client, server) = tokio::io::duplex(16);
     let (read, write) = tokio::io::split(client);
     // Generous for an answer that crosses memory inside this process, which
-    // the scheduler has delayed by at most 77 ms here (REF-18); the
+    // the scheduler has delayed by at most 77 ms here (measured); the
     // notification never gets through, so this is also how long the test takes.
     let mut client =
         CuaClient::from_transport(BufReader::new(read), write, Duration::from_millis(500)).unwrap();
@@ -877,21 +879,22 @@ async fn ref18_a_notification_that_cannot_be_written_in_time_says_it_timed_out()
     let error = client.initialize().await.unwrap_err().to_string();
     assert!(
         error.contains("tiempo de espera agotado tras 500 ms"),
-        "el fallo no dice que se agotó el tiempo, con su límite: {error}"
+        "the failure does not say the time ran out, with its limit: {error}"
     );
     assert!(
         error.contains("notifications/initialized"),
-        "el fallo no dice qué no se pudo enviar: {error}"
+        "the failure does not say what could not be sent: {error}"
     );
     assert!(!client.is_connected());
 }
 
-/// REF-18 A3. The guardrail on A2, from the writing side: this engine is alive,
+/// The guardrail on the dead-engine write case, from the writing side: this
+/// engine is alive,
 /// it only stopped reading, so the write fails with a broken pipe exactly as it
 /// would against a dead one. No death may be attributed to it, and the message
 /// stays the transport's own.
 #[tokio::test]
-async fn ref18_a3_a_live_engine_that_stops_reading_is_not_declared_dead() {
+async fn a_live_engine_that_stops_reading_is_not_declared_dead() {
     let directory = tempfile::tempdir().unwrap();
     let closed = directory.path().join("closed");
     // Closes its stdin and stdout, says so with a file, and stays alive well
@@ -901,7 +904,7 @@ async fn ref18_a3_a_live_engine_that_stops_reading_is_not_declared_dead() {
     while !closed.exists() {
         assert!(
             std::time::Instant::now() < deadline,
-            "el fixture no cerró su entrada en 60 s"
+            "the fixture did not close its input within 60 s"
         );
         tokio::time::sleep(Duration::from_millis(5)).await;
     }
@@ -909,13 +912,13 @@ async fn ref18_a3_a_live_engine_that_stops_reading_is_not_declared_dead() {
     let error = client.initialize().await.unwrap_err().to_string();
     assert!(
         !error.contains("terminó"),
-        "se le atribuye una muerte que no hubo: {error}"
+        "a death that did not happen is attributed to it: {error}"
     );
     // Only because no other start overlaps this test's (`STARTING_PROCESSES`):
     // otherwise another process can still hold this pipe and the write lands.
     assert!(
         error.contains("Broken pipe"),
-        "la escritura rota perdió su mensaje: {error}"
+        "the broken write lost its message: {error}"
     );
 }
 
@@ -948,7 +951,7 @@ async fn connection_rejects_paths_before_any_process_can_start() {
         .await;
         assert!(result.is_err());
     }
-    // DEI-12: the driver is verified before anything is created or started, so
+    // The driver is verified before anything is created or started, so
     // a missing binary is named as such and no engine process is ever spawned.
     let file = tempfile::NamedTempFile::new().unwrap();
     let result = LocalCua::connect(CuaConfig {
@@ -966,7 +969,7 @@ async fn connection_rejects_paths_before_any_process_can_start() {
     );
 }
 
-/// DEI-12 A1: Orbit chooses the socket path inside its own state root, so the
+/// Orbit chooses the socket path inside its own state root, so the
 /// directory it will make private is one it owns.
 #[test]
 fn the_default_socket_lives_under_orbit_own_private_root() {
@@ -1065,10 +1068,10 @@ fn orphaning_descendant_driver() -> String {
     bounded
 }
 
-/// REF-33: killing only A must not leave B serving after the client is gone.
+/// Killing only A must not leave B serving after the client is gone.
 #[cfg(target_os = "linux")]
 #[tokio::test]
-async fn ref33_a1_forked_listener_stops_with_the_connection() {
+async fn forked_listener_stops_with_the_connection() {
     for poison in [false, true] {
         let directory = tempfile::tempdir().unwrap();
         let driver = directory.path().join("cua-driver");
@@ -1125,7 +1128,7 @@ async fn ref33_a1_forked_listener_stops_with_the_connection() {
 }
 
 #[test]
-fn ref33_a1_parent_lookup_error_keeps_the_specific_cause() {
+fn parent_lookup_error_keeps_the_specific_cause() {
     let inner = anyhow::anyhow!("PPID ilegible: PID 42 desapareció");
     let error = cua::parent_lookup_context(42, 7, 2, inner).to_string();
     assert!(error.contains("PID par 42"), "missing peer: {error}");
@@ -1138,7 +1141,7 @@ fn ref33_a1_parent_lookup_error_keeps_the_specific_cause() {
 }
 
 #[test]
-fn ref33_a1_each_peer_probe_decision_preserves_identity_and_cause() {
+fn each_peer_probe_decision_preserves_identity_and_cause() {
     let socket = Path::new("/fixture/driver.sock");
     let cases = [
         (
@@ -1189,7 +1192,7 @@ fn ref33_a1_each_peer_probe_decision_preserves_identity_and_cause() {
 }
 
 #[test]
-fn ref33_ps_timeout_names_the_remaining_startup_budget() {
+fn ps_timeout_names_the_remaining_startup_budget() {
     let message = cua::ps_timeout_message(42, Duration::from_millis(137));
     assert!(
         message.contains("no respondió en los 137 ms que quedaban de los 10000 ms del arranque"),
@@ -1198,10 +1201,10 @@ fn ref33_ps_timeout_names_the_remaining_startup_budget() {
     assert!(message.contains("PID 42"), "missing PID: {message}");
 }
 
-/// SYS-06 A3: closing Orbit stops the directly bound fixture engine. The
+/// Closing Orbit stops the directly bound fixture engine. The
 /// packaged macOS driver may fork, so descendant cleanup needs native evidence.
 #[tokio::test]
-async fn sys06_a3_closing_the_connection_stops_the_engine_orbit_started() {
+async fn closing_the_connection_stops_the_engine_orbit_started() {
     let directory = tempfile::tempdir().unwrap();
     fs::set_permissions(directory.path(), fs::Permissions::from_mode(0o700)).unwrap();
     let driver = directory.path().join("cua-driver");
@@ -1222,7 +1225,7 @@ async fn sys06_a3_closing_the_connection_stops_the_engine_orbit_started() {
     // The engine Orbit started is serving: that is what has to stop.
     assert!(
         std::os::unix::net::UnixStream::connect(&socket).is_ok(),
-        "el motor no quedó sirviendo su socket"
+        "the engine was not left serving its socket"
     );
 
     client.invalidate();
@@ -1233,7 +1236,7 @@ async fn sys06_a3_closing_the_connection_stops_the_engine_orbit_started() {
     while std::os::unix::net::UnixStream::connect(&socket).is_ok() {
         assert!(
             std::time::Instant::now() < deadline,
-            "el motor siguió en marcha después de cerrar la conexión"
+            "the engine kept running after the connection closed"
         );
         tokio::time::sleep(Duration::from_millis(50)).await;
     }

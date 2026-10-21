@@ -1,5 +1,5 @@
 //! Real daemon/Unix IPC with an explicitly synthetic NDJSON native peer
-//! behind the production helper launch (`--helper`, REF-06 A7).
+//! behind the production helper launch (`--helper`).
 //! PCM timestamps and permissions are fixture data, not macOS or realtime evidence.
 use anyhow::{Context, Result, bail, ensure};
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -34,18 +34,19 @@ const TAIL_FRAMES: u64 = 100;
 const MAX_OUTPUT: u64 = 1_048_576;
 const REMOTE_PID: i32 = 321;
 
-// SYS-18 A4 · the budgets in this file, and where their numbers come from.
+// The budgets in this file, and where their numbers come from.
 //
 // `real_daemon_observes_synthetic_tracks_without_discarding_originals` failed
 // on the Mac at 60.01 s against a flat `Duration::from_secs(60)` wrapped round
 // the whole lifecycle. Nothing about that number came from the test: it is a
 // round one, and it was the only bound in the file, so when it expired the
 // build log said the lifecycle `exceeded its 60-second deadline` and not which
-// of its ten waits had still been waiting. SYS-10's defect in another file.
+// of its ten waits had still been waiting. The same defect had already been
+// found in another test file.
 //
 // What this test cost was not arithmetic. `wait_state` asked the daemon by
-// running a fresh `orbit status` process every 25 ms (since SIM-01 it asks over
-// the socket, in process), so a run of the lifecycle was a few hundred
+// running a fresh `orbit status` process every 25 ms (since 2026-10-15 it asks
+// over the socket, in process), so a run of the lifecycle was a few hundred
 // `fork`/`exec`s end to end and it was a machine's process creation cost, not
 // its clock speed, that decided how long it took. That is
 // why it passes here and expired there: spawning is several times dearer on
@@ -70,7 +71,8 @@ const REMOTE_PID: i32 = 321;
 //     the daemon's exit on parent loss    34    1388   1564   1571    1571
 //
 // The whole lifecycle is 7.9 s at its worst there, against a 60 s deadline:
-// 7.6x, when SYS-10's rule asks for ten times p99 and five times the worst. It
+// 7.6x, when the rule for test budgets asks for ten times p99 and five times
+// the worst. It
 // was not far off being a coin toss, and the Mac lost the toss.
 //
 // Two things follow. Each wait now carries its own budget and says what it was
@@ -212,8 +214,8 @@ async fn start_meeting(path: &Path, title: &str) -> Result<()> {
 /// Wait for the daemon to reach a state, and say what was being waited for if
 /// it never does.
 ///
-/// SYS-18 A4. `waiting_for` completes the sentence "el daemon nunca llegó a
-/// ...", because a wait that expires without naming its subject sends the next
+/// `waiting_for` completes the sentence "the daemon never got to ...",
+/// because a wait that expires without naming its subject sends the next
 /// reader to the wrong place -- which is what the single `exceeded its
 /// 60-second deadline` over the whole lifecycle did on the Mac.
 ///
@@ -254,15 +256,15 @@ async fn wait_state(
                     text.truncate(2_000);
                     text
                 }
-                None => "ninguno: el daemon no respondió a ninguna consulta".to_owned(),
+                None => "none: the daemon answered no poll".to_owned(),
             };
             let trouble = match &last_error {
-                Some(error) => format!("; la última consulta falló con: {error}"),
+                Some(error) => format!("; the last poll failed with: {error}"),
                 None => String::new(),
             };
             bail!(
-                "el daemon nunca llegó a {waiting_for} en {budget:?} \
-                 ({polls} consultas de estado){trouble}; el último estado fue {seen}"
+                "the daemon never got to {waiting_for} within {budget:?} \
+                 ({polls} status polls){trouble}; the last state was {seen}"
             );
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
@@ -382,9 +384,9 @@ async fn native_peer(
                     }
                     // The production helper stops every live source, emits its
                     // final PCM before the drain ACK and then closes the
-                    // managed stdio pipe. Her stop latches (`privacy_stop`);
-                    // a closing cuts without the latch (`capture_stop`,
-                    // REF-12), which is what parent loss exercises now.
+                    // managed stdio pipe. The user's stop latches
+                    // (`privacy_stop`); a closing cuts without the latch
+                    // (`capture_stop`), which is what parent loss exercises now.
                     Some(name @ ("privacy_stop" | "capture_stop")) => {
                         for (source, stream) in &streams {
                             send(&mut writer,audio(source,stream,ORIGINAL_SECONDS,TAIL_FRAMES)).await?;
@@ -400,7 +402,7 @@ async fn native_peer(
                     }
                     Some("playback_stop") => json!({}),
                     // The daemon's last word to its helper before closing its
-                    // input (REF-06 A3); nothing is live by then.
+                    // input; nothing is live by then.
                     Some("shutdown") => json!({"drain_complete":true}),
                     _ => bail!("native action outside the synthetic fixture contract"),
                 };
@@ -471,7 +473,7 @@ async fn lifecycle(path: &Path) -> Result<()> {
     let mut daemon = NativeDaemon::start(path).await?;
     let initial = wait_state(
         path,
-        "declarar el micrófono disponible",
+        "declare the microphone available",
         STATE_BUDGET,
         |state| state["capabilities"]["microphone"] == true,
     )
@@ -479,17 +481,14 @@ async fn lifecycle(path: &Path) -> Result<()> {
     assert_eq!(initial["connection"], "offline");
     assert!(initial["recording_signal"].is_null());
     start_meeting(path, "Synthetic two-track PCM").await?;
-    wait_state(
-        path,
-        "poner la grabación en marcha",
-        STATE_BUDGET,
-        |state| state["recording"]["phase"] == "recording",
-    )
+    wait_state(path, "start the recording", STATE_BUDGET, |state| {
+        state["recording"]["phase"] == "recording"
+    })
     .await?;
     daemon.send_originals().await?;
     let active = wait_state(
         path,
-        "contar los diez segundos de muestras en las dos pistas",
+        "count the ten seconds of samples on both tracks",
         STATE_BUDGET,
         |state| {
             state["recording_signal"]["mic_local"]["received_frames"] == RATE * ORIGINAL_SECONDS
@@ -529,7 +528,7 @@ async fn lifecycle(path: &Path) -> Result<()> {
     // passed, so its budget starts from that and not from zero.
     let delayed = wait_state(
         path,
-        "marcar las dos pistas como `delivery_delayed`",
+        "mark both tracks `delivery_delayed`",
         DELAYED_STATE_BUDGET,
         |state| {
             state["recording_signal"]["mic_local"]["condition"] == "delivery_delayed"
@@ -553,7 +552,7 @@ async fn lifecycle(path: &Path) -> Result<()> {
     ipc::request_async(path, IpcCommand::MeetingFinish).await?;
     let closed = wait_state(
         path,
-        "volver a reposo tras cerrar la reunión",
+        "return to idle after the meeting closed",
         STATE_BUDGET,
         |state| state["recording"]["phase"] == "idle",
     )
@@ -574,12 +573,12 @@ async fn lifecycle(path: &Path) -> Result<()> {
     let mut recovered = NativeDaemon::start(path).await?;
     let state = wait_state(
         path,
-        "reconocer el ayudante nativo tras reiniciar",
+        "recognise the native helper after restarting",
         STATE_BUDGET,
         |state| state["capabilities"]["native_helper"] == true,
     )
     .await?;
-    // REF-12 A1: a shutdown nobody asked to stop comes back working.
+    // A shutdown nobody asked to stop comes back working.
     assert_eq!(state["privacy_stopped"], false);
     assert!(state["recording_signal"].is_null());
     assert_eq!(state["recording"]["id"], recording);
@@ -604,9 +603,9 @@ async fn real_daemon_observes_synthetic_tracks_without_discarding_originals() ->
         .await
         .with_context(|| {
             format!(
-                "el ciclo de vida sintético agotó su plazo de {LIFECYCLE_BUDGET:?} sin que \
-                 ninguna de sus esperas lo agotara antes, así que el bloqueo no estuvo en \
-                 una espera de estado sino en una petición, en un arranque o en una salida"
+                "the synthetic lifecycle ran out of its {LIFECYCLE_BUDGET:?} without any of its \
+                 waits running out first, so the jam was not in a state wait but in a \
+                 request, a startup or an exit"
             )
         })??;
     Ok(())
@@ -627,21 +626,18 @@ async fn managed_daemon_seals_audio_and_exits_when_its_parent_disappears() -> Re
 
     wait_state(
         path,
-        "declarar el micrófono disponible",
+        "declare the microphone available",
         STATE_BUDGET,
         |state| state["capabilities"]["microphone"] == true,
     )
     .await?;
     start_meeting(path, "Synthetic parent loss").await?;
-    wait_state(
-        path,
-        "poner la grabación en marcha",
-        STATE_BUDGET,
-        |state| state["recording"]["phase"] == "recording",
-    )
+    wait_state(path, "start the recording", STATE_BUDGET, |state| {
+        state["recording"]["phase"] == "recording"
+    })
     .await?;
     daemon.send_originals().await?;
-    let active = wait_state(path, "sellar los veinte trozos", STATE_BUDGET, |state| {
+    let active = wait_state(path, "seal the twenty chunks", STATE_BUDGET, |state| {
         state["recording"]["sealed_chunks"] == 20
     })
     .await?;
@@ -660,8 +656,8 @@ async fn managed_daemon_seals_audio_and_exits_when_its_parent_disappears() -> Re
         .await
         .with_context(|| {
             format!(
-                "el daemon gestionado no salió tras desaparecer su padre en \
-                 {PARENT_LOSS_EXIT_BUDGET:?}"
+                "the managed daemon did not exit within {PARENT_LOSS_EXIT_BUDGET:?} \
+                 after its parent vanished"
             )
         })??;
     assert_eq!(effects.stops, 2, "both live tracks must drain before exit");
@@ -670,12 +666,12 @@ async fn managed_daemon_seals_audio_and_exits_when_its_parent_disappears() -> Re
     let mut recovered = NativeDaemon::start(path).await?;
     let state = wait_state(
         path,
-        "reconocer el ayudante nativo tras reiniciar",
+        "recognise the native helper after restarting",
         STATE_BUDGET,
         |state| state["capabilities"]["native_helper"] == true,
     )
     .await?;
-    // REF-12 A1: the lost parent cut the recording; the restart comes back
+    // The lost parent cut the recording; the restart comes back
     // working, with the recording interrupted and its fragments kept.
     assert_eq!(state["privacy_stopped"], false);
     assert_eq!(state["recording"]["id"], recording);

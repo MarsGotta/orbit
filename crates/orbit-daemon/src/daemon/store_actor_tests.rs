@@ -1,4 +1,4 @@
-//! P2-02 regressions: the daemon actor stays responsive while the store is
+//! Regressions: the daemon actor stays responsive while the store is
 //! slow, and the snapshot policy stops paying for chat deltas and idle ticks.
 //! Real encrypted SQLite in a fixture directory; synthetic native channels.
 use super::*;
@@ -19,7 +19,7 @@ fn previous_snapshot() -> Result<serde_json::Value> {
 
 fn retained_durable_fields(previous: v0_7_0::DurableState) -> Result<serde_json::Value> {
     let mut value = serde_json::to_value(previous)?;
-    // SIM-72 already retired these three Deimos reads from the Mac's store.
+    // These three Deimos reads were already retired from the Mac's store.
     let fields = value
         .as_object_mut()
         .context("flat previous durable object")?;
@@ -112,7 +112,7 @@ async fn new_snapshots_are_flat_durable_only_and_readable_by_v0_7_0() -> Result<
 }
 
 #[tokio::test]
-async fn ref303_round2_abandoned_store_receipt_does_not_replace_mars_notice() -> Result<()> {
+async fn abandoned_store_receipt_does_not_replace_the_user_notice() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let store = Store::open(directory.path().join("store"), [0x42; 32])?;
     let (events, mut received) = mpsc::channel(WORK_EVENTS_CAPACITY);
@@ -125,7 +125,7 @@ async fn ref303_round2_abandoned_store_receipt_does_not_replace_mars_notice() ->
     drop(abandoned);
     actor.run(|_| Ok::<_, anyhow::Error>(())).await?;
     // A StoreProblem would replace the daemon's single notice slot, including
-    // Mars's privacy-stop notice. This abandoned waiter is diagnostic only.
+    // the user's privacy-stop notice. This abandoned waiter is diagnostic only.
     assert!(received.try_recv().is_err());
     let log = std::fs::read_to_string(directory.path().join("logs/daemon.log"))?;
     assert_eq!(
@@ -176,7 +176,7 @@ async fn startup_stop_receipt_cannot_be_replaced_by_an_older_runtime_snapshot() 
 }
 
 #[tokio::test]
-async fn two_startup_stops_do_not_replace_a_mars_stopped_runtime_snapshot() -> Result<()> {
+async fn two_startup_stops_do_not_replace_a_user_stopped_runtime_snapshot() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let path = directory.path().join("store");
     let key = [0x42; 32];
@@ -228,26 +228,26 @@ async fn two_startup_stops_do_not_replace_a_mars_stopped_runtime_snapshot() -> R
 fn snapshot_probe(runtime: &Runtime) -> Result<rusqlite::Connection> {
     let database = rusqlite::Connection::open(runtime.paths.store.join("orbit.sqlite3"))?;
     database.execute_batch(
-        "CREATE TABLE p2_02_snapshot_writes(n INTEGER NOT NULL);
-         INSERT INTO p2_02_snapshot_writes VALUES (0);
-         CREATE TRIGGER p2_02_snapshot_insert AFTER INSERT ON settings
+        "CREATE TABLE probe_snapshot_writes(n INTEGER NOT NULL);
+         INSERT INTO probe_snapshot_writes VALUES (0);
+         CREATE TRIGGER probe_snapshot_insert AFTER INSERT ON settings
          WHEN NEW.key = 'snapshot'
-         BEGIN UPDATE p2_02_snapshot_writes SET n = n + 1; END;
-         CREATE TRIGGER p2_02_snapshot_update AFTER UPDATE ON settings
+         BEGIN UPDATE probe_snapshot_writes SET n = n + 1; END;
+         CREATE TRIGGER probe_snapshot_update AFTER UPDATE ON settings
          WHEN NEW.key = 'snapshot'
-         BEGIN UPDATE p2_02_snapshot_writes SET n = n + 1; END;",
+         BEGIN UPDATE probe_snapshot_writes SET n = n + 1; END;",
     )?;
     Ok(database)
 }
 
 fn snapshot_writes(probe: &rusqlite::Connection) -> Result<u64> {
     let count: i64 =
-        probe.query_row("SELECT n FROM p2_02_snapshot_writes", [], |row| row.get(0))?;
+        probe.query_row("SELECT n FROM probe_snapshot_writes", [], |row| row.get(0))?;
     Ok(count.max(0) as u64)
 }
 
 /// Holds SQLite's single writer slot so every seal and snapshot write blocks
-/// until released: the delayed `seal_chunk` of acceptance criterion A1.
+/// until released: a delayed `seal_chunk`.
 fn hold_store_writer(probe: &rusqlite::Connection) -> Result<()> {
     probe.execute_batch("BEGIN IMMEDIATE")?;
     Ok(())
@@ -273,7 +273,7 @@ async fn start_recording(
     runtime
         .apply(Event::StartMeeting {
             id: recording.into(),
-            title: "P2-02 synthetic recording".into(),
+            title: "Synthetic recording".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
             duration_ms: 60_000,
         })
@@ -317,15 +317,15 @@ pub(super) fn pending_segment(recording: &str, sequence: u64) -> crate::capture:
 }
 
 #[tokio::test]
-async fn r1_run_preserves_typed_results_and_commits_on_the_writer() -> Result<()> {
+async fn run_preserves_typed_results_and_commits_on_the_writer() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (runtime, _) = fixture(directory.path())?;
     let job = orbit_store::Job {
-        id: "finalize-p2-02-run".into(),
+        id: "finalize-typed-run".into(),
         kind: "recording_finalize".into(),
         state: orbit_store::JobState::Queued,
         created_at: 1,
-        payload: json!({"recording_id":"p2-02-run"}),
+        payload: json!({"recording_id":"typed-run"}),
     };
     let result = runtime
         .store_actor
@@ -338,20 +338,20 @@ async fn r1_run_preserves_typed_results_and_commits_on_the_writer() -> Result<()
     assert!(
         runtime
             .fixture_store
-            .get_job("finalize-p2-02-run")?
+            .get_job("finalize-typed-run")?
             .is_some()
     );
     Ok(())
 }
 
-/// A1: a seal that cannot reach the disk for seconds must not occupy the
+/// A seal that cannot reach the disk for seconds must not occupy the
 /// actor loop. One hundred events per second keep arriving, and the person's
 /// Status query still answers while the writer remains blocked.
 #[tokio::test]
-async fn a1_a_delayed_seal_does_not_stall_the_actor_loop() -> Result<()> {
+async fn a_delayed_seal_does_not_stall_the_actor_loop() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
-    let stream = start_recording(&mut runtime, &mut receiver, "p2-02-a1").await?;
+    let stream = start_recording(&mut runtime, &mut receiver, "delayed-seal").await?;
     let probe = snapshot_probe(&runtime)?;
     hold_store_writer(&probe)?;
     // 110 frames of 10 ms: the hundredth completes one second of PCM and
@@ -368,24 +368,24 @@ async fn a1_a_delayed_seal_does_not_stall_the_actor_loop() -> Result<()> {
     }
     assert!(
         failure.is_none(),
-        "A1: audio must be accepted while the seal is delayed: {failure:?}"
+        "audio must be accepted while the seal is delayed: {failure:?}"
     );
     runtime.command(Command::Status).await?;
     assert!(
         !runtime.state.privacy_stopped(),
-        "A1: a delayed seal is backpressure on the store, never an integrity brake"
+        "a delayed seal is backpressure on the store, never an integrity brake"
     );
     while let Ok(command) = receiver.try_recv() {
         assert_ne!(
             command["command"], "privacy_stop",
-            "A1: the helper must not be asked to stop while a seal is delayed"
+            "the helper must not be asked to stop while a seal is delayed"
         );
     }
     release_store_writer(&probe)?;
     Ok(())
 }
 
-/// REF-27 A1/A2: forty seals may be waiting on the writer, but a Status turn
+/// Forty seals may be waiting on the writer, but a Status turn
 /// only reports receipts that are already available. It must not spend part
 /// of the IPC caller's deadline waiting for a future disk receipt.
 ///
@@ -397,25 +397,25 @@ async fn a1_a_delayed_seal_does_not_stall_the_actor_loop() -> Result<()> {
 ///
 /// What this test cannot see: a literal wait hardcoded in the Status arm.
 /// `collect_ready_seals` parks inside the poll, so even a 75 ms wait finishes
-/// its first poll `Ready` and these assertions stay green — that is the
-/// REF-25 shape this round's review mutated to prove it. This test fixes the
-/// constant's value and measures the wired behaviour.
+/// its first poll `Ready` and these assertions stay green — a review proved it
+/// by mutating the arm that way. This test fixes the constant's value and
+/// measures the wired behaviour.
 ///
 #[tokio::test]
-async fn ref27_status_does_not_wait_for_forty_slow_seals() -> Result<()> {
+async fn status_does_not_wait_for_forty_slow_seals() -> Result<()> {
     assert_eq!(
         sealing::OPPORTUNISTIC_RECEIPT_WAIT,
         Duration::ZERO,
-        "REF-27: an IPC status turn may only collect receipts already present"
+        "an IPC status turn may only collect receipts already present"
     );
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
-    start_recording(&mut runtime, &mut receiver, "ref27-status").await?;
+    start_recording(&mut runtime, &mut receiver, "status-seals").await?;
     // Pay every setup write before the probe takes SQLite's writer slot.
     runtime.store_actor.snapshot(&runtime.state).await?;
     runtime.seal(
         (0..5)
-            .map(|sequence| pending_segment("ref27-status", sequence))
+            .map(|sequence| pending_segment("status-seals", sequence))
             .collect(),
     )?;
     await_seal_receipts(&mut runtime)?;
@@ -423,7 +423,7 @@ async fn ref27_status_does_not_wait_for_forty_slow_seals() -> Result<()> {
     hold_store_writer(&probe)?;
     runtime.seal(
         (5..40)
-            .map(|sequence| pending_segment("ref27-status", sequence))
+            .map(|sequence| pending_segment("status-seals", sequence))
             .collect(),
     )?;
 
@@ -435,7 +435,7 @@ async fn ref27_status_does_not_wait_for_forty_slow_seals() -> Result<()> {
         };
         assert!(
             matches!(outcome, std::task::Poll::Ready(Ok(()))),
-            "REF-27: Status waited for a future disk receipt: {outcome:?}"
+            "Status waited for a future disk receipt: {outcome:?}"
         );
         assert_eq!(
             runtime
@@ -446,7 +446,7 @@ async fn ref27_status_does_not_wait_for_forty_slow_seals() -> Result<()> {
                 .context("recording absent")?
                 .sealed_chunks,
             5,
-            "REF-27: Status may only report durable receipts; SQLite is still locked"
+            "Status may only report durable receipts; SQLite is still locked"
         );
     }
     release_store_writer(&probe)?;
@@ -460,11 +460,11 @@ async fn ref27_status_does_not_wait_for_forty_slow_seals() -> Result<()> {
             .context("recording absent")?
             .sealed_chunks,
         40,
-        "REF-27: every admitted seal must be counted after its durable receipt"
+        "every admitted seal must be counted after its durable receipt"
     );
     let mut sequences = runtime
         .fixture_store
-        .list_chunks("ref27-status", None, 100)?
+        .list_chunks("status-seals", None, 100)?
         .into_iter()
         .map(|receipt| receipt.metadata.sequence)
         .collect::<Vec<_>>();
@@ -473,16 +473,16 @@ async fn ref27_status_does_not_wait_for_forty_slow_seals() -> Result<()> {
     Ok(())
 }
 
-/// REF-27 A1/A2: the maintenance tick must not start an upload admission that
-/// REF-03 will correctly order behind seals already handed to the writer. The
+/// The maintenance tick must not start an upload admission that the ordered
+/// writer will correctly place behind seals already handed to it. The
 /// first poll is the daemon loop's turn: it must finish from RAM, without a
 /// clock deciding whether the store was fast enough.
 #[tokio::test]
-async fn ref27_upload_scheduler_does_not_await_behind_admitted_seals() -> Result<()> {
+async fn upload_scheduler_does_not_await_behind_admitted_seals() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
-    start_recording(&mut runtime, &mut receiver, "ref27-schedule").await?;
-    runtime.seal(vec![pending_segment("ref27-schedule", 0)])?;
+    start_recording(&mut runtime, &mut receiver, "schedule-seals").await?;
+    runtime.seal(vec![pending_segment("schedule-seals", 0)])?;
     await_seal_receipts(&mut runtime)?;
     runtime.token = Some("synthetic-token".into());
     runtime.settings.hub_url = Some("http://127.0.0.1:1".into());
@@ -491,7 +491,7 @@ async fn ref27_upload_scheduler_does_not_await_behind_admitted_seals() -> Result
     hold_store_writer(&probe)?;
     runtime.seal(
         (1..40)
-            .map(|sequence| pending_segment("ref27-schedule", sequence))
+            .map(|sequence| pending_segment("schedule-seals", sequence))
             .collect(),
     )?;
     runtime
@@ -514,24 +514,24 @@ async fn ref27_upload_scheduler_does_not_await_behind_admitted_seals() -> Result
     await_seal_receipts(&mut runtime)?;
     assert!(
         matches!(outcome, std::task::Poll::Ready(Ok(()))),
-        "REF-27: the upload scheduler held the daemon turn behind admitted seals: {outcome:?}"
+        "the upload scheduler held the daemon turn behind admitted seals: {outcome:?}"
     );
-    assert!(worker.is_some(), "REF-27: the actor receipt needs a worker");
+    assert!(worker.is_some(), "the actor receipt needs a worker");
     Ok(())
 }
 
-/// REF-27 review A: collecting durable seal receipts changes the in-memory
+/// Collecting durable seal receipts changes the in-memory
 /// projection. Its deferred snapshot must be recorded as admitted, otherwise
 /// the immediately following maintenance Tick tries to wait for the writer.
 #[tokio::test]
-async fn ref27_tick_does_not_wait_for_a_snapshot_behind_seals() -> Result<()> {
+async fn tick_does_not_wait_for_a_snapshot_behind_seals() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
-    start_recording(&mut runtime, &mut receiver, "ref27-tick").await?;
+    start_recording(&mut runtime, &mut receiver, "tick-seals").await?;
     runtime.store_actor.snapshot(&runtime.state).await?;
     runtime.seal(
         (0..5)
-            .map(|sequence| pending_segment("ref27-tick", sequence))
+            .map(|sequence| pending_segment("tick-seals", sequence))
             .collect(),
     )?;
     await_seal_receipts(&mut runtime)?;
@@ -539,7 +539,7 @@ async fn ref27_tick_does_not_wait_for_a_snapshot_behind_seals() -> Result<()> {
     hold_store_writer(&probe)?;
     runtime.seal(
         (5..40)
-            .map(|sequence| pending_segment("ref27-tick", sequence))
+            .map(|sequence| pending_segment("tick-seals", sequence))
             .collect(),
     )?;
 
@@ -553,40 +553,40 @@ async fn ref27_tick_does_not_wait_for_a_snapshot_behind_seals() -> Result<()> {
     await_seal_receipts(&mut runtime)?;
     assert!(
         matches!(outcome, std::task::Poll::Ready(Ok(()))),
-        "REF-27: apply(Tick) did not finish successfully behind 35 seals: {outcome:?}"
+        "apply(Tick) did not finish successfully behind 35 seals: {outcome:?}"
     );
     Ok(())
 }
 
-/// REF-27 review 2 · durable seal rows read from outside the daemon, in the
+/// Durable seal rows read from outside the daemon, in the
 /// fixture's own database: the fact these probes wait for, independent of
 /// both channels and of any clock.
-fn durable_ref27_seals(probe: &rusqlite::Connection) -> Result<u64> {
+fn durable_seals(probe: &rusqlite::Connection) -> Result<u64> {
     let count: i64 = probe.query_row("SELECT count(*) FROM chunks", [], |row| row.get(0))?;
     Ok(count.max(0) as u64)
 }
 
-/// REF-27 review 2 · waits on the durable rows themselves. The bound is the
+/// Waits on the durable rows themselves. The bound is the
 /// measured stall guard for a seal's durable receipt, so it never decides a
 /// passing run; it only names a writer that stopped advancing, with the count
 /// it stopped at.
-fn wait_for_ref27_seals(probe: &rusqlite::Connection, at_least: u64) -> Result<()> {
+fn wait_for_durable_seals(probe: &rusqlite::Connection, at_least: u64) -> Result<()> {
     let stalled = std::time::Instant::now() + SEAL_RECEIPT_GUARD;
     loop {
-        let durable = durable_ref27_seals(probe)?;
+        let durable = durable_seals(probe)?;
         if durable >= at_least {
             return Ok(());
         }
         if std::time::Instant::now() >= stalled {
             bail!(
-                "REF-27: the writer stopped at {durable} durable seal(s); wanted {at_least} within the measured receipt guard"
+                "the writer stopped at {durable} durable seal(s); wanted {at_least} within the measured receipt guard"
             );
         }
         std::thread::park_timeout(Duration::from_millis(1));
     }
 }
 
-/// REF-27 review 2 · the receiver is drained an exact, counted number of
+/// The receiver is drained an exact, counted number of
 /// times, so a writer that blocks on a full wake-up channel can never fit its
 /// last notice: the production capacity plus these drains carries at most
 /// `EXPECTED - 1` of the `EXPECTED` notices (16 + 3 = 19 < 20). The healthy
@@ -596,7 +596,7 @@ fn wait_for_ref27_seals(probe: &rusqlite::Connection, at_least: u64) -> Result<(
 /// full, which freed a slot before the twentieth notice: a blocking writer
 /// sailed through, and the deadlock went uncaught (3 of 3 mutated runs
 /// passed).
-async fn await_ref27_seals(
+async fn await_durable_seals(
     probe: &rusqlite::Connection,
     work_receiver: &mut mpsc::Receiver<WorkResult>,
 ) -> Result<()> {
@@ -604,65 +604,66 @@ async fn await_ref27_seals(
     // 16 channel slots + 3 drains = 19 < 20 notices, recomputed if the
     // production capacity ever changes.
     const DRAINS: usize = EXPECTED - WORK_EVENTS_CAPACITY - 1;
-    let before = durable_ref27_seals(probe)?;
+    let before = durable_seals(probe)?;
     // One durable row more than the channel holds notices: exactly where a
     // blocking writer stands stuck, and where a dropping writer has already
     // proven that coalescing is safe.
-    wait_for_ref27_seals(probe, before + WORK_EVENTS_CAPACITY as u64 + 1)?;
+    wait_for_durable_seals(probe, before + WORK_EVENTS_CAPACITY as u64 + 1)?;
     for _ in 0..DRAINS {
         work_receiver
             .recv()
             .await
-            .context("REF-27: expected a queued seal wake-up")?;
+            .context("expected a queued seal wake-up")?;
     }
-    wait_for_ref27_seals(probe, before + EXPECTED as u64)?;
+    wait_for_durable_seals(probe, before + EXPECTED as u64)?;
     Ok(())
 }
 
-/// Bounds only the two REF-27 deadlock probes so a regression cannot hang the
-/// suite forever. The review observed no answer in 20 s on the blocking
-/// writer, while the fixed writer answers an await behind 20 seals in 7–28 µs
-/// and a privacy stop in 293–981 ms (measured by the round-2/3 reviews); this
+/// Bounds only the two deadlock probes (a writer blocked sending into the full
+/// wake-up channel while the daemon awaited it) so a regression cannot hang the
+/// suite forever. A review observed no answer in 20 s on the blocking writer,
+/// while the fixed writer answers an await behind 20 seals in 7–28 µs and a
+/// privacy stop in 293–981 ms (measured over two later reviews); this
 /// preserves that measured discriminator at over 800 times the healthy
 /// control. It is not a daemon responsiveness budget or a disk deadline.
-const REF27_DEADLOCK_GUARD: Duration = Duration::from_secs(20);
+const SEAL_DEADLOCK_GUARD: Duration = Duration::from_secs(20);
 
-/// REF-27 review C: this is the production work-channel capacity and a live
+/// This is the production work-channel capacity and a live
 /// receiver which the daemon cannot drain while it awaits the writer.
-/// [`await_ref27_seals`] frees exactly three slots and no more, so the
+/// [`await_durable_seals`] frees exactly three slots and no more, so the
 /// twentieth notice can never fit a writer that blocks. The timeout is only a
 /// deadlock guard: it returns the instant the actor receipt arrives, and on
-/// the pre-REF-27 writer it fails bounded, naming the seals and the queue.
+/// the old blocking writer it fails bounded, naming the seals and the queue.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ref27_actor_wait_behind_twenty_seals_does_not_need_the_event_receiver() -> Result<()> {
+async fn actor_wait_behind_twenty_seals_does_not_need_the_event_receiver() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut native_receiver) = fixture(directory.path())?;
-    start_recording(&mut runtime, &mut native_receiver, "ref27-live-channel").await?;
+    start_recording(&mut runtime, &mut native_receiver, "live-channel").await?;
     let (events, mut work_receiver) = tokio::sync::mpsc::channel(WORK_EVENTS_CAPACITY);
     let store = crate::daemon::test_store::open_existing(&runtime.paths.store, [0x42; 32])?;
     runtime.store_actor = crate::daemon::store_actor::StoreActor::spawn(store, events)?;
     let probe = rusqlite::Connection::open(runtime.paths.store.join("orbit.sqlite3"))?;
     runtime.seal(
         (0..20)
-            .map(|sequence| pending_segment("ref27-live-channel", sequence))
+            .map(|sequence| pending_segment("live-channel", sequence))
             .collect(),
     )?;
     let mut waiting = std::pin::pin!(runtime.store_actor.run(|_store| Ok(())));
     hand_over(&mut waiting);
-    await_ref27_seals(&probe, &mut work_receiver).await?;
-    let answer = tokio::time::timeout(REF27_DEADLOCK_GUARD, &mut waiting).await;
+    await_durable_seals(&probe, &mut work_receiver).await?;
+    let answer = tokio::time::timeout(SEAL_DEADLOCK_GUARD, &mut waiting).await;
     let queued = work_receiver.len();
     drop(work_receiver);
 
     assert!(
         matches!(answer, Ok(Ok(()))),
-        "REF-27: the actor wait did not answer behind 20 seals within {REF27_DEADLOCK_GUARD:?}; \
+        "the actor wait did not answer behind 20 seals within {SEAL_DEADLOCK_GUARD:?}; \
          a writer blocked sending into the full wake-up channel ({queued} events queued) \
          reproduces exactly this: {answer:?}"
     );
     let mut sequences = runtime
         .fixture_store
-        .list_chunks("ref27-live-channel", None, 100)?
+        .list_chunks("live-channel", None, 100)?
         .into_iter()
         .map(|receipt| receipt.metadata.sequence)
         .collect::<Vec<_>>();
@@ -670,35 +671,35 @@ async fn ref27_actor_wait_behind_twenty_seals_does_not_need_the_event_receiver()
     assert_eq!(
         sequences,
         (0..20u64).collect::<Vec<_>>(),
-        "REF-27: the ordered writer lost or duplicated a seal"
+        "the ordered writer lost or duplicated a seal"
     );
     Ok(())
 }
 
-/// REF-27 review D: privacy stop uses the same production wiring. It must
+/// Privacy stop uses the same production wiring. It must
 /// durably latch and notify the helper even when more seals precede its store
 /// operation than the wake-up channel can carry; the three freed slots of
-/// [`await_ref27_seals`] leave the twentieth notice without room, so a
+/// [`await_durable_seals`] leave the twentieth notice without room, so a
 /// blocking writer holds the stop's own snapshot instead.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ref27_privacy_stop_behind_twenty_seals_finishes_and_reaches_the_helper() -> Result<()> {
+async fn privacy_stop_behind_twenty_seals_finishes_and_reaches_the_helper() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut native_receiver) = fixture(directory.path())?;
-    start_recording(&mut runtime, &mut native_receiver, "ref27-privacy-channel").await?;
+    start_recording(&mut runtime, &mut native_receiver, "privacy-channel").await?;
     let (events, mut work_receiver) = tokio::sync::mpsc::channel(WORK_EVENTS_CAPACITY);
     let store = crate::daemon::test_store::open_existing(&runtime.paths.store, [0x42; 32])?;
     runtime.store_actor = crate::daemon::store_actor::StoreActor::spawn(store, events)?;
     let probe = rusqlite::Connection::open(runtime.paths.store.join("orbit.sqlite3"))?;
     runtime.seal(
         (0..20)
-            .map(|sequence| pending_segment("ref27-privacy-channel", sequence))
+            .map(|sequence| pending_segment("privacy-channel", sequence))
             .collect(),
     )?;
-    await_ref27_seals(&probe, &mut work_receiver).await?;
+    await_durable_seals(&probe, &mut work_receiver).await?;
     let (stopped, queued) = {
         let mut stopping = std::pin::pin!(runtime.command(Command::PrivacyStop));
         hand_over(&mut stopping);
-        let stopped = tokio::time::timeout(REF27_DEADLOCK_GUARD, &mut stopping).await;
+        let stopped = tokio::time::timeout(SEAL_DEADLOCK_GUARD, &mut stopping).await;
         (stopped, work_receiver.len())
     };
     drop(work_receiver);
@@ -709,22 +710,22 @@ async fn ref27_privacy_stop_behind_twenty_seals_finishes_and_reaches_the_helper(
 
     assert!(
         matches!(stopped, Ok(Ok(()))) && runtime.state.privacy_stopped() && helper_stopped,
-        "REF-27: privacy stop did not latch and reach the helper behind 20 seals within \
-         {REF27_DEADLOCK_GUARD:?}; a writer blocked sending into the full wake-up channel \
+        "privacy stop did not latch and reach the helper behind 20 seals within \
+         {SEAL_DEADLOCK_GUARD:?}; a writer blocked sending into the full wake-up channel \
          ({queued} events queued) reproduces exactly this: {stopped:?}"
     );
     Ok(())
 }
 
-/// REF-27 A2: after the final seal receipt, admitting its upload still writes
+/// After the final seal receipt, admitting its upload still writes
 /// `Running` through the actor. That receipt is worker work; the daemon turn
 /// must end immediately even when the actor is occupied.
 #[tokio::test]
-async fn ref27_upload_admission_waits_off_loop_after_the_last_seal() -> Result<()> {
+async fn upload_admission_waits_off_loop_after_the_last_seal() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
-    start_recording(&mut runtime, &mut receiver, "ref27-admission").await?;
-    runtime.seal(vec![pending_segment("ref27-admission", 0)])?;
+    start_recording(&mut runtime, &mut receiver, "last-seal-admission").await?;
+    runtime.seal(vec![pending_segment("last-seal-admission", 0)])?;
     await_seal_receipts(&mut runtime)?;
     runtime.token = Some("synthetic-token".into());
     runtime.settings.hub_url = Some("http://127.0.0.1:1".into());
@@ -742,24 +743,24 @@ async fn ref27_upload_admission_waits_off_loop_after_the_last_seal() -> Result<(
     release.send(())?;
     assert!(
         matches!(outcome, std::task::Poll::Ready(Ok(()))),
-        "REF-27: upload admission held the loop after the last seal: {outcome:?}"
+        "upload admission held the loop after the last seal: {outcome:?}"
     );
-    assert!(worker.is_some(), "REF-27: the actor receipt needs a worker");
+    assert!(worker.is_some(), "the actor receipt needs a worker");
     Ok(())
 }
 
-/// REF-27 A2: a transfer that was already in flight may finish while new audio
+/// A transfer that was already in flight may finish while new audio
 /// is recording. Its local receipt waits off-loop; handling the work event
 /// itself completes in the current turn even after the last seal, and the job
 /// state becomes durable once the actor is released.
 #[tokio::test]
-async fn ref27_upload_result_settles_off_loop_after_last_seal() -> Result<()> {
+async fn upload_result_settles_off_loop_after_last_seal() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
-    start_recording(&mut runtime, &mut receiver, "ref27-result").await?;
-    runtime.seal(vec![pending_segment("ref27-result", 0)])?;
+    start_recording(&mut runtime, &mut receiver, "last-seal-result").await?;
+    runtime.seal(vec![pending_segment("last-seal-result", 0)])?;
     await_seal_receipts(&mut runtime)?;
-    let upload = "upload-ref27-result-mic_local-0";
+    let upload = "upload-last-seal-result-mic_local-0";
     let upload_id = upload.to_owned();
     runtime
         .store_actor
@@ -786,13 +787,13 @@ async fn ref27_upload_result_settles_off_loop_after_last_seal() -> Result<()> {
     release.send(())?;
     assert!(
         matches!(outcome, std::task::Poll::Ready(Ok(()))),
-        "REF-27: applying an upload result held the daemon turn behind admitted seals: {outcome:?}"
+        "applying an upload result held the daemon turn behind admitted seals: {outcome:?}"
     );
     runtime
         .work
         .worker
         .take()
-        .context("REF-27: missing durable settlement worker")?
+        .context("missing durable settlement worker")?
         .await?;
     assert_eq!(
         runtime.fixture_store.get_job(upload)?.map(|job| job.state),
@@ -801,10 +802,10 @@ async fn ref27_upload_result_settles_off_loop_after_last_seal() -> Result<()> {
     Ok(())
 }
 
-/// REF-27 review: the settlement receipt releases the only upload-worker
+/// The settlement receipt releases the only upload-worker
 /// slot. Keeping a finished handle there makes every later upload ineligible.
 #[tokio::test]
-async fn ref27_upload_settlement_releases_the_worker_slot() -> Result<()> {
+async fn upload_settlement_releases_the_worker_slot() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     let generation = runtime.state.generation();
@@ -824,27 +825,27 @@ async fn ref27_upload_settlement_releases_the_worker_slot() -> Result<()> {
 
     assert!(
         runtime.work.worker.active().is_none(),
-        "REF-27: UploadSettled kept the finished worker slot occupied"
+        "UploadSettled kept the finished worker slot occupied"
     );
     Ok(())
 }
 
-/// A2: chat deltas are not durable state. Two hundred of them write no
+/// Chat deltas are not durable state. Two hundred of them write no
 /// snapshot; the completed turn writes exactly one.
 #[tokio::test]
-async fn a2_delta_bursts_write_no_snapshot_and_a_completed_turn_writes_one() -> Result<()> {
+async fn delta_bursts_write_no_snapshot_and_a_completed_turn_writes_one() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let (hub, _commands) = mpsc::channel(16);
     runtime.hub.install(hub);
     runtime
         .apply(Event::Submit {
-            id: "p2-02-a2-request".into(),
+            id: "delta-burst-request".into(),
             text: "SYNTHETIC QUESTION".into(),
         })
         .await?;
     runtime
-        .apply(Event::Session("p2-02-a2-session".into()))
+        .apply(Event::Session("delta-burst-session".into()))
         .await?;
     let probe = snapshot_probe(&runtime)?;
     // Run flushes every snapshot admitted before it and adds no snapshot.
@@ -853,7 +854,7 @@ async fn a2_delta_bursts_write_no_snapshot_and_a_completed_turn_writes_one() -> 
     for index in 0..200 {
         runtime
             .apply(Event::Delta {
-                request_id: "p2-02-a2-request".into(),
+                request_id: "delta-burst-request".into(),
                 text: format!("SYNTHETIC PARTIAL {index}"),
             })
             .await?;
@@ -863,12 +864,12 @@ async fn a2_delta_bursts_write_no_snapshot_and_a_completed_turn_writes_one() -> 
     assert_eq!(
         after_deltas,
         baseline,
-        "A2: 200 Delta events wrote {} snapshot(s)",
+        "200 Delta events wrote {} snapshot(s)",
         after_deltas - baseline
     );
     runtime
         .apply(Event::Completed {
-            request_id: "p2-02-a2-request".into(),
+            request_id: "delta-burst-request".into(),
             text: Some("SYNTHETIC ANSWER".into()),
         })
         .await?;
@@ -877,19 +878,19 @@ async fn a2_delta_bursts_write_no_snapshot_and_a_completed_turn_writes_one() -> 
     assert_eq!(
         final_count - baseline,
         1,
-        "A2: the completed turn wrote {} snapshot(s); exactly one is allowed",
+        "the completed turn wrote {} snapshot(s); exactly one is allowed",
         final_count - baseline
     );
     Ok(())
 }
 
-/// A3: sixty idle ticks neither write a snapshot nor wait on the store.
+/// Sixty idle ticks neither write a snapshot nor wait on the store.
 #[tokio::test]
-async fn a3_sixty_idle_ticks_write_nothing_and_never_wait_on_the_store() -> Result<()> {
+async fn sixty_idle_ticks_write_nothing_and_never_wait_on_the_store() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     runtime
-        .apply(Event::Session("p2-02-a3-session".into()))
+        .apply(Event::Session("idle-ticks-session".into()))
         .await?;
     let probe = snapshot_probe(&runtime)?;
     runtime.store_actor.run(|_| Ok(())).await?;
@@ -899,7 +900,7 @@ async fn a3_sixty_idle_ticks_write_nothing_and_never_wait_on_the_store() -> Resu
         let outcome = runtime.apply(Event::Tick).await;
         assert!(
             outcome.is_ok(),
-            "A3: idle tick {index} reached the store: {outcome:?}"
+            "idle tick {index} reached the store: {outcome:?}"
         );
     }
     release_store_writer(&probe)?;
@@ -907,26 +908,26 @@ async fn a3_sixty_idle_ticks_write_nothing_and_never_wait_on_the_store() -> Resu
     assert_eq!(
         snapshot_writes(&probe)?,
         baseline,
-        "A3: 60 idle ticks wrote snapshots"
+        "60 idle ticks wrote snapshots"
     );
     Ok(())
 }
 
-/// A4: `sealed_chunks` waits for the durable receipt. While no receipt can
+/// `sealed_chunks` waits for the durable receipt. While no receipt can
 /// exist the counter must not move; once the store is free the segment must
 /// become durable on the storage actor's own thread.
 ///
 #[tokio::test]
-async fn a4_sealed_chunks_wait_for_the_durable_receipt() -> Result<()> {
+async fn sealed_chunks_wait_for_the_durable_receipt() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
-    start_recording(&mut runtime, &mut receiver, "p2-02-a4").await?;
+    start_recording(&mut runtime, &mut receiver, "durable-receipt").await?;
     let probe = snapshot_probe(&runtime)?;
     hold_store_writer(&probe)?;
-    let admitted = runtime.seal(vec![pending_segment("p2-02-a4", 0)]);
+    let admitted = runtime.seal(vec![pending_segment("durable-receipt", 0)]);
     assert!(
         admitted.is_ok(),
-        "A4: handing PCM to the storage actor must not wait on the disk: {admitted:?}"
+        "handing PCM to the storage actor must not wait on the disk: {admitted:?}"
     );
     assert_eq!(
         runtime
@@ -937,18 +938,18 @@ async fn a4_sealed_chunks_wait_for_the_durable_receipt() -> Result<()> {
             .context("recording absent")?
             .sealed_chunks,
         0,
-        "A4: no durable receipt exists, so sealed_chunks must not advance"
+        "no durable receipt exists, so sealed_chunks must not advance"
     );
     release_store_writer(&probe)?;
     runtime.store_actor.snapshot(&runtime.state).await?;
-    let chunk = "p2-02-a4-mic_local-0";
+    let chunk = "durable-receipt-mic_local-0";
     // A Run is ordered after every earlier seal and flushes a prior snapshot.
     // Its receipt means the real writer has finished the admitted operations.
     runtime.store_actor.run(|_| Ok(())).await?;
     let receipts = stored_chunks(&probe, chunk)?;
     assert_eq!(
         receipts, 1,
-        "A4: the segment must reach a durable receipt once the store is free"
+        "the segment must reach a durable receipt once the store is free"
     );
     assert_eq!(
         runtime
@@ -959,11 +960,11 @@ async fn a4_sealed_chunks_wait_for_the_durable_receipt() -> Result<()> {
             .context("recording absent")?
             .sealed_chunks,
         0,
-        "A4: the counter advances when the Sealed receipt event is applied, never before"
+        "the counter advances when the Sealed receipt event is applied, never before"
     );
     runtime
         .work_event(WorkResult::Store(crate::daemon::StoreWork::Sealed {
-            recording: "p2-02-a4".into(),
+            recording: "durable-receipt".into(),
             sequence: 0,
         }))
         .await?;
@@ -976,23 +977,23 @@ async fn a4_sealed_chunks_wait_for_the_durable_receipt() -> Result<()> {
             .context("recording absent")?
             .sealed_chunks,
         1,
-        "A4: applying the durable Sealed receipt advances the counter once"
+        "applying the durable Sealed receipt advances the counter once"
     );
     Ok(())
 }
 
-/// A4/R2: the 64 MiB volatile reserve and its loss declaration survive the
+/// The 64 MiB volatile reserve and its loss declaration survive the
 /// actor split: the overflowing segment is dropped with one declared gap and
 /// nothing counts as sealed.
 #[tokio::test]
-async fn a4_exhausting_the_64mib_reserve_still_declares_the_loss() -> Result<()> {
+async fn exhausting_the_64mib_reserve_still_declares_the_loss() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
-    start_recording(&mut runtime, &mut receiver, "p2-02-a4b").await?;
+    start_recording(&mut runtime, &mut receiver, "reserve-overflow").await?;
     let overflow = runtime.seal(
         (0..33u64)
             .map(|sequence| {
-                let mut segment = pending_segment("p2-02-a4b", sequence);
+                let mut segment = pending_segment("reserve-overflow", sequence);
                 segment.pcm = vec![7; 2 * 1024 * 1024];
                 segment
             })
@@ -1000,12 +1001,12 @@ async fn a4_exhausting_the_64mib_reserve_still_declares_the_loss() -> Result<()>
     );
     assert!(
         overflow.is_err(),
-        "A4: exhausting the reserve must refuse the batch"
+        "exhausting the reserve must refuse the batch"
     );
     assert_eq!(
         runtime.state.notice_code(),
         Some(NoticeCode::AudioReserveExhausted),
-        "A4: the loss must be declared: {:?}",
+        "the loss must be declared: {:?}",
         runtime.state.durable.notice
     );
     let recording = runtime
@@ -1016,16 +1017,16 @@ async fn a4_exhausting_the_64mib_reserve_still_declares_the_loss() -> Result<()>
         .context("recording absent")?;
     assert_eq!(
         recording.gaps, 1,
-        "A4: the dropped segment is exactly one declared gap"
+        "the dropped segment is exactly one declared gap"
     );
     assert_eq!(
         recording.sealed_chunks, 0,
-        "A4: nothing sealed while the reserve overflowed"
+        "nothing sealed while the reserve overflowed"
     );
     Ok(())
 }
 
-/// REF-03 · polls a store operation once, which is when it is handed to the
+/// Polls a store operation once, which is when it is handed to the
 /// actor, and returns it still pending so the caller decides when to await it.
 fn hand_over<F: std::future::Future>(operation: &mut std::pin::Pin<&mut F>) {
     let mut context = std::task::Context::from_waker(std::task::Waker::noop());
@@ -1035,7 +1036,7 @@ fn hand_over<F: std::future::Future>(operation: &mut std::pin::Pin<&mut F>) {
     );
 }
 
-/// REF-03 · holds the store actor's thread inside a `Run` until the returned
+/// Holds the store actor's thread inside a `Run` until the returned
 /// sender is dropped or signalled, so that every operation queued meanwhile is
 /// found by the actor together, in one drain. What it then executes first is
 /// decided by its ordering alone, never by which thread woke up first: the
@@ -1058,29 +1059,29 @@ pub(super) fn hold_the_actor(runtime: &Runtime) -> Result<std::sync::mpsc::Sende
 }
 
 #[tokio::test]
-async fn ref305_a_failed_write_names_its_cause() -> Result<()> {
+async fn a_failed_write_names_its_cause() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (runtime, _helper) = fixture(directory.path())?;
     let failed = runtime
         .store_actor
-        .begin_run(|_store| Err::<(), _>(anyhow::anyhow!("rechazo sintético del disco")))?
+        .begin_run(|_store| Err::<(), _>(anyhow::anyhow!("synthetic disk refusal")))?
         .wait()
         .await
         .err()
         .context("the refused write was reported as confirmed")?
         .to_string();
-    assert!(failed.contains("rechazo sintético del disco"), "{failed}");
+    assert!(failed.contains("synthetic disk refusal"), "{failed}");
     Ok(())
 }
 
-/// REF-23 A1/A2: the writer has entered a store operation and cannot answer
+/// The writer has entered a store operation and cannot answer
 /// any snapshot. A single poll is the daemon's turn, independently of host
 /// load: the privacy latch and helper order must already exist at that point.
 #[tokio::test]
-async fn ref23_stop_reaches_helper_while_store_actor_is_inside_a_write() -> Result<()> {
+async fn stop_reaches_helper_while_store_actor_is_inside_a_write() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    start_recording(&mut runtime, &mut helper, "ref23-stop").await?;
+    start_recording(&mut runtime, &mut helper, "stop-inside-write").await?;
     let release = hold_the_actor(&runtime)?;
     let outcome = {
         let mut stopping =
@@ -1115,11 +1116,11 @@ async fn ref23_stop_reaches_helper_while_store_actor_is_inside_a_write() -> Resu
 }
 
 #[tokio::test]
-async fn ref23_stop_retires_playback_and_volatile_work_before_a_blocked_write() -> Result<()> {
+async fn stop_retires_playback_and_volatile_work_before_a_blocked_write() -> Result<()> {
     use tokio::io::AsyncBufReadExt;
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    start_recording(&mut runtime, &mut helper, "ref23-volatile").await?;
+    start_recording(&mut runtime, &mut helper, "stop-volatile").await?;
     let (_helper_input, daemon_input) = tokio::io::duplex(4096);
     let (daemon_output, helper_output) = tokio::io::duplex(4096);
     let (native, commands) = tokio::sync::mpsc::channel(64);
@@ -1198,7 +1199,7 @@ async fn ref23_stop_retires_playback_and_volatile_work_before_a_blocked_write() 
 }
 
 #[tokio::test]
-async fn ref23_reentered_stop_is_mars_even_when_retirement_runs_out_of_time() -> Result<()> {
+async fn reentered_stop_is_the_users_even_when_retirement_runs_out_of_time() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     {
@@ -1228,7 +1229,7 @@ async fn ref23_reentered_stop_is_mars_even_when_retirement_runs_out_of_time() ->
 }
 
 #[tokio::test]
-async fn ref23_owed_retirement_persists_after_the_writer_recovers() -> Result<()> {
+async fn owed_retirement_persists_after_the_writer_recovers() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     crate::daemon::turn::said::trace(&mut runtime, directory.path());
@@ -1247,8 +1248,8 @@ async fn ref23_owed_retirement_persists_after_the_writer_recovers() -> Result<()
     }
     assert!(runtime.state.privacy_stopped());
     assert!(runtime.privacy_retirement_owed);
-    // SIM-101: a privacy stop retains its pending-work diagnostic without
-    // asking Mars to keep open an app she has not asked to close.
+    // A privacy stop retains its pending-work diagnostic without
+    // asking the user to keep open an app they have not asked to close.
     assert!(!crate::daemon::turn::said::has(
         &runtime.state,
         NoticeCode::PendingWorkKeepOpen
@@ -1347,14 +1348,14 @@ async fn closing_does_not_retry_an_owed_privacy_retirement() -> Result<()> {
     Ok(())
 }
 
-/// REF-23 A3: closing shares the same physical ordering as her stop. A
+/// Closing shares the same physical ordering as the user's stop. A
 /// second signal can only accelerate an exit after the helper was told to
 /// close capture, including when the store is still inside a system call.
 #[tokio::test]
-async fn ref23_closing_orders_helper_before_waiting_for_the_writer() -> Result<()> {
+async fn closing_orders_helper_before_waiting_for_the_writer() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    start_recording(&mut runtime, &mut helper, "ref23-close").await?;
+    start_recording(&mut runtime, &mut helper, "close-inside-write").await?;
     let release = hold_the_actor(&runtime)?;
     let outcome = {
         let mut closing = std::pin::pin!(runtime.close_for_exit(
@@ -1382,11 +1383,11 @@ async fn ref23_closing_orders_helper_before_waiting_for_the_writer() -> Result<(
 }
 
 #[tokio::test]
-async fn ref23_second_signal_cancels_a_close_waiting_on_the_writer() -> Result<()> {
+async fn second_signal_cancels_a_close_waiting_on_the_writer() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
-    start_recording(&mut runtime, &mut helper, "ref23-second-signal").await?;
+    start_recording(&mut runtime, &mut helper, "close-second-signal").await?;
     let release = hold_the_actor(&runtime)?;
     let mut closing = shutdown::Shutdown::default();
     closing.signal();
@@ -1415,7 +1416,7 @@ async fn ref23_second_signal_cancels_a_close_waiting_on_the_writer() -> Result<(
         .declare_bounded_exit_for(shutdown::BoundedExitCause::SecondSignal("SIGTERM"))
         .await?;
     assert!(runtime.store_actor.bounded_exit_declared());
-    // SIM-21: the close with work pending is said; its reason (the second
+    // The close with work pending is said; its reason (the second
     // signal, not the budget) is in daemon.log under the same op.
     assert!(crate::daemon::turn::said::has(
         &runtime.state,
@@ -1428,11 +1429,11 @@ async fn ref23_second_signal_cancels_a_close_waiting_on_the_writer() -> Result<(
     Ok(())
 }
 
-/// REF-23 A5: twenty 250 ms retry reports represent five seconds of a failed
+/// Twenty 250 ms retry reports represent five seconds of a failed
 /// snapshot. The report's changing elapsed field must not evict the stop and
 /// recovery instruction or produce a new presentation for each retry.
 #[tokio::test]
-async fn ref23_repeated_snapshot_failures_keep_the_stop_and_recovery_notice() -> Result<()> {
+async fn repeated_snapshot_failures_keep_the_stop_and_recovery_notice() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     runtime.state.set_notice(NoticeCode::PrivacyStopped);
@@ -1471,16 +1472,16 @@ async fn ref23_repeated_snapshot_failures_keep_the_stop_and_recovery_notice() ->
     Ok(())
 }
 
-/// REF-03 · a `Run` admitted after a `Seal` sees that seal's write. This is
+/// A `Run` admitted after a `Seal` sees that seal's write. This is
 /// the cancelled voice turn in `dispatch_voice_transcription`: it seals the
 /// source and then cancels the upload job that the seal itself creates. When
 /// the `Run` went first, the job did not exist yet and the turn failed with
 /// `record not found`.
 #[tokio::test]
-async fn ref03_a_run_never_overtakes_a_seal_admitted_before_it() -> Result<()> {
+async fn a_run_never_overtakes_a_seal_admitted_before_it() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
-    let segment = pending_segment("ref03-order", 0);
+    let segment = pending_segment("run-after-seal", 0);
     let upload = format!("upload-{}", segment.metadata.id);
     let chunk = segment.metadata.id.clone();
     let release = hold_the_actor(&runtime)?;
@@ -1496,7 +1497,7 @@ async fn ref03_a_run_never_overtakes_a_seal_admitted_before_it() -> Result<()> {
     let outcome = cancelling.await;
     assert!(
         outcome.is_ok(),
-        "REF-03: the Run queued after the Seal ran before it and found no upload job: {outcome:?}"
+        "the Run queued after the Seal ran before it and found no upload job: {outcome:?}"
     );
     assert_eq!(
         runtime.fixture_store.get_job(&upload)?.map(|job| job.state),
@@ -1509,10 +1510,10 @@ async fn ref03_a_run_never_overtakes_a_seal_admitted_before_it() -> Result<()> {
     Ok(())
 }
 
-/// REF-03 · a `Run` admitted after a deferred snapshot finds that snapshot
+/// A `Run` admitted after a deferred snapshot finds that snapshot
 /// written. Coalescing may delay a snapshot, but never behind a later `Run`.
 #[tokio::test]
-async fn ref03_a_run_never_overtakes_a_snapshot_admitted_before_it() -> Result<()> {
+async fn a_run_never_overtakes_a_snapshot_admitted_before_it() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     let release = hold_the_actor(&runtime)?;
@@ -1529,19 +1530,19 @@ async fn ref03_a_run_never_overtakes_a_snapshot_admitted_before_it() -> Result<(
     assert_eq!(
         observed,
         Some(NoticeCode::SessionOpened),
-        "REF-03: the Run queued after the deferred snapshot ran before it"
+        "the Run queued after the deferred snapshot ran before it"
     );
     Ok(())
 }
 
-/// REF-03 · a seal that fails is executed, reported and parked for retry: it
+/// A seal that fails is executed, reported and parked for retry: it
 /// holds no later `Run`, which would otherwise wait on a broken disk with no
 /// deadline. A retry that was asked for before a `Run` is served before it.
 #[tokio::test]
-async fn ref03_a_failed_seal_is_reported_before_a_later_run_and_retried_in_order() -> Result<()> {
+async fn a_failed_seal_is_reported_before_a_later_run_and_retried_in_order() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
-    let segment = pending_segment("ref03-retry", 0);
+    let segment = pending_segment("run-after-retry", 0);
     let upload = format!("upload-{}", segment.metadata.id);
     let blocked = runtime
         .paths
@@ -1572,7 +1573,7 @@ async fn ref03_a_failed_seal_is_reported_before_a_later_run_and_retried_in_order
         .count();
     assert_eq!(
         failures, 1,
-        "REF-03: the Run queued after the Seal ran before the seal's attempt was reported"
+        "the Run queued after the Seal ran before the seal's attempt was reported"
     );
 
     std::fs::remove_dir(&blocked)?;
@@ -1589,20 +1590,20 @@ async fn ref03_a_failed_seal_is_reported_before_a_later_run_and_retried_in_order
     assert_eq!(
         reading.await?.map(|job| job.state),
         Some(JobState::Queued),
-        "REF-03: the Run queued after the retry ran before the parked seal was retried"
+        "the Run queued after the retry ran before the parked seal was retried"
     );
     Ok(())
 }
 
-/// REF-41 A1 · delivery guard for a `StoreProblem` notice the writer holds
+/// Delivery guard for a `StoreProblem` notice the writer holds
 /// pending: 2 s is eight times the 250 ms pending-delivery retry the fixed
 /// writer makes, and shorter than the writer's 5 s seal retry, so the
 /// pre-fix writer — which only wakes a notice at a failed attempt — cannot
 /// deliver the retry's notice inside it. It only names a notice that never
 /// arrives; it never decides a passing run.
-const REF41_DELIVERY_GUARD: Duration = Duration::from_secs(2);
+const PROBLEM_DELIVERY_GUARD: Duration = Duration::from_secs(2);
 
-/// REF-41 A1 · a store problem the full work channel cannot take is not
+/// A store problem the full work channel cannot take is not
 /// lost. The writer keeps it pending and delivers it as soon as the daemon's
 /// loop frees a slot; before, the notice was dropped at the `try_send`, and
 /// the snapshot-refusal variant had no completion-log backup at all — the
@@ -1613,7 +1614,7 @@ const REF41_DELIVERY_GUARD: Duration = Duration::from_secs(2);
 /// ran. The one slot is freed only after that observation, while the seal
 /// retry is still five seconds away.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ref41_a1_a_store_problem_waits_for_room_and_is_delivered() -> Result<()> {
+async fn a_store_problem_waits_for_room_and_is_delivered() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _native) = fixture(directory.path())?;
     let (events, mut work_receiver) = tokio::sync::mpsc::channel(1);
@@ -1623,62 +1624,60 @@ async fn ref41_a1_a_store_problem_waits_for_room_and_is_delivered() -> Result<()
             message: "synthetic occupant".into(),
         })
         .await
-        .map_err(|_| anyhow::anyhow!("REF-41 A1: the occupying event could not be queued"))?;
+        .map_err(|_| anyhow::anyhow!("the occupying event could not be queued"))?;
     let store = crate::daemon::test_store::open_existing(&runtime.paths.store, [0x42; 32])?;
     runtime.store_actor = crate::daemon::store_actor::StoreActor::spawn(store, events)?;
     let blocked = runtime
         .paths
         .store
-        .join("chunks/ref41-a1-mic_local-0.orbit");
+        .join("chunks/problem-waits-mic_local-0.orbit");
     std::fs::create_dir(&blocked)?;
     runtime
         .store_actor
-        .seal(std::sync::Arc::new(pending_segment("ref41-a1", 0)))?;
+        .seal(std::sync::Arc::new(pending_segment("problem-waits", 0)))?;
     let mut failed = 0;
     await_seal_attempts(&runtime.store_actor, &mut failed, 1)?;
-    let occupant = tokio::time::timeout(REF41_DELIVERY_GUARD, work_receiver.recv())
+    let occupant = tokio::time::timeout(PROBLEM_DELIVERY_GUARD, work_receiver.recv())
         .await
-        .context("REF-41 A1: the occupying event never arrived")?
-        .context("REF-41 A1: the work channel closed before the slot was freed")?;
+        .context("the occupying event never arrived")?
+        .context("the work channel closed before the slot was freed")?;
     assert!(
         matches!(occupant, WorkResult::Problem { .. }),
-        "REF-41 A1: another event took the only slot first"
+        "another event took the only slot first"
     );
-    let delivered = tokio::time::timeout(REF41_DELIVERY_GUARD, work_receiver.recv())
+    let delivered = tokio::time::timeout(PROBLEM_DELIVERY_GUARD, work_receiver.recv())
         .await
-        .map_err(|_| {
-            anyhow::anyhow!("REF-41 A1: the StoreProblem stayed lost after the channel had room")
-        })?
-        .context("REF-41 A1: the work channel closed with a pending notice")?;
+        .map_err(|_| anyhow::anyhow!("the StoreProblem stayed lost after the channel had room"))?
+        .context("the work channel closed with a pending notice")?;
     let WorkResult::Store(crate::daemon::StoreWork::StoreProblem { message }) = delivered else {
-        bail!("REF-41 A1: expected the pending StoreProblem, got another event");
+        bail!("expected the pending StoreProblem, got another event");
     };
     assert!(
         message.starts_with("Audio pendiente en memoria: 1 fragmento"),
-        "REF-41 A1: the delivered notice must carry its cause and numbers: {message}"
+        "the delivered notice must carry its cause and numbers: {message}"
     );
     Ok(())
 }
 
-/// REF-15 · a stall guard on an answer the daemon owes while its store refuses
+/// A stall guard on an answer the daemon owes while its store refuses
 /// every write, not a budget. It never decides a passing run: each wait below
 /// returns the instant the answer arrives. It only turns an answer that never
-/// comes, which is what the actor gave before REF-15, into a named failure
-/// instead of a hung suite.
+/// comes, which is what the actor gave while a parked seal held the snapshot
+/// back, into a named failure instead of a hung suite.
 ///
-/// Measured, not chosen round. Over 500 runs of the two A2 tests on this
-/// 32-core box, 200 of them six at a time and 300 sixteen at a time beside 8
-/// fsync writers, at a load average of 44 to 73: the refused snapshot p99
+/// Measured, not chosen round. Over 500 runs of the two snapshot-refusal
+/// tests on this 32-core box, 200 of them six at a time and 300 sixteen at a
+/// time beside 8 fsync writers, at a load average of 44 to 73: the refused snapshot p99
 /// 13.0 ms, worst 17.6 ms; an audio frame p99 0.2 ms, worst 21.1 ms; the
 /// privacy stop, which waits on two snapshots, p50 401.9 ms, p99 3 414.0 ms,
 /// worst 3 642.2 ms; the shutdown order worst 31.3 ms; the closing snapshot
 /// p99 510.4 ms, worst 1 112.7 ms. The guard is 40× the worst of them all,
-/// the factor SYS-17 and REF-03 used.
+/// the same factor earlier stall guards of the daemon's tests used.
 const REFUSAL_GUARD: Duration = Duration::from_millis(145_688);
 
-const SYNTHETIC_DISK_FAILURE: &str = "REF-15 synthetic disk failure";
+const SYNTHETIC_DISK_FAILURE: &str = "synthetic disk failure";
 
-/// REF-15 · every write the actor attempts for audio and state fails, forever,
+/// Every write the actor attempts for audio and state fails, forever,
 /// like a disk that never comes back: a seal's chunk row and upload job, and
 /// the snapshot. What `seal_chunk` writes before its row (the sealed file) is
 /// left alone; the durable receipt is what can never land.
@@ -1691,19 +1690,19 @@ fn fail_every_write(database: &rusqlite::Connection) -> Result<()> {
     };
     database.execute_batch(
         &[
-            refuse("ref15_chunk_insert", "INSERT", "chunks"),
-            refuse("ref15_chunk_update", "UPDATE", "chunks"),
-            refuse("ref15_job_insert", "INSERT", "jobs"),
-            refuse("ref15_job_update", "UPDATE", "jobs"),
-            refuse("ref15_setting_insert", "INSERT", "settings"),
-            refuse("ref15_setting_update", "UPDATE", "settings"),
+            refuse("refuse_chunk_insert", "INSERT", "chunks"),
+            refuse("refuse_chunk_update", "UPDATE", "chunks"),
+            refuse("refuse_job_insert", "INSERT", "jobs"),
+            refuse("refuse_job_update", "UPDATE", "jobs"),
+            refuse("refuse_setting_insert", "INSERT", "settings"),
+            refuse("refuse_setting_update", "UPDATE", "settings"),
         ]
         .concat(),
     )?;
     Ok(())
 }
 
-/// REF-15 · what the writer reported, attempt by attempt. Every failed
+/// What the writer reported, attempt by attempt. Every failed
 /// attempt sends exactly one `StoreProblem`, so the reports are the count of
 /// attempts: a seal's names the audio still in memory, a snapshot's names the
 /// local state.
@@ -1739,7 +1738,7 @@ impl Attempts {
     }
 }
 
-/// REF-15 · waits for the writer to have made `attempts` seal attempts in all,
+/// Waits for the writer to have made `attempts` seal attempts in all,
 /// on the completions production itself collects, never on a deadline. The
 /// bound is a stall guard: the retry delay the lane owes, plus the measured
 /// stall guard for one seal attempt reaching its outcome.
@@ -1755,7 +1754,7 @@ fn await_seal_attempts(
             match completion {
                 store_actor::StoreCompletion::SealFailed { .. } => *failed += 1,
                 store_actor::StoreCompletion::Sealed { id, .. } => {
-                    bail!("REF-15: the disk refuses every write, yet {id} was sealed")
+                    bail!("the disk refuses every write, yet {id} was sealed")
                 }
             }
         }
@@ -1763,25 +1762,23 @@ fn await_seal_attempts(
             return Ok(());
         }
         if std::time::Instant::now() >= stalled_at {
-            bail!(
-                "REF-15: waited {guard:?} for seal attempt {attempts}; the writer reported {failed}"
-            );
+            bail!("waited {guard:?} for seal attempt {attempts}; the writer reported {failed}");
         }
         std::thread::park_timeout(Duration::from_millis(1));
     }
 }
 
-/// REF-15 · awaits an answer the daemon owes, bounded by [`REFUSAL_GUARD`].
+/// Awaits an answer the daemon owes, bounded by [`REFUSAL_GUARD`].
 async fn answer_within<T>(
     what: &str,
     operation: impl std::future::Future<Output = T>,
 ) -> Result<T> {
     tokio::time::timeout(REFUSAL_GUARD, operation)
         .await
-        .map_err(|_| anyhow::anyhow!("REF-15: {what} got no answer in {REFUSAL_GUARD:?}"))
+        .map_err(|_| anyhow::anyhow!("{what} got no answer in {REFUSAL_GUARD:?}"))
 }
 
-/// REF-15 · the numbers a refusal must carry while seals are parked: how many
+/// The numbers a refusal must carry while seals are parked: how many
 /// fragments are still in memory, and for how long, in milliseconds.
 fn parked_numbers(message: &str) -> Option<(u64, u64)> {
     let count = message
@@ -1801,8 +1798,8 @@ fn parked_numbers(message: &str) -> Option<(u64, u64)> {
     Some((count, since))
 }
 
-/// REF-15 A1 · with a seal parked for retry and a snapshot pending, the
-/// writer sleeps until its next real deadline. Before REF-15 the snapshot,
+/// With a seal parked for retry and a snapshot pending, the
+/// writer sleeps until its next real deadline. Before the fix the snapshot,
 /// due but held back by the parked seal, made the loop compute a deadline of
 /// zero and turn without sleeping for the whole `SEAL_RETRY_DELAY`.
 ///
@@ -1812,13 +1809,13 @@ fn parked_numbers(message: &str) -> Option<(u64, u64)> {
 /// plus the operations handed over, plus the attempts the writer reported,
 /// plus the closing one. The writer's whole life is the scenario: the seal's
 /// first attempt, the snapshot, and the seal's first retry `SEAL_RETRY_DELAY`
-/// later, which the test waits for as an event. Measured before REF-15: 5.4
+/// later, which the test waits for as an event. Measured before the fix: 5.4
 /// to 6.6 million turns against a bound of 6, and 3.7 to 4.4 s of the
 /// writer's CPU over those 5 s. After: 24 turns against a bound of 26 or 27,
 /// with the snapshot attempted every `SNAPSHOT_INTERVAL`, and 0.01 to 0.02 s
 /// of CPU.
 #[test]
-fn ref15_a1_a_parked_seal_and_a_pending_snapshot_leave_the_writer_asleep() -> Result<()> {
+fn a_parked_seal_and_a_pending_snapshot_leave_the_writer_asleep() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let paths = crate::config::Paths::resolve(Some(directory.path().to_owned()))?;
     let store = crate::daemon::test_store::open(&paths.store, [0x42; 32])?;
@@ -1832,7 +1829,7 @@ fn ref15_a1_a_parked_seal_and_a_pending_snapshot_leave_the_writer_asleep() -> Re
     fail_every_write(&fault)?;
     let mut failed = 0;
 
-    actor.seal(std::sync::Arc::new(pending_segment("ref15-a1", 0)))?;
+    actor.seal(std::sync::Arc::new(pending_segment("parked-asleep", 0)))?;
     await_seal_attempts(&actor, &mut failed, 1)?;
     actor.defer_snapshot(&State::default())?;
     await_seal_attempts(&actor, &mut failed, 2)?;
@@ -1847,12 +1844,12 @@ fn ref15_a1_a_parked_seal_and_a_pending_snapshot_leave_the_writer_asleep() -> Re
     let bound = 1 + operations + attempts.seals + attempts.snapshots + 1;
     assert!(
         attempts.other.is_empty(),
-        "REF-15: unexpected reports {:?}",
+        "unexpected reports {:?}",
         attempts.other
     );
     assert!(
         turns <= bound,
-        "REF-15 A1: the writer turned {turns} times for {operations} operations, {} seal \
+        "the writer turned {turns} times for {operations} operations, {} seal \
          attempt(s) and {} snapshot attempt(s); a writer that sleeps between real deadlines \
          turns at most {bound}",
         attempts.seals,
@@ -1861,12 +1858,12 @@ fn ref15_a1_a_parked_seal_and_a_pending_snapshot_leave_the_writer_asleep() -> Re
     Ok(())
 }
 
-/// REF-15 A2 · a snapshot the daemon waits for is not held behind a seal
+/// A snapshot the daemon waits for is not held behind a seal
 /// parked for retry. With a disk that never comes back, the waiter is refused,
 /// and the refusal names the store's own cause and the audio still in memory:
 /// how many fragments, and for how long.
 #[tokio::test]
-async fn ref15_a2_a_snapshot_waiter_is_refused_with_the_parked_seals_counted() -> Result<()> {
+async fn a_snapshot_waiter_is_refused_with_the_parked_seals_counted() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     let fault = rusqlite::Connection::open(runtime.paths.store.join("orbit.sqlite3"))?;
@@ -1874,7 +1871,7 @@ async fn ref15_a2_a_snapshot_waiter_is_refused_with_the_parked_seals_counted() -
     let mut failed = 0;
     runtime
         .store_actor
-        .seal(std::sync::Arc::new(pending_segment("ref15-a2", 0)))?;
+        .seal(std::sync::Arc::new(pending_segment("parked-refusal", 0)))?;
     await_seal_attempts(&runtime.store_actor, &mut failed, 1)?;
 
     let answer = answer_within(
@@ -1884,36 +1881,36 @@ async fn ref15_a2_a_snapshot_waiter_is_refused_with_the_parked_seals_counted() -
     .await?;
     let refusal = answer
         .err()
-        .context("REF-15 A2: the disk refuses every write, yet the snapshot was reported saved")?
+        .context("the disk refuses every write, yet the snapshot was reported saved")?
         .to_string();
     assert!(
         refusal.starts_with("No se pudo guardar el estado local"),
-        "REF-15 A2: the refusal must say what could not be saved: {refusal}"
+        "the refusal must say what could not be saved: {refusal}"
     );
     assert!(
         refusal.contains(SYNTHETIC_DISK_FAILURE),
-        "REF-15 A2: the refusal must carry the store's own cause: {refusal}"
+        "the refusal must carry the store's own cause: {refusal}"
     );
     let (count, _since_ms) = parked_numbers(&refusal).with_context(|| {
-        format!("REF-15 A2: the refusal must count the parked seals and say since when: {refusal}")
+        format!("the refusal must count the parked seals and say since when: {refusal}")
     })?;
     assert_eq!(
         count, 1,
-        "REF-15 A2: one seal is parked, and the refusal must say so: {refusal}"
+        "one seal is parked, and the refusal must say so: {refusal}"
     );
     Ok(())
 }
 
-/// REF-15 A2 · with a disk that never comes back and a second of audio that
+/// With a disk that never comes back and a second of audio that
 /// can never be sealed, the daemon still serves the privacy stop and the
-/// close. Before REF-15 the privacy stop's own snapshot waited behind the
+/// close. Before the fix the privacy stop's own snapshot waited behind the
 /// parked seal for as long as the disk stayed broken, so the helper was never
 /// told to stop and the closure's budget was never even checked.
 #[tokio::test]
-async fn ref15_a2_a_disk_that_never_returns_still_lets_the_daemon_stop_and_close() -> Result<()> {
+async fn a_disk_that_never_returns_still_lets_the_daemon_stop_and_close() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
-    let stream = start_recording(&mut runtime, &mut receiver, "ref15-a2-daemon").await?;
+    let stream = start_recording(&mut runtime, &mut receiver, "parked-daemon").await?;
     let fault = rusqlite::Connection::open(runtime.paths.store.join("orbit.sqlite3"))?;
     fail_every_write(&fault)?;
     // One hundred frames of 10 ms: the hundredth completes one second of PCM,
@@ -1928,13 +1925,13 @@ async fn ref15_a2_a_disk_that_never_returns_still_lets_the_daemon_stop_and_close
     assert_eq!(
         runtime.capture.pending_seals.len(),
         1,
-        "REF-15 A2: one second of audio is waiting for a seal the disk refuses"
+        "one second of audio is waiting for a seal the disk refuses"
     );
 
     answer_within("the privacy stop", runtime.command(Command::PrivacyStop)).await??;
     assert!(
         runtime.state.privacy_stopped(),
-        "REF-15 A2: the privacy stop is latched even though the disk refuses it"
+        "the privacy stop is latched even though the disk refuses it"
     );
     let mut told_to_stop = false;
     while let Ok(command) = receiver.try_recv() {
@@ -1942,7 +1939,7 @@ async fn ref15_a2_a_disk_that_never_returns_still_lets_the_daemon_stop_and_close
     }
     assert!(
         told_to_stop,
-        "REF-15 A2: the helper must be told to stop while the disk refuses every write"
+        "the helper must be told to stop while the disk refuses every write"
     );
 
     let mut closing = shutdown::Shutdown::default();
@@ -1953,7 +1950,7 @@ async fn ref15_a2_a_disk_that_never_returns_still_lets_the_daemon_stop_and_close
     .await?;
     assert!(
         closed.is_err() && closing.requested,
-        "REF-15 A2: the close is answered, latched, and refuses to discard the audio: {closed:?}"
+        "the close is answered, latched, and refuses to discard the audio: {closed:?}"
     );
     // What the daemon does when the closure's budget runs out: declare what
     // stayed in memory and write the last snapshot before leaving.
@@ -1965,56 +1962,54 @@ async fn ref15_a2_a_disk_that_never_returns_still_lets_the_daemon_stop_and_close
     .await?;
     let refusal = last
         .err()
-        .context("REF-15 A2: the disk refuses every write, yet the last snapshot was saved")?
+        .context("the disk refuses every write, yet the last snapshot was saved")?
         .to_string();
     assert!(
         parked_numbers(&refusal).is_some_and(|(count, _)| count >= 1),
-        "REF-15 A2: the last refusal must count the audio still in memory: {refusal}"
+        "the last refusal must count the audio still in memory: {refusal}"
     );
     Ok(())
 }
 
-/// REF-15 rewrote `snapshot_due`; what it must keep is that audio admitted in
-/// the same turn is written before the coalesced snapshot. The order is read
+/// `snapshot_due` was rewritten to stop the busy loop; what it must keep is
+/// that audio admitted in the same turn is written before the coalesced
+/// snapshot. The order is read
 /// from the database itself, through triggers, not from the actor's counters.
 #[tokio::test]
-async fn ref15_a3_audio_admitted_with_a_snapshot_is_written_before_it() -> Result<()> {
+async fn audio_admitted_with_a_snapshot_is_written_before_it() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     let probe = rusqlite::Connection::open(runtime.paths.store.join("orbit.sqlite3"))?;
     probe.execute_batch(
-        "CREATE TABLE ref15_order(n INTEGER PRIMARY KEY AUTOINCREMENT, what TEXT NOT NULL);
-         CREATE TRIGGER ref15_chunk AFTER INSERT ON chunks
-         BEGIN INSERT INTO ref15_order(what) VALUES ('chunk'); END;
-         CREATE TRIGGER ref15_snapshot_insert AFTER INSERT ON settings WHEN NEW.key = 'snapshot'
-         BEGIN INSERT INTO ref15_order(what) VALUES ('snapshot'); END;
-         CREATE TRIGGER ref15_snapshot_update AFTER UPDATE ON settings WHEN NEW.key = 'snapshot'
-         BEGIN INSERT INTO ref15_order(what) VALUES ('snapshot'); END;",
+        "CREATE TABLE write_order(n INTEGER PRIMARY KEY AUTOINCREMENT, what TEXT NOT NULL);
+         CREATE TRIGGER order_chunk AFTER INSERT ON chunks
+         BEGIN INSERT INTO write_order(what) VALUES ('chunk'); END;
+         CREATE TRIGGER order_snapshot_insert AFTER INSERT ON settings WHEN NEW.key = 'snapshot'
+         BEGIN INSERT INTO write_order(what) VALUES ('snapshot'); END;
+         CREATE TRIGGER order_snapshot_update AFTER UPDATE ON settings WHEN NEW.key = 'snapshot'
+         BEGIN INSERT INTO write_order(what) VALUES ('snapshot'); END;",
     )?;
     let release = hold_the_actor(&runtime)?;
     runtime
         .store_actor
-        .seal(std::sync::Arc::new(pending_segment("ref15-order-first", 0)))?;
+        .seal(std::sync::Arc::new(pending_segment("audio-first", 0)))?;
     runtime
         .store_actor
-        .seal(std::sync::Arc::new(pending_segment(
-            "ref15-order-second",
-            1,
-        )))?;
+        .seal(std::sync::Arc::new(pending_segment("audio-second", 1)))?;
     runtime.state.set_notice(NoticeCode::SessionOpened);
     let state = runtime.state.clone();
     let mut saving = std::pin::pin!(runtime.store_actor.snapshot(&state));
     hand_over(&mut saving);
     release.send(())?;
     saving.await?;
-    let mut statement = probe.prepare("SELECT what FROM ref15_order ORDER BY n")?;
+    let mut statement = probe.prepare("SELECT what FROM write_order ORDER BY n")?;
     let order: Vec<String> = statement
         .query_map([], |row| row.get(0))?
         .collect::<std::result::Result<_, _>>()?;
     assert_eq!(
         order,
         vec!["chunk", "chunk", "snapshot"],
-        "REF-15 A3: audio admitted in the same turn must be written before the coalesced snapshot"
+        "audio admitted in the same turn must be written before the coalesced snapshot"
     );
     Ok(())
 }

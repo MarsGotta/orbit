@@ -1,4 +1,4 @@
-//! DAE-02 acceptance at the daemon actor: message timestamps and voice-note
+//! What the daemon actor publishes: message timestamps and voice-note
 //! duration, the account the state publishes after pairing, and the tri-state
 //! permissions the helper reports. The helper is the fixture's fake channel,
 //! the hub peers are one-shot loopback HTTP fixtures, and every value on the
@@ -11,8 +11,8 @@ use orbit_core::{CapturePhase, Event, PermissionState};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 const DEVICE_ID: &str = "20000000-0000-4000-8000-000000000002";
-const DEVICE_TOKEN: &str = "synthetic-not-a-credential-dae02";
-const DEVICE_NAME: &str = "Mac de la fixture DAE-02";
+const DEVICE_TOKEN: &str = "synthetic-not-a-credential-state";
+const DEVICE_NAME: &str = "Fixture Mac for the state";
 
 fn json_response(status: &str, body: &str) -> Vec<u8> {
     format!(
@@ -22,7 +22,7 @@ fn json_response(status: &str, body: &str) -> Vec<u8> {
     .into_bytes()
 }
 
-/// One loopback HTTP conversation, modeled on the DAE-01 fixtures: a single
+/// One loopback HTTP conversation, modeled on the pairing fixtures: a single
 /// request is read in full and answered with the prepared raw response. No
 /// production hub, provider or credential is contacted.
 async fn one_shot_http(response: Vec<u8>) -> Result<reqwest::Url> {
@@ -80,9 +80,9 @@ fn helper_status(microphone: &str, screen: bool, accessibility: bool) -> Value {
             "accessibility":accessibility,"calendars":"full_access"}}})
 }
 
-/// DEI-06 A1. The daemon, which owns call state, declares it on every chat turn.
+/// The daemon, which owns call state, declares it on every chat turn.
 #[tokio::test]
-async fn dei06_a1_chat_send_declares_an_active_call() -> Result<()> {
+async fn chat_send_declares_an_active_call() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     let (hub, mut hub_frames) = mpsc::channel(16);
@@ -107,11 +107,11 @@ async fn dei06_a1_chat_send_declares_an_active_call() -> Result<()> {
     Ok(())
 }
 
-/// A2. A chat turn and its reply publish two messages whose moments allow
+/// A chat turn and its reply publish two messages whose moments allow
 /// ordering them; a pushed-to-talk turn publishes the transcribed note as a
 /// user message that carries its duration.
 #[tokio::test]
-async fn a2_chat_turn_messages_carry_increasing_at_ms() -> Result<()> {
+async fn chat_turn_messages_carry_increasing_at_ms() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     let (hub, mut hub_frames) = mpsc::channel(16);
@@ -158,12 +158,12 @@ async fn a2_chat_turn_messages_carry_increasing_at_ms() -> Result<()> {
     assert!(messages[1].complete);
     assert!(
         messages[0].at_ms > 0,
-        "el mensaje del usuario no lleva su hora: {:?}",
+        "the user's message does not carry its time: {:?}",
         messages[0]
     );
     assert!(
         messages[1].at_ms > messages[0].at_ms,
-        "las horas no permiten ordenar la conversación: {:?}",
+        "the times do not let the conversation be ordered: {:?}",
         messages
             .iter()
             .map(|message| message.at_ms)
@@ -172,11 +172,11 @@ async fn a2_chat_turn_messages_carry_increasing_at_ms() -> Result<()> {
     Ok(())
 }
 
-/// A3. Pairing is the moment Ajustes learns the account: the state publishes
+/// Pairing is the moment Ajustes learns the account: the state publishes
 /// the hub, the device name and a short device identifier, and the device
 /// credential never appears in any serialization of the state.
 #[tokio::test]
-async fn a3_pairing_publishes_the_account_without_the_token() -> Result<()> {
+async fn pairing_publishes_the_account_without_the_token() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     let base = one_shot_http(json_response(
@@ -198,52 +198,52 @@ async fn a3_pairing_publishes_the_account_without_the_token() -> Result<()> {
         .views
         .account
         .as_ref()
-        .context("el estado no publica la cuenta")?;
+        .context("the state does not publish the account")?;
     let stored = account
         .hub_url
         .as_deref()
-        .context("la cuenta no publica el hub")?;
+        .context("the account does not publish the hub")?;
     assert_eq!(reqwest::Url::parse(stored)?, base);
     assert_eq!(
         account.device_name.as_deref(),
         Some(DEVICE_NAME),
-        "la cuenta no publica el nombre del dispositivo"
+        "the account does not publish the device name"
     );
     let short = account
         .device_id_short
         .as_deref()
-        .context("la cuenta no publica el identificador corto")?;
+        .context("the account does not publish the short identifier")?;
     assert_eq!(short.len(), 8, "device_id_short: {short}");
     assert_eq!(short, &DEVICE_ID[..8]);
 
     let served = serde_json::to_string(&runtime.state)?;
     assert!(
         !served.contains(DEVICE_TOKEN),
-        "la credencial viajó en el estado publicado"
+        "the credential travelled in the published state"
     );
     let durable = serde_json::to_string(&runtime.state.durable)?;
     assert!(
         !durable.contains(DEVICE_TOKEN),
-        "la credencial viajó en el estado durable"
+        "the credential travelled in the durable state"
     );
     Ok(())
 }
 
-/// A4. The microphone's TCC status and the two preflight booleans reach the
+/// The microphone's TCC status and the two preflight booleans reach the
 /// permissions view while the capture decision uses the observed status.
 #[tokio::test]
-async fn a4_helper_permissions_feed_the_state_and_capture() -> Result<()> {
+async fn helper_permissions_feed_the_state_and_capture() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     let meeting = || Event::StartMeeting {
-        id: "dae02-recording".into(),
+        id: "permissions-recording".into(),
         title: "Reunión sintética".into(),
         audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
         duration_ms: 60_000,
     };
 
     // Each answer is paired with a status the daemon sent. An id it did not
-    // send is unpaired and is not read as permissions (REF-404c).
+    // send is unpaired and is not read as permissions.
     runtime.record_pending_native(&json!({"id": "status", "command": "status"}));
     runtime
         .native_event(helper_status("denied", false, true))
@@ -264,7 +264,7 @@ async fn a4_helper_permissions_feed_the_state_and_capture() -> Result<()> {
         .apply(meeting())
         .await
         .err()
-        .context("un micrófono denegado debe rechazar la captura")?;
+        .context("a denied microphone must refuse the capture")?;
     assert_eq!(
         refused.downcast_ref::<orbit_core::refusal::Refusal>(),
         Some(&orbit_core::refusal::Refusal::PermissionDenied {
@@ -284,7 +284,7 @@ async fn a4_helper_permissions_feed_the_state_and_capture() -> Result<()> {
         .apply(meeting())
         .await
         .err()
-        .context("un micrófono sin determinar debe seguir rechazando la captura")?;
+        .context("an undetermined microphone must keep refusing the capture")?;
     assert_eq!(
         still_refused.downcast_ref::<orbit_core::refusal::Refusal>(),
         Some(&orbit_core::refusal::Refusal::PermissionUnknown {

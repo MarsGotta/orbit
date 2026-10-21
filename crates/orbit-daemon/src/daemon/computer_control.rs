@@ -22,27 +22,28 @@ use tokio::sync::watch;
 
 /// What one screen observation may carry: an app list, a window list or an
 /// action receipt. Why this number and
-/// what it protects, followed through the code (DEI-13 R0): the value lands in
+/// what it protects, followed through the code: the value lands in
 /// `view.observation`, which `computer_presentation_state` copies into the
 /// `State` that the daemon loop rebuilds, compares and publishes on every
 /// iteration and on every IPC response, so it is not a one-off payload but a
 /// per-tick cost inside the 1 MiB IPC frame shared with recordings, calendar
-/// and transcripts. On top of that, the contents of a page are not Mars's to
+/// and transcripts. On top of that, the contents of a page are not the user's to
 /// bound, so the bound refuses rather than truncates: acting on a cut-down view
 /// means clicking with incomplete information. 32 KiB came from the largest
 /// browser input Orbit used to prepare from an observation; that input was
-/// retired in SIM-04 and the number was kept, not derived again.
-/// Unchanged by DEI-13 on purpose: the catalogue got its own bound instead.
+/// retired later and the number was kept, not derived again.
+/// Left unchanged on purpose when the engine's catalogue outgrew it: the
+/// catalogue got its own bound instead.
 const MAX_OBSERVATION_BYTES: usize = 32 * 1024;
 /// How long Orbit waits before starting another engine after one failed to
 /// come up. Short enough to recover unattended, long enough not to spin.
 const ENGINE_RETRY_DELAY: Duration = Duration::from_secs(5);
-/// How often the daemon asks the helper again what macOS grants. REF-11 A4:
-/// the helper reports the permissions when it starts and when one is asked
-/// for, never when Mars changes one in System Settings, so without asking
+/// How often the daemon asks the helper again what macOS grants. The helper
+/// reports the permissions when it starts and when one is asked for, never
+/// when the user changes one in System Settings, so without asking
 /// again a withdrawal would reach the engine only after a restart. What it
 /// protects: how long the engine keeps running, and Orbit keeps saying it can
-/// act, after Mars withdraws a permission. Why 5 s: the same pause the engine
+/// act, after the user withdraws a permission. Why 5 s: the same pause the engine
 /// takes before a retry, well under the time it takes to come back from System
 /// Settings to Orbit, and one status answer of a few hundred bytes every 5 s
 /// is nothing beside the ~94 audio frames a second the same pipe carries. What
@@ -87,7 +88,7 @@ pub(super) struct ComputerRuntime {
     pub(in crate::daemon) engine_failure: Option<String>,
     /// Which of the two ways that failure happened: the engine never came up,
     /// or it dropped while it was running. The control topic publishes this
-    /// distinction (REF-212 A1) because the shared refusal carries a cause,
+    /// distinction because the shared refusal carries a cause,
     /// not the daemon's detail text.
     pub(in crate::daemon) engine_failure_kind: Option<orbit_core::refusal::EngineCause>,
     /// How many tools the connected engine declared, kept while a worker has
@@ -98,7 +99,7 @@ pub(super) struct ComputerRuntime {
     next_permission_poll: Option<Instant>,
     /// The one status request still waiting for its answer, and when it went.
     permission_poll: Option<(String, Instant)>,
-    /// SIM-56: the scale of the last full screen Deimos was sent, which its
+    /// The scale of the last full screen Deimos was sent, which its
     /// desktop actions are given on. Memory only: after a restart Deimos has
     /// to look again, and a desktop action before that is refused by name.
     pub(in crate::daemon) desktop_scale: Option<orbit_core::sources::DesktopScale>,
@@ -159,8 +160,9 @@ pub(super) struct ComputerCompletion {
 
 pub(super) enum ComputerResult {
     /// A connection that came up, with the engine's own facts. It is not a
-    /// window listing and never answers a request (SIM-56: taken for one, it
-    /// reached a screenshot the helper still had in hand and failed it).
+    /// window listing and never answers a request (taken for one in a real
+    /// call on 2026-10-18, it reached a screenshot the helper still had in
+    /// hand and failed it).
     Connected(Value),
     Read(Value),
     BridgeScreenshot {
@@ -172,7 +174,7 @@ pub(super) enum ComputerResult {
         operation_id: String,
         receipt: Value,
     },
-    /// The full screen, read from its file and fitted for delivery (SIM-56).
+    /// The full screen, read from its file and fitted for delivery.
     DesktopCapture {
         fitted: orbit_core::sources::FittedDesktop,
     },
@@ -200,7 +202,7 @@ pub(super) enum ComputerStartError {
     EngineUnavailable,
     #[error("No se pudo preparar el directorio privado donde el motor deja la captura: {0}")]
     CaptureFile(#[source] anyhow::Error),
-    /// SIM-56: a desktop action's coordinates, refused with their cause.
+    /// A desktop action's coordinates, refused with their cause.
     #[error("{0}")]
     DesktopCoordinates(orbit_core::refusal::Refusal),
     #[error("La autoridad del worker desapareció antes del envío")]
@@ -257,7 +259,7 @@ impl Runtime {
 
     /// Why the engine may not start work now, if it may not: the privacy
     /// stop, or a permission macOS does not grant or has not reported yet.
-    /// REF-11: nothing else. No switch, and neither the hub nor the
+    /// Nothing else. No switch, and neither the hub nor the
     /// conversation, which only matter to a request that came through them.
     pub(super) fn computer_refusal(&self) -> Option<orbit_core::refusal::Refusal> {
         engine::admits(engine::SystemPermissions::ENGINE, self.engine_observed()).err()
@@ -346,7 +348,7 @@ impl Runtime {
         crate::config::atomic_private_write(&self.control_state_path(), &bytes)
     }
 
-    /// REF-11: the engine's whole lifecycle, decided by `engine::decide` from
+    /// The engine's whole lifecycle, decided by `engine::decide` from
     /// what macOS grants and the privacy stop. It starts with both
     /// permissions and no order, switch, pairing or hub; it stops, naming the
     /// cause, when the privacy stop is latched or macOS withdraws one; and a
@@ -455,7 +457,7 @@ impl Runtime {
         self.features.computer.next_permission_poll = Some(now + PERMISSION_POLL_INTERVAL);
     }
 
-    /// Says that the engine failed, never quietly (SIM-25): the cause's text,
+    /// Says that the engine failed, never quietly: the cause's text,
     /// with `context` (which request, which operation), in daemon.log, and a
     /// typed `engine_failed` line in the report log, both under the turn's op.
     /// The text may name paths on the Mac, so it never leaves daemon.log.
@@ -557,7 +559,7 @@ impl Runtime {
                 .is_some_and(|view| view.stage == ComputerStage::Connecting);
         // The count taken when the engine connected: this runs for every state
         // the daemon publishes, and counting the catalogue again would copy all
-        // of it (147 909 bytes on Mars's Mac) each time.
+        // of it (147 909 bytes on a MacBook) each time.
         if (connected || self.features.computer.work.active().is_some() && !connecting)
             && let Some(tools) = self.features.computer.declared_tools
         {
@@ -673,7 +675,7 @@ impl Runtime {
         Ok((driver, crate::cua::default_socket_path(&self.paths.root)))
     }
 
-    /// Starts the packaged engine. REF-11 A2: it needs what macOS grants and
+    /// Starts the packaged engine. It needs what macOS grants and
     /// the privacy stop released, and nothing else — not the pairing, not the
     /// hub, and no order naming an executable.
     pub(super) fn connect_computer(&mut self) -> Result<()> {
@@ -764,7 +766,7 @@ impl Runtime {
         let authority = self.computer_start_authority()?;
         self.require_computer_idle()
             .map_err(|error| ComputerStartError::Busy(error.to_string()))?;
-        // SIM-56: the full screen goes to a file of Orbit's, not into the
+        // The full screen goes to a file of Orbit's, not into the
         // engine's answer, where a Retina screen does not fit.
         let desktop_file = match (pid, window_id) {
             (None, None) => Some(
@@ -889,7 +891,7 @@ impl Runtime {
         self.start_computer_work(generation, worker)
     }
 
-    /// R3/R5: one tool the engine declared, run now. No preparation, no
+    /// One tool the engine declared, run now. No preparation, no
     /// confirmation, no short list and no per-application grant: the macOS
     /// permission was the decision. Without an engine this fails by name; it
     /// never diverts to another path.
@@ -900,7 +902,7 @@ impl Runtime {
     ) -> std::result::Result<(), ComputerStartError> {
         call.validate()
             .map_err(|_| ComputerStartError::InvalidTool)?;
-        // SIM-56: a desktop action is given on the fitted image Deimos was
+        // A desktop action is given on the fitted image Deimos was
         // sent; the engine takes true screen pixels.
         let call = match orbit_core::sources::map_desktop_action(
             &call.arguments,
@@ -1237,7 +1239,7 @@ impl Runtime {
                                     | orbit_core::device_bridge::Capability::Screenshot
                             )
                         });
-                // SIM-56: an answer too large for Orbit is the engine
+                // An answer too large for Orbit is the engine
                 // answering, not the engine failing. It keeps its connection
                 // and nothing says it is unhealthy.
                 if bridge_observation
@@ -1371,7 +1373,7 @@ impl Runtime {
     /// The engine's answer to what Deimos asked to see was too large for
     /// Orbit. A window is asked of the helper, which captures windows; a full
     /// screen it cannot capture, so that request is refused with the size and
-    /// the ceiling instead of being answered with some window (SIM-56).
+    /// the ceiling instead of being answered with some window.
     async fn bridge_observation_too_large(&mut self, too_large: crate::cua::ResponseTooLarge) {
         let full_screen = self
             .conversation
@@ -1439,7 +1441,7 @@ impl Runtime {
             history.outcome = ControlOutcome::Unknown;
             let _ = self.upsert_control_history(history);
         }
-        // R3: a remote request that was riding on this engine is answered with
+        // A remote request that was riding on this engine is answered with
         // the cause, here and now, instead of being left to time out or reappear
         // on a different path.
         // Said before anything is answered or revoked, so the line names
@@ -1496,12 +1498,12 @@ impl Runtime {
             "device.reply",
             self.bridge_refusal_frame(&ask, &refusal),
         ));
-        self.note_bridge_send(&result, &format!("la negativa del motor ({notice})"));
+        self.note_bridge_send(&result, &format!("the engine refusal ({notice})"));
     }
 
     pub(super) async fn maintain_computer(&mut self) -> Result<()> {
         self.poll_permissions();
-        // REF-11: the engine follows what macOS grants — started, kept or
+        // The engine follows what macOS grants — started, kept or
         // stopped with its cause — every turn, with nobody asking.
         self.maintain_engine().await;
         Ok(())
@@ -1553,7 +1555,7 @@ fn bounded_observation(value: &impl Serialize) -> Result<Value> {
     Ok(serde_json::from_slice(&bytes)?)
 }
 
-/// Why a full screen could not be delivered, with its numbers (SIM-56).
+/// Why a full screen could not be delivered, with its numbers.
 #[derive(Debug, thiserror::Error)]
 pub(super) enum DesktopCaptureError {
     #[error("El motor respondió sin escribir la captura de pantalla que se le pidió")]
@@ -1674,7 +1676,7 @@ fn read_desktop_file(path: &std::path::Path) -> std::result::Result<Vec<u8>, Des
 }
 
 /// What a connection that came up delivers to the actor: the engine's own
-/// facts, as a connection and never as a listing (SIM-56).
+/// facts, as a connection and never as a listing.
 fn connected(service: ActionService) -> Result<ComputerCompletion> {
     let observation = json!({"driver_version": crate::cua::VERIFIED_DRIVER_VERSION});
     Ok(ComputerCompletion {

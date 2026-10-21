@@ -20,7 +20,7 @@ use tokio::{
 // Preserve the app-core fixtures' measured cold-start guard (3,969 ms worst).
 // It bounds a hung process, not startup latency.
 const START_BUDGET: Duration = Duration::from_secs(30);
-// REF-39 measured 36.4 s worst recovery on a loaded disk; 120 s catches a jam.
+// The worst recovery measured on a loaded disk was 36.4 s; 120 s catches a jam.
 const RECOVERY_JAM_GUARD: Duration = Duration::from_secs(120);
 const READ_BUDGET: Duration = START_BUDGET;
 
@@ -123,7 +123,7 @@ fn assert_initial_data(data: &TopicData, revision: u64) -> Result<(), Box<dyn Er
             assert!(matches!(&value.engine, Knowledge::Absent { .. }));
         }
         TopicData::Notes(Knowledge::Present { value, .. }) => {
-            // SIM-41: the head of what changed; nothing recorded yet.
+            // The head of what changed; nothing recorded yet.
             assert!(value.recording.is_none());
             assert!(value.recordings.is_empty());
         }
@@ -141,7 +141,7 @@ fn assert_initial_data(data: &TopicData, revision: u64) -> Result<(), Box<dyn Er
         TopicData::Assistant(other) => {
             panic!("the observed assistant head must be present: {other:?}")
         }
-        // REF-215a: notices publish the current notice text from startup.
+        // Notices publish the current notice text from startup.
         TopicData::Notices(Knowledge::Present { .. }) => {}
         TopicData::Notices(other) => {
             panic!("notices publish their text from startup: {other:?}")
@@ -172,7 +172,7 @@ async fn real_daemon_accepts_a_topic_subscription_and_sends_all_heads() -> Resul
         "notices",
     ];
     let mut request = serde_json::to_vec(&json!({
-        "v": 1, "id": "ref204-wire", "body": {"command": "subscribe_topics", "topics": names}
+        "v": 1, "id": "topics-wire", "body": {"command": "subscribe_topics", "topics": names}
     }))?;
     request.push(b'\n');
     writer.write_all(&request).await?;
@@ -245,7 +245,7 @@ async fn real_daemon_sends_initial_topics_and_keeps_equal_values_at_same_revisio
     )
     .await?;
     assert_eq!(read.read, Some(orbit_core::reads::ReadId::NotesPage));
-    // SIM-41: unpaired, the list says why the hub's part is missing and
+    // Unpaired, the list says why the hub's part is missing and
     // lists no meeting of its own.
     assert!(matches!(
         read.answer,
@@ -339,7 +339,7 @@ async fn real_daemon_sends_initial_topics_and_keeps_equal_values_at_same_revisio
     assert!(after.revisions[&TopicId::Recording] >= recording_revision);
     assert_eq!(after.revisions[&TopicId::Agenda], agenda_revision);
     assert!(after.revisions[&TopicId::Control] >= control_revision);
-    // REF-215a: the privacy stop writes a notice, so the notices topic
+    // The privacy stop writes a notice, so the notices topic
     // publishes new text and a new revision in the same turn.
     assert!(after.revisions[&TopicId::Notices] > read.revisions[&TopicId::Notices]);
     let changed = [
@@ -423,7 +423,7 @@ async fn session_messages_read_names_why_it_cannot_read() -> Result<(), Box<dyn 
     )
     .await??;
     let answer = response.answer.expect("the read must carry an answer");
-    // SIM-30: the conversation is the hub's; an unpaired daemon says so.
+    // The conversation is the hub's; an unpaired daemon says so.
     match answer {
         Knowledge::Absent { refusal } => {
             assert_eq!(serde_json::to_value(&refusal)?["code"], "not_paired");

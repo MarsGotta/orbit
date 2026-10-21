@@ -1,4 +1,4 @@
-//! P9-11 criterion 3, through the daemon's own paths: a synthetic helper
+//! Call detection, through the daemon's own paths: a synthetic helper
 //! (`microphone_activity`, the agenda read, the audio starts) and the
 //! detection's clock driven by the test. Nothing native, no real call.
 use super::*;
@@ -78,8 +78,7 @@ async fn ack_starts(
 }
 
 #[tokio::test]
-async fn p9_11_a3_a_call_is_offered_recorded_with_its_event_and_ends_after_the_countdown()
--> Result<()> {
+async fn a_call_is_offered_recorded_with_its_event_and_ends_after_the_countdown() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     // The detection's clock is the test's from the start: it never runs
@@ -218,8 +217,7 @@ async fn p9_11_a3_a_call_is_offered_recorded_with_its_event_and_ends_after_the_c
 }
 
 #[tokio::test]
-async fn p9_11_record_without_asking_starts_alone_and_keep_recording_makes_it_manual() -> Result<()>
-{
+async fn record_without_asking_starts_alone_and_keep_recording_makes_it_manual() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     runtime.recover_call_preference();
@@ -273,8 +271,7 @@ async fn p9_11_record_without_asking_starts_alone_and_keep_recording_makes_it_ma
 }
 
 #[tokio::test]
-async fn p9_11_the_call_app_closing_during_the_countdown_ends_with_what_was_recorded() -> Result<()>
-{
+async fn the_call_app_closing_during_the_countdown_ends_with_what_was_recorded() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     runtime.recover_call_preference();
@@ -329,7 +326,7 @@ async fn p9_11_the_call_app_closing_during_the_countdown_ends_with_what_was_reco
 }
 
 #[tokio::test]
-async fn p9_11_nothing_is_offered_before_the_helper_says_who_holds_the_microphone() -> Result<()> {
+async fn nothing_is_offered_before_the_helper_says_who_holds_the_microphone() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     runtime.recover_call_preference();
@@ -348,7 +345,7 @@ async fn p9_11_nothing_is_offered_before_the_helper_says_who_holds_the_microphon
 }
 
 #[tokio::test]
-async fn p9_11_privacy_stop_hides_the_offer_and_rearming_resumes_nothing() -> Result<()> {
+async fn privacy_stop_hides_the_offer_and_rearming_resumes_nothing() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     // The detection's clock is the test's from the start: it never runs
@@ -395,11 +392,10 @@ async fn p9_11_privacy_stop_hides_the_offer_and_rearming_resumes_nothing() -> Re
     Ok(())
 }
 
-/// P9-11 criterion 5 (daemon side): «Grabar» on a calendar event during a
+/// Daemon side: «Grabar» on a calendar event during a
 /// call links the recording to the event and captures the call's audio.
 #[tokio::test]
-async fn p9_11_record_on_an_event_during_a_call_captures_the_call_and_links_the_event() -> Result<()>
-{
+async fn record_on_an_event_during_a_call_captures_the_call_and_links_the_event() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     runtime.features.call.clock_ms = Some(NOW);
@@ -462,11 +458,11 @@ async fn p9_11_record_on_an_event_during_a_call_captures_the_call_and_links_the_
     Ok(())
 }
 
-/// P9-11: a recording already going (started by hand) answers any call:
+/// A recording already going (started by hand) answers any call:
 /// Zoom taking the microphone offers nothing and starts nothing, whatever
 /// the preference.
 #[tokio::test]
-async fn p9_11_a_call_during_a_manual_recording_offers_and_starts_nothing() -> Result<()> {
+async fn a_call_during_a_manual_recording_offers_and_starts_nothing() -> Result<()> {
     for preference in [CallPreference::Notify, CallPreference::Record] {
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut helper) = fixture(directory.path())?;

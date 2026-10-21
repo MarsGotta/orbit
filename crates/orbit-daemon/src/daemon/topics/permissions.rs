@@ -44,7 +44,7 @@ impl ProjectTopic for Projector {
 }
 
 #[cfg(test)]
-mod ref206_tests {
+mod tests {
     use super::*;
     use orbit_core::{State, topics::Knowledge};
 

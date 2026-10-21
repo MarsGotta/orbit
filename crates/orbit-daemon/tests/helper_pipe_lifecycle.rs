@@ -1,6 +1,6 @@
 //! Real process/IPC with the production helper launch (`--helper`) and a relay
 //! standing where `OrbitNative` stands. No capture, providers or macOS
-//! permission claims. Until REF-06 these two cases drove the daemon through the
+//! permission claims. These two cases used to drive the daemon through the
 //! retired mode in which the helper hosted it; they now drive the path
 //! production runs.
 use anyhow::{Context, Result, bail};
@@ -64,7 +64,7 @@ impl Peer {
                         result["drain_complete"] = json!(true);
                         result
                     }
-                    // REF-12: closing cuts without the latch.
+                    // Closing cuts without the latch.
                     "capture_stop" => {
                         let mut result = helper_relay::state_result(json!({
                             "microphone":"not_determined","screen":false,"accessibility":false,
@@ -205,10 +205,10 @@ fn helper_eof_is_a_disconnect_not_authority_to_skip_shutdown() -> Result<()> {
             "EOF must not bypass actor shutdown"
         );
         let state = ipc::status(directory.path())?;
-        // REF-12: the lost helper is said and latches nothing.
+        // The lost helper is said and latches nothing.
         if state["privacy_stopped"] == false
             && state["capabilities"]["native_helper"] == false
-            // SIM-21: said as a code with its cause, not a sentence.
+            // Said as a code with its cause, not a sentence.
             && state["notice"]["code"] == "contained_failure"
             && state["notice"]["data"]["cause"] == "helper_lost"
         {

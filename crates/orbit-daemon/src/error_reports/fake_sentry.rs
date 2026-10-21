@@ -1,5 +1,5 @@
 //! A fake Sentry on 127.0.0.1 that keeps every request the real SDK sends
-//! to it (SIM-23). Nothing that uses it ever reaches sentry.io.
+//! to it. Nothing that uses it ever reaches sentry.io.
 #![allow(dead_code)]
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};

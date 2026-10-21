@@ -1,4 +1,4 @@
-//! SIM-41: the notes reads, served from the hub. The facts the Mac owns — the
+//! The notes reads, served from the hub. The facts the Mac owns — the
 //! recording in progress, the ones still uploading, the private notes still
 //! on their way and the event a recording was started from — are taken on
 //! the daemon loop; the hub is asked off it, and its answer is passed through
@@ -137,7 +137,7 @@ impl Runtime {
         Ok(rows)
     }
 
-    /// P9-11: the event the recording was started from, as its manifest
+    /// The event the recording was started from, as its manifest
     /// keeps it.
     fn recording_event(&self, recording: &str) -> Option<MeetingEvent> {
         let job = self
@@ -371,16 +371,16 @@ async fn detail(
     };
     if let Some(row) = &local.row {
         document.local = row.local;
-        // SIM-52: named as the list names it. The hub learns a recording's
+        // Named as the list names it. The hub learns a recording's
         // title only from its closing manifest, so until that reaches it its
         // document says «Reunión del…»; this Mac has the title. A recording
-        // the hub does not have whole cannot be renamed yet, so no name of
-        // Mars's is hidden by this.
+        // the hub does not have whole cannot be renamed yet, so no name the
+        // user gave is hidden by this.
         document.title.clone_from(&row.title);
     }
     document.event = local.event;
     if let Some(private) = local.private {
-        // What Mars typed and the hub has not confirmed yet.
+        // What the user typed and the hub has not confirmed yet.
         document.private_notes = PrivateNotes {
             text: private.markdown,
             revision: document.private_notes.revision,

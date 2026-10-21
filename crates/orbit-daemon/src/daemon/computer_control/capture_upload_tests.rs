@@ -1,6 +1,7 @@
-//! DEI-15: the engine's capture travels where the helper's capture travels.
+//! The engine's capture travels where the helper's capture travels.
 //!
-//! DEI-14 closed the catalogue's hole and left this one in plain sight. When
+//! Paging the engine's catalogue closed one hole and left this one in plain
+//! sight. When
 //! the native helper takes the picture, the PNG goes up out of band
 //! (`PUT /v1/captures/<id>`) and the frame carries only a `capture_id`. When
 //! the engine takes it, `answer_bridge_from_computer_screenshot` put the whole
@@ -32,7 +33,7 @@ async fn mac_capturing(
     let mut h = Mac::with_engine(FakeEngine::with_png(&png)).await?;
     let (address, puts, release) = capture_hub(reject_upload).await?;
     h.runtime.settings.hub_url = Some(format!("http://{address}"));
-    h.runtime.token = Some("credencial sintética del dispositivo".to_owned());
+    h.runtime.token = Some("synthetic device credential".to_owned());
     let (hub, frames) = mpsc::channel(16);
     h.runtime.hub.install(hub);
     Ok((h, frames, puts, release))
@@ -54,11 +55,11 @@ async fn ask_for_a_capture(h: &mut Mac, request_id: &str) -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref306_engine_capture_returns_to_actor_while_upload_is_held() -> Result<()> {
+async fn engine_capture_returns_to_actor_while_upload_is_held() -> Result<()> {
     let (mut h, mut frames, mut puts, release) = mac_capturing(maximal_png()?, false).await?;
     h.runtime
         .apply(Event::StartMeeting {
-            id: "ref306-engine-recording".into(),
+            id: "engine-capture-recording".into(),
             title: "Fixture".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
             duration_ms: 60_000,
@@ -67,14 +68,14 @@ async fn ref306_engine_capture_returns_to_actor_while_upload_is_held() -> Result
     let start = loop {
         let command = tokio::time::timeout(Duration::from_secs(5), h._native.recv())
             .await?
-            .context("el helper no recibió audio_start")?;
+            .context("the helper did not receive audio_start")?;
         if command["command"] == "audio_start" {
             break command;
         }
     };
     let stream = start["stream_id"]
         .as_str()
-        .context("audio_start sin stream_id")?
+        .context("audio_start without stream_id")?
         .to_owned();
     h.runtime
         .native_event(json!({"event":"response", "id":start["id"], "ok":true,
@@ -83,7 +84,7 @@ async fn ref306_engine_capture_returns_to_actor_while_upload_is_held() -> Result
     let idle_status = measure_status_rounds(&mut h.runtime).await?;
     h.runtime
         .device_request_raw(&json!({
-            "request_id": "ref306-engine",
+            "request_id": "engine-capture",
             "capability": "screenshot",
             "parameters": {"application": "Fixture"},
         }))
@@ -95,7 +96,7 @@ async fn ref306_engine_capture_returns_to_actor_while_upload_is_held() -> Result
         .await
         .map_err(|_| {
             anyhow::anyhow!(
-                "el motor retuvo el actor {:.3} s mientras la subida seguía retenida",
+                "the engine held the actor {:.3} s while the upload was still held",
                 std::time::Instant::now()
                     .duration_since(started)
                     .as_secs_f64()
@@ -104,7 +105,7 @@ async fn ref306_engine_capture_returns_to_actor_while_upload_is_held() -> Result
     drop(finishing);
     let put = tokio::time::timeout(Duration::from_secs(5), puts.recv())
         .await?
-        .context("el hub falso cerró antes del PUT")?;
+        .context("the fake hub closed before the PUT")?;
     assert_eq!(put.method, "PUT");
     for sequence in 0..30_u64 {
         h.runtime
@@ -118,7 +119,7 @@ async fn ref306_engine_capture_returns_to_actor_while_upload_is_held() -> Result
     }
     let held_status = measure_status_rounds(&mut h.runtime).await?;
     eprintln!(
-        "ref306_engine_status_us idle_p99={} idle_worst={} held_p99={} held_worst={} n=100",
+        "engine_capture_status_us idle_p99={} idle_worst={} held_p99={} held_worst={} n=100",
         idle_status.0, idle_status.1, held_status.0, held_status.1
     );
     assert_eq!(
@@ -127,21 +128,21 @@ async fn ref306_engine_capture_returns_to_actor_while_upload_is_held() -> Result
             .durable
             .recording
             .as_ref()
-            .context("sin grabación")?
+            .context("no recording")?
             .gaps,
         0,
-        "la captura del motor introdujo huecos en las 30 tramas del helper"
+        "the engine capture introduced gaps in the helper's 30 frames"
     );
     assert!(
         frames.try_recv().is_err(),
-        "se respondió a Deimos antes de confirmar el PUT"
+        "Deimos was answered before the PUT was confirmed"
     );
     release.notify_one();
     h.finish().await?;
     let reply = tokio::time::timeout(Duration::from_secs(5), frames.recv())
         .await?
-        .context("no llegó la respuesta de la subida")?;
-    assert_eq!(reply["params"]["request_id"], "ref306-engine");
+        .context("the upload's reply did not arrive")?;
+    assert_eq!(reply["params"]["request_id"], "engine-capture");
     assert!(reply["params"]["result"]["capture_id"].is_string());
     assert!(h.runtime.conversation.bridge_request.is_none());
     h.runtime
@@ -153,7 +154,7 @@ async fn ref306_engine_capture_returns_to_actor_while_upload_is_held() -> Result
 }
 
 #[tokio::test]
-async fn ref303_a2_engine_observation_reports_full_and_retired_hub_after_upload() -> Result<()> {
+async fn engine_observation_reports_full_and_retired_hub_after_upload() -> Result<()> {
     for retired in [false, true] {
         let (mut h, _old_frames, mut puts, release) = mac_capturing(maximal_png()?, false).await?;
         let (sender, mut frames) = mpsc::channel(1);
@@ -168,10 +169,10 @@ async fn ref303_a2_engine_observation_reports_full_and_retired_hub_after_upload(
         ask_for_a_capture(&mut h, "engine-observation").await?;
         let put = tokio::time::timeout(Duration::from_secs(5), puts.recv())
             .await?
-            .context("la captura no se subió")?;
+            .context("the capture was not uploaded")?;
         assert_eq!(put.method, "PUT");
         h.finish().await?;
-        // SIM-21: not delivered is said; its cause stays in daemon.log.
+        // Not delivered is said; its cause stays in daemon.log.
         let notice = &h.runtime.state.durable.notice;
         assert_eq!(
             h.runtime.state.notice_code(),
@@ -186,17 +187,17 @@ async fn ref303_a2_engine_observation_reports_full_and_retired_hub_after_upload(
     Ok(())
 }
 
-/// A1/A3: a capture at the PNG ceiling — the size that never fitted — reaches
+/// A capture at the PNG ceiling — the size that never fitted — reaches
 /// Deimos, and the frame that announces it carries the identifier and the
 /// measurements rather than the image.
 #[tokio::test]
-async fn dei15_a1_a_capture_that_never_fitted_now_arrives_by_the_upload() -> Result<()> {
+async fn a_capture_that_never_fitted_now_arrives_by_the_upload() -> Result<()> {
     let png = maximal_png()?;
     assert_eq!(png.len(), orbit_core::sources::MAX_SOURCE_BYTES);
     let inline = base64::engine::general_purpose::STANDARD.encode(&png);
     assert!(
         inline.len() > MAX_OUTGOING_FRAME_BYTES * 7,
-        "la prueba usa el tamaño que nunca cupo: {} bytes en base64 contra {} de techo",
+        "the test uses the size that never fitted: {} bytes of base64 against a {} ceiling",
         inline.len(),
         MAX_OUTGOING_FRAME_BYTES
     );
@@ -205,59 +206,59 @@ async fn dei15_a1_a_capture_that_never_fitted_now_arrives_by_the_upload() -> Res
 
     // The engine finishes while the synthetic hub still holds its PUT. The
     // reply remains absent until that same maximal image is confirmed.
-    ask_for_a_capture(&mut h, "captura-1").await?;
+    ask_for_a_capture(&mut h, "capture-1").await?;
     // Hang guard, not an upload budget: 60 s exceeds 2× the 28.1 s worst
-    // complete run measured in REF-28B under 16 spinners and 8 fsync writers.
+    // complete run measured under 16 spinners and 8 fsync writers.
     const PUT_HANG_GUARD: Duration = Duration::from_secs(60);
     let upload_wait_started = std::time::Instant::now();
     let record = tokio::time::timeout(PUT_HANG_GUARD, puts.recv())
         .await
         .map_err(|_| {
             anyhow::anyhow!(
-                "A1: no se observó el PUT tras {:.1} s (guarda: {} s)",
+                "no PUT was observed after {:.1} s (guard: {} s)",
                 std::time::Instant::now()
                     .duration_since(upload_wait_started)
                     .as_secs_f64(),
                 PUT_HANG_GUARD.as_secs()
             )
         })?
-        .context("el hub falso se apagó")?;
+        .context("the fake hub shut down")?;
     assert!(
         frames.try_recv().is_err(),
-        "llegó respuesta antes de confirmar la subida"
+        "a reply arrived before the upload was confirmed"
     );
     release.notify_one();
     h.finish().await?;
 
     let frame = tokio::time::timeout(Duration::from_secs(2), frames.recv())
         .await
-        .map_err(|_| anyhow::anyhow!("A1: la petición remota quedó sin respuesta"))?
-        .context("el canal del hub se cerró")?;
+        .map_err(|_| anyhow::anyhow!("the remote request got no reply"))?
+        .context("the hub channel closed")?;
     assert_eq!(frame["method"], "device.reply");
-    assert_eq!(frame["params"]["request_id"], "captura-1");
+    assert_eq!(frame["params"]["request_id"], "capture-1");
     assert!(
         frame["params"]["refusal"].is_null(),
-        "A1: la captura ya no se rechaza: {frame}"
+        "the capture must no longer be refused: {frame}"
     );
 
-    // A1: the frame fits the link that refused it before.
+    // The frame fits the link that refused it before.
     let wire = serde_json::to_vec(&frame)?;
     assert!(
         wire.len() < MAX_OUTGOING_FRAME_BYTES,
-        "A1: la trama de {} bytes tiene que caber en el techo del enlace ({} bytes)",
+        "the {}-byte frame has to fit the link's ceiling ({} bytes)",
         wire.len(),
         MAX_OUTGOING_FRAME_BYTES
     );
 
-    // A3: the identifier and the measurements travel; the image does not.
+    // The identifier and the measurements travel; the image does not.
     let result = &frame["params"]["result"];
     let capture_id = result["capture_id"]
         .as_str()
-        .context("A3: la respuesta no lleva capture_id")?
+        .context("the reply carries no capture_id")?
         .to_owned();
     assert!(
         uuid::Uuid::parse_str(&capture_id).is_ok(),
-        "A3: el capture_id tiene que ser un UUID, como el de la otra subida: {capture_id}"
+        "the capture_id has to be a UUID, like the other upload's: {capture_id}"
     );
     assert_eq!(result["application"], "Fixture");
     assert_eq!(result["width"], 2);
@@ -266,20 +267,20 @@ async fn dei15_a1_a_capture_that_never_fitted_now_arrives_by_the_upload() -> Res
     assert_eq!(result["sha256"], sha256_hex(&png));
     assert!(
         result.get("data_base64").is_none(),
-        "A3: la respuesta del motor sigue llevando los bytes dentro: {result}"
+        "the engine's reply still carries the bytes inside: {result}"
     );
     assert!(
         !String::from_utf8_lossy(&wire).contains(&inline),
-        "A3: la trama contiene el PNG entero"
+        "the frame contains the whole PNG"
     );
 
-    // A2: the bytes went up the same way the helper's bytes go up.
+    // The bytes went up the same way the helper's bytes go up.
     assert_eq!(record.method, "PUT");
     assert_eq!(record.path, format!("/v1/captures/{capture_id}"));
     assert_eq!(
         record.header("x-orbit-request"),
-        Some("captura-1"),
-        "A2: la subida no va atada a la petición del puente"
+        Some("capture-1"),
+        "the upload is not tied to the bridge request"
     );
     assert_eq!(
         record.header("x-orbit-sha256"),
@@ -288,9 +289,9 @@ async fn dei15_a1_a_capture_that_never_fitted_now_arrives_by_the_upload() -> Res
     assert_eq!(record.header("content-type"), Some("image/png"));
     assert_eq!(
         record.header("authorization"),
-        Some("Bearer credencial sintética del dispositivo")
+        Some("Bearer synthetic device credential")
     );
-    assert_eq!(record.body, png, "A2: no se subieron los bytes exactos");
+    assert_eq!(record.body, png, "the exact bytes were not uploaded");
 
     assert!(h.runtime.conversation.bridge_request.is_none());
     h.runtime
@@ -301,11 +302,11 @@ async fn dei15_a1_a_capture_that_never_fitted_now_arrives_by_the_upload() -> Res
     Ok(())
 }
 
-/// A5: an upload that truly cannot happen is explained. DEI-14 has just
-/// finished curing the thirty-second silence; moving the bytes must not open a
-/// new door to it.
+/// An upload that truly cannot happen is explained. Paging the catalogue had
+/// just cured a thirty-second silence; moving the bytes must not open a new
+/// door to it.
 #[tokio::test]
-async fn dei15_a5_an_upload_that_fails_is_refused_by_name_and_not_by_silence() -> Result<()> {
+async fn an_upload_that_fails_is_refused_by_name_and_not_by_silence() -> Result<()> {
     let png = maximal_png()?;
     let (mut h, mut frames, mut puts, _release) = mac_capturing(png, true).await?;
 
@@ -313,25 +314,25 @@ async fn dei15_a5_an_upload_that_fails_is_refused_by_name_and_not_by_silence() -
     // before that, or the caller learns nothing but "no answer".
     tokio::time::timeout(
         Duration::from_secs(10),
-        ask_for_a_capture(&mut h, "captura-2"),
+        ask_for_a_capture(&mut h, "capture-2"),
     )
     .await
-    .map_err(|_| anyhow::anyhow!("A5: el daemon se quedó colgado en la subida"))??;
+    .map_err(|_| anyhow::anyhow!("the daemon hung on the upload"))??;
 
     let record = tokio::time::timeout(Duration::from_secs(2), puts.recv())
         .await
-        .map_err(|_| anyhow::anyhow!("A5: el motor no intentó subir la captura"))?
-        .context("el hub falso se apagó")?;
+        .map_err(|_| anyhow::anyhow!("the engine did not try to upload the capture"))?
+        .context("the fake hub shut down")?;
     assert!(record.path.starts_with("/v1/captures/"));
 
     h.finish().await?;
 
     let frame = tokio::time::timeout(Duration::from_secs(2), frames.recv())
         .await
-        .map_err(|_| anyhow::anyhow!("A5: la petición remota quedó en silencio"))?
-        .context("el canal del hub se cerró")?;
+        .map_err(|_| anyhow::anyhow!("the remote request was left in silence"))?
+        .context("the hub channel closed")?;
     assert_eq!(frame["method"], "device.reply");
-    assert_eq!(frame["params"]["request_id"], "captura-2");
+    assert_eq!(frame["params"]["request_id"], "capture-2");
     assert_eq!(frame["params"]["refusal"]["code"], "upstream_failed");
     assert_eq!(frame["params"]["refusal"]["service"], "hub");
     assert!(frame["params"]["result"].is_null());
@@ -349,13 +350,13 @@ async fn engine_capture_capacity_reaches_device_reply_and_clears_pending_upload(
     let mut h = Mac::with_engine(FakeEngine::with_png(&maximal_png()?)).await?;
     let (address, mut puts) = capture_hub_at_capacity().await?;
     h.runtime.settings.hub_url = Some(format!("http://{address}"));
-    h.runtime.token = Some("credencial sintética del dispositivo".to_owned());
+    h.runtime.token = Some("synthetic device credential".to_owned());
     let (hub, mut frames) = mpsc::channel(16);
     h.runtime.hub.install(hub);
 
     h.runtime
         .device_request_raw(&json!({
-            "request_id":"captura-capacity",
+            "request_id":"capture-capacity",
             "capability":"screenshot",
             "parameters":{"application":"Fixture"},
         }))
@@ -364,19 +365,19 @@ async fn engine_capture_capacity_reaches_device_reply_and_clears_pending_upload(
     h.finish().await?;
     assert!(
         h.runtime.features.sources.bridge_upload.is_some(),
-        "la subida real no quedó pendiente hasta conocer la respuesta del hub"
+        "the real upload did not stay pending until the hub's answer was known"
     );
 
     let put = tokio::time::timeout(Duration::from_secs(2), puts.recv())
         .await?
-        .context("el motor no subió la captura")?;
+        .context("the engine did not upload the capture")?;
     assert!(put.path.starts_with("/v1/captures/"));
     h.finish().await?;
     let frame = tokio::time::timeout(Duration::from_secs(2), frames.recv())
         .await?
-        .context("el motor no respondió al solicitante")?;
+        .context("the engine did not answer the requester")?;
     assert_eq!(frame["method"], "device.reply");
-    assert_eq!(frame["params"]["request_id"], "captura-capacity");
+    assert_eq!(frame["params"]["request_id"], "capture-capacity");
     assert_eq!(frame["params"]["refusal"]["code"], "too_many");
     assert_eq!(frame["params"]["refusal"]["resource"], "capture");
     assert_eq!(frame["params"]["refusal"]["count"], 5);
@@ -391,11 +392,11 @@ async fn engine_capture_capacity_reaches_device_reply_and_clears_pending_upload(
     Ok(())
 }
 
-/// A6: the PNG ceiling stays where it was. This round moves bytes; it does not
+/// The PNG ceiling stays where it was. Moving the bytes out of band does not
 /// raise a bound, so a PNG above `MAX_SOURCE_BYTES` is refused exactly where it
 /// was refused before and never reaches the upload.
 #[tokio::test]
-async fn dei15_a6_a_png_above_the_ceiling_is_still_refused_and_never_uploaded() -> Result<()> {
+async fn a_png_above_the_ceiling_is_still_refused_and_never_uploaded() -> Result<()> {
     let mut oversized = maximal_png()?;
     oversized.extend(std::iter::repeat_n(0u8, 1024));
     assert!(oversized.len() > orbit_core::sources::MAX_SOURCE_BYTES);
@@ -403,13 +404,13 @@ async fn dei15_a6_a_png_above_the_ceiling_is_still_refused_and_never_uploaded() 
     let (mut h, _frames, mut puts, _release) = mac_capturing(oversized, false).await?;
     // The completed engine response falls back to a helper window listing.
     // Observe that event before asserting absence; no scheduling delay proves it.
-    ask_for_a_capture(&mut h, "captura-3").await?;
+    ask_for_a_capture(&mut h, "capture-3").await?;
     let fallback = tokio::time::timeout(Duration::from_secs(2), h._native.recv())
         .await?
-        .context("el PNG rechazado no pidió el fallback al helper")?;
+        .context("the refused PNG did not ask the helper for the fallback")?;
     assert_eq!(fallback["command"], "screen_sources");
     assert!(h.runtime.features.sources.bridge_upload.is_none());
-    assert!(puts.try_recv().is_err(), "el PNG rechazado llegó a subirse");
+    assert!(puts.try_recv().is_err(), "the refused PNG got uploaded");
     h.runtime
         .revoke_computer(&orbit_core::refusal::Refusal::ReadInterrupted {
             cause: orbit_core::refusal::ReadInterruption::ComputerRevoked,

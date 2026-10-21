@@ -2,7 +2,7 @@
 //! through `Runtime::reads`.
 use super::*;
 
-/// SIM-30: a read the daemon answers with one page from the hub.
+/// A read the daemon answers with one page from the hub.
 enum HubPage {
     Sessions(Option<orbit_core::topics::Cursor>),
     Messages(String, Option<orbit_core::topics::Cursor>),
@@ -65,7 +65,7 @@ impl Runtime {
             return;
         }
 
-        // SIM-41: the notes are the hub's; one remote read each, off the loop.
+        // The notes are the hub's; one remote read each, off the loop.
         if let Some(remote) = self.notes_read(&read) {
             let mut privacy_epoch = self.reads.privacy_epoch_rx.clone();
             let started_at_epoch = *privacy_epoch.borrow_and_update();
@@ -106,9 +106,9 @@ impl Runtime {
         );
     }
 
-    /// SIM-30: the conversations are the hub's. Without a link to it there is
-    /// nothing to read, and Mars is told what is missing; her own stop says
-    /// itself.
+    /// The conversations are the hub's. Without a link to it there is
+    /// nothing to read, and the user is told what is missing; their own stop
+    /// says itself.
     pub(super) fn say_when_conversations_need_the_hub(&mut self) {
         if matches!(
             self.state.connection(),

@@ -15,7 +15,7 @@ const SAMPLES: usize = 2_048;
 
 fn worst_case(runtime: &mut Runtime) -> anyhow::Result<()> {
     let message = |role: &str, text: String| Message {
-        id: "request-ref211".into(),
+        id: "request-measured".into(),
         role: role.into(),
         text,
         complete: false,
@@ -30,7 +30,7 @@ fn worst_case(runtime: &mut Runtime) -> anyhow::Result<()> {
         )),
     });
     runtime.state.durable.pending_approval = Some(Approval {
-        request_id: "request-ref211".into(),
+        request_id: "request-measured".into(),
         description: "\"".repeat(16_000),
         clarification: false,
     });
@@ -122,10 +122,10 @@ fn worst_case(runtime: &mut Runtime) -> anyhow::Result<()> {
     Ok(())
 }
 
-// Medida repetible en el Mac: cargo test -p orbit-daemon --lib
+// Repeatable measurement on the Mac: cargo test -p orbit-daemon --lib
 // measure_worst_case_projections -- --ignored --nocapture
 #[tokio::test]
-#[ignore = "medida manual SIM-74; no es un criterio de la puerta"]
+#[ignore = "manual measurement on the Mac; not a gate criterion"]
 async fn measure_worst_case_projections() -> anyhow::Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = crate::daemon::audio::tests::fixture(directory.path())?;
@@ -176,7 +176,7 @@ async fn measure_worst_case_projections() -> anyhow::Result<()> {
             ns[SAMPLES - 1]
         );
     }
-    // Six-byte escaping is the expensive, valid-input refusal path from SIM-30.
+    // Six-byte escaping is the expensive, valid-input refusal path of a turn.
     let turn = runtime
         .state
         .durable

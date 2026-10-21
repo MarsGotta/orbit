@@ -1,6 +1,6 @@
 //! Actor fixtures with a synthetic native NDJSON peer. No EventKit/TCC/audio SDK.
 //!
-//! REF-10: the agenda on screen reads every calendar in pages and windows,
+//! The agenda on screen reads every calendar in pages and windows,
 //! with nothing selected; the helper's pages are joined only when they come
 //! from one enumeration; a withdrawn permission cuts the agenda off.
 use std::time::Duration;
@@ -61,7 +61,7 @@ fn local_calendar_permission_command_failure_does_not_claim_macos_was_asked() ->
 }
 
 #[tokio::test]
-async fn ref303_a6_full_helper_channel_records_calendar_disconnect_once() -> Result<()> {
+async fn full_helper_channel_records_calendar_disconnect_once() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut native) = fixture(directory.path())?;
     seed(&mut runtime, &mut native).await?;
@@ -196,7 +196,7 @@ async fn restarted_helper_names_the_calendar_instance_and_generation_it_replaced
 }
 
 #[tokio::test]
-async fn ref215a_a4_calendar_read_pages_the_known_listing_by_id() -> Result<()> {
+async fn calendar_read_pages_the_known_listing_by_id() -> Result<()> {
     use orbit_core::{
         reads::ReadRequest,
         topics::{Cursor, Knowledge},
@@ -303,7 +303,7 @@ async fn ref215a_a4_calendar_read_pages_the_known_listing_by_id() -> Result<()> 
 }
 
 #[test]
-fn ref215a_a4_unread_listing_and_failed_helper_are_distinct() -> Result<()> {
+fn unread_listing_and_failed_helper_are_distinct() -> Result<()> {
     use orbit_core::{reads::ReadRequest, topics::Knowledge};
     let directory = tempfile::tempdir()?;
     let (mut runtime, _native) = fixture(directory.path())?;
@@ -333,7 +333,7 @@ fn ref215a_a4_unread_listing_and_failed_helper_are_distinct() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref215a_a4_cursor_walks_large_listing_without_repeating_or_cutting_rows() -> Result<()> {
+async fn cursor_walks_large_listing_without_repeating_or_cutting_rows() -> Result<()> {
     use orbit_core::{
         reads::ReadRequest,
         topics::{Cursor, Knowledge},
@@ -397,7 +397,7 @@ async fn ref215a_a4_cursor_walks_large_listing_without_repeating_or_cutting_rows
 }
 
 #[tokio::test]
-async fn ref215a_a4_failed_refresh_does_not_serve_an_old_listing() -> Result<()> {
+async fn failed_refresh_does_not_serve_an_old_listing() -> Result<()> {
     use orbit_core::{reads::ReadRequest, topics::Knowledge};
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut native) = fixture(directory.path())?;
@@ -544,8 +544,8 @@ pub(in crate::daemon) async fn next_command(receiver: &mut mpsc::Receiver<Value>
     loop {
         let command = tokio::time::timeout(Duration::from_secs(2), receiver.recv())
             .await
-            .map_err(|_| anyhow::anyhow!("el helper nunca recibió la orden"))?
-            .context("el helper falso se desconectó")?;
+            .map_err(|_| anyhow::anyhow!("the helper never received the order"))?
+            .context("the fake helper disconnected")?;
         if command["command"] != "status" {
             return Ok(command);
         }
@@ -560,7 +560,7 @@ fn week() -> CalendarWindow {
 }
 
 #[test]
-fn ref207_a4_unobserved_helper_is_unknown_not_a_refusal() -> Result<()> {
+fn unobserved_helper_is_unknown_not_a_refusal() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (runtime, _helper) = fixture(directory.path())?;
     assert!(matches!(
@@ -594,10 +594,10 @@ async fn nothing_is_read_before_the_helper_announces_its_calendar_backend() -> R
     Ok(())
 }
 
-/// REF-10 A1/A4: with the permission, the agenda on screen is read — every
+/// With the permission, the agenda on screen is read — every
 /// calendar, nothing listed or chosen first — and kept in RAM only.
 #[tokio::test]
-async fn ref10_a1_the_week_on_screen_is_read_with_nothing_chosen() -> Result<()> {
+async fn the_week_on_screen_is_read_with_nothing_chosen() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;
@@ -637,12 +637,12 @@ async fn ref10_a1_the_week_on_screen_is_read_with_nothing_chosen() -> Result<()>
         .calendar
         .complete
         .as_ref()
-        .context("la agenda no llegó")?;
+        .context("the agenda did not arrive")?;
     assert_eq!(snapshot.events.len(), 3);
     assert_eq!(
         snapshot.scope.calendars.len(),
         3,
-        "todos los calendarios, sin elegir"
+        "every calendar, none chosen"
     );
     assert!(snapshot.scope.include_invitees && snapshot.scope.include_event_url);
     // The list of calendars came first, by itself, when the permission was
@@ -671,7 +671,7 @@ async fn ref10_a1_the_week_on_screen_is_read_with_nothing_chosen() -> Result<()>
 }
 
 #[tokio::test]
-async fn ref207_a2_a_month_of_435_events_arrives_in_bounded_keyset_pages() -> Result<()> {
+async fn a_month_of_435_events_arrives_in_bounded_keyset_pages() -> Result<()> {
     use orbit_core::{
         reads::ReadRequest,
         topics::{Cursor, Knowledge},
@@ -855,17 +855,17 @@ async fn ref207_a2_a_month_of_435_events_arrives_in_bounded_keyset_pages() -> Re
         anyhow::bail!("boundary agenda page was not present");
     };
     assert_eq!(boundary_page.items.len() + 1, first_page.items.len());
-    eprintln!("REF207_A2 events=435 pages={pages} largest_page_bytes={largest_page}");
+    eprintln!("agenda_month_pages events=435 pages={pages} largest_page_bytes={largest_page}");
     Ok(())
 }
 
-/// P9-20: the agenda view asks for 63 days and the month view for up to 42,
+/// The agenda view asks for 63 days and the month view for up to 42,
 /// wider than one helper window (`READ_WINDOW_MS`, 31 days). The daemon reads
 /// the range in consecutive windows and serves it as one: the topic names the
 /// whole range and `AgendaRange` for exactly that range returns the events of
 /// every window. Nothing was missing for this; the test keeps it so.
 #[tokio::test]
-async fn p9_20_a_range_wider_than_one_window_is_read_in_windows_and_served_whole() -> Result<()> {
+async fn a_range_wider_than_one_window_is_read_in_windows_and_served_whole() -> Result<()> {
     use orbit_core::{calendar::READ_WINDOW_MS, reads::ReadRequest, topics::Knowledge};
 
     let directory = tempfile::tempdir()?;
@@ -1081,9 +1081,9 @@ async fn a_lost_window_reply_is_read_again_in_halves() -> Result<()> {
     Ok(())
 }
 
-/// REF-10 A9: withdrawing the permission cuts off what was on screen.
+/// Withdrawing the permission cuts off what was on screen.
 #[tokio::test]
-async fn ref10_a9_withdrawing_the_permission_removes_the_agenda_on_screen() -> Result<()> {
+async fn withdrawing_the_permission_removes_the_agenda_on_screen() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;
@@ -1117,9 +1117,9 @@ async fn ref10_a9_withdrawing_the_permission_removes_the_agenda_on_screen() -> R
     Ok(())
 }
 
-/// REF-10 A1: the agenda arrives by itself the moment the permission does.
+/// The agenda arrives by itself the moment the permission does.
 #[tokio::test]
-async fn ref10_a1_granting_the_permission_reads_the_agenda_without_being_asked() -> Result<()> {
+async fn granting_the_permission_reads_the_agenda_without_being_asked() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
@@ -1130,7 +1130,10 @@ async fn ref10_a1_granting_the_permission_reads_the_agenda_without_being_asked()
         .await?;
     while receiver.try_recv().is_ok() {}
     read_week(&mut runtime).await?;
-    assert!(receiver.try_recv().is_err(), "sin permiso no se lee");
+    assert!(
+        receiver.try_recv().is_err(),
+        "without the permission nothing is read"
+    );
     runtime
         .native_event(host_state(2, false, status("full_access")))
         .await?;
@@ -1142,7 +1145,7 @@ async fn ref10_a1_granting_the_permission_reads_the_agenda_without_being_asked()
 /// An unknown permission is neither: the read is asked of the helper, which
 /// knows, instead of being refused or shown as denied.
 #[tokio::test]
-async fn ref10_a8_an_unknown_permission_is_not_treated_as_denied() -> Result<()> {
+async fn an_unknown_permission_is_not_treated_as_denied() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
@@ -1171,9 +1174,9 @@ async fn ref10_a8_an_unknown_permission_is_not_treated_as_denied() -> Result<()>
     Ok(())
 }
 
-/// REF-10 A3: no count of calendars is refused; the list is joined from pages.
+/// No count of calendars is refused; the list is joined from pages.
 #[tokio::test]
-async fn ref10_a3_the_calendar_list_is_joined_whatever_its_length() -> Result<()> {
+async fn the_calendar_list_is_joined_whatever_its_length() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;
@@ -1300,7 +1303,7 @@ async fn a_lost_answer_ends_on_the_tick_and_its_late_arrival_is_ignored() -> Res
     Ok(())
 }
 
-/// REF-12 review (c): the Mac cutting its capture retires the agenda like
+/// The Mac cutting its capture retires the agenda like
 /// any change of epoch, and says what happened: it is not a privacy stop.
 #[tokio::test]
 async fn a_capture_cut_retires_the_agenda_without_calling_it_a_privacy_stop() -> Result<()> {

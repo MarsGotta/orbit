@@ -85,7 +85,7 @@ impl Runtime {
             );
         }
         self.ensure_conversation_can_change()?;
-        // REF-11 A5: the engine is not the conversation's. It stays connected,
+        // The engine is not the conversation's. It stays connected,
         // with its catalogue, whichever conversation is open.
         self.apply(orbit_core::Event::OpenSession(session_id))
             .await?;
@@ -106,12 +106,12 @@ fn normalized_device_name(raw: &str) -> Result<String> {
 }
 
 #[cfg(test)]
-mod ref301a_review_tests {
+mod pairing_tests {
     use super::*;
     use crate::daemon::audio::tests::fixture;
 
     #[tokio::test]
-    async fn review_pair_after_revocation_lets_mars_rearm() -> Result<()> {
+    async fn pairing_after_revocation_lets_the_user_rearm() -> Result<()> {
         let directory = tempfile::tempdir()?;
         let (mut runtime, _native) = fixture(directory.path())?;
         {

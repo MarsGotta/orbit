@@ -1,9 +1,10 @@
-//! DAE-01 acceptance at the daemon actor: pairing, Deimos sessions and
-//! transcript retry. (REF-11 retired the remote switches that A2 moved
-//! through the daemon; what a remote request is decided on now is the macOS
-//! permission, covered in `actor_tests.rs` and `computer_control/engine_permission_tests.rs`.) Every hub peer is a one-shot loopback HTTP
-//! fixture; no production hub, provider, credential or helper process is
-//! contacted, and every value on the wire is synthetic.
+//! The daemon actor's pairing, Deimos sessions and transcript retry. (The
+//! remote switches that used to move through the daemon are gone; what a
+//! remote request is decided on now is the macOS permission, covered in
+//! `actor_tests.rs` and `computer_control/engine_permission_tests.rs`.) Every
+//! hub peer is a one-shot loopback HTTP fixture; no production hub, provider,
+//! credential or helper process is contacted, and every value on the wire is
+//! synthetic.
 use super::*;
 use crate::daemon::audio::tests::fixture;
 use orbit_core::protocol::Command;
@@ -15,7 +16,7 @@ const DEVICE_ID: &str = "20000000-0000-4000-8000-000000000002";
 const RECORDING_ID: &str = "10000000-0000-4000-8000-000000000001";
 const SESSION_ID: &str = "30000000-0000-4000-8000-000000000003";
 const DEVICE_TOKEN: &str = "synthetic-not-a-credential";
-const DEVICE_NAME: &str = "Fixture DAE-01";
+const DEVICE_NAME: &str = "Fixture Mac";
 
 /// A paired runtime online with the one-shot hub at `base`.
 fn online_with_hub(runtime: &mut Runtime, base: &reqwest::Url) {
@@ -54,7 +55,7 @@ fn recorded(seen: &Arc<StdMutex<Option<HttpRequest>>>) -> Result<HttpRequest> {
     seen.lock()
         .ok()
         .and_then(|mut slot| slot.take())
-        .context("la fixture no recibió ninguna petición")
+        .context("the fixture received no request")
 }
 
 /// One loopback HTTP conversation: a single request is read in full, recorded,
@@ -133,11 +134,11 @@ fn json_response(status: &str, body: &str) -> Vec<u8> {
     .into_bytes()
 }
 
-/// A1. Pairing belongs to the daemon: the app never touches credentials. A
+/// Pairing belongs to the daemon: the app never touches credentials. A
 /// rejected code explains itself in the notice and saves nothing; a valid code
 /// stores the credential where the CLI stored it today and never shows it.
 #[tokio::test]
-async fn a1_pair_through_the_daemon_saves_the_credential_and_never_shows_it() -> Result<()> {
+async fn pair_through_the_daemon_saves_the_credential_and_never_shows_it() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
 
@@ -159,21 +160,18 @@ async fn a1_pair_through_the_daemon_saves_the_credential_and_never_shows_it() ->
     assert_eq!(request.start_line, "POST /v1/pair HTTP/1.1");
     assert!(
         request.body.contains("codigo-rechazado"),
-        "el código no viajó al hub: {request:?}"
+        "the code did not travel to the hub: {request:?}"
     );
     let settings = runtime.paths.load_settings()?;
-    assert!(settings.device_id.is_none(), "un código rechazado emparejó");
-    assert!(
-        settings.hub_url.is_none(),
-        "un código rechazado guardó el hub"
-    );
+    assert!(settings.device_id.is_none(), "a rejected code paired");
+    assert!(settings.hub_url.is_none(), "a rejected code saved the hub");
     assert!(
         crate::config::get_secret(&runtime.paths, "device", true)?.is_none(),
-        "un código rechazado guardó credencial"
+        "a rejected code saved a credential"
     );
     assert!(
         runtime.state.notice_code() == Some(orbit_core::notice::NoticeCode::PairingFailed),
-        "el rechazo no se explicó en el aviso: {:?}",
+        "the notice did not explain the rejection: {:?}",
         runtime.state.durable.notice
     );
 
@@ -193,14 +191,14 @@ async fn a1_pair_through_the_daemon_saves_the_credential_and_never_shows_it() ->
     let request = recorded(&accepted_seen)?;
     assert!(
         request.body.contains(DEVICE_NAME),
-        "el nombre del dispositivo no viajó al hub: {request:?}"
+        "the device name did not travel to the hub: {request:?}"
     );
     let settings = runtime.paths.load_settings()?;
     assert_eq!(settings.device_id.as_deref(), Some(DEVICE_ID));
     let stored_hub = settings
         .hub_url
         .as_deref()
-        .context("el emparejado no guardó el hub")?;
+        .context("pairing did not save the hub")?;
     assert_eq!(reqwest::Url::parse(stored_hub)?, accepted);
     assert_eq!(
         crate::config::get_secret(&runtime.paths, "device", true)?.as_deref(),
@@ -208,16 +206,16 @@ async fn a1_pair_through_the_daemon_saves_the_credential_and_never_shows_it() ->
     );
     assert!(
         !serde_json::to_string(&runtime.state.durable.notice_log)?.contains(DEVICE_TOKEN),
-        "el aviso publicó la credencial: {:?}",
+        "the notice published the credential: {:?}",
         runtime.state.durable.notice
     );
     Ok(())
 }
 
-/// A3. The daemon reads the hub's session list as the hub gives it, and can
+/// The daemon reads the hub's session list as the hub gives it, and can
 /// open one of them.
 #[tokio::test]
-async fn a3_sessions_are_the_hubs_rows_and_session_open_makes_one_active() -> Result<()> {
+async fn sessions_are_the_hubs_rows_and_session_open_makes_one_active() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     let (base, seen) = one_shot_http(json_response(
@@ -233,7 +231,7 @@ async fn a3_sessions_are_the_hubs_rows_and_session_open_makes_one_active() -> Re
         .sessions(None)
         .await
     else {
-        bail!("la lectura de sesiones no llegó");
+        bail!("the sessions read did not arrive");
     };
     let request = recorded(&seen)?;
     assert_eq!(request.start_line, "GET /v1/sessions?before= HTTP/1.1");
@@ -242,14 +240,14 @@ async fn a3_sessions_are_the_hubs_rows_and_session_open_makes_one_active() -> Re
             .authorization
             .as_deref()
             .is_some_and(|value| value.eq_ignore_ascii_case(&format!("Bearer {DEVICE_TOKEN}"))),
-        "la lista de sesiones no viajó con la credencial del dispositivo"
+        "the session list did not travel with the device credential"
     );
     let sessions = value
         .items
         .into_iter()
         .map(serde_json::from_value::<orbit_core::SessionSummary>)
         .collect::<Result<Vec<_>, _>>()?;
-    assert_eq!(sessions.len(), 2, "la lista del hub no se proyectó entera");
+    assert_eq!(sessions.len(), 2, "the hub's list was not projected whole");
     assert_eq!(sessions[0].id, "session-one");
     assert_eq!(sessions[0].created_at_ms, 1_700_000_000_125);
     assert_eq!(sessions[0].last_at_ms, 1_700_000_090_000);
@@ -265,16 +263,16 @@ async fn a3_sessions_are_the_hubs_rows_and_session_open_makes_one_active() -> Re
     assert_eq!(
         runtime.state.session_id().as_deref(),
         Some("session-two"),
-        "abrir la sesión no la hizo activa"
+        "opening the session did not make it active"
     );
     Ok(())
 }
 
-/// SIM-30, fault 5: opening a previous conversation and reading it as the
-/// screen does gives the messages the hub keeps for it, in order, with Mars's
-/// own by the id the Mac gave them.
+/// Opening a previous conversation and reading it as the screen does gives
+/// the messages the hub keeps for it, in order, with the user's own by the id
+/// the Mac gave them.
 #[tokio::test]
-async fn sim30_opening_a_previous_conversation_shows_its_messages() -> Result<()> {
+async fn opening_a_previous_conversation_shows_its_messages() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     let (base, seen) = one_shot_http(json_response(
@@ -292,7 +290,7 @@ async fn sim30_opening_a_previous_conversation_shows_its_messages() -> Result<()
         })
         .await?;
     let Knowledge::Present { value, .. } = read_messages(&runtime, None).await else {
-        bail!("la conversación abierta no se leyó");
+        bail!("the open conversation was not read");
     };
     let request = recorded(&seen)?;
     assert_eq!(
@@ -311,7 +309,7 @@ async fn sim30_opening_a_previous_conversation_shows_its_messages() -> Result<()
     assert_eq!(
         texts,
         ["Hola", "Respuesta"],
-        "al abrir una conversación anterior no se ven sus mensajes"
+        "opening a previous conversation does not show its messages"
     );
     assert_eq!(messages[0].id, "40000000-0000-4000-8000-000000000004");
     assert_eq!(messages[1].id, "2");
@@ -320,10 +318,10 @@ async fn sim30_opening_a_previous_conversation_shows_its_messages() -> Result<()
     Ok(())
 }
 
-/// SIM-30: older pages are asked for with the hub's cursor, and a voice note
+/// Older pages are asked for with the hub's cursor, and a voice note
 /// says whether this Mac still holds its audio, found by the Mac's id.
 #[tokio::test]
-async fn sim30_an_older_page_and_the_voice_notes_audio() -> Result<()> {
+async fn an_older_page_and_the_voice_notes_audio() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     let held = "50000000-0000-4000-8000-000000000005";
@@ -360,7 +358,7 @@ async fn sim30_an_older_page_and_the_voice_notes_audio() -> Result<()> {
     let Knowledge::Present { value, .. } =
         read_messages(&runtime, Some(Cursor::Id { id: "9".into() })).await
     else {
-        bail!("la página anterior no se leyó");
+        bail!("the older page was not read");
     };
     assert_eq!(
         recorded(&seen)?.start_line,
@@ -391,16 +389,16 @@ async fn sim30_an_older_page_and_the_voice_notes_audio() -> Result<()> {
     );
     assert_eq!(
         messages[1].at_ms, None,
-        "a message from before SIM-30 has no time"
+        "a message stored before messages carried their time has none"
     );
     Ok(())
 }
 
-/// SIM-30: without the hub there is no chat. Reading a conversation offline
-/// asks nothing, refuses with the missing link and tells Mars what is
-/// missing (a notice she can fix).
+/// Without the hub there is no chat. Reading a conversation offline asks
+/// nothing, refuses with the missing link and tells the user what is missing
+/// (a notice they can fix).
 #[tokio::test]
-async fn sim30_reading_a_conversation_offline_says_the_hub_is_missing() -> Result<()> {
+async fn reading_a_conversation_offline_says_the_hub_is_missing() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     runtime.settings.hub_url = Some("http://127.0.0.1:9".into());
@@ -434,7 +432,7 @@ async fn sim30_reading_a_conversation_offline_says_the_hub_is_missing() -> Resul
 }
 
 #[tokio::test]
-async fn a4_transcript_retry_calls_the_hub_route_with_the_device_bearer_and_publishes_requeued()
+async fn transcript_retry_calls_the_hub_route_with_the_device_bearer_and_publishes_requeued()
 -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
@@ -449,12 +447,12 @@ async fn a4_transcript_retry_calls_the_hub_route_with_the_device_bearer_and_publ
             recording_id: RECORDING_ID.into(),
         })
         .await?;
-    // SIM-41: the order goes off the loop; its answer comes back as a note
+    // The order goes off the loop; its answer comes back as a note
     // event, the path production takes.
     let answer = tokio::time::timeout(std::time::Duration::from_secs(10), events.recv())
         .await
-        .context("la fixture no contestó el reintento")?
-        .context("el canal de notas se cerró")?;
+        .context("the fixture did not answer the retry")?
+        .context("the notes channel closed")?;
     runtime.note_answer(answer).await?;
     let request = recorded(&seen)?;
     assert_eq!(
@@ -466,7 +464,7 @@ async fn a4_transcript_retry_calls_the_hub_route_with_the_device_bearer_and_publ
             .authorization
             .as_deref()
             .is_some_and(|value| value.eq_ignore_ascii_case(&format!("Bearer {DEVICE_TOKEN}"))),
-        "el reintento no viajó con la credencial del dispositivo"
+        "the retry did not travel with the device credential"
     );
     assert!(
         runtime.state.durable.notice
@@ -490,7 +488,7 @@ async fn a4_transcript_retry_calls_the_hub_route_with_the_device_bearer_and_publ
                 }
                 .with(orbit_core::notice::NoticeKey::Count, 2_u64)
             ),
-        "el aviso no dijo cuántos grupos se encolaron: {:?}",
+        "the notice did not say how many groups were queued: {:?}",
         runtime.state.durable.notice
     );
     Ok(())
@@ -572,7 +570,7 @@ async fn pairing_does_not_install_an_identity_if_forgetting_the_session_cannot_b
 }
 
 #[tokio::test]
-async fn sim93_manual_final_pass_reaches_hub_and_refusals_reach_notice_and_report() -> Result<()> {
+async fn manual_final_pass_reaches_hub_and_refusals_reach_notice_and_report() -> Result<()> {
     use orbit_core::notice::{NoticeCode, NoticeKey};
     for (response, expected, expected_status, count, total) in [
         (json_response("200 OK", "{}"), "ok", 200, 0, 0),
@@ -611,7 +609,7 @@ async fn sim93_manual_final_pass_reaches_hub_and_refusals_reach_notice_and_repor
             "command":"transcript_retranscribe", "recording_id":RECORDING_ID
         }))?;
         runtime.command(command).await?;
-        let answer = events.recv().await.context("el hub falso debe contestar")?;
+        let answer = events.recv().await.context("the fake hub must answer")?;
         runtime.note_answer(answer).await?;
         let request = recorded(&seen)?;
         assert_eq!(
@@ -630,7 +628,7 @@ async fn sim93_manual_final_pass_reaches_hub_and_refusals_reach_notice_and_repor
                 .durable
                 .notice
                 .clone()
-                .context("aviso de negativa")?;
+                .context("refusal notice")?;
             let data = serde_json::to_value(&notice.data)?;
             assert_eq!(data["status"], expected_status);
             assert!(data.get("closed").is_none());
@@ -651,7 +649,7 @@ async fn sim93_manual_final_pass_reaches_hub_and_refusals_reach_notice_and_repor
                 .collect::<std::result::Result<Vec<_>, _>>()?
                 .into_iter()
                 .find(|row| row["data"]["code"] == expected)
-                .context("la negativa debe llegar al informe con su código")?;
+                .context("the refusal must reach the report with its code")?;
             assert_eq!(row["data"]["status"], expected_status);
             if count > 0 {
                 assert!(
@@ -666,7 +664,7 @@ async fn sim93_manual_final_pass_reaches_hub_and_refusals_reach_notice_and_repor
 }
 
 #[tokio::test]
-async fn sim93_a_lost_hub_response_is_unconfirmed_with_its_own_notice_and_report() -> Result<()> {
+async fn a_lost_hub_response_is_unconfirmed_with_its_own_notice_and_report() -> Result<()> {
     for (response, cause, status) in [
         (Vec::new(), "hub_unreachable", None),
         (
@@ -692,7 +690,7 @@ async fn sim93_a_lost_hub_response_is_unconfirmed_with_its_own_notice_and_report
         let answer = events
             .recv()
             .await
-            .context("respuesta del hub falso cerrado")?;
+            .context("answer from the closed fake hub")?;
         runtime.note_answer(answer).await?;
         recorded(&seen)?;
         assert_eq!(
@@ -723,7 +721,7 @@ async fn sim93_a_lost_hub_response_is_unconfirmed_with_its_own_notice_and_report
 }
 
 #[tokio::test]
-async fn sim94_dictionary_orders_preserve_numbers_without_logging_terms() -> Result<()> {
+async fn dictionary_orders_preserve_numbers_without_logging_terms() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     runtime.report_log = Some(orbit_ipc::report::ReportLog::daemon(directory.path()));
@@ -773,8 +771,7 @@ async fn sim94_dictionary_orders_preserve_numbers_without_logging_terms() -> Res
 }
 
 #[tokio::test]
-async fn sim94_an_offline_dictionary_order_is_refused_without_retaining_terms_to_retry()
--> Result<()> {
+async fn an_offline_dictionary_order_is_refused_without_retaining_terms_to_retry() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     let base = reqwest::Url::parse("http://127.0.0.1:0")?;
@@ -805,7 +802,7 @@ async fn sim94_an_offline_dictionary_order_is_refused_without_retaining_terms_to
 }
 
 #[tokio::test]
-async fn sim94_a_confirmed_dictionary_change_invalidates_every_recording_read() -> Result<()> {
+async fn a_confirmed_dictionary_change_invalidates_every_recording_read() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     let (base, seen) = one_shot_http(json_response("200 OK", "{}")).await?;
@@ -834,7 +831,7 @@ async fn sim94_a_confirmed_dictionary_change_invalidates_every_recording_read() 
 }
 
 #[tokio::test]
-async fn sim94_local_access_refusals_keep_their_actual_cause() -> Result<()> {
+async fn local_access_refusals_keep_their_actual_cause() -> Result<()> {
     for (stopped, expected) in [(false, "not_paired"), (true, "privacy_stopped")] {
         let directory = tempfile::tempdir()?;
         let (mut runtime, _helper) = fixture(directory.path())?;

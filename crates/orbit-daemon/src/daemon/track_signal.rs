@@ -123,7 +123,7 @@ impl Runtime {
                 .as_ref()
                 .map(|recording| recording.id.as_str())
                 == Some(&monitor.recording_id)
-            // Before P2-02 sealing was synchronous, so a Status projection
+            // Sealing used to be synchronous, so a Status projection
             // could not expose all observed frames while its durable chunk
             // receipts still lagged behind. Preserve that coherence without
             // making Status wait on the writer: the live monitor stays in RAM

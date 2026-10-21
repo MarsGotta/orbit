@@ -1,5 +1,5 @@
-//! SIM-41 acceptance at the daemon: the Mac passes through what the hub
-//! computes, adds only what it owns, and carries Mars's orders to the hub.
+//! The meeting notes at the daemon: the Mac passes through what the hub
+//! computes, adds only what it owns, and carries the user's orders to the hub.
 //! Every request goes to a synthetic hub on loopback (`fake_hub`); none of
 //! this is evidence about the real hub.
 use super::fake_hub::{self, Hub, lock};
@@ -136,7 +136,7 @@ fn received(hub: &fake_hub::Shared, method: &str, route: &str) -> Vec<Value> {
 /// Language, speaker names and relative times are computed by the real hub,
 /// covered by server/tests/test_meeting_views.py::test_c1_turns_are_relative_named_never_empty_and_the_meeting_says_its_language.
 #[tokio::test]
-async fn sim41_a1_the_hubs_turns_arrive_unchanged_across_pages() -> Result<()> {
+async fn the_hubs_turns_arrive_unchanged_across_pages() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let hub = paired(&mut runtime).await?;
@@ -169,7 +169,7 @@ async fn sim41_a1_the_hubs_turns_arrive_unchanged_across_pages() -> Result<()> {
 
 /// The owner's name goes to the hub when it connects, once.
 #[tokio::test]
-async fn sim41_the_account_name_goes_to_the_hub_on_connecting() -> Result<()> {
+async fn the_account_name_goes_to_the_hub_on_connecting() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     runtime.features.notes = super::NotesRuntime::for_tests(runtime.features.notes.events.clone());
@@ -193,7 +193,7 @@ async fn sim41_the_account_name_goes_to_the_hub_on_connecting() -> Result<()> {
 /// The list: the recording in progress, the ones uploading and the hub's,
 /// each once, newest first.
 #[tokio::test]
-async fn sim41_a2_the_list_joins_this_macs_recordings_and_the_hubs() -> Result<()> {
+async fn the_list_joins_this_macs_recordings_and_the_hubs() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let hub = paired(&mut runtime).await?;
@@ -251,7 +251,7 @@ async fn sim41_a2_the_list_joins_this_macs_recordings_and_the_hubs() -> Result<(
 /// Without the hub the list still shows this Mac's recordings, and says why
 /// the rest is missing.
 #[tokio::test]
-async fn sim41_without_the_hub_the_macs_recordings_are_still_listed() -> Result<()> {
+async fn without_the_hub_the_macs_recordings_are_still_listed() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     start_recording(&mut runtime);
@@ -275,11 +275,11 @@ async fn sim41_without_the_hub_the_macs_recordings_are_still_listed() -> Result<
     Ok(())
 }
 
-/// SIM-52: a recording in progress is named in its note as in the list. The
+/// A recording in progress is named in its note as in the list. The
 /// hub has no title for it until it closes («Reunión del…», from its first
 /// chunk); this Mac does, and gives it to both.
 #[tokio::test]
-async fn sim52_a_recording_in_progress_is_named_in_its_note_as_in_the_list() -> Result<()> {
+async fn a_recording_in_progress_is_named_in_its_note_as_in_the_list() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let hub = paired(&mut runtime).await?;
@@ -295,7 +295,7 @@ async fn sim52_a_recording_in_progress_is_named_in_its_note_as_in_the_list() -> 
 
 /// The hub's list continues by cursor, the start of its last row.
 #[tokio::test]
-async fn sim41_the_list_continues_from_the_last_row() -> Result<()> {
+async fn the_list_continues_from_the_last_row() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let hub = paired(&mut runtime).await?;
@@ -331,7 +331,7 @@ async fn sim41_the_list_continues_from_the_last_row() -> Result<()> {
 /// (only then does it say `voice_call`); this Mac knows it is its call and
 /// leaves it out.
 #[tokio::test]
-async fn sim41_the_voice_call_in_progress_is_not_a_meeting() -> Result<()> {
+async fn the_voice_call_in_progress_is_not_a_meeting() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let hub = paired(&mut runtime).await?;
@@ -366,7 +366,7 @@ async fn sim41_the_voice_call_in_progress_is_not_a_meeting() -> Result<()> {
 /// still uploading and the one being recorded, every character escaped —
 /// fits its read.
 #[tokio::test]
-async fn sim41_a_first_page_at_every_bound_fits_its_read() -> Result<()> {
+async fn a_first_page_at_every_bound_fits_its_read() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let hub = paired(&mut runtime).await?;
@@ -401,7 +401,7 @@ async fn sim41_a_first_page_at_every_bound_fits_its_read() -> Result<()> {
 
 /// `recording.changed` names the recording to read again; nothing else does.
 #[tokio::test]
-async fn sim41_a3_an_open_note_is_read_again_by_recording_changed_and_nothing_else() -> Result<()> {
+async fn an_open_note_is_read_again_by_recording_changed_and_nothing_else() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let mut events = runtime.features.notes.test_events();
@@ -428,7 +428,7 @@ async fn sim41_a3_an_open_note_is_read_again_by_recording_changed_and_nothing_el
 /// Private notes written without the hub wait in the store and reach it when
 /// it returns; the hub's confirmation empties the outbox.
 #[tokio::test]
-async fn sim41_a4_private_notes_written_offline_reach_the_hub_when_it_returns() -> Result<()> {
+async fn private_notes_written_offline_reach_the_hub_when_it_returns() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let mut events = runtime.features.notes.test_events();
@@ -443,7 +443,7 @@ async fn sim41_a4_private_notes_written_offline_reach_the_hub_when_it_returns() 
         })
         .await?;
     assert_eq!(turn(&mut runtime, &mut events, START).await?, 0);
-    // What she typed is what the note shows, before the hub has it.
+    // What the user typed is what the note shows, before the hub has it.
     let shown = document(&runtime).await?;
     assert_eq!(shown.private_notes.text, "- **presupuesto** pendiente");
     assert!(shown.private_notes.pending);
@@ -464,9 +464,9 @@ async fn sim41_a4_private_notes_written_offline_reach_the_hub_when_it_returns() 
 }
 
 /// A stale revision is refused by the hub with a 409: the daemon reads the
-/// current one and sends her text once more on it.
+/// current one and sends the user's text once more on it.
 #[tokio::test]
-async fn sim41_private_notes_on_a_stale_revision_go_again_on_the_current_one() -> Result<()> {
+async fn private_notes_on_a_stale_revision_go_again_on_the_current_one() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let mut events = runtime.features.notes.test_events();
@@ -495,7 +495,7 @@ async fn sim41_private_notes_on_a_stale_revision_go_again_on_the_current_one() -
 /// The private notes an older Mac kept go up once, and leave the Mac when the
 /// hub confirms them.
 #[tokio::test]
-async fn sim41_a4_the_old_stores_private_notes_go_up_once() -> Result<()> {
+async fn the_old_stores_private_notes_go_up_once() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let mut events = runtime.features.notes.test_events();
@@ -521,9 +521,9 @@ async fn sim41_a4_the_old_stores_private_notes_go_up_once() -> Result<()> {
 }
 
 /// Renaming a speaker, editing and rewriting the note go to the hub's routes
-/// as Mars gave them.
+/// as the user gave them.
 #[tokio::test]
-async fn sim41_orders_reach_the_hubs_routes() -> Result<()> {
+async fn orders_reach_the_hubs_routes() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let mut events = runtime.features.notes.test_events();
@@ -578,10 +578,10 @@ async fn sim41_orders_reach_the_hubs_routes() -> Result<()> {
     Ok(())
 }
 
-/// SIM-52: a change of language and a rename go to the hub's routes as Mars
+/// A change of language and a rename go to the hub's routes as the user
 /// gave them, and the document the app reads again says what the hub did.
 #[tokio::test]
-async fn sim52_language_and_title_reach_the_hubs_routes() -> Result<()> {
+async fn language_and_title_reach_the_hubs_routes() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let mut events = runtime.features.notes.test_events();
@@ -652,7 +652,7 @@ async fn sim52_language_and_title_reach_the_hubs_routes() -> Result<()> {
 /// Audio the hub cannot read is said on screen with its cause and numbers,
 /// never as the generic refusal of a note change.
 #[tokio::test]
-async fn sim52_unreadable_audio_is_said_with_how_many_groups_of_how_many() -> Result<()> {
+async fn unreadable_audio_is_said_with_how_many_groups_of_how_many() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let mut events = runtime.features.notes.test_events();
@@ -684,7 +684,7 @@ async fn sim52_unreadable_audio_is_said_with_how_many_groups_of_how_many() -> Re
 /// What the hub would refuse is refused on the Mac at once, with its
 /// numbers, and nothing is sent.
 #[tokio::test]
-async fn sim52_a_language_or_title_the_hub_refuses_is_refused_here() -> Result<()> {
+async fn a_language_or_title_the_hub_refuses_is_refused_here() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let hub = paired(&mut runtime).await?;
@@ -717,7 +717,7 @@ async fn sim52_a_language_or_title_the_hub_refuses_is_refused_here() -> Result<(
 /// A note order the hub refuses is said, with the hub's code; one that
 /// cannot reach the hub is refused at once, with its cause.
 #[tokio::test]
-async fn sim41_a_refused_or_unsent_order_is_said() -> Result<()> {
+async fn a_refused_or_unsent_order_is_said() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let mut events = runtime.features.notes.test_events();
@@ -755,10 +755,10 @@ async fn sim41_a_refused_or_unsent_order_is_said() -> Result<()> {
     Ok(())
 }
 
-/// P9-05 without a queue: a template order goes to the hub as Mars gives
+/// Without a queue: a template order goes to the hub as the user gives
 /// it, one at a time, and a refused one is shown by its target.
 #[tokio::test]
-async fn sim41_template_orders_go_to_the_hub_and_a_refusal_is_shown() -> Result<()> {
+async fn template_orders_go_to_the_hub_and_a_refusal_is_shown() -> Result<()> {
     use orbit_core::notes::{LibraryItem, LibraryRequest, TemplateDraft, TemplateSection};
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
@@ -823,10 +823,10 @@ async fn sim41_template_orders_go_to_the_hub_and_a_refusal_is_shown() -> Result<
     Ok(())
 }
 
-/// The account's name labels Mars's microphone on the hub: read from the
+/// The account's name labels the user's microphone on the hub: read from the
 /// program that prints it, «Yo» when it fails or is late.
 #[tokio::test]
-async fn sim41_the_account_name_is_read_with_a_deadline_and_says_yo_when_late() -> Result<()> {
+async fn the_account_name_is_read_with_a_deadline_and_says_yo_when_late() -> Result<()> {
     use std::os::unix::fs::PermissionsExt;
     let directory = tempfile::tempdir()?;
     let script = |name: &str, body: &str| -> Result<std::path::PathBuf> {
@@ -857,7 +857,7 @@ async fn sim41_the_account_name_is_read_with_a_deadline_and_says_yo_when_late() 
 /// A privacy stop: nothing goes to the hub, the reads say why, and what is
 /// owed stays in the store for the rearm.
 #[tokio::test]
-async fn sim41_a_privacy_stop_sends_nothing_and_keeps_what_is_owed() -> Result<()> {
+async fn a_privacy_stop_sends_nothing_and_keeps_what_is_owed() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let mut events = runtime.features.notes.test_events();

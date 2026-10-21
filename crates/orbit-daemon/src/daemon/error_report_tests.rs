@@ -1,4 +1,4 @@
-//! SIM-23 in the actor: the report path ends in the one error-report client,
+//! Error reports in the actor: the report path ends in the one error-report client,
 //! the switch is a setting, and what the helper reports reaches the local
 //! report log with its op.
 #![allow(clippy::unwrap_used)]
@@ -25,7 +25,7 @@ fn line<'a>(lines: &'a [Value], code: &str) -> &'a Value {
         .unwrap_or_else(|| panic!("no line {code} in {lines:#?}"))
 }
 
-/// Criterion 1, the daemon's half: a notice it says and an error the
+/// The daemon's half of what leaves for Sentry: a notice it says and an error the
 /// interface reports through `Command::Report` leave through the same
 /// client, each with its code and its op.
 #[tokio::test]
@@ -103,7 +103,7 @@ async fn the_switch_is_saved_in_force_and_shown_only_when_offered() {
     assert_eq!(sentry.events().len(), 1);
 }
 
-/// Criterion 4: every failed order and every step of «Oye Deimos» the
+/// Every failed order and every step of «Oye Deimos» the
 /// helper reports reaches the local report log under the op of its turn,
 /// without becoming a notice on screen.
 #[tokio::test]

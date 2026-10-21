@@ -75,7 +75,7 @@ impl Runtime {
     }
 
     /// Sends a built command with `native_send`'s deadline, for a caller
-    /// that needs its id first (P9-12 `audio_wake_phrase`).
+    /// that needs its id first (`audio_wake_phrase`).
     pub(super) async fn native_send_command(&mut self, command: Value) -> Result<()> {
         if !self.state.capabilities().native_helper() {
             return Ok(());
@@ -85,7 +85,7 @@ impl Runtime {
             .to_owned();
         let name = name.as_str();
         self.record_pending_native(&command);
-        // P2-01 R5: every helper send carries the 500 ms deadline. A stalled
+        // Every helper send carries the 500 ms deadline. A stalled
         // helper must not stall the actor; the deadline classifies the loss
         // with the same taxonomy the rest of the actor already speaks.
         match tokio::time::timeout(Duration::from_millis(500), self.native.send(command)).await {
@@ -130,7 +130,7 @@ impl Runtime {
 
     async fn send_with_stop_window(&mut self, frame: Value, stop_window: bool) -> Result<()> {
         // `chat.interrupt` withdraws an already live turn; it is the one
-        // outbound command her newly latched stop must still deliver.
+        // outbound command the user's newly latched stop must still deliver.
         let interrupt =
             HubMethod::deserialize(&frame).is_ok_and(|header| header.method == "chat.interrupt");
         if self.state.privacy_stopped() && !(stop_window && interrupt) {

@@ -1,4 +1,4 @@
-//! Deimos's reads of the agenda: any range, answered in pages. REF-10.
+//! Deimos's reads of the agenda: any range, answered in pages.
 //!
 //! Deimos asks the translator once; the translator walks this Mac's pages and
 //! joins them (`server/orbit_mcp/calendar.py`). A page is as many whole events
@@ -9,9 +9,9 @@
 //! as the walk moves past it. Nothing else is kept, and nothing is sent to the
 //! hub but the answer.
 //!
-//! A7: every page Deimos receives updates one local activity row for its walk
+//! Every page Deimos receives updates one local activity row for its walk
 //! — the range, how many events and when — which decides nothing and asks
-//! Mars for nothing.
+//! the user for nothing.
 use std::{
     collections::BTreeMap,
     time::{Duration, Instant},
@@ -271,7 +271,7 @@ impl Runtime {
         end_ms: i64,
         cursor: Option<Cursor>,
     ) -> std::result::Result<(), Refusal> {
-        // A6/A8 again at the moment of reading: the permission can change
+        // The access check again at the moment of reading: the permission can change
         // between admission and here, and «no events» is the wrong way to say so.
         match self.calendar_access() {
             Knowledge::Present { .. } => {}
@@ -474,7 +474,7 @@ impl Runtime {
                 start_unix_ms: walk.range.start_unix_ms,
                 end_unix_ms: walk.range.end_unix_ms,
             },
-            // A3: when EventKit was actually read, not when anything was kept.
+            // When EventKit was actually read, not when anything was kept.
             read_at_unix_ms: walk.read_at,
             system_timezone: walk.timezone.clone(),
             provider_sync_status: "unknown".into(),
@@ -507,7 +507,7 @@ impl Runtime {
                     BridgeResult::CalendarRead(result)
                 )),
             ),
-            "la respuesta sobre tu agenda",
+            "the agenda reply",
         );
         if self
             .conversation
@@ -576,13 +576,13 @@ impl Runtime {
 }
 
 #[cfg(test)]
-mod ref403_tests {
+mod field_validation_tests {
     use super::*;
     use crate::daemon::{audio::tests::fixture, calendar::tests::seed};
     use tokio::sync::mpsc;
 
     #[test]
-    fn ref405b_invalid_nested_calendar_field_is_named() {
+    fn invalid_nested_calendar_field_is_named() {
         let row = json!({
             "observation_id":"synthetic",
             "calendar":{"source_id":"account"},
@@ -602,7 +602,7 @@ mod ref403_tests {
     }
 
     #[tokio::test]
-    async fn a6_a_page_encoding_error_uses_its_own_code_on_the_real_walk() -> Result<()> {
+    async fn a_page_encoding_error_uses_its_own_code_on_the_real_walk() -> Result<()> {
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut helper) = fixture(directory.path())?;
         seed(&mut runtime, &mut helper).await?;
@@ -640,7 +640,7 @@ mod ref403_tests {
     }
 
     #[tokio::test]
-    async fn ref405b_invalid_calendar_event_answers_before_retiring_the_walk() -> Result<()> {
+    async fn invalid_calendar_event_answers_before_retiring_the_walk() -> Result<()> {
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut helper) = fixture(directory.path())?;
         seed(&mut runtime, &mut helper).await?;
@@ -674,7 +674,7 @@ mod ref403_tests {
     }
 
     #[test]
-    fn a1_numbered_calendar_causes_keep_their_contract_bounds() {
+    fn numbered_calendar_causes_keep_their_contract_bounds() {
         use orbit_core::refusal::CalendarReadLimit;
         assert_eq!(
             bridge_calendar_refusal("calendar_event_too_large"),

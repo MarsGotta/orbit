@@ -22,7 +22,7 @@ fn playback_clip_fits_command_line_and_larger_frame_is_refused() -> Result<()> {
         }),
     )?;
     let line = encode_command_line(&frame)?;
-    println!("REF-406 helper playback line: {} bytes", line.len());
+    println!("helper playback line: {} bytes", line.len());
     assert!(line.len() <= MAX_HELPER_COMMAND_LINE_BYTES);
     assert!(line.len() > MAX_HELPER_EVENT_LINE_BYTES);
     let too_large = json!({"payload": "x".repeat(MAX_HELPER_COMMAND_LINE_BYTES)});

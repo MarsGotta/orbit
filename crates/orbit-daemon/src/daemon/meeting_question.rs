@@ -1,9 +1,9 @@
-//! P9-12: Deimos during a meeting, as the daemon carries it out
+//! Deimos during a meeting, as the daemon carries it out
 //! (`orbit_core::meeting_question`). A question arrives typed («Preguntar a
 //! Deimos»), spoken («Oye Deimos, …», the helper's `assistant_question`) or
 //! dictated with the shortcut during a recording; it goes to Deimos as a
-//! conversation turn about the meeting (SIM-30: `chat.send` with `meeting`,
-//! and the hub adds its last minutes of transcript), and the recording topic
+//! conversation turn about the meeting (`chat.send` with `meeting`, and the
+//! hub adds its last minutes of transcript), and the recording topic
 //! follows that turn to its answer or its cause for the floating panel.
 //!
 //! RAM only: the question is the panel's, the answer stays in the
@@ -63,7 +63,7 @@ impl Runtime {
         now()
     }
 
-    /// The recording in progress (recording or paused): what Mars can ask
+    /// The recording in progress (recording or paused): what the user can ask
     /// about. A recording starting or closing has nothing to ask yet.
     fn meeting_in_progress(&self) -> Option<Meeting> {
         self.state
@@ -305,8 +305,8 @@ impl Runtime {
             .current
             .as_ref()
             .filter(|current| current.stage == QuestionStage::Thinking);
-        // The helper heard the same words again (SIM-25): that question is
-        // the one on its way, and nothing was refused that Mars asked.
+        // The helper heard the same words again: that question is the one
+        // on its way, and nothing was refused that the user asked.
         let repeated = origin == QuestionOrigin::Voice
             && thinking.is_some_and(|current| same_question(&current.question, &question));
         let thinking = thinking.is_some();
@@ -352,9 +352,10 @@ impl Runtime {
         ));
     }
 
-    /// The helper heard «Oye Deimos, …» on Mars's microphone. Taken only from
-    /// the microphone stream of the recording in progress, with her stop off
-    /// and no voice note being dictated (the dictation is then the question).
+    /// The helper heard «Oye Deimos, …» on the user's microphone. Taken only
+    /// from the microphone stream of the recording in progress, with the
+    /// user's stop off and no voice note being dictated (the dictation is
+    /// then the question).
     pub(super) async fn on_assistant_question(&mut self, event: &Value) -> Result<()> {
         let decoded: NativeEvent = serde_json::from_value(event.clone())?;
         let NativeEvent::AssistantQuestion {
@@ -488,7 +489,7 @@ impl Runtime {
     }
 
     /// The microphone stream «Oye Deimos» should listen on now: the meeting
-    /// recording's while it starts or records, with her stop off and a
+    /// recording's while it starts or records, with the user's stop off and a
     /// helper that knows the order. A voice note's stream counts once the
     /// meeting uses it; a paused or finished meeting listens on nothing.
     fn wake_target(&self) -> Option<String> {
@@ -509,8 +510,8 @@ impl Runtime {
             .flatten()
     }
 
-    /// Turns the phrase on or off in the helper so it follows the meeting
-    /// (R1). Her stop and a lost helper turn it off on the helper's side by
+    /// Turns the phrase on or off in the helper so it follows the meeting.
+    /// The user's stop and a lost helper turn it off on the helper's side by
     /// themselves; the daemon then only forgets it.
     pub(super) async fn sync_wake_phrase(&mut self) -> Result<()> {
         if self.state.privacy_stopped() || !self.state.helper_connected() {
@@ -611,7 +612,7 @@ impl Runtime {
         true
     }
 
-    /// The recording topic's «Oye Deimos» status (R2).
+    /// The recording topic's «Oye Deimos» status.
     pub(super) fn voice_status(&self) -> Option<orbit_core::meeting_question::VoiceStatus> {
         orbit_core::meeting_question::voice_status(&orbit_core::meeting_question::VoiceFacts {
             recording: self
@@ -658,7 +659,7 @@ impl Runtime {
         }
     }
 
-    /// Mars interrupted the turn in flight.
+    /// The user interrupted the turn in flight.
     pub(super) fn meeting_question_interrupted(&mut self) {
         if self.question_turn_in_flight() {
             self.features.question.failure = Some(QuestionCause::Interrupted);
@@ -687,7 +688,7 @@ impl Runtime {
             return;
         }
         let in_flight = self.state.durable.active_request.as_deref() == Some(question.id.as_str());
-        // SIM-30: the answer is the turn's, while it is still the question's.
+        // The answer is the turn's, while it is still the question's.
         let answer = self
             .state
             .durable
@@ -742,7 +743,7 @@ impl Runtime {
         Ok(())
     }
 
-    /// Mars closed the question in the panel.
+    /// The user closed the question in the panel.
     pub(super) fn close_meeting_question(&mut self, id: &str) {
         if self
             .features
@@ -826,7 +827,7 @@ fn bounded(text: &str, max: usize) -> String {
     text[..end].to_owned()
 }
 
-/// SIM-23: the notice a state of the «Oye Deimos» detector is recorded as.
+/// The notice a state of the «Oye Deimos» detector is recorded as.
 /// Two states with the same notice are one step: a download's percent does
 /// not record anything new; Apple's detail never leaves `daemon.log`.
 fn wake_phrase_notice(trigger: &VoiceTrigger) -> Notice {

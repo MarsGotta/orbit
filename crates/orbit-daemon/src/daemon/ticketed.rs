@@ -71,7 +71,7 @@ impl Deadline {
 pub(super) struct WorkTicket {
     id: String,
     generation: u64,
-    /// The op of the turn that started the work (SIM-21): its requests to
+    /// The op of the turn that started the work: its requests to
     /// the hub and the notices its result causes carry it.
     op: orbit_core::notice::Op,
 }

@@ -1,4 +1,4 @@
-//! Writes Mars makes from Orbit, through the helper's single EventKit slot (P9-21).
+//! Writes the user makes from Orbit, through the helper's single EventKit slot.
 //!
 //! A write is validated in orbit-core, queued, and sent when the slot is free,
 //! before any read: a person is waiting on it, and it changes what the reads
@@ -27,8 +27,8 @@ use super::*;
 /// to the app, against a client that sends writes faster than EventKit takes
 /// them. Why 16: a person makes a few changes a second at most (a drag, then
 /// an edit), and each write takes milliseconds; sixteen waiting means
-/// something upstream is wrong, not that Mars is busy. What it is not: a limit
-/// on how many events she can change. A finished record makes room for a new
+/// something upstream is wrong, not that the user is busy. What it is not: a
+/// limit on how many events they can change. A finished record makes room for a new
 /// write; a write that finds sixteen still unfinished is refused by name with
 /// that count and this limit (`calendar_write_queue_full`), and nothing is sent.
 pub(super) const WRITE_RECORDS: usize = 16;

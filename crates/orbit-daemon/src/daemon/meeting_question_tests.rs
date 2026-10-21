@@ -1,7 +1,7 @@
-//! P9-12 acceptance through the daemon's own paths: a synthetic helper
-//! (`assistant_question`, `voice_trigger`) and a synthetic hub channel. The
-//! meeting's transcript is the hub's since SIM-30
-//! (server/tests/test_sim30_chat_from_hub.py). Nothing native, no real Deimos.
+//! Questions to Deimos during a meeting, through the daemon's own paths: a
+//! synthetic helper (`assistant_question`, `voice_trigger`) and a synthetic
+//! hub channel. The meeting's transcript is the hub's (it adds it to the
+//! turn). Nothing native, no real Deimos.
 use super::*;
 use crate::{daemon::audio::tests::fixture, hub::HubEvent};
 use orbit_core::{
@@ -79,7 +79,7 @@ fn question(runtime: &Runtime) -> Result<orbit_core::meeting_question::MeetingQu
 
 /// The recording topic as the app receives it.
 fn recording_topic(runtime: &Runtime) -> Result<Value> {
-    let mut board = crate::daemon::topics::TopicBoard::new("p9_12".into());
+    let mut board = crate::daemon::topics::TopicBoard::new("meeting-question".into());
     let channels = board.channels();
     let _receiver = channels[&TopicId::Recording].subscribe();
     board.publish(&crate::daemon::topics::TopicSource {
@@ -94,10 +94,10 @@ fn recording_topic(runtime: &Runtime) -> Result<Value> {
     }
 }
 
-/// P9-12 criterion 2: the phrase heard on the call's track, or on a stream
+/// The phrase heard on the call's track, or on a stream
 /// that is not the meeting's microphone, starts nothing.
 #[tokio::test]
-async fn p9_12_c2_the_phrase_on_the_calls_track_starts_nothing() -> Result<()> {
+async fn the_phrase_on_the_calls_track_starts_nothing() -> Result<()> {
     let (_directory, mut runtime, mut hub_frames, _helper) = meeting_with_hub().await?;
     for stream in [REMOTE, "another-mic"] {
         runtime
@@ -112,7 +112,7 @@ async fn p9_12_c2_the_phrase_on_the_calls_track_starts_nothing() -> Result<()> {
     recording(&mut runtime, "paused");
     runtime.native_event(heard(MIC, "¿Y ahora?")).await?;
     assert!(hub_frames.try_recv().is_err());
-    // Her stop: the helper should not send it; if it does, it is dropped.
+    // The user's stop: the helper should not send it; if it does, it is dropped.
     recording(&mut runtime, "recording");
     crate::daemon::authority_fixture::set(&mut runtime.state, "privacy_stopped", json!(true));
     runtime.native_event(heard(MIC, "¿Y ahora?")).await?;
@@ -121,10 +121,10 @@ async fn p9_12_c2_the_phrase_on_the_calls_track_starts_nothing() -> Result<()> {
     Ok(())
 }
 
-/// P9-12 criterion 3: the button and the shortcut ask with the same
+/// The button and the shortcut ask with the same
 /// context as the voice.
 #[tokio::test]
-async fn p9_12_c3_the_button_and_the_shortcut_ask_with_the_same_context() -> Result<()> {
+async fn the_button_and_the_shortcut_ask_with_the_same_context() -> Result<()> {
     let (_directory, mut runtime, mut hub_frames, _helper) = meeting_with_hub().await?;
     runtime
         .command(Command::MeetingAsk {
@@ -219,10 +219,10 @@ async fn p9_12_c3_the_button_and_the_shortcut_ask_with_the_same_context() -> Res
     Ok(())
 }
 
-/// P9-12 criterion 4: every failure of the turn reaches the panel with its
+/// Every failure of the turn reaches the panel with its
 /// cause, and stays 8 s.
 #[tokio::test]
-async fn p9_12_c4_each_failure_of_the_turn_reaches_the_panel_with_its_cause() -> Result<()> {
+async fn each_failure_of_the_turn_reaches_the_panel_with_its_cause() -> Result<()> {
     // Deimos (Hermes) not reachable from the hub.
     let (_directory, mut runtime, mut hub_frames, _helper) = meeting_with_hub().await?;
     runtime
@@ -297,7 +297,7 @@ async fn p9_12_c4_each_failure_of_the_turn_reaches_the_panel_with_its_cause() ->
         })
     );
 
-    // Mars interrupts a question in flight.
+    // The user interrupts a question in flight.
     let turn = runtime
         .state
         .durable
@@ -377,7 +377,7 @@ async fn p9_12_c4_each_failure_of_the_turn_reaches_the_panel_with_its_cause() ->
         "no refused question was sent"
     );
 
-    // Mars closes it; closing another one changes nothing.
+    // The user closes it; closing another one changes nothing.
     let shown = question(&runtime)?.id;
     runtime
         .command(Command::MeetingQuestionClose {
@@ -416,13 +416,13 @@ fn wake_orders(commands: &[Value]) -> Vec<(String, bool)> {
         .collect()
 }
 
-/// R1: «Oye Deimos» goes with the meeting recording, not with the stream.
+/// «Oye Deimos» goes with the meeting recording, not with the stream.
 /// A voice note opened the microphone first: the meeting reuses that stream
 /// and still turns the phrase on; pausing while the note is dictated turns
 /// it off although the stream stays open; resuming turns it on again and
 /// finishing turns it off.
 #[tokio::test]
-async fn p9_12_r1_the_phrase_follows_the_meeting_even_on_a_voice_notes_stream() -> Result<()> {
+async fn the_phrase_follows_the_meeting_even_on_a_voice_notes_stream() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     runtime.features.question.helper_listens = true;
@@ -484,12 +484,11 @@ async fn p9_12_r1_the_phrase_follows_the_meeting_even_on_a_voice_notes_stream() 
     Ok(())
 }
 
-/// R1: her stop turns the phrase off in the helper by itself; the daemon
+/// The user's stop turns the phrase off in the helper by itself; the daemon
 /// forgets it and sends nothing a latched helper would refuse. A ready from
 /// the bundled helper needs no capability negotiation.
 #[tokio::test]
-async fn p9_12_r1_her_stop_gets_no_order_and_the_bundled_helper_needs_no_negotiation() -> Result<()>
-{
+async fn user_stop_gets_no_order_and_the_bundled_helper_needs_no_negotiation() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     runtime.features.question.helper_listens = true;
@@ -516,9 +515,9 @@ async fn p9_12_r1_her_stop_gets_no_order_and_the_bundled_helper_needs_no_negotia
     Ok(())
 }
 
-/// R1/R2: a refused order turns into the status's cause, with its code.
+/// A refused order turns into the status's cause, with its code.
 #[tokio::test]
-async fn p9_12_r1_a_refused_order_says_its_code_in_the_status() -> Result<()> {
+async fn a_refused_order_says_its_code_in_the_status() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     runtime.features.question.helper_listens = true;
@@ -539,10 +538,10 @@ async fn p9_12_r1_a_refused_order_says_its_code_in_the_status() -> Result<()> {
     Ok(())
 }
 
-/// R2: the topic says whether «Oye Deimos» listens during the recording and,
+/// The topic says whether «Oye Deimos» listens during the recording and,
 /// when not, why; outside a recording it says nothing.
 #[tokio::test]
-async fn p9_12_the_detectors_state_and_its_causes_reach_the_topic() -> Result<()> {
+async fn the_detectors_state_and_its_causes_reach_the_topic() -> Result<()> {
     let (_directory, mut runtime, _hub_frames, _helper) = meeting_with_hub().await?;
     runtime.features.question.helper_listens = true;
     runtime.maintain_meeting_question().await?;
@@ -596,10 +595,10 @@ async fn p9_12_the_detectors_state_and_its_causes_reach_the_topic() -> Result<()
     Ok(())
 }
 
-/// R4: a typed question of 20 000 bytes is refused with its size and the
+/// A typed question of 20 000 bytes is refused with its size and the
 /// recording topic still fits its 16 KiB head.
 #[tokio::test]
-async fn p9_12_r4_a_huge_question_is_refused_with_its_size_and_the_topic_fits() -> Result<()> {
+async fn a_huge_question_is_refused_with_its_size_and_the_topic_fits() -> Result<()> {
     let (_directory, mut runtime, mut hub_frames, _helper) = meeting_with_hub().await?;
     runtime
         .command(Command::MeetingAsk {
@@ -625,7 +624,7 @@ async fn p9_12_r4_a_huge_question_is_refused_with_its_size_and_the_topic_fits() 
 /// The largest question with the longest title and two hundred audio
 /// applications still fits the recording topic's 16 KiB head.
 #[tokio::test]
-async fn p9_12_the_largest_question_fits_the_recording_topic() -> Result<()> {
+async fn the_largest_question_fits_the_recording_topic() -> Result<()> {
     let (_directory, mut runtime, _hub_frames, _helper) = meeting_with_hub().await?;
     crate::daemon::authority_fixture::set(
         &mut runtime.state,
@@ -665,10 +664,10 @@ async fn p9_12_the_largest_question_fits_the_recording_topic() -> Result<()> {
 
 /// A second question while Deimos still answers the first keeps the first in
 /// the panel (its answer is on its way) and says why the second did not go:
-/// Deimos still answers, which Mars fixes by asking again later — never the
-/// generic failure (SIM-25).
+/// Deimos still answers, which the user fixes by asking again later — never
+/// the generic failure.
 #[tokio::test]
-async fn p9_12_a_question_over_one_in_flight_keeps_the_first_and_says_why() -> Result<()> {
+async fn a_question_over_one_in_flight_keeps_the_first_and_says_why() -> Result<()> {
     let (_directory, mut runtime, mut hub_frames, _helper) = meeting_with_hub().await?;
     runtime.native_event(heard(MIC, "¿Qué dijo Lucía?")).await?;
     next_frame(&mut hub_frames).await.context("chat.send")?;
@@ -716,12 +715,11 @@ async fn p9_12_a_question_over_one_in_flight_keeps_the_first_and_says_why() -> R
     Ok(())
 }
 
-/// SIM-25: the helper heard one «Oye Deimos» twice while Deimos was still
+/// The helper heard one «Oye Deimos» twice while Deimos was still
 /// answering it. The repeat is the same question already on its way: it is
 /// not sent, and nothing is said about it.
 #[tokio::test]
-async fn sim25_the_same_spoken_question_heard_again_while_it_is_answered_says_nothing() -> Result<()>
-{
+async fn the_same_spoken_question_heard_again_while_it_is_answered_says_nothing() -> Result<()> {
     let (_directory, mut runtime, mut hub_frames, _helper) = meeting_with_hub().await?;
     runtime
         .native_event(heard(MIC, "¿De qué estamos hablando?"))
@@ -749,9 +747,9 @@ async fn sim25_the_same_spoken_question_heard_again_while_it_is_answered_says_no
 }
 
 #[tokio::test]
-async fn sim100_hub_name_reaches_status_and_live_wake_orders_and_survives_restart() -> Result<()> {
+async fn hub_name_reaches_status_and_live_wake_orders_and_survives_restart() -> Result<()> {
     let (directory, mut runtime, _hub, mut helper) = meeting_with_hub().await?;
-    runtime.settings.device_id = Some("device-sim100".into());
+    runtime.settings.device_id = Some("device-assistant-name".into());
     runtime.features.question.helper_listens = true;
     runtime.sync_wake_phrase().await?;
     let first = helper_commands(&mut helper);
@@ -782,7 +780,7 @@ async fn sim100_hub_name_reaches_status_and_live_wake_orders_and_survives_restar
         runtime: Some(&runtime),
         now_ms: 0,
     };
-    let mut board = crate::daemon::topics::TopicBoard::new("sim100".into());
+    let mut board = crate::daemon::topics::TopicBoard::new("assistant-name".into());
     let channels = board.channels();
     let _status = channels[&TopicId::Status].subscribe();
     board.publish(&source);

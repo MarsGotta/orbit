@@ -56,8 +56,8 @@ impl Runtime {
     ) {
         let name = NativeEventHeader::from_value(event).map_or("", |header| header.event);
         if update.authority_changed || update.stopped() {
-            // Each revocation says what happened: her stop, the Mac cutting
-            // its capture (not a privacy stop, REF-12), or a new helper epoch.
+            // Each revocation says what happened: the user's stop, the Mac
+            // cutting its capture (not a privacy stop), or a new helper epoch.
             let (code, refusal) = if update.privacy_stopped {
                 (
                     "privacy_stopped",
@@ -161,7 +161,7 @@ impl Runtime {
         if before == CalendarAuthorization::FullAccess
             && status.authorization != CalendarAuthorization::FullAccess
         {
-            // A9: withdrawing the permission cuts the agenda off here too. What
+            // Withdrawing the permission cuts the agenda off here too. What
             // was on screen goes, and Deimos's next question is refused.
             let refusal =
                 if let orbit_core::topics::Knowledge::Absent { refusal } = self.calendar_access() {
@@ -175,7 +175,7 @@ impl Runtime {
         } else if before != CalendarAuthorization::FullAccess
             && status.authorization == CalendarAuthorization::FullAccess
         {
-            // A1: the moment Mars grants it, the agenda arrives by itself.
+            // The moment the user grants it, the agenda arrives by itself.
             self.features.calendar.wanted_inventory = true;
             self.features.calendar.read_failure = None;
             if let Some(range) = self.features.calendar.screen_range {
@@ -192,7 +192,7 @@ impl Runtime {
         self.restart_screen_read();
     }
 
-    /// The agenda on screen is read again from its first window. P9-21: a
+    /// The agenda on screen is read again from its first window. A
     /// read already under way starts over too — the windows it had joined
     /// were read before the change, and keeping them would leave old days on
     /// screen (a write between two windows of a long range). Restarts count

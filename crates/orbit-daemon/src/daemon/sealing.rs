@@ -18,7 +18,7 @@ const MAX_PENDING_BYTES: usize = 64 * 1024 * 1024;
 const MAX_PENDING_SEGMENTS: usize = 4096;
 // `seal` never waits on the writer: the receipt returns through
 // `WorkResult::Sealed` and the select loop stays free. The collector only
-// takes a receipt that is already there. REF-03: tests run this same value;
+// takes a receipt that is already there. Tests run this same value:
 // the test-only 200 ms they had hid a store actor that ran a later `Run`
 // before an earlier `Seal`.
 pub(super) const OPPORTUNISTIC_RECEIPT_WAIT: Duration = Duration::ZERO;
@@ -266,11 +266,11 @@ impl Runtime {
         Box::pin(async move {
             Box::pin(self.retry_full_stop_send()).await?;
             self.retry_retired_stream_stops().await;
-            // REF-41 r2 · a failed stopped-audio flush is still the
+            // A failed stopped-audio flush is still the
             // capture's own failure and still reaches the containment
             // table, but only after this turn's whole upkeep has run — the
-            // same rule as A2's seal retry below. Before, the early return
-            // here skipped the deferred drain, the core `Tick` (SYS-20's
+            // same rule as the seal retry below. Before, the early return
+            // here skipped the deferred drain, the core `Tick` (the
             // finalize deadline), the call checks and the queued finalize,
             // so a disk that kept refusing the local flush also froze them,
             // and a notice delivered late could re-show «No cierres Orbit»
@@ -289,10 +289,10 @@ impl Runtime {
             } else {
                 None
             };
-            // REF-41 A2 · a failed sealing retry is still the capture's own
+            // A failed sealing retry is still the capture's own
             // failure and still reaches the containment table, but only
             // after this turn's whole upkeep has run. Before, the `?` here
-            // returned before the deferred drain, the core `Tick` (SYS-20's
+            // returned before the deferred drain, the core `Tick` (the
             // finalize deadline), the call checks and the queued finalize,
             // so a disk that kept refusing seals also froze them.
             let seal_retry = if !self.capture.pending_seals.is_empty()
@@ -305,7 +305,7 @@ impl Runtime {
             } else {
                 None
             };
-            // SYS-20: before the tick, never after. `Event::Tick` is what
+            // Before the tick, never after. `Event::Tick` is what
             // interrupts a recording that has been finalizing too long, so a
             // finish that is ready to happen has to happen first — otherwise
             // the deadline reaches a recording the daemon already had
@@ -313,7 +313,7 @@ impl Runtime {
             Box::pin(self.resume_deferred_drain()).await?;
             // Permission/call expiry sends capture commands, so Tick belongs
             // to capture maintenance. It runs after a ready deferred finish,
-            // preserving SYS-20's established ordering.
+            // preserving the ordering established above.
             let before_tick = self
                 .state
                 .durable

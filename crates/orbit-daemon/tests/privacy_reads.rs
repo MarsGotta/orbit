@@ -1,4 +1,4 @@
-//! REF-301a: the full daemon and IPC with a blocked key read and a blocked
+//! Privacy stop with the full daemon and IPC, a blocked key read and a blocked
 //! store writer.
 use anyhow::{Context, Result, bail};
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -67,7 +67,7 @@ async fn stop_does_not_wait_for_a_key_worker() -> Result<()> {
                 bail!("fixture mkfifo failed: {status}");
             }
             // The FIFO has no writer: opening the key again would block.
-            // REF-305 keeps the already authenticated key in the daemon.
+            // The daemon keeps the already authenticated key.
             // The 120 s guard still only turns a jam into a named failure;
             // the IPC stop receipt determines success.
             let stopped = tokio::time::timeout(
@@ -135,7 +135,7 @@ async fn hotkey_latches_before_the_writer_unblocks() -> Result<()> {
 
         // The store still holds the write lock. Observe the local privacy
         // latch before releasing it. An already-admitted local read's early
-        // refusal is covered by daemon::ref213_privacy_read_tests.
+        // refusal is covered by daemon::privacy_read_tests.
         // The 120 s guard merely turns a jam into a test failure.
         let guard = tokio::time::sleep(Duration::from_secs(120));
         tokio::pin!(guard);

@@ -37,8 +37,8 @@ pub(super) enum VoiceCancellationCause {
     Authority(orbit_core::authority::AuthorityChange),
     AutomaticCallStop(orbit_core::voice::StopReason),
     CallTurnReplaced,
-    /// Mars spoke again before the turn reached Deimos; its voice goes on in
-    /// the next turn (SIM-57).
+    /// The user spoke again before the turn reached Deimos; their voice goes
+    /// on in the next turn.
     CallTurnJoined,
     HelperCut,
     CaptureCut,
@@ -69,10 +69,10 @@ struct DrainAcknowledgement {
     drain_complete: bool,
 }
 
-/// Which whole-helper stop is waiting for its drain (REF-12).
+/// Which whole-helper stop is waiting for its drain.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum FullStop {
-    /// Mars's stop: the helper writes its durable latch (`privacy_stop`).
+    /// The user's stop: the helper writes its durable latch (`privacy_stop`).
     Privacy,
     /// A cut, a closing or a revocation: the helper stops every capture
     /// source and leaves its latch as it was (`capture_stop`).
@@ -127,7 +127,7 @@ impl AudioLifecycle {
 
     /// Whether a finished recording is still waiting to be closed.
     ///
-    /// SYS-20. `complete_audio_drain` puts this back when it finds a seal
+    /// `complete_audio_drain` puts this back when it finds a seal
     /// still in flight, because a recording cannot be declared finalized
     /// while a chunk of it is unwritten. It is the one flag that says "the Mac
     /// has confirmed, the audio is in, and all that is left is to say so", and
@@ -196,7 +196,7 @@ impl Runtime {
         );
     }
 
-    /// SIM-30: a voice note of any conversation, by its message's id, which
+    /// A voice note of any conversation, by its message's id, which
     /// is its recording's; the conversation itself is read from the hub.
     pub(super) fn voice_note_audio(&self, message_id: &str) -> Result<VoiceNoteAudio> {
         let chunks = self
@@ -320,6 +320,7 @@ impl Runtime {
                         "voice_transcription_privacy_stopped"
                     }
                     orbit_core::authority::AuthorityChange::Interrupt => {
+                        // wire/stored name kept for compatibility with 0.9.0
                         "voice_transcription_interrupted_by_mars"
                     }
                     orbit_core::authority::AuthorityChange::Closing => {
@@ -503,19 +504,19 @@ impl Runtime {
         }
         self.begin_recording_signal(recording_id, epoch);
         self.capture_started_if_ready().await?;
-        // P9-12: «Oye Deimos» goes with the meeting, on its microphone
+        // «Oye Deimos» goes with the meeting, on its microphone
         // stream, whoever opened it.
         self.sync_wake_phrase().await?;
         Ok(())
     }
 
     pub(super) async fn stop_recording_audio(&mut self) -> Result<()> {
-        // P9-12: pausing or finishing turns «Oye Deimos» off first, also
+        // Pausing or finishing turns «Oye Deimos» off first, also
         // when a voice note keeps the stream open.
         self.sync_wake_phrase().await?;
         if self.state.privacy_stopped() {
-            // Her stop latches the helper; a revocation stops it without
-            // writing a latch nobody pressed (REF-12).
+            // The user's stop latches the helper; a revocation stops it
+            // without writing a latch nobody pressed.
             let kind = if orbit_core::privacy_stop::latches_helper(&self.state) {
                 FullStop::Privacy
             } else {
@@ -881,7 +882,7 @@ impl Runtime {
                         );
                     }
                 }
-                // The cut's cause stays the line she reads; the confirmation
+                // The cut's cause stays the line the user reads; the confirmation
                 // is added to it.
                 FullStop::Cut => {
                     if self
@@ -929,7 +930,7 @@ impl Runtime {
     /// Close a recording whose finish was deferred because a seal was still
     /// in flight, once that seal has landed.
     ///
-    /// SYS-20. The last thing `complete_audio_drain` does for a finished
+    /// The last thing `complete_audio_drain` does for a finished
     /// meeting is ask `decide` for `CaptureFinalized`, which is what takes the
     /// recording out of `Finalizing`. It refuses to do that while a chunk is
     /// still being written — rightly, because a recording is not finalized
@@ -1061,7 +1062,7 @@ impl Runtime {
                 "recording_kind":"voice_turn", "session_id":source.session_id,
                 "call_id":self.state.durable.call.as_ref().map(|call| &call.id),
                 "message_id":source.message_id, "source_chunk_id":source.chunk_id,
-                // SIM-41: a voice note goes to `/v1/audio/transcribe` and
+                // A voice note goes to `/v1/audio/transcribe` and
                 // stays on this Mac for playback; nothing on the hub reads
                 // its audio, which it listed as a meeting never closed.
                 "source_metadata":metadata, "upload_allowed":false,
@@ -1204,8 +1205,8 @@ impl Runtime {
         Ok(())
     }
 
-    /// Stops every capture source in the helper and waits for its drain: her
-    /// latching stop, or a cut that leaves the latch as it was (REF-12).
+    /// Stops every capture source in the helper and waits for its drain: the
+    /// user's latching stop, or a cut that leaves the latch as it was.
     pub(super) async fn request_full_audio_stop(&mut self, kind: FullStop) -> Result<()> {
         self.capture.audio.full_stop_owed = true;
         self.mark_call_stopping();
@@ -1236,7 +1237,7 @@ impl Runtime {
         if self.state.durable.notice.is_none() {
             self.say(Notice::new(NoticeCode::FullStopRequested).with_token(NoticeKey::Code, name));
         }
-        // P2-01 R5: every helper send carries the 500 ms deadline. This bound
+        // Every helper send carries the 500 ms deadline. This bound
         // protects the actor from a full helper channel; it is the measured
         // native command deadline, not evidence that Orbit.app died and not a
         // deadline after which the microphone is known to be closed.
@@ -1333,7 +1334,7 @@ impl Runtime {
     }
 
     /// Whether a whole-helper stop still owes the local flush of the audio it
-    /// stopped: always under her stop, and after a cut or a closing until
+    /// stopped: always under the user's stop, and after a cut or a closing until
     /// the flush succeeds.
     pub(super) fn stopped_audio_owed(&self) -> bool {
         self.state.privacy_stopped() || self.capture.audio.full_stop_owed
@@ -1386,8 +1387,8 @@ impl Runtime {
 
     /// The Mac did not confirm an audio stop in its window, or its helper was
     /// lost while an unsent stop had no deadline left. What is live is cut
-    /// with its cause (REF-12 A4); the audio that arrived is kept and the
-    /// missing tail is declared as a gap. Her stop stays in force.
+    /// with its cause; the audio that arrived is kept and the missing tail is
+    /// declared as a gap. The user's stop stays in force.
     pub(super) async fn handle_audio_timeout(&mut self) {
         let helper_lost_with_unsent_stop =
             self.full_stop_send_owed() && !self.state.capabilities().native_helper();

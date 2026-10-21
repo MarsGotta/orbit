@@ -1,4 +1,4 @@
-//! REF-06: the chain app → daemon → helper closes whole.
+//! The chain app → daemon → helper closes whole.
 //!
 //! A real daemon with a real helper child — the relay or the stubborn script
 //! of `support/helper_relay.rs` — launched the way the app launches it: with
@@ -87,7 +87,7 @@ impl Chain {
                         result["drain_complete"] = json!(true);
                         result
                     }
-                    // REF-12: closing cuts the capture without the latch.
+                    // Closing cuts the capture without the latch.
                     "capture_stop" => {
                         let mut result = helper_relay::state_result(json!({
                             "microphone":"not_determined","screen":false,"accessibility":false,
@@ -96,7 +96,7 @@ impl Chain {
                         result
                     }
                     "shutdown" => json!({"drain_complete":true}),
-                    other => bail!("orden nativa fuera de este fixture: {other}"),
+                    other => bail!("native order outside this fixture: {other}"),
                 };
                 seen.push(name);
                 send(
@@ -140,18 +140,18 @@ impl Chain {
             }
             ensure!(
                 Instant::now() < deadline,
-                "el daemon no salió en {within:?} tras pedirle el cierre"
+                "the daemon did not exit within {within:?} after being asked to close"
             );
             thread::sleep(Duration::from_millis(20));
         };
         ensure!(
             status.success(),
-            "el cierre ordenado tiene que terminar con éxito y terminó con {status}"
+            "the orderly close must end successfully and ended with {status}"
         );
         match self.peer.take() {
             Some(peer) => peer
                 .join()
-                .map_err(|_| anyhow::anyhow!("el hilo del helper de prueba falló"))?,
+                .map_err(|_| anyhow::anyhow!("the test helper thread failed"))?,
             None => Ok(Vec::new()),
         }
     }
@@ -181,14 +181,14 @@ fn wait_helper_ready(path: &Path, child: &mut Child) -> Result<()> {
     let deadline = Instant::now() + READY_BUDGET;
     loop {
         if let Some(status) = child.try_wait()? {
-            bail!("el daemon salió ({status}) antes de declarar su helper");
+            bail!("the daemon exited ({status}) before declaring its helper");
         }
         if ipc::status(path).is_ok_and(|state| state["capabilities"]["native_helper"] == true) {
             return Ok(());
         }
         ensure!(
             Instant::now() < deadline,
-            "el helper de prueba no quedó declarado en {READY_BUDGET:?}"
+            "the test helper was not declared within {READY_BUDGET:?}"
         );
         thread::sleep(Duration::from_millis(20));
     }
@@ -199,41 +199,41 @@ fn workspace(prefix: &str) -> Result<tempfile::TempDir> {
     Ok(tempfile::Builder::new().prefix(prefix).tempdir_in("/tmp")?)
 }
 
-/// REF-06 A3: an orderly close sends the helper `shutdown`, then closes its
+/// An orderly close sends the helper `shutdown`, then closes its
 /// input, and the helper that leaves by itself is not killed.
 #[test]
-fn a3_an_orderly_close_tells_the_helper_to_shut_down_and_closes_its_input() -> Result<()> {
-    let directory = workspace("orbit-a3-")?;
+fn an_orderly_close_tells_the_helper_to_shut_down_and_closes_its_input() -> Result<()> {
+    let directory = workspace("orbit-close-")?;
     let path = directory.path();
     let mut chain = Chain::with_relay(path)?;
-    ipc::request(path, IpcCommand::Shutdown).context("el cierre no fue aceptado")?;
+    ipc::request(path, IpcCommand::Shutdown).context("the close was not accepted")?;
     let seen = chain.wait_clean_exit(closing_ceiling() + EXIT_ROOM)?;
     assert_eq!(
         seen.last().map(String::as_str),
         Some("shutdown"),
-        "A3: la última orden al helper tiene que ser `shutdown`, y el helper sólo \
-         deja de leer cuando el daemon le cierra la entrada; vio: {seen:?}"
+        "the last order to the helper must be `shutdown`, and the helper only stops \
+         reading when the daemon closes its input; it saw: {seen:?}"
     );
     let stopped = last_logged(path, "helper_stopped")
-        .context("A3: el daemon no dejó constancia de cómo terminó su helper")?;
+        .context("the daemon left no record of how its helper ended")?;
     assert_eq!(
         stopped["how"], "exited",
-        "A3: un helper que sale solo no se mata: {stopped}"
+        "a helper that exits by itself is not killed: {stopped}"
     );
-    assert_eq!(stopped["asked"], "true", "A3: {stopped}");
-    wait_group_empty(chain.group, "A3")?;
+    assert_eq!(stopped["asked"], "true", "{stopped}");
+    wait_group_empty(chain.group, "orderly close")?;
     Ok(())
 }
 
-/// REF-06 A3: a helper that ignores `shutdown` and EOF is killed, and only
+/// A helper that ignores `shutdown` and EOF is killed, and only
 /// once its grace has run out; nothing of the chain's group is left alive.
 #[test]
-fn a3_a_helper_that_ignores_shutdown_is_killed_only_after_its_grace() -> Result<()> {
-    let directory = workspace("orbit-a3k-")?;
+fn a_helper_that_ignores_shutdown_is_killed_only_after_its_grace() -> Result<()> {
+    let directory = workspace("orbit-kill-")?;
     let path = directory.path();
     let mut chain = Chain::with_stubborn_helper(path)?;
     let asked = Instant::now();
-    ipc::request(path, IpcCommand::Shutdown).context("el cierre no fue aceptado")?;
+    ipc::request(path, IpcCommand::Shutdown).context("the close was not accepted")?;
     chain.wait_clean_exit(closing_ceiling() + EXIT_ROOM)?;
     let took = asked.elapsed();
     let grace = orbit_daemon::native::HELPER_EXIT_GRACE;
@@ -241,52 +241,52 @@ fn a3_a_helper_that_ignores_shutdown_is_killed_only_after_its_grace() -> Result<
     // the helper before the grace it gives it has passed.
     assert!(
         took >= grace,
-        "A3: el helper se mató a los {took:?}, antes de su plazo de {grace:?}"
+        "the helper was killed at {took:?}, before its grace of {grace:?}"
     );
     let stopped = last_logged(path, "helper_stopped")
-        .context("A3: el daemon no dejó constancia de cómo terminó su helper")?;
+        .context("the daemon left no record of how its helper ended")?;
     assert_eq!(
         stopped["how"], "killed",
-        "A3: un helper que no sale en su plazo se mata: {stopped}"
+        "a helper that does not exit within its grace is killed: {stopped}"
     );
     assert_eq!(
         stopped["grace_ms"],
         grace.as_millis().to_string(),
-        "A3: la constancia dice cuánto esperó: {stopped}"
+        "the record says how long it waited: {stopped}"
     );
-    wait_group_empty(chain.group, "A3")?;
+    wait_group_empty(chain.group, "stubborn helper")?;
     Ok(())
 }
 
-/// REF-06 A4: SIGTERM — what launchd sends at logout — and SIGINT run the
+/// SIGTERM — what launchd sends at logout — and SIGINT run the
 /// same durable closure: the helper is told to shut down, the socket goes,
 /// and the process exits cleanly instead of dying by the signal.
 #[test]
-fn a4_sigterm_and_sigint_run_the_same_orderly_closure() -> Result<()> {
+fn sigterm_and_sigint_run_the_same_orderly_closure() -> Result<()> {
     for signal in ["TERM", "INT"] {
-        let directory = workspace("orbit-a4s-")?;
+        let directory = workspace("orbit-signal-")?;
         let path = directory.path();
         let mut chain = Chain::with_relay(path)?;
         signal_own_daemon(chain.child.id(), signal)?;
         let seen = chain
             .wait_clean_exit(closing_ceiling() + EXIT_ROOM)
-            .with_context(|| format!("A4 con SIG{signal}"))?;
+            .with_context(|| format!("with SIG{signal}"))?;
         assert_eq!(
             seen.last().map(String::as_str),
             Some("shutdown"),
-            "A4: con SIG{signal} el helper también recibe `shutdown`; vio: {seen:?}"
+            "with SIG{signal} the helper also receives `shutdown`; it saw: {seen:?}"
         );
         assert!(
             !path.join("orbit.sock").exists(),
-            "A4: con SIG{signal} el socket tiene que retirarse"
+            "with SIG{signal} the socket must be removed"
         );
         let received = last_logged(path, "shutdown_signal")
-            .with_context(|| format!("A4: el daemon no registró SIG{signal}"))?;
+            .with_context(|| format!("the daemon did not log SIG{signal}"))?;
         assert_eq!(received["signal"], format!("SIG{signal}"));
         let stopped = last_logged(path, "helper_stopped")
-            .with_context(|| format!("A4: sin constancia del helper tras SIG{signal}"))?;
-        assert_eq!(stopped["how"], "exited", "A4 SIG{signal}: {stopped}");
-        wait_group_empty(chain.group, "A4")?;
+            .with_context(|| format!("no record of the helper after SIG{signal}"))?;
+        assert_eq!(stopped["how"], "exited", "SIG{signal}: {stopped}");
+        wait_group_empty(chain.group, "signal closure")?;
     }
     Ok(())
 }
@@ -299,7 +299,7 @@ fn a4_sigterm_and_sigint_run_the_same_orderly_closure() -> Result<()> {
 /// that launch takes milliseconds; this is one second.
 const EARLY_HELPER_WINDOW: Duration = Duration::from_secs(1);
 
-/// REF-06 A4: an error while the daemon starts ends through the ordinary
+/// An error while the daemon starts ends through the ordinary
 /// return, not `std::process::exit`, and leaves no helper behind.
 ///
 /// The device credential is a FIFO, which stands for the slow read it is on the
@@ -313,16 +313,16 @@ const EARLY_HELPER_WINDOW: Duration = Duration::from_secs(1);
 /// red that shows up once in thirty. What makes it impossible is that no helper
 /// exists until the startup has succeeded, and that is asserted directly.
 #[test]
-fn a4_a_startup_error_leaves_no_helper_behind() -> Result<()> {
+fn a_startup_error_leaves_no_helper_behind() -> Result<()> {
     use std::os::unix::fs::OpenOptionsExt;
-    let directory = workspace("orbit-a4e-")?;
+    let directory = workspace("orbit-startup-")?;
     let path = directory.path();
     let credential = path.join("development-device.key");
     let status = Command::new("mkfifo")
         .args(["-m", "600"])
         .arg(&credential)
         .status()?;
-    ensure!(status.success(), "mkfifo terminó con {status}");
+    ensure!(status.success(), "mkfifo ended with {status}");
     let helper = stubborn_helper(path, "stubborn")?;
     let mut child = std_daemon(path, &helper)
         .stdin(Stdio::null())
@@ -348,10 +348,10 @@ fn a4_a_startup_error_leaves_no_helper_behind() -> Result<()> {
         {
             Ok(file) => break file,
             Err(_) if Instant::now() < deadline => thread::sleep(Duration::from_millis(10)),
-            Err(error) => bail!("el daemon nunca llegó a leer su credencial: {error}"),
+            Err(error) => bail!("the daemon never got to read its credential: {error}"),
         }
         if let Some(status) = child.try_wait()? {
-            bail!("el daemon terminó ({status}) antes de leer su credencial");
+            bail!("the daemon ended ({status}) before reading its credential");
         }
     };
     let launched = path.join("stubborn.pid");
@@ -369,7 +369,7 @@ fn a4_a_startup_error_leaves_no_helper_behind() -> Result<()> {
         }
         ensure!(
             Instant::now() < deadline,
-            "A4: el daemon no terminó en {READY_BUDGET:?} con su credencial ilegible"
+            "the daemon did not end within {READY_BUDGET:?} with its credential unreadable"
         );
         thread::sleep(Duration::from_millis(20));
     };
@@ -379,22 +379,22 @@ fn a4_a_startup_error_leaves_no_helper_behind() -> Result<()> {
     }
     assert!(
         !status.success(),
-        "A4: una credencial ilegible tiene que impedir el arranque; stderr: {stderr}"
+        "an unreadable credential must prevent the startup; stderr: {stderr}"
     );
     assert_eq!(
         status.code(),
         Some(1),
-        "A4: el error sale por el retorno ordinario, con su código; stderr: {stderr}"
+        "the error leaves through the ordinary return, with its code; stderr: {stderr}"
     );
     assert!(
         stderr.contains("UTF-8"),
-        "A4: la negativa nombra su causa; stderr: {stderr}"
+        "the refusal names its cause; stderr: {stderr}"
     );
-    wait_group_empty(group, "A4: el helper sobrevivió a un error de arranque")?;
+    wait_group_empty(group, "the helper survived a startup error")?;
     assert!(
         !early,
-        "A4: el daemon lanzó su helper mientras aún arrancaba; un error de arranque \
-         puede dejarlo huérfano"
+        "the daemon launched its helper while still starting; a startup error \
+         can leave it orphaned"
     );
     Ok(())
 }

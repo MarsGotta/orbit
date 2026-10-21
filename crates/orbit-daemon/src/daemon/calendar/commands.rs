@@ -5,11 +5,11 @@ use super::*;
 
 impl Runtime {
     /// What the app (or the CLI) asks of the agenda: the permission's state,
-    /// the macOS permission itself, or a read of the range on screen. REF-10:
+    /// the macOS permission itself, or a read of the range on screen. There is
     /// nothing to list, select or disconnect, and a read waits its turn
     /// instead of being refused because another one is running.
     pub(in crate::daemon) fn calendar_command(&mut self, request: Request) -> Result<()> {
-        // P9-21: a write is refused by field and with its numbers, or queued.
+        // A write is refused by field and with its numbers, or queued.
         let refusal = request.write_refusal();
         match request {
             Request::Save { request_id, save } => {
@@ -44,7 +44,7 @@ impl Runtime {
                     bail!("Privacidad detenida: Orbit no lee la agenda hasta que la rearmes");
                 }
                 // Remembered, so the agenda reappears by itself when the
-                // permission arrives or the calendar changes (A1).
+                // permission arrives or the calendar changes.
                 calendar.complete = None;
                 calendar.read_failure = None;
                 calendar.screen_range = Some(window);

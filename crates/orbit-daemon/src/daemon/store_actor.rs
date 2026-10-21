@@ -19,11 +19,12 @@ use std::{
 };
 
 /// The existing 8192 slots bound memory for admitted writer operations while
-/// a disk call stalls. REF-17 measured 94 daemon turns/s with two tracks; even
-/// if every turn admitted one write, this holds about 87 s (8192 / 94) of
-/// turns before refusal. REF-305's 1000 writes plus 80 seals completed with no
-/// admission refusal under load average 54.55. The bound is not a durability
-/// deadline, a limit on saved recordings, or a capacity shared with readers.
+/// a disk call stalls. A measurement with two tracks recording gave 94 daemon
+/// turns/s; even if every turn admitted one write, this holds about 87 s
+/// (8192 / 94) of turns before refusal. A load test of 1000 writes plus 80
+/// seals completed with no admission refusal under load average 54.55. The
+/// bound is not a durability deadline, a limit on saved recordings, or a
+/// capacity shared with readers.
 const STORE_OP_CAPACITY: usize = 8192;
 
 pub(super) fn open_owner(directory: &std::path::Path, key: [u8; 32]) -> Result<Store> {
@@ -65,7 +66,7 @@ mod admission_tests {
     }
 }
 const SNAPSHOT_INTERVAL: Duration = Duration::from_millis(250);
-/// REF-41 A4 · one cadence shared by both sides of a failed seal: this
+/// One cadence shared by both sides of a failed seal: this
 /// actor's parked-seal retry, and the daemon's `sealing` gate that decides
 /// when maintenance re-dispatches failed audio and retries a stopped flush.
 /// Both describe the same promise to the person — «se reintentan cada 5 s»
@@ -73,21 +74,22 @@ const SNAPSHOT_INTERVAL: Duration = Duration::from_millis(250);
 /// a second copy could drift and the announced cadence would lie. What it
 /// protects is the rate at which a disk that keeps refusing is re-polled
 /// while its audio stays owed in memory. The 5 s is the cadence both sides
-/// have shared since the sealing lanes existed (REF-03 made tests run the
-/// production value); it is not derived from a disk-recovery measurement,
+/// have shared since the sealing lanes existed (tests run the production
+/// value too); it is not derived from a disk-recovery measurement,
 /// and it is not a durability deadline: nothing waits on it synchronously,
 /// and changing it changes the announced sentence and both gates together.
 pub(super) const SEAL_RETRY_DELAY: Duration = Duration::from_secs(5);
-/// REF-41 · how often the writer retries a `StoreProblem` notice the full
+/// How often the writer retries a `StoreProblem` notice the full
 /// work channel could not take. It matches `SNAPSHOT_INTERVAL`, the fastest
 /// producer of problems (a refused snapshot retries every 250 ms), so a
 /// pending notice is retried at least as often as new ones appear. At worst
 /// this wakes an otherwise idle writer four times a second while notices
-/// are pending — nothing like the millions of turns of the REF-15 bug. It
+/// are pending — nothing like the millions of turns of the busy loop
+/// described at `snapshot_due`. It
 /// is not a durability deadline: the notice is already recorded; this only
 /// hands it over.
 const PENDING_PROBLEM_RETRY: Duration = Duration::from_millis(250);
-/// REF-41 · bound of `StoreProblem` notices waiting for room in the work
+/// Bound of `StoreProblem` notices waiting for room in the work
 /// channel. What it protects: the writer's memory while the daemon's loop
 /// is stalled — 128 bounded taxonomy messages stay well under 64 KiB. At
 /// the worst sustained failure rate (one refused snapshot per 250 ms plus
@@ -176,7 +178,7 @@ pub(super) enum StoreCompletion {
         sequence: u64,
         #[allow(
             dead_code,
-            reason = "A7 queue wait is consumed by the measurement tests"
+            reason = "the queue wait is consumed by the measurement tests"
         )]
         queue_wait_us: Option<u64>,
     },
@@ -187,8 +189,8 @@ pub(super) enum StoreCompletion {
 
 /// Receipt for an operation admitted synchronously to the ordered writer.
 ///
-/// Admission and waiting are separate so the daemon can preserve REF-03 order
-/// in its current turn, then let a worker wait for disk without holding IPC.
+/// Admission and waiting are separate so the daemon can preserve admission
+/// order in its current turn, then let a worker wait for disk without holding IPC.
 pub(super) struct StoreReceipt<T> {
     response: tokio::sync::oneshot::Receiver<Result<T>>,
 }
@@ -244,7 +246,7 @@ impl StoreActor {
 
     /// The same actor, with its loop turns counted into `turns`.
     ///
-    /// REF-15 · the loop always counts; only whoever holds `turns` reads it.
+    /// The loop always counts; only whoever holds `turns` reads it.
     /// Whether the writer sleeps between real deadlines is a count of turns
     /// against the operations and write attempts that caused them, never a
     /// reading of a clock, so the proof needs the count itself.
@@ -482,7 +484,7 @@ impl Drop for StoreActor {
         if let Some(thread) = self.thread.take()
             && thread.join().is_err()
         {
-            eprintln!("El hilo del almacén terminó con pánico durante el cierre");
+            eprintln!("The store thread panicked while closing");
         }
     }
 }
@@ -517,7 +519,7 @@ struct Parked {
     failed_at: Instant,
 }
 
-/// REF-03 · the store actor executes operations in the order it was handed
+/// The store actor executes operations in the order it was handed
 /// them. Each lane below keeps its own reason to exist, and one rule orders
 /// them: a `Run`, a seal, a requested retry or a critical snapshot runs only
 /// when every one of those admitted before it has been executed, and a `Run`
@@ -539,7 +541,7 @@ struct Parked {
 /// later `Run` forces it out first (`Step::Flush`). A critical snapshot
 /// supersedes a pending one by writing the newer state, as before.
 ///
-/// REF-15 · a parked seal does not hold a coalesced snapshot either, for the
+/// A parked seal does not hold a coalesced snapshot either, for the
 /// same reason it does not hold a `Run`: `snapshot().await` has no deadline
 /// either, and the privacy stop and the closure both wait on one. Held behind
 /// a seal the disk kept refusing, the snapshot was never attempted, so its
@@ -548,7 +550,7 @@ struct Parked {
 /// attempted keeps the snapshot waiting, and a retry that falls due in the
 /// same turn runs before it (see `Writer::snapshot_due`).
 ///
-/// Before REF-03 each loop turn ran a queued `Run` before the queued seal, so
+/// Before this rule each loop turn ran a queued `Run` before the queued seal, so
 /// a `Run` admitted after a `Seal` usually ran first. That is what cancelled
 /// voice turns hit: the seal creates the upload job the next `Run` cancels.
 #[derive(Default)]
@@ -685,7 +687,7 @@ impl Lanes {
         self.seals.len().saturating_add(self.parked.len())
     }
 
-    /// REF-15 · what a refusal adds while seals are parked: how many fragments
+    /// What a refusal adds while seals are parked: how many fragments
     /// the actor still owes, and since when, counted from the moment the
     /// oldest parked one first failed. Nothing is added while none has failed:
     /// a seal still queued is not a problem yet.
@@ -700,7 +702,7 @@ impl Lanes {
     }
 }
 
-/// REF-15 · the answer a snapshot's waiters get when the store refuses it:
+/// The answer a snapshot's waiters get when the store refuses it:
 /// the store's own cause and, while seals are parked, the audio owed with its
 /// numbers. The same text goes to the daemon as a `StoreProblem`, so whoever
 /// asked and whoever reads the notice see one cause.
@@ -721,7 +723,7 @@ struct Writer {
     held_startup_stop: Option<Box<State>>,
     startup_guard_active: Arc<std::sync::atomic::AtomicBool>,
     diagnostics: Option<crate::diagnostics::DiagnosticLog>,
-    /// REF-41 · `StoreProblem` notices the full work channel refused, oldest
+    /// `StoreProblem` notices the full work channel refused, oldest
     /// first. They are delivered as soon as the daemon's loop makes room;
     /// none of them is the `Sealed` wake-up, whose receipt already lives in
     /// the completion log.
@@ -741,13 +743,14 @@ impl Writer {
     }
     /// Record the wake-up notice for a completion already logged above.
     /// Neither failure may hold the ordered writer waiting for the daemon's
-    /// loop (the REF-27 deadlock), and neither loses the receipt: it stays in
+    /// loop (that once deadlocked the writer and the loop on each other), and
+    /// neither loses the receipt: it stays in
     /// `self.completions`. On a full channel the notice is dropped, and a
     /// dropped notice is not applied by another send — the daemon's
     /// maintenance collector reads the completion log on its 1 s tick, or at
     /// most `SEAL_RETRY_DELAY` (5 s) later while a failed seal has the retry
     /// backed off. A closed channel means that loop no longer exists.
-    /// REF-41: a `StoreProblem` may not take this drop path — its only
+    /// A `StoreProblem` may not take this drop path — its only
     /// record can be this notice — so problems go through
     /// [`Self::report_problem`], which waits for room.
     fn wake_daemon(&self, event: WorkResult) {
@@ -758,7 +761,7 @@ impl Writer {
         }
     }
 
-    /// REF-41 · a store problem is never lost to a full work channel: it
+    /// A store problem is never lost to a full work channel: it
     /// stays pending here and is delivered as soon as there is room. A
     /// closed channel still drops it — that daemon loop no longer exists to
     /// receive anything, and the receipts of the operations it asked for
@@ -774,10 +777,10 @@ impl Writer {
 
     /// Deliver the pending problems the channel can take now, oldest first.
     /// Bounded non-blocking attempts: this can never hold the ordered writer
-    /// on the daemon's loop (REF-27).
+    /// on the daemon's loop.
     fn deliver_pending_problems(&mut self) {
         while let Some(oldest) = self.pending_problems.front().cloned() {
-            // REF-41 r2 · the daemon keeps a single notice slot, so the
+            // The daemon keeps a single notice slot, so the
             // newer messages of a burst overwrite the older ones in it. The
             // count of dropped notices must reach whoever reads that slot,
             // so it rides the newest pending message — the one the slot
@@ -869,7 +872,7 @@ impl Writer {
     }
 
     /// Retries parked seals oldest first and stops at the first that fails
-    /// again, which backs the whole retry lane off, as before REF-03.
+    /// again, which backs the whole retry lane off, as it always did.
     fn retry_parked(&mut self, lanes: &mut Lanes) {
         while let Some(segment) = lanes
             .parked
@@ -891,7 +894,7 @@ impl Writer {
 
     /// When the coalesced snapshot may be written, if one is pending.
     ///
-    /// REF-15 · the loop both writes and sleeps on this one answer, so a
+    /// The loop both writes and sleeps on this one answer, so a
     /// deadline that has passed always has a write behind it. Before, the
     /// write also waited for the parked seals and the sleep did not: with a
     /// snapshot due and a seal parked, the deadline was always in the past and
@@ -936,7 +939,7 @@ impl Writer {
         }
         self.last_snapshot = Some(Instant::now());
         if let Err(message) = result {
-            // REF-41: a refused snapshot's only notice to the daemon is this
+            // A refused snapshot's only notice to the daemon is this
             // one — its waiters have their receipts, but a deferred snapshot
             // has none — so it reports through the pending lane instead of a
             // droppable wake-up.
@@ -1009,7 +1012,7 @@ fn run(
 
     loop {
         turns.fetch_add(1, Ordering::Relaxed);
-        // REF-41 · a problem notice that was refused for a full channel is
+        // A problem notice that was refused for a full channel is
         // retried here first: the loop it must reach may have made room
         // while the writer was inside a system call.
         writer.deliver_pending_problems();
@@ -1078,11 +1081,11 @@ fn run(
         if disconnected {
             break;
         }
-        // REF-15 · the writer sleeps until the next real deadline, computed
+        // The writer sleeps until the next real deadline, computed
         // from the same answers that gate the writes above. With nothing owed
         // it waits for an operation or for the queue to close: there is no
         // deadline to wake for, so it wakes for none. A pending problem
-        // notice (REF-41) is itself a real deadline: the writer is the only
+        // notice is itself a real deadline: the writer is the only
         // one who can retry its delivery.
         let deadline = if lanes.ready() {
             Some(Instant::now())
@@ -1119,16 +1122,16 @@ fn push_completion(completions: &Mutex<VecDeque<StoreCompletion>>, completion: S
 }
 
 #[cfg(test)]
-mod ref41_round2_problem_tests {
+mod pending_problem_tests {
     use super::*;
     use crate::daemon::StoreWork;
 
-    /// REF-41 r2 · the daemon keeps a single notice slot, so when a burst
+    /// The daemon keeps a single notice slot, so when a burst
     /// of pending problems is finally delivered, each newer message
     /// overwrites the previous one in that slot. The count of dropped
     /// notices must therefore travel with the NEWEST delivered message —
-    /// the one the slot ends up holding. Round 1 folded it into the oldest,
-    /// which the rest of the burst overwrote before anyone could read it.
+    /// the one the slot ends up holding. An earlier version folded it into the
+    /// oldest, which the rest of the burst overwrote before anyone could read it.
     #[tokio::test]
     async fn the_overflow_count_travels_in_the_newest_delivered_notice() -> anyhow::Result<()> {
         let directory = tempfile::tempdir()?;
@@ -1156,7 +1159,7 @@ mod ref41_round2_problem_tests {
         // Two notices past the ceiling while the channel is full: the two
         // oldest are dropped and counted.
         for index in 0..(MAX_PENDING_PROBLEMS as u64 + 2) {
-            writer.report_problem(format!("aviso sintético {index}"));
+            writer.report_problem(format!("synthetic notice {index}"));
         }
         let dropped = writer.overflowed_problems;
         assert_eq!(dropped, 2, "the fixture must push past the ceiling");
@@ -1186,7 +1189,7 @@ mod ref41_round2_problem_tests {
             .unwrap_or_default();
         assert!(
             last.contains(&format!("Además, {dropped} aviso(s)")),
-            "REF-41 r2: the dropped count must arrive in the newest notice, the one the \
+            "the dropped count must arrive in the newest notice, the one the \
              daemon's single slot keeps: {last}"
         );
         Ok(())

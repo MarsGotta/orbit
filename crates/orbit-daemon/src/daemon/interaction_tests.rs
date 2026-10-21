@@ -5,7 +5,7 @@ use crate::hub::HubEvent;
 use orbit_core::notice::{DataValue, NoticeCode, NoticeKey, Token};
 use orbit_core::protocol::Command;
 
-/// SIM-21: a cause is no longer a sentence in the notice; it is logged in
+/// A cause is no longer a sentence in the notice; it is logged in
 /// `daemon.log` under the turn's op. The fixture logs there.
 fn logging(runtime: &mut Runtime, directory: &std::path::Path) {
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory));
@@ -366,8 +366,8 @@ async fn current_receipt_still_resolves_approval_and_clarification() -> Result<(
     Ok(())
 }
 
-/// REF-25 A1/A3. This is the same ordering as E2E_SLOW/E2E_NEW: interrupt the
-/// old turn, open a conversation, admit its replacement, reconcile while the
+/// An interrupted turn and its replacement, in the same ordering as
+/// E2E_SLOW/E2E_NEW: interrupt the old turn, open a conversation, admit its replacement, reconcile while the
 /// hub still says `submitting`, then receive both the obsolete and new output.
 #[tokio::test]
 async fn submitting_snapshot_keeps_new_turn_and_discards_interrupted_reply() -> Result<()> {
@@ -478,7 +478,7 @@ const TURN: &str = "10000000-0000-0000-0000-000000000001";
 const NEW_TURN: &str = "20000000-0000-0000-0000-000000000002";
 
 #[tokio::test]
-async fn ref23_stop_writes_interrupt_to_the_hub_socket_before_retiring_it() -> Result<()> {
+async fn stop_writes_interrupt_to_the_hub_socket_before_retiring_it() -> Result<()> {
     use futures_util::StreamExt;
     let directory = tempfile::tempdir()?;
     let (mut runtime, _native) = fixture(directory.path())?;
@@ -746,10 +746,11 @@ async fn failed_hub_drain_reports_both_unsent_frames() -> Result<()> {
     Ok(())
 }
 
-/// REF-23 A4: her stop must retain the turn identity before the core clears
-/// `active_request`, and REF-30 must keep a stale live snapshot from reviving it.
+/// The user's stop must retain the turn identity before the core clears
+/// `active_request`, and the interrupt memory must keep a stale live snapshot
+/// from reviving it.
 #[tokio::test]
-async fn ref23_privacy_stop_interrupts_the_live_turn_and_keeps_it_hidden() -> Result<()> {
+async fn privacy_stop_interrupts_the_live_turn_and_keeps_it_hidden() -> Result<()> {
     use futures_util::StreamExt;
     let directory = tempfile::tempdir()?;
     let (mut runtime, _native) = fixture(directory.path())?;
@@ -818,7 +819,7 @@ async fn ref23_privacy_stop_interrupts_the_live_turn_and_keeps_it_hidden() -> Re
     Ok(())
 }
 
-/// REF-30 A1/A2. The local interrupt is already applied before a hub snapshot
+/// The local interrupt is already applied before a hub snapshot
 /// can arrive. Neither live hub state may reclaim that discarded identity,
 /// while an independently identified replacement must remain visible. The two
 /// live snapshots follow the real order (`submitting`, then `streaming`): a
@@ -913,9 +914,9 @@ fn interrupted_turn_memory_is_bounded_and_non_live_facts_retire_entries() {
     assert_eq!(interrupted.entries.len(), MAX_INTERRUPTED_TURNS - 1);
 }
 
-/// REF-30 A4. An interrupt request that never left Orbit must not keep the
+/// An interrupt request that never left Orbit must not keep the
 /// turn hidden: the hub still owns it live, so the memory goes, the notice
-/// names the delivery cause, and the next snapshot shows a turn Mars can
+/// names the delivery cause, and the next snapshot shows a turn the user can
 /// interrupt again. The closed channel is synthetic: nothing here talks to a
 /// real hub.
 #[tokio::test]
@@ -964,7 +965,7 @@ async fn undelivered_interrupt_keeps_the_turn_visible_to_interrupt_again() -> Re
     Ok(())
 }
 
-/// REF-30 A4. An `error` frame answering our `chat.interrupt` — matched by
+/// An `error` frame answering our `chat.interrupt` — matched by
 /// command id — means the hub refused or could not interrupt, so the turn is
 /// whatever the hub still publishes: the memory goes, the notice carries the
 /// hub's cause, and the turn is visible to interrupt again. An error with an
@@ -1042,7 +1043,7 @@ async fn hub_rejected_interrupt_returns_the_turn_and_unrelated_errors_do_not() -
     Ok(())
 }
 
-/// REF-30 A4 follow-up. The answer to an interrupt command arrives on the
+/// The answer to an interrupt command arrives on the
 /// connection that carried it; once that connection is gone no frame can
 /// ever match its command id again, so a reconnect must not keep the ack
 /// slot claiming an answer is pending. The interrupted-turn memory itself is

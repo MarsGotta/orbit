@@ -260,7 +260,7 @@ impl Runtime {
                 .as_ref()
                 .and_then(|job| job.payload["title"].as_str().map(str::to_owned))
         };
-        // SIM-41: what the recording is and the event it was started from,
+        // What the recording is and the event it was started from,
         // so the hub lists a meeting and asks for its note with the series'
         // template, and leaves a voice call out (`RecordingManifest`).
         let kind = match recording
@@ -291,7 +291,7 @@ impl Runtime {
             state: JobState::Queued,
             created_at: ended_at_ms,
             // No op here: the store checks this closure against the
-            // transcript's manifest field by field (SIM-21 keeps ops on the
+            // transcript's manifest field by field (ops stay on the
             // transcript fetch, whose notices the person reads).
             payload: json!({"recording_id":recording_id,"manifest":manifest}),
         })

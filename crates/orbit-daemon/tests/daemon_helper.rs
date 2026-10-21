@@ -1,4 +1,4 @@
-//! SYS-02: the daemon owns the helper as a managed child. Real daemon subprocess
+//! The daemon owns the helper as a managed child. Real daemon subprocess
 //! with a fake helper script; no capture, providers or macOS permission claims.
 use anyhow::{Context, Result};
 use orbit_core::protocol::Command as IpcCommand;
@@ -94,14 +94,14 @@ fn wait_until(
     }
 }
 
-/// The fall is said and nothing latches (REF-12): a lost helper is no stop.
+/// The fall is said and nothing latches: a lost helper is no stop.
 fn fell(state: &Value) -> bool {
     state["privacy_stopped"] == false
         && state["capabilities"]["native_helper"] == false
         && state["notice_log"]["records"]
             .as_array()
             .is_some_and(|records| {
-                // SIM-21: said as a code with its cause, not a sentence.
+                // Said as a code with its cause, not a sentence.
                 records.iter().any(|record| {
                     record["code"] == "contained_failure"
                         && record["data"]["cause"] == "helper_lost"
@@ -124,7 +124,7 @@ fn wait_for_exit(child: &mut Child) -> Result<()> {
     }
 }
 
-/// SYS-02 A3: `orbit daemon --helper <ruta absoluta>` launches the helper as a
+/// `orbit daemon --helper <absolute path>` launches the helper as a
 /// managed child (`--stdio --managed`), announces its fall and keeps it under
 /// supervision, exactly like a configured helper.
 #[test]
@@ -154,11 +154,11 @@ fn daemon_helper_flag_launches_the_helper_with_stdio_managed_and_supervises_it()
     assert_eq!(
         observed.trim(),
         "--stdio --managed",
-        "SYS-02 A3: the flagged helper must be launched in managed mode"
+        "the flagged helper must be launched in managed mode"
     );
     assert!(
         launches_of(directory.path(), "helper") >= 2,
-        "SYS-02 A3: the flagged helper must stay under supervision after its fall"
+        "the flagged helper must stay under supervision after its fall"
     );
     ipc::request(directory.path(), IpcCommand::Shutdown)
         .context("the supervised daemon must still answer a graceful shutdown")?;

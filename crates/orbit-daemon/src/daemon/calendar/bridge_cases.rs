@@ -1,4 +1,4 @@
-//! REF-10 (and CAL-03, CAL-06): Deimos reads any range of the agenda in one
+//! Deimos reads any range of the agenda in one
 //! question, through the real `device_request`, answered in pages.
 //!
 //! The helper is synthetic and serves a fixed agenda; the hub frames are read
@@ -17,7 +17,7 @@ use super::tests::{
 use super::*;
 use crate::daemon::audio::tests::fixture;
 
-/// The one document both sides of the bridge read (CAL-06).
+/// The one document both sides of the bridge read.
 const CONTRACT: &str =
     include_str!("../../../../../contracts/fixtures/device-bridge-request-v1.json");
 
@@ -39,7 +39,7 @@ struct Mac {
 }
 
 #[tokio::test]
-async fn ref207_a4_deimos_uses_the_same_pure_calendar_access_decision() -> Result<()> {
+async fn deimos_uses_the_same_pure_calendar_access_decision() -> Result<()> {
     let mut mac = mac(vec![]).await?;
     mac.runtime.features.calendar.view.authorization = CalendarAuthorization::Denied;
     let core = orbit_core::topics::agenda::access(CalendarAuthorization::Denied, false);
@@ -93,7 +93,7 @@ async fn ref207_a4_deimos_uses_the_same_pure_calendar_access_decision() -> Resul
 }
 
 #[tokio::test]
-async fn ref303_a3_full_hub_names_calendar_reply_capacity_without_success_notice() -> Result<()> {
+async fn full_hub_names_calendar_reply_capacity_without_success_notice() -> Result<()> {
     let mut mac = mac(vec![event(1, OCTOBER_MS, "work")]).await?;
     for _ in 0..64 {
         assert!(
@@ -109,7 +109,7 @@ async fn ref303_a3_full_hub_names_calendar_reply_capacity_without_success_notice
         }))
         .await?;
     mac.serve().await?;
-    // SIM-21: not delivered is said; the full channel and its 64 frames
+    // Not delivered is said; the full channel and its 64 frames
     // are in daemon.log under the same op.
     assert_eq!(
         mac.runtime.state.notice_code(),
@@ -124,7 +124,7 @@ async fn ref303_a3_full_hub_names_calendar_reply_capacity_without_success_notice
 }
 
 #[tokio::test]
-async fn ref303_a3_retired_hub_names_calendar_reply_loss_without_success_row() -> Result<()> {
+async fn retired_hub_names_calendar_reply_loss_without_success_row() -> Result<()> {
     let mut mac = mac(vec![event(1, OCTOBER_MS, "work")]).await?;
     mac.runtime
         .hub
@@ -148,7 +148,7 @@ async fn ref303_a3_retired_hub_names_calendar_reply_loss_without_success_row() -
 }
 
 #[tokio::test]
-async fn ref303_round2_calendar_privacy_notice_hides_internal_code() -> Result<()> {
+async fn calendar_privacy_notice_hides_internal_code() -> Result<()> {
     let mut mac = mac(vec![event(1, OCTOBER_MS, "work")]).await?;
     mac.runtime
         .device_request_raw(&json!({
@@ -167,7 +167,7 @@ async fn ref303_round2_calendar_privacy_notice_hides_internal_code() -> Result<(
 }
 
 #[tokio::test]
-async fn ref303b_r2_stop_answers_pending_calendar_read_once() -> Result<()> {
+async fn stop_answers_pending_calendar_read_once() -> Result<()> {
     let mut mac = mac(vec![event(1, OCTOBER_MS, "work")]).await?;
     mac.runtime
         .device_request_raw(&json!({
@@ -189,10 +189,7 @@ async fn ref303b_r2_stop_answers_pending_calendar_read_once() -> Result<()> {
         frame["params"]["refusal"]["code"], "privacy_stopped",
         "{frame}"
     );
-    assert!(
-        mac.frames.try_recv().is_err(),
-        "la parada respondió dos veces"
-    );
+    assert!(mac.frames.try_recv().is_err(), "the stop answered twice");
     assert_eq!(
         mac.runtime
             .state
@@ -257,7 +254,7 @@ async fn revocation_answers_pending_calendar_read_like_privacy_stop() -> Result<
 }
 
 #[tokio::test]
-async fn ref303b_r2_calendar_refusal_notice_keeps_cause_in_parentheses() -> Result<()> {
+async fn calendar_refusal_notice_keeps_cause_in_parentheses() -> Result<()> {
     let mut mac = mac(vec![]).await?;
     mac.runtime
         .device_request_raw(&json!({
@@ -277,7 +274,7 @@ async fn ref303b_r2_calendar_refusal_notice_keeps_cause_in_parentheses() -> Resu
 }
 
 #[tokio::test]
-async fn ref403_a4_invalid_calendar_fields_keep_their_names_on_modern_wire() -> Result<()> {
+async fn invalid_calendar_fields_keep_their_names_on_modern_wire() -> Result<()> {
     let mut mac = mac(vec![]).await?;
     for (request_id, parameters, field) in [
         ("missing-window", json!({"start_ms":OCTOBER_MS}), "end_ms"),
@@ -299,9 +296,9 @@ async fn mac(agenda: Vec<Value>) -> Result<Mac> {
     let (mut runtime, mut helper) = fixture(directory.path())?;
     said::trace(&mut runtime, directory.path());
     seed(&mut runtime, &mut helper).await?;
-    // REF-11: no Orbit-side switch is left, and the computer's own macOS
+    // No Orbit-side switch is left, and the computer's own macOS
     // permissions are withheld here on purpose: the calendar answers to its
-    // permission alone (CAL-03 A7, REF-10 A1).
+    // permission alone.
     {
         let fixture_value = serde_json::json!(orbit_core::PermissionState::Denied);
         crate::daemon::authority_fixture::set(
@@ -345,7 +342,7 @@ async fn malformed_calendar_number_reaches_deimos_with_event_field_and_type() ->
     let command = mac
         .helper
         .try_recv()
-        .context("calendar_snapshot no enviada")?;
+        .context("calendar_snapshot not sent")?;
     assert_eq!(command["command"], "calendar_snapshot");
     let mut result = page(
         &command["calendar_query"],
@@ -383,13 +380,13 @@ impl Mac {
         let frame = self
             .frames
             .try_recv()
-            .context("el Mac tiene que contestar; el silencio es la respuesta equivocada")?;
+            .context("the Mac must answer; silence is the wrong answer")?;
         assert_eq!(frame["method"], "device.reply");
         assert_eq!(frame["params"]["request_id"], id);
         let bytes = serde_json::to_string(&frame)?.len();
         assert!(
             bytes < crate::hub::MAX_OUTGOING_FRAME_BYTES,
-            "una respuesta de {bytes} bytes no sale del Mac"
+            "a reply of {bytes} bytes does not leave the Mac"
         );
         Ok(frame["params"].clone())
     }
@@ -481,7 +478,7 @@ impl Mac {
                     .is_some_and(|last| last.get(INVITEES_CONTINUED) == Some(&Value::Bool(true)));
                 if continues {
                     let Some(last) = events.last_mut() else {
-                        bail!("fragmento sin cabeza")
+                        bail!("fragment without a head")
                     };
                     assert_eq!(last["observation_id"], item["observation_id"]);
                     let more = item["invitees"].as_array().cloned().unwrap_or_default();
@@ -554,10 +551,10 @@ fn realistic(index: usize, start: i64, guests: usize) -> Value {
     value
 }
 
-/// REF-10 A2: a month with a busy agenda — three hundred realistic events —
+/// A month with a busy agenda — three hundred realistic events —
 /// in one question, every event once, in frames the link carries.
 #[tokio::test]
-async fn ref10_a2_a_busy_month_arrives_whole_in_one_question() -> Result<()> {
+async fn a_busy_month_arrives_whole_in_one_question() -> Result<()> {
     let agenda: Vec<Value> = (0..300)
         .map(|index| {
             realistic(
@@ -574,15 +571,15 @@ async fn ref10_a2_a_busy_month_arrives_whole_in_one_question() -> Result<()> {
         .iter()
         .map(|event| serde_json::to_vec(event).map_or(0, |value| value.len()))
         .sum();
-    assert_eq!(pages, 4, "{pages} páginas para {bytes} bytes");
+    assert_eq!(pages, 4, "{pages} pages for {bytes} bytes");
     assert_eq!(mac.windows_read, 1, "a month is one window");
     Ok(())
 }
 
-/// REF-10 A2: a whole year, still one question; windows and pages are Orbit's
+/// A whole year, still one question; windows and pages are Orbit's
 /// business, and the answer never says it stopped short.
 #[tokio::test]
-async fn ref10_a2_a_year_is_one_question_too() -> Result<()> {
+async fn a_year_is_one_question_too() -> Result<()> {
     let agenda: Vec<Value> = (0..400)
         .map(|index| {
             event(
@@ -595,14 +592,14 @@ async fn ref10_a2_a_year_is_one_question_too() -> Result<()> {
     let mut mac = mac(agenda).await?;
     let (events, _) = mac.walk(OCTOBER_MS, OCTOBER_MS + 365 * DAY_MS).await?;
     assert_eq!(events.len(), 400);
-    assert_eq!(mac.windows_read, 12, "365 días en ventanas de 31");
+    assert_eq!(mac.windows_read, 12, "365 days in windows of 31");
     Ok(())
 }
 
-/// REF-10 A3: one day with more events than fit one frame arrives whole: the
+/// One day with more events than fit one frame arrives whole: the
 /// helper pages the window and the daemon pages the answer.
 #[tokio::test]
-async fn ref10_a3_a_day_fuller_than_one_frame_arrives_whole() -> Result<()> {
+async fn a_day_fuller_than_one_frame_arrives_whole() -> Result<()> {
     let agenda: Vec<Value> = (0..900)
         .map(|index| realistic(index, OCTOBER_MS + (index as i64) * 60_000, 2))
         .collect();
@@ -614,10 +611,10 @@ async fn ref10_a3_a_day_fuller_than_one_frame_arrives_whole() -> Result<()> {
     Ok(())
 }
 
-/// REF-10 A3: a meeting whose own invitees do not fit one frame travels in
+/// A meeting whose own invitees do not fit one frame travels in
 /// fragments and is joined; no guest is dropped.
 #[tokio::test]
-async fn ref10_a3_a_meeting_with_thousands_of_guests_is_not_trimmed() -> Result<()> {
+async fn a_meeting_with_thousands_of_guests_is_not_trimmed() -> Result<()> {
     let mut agenda = vec![realistic(0, OCTOBER_MS, 1_500)];
     agenda.push(realistic(1, OCTOBER_MS + 3_600_000, 1));
     let mut mac = mac(agenda).await?;
@@ -630,7 +627,7 @@ async fn ref10_a3_a_meeting_with_thousands_of_guests_is_not_trimmed() -> Result<
 }
 
 #[tokio::test]
-async fn ref10_a8_each_missing_condition_is_named() -> Result<()> {
+async fn each_missing_condition_is_named() -> Result<()> {
     for (authorization, code) in [
         (Some("denied"), "permission_denied"),
         (Some("not_determined"), "permission_denied"),
@@ -666,10 +663,10 @@ async fn ref10_a8_each_missing_condition_is_named() -> Result<()> {
     }
     Ok(())
 }
-/// REF-10 A9: withdrawing the permission while a read waits refuses it by
+/// Withdrawing the permission while a read waits refuses it by
 /// name, and the next question gets no events.
 #[tokio::test]
-async fn ref10_a9_withdrawing_the_permission_cuts_the_read() -> Result<()> {
+async fn withdrawing_the_permission_cuts_the_read() -> Result<()> {
     let mut mac = mac(vec![event(1, OCTOBER_MS, "work")]).await?;
     mac.runtime
         .device_request_raw(
@@ -732,7 +729,7 @@ async fn a_lost_walk_and_a_malformed_cursor_are_refused_by_name() -> Result<()> 
     Ok(())
 }
 
-/// REF-12 third review: the helper cutting capture is not renamed on the
+/// The helper cutting capture is not renamed on the
 /// device bridge. The translator knows this code and decides whether to retry.
 #[tokio::test]
 async fn a_capture_cut_in_flight_reaches_deimos_as_capture_stopped() -> Result<()> {
@@ -843,10 +840,10 @@ async fn a_store_change_mid_window_reads_it_again_before_answering() -> Result<(
     Ok(())
 }
 
-/// CAL-06, kept: the range the translator sends is the one this Mac reads,
+/// The range the translator sends is the one this Mac reads,
 /// and the continuation it sends parses — types included.
 #[tokio::test]
-async fn cal06_the_contracted_parameters_are_read_as_the_translator_sends_them() -> Result<()> {
+async fn the_contracted_parameters_are_read_as_the_translator_sends_them() -> Result<()> {
     let document: Value = serde_json::from_str(CONTRACT)?;
     assert_eq!(document["schema"], "orbit.device-bridge-request.v1");
     let first = document["requests"]
@@ -856,16 +853,16 @@ async fn cal06_the_contracted_parameters_are_read_as_the_translator_sends_them()
                 .iter()
                 .find(|entry| entry["capability"] == "calendar_read")
         })
-        .context("el contrato no dice nada de calendar_read")?["parameters"]
+        .context("the contract says nothing about calendar_read")?["parameters"]
         .clone();
     let following: Vec<Value> = document["continuations"]
         .as_array()
-        .context("el contrato no dice cómo sigue una lectura")?
+        .context("the contract does not say how a read continues")?
         .iter()
         .filter(|entry| entry["capability"] == "calendar_read")
         .map(|entry| entry["parameters"].clone())
         .collect();
-    // After whole events, and inside one event's invitees (REF-10 A3).
+    // After whole events, and inside one event's invitees.
     assert_eq!(following.len(), 2);
     assert!(
         following
@@ -892,7 +889,7 @@ async fn cal06_the_contracted_parameters_are_read_as_the_translator_sends_them()
     let mut mac = mac(vec![]).await?;
     mac.runtime
         .device_request_raw(
-            &json!({"request_id": "cal06", "capability": "calendar_read",
+            &json!({"request_id": "contracted-read", "capability": "calendar_read",
             "parameters": first.clone()}),
         )
         .await?;
@@ -902,12 +899,12 @@ async fn cal06_the_contracted_parameters_are_read_as_the_translator_sends_them()
     Ok(())
 }
 
-/// Decision 4 (revisora, REF-10): a field is not a reason to leave an event out
+/// A field is not a reason to leave an event out
 /// while the event fits a page. A 5 KB title among fifty ordinary events used
 /// to stop the whole read with `calendar_limit_exceeded` (the bound was 2,048
 /// bytes); now it arrives with the other fifty.
 #[tokio::test]
-async fn ref10_d4_a_five_kilobyte_title_among_fifty_events_arrives_with_them() -> Result<()> {
+async fn a_five_kilobyte_title_among_fifty_events_arrives_with_them() -> Result<()> {
     let mut agenda: Vec<Value> = (0..50)
         .map(|index| realistic(index, OCTOBER_MS + (index as i64) * 3_600_000, 2))
         .collect();
@@ -928,13 +925,12 @@ async fn ref10_d4_a_five_kilobyte_title_among_fifty_events_arrives_with_them() -
     Ok(())
 }
 
-/// Decision 4: an event that cannot fit a page on its own — here its title
+/// An event that cannot fit a page on its own — here its title
 /// and its URL together pass the 96 KiB a bridge answer carries — is left
 /// out, and the answer says so itself: its dates, its identifier, which field
 /// and how many bytes against how many fit. The other fifty arrive.
 #[tokio::test]
-async fn ref10_d4_an_event_that_cannot_fit_a_page_alone_is_named_and_the_rest_arrive() -> Result<()>
-{
+async fn an_event_that_cannot_fit_a_page_alone_is_named_and_the_rest_arrive() -> Result<()> {
     let mut agenda: Vec<Value> = (0..50)
         .map(|index| realistic(index, OCTOBER_MS + (index as i64) * 3_600_000, 2))
         .collect();
@@ -970,10 +966,10 @@ async fn ref10_d4_an_event_that_cannot_fit_a_page_alone_is_named_and_the_rest_ar
     Ok(())
 }
 
-/// Decision 4: what the helper itself could not carry (a field past its bound)
+/// What the helper itself could not carry (a field past its bound)
 /// reaches Deimos named the same way, beside the events that did travel.
 #[tokio::test]
-async fn ref10_d4_what_the_helper_left_out_reaches_the_answer_by_name() -> Result<()> {
+async fn what_the_helper_left_out_reaches_the_answer_by_name() -> Result<()> {
     let agenda: Vec<Value> = (0..50)
         .map(|index| realistic(index, OCTOBER_MS + (index as i64) * 3_600_000, 2))
         .collect();

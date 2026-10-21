@@ -1,4 +1,4 @@
-//! A2: a saturated hub command channel must fail the actor's send immediately
+//! A saturated hub command channel must fail the actor's send immediately
 //! while native audio keeps flowing. Synthetic fixtures only; the channel that
 //! stays full for the whole test stands in for a stalled hub connection, and
 //! the refused frame is never queued or replayed.
@@ -8,7 +8,7 @@ use crate::daemon::turn::said;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use orbit_core::notice::NoticeCode;
 
-/// SIM-21: a send's cause is no longer a sentence in the notice; it is
+/// A send's cause is no longer a sentence in the notice; it is
 /// logged in `daemon.log` under the turn's op. The fixture logs there.
 fn logging(runtime: &mut Runtime, directory: &std::path::Path) {
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory));
@@ -36,7 +36,7 @@ fn assert_undelivered_cause(directory: &std::path::Path, expected: &str) -> Resu
 }
 
 #[tokio::test]
-async fn ref303_round2_privacy_stop_keeps_its_notice_with_a_pending_bridge_request() -> Result<()> {
+async fn privacy_stop_keeps_its_notice_with_a_pending_bridge_request() -> Result<()> {
     use crate::daemon::bridge::BridgeAsk;
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
@@ -74,7 +74,7 @@ async fn ref303_round2_privacy_stop_keeps_its_notice_with_a_pending_bridge_reque
 }
 
 #[tokio::test]
-async fn ref303b_a5_privacy_stop_queues_refusal_before_retiring_hub() -> Result<()> {
+async fn privacy_stop_queues_refusal_before_retiring_hub() -> Result<()> {
     use crate::daemon::bridge::BridgeAsk;
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
@@ -120,7 +120,7 @@ async fn ref303b_a5_privacy_stop_queues_refusal_before_retiring_hub() -> Result<
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn ref303b_r2_privacy_stop_orders_native_cut_before_hub_refusal() -> Result<()> {
+async fn privacy_stop_orders_native_cut_before_hub_refusal() -> Result<()> {
     use crate::daemon::bridge::BridgeAsk;
     use futures_util::FutureExt;
     let directory = tempfile::tempdir()?;
@@ -148,7 +148,7 @@ async fn ref303b_r2_privacy_stop_orders_native_cut_before_hub_refusal() -> Resul
     assert!(stop.as_mut().now_or_never().is_none());
     assert!(
         hub_frames.try_recv().is_err(),
-        "la negativa salió antes de admitir la orden de corte"
+        "the refusal left before the cut order was admitted"
     );
     while native_frames.try_recv().is_ok() {}
     stop.await;
@@ -163,7 +163,7 @@ async fn ref303b_r2_privacy_stop_orders_native_cut_before_hub_refusal() -> Resul
 }
 
 #[tokio::test]
-async fn ref303b_a1_work_delivery_waits_for_capacity_and_handles_closed_receiver() {
+async fn work_delivery_waits_for_capacity_and_handles_closed_receiver() {
     use futures_util::FutureExt;
     let (sender, mut receiver) = mpsc::channel(1);
     assert!(
@@ -208,7 +208,7 @@ async fn ref303b_a1_work_delivery_waits_for_capacity_and_handles_closed_receiver
 }
 
 #[tokio::test]
-async fn ref303_round2_hub_encoding_failure_is_reported_without_queue_admission() -> Result<()> {
+async fn hub_encoding_failure_is_reported_without_queue_admission() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     logging(&mut runtime, directory.path());
@@ -223,7 +223,7 @@ async fn ref303_round2_hub_encoding_failure_is_reported_without_queue_admission(
         result,
         hub_link::SendResult::EncodingFailed { .. }
     ));
-    runtime.note_bridge_send(&result, "la trama de prueba");
+    runtime.note_bridge_send(&result, "the test frame");
     assert_eq!(
         runtime.state.notice_code(),
         Some(NoticeCode::BridgeReplyUndelivered)
@@ -234,14 +234,14 @@ async fn ref303_round2_hub_encoding_failure_is_reported_without_queue_admission(
 }
 
 #[tokio::test]
-async fn ref303_a1_full_hub_report_names_capacity_and_does_not_queue_reply() -> Result<()> {
+async fn full_hub_report_names_capacity_and_does_not_queue_reply() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let (sender, mut frames) = mpsc::channel(1);
     sender.try_send(json!({"fixture":"occupied"}))?;
     runtime.hub.install(sender);
     let Err(error) = runtime.send(json!({"method":"device.reply"})).await else {
-        bail!("el canal lleno debía rechazar la respuesta")
+        bail!("the full channel should have refused the reply")
     };
     assert!(error.to_string().contains("1"), "{error}");
     assert!(error.to_string().contains("lleno"), "{error}");
@@ -251,7 +251,7 @@ async fn ref303_a1_full_hub_report_names_capacity_and_does_not_queue_reply() -> 
 }
 
 #[tokio::test]
-async fn ref303_a2_action_receipt_is_reported_only_after_queue_admission() -> Result<()> {
+async fn action_receipt_is_reported_only_after_queue_admission() -> Result<()> {
     use crate::daemon::bridge::BridgeAsk;
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
@@ -322,7 +322,7 @@ async fn ref303_a2_action_receipt_is_reported_only_after_queue_admission() -> Re
 }
 
 #[tokio::test]
-async fn ref303_a2_bridge_release_reports_full_and_retired_link() -> Result<()> {
+async fn bridge_release_reports_full_and_retired_link() -> Result<()> {
     use crate::daemon::bridge::{BridgeAsk, BridgeReleaseReason};
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
@@ -366,7 +366,7 @@ async fn ref303_a2_bridge_release_reports_full_and_retired_link() -> Result<()> 
 }
 
 #[tokio::test]
-async fn ref303_a2_engine_windows_reply_reports_full_and_retired_link() -> Result<()> {
+async fn engine_windows_reply_reports_full_and_retired_link() -> Result<()> {
     use crate::daemon::bridge::BridgeAsk;
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
@@ -416,7 +416,7 @@ async fn ref303_a2_engine_windows_reply_reports_full_and_retired_link() -> Resul
 }
 
 #[tokio::test]
-async fn ref303_a2_helper_windows_reply_reports_full_and_retired_link() -> Result<()> {
+async fn helper_windows_reply_reports_full_and_retired_link() -> Result<()> {
     use crate::daemon::bridge::BridgeAsk;
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
@@ -512,16 +512,14 @@ async fn full_command_channel_fails_the_send_immediately_and_audio_keeps_process
         )?),
     )
     .await
-    .context(
-        "A2: with the command channel full, send must fail immediately, not block the actor",
-    )?;
+    .context("with the command channel full, send must fail immediately, not block the actor")?;
     let Err(_refused) = sent else {
-        bail!("A2: with the command channel full, send must return an error")
+        bail!("with the command channel full, send must return an error")
     };
     assert!(
         runtime.state.durable.notice_log.records().len() > notices_before
             && runtime.state.notice_code() == Some(NoticeCode::HubSendFailed),
-        "A2: the refused turn must be marked unsent with a notice: {:?}",
+        "the refused turn must be marked unsent with a notice: {:?}",
         runtime.state.durable.notice
     );
     // The actor keeps processing native audio while the queue stays full.

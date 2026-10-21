@@ -6,7 +6,7 @@ use std::collections::VecDeque;
 use tokio::sync::mpsc;
 
 /// How many sent frames remember their op, so the hub's answer to one (its
-/// error, above all) is said under the op of the request (SIM-21). The link
+/// error, above all) is said under the op of the request. The link
 /// queues 16 frames; 64 covers four full queues of answers still on their
 /// way. It bounds only this memory: an answer to an older frame gets a new
 /// op, it is not refused.
@@ -101,7 +101,7 @@ impl HubLink {
     }
 
     /// Sends one request frame on behalf of the action `op`: the frame carries
-    /// it in its top-level `op` field (the contract with the hub, SIM-22).
+    /// it in its top-level `op` field (the contract with the hub).
     pub(super) fn send_or_report(&mut self, frame: anyhow::Result<Value>, op: &Op) -> SendResult {
         match &self.state {
             LinkState::Disconnected => SendResult::Disconnected,
@@ -152,7 +152,7 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    /// SIM-21: every request frame carries the op of its action at the top
+    /// Every request frame carries the op of its action at the top
     /// level (`{v, id, op, method, params}`), and the answer to it can find
     /// that op again by the frame's id.
     #[test]
@@ -171,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    fn ref303_a1_distinguishes_unconnected_closed_and_all_retirement_causes() {
+    fn distinguishes_unconnected_closed_and_all_retirement_causes() {
         let mut link = HubLink::default();
         assert_eq!(
             link.send_or_report(Ok(json!({})), &orbit_ipc::new_op()),
@@ -212,7 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn ref303_round2_privacy_stop_overrides_an_earlier_network_retirement() {
+    fn privacy_stop_overrides_an_earlier_network_retirement() {
         let mut link = HubLink::default();
         let receiver = link.open(1);
         link.retire(Retirement::NetworkCancelled);

@@ -663,7 +663,7 @@ mod tests {
     use std::io::{Read, Write};
 
     #[test]
-    fn a_mars_stop_during_runtime_recovery_reattributes_an_old_stop() {
+    fn a_user_stop_during_runtime_recovery_reattributes_an_old_stop() {
         let mut checkpoint = State::default();
         crate::daemon::authority_fixture::set(
             &mut checkpoint,

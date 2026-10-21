@@ -66,7 +66,7 @@ fn project(source: &TopicSource<'_>) -> TopicData {
     TopicData::Agenda(knowledge)
 }
 
-/// P9-22: the newest write outcomes that keep the head inside its registered
+/// The newest write outcomes that keep the head inside its registered
 /// ceiling (`TopicId::Agenda.max_bytes()`, 4 KiB), oldest first as the daemon
 /// keeps them. The daemon follows up to `calendar::writes::WRITE_RECORDS`;
 /// the head is not where they are kept, only how the app hears the latest
@@ -122,7 +122,7 @@ mod tests {
     use orbit_core::{calendar::CalendarAuthorization, topics::Knowledge};
 
     #[tokio::test]
-    async fn ref207_a1_native_invalidation_changes_the_published_head() -> anyhow::Result<()> {
+    async fn native_invalidation_changes_the_published_head() -> anyhow::Result<()> {
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut helper) = crate::daemon::audio::tests::fixture(directory.path())?;
         crate::daemon::calendar::tests::seed(&mut runtime, &mut helper).await?;
@@ -154,8 +154,8 @@ mod tests {
         loop {
             let command = tokio::time::timeout(std::time::Duration::from_secs(2), receiver.recv())
                 .await
-                .map_err(|_| anyhow::anyhow!("el helper nunca recibió {name}"))?
-                .ok_or_else(|| anyhow::anyhow!("el helper falso se desconectó"))?;
+                .map_err(|_| anyhow::anyhow!("the helper never received {name}"))?
+                .ok_or_else(|| anyhow::anyhow!("the fake helper disconnected"))?;
             if command["command"] == name {
                 return Ok(command);
             }
@@ -169,7 +169,7 @@ mod tests {
             now_ms: 0,
         }) {
             TopicData::Agenda(Knowledge::Present { value, .. }) => Ok(value),
-            other => anyhow::bail!("la cabecera de la agenda no está presente: {other:?}"),
+            other => anyhow::bail!("the agenda head is not present: {other:?}"),
         }
     }
 
@@ -196,11 +196,11 @@ mod tests {
         }
     }
 
-    /// P9-22: the app learns how each write ended from the agenda head —
+    /// The app learns how each write ended from the agenda head —
     /// saved with the occurrence it left (what an undo names), or refused
     /// with its code and the notice that carries its numbers.
     #[tokio::test]
-    async fn p9_22_the_agenda_head_carries_each_write_outcome() -> anyhow::Result<()> {
+    async fn the_agenda_head_carries_each_write_outcome() -> anyhow::Result<()> {
         use orbit_core::calendar_control::{CalendarWriteOperation, CalendarWriteStage};
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut helper) = crate::daemon::audio::tests::fixture(directory.path())?;
@@ -229,7 +229,7 @@ mod tests {
             .writes
             .into_iter()
             .find(|write| write.request_id == "create-1")
-            .ok_or_else(|| anyhow::anyhow!("la creación no está en la cabecera"))?;
+            .ok_or_else(|| anyhow::anyhow!("the creation is not in the head"))?;
         assert_eq!(saved.operation, CalendarWriteOperation::Create);
         assert_eq!(saved.stage, CalendarWriteStage::Saved);
         assert_eq!(
@@ -256,7 +256,7 @@ mod tests {
         let refused = writes
             .iter()
             .find(|write| write.request_id == "create-2")
-            .ok_or_else(|| anyhow::anyhow!("la negativa no está en la cabecera"))?;
+            .ok_or_else(|| anyhow::anyhow!("the refusal is not in the head"))?;
         assert_eq!(refused.stage, CalendarWriteStage::Refused);
         assert_eq!(refused.code.as_deref(), Some("calendar_not_editable"));
         assert!(
@@ -277,11 +277,11 @@ mod tests {
         Ok(())
     }
 
-    /// P9-22: the head stays inside its registered ceiling
+    /// The head stays inside its registered ceiling
     /// (`TopicId::Agenda.max_bytes()`, 4 KiB) however many writes the daemon
     /// follows: the newest that fit travel, the rest stay in the daemon.
     #[tokio::test]
-    async fn p9_22_the_head_keeps_the_newest_writes_within_its_ceiling() -> anyhow::Result<()> {
+    async fn the_head_keeps_the_newest_writes_within_its_ceiling() -> anyhow::Result<()> {
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut helper) = crate::daemon::audio::tests::fixture(directory.path())?;
         crate::daemon::calendar::tests::seed(&mut runtime, &mut helper).await?;

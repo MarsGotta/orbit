@@ -1,4 +1,4 @@
-//! Error reports to Sentry, only when the person allowed them (SIM-23).
+//! Error reports to Sentry, only when the person allowed them.
 //!
 //! One client for the whole Mac, here in the daemon: what the daemon reports
 //! to its local log (`Runtime::reported`) and what the interface reports to
@@ -75,7 +75,7 @@ struct Inner {
 }
 
 impl ErrorReports {
-    /// The client for `dsn`, switched on or off as she chose. `None`, or an
+    /// The client for `dsn`, switched on or off as the user chose. `None`, or an
     /// address that is not a Sentry DSN, gives no client at all.
     pub fn start(dsn: Option<&str>, enabled: bool) -> Self {
         let Some(dsn) = dsn.and_then(|raw| raw.parse::<sentry::types::Dsn>().ok()) else {
@@ -117,7 +117,7 @@ impl ErrorReports {
         }
     }
 
-    /// Her choice, for the switch: `None` when this build cannot send, so
+    /// The user's choice, for the switch: `None` when this build cannot send, so
     /// the switch is not offered.
     pub fn choice(&self) -> Option<bool> {
         self.inner
@@ -126,8 +126,8 @@ impl ErrorReports {
     }
 
     /// Turns sending on or off from now on. Off also forgets the repetitions
-    /// counted so far: nothing said while she allowed it leaves after she
-    /// stopped allowing it. What already left cannot be withdrawn from here.
+    /// counted so far: nothing said while the user allowed it leaves after
+    /// they stopped allowing it. What already left cannot be withdrawn from here.
     pub fn set_enabled(&self, enabled: bool) {
         if let Some(inner) = &self.inner {
             inner.enabled.store(enabled, Ordering::SeqCst);
@@ -137,7 +137,7 @@ impl ErrorReports {
         }
     }
 
-    /// Sends one report line when it is a failure, unless she has not
+    /// Sends one report line when it is a failure, unless the user has not
     /// allowed it or the same code with the same data was sent less than
     /// [`REPEAT_WINDOW`] ago; then it is only counted, and the count leaves
     /// with the next send of it.
@@ -173,7 +173,7 @@ impl ErrorReports {
 
     /// Reports a panic of this process before it goes on: the Sentry SDK's
     /// panic event (its frames), sent and flushed for up to [`EXIT_FLUSH`]
-    /// while she allows it. Installed once per process, on top of the hook
+    /// while the user allows it. Installed once per process, on top of the hook
     /// already there, which still runs.
     pub fn report_panics(&self) {
         static INSTALLED: std::sync::Once = std::sync::Once::new();

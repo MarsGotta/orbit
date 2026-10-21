@@ -2,10 +2,10 @@ use super::*;
 use anyhow::Context;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use serde_json::json;
-// SYS-17 A3: `retry_seals` hands the segments to the store actor's own thread
+// `retry_seals` hands the segments to the store actor's own thread
 // and does not promise their receipts have landed when it returns, so the
-// queue draining is an event, not the instant after asking for it. REF-03
-// moved this wait next to the fixture, so every sealing test waits on the same
+// queue draining is an event, not the instant after asking for it. This
+// wait lives next to the fixture, so every sealing test waits on the same
 // event with the same measured guard.
 use crate::daemon::audio::tests::{await_seal_receipts, fixture, receive_helper_command};
 use orbit_store::ChunkMetadata;
@@ -100,16 +100,16 @@ async fn a_repeated_attempt_never_advances_or_replaces_pending_identity() -> Res
     assert_eq!(runtime.capture.pending_seals.len(), 1);
     std::fs::remove_dir(blocked)?;
     runtime.retry_seals()?;
-    // SYS-17 A7: the same disease, one test further down the same file — the
+    // The same disease, one test further down the same file: the
     // chunk count only moves once the store actor's receipt has come back.
     await_seal_receipts(&mut runtime)?;
     assert_eq!(runtime.fixture_store.diagnostics()?.chunk_count, 1);
     Ok(())
 }
 
-/// REF-41 A2 · a failed sealing retry must not skip the rest of the capture
+/// A failed sealing retry must not skip the rest of the capture
 /// maintenance turn. Before, the `?` on the retry returned before the core
-/// `Tick`, so a disk that kept refusing seals also froze SYS-20's finalize
+/// `Tick`, so a disk that kept refusing seals also froze the finalize
 /// deadline: a recording that should have been interrupted on that very turn
 /// stayed `Finalizing`, and the call checks and the queued finalize never ran
 /// either.
@@ -119,12 +119,12 @@ async fn a_repeated_attempt_never_advances_or_replaces_pending_identity() -> Res
 /// store actor's thread, and the deadline is aged past
 /// `FINALIZING_TIMEOUT_MS` so the Tick must judge the recording this turn.
 #[tokio::test]
-async fn ref41_a2_a_failed_seal_retry_does_not_skip_the_rest_of_the_turn() -> Result<()> {
+async fn a_failed_seal_retry_does_not_skip_the_rest_of_the_turn() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
         .apply(orbit_core::Event::StartMeeting {
-            id: "ref41-a2".into(),
+            id: "seal-retry".into(),
             title: "Reunión sintética".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
             duration_ms: 60_000,
@@ -158,10 +158,10 @@ async fn ref41_a2_a_failed_seal_retry_does_not_skip_the_rest_of_the_turn() -> Re
     let maintenance = runtime.maintain_capture().await;
     let error = maintenance
         .err()
-        .context("REF-41 A2: the failed retry must still reach the containment table")?;
+        .context("the failed retry must still reach the containment table")?;
     assert!(
         format!("{error:#}").contains("El destino del fragmento no es un archivo regular"),
-        "REF-41 A2: the refusal must keep its cause: {error:#}"
+        "the refusal must keep its cause: {error:#}"
     );
     assert_eq!(
         runtime
@@ -172,29 +172,29 @@ async fn ref41_a2_a_failed_seal_retry_does_not_skip_the_rest_of_the_turn() -> Re
             .context("recording")?
             .phase,
         orbit_core::CapturePhase::Interrupted,
-        "REF-41 A2: the rest of the turn (the SYS-20 Tick) did not run"
+        "the rest of the turn (the finalize-deadline Tick) did not run"
     );
     Ok(())
 }
 
-/// REF-41 r2 · a failed stopped-audio flush is the same disease one branch
+/// A failed stopped-audio flush is the same disease one branch
 /// earlier: the `return Err` skipped the rest of the capture maintenance
 /// turn, including the core `Tick`, so a disk that kept refusing the local
-/// flush also froze SYS-20's finalize deadline. The microphone is not
+/// flush also froze the finalize deadline. The microphone is not
 /// touched by this test at all — the flush fails at the destination check,
 /// on the daemon's own thread.
 ///
 /// The Finalizing phase and its aged deadline are set by hand: the natural
-/// path to a stopped-audio flush owed (her stop) closes the recording
+/// path to a stopped-audio flush owed (the user's stop) closes the recording
 /// locally instead of parking it in `Finalizing`, so the deadline the Tick
 /// must judge cannot be produced by the event itself.
 #[tokio::test]
-async fn ref41_r2_a_failed_stopped_audio_flush_does_not_skip_the_rest_of_the_turn() -> Result<()> {
+async fn a_failed_stopped_audio_flush_does_not_skip_the_rest_of_the_turn() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
         .apply(orbit_core::Event::StartMeeting {
-            id: "ref41-r2-flush".into(),
+            id: "flush-retry".into(),
             title: "Reunión sintética".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
             duration_ms: 60_000,
@@ -205,7 +205,7 @@ async fn ref41_r2_a_failed_stopped_audio_flush_does_not_skip_the_rest_of_the_tur
         .native_event(json!({"event":"response","id":start["id"],"ok":true,
             "result":{"stream_id":start["stream_id"]}}))
         .await?;
-    // Her stop is latched directly: the flush it owes runs from maintenance
+    // The user's stop is latched directly: the flush it owes runs from maintenance
     // once the drain is no longer pending, which is the branch under test.
     {
         let fixture_value = serde_json::json!(true);
@@ -215,7 +215,7 @@ async fn ref41_r2_a_failed_stopped_audio_flush_does_not_skip_the_rest_of_the_tur
     // so the destination failure is produced at the directory check.
     runtime.capture.buffer.begin_voice()?;
     runtime.capture.buffer.ingest_voice_frame(
-        &json!({"event":"audio","source":"mic_local","stream_id":"ref41-r2-voice",
+        &json!({"event":"audio","source":"mic_local","stream_id":"flush-voice",
             "sample_rate":8000,"channels":1,"frames":80,"sequence":0,
             "monotonic_ns":0,"pcm_s16le_base64":STANDARD.encode(vec![1u8; 160])}),
         0,
@@ -226,7 +226,7 @@ async fn ref41_r2_a_failed_stopped_audio_flush_does_not_skip_the_rest_of_the_tur
     runtime.capture.seal_retry_at = None;
     // Old enough that the finalize deadline fires on this very turn. Set by
     // hand with the phase: the natural FinishMeeting path is unavailable
-    // here (her latched stop closes the recording locally instead of
+    // here (the user's latched stop closes the recording locally instead of
     // parking it in `Finalizing`).
     if let Some(recording) = runtime.state.durable.recording.as_mut() {
         recording.phase = orbit_core::CapturePhase::Finalizing;
@@ -236,10 +236,10 @@ async fn ref41_r2_a_failed_stopped_audio_flush_does_not_skip_the_rest_of_the_tur
     let maintenance = runtime.maintain_capture().await;
     let error = maintenance
         .err()
-        .context("REF-41 r2: the failed flush must still reach the containment table")?;
+        .context("the failed flush must still reach the containment table")?;
     assert!(
         format!("{error:#}").contains("La ruta de fragmentos no es un directorio privado"),
-        "REF-41 r2: the refusal must keep its cause: {error:#}"
+        "the refusal must keep its cause: {error:#}"
     );
     assert_eq!(
         runtime
@@ -250,7 +250,7 @@ async fn ref41_r2_a_failed_stopped_audio_flush_does_not_skip_the_rest_of_the_tur
             .context("recording")?
             .phase,
         orbit_core::CapturePhase::Interrupted,
-        "REF-41 r2: the rest of the turn (the SYS-20 Tick) did not run"
+        "the rest of the turn (the finalize-deadline Tick) did not run"
     );
     Ok(())
 }

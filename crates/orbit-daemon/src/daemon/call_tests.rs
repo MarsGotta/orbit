@@ -50,7 +50,7 @@ fn call_frame(stream: &str, sequence: u64, voiced: bool) -> Value {
 }
 
 #[tokio::test]
-async fn expired_call_tick_does_not_claim_mars_interrupted_its_voice_note() -> Result<()> {
+async fn expired_call_tick_does_not_claim_the_user_interrupted_its_voice_note() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime
@@ -95,7 +95,7 @@ async fn expired_call_tick_does_not_claim_mars_interrupted_its_voice_note() -> R
 }
 
 #[tokio::test]
-async fn helper_cut_does_not_claim_mars_interrupted_its_voice_note() -> Result<()> {
+async fn helper_cut_does_not_claim_the_user_interrupted_its_voice_note() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime
@@ -267,7 +267,7 @@ async fn expired_detector_frame_routes_its_reason_into_the_voice_snapshot() -> R
 }
 
 #[tokio::test]
-async fn new_call_turn_names_the_turn_instead_of_a_mars_interrupt() -> Result<()> {
+async fn new_call_turn_names_the_turn_instead_of_a_user_interrupt() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     let stream = start_call(&mut runtime, &mut helper).await?;
@@ -424,7 +424,7 @@ async fn interrupt_snapshot_failure_keeps_the_call_listening() -> Result<()> {
     runtime.work.durable_snapshot = crate::daemon::kernel::DurableSnapshot::from(&runtime.state);
     let database = rusqlite::Connection::open(runtime.paths.store.join("orbit.sqlite3"))?;
     database.execute_batch(
-        "CREATE TRIGGER review_fail_call_interrupt_snapshot BEFORE UPDATE ON settings
+        "CREATE TRIGGER fail_call_interrupt_snapshot BEFORE UPDATE ON settings
          WHEN NEW.key='snapshot' BEGIN
            SELECT RAISE(ABORT, 'synthetic call interrupt snapshot failure');
          END;",
@@ -477,7 +477,7 @@ async fn invalid_native_processing_ack_never_authorizes_derived_voice() -> Resul
     );
     assert!(!runtime.state.capabilities().voice_processing_available);
     assert!(runtime.capture.buffer.voice.is_none());
-    // REF-12: the loop contains the failure; the live call is cut with its
+    // The loop contains the failure; the live call is cut with its
     // cause and nothing latches.
     runtime
         .contain(

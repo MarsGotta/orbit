@@ -205,9 +205,9 @@ impl Runtime {
         {
             self.schedule_chunk_cleanup()?;
         }
-        // REF-27: while seals are pending, only a chunk upload may enter the
+        // While seals are pending, only a chunk upload may enter the
         // ordered actor. Its durable admission waits on the worker, so prior
-        // seals keep REF-03 order without holding the daemon loop; the
+        // seals keep their order without holding the daemon loop; the
         // closure path retains its own eligibility rules once sealing is
         // caught up. This is not a second audio queue or an upload-rate limit.
         if !self.capture.pending_seals.is_empty() {
@@ -494,7 +494,7 @@ impl Runtime {
                             let result = settlement.wait().await.map(|_| ()).with_context(|| {
                                 format!("No se pudo guardar el resultado de subida {job_id}")
                             });
-                            // REF-27: this send waits off the daemon loop, on a
+                            // This send waits off the daemon loop, on a
                             // worker, so a slow actor cannot hold IPC. Its failure
                             // has no local recovery to check: it only happens when
                             // the receiver that owns the runtime is gone, the
@@ -520,7 +520,7 @@ impl Runtime {
             let recording = stored_job.payload["recording_id"]
                 .as_str()
                 .context("Cierre sin identidad")?;
-            // SIM-41: the hub has it whole and asks for its note itself;
+            // The hub has it whole and asks for its note itself;
             // the list reads it from there.
             self.recording_uploaded(recording);
         }
@@ -574,7 +574,7 @@ impl Runtime {
         {
             self.defer_sealed_snapshot()?;
         }
-        // SYS-20: outside the `if`. This used to be the only place that
+        // Outside the `if`. This used to be the only place that
         // resumed a deferred finish, and it only ran when this path was
         // the one that applied the receipt. When `collect_ready_seals`
         // had already taken the same completion there was no `id`, the

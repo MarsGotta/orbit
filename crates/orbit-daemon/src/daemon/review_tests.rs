@@ -92,7 +92,7 @@ async fn helper_loss_preserves_the_voice_prefix_without_provider_submission() ->
     let stream = start(&mut runtime, &mut receiver).await?;
     runtime.apply(Event::VoiceStart).await?;
     runtime.native_event(frame(&stream, 0, 100)).await?;
-    // REF-12: the loss cuts the live voice note; it no longer latches a stop.
+    // The loss cuts the live voice note; it no longer latches a stop.
     runtime
         .handle_native_event(json!({"event":"helper_disconnected"}))
         .await;
@@ -343,7 +343,7 @@ async fn manifest_write_failure_keeps_voice_owned_and_shutdown_cannot_discard_it
     runtime.capture.buffer.ingest(&frame("voice", 0, 100), 42)?;
     let fault = rusqlite::Connection::open(runtime.paths.store.join("orbit.sqlite3"))?;
     fault.execute_batch("CREATE TRIGGER synthetic_manifest_fault BEFORE INSERT ON jobs WHEN NEW.kind = 'recording_manifest' BEGIN SELECT RAISE(FAIL, 'synthetic manifest write failure'); END;")?;
-    // REF-12: the loop contains the failure; with nothing live it is said.
+    // The loop contains the failure; with nothing live it is said.
     runtime
         .contain(
             orbit_core::privacy_stop::StopCause::CaptureMaintenanceFailed,
@@ -403,7 +403,7 @@ async fn a_gap_during_privacy_drain_remains_attached_to_the_interrupted_recordin
     // Recorded, no longer escalated. Privacy is already stopped here, so the
     // error this used to return bought no safety: it only ran fail_closed again,
     // which requests another native stop, whose teardown produces the next gap.
-    // Five of those in eight seconds is what Mars's Mac was doing. The guarantee
+    // Five of those in eight seconds is what the developer's Mac was doing. The guarantee
     // this test is named for — the gap stays attached to the interrupted
     // recording — is asserted below and unchanged.
     runtime

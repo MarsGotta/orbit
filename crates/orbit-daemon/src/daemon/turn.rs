@@ -1,5 +1,4 @@
-//! The op of the actor's current turn and the daemon's one report function
-//! (SIM-21).
+//! The op of the actor's current turn and the daemon's one report function.
 //!
 //! Every turn of the actor answers one thing: an order from the app, a frame
 //! from the hub, a helper event, a worker's result, the once-a-second upkeep.
@@ -7,7 +6,7 @@
 //! hub or writes to `daemon.log` carries it too. Domain notices inherit that
 //! op on insertion; local notices use [`Runtime::scoped`]. Reporting advances
 //! its own cursor without changing the published records. [`Runtime::report_line`]
-//! writes the local line and hands it to the error-report client (SIM-23).
+//! writes the local line and hands it to the error-report client.
 use super::*;
 use orbit_core::notice::{Notice, NoticeCode, Op, Report, ReportSource};
 
@@ -58,7 +57,7 @@ impl Runtime {
     }
 
     /// The daemon's one report function: the line in the local report log,
-    /// and the same line to Sentry if she allowed it.
+    /// and the same line to Sentry if the user allowed it.
     pub(super) fn report_line(&self, report: &Report) {
         if let Some(log) = &self.report_log {
             log.report(report);
@@ -66,8 +65,8 @@ impl Runtime {
         self.error_reports.report(report, std::time::Instant::now());
     }
 
-    /// Records a notice nobody needs to see (SIM-23: what the helper
-    /// reports): its report line, and Sentry if she allowed it, without
+    /// Records a notice nobody needs to see (what the helper reports): its
+    /// report line, and Sentry if the user allowed it, without
     /// touching the notices the interface shows.
     pub(super) fn record(&self, notice: impl Into<Notice>) {
         let notice = self.scoped(notice);
@@ -98,7 +97,7 @@ impl Runtime {
 
     /// The op a hub event belongs to: the one the frame names, or the op of
     /// the request it answers (by id), so a notice built from the hub's
-    /// error keeps the op of the request (SIM-21). Anything else is new.
+    /// error keeps the op of the request. Anything else is new.
     pub(super) fn hub_event_op(&self, event: &crate::hub::HubEvent) -> Op {
         use crate::hub::HubEvent;
         let named = match event {
@@ -142,7 +141,7 @@ impl Runtime {
     }
 }
 
-/// The op a durable job was queued under (SIM-21). Read like a field with
+/// The op a durable job was queued under. Read like a field with
 /// `#[serde(default)]`: a job saved before has none.
 pub(super) fn job_op(payload: &Value) -> Option<Op> {
     payload
@@ -152,7 +151,7 @@ pub(super) fn job_op(payload: &Value) -> Option<Op> {
 }
 
 /// What an order refused by the core says when no caller is waiting for the
-/// refusal (a shortcut, a call the Mac detected): the refusals Mars can fix
+/// refusal (a shortcut, a call the Mac detected): the refusals the user can fix
 /// keep their own notice; any other is `otherwise`.
 pub(super) fn refusal_notice(error: &anyhow::Error, otherwise: NoticeCode) -> Notice {
     use orbit_core::{refusal::Permission, refusal::Refusal};
@@ -185,7 +184,7 @@ pub(super) fn refusal_notice(error: &anyhow::Error, otherwise: NoticeCode) -> No
     }
 }
 
-/// What tests read of the notices a state holds (SIM-21): codes, and the
+/// What tests read of the notices a state holds: codes, and the
 /// tokens their data carries, instead of sentences.
 #[cfg(test)]
 pub(crate) mod said {
@@ -261,7 +260,7 @@ mod tests {
     use orbit_core::notice::{NoticeCode, Op, ReportSource};
     use serde_json::json;
 
-    /// SIM-21, the contract with the hub: a notice the daemon builds from
+    /// The contract with the hub: a notice the daemon builds from
     /// the hub's error keeps the op of the request it answers, found by the
     /// frame's id or named by the frame itself.
     #[tokio::test]
@@ -296,7 +295,7 @@ mod tests {
         );
     }
 
-    /// SIM-21: a job saved before typed ops still loads (the op reads as
+    /// A job saved before typed ops still loads (the op reads as
     /// absent), and an op that is not one reads as absent too.
     #[test]
     fn a_durable_job_without_a_valid_op_reads_as_absent() {

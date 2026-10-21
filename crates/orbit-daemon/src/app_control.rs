@@ -1,7 +1,7 @@
 //! The bounded `ps` census the CUA engine cleanup asks for (`cua.rs`).
 //!
-//! Until SIM-01 this module also closed and opened the app from the terminal;
-//! the command line is retired and only the engine census has a caller.
+//! This module once also closed and opened the app from the terminal; that
+//! command line was retired on 2026-10-15 and only the engine census has a caller.
 //! Reading the host's process table is an adapter, compiled for macOS only; the
 //! suite drives the bounded `ps` runner below with fixture scripts, never with
 //! the machine's own processes.
@@ -110,7 +110,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn ref33_ps_census_timeout_names_its_milliseconds() {
+    fn ps_census_timeout_names_its_milliseconds() {
         let fixture = tempfile::tempdir().expect("fixture directory");
         let ps = fixture.path().join("ps-hangs");
         std::fs::write(&ps, "#!/bin/sh\nexec /bin/sleep 5\n").expect("fixture ps");
@@ -122,7 +122,7 @@ mod tests {
     }
 
     #[test]
-    fn ref33_ps_census_timeout_reaps_its_fixture() {
+    fn ps_census_timeout_reaps_its_fixture() {
         use std::os::unix::process::ExitStatusExt;
         let fixture = tempfile::tempdir().expect("fixture directory");
         let ps = fixture.path().join("ps-hangs");

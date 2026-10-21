@@ -1,4 +1,4 @@
-//! SIM-23 criterion 1: what leaves for Sentry carries codes and ops, never
+//! What leaves for Sentry carries codes and ops, never
 //! content. The real Rust SDK sends to a fake Sentry on 127.0.0.1; nothing
 //! here ever reaches sentry.io.
 //!
@@ -13,7 +13,7 @@ use orbit_daemon::error_reports::ErrorReports;
 use std::time::Duration;
 
 /// A token-shaped marker, so it can ride anywhere a token can.
-const MARKER: &str = "marcadorprivadosim23";
+const MARKER: &str = "privatemarkerreports";
 
 /// Bounds a hang of the loopback, not a delivery budget.
 const DELIVERY: Duration = Duration::from_secs(10);
@@ -64,7 +64,7 @@ fn a_panic_leaves_through_its_hook_with_frames_and_never_content() {
     assert!(
         frames
             .iter()
-            .any(|frame| frame["filename"] == "sim23_error_reports.rs"
+            .any(|frame| frame["filename"] == "error_report_privacy.rs"
                 && frame["lineno"].as_u64().is_some()
                 && frame["function"].as_str().is_some()),
         "{frames:#?}"

@@ -77,7 +77,7 @@ pub(crate) struct HubSessionsCursorMismatch {
     pub rows: u64,
 }
 
-/// One conversation as the hub lists it (SIM-30). The app writes its title,
+/// One conversation as the hub lists it. The app writes its title,
 /// the date, from `created_at_ms`.
 #[derive(Debug, Deserialize)]
 pub struct HubSession {
@@ -134,7 +134,7 @@ fn admit_sessions(payload: SessionsResponse) -> Result<HubSessions> {
     })
 }
 
-/// One message of a conversation as the hub keeps it (SIM-30).
+/// One message of a conversation as the hub keeps it.
 #[derive(Debug, Deserialize)]
 pub struct HubMessage {
     pub id: i64,
@@ -335,8 +335,7 @@ const HUB_CONNECT_WAIT: Duration = Duration::from_secs(10);
 /// Why the hub's WebSocket did not open, and where. Each cause points at a
 /// different thing to look at (the hub down, the network, a certificate, a
 /// proxy's answer); one word for all of them sent the reader to the wrong
-/// one (SIM-51 on the Mac, 2026-10-18: «TLS» for a plain-HTTP hub that was
-/// down).
+/// one (on the Mac, 2026-10-18: «TLS» for a plain-HTTP hub that was down).
 fn unreached(error: &tokio_tungstenite::tungstenite::Error, origin: &str) -> String {
     use tokio_tungstenite::tungstenite::Error;
     match error {
@@ -397,7 +396,7 @@ async fn connect(
         "Authorization",
         HeaderValue::from_str(&format!("Bearer {token}"))?,
     );
-    // Each connection attempt is an action of its own (SIM-21): its upgrade
+    // Each connection attempt is an action of its own: its upgrade
     // request names a new op; the frames sent on it carry their own.
     request.headers_mut().insert(
         OP_HEADER,
@@ -486,7 +485,7 @@ async fn connect(
                             body.len(),
                             MAX_OUTGOING_FRAME_BYTES,
                         ))).await?;
-                        // R3: the frame does not go, but the silence does not
+                        // The frame does not go, but the silence does not
                         // stay either. Whoever asked gets the cause instead of
                         // waiting out its whole timeout on a Mac that already
                         // decided.
@@ -567,8 +566,8 @@ pub fn command(id: &str, method: &str, params: Value) -> Result<Value> {
     Ok(serde_json::to_value(request)?)
 }
 
-/// The header every request to the hub carries (SIM-21, the contract with
-/// SIM-22): the op of the action it belongs to.
+/// The header every request to the hub carries (the contract with the hub):
+/// the op of the action it belongs to.
 pub const OP_HEADER: &str = "X-Orbit-Op";
 
 /// Admission for a paired, online device; a privacy stop always wins.
@@ -799,7 +798,7 @@ pub async fn sessions_page(
     admit_sessions(serde_json::from_value(body)?)
 }
 
-/// SIM-30: one page of a conversation, the newest one without `before`.
+/// One page of a conversation, the newest one without `before`.
 pub async fn session_messages_page(
     settings: &Settings,
     token: &str,
@@ -1013,11 +1012,11 @@ pub async fn transcribe(
 }
 
 #[cfg(test)]
-mod ref04_session_list_tests {
+mod session_list_tests {
     use super::*;
 
     #[test]
-    fn a7_a_page_is_admitted_with_its_rows_total_and_cursor() -> Result<()> {
+    fn a_page_is_admitted_with_its_rows_total_and_cursor() -> Result<()> {
         let admitted = admit_sessions(serde_json::from_value(json!({
             "sessions": [
                 {"id": "session-b", "created_at_ms": 2, "last_at_ms": 9, "message_count": 4},
@@ -1034,7 +1033,7 @@ mod ref04_session_list_tests {
     }
 
     #[test]
-    fn a7_a_malformed_conversation_is_refused_with_its_numbers() -> Result<()> {
+    fn a_malformed_conversation_is_refused_with_its_numbers() -> Result<()> {
         let payload = json!({"sessions": [
             {"id": "session-a", "created_at_ms": 3, "last_at_ms": 3, "message_count": 0},
             {"id": "", "created_at_ms": 2, "last_at_ms": 2, "message_count": 0},
@@ -1051,7 +1050,7 @@ mod ref04_session_list_tests {
     }
 
     #[test]
-    fn a7_a_cursor_that_is_not_the_last_row_is_refused() -> Result<()> {
+    fn a_cursor_that_is_not_the_last_row_is_refused() -> Result<()> {
         let payload = json!({"sessions": [
             {"id": "session-a", "created_at_ms": 3, "last_at_ms": 3, "message_count": 0},
         ], "total": 9, "next": "session-z"});
@@ -1064,7 +1063,7 @@ mod ref04_session_list_tests {
 }
 
 #[cfg(test)]
-mod ref308_voice_transport_tests {
+mod voice_transport_tests {
     use super::*;
 
     #[tokio::test]
@@ -1111,7 +1110,7 @@ mod ref308_voice_transport_tests {
 }
 
 #[cfg(test)]
-mod ref406_frame_tests {
+mod frame_tests {
     use super::*;
 
     #[test]
@@ -1130,7 +1129,7 @@ mod ref406_frame_tests {
             }),
         )?;
         let size = serde_json::to_vec(&frame)?.len();
-        println!("REF-406 outgoing engine page frame: {size} bytes");
+        println!("outgoing engine page frame: {size} bytes");
         assert!(size <= MAX_OUTGOING_FRAME_BYTES);
         Ok(())
     }
@@ -1204,7 +1203,7 @@ mod watchdog_tests {
     }
 
     #[tokio::test]
-    async fn ref405b_mistyped_device_request_crosses_socket_to_the_refusal_path() -> Result<()> {
+    async fn mistyped_device_request_crosses_socket_to_the_refusal_path() -> Result<()> {
         let listener = TcpListener::bind("127.0.0.1:0").await?;
         let address = listener.local_addr()?;
         let server = tokio::spawn(async move {
@@ -1421,11 +1420,11 @@ mod watchdog_tests {
         // Real-time connect: the synthetic handshake completes in milliseconds.
         tokio::time::timeout(Duration::from_secs(5), connected(&mut harness.events))
             .await
-            .context("A1: the client must connect to the synthetic hub")??;
+            .context("the client must connect to the synthetic hub")??;
         assert!(
             tokio::time::timeout(Duration::from_secs(5), connections.recv())
                 .await
-                .context("A1: the synthetic hub must observe the first connection")?
+                .context("the synthetic hub must observe the first connection")?
                 .is_some()
         );
         // Watchdog window: the hub stays silent past three pings (30 s) without
@@ -1437,17 +1436,17 @@ mod watchdog_tests {
         )
         .await
         .context(
-            "A1: with no frames nor Pong for 30 s (three pings) the connection must be declared down within 35 s",
+            "with no frames nor Pong for 30 s (three pings) the connection must be declared down within 35 s",
         )??;
         // The reconnection runs in real time with the existing backoff.
         tokio::time::resume();
         tokio::time::timeout(Duration::from_secs(10), connected(&mut harness.events))
             .await
-            .context("A1: after the drop the client must reconnect and report Connected")??;
+            .context("after the drop the client must reconnect and report Connected")??;
         assert!(
             tokio::time::timeout(Duration::from_secs(5), connections.recv())
                 .await
-                .context("A1: the synthetic hub must observe the reconnection")?
+                .context("the synthetic hub must observe the reconnection")?
                 .is_some()
         );
         harness.task.abort();
@@ -1475,7 +1474,7 @@ mod watchdog_tests {
         let mut harness = client(address).await;
         tokio::time::timeout(Duration::from_secs(5), connected(&mut harness.events))
             .await
-            .context("A3: the client must connect to the synthetic hub")??;
+            .context("the client must connect to the synthetic hub")??;
         let oversized = command(
             "fixture-oversized",
             "chat.send",
@@ -1483,17 +1482,17 @@ mod watchdog_tests {
         )?;
         assert!(
             serde_json::to_string(&oversized)?.len() > 128 * 1024,
-            "A3: the fixture frame must exceed the server's 128 KiB frame limit"
+            "the fixture frame must exceed the server's 128 KiB frame limit"
         );
         harness.commands.send(oversized).await?;
         tokio::time::timeout(Duration::from_secs(5), problem(&mut harness.events))
             .await
-            .context("A3: a 200 KiB frame must be rejected locally with a notice")??;
+            .context("a 200 KiB frame must be rejected locally with a notice")??;
         assert!(
             tokio::time::timeout(Duration::from_secs(1), observed_sizes.recv())
                 .await
                 .is_err(),
-            "A3: the 200 KiB frame must never reach the hub socket"
+            "the 200 KiB frame must never reach the hub socket"
         );
         harness.task.abort();
         server.abort();
@@ -1530,16 +1529,16 @@ mod watchdog_tests {
     }
 
     #[tokio::test]
-    async fn ref403_oversized_reply_to_modern_hub_keeps_its_size_and_ceiling() -> Result<()> {
+    async fn oversized_reply_to_modern_hub_keeps_its_size_and_ceiling() -> Result<()> {
         let (address, mut observed) = recording_hub().await?;
         let mut harness = client(address).await;
         connected(&mut harness.events).await?;
         let ready = harness.events.recv().await.context("modern ready absent")?;
         assert!(matches!(&ready, (_, HubEvent::Decoded(_))), "{ready:?}");
         let oversized = command(
-            "ref403-oversize",
+            "oversized-reply",
             "device.reply",
-            json!({"request_id":"ref403-oversize","result":{"windows":[{"application":"x".repeat(200 * 1024),"title":"Ventana"}]}}),
+            json!({"request_id":"oversized-reply","result":{"windows":[{"application":"x".repeat(200 * 1024),"title":"Ventana"}]}}),
         )?;
         let bytes = serde_json::to_string(&oversized)?.len();
         harness.commands.send(oversized).await?;
@@ -1556,17 +1555,17 @@ mod watchdog_tests {
         Ok(())
     }
 
-    /// R3: the substitute exists for the one shape that has a caller waiting on
+    /// The substitute exists for the one shape that has a caller waiting on
     /// an id. A turn of the person's own conversation keeps the behaviour it
     /// had: the notice, and nothing invented on the wire.
     #[test]
-    fn dei14_r3_only_a_reply_with_a_caller_gets_a_substitute() -> Result<()> {
+    fn only_a_reply_with_a_caller_gets_a_substitute() -> Result<()> {
         let reply = command(
-            "peticion",
+            "request",
             "device.reply",
-            json!({"request_id": "peticion", "result": {"tools": [], "after_index": 0, "total": 0}}),
+            json!({"request_id": "request", "result": {"tools": [], "after_index": 0, "total": 0}}),
         )?;
-        let substitute = oversize_refusal(&reply, 200_000)?.context("una respuesta se contesta")?;
+        let substitute = oversize_refusal(&reply, 200_000)?.context("a reply is answered")?;
         assert_eq!(substitute["params"]["refusal"]["code"], "too_large");
         assert_eq!(substitute["params"]["refusal"]["bytes"], 200_000);
         assert_eq!(
@@ -1575,19 +1574,19 @@ mod watchdog_tests {
         );
 
         // A conversation turn has no waiting caller and no id to answer.
-        let turn = command("turno", "chat.send", json!({"text": "hola"}))?;
+        let turn = command("turn", "chat.send", json!({"text": "hola"}))?;
         assert!(oversize_refusal(&turn, 200_000)?.is_none());
 
         // A refusal that is itself too large has nothing shorter left to say.
         let refusal = command(
-            "peticion",
+            "request",
             "device.reply",
-            json!({"request_id": "peticion", "refusal": {"code":"helper_not_running"}}),
+            json!({"request_id": "request", "refusal": {"code":"helper_not_running"}}),
         )?;
         assert!(oversize_refusal(&refusal, 200_000)?.is_none());
 
         // A reply without a request id has no destination.
-        let orphan = json!({"v": 1, "id": "peticion", "method": "device.reply", "params": {"result": {"windows": []}}});
+        let orphan = json!({"v": 1, "id": "request", "method": "device.reply", "params": {"result": {"windows": []}}});
         assert!(oversize_refusal(&orphan, 200_000)?.is_none());
         Ok(())
     }

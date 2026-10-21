@@ -36,7 +36,7 @@ impl Runtime {
     pub(super) fn log(&self, event: &str, fields: &[(&str, &str)]) {
         if let Some(diagnostics) = &self.diagnostics {
             // Every line names the turn's op, which joins it to the report
-            // log, the notice and the hub's own logs (SIM-21).
+            // log, the notice and the hub's own logs.
             let mut with_op = Vec::with_capacity(fields.len() + 1);
             with_op.push(("op", self.turn.op.as_str()));
             with_op.extend_from_slice(fields);
@@ -188,7 +188,7 @@ impl Runtime {
         let mut force_snapshot = std::mem::take(&mut self.work.force_snapshot_once);
         let change = decision.authority_change;
         let plan = change.map(retire);
-        // R1: an in-place closure (FinishMeeting on Interrupted or under the
+        // An in-place closure (FinishMeeting on Interrupted or under the
         // privacy brake) leaves the recording identity untouched, so
         // `preserve_replaced_recording` cannot author its durable closure.
         // Detect that transition before the snapshot overwrites the prior
@@ -379,8 +379,8 @@ impl Runtime {
                 voice,
                 meeting,
             } => {
-                // SIM-30: the turn's id is the Mac's id for Mars's message,
-                // kept in the hub's row so the app finds her turn by it.
+                // The turn's id is the Mac's id for the user's message,
+                // kept in the hub's row so the app finds their turn by it.
                 let params = serde_json::to_value(orbit_core::wire::hub::ChatSendParams {
                     text,
                     session_id: self.state.session_id().clone(),

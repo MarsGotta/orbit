@@ -12,7 +12,7 @@ pub(super) struct Projector;
 impl ProjectTopic for Projector {
     fn project(&self, source: &TopicSource<'_>) -> TopicData {
         let state = source.state;
-        // SIM-30: the open conversation and the turn; its messages are read
+        // The open conversation and the turn; its messages are read
         // from the hub.
         let value = Value {
             session_id: state.session_id(),
@@ -120,13 +120,13 @@ mod tests {
         crate::daemon::authority_fixture::set(
             &mut state,
             "session_id",
-            serde_json::json!("session-ref211"),
+            serde_json::json!("session-topic"),
         );
-        state.durable.active_request = Some("request-ref211".into());
+        state.durable.active_request = Some("request-topic".into());
         state.durable.turn = Some(Turn {
-            user: message("request-ref211", "user", user_text, true, 5),
+            user: message("request-topic", "user", user_text, true, 5),
             answer: Some(message(
-                "request-ref211:assistant",
+                "request-topic:assistant",
                 "assistant",
                 assistant_text,
                 false,
@@ -148,7 +148,7 @@ mod tests {
     }
 
     #[test]
-    fn a1_the_turn_in_flight_is_projected_with_activity_and_messages() {
+    fn the_turn_in_flight_is_projected_with_activity_and_messages() {
         let data = assistant_frame(&turn_state("Responde breve", "Respuesta parcial"));
         assert_eq!(data["topic"], "assistant");
         assert_eq!(
@@ -159,7 +159,7 @@ mod tests {
         assert_eq!(value["turn_in_flight"], true);
         assert_eq!(value["activity"], "responding");
         assert_eq!(
-            value["session_id"], "session-ref211",
+            value["session_id"], "session-topic",
             "the active session travels with the turn"
         );
         assert_eq!(value["turn"]["user"]["text"], "Responde breve");
@@ -167,12 +167,12 @@ mod tests {
         assert_eq!(value["turn"]["answer"]["complete"], false);
         assert!(
             value.get("messages").is_none(),
-            "SIM-30: the topic carries no list of messages"
+            "the topic carries no list of messages"
         );
     }
 
     #[test]
-    fn a1_activity_comes_from_facts_not_from_notice_text() {
+    fn activity_comes_from_facts_not_from_notice_text() {
         // Same facts, unrelated notices: the topic must not move with the
         // notices, and must not need them to name the activity.
         let mut thinking = turn_state("Pregunta", "");
@@ -205,13 +205,13 @@ mod tests {
         assert_eq!(idle_data["knowledge"]["value"]["turn_in_flight"], false);
         assert_eq!(
             idle_data["knowledge"]["value"]["turn"]["answer"]["text"], "Lista",
-            "SIM-30: the finished turn stays until the next one, so the screen \
+            "the finished turn stays until the next one, so the screen \
              keeps it while it reads the conversation again"
         );
     }
 
     #[test]
-    fn a1_an_incomplete_old_turn_does_not_mark_the_new_turn_responding() {
+    fn an_incomplete_old_turn_does_not_mark_the_new_turn_responding() {
         let mut state = turn_state("Pregunta anterior", "Respuesta interrumpida");
         state.durable.active_request = Some("new-request".into());
         let data = assistant_frame(&state);
@@ -219,7 +219,7 @@ mod tests {
     }
 
     #[test]
-    fn a2_chat_deltas_publish_the_assistant_at_most_ten_times_per_second() {
+    fn chat_deltas_publish_the_assistant_at_most_ten_times_per_second() {
         let mut state = turn_state("Pregunta", "");
         let mut board = super::super::TopicBoard::new("synthetic".into());
         let channels = board.channels();
@@ -247,24 +247,24 @@ mod tests {
         );
     }
 
-    /// SIM-30: the turn at its ceilings — a 32 KiB question, a 96 KiB
+    /// The turn at its ceilings — a 32 KiB question, a 96 KiB
     /// answer and a 16 KB pending description — in characters that escape to
     /// two bytes travels whole; in control characters (six bytes each) it is
     /// refused with its size.
     #[test]
-    fn sim30_a_turn_at_its_ceilings_fits_the_topic() {
+    fn a_turn_at_its_ceilings_fits_the_topic() {
         let mut state = turn_state(
             &"\"".repeat(orbit_core::MAX_TEXT_BYTES),
             &"\n".repeat(orbit_core::MAX_TEXT_BYTES * 3),
         );
         state.durable.pending_approval = Some(orbit_core::Approval {
-            request_id: "request-ref211".into(),
+            request_id: "request-topic".into(),
             description: "\"".repeat(16_000),
             clarification: false,
         });
         let data = assistant_frame(&state);
         let bytes = serde_json::to_vec(&data).unwrap().len();
-        eprintln!("SIM-30: a turn at its ceilings is {bytes} topic bytes");
+        eprintln!("a turn at its ceilings is {bytes} topic bytes");
         assert_eq!(data["knowledge"]["state"], "present", "{bytes} bytes");
         assert!(bytes <= TopicId::Assistant.max_bytes());
         let turn = state.durable.turn.as_ref().unwrap();
@@ -288,7 +288,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a1_voice_transcription_in_progress_is_transcribing_without_a_turn() {
+    async fn voice_transcription_in_progress_is_transcribing_without_a_turn() {
         let directory = tempfile::tempdir().unwrap();
         let (mut runtime, _native) =
             crate::daemon::audio::tests::fixture(directory.path()).unwrap();
@@ -301,7 +301,7 @@ mod tests {
                     failure: None,
                     audio_available: true,
                 }),
-                ..message("voice-ref211", "user", "", true, 1)
+                ..message("voice-topic", "user", "", true, 1)
             },
             answer: None,
         });
@@ -341,11 +341,11 @@ mod tests {
                     failure: None,
                     audio_available: true,
                 }),
-                ..message("voice-ref308-privacy", "user", "", true, 1)
+                ..message("voice-privacy", "user", "", true, 1)
             },
             answer: None,
         });
-        runtime.conversation.voice_operation = Some("voice-ref308-privacy".into());
+        runtime.conversation.voice_operation = Some("voice-privacy".into());
         runtime.conversation.voice_task.attach_test(
             generation,
             (),
@@ -393,7 +393,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a4_speech_unavailable_is_a_coded_absence_independent_of_notice_text() {
+    async fn speech_unavailable_is_a_coded_absence_independent_of_notice_text() {
         let directory = tempfile::tempdir().unwrap();
         let (mut runtime, _native) =
             crate::daemon::audio::tests::fixture(directory.path()).unwrap();

@@ -101,7 +101,7 @@ mod tests {
     }
 
     #[test]
-    fn a1_starting_is_published_by_the_daemon_topic() -> Result<(), serde_json::Error> {
+    fn starting_is_published_by_the_daemon_topic() -> Result<(), serde_json::Error> {
         let state = starting_state();
         let projected = Projector.project(&TopicSource {
             state: &state,
@@ -115,7 +115,7 @@ mod tests {
     }
 
     #[test]
-    fn a3_unverifiable_inventory_is_absent_with_its_numbers() -> Result<(), serde_json::Error> {
+    fn unverifiable_inventory_is_absent_with_its_numbers() -> Result<(), serde_json::Error> {
         let mut state = starting_state();
         {
             let fixture_value = serde_json::json!(true);
@@ -178,7 +178,7 @@ mod tests {
             now_ms: 0,
         });
         let TopicData::Recording(Knowledge::Present { value, .. }) = projected else {
-            panic!("el fallo del inventario ocultó la grabación");
+            panic!("the inventory failure hid the recording");
         };
         assert_eq!(
             value.recording.as_deref().map(|item| &item.phase),
@@ -195,7 +195,7 @@ mod tests {
     }
 
     #[test]
-    fn a3_missing_helper_privacy_and_unobserved_inventory_have_distinct_causes() {
+    fn missing_helper_privacy_and_unobserved_inventory_have_distinct_causes() {
         let mut state = starting_state();
         let project = |state: &State| {
             Projector.project(&TopicSource {
@@ -205,7 +205,7 @@ mod tests {
             })
         };
         let TopicData::Recording(Knowledge::Present { value, .. }) = project(&state) else {
-            unreachable!("la grabación existe aunque el helper falte");
+            unreachable!("the recording exists even without the helper");
         };
         assert!(matches!(
             value.applications,
@@ -219,7 +219,7 @@ mod tests {
             crate::daemon::authority_fixture::set(&mut state, "privacy_stopped", fixture_value);
         }
         let TopicData::Recording(Knowledge::Present { value, .. }) = project(&state) else {
-            unreachable!("la grabación existe aunque Alina detenga privacidad");
+            unreachable!("the recording exists even when the user stops privacy");
         };
         assert!(matches!(
             value.applications,
@@ -241,7 +241,7 @@ mod tests {
             );
         }
         let TopicData::Recording(Knowledge::Present { value, .. }) = project(&state) else {
-            unreachable!("la grabación existe mientras espera el inventario");
+            unreachable!("the recording exists while it waits for the inventory");
         };
         assert!(matches!(
             value.applications,
@@ -252,7 +252,7 @@ mod tests {
     }
 
     #[test]
-    fn a2_a_thousand_changing_audio_observations_publish_at_most_four_frames() {
+    fn a_thousand_changing_audio_observations_publish_at_most_four_frames() {
         let mut state = starting_state();
         let track = TrackSignalView {
             condition: SignalCondition::Receiving,
@@ -308,13 +308,13 @@ mod tests {
         assert!(last.revision <= 4, "{} frames in one second", last.revision);
         eprintln!("published_frames_in_1000_ms={}", last.revision);
         let TopicData::Recording(Knowledge::Present { value, .. }) = last.data else {
-            unreachable!("el tema perdió los niveles de grabación");
+            unreachable!("the topic lost the recording levels");
         };
         let Some(signal) = value.recording_signal.as_deref() else {
-            unreachable!("la señal recibida desapareció del tema");
+            unreachable!("the received signal vanished from the topic");
         };
         let Some(remote) = signal.remote_app.as_ref() else {
-            unreachable!("falta la segunda pista");
+            unreachable!("the second track is missing");
         };
         assert!(signal.mic_local.received_frames > 0);
         assert_eq!(remote.received_frames, signal.mic_local.received_frames);

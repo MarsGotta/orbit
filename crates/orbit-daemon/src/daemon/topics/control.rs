@@ -1,4 +1,4 @@
-//! The control topic's projection (REF-212 A1): the engine with its cause,
+//! The control topic's projection: the engine with its cause,
 //! the action in flight and the recent history, read from the runtime at the
 //! end of the turn. The whole record and the tool catalogue are reads.
 use super::{ProjectTopic, TopicSource};
@@ -77,7 +77,7 @@ mod tests {
     }
 
     #[test]
-    fn a1_unreported_permissions_are_published_as_unknown_not_as_denied() -> anyhow::Result<()> {
+    fn unreported_permissions_are_published_as_unknown_not_as_denied() -> anyhow::Result<()> {
         let directory = tempfile::tempdir()?;
         let (mut runtime, _) = fixture(directory.path())?;
         {
@@ -121,7 +121,7 @@ mod tests {
     }
 
     #[test]
-    fn a1_a_permission_macos_is_known_to_deny_names_it() -> anyhow::Result<()> {
+    fn a_permission_macos_is_known_to_deny_names_it() -> anyhow::Result<()> {
         let directory = tempfile::tempdir()?;
         let (mut runtime, _) = fixture(directory.path())?;
         {
@@ -152,7 +152,7 @@ mod tests {
     }
 
     #[test]
-    fn a1_not_granted_is_not_called_denied() -> anyhow::Result<()> {
+    fn not_granted_is_not_called_denied() -> anyhow::Result<()> {
         let directory = tempfile::tempdir()?;
         let (mut runtime, _) = fixture(directory.path())?;
         {
@@ -183,7 +183,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a1_a_ready_engine_publishes_its_tools_its_action_and_the_recent_record()
+    async fn a_ready_engine_publishes_its_tools_its_action_and_the_recent_record()
     -> anyhow::Result<()> {
         let directory = tempfile::tempdir()?;
         let (mut runtime, _) = fixture(directory.path())?;
@@ -284,7 +284,7 @@ mod tests {
     async fn a_remote_action_is_published_while_in_flight() -> anyhow::Result<()> {
         let directory = tempfile::tempdir()?;
         let (mut runtime, _) = fixture(directory.path())?;
-        let mut board = super::super::TopicBoard::new("ref212-remote".into());
+        let mut board = super::super::TopicBoard::new("control-remote".into());
         let receiver = board.channels()[&TopicId::Control].subscribe();
         board.publish(&TopicSource {
             state: &runtime.state,
@@ -345,7 +345,7 @@ mod tests {
         }
         let (work, mut events) = tokio::sync::mpsc::channel(4);
         runtime.work.work_events = work;
-        let mut board = super::super::TopicBoard::new("ref501-unbundled".into());
+        let mut board = super::super::TopicBoard::new("control-unbundled".into());
         let receiver = board.channels()[&TopicId::Control].subscribe();
         board.publish(&TopicSource {
             state: &runtime.state,

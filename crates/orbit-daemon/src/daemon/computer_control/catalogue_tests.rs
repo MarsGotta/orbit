@@ -1,6 +1,6 @@
-//! DEI-14: the engine's catalogue does not fit through the hub frame either.
+//! The engine's catalogue does not fit through the hub frame either.
 //!
-//! DEI-13 stopped the catalogue riding in the republished state. This is the
+//! The catalogue no longer rides in the republished state. This is the
 //! second ceiling, downstream of it: the link refuses any outgoing frame over
 //! 128 KiB, and the whole catalogue with its schemas is 147 909 bytes. Every
 //! earlier test of this path declared a toy catalogue of a few hundred bytes,
@@ -21,20 +21,20 @@ async fn mac_with(catalogue: Value) -> Result<Mac> {
     .await
 }
 
-/// A1/A3/R1/R2/R5: a catalogue of the size the real engine publishes reaches
+/// A catalogue of the size the real engine publishes reaches
 /// whoever asked, entire and with its schemas, in frames the link accepts —
 /// and the ceiling it travels under is the one that was already there.
 #[tokio::test]
-async fn dei14_a1_a_real_sized_catalogue_crosses_the_hub_frame_in_pages() -> Result<()> {
+async fn a_real_sized_catalogue_crosses_the_hub_frame_in_pages() -> Result<()> {
     let (catalogue, catalogue_bytes) = catalogue_of(150 * 1024)?;
-    let declared = catalogue.as_array().context("catálogo")?.len();
+    let declared = catalogue.as_array().context("catalogue")?.len();
     assert!(
         (REAL_CATALOGUE_BYTES..=REAL_CATALOGUE_BYTES * 2).contains(&catalogue_bytes),
-        "la prueba usa un catálogo del orden del real ({REAL_CATALOGUE_BYTES} bytes), no uno de juguete: {catalogue_bytes} bytes"
+        "the test uses a catalogue of the real one's order ({REAL_CATALOGUE_BYTES} bytes), not a toy one: {catalogue_bytes} bytes"
     );
     assert!(
         catalogue_bytes > MAX_OUTGOING_FRAME_BYTES,
-        "el catálogo entero no cabe en una trama: por eso se pide por partes"
+        "the whole catalogue does not fit in one frame: that is why it is asked for in pages"
     );
 
     let mut h = mac_with(catalogue).await?;
@@ -77,42 +77,42 @@ async fn dei14_a1_a_real_sized_catalogue_crosses_the_hub_frame_in_pages() -> Res
         let bytes = serde_json::to_vec(&frame)?.len();
         assert!(
             bytes <= MAX_OUTGOING_FRAME_BYTES,
-            "R2: ninguna trama pide más de lo que el enlace admite: {bytes} bytes"
+            "no frame asks for more than the link admits: {bytes} bytes"
         );
         assert!(
             frame["params"]["refusal"].is_null(),
-            "R1: pedir el catálogo no se rechaza: {frame}"
+            "asking for the catalogue is not refused: {frame}"
         );
         let result = &frame["params"]["result"];
         assert_eq!(result["after_index"].as_u64(), Some(after));
         assert_eq!(result["total"].as_u64(), Some(declared as u64));
-        let page = result["tools"].as_array().context("una página")?;
+        let page = result["tools"].as_array().context("a page")?;
         assert!(
             !page.is_empty(),
-            "una página con herramientas pendientes nunca vuelve vacía"
+            "a page with tools still pending never comes back empty"
         );
         assert!(
             serde_json::to_vec(page)?.len() <= MAX_CATALOGUE_PAGE_BYTES,
-            "una página respeta su presupuesto"
+            "a page keeps to its budget"
         );
         assembled.extend(page.iter().cloned());
         rounds += 1;
-        assert!(rounds <= 16, "el recorrido termina");
+        assert!(rounds <= 16, "the walk ends");
         match result["next_after_index"].as_u64() {
             Some(next) => {
-                assert!(next > after, "el recorrido avanza y no se repite");
+                assert!(next > after, "the walk advances and does not repeat");
                 after = next;
             }
             None => break,
         }
     }
 
-    // R1: everything the engine declared arrived, with what Deimos needs to
+    // Everything the engine declared arrived, with what Deimos needs to
     // name a tool and give it arguments.
     assert_eq!(assembled.len(), declared);
     assert_eq!(
         rounds, 2,
-        "el catálogo real cuesta dos vueltas, no una docena"
+        "the real catalogue costs two rounds, not a dozen"
     );
     let names: Vec<&str> = assembled
         .iter()
@@ -128,12 +128,12 @@ async fn dei14_a1_a_real_sized_catalogue_crosses_the_hub_frame_in_pages() -> Res
                 .is_some_and(|name| name.starts_with("engine_tool_")))
             .all(|tool| tool["input_schema"].is_object()
                 && !tool["description"].as_str().unwrap_or_default().is_empty()),
-        "los esquemas llegan intactos a quien pide el catálogo"
+        "the schemas reach whoever asks for the catalogue intact"
     );
     let assembled_bytes = serde_json::to_vec(&assembled)?.len();
     assert!(
         assembled_bytes > MAX_OUTGOING_FRAME_BYTES,
-        "lo que se montó es el catálogo entero, que por sí solo no cabía: {assembled_bytes} bytes"
+        "what was assembled is the whole catalogue, which did not fit on its own: {assembled_bytes} bytes"
     );
 
     h.runtime
@@ -144,14 +144,14 @@ async fn dei14_a1_a_real_sized_catalogue_crosses_the_hub_frame_in_pages() -> Res
     Ok(())
 }
 
-/// A2/R3: a page asked for with a nonsense index is refused by name rather
+/// A page asked for with a nonsense index is refused by name rather
 /// than answered with an empty catalogue, which reads as "this Mac has no
 /// tools" and is the wrong thing to make anyone believe.
 #[tokio::test]
-async fn dei14_a2_a_nonsense_page_index_is_refused_with_its_cause() -> Result<()> {
+async fn a_nonsense_page_index_is_refused_with_its_cause() -> Result<()> {
     let (catalogue, _) = catalogue_of(4 * 1024)?;
     let mut h = mac_with(catalogue).await?;
-    for bogus in [json!("dos"), json!(-1), json!(1.5), json!(true)] {
+    for bogus in [json!("two"), json!(-1), json!(1.5), json!(true)] {
         let frame = h
             .ask("control_tools", json!({"after_index": bogus}))
             .await?;
@@ -177,16 +177,16 @@ async fn dei14_a2_a_nonsense_page_index_is_refused_with_its_cause() -> Result<()
     Ok(())
 }
 
-/// A3, R3: a catalogue beyond its own limit is refused where it arrives, and
+/// A catalogue beyond its own limit is refused where it arrives, and
 /// the refusal names it as a catalogue, not as an observation.
 #[tokio::test]
-async fn a3_an_absurd_catalogue_is_refused_by_its_own_name() -> Result<()> {
+async fn an_absurd_catalogue_is_refused_by_its_own_name() -> Result<()> {
     let (catalogue, catalogue_bytes) = catalogue_of(MAX_ENGINE_CATALOGUE_BYTES + 1)?;
-    let declared = catalogue.as_array().context("catálogo")?.len();
+    let declared = catalogue.as_array().context("catalogue")?.len();
     assert!(catalogue_bytes > MAX_ENGINE_CATALOGUE_BYTES);
     assert!(
         declared <= MAX_ENGINE_TOOLS,
-        "es el límite de bytes del catálogo el que rechaza, no el del número de herramientas"
+        "it is the catalogue's byte limit that refuses, not the tool-count one"
     );
 
     let Err(error) = FakeEngine {
@@ -197,16 +197,16 @@ async fn a3_an_absurd_catalogue_is_refused_by_its_own_name() -> Result<()> {
     .connect()
     .await
     else {
-        anyhow::bail!("un catálogo absurdo no puede dejar el motor conectado");
+        anyhow::bail!("an absurd catalogue cannot leave the engine connected");
     };
     let message = error.to_string();
     assert!(
         message.contains("catálogo"),
-        "el rechazo tiene que nombrarlo como catálogo: {message}"
+        "the refusal has to name it as a catalogue: {message}"
     );
     assert!(
         !message.contains("Observación"),
-        "un catálogo no se rechaza con el mensaje de una observación de pantalla: {message}"
+        "a catalogue is not refused with a screen observation's message: {message}"
     );
     Ok(())
 }

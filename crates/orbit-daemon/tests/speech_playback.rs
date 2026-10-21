@@ -1,4 +1,5 @@
-//! SYS-03 daemon boundary with synthetic loopback HTTP and a fake native helper.
+//! Speech playback at the daemon boundary, with synthetic loopback HTTP and a
+//! fake native helper.
 #![allow(clippy::unwrap_used)]
 
 use anyhow::{Context, Result};
@@ -9,7 +10,7 @@ use tokio::{
     sync::mpsc,
 };
 
-const TOKEN: &str = "synthetic-sys03-token";
+const TOKEN: &str = "synthetic-speech-token";
 
 async fn one_shot_http(headers: &str, body: &[u8]) -> Result<reqwest::Url> {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
@@ -52,7 +53,7 @@ fn settings(base: reqwest::Url) -> orbit_daemon::config::Settings {
 }
 
 #[tokio::test]
-async fn a2_clip_becomes_one_bounded_playback_clip_command() -> Result<()> {
+async fn clip_becomes_one_bounded_playback_clip_command() -> Result<()> {
     let audio = b"RIFFsynthetic-wave";
     let base = one_shot_http(
         "Content-Type: audio/wav\r\nX-Orbit-Speech-Kind: clip\r\nX-Orbit-Speech-Provider: synthetic-profile\r\n",
@@ -65,14 +66,14 @@ async fn a2_clip_becomes_one_bounded_playback_clip_command() -> Result<()> {
         TOKEN.into(),
         true,
         "respuesta sintética".into(),
-        "playback-sys03".into(),
+        "playback-speech".into(),
         native,
         orbit_ipc::new_op(),
     )
     .await?;
     let command = helper.recv().await.context("playback_clip ausente")?;
     assert_eq!(command["command"], "playback_clip");
-    assert_eq!(command["playback_id"], "playback-sys03");
+    assert_eq!(command["playback_id"], "playback-speech");
     assert_eq!(command["mime_type"], "audio/wav");
     assert_eq!(command["provider"], "synthetic-profile");
     assert_eq!(command["audio_base64"], STANDARD.encode(audio));

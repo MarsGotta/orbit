@@ -42,14 +42,14 @@ pub const NATIVE_EVENTS_CAPACITY: usize = 1000;
 /// What it protects: the helper's own exit — releasing the global shortcuts,
 /// persisting its privacy latch and writing its last diagnostic line — which a
 /// `SIGKILL` would skip, and which a helper orphaned with the shortcuts still
-/// registered made impossible for the next one (REF-06 A2/A3).
+/// registered made impossible for the next one.
 ///
 /// Why this size: by the time it is asked, the helper has already drained its
 /// audio (that happens inside the daemon's own [`crate::daemon::SHUTDOWN_BUDGET`]),
 /// so what is left is an AppKit termination and one small file write. The
 /// helper's own leave-anyway grace, `NativeQuitPolicy.orphanExitGrace` in
 /// Swift, is two seconds; this gives it one more before the kill. Not measured
-/// on the Mac yet: REF-06 lists it among what the reviewer verifies there.
+/// on the Mac yet: it is among what a reviewer verifies there.
 ///
 /// What it is not: a wait for audio. A helper that is still capturing when this
 /// starts has already missed the closure's budget and is killed on time.
@@ -70,7 +70,7 @@ const MAX_MALFORMED_BEFORE_BRIDGE_DOWN: u32 = 8;
 /// event names. Each retained name and field is clipped to 64 Unicode scalars,
 /// at most 256 UTF-8 bytes each, so keys stay below about 64 KiB. This does
 /// not limit wire input or authorize an event; further distinct bad names are
-/// still skipped. REF-405a uses the same 128-name diagnostic budget.
+/// still skipped.
 const MAX_REPORTED_NATIVE_EVENTS: usize = 128;
 
 /// Diagnostic deduplication only: limits the distinct unmatched response IDs
@@ -115,7 +115,7 @@ const NON_AUDIO_BACKPRESSURE_TIMEOUT: Duration = Duration::from_secs(10);
 const WRITE_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Bounded backoff sequence (1, 2, 4, 8, 16 s) — every value sits under
-/// the 30 s ceiling R4 fixes; a single recovery consumes one slot.
+/// a 30 s ceiling; a single recovery consumes one slot.
 const RELAUNCH_BACKOFFS: [Duration; 5] = [
     Duration::from_secs(1),
     Duration::from_secs(2),
@@ -309,8 +309,8 @@ pub async fn run(
                     // The daemon needs to learn the helper is gone so it can
                     // latch the capture. Every crash that closes a generation
                     // announces it: a helper that was already ready (the real
-                    // case for A3 and R4) and the first crash of a generation
-                    // that never got that far. Repeated crashes without a
+                    // case of a crash after startup) and the first crash of a
+                    // generation that never got that far. Repeated crashes without a
                     // ready in between do not re-announce; the supervisor will
                     // give up after five.
                     let disconnected = if let Some(cause) = malformed_audio {
@@ -368,7 +368,7 @@ async fn run_helper_bridge(
     }
 }
 
-/// Ends a helper in order (REF-06 A3): `shutdown`, then its input closed, then
+/// Ends a helper in order: `shutdown`, then its input closed, then
 /// [`HELPER_EXIT_GRACE`] for it to leave while its output keeps being read, and
 /// only then `SIGKILL`. The child is always reaped before this returns.
 async fn close_helper<R, W>(mut child: Child, reader: R, mut writer: W) -> HelperEnd
@@ -389,7 +389,7 @@ where
             false
         }
     };
-    // End of input: the helper's other signal to leave (A2), and the only one
+    // End of input: the helper's other signal to leave, and the only one
     // a helper that missed `shutdown` can still get.
     drop(writer);
     // Its last frames — the shutdown receipt, a final state — are read and

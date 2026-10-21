@@ -100,11 +100,11 @@ mod tests {
         assert!(validate_hub_url("https://example.com/?token=x", false).is_err());
     }
 
-    /// SIM-25: plain HTTP to a tailnet address is the variant's decision
+    /// Plain HTTP to a tailnet address is the variant's decision
     /// (`orbit_bundle::plain_http_hub`, which keeps the published build
     /// refusing it), in development or not; anything else still needs HTTPS.
     #[test]
-    fn sim25_http_on_the_tailnet_follows_the_build_variant() {
+    fn http_on_the_tailnet_follows_the_build_variant() {
         let variant = orbit_core::orbit_bundle::plain_http_hub("100.64.0.1");
         for development in [false, true] {
             assert_eq!(

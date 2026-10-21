@@ -4,8 +4,8 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
-# The daemon as a process of its own, for development and tests; since SIM-51
-# Orbit.app runs the daemon on a thread and does not ship this binary.
+# The daemon as a process of its own, for development and tests; Orbit.app
+# runs the daemon on a thread and does not ship this binary.
 [[bin]]
 name = "orbit"
 path = "src/main.rs"
@@ -32,7 +32,7 @@ directories = "6.0"
 rand = "0.9"
 rustix = { version = "1.1", features = ["process", "fs"] }
 tempfile.workspace = true
-# SIM-23: error reports to Sentry, only with the person's consent. No default
+# Error reports to Sentry, only with the person's consent. No default
 # features: the panic integration (with its frames), the OS context for the
 # macOS version, and the blocking reqwest transport over rustls with the ring
 # provider the daemon already compiles. Nothing for tracing, logs, metrics,

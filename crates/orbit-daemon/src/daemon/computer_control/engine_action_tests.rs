@@ -1,4 +1,4 @@
-//! DEI-12: the engine and nothing else. REF-11: the macOS permission is the
+//! The engine and nothing else. The macOS permission is the
 //! only decision (the harness is a Mac that grants it), the catalogue comes
 //! from the engine, and an absent engine is said out loud.
 use super::*;
@@ -11,10 +11,10 @@ fn launch() -> ToolCall {
     }
 }
 
-/// A4: the catalogue is the engine's. A tool the fixture engine declares that
+/// The catalogue is the engine's. A tool the fixture engine declares that
 /// Orbit has never heard of reaches the engine untouched.
 #[tokio::test]
-async fn a4_a_tool_orbit_does_not_know_still_reaches_the_engine() -> Result<()> {
+async fn a_tool_orbit_does_not_know_still_reaches_the_engine() -> Result<()> {
     let mut h = Mac::new(false).await?;
     let names: Vec<String> = h
         .runtime
@@ -38,9 +38,9 @@ async fn a4_a_tool_orbit_does_not_know_still_reaches_the_engine() -> Result<()> 
     Ok(())
 }
 
-/// A3: without an engine a remote action says so, by name, and never diverts.
+/// Without an engine a remote action says so, by name, and never diverts.
 #[tokio::test]
-async fn a3_without_an_engine_a_remote_action_answers_the_cause() -> Result<()> {
+async fn without_an_engine_a_remote_action_answers_the_cause() -> Result<()> {
     let mut h = Mac::new(false).await?;
     h.runtime
         .revoke_computer(&orbit_core::refusal::Refusal::ReadInterrupted {
@@ -63,7 +63,7 @@ async fn a3_without_an_engine_a_remote_action_answers_the_cause() -> Result<()> 
 }
 
 #[tokio::test]
-async fn a5_the_privacy_stop_still_cuts_an_engine_action() -> Result<()> {
+async fn the_privacy_stop_still_cuts_an_engine_action() -> Result<()> {
     let mut h = Mac::new(true).await?;
     h.runtime.call_engine_tool(launch(), "local")?;
     tokio::task::yield_now().await;
@@ -78,11 +78,11 @@ async fn a5_the_privacy_stop_still_cuts_an_engine_action() -> Result<()> {
     Ok(())
 }
 
-/// REF-11 A4: withdrawing Accessibility in macOS — the last thing the old
+/// Withdrawing Accessibility in macOS — the last thing the old
 /// switch did here — revokes the work in flight, records the uncertain end and says
 /// which permission went.
 #[tokio::test]
-async fn a8_withdrawing_accessibility_marks_inflight_work_unknown_and_records_it() -> Result<()> {
+async fn withdrawing_accessibility_marks_inflight_work_unknown_and_records_it() -> Result<()> {
     let mut h = Mac::new(true).await?;
     h.runtime.call_engine_tool(launch(), "local")?;
     tokio::task::yield_now().await;
@@ -110,9 +110,9 @@ async fn a8_withdrawing_accessibility_marks_inflight_work_unknown_and_records_it
     Ok(())
 }
 
-/// R7: the record survives every one of those endings.
+/// The record survives every one of those endings.
 #[tokio::test]
-async fn r7_the_record_keeps_what_was_asked_and_how_it_ended() -> Result<()> {
+async fn the_record_keeps_what_was_asked_and_how_it_ended() -> Result<()> {
     let mut h = Mac::new(false).await?;
     h.runtime.call_engine_tool(launch(), "local")?;
     h.finish().await?;

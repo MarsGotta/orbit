@@ -10,10 +10,10 @@ fn read(runtime: &mut Runtime, request: ReadRequest) -> Knowledge<Page<serde_jso
 }
 
 #[tokio::test]
-async fn ref209_a2_transcript_rejects_a_cursor_of_another_shape() -> anyhow::Result<()> {
+async fn transcript_rejects_a_cursor_of_another_shape() -> anyhow::Result<()> {
     let directory = tempfile::tempdir()?;
     let (runtime, _) = fixture(directory.path())?;
-    // SIM-41: the IPC loop answers the notes reads with `notes_read`.
+    // The IPC loop answers the notes reads with `notes_read`.
     let answer = runtime
         .notes_read(&ReadRequest::NoteTranscript {
             id: "00000000-0000-4000-8000-000000000209".into(),
@@ -36,7 +36,7 @@ async fn ref209_a2_transcript_rejects_a_cursor_of_another_shape() -> anyhow::Res
 }
 
 #[test]
-fn a3_the_whole_control_history_reads_in_one_page() -> anyhow::Result<()> {
+fn the_whole_control_history_reads_in_one_page() -> anyhow::Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let history: Vec<Value> = (0..orbit_core::computer_control::MAX_CONTROL_HISTORY)
@@ -73,7 +73,7 @@ fn a3_the_whole_control_history_reads_in_one_page() -> anyhow::Result<()> {
 }
 
 #[test]
-fn a3_maximal_valid_history_stays_within_the_read_ceiling() -> anyhow::Result<()> {
+fn maximal_valid_history_stays_within_the_read_ceiling() -> anyhow::Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let history: Vec<Value> = (0..MAX_CONTROL_HISTORY)
@@ -121,7 +121,7 @@ fn a3_maximal_valid_history_stays_within_the_read_ceiling() -> anyhow::Result<()
 }
 
 #[test]
-fn a3_history_cursor_does_not_repeat_a_row_after_a_new_action() -> anyhow::Result<()> {
+fn history_cursor_does_not_repeat_a_row_after_a_new_action() -> anyhow::Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let mut history: Vec<Value> = (0..MAX_CONTROL_HISTORY)
@@ -243,7 +243,7 @@ async fn cursors_of_other_shapes_and_missing_offsets_are_refused() -> anyhow::Re
 }
 
 #[test]
-fn a3_an_unreadable_record_refuses_with_its_cause() -> anyhow::Result<()> {
+fn an_unreadable_record_refuses_with_its_cause() -> anyhow::Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     std::fs::write(
@@ -251,8 +251,8 @@ fn a3_an_unreadable_record_refuses_with_its_cause() -> anyhow::Result<()> {
         b"not json at all",
     )?;
     let answer = read(&mut runtime, ReadRequest::ControlHistory { cursor: None });
-    // The unreadable record keeps its cause (REF-208 gave `StorageFailed`
-    // one); the exact parser text is not the contract.
+    // The unreadable record keeps its own cause (`StorageFailed`); the exact
+    // parser text is not the contract.
     assert!(
         matches!(
             &answer,

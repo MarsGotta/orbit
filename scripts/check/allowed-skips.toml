@@ -14,7 +14,7 @@
 
 [[skip]]
 suite = "rust-test"
-test = "orbit_daemon::daemon::finalize::tests::write_ref24_manifest_fixtures"
+test = "orbit_daemon::daemon::finalize::tests::write_manifest_fixtures"
 reason = "no es una prueba: regenera los tres manifiestos contractuales de REF-24; la comparación semántica de sus valores JSON sí corre siempre"
 
 [[skip]]

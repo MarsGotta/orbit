@@ -56,7 +56,7 @@ fn signal(runtime: &Runtime) -> Result<RecordingSignalView> {
         .context("missing live projection")
 }
 
-/// REF-03 · the projection as of `delivered`, the instant the frames arrived.
+/// The projection as of `delivered`, the instant the frames arrived.
 /// `Receiving` is an age on the real clock, and waiting for the store's
 /// receipts must not age the samples an assertion is about: under load the
 /// wait for twenty receipts alone passed the three-second delivery timeout.

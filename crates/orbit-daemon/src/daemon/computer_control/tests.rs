@@ -5,7 +5,7 @@ use crate::daemon::turn::said;
 use orbit_core::notice::NoticeCode;
 
 #[tokio::test]
-async fn ref46_cleanup_notice_is_said_once_and_later_reads_preserve_another_notice() -> Result<()> {
+async fn cleanup_notice_is_said_once_and_later_reads_preserve_another_notice() -> Result<()> {
     use orbit_core::topics::control::{EngineCleanup, EngineCleanupOutcome, EngineCleanupReason};
 
     let mut h = Mac::new(false).await?;
@@ -43,7 +43,7 @@ async fn ref46_cleanup_notice_is_said_once_and_later_reads_preserve_another_noti
             }),
         )
         .await?;
-    // SIM-21: the sweep is said with its count; its PID lines go to daemon.log.
+    // The sweep is said with its count; its PID lines go to daemon.log.
     assert_eq!(h.runtime.state.notice_code(), Some(NoticeCode::EngineSwept));
     let after_connect = h.runtime.state.durable.notice_log.records().len();
 
@@ -95,7 +95,7 @@ async fn expired_computer_result_retires_authority_with_both_generations() -> Re
 }
 
 #[tokio::test]
-async fn ref44_general_worker_checks_revocation_before_calling_the_tool() -> Result<()> {
+async fn general_worker_checks_revocation_before_calling_the_tool() -> Result<()> {
     for (revoked, privacy_stopped, changed_generation) in [
         (
             Some(ComputerRevocation::Refusal(
@@ -146,13 +146,13 @@ async fn ref44_general_worker_checks_revocation_before_calling_the_tool() -> Res
 }
 
 #[tokio::test]
-async fn ref44_other_revocation_answers_remote_action_with_its_cause() -> Result<()> {
+async fn other_revocation_answers_remote_action_with_its_cause() -> Result<()> {
     let mut h = Mac::new(true).await?;
     h.start_general_action().await?;
     let (sender, mut frames) = mpsc::channel(4);
     h.runtime.hub.install(sender);
     h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
-        id: "ref44-remote-revocation".into(),
+        id: "remote-revocation".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
         application: None,
         title: None,
@@ -178,7 +178,7 @@ async fn ref44_other_revocation_answers_remote_action_with_its_cause() -> Result
 }
 
 #[tokio::test]
-async fn ref44_computer_retirement_keeps_non_control_bridge_requests() -> Result<()> {
+async fn computer_retirement_keeps_non_control_bridge_requests() -> Result<()> {
     for capability in [
         orbit_core::device_bridge::Capability::Screenshot,
         orbit_core::device_bridge::Capability::SelectedText,
@@ -215,7 +215,7 @@ async fn ref44_computer_retirement_keeps_non_control_bridge_requests() -> Result
 }
 
 #[tokio::test]
-async fn ref44_each_authority_revocation_answers_deimos_with_its_cause() -> Result<()> {
+async fn each_authority_revocation_answers_deimos_with_its_cause() -> Result<()> {
     for change in [
         AuthorityChange::MarsStop,
         AuthorityChange::Revoked,
@@ -235,7 +235,7 @@ async fn ref44_each_authority_revocation_answers_deimos_with_its_cause() -> Resu
         let (sender, mut frames) = mpsc::channel(4);
         h.runtime.hub.install(sender);
         h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
-            id: "ref44-authority-change".into(),
+            id: "authority-change".into(),
             capability: orbit_core::device_bridge::Capability::PerformAction,
             application: None,
             title: None,
@@ -273,7 +273,7 @@ async fn ref44_each_authority_revocation_answers_deimos_with_its_cause() -> Resu
 }
 
 #[tokio::test]
-async fn ref303_a2_engine_refusal_reports_full_and_retired_hub() -> Result<()> {
+async fn engine_refusal_reports_full_and_retired_hub() -> Result<()> {
     let mut h = Mac::new(false).await?;
     let logs = tempfile::tempdir()?;
     said::trace(&mut h.runtime, logs.path());
@@ -339,7 +339,7 @@ mod engine_permission_tests;
 mod screen_capture_tests;
 
 #[test]
-fn ref212_retry_countdown_does_not_change_the_control_revision() -> Result<()> {
+fn retry_countdown_does_not_change_the_control_revision() -> Result<()> {
     use crate::daemon::topics::{TopicBoard, TopicSource};
     use orbit_core::{PermissionState, refusal::EngineCause, topics::TopicId};
 
@@ -386,7 +386,7 @@ fn ref212_retry_countdown_does_not_change_the_control_revision() -> Result<()> {
 }
 
 #[test]
-fn ref212_updating_the_cursor_entry_keeps_its_history_position() -> Result<()> {
+fn updating_the_cursor_entry_keeps_its_history_position() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (runtime, _) = fixture(directory.path())?;
     for id in ["old", "cursor", "first"] {
@@ -449,7 +449,7 @@ impl Mac {
         let (mut runtime, native) = fixture(directory.path())?;
         runtime.settings.device_id = Some("mac-fixture".into());
         // A Mac whose engine is connected: its helper is there and reports that
-        // macOS grants both permissions the engine needs (REF-11). A case about a
+        // macOS grants both permissions the engine needs. A case about a
         // missing or unknown one, or a missing helper, sets it itself.
         {
             let fixture_value = serde_json::json!(true);
@@ -512,7 +512,7 @@ async fn an_engine_tool_requires_macos_accessibility() -> Result<()> {
             "fixture",
         )
         .err()
-        .context("sin Accesibilidad no se ejecuta nada")?
+        .context("without Accessibility nothing runs")?
         .to_string();
     assert_eq!(
         serde_json::from_str::<Value>(&refused)?["permission"],
@@ -590,11 +590,11 @@ impl Mac {
 // that is stopped with nothing in flight says «cancelada», not «incierto».
 
 #[tokio::test]
-async fn ref31_a3_revoked_in_flight_history_is_uncertain_and_queryable() -> Result<()> {
+async fn revoked_in_flight_history_is_uncertain_and_queryable() -> Result<()> {
     for stop in [Command::Interrupt, Command::PrivacyStop] {
         let mut h = Mac::new(false).await?;
         let entry = ControlHistoryEntry::new(
-            "ref31-synthetic-operation",
+            "synthetic-operation",
             "click",
             "Fixture",
             1,
@@ -644,7 +644,7 @@ fn ipc_observation_is_bounded_without_truncation() {
 }
 
 #[tokio::test]
-async fn ref12_close_keeps_granted_engine_off_during_maintenance() -> Result<()> {
+async fn close_keeps_granted_engine_off_during_maintenance() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     {
@@ -687,12 +687,12 @@ async fn ref12_close_keeps_granted_engine_off_during_maintenance() -> Result<()>
     Ok(())
 }
 
-async fn ref403_remote_reply(h: &mut Mac, capability: &str, parameters: Value) -> Result<Value> {
+async fn remote_reply(h: &mut Mac, capability: &str, parameters: Value) -> Result<Value> {
     let (sender, mut hub) = mpsc::channel(16);
     h.runtime.hub.install(sender);
     h.runtime
         .device_request_raw(&json!({
-            "request_id":"ref403-start", "capability":capability, "parameters":parameters,
+            "request_id":"engine-start", "capability":capability, "parameters":parameters,
         }))
         .await?;
     let frame = hub.try_recv()?;
@@ -701,9 +701,9 @@ async fn ref403_remote_reply(h: &mut Mac, capability: &str, parameters: Value) -
 }
 
 #[tokio::test]
-async fn ref403_full_screen_with_window_is_an_invalid_parameter() -> Result<()> {
+async fn full_screen_with_window_is_an_invalid_parameter() -> Result<()> {
     let mut h = Mac::new(false).await?;
-    let reply = ref403_remote_reply(
+    let reply = remote_reply(
         &mut h,
         "screenshot",
         json!({"full_screen":true,"application":"Fixture"}),
@@ -718,10 +718,10 @@ async fn ref403_full_screen_with_window_is_an_invalid_parameter() -> Result<()> 
 }
 
 #[tokio::test]
-async fn ref44_unknown_capture_filter_is_refused_before_window_selection() -> Result<()> {
+async fn unknown_capture_filter_is_refused_before_window_selection() -> Result<()> {
     for capability in ["screenshot", "selected_text"] {
         let mut h = Mac::new(false).await?;
-        let reply = ref403_remote_reply(&mut h, capability, json!({"window":"Safari"})).await?;
+        let reply = remote_reply(&mut h, capability, json!({"window":"Safari"})).await?;
         assert_eq!(reply["refusal"]["code"], "invalid_parameter");
         let expected = &reply["refusal"]["expected"];
         assert_eq!(expected["kind"], "selection_filters");
@@ -738,26 +738,26 @@ async fn ref44_unknown_capture_filter_is_refused_before_window_selection() -> Re
 }
 
 #[tokio::test]
-async fn ref403_closed_native_source_channel_names_the_helper() -> Result<()> {
+async fn closed_native_source_channel_names_the_helper() -> Result<()> {
     let mut h = Mac::new(false).await?;
     h._native.close();
-    let reply = ref403_remote_reply(&mut h, "selected_text", json!({})).await?;
+    let reply = remote_reply(&mut h, "selected_text", json!({})).await?;
     assert_eq!(reply["refusal"]["code"], "helper_not_running");
     assert!(reply["refusal"]["retry"]["kind"].is_string());
     Ok(())
 }
 
 #[tokio::test]
-async fn ref403_pending_source_names_busy_instead_of_engine_failure() -> Result<()> {
+async fn pending_source_names_busy_instead_of_engine_failure() -> Result<()> {
     let mut h = Mac::new(false).await?;
     h.runtime.source_windows().await?;
-    let reply = ref403_remote_reply(&mut h, "selected_text", json!({})).await?;
+    let reply = remote_reply(&mut h, "selected_text", json!({})).await?;
     assert_eq!(reply["refusal"]["code"], "busy");
     Ok(())
 }
 
 #[tokio::test]
-async fn ref403_busy_engine_does_not_claim_to_have_failed_starting() -> Result<()> {
+async fn busy_engine_does_not_claim_to_have_failed_starting() -> Result<()> {
     let mut h = Mac::new(false).await?;
     let generation = h.runtime.state.generation();
     h.runtime.features.computer.work.attach_test(
@@ -767,7 +767,7 @@ async fn ref403_busy_engine_does_not_claim_to_have_failed_starting() -> Result<(
             std::future::pending::<()>().await;
         }),
     );
-    let reply = ref403_remote_reply(
+    let reply = remote_reply(
         &mut h,
         "perform_action",
         json!({"action":{"tool":"launch_app","arguments":{"bundle_id":"com.example.app"}}}),
@@ -781,9 +781,9 @@ async fn ref403_busy_engine_does_not_claim_to_have_failed_starting() -> Result<(
 }
 
 #[tokio::test]
-async fn ref403_undeclared_tool_names_that_tool_as_the_invalid_choice() -> Result<()> {
+async fn undeclared_tool_names_that_tool_as_the_invalid_choice() -> Result<()> {
     let mut h = Mac::new(false).await?;
-    let reply = ref403_remote_reply(
+    let reply = remote_reply(
         &mut h,
         "perform_action",
         json!({"action":{"tool":"undeclared_tool","arguments":{}}}),
@@ -798,10 +798,10 @@ async fn ref403_undeclared_tool_names_that_tool_as_the_invalid_choice() -> Resul
 }
 
 #[tokio::test]
-async fn ref403_history_storage_failure_is_named_before_input() -> Result<()> {
+async fn history_storage_failure_is_named_before_input() -> Result<()> {
     let mut h = Mac::new(false).await?;
     std::fs::create_dir(h.runtime.paths.root.join("computer-control.json"))?;
-    let reply = ref403_remote_reply(
+    let reply = remote_reply(
         &mut h,
         "perform_action",
         json!({"action":{"tool":"launch_app","arguments":{"bundle_id":"com.example.app"}}}),
@@ -814,7 +814,7 @@ async fn ref403_history_storage_failure_is_named_before_input() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref403_failed_engine_keeps_its_retry_number_without_its_system_error() -> Result<()> {
+async fn failed_engine_keeps_its_retry_number_without_its_system_error() -> Result<()> {
     let mut h = Mac::new(false).await?;
     h.runtime.features.computer.service = None;
     h.runtime.features.computer.engine_failure = Some("/Users/sample/private/engine".into());
@@ -823,7 +823,7 @@ async fn ref403_failed_engine_keeps_its_retry_number_without_its_system_error() 
         engine::Status::Failed { retry_in_ms, .. } => retry_in_ms,
         status => anyhow::bail!("expected a failed engine before request: {status:?}"),
     };
-    let reply = ref403_remote_reply(&mut h, "control_tools", json!({})).await?;
+    let reply = remote_reply(&mut h, "control_tools", json!({})).await?;
     let after = match h.runtime.engine_status() {
         engine::Status::Failed { retry_in_ms, .. } => retry_in_ms,
         status => anyhow::bail!("expected a failed engine after request: {status:?}"),
@@ -842,12 +842,12 @@ async fn ref403_failed_engine_keeps_its_retry_number_without_its_system_error() 
 }
 
 #[tokio::test]
-async fn ref403_a5_real_engine_failure_handler_never_replies_with_system_text() -> Result<()> {
+async fn real_engine_failure_handler_never_replies_with_system_text() -> Result<()> {
     let mut h = Mac::new(false).await?;
     let (sender, mut hub) = mpsc::channel(16);
     h.runtime.hub.install(sender);
     h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
-        id: "ref403-engine-error".into(),
+        id: "engine-error".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
         application: None,
         title: None,
@@ -860,7 +860,7 @@ async fn ref403_a5_real_engine_failure_handler_never_replies_with_system_text() 
     });
     h.runtime
         .computer_failed(&anyhow::anyhow!(
-            "motor falló en /Users/sample/privado/clave y $HOME"
+            "engine failed at /Users/sample/private/key and $HOME"
         ))
         .await;
     let frame = hub.try_recv()?;
@@ -874,7 +874,7 @@ async fn ref403_a5_real_engine_failure_handler_never_replies_with_system_text() 
 }
 
 #[tokio::test]
-async fn ref403_a11_failed_active_action_replies_with_uncertain_outcome() -> Result<()> {
+async fn failed_active_action_replies_with_uncertain_outcome() -> Result<()> {
     {
         let mut h = Mac::new(false).await?;
         let (sender, mut hub) = mpsc::channel(16);
@@ -901,7 +901,7 @@ async fn ref403_a11_failed_active_action_replies_with_uncertain_outcome() -> Res
             .computer_failed(&anyhow::anyhow!("engine lost its receipt"))
             .await;
         let mut frame = hub.try_recv()?;
-        // SIM-21: every request frame names its op at the top level; the
+        // Every request frame names its op at the top level; the
         // rest of the reply is the contract fixture as it was.
         let op = frame
             .as_object_mut()
@@ -931,17 +931,17 @@ async fn ref403_a11_failed_active_action_replies_with_uncertain_outcome() -> Res
             ControlOutcome::Unknown
         );
         assert!(h.runtime.conversation.bridge_request.is_none());
-        assert!(hub.try_recv().is_err(), "la acción recibió otra respuesta");
+        assert!(hub.try_recv().is_err(), "the action got another reply");
     }
     Ok(())
 }
 
-/// SIM-25: the real test's first whole-window read came back `outcome_unknown`
+/// The real test's first whole-window read came back `outcome_unknown`
 /// with nothing in daemon.log or the report log about why. An engine failure
 /// leaves its cause in daemon.log and a typed `engine_failed` line, with the
 /// receipt's numbers when that was the cause, under the turn's op.
 #[tokio::test]
-async fn sim25_an_engine_failure_leaves_its_cause_and_a_report_line() -> Result<()> {
+async fn an_engine_failure_leaves_its_cause_and_a_report_line() -> Result<()> {
     let mut h = Mac::new(false).await?;
     let root = h._directory.path().to_path_buf();
     h.runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(&root));
@@ -953,7 +953,7 @@ async fn sim25_an_engine_failure_leaves_its_cause_and_a_report_line() -> Result<
         arguments: json!({"pid": 11, "window_id": 22, "query": ENORMOUS_TREE}),
     };
     h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
-        id: "sim25-whole-window".into(),
+        id: "whole-window-read".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
         application: None,
         title: None,
@@ -986,7 +986,7 @@ async fn sim25_an_engine_failure_leaves_its_cause_and_a_report_line() -> Result<
     assert!(line.contains("Recibo de acción de"), "{line}");
     assert!(line.contains(&max), "{line}");
     assert!(line.contains("op-engine-0001"), "{line}");
-    assert!(line.contains("sim25-whole-window"), "{line}");
+    assert!(line.contains("whole-window-read"), "{line}");
 
     let report = std::fs::read_to_string(root.join("logs/report-daemon.log"))?;
     let row: Value = report
@@ -1012,14 +1012,14 @@ async fn sim25_an_engine_failure_leaves_its_cause_and_a_report_line() -> Result<
 
 /// An engine that never comes up says so too, with the cause in daemon.log.
 #[tokio::test]
-async fn sim25_an_engine_that_cannot_start_leaves_its_cause() -> Result<()> {
+async fn an_engine_that_cannot_start_leaves_its_cause() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _native) = fixture(directory.path())?;
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
     runtime.report_log = Some(orbit_ipc::report::ReportLog::daemon(directory.path()));
     runtime.engine_unavailable(
         orbit_core::refusal::EngineCause::InitializationFailed,
-        &anyhow::anyhow!("no se pudo lanzar cua-driver: ENOENT"),
+        &anyhow::anyhow!("could not launch cua-driver: ENOENT"),
         &[],
     );
     let daemon_log = std::fs::read_to_string(directory.path().join("logs/daemon.log"))?;

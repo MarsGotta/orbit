@@ -1,4 +1,4 @@
-//! The production launch path for integration tests (REF-06 A7).
+//! The production launch path for integration tests.
 //!
 //! Production starts `orbit daemon --helper <OrbitNative>` and the daemon starts
 //! `OrbitNative --stdio --managed` as its own child. These tests do the same
@@ -148,7 +148,7 @@ impl Relay {
         match receiver.recv_timeout(CONNECT_BUDGET) {
             Ok(opened) => Ok(opened?),
             Err(_) => bail!(
-                "el daemon no lanzó el helper de prueba {} en {CONNECT_BUDGET:?}",
+                "the daemon did not launch the test helper {} within {CONNECT_BUDGET:?}",
                 self.script.display()
             ),
         }
@@ -248,8 +248,8 @@ pub fn wait_group_empty(group: u32, what: &str) -> Result<()> {
     while group_alive(group) {
         if Instant::now() >= deadline {
             bail!(
-                "{what}: el grupo de procesos {group} de la cadena sigue con procesos vivos \
-                 {GROUP_EMPTY_BUDGET:?} después de que el daemon saliera"
+                "{what}: the chain's process group {group} still has live processes \
+                 {GROUP_EMPTY_BUDGET:?} after the daemon exited"
             );
         }
         thread::sleep(Duration::from_millis(10));
@@ -272,14 +272,14 @@ pub fn kill_group(group: u32) {
 /// way launchd, `kill` or a terminal would. `name` is `TERM` or `INT`.
 pub fn signal_own_daemon(pid: u32, name: &str) -> Result<()> {
     if !matches!(name, "TERM" | "INT") {
-        bail!("señal no prevista en esta prueba: {name}");
+        bail!("signal not expected in this test: {name}");
     }
     let status = std::process::Command::new("/bin/kill")
         .args(["-s", name, &pid.to_string()])
         .status()
-        .context("no se pudo ejecutar /bin/kill")?;
+        .context("could not run /bin/kill")?;
     if !status.success() {
-        bail!("/bin/kill -s {name} {pid} terminó con {status}");
+        bail!("/bin/kill -s {name} {pid} ended with {status}");
     }
     Ok(())
 }
@@ -303,9 +303,9 @@ pub fn last_logged(path: &Path, event: &str) -> Option<serde_json::Value> {
 }
 
 fn quotable(path: &Path) -> Result<()> {
-    let text = path.to_str().context("ruta de prueba que no es UTF-8")?;
+    let text = path.to_str().context("test path that is not UTF-8")?;
     if text.contains('\'') || text.contains('\n') {
-        bail!("la ruta de prueba no se puede citar en sh: {text:?}");
+        bail!("the test path cannot be quoted in sh: {text:?}");
     }
     Ok(())
 }
@@ -317,9 +317,9 @@ fn make_fifo(path: &Path) -> Result<()> {
         .args(["-m", "600"])
         .arg(path)
         .status()
-        .context("no se pudo ejecutar mkfifo")?;
+        .context("could not run mkfifo")?;
     if !status.success() {
-        bail!("mkfifo {} terminó con {status}", path.display());
+        bail!("mkfifo {} ended with {status}", path.display());
     }
     Ok(())
 }
@@ -340,9 +340,9 @@ fn write_script(path: &Path, body: &str) -> Result<()> {
         .arg(&source)
         .arg(path)
         .status()
-        .context("no se pudo ejecutar /bin/cp")?;
+        .context("could not run /bin/cp")?;
     if !copied.success() {
-        bail!("cp {} terminó con {copied}", path.display());
+        bail!("cp {} ended with {copied}", path.display());
     }
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))?;
     Ok(())

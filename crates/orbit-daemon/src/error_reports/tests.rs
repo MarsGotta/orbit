@@ -16,7 +16,7 @@ fn timer_failure(op: &str) -> Report {
     )
 }
 
-/// Criterion 3: a code repeated every 100 ms for 5 s leaves once; the
+/// A code repeated every 100 ms for 5 s leaves once; the
 /// repetitions are counted and leave with the next send, once its minute
 /// ended.
 #[test]
@@ -61,7 +61,7 @@ fn the_same_code_with_other_data_is_another_report() {
     assert_eq!(sentry.events().len(), 2, "{:?}", sentry.requests());
 }
 
-/// Only failures leave: the silent trail and a condition she can fix stay
+/// Only failures leave: the silent trail and a condition the user can fix stay
 /// in the local log; a failed code and a silent failure leave as errors.
 #[test]
 fn only_failures_leave_and_as_errors() {
@@ -83,10 +83,7 @@ fn only_failures_leave_and_as_errors() {
     );
     reports.report(&line(NoticeCode::StoreProblem, "op-failed-001"), now);
     reports.report(&line(NoticeCode::WakePhraseFailed, "op-silentfail"), now);
-    reports.report(
-        &line(NoticeCode::TranscriptReadFailed, "op-sim24-fail"),
-        now,
-    );
+    reports.report(&line(NoticeCode::TranscriptReadFailed, "op-read-fail"), now);
     assert!(reports.flush(DELIVERY));
     let events = sentry.events();
     let sent: Vec<(&str, &str)> = events
@@ -109,8 +106,8 @@ fn only_failures_leave_and_as_errors() {
     );
 }
 
-/// Criterion 2: with the switch off nothing leaves, not even when a count
-/// was pending from before she switched it off; without an address there
+/// With the switch off nothing leaves, not even when a count was pending
+/// from before the user switched it off; without an address there
 /// is no client at all.
 #[test]
 fn with_the_switch_off_or_without_an_address_nothing_leaves() {
@@ -141,7 +138,7 @@ fn with_the_switch_off_or_without_an_address_nothing_leaves() {
     let unaddressed = ErrorReports::start(None, true);
     assert_eq!(unaddressed.choice(), None);
     unaddressed.report(&timer_failure("op-no-address"), start);
-    let invalid = ErrorReports::start(Some("no es una dirección"), true);
+    let invalid = ErrorReports::start(Some("not an address"), true);
     assert_eq!(invalid.choice(), None);
 }
 
@@ -151,7 +148,7 @@ fn with_the_switch_off_or_without_an_address_nothing_leaves() {
 /// frames' file, function and line, and nothing else.
 #[test]
 fn the_scrub_rebuilds_the_event_from_its_allow_list() {
-    const MARKER: &str = "marcadorprivadosim23";
+    const MARKER: &str = "privatemarkerevents";
     let mut event = Event {
         message: Some(MARKER.into()),
         server_name: Some(MARKER.into()),
@@ -180,7 +177,7 @@ fn the_scrub_rebuilds_the_event_from_its_allow_list() {
         ("closing", Value::from(false)),
         ("cause", Value::from("helper_lost")),
         ("stage", Value::from(MARKER)),
-        ("code", Value::from(format!("{MARKER} con espacios"))),
+        ("code", Value::from(format!("{MARKER} with spaces"))),
         ("transcript", Value::from(MARKER)),
         ("pages", Value::from(vec![MARKER])),
     ] {
@@ -242,8 +239,8 @@ fn an_event_that_was_not_made_here_is_not_sent() {
     assert!(scrub(Event::default()).is_none());
 }
 
-/// A panic of a release build has no names: the binary is stripped. Since
-/// SIM-51 that binary is the app, `Contents/MacOS/Orbit`, with the daemon
+/// A panic of a release build has no names: the binary is stripped. That
+/// binary is the app, `Contents/MacOS/Orbit`, with the daemon
 /// inside; the image keeps its file name, whatever it is. Sentry
 /// names its frames from the build's dSYM, uploaded at release, by the
 /// frames' addresses and the image's identifier and load address. Those are
@@ -251,7 +248,7 @@ fn an_event_that_was_not_made_here_is_not_sent() {
 #[test]
 fn a_panic_keeps_the_addresses_and_the_image_sentry_symbolicates_with() {
     use sentry::protocol::{DebugImage, DebugMeta, SymbolicDebugImage};
-    const MARKER: &str = "marcadorprivadosim54";
+    const MARKER: &str = "privatemarkerimages";
     let mut event = Event {
         release: Some("orbit@0.5.1".into()),
         ..Event::default()

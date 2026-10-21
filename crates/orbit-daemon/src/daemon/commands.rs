@@ -5,7 +5,7 @@ use orbit_core::MAX_MANIFEST_TITLE_CHARACTERS;
 
 impl Runtime {
     /// Starts a recording: by hand, from «Grabar» on an event, or for a call
-    /// (P9-11). `event` links it to its calendar event by stable reference;
+    /// detected by the Mac. `event` links it to its calendar event by stable reference;
     /// the manifest keeps it, and the note asks the hub with it. Returns the
     /// recording's id.
     pub(super) async fn start_meeting(
@@ -16,11 +16,9 @@ impl Runtime {
         event: Option<orbit_core::call_detection::LinkedEvent>,
         origin: &'static str,
     ) -> Result<String> {
-        // REF-41 A5 · the over-long title is its own refusal, with
-        // its length and the maximum: whoever reads it can fix the
-        // title in one step, which the old `InvalidMeeting` never
-        // allowed. The guarded comparison stays inline in this
-        // chain because REF-24's guard reads it here.
+        // The over-long title is its own refusal, with its length
+        // and the maximum: whoever reads it can fix the title in one
+        // step, which the old `InvalidMeeting` never allowed.
         if title.trim().is_empty()
             || title.chars().count() > MAX_MANIFEST_TITLE_CHARACTERS
             || matches!(
@@ -104,7 +102,7 @@ impl Runtime {
         Ok(())
     }
 
-    /// SIM-23 «Enviar informes de errores anónimos»: stored with the other
+    /// «Enviar informes de errores anónimos»: stored with the other
     /// settings first, then in force at once.
     pub(super) fn set_error_reports(&mut self, enabled: bool) -> Result<()> {
         let settings = Settings {
@@ -285,7 +283,7 @@ impl Runtime {
                 duration_minutes,
                 event,
             } => {
-                // P9-11: «Grabar» on an event during a call records the
+                // «Grabar» on an event during a call records the
                 // call's application when the helper says which one holds the
                 // microphone; otherwise the system, as before.
                 let audio = match (&event, audio) {

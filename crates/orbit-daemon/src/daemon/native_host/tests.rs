@@ -130,7 +130,7 @@ fn stop_and_disconnect_signal_revocation_even_before_identity_exists() {
     }
 }
 
-/// REF-12: a capture cut retires the old epoch like her stop does, and is
+/// A capture cut retires the old epoch like the user's stop does, and is
 /// reported as the cut it is: consumers never call it a privacy stop.
 #[test]
 fn a_capture_cut_revokes_the_epoch_without_being_called_a_privacy_stop() {

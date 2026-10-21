@@ -1,4 +1,4 @@
-//! P2-04 fixtures: one pending list for every exit door, and a closure that
+//! Shutdown fixtures: one pending list for every exit door, and a closure that
 //! ends on its own bounded budget. Only daemon behavior is exercised here; no
 //! clock, disk failure or signal delivery outside these synthetic facts is
 //! treated as verified.
@@ -11,7 +11,8 @@ use std::time::{Duration, Instant};
 // A fixture receipt may wait longer than the product's 1128 ms grace without
 // turning a disk scheduling stall into a claim about exit order. This test-only
 // grace is 64 times the worst 63 ms critical receipt in 30 loaded Linux runs;
-// it is not a new product deadline. A8 must remeasure APFS fullfsync on Mac.
+// it is not a new product deadline. APFS fullfsync on a Mac is not measured
+// here and must be remeasured there.
 const TEST_CRITICAL_RECEIPT_GRACE: Duration = Duration::from_millis(4_032);
 // Twice that receipt grace bounds a missing timeout in the fixture, not fsync.
 const TEST_RECEIPT_JAM_GUARD: Duration = Duration::from_millis(8_064);
@@ -141,7 +142,7 @@ async fn a_seal_that_never_succeeds_still_ends_the_exit_within_the_budget() -> R
     let after = Instant::now();
     assert!(!closing.ready(&runtime));
     assert!(!runtime.has_any_pending().is_empty());
-    // The one closing budget, counted from the latch (REF-06 A5).
+    // The one closing budget, counted from the latch.
     assert_latched_budget(&closing, before, after);
     // Crossing the budget declares what stayed in memory — counts, not
     // content. The cause is the unconfirmed storage write, not an exhausted
@@ -175,7 +176,7 @@ async fn a_seal_that_never_succeeds_still_ends_the_exit_within_the_budget() -> R
     Ok(())
 }
 
-/// REF-06 A4/A5: the first termination signal — SIGINT from a terminal or
+/// The first termination signal — SIGINT from a terminal or
 /// SIGTERM from launchd, they are one request — latches the closure with the
 /// one budget; a second one means "now" and the daemon leaves at once. There
 /// is no third, shorter budget any more.
@@ -191,7 +192,7 @@ fn a_first_signal_latches_the_budget_and_a_second_one_leaves_at_once() {
     assert!(closing.exit_now(Instant::now()));
 }
 
-/// REF-06 A5: a signal that arrives after an IPC `Shutdown` is the first
+/// A signal that arrives after an IPC `Shutdown` is the first
 /// signal, not the second: a SIGTERM that lands while that closure runs must
 /// not cut it short.
 #[test]

@@ -149,7 +149,7 @@ impl Runtime {
                 )
                 .await;
             }
-            // Each change closes the sources with its own cause (REF-304b B3):
+            // Each change closes the sources with its own cause:
             // a new conversation is not a local cancellation.
             if slot == Sources && change == AuthorityChange::Conversation {
                 self.cancel_sources_with_cause(
@@ -332,7 +332,7 @@ impl Runtime {
 }
 
 #[cfg(test)]
-mod ref44_tests {
+mod authority_cause_tests {
     use super::*;
 
     #[test]

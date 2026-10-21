@@ -1,15 +1,15 @@
 //! `orbit`: the daemon as a process of its own, for development and tests.
 //!
-//! Since SIM-51 Orbit.app runs the daemon on a thread of its own process
+//! Orbit.app runs the daemon on a thread of its own process
 //! (`apps/desktop/src-tauri/src/daemon_thread.rs`) and this binary is not
 //! shipped. The hub's e2e, app-core's tests and the daemon's process tests
 //! start it as `orbit [--dev] [--data-dir DIR] daemon [--helper PATH]
 //! [--parent-pid PID]`: that grammar is the whole interface (the command line
-//! was retired on 2026-10-15, SIM-01).
+//! was retired on 2026-10-15).
 use std::{ffi::OsString, path::PathBuf, process::ExitCode, time::Duration};
 
 const USAGE: &str =
-    "uso: orbit [--dev] [--data-dir DIRECTORIO] daemon [--helper RUTA] [--parent-pid PID]";
+    "usage: orbit [--dev] [--data-dir DIRECTORY] daemon [--helper PATH] [--parent-pid PID]";
 
 #[derive(Debug, Default, PartialEq, Eq)]
 struct Launch {
@@ -30,7 +30,7 @@ fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Launch, String
         let mut value = |name: &str| {
             arguments
                 .next()
-                .ok_or_else(|| format!("falta el valor de {name}"))
+                .ok_or_else(|| format!("missing value for {name}"))
         };
         match (daemon, argument.to_str()) {
             (false, Some("--dev")) => launch.development = true,
@@ -46,7 +46,7 @@ fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Launch, String
                     .and_then(|text| text.parse::<u32>().ok())
                     .ok_or_else(|| {
                         format!(
-                            "--parent-pid necesita un número de proceso y recibió {}",
+                            "--parent-pid needs a process number and got {}",
                             raw.to_string_lossy()
                         )
                     })?;
@@ -55,20 +55,20 @@ fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Launch, String
                         .ok()
                         .and_then(rustix::process::Pid::from_raw)
                         .ok_or_else(|| {
-                            format!("--parent-pid debe identificar un proceso y recibió {pid}")
+                            format!("--parent-pid must identify a process and got {pid}")
                         })?,
                 );
             }
             _ => {
                 return Err(format!(
-                    "argumento no reconocido: {}",
+                    "unrecognised argument: {}",
                     argument.to_string_lossy()
                 ));
             }
         }
     }
     if !daemon {
-        return Err("falta la orden daemon".into());
+        return Err("missing the daemon command".into());
     }
     Ok(launch)
 }
@@ -99,7 +99,7 @@ async fn follow_parent(parent: rustix::process::Pid) {
                 rustix::process::Signal::TERM,
             ) {
                 eprintln!(
-                    "orbit: el proceso {parent:?} ya no existe y no se pudo cerrar el daemon: {error}"
+                    "orbit: process {parent:?} no longer exists and the daemon could not be closed: {error}"
                 );
             }
             return;
@@ -110,7 +110,7 @@ async fn follow_parent(parent: rustix::process::Pid) {
 /// Errors leave through `main`'s ordinary return, never `std::process::exit`:
 /// returning drops the runtime and with it every task, so a supervised child
 /// such as the native helper is killed by its own handle instead of being left
-/// orphaned with the global shortcuts still registered (REF-06 A4).
+/// orphaned with the global shortcuts still registered.
 #[tokio::main]
 async fn main() -> ExitCode {
     let launch = match parse(std::env::args_os().skip(1)) {
@@ -182,26 +182,26 @@ mod tests {
 
     #[test]
     fn anything_else_is_refused_by_name() {
-        assert_eq!(parsed(&[]), Err("falta la orden daemon".into()));
+        assert_eq!(parsed(&[]), Err("missing the daemon command".into()));
         assert_eq!(
             parsed(&["status", "--json"]),
-            Err("argumento no reconocido: status".into())
+            Err("unrecognised argument: status".into())
         );
         assert_eq!(
             parsed(&["daemon", "--dev"]),
-            Err("argumento no reconocido: --dev".into())
+            Err("unrecognised argument: --dev".into())
         );
         assert_eq!(
-            parsed(&["daemon", "--parent-pid", "uno"]),
-            Err("--parent-pid necesita un número de proceso y recibió uno".into())
+            parsed(&["daemon", "--parent-pid", "one"]),
+            Err("--parent-pid needs a process number and got one".into())
         );
         assert_eq!(
             parsed(&["daemon", "--parent-pid", "0"]),
-            Err("--parent-pid debe identificar un proceso y recibió 0".into())
+            Err("--parent-pid must identify a process and got 0".into())
         );
         assert_eq!(
             parsed(&["--data-dir"]),
-            Err("falta el valor de --data-dir".into())
+            Err("missing value for --data-dir".into())
         );
     }
 }

@@ -43,7 +43,7 @@ pub(in crate::daemon) fn fixture(
     let (native, receiver) = mpsc::channel(64);
     let (hub_events, _) = mpsc::channel(16);
     // The production capacity: tests that reason about wake-up coalescing
-    // (REF-27) drain against the real bound, not a coincidental twin.
+    // drain against the real bound, not a coincidental twin.
     let (work_events, _) = mpsc::channel(crate::daemon::WORK_EVENTS_CAPACITY);
     let (notes_events, _) = mpsc::channel(crate::daemon::recording_notes::NOTE_EVENTS);
     let store_actor = crate::daemon::store_actor::StoreActor::spawn(store, work_events.clone())?;
@@ -146,7 +146,7 @@ pub(in crate::daemon) fn fixture(
     ))
 }
 
-/// REF-11 polls `status` during maintenance. It may precede a capture order,
+/// Maintenance polls the helper's `status`. It may precede a capture order,
 /// but no other unexpected command may be silently discarded by a test.
 pub(in crate::daemon) fn take_helper_command(
     receiver: &mut mpsc::Receiver<Value>,
@@ -192,23 +192,23 @@ pub(in crate::daemon) fn assert_no_helper_command(
     Ok(())
 }
 
-/// REF-03 · a stall guard on a durable seal receipt, not a budget.
+/// A stall guard on a durable seal receipt, not a budget.
 /// [`await_seal_receipts`] returns the instant the last receipt is applied, so
 /// this number never decides a passing run; it only turns a receipt that
 /// never comes into a named failure instead of a hung suite.
 ///
-/// Measured, not chosen round. SYS-17, over 160 drains under 48 busy loops and
-/// 8 fsync writers on this 32-core box: p50 0 ms, p95 322 ms, p99 742 ms, worst
-/// 1 306.7 ms. REF-03, over 2 700 of these waits with the courtesy wait at
+/// Measured, not chosen round. A first measurement, over 160 drains under 48
+/// busy loops and 8 fsync writers on this 32-core box: p50 0 ms, p95 322 ms,
+/// p99 742 ms, worst 1 306.7 ms. A second, over 2 700 of these waits with the courtesy wait at
 /// zero, under 8 fsync writers and a load average of 27 to 59: p50 11.6 ms,
 /// p95 499.8 ms, p99 744.5 ms, worst 11 624.9 ms; and with the store actor
 /// ordered, over 2 900 waits under the same writers at a load average of 23
 /// to 101: p50 76.5 ms, p99 1 943.3 ms, worst 10 006.3 ms. The guard is 40×
-/// the worst of all three, the factor SYS-17 used, far outside what it must
+/// the worst of all three, the factor the first measurement used, far outside what it must
 /// never arbitrate.
 pub(in crate::daemon) const SEAL_RECEIPT_GUARD: Duration = Duration::from_millis(464_996);
 
-/// REF-03 · waits for the fact a sealing test asserts on: every seal already
+/// Waits for the fact a sealing test asserts on: every seal already
 /// handed to the store actor has been written and its receipt applied.
 ///
 /// `seal` hands the PCM to the store actor's own thread and returns without
@@ -229,7 +229,7 @@ pub(in crate::daemon) fn await_seal_receipts(runtime: &mut Runtime) -> Result<()
             .map(|segment| segment.metadata.id.as_str())
             .collect();
         bail!(
-            "Esperaba el recibo durable de {} sello(s) pendiente(s) [{}]; la cola no se vació en {waited:?}",
+            "expected the durable receipt of {} pending seal(s) [{}]; the queue did not empty in {waited:?}",
             missing.len(),
             missing.join(", ")
         );
@@ -237,9 +237,9 @@ pub(in crate::daemon) fn await_seal_receipts(runtime: &mut Runtime) -> Result<()
     Ok(())
 }
 
-/// REF-03 · what production does once those receipts are in. Whichever of its
+/// What production does once those receipts are in. Whichever of its
 /// two observers applies a receipt, the collector or `StoreWork::Sealed`, it
-/// ends in `resume_deferred_drain` (SYS-20), which closes a recording whose
+/// ends in `resume_deferred_drain`, which closes a recording whose
 /// finish the in-flight seal had deferred.
 pub(in crate::daemon) async fn settle_seal_receipts(runtime: &mut Runtime) -> Result<()> {
     await_seal_receipts(runtime)?;
@@ -275,8 +275,7 @@ fn frame(stream: &str, sequence: u64, frames: usize) -> Value {
 }
 
 #[tokio::test]
-async fn ref303_a5_failed_seal_preserves_close_and_seals_once_after_destination_recovers()
--> Result<()> {
+async fn failed_seal_preserves_close_and_seals_once_after_destination_recovers() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let stream = start(&mut runtime, &mut receiver).await?;
@@ -285,15 +284,15 @@ async fn ref303_a5_failed_seal_preserves_close_and_seals_once_after_destination_
     let stop = receiver.recv().await.context("stop absent")?;
     assert_eq!(stop["command"], "audio_stop");
     // Model the helper's confirmed drain at the boundary immediately before
-    // complete_audio_drain: this isolates SYS-21 from the earlier per-stream
-    // seal performed by the normal response handler.
+    // complete_audio_drain: this isolates the drain's own seal from the
+    // earlier per-stream seal performed by the normal response handler.
     runtime.capture.audio.stops.clear();
     runtime.capture.mic_stream = None;
     let chunks_path = runtime.paths.store.join("chunks");
     std::fs::remove_dir(&chunks_path)?;
     std::fs::write(&chunks_path, b"fixture: not a directory")?;
     let Err(failure) = runtime.complete_audio_drain().await else {
-        bail!("el destino inválido debía impedir el sellado")
+        bail!("the invalid destination should have prevented the seal")
     };
     assert!(failure.to_string().contains("directorio"), "{failure}");
     assert_eq!(runtime.capture.audio.recording_end, Some(true));
@@ -529,11 +528,11 @@ async fn voice_source_is_durable_before_credentials_or_provider_are_needed() -> 
     Ok(())
 }
 
-/// SIM-41: a voice note is sent to `/v1/audio/transcribe` and kept on the
+/// A voice note is sent to `/v1/audio/transcribe` and kept on the
 /// Mac for playback; nothing on the hub reads its audio, which it listed as
 /// a meeting that never closed. Its chunk is never uploaded.
 #[tokio::test]
-async fn sim41_a_voice_note_is_not_uploaded_as_a_recording() -> Result<()> {
+async fn a_voice_note_is_not_uploaded_as_a_recording() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime.capture.buffer.begin_voice()?;
@@ -797,7 +796,7 @@ async fn interrupt_before_voice_finish_preserves_source_without_submitting() -> 
 }
 
 #[tokio::test]
-async fn sys01_a2_system_scope_starts_remote_app_without_pid_and_marks_the_epoch() -> Result<()> {
+async fn system_scope_starts_remote_app_without_pid_and_marks_the_epoch() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
@@ -825,7 +824,7 @@ async fn sys01_a2_system_scope_starts_remote_app_without_pid_and_marks_the_epoch
     assert_eq!(remote_start["capture_scope"], "system");
     assert!(
         remote_start.get("application_pid").is_none(),
-        "el ámbito de sistema no viaja con un PID: {remote_start}"
+        "the system scope does not travel with a PID: {remote_start}"
     );
     let epoch = runtime
         .fixture_store
@@ -852,7 +851,7 @@ async fn sys01_a2_system_scope_starts_remote_app_without_pid_and_marks_the_epoch
 }
 
 #[test]
-fn sys01_a3_meeting_start_json_without_audio_defaults_to_system_and_a_stray_pid_is_rejected() {
+fn meeting_start_json_without_audio_defaults_to_system_and_a_stray_pid_is_rejected() {
     let plain = serde_json::from_value::<orbit_core::protocol::Command>(json!({
         "command": "meeting_start", "title": "Reunión", "duration_minutes": 60
     }));
@@ -864,7 +863,7 @@ fn sys01_a3_meeting_start_json_without_audio_defaults_to_system_and_a_stray_pid_
                 ..
             })
         ),
-        "sin campo audio la orden debe leerse como ámbito de sistema"
+        "without an audio field the order must read as system scope"
     );
     let stray_pid = serde_json::from_value::<orbit_core::protocol::Command>(json!({
         "command": "meeting_start", "title": "Reunión", "duration_minutes": 60,
@@ -872,11 +871,11 @@ fn sys01_a3_meeting_start_json_without_audio_defaults_to_system_and_a_stray_pid_
     }));
     assert!(
         stray_pid.is_err(),
-        "application_pid ya no es un campo de meeting_start"
+        "application_pid is no longer a field of meeting_start"
     );
 }
 
-fn dae03_track<'a>(runtime: &'a Runtime, name: &str) -> Result<&'a orbit_core::TrackProgress> {
+fn track_progress<'a>(runtime: &'a Runtime, name: &str) -> Result<&'a orbit_core::TrackProgress> {
     runtime
         .state
         .durable
@@ -889,16 +888,16 @@ fn dae03_track<'a>(runtime: &'a Runtime, name: &str) -> Result<&'a orbit_core::T
         .context("track absent")
 }
 
-/// DAE-03 A2: a two-track recording publishes its progress per track. Sealed
+/// A two-track recording publishes its progress per track. Sealed
 /// chunks and the wall clock of the last one belong to each track, and a gap
 /// the helper counts lands on the track that reported it, never on the other.
 #[tokio::test]
-async fn dae03_a2_tracks_report_sealed_chunks_and_gaps_per_track() -> Result<()> {
+async fn tracks_report_sealed_chunks_and_gaps_per_track() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
         .apply(Event::StartMeeting {
-            id: "dae03-tracks".into(),
+            id: "two-tracks".into(),
             title: "Reunión con dos pistas".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
             duration_ms: 60_000,
@@ -936,7 +935,7 @@ async fn dae03_a2_tracks_report_sealed_chunks_and_gaps_per_track() -> Result<()>
         .id
         .clone();
     assert_eq!(
-        dae03_track(&runtime, "mic_local")?.sealed_chunks,
+        track_progress(&runtime, "mic_local")?.sealed_chunks,
         0,
         "nothing was captured yet"
     );
@@ -946,9 +945,9 @@ async fn dae03_a2_tracks_report_sealed_chunks_and_gaps_per_track() -> Result<()>
         .native_event(frame(&microphone_stream, 0, 8000))
         .await?;
     settle_seal_receipts(&mut runtime).await?;
-    let microphone_first = dae03_track(&runtime, "mic_local")?.last_chunk_at_ms;
-    assert_eq!(dae03_track(&runtime, "mic_local")?.sealed_chunks, 1);
-    assert_eq!(dae03_track(&runtime, "remote_app")?.sealed_chunks, 0);
+    let microphone_first = track_progress(&runtime, "mic_local")?.last_chunk_at_ms;
+    assert_eq!(track_progress(&runtime, "mic_local")?.sealed_chunks, 1);
+    assert_eq!(track_progress(&runtime, "remote_app")?.sealed_chunks, 0);
     assert!(
         microphone_first > 0,
         "the last sealed chunk carries its wall clock"
@@ -960,9 +959,9 @@ async fn dae03_a2_tracks_report_sealed_chunks_and_gaps_per_track() -> Result<()>
         .native_event(frame(&microphone_stream, 1, 8000))
         .await?;
     settle_seal_receipts(&mut runtime).await?;
-    let microphone_second = dae03_track(&runtime, "mic_local")?.last_chunk_at_ms;
-    assert_eq!(dae03_track(&runtime, "mic_local")?.sealed_chunks, 2);
-    assert_eq!(dae03_track(&runtime, "remote_app")?.sealed_chunks, 0);
+    let microphone_second = track_progress(&runtime, "mic_local")?.last_chunk_at_ms;
+    assert_eq!(track_progress(&runtime, "mic_local")?.sealed_chunks, 2);
+    assert_eq!(track_progress(&runtime, "remote_app")?.sealed_chunks, 0);
     assert!(
         microphone_second > microphone_first,
         "the last sealed chunk did not advance: {microphone_first} → {microphone_second}"
@@ -982,15 +981,15 @@ async fn dae03_a2_tracks_report_sealed_chunks_and_gaps_per_track() -> Result<()>
     remote_frame["source"] = json!("remote_app");
     runtime.native_event(remote_frame).await?;
     settle_seal_receipts(&mut runtime).await?;
-    assert_eq!(dae03_track(&runtime, "remote_app")?.sealed_chunks, 1);
-    assert_eq!(dae03_track(&runtime, "mic_local")?.sealed_chunks, 2);
+    assert_eq!(track_progress(&runtime, "remote_app")?.sealed_chunks, 1);
+    assert_eq!(track_progress(&runtime, "mic_local")?.sealed_chunks, 2);
 
     // A helper-counted gap belongs to the track that reported it.
     runtime
         .native_event(json!({"event":"gap","source":"mic_local","stream_id":microphone_stream}))
         .await?;
-    assert_eq!(dae03_track(&runtime, "mic_local")?.gaps, 1);
-    assert_eq!(dae03_track(&runtime, "remote_app")?.gaps, 0);
+    assert_eq!(track_progress(&runtime, "mic_local")?.gaps, 1);
+    assert_eq!(track_progress(&runtime, "remote_app")?.gaps, 0);
     assert_eq!(
         runtime
             .state
@@ -1005,7 +1004,7 @@ async fn dae03_a2_tracks_report_sealed_chunks_and_gaps_per_track() -> Result<()>
 }
 
 #[tokio::test]
-async fn ref307c_r1_silent_call_stop_replaces_the_wait_notice() -> Result<()> {
+async fn silent_call_stop_replaces_the_wait_notice() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     {
@@ -1064,7 +1063,7 @@ async fn ref307c_r1_silent_call_stop_replaces_the_wait_notice() -> Result<()> {
 }
 
 #[tokio::test]
-async fn ref12_drain_deadline_keeps_an_unsent_capture_stop_owed() -> Result<()> {
+async fn drain_deadline_keeps_an_unsent_capture_stop_owed() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime.capture.mic_stream = Some("synthetic-open-mic".into());
@@ -1102,7 +1101,7 @@ async fn ref12_drain_deadline_keeps_an_unsent_capture_stop_owed() -> Result<()> 
 }
 
 #[tokio::test]
-async fn ref12_lost_helper_ends_an_owed_stop_and_seals_received_audio() -> Result<()> {
+async fn lost_helper_ends_an_owed_stop_and_seals_received_audio() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let stream = start(&mut runtime, &mut receiver).await?;
@@ -1151,7 +1150,7 @@ async fn ref12_lost_helper_ends_an_owed_stop_and_seals_received_audio() -> Resul
 }
 
 #[tokio::test]
-async fn ref12_helper_lost_after_retry_notice_seals_audio_on_next_tick() -> Result<()> {
+async fn helper_lost_after_retry_notice_seals_audio_on_next_tick() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     said::trace(&mut runtime, directory.path());
@@ -1218,7 +1217,7 @@ async fn ref12_helper_lost_after_retry_notice_seals_audio_on_next_tick() -> Resu
 }
 
 #[tokio::test]
-async fn ref12_delivered_retry_rearms_drain_deadline_until_unconfirmed_cut() -> Result<()> {
+async fn delivered_retry_rearms_drain_deadline_until_unconfirmed_cut() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let stream = start(&mut runtime, &mut receiver).await?;
@@ -1371,7 +1370,7 @@ async fn assert_voice_retirement_cause(
 }
 
 #[tokio::test]
-async fn mars_stop_names_privacy_as_the_voice_retirement_cause() -> Result<()> {
+async fn user_stop_names_privacy_as_the_voice_retirement_cause() -> Result<()> {
     assert_voice_retirement_cause(
         orbit_core::authority::AuthorityChange::MarsStop,
         "voice_transcription_privacy_stopped",
@@ -1391,6 +1390,7 @@ async fn voice_cancellation_cause_is_persisted_by_each_entry_point() -> Result<(
             })
             .await?;
         runtime.conversation.voice_operation = Some("voice-cancelled".into());
+        // `..._by_mars`: wire/stored name kept for compatibility with 0.9.0
         let expected = match entry {
             "interrupt" => {
                 runtime.apply(Event::Interrupt).await?;
@@ -1713,7 +1713,7 @@ async fn meeting_capture_cut_keeps_a_saved_voice_note_transcription() -> Result<
 }
 
 #[tokio::test]
-async fn ref307_refused_voice_start_keeps_the_permission_cause() -> Result<()> {
+async fn refused_voice_start_keeps_the_permission_cause() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime.apply(Event::VoiceStart).await?;
@@ -1739,7 +1739,7 @@ async fn ref307_refused_voice_start_keeps_the_permission_cause() -> Result<()> {
 }
 
 #[tokio::test]
-async fn sim101_pending_audio_warns_only_during_exit() -> Result<()> {
+async fn pending_audio_warns_only_during_exit() -> Result<()> {
     for closing in [false, true] {
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut receiver) = fixture(directory.path())?;
@@ -1779,7 +1779,7 @@ async fn sim101_pending_audio_warns_only_during_exit() -> Result<()> {
 }
 
 #[tokio::test]
-async fn sim101_helper_knows_who_uses_a_shared_microphone() -> Result<()> {
+async fn helper_knows_who_uses_a_shared_microphone() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     runtime

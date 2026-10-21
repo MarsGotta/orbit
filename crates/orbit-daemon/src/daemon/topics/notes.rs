@@ -1,4 +1,4 @@
-//! SIM-41: what changed in the meetings and notes, so the app reads them
+//! What changed in the meetings and notes, so the app reads them
 //! again from the hub (`orbit_core::topics::notes`).
 use super::{ProjectTopic, TopicSource};
 use orbit_core::topics::{Knowledge, TopicData, TopicId};

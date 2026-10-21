@@ -1,7 +1,7 @@
-//! P2-01 A3/A4 at the daemon actor: a returning helper restores the native
-//! capability and resumes nothing, and `native_send` carries the 500 ms
-//! deadline whose expiry is classified with the core taxonomy (P1-01):
-//! non-critical commands degrade with Backpressure, and since REF-12 an
+//! The native bridge at the daemon actor: a returning helper restores the
+//! native capability and resumes nothing, and `native_send` carries the 500 ms
+//! deadline whose expiry is classified with the core taxonomy:
+//! non-critical commands degrade with Backpressure, and an
 //! undelivered stop cuts or is said, never latches. Synthetic channels only;
 //! no helper process is contacted.
 use super::*;
@@ -34,7 +34,7 @@ async fn stopped_helper_ready_delivers_stop_when_snapshot_writer_fails() -> Resu
     }
     assert!(
         sent.contains(&"privacy_stop".to_owned()),
-        "returning helper missed her privacy_stop: {sent:?}; event: {result:?}"
+        "returning helper missed the user's privacy_stop: {sent:?}; event: {result:?}"
     );
     result?;
     assert!(runtime.state.capabilities().native_helper());
@@ -42,7 +42,7 @@ async fn stopped_helper_ready_delivers_stop_when_snapshot_writer_fails() -> Resu
 }
 
 #[tokio::test]
-async fn ref404c_hello_response_from_bridge_does_not_create_a_permissions_notice() -> Result<()> {
+async fn hello_response_from_bridge_does_not_create_a_permissions_notice() -> Result<()> {
     use crate::ipc::read_frame;
     use tokio::{
         io::{AsyncWriteExt, BufReader},
@@ -108,7 +108,7 @@ async fn ref404c_hello_response_from_bridge_does_not_create_a_permissions_notice
 }
 
 #[tokio::test]
-async fn ref404c_status_and_permissions_use_their_own_result_shapes() -> Result<()> {
+async fn status_and_permissions_use_their_own_result_shapes() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut commands) = fixture(directory.path())?;
     {
@@ -150,7 +150,7 @@ async fn ref404c_status_and_permissions_use_their_own_result_shapes() -> Result<
 }
 
 #[tokio::test]
-async fn ref404c_unknown_response_id_does_not_raise_a_user_notice() -> Result<()> {
+async fn unknown_response_id_does_not_raise_a_user_notice() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _commands) = fixture(directory.path())?;
     said::trace(&mut runtime, directory.path());
@@ -166,8 +166,7 @@ async fn ref404c_unknown_response_id_does_not_raise_a_user_notice() -> Result<()
 }
 
 #[tokio::test]
-async fn ref404c_bridge_owned_response_keeps_its_real_command_name_and_capture_class() -> Result<()>
-{
+async fn bridge_owned_response_keeps_its_real_command_name_and_capture_class() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _commands) = fixture(directory.path())?;
     said::trace(&mut runtime, directory.path());
@@ -196,7 +195,7 @@ async fn ref404c_bridge_owned_response_keeps_its_real_command_name_and_capture_c
 }
 
 #[tokio::test]
-async fn ref404b_playback_progress_is_consumed_as_diagnostic() -> Result<()> {
+async fn playback_progress_is_consumed_as_diagnostic() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     said::trace(&mut runtime, directory.path());
@@ -251,12 +250,12 @@ fn stalled_native_channel() -> Result<(mpsc::Sender<Value>, mpsc::Receiver<Value
     Ok((native, stalled))
 }
 
-/// P2-01 A3, changed by REF-12: losing the helper cuts the live recording with
+/// Losing the helper cuts the live recording with
 /// its cause and latches nothing. The relaunched helper's ready restores the
 /// native capability, nothing resumes the cut recording, and the next
-/// recording starts only when she asks for it.
+/// recording starts only when the user asks for it.
 #[tokio::test]
-async fn a3_a_returning_helper_restores_the_capability_and_nothing_resumes_the_cut_recording()
+async fn a_returning_helper_restores_the_capability_and_nothing_resumes_the_cut_recording()
 -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
@@ -266,11 +265,11 @@ async fn a3_a_returning_helper_restores_the_capability_and_nothing_resumes_the_c
         .await;
     assert!(
         !runtime.state.capabilities().native_helper(),
-        "A3: the lost helper must clear the native capability"
+        "the lost helper must clear the native capability"
     );
     assert!(
         !runtime.state.privacy_stopped(),
-        "REF-12: a lost helper cuts the recording, it does not latch a stop"
+        "a lost helper cuts the recording, it does not latch a stop"
     );
     assert_eq!(
         runtime
@@ -281,7 +280,7 @@ async fn a3_a_returning_helper_restores_the_capability_and_nothing_resumes_the_c
             .context("recording absent")?
             .phase,
         CapturePhase::Interrupted,
-        "A3: the recording the helper was feeding is cut"
+        "the recording the helper was feeding is cut"
     );
     assert!(
         said::told(&runtime).contains("helper"),
@@ -290,7 +289,7 @@ async fn a3_a_returning_helper_restores_the_capability_and_nothing_resumes_the_c
     );
     assert!(
         !runtime.audio_is_draining(),
-        "A3: with the helper gone nothing is left draining"
+        "with the helper gone nothing is left draining"
     );
     // The relaunched helper comes back with its own ready and status.
     runtime
@@ -298,13 +297,13 @@ async fn a3_a_returning_helper_restores_the_capability_and_nothing_resumes_the_c
         .await?;
     assert!(
         runtime.state.capabilities().native_helper(),
-        "A3: the returning helper's ready must restore the native capability"
+        "the returning helper's ready must restore the native capability"
     );
     loop {
         let command = receiver
             .recv()
             .await
-            .context("A3: status command after the ready absent")?;
+            .context("status command after the ready absent")?;
         assert_ne!(
             command["command"], "audio_start",
             "nothing reopens the microphone on its own"
@@ -320,10 +319,10 @@ async fn a3_a_returning_helper_restores_the_capability_and_nothing_resumes_the_c
     }
     assert!(
         runtime.state.capabilities().microphone_state() == orbit_core::PermissionState::Granted,
-        "A3: the returning helper's status must re-observe the permissions"
+        "the returning helper's status must re-observe the permissions"
     );
     assert!(receiver.try_recv().is_err(), "no order follows on its own");
-    // Her next recording starts when she asks, with no rearm in between.
+    // The user's next recording starts when they ask, with no rearm in between.
     runtime
         .apply(Event::StartMeeting {
             id: "after-helper-loss".into(),
@@ -336,7 +335,7 @@ async fn a3_a_returning_helper_restores_the_capability_and_nothing_resumes_the_c
         let command = receiver
             .recv()
             .await
-            .context("A3: audio_start of the new recording absent")?;
+            .context("audio_start of the new recording absent")?;
         if command["command"] == "audio_start" {
             break;
         }
@@ -344,12 +343,11 @@ async fn a3_a_returning_helper_restores_the_capability_and_nothing_resumes_the_c
     Ok(())
 }
 
-/// P2-01 A4: a non-critical command that cannot reach the helper fails within
+/// A non-critical command that cannot reach the helper fails within
 /// the 500 ms deadline and is classified as a Backpressure degradation: an
 /// additive notice lands and nothing latches.
 #[tokio::test(start_paused = true)]
-async fn a4_native_send_to_a_stalled_helper_times_out_at_the_deadline_as_backpressure() -> Result<()>
-{
+async fn native_send_to_a_stalled_helper_times_out_at_the_deadline_as_backpressure() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _commands) = fixture(directory.path())?;
     said::trace(&mut runtime, directory.path());
@@ -362,46 +360,46 @@ async fn a4_native_send_to_a_stalled_helper_times_out_at_the_deadline_as_backpre
         runtime.native_send("permissions", json!({})),
     )
     .await
-    .context("A4: native_send must not wait without a deadline on a stalled helper")?;
+    .context("native_send must not wait without a deadline on a stalled helper")?;
     assert!(
         sent.is_err(),
-        "A4: a send that cannot reach the helper within the deadline must fail"
+        "a send that cannot reach the helper within the deadline must fail"
     );
     let elapsed = started.elapsed();
     assert!(
         elapsed >= Duration::from_millis(500) && elapsed < Duration::from_secs(2),
-        "A4: the deadline is 500 ms, not {elapsed:?}"
+        "the deadline is 500 ms, not {elapsed:?}"
     );
     assert!(
         !runtime.state.privacy_stopped(),
-        "A4: a non-critical command is a backpressure degradation, never a latch"
+        "a non-critical command is a backpressure degradation, never a latch"
     );
     assert!(
         runtime.state.durable.notice_log.records().len() > notices_before,
-        "A4: the degradation must land as an additive notice"
+        "the degradation must land as an additive notice"
     );
     Ok(())
 }
 
-/// SYS-17 A2: a stall guard on the real clock, not a budget. The privacy-stop
+/// A stall guard on the real clock, not a budget. The privacy-stop
 /// case below returns as soon as `native_send` does, so this number never
 /// decides a passing run. It is only here so that a `native_send` which lost
 /// its deadline — and would therefore wait on the stalled helper forever —
 /// fails the case by name instead of hanging the suite.
 ///
-/// Measured, not chosen round: over 80 runs under the SYS-17 load (48
+/// Measured, not chosen round: over 80 runs under load (48
 /// busy-loop processes plus 8 fsync writers on a 32-core box) the call took
 /// p50 519.9 ms, p95 1 037.1 ms, p99 1 168.7 ms, worst 1 171.9 ms — the 500 ms
-/// deadline plus the stop that followed it then (REF-12 made that stop a
+/// deadline plus the stop that followed it then (that stop is now a
 /// notice, which only shortens the call). The guard is 40× that worst
 /// observation, far outside the distribution it must never arbitrate.
 const STALLED_HELPER_STALL_GUARD: Duration = Duration::from_millis(46_876);
 
-/// P2-01 A4, changed by REF-12: her stop that cannot reach the helper within
+/// The user's stop that cannot reach the helper within
 /// the deadline is said; the helper remains present and nothing new latches
-/// (her stop, when it is in force, already is).
+/// (the user's stop, when it is in force, already is).
 ///
-/// SYS-17 A2: this case deliberately does *not* run on tokio's paused clock,
+/// This case deliberately does *not* run on tokio's paused clock,
 /// unlike its backpressure sibling above. The stop branch of `native_send`
 /// runs `contain`, which may await the store actor's receipt
 /// from a real OS thread. Under `start_paused` every task parks during that
@@ -412,7 +410,7 @@ const STALLED_HELPER_STALL_GUARD: Duration = Duration::from_millis(46_876);
 /// `native_send` returns, and the guard below only converts a lost deadline
 /// from a hang into a named failure.
 #[tokio::test]
-async fn a4_native_send_of_a_privacy_stop_to_a_stalled_helper_is_said_and_latches_nothing()
+async fn native_send_of_a_privacy_stop_to_a_stalled_helper_is_said_and_latches_nothing()
 -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _commands) = fixture(directory.path())?;
@@ -426,28 +424,28 @@ async fn a4_native_send_of_a_privacy_stop_to_a_stalled_helper_is_said_and_latche
     .await
     .map_err(|_| {
         anyhow::anyhow!(
-            "A4: native_send stayed on the stalled helper for {STALLED_HELPER_STALL_GUARD:?} \
+            "native_send stayed on the stalled helper for {STALLED_HELPER_STALL_GUARD:?} \
              waiting for a privacy_stop it will never confirm: it has lost its 500 ms deadline"
         )
     })?;
     let refusal = sent
         .err()
-        .context("A4: a send that cannot reach the helper within the deadline must fail")?
+        .context("a send that cannot reach the helper within the deadline must fail")?
         .to_string();
-    // SYS-17 A2: what the case watches is that the refusal came from the
+    // What the case watches is that the refusal came from the
     // deadline expiring, not from some other failure that happened to be
     // quicker. Read off the classification, never off a clock.
     assert!(
         refusal.contains("privacy_stop") && refusal.contains("500 ms"),
-        "A4: the refusal must be the expiry of the 500 ms deadline on privacy_stop, not {refusal:?}"
+        "the refusal must be the expiry of the 500 ms deadline on privacy_stop, not {refusal:?}"
     );
     assert!(
         !runtime.state.privacy_stopped(),
-        "REF-12: an undelivered order is said; only her own stop latches"
+        "an undelivered order is said; only the user's own stop latches"
     );
     assert!(
         runtime.state.capabilities().native_helper(),
-        "A4: a full channel is not evidence that the helper is gone"
+        "a full channel is not evidence that the helper is gone"
     );
     assert!(
         said::told(&runtime).contains("500 ms"),
@@ -457,12 +455,12 @@ async fn a4_native_send_of_a_privacy_stop_to_a_stalled_helper_is_said_and_latche
     Ok(())
 }
 
-/// REF-12 third review: a transiently stalled helper stays present. The
+/// A transiently stalled helper stays present. The
 /// `capture_stop` which did not enter its full channel is retried by the real
 /// maintenance path, closes the microphone when acknowledged, and does not
 /// make the following meeting look as if Orbit.app were absent.
 #[tokio::test]
-async fn a4_a_capture_stop_stalled_once_is_retried_and_the_next_meeting_can_start() -> Result<()> {
+async fn a_capture_stop_stalled_once_is_retried_and_the_next_meeting_can_start() -> Result<()> {
     use base64::Engine as _;
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
@@ -536,13 +534,13 @@ async fn a4_a_capture_stop_stalled_once_is_retried_and_the_next_meeting_can_star
     Ok(())
 }
 
-/// P2-01 A1: the bridge emits a synthetic `gap` only when the consumer is
+/// The bridge emits a synthetic `gap` only when the consumer is
 /// behind, and the gap must carry enough identity for the daemon's
 /// `accepts_audio` gate to attribute it. With a stream id that matches the
 /// live recording the gap is a degradation: the counter moves, the notice
 /// is additive, and the helper is not asked to stop.
 #[tokio::test]
-async fn a1_a_synthetic_backpressure_gap_for_a_live_stream_is_a_degradation() -> Result<()> {
+async fn a_synthetic_backpressure_gap_for_a_live_stream_is_a_degradation() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     said::trace(&mut runtime, directory.path());
@@ -577,15 +575,15 @@ async fn a1_a_synthetic_backpressure_gap_for_a_live_stream_is_a_degradation() ->
     assert_eq!(
         recording.gaps,
         gaps_before + 1,
-        "A1: a gap for a live stream must increment the counter"
+        "a gap for a live stream must increment the counter"
     );
     assert!(
         !runtime.state.privacy_stopped(),
-        "A1: a daemon_backpressure gap is a degradation, never a privacy stop"
+        "a daemon_backpressure gap is a degradation, never a privacy stop"
     );
     assert!(
         said::has(&runtime.state, NoticeCode::AudioGap),
-        "A1: the notice must declare the discontinuity: {:?}",
+        "the notice must declare the discontinuity: {:?}",
         runtime.state.durable.notice
     );
     let mut privacy_stops = 0;
@@ -596,7 +594,7 @@ async fn a1_a_synthetic_backpressure_gap_for_a_live_stream_is_a_degradation() ->
     }
     assert_eq!(
         privacy_stops, 0,
-        "A1: a backpressure gap must not ask the helper to stop"
+        "a backpressure gap must not ask the helper to stop"
     );
     Ok(())
 }
@@ -650,7 +648,7 @@ async fn malformed_audio_bridge_loss_cuts_capture_with_the_field_visible() -> Re
     Ok(())
 }
 
-/// SIM-97: a route change is an explicit producer boundary, not a new meeting.
+/// A route change is an explicit producer boundary, not a new meeting.
 /// The helper keeps the original wire rate when the hardware rate changes.
 #[tokio::test]
 async fn audio_route_recovery_seals_the_tail_and_keeps_the_timeline() -> Result<()> {

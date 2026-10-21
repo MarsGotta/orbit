@@ -1,12 +1,12 @@
-//! The only stop that lasts is the one Mars pressed (REF-12).
+//! The only stop that lasts is the one the user pressed.
 //!
-//! Before REF-12 every failure the actor loop saw, a sleeping Mac, a lost
+//! Previously every failure the actor loop saw, a sleeping Mac, a lost
 //! helper, an audio route change or an unverifiable inventory ran the same
-//! privacy stop Mars's button runs, and every restart invented one more. Now
+//! privacy stop the user's button runs, and every restart invented one more. Now
 //! there are three doors and each says what it is:
 //!
-//! - [`Runtime::privacy_stop`] is her stop. It latches, it survives a
-//!   restart, and only her controls can reach it: its argument is a
+//! - [`Runtime::privacy_stop`] is the user's stop. It latches, it survives a
+//!   restart, and only the user's controls can reach it: its argument is a
 //!   [`MarsStop`], which has no variant for an automatic cause.
 //! - [`Runtime::cut_capture`] cuts the live recording, call or voice note
 //!   with its cause and what was kept. Orbit keeps working, nothing latches,
@@ -16,7 +16,7 @@
 //!   working.
 //!
 //! Every former automatic cause is routed by [`Runtime::contain`] through the
-//! A5 table in `orbit_core::privacy_stop`, never by hand.
+//! containment table in `orbit_core::privacy_stop`, never by hand.
 use super::audio::{CallStopVoice, VoiceCancellationCause};
 use super::retire::RetirePhase;
 use super::*;
@@ -29,7 +29,7 @@ use orbit_core::{
 };
 
 /// Orders whose answers are the capture's own: the capture commands of the
-/// failure taxonomy and her stop.
+/// failure taxonomy and the user's stop.
 fn capture_command(command: &str) -> bool {
     is_capture_command(command) || command == "privacy_stop"
 }
@@ -89,7 +89,7 @@ impl Runtime {
     /// The actor loop's native branch: one helper event, and what a failure
     /// handling it does. Only a failure of the capture itself cuts what is
     /// live; any other vertical's failure is said and the recording goes on
-    /// (REF-12: a data fault never stops Orbit).
+    /// (a data fault never stops Orbit).
     pub(super) async fn handle_native_event(&mut self, event: Value) {
         let about = self.native_event_label(&event);
         let capture = self.native_event_touches_capture(&event);
@@ -206,7 +206,7 @@ impl Runtime {
     /// from running, and only the capture's own failure cuts what is live.
     pub(super) async fn run_maintenance(&mut self) {
         if self.privacy_retirement_owed && self.state.privacy_stopped() && !self.closing {
-            // A writer blocked past her stop's budget cannot erase the work
+            // A writer blocked past the user's stop budget cannot erase the work
             // that followed it. Retry only the durable tail: a new hub or
             // other live authority is never retired by a later tick.
             if tokio::time::timeout(
@@ -256,8 +256,8 @@ impl Runtime {
     }
 
     /// Every cause that used to stop Orbit on its own lands here, and does
-    /// what the A5 table says: cut the live capture or say the cause. It never
-    /// latches; a cause of Mars's class reaching this door is a misroute, is
+    /// what the containment table says: cut the live capture or say the cause.
+    /// It never latches; a cause of the user's class reaching this door is a misroute, is
     /// logged as one and only said.
     pub(super) async fn contain(&mut self, cause: StopCause, text: &str) {
         Box::pin(self.contain_coded(cause, cause.name(), text)).await;
@@ -341,7 +341,7 @@ impl Runtime {
         }
     }
 
-    /// Cuts the live capture with its cause (REF-12 A4). The helper is asked
+    /// Cuts the live capture with its cause. The helper is asked
     /// to stop capturing without its latch; the recording stays interrupted
     /// with its fragments; Orbit keeps working and nothing reopens the
     /// microphone. With nothing live, only the cause is said.
@@ -384,7 +384,7 @@ impl Runtime {
         Box::pin(self.halt(decision, CallStopVoice::Cancel(voice_cause))).await;
     }
 
-    /// Orbit is closing (REF-12): the same retirement Mars's stop performs,
+    /// Orbit is closing: the same retirement the user's stop performs,
     /// and the capture cut with its cause, but nothing latches, so the next
     /// start comes back working. Only the closing door calls this.
     pub(super) async fn close_for_exit(&mut self, cause: StopCause, text: &str) {
@@ -404,8 +404,8 @@ impl Runtime {
                 self.say_step_failure("helper_stop_send", &error);
             }
             Box::pin(self.retire_authority(AuthorityChange::Closing, None)).await;
-            // Her stop is already in force and already stopped everything;
-            // it stays hers across the restart that follows.
+            // The user's stop is already in force and already stopped everything;
+            // it stays theirs across the restart that follows.
             self.say(
                 Notice::new(NoticeCode::OrbitClosing).with_token(NoticeKey::Cause, cause.name()),
             );
@@ -447,13 +447,13 @@ impl Runtime {
         .await;
     }
 
-    /// Mars's stop, and the only function that latches one (REF-12 A5).
-    /// Every caller names the control she used; nothing automatic can be
+    /// The user's stop, and the only function that latches one.
+    /// Every caller names the control they used; nothing automatic can be
     /// written as a [`MarsStop`].
     pub(super) async fn privacy_stop(&mut self, origin: MarsStop) {
         let message = origin.notice();
         let plan = retire(AuthorityChange::MarsStop);
-        // Logged at the single point every one of her stops passes through;
+        // Logged at the single point every one of the user's stops passes through;
         // the cause is Orbit's own name for the control, never content.
         self.log("privacy_stopped", &[("cause", origin.cause().name())]);
         // The retirement is idempotent and runs first so a route added later
@@ -593,7 +593,7 @@ impl Runtime {
         {
             self.say_step_failure("helper_stop_send", &error);
         }
-        // The attribution is the control Mars pressed, independent of whether
+        // The attribution is the control the user pressed, independent of whether
         // the writer subsequently responds within the retirement budget.
         let event = match origin {
             MarsStop::HelperLatch { .. } => Event::HelperLatched,
@@ -634,12 +634,12 @@ impl Runtime {
             return;
         }
         self.privacy_retirement_owed = false;
-        // Re-entry: the helper already heard her stop. Asking again would be a
+        // Re-entry: the helper already heard the user's stop. Asking again would be a
         // duplicate; the new control is appended so the first stays visible,
         // and the snapshot is rewritten only if the retirement changed it.
         if privacy_already_stopped {
-            // Pressed on top of a stop she did not ask for (a revocation), it
-            // becomes hers, so it survives the next restart as hers. A latch
+            // Pressed on top of a stop the user did not ask for (a revocation),
+            // it becomes theirs, so it survives the next restart as theirs. A latch
             // found on disk makes a revocation's stop one nobody can attribute,
             // which is kept too.
             if self.state != before_closure
@@ -661,7 +661,7 @@ impl Runtime {
     }
 
     /// A stop still owes durable work. The counts always go to `daemon.log`;
-    /// only closing asks Mars to keep Orbit open.
+    /// only closing asks the user to keep Orbit open.
     fn report_pending_stop_work(&mut self) {
         let pending = self.pending_stop_counts();
         self.log(
@@ -680,7 +680,7 @@ impl Runtime {
     ///
     /// The state is taken in memory before any persistence: a failed snapshot
     /// write must not leave a Mac that has not stopped, only one whose stop is
-    /// not yet durable. The core's effects then run in order (P1-02 A6/R2);
+    /// not yet durable. The core's effects then run in order;
     /// one that fails is recorded and the drain is abandoned so the audio
     /// that arrived is kept locally.
     async fn halt(&mut self, decision: orbit_core::Decision, voice: CallStopVoice) {
@@ -751,7 +751,7 @@ impl Runtime {
     }
 
     /// Stops all new network work and every vertical's authority before
-    /// fallible persistence or native answers. Shared by her stop and by
+    /// fallible persistence or native answers. Shared by the user's stop and by
     /// closing; a cut does not retire anything: Orbit keeps working.
     async fn retire_authority(&mut self, change: AuthorityChange, interrupted_turn: Option<&str>) {
         let plan = retire(change);
@@ -841,7 +841,7 @@ impl Runtime {
     }
 
     /// The helper stopped its capture on its own, or announced a stop with a
-    /// code that is not one of her controls: the live capture is cut and the
+    /// code that is not one of the user's controls: the live capture is cut and the
     /// code says why. The echo of a stop the daemon itself asked for is not a
     /// new cause.
     pub(super) async fn helper_capture_stop(&mut self, code: &str) {
