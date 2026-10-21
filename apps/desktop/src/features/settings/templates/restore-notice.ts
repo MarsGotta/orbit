@@ -4,7 +4,7 @@ import { es } from "../../../i18n/es";
 import type { RemovedTemplate } from "./template-draft";
 
 /**
- * «Deshacer» pressed (P9-14). `requestId` names it to the daemon, which
+ * «Deshacer» pressed. `requestId` names it to the daemon, which
  * answers it in the library (`restores`); `settled` once the order was
  * answered; `errorBefore`, the view's refusal then, which is not this one's.
  */
@@ -30,7 +30,7 @@ type Library = NoteLibrarySnapshot | null | undefined;
  * it — never from the press, nor from a frame older than its answer: on its
  * way until the template is back without `pending` and each series the
  * daemon gave back is linked again or refused; refused when the Mac or the
- * hub refused it (its cause stays in the log, SIM-24).
+ * hub refused it (its cause stays in the log).
  */
 export function restoreNotice(
   restoring: Restoring,

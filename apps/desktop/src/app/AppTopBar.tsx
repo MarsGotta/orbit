@@ -30,7 +30,7 @@ function useSettledHub(snapshot: AppSnapshot) {
   return next;
 }
 
-/** SIM-24: nothing when all is well; otherwise the problem and what to do. */
+/** Nothing when all is well; otherwise the problem and what to do. */
 function ProblemPill({
   dispatch,
   navigate,

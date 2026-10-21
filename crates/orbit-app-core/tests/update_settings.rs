@@ -80,7 +80,7 @@ fn wait_for_file(path: &Path) -> Result<String, Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn a6_checks_a_bounded_manifest_and_installs_with_relaunch_before_quitting()
+async fn checks_a_bounded_manifest_and_installs_with_relaunch_before_quitting()
 -> Result<(), Box<dyn Error>> {
     let directory = tempfile::Builder::new()
         .prefix("orbit-app-update-")
@@ -142,7 +142,7 @@ async fn a6_checks_a_bounded_manifest_and_installs_with_relaunch_before_quitting
 }
 
 #[tokio::test]
-async fn ref502b_a1_check_explains_an_invalid_manifest() -> Result<(), Box<dyn Error>> {
+async fn check_explains_an_invalid_manifest() -> Result<(), Box<dyn Error>> {
     let (origin, server) = update_server("version=not-semver\n".into(), "exit 0\n".into(), 2)?;
     let service = UpdateService::new(origin);
     let state = service.check_configured().await;
@@ -157,7 +157,7 @@ async fn ref502b_a1_check_explains_an_invalid_manifest() -> Result<(), Box<dyn E
 }
 
 #[tokio::test]
-async fn ref502b_a1_installer_ceiling_names_file_and_numbers() -> Result<(), Box<dyn Error>> {
+async fn installer_ceiling_names_file_and_numbers() -> Result<(), Box<dyn Error>> {
     let (origin, server) = update_server("version=9.0.0\n".into(), "#".repeat(16_757), 3)?;
     let service = UpdateService::new(origin);
     assert!(matches!(
@@ -176,7 +176,7 @@ async fn ref502b_a1_installer_ceiling_names_file_and_numbers() -> Result<(), Box
 }
 
 #[tokio::test]
-async fn ref502b_a2_late_installer_failure_keeps_app_running() -> Result<(), Box<dyn Error>> {
+async fn late_installer_failure_keeps_app_running() -> Result<(), Box<dyn Error>> {
     let (origin, server) = update_server("version=9.0.0\n".into(), "sleep 1\nexit 7\n".into(), 3)?;
     let service = UpdateService::new(origin);
     assert!(matches!(
@@ -193,8 +193,7 @@ async fn ref502b_a2_late_installer_failure_keeps_app_running() -> Result<(), Box
 }
 
 #[tokio::test]
-async fn ref502b_a5_app_refuses_a_different_installer_before_running_it()
--> Result<(), Box<dyn Error>> {
+async fn app_refuses_a_different_installer_before_running_it() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let receipt = directory.path().join("ran");
     let expected = "a".repeat(64);
@@ -220,7 +219,7 @@ async fn ref502b_a5_app_refuses_a_different_installer_before_running_it()
 }
 
 #[test]
-fn ref502b_a3_a6_reads_last_result_and_legacy_0312_record() -> Result<(), Box<dyn Error>> {
+fn reads_last_result_and_legacy_0312_record() -> Result<(), Box<dyn Error>> {
     let home = tempfile::tempdir()?;
     let applications = home.path().join("Applications");
     fs::create_dir_all(&applications)?;
@@ -296,8 +295,7 @@ fn ref502b_a3_a6_reads_last_result_and_legacy_0312_record() -> Result<(), Box<dy
 }
 
 #[test]
-fn ref502b_latest_start_without_result_does_not_reuse_an_older_success()
--> Result<(), Box<dyn Error>> {
+fn latest_start_without_result_does_not_reuse_an_older_success() -> Result<(), Box<dyn Error>> {
     let home = tempfile::tempdir()?;
     let logs = home.path().join("Library/Logs/Orbit");
     fs::create_dir_all(&logs)?;
@@ -315,7 +313,7 @@ fn ref502b_latest_start_without_result_does_not_reuse_an_older_success()
 }
 
 #[test]
-fn ref502b_parser_reads_a_log_written_by_the_real_installer() -> Result<(), Box<dyn Error>> {
+fn parser_reads_a_log_written_by_the_real_installer() -> Result<(), Box<dyn Error>> {
     use std::os::unix::fs::PermissionsExt;
 
     let home = tempfile::tempdir()?;
@@ -391,7 +389,7 @@ async fn packaged_update_version_is_up_to_date() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn sim95_reads_and_migrates_the_receipt_to_orbit_data() -> Result<(), Box<dyn Error>> {
+fn reads_and_migrates_the_receipt_to_orbit_data() -> Result<(), Box<dyn Error>> {
     let home = tempfile::tempdir()?;
     let legacy = home.path().join("Applications/.orbit-instalado");
     let record = home
@@ -424,7 +422,7 @@ fn sim95_reads_and_migrates_the_receipt_to_orbit_data() -> Result<(), Box<dyn Er
 }
 
 #[tokio::test]
-async fn sim95_automatic_check_reports_new_versions_but_keeps_failures_quiet()
+async fn automatic_check_reports_new_versions_but_keeps_failures_quiet()
 -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let log = orbit_ipc::report::LogFile::new(
@@ -449,7 +447,7 @@ async fn sim95_automatic_check_reports_new_versions_but_keeps_failures_quiet()
 }
 
 #[test]
-fn sim95_installation_waits_for_recording_call_and_known_state() -> Result<(), Box<dyn Error>> {
+fn installation_waits_for_recording_call_and_known_state() -> Result<(), Box<dyn Error>> {
     use orbit_app_core::topics::TopicCache;
     use serde_json::json;
     let mut topics = TopicCache::default();
@@ -463,7 +461,7 @@ fn sim95_installation_waits_for_recording_call_and_known_state() -> Result<(), B
                    revision|
      -> Result<(), Box<dyn Error>> {
         topics.observe_at(
-            serde_json::from_value(json!({"epoch":"sim95","revision":revision,"data":data}))?,
+            serde_json::from_value(json!({"epoch":"update","revision":revision,"data":data}))?,
             Some(1),
         );
         Ok(())
@@ -517,7 +515,7 @@ fn sim95_installation_waits_for_recording_call_and_known_state() -> Result<(), B
 }
 
 #[tokio::test]
-async fn sim99_no_update_origin_disables_checks_without_writing_failure_logs()
+async fn no_update_origin_disables_checks_without_writing_failure_logs()
 -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let log = orbit_ipc::report::LogFile::new(
@@ -548,7 +546,7 @@ async fn sim99_no_update_origin_disables_checks_without_writing_failure_logs()
 }
 
 #[test]
-fn sim99_update_origin_is_fixed_by_the_build_environment() {
+fn update_origin_is_fixed_by_the_build_environment() {
     assert_eq!(
         orbit_app_core::DEFAULT_UPDATE_BASE_URL,
         option_env!("ORBIT_UPDATE_BASE_URL").unwrap_or("")

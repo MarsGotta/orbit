@@ -9,7 +9,7 @@ app_type! {
 }
 
 app_type! {
-    /// A template as Mars sees it in Settings: the hub's; `pending` while
+    /// A template as the user sees it in Settings: the hub's; `pending` while
     /// an order about it is on its way.
     pub struct NoteTemplateDetailSnapshot {
         pub id: String,
@@ -89,7 +89,7 @@ app_type! {
 }
 
 app_type! {
-    /// P9-05: templates, assignments and refusals.
+    /// Templates, assignments and refusals.
     pub struct NoteLibrarySnapshot {
         #[serde(default)]
         #[ts(optional)]
@@ -107,14 +107,14 @@ app_type! {
         pub links: NoteLibraryListSnapshot,
         pub assignments: Vec<NoteTemplateLinkSnapshot>,
         pub refusals: Vec<NoteLibraryRefusalSnapshot>,
-        /// P9-14: the undos the hub took, newest last, by request.
+        /// The undos the hub took, newest last, by request.
         pub restores: Vec<NoteTemplateRestoreSnapshot>,
         pub bounds: NoteTemplateBoundsSnapshot,
     }
 }
 
 app_type! {
-    /// P9-14: an undo the hub took: the template and its series are back.
+    /// An undo the hub took: the template and its series are back.
     pub struct NoteTemplateRestoreSnapshot {
         pub request_id: String,
         pub template_id: String,
@@ -133,7 +133,7 @@ app_type! {
 }
 
 app_type! {
-    /// P9-05: the series a note belongs to (its event's stable key).
+    /// The series a note belongs to (its event's stable key).
     pub struct NoteSeriesLinkSnapshot {
         pub calendar_item_id: String,
         pub assigned: NoteSeriesAssignedSnapshot,

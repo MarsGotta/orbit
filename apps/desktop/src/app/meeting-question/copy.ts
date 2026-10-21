@@ -3,7 +3,7 @@ import type { VoiceOffCause } from "../../bridge/generated/VoiceOffCause";
 import type { VoiceStatusSnapshot } from "../../bridge/generated/VoiceStatusSnapshot";
 import { es } from "../../i18n/es";
 
-/** P9-12: each cause of a question without answer, as what to do (SIM-24). */
+/** Each cause of a question without answer, as what to do. */
 export function causeText(cause: MeetingQuestionCause, copy = es): string {
   const causes = copy.meetingQuestion.causes;
   switch (cause.cause) {
@@ -34,8 +34,8 @@ export function causeText(cause: MeetingQuestionCause, copy = es): string {
 }
 
 /**
- * P9-12: whether «Oye Deimos» listens during the recording and, when not,
- * why, as she can act on it; `null` outside a recording or while it gets
+ * Whether «Oye Deimos» listens during the recording and, when not,
+ * why, as the user can act on it; `null` outside a recording or while it gets
  * ready (nothing to say).
  */
 export function voiceStatusText(status: VoiceStatusSnapshot | undefined, copy = es): string | null {

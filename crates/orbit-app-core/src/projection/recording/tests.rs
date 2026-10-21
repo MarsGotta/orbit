@@ -108,7 +108,7 @@ fn denied_permissions_and_all_capture_phases_are_total() {
 }
 
 #[test]
-fn a1_projects_recording_tracks_and_marks_a_stale_track_silent() {
+fn projects_recording_tracks_and_marks_a_stale_track_silent() {
     let mut value = head(Some(Recording {
         sealed_chunks: 7,
         gaps: 1,
@@ -138,10 +138,10 @@ fn a1_projects_recording_tracks_and_marks_a_stale_track_silent() {
     assert_eq!(stale["tracks"][1]["level"], "silent");
 }
 
-/// P9-11: the countdown reaches the app with the deadline the daemon
+/// The countdown reaches the app with the deadline the daemon
 /// published; the app counts down to it, it never copies the 13 s.
 #[test]
-fn p9_11_projects_the_countdown_and_the_preference() {
+fn projects_the_countdown_and_the_preference() {
     let mut value = head(Some(recording(CapturePhase::Recording)));
     value.call = Some(Box::new(topic_recording::Call {
         preference: Some(orbit_core::call_detection::CallPreference::Record),
@@ -162,7 +162,7 @@ fn p9_11_projects_the_countdown_and_the_preference() {
 }
 
 #[test]
-fn a1_projects_the_finished_recording_as_recent() {
+fn projects_the_finished_recording_as_recent() {
     let value = head(Some(Recording {
         ended_at_ms: Some(31_234),
         phase: CapturePhase::Idle,
@@ -180,7 +180,7 @@ fn a1_projects_the_finished_recording_as_recent() {
 }
 
 #[test]
-fn app18_a4_publishes_the_applications_with_audio_and_why_the_list_is_empty() {
+fn publishes_the_applications_with_audio_and_why_the_list_is_empty() {
     let mut value = head(None);
     value.applications = Knowledge::Present {
         value: vec![
@@ -208,7 +208,7 @@ fn app18_a4_publishes_the_applications_with_audio_and_why_the_list_is_empty() {
 }
 
 #[test]
-fn app18_a4_an_empty_list_says_which_of_the_three_reasons_it_is() {
+fn an_empty_list_says_which_of_the_three_reasons_it_is() {
     let mut value = head(None);
     value.applications = Knowledge::Absent {
         refusal: orbit_core::refusal::Refusal::HelperNotRunning,
@@ -245,10 +245,10 @@ fn app18_a4_an_empty_list_says_which_of_the_three_reasons_it_is() {
     );
 }
 
-/// P9-11: a preference the store could not read is not one that was not
+/// A preference the store could not read is not one that was not
 /// published yet: its cause reaches the app.
 #[test]
-fn p9_11_an_unreadable_preference_carries_its_cause() {
+fn an_unreadable_preference_carries_its_cause() {
     let mut value = head(None);
     value.call = Some(Box::new(topic_recording::Call {
         preference: None,

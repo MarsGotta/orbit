@@ -11,7 +11,7 @@ import styles from "./TimeGrid.module.css";
 interface AllDayLaneProps {
   calendars: AppSnapshot["calendar"]["calendars"];
   days: number[];
-  /** P9-22: drafting by days, moving and stretching bars; absent, read only. */
+  /** Drafting by days, moving and stretching bars; absent, read only. */
   edit?: LaneEdit;
   events: CalendarEvent[];
   onOpenEvent: (event: CalendarEvent) => void;
@@ -26,9 +26,9 @@ function lastDay(event: CalendarEvent, timezone: string): number {
 }
 
 /**
- * All-day and multi-day events as bars across the columns (P9-20). Folded
+ * All-day and multi-day events as bars across the columns. Folded
  * it shows one row and says how many bars it is not showing. With editing
- * (P9-22) the lane is always there, so a drag across it drafts a new event.
+ * the lane is always there, so a drag across it drafts a new event.
  */
 export function AllDayLane(props: AllDayLaneProps) {
   const gestures = useLaneGestures(props.edit, props.events, props.days, props.timezone);

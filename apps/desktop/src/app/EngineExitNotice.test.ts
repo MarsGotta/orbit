@@ -12,17 +12,17 @@ it.each([
     "El proceso de conexión del motor de control terminó sin que Orbit lo pidiera (señal 15).",
   ],
 ] as const)(
-  "dice qué proceso terminó, cómo y con qué número: %s %s %s",
+  "says which process ended, how and with what number: %s %s %s",
   (cause, code, status, text) => {
     const notice: Notice = {
       code: "engine_exited",
-      op: "sim98-exit-notice",
+      op: "engine-exit-notice",
       data: { cause, code, status },
     };
     const { messages } = receive([], { kind: "notice", notice });
     expect(messages).toEqual([
       {
-        op: "sim98-exit-notice",
+        op: "engine-exit-notice",
         class: "fixable",
         text: `${text} Orbit volverá a iniciarlo. No se repetirá ninguna acción de entrada.`,
       },

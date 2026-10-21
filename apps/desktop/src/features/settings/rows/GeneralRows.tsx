@@ -132,7 +132,7 @@ export function UpdatesSection({ send, settings }: CommandProps) {
 }
 
 export function PrivacySection({ send, settings, statusAvailability }: CommandProps) {
-  // An unknown state says nothing (SIM-24): the button still stops.
+  // An unknown state says nothing: the button still stops.
   const unknown = statusAvailability?.state === "unknown" || statusAvailability?.state === "absent";
   return (
     <section aria-label={es.settings.privacy} className={styles.section}>
@@ -151,7 +151,7 @@ export function PrivacySection({ send, settings, statusAvailability }: CommandPr
         >
           {settings.privacy_stopped ? es.settings.rearm : es.settings.stopNow}
         </Button>
-        {/* SIM-23: only a build that carries a Sentry address offers it. */}
+        {/* Only a build that carries a Sentry address offers it. */}
         {settings.error_reports !== undefined && (
           <div className={styles.inlineControl}>
             <div className={styles.rowCopy}>

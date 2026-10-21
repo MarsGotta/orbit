@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { receive } from "./interceptor";
 
-it("nombra el permiso de calendario como Rust y abre su panel", () => {
+it("names the calendar permission as Rust does and opens its pane", () => {
   const result = receive([], {
     kind: "refusal",
     op: "calendar-permission",
@@ -16,7 +16,7 @@ it("nombra el permiso de calendario como Rust y abre su panel", () => {
   });
 });
 
-it("nombra automatización y lleva a Ajustes sin pedir un panel que Tauri no admite", () => {
+it("names automation and leads to Ajustes without asking for a pane Tauri does not support", () => {
   const result = receive([], {
     kind: "refusal",
     op: "automation-permission",

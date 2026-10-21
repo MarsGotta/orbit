@@ -1,4 +1,4 @@
-// P9-04: the note screen. SIM-24: each step says where it stands and, when
+// The note screen. Each step says where it stands and, when
 // it failed, what to do; the hub's codes and numbers stay in the log.
 const noteFailed = "No se pudo escribir la nota. Pulsa «Volver a escribir».";
 

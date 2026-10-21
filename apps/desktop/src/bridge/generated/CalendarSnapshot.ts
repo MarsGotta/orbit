@@ -21,16 +21,16 @@ calendars: Array<CalendarItemSnapshot>,
  */
 window: CalendarWindowSnapshot, 
 /**
- * What the calendar shows (P9-20). `events` holds the events of
+ * What the calendar shows. `events` holds the events of
  * this range only.
  */
 range: CalendarRangeSnapshot, events: Array<CalendarEventSnapshot>, 
 /**
- * Can Deimos read her agenda. CAL-09: the screen's headline.
+ * Can Deimos read the user's agenda: the screen's headline.
  */
 reading: CalendarReadingSnapshot, stale: boolean, 
 /**
- * P9-22: the latest writes the agenda head carries, oldest first.
+ * The latest writes the agenda head carries, oldest first.
  * A write missing here says nothing about the calendar.
  */
 writes?: Array<WriteOutcome>, };

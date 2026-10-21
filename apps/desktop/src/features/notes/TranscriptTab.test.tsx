@@ -5,11 +5,11 @@ import { es } from "../../i18n/es";
 import { TranscriptTab } from "./TranscriptTab";
 import { NoteDetail } from "./NoteDetail";
 
-/** A note as the hub computed it (SIM-40): times from the start of the
+/** A note as the hub computed it: times from the start of the
  * recording, every speaker named, no empty turn, the language it heard. */
 function note(): OpenNoteSnapshot {
   return {
-    recording_id: "meeting-sim41",
+    recording_id: "meeting-transcript",
     title: "Comité de dirección",
     capture: "closed",
     owner_name: "Alina",
@@ -60,7 +60,7 @@ function note(): OpenNoteSnapshot {
 afterEach(cleanup);
 
 describe("the transcript is what the hub computed", () => {
-  it("shows times from the start, the speakers' names and the language (defects 1–4)", () => {
+  it("shows times from the start, the speakers' names and the language", () => {
     const { container } = render(<TranscriptTab note={note()} send={() => undefined} />);
     const turns = Array.from(container.querySelectorAll("article"));
     expect(turns.map((turn) => turn.querySelector("time")?.textContent)).toEqual([

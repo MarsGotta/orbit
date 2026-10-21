@@ -7,7 +7,7 @@ export type FrameListener = (frame: FeatureFrame) => void;
 export type Unsubscribe = () => void;
 
 /**
- * One line of the app's local report log (SIM-21), as `orbit_report` takes
+ * One line of the app's local report log, as `orbit_report` takes
  * it: a code token, the class, who met it and closed data, never text.
  */
 export interface Report {
@@ -25,8 +25,8 @@ export interface DaemonPort {
   report(report: Report): Promise<void>;
   subscribeFrames(listener: FrameListener): Promise<Unsubscribe>;
   readSessionsPage?(cursor: AssistantCursor | null): Promise<SessionPage>;
-  /** SIM-30: one page of a conversation; without a cursor, the newest. */
+  /** One page of a conversation; without a cursor, the newest. */
   readSessionMessages?(sessionId: string, cursor: AssistantCursor | null): Promise<MessagesPage>;
-  /** P9-12: the floating panel opens a link of Deimos's answer. */
+  /** The floating panel opens a link of Deimos's answer. */
   openUrl?(url: string): Promise<CommandReceipt>;
 }

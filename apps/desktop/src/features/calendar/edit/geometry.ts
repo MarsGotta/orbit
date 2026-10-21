@@ -1,8 +1,8 @@
 /**
- * Where a gesture puts an event (P9-22). Pure: civil days,
+ * Where a gesture puts an event. Pure: civil days,
  * minutes of the day and instants in, instants out. Every time is a wall time
  * of `timezone` turned into an instant through `instantAtWallMs`, so a day of
- * 23 or 25 hours places 9:00 at 9:00 (REF-40).
+ * 23 or 25 hours places 9:00 at 9:00.
  */
 import { DAY_MS, dayOf, eventMinutes, instantAtWallMs, startOfDay } from "../date";
 

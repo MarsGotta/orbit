@@ -2,15 +2,15 @@
 import type { NoteSectionSnapshot } from "./NoteSectionSnapshot";
 
 /**
- * The note the hub wrote, with Mars's edits applied (P9-03).
+ * The note the hub wrote, with the user's edits applied.
  */
 export type NoteSummarySnapshot = { short_summary: string, sections: Array<NoteSectionSnapshot>, template_id: string, template_name: string, generated_at_ms: number, model: string, 
 /**
- * A regeneration set Mars's earlier text aside; it can come back.
+ * A regeneration set the user's earlier text aside; it can come back.
  */
 superseded_available: boolean, 
 /**
- * P9-05: how the template was chosen (`requested`, `series` or
+ * How the template was chosen (`requested`, `series` or
  * `default`); absent in notes written before.
  */
 template_source?: string, };

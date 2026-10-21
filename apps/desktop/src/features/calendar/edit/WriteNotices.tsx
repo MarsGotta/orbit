@@ -7,7 +7,7 @@ import styles from "./EventPanel.module.css";
 type Writes = ReturnType<typeof useCalendarWrites>;
 
 /**
- * What the calendar says about its writes (P9-22): a refusal or an unknown
+ * What the calendar says about its writes: a refusal or an unknown
  * outcome with its cause and numbers, a gesture Orbit did not try and why,
  * and «Evento borrado · Deshacer» for ten seconds after a delete.
  */

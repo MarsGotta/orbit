@@ -7,7 +7,7 @@ import { localDateLabel } from "./briefing-clock";
 import { BriefingSections } from "./BriefingSections";
 import { timeLabel } from "../calendar/date";
 
-it("la agenda de Hoy formatea las dos 02:30 locales del cambio de hora", () => {
+it("Hoy's agenda formats both local 02:30s of the clock change", () => {
   const briefing: BriefingSnapshot = {
     greeting: { name: null },
     summary: { meetings_today: 2, focus_minutes: 0 },
@@ -34,19 +34,19 @@ it("la agenda de Hoy formatea las dos 02:30 locales del cambio de hora", () => {
   ]);
 });
 
-it("la fecha y la semana de Hoy cambian a medianoche local", () => {
+it("Hoy's date and week change at local midnight", () => {
   const now = Date.UTC(2026, 8, 15, 22, 30);
   expect(localDateLabel(now, "Europe/Madrid")).toBe("Miércoles 16 de septiembre");
   expect(isoWeekForDay(localDayIndex(now, "Europe/Madrid"))).toBe(38);
 });
 
-it("el día que cambia la hora conserva la fecha y la semana locales", () => {
+it("the day the clocks change keeps the local date and week", () => {
   const now = Date.UTC(2026, 9, 25, 22, 30);
   expect(localDateLabel(now, "Europe/Madrid")).toBe("Domingo 25 de octubre");
   expect(isoWeekForDay(localDayIndex(now, "Europe/Madrid"))).toBe(43);
 });
 
-it("la agenda de Hoy usa el mismo formato horario que el calendario", () => {
+it("Hoy's agenda uses the same time format as the calendar", () => {
   const at = Date.UTC(2026, 9, 19, 7, 0);
   const briefing: BriefingSnapshot = {
     greeting: { name: null },

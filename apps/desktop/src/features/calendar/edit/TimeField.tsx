@@ -13,7 +13,7 @@ interface TimeFieldProps {
 /**
  * An hour typed as text: «9», «9:30» or «0930». It is read when
  * the field is left or with ↵; something that is not an hour puts the
- * previous value back (P9-22).
+ * previous value back.
  */
 export function TimeField({ label, onCommit, value }: TimeFieldProps) {
   const [draft, setDraft] = useState<string | null>(null);

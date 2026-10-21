@@ -16,7 +16,7 @@ impl DaemonClient {
             week_start,
         } = command
         {
-            // P9-20: the period on screen moves at once, before waiting for
+            // The period on screen moves at once, before waiting for
             // a read already running; that read, or this one, then reads the
             // latest period asked for.
             let range = {
@@ -72,7 +72,7 @@ impl DaemonClient {
         ))
     }
 
-    /// P9-20 (3b): the Briefing asks for today. See `TodayRead`.
+    /// The Briefing asks for today. See `TodayRead`.
     async fn show_today(&self) -> Result<(), AppError> {
         let Some(read) = self.recorded_window().await else {
             return Ok(());
@@ -95,7 +95,7 @@ impl DaemonClient {
         self.read_visible_range().await
     }
 
-    /// P9-20 (3a): on the clock's tick, after local midnight, the range is
+    /// On the clock's tick, after local midnight, the range is
     /// read again when the read on record stopped holding the new day.
     pub(super) async fn read_new_day(&self) -> Result<(), AppError> {
         let Some(read) = self.recorded_window().await else {
@@ -110,7 +110,7 @@ impl DaemonClient {
         self.read_visible_range().await
     }
 
-    /// Reads the period on screen, widened to today (P9-20), and waits for
+    /// Reads the period on screen, widened to today, and waits for
     /// the agenda topic to confirm exactly that window with a new read.
     async fn read_visible_range(&self) -> Result<(), AppError> {
         let (start_unix_ms, end_unix_ms) = self.inner.calendar.lock().await.read_window();
@@ -453,7 +453,7 @@ mod completion_tests {
     use orbit_core::{refusal::Refusal, topics::agenda::Value};
 
     #[test]
-    fn p9_20_a_refused_window_names_its_cause_and_numbers() {
+    fn a_refused_window_names_its_cause_and_numbers() {
         let invalid = window_refusal(CalendarWindow {
             start_unix_ms: orbit_core::calendar::MAX_UNIX_MS + 1,
             end_unix_ms: orbit_core::calendar::MAX_UNIX_MS + 2,

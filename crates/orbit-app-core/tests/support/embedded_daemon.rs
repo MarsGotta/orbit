@@ -24,8 +24,8 @@ impl TestDaemon {
         let end = ended.clone();
         let (cancel, cancelled) = oneshot::channel();
         let (sender, receiver) = std::sync::mpsc::sync_channel(1);
-        // Match the app's 8 MiB daemon stack: REF-39 observed a 113,328-byte
-        // startup future overflowing the usual 2 MiB test thread. Two workers
+        // Match the app's 8 MiB daemon stack: a 113,328-byte
+        // startup future was observed overflowing the usual 2 MiB test thread. Two workers
         // serve actor and helper I/O without one pool per host core per fixture.
         let thread = std::thread::Builder::new().name("orbit-test-daemon".into())
             .stack_size(8 * 1024 * 1024).spawn(move || {
@@ -44,7 +44,7 @@ impl TestDaemon {
                                         delivered = true;
                                         if let Ok(client) = result { let _ = sender.send(Ok(client)); }
                                     }
-                                    _ = &mut cancelled => break Err("Fixture: ejecución del daemon interrumpida".into()),
+                                    _ = &mut cancelled => break Err("Fixture: daemon run interrupted".into()),
                                 }
                             }
                         });

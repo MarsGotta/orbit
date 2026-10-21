@@ -13,7 +13,7 @@ interface Props {
 
 /**
  * Whether today's agenda is known. Unknown is never «no meetings» and says
- * nothing (SIM-24); only a missing permission has words: how to grant it.
+ * nothing; only a missing permission has words: how to grant it.
  */
 export type AgendaStatus = { known: true } | { known: false; text: string | null };
 

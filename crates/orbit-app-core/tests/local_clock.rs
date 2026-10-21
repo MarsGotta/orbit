@@ -53,8 +53,7 @@ fn status_zone(client: &DaemonClient) -> Option<String> {
 }
 
 #[tokio::test]
-async fn a1_clock_tick_publishes_the_new_zone_without_a_daemon_frame() -> Result<(), Box<dyn Error>>
-{
+async fn clock_tick_publishes_the_new_zone_without_a_daemon_frame() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let paths = Paths::resolve(Some(directory.path().to_path_buf()))?;
     let (ticks, _) = watch::channel(());

@@ -5,7 +5,7 @@ import type { FeatureAvailability } from "./FeatureAvailability";
 
 export type ComputerControlSnapshot = { availability?: FeatureAvailability, operation_id: string, stage: string, detail: string, remaining_steps: number, expires_in_ms: number, 
 /**
- * REF-11: whether the engine is ready and, when it is not, why — the
+ * Whether the engine is ready and, when it is not, why — the
  * macOS permission it is missing, the privacy stop, or its failure.
  */
 engine: EngineSnapshot, 

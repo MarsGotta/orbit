@@ -128,7 +128,7 @@ function MeetingDetails({
   );
 }
 
-/** What the last note of this series said; nothing when there is none (SIM-24). */
+/** What the last note of this series said; nothing when there is none. */
 function PreviousContext({ previous }: { previous: BriefingNextSnapshot["previous"] }) {
   const context =
     previous?.summary != null && previous.summary !== ""

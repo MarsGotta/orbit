@@ -1,4 +1,4 @@
-//! SIM-41: one meeting of the hub's list, or of this Mac's own, as a row.
+//! One meeting of the hub's list, or of this Mac's own, as a row.
 use super::*;
 use orbit_core::notes::{LocalPhase, MeetingRow, NoteState, TranscriptState};
 
@@ -7,7 +7,7 @@ use orbit_core::notes::{LocalPhase, MeetingRow, NoteState, TranscriptState};
 /// the summary.
 const PREVIEW_CHARS: usize = 140;
 
-/// Calendar days on Mars's clock, not periods of 24 hours: a note from 23:00
+/// Calendar days on the user's clock, not periods of 24 hours: a note from 23:00
 /// is "Ayer" at 07:00 the next morning.
 pub(crate) fn note_day_group(started_at_ms: i64, now_ms: i64, zone: &LocalZone) -> NoteDayGroup {
     let days = zone

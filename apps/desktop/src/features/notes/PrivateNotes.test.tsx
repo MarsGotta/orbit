@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { AppCommand } from "../../bridge/generated";
 import { usePrivateNotesDraft } from "./private-notes-draft";
 
-const RECORDING = "recording-p9_03";
+const RECORDING = "recording-private-notes";
 
 function saves(send: ReturnType<typeof vi.fn>): string[] {
   return send.mock.calls
@@ -21,9 +21,9 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-// P9-04: the box is now the rich editor; these two drive the draft the
+// The box is now the rich editor; these two drive the draft the
 // editor reports to, with the same keystrokes and the same expectations.
-it("P9-03 an echo of an earlier save does not replace what Alina typed since", async () => {
+it("an echo of an earlier save does not replace what Alina typed since", async () => {
   const send = vi.fn();
   const view = renderHook(({ stored }) => usePrivateNotesDraft(RECORDING, stored, send), {
     initialProps: { stored: "a" },
@@ -44,7 +44,7 @@ it("P9-03 an echo of an earlier save does not replace what Alina typed since", a
   expect(saves(send)).toEqual(["ab", "abc"]);
 });
 
-it("P9-03 leaving the note sends what was still waiting to be saved", () => {
+it("leaving the note sends what was still waiting to be saved", () => {
   const send = vi.fn();
   const view = renderHook(() => usePrivateNotesDraft(RECORDING, "", send));
   act(() => view.result.current[1]("sin perder"));

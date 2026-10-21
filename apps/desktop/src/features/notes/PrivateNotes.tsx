@@ -6,7 +6,7 @@ import { usePrivateNotesDraft } from "./private-notes-draft";
 import styles from "./NoteScreen.module.css";
 
 /**
- * Mars's private notes (P9-04): a rich editor whose markdown the daemon
+ * The user's private notes: a rich editor whose markdown the daemon
  * keeps encrypted and sends with the note request.
  */
 export function PrivateNotes({

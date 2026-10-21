@@ -4,16 +4,16 @@ export const DAY_MS = 24 * 60 * 60 * 1_000;
 const MINUTE_MS = 60_000;
 
 // Days are counted from 1970-01-01 on the wall clock of the zone the daemon
-// publishes (REF-40): a day is 23, 24 or 25 hours long, so nothing here adds a
+// publishes: a day is 23, 24 or 25 hours long, so nothing here adds a
 // fixed number of milliseconds to an instant. app-core decides which days a
-// view shows (P9-20); this only names and places them.
+// view shows; this only names and places them.
 
 /** The civil day `timestamp` falls on in `timezone`. */
 export function dayOf(timestamp: number, timezone: string): number {
   return zonedPosition(timestamp, timezone).day;
 }
 
-/** The first instant of civil `day` in `timezone` (REF-40). */
+/** The first instant of civil `day` in `timezone`. */
 export function startOfDay(day: number, timezone: string): number {
   return instantAtWallDay(day, timezone);
 }
@@ -123,7 +123,7 @@ function offsetAtInstant(instant: number, timezone: string): number {
   return wallMsAt(instant, timezone) - instant;
 }
 
-// The first instant at which the wall clock reads midnight of `day` (REF-40).
+// The first instant at which the wall clock reads midnight of `day`.
 // When the clocks go back a wall time happens twice and this is the first;
 // when they go forward a midnight may never happen and this is where the
 // clock jumped past it. Candidates come from the offsets in force a day
@@ -134,7 +134,7 @@ function instantAtWallDay(day: number, timezone: string): number {
 
 /** The first instant the wall clock of `timezone` reads `wallMs` (counted
  *  from its own 1970-01-01 midnight); past a jump forward, where the jump
- *  lands. Any wall time, not only a midnight (P9-22). */
+ *  lands. Any wall time, not only a midnight. */
 export function instantAtWallMs(wallMs: number, timezone: string): number {
   const before = offsetAtInstant(wallMs - DAY_MS, timezone);
   const after = offsetAtInstant(wallMs + DAY_MS, timezone);
@@ -183,7 +183,7 @@ export function hourLabel(hour: number): string {
   return `${hour}:00`;
 }
 
-/** «9:00», «10:45»: the clock Mars reads, in the zone the daemon publishes. */
+/** «9:00», «10:45»: the clock the user reads, in the zone the daemon publishes. */
 export function timeLabel(timestamp: number, timezone: string): string {
   return new Intl.DateTimeFormat("es-ES", {
     hour: "numeric",

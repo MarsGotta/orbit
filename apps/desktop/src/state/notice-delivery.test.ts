@@ -15,7 +15,7 @@ function status(notices: Notice[], counter: number, epoch = "daemon-one"): Featu
 
 async function connected() {
   let accept: (frame: FeatureFrame) => void = () => {
-    throw new Error("Suscripción ausente");
+    throw new Error("Subscription missing");
   };
   const port: DaemonPort = {
     subscribeFrames: async (listener) => {
@@ -53,7 +53,7 @@ async function connected() {
   return { store, accept: (frame: FeatureFrame) => accept(frame) };
 }
 
-it("el cursor no resucita una transcripción cerrada al completarse el op de otro turno", async () => {
+it("the cursor does not revive a closed transcription when another turn's op completes", async () => {
   const { store, accept } = await connected();
   const working = { code: "voice_transcribing", op: "call-first-turn", sequence: 3 } as Notice;
   // The same late op assignment measured at the daemon's core boundary.
@@ -66,7 +66,7 @@ it("el cursor no resucita una transcripción cerrada al completarse el op de otr
   expect(store.getState().messages.filter((message) => message.class === "working")).toEqual([]);
 });
 
-it("un aviso idéntico de la misma operación vuelve a verse cuando tiene otra secuencia", async () => {
+it("an identical notice of the same operation is seen again when it has another sequence", async () => {
   const { store, accept } = await connected();
   const notice = { code: "voice_transcribing", op: "call-turn", sequence: 1 } as Notice;
   accept(status([notice], 2));
@@ -75,7 +75,7 @@ it("un aviso idéntico de la misma operación vuelve a verse cuando tiene otra s
   expect(store.getState().messages.map((message) => message.op)).toEqual(["call-turn"]);
 });
 
-it("un daemon nuevo puede empezar con secuencias menores sin perder sus avisos", async () => {
+it("a new daemon can start with lower sequences without losing its notices", async () => {
   const { store, accept } = await connected();
   accept(status([{ code: "assistant_thinking", op: "old-call-turn", sequence: 99 } as Notice], 2));
   accept(
@@ -88,7 +88,7 @@ it("un daemon nuevo puede empezar con secuencias menores sin perder sus avisos",
   expect(store.getState().messages.map((message) => message.op)).toEqual(["new-call-turn"]);
 });
 
-it("los tres turnos de llamada del daemon terminan sin transcripciones colgadas", async () => {
+it("the daemon's three call turns end without transcriptions left hanging", async () => {
   const { store, accept } = await connected();
   for (const [index, frame] of callFrames.entries()) {
     accept(status(frame.notices as Notice[], index + 2));
@@ -98,7 +98,7 @@ it("los tres turnos de llamada del daemon terminan sin transcripciones colgadas"
   }
 });
 
-it("un aviso sin op sigue siendo desconocido hasta recibir su identidad", async () => {
+it("a notice without an op stays unknown until it receives its identity", async () => {
   const { store, accept } = await connected();
   const notice = { code: "voice_transcribing", sequence: 1 } as Notice;
   accept(status([notice], 2));
@@ -107,7 +107,7 @@ it("un aviso sin op sigue siendo desconocido hasta recibir su identidad", async 
   expect(store.getState().messages.map((message) => message.op)).toEqual(["identified-call-turn"]);
 });
 
-it("un registro atrasado no reduce el cursor ni repite trabajos ya cerrados", async () => {
+it("a late record neither lowers the cursor nor repeats work already closed", async () => {
   const { store, accept } = await connected();
   const current = { code: "voice_transcribing", op: "current-call-turn", sequence: 20 } as Notice;
   accept(status([current], 2));
@@ -118,7 +118,7 @@ it("un registro atrasado no reduce el cursor ni repite trabajos ya cerrados", as
   expect(store.getState().messages).toEqual([]);
 });
 
-it("el turno que desapareció se explica con su minuto y los turnos de ahora", async () => {
+it("the turn that disappeared is explained with its minute and the current turns", async () => {
   const { store, accept } = await connected();
   const data = {
     code: "turn_no_longer_exists",

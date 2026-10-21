@@ -13,7 +13,7 @@ import type { ViewId } from "../state/ui";
 import { AppTopBar } from "./AppTopBar";
 import { NoticeBanner } from "./NoticeBanner";
 
-// SIM-24: when everything is fine the screen says nothing; a problem says
+// When everything is fine the screen says nothing; a problem says
 // what to do; an unknown is not a failure and is not painted.
 
 type Overrides = {
@@ -91,14 +91,14 @@ function expectQuiet(text: string | null) {
 
 afterEach(cleanup);
 
-describe("SIM-24 la píldora de estado", () => {
-  it("con todo en orden no hay píldora", () => {
+describe("the status pill", () => {
+  it("with everything fine there is no pill", () => {
     const { view } = renderTopBar(snapshot());
     expect(screen.queryByRole("status")).toBeNull();
     expectQuiet(view.container.textContent);
   });
 
-  it("sin conexión, la píldora dice qué hacer", () => {
+  it("offline, the pill says what to do", () => {
     const { view } = renderTopBar(
       snapshot({ connection: { hub: "offline" }, hub: { connection: "offline" } }),
     );
@@ -108,7 +108,7 @@ describe("SIM-24 la píldora de estado", () => {
     expectQuiet(view.container.textContent);
   });
 
-  it("una reconexión no hace parpadear la píldora: conectando sigue diciendo sin conexión", () => {
+  it("a reconnection does not make the pill flicker: connecting still says offline", () => {
     const offline = snapshot({ connection: { hub: "offline" }, hub: { connection: "offline" } });
     const { view } = renderTopBar(offline);
     view.rerender(
@@ -128,14 +128,14 @@ describe("SIM-24 la píldora de estado", () => {
     expect(screen.getByRole("status").textContent).toMatch(/Sin conexión/);
   });
 
-  it("al arrancar, mientras conecta por primera vez, no dice nada", () => {
+  it("at startup, while it connects for the first time, it says nothing", () => {
     renderTopBar(
       snapshot({ connection: { hub: "connecting" }, hub: { connection: "connecting" } }),
     );
     expect(screen.queryByRole("status")).toBeNull();
   });
 
-  it("si falta un permiso, la píldora lo dice y lleva a Ajustes", async () => {
+  it("when a permission is missing, the pill says so and leads to Ajustes", async () => {
     const { opened } = renderTopBar(snapshot({ permissions: { microphone: "denied" } }));
     const pill = screen.getByRole("status");
     expect(pill.textContent).toMatch(/Falta el permiso de micrófono/);
@@ -143,19 +143,19 @@ describe("SIM-24 la píldora de estado", () => {
     expect(opened).toEqual(["settings"]);
   });
 
-  it("un permiso desconocido no es un permiso que falte", () => {
+  it("an unknown permission is not a missing permission", () => {
     renderTopBar(snapshot({ permissions: { accessibility: "unknown" } }));
     expect(screen.queryByRole("status")).toBeNull();
   });
 
-  it("con la privacidad detenida, la píldora ofrece rearmar", async () => {
+  it("with privacy stopped, the pill offers to rearm", async () => {
     const { sent } = renderTopBar(snapshot({ privacy_stopped: true }));
     expect(screen.getByRole("status").textContent).toMatch(/Privacidad detenida/);
     await userEvent.click(screen.getByRole("button", { name: "Rearmar" }));
     expect(sent).toEqual([{ command: "rearm" }]);
   });
 
-  it("sin emparejar, la píldora lleva a emparejar", async () => {
+  it("unpaired, the pill leads to pairing", async () => {
     const { opened } = renderTopBar(
       snapshot({ connection: { hub: "unpaired" }, hub: { paired: false, connection: "offline" } }),
     );
@@ -164,7 +164,7 @@ describe("SIM-24 la píldora de estado", () => {
     expect(opened).toEqual(["settings"]);
   });
 
-  it("un estado desconocido no pinta nada", () => {
+  it("an unknown state paints nothing", () => {
     const { view } = renderTopBar(
       snapshot({
         status_availability: { state: "unknown", cause: "pending:not_observed_yet" },
@@ -183,8 +183,8 @@ const chat: ChatSnapshot = {
   voice: { level: 0, state: "idle" },
 };
 
-describe("SIM-24 una disponibilidad desconocida no pinta nada", () => {
-  it("la nota de voz y la llamada desconocidas no dicen nada en el asistente", () => {
+describe("an unknown availability paints nothing", () => {
+  it("an unknown voice note and an unknown call say nothing in the assistant", () => {
     const view = render(
       <AssistantComposer
         callActive={false}
@@ -204,7 +204,7 @@ describe("SIM-24 una disponibilidad desconocida no pinta nada", () => {
     expect(view.container.textContent).not.toMatch(/Nota de voz:|Contexto:/);
   });
 
-  it("un asistente desconocido es una vista vacía", () => {
+  it("an unknown assistant is an empty view", () => {
     const value = {
       ...snapshot(),
       chat: { ...chat, availability: { state: "unknown", cause: "pending:not_observed_yet" } },
@@ -214,7 +214,7 @@ describe("SIM-24 una disponibilidad desconocida no pinta nada", () => {
     expect(view.container.textContent).toBe("");
   });
 
-  it("una grabación desconocida no pinta nada junto a la barra", () => {
+  it("an unknown recording paints nothing beside the bar", () => {
     const view = render(
       <MeetingEntryPoints
         onRecord={() => undefined}
@@ -227,7 +227,7 @@ describe("SIM-24 una disponibilidad desconocida no pinta nada", () => {
     expect(view.container.textContent).toBe("");
   });
 
-  it("sin avisos, la franja de avisos no pinta nada", () => {
+  it("without notices, the notice strip paints nothing", () => {
     const view = render(
       <NoticeBanner messages={[]} onAction={() => undefined} onDismiss={() => undefined} />,
     );
@@ -235,8 +235,8 @@ describe("SIM-24 una disponibilidad desconocida no pinta nada", () => {
   });
 });
 
-describe("SIM-24 el calendario no explica lo que va bien", () => {
-  it("con la agenda leída no hay bloque «Deimos la lee»", () => {
+describe("the calendar does not explain what is fine", () => {
+  it("with the agenda read there is no «Deimos la lee» block", () => {
     const calendar = {
       authorization: "granted",
       reading: { state: "available", blocker: null },
@@ -254,8 +254,8 @@ describe("SIM-24 el calendario no explica lo que va bien", () => {
   });
 });
 
-describe("SIM-24 el briefing no convierte lo desconocido en un no", () => {
-  it("una agenda sin leer no dice nada ni «0 reuniones»", () => {
+describe("the briefing does not turn the unknown into a no", () => {
+  it("an agenda not read yet says nothing, not even «0 reuniones»", () => {
     const value = {
       ...snapshot(),
       briefing: { sources: { agenda: { state: "unknown", cause: "topic_not_observed" } } },
@@ -264,7 +264,7 @@ describe("SIM-24 el briefing no convierte lo desconocido en un no", () => {
     expect(briefingAgendaStatus(value)).toEqual({ known: false, text: null });
   });
 
-  it("sin permiso de Calendarios dice cómo concederlo", () => {
+  it("without the Calendarios permission it says how to grant it", () => {
     const value = {
       ...snapshot(),
       briefing: { sources: { agenda: { state: "absent", cause: "calendar_permission_denied" } } },

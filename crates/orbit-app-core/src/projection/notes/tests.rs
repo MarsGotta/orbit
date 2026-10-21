@@ -68,10 +68,10 @@ fn days_follow_the_local_calendar() {
     );
 }
 
-/// REF-04: the list's days are Mars's calendar days, recomputed from the
+/// The list's days are the user's calendar days, recomputed from the
 /// clock when the view is projected (no new read at midnight).
 #[test]
-fn ref04_a1_notes_are_grouped_by_the_local_day() {
+fn notes_are_grouped_by_the_local_day() {
     use crate::{
         calendar::LocalClock,
         features::{FeatureInput, notes},
@@ -81,15 +81,15 @@ fn ref04_a1_notes_are_grouped_by_the_local_day() {
     let mut local = crate::AppSnapshot::empty(12, crate::DaemonConnection::Ready);
     if let Some(notes) = local.notes.as_mut() {
         notes.list = vec![
-            recording_summary("rec-tuesday-morning", "Daily", REF04_2026_09_15_T0630Z),
-            recording_summary("rec-wednesday-night", "Guardia", REF04_2026_09_15_T2215Z),
+            recording_summary("rec-tuesday-morning", "Daily", UTC_2026_09_15_T0630Z),
+            recording_summary("rec-wednesday-night", "Guardia", UTC_2026_09_15_T2215Z),
         ];
     }
     let view = notes::project(&FeatureInput::with_clock(
         &local,
         &TopicCache::default(),
         LocalClock {
-            now_ms: REF04_2026_09_16_T0500Z,
+            now_ms: UTC_2026_09_16_T0500Z,
             zone: madrid(),
             timezone_name: Ok("Europe/Madrid".into()),
         },

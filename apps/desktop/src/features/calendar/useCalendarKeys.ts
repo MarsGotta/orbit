@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { calendarKeyAction, type CalendarKeyAction, isTypingTarget } from "./keyboard";
 
 /**
- * The calendar's keys while it is on screen (P9-20). Nothing happens while
+ * The calendar's keys while it is on screen. Nothing happens while
  * the focus is in a text field, or when another handler already used the key.
  */
 export function useCalendarKeys(onAction: (action: CalendarKeyAction) => void) {

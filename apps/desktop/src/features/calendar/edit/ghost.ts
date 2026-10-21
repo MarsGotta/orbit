@@ -6,7 +6,7 @@ import type { GridPreview } from "./useGridGestures";
 
 /**
  * The gesture in progress drawn as a card of its own on every day it
- * touches, over the cards that stay where they are (P9-22): the card being
+ * touches, over the cards that stay where they are: the card being
  * dragged stays in its place, dimmed.
  */
 export function ghostSegments(

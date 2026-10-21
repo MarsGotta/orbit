@@ -238,7 +238,7 @@
   }
 }
 
-/* P9-04: the row's line says recording, in progress or failed. */
+/* The row's line says recording, in progress or failed. */
 .listCopy small[data-tone="live"],
 .listCopy small[data-tone="failed"] {
   color: var(--o-red);

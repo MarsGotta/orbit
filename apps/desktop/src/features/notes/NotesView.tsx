@@ -40,7 +40,7 @@ function useNotesMidnightRefresh(send: (command: AppCommand) => Promise<void>) {
 }
 
 /** The note the route names is read when it is not the one read already;
- * the client reads it again when the hub says it changed (SIM-41). */
+ * the client reads it again when the hub says it changed. */
 function useNoteRoute(snapshot: AppSnapshot, send: (command: AppCommand) => Promise<void>) {
   const routeRecordingId = decodeURIComponent(
     window.location.hash.match(/^#\/notes\/([^/]+)$/)?.[1] ?? "",

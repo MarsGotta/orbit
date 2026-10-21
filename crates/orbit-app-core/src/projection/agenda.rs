@@ -15,8 +15,8 @@ pub(crate) fn project_calendar_occurrence(event: &CalendarOccurrence) -> Calenda
             is_self: invitee.is_current_user,
         })
         .collect();
-    // P9-20: her answer is the one on the guest EventKit marks as her. No
-    // such guest means the event is not an invitation to her.
+    // The user's answer is the one on the guest EventKit marks as the user.
+    // No such guest means the event is not an invitation to them.
     let self_response = invitees
         .iter()
         .find(|invitee| invitee.is_current_user)
@@ -35,7 +35,7 @@ pub(crate) fn project_calendar_occurrence(event: &CalendarOccurrence) -> Calenda
         status: Some(project_event_status(&event.status)),
         self_response,
         conference_url: event.event_url.as_deref().and_then(conference_url),
-        // P9-21: what a change or a delete names, and what the edit shows.
+        // What a change or a delete names, and what the edit shows.
         calendar_item_id: Some(event.calendar_item_id.clone()),
         occurrence_start_ms: Some(
             event
@@ -65,7 +65,7 @@ pub(crate) fn project_calendar_occurrence(event: &CalendarOccurrence) -> Calenda
     }
 }
 
-/// EventKit's participant status, in the words of the calendar card (P9-20).
+/// EventKit's participant status, in the words of the calendar card.
 /// The helper's vocabulary is closed (`orbit_core::calendar` validates it);
 /// anything that is not an answer is `None`, never a refusal.
 pub(crate) fn calendar_response(status: &str) -> CalendarResponse {
@@ -78,9 +78,9 @@ pub(crate) fn calendar_response(status: &str) -> CalendarResponse {
     }
 }
 
-/// `url` when it is an `https` link to a known video call, else nothing
-/// (P9-20). Which links count lives in `orbit_core::calendar`, shared with
-/// the choice of a call's event (P9-11).
+/// `url` when it is an `https` link to a known video call, else nothing.
+/// Which links count lives in `orbit_core::calendar`, shared with
+/// the choice of a call's event.
 pub(crate) fn conference_url(url: &str) -> Option<String> {
     orbit_core::calendar::conference_platform(url).map(|_| url.trim().to_owned())
 }
@@ -93,16 +93,16 @@ pub(super) fn project_event_status(status: &str) -> CalendarEventStatus {
     }
 }
 
-/// CAL-09: can Deimos read her agenda right now, and if not, which condition is
+/// Can Deimos read the user's agenda right now, and if not, which condition is
 /// missing.
 ///
 /// The live read crosses the device bridge, which admits `calendar_read` on the
 /// macOS permission alone, and needs the pairing and a reachable Mac to get
-/// there. Those three are what this answers, in the order Mars can act on them,
-/// nearest first. REF-10 removed the fourth, «calendarios elegidos»: nothing is
+/// there. Those three are what this answers, in the order the user can act on
+/// them, nearest first. There is no fourth, «calendarios elegidos»: nothing is
 /// chosen, and the stored copy this was once confused with no longer exists.
 ///
-/// The permission is three-valued (REF-10 A8), read from the calendar view when
+/// The permission is three-valued, read from the calendar view when
 /// it is on screen and otherwise from the helper's own status, which no other
 /// screen evicts. Unknown — the helper has not said yet — is `Unknown`: never
 /// `Available`, and never the refusal `CalendarPermission` either.

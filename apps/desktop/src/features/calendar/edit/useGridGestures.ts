@@ -104,9 +104,9 @@ function begin(
 }
 
 /**
- * Click and drag in the time grid (P9-22): a click in free time drafts an
+ * Click and drag in the time grid: a click in free time drafts an
  * event, a drag draws one, a drag of a card moves it (to another day too) and
- * a drag of its bottom edge stretches it. A card Mars cannot change does not
+ * a drag of its bottom edge stretches it. A card the user cannot change does not
  * move: the gesture ends in a notice with the cause.
  */
 export function useGridGestures(

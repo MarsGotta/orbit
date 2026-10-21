@@ -14,7 +14,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("todos los avisos, también el trabajo en curso, se pueden cerrar", () => {
+it("every notice, work in progress included, can be closed", () => {
   const dismiss = vi.fn();
   for (const kind of ["working", "done", "fixable", "failed"] as const) {
     const view = render(

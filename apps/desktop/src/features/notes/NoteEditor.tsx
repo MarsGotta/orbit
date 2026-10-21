@@ -19,7 +19,7 @@ interface NoteEditorProps {
 }
 
 /**
- * The note's rich text editor (P9-04). Its document is always the markdown
+ * The note's rich text editor. Its document is always the markdown
  * subset of `markdown.ts`: the markdown shortcuts as you type (`#`, `-`, `1.`,
  * `[ ]`, `**`) come from the extensions, and what is saved is our own
  * serialization, never the editor's HTML.
@@ -96,8 +96,8 @@ export function NoteEditor({ autoFocus, label, markdown, onChange, placeholder }
       onChangeRef.current(next);
     },
   });
-  // A newer text from the daemon replaces the document only while Mars is
-  // not typing in it, and only when it differs from what she wrote.
+  // A newer text from the daemon replaces the document only while the user is
+  // not typing in it, and only when it differs from what they wrote.
   useEffect(() => {
     if (editor.isFocused || markdown === written.current) return;
     written.current = markdown;

@@ -5,8 +5,8 @@ import type { AppCommand } from "../../bridge/generated";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { MeetingPill } from "./MeetingPill";
 
-// SIM-25 run 14: «Terminar» only existed while the mouse hovered the pill, so
-// neither the keyboard nor accessibility could reach it. The controls are
+// A run of the real test on the Mac found that «Terminar» only existed while
+// the mouse hovered the pill, so neither the keyboard nor accessibility could reach it. The controls are
 // always in the page; the stylesheet shows them on hover and on focus.
 
 function recording(): AppSnapshot {
@@ -44,7 +44,7 @@ describe("MeetingPill", () => {
   });
 });
 
-it("actualiza el tiempo grabado cada segundo y desaparece al quedar inactivo", () => {
+it("updates the recorded time every second and disappears when it goes idle", () => {
   vi.useFakeTimers();
   const snapshot = recording();
   const { rerender } = render(<MeetingPill send={() => undefined} snapshot={snapshot} />);

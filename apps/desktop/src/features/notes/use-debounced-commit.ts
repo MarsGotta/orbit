@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 
-/** P9-04: Mars's edits reach the daemon one second after she pauses, and at
- * least every five seconds while she keeps typing. */
+/** The user's edits reach the daemon one second after they pause, and at
+ * least every five seconds while they keep typing. */
 export const SAVE_AFTER_MS = 1_000;
 export const SAVE_AT_LEAST_EVERY_MS = 5_000;
 

@@ -1,4 +1,4 @@
-//! The daemon inside the app (SIM-51): one process on the Mac, plus the helper.
+//! The daemon inside the app: one process on the Mac, plus the helper.
 //!
 //! The daemon runs its own runtime on a thread. The app shares its typed
 //! call queue and topic watches; only Orbit Pruebas exposes `orbit.sock`.
@@ -61,7 +61,7 @@ pub const THREAD_NAME: &str = "orbit-daemon";
 /// The stack of the daemon's thread. Eight MiB is the stack the daemon's
 /// top-level future had when it ran on the `orbit` binary's main thread (the
 /// default main-thread stack on macOS and Linux); a spawned thread gets 2 MiB,
-/// which REF-39 measured too small for a daemon start in a test fixture. It is
+/// which was measured too small for a daemon start in a test fixture. It is
 /// the same stack as before, not a new limit on anything the daemon does.
 const DAEMON_STACK_BYTES: usize = 8 * 1024 * 1024;
 

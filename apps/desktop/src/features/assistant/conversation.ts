@@ -7,12 +7,12 @@ export function turnInFlight(chat: AppSnapshot["chat"]): boolean {
 }
 
 /**
- * SIM-30: what the thread shows. `stored` is the conversation as the hub
+ * What the thread shows. `stored` is the conversation as the hub
  * keeps it (the pages read, in order); `turn` the turn in progress, or the
  * last one, as the assistant topic carries it.
  *
  * The turn sits after what the hub holds before it. Once it has ended and
- * the page read again holds what followed Mars's message, the hub's rows are
+ * the page read again holds what followed the user's message, the hub's rows are
  * the truth and the turn steps aside: until then it stays in view, so a
  * finished answer never blinks out while its page is being read.
  */

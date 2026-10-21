@@ -39,7 +39,7 @@ export const permissions = {
 } as const;
 
 /**
- * A macOS permission as the person reads it (SIM-24): granted or not. One
+ * A macOS permission as the person reads it: granted or not. One
  * still to ask has its «Pedir» button beside it, and one not known yet says
  * nothing: an unknown is not a refusal.
  */

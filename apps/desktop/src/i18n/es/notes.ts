@@ -25,11 +25,11 @@ export const notes = {
     emptyBody: "Graba una reunión para empezar.",
     loadingIndex: "Cargando notas…",
     loadingNote: "Cargando nota…",
-    // SIM-24: a read that failed says so and offers «Reintentar»; its cause
+    // A read that failed says so and offers «Reintentar»; its cause
     // stays in the log.
     noteReadFailed: "No se pudo abrir la nota.",
     indexFailed: "No se pudieron cargar las notas.",
-    // SIM-25 run 20: the hub out of reach is not a failure; the connection
+    // The hub out of reach is not a failure; the connection
     // says itself in the status.
     needsHub: "Las notas se leen del hub. Aparecerán cuando Orbit se conecte.",
     today: "Hoy",
@@ -41,7 +41,7 @@ export const notes = {
     summaryTab: "Resumen",
     actionsTab: "Acciones",
     transcriptTab: "Transcripción",
-    // P9-03: the daemon keeps them encrypted on this Mac and sends them with
+    // The daemon keeps them encrypted on this Mac and sends them with
     // the note request, so the note is written with them.
     privateHelp: "Solo las ves tú. Se usan para escribir la nota.",
     privateLabel: "Notas privadas",
@@ -54,7 +54,7 @@ export const notes = {
     openTopics: "Temas abiertos",
     noTranscript: "La transcripción aún no está lista",
     transcriptFailed: "No se pudo cargar la transcripción.",
-    // SIM-52: the language the transcript is in, chosen (Spanish by
+    // The language the transcript is in, chosen (Spanish by
     // default), not detected; each one is named in its own language.
     // Distinct from the header's picker («Idioma»): the real test
     // reads this line (scripts/e2e-mac/comprobaciones.py).

@@ -6,7 +6,7 @@ import type { DaemonPort } from "./port";
 import { TauriPort } from "./tauri-port";
 
 /**
- * P9-11: the floating panel's port. It reads and listens like the main
+ * The floating panel's port. It reads and listens like the main
  * window, and sends only its own orders through `orbit_panel_send`, the one
  * its window is allowed.
  */
@@ -19,10 +19,10 @@ export class PanelPort extends TauriPort {
   }
 
   /**
-   * P9-12: the panel takes the keyboard only while Mars writes a question
-   * to Deimos, and gives it back when she sends or cancels it.
+   * The panel takes the keyboard only while the user writes a question
+   * to Deimos, and gives it back when they send or cancel it.
    */
-  /** P9-12: a link of the answer, only http(s) (checked again in Rust). */
+  /** A link of the answer, only http(s) (checked again in Rust). */
   openUrl(url: string): Promise<CommandReceipt> {
     return invoke<CommandReceipt>("orbit_panel_send", {
       command: { command: "open_url", url } satisfies PanelOrder,

@@ -13,7 +13,7 @@ interface Hooks {
 }
 
 /**
- * The writes on their way, followed against the agenda head (P9-22): each
+ * The writes on their way, followed against the agenda head: each
  * outcome that arrives ends its write once; a refusal or an unknown outcome
  * becomes the notice; a saved write no read shows is let go of after
  * `APPLIED_WAIT_MS`. Nothing here sends anything.

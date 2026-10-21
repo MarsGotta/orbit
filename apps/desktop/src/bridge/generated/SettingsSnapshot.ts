@@ -9,7 +9,7 @@ import type { VersionSettingsSnapshot } from "./VersionSettingsSnapshot";
 
 export type SettingsSnapshot = { assistant_name?: string, hub: SettingsHubSnapshot, permissions: PermissionSnapshot, helper_connected: boolean, calendars: CalendarSettingsSnapshot, login_item: LoginItemState, versions: VersionSettingsSnapshot, update: UpdateSnapshot, privacy_stopped: boolean, onboarding_done: boolean, profile?: ProfileSettingsSnapshot, 
 /**
- * SIM-23 «Enviar informes de errores anónimos»: her choice, absent
+ * «Enviar informes de errores anónimos»: the user's choice, absent
  * when this build cannot send (no switch is offered) or the daemon
  * has not said yet.
  */

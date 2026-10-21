@@ -18,7 +18,7 @@ function renderPanel(panel: CallPanelSnapshot | null) {
   return { sent, view };
 }
 
-describe("P9-11 the floating panel", () => {
+describe("the floating panel", () => {
   it("offers to record a call, with its event, and each answer names the offer", async () => {
     const { sent } = renderPanel({
       state: "offer",

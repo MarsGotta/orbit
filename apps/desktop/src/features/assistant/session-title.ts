@@ -1,5 +1,5 @@
 /**
- * SIM-30: a conversation is named by when it began, as the list shows it:
+ * A conversation is named by when it began, as the list shows it:
  * «17 de octubre de 2026, 09:53», on the Mac's clock. The hub only sends
  * `created_at_ms`; the words are the interface's.
  */

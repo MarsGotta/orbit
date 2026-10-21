@@ -133,7 +133,7 @@
   }
 }
 
-/* P9-22: the bottom edge stretches the event. A strip, not a target that
+/* The bottom edge stretches the event. A strip, not a target that
    steals the card: four pixels, the resize cursor and nothing drawn until
    the pointer is there. */
 .resize {

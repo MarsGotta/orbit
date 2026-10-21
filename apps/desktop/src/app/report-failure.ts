@@ -4,7 +4,7 @@ import { refusalOf } from "../bridge/refusal";
 import { newOp, refusalReport } from "./interceptor";
 
 /**
- * SIM-24: a refusal met outside an order the store sent (a link the panel
+ * A refusal met outside an order the store sent (a link the panel
  * could not open, a read) goes to the report log with its own code and no
  * text, like any refused order. The screen says what to do; the log keeps
  * which refusal it was. A lost report is a lost diagnostic, never a failure.

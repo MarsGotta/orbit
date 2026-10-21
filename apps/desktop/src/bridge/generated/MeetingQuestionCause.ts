@@ -3,6 +3,6 @@ import type { MeetingQuestionBusy } from "./MeetingQuestionBusy";
 import type { MeetingQuestionLink } from "./MeetingQuestionLink";
 
 /**
- * P9-12: why a question did not get its answer, with its numbers.
+ * Why a question did not get its answer, with its numbers.
  */
 export type MeetingQuestionCause = { "cause": "privacy_stopped" } | { "cause": "no_meeting" } | { "cause": "hub_unreachable", connection: MeetingQuestionLink, } | { "cause": "deimos_unavailable", code: string, } | { "cause": "turn_in_flight", turn: MeetingQuestionBusy, } | { "cause": "question_empty" } | { "cause": "question_too_long", bytes: number, max_bytes: number, } | { "cause": "window_not_offered", minutes: number, offered: Array<number>, } | { "cause": "turn_failed" } | { "cause": "interrupted" } | { "cause": "hub_refused", code: string, message: string, } | { "cause": "no_answer" } | { "cause": "revoked" };

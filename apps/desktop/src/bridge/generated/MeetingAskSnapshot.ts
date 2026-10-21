@@ -2,7 +2,7 @@
 import type { MeetingWindowSnapshot } from "./MeetingWindowSnapshot";
 
 /**
- * P9-12: what «Preguntar a Deimos» offers during a recording. The
+ * What «Preguntar a Deimos» offers during a recording. The
  * windows and the ceiling come from orbit-core; the interface never
  * copies them.
  */

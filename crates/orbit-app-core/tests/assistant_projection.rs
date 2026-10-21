@@ -35,7 +35,7 @@ fn answered(text: &str, complete: bool) -> Turn {
 }
 
 #[test]
-fn a1_projects_each_active_phase_and_clears_it_with_the_turn() {
+fn projects_each_active_phase_and_clears_it_with_the_turn() {
     for (phase, expected) in [
         (Activity::Transcribing, AssistantActivity::Transcribing),
         (Activity::Thinking, AssistantActivity::Thinking),
@@ -70,7 +70,7 @@ fn a1_projects_each_active_phase_and_clears_it_with_the_turn() {
 }
 
 #[test]
-fn a2_projects_voice_transcript_and_audio_availability() {
+fn projects_voice_transcript_and_audio_availability() {
     let mut value = assistant_topic::assistant_value();
     value.turn = Some(Box::new(Turn {
         user: Message {
@@ -112,7 +112,7 @@ fn a2_projects_voice_transcript_and_audio_availability() {
 }
 
 #[test]
-fn a3_projects_real_call_content_and_typed_voice_absence() {
+fn projects_real_call_content_and_typed_voice_absence() {
     let mut value = assistant_topic::assistant_value();
     value.call = Knowledge::Present {
         value: Some(CallState {

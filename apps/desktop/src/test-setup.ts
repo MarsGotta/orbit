@@ -3,7 +3,7 @@ import { afterEach, beforeEach } from "vitest";
 import { QUERY_BUDGET_MS } from "./test-budgets";
 import { TEST_NOW_MS } from "./test-clock";
 
-// REF-08: a query waits for what it asks about for as long as a loaded machine
+// A query waits for what it asks about for as long as a loaded machine
 // takes to render it, which is more than Testing Library's default second.
 // The number and the measurement it comes from are in `test-budgets.ts`.
 configure({ asyncUtilTimeout: QUERY_BUDGET_MS });
@@ -20,7 +20,7 @@ configure({ asyncUtilTimeout: QUERY_BUDGET_MS });
 // `ReferenceError: window is not defined` with all 51 files reported passing.
 afterEach(cleanup);
 
-// APP-23: the unit suite reads a clock that does not move.
+// The unit suite reads a clock that does not move.
 //
 // Only the *reading* of the present instant is pinned: `setTimeout` and
 // `setInterval` keep running for real, so user-event, React effects and the
@@ -50,7 +50,7 @@ function pinDate(): void {
 pinDate();
 beforeEach(pinDate);
 
-// P9-04: the note editor (ProseMirror) measures the selection to scroll it
+// The note editor (ProseMirror) measures the selection to scroll it
 // into view when it takes the focus. jsdom lays nothing out and has no
 // `Range.getClientRects`; WebKit has. An empty layout is what jsdom would
 // report for everything else, so the editor sees nothing to scroll.

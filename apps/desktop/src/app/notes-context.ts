@@ -10,7 +10,7 @@ function rowLine(note: NoteListItem): { subtitle: string; tone: RowTone } {
   return { subtitle: state.text, tone: state.tone };
 }
 
-/** The notes list beside the open note (P9-04): by day, each with its line. */
+/** The notes list beside the open note: by day, each with its line. */
 export function notesData(snapshot?: AppSnapshot, send?: Send): ContextPanelData {
   const notes = snapshot?.notes;
   if (notes) {

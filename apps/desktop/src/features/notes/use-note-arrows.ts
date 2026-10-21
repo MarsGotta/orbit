@@ -28,7 +28,7 @@ function isTyping(target: EventTarget | null): boolean {
   );
 }
 
-/** ↑ / ↓ move between notes, never while Mars is typing or in a menu. */
+/** ↑ / ↓ move between notes, never while the user is typing or in a menu. */
 export function useNoteArrows(
   list: NoteListItem[],
   currentId: string,

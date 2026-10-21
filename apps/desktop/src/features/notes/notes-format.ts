@@ -39,7 +39,7 @@ export function formatDate(value: number): string {
   }).format(value);
 }
 
-/** The list's day groups, in order, with their names (P9-04). */
+/** The list's day groups, in order, with their names. */
 export const DAY_GROUPS: Array<[NoteDayGroup, string]> = [
   ["today", es.notes.today],
   ["yesterday", es.notes.yesterday],
@@ -58,7 +58,7 @@ export function groupFor(note: NoteListItem): NoteDayGroup {
   return "before";
 }
 
-/** Who speaks in a turn: the name the hub gave its speaker (SIM-40). */
+/** Who speaks in a turn: the name the hub gave its speaker. */
 export function speakerName(note: OpenNoteSnapshot, turn: NoteTurnSnapshot): string {
   return (
     note.speakers.find((speaker) => speaker.key === turn.speaker_key)?.name ?? turn.speaker_key

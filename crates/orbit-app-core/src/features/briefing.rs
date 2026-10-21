@@ -100,7 +100,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
             None
         }
     });
-    // SIM-41: the notes list is the hub's, read by the client into the
+    // The notes list is the hub's, read by the client into the
     // local snapshot (`client::notes`).
     let notes_list = input.local.notes.as_ref().and_then(|notes| {
         notes
@@ -426,7 +426,7 @@ mod tests {
         }))?;
         topics.observe_at(
             TopicFrame {
-                epoch: "ref214-status".into(),
+                epoch: "briefing-status".into(),
                 revision: 1,
                 data: TopicData::Status(Knowledge::Present {
                     value,
@@ -457,7 +457,7 @@ mod tests {
         paired_status(&mut topics, now)?;
         topics.observe_at(
             TopicFrame {
-                epoch: "ref214-round2".into(),
+                epoch: "briefing-second".into(),
                 revision: 1,
                 data: TopicData::Agenda(Knowledge::Present {
                     value: Value {
@@ -502,8 +502,7 @@ mod tests {
     }
 
     #[test]
-    fn ref214_round2_other_week_is_unknown_with_window_dates()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn other_week_is_unknown_with_window_dates() -> Result<(), Box<dyn std::error::Error>> {
         let now = 1_790_593_200_000_i64;
         let start = now + 7 * 86_400_000;
         let end = start + 7 * 86_400_000;
@@ -520,8 +519,7 @@ mod tests {
     }
 
     #[test]
-    fn ref214_round2_present_head_does_not_make_unread_page_present()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn present_head_does_not_make_unread_page_present() -> Result<(), Box<dyn std::error::Error>> {
         let now = 1_790_593_200_000_i64;
         let today_start = now.div_euclid(86_400_000) * 86_400_000;
         let today_end = today_start + 86_400_000;
@@ -570,8 +568,7 @@ mod tests {
     }
 
     #[test]
-    fn ref214_round2_missing_zone_is_visible_instead_of_utc()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn missing_zone_is_visible_instead_of_utc() -> Result<(), Box<dyn std::error::Error>> {
         let now = 1_790_593_200_000_i64;
         let start = now.div_euclid(86_400_000) * 86_400_000;
         let (mut snapshot, topics) = agenda_fixture(now, start, start + 86_400_000, true)?;
@@ -594,14 +591,13 @@ mod tests {
     }
 
     #[test]
-    fn ref214_round2_missing_zone_does_not_hide_calendar_refusal()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn missing_zone_does_not_hide_calendar_refusal() -> Result<(), Box<dyn std::error::Error>> {
         let mut snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         snapshot.notes = None;
         let mut topics = TopicCache::default();
         topics.observe_at(
             TopicFrame {
-                epoch: "ref214-round2".into(),
+                epoch: "briefing-second".into(),
                 revision: 1,
                 data: TopicData::Agenda(Knowledge::Absent {
                     refusal: orbit_core::refusal::Refusal::PermissionDenied {
@@ -620,7 +616,7 @@ mod tests {
     }
 
     #[test]
-    fn ref214_a1_briefing_does_not_reuse_legacy_facts_when_agenda_is_unknown()
+    fn briefing_does_not_reuse_legacy_facts_when_agenda_is_unknown()
     -> Result<(), Box<dyn std::error::Error>> {
         let mut snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         snapshot.briefing = project(&FeatureInput::new(&snapshot, &TopicCache::default()));
@@ -630,7 +626,7 @@ mod tests {
         let mut topics = TopicCache::default();
         topics.observe_at(
             TopicFrame {
-                epoch: "ref214".into(),
+                epoch: "briefing".into(),
                 revision: 1,
                 data: TopicData::not_observed(TopicId::Agenda),
             },
@@ -644,7 +640,7 @@ mod tests {
     }
 
     #[test]
-    fn ref214_a3_next_meeting_comes_from_paged_agenda_four_hours_ahead()
+    fn next_meeting_comes_from_paged_agenda_four_hours_ahead()
     -> Result<(), Box<dyn std::error::Error>> {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
             "../../../../contracts/fixtures/calendar-local-read-v1.json"
@@ -669,7 +665,7 @@ mod tests {
         paired_status(&mut topics, now)?;
         topics.observe_at(
             TopicFrame {
-                epoch: "ref214".into(),
+                epoch: "briefing".into(),
                 revision: 1,
                 data: TopicData::Agenda(Knowledge::Present {
                     value: Value {
@@ -733,7 +729,7 @@ mod tests {
         };
         topics.observe_at(
             TopicFrame {
-                epoch: "ref214".into(),
+                epoch: "briefing".into(),
                 revision: 1,
                 data: TopicData::Notes(Knowledge::Present {
                     value: orbit_core::topics::notes::Value::default(),
@@ -774,7 +770,7 @@ mod tests {
         later.calendar.authorization = crate::CalendarAuthorizationSnapshot::Granted;
         later.calendar.reading.state = crate::CalendarReadingState::Available;
         later.calendar.reading.blocker = None;
-        // SIM-41: the notes list lives in the local snapshot; a quiet minute
+        // The notes list lives in the local snapshot; a quiet minute
         // keeps it.
         later.notes.clone_from(&snapshot.notes);
         let frames = crate::features::project_changed(
@@ -926,7 +922,7 @@ mod tests {
     }
 
     #[test]
-    fn ref214_full_agenda_page_debug_measurement() -> Result<(), Box<dyn std::error::Error>> {
+    fn full_agenda_page_debug_measurement() -> Result<(), Box<dyn std::error::Error>> {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
             "../../../../contracts/fixtures/calendar-local-read-v1.json"
         ))?;
@@ -1054,7 +1050,7 @@ mod tests {
         }
         micros.sort_unstable();
         eprintln!(
-            "REF214_PAGE_DEBUG repetitions=30 bytes={actual} ceiling={ceiling} p99_us={} worst_us={}",
+            "BRIEFING_PAGE_DEBUG repetitions=30 bytes={actual} ceiling={ceiling} p99_us={} worst_us={}",
             micros[29], micros[29]
         );
         Ok(())
@@ -1119,7 +1115,7 @@ mod tests {
             current.title = "Comité 2026-10-19".into();
             topics.observe_at(
                 TopicFrame {
-                    epoch: "ref214-round2".into(),
+                    epoch: "briefing-second".into(),
                     revision: index as u64 + 1,
                     data: TopicData::Recording(Knowledge::Present {
                         value: orbit_core::topics::recording::Value {
@@ -1176,7 +1172,7 @@ mod tests {
         // a recording topic that is still stale cannot answer yes or no.
         topics.observe_at(
             TopicFrame {
-                epoch: "ref214-round2".into(),
+                epoch: "briefing-second".into(),
                 revision: agenda.revision,
                 data: agenda.knowledge,
             },

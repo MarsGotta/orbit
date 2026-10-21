@@ -1,4 +1,4 @@
-/* P9-20: a calendar's color as two variables every card, bar and row reads:
+/* A calendar's color as two variables every card, bar and row reads:
    the solid stripe and the soft fill. Only Orbit's tokens. */
 .accent {
   --event-color: var(--o-accent);

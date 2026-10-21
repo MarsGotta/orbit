@@ -3,7 +3,7 @@ import type { AppCommand } from "../../bridge/generated";
 import type { BriefingSnapshot } from "../../bridge/generated/BriefingSnapshot";
 
 /**
- * What the Briefing asks for when it opens (P9-20): the Briefing is about
+ * What the Briefing asks for when it opens: the Briefing is about
  * today. When the agenda read does not hold today (the calendar was left on a far period, or the day changed), it asks
  * app-core to read today again, which returns to today in the same view when
  * it has to. «agenda_window_excludes_today» is then only a passing state.

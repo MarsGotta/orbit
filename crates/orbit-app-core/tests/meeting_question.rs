@@ -1,4 +1,4 @@
-//! P9-12: what the app receives about a question to Deimos during the
+//! What the app receives about a question to Deimos during the
 //! meeting — the question and its answer joined from the conversation, the
 //! button's windows from orbit-core, the detector's state — and the orders
 //! the pill and the panel send.
@@ -26,7 +26,7 @@ fn recording_head(
     trigger: Option<VoiceStatus>,
 ) -> TopicFrame {
     TopicFrame {
-        epoch: "p9_12".into(),
+        epoch: "meeting-question".into(),
         revision: 1,
         data: TopicData::Recording(Knowledge::Present {
             value: orbit_core::topics::recording::Value {
@@ -68,7 +68,7 @@ fn assistant(turn: serde_json::Value) -> TopicFrame {
     }))
     .expect("typed assistant fixture");
     TopicFrame {
-        epoch: "p9_12".into(),
+        epoch: "meeting-question".into(),
         revision: 1,
         data: TopicData::Assistant(Knowledge::Present {
             value,
@@ -98,7 +98,7 @@ fn view(frames: Vec<TopicFrame>) -> orbit_app_core::MeetingSnapshot {
 }
 
 #[test]
-fn p9_12_the_panel_says_deimos_is_thinking_then_shows_the_answer_as_it_arrives() {
+fn the_panel_says_deimos_is_thinking_then_shows_the_answer_as_it_arrives() {
     let thinking = view(vec![recording_head(
         CapturePhase::Recording,
         Some(asked()),
@@ -151,7 +151,7 @@ fn p9_12_the_panel_says_deimos_is_thinking_then_shows_the_answer_as_it_arrives()
 }
 
 #[test]
-fn p9_12_a_failure_reaches_the_app_with_its_cause_and_numbers() {
+fn a_failure_reaches_the_app_with_its_cause_and_numbers() {
     let refused = MeetingQuestion::refused(
         "turn-2".into(),
         Some("recording-1".into()),
@@ -181,7 +181,7 @@ fn p9_12_a_failure_reaches_the_app_with_its_cause_and_numbers() {
 }
 
 #[test]
-fn p9_12_the_button_offers_core_windows_only_while_recording() {
+fn the_button_offers_core_windows_only_while_recording() {
     let recording_now = view(vec![recording_head(CapturePhase::Recording, None, None)]);
     let ask = recording_now
         .ask
@@ -206,7 +206,7 @@ fn p9_12_the_button_offers_core_windows_only_while_recording() {
 }
 
 #[test]
-fn p9_12_r2_the_voice_status_reaches_the_app_and_its_absence_says_nothing() {
+fn the_voice_status_reaches_the_app_and_its_absence_says_nothing() {
     let meeting = view(vec![recording_head(
         CapturePhase::Recording,
         None,
@@ -237,9 +237,9 @@ fn p9_12_r2_the_voice_status_reaches_the_app_and_its_absence_says_nothing() {
     assert_eq!(unknown.voice_trigger, None);
 }
 
-/// R5: the app knows whether the question ever reached Deimos.
+/// The app knows whether the question ever reached Deimos.
 #[test]
-fn p9_12_r5_the_app_knows_whether_the_question_reached_deimos() {
+fn the_app_knows_whether_the_question_reached_deimos() {
     let refused = MeetingQuestion::refused(
         "turn-3".into(),
         None,

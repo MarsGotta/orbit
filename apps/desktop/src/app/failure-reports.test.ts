@@ -8,7 +8,7 @@ import { openPanelLink } from "../features/call-panel/panel-links";
 import { es } from "../i18n/es";
 import { reportingReads } from "./report-failure";
 
-// SIM-24: a cause taken off the screen still lands in the local report log,
+// A cause taken off the screen still lands in the local report log,
 // with a typed code and closed data, never text. «Ningún fallo silencioso».
 
 const TOKEN = /^[a-z0-9_.-]{1,64}$/;
@@ -47,7 +47,7 @@ function only(reports: ReturnType<typeof stateFailures>) {
   return reports[0]!;
 }
 
-describe("SIM-24 the connection that failed is reported", () => {
+describe("the connection that failed is reported", () => {
   it("without a refusal: connect_failed, from the interface, no text", async () => {
     const { port, report } = fakePort();
     await createOrbitStore(port).getState().connect();
@@ -68,7 +68,7 @@ describe("SIM-24 the connection that failed is reported", () => {
   });
 });
 
-describe("SIM-24 each failure the screen no longer explains is reported", () => {
+describe("each failure the screen no longer explains is reported", () => {
   it("a note read that failed", () => {
     const failure = only(
       stateFailures(
@@ -113,8 +113,9 @@ describe("SIM-24 each failure the screen no longer explains is reported", () => 
     expect(failure.code).toBe("transcript_read_failed");
   });
 
-  // SIM-25 run 20: before pairing, the hub out of reach was logged as two
-  // failures. Without the hub, notes and templates are unknown, not failed.
+  // A run of the real test on the Mac found that, before pairing, the hub out
+  // of reach was logged as two failures. Without the hub, notes and templates
+  // are unknown, not failed.
   it("nothing when the notes and the templates need the hub", () => {
     expect(
       stateFailures(
@@ -285,7 +286,7 @@ describe("SIM-24 each failure the screen no longer explains is reported", () => 
   });
 });
 
-describe("SIM-24 a failure is reported when it appears, once", () => {
+describe("a failure is reported when it appears, once", () => {
   it("not again while it stays, again when it comes back", () => {
     const watch = watchFailures();
     const failing = view({ notes: { index: { state: "failed" } } });
@@ -364,7 +365,7 @@ describe("SIM-24 a failure is reported when it appears, once", () => {
   });
 });
 
-describe("SIM-24 reads and the panel's links report their refusals", () => {
+describe("reads and the panel's links report their refusals", () => {
   it("a read the daemon refused is reported with the refusal's code", async () => {
     const { port, report } = fakePort({
       readSessionsPage: () =>

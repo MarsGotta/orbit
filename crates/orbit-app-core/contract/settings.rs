@@ -1,7 +1,7 @@
 use super::*;
 
 app_type! {
-    /// REF-10 A4: how many calendars the Mac has, from its last listing. There
+    /// How many calendars the Mac has, from its last listing. There
     /// is nothing to select, so there is no «selected» beside it. `None` means
     /// not known yet — the helper has not listed them — and never «0».
     pub struct CalendarSettingsSnapshot {
@@ -106,7 +106,7 @@ app_type! {
         pub onboarding_done: bool,
         #[ts(optional)]
         pub profile: Option<ProfileSettingsSnapshot>,
-        /// SIM-23 «Enviar informes de errores anónimos»: her choice, absent
+        /// «Enviar informes de errores anónimos»: the user's choice, absent
         /// when this build cannot send (no switch is offered) or the daemon
         /// has not said yet.
         #[serde(default, skip_serializing_if = "Option::is_none")]

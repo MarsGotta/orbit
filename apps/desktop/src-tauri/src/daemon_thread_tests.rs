@@ -1,4 +1,4 @@
-//! SIM-51, on Linux and on the Mac: the real daemon on its thread inside this
+//! On Linux and on the Mac: the real daemon on its thread inside this
 //! test process, in development mode over an isolated directory, with no
 //! helper and no Keychain. What only an installed bundle can say (the
 //! Keychain prompt, TCC) is not here.
@@ -49,8 +49,7 @@ pub(crate) async fn recovered(daemon: &EmbeddedDaemon) -> Result<(), Box<dyn Err
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn sim51_a1_the_daemon_answers_status_from_its_thread_in_this_process()
--> Result<(), Box<dyn Error>> {
+async fn the_daemon_answers_status_from_its_thread_in_this_process() -> Result<(), Box<dyn Error>> {
     let (_directory, paths) = isolated()?;
     let daemon = started(&paths).await?;
     // `request_command` fails on a refusal: an answer here is an accepted one.
@@ -75,7 +74,7 @@ async fn sim51_a1_the_daemon_answers_status_from_its_thread_in_this_process()
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn sim51_a1_a_second_start_is_refused_with_its_cause() -> Result<(), Box<dyn Error>> {
+async fn a_second_start_is_refused_with_its_cause() -> Result<(), Box<dyn Error>> {
     let (_directory, paths) = isolated()?;
     let first = started(&paths).await?;
     let Err(refusal) = EmbeddedDaemon::start(paths.clone(), Launch::development()).await else {
@@ -110,8 +109,8 @@ async fn sim51_a1_a_second_start_is_refused_with_its_cause() -> Result<(), Box<d
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn sim51_a2_quitting_twice_asks_once_and_both_see_the_thread_end_in_time()
--> Result<(), Box<dyn Error>> {
+async fn quitting_twice_asks_once_and_both_see_the_thread_end_in_time() -> Result<(), Box<dyn Error>>
+{
     let (_directory, paths) = isolated()?;
     let daemon = started(&paths).await?;
     let started_at = Instant::now();
@@ -133,7 +132,7 @@ async fn sim51_a2_quitting_twice_asks_once_and_both_see_the_thread_end_in_time()
 }
 
 #[test]
-fn sim51_the_launch_follows_the_executable() -> Result<(), Box<dyn Error>> {
+fn the_launch_follows_the_executable() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let bundle = directory.path().join(orbit_bundle::NAME);
     let app = orbit_bundle::member_path(&bundle, Member::App).ok_or("app route")?;

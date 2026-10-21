@@ -14,7 +14,7 @@ function placeholder(title: string, target?: Target): CalendarEvent {
 }
 
 /**
- * How an undo is drawn while it is on its way (P9-22), from the events on
+ * How an undo is drawn while it is on its way, from the events on
  * screen: a recreated event appears where it was, a created one disappears,
  * a moved or edited one goes back to how it was read.
  */

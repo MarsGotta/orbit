@@ -1,12 +1,11 @@
 //! The agenda the app shows: the visible range, read from every calendar.
 //!
-//! REF-10: the macOS permission is the only decision. There is no selection to
+//! The macOS permission is the only decision. There is no selection to
 //! restore, nothing to list first and no copy to share, renew or withdraw: the
 //! daemon lists the calendars by itself when it learns the permission, and a
 //! read of the range covers all of them. What is left here is which period is
-//! on screen (P9-20: a day, N days, a week, a month or the agenda) and, from
-//! REF-04, the present the projection is made for: the instant and Mars's
-//! zone, as values.
+//! on screen (a day, N days, a week, a month or the agenda) and the present
+//! the projection is made for: the instant and the user's zone, as values.
 use crate::{
     AppSnapshot, CalendarRangeSnapshot, CalendarViewKind, CalendarWeekStart, local_time::LocalZone,
     system_zone::SystemZone,
@@ -23,7 +22,7 @@ pub(crate) const AGENDA_REQUEST_FAILED_PREFIX: &str = "agenda_request_failed:";
 /// read on. Both reach the projection as values; a test pins them.
 pub trait CalendarClock: Send + Sync {
     fn now_ms(&self) -> i64;
-    /// Mars's time zone around `now_ms`: what "hoy" and «10:00» are read in.
+    /// The user's time zone around `now_ms`: what "hoy" and «10:00» are read in.
     fn local_zone(&self, now_ms: i64) -> LocalZone;
     fn timezone_name(&self) -> Result<String, String>;
 
@@ -86,8 +85,8 @@ impl CalendarClock for SystemCalendarClock {
     }
 }
 
-/// What the calendar was asked to show, before Mars's zone turns it into
-/// instants (P9-20). `days` is read only for [`CalendarViewKind::Days`].
+/// What the calendar was asked to show, before the user's zone turns it into
+/// instants. `days` is read only for [`CalendarViewKind::Days`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RangeRequest {
     pub view: CalendarViewKind,
@@ -111,8 +110,7 @@ impl RangeRequest {
 /// The widest grid of N days; registered with its purpose in orbit-core.
 pub use orbit_core::calendar::MAX_GRID_DAYS;
 
-/// How far the agenda list reaches either side of its day (P9-20,
-/// ±31 days): 63 days on screen, read in three daemon windows.
+/// How far the agenda list reaches either side of its day (±31 days): 63 days on screen, read in three daemon windows.
 pub const AGENDA_REACH_DAYS: i64 = 31;
 
 /// The widest read that still stretches the visible range to cover today.
@@ -138,9 +136,9 @@ pub fn validate_range(request: &RangeRequest) -> Result<(), String> {
     Ok(())
 }
 
-/// The period the calendar shows for `request`, in `zone` (P9-20).
+/// The period the calendar shows for `request`, in `zone`.
 ///
-/// Every edge is a local midnight (REF-40): a day is 23, 24 or 25 hours long,
+/// Every edge is a local midnight: a day is 23, 24 or 25 hours long,
 /// so nothing here adds a fixed number of milliseconds.
 pub fn visible_range(request: &RangeRequest, zone: &LocalZone) -> CalendarRangeSnapshot {
     let day = zone.day(request.anchor_ms);
@@ -176,7 +174,7 @@ pub fn visible_range(request: &RangeRequest, zone: &LocalZone) -> CalendarRangeS
 }
 
 /// What to ask the daemon for: the visible range, widened to cover today
-/// unless that would read more than [`TODAY_REACH_DAYS`] (P9-20).
+/// unless that would read more than [`TODAY_REACH_DAYS`].
 pub fn read_window(range: &CalendarRangeSnapshot, now_ms: i64, zone: &LocalZone) -> (i64, i64) {
     let today = zone.day(now_ms);
     let first = zone.day(range.start_ms).min(today);
@@ -187,13 +185,13 @@ pub fn read_window(range: &CalendarRangeSnapshot, now_ms: i64, zone: &LocalZone)
     (zone.start_of_day(first), zone.start_of_day(last_exclusive))
 }
 
-/// Whether `window` holds the whole local day of `now_ms` (P9-20).
+/// Whether `window` holds the whole local day of `now_ms`.
 pub fn covers_today(window: (i64, i64), now_ms: i64, zone: &LocalZone) -> bool {
     let day = zone.day(now_ms);
     window.0 <= zone.start_of_day(day) && window.1 >= zone.start_of_day(day.saturating_add(1))
 }
 
-/// What to do about today for the read on record (P9-20, the Briefing's day).
+/// What to do about today for the read on record (the Briefing's day).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TodayRead {
     /// The read holds today: nothing to do.
@@ -281,8 +279,8 @@ pub(crate) struct CalendarCoordinator {
 }
 
 impl CalendarCoordinator {
-    /// P9-20: the calendar opens on this week, beginning on Monday; the
-    /// interface asks for another view, or Sunday, when Mars chose one.
+    /// The calendar opens on this week, beginning on Monday; the
+    /// interface asks for another view, or Sunday, when the user chose one.
     pub(crate) fn new(clock: Arc<dyn CalendarClock>) -> Self {
         let now_ms = clock.now_ms();
         Self {
@@ -295,13 +293,13 @@ impl CalendarCoordinator {
         self.clock.now_ms()
     }
 
-    /// The present a projection is made for: the instant and Mars's zone.
+    /// The present a projection is made for: the instant and the user's zone.
     pub(crate) fn local_now(&self) -> (i64, LocalZone) {
         let now_ms = self.clock.now_ms();
         (now_ms, self.clock.local_zone(now_ms))
     }
 
-    /// P9-20 (after REF-40 A2): the interface asks for any instant of the
+    /// The interface asks for any instant of the
     /// period to show; the period itself is decided here, in the injected
     /// zone, so stepping across a daylight-saving change cannot land an hour
     /// off the midnight it means.
@@ -399,10 +397,10 @@ mod tests {
         );
     }
 
-    /// P9-20: with nothing chosen the calendar opens on this week, from
+    /// With nothing chosen the calendar opens on this week, from
     /// Monday (Tuesday 15 September 2026 → Monday the 14th, UTC).
     #[test]
-    fn p9_20_the_calendar_opens_on_this_week_from_monday() {
+    fn the_calendar_opens_on_this_week_from_monday() {
         let state = CalendarCoordinator::new(Arc::new(FixedClock(1_789_469_100_000)));
         assert_eq!(
             (state.range().start_ms, state.range().end_ms),
@@ -488,10 +486,10 @@ mod tests {
         }
     }
 
-    /// REF-10 A1: a granted agenda head proves the macOS permission. With no
+    /// A granted agenda head proves the macOS permission. With no
     /// status head the bridge capability remains unknown, never available.
     #[test]
-    fn ref10_a1_a_granted_topic_is_known_and_an_unknown_one_waits() {
+    fn a_granted_topic_is_known_and_an_unknown_one_waits() {
         use orbit_core::topics::{Knowledge, Pending};
         let snapshot = crate::AppSnapshot::default();
         let mut topics = crate::topics::TopicCache::default();
@@ -573,8 +571,8 @@ mod tests {
         }));
     }
 
-    /// A clock pinned to one instant in a zone written out by hand, the way
-    /// REF-40 pins Mars's: the zone reaches the decision as a value.
+    /// A clock pinned to one instant in a zone written out by hand: the zone
+    /// reaches the decision as a value.
     struct ZonedClock {
         now_ms: i64,
         zone: LocalZone,
@@ -585,7 +583,7 @@ mod tests {
             Self { now_ms, zone }
         }
 
-        /// REF-40 pinned Sunday weeks; P9-20 keeps them as Mars's choice.
+        /// Sunday weeks, one of the two choices the user has.
         fn coordinator(now_ms: i64, zone: LocalZone) -> CalendarCoordinator {
             let mut coordinator = CalendarCoordinator::new(Arc::new(Self::at(now_ms, zone)));
             sunday_week(&mut coordinator, now_ms);
@@ -678,13 +676,13 @@ mod tests {
         )
     }
 
-    /// REF-40 A1: an event on Sunday at 00:30 in Madrid was in no week at all.
+    /// An event on Sunday at 00:30 in Madrid was in no week at all.
     ///
     /// The window was cut in UTC, where that Sunday begins at 02:00 Madrid
     /// time, so the first two local hours of every Sunday were before the
     /// week the app asked to read. The zone is the clock's own, injected.
     #[test]
-    fn ref40_a1_a_madrid_sunday_half_past_midnight_is_inside_the_week() {
+    fn a_madrid_sunday_half_past_midnight_is_inside_the_week() {
         // Sunday 20 September 2026, noon in Madrid (CEST, +2): the week on
         // screen has to have begun at 00:00 Madrid (Saturday 22:00 UTC) for
         // the 00:30 event (Saturday 22:30 UTC) to be in it.
@@ -698,11 +696,11 @@ mod tests {
         );
     }
 
-    /// REF-40 A2: Madrid, through both daylight-saving changes. A local week
+    /// Madrid, through both daylight-saving changes. A local week
     /// is 167, 168 or 169 hours long; a fixed seven days cuts the last hour
     /// of the Saturday of the week the clocks go back.
     #[test]
-    fn ref40_a2_madrid_weeks_run_from_midnight_to_midnight_across_both_changes() {
+    fn madrid_weeks_run_from_midnight_to_midnight_across_both_changes() {
         let mut coordinator = ZonedClock::coordinator(1_789_905_600_000, madrid_2026());
         // The week the clocks go back (25 October 2026): 25 hours of Sunday,
         // 169 hours of week, ending at next Sunday's midnight, not an hour
@@ -725,10 +723,10 @@ mod tests {
         );
     }
 
-    /// REF-40 A2: a zone west of UTC. Cut in UTC, the week began at 20:00 of
+    /// A zone west of UTC. Cut in UTC, the week began at 20:00 of
     /// the Saturday before, in New York.
     #[test]
-    fn ref40_a2_a_new_york_sunday_begins_at_midnight_new_york() {
+    fn a_new_york_sunday_begins_at_midnight_new_york() {
         // Sunday 4 October 2026, 01:00 in New York (EDT, −4): the week began
         // at 00:00 New York (04:00 UTC), not at 00:00 UTC, which is still
         // Saturday evening there.
@@ -740,11 +738,11 @@ mod tests {
         );
     }
 
-    /// REF-40 A2: the interface steps whole weeks from the week it sees,
+    /// The interface steps whole weeks from the week it sees,
     /// which across a daylight-saving change lands an hour off the Sunday it
     /// means. The week asked for is the one the instant belongs to.
     #[test]
-    fn ref40_a2_an_instant_an_hour_into_the_week_still_means_that_week() {
+    fn an_instant_an_hour_into_the_week_still_means_that_week() {
         let mut coordinator = ZonedClock::coordinator(1_791_090_000_000, new_york_2026());
         sunday_week(&mut coordinator, 1_791_086_400_000 + 7 * DAY_MS + 3_600_000);
         assert_eq!(
@@ -755,7 +753,7 @@ mod tests {
     }
 
     #[test]
-    fn ref40_a2_week_navigation_and_snapshots_read_the_zone_around_now() {
+    fn week_navigation_and_snapshots_read_the_zone_around_now() {
         let now_ms = 1_789_905_600_000;
         let clock = Arc::new(RecordingZoneClock {
             now_ms,
@@ -787,7 +785,7 @@ mod tests {
         );
     }
 
-    // ------------------------------------------------------------ P9-20
+    // ------------------------------------------------------ views and reach
 
     const DAY_MS: i64 = 86_400_000;
     /// Wednesday 14 October 2026, 10:00 UTC (12:00 in Madrid, CEST).
@@ -807,7 +805,7 @@ mod tests {
     }
 
     #[test]
-    fn p9_20_a7_day_and_n_days_begin_on_the_day_asked_for() {
+    fn day_and_n_days_begin_on_the_day_asked_for() {
         let utc = LocalZone::utc();
         let midnight = OCTOBER_14 - 10 * 3_600_000;
         let day = visible_range(&request(CalendarViewKind::Day, OCTOBER_14, 9), &utc);
@@ -824,7 +822,7 @@ mod tests {
     }
 
     #[test]
-    fn p9_20_a7_a_week_begins_on_monday_or_on_sunday() {
+    fn a_week_begins_on_monday_or_on_sunday() {
         let utc = LocalZone::utc();
         let monday = OCTOBER_14 - 10 * 3_600_000 - 2 * DAY_MS;
         let week = visible_range(&request(CalendarViewKind::Week, OCTOBER_14, 0), &utc);
@@ -840,7 +838,7 @@ mod tests {
     }
 
     #[test]
-    fn p9_20_a7_a_month_is_its_weeks_whole() {
+    fn a_month_is_its_weeks_whole() {
         let utc = LocalZone::utc();
         // October 2026 begins on a Thursday and ends on a Saturday: from
         // Monday 28 September to Sunday 1 November, five weeks.
@@ -872,7 +870,7 @@ mod tests {
     }
 
     #[test]
-    fn p9_20_a7_a_madrid_month_ends_at_the_cet_midnight_after_the_change() {
+    fn a_madrid_month_ends_at_the_cet_midnight_after_the_change() {
         // October 2026 in Madrid: the clocks go back on Sunday the 25th, so
         // the month's weeks end at 00:00 CET on Monday 2 November.
         let october = visible_range(
@@ -888,7 +886,7 @@ mod tests {
     }
 
     #[test]
-    fn p9_20_a7_the_agenda_reaches_31_days_either_side() {
+    fn the_agenda_reaches_31_days_either_side() {
         let utc = LocalZone::utc();
         let midnight = OCTOBER_14 - 10 * 3_600_000;
         let agenda = visible_range(&request(CalendarViewKind::Agenda, OCTOBER_14, 0), &utc);
@@ -899,7 +897,7 @@ mod tests {
     }
 
     #[test]
-    fn p9_20_a7_the_read_covers_today_unless_it_is_too_far() {
+    fn the_read_covers_today_unless_it_is_too_far() {
         let utc = LocalZone::utc();
         let midnight = OCTOBER_14 - 10 * 3_600_000;
         // November's weeks (26 October – 6 December) widened back to today.
@@ -951,7 +949,7 @@ mod tests {
     }
 
     #[test]
-    fn p9_20_a7_a_grid_wider_than_fourteen_days_is_refused_with_its_numbers() {
+    fn a_grid_wider_than_fourteen_days_is_refused_with_its_numbers() {
         let mut coordinator = CalendarCoordinator::new(Arc::new(FixedClock(OCTOBER_14)));
         for days in [0, 15] {
             let refused = coordinator.set_range(request(CalendarViewKind::Days, OCTOBER_14, days));
@@ -973,7 +971,7 @@ mod tests {
     }
 
     #[test]
-    fn p9_20_3a_after_local_midnight_the_week_is_read_again_to_hold_the_new_day() {
+    fn after_local_midnight_the_week_is_read_again_to_hold_the_new_day() {
         // Sunday 20 September 2026, 23:30 UTC: the Monday week ends at midnight.
         let sunday_night = 1_789_947_000_000;
         let clock = Arc::new(AdjustableClock(AtomicI64::new(sunday_night)));
@@ -994,7 +992,7 @@ mod tests {
     }
 
     #[test]
-    fn p9_20_3b_a_range_beyond_reach_returns_to_today_in_the_same_view() {
+    fn a_range_beyond_reach_returns_to_today_in_the_same_view() {
         let clock = Arc::new(AdjustableClock(AtomicI64::new(OCTOBER_14)));
         let mut coordinator = CalendarCoordinator::new(clock);
         let far = OCTOBER_14 + 200 * DAY_MS;

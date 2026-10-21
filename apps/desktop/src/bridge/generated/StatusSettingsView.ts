@@ -5,6 +5,6 @@ import type { VersionSettingsSnapshot } from "./VersionSettingsSnapshot";
 
 export type StatusSettingsView = { assistant_name?: string, hub: SettingsHubSnapshot, helper_connected: boolean, calendars: CalendarSettingsSnapshot, versions: VersionSettingsSnapshot, privacy_stopped: boolean, 
 /**
- * SIM-23: the error-report switch, when this build offers it.
+ * The error-report switch, when this build offers it.
  */
 error_reports?: boolean, };

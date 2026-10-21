@@ -10,10 +10,10 @@ import type { NoteTemplateLinkSnapshot } from "./NoteTemplateLinkSnapshot";
 import type { NoteTemplateRestoreSnapshot } from "./NoteTemplateRestoreSnapshot";
 
 /**
- * P9-05: templates, assignments and refusals.
+ * Templates, assignments and refusals.
  */
 export type NoteLibrarySnapshot = { dictionaries?: NoteLibraryListSnapshot, dictionary_items: Array<DictionarySnapshot>, dictionary_pending: Array<string>, dictionary_failures: Array<DictionaryFailure>, read: NoteLibraryReadState, read_detail: string | null, templates: NoteLibraryListSnapshot, items: Array<NoteTemplateDetailSnapshot>, links: NoteLibraryListSnapshot, assignments: Array<NoteTemplateLinkSnapshot>, refusals: Array<NoteLibraryRefusalSnapshot>, 
 /**
- * P9-14: the undos the hub took, newest last, by request.
+ * The undos the hub took, newest last, by request.
  */
 restores: Array<NoteTemplateRestoreSnapshot>, bounds: NoteTemplateBoundsSnapshot, };

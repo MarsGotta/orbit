@@ -142,7 +142,7 @@
   }
 }
 
-/* P9-04: a note's line says it is recording, being worked on or failed. */
+/* A note's line says it is recording, being worked on or failed. */
 .copy small[data-tone="live"],
 .copy small[data-tone="failed"] {
   color: var(--o-red);

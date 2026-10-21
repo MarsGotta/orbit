@@ -18,7 +18,7 @@ interface FieldsProps {
   onChange: (form: EventForm) => void;
 }
 
-/** Place, notes, calendar, reminders and availability (P9-22). */
+/** Place, notes, calendar, reminders and availability. */
 export function PanelFields(props: FieldsProps) {
   const { form, onChange } = props;
   return (

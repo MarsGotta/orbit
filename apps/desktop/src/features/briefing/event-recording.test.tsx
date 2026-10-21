@@ -39,7 +39,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it("Hoy y Calendario envían la misma orden para un evento empezado hace veinte minutos", () => {
+it("Hoy and Calendario send the same order for an event that began twenty minutes ago", () => {
   const fromToday = vi.fn<(command: AppCommand) => void>();
   const fromCalendar = vi.fn<(command: AppCommand) => Promise<void>>().mockResolvedValue();
   const calendar = { events: [event] } as CalendarSnapshot;
@@ -63,12 +63,12 @@ it("Hoy y Calendario envían la misma orden para un evento empezado hace veinte 
   });
 });
 
-it("el calendario reconoce el estado de grabación proyectado por app-core", () => {
+it("the calendar recognises the recording state app-core projects", () => {
   const projected = { ...event, recording: "recording" as const };
   expect(eventLook(projected, now).recording).toBe(true);
 });
 
-it("el evento abierto conserva su referencia al llegar otra lectura", () => {
+it("the open event keeps its reference when another read arrives", () => {
   const send = vi.fn<(command: AppCommand) => Promise<void>>().mockResolvedValue();
   const calendar = { events: [event] } as CalendarSnapshot;
   const hook = renderHook(({ calendar }) => useCalendarView(calendar, "Europe/Madrid", send), {

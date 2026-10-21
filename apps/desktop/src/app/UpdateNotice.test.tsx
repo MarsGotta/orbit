@@ -14,7 +14,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("avisa de la versión nueva y Actualizar usa la orden existente", () => {
+it("announces the new version and Actualizar uses the existing order", () => {
   const send = vi.fn();
   render(<UpdateNotice update={available} send={send} />);
   expect(screen.getByText("Hay una versión nueva de Orbit (0.9.0)")).toBeTruthy();
@@ -22,7 +22,7 @@ it("avisa de la versión nueva y Actualizar usa la orden existente", () => {
   expect(send).toHaveBeenCalledWith({ command: "update_install" });
 });
 
-it("cerrar se recuerda al reabrir y sólo vuelve con la siguiente versión", () => {
+it("closing it is remembered on reopening, and it only comes back with the next version", () => {
   const view = render(<UpdateNotice update={available} send={vi.fn()} />);
   fireEvent.click(screen.getByRole("button", { name: "Cerrar aviso" }));
   view.unmount();
@@ -32,7 +32,7 @@ it("cerrar se recuerda al reabrir y sólo vuelve con la siguiente versión", () 
   expect(screen.getByText("Hay una versión nueva de Orbit (0.10.0)")).toBeTruthy();
 });
 
-it("explica el bloqueo y espera a que app-core permita instalar", () => {
+it("explains the block and waits for app-core to allow installing", () => {
   const send = vi.fn();
   const view = render(
     <UpdateNotice
@@ -49,14 +49,14 @@ it("explica el bloqueo y espera a que app-core permita instalar", () => {
 });
 
 it.each(["idle", "checking", "up_to_date", "not_newer", "failed", "installing"] as const)(
-  "%s no anuncia versión",
+  "%s announces no version",
   (state) => {
     render(<UpdateNotice update={{ ...available, state }} send={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Actualizar" })).toBeNull();
   },
 );
 
-it("el aviso sigue disponible hasta que Alina lo cierre", () => {
+it("the notice stays available until Alina closes it", () => {
   vi.useFakeTimers();
   render(<UpdateNotice update={available} send={vi.fn()} />);
   act(() => vi.advanceTimersByTime(60_000));

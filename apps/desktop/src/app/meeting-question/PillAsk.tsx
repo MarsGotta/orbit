@@ -6,7 +6,7 @@ import { voiceStatusShort, voiceStatusText } from "./copy";
 import styles from "./MeetingQuestion.module.css";
 
 /**
- * P9-12: «Preguntar a Deimos» under the recording pill. It stays while Mars
+ * «Preguntar a Deimos» under the recording pill. It stays while the user
  * writes, whatever the pointer does, and only while app-core offers it.
  */
 export function PillAsk({
@@ -51,7 +51,7 @@ export function PillAskButton({
 }
 
 /**
- * P9-12: in the pill, whether «Oye Deimos» listens during the recording;
+ * In the pill, whether «Oye Deimos» listens during the recording;
  * the full sentence, with its cause, is its title and its accessible name.
  */
 export function PillVoiceStatus({

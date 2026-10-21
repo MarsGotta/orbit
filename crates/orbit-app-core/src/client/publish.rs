@@ -251,7 +251,7 @@ mod frame_tests {
     }
 
     #[test]
-    fn ref209_a1_topic_projection_cannot_erase_a_completed_note_read() {
+    fn topic_projection_cannot_erase_a_completed_note_read() {
         let mut local = crate::AppSnapshot::default();
         let completed = crate::NoteReadSnapshot {
             recording_id: "11111111-1111-4111-8111-111111111111".into(),
@@ -277,8 +277,8 @@ mod frame_tests {
     }
 
     #[test]
-    fn ref210_recording_topic_change_drains_a_real_feature_frame()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn recording_topic_change_drains_a_real_feature_frame() -> Result<(), Box<dyn std::error::Error>>
+    {
         let initial = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let mut publisher = FramePublisher::new(initial.clone());
         // The subscription is already ready, so this recording frame is not
@@ -331,7 +331,7 @@ mod frame_tests {
     }
 
     #[test]
-    fn a3_topic_receipt_reaches_feature_input_without_changing_today_views() {
+    fn topic_receipt_reaches_feature_input_without_changing_today_views() {
         let initial = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let mut publisher = FramePublisher::new(initial.clone());
         let mut ready = TopicCache::default();
@@ -372,7 +372,7 @@ mod frame_tests {
     }
 
     #[test]
-    fn ref215b_a1_quiet_minute_creates_no_revision() {
+    fn quiet_minute_creates_no_revision() {
         let initial = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let mut clock = LocalClock::from_snapshot(&initial);
         let mut publisher = FramePublisher::with_clock(initial.clone(), &clock);
@@ -384,7 +384,7 @@ mod frame_tests {
     }
 
     #[test]
-    fn a3_local_update_emits_only_local_frame_with_monotonic_revision() {
+    fn local_update_emits_only_local_frame_with_monotonic_revision() {
         let initial = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let mut publisher = FramePublisher::new(initial.clone());
         let mut updated = initial.clone();
@@ -414,7 +414,7 @@ mod frame_tests {
     }
 
     #[test]
-    fn a3_status_frame_carries_settings_hub_change() {
+    fn status_frame_carries_settings_hub_change() {
         let initial = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let mut publisher = FramePublisher::new(initial.clone());
         let mut unpaired = TopicCache::default();
@@ -466,7 +466,7 @@ mod frame_tests {
     }
 
     #[test]
-    fn a3_pending_frames_keep_only_latest_view_per_function() {
+    fn pending_frames_keep_only_latest_view_per_function() {
         let initial = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let mut publisher = FramePublisher::new(initial.clone());
         let mut updated = initial.clone();
@@ -504,7 +504,7 @@ mod frame_tests {
     }
 
     #[test]
-    fn a1_quiet_tick_publishes_nothing_and_offset_or_day_publishes_status() {
+    fn quiet_tick_publishes_nothing_and_offset_or_day_publishes_status() {
         let initial = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let now_ms = 1_789_511_400_000;
         let first = sample_clock("Europe/Madrid", 2 * 3_600_000, now_ms);
@@ -552,7 +552,7 @@ mod frame_tests {
     }
 
     #[test]
-    fn a5_daylight_saving_offset_change_keeps_zone_name_and_republishes_four_views() {
+    fn daylight_saving_offset_change_keeps_zone_name_and_republishes_four_views() {
         let initial = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let now_ms = 1_789_511_400_000;
         let first = sample_clock("Europe/Madrid", 0, now_ms);

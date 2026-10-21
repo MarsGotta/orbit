@@ -1,4 +1,4 @@
-//! SIM-41: the hub's document of one meeting, in the screen's words. The
+//! The hub's document of one meeting, in the screen's words. The
 //! times, speakers' names, turns and language are the hub's; nothing here
 //! recomputes them.
 use super::*;
@@ -7,7 +7,7 @@ use orbit_core::{
     refusal::Refusal,
 };
 
-/// How the note names Mars when no speaker is her microphone.
+/// How the note names the user when no speaker is their microphone.
 const DEFAULT_OWNER_NAME: &str = orbit_core::notes::DEFAULT_OWNER_NAME;
 
 fn step(state: NoteStepState, cause: Option<NoteStepCause>) -> NoteStepSnapshot {

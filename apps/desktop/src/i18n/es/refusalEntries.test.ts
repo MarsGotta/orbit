@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { refusalEntries } from "./refusalEntries";
 
-describe("negativas de permisos", () => {
-  it("un permiso sin observar no se presenta como una falta ni pide concederlo", () => {
+describe("permission refusals", () => {
+  it("a permission not yet observed is not presented as missing and does not ask to be granted", () => {
     const entry = refusalEntries.permission_unknown;
     expect(entry.class).toBe("working");
     if (entry.class === "failed")
-      throw new Error("la observación pendiente se presentó como fallo");
+      throw new Error("the pending observation was presented as a failure");
     const text = entry.text({
       code: "permission_unknown",
       permission: "accessibility",
@@ -19,7 +19,7 @@ describe("negativas de permisos", () => {
   });
 });
 
-it("la negativa de calendario conserva límites legibles en español", () => {
+it("the calendar refusal keeps its limits readable in Spanish", () => {
   const entry = refusalEntries.calendar_read_limit;
   expect(
     entry.text?.({
@@ -37,7 +37,7 @@ it("la negativa de calendario conserva límites legibles en español", () => {
   );
 });
 
-it("la generación que interrumpió una lectura llega a la persona", () => {
+it("the generation that interrupted a read reaches the person", () => {
   const entry = refusalEntries.read_interrupted;
   expect(
     entry.text?.({

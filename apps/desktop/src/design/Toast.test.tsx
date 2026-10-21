@@ -9,7 +9,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("el deshacer real se ofrece durante diez segundos y se ejecuta una vez", () => {
+it("the real undo is offered for ten seconds and runs once", () => {
   vi.useFakeTimers();
   const onUndo = vi.fn();
   const onClose = vi.fn();
@@ -24,7 +24,7 @@ it("el deshacer real se ofrece durante diez segundos y se ejecuta una vez", () =
   expect(onClose).toHaveBeenCalledOnce();
 });
 
-it("un aviso con enlace dura diez segundos y uno sin enlace, cinco (Alina, 2026-10-20)", () => {
+it("a notice with a link lasts ten seconds and one without a link five (reported on 2026-10-20)", () => {
   vi.useFakeTimers();
   const withLink = vi.fn();
   const plain = vi.fn();
@@ -52,7 +52,7 @@ it("un aviso con enlace dura diez segundos y uno sin enlace, cinco (Alina, 2026-
   expect(screen.queryByRole("link", { name: "Abrir nota" })).toBeNull();
 });
 
-it("al caducar el aviso cierra sin ejecutar el deshacer", () => {
+it("on expiry the notice closes without running the undo", () => {
   vi.useFakeTimers();
   const onUndo = vi.fn();
   const onClose = vi.fn();
@@ -63,7 +63,7 @@ it("al caducar el aviso cierra sin ejecutar el deshacer", () => {
   expect(onClose).toHaveBeenCalledOnce();
 });
 
-it("un aviso sin deshacer se puede cerrar antes de caducar", () => {
+it("a notice without undo can be closed before it expires", () => {
   const onClose = vi.fn();
   render(<Toast message="Llamada terminada" onClose={onClose} />);
   fireEvent.click(screen.getByRole("button", { name: "Cerrar aviso" }));
@@ -71,7 +71,7 @@ it("un aviso sin deshacer se puede cerrar antes de caducar", () => {
   expect(screen.queryByText("Llamada terminada")).toBeNull();
 });
 
-it("todos los emisores comparten una esquina flotante con tres avisos visibles", () => {
+it("every emitter shares one floating corner with three visible notices", () => {
   const onClose = vi.fn();
   // jsdom does not install CSS modules: apply the real rules with Vite's names.
   const css = Object.entries(styles).reduce(
@@ -89,7 +89,7 @@ it("todos los emisores comparten una esquina flotante con tres avisos visibles",
   );
   expect(screen.getAllByRole("alert")).toHaveLength(3);
   const first = screen.getByText("uno").closest("[role=alert]");
-  if (!first?.parentElement) throw new Error("El aviso debe estar en la pila");
+  if (!first?.parentElement) throw new Error("The notice must be in the stack");
   const stack = first.parentElement;
   expect(getComputedStyle(stack).position).toBe("fixed");
   fireEvent.click(within(first as HTMLElement).getByRole("button", { name: "Cerrar aviso" }));
@@ -100,7 +100,7 @@ it("todos los emisores comparten una esquina flotante con tres avisos visibles",
   ]);
 });
 
-it("los renders con otro callback no aplazan la caducidad y llaman al actual", () => {
+it("renders with another callback do not postpone the expiry and call the current one", () => {
   vi.useFakeTimers();
   const oldClose = vi.fn();
   const currentClose = vi.fn();
@@ -113,7 +113,7 @@ it("los renders con otro callback no aplazan la caducidad y llaman al actual", (
   expect(screen.queryByRole("status")).toBeNull();
 });
 
-it("los problemas y el trabajo en curso no caducan", () => {
+it("problems and work in progress do not expire", () => {
   vi.useFakeTimers();
   const onClose = vi.fn();
   render(

@@ -1,13 +1,13 @@
-//! REF-10: the agenda in the app, with the macOS permission and nothing else.
+//! The agenda in the app, with the macOS permission and nothing else.
 //!
-//! Mars decided that granting Calendarios in macOS is the whole decision. So
+//! Granting Calendarios in macOS is the whole decision. So
 //! the app has nothing to choose, confirm or share: its agenda shows every
 //! calendar on the Mac, Ajustes shows the permission and how many calendars
 //! there are, and when Deimos cannot read the agenda the app names which of
 //! the real conditions is missing — the permission, the pairing, a reachable
 //! Mac — the same ones the bridge enforces.
 //!
-//! These cases take over what CAL-09 (`cal09_reading.rs`) protected about the
+//! These cases keep what an earlier suite protected about the
 //! live read, without its fourth condition («calendarios elegidos»), which no
 //! longer exists, and with the permission kept in three values: an unknown
 //! permission is never shown as granted and never as denied.
@@ -123,7 +123,7 @@ fn account() -> AccountSummary {
     }
 }
 
-/// Her Mac after REF-10: the permission granted, paired and online, and 140
+/// The user's Mac: the permission granted, paired and online, and 140
 /// calendars — more than the 128 Orbit used to allow — with nothing chosen.
 #[derive(Default)]
 struct CalendarFixture {
@@ -140,7 +140,7 @@ fn set_capability(capabilities: &mut Capabilities, field: &str, value: serde_jso
     *capabilities = serde_json::from_value(wire).expect("fixture deserializes");
 }
 
-fn her_state() -> CalendarFixture {
+fn user_state() -> CalendarFixture {
     let mut fixture = CalendarFixture {
         connection: Connection::Online,
         account: Some(account()),
@@ -172,7 +172,7 @@ fn project(fixture: &CalendarFixture) -> AppSnapshot {
     };
     topics.observe_at(
         TopicFrame {
-            epoch: "ref10".into(),
+            epoch: "calendar".into(),
             revision: 1,
             data: TopicData::Permissions(Knowledge::Present {
                 value: orbit_core::topics::permissions::Value {
@@ -189,7 +189,7 @@ fn project(fixture: &CalendarFixture) -> AppSnapshot {
     );
     topics.observe_at(
         TopicFrame {
-            epoch: "ref10".into(),
+            epoch: "calendar".into(),
             revision: 2,
             data: TopicData::Status(Knowledge::Present {
                 value: orbit_core::topics::status::Value {
@@ -237,7 +237,7 @@ fn project(fixture: &CalendarFixture) -> AppSnapshot {
     };
     topics.observe_at(
         TopicFrame {
-            epoch: "ref10".into(),
+            epoch: "calendar".into(),
             revision: 3,
             data: topic,
         },
@@ -320,57 +320,57 @@ fn reading(state: &CalendarFixture) -> (CalendarReadingState, Option<CalendarRea
     )
 }
 
-// --------------------------------------------------------------------- A1 A4
+// ------------------------------------------------- with the permission
 
-/// A1/A4: with the permission, Deimos can read her agenda; nothing was chosen,
+/// With the permission, Deimos can read the user's agenda; nothing was chosen,
 /// confirmed or switched on, and no conversation is open.
 #[test]
-fn a1_with_the_permission_deimos_can_read_with_nothing_chosen() {
+fn with_the_permission_deimos_can_read_with_nothing_chosen() {
     assert_eq!(
-        reading(&her_state()),
+        reading(&user_state()),
         (CalendarReadingState::Available, None)
     );
-    let mut open = her_state();
+    let mut open = user_state();
     open.session_id = Some("33333333-3333-4333-8333-333333333333".into());
-    assert_eq!(reading(&open), reading(&her_state()));
+    assert_eq!(reading(&open), reading(&user_state()));
 }
 
-/// A3/A4: the agenda shows every calendar on the Mac, however many.
+/// The agenda shows every calendar on the Mac, however many.
 #[test]
-fn a4_the_agenda_shows_every_calendar_and_offers_nothing_to_choose() {
-    let snapshot = project(&her_state());
+fn the_agenda_shows_every_calendar_and_offers_nothing_to_choose() {
+    let snapshot = project(&user_state());
     assert_eq!(snapshot.calendar.calendars.len(), 140);
     assert_eq!(snapshot.calendar.events.len(), 1);
 }
 
-/// A4: Ajustes shows the permission and how many calendars there are, from the
+/// Ajustes shows the permission and how many calendars there are, from the
 /// data — and an unknown count is unknown, never «0».
 #[test]
-fn a4_settings_show_the_permission_and_the_count_from_the_data() {
-    let snapshot = project(&her_state());
+fn settings_show_the_permission_and_the_count_from_the_data() {
+    let snapshot = project(&user_state());
     assert_eq!(
         snapshot.settings.permissions.calendars,
         PermissionState::Granted
     );
     assert_eq!(snapshot.settings.calendars.total, Some(140));
 
-    let mut unknown = her_state();
+    let mut unknown = user_state();
     unknown.calendar = None;
     unknown.capabilities.calendars = None;
     let settings = serde_json::to_value(project(&unknown).settings).expect("settings");
     assert_eq!(settings["calendars"], json!({"total": null}));
 
     // Opening another screen evicts the calendar view; the count stays.
-    let mut evicted = her_state();
+    let mut evicted = user_state();
     evicted.calendar = None;
     assert_eq!(project(&evicted).settings.calendars.total, Some(140));
 }
 
-/// A4: a keyed page that announces more events than it returns keeps the
+/// A keyed page that announces more events than it returns keeps the
 /// missing count in the refusal instead of presenting a truncated week.
 #[test]
-fn a4_a_short_page_names_how_many_events_are_missing() {
-    let mut state = her_state();
+fn a_short_page_names_how_many_events_are_missing() {
+    let mut state = user_state();
     state.calendar = Some(Box::new(read_view(3, 12)));
     let view = project(&state).calendar;
     assert_eq!(view.reading.state, CalendarReadingState::Unavailable);
@@ -381,15 +381,15 @@ fn a4_a_short_page_names_how_many_events_are_missing() {
         serde_json::json!({"code":"daemon_reply_invalid", "field":"calendar.events", "issue":{"kind":"count_mismatch", "delivered":1, "total":13}, "retry":{"kind":"check_outcome"}})
     );
     assert!(view.events.is_empty());
-    assert_eq!(project(&her_state()).calendar.events.len(), 1);
+    assert_eq!(project(&user_state()).calendar.events.len(), 1);
 }
 
-// -------------------------------------------------------------------- A8 A9
+// ------------------------------------------- each missing condition, named
 
-/// A9: withdrawing Calendarios in macOS is named, not folded into anything.
+/// Withdrawing Calendarios in macOS is named, not folded into anything.
 #[test]
-fn a9_withdrawing_the_permission_is_named() {
-    let mut state = her_state();
+fn withdrawing_the_permission_is_named() {
+    let mut state = user_state();
     let mut view = read_view(3, 0);
     view.authorization = CalendarAuthorization::Denied;
     view.snapshot = None;
@@ -408,10 +408,10 @@ fn a9_withdrawing_the_permission_is_named() {
     );
 }
 
-/// A8: unpairing is its own cause, and a revoked device is unpaired.
+/// Unpairing is its own cause, and a revoked device is unpaired.
 #[test]
-fn a8_unpairing_is_named_and_is_not_a_disconnection() {
-    let mut state = her_state();
+fn unpairing_is_named_and_is_not_a_disconnection() {
+    let mut state = user_state();
     state.account = None;
     assert_eq!(
         reading(&state),
@@ -420,16 +420,16 @@ fn a8_unpairing_is_named_and_is_not_a_disconnection() {
             Some(CalendarReadingBlocker::NotPaired)
         )
     );
-    let mut revoked = her_state();
+    let mut revoked = user_state();
     revoked.connection = Connection::Revoked;
     assert_eq!(reading(&revoked).1, Some(CalendarReadingBlocker::NotPaired));
 }
 
-/// A8: a paired Mac Deimos cannot reach is neither readable nor unpaired.
+/// A paired Mac Deimos cannot reach is neither readable nor unpaired.
 #[test]
-fn a8_a_disconnected_mac_is_neither_readable_nor_unpaired() {
+fn a_disconnected_mac_is_neither_readable_nor_unpaired() {
     for connection in [Connection::Offline, Connection::Connecting] {
-        let mut state = her_state();
+        let mut state = user_state();
         state.connection = connection.clone();
         assert_eq!(
             reading(&state),
@@ -442,12 +442,12 @@ fn a8_a_disconnected_mac_is_neither_readable_nor_unpaired() {
     }
 }
 
-/// A8: an unknown permission — the helper has not said yet — is shown as
+/// An unknown permission — the helper has not said yet — is shown as
 /// unknown: never as granted, never as denied, and names no cause.
 #[test]
-fn a8_an_unknown_permission_is_neither_granted_nor_denied() {
+fn an_unknown_permission_is_neither_granted_nor_denied() {
     for authorization in [None, Some(CalendarAuthorization::Unknown)] {
-        let mut state = her_state();
+        let mut state = user_state();
         state.calendar = None;
         set_capability(&mut state.capabilities, "calendar", json!(authorization));
         let snapshot = project(&state);
@@ -471,16 +471,16 @@ fn a8_an_unknown_permission_is_neither_granted_nor_denied() {
 /// helper's status, the eviction changes nothing: absence is not a fact.
 #[test]
 fn an_evicted_calendar_view_does_not_change_the_answer() {
-    let mut state = her_state();
+    let mut state = user_state();
     state.calendar = None;
     assert_eq!(reading(&state), (CalendarReadingState::Available, None));
 }
 
-/// A8: the nearest missing condition wins: without the permission, the
-/// pairing and the connection are not the cause she is told.
+/// The nearest missing condition wins: without the permission, the
+/// pairing and the connection are not the cause the user is told.
 #[test]
-fn a8_the_nearest_missing_condition_is_the_one_named() {
-    let mut state = her_state();
+fn the_nearest_missing_condition_is_the_one_named() {
+    let mut state = user_state();
     state.connection = Connection::Offline;
     state.account = None;
     set_capability(

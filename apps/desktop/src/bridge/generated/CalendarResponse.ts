@@ -2,7 +2,7 @@
 
 /**
  * How someone answered an invitation, read from EventKit's participant
- * status (P9-20). `None` is EventKit holding no answer at all
+ * status. `None` is EventKit holding no answer at all
  * (`unknown`, `delegated`, `completed`, `in_process`): it is not a
  * refusal and the card draws it like an accepted event.
  */

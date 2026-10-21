@@ -1,8 +1,8 @@
-// P9-05: templates and their assignment to a series. SIM-24: a refusal says
-// what she can do, when she can do something; the hub's codes, numbers and
+// Templates and their assignment to a series. A refusal says
+// what the user can do, when they can do something; the hub's codes, numbers and
 // retry times stay in the log.
 
-/** The hub's refusals she can act on, said as what to do. */
+/** The hub's refusals the user can act on, said as what to do. */
 const libraryCodes: Record<string, string> = {
   note_templates_full: "Ya tienes el máximo de plantillas propias: borra una para crear otra.",
   note_templates_too_large: "Las plantillas ocupan demasiado: acorta alguna.",
@@ -28,7 +28,7 @@ export const library = {
     deleted: (name: string) => `Plantilla «${name}» borrada. Sus series vuelven a General.`,
     restored: (name: string) => `Plantilla «${name}» recuperada`,
     restoring: (name: string) => `Recuperando «${name}»…`,
-    // P9-14: the daemon restarted before it answered the undo; the list is
+    // The daemon restarted before it answered the undo; the list is
     // all that is known.
     restoreUnknownAfterRestart: (name: string) =>
       `No se sabe si «${name}» se recuperó. Compruébalo en la lista.`,

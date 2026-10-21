@@ -26,7 +26,7 @@ export type { ErrorOrigin } from "../app/interceptor";
 export interface OrbitState {
   snapshot: AppView | null;
   features: Partial<Record<FeatureId, FeatureFrame>>;
-  /** What the interceptor shows: at most one message per op (SIM-21). */
+  /** What the interceptor shows: at most one message per op. */
   messages: Message[];
   error: string | null;
   connect: () => Promise<Unsubscribe>;
@@ -71,7 +71,7 @@ async function connectPort(
     return unsubscribe;
   } catch (error: unknown) {
     unsubscribe?.();
-    // SIM-24: the screen says what to do; the log keeps which failure it was.
+    // The screen says what to do; the log keeps which failure it was.
     const refusal = refusalOf(error);
     const op = newOp();
     const line =

@@ -1,5 +1,6 @@
 import { chromium } from "@playwright/test";
 import { spawn } from "node:child_process";
+import { readdir, rm } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 
@@ -32,5 +33,17 @@ const exitCode = await new Promise((resolve, reject) => {
   iconCommand.once("exit", resolve);
 });
 if (exitCode !== 0) {
-  throw new Error(`pnpm tauri icon terminó con código ${exitCode}`);
+  throw new Error(`pnpm tauri icon exited with code ${exitCode}`);
+}
+
+// `tauri icon` also writes iOS, Android and Windows icons. Orbit ships only the
+// macOS bundle, which uses icon.icns and the PNGs listed in tauri.conf.json.
+const icons = path.join(desktopDirectory, "src-tauri", "icons");
+for (const entry of await readdir(icons)) {
+  if (
+    ["ios", "android", "icon.ico", "StoreLogo.png"].includes(entry) ||
+    /^Square\d+x\d+Logo\.png$/.test(entry)
+  ) {
+    await rm(path.join(icons, entry), { recursive: true, force: true });
+  }
 }

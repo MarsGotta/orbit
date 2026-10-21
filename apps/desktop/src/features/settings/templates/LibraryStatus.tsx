@@ -4,7 +4,7 @@ import { refusalText } from "../../../app/library-refusal";
 import styles from "./Templates.module.css";
 
 /**
- * What the template library has to say (SIM-24): a read that failed, changes
+ * What the template library has to say: a read that failed, changes
  * waiting for the hub, and what the hub refused, as what to do. Not read yet
  * is never «none» and says nothing.
  */

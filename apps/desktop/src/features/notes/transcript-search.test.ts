@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { findMatches } from "./transcript-search";
 
-it("P9-04 finds every occurrence without minding accents or case", () => {
+it("finds every occurrence without minding accents or case", () => {
   const matches = findMatches(["La Firma está bloqueada", "firmar hoy", "nada"], "firma");
   expect(matches).toEqual([
     { segment: 0, start: 3, end: 8 },

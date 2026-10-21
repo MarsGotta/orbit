@@ -1,5 +1,5 @@
 /**
- * The three writes and their inverses (P9-22). Pure: what to send, built
+ * The three writes and their inverses. Pure: what to send, built
  * from what was read. Nothing here sends or retries: a write whose outcome is
  * unknown is never built again.
  */

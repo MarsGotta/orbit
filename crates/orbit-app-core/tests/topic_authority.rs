@@ -43,7 +43,7 @@ fn review_pending_causes_use_stable_codes_with_their_numbers() {
 }
 
 #[test]
-fn a5_unknown_topics_have_explicit_causes_in_all_daemon_owned_views() {
+fn unknown_topics_have_explicit_causes_in_all_daemon_owned_views() {
     let mut snapshot =
         orbit_app_core::AppSnapshot::empty(1, orbit_app_core::DaemonConnection::Ready);
     snapshot.privacy_stopped = true;
@@ -101,7 +101,7 @@ fn a5_unknown_topics_have_explicit_causes_in_all_daemon_owned_views() {
         serde_json::to_value(&control).unwrap()["availability"]["state"],
         "unknown"
     );
-    // The notice travels in the status function since SIM-03a retired the
+    // The notice travels in the status function since the retirement of the
     // activity function that used to carry it.
     assert_eq!(
         serde_json::to_value(&status).unwrap()["notice_availability"]["state"],

@@ -5,7 +5,7 @@ import { useDebouncedCommit } from "./use-debounced-commit";
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
-it("P9-04 saves one second after a pause and at most every five seconds", () => {
+it("saves one second after a pause and at most every five seconds", () => {
   const commit = vi.fn();
   const { result, unmount } = renderHook(() => useDebouncedCommit<string>(commit));
   for (let index = 0; index < 12; index += 1) {

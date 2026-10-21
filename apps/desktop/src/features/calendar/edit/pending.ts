@@ -1,5 +1,5 @@
 /**
- * Writes on their way, and what the calendar shows meanwhile (P9-22). Pure:
+ * Writes on their way, and what the calendar shows meanwhile. Pure:
  * the writes the view sent, the outcomes the agenda head carries and the
  * events read in; what stays pending, what finished and how, out.
  *

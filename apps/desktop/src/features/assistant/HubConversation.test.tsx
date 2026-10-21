@@ -14,7 +14,7 @@ import { conversationView } from "./conversation";
 import { MessageList } from "./MessageList";
 import { sessionTitle } from "./session-title";
 
-// SIM-30: the conversations are the hub's. The screen paints the pages it
+// The conversations are the hub's. The screen paints the pages it
 // reads and, after them, the turn in progress; Deimos's Markdown is drawn.
 
 afterEach(cleanup);
@@ -49,7 +49,7 @@ function snapshot(chat: Partial<AppSnapshot["chat"]>): AppSnapshot {
   } as unknown as AppSnapshot;
 }
 
-describe("SIM-30 fallo 5: una conversación anterior se abre con sus mensajes", () => {
+describe("an earlier conversation opens with its messages", () => {
   it("reads the opened conversation from the hub and paints it", async () => {
     const read = vi.fn(() =>
       Promise.resolve(
@@ -70,7 +70,7 @@ describe("SIM-30 fallo 5: una conversación anterior se abre con sus mensajes", 
   });
 });
 
-describe("SIM-30 el turno en curso y lo que guarda el hub", () => {
+describe("the turn in flight and what the hub stores", () => {
   const question = message("turn-1", "user", "Pregunta");
   const answer = message("turn-1:assistant", "assistant", "Respuesta");
   const before = [message("1", "user", "Antes"), message("2", "assistant", "Contestado")];
@@ -97,7 +97,7 @@ describe("SIM-30 el turno en curso y lo que guarda el hub", () => {
   });
 });
 
-describe("SIM-30 el Markdown de Deimos se pinta", () => {
+describe("Deimos's Markdown is painted", () => {
   it("draws Deimos's bold in the chat, and leaves Alina's text as she wrote it", () => {
     render(
       <MessageList
@@ -132,7 +132,7 @@ describe("SIM-30 el Markdown de Deimos se pinta", () => {
   });
 });
 
-describe("SIM-30 la lista y las notas de voz", () => {
+describe("the list and the voice notes", () => {
   it("names each conversation by its date, as the list did", () => {
     expect(sessionTitle(Date.UTC(2026, 9, 17, 7, 53), "Europe/Madrid")).toBe(
       "17 de octubre de 2026, 09:53",

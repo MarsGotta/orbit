@@ -3,7 +3,7 @@ import { type Block, type Run, parseMarkdown, safeHref } from "./markdown";
 import { serializeMarkdown } from "./markdown-write";
 
 /**
- * The editor's document and the note's markdown, both ways (P9-04). Only
+ * The editor's document and the note's markdown, both ways. Only
  * the subset of `markdown.ts` exists in the editor; a node the editor might
  * still hold outside it becomes paragraph text, so nothing typed is lost.
  */

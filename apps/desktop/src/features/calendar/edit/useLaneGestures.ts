@@ -81,7 +81,7 @@ function begin(
 }
 
 /**
- * Drag in the all-day lane (P9-22): across free days it drafts an all-day
+ * Drag in the all-day lane: across free days it drafts an all-day
  * event by days; a bar moves by days and stretches from either side.
  */
 export function useLaneGestures(

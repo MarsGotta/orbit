@@ -12,9 +12,9 @@ const OPTIONS: { value: CallPreference; label: string }[] = [
 ];
 
 /**
- * P9-11 «Al detectar una llamada»: one preference the daemon keeps. The
+ * «Al detectar una llamada»: one preference the daemon keeps. The
  * macOS microphone permission is the decision; this only chooses what Orbit
- * does then. Unknown (`null`) checks nothing and says nothing (SIM-24): it
+ * does then. Unknown (`null`) checks nothing and says nothing: it
  * never pretends «Avisarme»; an unreadable one is the catalogue's notice.
  */
 export function CallPreferenceSection({

@@ -31,8 +31,8 @@ export function intercept(
 }
 
 /**
- * The failures a frame shows whose cause the screen no longer says
- * (SIM-24), each reported once when it appears. Only the main window does
+ * The failures a frame shows whose cause the screen no longer says,
+ * each reported once when it appears. Only the main window does
  * it, as with the notices, so a failure is not written twice.
  */
 function failureWatcher(port: DaemonPort, get: Get, options: StoreOptions, lifecycle: Lifecycle) {

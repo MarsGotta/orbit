@@ -14,7 +14,7 @@ fn emit_feature_frames<R: tauri::Runtime>(
             eprintln!("Orbit: no se pudo actualizar el menú: {error}");
         }
         let event = format!("{FEATURE_EVENT_PREFIX}{}", frame.feature().as_str());
-        // P9-11: the recording frame also says whether the floating panel
+        // The recording frame also says whether the floating panel
         // has something to say; it is shown or hidden after the frame went out.
         let panel = crate::panel::panel_visible(&frame);
         let height = crate::panel::panel_height(&frame).unwrap_or(crate::panel::PANEL_HEIGHT);

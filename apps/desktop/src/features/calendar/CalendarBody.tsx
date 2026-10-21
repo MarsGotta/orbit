@@ -48,7 +48,7 @@ function applyKey(action: CalendarKeyAction, controls: CalendarRangeControls) {
   }
 }
 
-/** The calendar once the permission and the zone are known (P9-20). */
+/** The calendar once the permission and the zone are known. */
 export function CalendarBody(props: CalendarBodyProps) {
   const { calendar, view, visibility } = props;
   const editing = useCalendarEditing(calendar, props.send, props.error, props.timezone, view);
@@ -83,7 +83,7 @@ export function CalendarBody(props: CalendarBodyProps) {
       />
       <WriteNotices writes={editing.writes} />
       {/* While the read of the range on screen has not arrived, what is shown
-          is pending, not the period's events (P9-20). */}
+          is pending, not the period's events. */}
       <div aria-busy={calendar.stale} className={styles.period}>
         <CalendarPeriod {...props} controls={controls} editing={editing} events={events} />
       </div>

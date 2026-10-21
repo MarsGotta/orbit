@@ -9,8 +9,8 @@ import {
   saveCommand,
 } from "./template-draft";
 
-/** P9-05: a template is saved one second after Mars pauses, and at least
- * every five seconds while she keeps typing. */
+/** A template is saved one second after the user pauses, and at least
+ * every five seconds while they keep typing. */
 export const SAVE_AFTER_MS = 1_000;
 export const SAVE_AT_LEAST_EVERY_MS = 5_000;
 
@@ -45,9 +45,9 @@ function useAutosave(commit: () => void) {
 }
 
 /**
- * The template being edited: Mars's text stays as she types it (an echo of
- * her own save never rewrites it), and the first change of one of Orbit's
- * becomes a copy of hers with a new id.
+ * The template being edited: the user's text stays as they type it (an echo of
+ * their own save never rewrites it), and the first change of one of Orbit's
+ * becomes a copy of their own with a new id.
  */
 export function useTemplateEditor(
   template: NoteTemplateDetailSnapshot,

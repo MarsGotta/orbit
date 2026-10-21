@@ -49,11 +49,11 @@ pub(crate) fn project_update(state: UpdateState) -> UpdateSnapshot {
 }
 
 #[cfg(test)]
-mod ref206_tests {
+mod permission_tests {
     use crate::{PermissionState, features::FeatureInput, topics::TopicCache};
 
     #[test]
-    fn a1_unobserved_permission_is_not_a_denial() {
+    fn unobserved_permission_is_not_a_denial() {
         let local = crate::AppSnapshot::default();
         let topics = TopicCache::default();
         let permissions =

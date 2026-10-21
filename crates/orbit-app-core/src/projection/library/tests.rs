@@ -56,8 +56,8 @@ fn a_list_the_hub_could_not_give_is_failed_never_empty() {
     assert_eq!(library.templates.state, NoteTemplatesState::Available);
 }
 
-/// SIM-25 run 20: before pairing, the library could not be asked and the app
-/// logged `library_read_failed`. Out of reach is unknown, never failed.
+/// Seen in a run of the real test on the Mac: before pairing, the library could
+/// not be asked and the app logged `library_read_failed`. Out of reach is unknown, never failed.
 #[test]
 fn a_list_the_hub_cannot_be_asked_for_needs_the_hub_and_is_not_failed() {
     for refusal in [

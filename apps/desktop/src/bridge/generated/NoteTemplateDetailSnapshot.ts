@@ -3,7 +3,7 @@ import type { NoteTemplateOriginSnapshot } from "./NoteTemplateOriginSnapshot";
 import type { TemplateSection } from "./TemplateSection";
 
 /**
- * A template as Mars sees it in Settings: the hub's; `pending` while
+ * A template as the user sees it in Settings: the hub's; `pending` while
  * an order about it is on its way.
  */
 export type NoteTemplateDetailSnapshot = { id: string, name: string, context: string, sections: Array<TemplateSection>, 

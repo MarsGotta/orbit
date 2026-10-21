@@ -3,8 +3,8 @@ import { globalShortcuts } from "./shortcuts";
 
 const base = {
   settings: {
-    // REF-11: what lets Deimos see and use this Mac is the macOS permission,
-    // and nothing here switches it on. SIM-24: the card only speaks when
+    // What lets Deimos see and use this Mac is the macOS permission,
+    // and nothing here switches it on. The card only speaks when
     // something is wrong, and then says what to do.
     engine: {
       helperNotConnected: "Orbit.app no está en marcha. Ábrela para continuar.",
@@ -14,7 +14,7 @@ const base = {
     },
     microphoneReady: "Micrófono siempre listo",
     microphoneHelp: `Para notas de voz con ${globalShortcuts.ptt}`,
-    // P9-05: Ajustes › Notas holds the note templates.
+    // Ajustes › Notas holds the note templates.
     notes: "Notas",
     account: "Cuenta",
     yourName: "Tu nombre",
@@ -88,7 +88,7 @@ const base = {
     skipStep: "Saltar este paso",
     start: "Empezar a usar Orbit",
   },
-  // P9-11: «Al detectar una llamada», a preference and not a permission.
+  // «Al detectar una llamada», a preference and not a permission.
   callSettings: {
     section: "Llamadas",
     preferenceTitle: "Al detectar una llamada",

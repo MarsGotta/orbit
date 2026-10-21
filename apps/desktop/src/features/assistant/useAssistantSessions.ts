@@ -23,7 +23,7 @@ function fromAnswer(answer: SessionPage, previous: SessionsState, first: boolean
       loading: false,
       error: es.assistant.sessionsFailed,
     };
-  // Not known yet: nothing to say (SIM-24).
+  // Not known yet: nothing to say.
   if (answer.state === "unknown") return { ...previous, loading: false };
   const seen = new Set(first ? [] : previous.items.map((session) => session.id));
   const items = first ? [] : [...previous.items];

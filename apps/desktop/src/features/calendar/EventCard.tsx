@@ -10,14 +10,14 @@ const PLACE_LINE_MIN_PX = 52;
 
 interface EventCardProps {
   box: { height: number; top: number };
-  /** P9-22: a gesture is moving this card; it stays here, dimmed. */
+  /** A gesture is moving this card; it stays here, dimmed. */
   dragging?: boolean;
   event: CalendarEvent;
   look: EventLook;
   onOpen: (event: CalendarEvent) => void;
   paletteName: string;
   placement: PlacedEvent;
-  /** P9-22: its bottom edge can be dragged to change the end. */
+  /** Its bottom edge can be dragged to change the end. */
   resizable?: boolean;
   timezone: string;
 }
@@ -33,7 +33,7 @@ function subtitle(event: CalendarEvent, look: EventLook, timezone: string): stri
   return timeLabel(event.start_ms, timezone);
 }
 
-/** One event in the time grid (P9-20): a card styled with Orbit's tokens. */
+/** One event in the time grid: a card styled with Orbit's tokens. */
 export function EventCard(props: EventCardProps) {
   const { box, event, look, placement } = props;
   const muted = look.done || look.declined;

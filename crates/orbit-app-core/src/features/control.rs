@@ -148,7 +148,7 @@ fn refused_engine(refusal: &Refusal, retry_at_ms: Option<i64>) -> crate::EngineS
         Refusal::PrivacyStopped { .. } => crate::EngineSnapshot::PrivacyStopped,
         Refusal::HelperNotRunning => crate::EngineSnapshot::HelperNotConnected,
         // macOS does not say whether a missing permission was denied or never
-        // decided (REF-206); either way the engine lacks it.
+        // decided; either way the engine lacks it.
         Refusal::PermissionDenied { permission } | Refusal::PermissionNotGranted { permission } => {
             crate::EngineSnapshot::PermissionMissing {
                 accessibility: includes_accessibility(permission),
@@ -279,7 +279,7 @@ mod topic_tests {
     }
 
     #[test]
-    fn a1_a_control_topic_arrival_reaches_the_control_frame() {
+    fn a_control_topic_arrival_reaches_the_control_frame() {
         let snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let before = TopicCache::default();
         let after = cache_with_control(TopicData::not_observed(TopicId::Control));
@@ -301,7 +301,7 @@ mod topic_tests {
     }
 
     #[test]
-    fn a1_the_engine_comes_from_the_topic_without_the_observation_json() {
+    fn the_engine_comes_from_the_topic_without_the_observation_json() {
         // No computer_control view at all in the legacy snapshot: whatever
         // the view says can only come from the topic.
         let snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
@@ -318,7 +318,7 @@ mod topic_tests {
     }
 
     #[test]
-    fn a1_a_refused_engine_names_its_cause_with_its_permissions() {
+    fn a_refused_engine_names_its_cause_with_its_permissions() {
         let snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let mut head = ready_head();
         if let TopicData::Control(Knowledge::Present { value, .. }) = &mut head {
@@ -340,7 +340,7 @@ mod topic_tests {
     }
 
     #[test]
-    fn a1_an_unknown_head_keeps_the_engine_unsaid() {
+    fn an_unknown_head_keeps_the_engine_unsaid() {
         let snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let topics = cache_with_control(TopicData::not_observed(TopicId::Control));
         let view = project(&input(&snapshot, &topics)).expect("a topic cell must fill the view");
@@ -348,7 +348,7 @@ mod topic_tests {
     }
 
     #[test]
-    fn a1_a_refused_head_keeps_its_storage_cause_for_the_reader() {
+    fn a_refused_head_keeps_its_storage_cause_for_the_reader() {
         let snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let refusal = Refusal::StorageFailed {
             operation: orbit_core::refusal::Operation::Storage,
@@ -389,7 +389,7 @@ mod topic_tests {
     }
 
     #[test]
-    fn a1_a_failed_engine_carries_its_cause() {
+    fn a_failed_engine_carries_its_cause() {
         let snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let failed = TopicData::Control(Knowledge::Present {
             value: control::Value {
@@ -428,7 +428,7 @@ mod topic_tests {
     }
 
     #[test]
-    fn a1_engine_tools_read_reaches_the_control_view() {
+    fn engine_tools_read_reaches_the_control_view() {
         let snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let mut topics = cache_with_control(ready_head());
         let request = orbit_core::reads::ReadRequest::EngineTools { cursor: None };
@@ -451,7 +451,7 @@ mod topic_tests {
     }
 
     #[test]
-    fn a1_broken_history_keeps_a_ready_engine_and_names_only_the_history_failure() {
+    fn broken_history_keeps_a_ready_engine_and_names_only_the_history_failure() {
         let snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let mut head = ready_head();
         if let TopicData::Control(Knowledge::Present { value, .. }) = &mut head {
@@ -474,7 +474,7 @@ mod topic_tests {
     }
 
     #[test]
-    fn a1_failed_engine_tools_read_keeps_its_cause() {
+    fn failed_engine_tools_read_keeps_its_cause() {
         let snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let mut topics = cache_with_control(ready_head());
         let request = orbit_core::reads::ReadRequest::EngineTools { cursor: None };

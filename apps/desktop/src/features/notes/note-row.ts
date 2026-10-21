@@ -26,9 +26,9 @@ function stateLine(note: NoteListItem): RowState {
 }
 
 /**
- * The line under a note's title in the list (P9-04): recording, where its
+ * The line under a note's title in the list: recording, where its
  * note stands, or how its short summary begins. A failure says so; its
- * cause stays in the log (SIM-24).
+ * cause stays in the log.
  */
 export function noteRowState(note: NoteListItem): RowState {
   if (note.state === "recording" || note.state === "uploading") return stateLine(note);

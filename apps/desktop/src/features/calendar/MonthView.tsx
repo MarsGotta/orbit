@@ -30,7 +30,7 @@ interface MonthViewProps {
   /** The height the weeks have to share; 0 before it is measured. */
   height: number;
   nowMs: number;
-  /** P9-22: a double click in a day drafts an all-day event there. */
+  /** A double click in a day drafts an all-day event there. */
   onDraftDay?: (day: number) => void;
   onOpenDay: (dayStartMs: number) => void;
   onOpenEvent: (event: CalendarEvent) => void;
@@ -39,7 +39,7 @@ interface MonthViewProps {
   timezone: string;
 }
 
-/** The month's weeks whole, one row per event in each day (P9-20). */
+/** The month's weeks whole, one row per event in each day. */
 export function MonthView(props: MonthViewProps) {
   const days = rangeDays(props.range, props.timezone);
   const weeks = Array.from({ length: Math.ceil(days.length / 7) }, (_, index) =>

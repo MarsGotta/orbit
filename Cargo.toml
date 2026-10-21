@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "crates/orbit-core",
-    "crates/orbit-update",
     "crates/orbit-store",
     "crates/orbit-ipc",
     "crates/orbit-daemon",
@@ -43,7 +42,7 @@ strip = true
 codegen-units = 1
 # Line tables in a dSYM beside the binary, never inside it: the shipped binary
 # stays stripped, and the release's dSYM goes to Sentry so a panic of the app
-# (the daemon runs inside it since SIM-51) gets its function names and lines
+# (the daemon runs on a thread inside it) gets its function names and lines
 # (scripts/release/upload-symbols.sh).
 debug = "line-tables-only"
 split-debuginfo = "packed"

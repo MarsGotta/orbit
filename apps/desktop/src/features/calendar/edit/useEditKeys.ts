@@ -14,8 +14,8 @@ export interface EditKeys {
   selected: boolean;
 }
 
-/** What a key does to the calendar's events (P9-22), or `null`. ⌥ keys
- *  belong to the keyboard (REF-07) and are never taken. */
+/** What a key does to the calendar's events, or `null`. ⌥ keys
+ *  belong to the keyboard and are never taken. */
 export function editKeyAction(
   press: { altKey: boolean; ctrlKey: boolean; key: string; metaKey: boolean },
   typing: boolean,
@@ -32,7 +32,7 @@ export function editKeyAction(
   return null;
 }
 
-/** The calendar's editing keys while it is on screen (P9-22). */
+/** The calendar's editing keys while it is on screen. */
 export function useEditKeys(keys: EditKeys) {
   const latest = useRef(keys);
   latest.current = keys;

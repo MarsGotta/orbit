@@ -20,7 +20,7 @@ import styles from "./CalendarView.module.css";
 export interface EventDetailsProps {
   calendars: AppSnapshot["calendar"]["calendars"];
   editing: Editing;
-  /** P9-05: templates and their assignment to a series. */
+  /** Templates and their assignment to a series. */
   library?: NoteLibrarySnapshot | null;
   onChange: (form: EventForm) => void;
   onClose: () => void;
@@ -33,10 +33,10 @@ export interface EventDetailsProps {
 }
 
 /**
- * The event's panel (P9-22). Mars edits title, when, repetition, place,
+ * The event's panel. The user edits title, when, repetition, place,
  * notes, calendar, reminders and availability; the changes accumulate until
- * she saves. An event she cannot change reads as before, with the cause in
- * one line. P9-20's answer, guests, «Unirse» and «Grabar» stay.
+ * they save. An event they cannot change reads as before, with the cause in
+ * one line. The read-only detail's answer, guests, «Unirse» and «Grabar» stay.
  */
 export function EventDetails(props: EventDetailsProps) {
   const { editing } = props;

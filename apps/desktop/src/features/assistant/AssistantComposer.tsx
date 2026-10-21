@@ -15,7 +15,7 @@ interface ComposerProps {
   daemonReady: boolean;
   hub: HubLinkConnection;
   paired: boolean;
-  /** Not known yet: the button waits, quietly (SIM-24). */
+  /** Not known yet: the button waits, quietly. */
   callUnknown?: boolean;
   voiceUnknown?: boolean;
   statusUnknown?: boolean;
@@ -63,8 +63,8 @@ function useComposer({ chat, daemonReady, hub, paired, send, voiceUnknown }: Com
   };
 }
 
-// REF-11: there is no «Compartir pantalla» button. What lets Deimos see the
-// screen is the Screen Recording permission Mars grants in macOS.
+// There is no «Compartir pantalla» button. What lets Deimos see the
+// screen is the Screen Recording permission the user grants in macOS.
 function ComposerActions({
   callActive,
   callPending,
@@ -117,8 +117,8 @@ function ComposerActions({
 
 export function AssistantComposer(props: ComposerProps) {
   const controls = useComposer(props);
-  // Only what she can fix has words here; offline and Orbit's own problems
-  // are the status pill's, and an unknown says nothing (SIM-24).
+  // Only what the user can fix has words here; offline and Orbit's own problems
+  // are the status pill's, and an unknown says nothing.
   const unpaired = props.daemonReady && !props.paired && props.statusUnknown !== true;
   return (
     <footer className={styles.composerArea}>

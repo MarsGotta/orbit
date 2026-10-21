@@ -12,7 +12,7 @@ const sources: [string, MeetingAudio][] = [
   ["application:4242", { application: { application_pid: 4242 } }],
 ];
 
-it.each(sources)("grabar con %s manda la selección de audio de orbit-core", (source, audio) => {
+it.each(sources)("recording with %s sends orbit-core's audio selection", (source, audio) => {
   const send = vi.fn();
   const close = vi.fn();
   const snapshot = {

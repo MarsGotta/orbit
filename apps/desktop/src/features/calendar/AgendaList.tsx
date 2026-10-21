@@ -19,7 +19,7 @@ interface AgendaListProps {
 }
 
 /**
- * The agenda (P9-20): days with events, 31 either side of the day asked
+ * The agenda: days with events, 31 either side of the day asked
  * for. Empty days are left out, except today.
  */
 export function AgendaList(props: AgendaListProps) {

@@ -38,7 +38,7 @@ export const status = {
   context: {
     now: "ahora",
   },
-  // SIM-24: the status pill only speaks when something is wrong, and then
+  // The status pill only speaks when something is wrong, and then
   // says what to do. Nothing here names a server, a device or a count.
   problem: {
     orbitLost: "Orbit no responde. Ciérralo y vuelve a abrirlo.",

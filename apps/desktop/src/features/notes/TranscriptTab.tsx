@@ -17,7 +17,7 @@ import styles from "./NoteScreen.module.css";
 type Send = (command: AppCommand) => void;
 
 /**
- * Follows the end of the transcript while new turns arrive, only when Mars
+ * Follows the end of the transcript while new turns arrive, only when the user
  * is already there: reading further up is never interrupted.
  */
 function useFollowEnd(count: number) {

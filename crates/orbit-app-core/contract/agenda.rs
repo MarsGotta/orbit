@@ -11,7 +11,7 @@ app_type! {
 }
 
 app_type! {
-    /// One calendar on the Mac. REF-10: every one of them is read; none is
+    /// One calendar on the Mac. Every one of them is read; none is
     /// selected, so there is no `selected` flag to show.
     pub struct CalendarItemSnapshot {
         pub id: String,
@@ -19,7 +19,7 @@ app_type! {
         pub source_id: String,
         #[ts(optional)]
         pub source_title: Option<String>,
-        /// P9-21: the calendar's own color in macOS, `#RRGGBB`. Only when
+        /// The calendar's own color in macOS, `#RRGGBB`. Only when
         /// macOS gave none (or the helper predates it) is this a palette
         /// token (`accent`, `blue`, `orange`, `green`) picked from the id:
         /// a value that starts with `#` is the real color, one that does not
@@ -49,7 +49,7 @@ app_type! {
 
 app_type! {
     /// How someone answered an invitation, read from EventKit's participant
-    /// status (P9-20). `None` is EventKit holding no answer at all
+    /// status. `None` is EventKit holding no answer at all
     /// (`unknown`, `delegated`, `completed`, `in_process`): it is not a
     /// refusal and the card draws it like an accepted event.
     #[serde(rename_all = "snake_case")]
@@ -68,11 +68,11 @@ app_type! {
     pub struct CalendarAttendeeSnapshot {
         pub name: String,
         pub email: Option<String>,
-        /// P9-20: this guest's answer. Absent when the helper sent no status.
+        /// This guest's answer. Absent when the helper sent no status.
         #[serde(default)]
         #[ts(optional = nullable)]
         pub response: Option<CalendarResponse>,
-        /// P9-11: the guest EventKit marks as Mars (`is_current_user`).
+        /// The guest EventKit marks as the user (`is_current_user`).
         #[serde(default, skip_serializing_if = "is_false")]
         #[ts(as = "Option<bool>", optional)]
         pub is_self: bool,
@@ -112,20 +112,20 @@ app_type! {
         pub location: Option<String>,
         #[ts(optional = nullable)]
         pub status: Option<CalendarEventStatus>,
-        /// P9-20: Mars's own answer, from the guest EventKit marks as her
+        /// The user's own answer, from the guest EventKit marks as the user
         /// (`is_current_user`). Absent means the event is not an invitation
-        /// to her — no guest list, or she is not on it — never «sin
+        /// to them — no guest list, or they are not on it — never «sin
         /// responder».
         #[serde(default)]
         #[ts(optional = nullable)]
         pub self_response: Option<CalendarResponse>,
-        /// P9-20: the event's link when it is a known video call (Google
+        /// The event's link when it is a known video call (Google
         /// Meet, Zoom, Microsoft Teams, Webex, Whereby, FaceTime), which the
         /// detail offers as «Unirse». Any other link stays in `url` only.
         #[serde(default)]
         #[ts(optional = nullable)]
         pub conference_url: Option<String>,
-        /// P9-21: what names this occurrence for a change or a delete —
+        /// What names this occurrence for a change or a delete —
         /// its event and the original date of the occurrence. `id` is a new
         /// observation on every read and names nothing.
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -155,13 +155,13 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub can_edit: Option<bool>,
-        /// P9-22: its reminders Orbit edits, in minutes before the start.
+        /// Its reminders Orbit edits, in minutes before the start.
         /// Absent: not read (a helper that predates it, or too many), never
         /// «none».
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional, type = "Array<number>")]
         pub alarms_minutes: Option<Vec<u64>>,
-        /// P9-22: reminders Orbit does not edit (at a date, by place, after
+        /// Reminders Orbit does not edit (at a date, by place, after
         /// the start); a change of reminders keeps them.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
@@ -170,7 +170,7 @@ app_type! {
 }
 
 app_type! {
-    /// Which calendar view the range belongs to (P9-20).
+    /// Which calendar view the range belongs to.
     #[serde(rename_all = "snake_case")]
     #[derive(Copy, Default)]
     pub enum CalendarViewKind {
@@ -187,7 +187,7 @@ app_type! {
 }
 
 app_type! {
-    /// The day a week begins on: Mars's local preference (P9-20).
+    /// The day a week begins on: the user's local preference.
     #[serde(rename_all = "snake_case")]
     #[derive(Copy, Default)]
     pub enum CalendarWeekStart {
@@ -199,7 +199,7 @@ app_type! {
 
 app_type! {
     /// The period the calendar shows, decided here from the view, the anchor
-    /// and Mars's zone (P9-20). The read behind it may be wider: it also
+    /// and the user's zone. The read behind it may be wider: it also
     /// covers today, so the Briefing never loses its day (`window`).
     #[derive(Default)]
     pub struct CalendarRangeSnapshot {
@@ -219,13 +219,13 @@ app_type! {
 }
 
 app_type! {
-    /// CAL-09: whether Deimos can read her agenda right now — the question the
-    /// Agenda screen headlines. REF-10 retired the stored copy it used to be
-    /// confused with: the live read crosses the device bridge and needs the
+    /// Whether Deimos can read the user's agenda right now — the question the
+    /// Agenda screen headlines. There is no stored copy to confuse it with any
+    /// more: the live read crosses the device bridge and needs the
     /// macOS permission, the pairing and a reachable Mac, and nothing else.
     ///
     /// `Unknown` is not a hedge. It is the permission the helper has not
-    /// reported yet: never shown as granted and never as denied (REF-10 A8).
+    /// reported yet: never shown as granted and never as denied.
     #[serde(rename_all = "snake_case")]
     pub enum CalendarReadingState {
         Available,
@@ -245,9 +245,9 @@ app_type! {
         HelperNotRunning,
         NotPaired,
         /// Paired, but the hub cannot reach the Mac. Deliberately distinct from
-        /// `NotPaired`: a Mac that is merely asleep is not a Mac she has to
-        /// pair again, and telling her so would be the same class of false
-        /// statement this spec removes.
+        /// `NotPaired`: a Mac that is merely asleep is not a Mac the user has to
+        /// pair again, and saying so would be a false statement of the same
+        /// class as reading a stale copy as the live agenda.
         MacDisconnected,
     }
 }
@@ -273,15 +273,15 @@ app_type! {
         pub calendars: Vec<CalendarItemSnapshot>,
         /// What was read: the visible range, widened to cover today.
         pub window: CalendarWindowSnapshot,
-        /// What the calendar shows (P9-20). `events` holds the events of
+        /// What the calendar shows. `events` holds the events of
         /// this range only.
         #[serde(default)]
         pub range: CalendarRangeSnapshot,
         pub events: Vec<CalendarEventSnapshot>,
-        /// Can Deimos read her agenda. CAL-09: the screen's headline.
+        /// Can Deimos read the user's agenda: the screen's headline.
         pub reading: CalendarReadingSnapshot,
         pub stale: bool,
-        /// P9-22: the latest writes the agenda head carries, oldest first.
+        /// The latest writes the agenda head carries, oldest first.
         /// A write missing here says nothing about the calendar.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         #[ts(as = "Option<Vec<WriteOutcome>>", optional)]

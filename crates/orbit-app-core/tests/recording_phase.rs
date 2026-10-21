@@ -1,4 +1,4 @@
-//! REF-21 · the app does not call it recording until the daemon says so.
+//! The app does not call it recording until the daemon says so.
 //!
 //! `send(MeetingStart)` used to promote `Starting` to `Recording` the moment
 //! the IPC answer came back, but that answer leaves the daemon while the
@@ -68,7 +68,7 @@ async fn sending_either_start_command_does_not_write_a_phase_before_the_daemon_a
                 status: None,
                 error: None,
                 refusal: None,
-                epoch: Some("ref21".into()),
+                epoch: Some("recording-phase".into()),
                 revisions: Some(BTreeMap::new()),
             });
         };
@@ -80,7 +80,7 @@ async fn sending_either_start_command_does_not_write_a_phase_before_the_daemon_a
             status: None,
             error: None,
             refusal: None,
-            epoch: Some("ref21".into()),
+            epoch: Some("recording-phase".into()),
             revisions: Some(BTreeMap::new()),
         });
         task.await??;
@@ -151,7 +151,7 @@ async fn automatic_recording_titles_reach_the_daemon_in_the_clients_local_zone()
                 status: None,
                 error: None,
                 refusal: None,
-                epoch: Some("ref21".into()),
+                epoch: Some("recording-phase".into()),
                 revisions: Some(BTreeMap::new()),
             });
         };
@@ -169,7 +169,7 @@ async fn automatic_recording_titles_reach_the_daemon_in_the_clients_local_zone()
             status: None,
             error: None,
             refusal: None,
-            epoch: Some("ref21".into()),
+            epoch: Some("recording-phase".into()),
             revisions: Some(BTreeMap::new()),
         });
         task.await??;

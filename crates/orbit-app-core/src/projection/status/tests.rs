@@ -65,7 +65,7 @@ fn default_state_projects_every_field() {
 }
 
 #[test]
-fn app10_a1_projects_observed_permission_states_instead_of_boolean_fallbacks() {
+fn projects_observed_permission_states_instead_of_boolean_fallbacks() {
     let mut topics = TopicCache::default();
     observe(
         &mut topics,
@@ -158,7 +158,7 @@ fn update_service_states_are_projected_for_settings() {
 }
 
 #[test]
-fn a1_projects_settings_and_the_app_version() {
+fn projects_settings_and_the_app_version() {
     let app_version = env!("CARGO_PKG_VERSION");
     let mut topics = TopicCache::default();
     observe(&mut topics, 1, status_topic(Connection::Online, true));

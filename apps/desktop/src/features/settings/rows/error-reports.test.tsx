@@ -13,7 +13,7 @@ function settings(errorReports?: boolean): SettingsSnapshot {
   } as SettingsSnapshot;
 }
 
-it("SIM-23: the switch is offered only when the build can send, off until she turns it on", () => {
+it("the switch is offered only when the build can send, off until the user turns it on", () => {
   const send = vi.fn();
   const { rerender } = render(<PrivacySection send={send} settings={settings()} />);
   expect(screen.queryByRole("switch", { name: es.settings.errorReports })).toBeNull();

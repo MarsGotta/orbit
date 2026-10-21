@@ -1,7 +1,7 @@
 import type { NoteLibraryRefusalSnapshot } from "../bridge/generated/NoteLibraryRefusalSnapshot";
 import { es } from "../i18n/es";
 
-/** The hub's refusal of an order, as what she can do about it (SIM-24). */
+/** The hub's refusal of an order, as what the user can do about it. */
 export function refusalText(refusal: NoteLibraryRefusalSnapshot): string {
   return es.library.refused(refusal.code);
 }

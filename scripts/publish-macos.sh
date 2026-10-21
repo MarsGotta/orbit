@@ -82,7 +82,7 @@ expected_installer=$(cut -d' ' -f1 "$source_dir/install.sha256")
 actual_installer=$(sha "$installer")
 [ "$actual_installer" = "$expected_installer" ] || fail "install.sh source_commit=$commit sha256 esperado='$expected_installer', encontrado='$actual_installer'"
 # The updater of every Mac already installed downloads at most 16,756 B
-# (INSTALLER_CEILING_BYTES in crates/orbit-update/src/lib.rs: 11,171 B
+# (INSTALLER_CEILING_BYTES in crates/orbit-app-core/src/update/download.rs: 11,171 B
 # baseline plus 50% headroom). A larger installer could not reach them. It
 # does not authenticate or sandbox shell code.
 INSTALLER_CEILING_BYTES=16756

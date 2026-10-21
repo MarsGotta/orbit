@@ -32,9 +32,9 @@ mod native_state;
 mod websocket;
 use websocket::{read_websocket_frame, send_hub_event, websocket_handshake, write_websocket_frame};
 
-// SYS-10 · the budgets in this file, and where their numbers come from.
+// The wait budgets in this file, and where their numbers come from.
 //
-// The original SYS-10 measurement spawned real daemon binaries, all starting
+// The original measurement spawned real daemon binaries, all starting
 // at once. The fixtures now use threads of this process; the measured guards stay.
 // Every wait here is really "how long does a cold daemon take to
 // get this far". That is a measurement, not a matter of taste, so it was
@@ -55,7 +55,7 @@ use websocket::{read_websocket_frame, send_hub_event, websocket_handshake, write
 // `Timeout`. The rest were already generous; they stay where they are and now
 // carry the measurement that says why.
 //
-// REF-10 retired the calendar selection and the tests that listed, selected
+// The calendar selection was retired, and with it the tests that listed, selected
 // and restored it. The three waits only they made — calendar authorization,
 // native command counted and daemon exit on shutdown — went with them, so
 // their budgets did too: a budget nothing waits on bounds nothing. The rows
@@ -85,7 +85,7 @@ struct AudioStartGate {
 struct NativeHelperConfig {
     status_reports_permissions: bool,
     calendar_authorization: CalendarAuthorization,
-    /// REF-21: when set, every `audio_start` is answered with this refusal
+    /// When set, every `audio_start` is answered with this refusal
     /// code instead of an acknowledgement, so a test can stand where the Mac
     /// says no to the capture.
     audio_start_refusal: Option<&'static str>,
@@ -124,7 +124,7 @@ impl TestDaemon {
         Ok(daemon)
     }
 
-    /// P9-21: the calendar backend with full access, and every command the
+    /// The calendar backend with full access, and every command the
     /// helper receives handed to the test.
     fn start_calendar_observed(data_dir: &Path) -> Result<(Self, Receiver<Value>), Box<dyn Error>> {
         let (daemon, commands) = Self::start_inner(
@@ -394,7 +394,7 @@ fn write_shared_frame(input: &Arc<Mutex<File>>, frame: &Value) -> Result<(), Box
     Ok(())
 }
 
-/// REF-06: the daemon starts its helper with `--helper`, as in production, and
+/// The daemon starts its helper with `--helper`, as in production, and
 /// a shell relay stands where `OrbitNative` stands, copying the daemon's pipes
 /// to two FIFOs this test owns. The helper side of the protocol is played over
 /// them exactly as it was over the daemon's own stdio before.
@@ -424,7 +424,7 @@ impl HelperRelay {
                 .arg(fifo)
                 .status()?;
             if !status.success() {
-                return Err(format!("mkfifo terminó con {status}").into());
+                return Err(format!("mkfifo ended with {status}").into());
             }
         }
         let source = directory.join(format!("{name}.txt"));
@@ -444,7 +444,7 @@ impl HelperRelay {
             .arg(&relay.script)
             .status()?;
         if !copied.success() {
-            return Err(format!("cp terminó con {copied}").into());
+            return Err(format!("cp ended with {copied}").into());
         }
         std::fs::set_permissions(&relay.script, std::fs::Permissions::from_mode(0o700))?;
         Ok(relay)
@@ -466,14 +466,16 @@ impl HelperRelay {
         });
         match receiver.recv_timeout(budget) {
             Ok(opened) => Ok(opened?),
-            Err(_) => Err(format!("el daemon no lanzó el helper de prueba en {budget:?}").into()),
+            Err(_) => {
+                Err(format!("the daemon did not launch the test helper within {budget:?}").into())
+            }
         }
     }
 }
 
 /// Waits until the daemon has declared the relayed helper and, when the helper
 /// reports permissions, has taken them in. The helper is launched once the
-/// daemon's startup is over (REF-06 A4), so a client that connects at once can
+/// daemon's startup is over, so a client that connects at once can
 /// otherwise act before `ready`; the old stdio peer won that race by accident.
 fn wait_helper_declared(
     child: &mut embedded_daemon::TestDaemon,
@@ -483,7 +485,9 @@ fn wait_helper_declared(
     let deadline = Instant::now() + budget;
     loop {
         if let Some(status) = child.outcome() {
-            return Err(format!("el daemon salió ({status:?}) antes de declarar su helper").into());
+            return Err(
+                format!("the daemon exited ({status:?}) before declaring its helper").into(),
+            );
         }
         let topics = child.client.topics();
         let helper_connected = topics.get(&TopicId::Status).is_some_and(|head|
@@ -494,7 +498,9 @@ fn wait_helper_declared(
             return Ok(());
         }
         if Instant::now() >= deadline {
-            return Err(format!("el daemon no declaró el helper de prueba en {budget:?}").into());
+            return Err(
+                format!("the daemon did not declare the test helper within {budget:?}").into(),
+            );
         }
         thread::sleep(Duration::from_millis(20));
     }
@@ -504,8 +510,8 @@ fn calendar_status(authorization: CalendarAuthorization) -> Value {
     json!({"authorization":authorization,"physical_read_pending":false,"read_only":true})
 }
 
-/// Every calendar on the synthetic Mac, in one page of its listing (REF-10:
-/// the daemon lists them by itself; nothing is chosen from them).
+/// Every calendar on the synthetic Mac, in one page of its listing (the
+/// daemon lists them by itself; nothing is chosen from them).
 fn calendar_inventory() -> Value {
     json!({"inventory_id":INVENTORY_ID,"native_instance_id":NATIVE_INSTANCE,
     "privacy_generation":2,"clock_domain":"mach_absolute_time",
@@ -520,7 +526,7 @@ fn calendar_inventory() -> Value {
 }
 
 /// One page holding the whole window asked for: every calendar, one event.
-/// P9-20: how Mars answered the fixture's daily, by day, so one week holds
+/// How the user answered the fixture's daily, by day, so one week holds
 /// every state the card draws. The day is counted from 1970-01-01 (UTC).
 const DAILY_ANSWERS: [&str; 4] = ["accepted", "tentative", "pending", "declined"];
 const DAILY_MEET: &str = "https://meet.google.com/abc-defg-hij";
@@ -537,7 +543,7 @@ fn calendar_read_page(command: &Value) -> Value {
     let query = &command["calendar_query"];
     let start = query["start_unix_ms"].as_i64().unwrap_or_default();
     let end = query["end_unix_ms"].as_i64().unwrap_or(start);
-    // P9-20: the daily on every day of the window at 10:45 UTC, so any view
+    // The daily on every day of the window at 10:45 UTC, so any view
     // the app asks for has events in it, wherever it starts.
     let events = (start.div_euclid(FIXTURE_DAY_MS)..=(end - 1).div_euclid(FIXTURE_DAY_MS))
         .map(|day| (day, day * FIXTURE_DAY_MS + 38_700_000))
@@ -562,7 +568,7 @@ fn daily_occurrence(day: i64, at: i64) -> Value {
         "event_timezone":"Europe/Madrid",
         "interpreted_timezone":"Europe/Madrid","is_floating":false,"is_all_day":false,
         "is_detached":false,"title":"[LedgerBox - Inst.] Daily","status":"confirmed",
-        // Bruno first: her answer must come from the guest marked as her,
+        // Bruno first: the user's answer must come from the guest marked as the user,
         // not from whoever is listed first.
         "invitees":[
             {"name":"Bruno","participant_url":"mailto:bruno@example.test",
@@ -631,7 +637,7 @@ fn emulate_native_helper(
             return;
         }
         // Only the first audio_start is held back: a system recording starts one
-        // stream per track (DAE-03) and the test observes the starting phase once.
+        // stream per track and the test observes the starting phase once.
         if name == "audio_start"
             && let Some(gate) = audio_start_gate.take()
             && (gate.requested.send(()).is_err() || gate.release.recv().is_err())
@@ -679,7 +685,7 @@ fn emulate_native_helper(
                 "result":calendar_read_page(&command)}),
             "calendar_disconnect" => json!({"v":1,"event":"response","id":command["id"],"ok":true,
                 "result":calendar_status(config.calendar_authorization)}),
-            // P9-21: what the helper answers a write with — the occurrence as
+            // What the helper answers a write with — the occurrence as
             // it is now, or what it removed.
             "calendar_save" => json!({"v":1,"event":"response","id":command["id"],"ok":true,
                 "result":calendar_saved()}),
@@ -723,7 +729,7 @@ fn emulate_native_helper(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ref206_a3_daemon_status_supplies_permissions_to_app() -> Result<(), Box<dyn Error>> {
+async fn daemon_status_supplies_permissions_to_app() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::Builder::new()
         .prefix("orbit-app-permissions-")
         .tempdir_in("/tmp")?;
@@ -743,10 +749,10 @@ async fn ref206_a3_daemon_status_supplies_permissions_to_app() -> Result<(), Box
     Ok(())
 }
 
-/// REF-10 A1/A4: with the permission, the app shows every calendar and the
+/// With the permission, the app shows every calendar and the
 /// week without anyone listing or choosing anything, and Ajustes counts them.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ref10_a1_the_app_shows_every_calendar_without_being_asked() -> Result<(), Box<dyn Error>> {
+async fn the_app_shows_every_calendar_without_being_asked() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::Builder::new()
         .prefix("orbit-app-calendar-list-")
         .tempdir_in("/tmp")?;
@@ -783,7 +789,7 @@ fn wait_for_helper_command_within(
         let remaining = deadline.saturating_duration_since(Instant::now());
         let command = match commands.recv_timeout(remaining) {
             Ok(command) => command,
-            // SYS-10: this used to be a bare `?`, so a lost wait reached the
+            // This used to be a bare `?`, so a lost wait reached the
             // build log as `Error: Timeout` and said nothing about what the
             // test had been waiting for. It costs an hour to read that.
             Err(reason) => {
@@ -827,7 +833,7 @@ where
         // `type_name` of the closure carries the test it was written in, so an
         // expiry names the wait without every call site having to label itself.
         panic!(
-            "el snapshot nunca cumplió la condición de {} en {SNAPSHOT_BUDGET:?}; último: {:?}",
+            "the snapshot never met the condition of {} within {SNAPSHOT_BUDGET:?}; last: {:?}",
             std::any::type_name::<F>(),
             client.composed_snapshot()
         )
@@ -874,8 +880,8 @@ async fn daemon_end_leaves_the_last_recording_stale() -> Result<(), Box<dyn Erro
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a2_meeting_start_and_finish_round_trip_through_the_real_daemon()
--> Result<(), Box<dyn Error>> {
+async fn meeting_start_and_finish_round_trip_through_the_real_daemon() -> Result<(), Box<dyn Error>>
+{
     let directory = tempfile::Builder::new()
         .prefix("orbit-app-meeting-")
         .tempdir_in("/tmp")?;
@@ -901,9 +907,9 @@ async fn a2_meeting_start_and_finish_round_trip_through_the_real_daemon()
     tokio::task::spawn_blocking(move || audio_requested.recv_timeout(AUDIO_START_BUDGET))
         .await?
         .map_err(|reason| {
-            format!("el daemon nunca pidió arrancar la captura de audio en {AUDIO_START_BUDGET:?} ({reason})")
+            format!("the daemon never asked to start the audio capture within {AUDIO_START_BUDGET:?} ({reason})")
         })?;
-    // REF-21: while the gate holds the helper's acknowledgement, `starting` is
+    // While the gate holds the helper's acknowledgement, `starting` is
     // the only phase anything can publish, so this wait and the read below it
     // are a fact, not a race against the answer to meeting_start.
     wait_for(&client, |snapshot| {
@@ -965,13 +971,12 @@ async fn a2_meeting_start_and_finish_round_trip_through_the_real_daemon()
     Ok(())
 }
 
-/// REF-21 A2: when the helper refuses the capture, the app shows the refusal
+/// When the helper refuses the capture, the app shows the refusal
 /// with its cause and never «recording». The gate holds the refusal until the
 /// test has seen the app in `starting`, so both halves are facts: what the
 /// answer to `meeting_start` may claim, and what the refusal leaves on screen.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ref21_a2_a_refused_audio_start_shows_the_cause_and_not_recording()
--> Result<(), Box<dyn Error>> {
+async fn a_refused_audio_start_shows_the_cause_and_not_recording() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::Builder::new()
         .prefix("orbit-app-refused-")
         .tempdir_in("/tmp")?;
@@ -1000,7 +1005,7 @@ async fn ref21_a2_a_refused_audio_start_shows_the_cause_and_not_recording()
     tokio::task::spawn_blocking(move || audio_requested.recv_timeout(AUDIO_START_BUDGET))
         .await?
         .map_err(|reason| {
-            format!("el daemon nunca pidió arrancar la captura de audio en {AUDIO_START_BUDGET:?} ({reason})")
+            format!("the daemon never asked to start the audio capture within {AUDIO_START_BUDGET:?} ({reason})")
         })?;
     wait_for(&client, |snapshot| {
         snapshot.meeting.phase == MeetingPhase::Starting
@@ -1048,7 +1053,7 @@ async fn ref21_a2_a_refused_audio_start_shows_the_cause_and_not_recording()
         .and_then(|notice| notice.sequence)
         .ok_or("capture cut confirmation has no sequence")?;
     // The refusal itself: back to idle, with the helper's cause on screen and
-    // its code, so whoever reads it —Mars or Deimos— can act on the numbers.
+    // its code, so whoever reads it —the user or Deimos— can act on the numbers.
     wait_for(&client, |snapshot| {
         snapshot.meeting.phase == MeetingPhase::Idle
             && client.bootstrap().frames.into_iter().any(|frame| {
@@ -1064,7 +1069,7 @@ async fn ref21_a2_a_refused_audio_start_shows_the_cause_and_not_recording()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a2_permission_requests_reach_the_real_helper() -> Result<(), Box<dyn Error>> {
+async fn permission_requests_reach_the_real_helper() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::Builder::new()
         .prefix("orbit-app-settings-")
         .tempdir_in("/tmp")?;
@@ -1076,7 +1081,7 @@ async fn a2_permission_requests_reach_the_real_helper() -> Result<(), Box<dyn Er
         snapshot.connection.daemon == DaemonConnection::Ready
     })
     .await;
-    // REF-11: there is no switch to send before; the macOS permission is the
+    // There is no switch to send before; the macOS permission is the
     // whole decision, and asking for it is what reaches the helper.
     client
         .send(AppCommand::Daemon(Box::new(
@@ -1092,8 +1097,7 @@ async fn a2_permission_requests_reach_the_real_helper() -> Result<(), Box<dyn Er
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn app12_a2_reads_a_voice_note_wav_once_through_the_real_daemon() -> Result<(), Box<dyn Error>>
-{
+async fn reads_a_voice_note_wav_once_through_the_real_daemon() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::Builder::new()
         .prefix("orbit-app-voice-note-")
         .tempdir_in("/tmp")?;
@@ -1162,7 +1166,7 @@ async fn app12_a2_reads_a_voice_note_wav_once_through_the_real_daemon() -> Resul
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a1_briefing_section_stays_total_against_the_real_daemon() -> Result<(), Box<dyn Error>> {
+async fn briefing_section_stays_total_against_the_real_daemon() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::Builder::new()
         .prefix("orbit-app-briefing-")
         .tempdir_in("/tmp")?;
@@ -1235,7 +1239,7 @@ async fn loads_and_refreshes_the_visible_week_through_the_real_daemon() -> Resul
         daemon.child.client.clone(),
     );
 
-    // REF-10 A1: the permission is enough; the week is read with nothing chosen.
+    // The permission is enough; the week is read with nothing chosen.
     let loaded_week = |snapshot: &orbit_app_core::AppSnapshot| {
         !snapshot.calendar.events.is_empty() && !snapshot.calendar.stale
     };
@@ -1266,7 +1270,7 @@ async fn loads_and_refreshes_the_visible_week_through_the_real_daemon() -> Resul
             CalendarWeekStart::Sunday,
         ))
         .await?;
-    // P9-20: the week on screen, and the read widened back to today (the
+    // The week on screen, and the read widened back to today (the
     // Friday before) so the Briefing keeps its day.
     let today = FixedUtcCalendarClock.now_ms();
     let next_head = observed_agenda(&daemon.child.client).await?;
@@ -1333,13 +1337,12 @@ fn set_range(
     )
 }
 
-/// P9-20 A6: how Mars answered and the video link come from the real read —
+/// How the user answered and the video link come from the real read —
 /// helper, daemon, topic pages and app-core — not only from the projection.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn p9_20_a6_answers_and_video_links_arrive_through_the_real_daemon()
--> Result<(), Box<dyn Error>> {
+async fn answers_and_video_links_arrive_through_the_real_daemon() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::Builder::new()
-        .prefix("orbit-app-p9_20-answers-")
+        .prefix("orbit-app-answers-")
         .tempdir_in("/tmp")?;
     let paths = Paths::resolve(Some(directory.path().to_path_buf()))?;
     let _daemon = TestDaemon::start_calendar(directory.path())?;
@@ -1393,15 +1396,14 @@ async fn p9_20_a6_answers_and_video_links_arrive_through_the_real_daemon()
     Ok(())
 }
 
-/// P9-20 A7: each view asks the daemon for its own window — the month and
+/// Each view asks the daemon for its own window — the month and
 /// the agenda are wider than one daemon window (`READ_WINDOW_MS`) and are
 /// read in several — and the Briefing keeps today while the calendar shows
 /// another month.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn p9_20_a7_each_view_reads_its_window_and_the_briefing_keeps_today()
--> Result<(), Box<dyn Error>> {
+async fn each_view_reads_its_window_and_the_briefing_keeps_today() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::Builder::new()
-        .prefix("orbit-app-p9_20-windows-")
+        .prefix("orbit-app-windows-")
         .tempdir_in("/tmp")?;
     let paths = Paths::resolve(Some(directory.path().to_path_buf()))?;
     let daemon = TestDaemon::start_calendar(directory.path())?;
@@ -1782,7 +1784,7 @@ fn configure_assistant_hub(data_dir: &Path, address: SocketAddr) -> std::io::Res
     std::fs::write(
         data_dir.join("config.toml"),
         format!(
-            "version = 1\ndevice_name = \"Fixture APP-06\"\nhub_url = \"http://{address}\"\ndevice_id = \"{ASSISTANT_DEVICE_ID}\"\nspeak_responses = false\n"
+            "version = 1\ndevice_name = \"Fixture assistant\"\nhub_url = \"http://{address}\"\ndevice_id = \"{ASSISTANT_DEVICE_ID}\"\nspeak_responses = false\n"
         ),
     )?;
     std::fs::write(data_dir.join("development-device.key"), "fixture-token")
@@ -1797,7 +1799,7 @@ fn pending_kind(snapshot: &orbit_app_core::AppSnapshot) -> Option<String> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a1_real_daemon_publishes_chat_deltas_and_resolves_pending_interactions()
+async fn real_daemon_publishes_chat_deltas_and_resolves_pending_interactions()
 -> Result<(), Box<dyn Error>> {
     let directory = tempfile::Builder::new()
         .prefix("orbit-app-assistant-")
@@ -1925,13 +1927,13 @@ async fn a1_real_daemon_publishes_chat_deltas_and_resolves_pending_interactions(
     Ok(())
 }
 
-/// P9-21 criterion 5: the app's three calendar writes reach the helper
+/// The app's three calendar writes reach the helper
 /// through the real daemon, each with its shape — create without a calendar
 /// (macOS's default), a move of one occurrence, a delete of it and the ones
 /// after it. Nothing is confirmed on the way: the permission is the decision.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn p9_21_the_three_calendar_writes_reach_the_helper_with_their_shapes()
--> Result<(), Box<dyn Error>> {
+async fn the_three_calendar_writes_reach_the_helper_with_their_shapes() -> Result<(), Box<dyn Error>>
+{
     use orbit_app_core::{CalendarEventChanges, CalendarEventDraft, CalendarSpan};
     const OCCURRENCE: i64 = 1_792_058_400_000;
     let directory = tempfile::Builder::new()
@@ -2040,11 +2042,11 @@ async fn p9_21_the_three_calendar_writes_reach_the_helper_with_their_shapes()
     Ok(())
 }
 
-/// P9-22: a write's outcome comes back to the calendar view through the
+/// A write's outcome comes back to the calendar view through the
 /// real daemon and the agenda head — here a save, with the occurrence it
 /// left, which is what an undo names later. Nothing is polled by hand.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn p9_22_a_saved_write_reaches_the_calendar_view() -> Result<(), Box<dyn Error>> {
+async fn a_saved_write_reaches_the_calendar_view() -> Result<(), Box<dyn Error>> {
     use orbit_app_core::{CalendarEventChanges, CalendarSpan, CalendarWriteStage};
     const OCCURRENCE: i64 = 1_792_058_400_000;
     let directory = tempfile::Builder::new()
@@ -2116,12 +2118,12 @@ fn notes_of(snapshot: &orbit_app_core::AppSnapshot) -> Value {
         .expect("the snapshot must carry the notes section")
 }
 
-/// SIM-41 through the real daemon: a recording this Mac made opens and is
+/// Through the real daemon: a recording this Mac made opens and is
 /// listed without the hub (unpaired here), as what the Mac knows of it; the
 /// list says the hub's part is missing.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn sim41_a_recording_of_this_mac_opens_and_is_listed_without_the_hub()
--> Result<(), Box<dyn Error>> {
+async fn a_recording_of_this_mac_opens_and_is_listed_without_the_hub() -> Result<(), Box<dyn Error>>
+{
     let directory = tempfile::Builder::new()
         .prefix("orbit-app-notes-")
         .tempdir_in("/tmp")?;
@@ -2194,7 +2196,7 @@ async fn sim41_a_recording_of_this_mac_opens_and_is_listed_without_the_hub()
     // The list arrives with the notes topic and the open note may be read
     // again when its revision moves (NOTE-STALE): wait for both, never an
     // instant right after `NotesOpen`. The row may first say «recording»: the
-    // notes topic keeps its 1 s cadence (SIM-74), so the head of the finish
+    // notes topic keeps its 1 s cadence, so the head of the finish
     // comes up to a second later. Wait for the state the row must reach, not
     // for whichever list came first (Mac, 2026-10-20: 3 of 20 runs read it).
     let opened = notes_of(
@@ -2218,7 +2220,7 @@ async fn sim41_a_recording_of_this_mac_opens_and_is_listed_without_the_hub()
         "without the hub its audio is still on its way"
     );
     // Not paired: the hub cannot be asked, which is not a failed read
-    // (SIM-25 run 20).
+    // (seen in a run of the real test on the Mac).
     assert_eq!(opened.pointer("/index/state"), Some(&json!("needs_hub")));
     assert_eq!(opened.pointer("/index/detail"), Some(&Value::Null));
     assert_eq!(

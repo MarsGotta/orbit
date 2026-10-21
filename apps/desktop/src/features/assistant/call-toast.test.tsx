@@ -8,7 +8,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("al terminar la llamada informa sin ofrecer un deshacer vacío", () => {
+it("when the call ends it says so without offering an empty undo", () => {
   vi.useFakeTimers();
   const send = vi.fn();
   const snapshot = {

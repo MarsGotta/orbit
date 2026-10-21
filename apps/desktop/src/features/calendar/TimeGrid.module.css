@@ -1,4 +1,4 @@
-/* P9-20: day, N days and week. 24 hours, a rail of hours on the left, the
+/* Day, N days and week. 24 hours, a rail of hours on the left, the
    all-day lane above, Orbit's tokens only. */
 .grid {
   --rail: 56px;
@@ -218,7 +218,7 @@
   opacity: 0.15;
 }
 
-/* P9-22: the grid takes gestures. Text is not selected while dragging, and
+/* The grid takes gestures. Text is not selected while dragging, and
    the lane keeps one row even empty, so a drag across it drafts an event. */
 .gridBody {
   user-select: none;

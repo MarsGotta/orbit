@@ -1,4 +1,4 @@
-//! P9-05: the note library read, page after page, into `notes.library`.
+//! The note library read, page after page, into `notes.library`.
 use super::*;
 use orbit_core::{notes::LibraryItem, reads::ReadRequest, topics::Cursor};
 

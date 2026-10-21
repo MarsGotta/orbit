@@ -109,7 +109,7 @@ export function refusalReport(op: string, refusal: Refusal): Report {
   };
 }
 
-/** A code of the interface's own, with closed data only (SIM-24). */
+/** A code of the interface's own, with closed data only. */
 export function uiReport(op: string, code: NoticeCode, data: NoticeData = {}): Report {
   return { op, code: token(code), class: noticeClass[code], source: "ui", data: closedData(data) };
 }
@@ -139,8 +139,8 @@ function present(incoming: Incoming, assistantName?: string): Presented {
 }
 
 /**
- * The only place a notice, a refusal or an error becomes something on screen
- * (SIM-21). A silent code is only logged, and ends a working message of its
+ * The only place a notice, a refusal or an error becomes something on screen.
+ * A silent code is only logged, and ends a working message of its
  * op; anything shown replaces the message of its op, so there is never more
  * than one per op. Identical visible notices also replace the previous notice
  * across operations. A code the catalogue does not know is the generic

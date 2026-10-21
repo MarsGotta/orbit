@@ -56,7 +56,7 @@ fn projects_next_with_previous_series_context() {
 }
 
 #[test]
-fn a1_projects_focus_minutes_from_the_free_gaps_of_the_day() {
+fn projects_focus_minutes_from_the_free_gaps_of_the_day() {
     let state = briefing_fixture(vec![
         briefing_event(
             "platform-office",
@@ -80,22 +80,22 @@ fn a1_projects_focus_minutes_from_the_free_gaps_of_the_day() {
     assert_eq!(briefing["summary"]["focus_minutes"], 520);
 }
 
-// REF-04 A1: every hour, "today", day cut and focus window of the
-// projection is read on Mars's clock, in Madrid. The instants are UTC and
+// Every hour, "today", day cut and focus window of the
+// projection is read on the user's clock, in Madrid. The instants are UTC and
 // the comments give the wall clock in Madrid, as the tz database has it.
 
-fn ref04_event(event_id: &str, start_ms: i64) -> CalendarOccurrence {
+fn half_hour_event(event_id: &str, start_ms: i64) -> CalendarOccurrence {
     briefing_event(
         event_id,
         &format!("Reunión {event_id}"),
         start_ms,
-        start_ms + REF04_HALF_HOUR_MS,
+        start_ms + HALF_HOUR_MS,
         &["alina.perez"],
         None,
     )
 }
 
-fn ref04_agenda(briefing: &Value) -> Vec<(String, i64)> {
+fn agenda_rows(briefing: &Value) -> Vec<(String, i64)> {
     briefing["agenda"]
         .as_array()
         .expect("the agenda is a list")
@@ -110,25 +110,25 @@ fn ref04_agenda(briefing: &Value) -> Vec<(String, i64)> {
 }
 
 #[test]
-fn ref04_a1_today_starts_at_local_midnight() {
+fn today_starts_at_local_midnight() {
     let state = briefing_fixture(vec![
-        ref04_event("tuesday-late", REF04_2026_09_15_T2130Z),
-        ref04_event("wednesday-early", REF04_2026_09_15_T2300Z),
-        ref04_event("wednesday-ten", REF04_2026_09_16_T0800Z),
+        half_hour_event("tuesday-late", UTC_2026_09_15_T2130Z),
+        half_hour_event("wednesday-early", UTC_2026_09_15_T2300Z),
+        half_hour_event("wednesday-ten", UTC_2026_09_16_T0800Z),
     ]);
 
-    let briefing = projected_briefing(&state, REF04_2026_09_15_T2230Z);
+    let briefing = projected_briefing(&state, UTC_2026_09_15_T2230Z);
 
     assert_eq!(
-        ref04_agenda(&briefing),
+        agenda_rows(&briefing),
         vec![
             (
                 "observation-wednesday-early".to_owned(),
-                REF04_2026_09_15_T2300Z
+                UTC_2026_09_15_T2300Z
             ),
             (
                 "observation-wednesday-ten".to_owned(),
-                REF04_2026_09_16_T0800Z
+                UTC_2026_09_16_T0800Z
             ),
         ],
         "23:30 on Tuesday is yesterday; 01:00 on Wednesday is today"
@@ -137,10 +137,10 @@ fn ref04_a1_today_starts_at_local_midnight() {
 }
 
 #[test]
-fn ref04_a1_the_focus_window_is_nine_to_seven_on_marss_clock() {
-    let state = briefing_fixture(vec![ref04_event("nine", REF04_2026_09_16_T0700Z)]);
+fn the_focus_window_is_nine_to_seven_on_the_users_clock() {
+    let state = briefing_fixture(vec![half_hour_event("nine", UTC_2026_09_16_T0700Z)]);
 
-    let briefing = projected_briefing(&state, REF04_2026_09_16_T0500Z);
+    let briefing = projected_briefing(&state, UTC_2026_09_16_T0500Z);
 
     // 09:00-19:00 is 600 minutes; the event and its 10-minute buffer take
     // 09:00-09:40.
@@ -148,33 +148,33 @@ fn ref04_a1_the_focus_window_is_nine_to_seven_on_marss_clock() {
 }
 
 #[test]
-fn ref04_a1_the_day_the_clocks_go_back_has_twenty_five_hours() {
+fn the_day_the_clocks_go_back_has_twenty_five_hours() {
     let state = briefing_fixture(vec![
-        ref04_event("after-midnight", REF04_2026_10_24_T2230Z),
-        ref04_event("first-half-past-two", REF04_2026_10_25_T0030Z),
-        ref04_event("second-half-past-two", REF04_2026_10_25_T0130Z),
-        ref04_event("ten", REF04_2026_10_25_T0900Z),
-        ref04_event("monday", REF04_2026_10_25_T2330Z),
+        half_hour_event("after-midnight", UTC_2026_10_24_T2230Z),
+        half_hour_event("first-half-past-two", UTC_2026_10_25_T0030Z),
+        half_hour_event("second-half-past-two", UTC_2026_10_25_T0130Z),
+        half_hour_event("ten", UTC_2026_10_25_T0900Z),
+        half_hour_event("monday", UTC_2026_10_25_T2330Z),
     ]);
 
-    let briefing = projected_briefing(&state, REF04_2026_10_25_T2230Z);
+    let briefing = projected_briefing(&state, UTC_2026_10_25_T2230Z);
 
     assert_eq!(
-        ref04_agenda(&briefing),
+        agenda_rows(&briefing),
         vec![
             (
                 "observation-after-midnight".to_owned(),
-                REF04_2026_10_24_T2230Z
+                UTC_2026_10_24_T2230Z
             ),
             (
                 "observation-first-half-past-two".to_owned(),
-                REF04_2026_10_25_T0030Z
+                UTC_2026_10_25_T0030Z
             ),
             (
                 "observation-second-half-past-two".to_owned(),
-                REF04_2026_10_25_T0130Z
+                UTC_2026_10_25_T0130Z
             ),
-            ("observation-ten".to_owned(), REF04_2026_10_25_T0900Z),
+            ("observation-ten".to_owned(), UTC_2026_10_25_T0900Z),
         ],
         "Sunday runs from 00:00 CEST to 24:00 CET and 02:30 happens twice"
     );

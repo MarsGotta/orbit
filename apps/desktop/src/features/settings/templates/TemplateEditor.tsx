@@ -81,9 +81,9 @@ function TemplateFields({
 }
 
 /**
- * One template: name, context and sections, saved a second after Mars
+ * One template: name, context and sections, saved a second after the user
  * pauses. One of Orbit's is never changed: the first change saves a copy of
- * hers that says where it comes from. Deleting asks nothing.
+ * the user's own that says where it comes from. Deleting asks nothing.
  */
 export function TemplateEditor({
   library,
@@ -94,7 +94,7 @@ export function TemplateEditor({
 }: {
   library: NoteLibrarySnapshot;
   onCopied: (id: string) => void;
-  /** What «Deshacer» brings back (P9-14). */
+  /** What «Deshacer» brings back. */
   onDeleted: (removed: RemovedTemplate) => void;
   send: (command: AppCommand) => void;
   template: NoteTemplateDetailSnapshot;

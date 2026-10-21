@@ -7,7 +7,7 @@ const OP = "0123abcd-0000-4000-8000-000000000000";
 afterEach(clearMocks);
 
 /**
- * P9-11: the floating panel may only answer a call — record, not now, keep
+ * The floating panel may only answer a call — record, not now, keep
  * recording, stop — through its own narrow order; everything else is
  * refused before it reaches Tauri.
  */
@@ -38,8 +38,8 @@ it("sends only the call answers, through the panel's own order", async () => {
 });
 
 /**
- * P9-12: the panel also asks Deimos and closes the question, through the
- * same order, and takes the keyboard only while Mars writes.
+ * The panel also asks Deimos and closes the question, through the
+ * same order, and takes the keyboard only while the user writes.
  */
 it("asks Deimos, closes the question and asks for the keyboard through its own order", async () => {
   const calls: { command: string; payload: unknown }[] = [];
@@ -65,7 +65,7 @@ it("asks Deimos, closes the question and asks for the keyboard through its own o
   ).rejects.toThrow();
 });
 
-/** R3: an answer's link opens through the panel's own closed order. */
+/** An answer's link opens through the panel's own closed order. */
 it("opens an answer's link through the panel's order", async () => {
   const calls: { command: string; payload: unknown }[] = [];
   mockIPC((command, payload) => {

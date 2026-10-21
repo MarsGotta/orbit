@@ -12,20 +12,20 @@ export type CalendarEventSnapshot = {
  */
 recording?: BriefingRecordingState, id: string, calendar_id?: string | null, title: string, start_ms: number, end_ms: number, all_day?: boolean | null, attendees?: Array<CalendarAttendeeSnapshot> | null, url?: string | null, location?: string | null, status?: CalendarEventStatus | null, 
 /**
- * P9-20: Mars's own answer, from the guest EventKit marks as her
+ * The user's own answer, from the guest EventKit marks as the user
  * (`is_current_user`). Absent means the event is not an invitation
- * to her — no guest list, or she is not on it — never «sin
+ * to them — no guest list, or they are not on it — never «sin
  * responder».
  */
 self_response?: CalendarResponse | null, 
 /**
- * P9-20: the event's link when it is a known video call (Google
+ * The event's link when it is a known video call (Google
  * Meet, Zoom, Microsoft Teams, Webex, Whereby, FaceTime), which the
  * detail offers as «Unirse». Any other link stays in `url` only.
  */
 conference_url?: string | null, 
 /**
- * P9-21: what names this occurrence for a change or a delete —
+ * What names this occurrence for a change or a delete —
  * its event and the original date of the occurrence. `id` is a new
  * observation on every read and names nothing.
  */
@@ -40,13 +40,13 @@ notes_left_out_bytes?: number, organizer?: CalendarAttendeeSnapshot, availabilit
  */
 can_edit?: boolean, 
 /**
- * P9-22: its reminders Orbit edits, in minutes before the start.
+ * Its reminders Orbit edits, in minutes before the start.
  * Absent: not read (a helper that predates it, or too many), never
  * «none».
  */
 alarms_minutes?: Array<number>, 
 /**
- * P9-22: reminders Orbit does not edit (at a date, by place, after
+ * Reminders Orbit does not edit (at a date, by place, after
  * the start); a change of reminders keeps them.
  */
 alarms_not_editable?: number, };

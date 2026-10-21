@@ -2,6 +2,6 @@
 import type { NoteSeriesAssignedSnapshot } from "./NoteSeriesAssignedSnapshot";
 
 /**
- * P9-05: the series a note belongs to (its event's stable key).
+ * The series a note belongs to (its event's stable key).
  */
 export type NoteSeriesLinkSnapshot = { calendar_item_id: string, assigned: NoteSeriesAssignedSnapshot, };

@@ -12,7 +12,7 @@ type AccountPairingProps = {
 };
 
 /**
- * Pairing in Ajustes › Cuenta (SIM-24): nothing when the Mac is paired and
+ * Pairing in Ajustes › Cuenta: nothing when the Mac is paired and
  * linked; unpaired or withdrawn says so, beside the way to pair. An unknown
  * link says nothing. Server and device names are not for the screen.
  */

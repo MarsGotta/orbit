@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import { SAVE_AFTER_MS, SAVE_AT_LEAST_EVERY_MS } from "./use-debounced-commit";
 /**
- * Mars's draft of her private notes and its saves to the daemon (P9-03).
- * The daemon's echo never replaces what she typed after the save it echoes;
- * a save still waiting goes out when she leaves the note.
+ * The user's draft of their private notes and its saves to the daemon.
+ * The daemon's echo never replaces what they typed after the save it echoes;
+ * a save still waiting goes out when they leave the note.
  */
 export function usePrivateNotesDraft(
   recordingId: string,

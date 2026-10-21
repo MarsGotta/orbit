@@ -6,7 +6,7 @@ import { TranscriptTab, TranscriptionProgress } from "./TranscriptTab";
 
 function note(transcript: Partial<OpenNoteSnapshot["transcript"]>): OpenNoteSnapshot {
   return {
-    recording_id: "meeting-app17",
+    recording_id: "meeting-transcript-state",
     title: "Revisión semanal",
     owner_name: "Alina",
     started_at_ms: 1,
@@ -46,8 +46,8 @@ function renderTranscript(value: OpenNoteSnapshot) {
 
 afterEach(cleanup);
 
-describe("APP-17 A1 visible transcript state", () => {
-  // SIM-24: work on the hub is progress, said without its internal counts.
+describe("visible transcript state", () => {
+  // Work on the hub is progress, said without its internal counts.
   it("shows chunks still to transcribe as progress, not as a failure", () => {
     renderTranscript(note({ pending_chunks: 2 }));
     const status = screen.getByRole("status").textContent;
@@ -57,7 +57,7 @@ describe("APP-17 A1 visible transcript state", () => {
     expect(screen.queryByText(es.notes.noTranscript)).toBeNull();
   });
 
-  // SIM-24: a failed read says so and offers «Reintentar»; the daemon's
+  // A failed read says so and offers «Reintentar»; the daemon's
   // cause stays in the log, never on screen.
   it("shows the failure instead of the empty-state copy, without the daemon cause", () => {
     renderTranscript(note({ error: "El hub no respondió a tiempo" }));

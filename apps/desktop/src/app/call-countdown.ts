@@ -1,6 +1,6 @@
 import { es } from "../i18n/es";
 
-// P9-11: the countdown of a recording a call started, once the call ended.
+// The countdown of a recording a call started, once the call ended.
 // Shared by the floating panel and the main window's pill.
 
 /** Whole seconds until `endsAtMs`, rounded up and never below zero. */

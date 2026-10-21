@@ -6,7 +6,7 @@ import styles from "./NoteScreen.module.css";
 
 /**
  * Upload → Transcript → Summary, centred above the note while anything is
- * left (P9-04). Each step says its state; where it stands is its tooltip
+ * left. Each step says its state; where it stands is its tooltip
  * and its accessible description.
  */
 export function NoteProgress({ progress }: { progress: NoteProgressSnapshot }) {

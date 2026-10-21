@@ -18,9 +18,9 @@ import { openPanelLink } from "./panel-links";
 import styles from "./CallPanel.module.css";
 
 /**
- * P9-11: the root of the floating panel's window. It follows the same
+ * The root of the floating panel's window. It follows the same
  * frames as the main window and renders only what the panel has to say:
- * a call (P9-11) and a question to Deimos with its answer (P9-12). The
+ * a call and a question to Deimos with its answer. The
  * window itself is shown, hidden and sized by the app from the same frames.
  */
 export function PanelApp({ port }: { port: DaemonPort }) {
@@ -103,7 +103,7 @@ function PanelContent({ port, store }: { port: DaemonPort; store: OrbitStore }) 
 }
 
 /**
- * P9-12: the answer's links open through the panel's own order; a link
+ * The answer's links open through the panel's own order; a link
  * Rust refuses (not http/https, credentials, no host) is said with its cause.
  */
 function usePanelLinks(port: DaemonPort) {

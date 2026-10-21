@@ -4,7 +4,7 @@ import { serializeInline, serializeMarkdown } from "./markdown-write";
 
 const once = (markdown: string) => serializeMarkdown(parseMarkdown(markdown));
 
-describe("P9-04 markdown subset", () => {
+describe("markdown subset", () => {
   it("parses what the hub writes into blocks and runs", () => {
     const blocks = parseMarkdown(
       "## Resumen\n\nEl **bloqueo** sigue *abierto* y ~~cerrado~~.\n\n- uno\n- dos\n\n1. a\n2. b\n\n- [x] hecho\n- [ ] pendiente\n\nVer [acta](https://example.com/acta).",

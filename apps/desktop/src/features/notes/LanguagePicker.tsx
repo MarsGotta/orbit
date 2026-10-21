@@ -4,12 +4,12 @@ import { es } from "../../i18n/es";
 import { languageName } from "./notes-format";
 import styles from "./NoteScreen.module.css";
 
-/** The languages a meeting can be picked in (SIM-52), in display order. */
+/** The languages a meeting can be picked in, in display order. */
 const LANGUAGES = ["es", "en", "ca", "fr", "pt", "de", "it"];
 
 /**
  * The meeting's language, the one the hub's document says. Another one
- * transcribes the meeting again in it and writes its note again (SIM-52);
+ * transcribes the meeting again in it and writes its note again;
  * meanwhile it says how far that got. Not offered before the hub has the
  * meeting: there is no language to show.
  */

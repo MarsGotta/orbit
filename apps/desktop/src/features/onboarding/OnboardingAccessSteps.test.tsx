@@ -6,10 +6,10 @@ import { PermissionsStep } from "./OnboardingAccessSteps";
 
 afterEach(cleanup);
 
-// SIM-24: an unknown permission says nothing (it is not a refusal); denied
+// An unknown permission says nothing (it is not a refusal); denied
 // and not granted read the same to the person, «Sin conceder». The actions
 // stay distinct: nothing is invented for an unknown.
-it("A1: unknown says nothing, denied and not granted read «Sin conceder», without invented actions", () => {
+it("unknown says nothing, denied and not granted read «Sin conceder», without invented actions", () => {
   const send = vi.fn(async () => undefined);
   render(
     <PermissionsStep

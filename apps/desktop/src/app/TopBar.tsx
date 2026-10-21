@@ -9,7 +9,7 @@ export interface TopBarProps {
   meetEntry?: ReactNode;
   onOpenPalette: () => void;
   onToggleTheme: () => void;
-  /** The status pill: empty when all is well (SIM-24). */
+  /** The status pill: empty when all is well. */
   status?: ReactNode;
   viewTitle: string;
 }

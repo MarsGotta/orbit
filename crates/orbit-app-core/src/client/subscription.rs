@@ -69,7 +69,7 @@ async fn clock_loop(
     }
 }
 
-/// P9-20 (3a): on each tick, the agenda is read again after local midnight
+/// On each tick, the agenda is read again after local midnight
 /// if the read on record no longer holds the new day. A read the daemon
 /// refuses reaches the agenda view through its own topic.
 pub(super) async fn calendar_day_loop(
@@ -335,7 +335,7 @@ mod topic_tests {
     }
 
     #[tokio::test]
-    async fn ref212_engine_tools_read_hydrates_the_control_frame() {
+    async fn engine_tools_read_hydrates_the_control_frame() {
         let mut cache = crate::topics::TopicCache::default();
         cache.observe_at(
             TopicFrame {
@@ -424,7 +424,7 @@ mod topic_tests {
     }
 
     #[tokio::test]
-    async fn ref207_failed_window_request_is_visible_to_the_agenda() {
+    async fn failed_window_request_is_visible_to_the_agenda() {
         let mut snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         snapshot.calendar.window.start_ms = 1_700_000_000_000;
         snapshot.calendar.window.end_ms = 1_700_086_400_000;
@@ -543,7 +543,7 @@ mod topic_tests {
         );
         assert_eq!(snapshots.borrow().revision, 7);
         assert!(!snapshot_changes.has_changed().unwrap());
-        // REF-207: a changed agenda value travels through the same IPC and
+        // A changed agenda value travels through the same IPC and
         // frame queue without any legacy StateChanged event.
         frames.lock().unwrap().drain();
         frame_changes.borrow_and_update();

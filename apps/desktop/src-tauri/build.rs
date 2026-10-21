@@ -1,5 +1,5 @@
 fn main() {
-    // P9-11: app orders are allowed per window. Without a manifest every
+    // App orders are allowed per window. Without a manifest every
     // window could invoke every order; with it each capability names its own
     // (`capabilities/default.json` for the main window, `panel.json` for the
     // floating panel, which only answers a call).

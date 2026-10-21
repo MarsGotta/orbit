@@ -5,7 +5,7 @@ import type { AppCommand } from "../../bridge/generated";
 import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
 import { AssistantComposer } from "./AssistantComposer";
 
-// REF-07 A5: with the focus on the chat box, a modifier on its way to another
+// With the focus on the chat box, a modifier on its way to another
 // chord — ⌃⌥Esc is the privacy stop — or a composed character (⌥2 is «@» on
 // the Spanish keyboard) must not send `voice_start` or `voice_end` to the
 // daemon, no matter how long the chord is held. ⌥ alone is never dictation.
@@ -52,8 +52,8 @@ afterEach(() => {
   cleanup();
 });
 
-describe("REF-07 A5 una tecla modificadora no abre el micrófono", () => {
-  it("mantener ⌥ y escribir @ nunca abre el micrófono", () => {
+describe("a modifier key does not open the microphone", () => {
+  it("holding ⌥ and typing @ never opens the microphone", () => {
     vi.useFakeTimers();
     const { input, send } = renderComposer();
 

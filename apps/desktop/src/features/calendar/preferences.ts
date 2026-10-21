@@ -3,7 +3,7 @@ import type { CalendarWeekStart } from "../../bridge/generated/CalendarWeekStart
 import { MAX_GRID_DAYS, type ViewChoice, type WidthTier } from "./range";
 
 /**
- * Mars's local calendar preferences (P9-20): the view she chose for each
+ * The user's local calendar preferences: the view they chose for each
  * width, the day the week begins, weekends, declined events, zoom and the
  * all-day lane. Kept in this browser's storage only; without it everything
  * works with the defaults for the session.

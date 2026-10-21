@@ -1,17 +1,18 @@
-//! P9-11: the floating panel's window (`panel` in `tauri.conf.json`).
+//! The floating panel's window (`panel` in `tauri.conf.json`).
 //!
 //! A second webview of the same interface, small, borderless, always on top
 //! and never focusable, so it can say «Llamada en Zoom» over the call without
 //! taking the keyboard from it. It is shown only while the recording frame
-//! has something to say (`call_panel`), and P9-12 reuses it for Deimos's
-//! answers. The frames reach it by the same `orbit://feature/<id>` events.
+//! has something to say (`call_panel`), and a question to Deimos during the
+//! meeting reuses it for the answers. The frames reach it by the same
+//! `orbit://feature/<id>` events.
 
 use orbit_app_core::features::FeatureFrame;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 
-/// P9-12: Mars is writing a question in the panel: it keeps the keyboard
-/// and the room for the field until she sends or cancels it.
+/// The user is writing a question in the panel: it keeps the keyboard
+/// and the room for the field until it is sent or cancelled.
 static ASKING: AtomicBool = AtomicBool::new(false);
 
 /// The panel window's label, named by its capability (`capabilities/panel.json`).
@@ -29,14 +30,14 @@ const PANEL_MARGIN: f64 = 16.0;
 /// of the panel window in `tauri.conf.json`.
 pub const PANEL_HEIGHT: f64 = 120.0;
 
-/// P9-12: the panel's height while it shows a question to Deimos and its
+/// The panel's height while it shows a question to Deimos and its
 /// answer: the question, a few lines of answer (it scrolls past them) and
 /// «Cerrar». It is not a limit on the answer, which stays whole in the
 /// conversation.
 pub const PANEL_ANSWER_HEIGHT: f64 = 300.0;
 
 /// Whether the panel must be visible after `frame`: only the recording frame
-/// decides it — a call to answer (P9-11) or a question to Deimos (P9-12).
+/// decides it — a call to answer or a question to Deimos.
 pub fn panel_visible(frame: &FeatureFrame) -> Option<bool> {
     match frame {
         FeatureFrame::Recording { view, .. } => {
@@ -58,7 +59,7 @@ pub fn panel_height(frame: &FeatureFrame) -> Option<f64> {
     }
 }
 
-/// P9-12: the panel takes the keyboard only while Mars writes a question;
+/// The panel takes the keyboard only while the user writes a question;
 /// otherwise it never takes it from the call. A failure is said and the
 /// field stays visible.
 pub fn focus<R: tauri::Runtime>(app: &tauri::AppHandle<R>, focus: bool) {

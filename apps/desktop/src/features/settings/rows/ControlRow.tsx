@@ -3,7 +3,7 @@ import { es } from "../../../i18n/es";
 import { useSpanish } from "../../../i18n/AssistantCopy";
 import styles from "../SettingsView.module.css";
 
-/// REF-11: an action is performed, cancelled, failed or of uncertain end.
+/// An action is performed, cancelled, failed or of uncertain end.
 /// Nothing on this path waits for an approval, so no word here says so; any
 /// word the daemon does not send today reads as an end nobody saw.
 function historyOutcome(outcome: string): string {
@@ -22,7 +22,7 @@ function historyTime(atMs: number): string {
 
 /**
  * What Deimos did on this Mac, newest as the daemon sends it. A history not
- * known yet, or one the daemon could not read, says nothing (SIM-24).
+ * known yet, or one the daemon could not read, says nothing.
  */
 export function ControlHistory({ control }: { control?: ComputerControlSnapshot }) {
   const es = useSpanish();

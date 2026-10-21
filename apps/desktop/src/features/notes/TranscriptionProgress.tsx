@@ -4,7 +4,7 @@ import { es } from "../../i18n/es";
 import styles from "./NotesView.module.css";
 
 /** Where the transcript stands: being transcribed, partly failed (with
- * «Reintentar»), or unreadable. Counts and causes stay in the log (SIM-24). */
+ * «Reintentar»), or unreadable. Counts and causes stay in the log. */
 export function TranscriptionProgress({
   note,
   send,

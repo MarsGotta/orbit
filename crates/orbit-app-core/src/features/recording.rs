@@ -161,7 +161,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
     }
 }
 
-/// P9-12: the question's answer is its turn's (SIM-30: followed by the
+/// The question's answer is its turn's (followed by the
 /// turn's id): its text while it arrives (responding) and once complete. The
 /// recording topic says where the turn is; the assistant topic carries the
 /// words.
@@ -712,7 +712,7 @@ mod topic_tests {
     }
 
     #[test]
-    fn a1_topic_starting_overrides_a_stale_legacy_phase() -> Result<(), serde_json::Error> {
+    fn topic_starting_overrides_a_stale_legacy_phase() -> Result<(), serde_json::Error> {
         let snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let recording = Recording {
             id: "recording-1".into(),
@@ -749,7 +749,7 @@ mod topic_tests {
     }
 
     #[test]
-    fn a3_unobserved_inventory_is_not_presented_as_empty() {
+    fn unobserved_inventory_is_not_presented_as_empty() {
         let mut snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         snapshot.meeting.applications_state = crate::MeetingApplicationsState::Empty;
         let mut topics = crate::topics::TopicCache::default();
@@ -774,11 +774,10 @@ mod topic_tests {
         );
     }
 
-    /// P9-11: the offer the daemon published reaches the panel, and its
+    /// The offer the daemon published reaches the panel, and its
     /// «Grabar» names that offer.
     #[test]
-    fn p9_11_a_published_offer_reaches_the_record_command() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn a_published_offer_reaches_the_record_command() -> Result<(), Box<dyn std::error::Error>> {
         let snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let frame: TopicFrame = serde_json::from_value(serde_json::json!({
             "epoch": "synthetic", "revision": 1,
@@ -818,10 +817,10 @@ mod topic_tests {
         Ok(())
     }
 
-    /// P9-11: a daemon that predates the call detection publishes no
+    /// A daemon that predates the call detection publishes no
     /// preference: unknown, never «Avisarme».
     #[test]
-    fn p9_11_an_absent_call_view_is_an_unknown_preference() -> Result<(), serde_json::Error> {
+    fn an_absent_call_view_is_an_unknown_preference() -> Result<(), serde_json::Error> {
         let snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         let frame: TopicFrame = serde_json::from_value(serde_json::json!({
             "epoch": "synthetic", "revision": 1,

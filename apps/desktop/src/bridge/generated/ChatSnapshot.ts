@@ -9,15 +9,15 @@ import type { VoiceSnapshot } from "./VoiceSnapshot";
 export type ChatSnapshot = { availability?: FeatureAvailability, 
 /**
  * The open conversation; its messages are read from the hub a page
- * at a time (SIM-30).
+ * at a time.
  */
 session_id: string | null, 
 /**
  * The turn in progress, or the last one until another begins:
- * Mars's message and the answer as it arrives.
+ * the user's message and the answer as it arrives.
  */
 turn: Array<ChatMessage>, 
 /**
- * The last voice note Mars asked to hear, once its audio arrived.
+ * The last voice note the user asked to hear, once its audio arrived.
  */
 voice_audio?: VoiceNoteAudioSnapshot, pending: ChatPending | null, voice: VoiceSnapshot, activity?: AssistantActivity, };

@@ -15,7 +15,7 @@ interface WhenProps {
 }
 
 /** When: dates and hours (a new start keeps the length), the all-day switch and
- *  the repetition (P9-22). */
+ *  the repetition. */
 export function PanelWhen({ form, onChange, timezone }: WhenProps) {
   return (
     <fieldset className={styles.when}>

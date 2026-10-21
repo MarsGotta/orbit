@@ -1,4 +1,4 @@
-//! SIM-41: one note read from the daemon, which reads it from the hub: its
+//! One note read from the daemon, which reads it from the hub: its
 //! document and its turns, page after page.
 use super::*;
 use orbit_core::{
@@ -149,7 +149,7 @@ impl DaemonClient {
         }
     }
 
-    /// Mars opened a note: read it, showing it loading until it arrives.
+    /// The user opened a note: read it, showing it loading until it arrives.
     pub(super) async fn read_open_note(
         &self,
         recording_id: String,

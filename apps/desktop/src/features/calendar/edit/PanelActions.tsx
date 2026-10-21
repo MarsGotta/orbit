@@ -19,8 +19,8 @@ function saveLabel(editing: Editing, span: CalendarSpan, choices: number): strin
 }
 
 /**
- * The buttons say what they will do (P9-22). In a series the scope is the
- * button Mars presses, not a question afterwards; the first is the one ⌘↵
+ * The buttons say what they will do. In a series the scope is the
+ * button the user presses, not a question afterwards; the first is the one ⌘↵
  * presses. Delete needs no confirmation: it is undone from its notice.
  */
 export function PanelActions({ editing, onDelete, onSave }: ActionsProps) {

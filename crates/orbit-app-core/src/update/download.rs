@@ -1,5 +1,5 @@
-//! The only download and installer adapter: the desktop app's updater
-//! (`crates/orbit-app-core/src/update.rs`) downloads through it.
+//! The only download and installer adapter: the updater (`super`) downloads
+//! through it.
 use orbit_core::{
     refusal::{Refusal, UpdateCause, UpdateNetworkCause, UpdateSizeSource},
     update::ReleaseManifest,
@@ -17,8 +17,8 @@ pub const MANIFEST_CEILING_BYTES: usize = 8 * 1024;
 
 const INSTALLER_BASELINE_BYTES: usize = 11_171;
 const INSTALLER_HEADROOM_PERCENT: usize = 50;
-/// Protects bash from a substituted page passed as an installer. SYS-06's
-/// 11,171 B script plus 50% measured headroom gives 16,756 B. This is not a
+/// Protects bash from a substituted page passed as an installer. The 11,171 B
+/// script measured when this ceiling was set, plus 50% headroom, gives 16,756 B. This is not a
 /// signature check. `scripts/publish-macos.sh` refuses to publish an installer
 /// larger than this, because the updater of every Mac already installed
 /// downloads at most this many bytes.
@@ -39,18 +39,15 @@ const MAX_REDIRECTS: usize = 10;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Download {
-    pub what: &'static str,
     pub file: &'static str,
     pub ceiling: usize,
 }
 
 pub const MANIFEST: Download = Download {
-    what: "El manifiesto",
     file: "latest.txt",
     ceiling: MANIFEST_CEILING_BYTES,
 };
 pub const INSTALLER: Download = Download {
-    what: "El instalador",
     file: "install.sh",
     ceiling: INSTALLER_CEILING_BYTES,
 };

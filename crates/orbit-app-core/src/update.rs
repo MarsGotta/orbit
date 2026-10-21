@@ -1,12 +1,14 @@
+mod download;
+
 use crate::{
     AppCommand, AppError, InstallResultSnapshot,
     topics::{TopicCache, TopicFreshness},
 };
+use download::Updater;
 use orbit_core::{
     refusal::{InstallLogIssue, Operation, Refusal, UpdateCause},
     update::{InstallRecord, VersionVerdict, compare_running_version},
 };
-use orbit_update::Updater;
 use std::{
     io::{Read, Write},
     path::Path,
@@ -26,7 +28,7 @@ pub const DEFAULT_UPDATE_BASE_URL: &str = match option_env!("ORBIT_UPDATE_BASE_U
     None => "",
 };
 
-// READY follows only local checks. On Mars's Mac, N=80 at load 1.15 had p99
+// READY follows only local checks. On the owner's Mac, N=80 at load 1.15 had p99
 // and worst 13 ms. Five seconds is a ~385x floor for cold disk or busy Macs;
 // it bounds stuck local checks; the package download and chain closure follow.
 const READY_DEADLINE: Duration = Duration::from_secs(5);
@@ -264,7 +266,7 @@ impl UpdateService {
 
     /// Called only after the embedded daemon answered Status: it has opened
     /// the store before publishing its local client. Development and Pruebas
-    /// installations do not retire Mars's apps.
+    /// installations do not retire the user's apps.
     pub async fn retire_previous(
         home: &Path,
         current: &Path,
@@ -669,7 +671,7 @@ mod limits_tests {
 #[cfg(test)]
 mod installation_tests {
     #[test]
-    fn sim95_retirement_executes_the_decision_in_temporary_directories()
+    fn retirement_executes_the_decision_in_temporary_directories()
     -> Result<(), Box<dyn std::error::Error>> {
         use orbit_core::orbit_bundle::{
             INSTALL_DATA_DIRECTORY, INSTALL_RECORD, NAME, PARKED_PREFIX,
@@ -714,8 +716,8 @@ mod installation_tests {
     }
 
     #[tokio::test]
-    async fn sim95_unknown_capture_never_launches_the_installer()
-    -> Result<(), Box<dyn std::error::Error>> {
+    async fn unknown_capture_never_launches_the_installer() -> Result<(), Box<dyn std::error::Error>>
+    {
         let directory = tempfile::tempdir()?;
         let paths = orbit_ipc::Paths::resolve(Some(directory.path().into()))?;
         let client = crate::DaemonClient::connect(paths, crate::client_fixture::idle());

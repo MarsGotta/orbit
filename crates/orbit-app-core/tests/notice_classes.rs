@@ -1,6 +1,6 @@
 //! Writes `bridge/generated/noticeClasses.ts` (not `noticeClass.ts`: it would
 //! differ from `NoticeClass.ts` only in case, one file on macOS): the class of every notice code,
-//! from the one table in `orbit_core::notice` (SIM-21). The interface's
+//! from the one table in `orbit_core::notice`. The interface's
 //! catalogue is typed against it, so `tsc` refuses a code without an entry
 //! or an entry whose class disagrees. Like the ts-rs files next to it, it is
 //! committed as this test writes it and the gate checks it is up to date.

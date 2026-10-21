@@ -119,9 +119,9 @@ export function OnboardingView({
   );
   const [code, setCode] = useState("");
   const [deviceName, setDeviceName] = useState(snapshot.settings.hub.device_name ?? es.appName);
-  // REF-10 A4: there is no calendar step. Calendarios is one of the macOS
+  // There is no calendar step. Calendarios is one of the macOS
   // permissions in the step before, and granting it is the whole decision.
-  // REF-11: nor a «Deimos» step. What Deimos may see and do is those same
+  // Nor a «Deimos» step. What Deimos may see and do is those same
   // macOS permissions; the first run is pairing and granting them.
   const next = () => setStep((current) => Math.min(current + 1, 3));
   useContentInert(step);

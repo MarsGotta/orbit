@@ -25,7 +25,7 @@ pub async fn orbit_read_sessions_page(
     client.read_sessions_page(cursor).await
 }
 
-/// SIM-30: one page of a conversation, read from the hub by the daemon.
+/// One page of a conversation, read from the hub by the daemon.
 #[tauri::command]
 pub async fn orbit_read_session_messages(
     session_id: String,
@@ -37,7 +37,7 @@ pub async fn orbit_read_session_messages(
 
 pub use orbit_app_core::PanelOrder;
 
-/// The floating panel's only order (P9-11, P9-12).
+/// The floating panel's only order: answering a call or asking Deimos.
 #[tauri::command]
 pub async fn orbit_panel_send(
     command: PanelOrder,
@@ -98,7 +98,7 @@ pub async fn orbit_panel_send(
         .map_err(|error| CommandError::from_app_error(sent, error))
 }
 
-/// The app's local report log (SIM-21), in the daemon's data directory, and
+/// The app's local report log, in the daemon's data directory, and
 /// the typed endpoint of the daemon in this process.
 pub struct AppReportLog {
     pub log: orbit_ipc::report::ReportLog,
@@ -110,7 +110,7 @@ pub struct AppReportLog {
 /// to `logs/report-app.log`. The type admits no text: a report with a
 /// sentence in it does not decode and is not written.
 ///
-/// The same line then goes to the daemon (SIM-23), whose one error-report
+/// The same line then goes to the daemon, whose one error-report
 /// client decides whether it leaves for Sentry; the app has no client of its
 /// own. A daemon that does not answer loses only that copy: the line is in
 /// the app's log already.
@@ -135,7 +135,7 @@ async fn forward_report(
         .map(|_| ())
 }
 
-/// The op of an order from the interface (SIM-21): the one it sent, or a new
+/// The op of an order from the interface: the one it sent, or a new
 /// one when it sent none or one that is not an op.
 fn order_op(op: Option<String>) -> orbit_core::notice::Op {
     op.as_deref()
@@ -215,7 +215,7 @@ impl std::fmt::Display for WebUrlRefusal {
 }
 
 /// Only web links leave Orbit for the browser: from the main window and
-/// from the floating panel's answers (P9-12). Parsed, never matched by
+/// from the floating panel's answers. Parsed, never matched by
 /// prefix; the parsed form is what opens.
 pub(crate) fn web_url(url: &str) -> Result<tauri::Url, WebUrlRefusal> {
     let parsed = tauri::Url::parse(url).map_err(|error| WebUrlRefusal::Unparsable {
@@ -409,11 +409,11 @@ mod update_failure_tests {
 }
 
 #[cfg(test)]
-mod sim23_tests {
+mod report_forwarding_tests {
     use super::forward_report;
     use orbit_core::protocol::Command;
 
-    /// SIM-23: what the interface reports reaches the daemon as
+    /// What the interface reports reaches the daemon as
     /// `Command::Report`, under the report's op, so the daemon's one client
     /// decides whether it leaves.
     #[tokio::test]

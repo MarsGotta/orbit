@@ -5,7 +5,7 @@ import { es } from "../../i18n/es";
 const causes = es.noteScreen.causes;
 
 /**
- * One step's cause as she can read it (SIM-24): where it stands, or what to
+ * One step's cause as the user can read it: where it stands, or what to
  * do when it failed. A count not observed yet says nothing (`null`); the
  * hub's codes, HTTP statuses and retry times stay in the log.
  */
@@ -45,7 +45,7 @@ export function progressVisible(progress: NoteProgressSnapshot): boolean {
   return STEP_KEYS.some((key) => progress[key].state !== "done");
 }
 
-/** Mars is recording this meeting now. */
+/** The user is recording this meeting now. */
 export function isRecording(progress: NoteProgressSnapshot): boolean {
   return progress.upload.cause?.kind === "recording";
 }

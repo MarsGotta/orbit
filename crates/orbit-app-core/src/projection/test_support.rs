@@ -84,7 +84,7 @@ pub(crate) const HOUR_MS: i64 = 3_600_000;
 
 /// Europe/Madrid from 2025 to 2027 as the tz database has it: CET (+1),
 /// and CEST (+2) from the last Sunday of March to the last Sunday of
-/// October, changing at 01:00 UTC. REF-04: the zone of the person the
+/// October, changing at 01:00 UTC. The zone of the person the
 /// projection is for, never the zone of the machine running the suite.
 pub(crate) fn madrid() -> LocalZone {
     let transitions = [
@@ -169,7 +169,7 @@ pub(crate) fn briefing_event(
 
 pub(crate) struct BriefingFixture {
     pub events: Vec<CalendarOccurrence>,
-    /// The notes list the client read (SIM-41).
+    /// The notes list the client read.
     pub recordings: Vec<crate::NoteListItem>,
 }
 
@@ -300,18 +300,18 @@ pub(crate) fn projected_briefing(fixture: &BriefingFixture, now_ms: i64) -> Valu
     serde_json::to_value(crate::features::briefing::project(&input).expect("briefing view"))
         .expect("typed briefing fixture serializes")
 }
-pub(crate) const REF04_2026_09_15_T0630Z: i64 = 1_789_453_800_000; // 08:30 CEST, Tue 15 Sep
-pub(crate) const REF04_2026_09_15_T2130Z: i64 = 1_789_507_800_000; // 23:30 CEST, Tue 15 Sep
-pub(crate) const REF04_2026_09_15_T2215Z: i64 = 1_789_510_500_000; // 00:15 CEST, Wed 16 Sep
-pub(crate) const REF04_2026_09_15_T2230Z: i64 = 1_789_511_400_000; // 00:30 CEST, Wed 16 Sep
-pub(crate) const REF04_2026_09_15_T2300Z: i64 = 1_789_513_200_000; // 01:00 CEST, Wed 16 Sep
-pub(crate) const REF04_2026_09_16_T0500Z: i64 = 1_789_534_800_000; // 07:00 CEST, Wed 16 Sep
-pub(crate) const REF04_2026_09_16_T0700Z: i64 = 1_789_542_000_000; // 09:00 CEST, Wed 16 Sep
-pub(crate) const REF04_2026_09_16_T0800Z: i64 = 1_789_545_600_000; // 10:00 CEST, Wed 16 Sep
-pub(crate) const REF04_2026_10_24_T2230Z: i64 = 1_792_881_000_000; // 00:30 CEST, Sun 25 Oct
-pub(crate) const REF04_2026_10_25_T0030Z: i64 = 1_792_888_200_000; // 02:30 CEST, the first one
-pub(crate) const REF04_2026_10_25_T0130Z: i64 = 1_792_891_800_000; // 02:30 CET, the second one
-pub(crate) const REF04_2026_10_25_T0900Z: i64 = 1_792_918_800_000; // 10:00 CET, Sun 25 Oct
-pub(crate) const REF04_2026_10_25_T2230Z: i64 = 1_792_967_400_000; // 23:30 CET, Sun 25 Oct
-pub(crate) const REF04_2026_10_25_T2330Z: i64 = 1_792_971_000_000; // 00:30 CET, Mon 26 Oct
-pub(crate) const REF04_HALF_HOUR_MS: i64 = 30 * 60_000;
+pub(crate) const UTC_2026_09_15_T0630Z: i64 = 1_789_453_800_000; // 08:30 CEST, Tue 15 Sep
+pub(crate) const UTC_2026_09_15_T2130Z: i64 = 1_789_507_800_000; // 23:30 CEST, Tue 15 Sep
+pub(crate) const UTC_2026_09_15_T2215Z: i64 = 1_789_510_500_000; // 00:15 CEST, Wed 16 Sep
+pub(crate) const UTC_2026_09_15_T2230Z: i64 = 1_789_511_400_000; // 00:30 CEST, Wed 16 Sep
+pub(crate) const UTC_2026_09_15_T2300Z: i64 = 1_789_513_200_000; // 01:00 CEST, Wed 16 Sep
+pub(crate) const UTC_2026_09_16_T0500Z: i64 = 1_789_534_800_000; // 07:00 CEST, Wed 16 Sep
+pub(crate) const UTC_2026_09_16_T0700Z: i64 = 1_789_542_000_000; // 09:00 CEST, Wed 16 Sep
+pub(crate) const UTC_2026_09_16_T0800Z: i64 = 1_789_545_600_000; // 10:00 CEST, Wed 16 Sep
+pub(crate) const UTC_2026_10_24_T2230Z: i64 = 1_792_881_000_000; // 00:30 CEST, Sun 25 Oct
+pub(crate) const UTC_2026_10_25_T0030Z: i64 = 1_792_888_200_000; // 02:30 CEST, the first one
+pub(crate) const UTC_2026_10_25_T0130Z: i64 = 1_792_891_800_000; // 02:30 CET, the second one
+pub(crate) const UTC_2026_10_25_T0900Z: i64 = 1_792_918_800_000; // 10:00 CET, Sun 25 Oct
+pub(crate) const UTC_2026_10_25_T2230Z: i64 = 1_792_967_400_000; // 23:30 CET, Sun 25 Oct
+pub(crate) const UTC_2026_10_25_T2330Z: i64 = 1_792_971_000_000; // 00:30 CET, Mon 26 Oct
+pub(crate) const HALF_HOUR_MS: i64 = 30 * 60_000;

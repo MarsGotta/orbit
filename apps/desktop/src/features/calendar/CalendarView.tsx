@@ -15,9 +15,9 @@ interface CalendarViewProps {
   snapshot: AppSnapshot;
 }
 
-/// REF-10: the macOS permission is the only decision. With it the calendar shows
+/// The macOS permission is the only decision. With it the calendar shows
 /// every calendar on the Mac; without it the view says how to grant it; while
-/// the Mac has not said yet, the view says nothing (SIM-24) — never «denied».
+/// the Mac has not said yet, the view says nothing — never «denied».
 export default function CalendarView({ error, send, snapshot }: CalendarViewProps) {
   const authorization = snapshot.calendar.authorization;
   if (snapshot.calendar.reading.blocker === "privacy_stopped") {

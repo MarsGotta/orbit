@@ -44,7 +44,7 @@
   opacity: 1;
 }
 
-/* P9-12: room for «Preguntar a Deimos» beside pause and finish. */
+/* Room for «Preguntar a Deimos» beside pause and finish. */
 .meetingPill:hover .controls.withAsk,
 .meetingPill:focus-within .controls.withAsk {
   width: 268px;
@@ -169,7 +169,7 @@
   }
 }
 
-/* P9-12: whether «Oye Deimos» listens, beside the recording label. */
+/* Whether «Oye Deimos» listens, beside the recording label. */
 .voice {
   font-weight: 400;
   opacity: 0.8;

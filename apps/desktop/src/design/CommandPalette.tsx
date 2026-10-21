@@ -38,7 +38,7 @@ function OptionContent({ command, selected }: { command: CommandItem; selected: 
         <strong>{command.label}</strong>
         <small>{command.subtitle}</small>
       </span>
-      {/* REF-07 A3: ↵ belongs to the listbox, not to a command. It is painted
+      {/* ↵ belongs to the listbox, not to a command. It is painted
           only beside the selected option, and pressing it does what that
           option says; no other shortcut is announced here. */}
       {command.checked === true && <Icon name="check" size={14} />}
@@ -153,7 +153,7 @@ export function CommandPalette(props: CommandPaletteProps) {
             setSelected={setSelected}
           />
         </div>
-        {/* REF-07 A3: there was a footer here promising ⇥ (change session),
+        {/* There was a footer here promising ⇥ (change session),
             ⌥ (dictate) and «↵ llamar». None of them did anything while the
             palette was open, so it is gone; the only advertised shortcuts
             are the ones this palette answers to. */}

@@ -21,12 +21,12 @@ import { TemplateList } from "./TemplateList";
 import styles from "./Templates.module.css";
 
 interface Editing {
-  /** One editing session: a new one starts only when Mars picks another. */
+  /** One editing session: a new one starts only when the user picks another. */
   key: number;
   template: NoteTemplateDetailSnapshot;
 }
 
-/** A template of Mars's, new, with one section to start from. */
+/** A template of the user's, new, with one section to start from. */
 function blank(): NoteTemplateDetailSnapshot {
   return {
     id: newTemplateId(),
@@ -39,7 +39,7 @@ function blank(): NoteTemplateDetailSnapshot {
   };
 }
 
-/** One delete Mars can still undo; `key` restarts the ten seconds. */
+/** One delete the user can still undo; `key` restarts the ten seconds. */
 interface Undoable {
   key: number;
   removed: RemovedTemplate;
@@ -49,7 +49,7 @@ interface Undoable {
 type Send = (command: AppCommand) => unknown;
 
 /**
- * P9-14: «Plantilla «X» borrada · N series vuelven a General · Deshacer»
+ * «Plantilla «X» borrada · N series vuelven a General · Deshacer»
  * for ten seconds, as the calendar's; after «Deshacer», where it stands.
  */
 function DeleteNotices({
@@ -90,12 +90,12 @@ function DeleteNotices({
   );
 }
 
-/** The delete Mars can still undo, and the undo she pressed. */
+/** The delete the user can still undo, and the undo they pressed. */
 function useDeleteUndo(send: Send, error: string | null, daemon: DaemonConnection) {
   const [deleted, setDeleted] = useState<Undoable | null>(null);
   const [restoring, setRestoring] = useState<Restoring | null>(null);
   // A daemon that is not ready while an undo waits may have restarted, and
-  // a restart loses the answers it kept in memory (P9-14).
+  // a restart loses the answers it kept in memory.
   useEffect(() => {
     if (daemon !== "ready")
       setRestoring((current) =>
@@ -139,8 +139,8 @@ interface NoteTemplatesProps {
 }
 
 /**
- * Ajustes → Notas → Plantillas (P9-05): Orbit's templates first, marked as
- * such, then Mars's own; create, edit, reorder and delete, saved as she types.
+ * Ajustes → Notas → Plantillas: Orbit's templates first, marked as
+ * such, then the user's own; create, edit, reorder and delete, saved as they type.
  */
 export function NoteTemplates({
   daemon = "ready",

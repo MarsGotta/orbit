@@ -14,5 +14,5 @@ export type ReadPage<T> =
   | { state: "unknown"; why: unknown };
 
 export type SessionPage = ReadPage<ChatSessionSummary>;
-/** SIM-30: one page of a conversation, read from the hub. */
+/** One page of a conversation, read from the hub. */
 export type MessagesPage = ReadPage<ChatMessage>;

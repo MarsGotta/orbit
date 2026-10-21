@@ -10,7 +10,7 @@ app_type! {
 }
 
 app_type! {
-    /// One conversation as the hub lists it (SIM-30). Its title is its
+    /// One conversation as the hub lists it. Its title is its
     /// date, which the interface writes from `created_at_ms`.
     pub struct ChatSessionSummary {
         pub id: String,
@@ -136,12 +136,12 @@ app_type! {
         #[ts(optional)]
         pub availability: Option<crate::features::FeatureAvailability>,
         /// The open conversation; its messages are read from the hub a page
-        /// at a time (SIM-30).
+        /// at a time.
         pub session_id: Option<String>,
         /// The turn in progress, or the last one until another begins:
-        /// Mars's message and the answer as it arrives.
+        /// the user's message and the answer as it arrives.
         pub turn: Vec<ChatMessage>,
-        /// The last voice note Mars asked to hear, once its audio arrived.
+        /// The last voice note the user asked to hear, once its audio arrived.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub voice_audio: Option<VoiceNoteAudioSnapshot>,

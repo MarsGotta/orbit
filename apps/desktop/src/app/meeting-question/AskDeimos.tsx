@@ -12,12 +12,12 @@ export interface AskDeimosProps {
   ask: MeetingAskSnapshot;
   voiceStatus?: VoiceStatusSnapshot;
   send: (command: AppCommand) => void;
-  /** The field closed: the question went, or Mars cancelled. */
+  /** The field closed: the question went, or the user cancelled. */
   onDone: () => void;
 }
 
 /**
- * P9-12: «Preguntar a Deimos» during a recording — the question, typed,
+ * «Preguntar a Deimos» during a recording — the question, typed,
  * and how many minutes of the meeting go with it (the windows app-core
  * offers, 2 by default). Typing is the decision: no confirmation.
  */

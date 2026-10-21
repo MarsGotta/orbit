@@ -3,7 +3,7 @@ import type { NoticeData } from "../i18n/es/notices";
 import type { AppView } from "./app-view";
 
 /**
- * A failure the composed view shows, as the report log takes it (SIM-24):
+ * A failure the composed view shows, as the report log takes it:
  * a code of the interface's own and closed data. `key` names this failure,
  * so it is reported when it appears and not again while it stays.
  */

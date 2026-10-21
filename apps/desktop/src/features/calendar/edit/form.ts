@@ -1,7 +1,7 @@
 /**
- * The event panel's fields and what saving them writes (P9-22). Pure: an
+ * The event panel's fields and what saving them writes. Pure: an
  * event or a draft in, a form out; two forms in, the change between them out.
- * Changes accumulate in the form and nothing is written until Mars saves.
+ * Changes accumulate in the form and nothing is written until the user saves.
  */
 import type { CalendarAvailability } from "../../../bridge/generated/CalendarAvailability";
 import type { CalendarEventChanges } from "../../../bridge/generated/CalendarEventChanges";
@@ -120,7 +120,7 @@ export function hasChanges(changes: CalendarEventChanges): boolean {
 }
 
 /** A change of the repetition reaches this occurrence and the ones after it,
- *  never this one alone (EventKit; P9-21's `RecurrenceNeedsFutureSpan`). */
+ *  never this one alone (EventKit; orbit-core's `RecurrenceNeedsFutureSpan`). */
 export function changesRepeat(changes: CalendarEventChanges): boolean {
   return changes.recurrence !== undefined || changes.remove_recurrence === true;
 }

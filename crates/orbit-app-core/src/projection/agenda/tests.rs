@@ -143,7 +143,7 @@ fn assigns_calendar_colors_stably_from_the_identifier() {
 }
 
 #[test]
-fn app11_projects_daemon_timezone_and_leaves_webview_fallback_explicit() {
+fn projects_daemon_timezone_and_leaves_webview_fallback_explicit() {
     let snapshot = crate::AppSnapshot::default();
     let topics = fixture(false, false);
     let with_head = crate::features::agenda::project(&FeatureInput::new(&snapshot, &topics));
@@ -153,10 +153,10 @@ fn app11_projects_daemon_timezone_and_leaves_webview_fallback_explicit() {
     assert!(without_head.window.timezone.is_empty());
 }
 
-// ------------------------------------------------------------------ P9-20
+// ------------------------------------------------ answers and video calls
 
 #[test]
-fn p9_20_a6_known_video_calls_are_offered_to_join_and_nothing_else_is() {
+fn known_video_calls_are_offered_to_join_and_nothing_else_is() {
     use crate::projection::conference_url;
     for joinable in [
         "https://meet.google.com/abc-defg-hij",
@@ -165,7 +165,7 @@ fn p9_20_a6_known_video_calls_are_offered_to_join_and_nothing_else_is() {
         "https://acme.zoom.com/j/1",
         "https://teams.microsoft.com/l/meetup-join/19%3ameeting",
         "https://teams.live.com/meet/9876",
-        "https://acme.webex.com/meet/mars",
+        "https://acme.webex.com/meet/team-room",
         "https://whereby.com/orbit",
         "https://facetime.apple.com/join#v=1&p=abc",
         "HTTPS://Meet.Google.com/abc-defg-hij",
@@ -195,7 +195,7 @@ fn p9_20_a6_known_video_calls_are_offered_to_join_and_nothing_else_is() {
 }
 
 #[test]
-fn p9_20_a6_her_answer_is_the_one_on_the_guest_eventkit_marks_as_her() {
+fn the_users_answer_is_the_one_on_the_guest_eventkit_marks_as_the_user() {
     use crate::{CalendarResponse, projection::test_support::briefing_event};
     let mut event = briefing_event(
         "daily",
@@ -221,7 +221,7 @@ fn p9_20_a6_her_answer_is_the_one_on_the_guest_eventkit_marks_as_her() {
         let guests = projected.attendees.unwrap_or_default();
         assert_eq!(guests[0].response, Some(CalendarResponse::Accepted));
         assert_eq!(guests[1].response, Some(expected));
-        // P9-11: the guest the calendar marks as her travels as Mars.
+        // The guest the calendar marks as the user travels as the user.
         assert!(!guests[0].is_self);
         assert!(guests[1].is_self);
         assert_eq!(
@@ -229,9 +229,9 @@ fn p9_20_a6_her_answer_is_the_one_on_the_guest_eventkit_marks_as_her() {
             Some("https://meet.google.com/abc-defg-hij")
         );
     }
-    // Not on the list, or no list at all: not an invitation to her.
-    let not_hers = briefing_event("other", "Otra", START, START + 1, &["bruno.soler"], None);
-    let projected = crate::projection::project_calendar_occurrence(&not_hers);
+    // Not on the list, or no list at all: not an invitation to the user.
+    let not_theirs = briefing_event("other", "Otra", START, START + 1, &["bruno.soler"], None);
+    let projected = crate::projection::project_calendar_occurrence(&not_theirs);
     assert_eq!(projected.self_response, None);
     assert_eq!(projected.conference_url, None);
     let alone = calendar_occurrence("alone", "work", "Foco", START, START + 1);
@@ -241,10 +241,10 @@ fn p9_20_a6_her_answer_is_the_one_on_the_guest_eventkit_marks_as_her() {
     );
 }
 
-/// P9-22: the reminders the Mac read reach the event panel as they were
+/// The reminders the Mac read reach the event panel as they were
 /// read; the ones Orbit does not edit, by number; and absent stays absent.
 #[test]
-fn p9_22_reminders_reach_the_event_as_read() {
+fn reminders_reach_the_event_as_read() {
     let mut event = calendar_occurrence("alarms", "work", "Revisión", 0, 3_600_000);
     let unread = crate::projection::project_calendar_occurrence(&event);
     assert_eq!(

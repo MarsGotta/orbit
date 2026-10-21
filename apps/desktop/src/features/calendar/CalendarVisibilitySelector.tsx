@@ -32,7 +32,7 @@ export function CalendarVisibilitySelector(props: CalendarVisibilitySelectorProp
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
-  // Calendars not listed yet: nothing to choose and nothing to say (SIM-24).
+  // Calendars not listed yet: nothing to choose and nothing to say.
   if (props.calendars.length === 0) return null;
   return (
     <div className={styles.calendarSelector} ref={selectorRef}>

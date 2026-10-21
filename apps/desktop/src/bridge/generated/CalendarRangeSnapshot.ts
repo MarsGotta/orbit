@@ -4,7 +4,7 @@ import type { CalendarWeekStart } from "./CalendarWeekStart";
 
 /**
  * The period the calendar shows, decided here from the view, the anchor
- * and Mars's zone (P9-20). The read behind it may be wider: it also
+ * and the user's zone. The read behind it may be wider: it also
  * covers today, so the Briefing never loses its day (`window`).
  */
 export type CalendarRangeSnapshot = { view: CalendarViewKind, 

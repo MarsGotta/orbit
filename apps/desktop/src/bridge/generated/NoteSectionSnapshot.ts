@@ -2,6 +2,6 @@
 
 export type NoteSectionSnapshot = { name: string, markdown: string, 
 /**
- * The text comes from Mars, not from the model.
+ * The text comes from the user, not from the model.
  */
 edited: boolean, };

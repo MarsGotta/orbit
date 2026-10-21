@@ -35,7 +35,7 @@ pub struct StatusView {
     pub notice_epoch: Option<String>,
     pub notice: Option<orbit_core::notice::Notice>,
     /// The recent notices, oldest first: the interface reads the ones it has
-    /// not seen yet, in order (SIM-21).
+    /// not seen yet, in order.
     pub notices: Vec<orbit_core::notice::Notice>,
 }
 
@@ -50,7 +50,7 @@ pub struct StatusSettingsView {
     pub calendars: CalendarSettingsSnapshot,
     pub versions: VersionSettingsSnapshot,
     pub privacy_stopped: bool,
-    /// SIM-23: the error-report switch, when this build offers it.
+    /// The error-report switch, when this build offers it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub error_reports: Option<bool>,
@@ -256,7 +256,7 @@ pub enum StatusCommand {
 }
 
 #[cfg(test)]
-mod ref206_tests {
+mod status_tests {
     use super::*;
     use crate::{DaemonConnection, topics::TopicCache};
     use orbit_core::topics::{Knowledge, TopicData, TopicFrame};
@@ -294,7 +294,7 @@ mod ref206_tests {
     }
 
     #[test]
-    fn ref214_round4_status_frame_carries_later_system_zone() {
+    fn status_frame_carries_later_system_zone() {
         let mut initial = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         initial.system_timezone = "UTC".into();
         let mut changed = initial.clone();
@@ -315,7 +315,7 @@ mod ref206_tests {
         let mut observed = TopicCache::default();
         observed.observe_at(
             TopicFrame {
-                epoch: "ref206".into(),
+                epoch: "status-fixture".into(),
                 revision: 1,
                 data: TopicData::Status(Knowledge::Present {
                     value: status_value("online", true, true),
@@ -336,7 +336,7 @@ mod ref206_tests {
         let mut observed = TopicCache::default();
         observed.observe_at(
             TopicFrame {
-                epoch: "ref206".into(),
+                epoch: "status-fixture".into(),
                 revision: 1,
                 data: TopicData::Status(Knowledge::Present {
                     value: status_value("online", false, false),
@@ -366,7 +366,7 @@ mod ref206_tests {
         let mut never_observed = TopicCache::default();
         never_observed.observe_at(
             TopicFrame {
-                epoch: "ref206".into(),
+                epoch: "status-fixture".into(),
                 revision: 0,
                 data: TopicData::not_observed(orbit_core::topics::TopicId::Status),
             },
@@ -386,7 +386,7 @@ mod notice_tests {
     use crate::topics::TopicCache;
 
     #[test]
-    fn sim98_engine_exit_reaches_the_app_with_its_cause_and_status() {
+    fn engine_exit_reaches_the_app_with_its_cause_and_status() {
         use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
         let snapshot = crate::AppSnapshot::default();
         let notice = Notice::new(NoticeCode::EngineExited)
@@ -396,7 +396,7 @@ mod notice_tests {
         let mut topics = TopicCache::default();
         topics.observe_at(
             orbit_core::topics::TopicFrame {
-                epoch: "sim98-exit".into(),
+                epoch: "engine-exit".into(),
                 revision: 1,
                 data: TopicData::Notices(Knowledge::Present {
                     value: orbit_core::topics::notices::Value {
@@ -458,7 +458,7 @@ mod notice_tests {
 #[cfg(test)]
 mod assistant_name_tests {
     #[test]
-    fn sim100_status_projects_the_name_and_keeps_it_when_the_fact_is_missing()
+    fn status_projects_the_name_and_keeps_it_when_the_fact_is_missing()
     -> Result<(), Box<dyn std::error::Error>> {
         use crate::{
             features::{FeatureInput, status},
@@ -468,7 +468,7 @@ mod assistant_name_tests {
         let mut snapshot = crate::AppSnapshot::default();
         let mut topics = TopicCache::default();
         let frame: TopicFrame = serde_json::from_value(serde_json::json!({
-            "epoch": "sim100", "revision": 1, "data": {"topic": "status",
+            "epoch": "assistant-name", "revision": 1, "data": {"topic": "status",
             "knowledge": {"state": "present", "value": {
                 "hub":"online", "account": null, "helper_connected": true,
                 "privacy_stopped": false, "assistant_name":"Atlas"

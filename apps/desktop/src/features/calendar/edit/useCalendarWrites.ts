@@ -23,7 +23,7 @@ import { undoPending } from "./undoPending";
 type Send = (command: AppCommand) => Promise<void>;
 type Draft = Omit<PendingWrite, "requestId" | "sentAtMs">;
 /** ⌘Z reaches this far back in the session: a short stack in the view's
- *  memory, as the spec asks; older changes stay as they are. */
+ *  memory; older changes stay as they are. */
 const UNDO_DEPTH = 20;
 
 export interface DeletedToast {
@@ -41,7 +41,7 @@ interface Memory {
 }
 
 /**
- * Every write the calendar view makes, and what it shows meanwhile (P9-22).
+ * Every write the calendar view makes, and what it shows meanwhile.
  * Each write is sent once; its outcome comes from the agenda head; the undo
  * stack lives in this view's memory. Nothing is asked first: the macOS
  * permission is the decision, and a delete is undone, not confirmed.

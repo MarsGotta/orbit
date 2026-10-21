@@ -18,7 +18,7 @@ export function paletteCommands(
       onSelect: () => {
         navigate("assistant");
         // The call's refusal belongs to Assistant, where the palette leaves
-        // Mars, not to the view she opened the palette from.
+        // the user, not to the view they opened the palette from.
         send({ command: "call_start", duration_minutes: 60 }, "assistant");
       },
     },

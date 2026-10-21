@@ -1,4 +1,4 @@
-//! SIM-41: the notes as the screen paints them. The meetings, their turns,
+//! The notes as the screen paints them. The meetings, their turns,
 //! speakers and notes are the hub's; app-core only puts them in the screen's
 //! words (`projection::note`, `projection::notes`).
 use super::*;
@@ -22,7 +22,7 @@ app_type! {
         Today,
         Yesterday,
         ThisWeek,
-        /// P9-04: seven to twenty-nine days back.
+        /// Seven to twenty-nine days back.
         #[serde(rename = "last_30_days")]
         Last30Days,
         Before,
@@ -32,7 +32,7 @@ app_type! {
 app_type! {
     pub struct NoteListItem {
         pub recording_id: String,
-        /// The meeting's title (Mars, 2026-10-17): the same in the list and
+        /// The meeting's title (decided 2026-10-17): the same in the list and
         /// in the open note.
         pub title: String,
         #[ts(type = "number")]
@@ -41,7 +41,7 @@ app_type! {
         pub duration_ms: i64,
         pub state: NoteListState,
         pub group: NoteDayGroup,
-        /// P9-04: where its note stands, or how its short summary begins.
+        /// Where its note stands, or how its short summary begins.
         /// Absent when the hub has no note for it.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
@@ -50,7 +50,7 @@ app_type! {
 }
 
 app_type! {
-    /// One line of the notes list (P9-04). `transcribing` and `writing` are
+    /// One line of the notes list. `transcribing` and `writing` are
     /// in progress; `not_configured` waits for a model on the hub.
     #[serde(tag = "phase", rename_all = "snake_case")]
     pub enum NoteHeadlineSnapshot {
@@ -75,7 +75,7 @@ app_type! {
 }
 
 app_type! {
-    /// One task of the note the hub wrote (P9-03). `id` is stable across
+    /// One task of the note the hub wrote. `id` is stable across
     /// regenerations that keep the task, so a done mark follows it.
     pub struct NoteActionSnapshot {
         pub id: String,
@@ -90,13 +90,13 @@ app_type! {
     pub struct NoteSectionSnapshot {
         pub name: String,
         pub markdown: String,
-        /// The text comes from Mars, not from the model.
+        /// The text comes from the user, not from the model.
         pub edited: bool,
     }
 }
 
 app_type! {
-    /// The note the hub wrote, with Mars's edits applied (P9-03).
+    /// The note the hub wrote, with the user's edits applied.
     pub struct NoteSummarySnapshot {
         pub short_summary: String,
         pub sections: Vec<NoteSectionSnapshot>,
@@ -105,9 +105,9 @@ app_type! {
         #[ts(type = "number")]
         pub generated_at_ms: i64,
         pub model: String,
-        /// A regeneration set Mars's earlier text aside; it can come back.
+        /// A regeneration set the user's earlier text aside; it can come back.
         pub superseded_available: bool,
-        /// P9-05: how the template was chosen (`requested`, `series` or
+        /// How the template was chosen (`requested`, `series` or
         /// `default`); absent in notes written before.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
@@ -141,7 +141,7 @@ app_type! {
 }
 
 app_type! {
-    /// Where one step stands, as the screen says it (SIM-24: counts and the
+    /// Where one step stands, as the screen says it (counts and the
     /// hub's codes stay in the log).
     #[serde(tag = "kind", rename_all = "snake_case")]
     pub enum NoteStepCause {
@@ -169,7 +169,7 @@ app_type! {
         Writing {},
         /// The hub's attempt failed and it will try again.
         Retrying {},
-        /// The hub has no processing model: not Mars's fault, nor the Mac's.
+        /// The hub has no processing model: not the user's fault, nor the Mac's.
         NotConfigured {},
         Failed {},
         /// The hub could not be read.
@@ -227,7 +227,7 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub error: Option<String>,
-        /// SIM-52: a change of language is transcribing the meeting again.
+        /// A change of language is transcribing the meeting again.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub retranscribing: Option<NoteRetranscribingSnapshot>,
@@ -270,7 +270,7 @@ app_type! {
         pub capture: Option<orbit_core::notes::Capture>,
         pub recording_id: String,
         pub title: String,
-        /// How the note names Mars: the name of her microphone.
+        /// How the note names the user: the name of their microphone.
         pub owner_name: String,
         #[ts(type = "number")]
         pub started_at_ms: i64,
@@ -285,14 +285,14 @@ app_type! {
         pub actions: Vec<NoteActionSnapshot>,
         pub decisions: Vec<String>,
         pub open_topics: Vec<String>,
-        /// Mars's private notes (markdown).
+        /// The user's private notes (markdown).
         pub private_notes: String,
         #[ts(type = "number")]
         pub private_notes_revision: u64,
         pub progress: NoteProgressSnapshot,
         pub transcript: NoteTranscriptSnapshot,
         pub speakers: Vec<NoteSpeakerSnapshot>,
-        /// P9-05: the series of the note's event, when it has one.
+        /// The series of the note's event, when it has one.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub series: Option<NoteSeriesLinkSnapshot>,
@@ -358,7 +358,7 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub open_read: Option<NoteReadSnapshot>,
-        /// P9-05: templates, assignments and refusals.
+        /// Templates, assignments and refusals.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub library: Option<Box<NoteLibrarySnapshot>>,

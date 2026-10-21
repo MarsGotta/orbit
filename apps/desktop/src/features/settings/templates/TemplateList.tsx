@@ -5,7 +5,7 @@ import { Tag } from "../../../design/Tag";
 import { es } from "../../../i18n/es";
 import styles from "./Templates.module.css";
 
-/** Orbit's templates first, then Mars's own; how many of hers fit. */
+/** Orbit's templates first, then the user's own; how many of theirs fit. */
 export function TemplateList({
   library,
   onCreate,

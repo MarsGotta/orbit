@@ -3,10 +3,10 @@ import type { CalendarResponse } from "./CalendarResponse";
 
 export type CalendarAttendeeSnapshot = { name: string, email: string | null, 
 /**
- * P9-20: this guest's answer. Absent when the helper sent no status.
+ * This guest's answer. Absent when the helper sent no status.
  */
 response?: CalendarResponse | null, 
 /**
- * P9-11: the guest EventKit marks as Mars (`is_current_user`).
+ * The guest EventKit marks as the user (`is_current_user`).
  */
 is_self?: boolean, };

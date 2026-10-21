@@ -3,7 +3,7 @@ import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibraryS
 import type { NoteTemplateDetailSnapshot } from "../../../bridge/generated/NoteTemplateDetailSnapshot";
 import type { TemplateSection } from "../../../bridge/generated/TemplateSection";
 
-/** What Mars edits of a template. */
+/** What the user edits of a template. */
 export interface TemplateDraft {
   name: string;
   context: string;
@@ -12,7 +12,7 @@ export interface TemplateDraft {
 
 /**
  * Who the edits go to: the template itself, or — for one of Orbit's — a copy
- * of Mars's own, made on the first change, that names where it comes from.
+ * of the user's own, made on the first change, that names where it comes from.
  */
 export interface EditTarget {
   id: string;
@@ -27,7 +27,7 @@ export function draftOf(template: NoteTemplateDetailSnapshot): TemplateDraft {
   };
 }
 
-/** The id of a new template of Mars's: chosen here, so saving twice is one. */
+/** The id of a new template of the user's: chosen here, so saving twice is one. */
 export function newTemplateId(): string {
   return crypto.randomUUID();
 }
@@ -58,7 +58,7 @@ export function saveCommand(target: EditTarget, draft: TemplateDraft): AppComman
 }
 
 /**
- * P9-14: what «Deshacer» needs of a template Mars just deleted — the
+ * What «Deshacer» needs of a template the user just deleted — the
  * template as the library held it, under its id, and the series that used it
  * (`null` when the assignments were not known).
  */

@@ -47,7 +47,7 @@ fn snapshot_with_a_retained_session() -> AppSnapshot {
 }
 
 #[test]
-fn sys09_an_older_topic_revision_cannot_restore_the_old_session() {
+fn an_older_topic_revision_cannot_restore_the_old_session() {
     let snapshot = snapshot_with_a_retained_session();
     let mut topics = TopicCache::default();
     publish_assistant(&mut topics, 3, "session-new");

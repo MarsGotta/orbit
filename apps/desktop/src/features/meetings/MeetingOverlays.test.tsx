@@ -13,7 +13,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("la reunión guardada permite abrir su nota y ofrece cerrar el aviso", () => {
+it("the saved meeting lets its note be opened and offers to close the notice", () => {
   const props = {
     error: null,
     onErrorDismiss: vi.fn(),
@@ -27,7 +27,7 @@ it("la reunión guardada permite abrir su nota y ofrece cerrar el aviso", () => 
   expect(screen.getByRole("button", { name: "Cerrar aviso" })).toBeTruthy();
 });
 
-it("el fallo de grabación se muestra y el cierre descarta su mensaje", () => {
+it("the recording failure is shown and closing it discards its message", () => {
   const dismiss = vi.fn();
   render(
     <MeetingOverlays

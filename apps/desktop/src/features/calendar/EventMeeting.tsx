@@ -6,7 +6,7 @@ import type { CalendarEvent } from "./eventLook";
 import styles from "./CalendarView.module.css";
 
 /**
- * The meeting side of an event (P9-20): how Mars answered, who is invited
+ * The meeting side of an event: how the user answered, who is invited
  * and how each answered, «Unirse» for a known video call, and «Grabar».
  */
 export function EventMeeting(props: {

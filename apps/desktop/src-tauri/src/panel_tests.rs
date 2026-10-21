@@ -36,7 +36,7 @@ fn recording(panel: Option<CallPanelSnapshot>) -> Option<FeatureFrame> {
 }
 
 #[test]
-fn p9_11_the_recording_frame_shows_the_panel_only_with_something_to_say() {
+fn the_recording_frame_shows_the_panel_only_with_something_to_say() {
     let offer = recording(Some(CallPanelSnapshot::Offer {
         call_id: "call-1".into(),
         application: "zoom.us".into(),
@@ -53,7 +53,7 @@ fn p9_11_the_recording_frame_shows_the_panel_only_with_something_to_say() {
 }
 
 #[test]
-fn p9_11_the_panel_sits_at_the_top_right_of_its_monitor() {
+fn the_panel_sits_at_the_top_right_of_its_monitor() {
     // A 1512-point-wide Retina display at 2x, the panel 360 points wide and
     // 16 points in from the top and right edges.
     assert_eq!(
@@ -88,8 +88,8 @@ fn window_capabilities_keep_the_panel_command_boundary() -> Result<(), Box<dyn s
             "allow-orbit-panel-send",
             "allow-orbit-report"
         ]),
-        "the panel listens to its frames, answers a call and records its own failures \
-         (SIM-21); it emits nothing"
+        "the panel listens to its frames, answers a call and records its own failures; \
+         it emits nothing"
     );
     let main: serde_json::Value =
         serde_json::from_str(include_str!("../capabilities/default.json"))?;
@@ -209,10 +209,10 @@ fn thinking() -> orbit_app_core::MeetingQuestionSnapshot {
     }
 }
 
-/// P9-12: a question to Deimos shows the panel, taller, until the daemon
-/// lets it go (45 s after the answer, 8 s after a failure) or Mars closes it.
+/// A question to Deimos shows the panel, taller, until the daemon
+/// lets it go (45 s after the answer, 8 s after a failure) or the user closes it.
 #[test]
-fn p9_12_a_question_to_deimos_shows_the_panel_with_room_for_the_answer() {
+fn a_question_to_deimos_shows_the_panel_with_room_for_the_answer() {
     let asked = recording_with(None, Some(thinking()));
     assert_eq!(asked.as_ref().and_then(panel_visible), Some(true));
     assert_eq!(
@@ -232,11 +232,10 @@ fn p9_12_a_question_to_deimos_shows_the_panel_with_room_for_the_answer() {
     assert_eq!(quiet.as_ref().and_then(panel_visible), Some(false));
 }
 
-/// R3: the answer's links open through the panel's own closed order, only
+/// The answer's links open through the panel's own closed order, only
 /// for http(s), with the same check as the main window's `open_url`.
 #[test]
-fn p9_12_r3_the_panel_opens_only_web_links_from_an_answer() -> Result<(), Box<dyn std::error::Error>>
-{
+fn the_panel_opens_only_web_links_from_an_answer() -> Result<(), Box<dyn std::error::Error>> {
     let open: crate::commands::PanelOrder = serde_json::from_value(
         serde_json::json!({"command": "open_url", "url": "https://acme.example/acta"}),
     )?;

@@ -1,7 +1,7 @@
-//! Mars's wall clock, as data the projection reads.
+//! The user's wall clock, as data the projection reads.
 //!
 //! "Hoy", the cut between one day and the next, the focus window and a label
-//! such as «10:00» are read on the clock of the Mac Mars is sitting at. Read in
+//! such as «10:00» are read on the clock of the Mac the user is sitting at. Read in
 //! UTC, every hour of the Briefing came out two hours early in Madrid in
 //! September. The zone is read where the app runs (`crate::system_zone`) and
 //! handed to the projection as a value, the way `now_ms` is, so the projection

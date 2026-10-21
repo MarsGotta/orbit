@@ -22,6 +22,6 @@ failed_groups: number,
  */
 error?: string, 
 /**
- * SIM-52: a change of language is transcribing the meeting again.
+ * A change of language is transcribing the meeting again.
  */
 retranscribing?: NoteRetranscribingSnapshot, };

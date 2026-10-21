@@ -32,7 +32,7 @@ it.each<[number | undefined, string]>([
   expect(recovered(duration)).toEqual([{ op: "audio-route-recovered", class: "done", text }]);
 });
 
-it("el aviso visible no tiene acción y caduca a los cinco segundos", () => {
+it("the visible notice has no action and expires after five seconds", () => {
   vi.useFakeTimers();
   const dismiss = vi.fn();
   render(<NoticeBanner messages={recovered(2_000)} onAction={vi.fn()} onDismiss={dismiss} />);

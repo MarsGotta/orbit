@@ -1,4 +1,4 @@
-/* P9-20: the agenda, day by day; a date column of 80 px and rows of 36. */
+/* The agenda, day by day; a date column of 80 px and rows of 36. */
 .agenda {
   min-height: 0;
   flex: 1;

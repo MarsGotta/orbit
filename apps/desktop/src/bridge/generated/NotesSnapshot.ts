@@ -7,6 +7,6 @@ import type { OpenNoteSnapshot } from "./OpenNoteSnapshot";
 
 export type NotesSnapshot = { list: Array<NoteListItem>, index?: NotesIndexSnapshot, open: OpenNoteSnapshot | null, open_read?: NoteReadSnapshot, 
 /**
- * P9-05: templates, assignments and refusals.
+ * Templates, assignments and refusals.
  */
 library?: NoteLibrarySnapshot, };

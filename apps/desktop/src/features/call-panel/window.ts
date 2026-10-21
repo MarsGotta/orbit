@@ -1,5 +1,5 @@
 /**
- * P9-11: whether this webview is the floating panel's window. Tauri names it
+ * Whether this webview is the floating panel's window. Tauri names it
  * `panel` (`src-tauri/tauri.conf.json`); in a browser, `?ventana=panel` shows
  * the same root for development.
  */

@@ -6,7 +6,7 @@ import styles from "./NotesView.module.css";
 
 /**
  * The list while the index is not read: on its way, or failed with what to
- * do (SIM-24). Counts and causes stay in the log.
+ * do. Counts and causes stay in the log.
  */
 export function NotesIndexMessage({
   index,

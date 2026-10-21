@@ -57,7 +57,7 @@ function defaultSpan(editing: Editing): CalendarSpan {
 
 /** Saves what the panel holds: a titled draft is created, an event's
  *  changes are written; an untitled draft and an untouched event write
- *  nothing, and an event Mars cannot change is never written. */
+ *  nothing, and an event the user cannot change is never written. */
 function commitEdits(
   now: Editing | null,
   writes: Writes,
@@ -76,8 +76,8 @@ function commitEdits(
 }
 
 /**
- * The event selected in the calendar and its panel's edits (P9-22). A draft
- * is saved when it has a title and Mars saves it or leaves it; untitled, it
+ * The event selected in the calendar and its panel's edits. A draft
+ * is saved when it has a title and the user saves it or leaves it; untitled, it
  * disappears. Edits to an event accumulate and are saved the same way.
  */
 export function useEventEditor(

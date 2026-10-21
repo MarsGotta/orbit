@@ -4,7 +4,7 @@ import type { MeetingQuestionOrigin } from "./MeetingQuestionOrigin";
 import type { MeetingQuestionStage } from "./MeetingQuestionStage";
 
 /**
- * P9-12: Mars's question to Deimos during the meeting, as the floating
+ * The user's question to Deimos during the meeting, as the floating
  * panel shows it: the question, «Deimos está pensando…», the answer as
  * it arrives, or the cause.
  */

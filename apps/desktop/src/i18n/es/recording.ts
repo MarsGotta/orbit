@@ -30,7 +30,7 @@ export const recording = {
     resume: "Reanudar",
     finish: "Terminar",
   },
-  // P9-11: the floating panel and «Al detectar una llamada».
+  // The floating panel and «Al detectar una llamada».
   callDetection: {
     panelLabel: "Aviso de llamada",
     offer: (application: string) => `Llamada en ${application}`,

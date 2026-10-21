@@ -5,10 +5,10 @@ import type { Refusal, RefusalCode } from "../../bridge/refusal";
 import { openSettings, rearm, systemPrivacy, type NoticeAction } from "./notices/types";
 
 /**
- * A refused order as the person sees it (SIM-21): something she can fix,
+ * A refused order as the person sees it: something they can fix,
  * work still in progress, or a failure with the generic message and its code.
  * The interceptor reads this as it reads the notice catalogue.
- * SIM-24: the words say what to do; the refusal's numbers stay in the log.
+ * The words say what to do; the refusal's numbers stay in the log.
  */
 export type RefusalEntry =
   | { class: "failed"; text?: (refusal: Refusal) => string }

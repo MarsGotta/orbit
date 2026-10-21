@@ -5,7 +5,7 @@ import { es } from "../../i18n/es";
 import { actionsMarkdown, groupActions } from "./action-groups";
 import styles from "./NoteScreen.module.css";
 
-/** The tasks of the note, grouped by who owns them (P9-04). */
+/** The tasks of the note, grouped by who owns them. */
 export function ActionsTab({
   note,
   send,

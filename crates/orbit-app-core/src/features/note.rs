@@ -34,8 +34,8 @@ pub enum NoteCommand {
         #[serde(default)]
         scope: orbit_core::notes::SpeakerRenameScope,
     },
-    /// Mars's private notes (markdown), kept by the daemon until the hub
-    /// confirms them (SIM-41).
+    /// The user's private notes (markdown), kept by the daemon until the hub
+    /// confirms them.
     NotePrivateSave {
         recording_id: String,
         markdown: String,

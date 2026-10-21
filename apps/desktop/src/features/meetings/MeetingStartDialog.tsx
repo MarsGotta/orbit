@@ -32,8 +32,8 @@ export interface MeetingStartDialogProps {
 }
 
 /**
- * Why no application can be chosen, only when the Mac said none plays audio
- * (SIM-24): a list not read yet or not readable says nothing; it stops nothing.
+ * Why no application can be chosen, only when the Mac said none plays audio:
+ * a list not read yet or not readable says nothing; it stops nothing.
  */
 function emptyReason(snapshot: AppSnapshot): string | undefined {
   return snapshot.meeting.applications_state === "empty"

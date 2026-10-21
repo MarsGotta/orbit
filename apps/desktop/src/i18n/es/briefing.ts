@@ -22,7 +22,7 @@ export const briefing = {
     joinRecord: "Unirse y grabar",
     finish: "Terminar",
     previousNote: "Abrir nota anterior",
-    // SIM-24: the agenda not read yet says nothing; without the permission
+    // The agenda not read yet says nothing; without the permission
     // it says how to grant it.
     calendarPermission: "Concede el permiso de Calendarios para ver tu agenda.",
     timezoneFailed: "No se pudo leer la zona horaria del Mac.",

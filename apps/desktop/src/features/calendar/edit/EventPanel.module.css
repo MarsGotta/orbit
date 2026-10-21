@@ -1,4 +1,4 @@
-/* P9-22: the event panel when it edits. The same surface as P9-20's
+/* The event panel when it edits. The same surface as the read-only
    detail (CalendarView.module.css .eventDetails); only Orbit's tokens. */
 .panel {
   display: flex;

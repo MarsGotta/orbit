@@ -117,8 +117,8 @@ function useEditorKeys(editor: Editor, writes: Writes, edits: ReturnType<typeof 
 }
 
 /**
- * Creating, moving, stretching, editing and deleting events in the calendar
- * (P9-22): the writes, the selected event's panel, the gestures of the grid
+ * Creating, moving, stretching, editing and deleting events in the calendar:
+ * the writes, the selected event's panel, the gestures of the grid
  * and the lane, and the keys.
  */
 export function useCalendarEditing(

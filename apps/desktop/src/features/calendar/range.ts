@@ -7,7 +7,7 @@ import { civil, dayOf, startOfDay } from "./date";
 export type Range = CalendarRangeSnapshot;
 
 /**
- * The widest grid of N days: the `0` key (P9-20). It protects only the
+ * The widest grid of N days: the `0` key. It protects only the
  * layout: past fourteen columns a column is narrower than an event title. It
  * is not a read limit; the month and the agenda are wider. app-core refuses a
  * wider grid with the same number (`MAX_GRID_DAYS` in `calendar.rs`);
@@ -15,14 +15,14 @@ export type Range = CalendarRangeSnapshot;
  */
 export const MAX_GRID_DAYS = 14;
 
-/** What Mars picked: a view and, for the N-day grid, how many days. */
+/** What the user picked: a view and, for the N-day grid, how many days. */
 export interface ViewChoice {
   days: number;
   view: CalendarViewKind;
 }
 
 /**
- * How wide the calendar is (P9-20): narrow shows one day,
+ * How wide the calendar is: narrow shows one day,
  * medium three, wide the week. The widths are the calendar's own area, not
  * the window's. An unmeasured area (0) is wide, the default view, so nothing
  * is asked for before the first measurement.

@@ -1,4 +1,4 @@
-/* P9-20: the month as whole weeks; a row of 22 px per event. */
+/* The month as whole weeks; a row of 22 px per event. */
 .month {
   display: flex;
   min-height: 0;

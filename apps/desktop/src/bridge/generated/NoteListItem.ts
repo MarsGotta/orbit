@@ -5,12 +5,12 @@ import type { NoteListState } from "./NoteListState";
 
 export type NoteListItem = { recording_id: string, 
 /**
- * The meeting's title (Mars, 2026-10-17): the same in the list and
+ * The meeting's title (decided 2026-10-17): the same in the list and
  * in the open note.
  */
 title: string, started_at_ms: number, duration_ms: number, state: NoteListState, group: NoteDayGroup, 
 /**
- * P9-04: where its note stands, or how its short summary begins.
+ * Where its note stands, or how its short summary begins.
  * Absent when the hub has no note for it.
  */
 headline?: NoteHeadlineSnapshot, };

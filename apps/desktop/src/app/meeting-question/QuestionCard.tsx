@@ -16,10 +16,10 @@ export interface QuestionCardProps {
 }
 
 /**
- * P9-12: the question to Deimos in the floating panel: Deimos thinking,
+ * The question to Deimos in the floating panel: Deimos thinking,
  * the answer as it arrives, or why there is none. It stays
  * until the daemon lets it go (45 s after the answer, 8 s after a failure)
- * or Mars closes it; the answer also stays in the conversation.
+ * or the user closes it; the answer also stays in the conversation.
  */
 export function QuestionCard({ question, send, openUrl }: QuestionCardProps) {
   const es = useSpanish();
@@ -80,7 +80,7 @@ function body(question: MeetingQuestionSnapshot, openUrl: QuestionCardProps["ope
 }
 
 /**
- * The answer, in the Markdown Deimos writes (SIM-30), with its web links,
+ * The answer, in the Markdown Deimos writes, with its web links,
  * bare ones too, as links that open outside Orbit through the panel.
  */
 function AnswerText({ openUrl, text }: { openUrl: QuestionCardProps["openUrl"]; text: string }) {

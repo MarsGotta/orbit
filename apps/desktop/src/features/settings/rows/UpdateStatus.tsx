@@ -2,7 +2,7 @@ import type { SettingsSnapshot } from "../../../bridge/generated";
 import { es } from "../../../i18n/es";
 
 /**
- * Where a search for an update the person asked for stands (SIM-24): on its
+ * Where a search for an update the person asked for stands: on its
  * way, its result, or that it failed. The cause, the files and the sizes
  * stay in the log.
  */

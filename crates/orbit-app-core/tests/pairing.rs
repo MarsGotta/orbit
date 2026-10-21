@@ -45,7 +45,7 @@ fn status_snapshot(
 }
 
 #[test]
-fn a1_projects_saved_pairing_independently_from_link_connection()
+fn projects_saved_pairing_independently_from_link_connection()
 -> Result<(), Box<dyn std::error::Error>> {
     let offline = status_snapshot(Some(account()), Connection::Offline)?;
     assert_eq!(offline["settings"]["hub"]["paired"], true);

@@ -11,7 +11,7 @@ export interface ActionGroup {
 const normal = (name: string) => name.trim().toLocaleLowerCase("es");
 
 /**
- * Tasks by owner: Mars first (her account's name or «Yo»), then each person
+ * Tasks by owner: the user first (their account's name or «Yo»), then each person
  * in the order the note names them, and «Sin asignar» last.
  */
 export function groupActions(actions: NoteActionSnapshot[], ownerName: string): ActionGroup[] {

@@ -5,7 +5,7 @@ use ts_rs::TS;
 
 pub type View = Option<crate::NotesSnapshot>;
 
-/// The list as read (`client::notes`), with each row's day on Mars's clock
+/// The list as read (`client::notes`), with each row's day on the user's clock
 /// now: a note from 23:00 moves to «Ayer» at midnight without a new read.
 pub fn project(input: &FeatureInput<'_>) -> View {
     let mut view = input.local.notes.clone();
@@ -30,6 +30,6 @@ pub fn apply(view: &View, snapshot: &mut AppSnapshot) {
 #[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
 pub enum NotesCommand {
     NotesRefresh,
-    /// SIM-41 «Cargar más»: one more page of the hub's list.
+    /// «Cargar más»: one more page of the hub's list.
     NotesMore,
 }

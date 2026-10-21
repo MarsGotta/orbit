@@ -8,7 +8,7 @@ use orbit_core::{CallPhase, CallState, PermissionState, topics::Knowledge};
 /// What the call shows about the screen follows the macOS permission and the
 /// privacy stop, not a switch of Orbit.
 #[test]
-fn ref11_a1_the_call_sees_the_screen_with_the_permission() {
+fn the_call_sees_the_screen_with_the_permission() {
     let call = |screen, privacy_stopped| {
         let mut value = assistant_topic::assistant_value();
         value.call = Knowledge::Present {
@@ -34,7 +34,7 @@ fn ref11_a1_the_call_sees_the_screen_with_the_permission() {
     assert_eq!(
         call(PermissionState::Unknown, false),
         Some(false),
-        "un permiso desconocido no se anuncia como concedido"
+        "an unknown permission is not announced as granted"
     );
     assert_eq!(call(PermissionState::Granted, true), Some(false));
 }

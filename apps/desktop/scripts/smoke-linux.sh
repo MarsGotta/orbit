@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SIM-51: the app on Linux, under Xvfb, as one process. It starts its daemon on
+# The app on Linux, under Xvfb, as one process. It starts its daemon on
 # a thread of its own (no `orbit` process), says «daemon ready», and a SIGTERM
 # closes the daemon in order and the app with it, exit code 0, socket removed.
 set -euo pipefail
@@ -18,7 +18,7 @@ fi
 
 SMOKE_DIR="$(mktemp -d /tmp/orbit-app-smoke.XXXXXX)"
 APP_PID=""
-DESKTOP_BIN="${CARGO_TARGET_DIR:?CARGO_TARGET_DIR no está definido}/debug/orbit-desktop"
+DESKTOP_BIN="${CARGO_TARGET_DIR:?CARGO_TARGET_DIR is not set}/debug/orbit-desktop"
 LOG_FILE="${SMOKE_DIR}/desktop.log"
 SOCKET="${SMOKE_DIR}/data/orbit/orbit.sock"
 # The app's own waits (apps/desktop/src-tauri/src/daemon_thread.rs): 15 s for
@@ -66,7 +66,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-[[ -x "${DESKTOP_BIN}" ]] || { echo "Falta ${DESKTOP_BIN}" >&2; exit 1; }
+[[ -x "${DESKTOP_BIN}" ]] || { echo "Missing ${DESKTOP_BIN}" >&2; exit 1; }
 mkdir -p "${SMOKE_DIR}/runtime"
 chmod 700 "${SMOKE_DIR}/runtime"
 
@@ -84,23 +84,23 @@ for _ in $(seq 1 "${READY_TENTHS}"); do
     ready=1
     break
   fi
-  alive "${APP_PID}" || fail "la app terminó antes de «daemon ready»"
+  alive "${APP_PID}" || fail "the app ended before «daemon ready»"
   sleep 0.1
 done
-[[ "${ready}" -eq 1 ]] || fail "no hubo «daemon ready» en $((READY_TENTHS / 10)) s"
-[[ -S "${SOCKET}" ]] || fail "no existe el socket ${SOCKET}"
+[[ "${ready}" -eq 1 ]] || fail "no «daemon ready» within $((READY_TENTHS / 10)) s"
+[[ -S "${SOCKET}" ]] || fail "the socket ${SOCKET} does not exist"
 
 # One process: the daemon is a thread of the app, and no child runs `orbit`.
-alive "${APP_PID}" || fail "la app terminó justo después de «daemon ready»"
+alive "${APP_PID}" || fail "the app ended right after «daemon ready»"
 thread=0
 for comm in /proc/"${APP_PID}"/task/*/comm; do
   [[ "$(<"${comm}")" == "orbit-daemon" ]] && thread=1
 done
-[[ "${thread}" -eq 1 ]] || fail "la app no tiene un hilo orbit-daemon"
+[[ "${thread}" -eq 1 ]] || fail "the app has no orbit-daemon thread"
 for children in /proc/"${APP_PID}"/task/*/children; do
   for child in $(<"${children}"); do
     if [[ "$(basename "$(readlink -f "/proc/${child}/exe" 2>/dev/null || true)")" == "orbit" ]]; then
-      fail "la app lanzó un proceso orbit (PID ${child})"
+      fail "the app launched an orbit process (PID ${child})"
     fi
   done
 done
@@ -111,10 +111,10 @@ for _ in $(seq 1 "${READY_TENTHS}"); do
     ready=1
     break
   fi
-  alive "${APP_PID}" || fail "la app terminó durante la recuperación del arranque"
+  alive "${APP_PID}" || fail "the app ended during the startup recovery"
   sleep 0.1
 done
-[[ "${ready}" -eq 1 ]] || fail "el daemon no terminó su recuperación en $((READY_TENTHS / 10)) s"
+[[ "${ready}" -eq 1 ]] || fail "the daemon did not finish its recovery within $((READY_TENTHS / 10)) s"
 
 kill -TERM "${APP_PID}"
 exited=0
@@ -125,15 +125,16 @@ for _ in $(seq 1 "${EXIT_TENTHS}"); do
   fi
   sleep 0.1
 done
-[[ "${exited}" -eq 1 ]] || fail "la app siguió viva $((EXIT_TENTHS / 10)) s después del SIGTERM"
+[[ "${exited}" -eq 1 ]] || fail "the app was still alive $((EXIT_TENTHS / 10)) s after the SIGTERM"
 set +e
 wait "${APP_PID}"
 status=$?
 set -e
 APP_PID=""
-[[ "${status}" -eq 0 ]] || fail "la app salió con ${status} tras el SIGTERM, no con 0"
+[[ "${status}" -eq 0 ]] || fail "the app exited with ${status} after the SIGTERM, not 0"
+# The app's own log line (src-tauri/src/lib.rs), in the product's Spanish.
 grep -q "daemon: el servicio cerró en orden sin que se pidiera salir; Orbit sale" "${LOG_FILE}" \
-  || fail "el registro no dice que el daemon cerró en orden"
-[[ ! -e "${SOCKET}" ]] || fail "el socket ${SOCKET} sigue ahí tras el cierre"
+  || fail "the log does not say the daemon closed in order"
+[[ ! -e "${SOCKET}" ]] || fail "the socket ${SOCKET} is still there after the closure"
 
-echo "smoke-linux: daemon ready en un solo proceso y cierre ordenado tras SIGTERM"
+echo "smoke-linux: daemon ready in a single process and an orderly closure after SIGTERM"

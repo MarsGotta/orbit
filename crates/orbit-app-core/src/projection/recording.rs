@@ -16,7 +16,7 @@ pub(crate) fn project_meeting_topic(
         meeting.call_preference_unreadable = call.preference_unreadable.clone();
         meeting.call_panel = call.panel.clone().map(call_panel);
     }
-    // P9-12: «Preguntar a Deimos» while a recording is in progress, the
+    // «Preguntar a Deimos» while a recording is in progress, the
     // question the panel follows and the «Oye Deimos» detector.
     if matches!(
         meeting.phase,

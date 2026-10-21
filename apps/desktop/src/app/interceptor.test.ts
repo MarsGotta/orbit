@@ -16,7 +16,7 @@ function only(messages: Message[], op = OP): Message | undefined {
   return matching[0];
 }
 
-describe("SIM-21 the interceptor shows each class as the table says", () => {
+describe("the interceptor shows each class as the table says", () => {
   it("fixable, working and done are shown with their own text", () => {
     for (const [code, kind] of [
       ["microphone_permission_missing", "fixable"],
@@ -59,7 +59,7 @@ describe("SIM-21 the interceptor shows each class as the table says", () => {
   });
 });
 
-describe("SIM-21 a code the catalogue does not know", () => {
+describe("a code the catalogue does not know", () => {
   it("is the generic failure with the op's code, and is reported", () => {
     for (const code of ["unknown", "code_from_the_future"]) {
       const { messages, report } = receive([], {
@@ -89,7 +89,7 @@ describe("SIM-21 a code the catalogue does not know", () => {
   });
 });
 
-describe("SIM-21 never two visible messages of the same op", () => {
+describe("never two visible messages of the same op", () => {
   it("working, then done, of one op leave only the done", () => {
     let messages = receive([], { kind: "notice", notice: notice("voice_transcribing") }).messages;
     messages = receive(messages, {
@@ -121,7 +121,7 @@ describe("SIM-21 never two visible messages of the same op", () => {
   });
 });
 
-describe("SIM-21 refusals of an order go through the same catalogue", () => {
+describe("refusals of an order go through the same catalogue", () => {
   it("a permission refusal is fixable, with the way to fix it", () => {
     const { messages, report } = receive([], {
       kind: "refusal",
@@ -133,7 +133,7 @@ describe("SIM-21 refusals of an order go through the same catalogue", () => {
     expect(report).toMatchObject({ op: OP, code: "permission_not_granted", source: "app" });
   });
 
-  it("a refusal she cannot act on is the generic failure, and is reported", () => {
+  it("a refusal the person cannot act on is the generic failure, and is reported", () => {
     const { messages, report } = receive([], {
       kind: "refusal",
       op: OP,
@@ -165,7 +165,7 @@ describe("SIM-21 refusals of an order go through the same catalogue", () => {
   });
 });
 
-describe("SIM-60 recovery is work in progress", () => {
+describe("recovery is work in progress", () => {
   it("shows the recovery step and elapsed time without a corrective action", () => {
     const { messages, report } = receive([], {
       kind: "refusal",
@@ -181,7 +181,7 @@ describe("SIM-60 recovery is work in progress", () => {
   });
 });
 
-describe("SIM-101 repeated notices", () => {
+describe("repeated notices", () => {
   it("replaces an identical visible notice from a different operation", () => {
     let messages = receive([], {
       kind: "notice",

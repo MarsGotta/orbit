@@ -9,7 +9,7 @@ const GENERAL = "general";
 /**
  * «Plantilla de la nota»: the template the notes of this event and its
  * series are written with. Choosing General removes the assignment. A list
- * not read yet says nothing (SIM-24); it is never shown as General.
+ * not read yet says nothing; it is never shown as General.
  */
 export function EventTemplate({
   calendarItemId,

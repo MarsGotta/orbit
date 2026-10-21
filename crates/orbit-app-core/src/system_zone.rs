@@ -1,9 +1,9 @@
 //! The zone the Mac is set to, read through the operating system.
 //!
 //! This is the one place app-core looks at the machine's zone. It runs in the
-//! app's process on Mars's Mac, so the zone it reads is hers: `chrono::Local`
-//! follows `/etc/localtime`, which macOS rewrites when she changes the zone in
-//! System Settings or it follows her location, and it notices within a second.
+//! app's process on the user's Mac, so the zone it reads is theirs: `chrono::Local`
+//! follows `/etc/localtime`, which macOS rewrites when they change the zone in
+//! System Settings or it follows their location, and it notices within a second.
 //! What it reads is turned into a [`LocalZone`] value and handed to the
 //! projection beside `now_ms`; the projection never reads anything itself.
 

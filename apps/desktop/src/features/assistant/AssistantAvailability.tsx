@@ -5,7 +5,7 @@ import { es } from "../../i18n/es";
 import type { AppView } from "../../state/app-view";
 import styles from "./AssistantView.module.css";
 
-/** An assistant not known yet is an empty view: an unknown is not a failure (SIM-24). */
+/** An assistant not known yet is an empty view: an unknown is not a failure. */
 export function UnknownAssistant({ snapshot }: { snapshot: AppView }) {
   if (snapshot.chat.availability?.state !== "unknown") return null;
   return <section className={styles.view} />;

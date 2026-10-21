@@ -39,9 +39,9 @@ function useElementSize(element: HTMLElement | null) {
 }
 
 /**
- * Which period is on screen and how to change it (P9-20). app-core decides
- * the range; this asks for it: the view Mars chose for this width (or the
- * width's default), the day her week begins, and steps through periods.
+ * Which period is on screen and how to change it. app-core decides
+ * the range; this asks for it: the view the user chose for this width (or the
+ * width's default), the day their week begins, and steps through periods.
  * A request is sent once per choice, so a range that has not arrived yet is
  * not asked for again on every render.
  */
@@ -79,7 +79,7 @@ export function useCalendarRange(range: Range, send: Send, timezone: string) {
       update({ byTier: { ...preferences.byTier, [tier]: choice } });
       void send(setRange(choice, anchor, preferences.weekStart));
     },
-    /** One day, from the month or the agenda; not kept as her choice. */
+    /** One day, from the month or the agenda; not kept as the user's choice. */
     openDay: (dayStartMs: number) =>
       void send(setRange({ days: 1, view: "day" }, dayStartMs, preferences.weekStart)),
     preferences,

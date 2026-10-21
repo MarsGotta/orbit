@@ -1,4 +1,4 @@
-//! P9-05: the note library read (the hub's templates and assignments, and
+//! The note library read (the hub's templates and assignments, and
 //! the orders of this session), as the app shows it.
 use crate::*;
 use orbit_core::notes::{LibraryItem, LibraryList};

@@ -1,4 +1,4 @@
-// P9-22: creating, moving, editing and deleting events from the calendar.
+// Creating, moving, editing and deleting events from the calendar.
 // Kept beside `agenda.ts`, which merges it into `es.calendar`.
 
 const readOnlyCalendar = "Este calendario es de sólo lectura";
@@ -22,7 +22,7 @@ export const agendaEdit = {
     outsideSeries: "como evento suelto, fuera de la serie",
     undoing: (title: string) => `Deshaciendo el último cambio de «${title}»…`,
     nothingToUndo: "No hay ningún cambio de esta sesión que deshacer.",
-    // SIM-24: what she can do about it; the cause stays in the log.
+    // What the user can do about it; the cause stays in the log.
     unknown: "No se sabe si el cambio se guardó. Compruébalo en el calendario.",
     refused: "El calendario no aplicó el cambio. No se cambió nada.",
     dismiss: "Cerrar aviso",

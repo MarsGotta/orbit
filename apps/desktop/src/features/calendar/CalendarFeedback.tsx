@@ -13,7 +13,7 @@ interface CalendarFeedbackProps {
 
 /**
  * What the calendar says above its grid: a read on
- * its way, or a read that failed. With the agenda read, nothing (SIM-24).
+ * its way, or a read that failed. With the agenda read, nothing.
  */
 export function CalendarFeedback(props: CalendarFeedbackProps) {
   const { calendar, error } = props;

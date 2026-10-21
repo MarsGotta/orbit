@@ -37,7 +37,7 @@ function card(snapshot: MeetingQuestionSnapshot) {
   return { region, sent, view };
 }
 
-describe("P9-12 the answer panel", () => {
+describe("the answer panel", () => {
   it("says Deimos is thinking, with the question, and shows the answer as it arrives", async () => {
     const thinking = card(question());
     expect(thinking.region.textContent).toContain(es.meetingQuestion.thinking);
@@ -60,7 +60,7 @@ describe("P9-12 the answer panel", () => {
     expect(answered.sent).toEqual([{ command: "meeting_question_close", id: "turn-1" }]);
   });
 
-  // SIM-24: each failure says what to do, in one line; the codes and the sizes
+  // Each failure says what to do, in one line; the codes and the sizes
   // stay in the log, never on screen.
   it("shows each failure as what to do, without codes or numbers", () => {
     const causes = es.meetingQuestion.causes;
@@ -105,7 +105,7 @@ function ask(props: Partial<Parameters<typeof AskDeimos>[0]> = {}) {
   return { sent, done: () => done };
 }
 
-describe("P9-12 «Preguntar a Deimos»", () => {
+describe("«Preguntar a Deimos»", () => {
   it("asks with the windows app-core offers, two minutes by default", async () => {
     const { sent, done } = ask();
     const windows = screen.getAllByRole("radio");
@@ -160,7 +160,7 @@ describe("P9-12 «Preguntar a Deimos»", () => {
   });
 });
 
-describe("P9-12 review: what the panel says is true", () => {
+describe("what the panel says is true", () => {
   it("says a question that never reached Deimos was not asked, not that he did not answer", () => {
     const refused = card(
       question({ stage: "failed", sent: false, cause: { cause: "privacy_stopped" } }),
@@ -232,7 +232,7 @@ describe("P9-12 review: what the panel says is true", () => {
   });
 });
 
-describe("P9-12 review 2: a link says where it leads", () => {
+describe("a link says where it leads", () => {
   it("puts the host beside a Markdown label, also when the label is another address", () => {
     render(
       <QuestionCard

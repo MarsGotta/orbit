@@ -1,7 +1,7 @@
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { DAY_MS, dayOf } from "./date";
 
-/** What the view adds to an event it draws (P9-22): a write on its way,
+/** What the view adds to an event it draws: a write on its way,
  *  a draft not yet in the calendar, a card being dragged. */
 export interface EventUi {
   draft?: boolean;
@@ -12,13 +12,13 @@ export interface EventUi {
 export type CalendarEvent = AppSnapshot["calendar"]["events"][number] & { ui?: EventUi };
 
 /**
- * How a card reads at a glance (P9-20): Mars's answer, a
+ * How a card reads at a glance: the user's answer, a
  * meeting that is over, the one icon on the right and a recording in
  * progress. Pure: the event, the instant and the meeting in, a look out.
  */
 export interface EventLook {
   declined: boolean;
-  /** Over, with guests: drawn as done. Her own events without guests are not. */
+  /** Over, with guests: drawn as done. The user's own events without guests are not. */
   done: boolean;
   icon: "unanswered" | null;
   recording: boolean;

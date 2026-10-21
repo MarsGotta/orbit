@@ -10,7 +10,7 @@ import { conversationView, turnInFlight, withNewest, withOlder } from "./convers
 type Reader = NonNullable<DaemonPort["readSessionMessages"]>;
 
 /**
- * SIM-30: the open conversation, read from the hub a page at a time, with
+ * The open conversation, read from the hub a page at a time, with
  * the turn in progress after it. The newest page is read when the
  * conversation opens and again when a turn ends; older ones on demand.
  */
@@ -35,7 +35,7 @@ export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
     void read(sessionId, null)
       .then((answer: MessagesPage) => {
         if (!current) return;
-        // SIM-24: a failure says so, without its cause; an unknown is quiet.
+        // A failure says so, without its cause; an unknown is quiet.
         if (answer.state === "absent") setError(es.assistant.historyFailed);
         if (answer.state !== "present") return;
         setError(null);

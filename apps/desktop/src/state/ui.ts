@@ -48,7 +48,7 @@ function persistTheme(theme: Theme): void {
   try {
     window.localStorage.setItem(themeKey, theme);
   } catch {
-    // La preferencia sigue activa durante esta sesión si el almacenamiento no está disponible.
+    // The preference stays in effect for this session when storage is unavailable.
   }
 }
 

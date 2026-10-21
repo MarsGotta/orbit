@@ -24,7 +24,7 @@ const tabs: Array<[NoteTab, string]> = [
   ["transcript", es.notes.transcriptTab],
 ];
 
-/** The tab Mars chose for this note, or the one the note's state suggests. */
+/** The tab the user chose for this note, or the one the note's state suggests. */
 function useNoteTab(note: OpenNoteSnapshot): [NoteTab, (tab: NoteTab) => void] {
   const [chosen, setChosen] = useState<{ id: string; tab: NoteTab } | null>(null);
   const tab = chosen?.id === note.recording_id ? chosen.tab : defaultTab(note);

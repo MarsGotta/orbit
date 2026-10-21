@@ -12,7 +12,7 @@ const corpus = [
   "**_ambas_** marcas",
 ];
 
-describe("P9-04 markdown ↔ editor", () => {
+describe("markdown ↔ editor", () => {
   it("round-trips the subset through the editor document", () => {
     for (const markdown of corpus) {
       const normal = serializeMarkdown(parseMarkdown(markdown));

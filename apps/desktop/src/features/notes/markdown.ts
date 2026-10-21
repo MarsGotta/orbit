@@ -1,5 +1,5 @@
 /**
- * The markdown Orbit's notes speak (P9-04): the subset the hub's prompt asks
+ * The markdown Orbit's notes speak: the subset the hub's prompt asks
  * the model for and the editor writes back. Paragraphs, headings (three
  * levels), bullet, numbered and task lists, bold, italic, strike, links to
  * http(s) and line breaks inside a paragraph or an item (a run's `\n`).

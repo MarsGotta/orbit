@@ -21,7 +21,7 @@ export function TemplatePicker({
   note: OpenNoteSnapshot;
   send: (command: AppCommand) => void;
 }) {
-  // SIM-24: templates not read yet, or not readable without the hub, say
+  // Templates not read yet, or not readable without the hub, say
   // nothing; a failed read says so.
   if (
     library == null ||

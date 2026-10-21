@@ -1,5 +1,5 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
-//! SIM-41 at the app: the notes are read from the daemon as the hub computed
+//! At the app: the notes are read from the daemon as the hub computed
 //! them, the list again when its head moves, and an open note again only when
 //! the hub said that recording changed. The daemon here is a typed actor fixture; none of this is evidence about the real daemon or hub.
 
@@ -31,7 +31,7 @@ use tokio::{
 
 const RECORDING_ID: &str = "11111111-1111-4111-8111-111111111111";
 const OTHER_ID: &str = "33333333-3333-4333-8333-333333333333";
-const EPOCH: &str = "sim41-epoch";
+const EPOCH: &str = "notes-epoch";
 
 struct FixedClock;
 impl CalendarClock for FixedClock {
@@ -63,7 +63,7 @@ fn head_frame(revision: u64, value: notes::Value) -> TopicFrame {
 struct HubNow {
     renamed: AtomicBool,
     transcribing: AtomicBool,
-    /// SIM-52: a change to English is transcribing the meeting again.
+    /// A change to English is transcribing the meeting again.
     retranscribing: AtomicBool,
     final_pass_completed: AtomicBool,
     dictionary: AtomicBool,
@@ -194,7 +194,7 @@ fn answer(read: &ReadRequest, now: &HubNow) -> Knowledge<Page<Value>> {
 
 async fn fixture() -> Result<Fixture, Box<dyn Error>> {
     let directory = tempfile::Builder::new()
-        .prefix("orbit-sim41-")
+        .prefix("orbit-notes-")
         .tempdir_in("/tmp")?;
     let paths = Paths::resolve(Some(directory.path().to_path_buf()))?;
     let (calls, mut actor) = mpsc::channel(16);
@@ -363,7 +363,7 @@ async fn open(fixture: &Fixture) -> Result<(), Box<dyn Error>> {
 /// times from the start of the recording, its speakers' names, its turns
 /// (all pages) and its language.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn sim41_a1_the_open_note_is_the_hubs_document_and_turns() -> Result<(), Box<dyn Error>> {
+async fn the_open_note_is_the_hubs_document_and_turns() -> Result<(), Box<dyn Error>> {
     let fixture = fixture().await?;
     open(&fixture).await?;
     let snapshot = fixture.client.composed_snapshot();
@@ -394,8 +394,7 @@ async fn sim41_a1_the_open_note_is_the_hubs_document_and_turns() -> Result<(), B
 /// An open note is read again when the hub says it changed, and only then:
 /// another recording's change and a library change do not read it.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn sim41_a3_the_open_note_is_read_again_by_its_recording_changed()
--> Result<(), Box<dyn Error>> {
+async fn the_open_note_is_read_again_by_its_recording_changed() -> Result<(), Box<dyn Error>> {
     let fixture = fixture().await?;
     open(&fixture).await?;
     assert_eq!(fixture.detail_reads.load(Ordering::SeqCst), 1);
@@ -440,8 +439,7 @@ async fn sim41_a3_the_open_note_is_read_again_by_its_recording_changed()
 /// come with the document, so the note is read again without its turns.
 /// While the transcript is still being written, a change reads the turns too.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn sim41_a_rename_reads_the_document_and_keeps_the_complete_turns()
--> Result<(), Box<dyn Error>> {
+async fn a_rename_reads_the_document_and_keeps_the_complete_turns() -> Result<(), Box<dyn Error>> {
     let fixture = fixture().await?;
     open(&fixture).await?;
     let turns = fixture.transcript_reads.load(Ordering::SeqCst);
@@ -477,10 +475,10 @@ async fn sim41_a_rename_reads_the_document_and_keeps_the_complete_turns()
     Ok(())
 }
 
-/// SIM-52 at the app: the open note says how far a change of language got,
+/// At the app: the open note says how far a change of language got,
 /// and the header's two orders reach the daemon for that meeting.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn sim52_the_repetition_is_shown_and_the_headers_orders_reach_the_daemon()
+async fn the_repetition_is_shown_and_the_headers_orders_reach_the_daemon()
 -> Result<(), Box<dyn Error>> {
     let fixture = fixture().await?;
     fixture.hub_now.retranscribing.store(true, Ordering::SeqCst);
@@ -529,7 +527,7 @@ async fn sim52_the_repetition_is_shown_and_the_headers_orders_reach_the_daemon()
 
 /// The list: read when the head moves, one page more with «Cargar más».
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn sim41_a2_the_list_follows_its_head_and_loads_more() -> Result<(), Box<dyn Error>> {
+async fn the_list_follows_its_head_and_loads_more() -> Result<(), Box<dyn Error>> {
     let fixture = fixture().await?;
     let first = until(&fixture.client, |snapshot| {
         snapshot
@@ -561,7 +559,7 @@ mod fake_daemon;
 
 /// The hub may finish between two app reads, so no pending state was seen.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn sim93_a_completed_final_pass_reads_replacement_turns_even_without_observing_pending()
+async fn a_completed_final_pass_reads_replacement_turns_even_without_observing_pending()
 -> Result<(), Box<dyn Error>> {
     let fixture = fixture().await?;
     open(&fixture).await?;
@@ -586,7 +584,7 @@ async fn sim93_a_completed_final_pass_reads_replacement_turns_even_without_obser
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn sim94_dictionary_changes_reread_the_turns_of_an_already_complete_meeting()
+async fn dictionary_changes_reread_the_turns_of_an_already_complete_meeting()
 -> Result<(), Box<dyn Error>> {
     let fixture = fixture().await?;
     fixture.hub_now.dictionary.store(true, Ordering::SeqCst);

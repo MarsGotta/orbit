@@ -187,7 +187,7 @@
   }
 }
 
-/* P9-11: «Al detectar una llamada», three choices in a row. */
+/* «Al detectar una llamada», three choices in a row. */
 .choices {
   display: flex;
   flex-wrap: wrap;

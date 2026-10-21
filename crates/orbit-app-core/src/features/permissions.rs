@@ -76,7 +76,7 @@ pub enum PermissionsCommand {
 }
 
 #[cfg(test)]
-mod ref206_tests {
+mod permission_tests {
     use super::*;
     use crate::{DaemonConnection, topics::TopicCache};
     use orbit_core::topics::{Knowledge, TopicData, TopicFrame};
@@ -88,7 +88,7 @@ mod ref206_tests {
         let mut observed = TopicCache::default();
         observed.observe_at(
             TopicFrame {
-                epoch: "ref206".into(),
+                epoch: "permissions-fixture".into(),
                 revision: 1,
                 data: TopicData::Permissions(Knowledge::Present {
                     value: serde_json::from_value(serde_json::json!({
@@ -116,7 +116,7 @@ mod ref206_tests {
         let mut observed = TopicCache::default();
         observed.observe_at(
             TopicFrame {
-                epoch: "ref206".into(),
+                epoch: "permissions-fixture".into(),
                 revision: 1,
                 data: TopicData::Permissions(Knowledge::Present {
                     value: serde_json::from_value(serde_json::json!({
@@ -145,7 +145,7 @@ mod ref206_tests {
         let mut topics = TopicCache::default();
         topics.observe_at(
             TopicFrame {
-                epoch: "ref206".into(),
+                epoch: "permissions-fixture".into(),
                 revision: 1,
                 data: TopicData::Permissions(Knowledge::Present {
                     value: serde_json::from_value(serde_json::json!({
@@ -178,7 +178,7 @@ mod ref206_tests {
         let mut topics = TopicCache::default();
         topics.observe_at(
             TopicFrame {
-                epoch: "ref206".into(),
+                epoch: "permissions-fixture".into(),
                 revision: 1,
                 data: TopicData::Permissions(Knowledge::Present {
                     value: serde_json::from_value(serde_json::json!({

@@ -74,7 +74,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it("la rejilla distingue clic y arrastre, muestra el tramo y crea sólo al soltar", () => {
+it("the grid tells a click from a drag, shows the span and creates only on release", () => {
   const edit = edits();
   render(<Grid edit={edit} />);
   const grid = screen.getByTestId("grid");
@@ -102,7 +102,7 @@ it("la rejilla distingue clic y arrastre, muestra el tramo y crea sólo al solta
   expect(edit.onCreate).toHaveBeenCalledTimes(2);
 });
 
-it("la rejilla mueve, estira y conserva la negativa de un evento no editable", () => {
+it("the grid moves, stretches and keeps the refusal of an event that cannot be edited", () => {
   const edit = edits();
   render(<Grid edit={edit} events={[event]} />);
   box(screen.getByTestId("grid"), 100);
@@ -125,7 +125,7 @@ it("la rejilla mueve, estira y conserva la negativa de un evento no editable", (
   expect(edit.onChange).toHaveBeenCalledTimes(2);
 });
 
-it("el carril ignora el movimiento vertical y arrastra por días completos", () => {
+it("the lane ignores vertical movement and drags by whole days", () => {
   const edit = edits();
   render(<Lane edit={edit} />);
   const lane = screen.getByTestId("lane");
@@ -149,7 +149,7 @@ it("el carril ignora el movimiento vertical y arrastra por días completos", () 
 });
 
 it.each(["Inicio", "Fin", "mover"])(
-  "el carril permite %s de un evento y respeta el bloqueo",
+  "the lane allows %s of an event and respects the lock",
   (action) => {
     const edit = edits();
     const allDay = {

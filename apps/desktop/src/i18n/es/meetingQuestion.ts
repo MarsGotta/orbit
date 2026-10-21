@@ -1,5 +1,5 @@
-// P9-12: Deimos during the meeting — «Preguntar a Deimos», its answer in
-// the floating panel, and «Oye Deimos». SIM-24: a question without answer
+// Deimos during the meeting — «Preguntar a Deimos», its answer in
+// the floating panel, and «Oye Deimos». A question without answer
 // says what to do; its codes and sizes stay in the log.
 const base = {
   meetingQuestion: {

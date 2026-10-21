@@ -1,5 +1,5 @@
-/* P9-11: the floating panel. One small card that fills its window; with a
-   question to Deimos (P9-12) the cards stack. */
+/* The floating panel. One small card that fills its window; with a
+   question to Deimos the cards stack. */
 .root {
   background: var(--o-bg);
   box-sizing: border-box;
@@ -67,7 +67,7 @@
   gap: 6px;
 }
 
-/* P9-12: whether «Oye Deimos» listens, under the panel's cards. */
+/* Whether «Oye Deimos» listens, under the panel's cards. */
 .voice {
   color: var(--o-muted);
   flex: 0 0 auto;

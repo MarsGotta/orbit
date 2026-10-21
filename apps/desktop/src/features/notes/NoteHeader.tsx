@@ -16,17 +16,17 @@ import styles from "./NoteScreen.module.css";
 type Send = (command: AppCommand) => void;
 
 /**
- * The meeting's title, the one the list of Notes names it by (Mars,
+ * The meeting's title, the one the list of Notes names it by (decided
  * 2026-10-17): one title in both places, never the one the note was written
- * with. Editing it renames the meeting on the hub, everywhere (SIM-52) when
- * she leaves the field or presses Enter; empty gives it back its own. A
+ * with. Editing it renames the meeting on the hub, everywhere when
+ * the user leaves the field or presses Enter; empty gives it back its own. A
  * recording the hub does not have whole yet cannot be renamed, and says so.
  */
 function NoteTitle({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
   const [title, setTitle] = useState(note.title);
   const sent = useRef(note.title);
   useEffect(() => {
-    // The hub's answer, or another change: what she sees is the hub's again.
+    // The hub's answer, or another change: what the user sees is the hub's again.
     setTitle(note.title);
     sent.current = note.title;
   }, [note.title]);
@@ -79,8 +79,8 @@ function rewrite(note: OpenNoteSnapshot, send: Send) {
   });
 }
 
-/** Mars changed the note the hub wrote: writing it again sets that aside. */
-function editedByMars(note: OpenNoteSnapshot): boolean {
+/** The user changed the note the hub wrote: writing it again sets that aside. */
+function editedByUser(note: OpenNoteSnapshot): boolean {
   return note.summary?.sections.some((section) => section.edited) ?? false;
 }
 
@@ -123,7 +123,7 @@ export function NoteHeader({
             {es.noteScreen.rewrite}
           </Button>
         </span>
-        {blocked === undefined && editedByMars(note) && (
+        {blocked === undefined && editedByUser(note) && (
           <span className={styles.templateState}>{es.noteScreen.rewriteSetsAside}</span>
         )}
       </div>

@@ -1064,7 +1064,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-update/src/lib.rs",
+        "file": "crates/orbit-app-core/src/update/download.rs",
         "name": "INSTALLER_CEILING_BYTES",
         "unit": "bytes"
       },
@@ -1074,7 +1074,7 @@
         "unit": "bytes"
       },
       {
-        "file": "crates/orbit-update/src/ceiling_tests.rs",
+        "file": "crates/orbit-app-core/src/update/download/ceiling_tests.rs",
         "name": "INSTALLER_CEILING_BYTES",
         "unit": "bytes"
       }

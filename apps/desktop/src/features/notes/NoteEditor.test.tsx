@@ -4,7 +4,7 @@ import { NoteEditor } from "./NoteEditor";
 
 afterEach(cleanup);
 
-it("P9-04 the editor shows the markdown as formatted text and writes markdown back", async () => {
+it("the editor shows the markdown as formatted text and writes markdown back", async () => {
   const onChange = vi.fn();
   render(
     <NoteEditor
@@ -22,7 +22,7 @@ it("P9-04 the editor shows the markdown as formatted text and writes markdown ba
   expect(onChange).not.toHaveBeenCalled();
 });
 
-it("P9-04 hostile markdown stays text inside the editor", async () => {
+it("hostile markdown stays text inside the editor", async () => {
   render(
     <NoteEditor
       label="Notas"

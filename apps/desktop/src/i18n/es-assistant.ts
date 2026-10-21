@@ -11,7 +11,7 @@ export const esAssistant = {
   activeSessions: "Activas",
   recentSessions: "Recientes",
   emptySessionTitle: "Conversación nueva",
-  /** SIM-30: the open conversation; the list names each one by its date. */
+  /** The open conversation; the list names each one by its date. */
   openSessionTitle: "Conversación",
   pairHub: "Empareja Orbit con tu hub en Ajustes",
   composerPlaceholder: "Escribe o usa el micrófono para dictar…",

@@ -20,7 +20,7 @@ tauri-build = { version = "2", features = [] }
 anyhow.workspace = true
 orbit-app-core = { path = "../../../crates/orbit-app-core" }
 orbit-core = { path = "../../../crates/orbit-core" }
-# SIM-51: the daemon runs inside the app, on a thread of its own.
+# The daemon runs inside the app, on a thread of its own.
 orbit-daemon = { path = "../../../crates/orbit-daemon" }
 orbit-ipc = { path = "../../../crates/orbit-ipc" }
 serde.workspace = true

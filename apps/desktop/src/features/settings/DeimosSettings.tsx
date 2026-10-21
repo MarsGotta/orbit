@@ -7,8 +7,8 @@ import { useSpanish } from "../../i18n/AssistantCopy";
 import { ControlHistory } from "./rows/ControlRow";
 import styles from "./SettingsView.module.css";
 
-/// REF-11: nothing here switches anything on. What lets Deimos see and use
-/// this Mac is the permission Mars grants in macOS. SIM-24: with the engine
+/// Nothing here switches anything on. What lets Deimos see and use
+/// this Mac is the permission the user grants in macOS. With the engine
 /// ready, starting or not known yet, the card says nothing; otherwise it says
 /// what is wrong and what to do. The cause and its numbers stay in the log.
 export function engineProblem(engine: EngineSnapshot | undefined, copy = es): string | null {

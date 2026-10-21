@@ -1,5 +1,5 @@
 /**
- * The panel's date and time fields (P9-22): instants shown and read as the
+ * The panel's date and time fields: instants shown and read as the
  * wall clock of the zone on screen, whatever zone the webview runs in.
  */
 import { civil, DAY_MS, dayOf, eventMinutes } from "../date";

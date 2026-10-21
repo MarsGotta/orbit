@@ -16,7 +16,7 @@ function port(send: DaemonPort["send"]) {
   return { fake, report };
 }
 
-describe("SIM-21 the op of an order, from the interface", () => {
+describe("the op of an order, from the interface", () => {
   it("each order carries a new op, and its refusal is shown and reported under it", async () => {
     const ops: string[] = [];
     const { fake, report } = port((_command, op) => {
@@ -39,7 +39,7 @@ describe("SIM-21 the op of an order, from the interface", () => {
   });
 });
 
-describe("SIM-21 the daemon's notices, each once and in order", () => {
+describe("the daemon's notices, each once and in order", () => {
   const fixable: Notice = {
     code: "microphone_permission_missing",
     op: "0123abcd-turn",
@@ -172,7 +172,7 @@ it.each([
   },
 );
 
-it("conserva la negativa de privacidad si rearm falla o se acepta otra orden", async () => {
+it("keeps the privacy refusal when rearm fails or another order is accepted", async () => {
   const send = vi.fn<DaemonPort["send"]>(async () => ({ revision: { epoch: 1, counter: 1 } }));
   const { fake } = port(send);
   const store = createOrbitStore(fake);

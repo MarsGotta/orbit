@@ -24,7 +24,7 @@ impl DaemonClient {
         .await
     }
 
-    /// SIM-30: one page of a conversation as the hub keeps it, in order;
+    /// One page of a conversation as the hub keeps it, in order;
     /// without a cursor, the newest one. The screen prepends older pages.
     pub async fn read_session_messages_page(
         &self,

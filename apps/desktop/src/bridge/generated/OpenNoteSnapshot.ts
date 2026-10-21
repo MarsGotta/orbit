@@ -15,7 +15,7 @@ export type OpenNoteSnapshot = { dictionary?: MeetingDictionary,
  */
 capture?: Capture, recording_id: string, title: string, 
 /**
- * How the note names Mars: the name of her microphone.
+ * How the note names the user: the name of their microphone.
  */
 owner_name: string, started_at_ms: number, ended_at_ms: number, event: NoteEventSnapshot | null, 
 /**
@@ -27,10 +27,10 @@ summary: NoteSummarySnapshot | null,
  */
 note_revision: number | null, actions: Array<NoteActionSnapshot>, decisions: Array<string>, open_topics: Array<string>, 
 /**
- * Mars's private notes (markdown).
+ * The user's private notes (markdown).
  */
 private_notes: string, private_notes_revision: number, progress: NoteProgressSnapshot, transcript: NoteTranscriptSnapshot, speakers: Array<NoteSpeakerSnapshot>, 
 /**
- * P9-05: the series of the note's event, when it has one.
+ * The series of the note's event, when it has one.
  */
 series?: NoteSeriesLinkSnapshot, };

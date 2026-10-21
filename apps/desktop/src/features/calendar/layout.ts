@@ -1,5 +1,5 @@
 /**
- * Geometry of the calendar grid (P9-20). Pure: minutes,
+ * Geometry of the calendar grid. Pure: minutes,
  * days and pixels in, positions out.
  */
 

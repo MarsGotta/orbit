@@ -270,7 +270,7 @@
   }
 }
 
-/* P9-20: the view selector and its options. */
+/* The view selector and its options. */
 .viewButton {
   display: flex;
   height: 28px;
@@ -410,7 +410,7 @@
   line-height: 1.5;
 }
 
-/* P9-20: the detail adds her answer and each guest's. */
+/* The detail adds the user's answer and each guest's. */
 .selfResponse {
   display: inline-flex;
   margin: 12px 0 0;
@@ -464,7 +464,7 @@
   margin-right: 6px;
 }
 
-/* P9-20: the period on screen; dimmed while its read has not arrived. */
+/* The period on screen; dimmed while its read has not arrived. */
 .period {
   display: flex;
   min-height: 0;

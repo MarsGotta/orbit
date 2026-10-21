@@ -13,7 +13,7 @@ interface VoiceNoteProps {
   messageId: string;
   send: (command: AppCommand) => void;
   voice: VoiceNoteSnapshot;
-  /** The audio Mars last asked to hear, when it is this note's. */
+  /** The audio the user last asked to hear, when it is this note's. */
   audio?: VoiceNoteAudioSnapshot;
 }
 
@@ -114,7 +114,7 @@ function Message({
             voice={message.voice}
           />
         ) : assistant ? (
-          // SIM-30: Deimos answers in Markdown; Mars's own text stays as she wrote it.
+          // Deimos answers in Markdown; the user's own text stays as they wrote it.
           <MarkdownView source={message.text} />
         ) : (
           <p>{message.text}</p>

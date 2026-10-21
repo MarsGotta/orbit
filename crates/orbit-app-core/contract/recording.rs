@@ -67,7 +67,7 @@ app_type! {
 }
 
 app_type! {
-    /// What the floating panel has to say (P9-11). Each state names what
+    /// What the floating panel has to say. Each state names what
     /// its button answers: the offer's `call_id` or the recording's id.
     #[serde(tag = "state", rename_all = "snake_case")]
     pub enum CallPanelSnapshot {
@@ -99,10 +99,10 @@ app_type! {
 }
 
 app_type! {
-    /// P9-12: how Mars asked Deimos during the meeting.
+    /// How the user asked Deimos during the meeting.
     #[serde(rename_all = "snake_case")]
     pub enum MeetingQuestionOrigin {
-        /// «Oye Deimos, …» on her microphone.
+        /// «Oye Deimos, …» on the user's microphone.
         Voice,
         /// «Preguntar a Deimos» in the pill or the panel.
         Typed,
@@ -112,7 +112,7 @@ app_type! {
 }
 
 app_type! {
-    /// P9-12: where the question's turn is. Thinking (no text yet) and
+    /// Where the question's turn is. Thinking (no text yet) and
     /// responding (text arriving) are two states, never one word.
     #[serde(rename_all = "snake_case")]
     pub enum MeetingQuestionStage {
@@ -124,7 +124,7 @@ app_type! {
 }
 
 app_type! {
-    /// P9-12: what was in progress when Mars asked.
+    /// What was in progress when the user asked.
     #[serde(rename_all = "snake_case")]
     pub enum MeetingQuestionBusy {
         AssistantTurn,
@@ -136,7 +136,7 @@ app_type! {
 }
 
 app_type! {
-    /// P9-12: the Mac's link to the hub when a question could not leave.
+    /// The Mac's link to the hub when a question could not leave.
     #[serde(rename_all = "snake_case")]
     pub enum MeetingQuestionLink {
         Offline,
@@ -147,7 +147,7 @@ app_type! {
 }
 
 app_type! {
-    /// P9-12: why a question did not get its answer, with its numbers.
+    /// Why a question did not get its answer, with its numbers.
     #[serde(tag = "cause", rename_all = "snake_case")]
     pub enum MeetingQuestionCause {
         PrivacyStopped,
@@ -172,7 +172,7 @@ app_type! {
 }
 
 app_type! {
-    /// P9-12: Mars's question to Deimos during the meeting, as the floating
+    /// The user's question to Deimos during the meeting, as the floating
     /// panel shows it: the question, «Deimos está pensando…», the answer as
     /// it arrives, or the cause.
     pub struct MeetingQuestionSnapshot {
@@ -202,7 +202,7 @@ app_type! {
 }
 
 app_type! {
-    /// P9-12: one window of transcript «Preguntar a Deimos» offers. An
+    /// One window of transcript «Preguntar a Deimos» offers. An
     /// object, not a bare number, so the generated goldens keep one shape.
     pub struct MeetingWindowSnapshot {
         pub minutes: u8,
@@ -210,7 +210,7 @@ app_type! {
 }
 
 app_type! {
-    /// P9-12: what «Preguntar a Deimos» offers during a recording. The
+    /// What «Preguntar a Deimos» offers during a recording. The
     /// windows and the ceiling come from orbit-core; the interface never
     /// copies them.
     pub struct MeetingAskSnapshot {
@@ -223,7 +223,7 @@ app_type! {
 }
 
 app_type! {
-    /// P9-12: why «Oye Deimos» does not listen during the recording, with
+    /// Why «Oye Deimos» does not listen during the recording, with
     /// its numbers.
     #[serde(tag = "cause", rename_all = "snake_case")]
     pub enum VoiceOffCause {
@@ -249,7 +249,7 @@ app_type! {
 }
 
 app_type! {
-    /// P9-12: whether «Oye Deimos» listens during the recording, as the pill
+    /// Whether «Oye Deimos» listens during the recording, as the pill
     /// and the panel say it; absent outside a recording.
     #[serde(tag = "state", rename_all = "snake_case")]
     pub enum VoiceStatusSnapshot {
@@ -285,7 +285,7 @@ app_type! {
         /// The helper answered and no running application has audio.
         Empty,
         /// The helper answered with an inventory that could not be verified;
-        /// `applications_detail` says why, with its numbers (REF-12 A3). Not
+        /// `applications_detail` says why, with its numbers. Not
         /// the same as `Empty`: nobody knows what is running.
         Unavailable,
     }
@@ -335,25 +335,25 @@ app_type! {
         pub audio: MeetingAudioKind,
         pub tracks: Vec<MeetingTrackSnapshot>,
         pub upload: MeetingUploadSnapshot,
-        /// P9-11: what the floating panel says, if anything.
+        /// What the floating panel says, if anything.
         pub call_panel: Option<CallPanelSnapshot>,
-        /// P9-11: «Al detectar una llamada»; `None` while not known.
+        /// «Al detectar una llamada»; `None` while not known.
         pub call_preference: Option<CallPreference>,
-        /// P9-11: why the preference could not be read, when it could not.
+        /// Why the preference could not be read, when it could not.
         /// Absent with no preference: not published yet.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub call_preference_unreadable: Option<String>,
-        /// P9-12: the last question to Deimos during the meeting, while the
+        /// The last question to Deimos during the meeting, while the
         /// panel shows it.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub question: Option<MeetingQuestionSnapshot>,
-        /// P9-12: «Preguntar a Deimos», while a recording is in progress.
+        /// «Preguntar a Deimos», while a recording is in progress.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub ask: Option<MeetingAskSnapshot>,
-        /// P9-12: whether «Oye Deimos» listens during the recording, and
+        /// Whether «Oye Deimos» listens during the recording, and
         /// why not; absent outside a recording.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]

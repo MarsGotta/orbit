@@ -46,7 +46,7 @@ pub(crate) fn feature_availability(
                 });
             };
             Some(match knowledge {
-                // SIM-41: whether the list read reached the hub is in
+                // Whether the list read reached the hub is in
                 // `notes.index`; the feature is current once its head is.
                 Knowledge::Present { .. } => FeatureAvailability::Current,
                 Knowledge::Absent { refusal } => FeatureAvailability::Absent {
@@ -122,7 +122,7 @@ pub struct LocalAppState<'a> {
     pub login_item: &'a LoginItemState,
     pub update: &'a UpdateSnapshot,
     pub onboarding_done: bool,
-    /// The voice note Mars last asked to hear, kept by the app.
+    /// The voice note the user last asked to hear, kept by the app.
     pub voice_audio: &'a Option<crate::VoiceNoteAudioSnapshot>,
 }
 
@@ -237,8 +237,7 @@ mod command_mapping_tests {
     use orbit_core::protocol::{Command, MeetingAudio};
 
     #[test]
-    fn ref215c_missing_notes_frame_names_what_is_unknown() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn missing_notes_frame_names_what_is_unknown() -> Result<(), Box<dyn std::error::Error>> {
         let snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Connecting);
         let topics = crate::topics::TopicCache::default();
         let frames = project_all(
@@ -291,7 +290,7 @@ mod command_mapping_tests {
     }
 
     #[test]
-    fn a1_recording_preserves_duration_and_selected_application() {
+    fn recording_preserves_duration_and_selected_application() {
         let snapshot = crate::AppSnapshot::default();
         let result = recording::map_command(
             recording::RecordingCommand::MeetingStartSelected {

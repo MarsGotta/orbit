@@ -9,7 +9,7 @@ import {
 
 const HOUR = 60;
 
-describe("P9-20 rejilla de 24 horas", () => {
+describe("24-hour grid", () => {
   it("fits about twelve hours, never less than 61 px an hour, times the zoom", () => {
     expect(hourHeight(0, 1)).toBe(61);
     expect(hourHeight(113 + 12 * 80, 1)).toBe(80);
@@ -24,7 +24,7 @@ describe("P9-20 rejilla de 24 horas", () => {
   });
 });
 
-describe("P9-20 A4 solapes", () => {
+describe("overlaps", () => {
   it("splits the width between events that start close together", () => {
     expect(
       layoutDayEvents([
@@ -86,7 +86,7 @@ describe("P9-20 A4 solapes", () => {
   });
 });
 
-describe("P9-20 A5 franja de día completo", () => {
+describe("all-day lane", () => {
   // Seven columns, days 100 to 106.
   const week = [100, 101, 102, 103, 104, 105, 106];
 

@@ -67,7 +67,7 @@ function ActiveMeetingPill({
       {/* Always rendered: the stylesheet shows them on hover and on keyboard
           focus (:focus-within). Rendering them only on mouse hover left
           «Terminar» out of reach of the keyboard and of accessibility, which
-          the real test on the Mac found (SIM-25, run 14). */}
+          a run of the real test on the Mac found. */}
       <MeetingControls
         meeting={meeting}
         onAsk={() => setAsking(true)}
@@ -112,13 +112,13 @@ function MeetingControls({
   );
 }
 
-/** The recording in progress (SIM-24: Orbit's own problems are the status pill's). */
+/** The recording in progress (Orbit's own problems are the status pill's). */
 export function MeetingPill({ send, snapshot }: MeetingPillProps) {
   const now = useNow(snapshot.meeting.phase === "idle" ? null : 1_000);
   if (snapshot.meeting.phase === "idle") return null;
 
   const silent = silentLabel(snapshot.meeting);
-  // P9-11: once the call ended, its countdown is what matters, even if the
+  // Once the call ended, its countdown is what matters, even if the
   // call's audio has gone quiet.
   const panel = snapshot.meeting.call_panel;
   const label =

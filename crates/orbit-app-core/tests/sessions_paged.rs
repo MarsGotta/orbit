@@ -1,4 +1,4 @@
-//! REF-211 A3 at the app boundary with isolated HTTP fixtures and the in-process daemon.
+//! Conversation pages at the app boundary, with isolated HTTP fixtures and the in-process daemon.
 #![allow(clippy::unwrap_used)]
 use orbit_app_core::DaemonClient;
 use orbit_core::{protocol::Command, refusal::Refusal, topics::Knowledge};
@@ -25,13 +25,13 @@ use embedded_daemon::TestDaemon;
 mod websocket;
 
 const DEVICE_ID: &str = "00000000-0000-4000-8000-000000000211";
-const TOKEN: &str = "synthetic-ref211-token";
-// The adjacent REF-211 daemon fixture measured 3,969 ms worst cold start
+const TOKEN: &str = "synthetic-sessions-token";
+// The adjacent daemon fixture measured 3,969 ms worst cold start
 // under load. Thirty seconds bounds a stuck fixture, not product latency.
 // The same fixture uses thirty seconds to catch a lost local reply; this is
 // a test hang guard, not a hub or app response-time promise.
 const READ_BUDGET: Duration = Duration::from_secs(30);
-// REF-39 measured 36.4 s worst recovery on a loaded disk. This 120 s guard
+// A daemon recovery was measured at 36.4 s worst on a loaded disk. This 120 s guard
 // detects a jammed fixture; it is not a daemon startup target.
 const RECOVERY_JAM_GUARD: Duration = Duration::from_secs(120);
 
@@ -114,7 +114,7 @@ async fn answer(
     let head = String::from_utf8_lossy(&bytes[..header_end]).into_owned();
     let path = head.split_whitespace().nth(1).unwrap_or("");
     if path == "/v1/ws" {
-        // SIM-30: the daemon reads the conversations only with the hub
+        // The daemon reads the conversations only with the hub
         // online, so the hub says `ready` and keeps the socket.
         let accepted = websocket::switching_protocols(&head)?;
         stream.write_all(accepted.as_bytes()).await?;
@@ -143,7 +143,7 @@ async fn answer(
     } else if path.starts_with("/v1/sessions/") && path.ends_with("/messages") {
         json!({"messages": [
             {"id": 1, "role": "user", "text": "Hola", "at_ms": 1_700_000_000_000_i64,
-                "kind": "voice", "duration_ms": 1_500, "client_id": "voice-ref211"},
+                "kind": "voice", "duration_ms": 1_500, "client_id": "voice-sessions"},
             {"id": 2, "role": "assistant", "text": "Hola, Alina", "at_ms": 1_700_000_001_000_i64,
                 "kind": "text"}
         ], "next": null, "total": 2})
@@ -223,7 +223,7 @@ async fn paired_client(
         Command::Pair {
             hub_url: hub.url.clone(),
             code: "synthetic-code".into(),
-            device_name: "Prueba REF-211".into(),
+            device_name: "Sessions fixture".into(),
         },
     )
     .await?;
@@ -255,7 +255,7 @@ async fn five_hundred_hub_conversations_reach_the_app_in_four_pages() -> Result<
     loop {
         let started = Instant::now();
         let answer = tokio::time::timeout(READ_BUDGET, app.read_sessions_page(cursor)).await??;
-        eprintln!("REF-211 session page {} ms", started.elapsed().as_millis());
+        eprintln!("session page {} ms", started.elapsed().as_millis());
         let Knowledge::Present { value, .. } = answer else {
             panic!("expected a complete page")
         };
@@ -423,11 +423,10 @@ async fn a_stalled_hub_request_names_the_wait_and_deadline() -> Result<(), Box<d
     Ok(())
 }
 
-/// SIM-30, fault 5 at the app boundary: a conversation opened from the list
+/// At the app boundary: a conversation opened from the list
 /// reaches the app as its messages, read from the hub through the daemon.
 #[tokio::test(flavor = "multi_thread")]
-async fn sim30_an_opened_conversation_reaches_the_app_with_its_messages()
--> Result<(), Box<dyn Error>> {
+async fn an_opened_conversation_reaches_the_app_with_its_messages() -> Result<(), Box<dyn Error>> {
     let hub = hub(HubBehavior::Paged).await?;
     let (_directory, _daemon, app) = paired_client(&hub).await?;
     let session = "00000000-0000-4000-8000-000000000001".to_owned();
@@ -449,7 +448,7 @@ async fn sim30_an_opened_conversation_reaches_the_app_with_its_messages()
     assert_eq!(voice.duration_ms, 1_500);
     assert_eq!(voice.transcript.as_deref(), Some("Hola"));
     assert!(!voice.audio_available, "this Mac never held that audio");
-    assert_eq!(value.items[0].id, "voice-ref211");
+    assert_eq!(value.items[0].id, "voice-sessions");
     assert_eq!(value.total, 2);
     Ok(())
 }

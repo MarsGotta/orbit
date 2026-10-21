@@ -129,7 +129,7 @@ it("uses the configured name in chat, notes, permissions and notices, preserving
         kind: "notice",
         notice: {
           code,
-          op: "sim100-notice",
+          op: "assistant-name-notice",
           data: { code: "calendar_read" },
         },
       },

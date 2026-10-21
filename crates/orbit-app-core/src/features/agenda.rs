@@ -12,7 +12,7 @@ use ts_rs::TS;
 pub type View = crate::CalendarSnapshot;
 
 /// The calendar view: the events of the period on screen only. The read
-/// behind it also covers today for the Briefing (P9-20), which projects the
+/// behind it also covers today for the Briefing, which projects the
 /// whole read through [`project_with_read`].
 pub fn project(input: &FeatureInput<'_>) -> View {
     let mut view = project_with_read(input).0;
@@ -35,7 +35,7 @@ pub(crate) fn project_with_read(input: &FeatureInput<'_>) -> (View, bool) {
     // A count in the head does not contain calendar identities or colors.
     // In particular, an old snapshot cannot fill a missing keyed listing.
     view.calendars.clear();
-    // P9-22: write outcomes come from the head alone, never an old frame.
+    // Write outcomes come from the head alone, never an old frame.
     view.writes.clear();
     let mut page_loaded = false;
     let Some(topic) = input.topics.topic(TopicId::Agenda) else {
@@ -271,7 +271,7 @@ fn cached_calendars(
                     format!("AgendaCalendars: calendario {index} ilegible: {error}")
                 })?;
             calendars.push(crate::CalendarItemSnapshot {
-                // P9-21: the calendar's real color; the palette token only
+                // The calendar's real color; the palette token only
                 // when macOS gave none.
                 color: entry.color.clone().unwrap_or_else(|| {
                     crate::projection::stable_calendar_color(&entry.reference.calendar_id)
@@ -375,7 +375,7 @@ pub fn apply(view: &View, snapshot: &mut AppSnapshot) {
 #[serde(tag = "command", rename_all = "snake_case")]
 #[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
 pub enum AgendaCommand {
-    /// P9-20: show this view around `anchor_ms`, any instant of the period.
+    /// Show this view around `anchor_ms`, any instant of the period.
     /// `days` counts only for the N-day grid (1–14). Replaces
     /// `calendar_go_to_week`.
     CalendarSetRange {
@@ -385,7 +385,7 @@ pub enum AgendaCommand {
         days: u8,
         week_start: crate::CalendarWeekStart,
     },
-    /// P9-20: the Briefing is on screen and the read does not hold today.
+    /// The Briefing is on screen and the read does not hold today.
     /// Read again if the same range now would, or return to today in the
     /// same view when the range is beyond `TODAY_REACH_DAYS`.
     CalendarShowToday,
@@ -402,11 +402,11 @@ mod tests {
         topics::{TopicData, TopicFrame, TopicId},
     };
 
-    /// P9-20 (4): the period moved before its read arrived. The events of
+    /// The period moved before its read arrived. The events of
     /// the previous read are not shown as the new period's: pending until
     /// a read covers the range.
     #[test]
-    fn p9_20_4_a_range_the_read_does_not_cover_is_pending() {
+    fn a_range_the_read_does_not_cover_is_pending() {
         let read = orbit_core::calendar::CalendarWindow {
             start_unix_ms: 1_000_000_000_000,
             end_unix_ms: 1_000_604_800_000,
@@ -462,12 +462,12 @@ mod tests {
         assert!(project(&FeatureInput::new(&snapshot, &topics)).stale);
     }
 
-    /// P9-22: each write's outcome reaches the calendar view from the
+    /// Each write's outcome reaches the calendar view from the
     /// agenda head — saved with the occurrence it left, its outcome unknown
     /// with its code and notice — and goes away with the head when the
     /// agenda stops being readable.
     #[test]
-    fn p9_22_write_outcomes_reach_the_view_from_the_agenda_head() {
+    fn write_outcomes_reach_the_view_from_the_agenda_head() {
         use orbit_core::{
             calendar_control::{CalendarWriteOperation, CalendarWriteStage},
             topics::agenda::{WriteOutcome, WriteTarget},
@@ -561,7 +561,7 @@ mod tests {
     }
 
     #[test]
-    fn ref215c_a1_an_unread_calendar_listing_does_not_reuse_old_colors() {
+    fn an_unread_calendar_listing_does_not_reuse_old_colors() {
         let mut snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         snapshot
             .calendar
@@ -630,7 +630,7 @@ mod tests {
     }
 
     #[test]
-    fn ref215c_a1_refused_and_unreadable_calendar_listings_carry_their_causes() {
+    fn refused_and_unreadable_calendar_listings_carry_their_causes() {
         let snapshot = crate::AppSnapshot::default();
         let mut topics = TopicCache::default();
         topics.observe_at(
@@ -706,7 +706,7 @@ mod tests {
     }
 
     #[test]
-    fn ref207_a4_unknown_agenda_head_never_turns_an_old_empty_snapshot_into_a_fact() {
+    fn unknown_agenda_head_never_turns_an_old_empty_snapshot_into_a_fact() {
         let mut snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
         snapshot.calendar.reading.state = crate::CalendarReadingState::Available;
         let mut topics = TopicCache::default();
@@ -729,7 +729,7 @@ mod tests {
     }
 
     #[test]
-    fn ref207_a4_view_and_deimos_receive_the_same_permission_cause() {
+    fn view_and_deimos_receive_the_same_permission_cause() {
         let mut topics = TopicCache::default();
         let access = orbit_core::topics::agenda::access(CalendarAuthorization::Denied, false);
         let Knowledge::Absent { refusal } = access else {
@@ -772,7 +772,7 @@ mod tests {
     }
 
     #[test]
-    fn ref207_a4_unavailable_eventkit_is_not_a_missing_app_in_the_view() {
+    fn unavailable_eventkit_is_not_a_missing_app_in_the_view() {
         let Knowledge::Absent { refusal } =
             orbit_core::topics::agenda::access(CalendarAuthorization::Unavailable, false)
         else {
@@ -803,8 +803,7 @@ mod tests {
     }
 
     #[test]
-    fn ref207_a2_agenda_projection_joins_successive_keyset_pages()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn agenda_projection_joins_successive_keyset_pages() -> Result<(), Box<dyn std::error::Error>> {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
             "../../../../contracts/fixtures/calendar-local-read-v1.json"
         ))?;

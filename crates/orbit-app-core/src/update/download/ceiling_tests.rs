@@ -1,10 +1,10 @@
 #![allow(clippy::unwrap_used)] // Fixture assertions only; never production.
-//! SYS-22: what each download is measured against, and what the refusal says.
+//! What each download is measured against, and what the refusal says.
 //!
 //! The failure being fixed is a real one: the updater on 0.3.9 told the
 //! owner that `install.sh` was "demasiado grande para un manifiesto". It is not
 //! a manifest, and the manifest — 162 bytes — was fine. One `fetch` measured
-//! both files against one 8 KiB number, and SYS-06 grew the installer to
+//! both files against one 8 KiB number, and the installer had grown to
 //! 11 171 bytes.
 //!
 //! These fixtures serve the bodies over a real socket, because what is being
@@ -103,7 +103,7 @@ async fn serve_and_fetch(response: Vec<u8>, download: &Download) -> Result<Strin
     fetched
 }
 
-// ---------------------------------------------------------------- A6
+// ------------------------------------------- each file against its own ceiling
 
 #[tokio::test]
 async fn the_published_installer_that_broke_update_now_arrives_whole() {
@@ -136,7 +136,7 @@ async fn a_body_that_lands_exactly_on_its_ceiling_is_accepted() {
                 .len(),
             download.ceiling,
             "{}",
-            download.what
+            download.file
         );
     }
 }
@@ -549,7 +549,7 @@ async fn http_and_utf8_failures_are_typed_refusals() {
     assert!(utf8.to_string().contains('1'), "{utf8}");
 }
 
-// ---------------------------------------------------------------- A4
+// ------------------------------------------- the installer this tree publishes
 
 #[test]
 fn the_installer_this_tree_publishes_fits_under_its_ceiling() {
@@ -559,22 +559,22 @@ fn the_installer_this_tree_publishes_fits_under_its_ceiling() {
     // or in `update.rs`; only crossing it does.
     assert_eq!(
         INSTALLER_CEILING_BYTES, 16_756,
-        "11 171 B más 50 % para el adaptador nuevo"
+        "11 171 B plus 50 % for the new adapter"
     );
     let size = published_installer().len();
     assert!(
         size <= INSTALLER.ceiling,
-        "scripts/install.sh mide {size} bytes y el techo del instalador son {} \
-         ({INSTALLER_BASELINE_BYTES} de base más un {INSTALLER_HEADROOM_PERCENT} %). \
-         No subas el techo a secas: un techo más grande sin motivo es el mismo \
-         defecto con fecha posterior. Vuelve a derivar la base de lo que mide hoy \
-         en crates/orbit-update/src/lib.rs.",
+        "scripts/install.sh measures {size} bytes and the installer's ceiling is {} \
+         ({INSTALLER_BASELINE_BYTES} of baseline plus {INSTALLER_HEADROOM_PERCENT} %). \
+         Do not just raise the ceiling: a larger ceiling with no reason is the same \
+         defect with a later date. Derive the baseline again from what it measures \
+         today, in crates/orbit-app-core/src/update/download.rs.",
         INSTALLER.ceiling
     );
 }
 
 #[tokio::test]
-async fn ref502b_a5_mismatched_installer_digest_is_refused_before_execution() {
+async fn a_mismatched_installer_digest_is_refused_before_execution() {
     let script = "#!/bin/bash\nexit 0\n";
     let manifest = format!("version=0.3.14\ninstaller_sha256={}\n", "a".repeat(64));
     let (origin, server) = origin_serving_pair(manifest.as_bytes(), script.as_bytes()).await;
@@ -585,7 +585,7 @@ async fn ref502b_a5_mismatched_installer_digest_is_refused_before_execution() {
 }
 
 #[tokio::test]
-async fn ref502b_a5_matching_installer_digest_is_verified() {
+async fn a_matching_installer_digest_is_verified() {
     let script = "#!/bin/bash\nexit 0\n";
     let digest = format!("{:x}", Sha256::digest(script.as_bytes()));
     let manifest = format!("version=0.3.14\ninstaller_sha256={digest}\n");

@@ -44,7 +44,7 @@ export function contextForView(
   return null;
 }
 
-/** SIM-30: the conversations as the hub lists them, each named by its date. */
+/** The conversations as the hub lists them, each named by its date. */
 function assistantData(
   snapshot: AppSnapshot | undefined,
   send: Send | undefined,
@@ -103,7 +103,7 @@ export function ContextPanel({
 }: {
   data: ContextPanelData;
   footer?: ReactNode;
-  /** P9-04: the notes list is 244 px wide, so the note keeps its reading width. */
+  /** The notes list is 244 px wide, so the note keeps its reading width. */
   narrow?: boolean;
 }) {
   return (

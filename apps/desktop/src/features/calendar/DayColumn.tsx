@@ -15,7 +15,7 @@ export interface DaySegment {
 
 interface DayColumnProps {
   calendars: AppSnapshot["calendar"]["calendars"];
-  /** The civil day this column is: what a gesture over it reads (P9-22). */
+  /** The civil day this column is: what a gesture over it reads. */
   day: number;
   /** The card a gesture is moving, drawn dimmed where it was. */
   draggingId?: string | null;

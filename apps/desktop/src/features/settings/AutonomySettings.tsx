@@ -8,7 +8,7 @@ interface Props {
   settings: SettingsSnapshot;
 }
 
-// REF-11: no row switches the screen, the control or the meetings on. The
+// No row switches the screen, the control or the meetings on. The
 // macOS permissions decide, and «Permisos del sistema» shows and opens them.
 export function AutonomySettings({ daemonReady, send, settings }: Props) {
   return (

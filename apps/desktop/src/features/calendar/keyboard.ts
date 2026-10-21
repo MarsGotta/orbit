@@ -1,8 +1,8 @@
 import { MAX_GRID_DAYS, type ViewChoice } from "./range";
 
 /**
- * What a key does in the calendar (P9-20). No ⌥ shortcuts: on a Spanish
- * keyboard ⌥ writes characters (REF-07).
+ * What a key does in the calendar. No ⌥ shortcuts: on a Spanish
+ * keyboard ⌥ writes characters.
  *
  * `0` is fourteen days, so the zoom does not take it bare: `+`
  * and `-` (with or without ⌘) step the zoom and `⌘0` resets it. Any other

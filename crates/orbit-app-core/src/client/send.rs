@@ -6,7 +6,7 @@ impl DaemonClient {
         self.send_as(command, orbit_ipc::new_op()).await
     }
 
-    /// Sends one order on behalf of the action `op` (SIM-21): the daemon, its
+    /// Sends one order on behalf of the action `op`: the daemon, its
     /// requests to the hub and every notice the order causes carry it.
     pub async fn send_as(
         &self,
@@ -112,7 +112,7 @@ impl DaemonClient {
         if audio.message_id != message_id || audio.format != "wav" {
             return Err(AppError::daemon("Respuesta de audio no válida"));
         }
-        // SIM-30: the note may be of any conversation the screen read from
+        // The note may be of any conversation the screen read from
         // the hub; the app keeps the last one asked for, by its message id.
         let audio = crate::VoiceNoteAudioSnapshot {
             message_id: audio.message_id,

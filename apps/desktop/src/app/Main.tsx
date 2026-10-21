@@ -31,8 +31,7 @@ const SettingsView = lazy(() => import("../features/settings/SettingsView"));
  * Loads the module of every lazy view now, instead of when each is first shown.
  *
  * The app never calls this: loading on demand is the point of `lazy`. The unit
- * suite does, before the first test of each file (`src/test-setup.ts`,
- * REF-08), so a test that renders one of these views waits for what it asks
+ * suite does, before the first test of each file (`src/test-setup.ts`), so a test that renders one of these views waits for what it asks
  * about and not for an import racing the query's budget.
  */
 export async function loadLazyViews(): Promise<void> {

@@ -5,9 +5,9 @@ import { es } from "../../i18n/es";
 import { NoteHeader } from "./NoteHeader";
 import { summaryMarkdown } from "./notes-format";
 
-// Mars (2026-10-17): the list of Notes names a note by its meeting's title,
+// Found on 2026-10-17: the list of Notes names a note by its meeting's title,
 // and the opened note showed the title the note model wrote. Both say the
-// meeting's title (SIM-41: the hub's document carries only that one).
+// meeting's title (the hub's document carries only that one).
 
 function written(): OpenNoteSnapshot {
   return {
@@ -60,7 +60,7 @@ describe("the opened note's title", () => {
   });
 });
 
-// SIM-52: the title renames the meeting everywhere; the language picker sits
+// The title renames the meeting everywhere; the language picker sits
 // next to «Plantilla» and shows the meeting's language and its repetition.
 
 function header(note: OpenNoteSnapshot, send = vi.fn()) {
@@ -68,7 +68,7 @@ function header(note: OpenNoteSnapshot, send = vi.fn()) {
   return send;
 }
 
-describe("SIM-52 renaming the meeting", () => {
+describe("renaming the meeting", () => {
   it("sends Alina's name, trimmed, when she leaves the field or presses Enter", () => {
     const send = header(written());
     fireEvent.change(title(), { target: { value: "  Presupuesto 2027 " } });
@@ -118,7 +118,7 @@ function picker(): HTMLSelectElement {
   return screen.getByRole("combobox", { name: es.noteScreen.language }) as HTMLSelectElement;
 }
 
-describe("SIM-52 the meeting's language", () => {
+describe("the meeting's language", () => {
   it("shows the language the hub says, among seven named in their own language", () => {
     header(written());
     expect(picker().value).toBe("es");

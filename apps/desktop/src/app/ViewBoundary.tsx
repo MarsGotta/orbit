@@ -13,7 +13,7 @@ interface State {
 }
 
 /**
- * Around each view (SIM-21): a view that fails to paint is the generic
+ * Around each view: a view that fails to paint is the generic
  * failure, reported like any other, instead of a blank screen. Mount it with
  * the view as its `key`, so changing view gives the new one a fresh chance.
  */

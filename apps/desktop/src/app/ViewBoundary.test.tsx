@@ -6,10 +6,10 @@ import { ViewBoundary } from "./ViewBoundary";
 const OP = "c0ffee00-0000-4000-8000-000000000003";
 
 function Broken(): never {
-  throw new Error("una vista que no pinta");
+  throw new Error("a view that does not paint");
 }
 
-describe("SIM-21 a view that fails to paint", () => {
+describe("a view that fails to paint", () => {
   it("is caught by its boundary and shown as the generic failure, never a blank screen", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const crash = vi.fn(

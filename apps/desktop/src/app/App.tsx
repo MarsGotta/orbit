@@ -124,7 +124,7 @@ function AppContent(props: AppContentProps) {
 }
 
 export function App({ port }: { port: DaemonPort }) {
-  // SIM-24: what a read could not read is reported; the screen only says so.
+  // What a read could not read is reported; the screen only says so.
   const { readSessionsPage, readSessionMessages } = useMemo(() => reportingReads(port), [port]);
   const { store, snapshot, error, send, messages, dismiss, crash } = useAppStore(port);
   const { theme, view, navigate, toggleTheme } = useUiStore();

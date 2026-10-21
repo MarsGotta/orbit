@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { es } from "./index";
 
-describe("SIM-57 voice note failures", () => {
-  it("names a cause Orbit stopped instead of asking her to record again", () => {
+describe("voice note failures", () => {
+  it("names a cause Orbit stopped instead of asking the user to record again", () => {
     const text = es.assistant.voiceFailure({ code: "voice_transcription_joined_next_turn" });
     expect(text).toBe("Va junto con lo que dijiste a continuación.");
     expect(

@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn ref12_a3_an_unverifiable_inventory_is_unavailable_with_its_numbers_not_empty() {
+fn an_unverifiable_inventory_is_unavailable_with_its_numbers_not_empty() {
     let head = orbit_core::topics::recording::Value {
         recording: None,
         recording_signal: None,
@@ -58,7 +58,7 @@ fn hub_document() -> orbit_core::notes::MeetingDocument {
 /// Defects 1–4 at app-core: the open note carries the hub's times, names
 /// and language as they came, and the turns it was given.
 #[test]
-fn sim41_the_open_note_carries_what_the_hub_computed() {
+fn the_open_note_carries_what_the_hub_computed() {
     let turns = vec![
         orbit_core::notes::Turn {
             at_ms: 0,
@@ -97,7 +97,7 @@ fn sim41_the_open_note_carries_what_the_hub_computed() {
 }
 
 #[test]
-fn sim41_progress_follows_the_recording_the_transcript_and_the_note() {
+fn progress_follows_the_recording_the_transcript_and_the_note() {
     use crate::{NoteStepCause, NoteStepState};
     let mut document = hub_document();
     document.note = None;
@@ -132,10 +132,10 @@ fn sim41_progress_follows_the_recording_the_transcript_and_the_note() {
     );
 }
 
-/// SIM-52: while a change of language repeats the meeting, the open note
+/// While a change of language repeats the meeting, the open note
 /// says how far it got, in the hub's numbers.
 #[test]
-fn sim52_the_open_note_carries_the_repetition_of_a_language_change() {
+fn the_open_note_carries_the_repetition_of_a_language_change() {
     let mut document = hub_document();
     document.language = Some("en".into());
     document.transcript.retranscribing = Some(orbit_core::notes::Retranscribing {
@@ -176,7 +176,7 @@ fn event_invitees_survive_the_note_projection() {
 }
 
 #[test]
-fn sim93_final_pass_state_and_failure_reach_the_open_transcript() {
+fn final_pass_state_and_failure_reach_the_open_transcript() {
     for state in ["queued", "running", "completed", "failed"] {
         let mut raw = serde_json::to_value(hub_document()).unwrap();
         raw["transcript"]["final_pass"] = serde_json::json!({

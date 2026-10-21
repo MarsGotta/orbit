@@ -50,17 +50,17 @@ struct ClientInner {
     /// One note read at a time, and the turns of the last note whose
     /// transcript was complete (`note_read::SettledTurns`).
     note_io: Mutex<Option<note_read::SettledTurns>>,
-    /// SIM-41: one list read at a time, and how many pages of it are shown.
+    /// One list read at a time, and how many pages of it are shown.
     list_io: Mutex<()>,
     notes_pages: AtomicUsize,
-    /// P9-05: one library read at a time.
+    /// One library read at a time.
     library_io: Mutex<()>,
     note_target: Mutex<(String, u64)>,
     frames: Arc<StdMutex<FramePublisher>>,
     subscription_abort: AbortHandle,
     maintenance_abort: AbortHandle,
     note_refresh_abort: StdMutex<Option<AbortHandle>>,
-    /// P9-20: the task that reads the agenda again after local midnight.
+    /// The task that reads the agenda again after local midnight.
     calendar_day_abort: StdMutex<Option<AbortHandle>>,
     topics: Arc<RwLock<crate::topics::TopicCache>>,
 }
@@ -210,7 +210,7 @@ impl DaemonClient {
                     seen_library = Some(head.library_revision);
                     client.read_library().await;
                 }
-                // SIM-41: an open note is read again when the hub says it
+                // An open note is read again when the hub says it
                 // changed (`recording.changed`).
                 let open = client.local_snapshot().notes.and_then(|notes| {
                     let read = notes.open_read?;
@@ -298,7 +298,7 @@ impl DaemonClient {
 }
 
 #[cfg(test)]
-mod ref215c_bootstrap_tests {
+mod bootstrap_tests {
     use super::*;
     use crate::features::FeatureId;
 

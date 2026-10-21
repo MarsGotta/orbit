@@ -6,7 +6,7 @@ export const agenda = {
     previousWeek: "Semana anterior",
     nextWeek: "Semana siguiente",
     today: "Hoy",
-    // P9-20: the views, how to move through them and how each card reads.
+    // The views, how to move through them and how each card reads.
     day: "Día",
     days: (count: number) => `${count} días`,
     month: "Mes",

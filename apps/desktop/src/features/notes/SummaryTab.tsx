@@ -75,7 +75,7 @@ function Notices({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
 }
 
 /**
- * The sections as Mars sees them: the daemon's copy with her edits laid over
+ * The sections as the user sees them: the daemon's copy with their edits laid over
  * it until the daemon's copy brings them. A repaint between two edits never
  * puts back the text of a section whose edit has not been saved yet. A note
  * written again by the hub starts from its new text.

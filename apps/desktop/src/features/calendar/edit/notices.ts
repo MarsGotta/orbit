@@ -1,7 +1,7 @@
 /**
- * What the calendar says about a write (P9-22), and what ⌘Z keeps of it.
- * Pure. A refusal and an unknown outcome say what to do, never their cause
- * (SIM-24); a gesture Orbit already knows it cannot make says why before
+ * What the calendar says about a write, and what ⌘Z keeps of it.
+ * Pure. A refusal and an unknown outcome say what to do, never their cause;
+ * a gesture Orbit already knows it cannot make says why before
  * anything is sent.
  */
 import type { AppView as AppSnapshot } from "../../../state/app-view";

@@ -1,11 +1,11 @@
-//! SIM-41: the notes list, read from the daemon, which reads it from the hub
+//! The notes list, read from the daemon, which reads it from the hub
 //! and adds this Mac's own recordings.
 use super::*;
 use orbit_core::{notes::ListItem, reads::ReadRequest, topics::Cursor};
 
 /// Pages of the list one refresh may read: fifty meetings each, so a
 /// thousand notes. It protects the app from a cursor that never ends, not
-/// how many notes Mars keeps: past it the list says there are more.
+/// how many notes the user keeps: past it the list says there are more.
 const MAX_LIST_PAGES: usize = 20;
 
 impl DaemonClient {

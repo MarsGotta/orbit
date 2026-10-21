@@ -52,7 +52,7 @@ function permissionProblem(permissions: AppSnapshot["permissions"]): Problem | n
 }
 
 /**
- * SIM-24: the one problem the top bar names, or nothing when all is well.
+ * The one problem the top bar names, or nothing when all is well.
  * Orbit itself first, then the privacy stop, the hub and the permissions.
  * `settled` is the hub link's last state other than «connecting», so a
  * retry does not make the pill blink.

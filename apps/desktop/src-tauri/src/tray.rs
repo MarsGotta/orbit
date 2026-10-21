@@ -82,7 +82,7 @@ pub fn install(app: &tauri::AppHandle) -> tauri::Result<()> {
 /// The menu bar mark: the app icon's bars, black on clear. Only the alpha
 /// carries the shape, so macOS tints it as a template, like the rest of the
 /// bar, in light and dark. Without an image the status item had no width:
-/// from APP-00 on, its menu was in the bar and could not be seen.
+/// from the first version on, its menu was in the bar and could not be seen.
 fn mark_rgba() -> Vec<u8> {
     let side = MARK_PIXELS as f32;
     let count = MARK_BARS.len() as f32;
@@ -230,8 +230,8 @@ mod tests {
         rgba[((y * MARK_PIXELS + x) * 4 + 3) as usize]
     }
 
-    /// A status item with no image has no width: from APP-00 on, the menu
-    /// was in the bar and nobody could see it (Mars, 2026-10-18). The mark
+    /// A status item with no image has no width: from the first version on,
+    /// the menu was in the bar and nobody could see it (seen 2026-10-18). The mark
     /// is drawn, black on clear, and only its alpha carries the shape, as a
     /// template image needs.
     #[test]

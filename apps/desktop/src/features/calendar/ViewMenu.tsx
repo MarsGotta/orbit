@@ -30,7 +30,7 @@ export function viewName(choice: ViewChoice): string {
   }
 }
 
-/** The view selector (P9-20): the views, their keys and the local options. */
+/** The view selector: the views, their keys and the local options. */
 export function ViewMenu({ controls, range }: { controls: CalendarRangeControls; range: Range }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);

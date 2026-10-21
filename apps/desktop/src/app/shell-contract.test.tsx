@@ -4,7 +4,7 @@ import type { AppView as AppSnapshot } from "../state/app-view";
 import * as ui from "../state/ui";
 import { Rail } from "./Rail";
 
-describe("SIM-03b the views that stay", () => {
+describe("the views that stay", () => {
   afterEach(() => {
     window.location.hash = "";
   });

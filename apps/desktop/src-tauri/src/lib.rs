@@ -43,7 +43,7 @@ pub fn run() -> anyhow::Result<()> {
 /// The Dock icon, or opening the app again from Finder, brings back the
 /// window `hide_on_close` hid. macOS asks the app to reopen, and until
 /// 2026-10-18 nothing answered: only the menu bar's «Abrir Orbit» showed it
-/// again (Mars, on Orbit Pruebas). Always, not only when macOS sees no
+/// again (seen on Orbit Pruebas). Always, not only when macOS sees no
 /// visible window: the call panel floating on screen counts as one.
 #[cfg(target_os = "macos")]
 fn show_on_reopen<R: tauri::Runtime>(handle: &tauri::AppHandle<R>, event: &RunEvent) {
@@ -190,7 +190,7 @@ mod tests {
         atomic::{AtomicBool, Ordering},
     };
 
-    /// SIM-51 A2 on Tauri's mock runtime: the app's own exit handler with the
+    /// On Tauri's mock runtime: the app's own exit handler with the
     /// real daemon on its thread. While the app runs the daemon answers; when
     /// the last window goes, the runtime fires `ExitRequested` and the handler
     /// closes the daemon before the loop ends. Window close itself is not
@@ -199,7 +199,7 @@ mod tests {
     /// on the Mac, not here; the daemon ends only through `shutdown` or a
     /// signal, and `hide_on_close` calls neither.
     #[test]
-    fn sim51_exit_requested_closes_the_daemon_before_the_loop_ends()
+    fn exit_requested_closes_the_daemon_before_the_loop_ends()
     -> Result<(), Box<dyn std::error::Error>> {
         // Bounds a hung fixture: the app's readiness wait plus its quit wait.
         const GUARD: std::time::Duration = std::time::Duration::from_secs(15 + 17);
@@ -266,14 +266,14 @@ mod tests {
         Ok(())
     }
 
-    /// SIM-51 on the Mac: macOS's own Quit (⌘Q, the app menu, the Dock)
+    /// On the Mac, macOS's own Quit (⌘Q, the app menu, the Dock)
     /// goes through `applicationWillTerminate`, which tao turns into `Exit`,
     /// never `ExitRequested` (tao 0.35, `app_delegate.rs`), and the process
     /// ends as soon as the handler returns. Measured on 2026-10-18: ⌘Q left
     /// no closure, the socket behind and CuaDriver orphaned. The handler
     /// closes the daemon on `Exit` too.
     #[test]
-    fn sim51_the_systems_quit_closes_the_daemon_before_the_process_ends()
+    fn the_systems_quit_closes_the_daemon_before_the_process_ends()
     -> Result<(), Box<dyn std::error::Error>> {
         let directory = tempfile::tempdir()?;
         let paths = Paths::resolve(Some(directory.path().to_path_buf()))?;

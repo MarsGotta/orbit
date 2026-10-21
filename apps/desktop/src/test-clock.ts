@@ -7,7 +7,7 @@
 const MINUTE_MS = 60_000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
 
-/** A UTC Sunday midnight: the week the calendar tests lay out (REF-40). */
+/** A UTC Sunday midnight: the week the calendar tests lay out. */
 export const FIXTURE_WEEK_START_MS = 1_789_257_600_000;
 
 /** "Now": the third day of that week at 14:30 UTC, inside the grid's visible

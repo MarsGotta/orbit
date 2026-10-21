@@ -16,7 +16,7 @@ mod embedded_daemon;
 // Existing daemon_client.rs measured 3,969 ms at worst under load and uses
 // 30 seconds for a real daemon's cold start. This bounds a hang, not speed.
 const START_BUDGET: Duration = Duration::from_secs(30);
-// REF-39 measured 36.4 s worst on a loaded disk and uses 120 s to catch a
+// A daemon recovery was measured at 36.4 s worst on a loaded disk and uses 120 s to catch a
 // jammed recovery. This only bounds the test wait; it is not startup latency.
 const RECOVERY_JAM_GUARD: Duration = Duration::from_secs(120);
 
@@ -137,7 +137,7 @@ async fn real_topic_changes_reach_status_recording_control_and_assistant_frames(
     let response = request(
         &daemon.client,
         OrbitCommand::SessionOpen {
-            id: "session-ref211-e2e".into(),
+            id: "session-e2e".into(),
         },
     )
     .await?;
@@ -146,17 +146,14 @@ async fn real_topic_changes_reach_status_recording_control_and_assistant_frames(
         loop {
             for frame in client.take_frames() {
                 if let FeatureFrame::Assistant { view, .. } = &frame
-                    && view.session_id.as_deref() == Some("session-ref211-e2e")
+                    && view.session_id.as_deref() == Some("session-e2e")
                 {
                     let data = serde_json::to_value(&frame)?;
-                    assert_eq!(data["view"]["session_id"], "session-ref211-e2e");
+                    assert_eq!(data["view"]["session_id"], "session-e2e");
                     let mut delivered =
                         orbit_app_core::AppSnapshot::empty(0, DaemonConnection::Ready);
                     frame.apply(&mut delivered);
-                    assert_eq!(
-                        delivered.chat.session_id.as_deref(),
-                        Some("session-ref211-e2e")
-                    );
+                    assert_eq!(delivered.chat.session_id.as_deref(), Some("session-e2e"));
                     return Ok::<_, Box<dyn Error>>(());
                 }
             }

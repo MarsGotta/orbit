@@ -1,9 +1,9 @@
 /**
- * How long the unit suite waits before it calls something a failure (REF-08).
+ * How long the unit suite waits before it calls something a failure.
  *
  * A budget here bounds a hang; it must never decide a result. So each one is
  * derived from what it bounds, measured with the machine loaded the way the
- * agents load it, by the rule SYS-10 set for every wait in this repository
+ * agents load it, by the rule this repository sets for every wait
  * (`crates/orbit-daemon/tests/track_signal_lifecycle.rs` applies it too): a budget
  * clears the worst observation five times over and the p99 ten times over.
  *
@@ -32,12 +32,12 @@
  * Vitest's 10 000 ms for a hook stays: an ordinary hook here is `cleanup` and
  * a line of state, and that default is already 151 times its worst.
  *
- * SIM-00 (2026-10-15) removed the suites that rendered the whole app over the
+ * A pruning on 2026-10-15 removed the suites that rendered the whole app over the
  * fake bridge, and with them the hook that loaded the lazy views; these
  * numbers were measured on the larger suite and bound the one that remains.
  */
 
-/** SYS-10: a budget clears the worst observation this many times over... */
+/** A budget clears the worst observation this many times over... */
 const REQUIRED_WORST_MARGIN = 5;
 /** ...and the p99 this many times over. */
 const REQUIRED_P99_MARGIN = 10;

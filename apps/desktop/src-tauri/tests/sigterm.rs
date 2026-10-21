@@ -1,4 +1,4 @@
-//! SIM-51 A2: a SIGTERM to the process the daemon runs in closes the daemon in
+//! A SIGTERM to the process the daemon runs in closes the daemon in
 //! order, as it did when the daemon was a process of its own; the app follows
 //! (`lib.rs` exits when the daemon ends unasked). A test binary of its own:
 //! the signal is for the whole process, and here it has one daemon only.
@@ -9,7 +9,7 @@ use std::{error::Error, time::Duration};
 const FIXTURE_GUARD: Duration = Duration::from_secs(15 + 17);
 
 #[tokio::test(flavor = "multi_thread")]
-async fn sim51_a2_a_sigterm_closes_the_daemon_in_order() -> Result<(), Box<dyn Error>> {
+async fn a_sigterm_closes_the_daemon_in_order() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let paths = orbit_ipc::Paths::resolve(Some(directory.path().to_path_buf()))?;
     let daemon = tokio::time::timeout(

@@ -18,10 +18,10 @@ const DAY_MS = 24 * HOUR_MS;
 // clocks go back; twenty-four weeks before it is the Sunday they jump
 // 02:00→03:00 (29 March 2026). Both stay owned by test-clock's anchor: the
 // literal titles and positions below turn red if the anchor ever moves.
-// REF-40: the grid is given each week at its Madrid midnight — the instant
+// The grid is given each week at its Madrid midnight — the instant
 // the app publishes — while the events keep their UTC instants.
-// P9-20: app-core publishes the week; these weeks begin on the Sunday at
-// local midnight, the way REF-40 pinned them, and the grid paints 24 hours at
+// app-core publishes the week; these weeks begin on the Sunday at
+// local midnight, and the grid paints 24 hours at
 // 61 px an hour (the floor before the area is measured).
 const HOUR_PX = hourHeight(0, 1);
 const AUTUMN_UTC_SUNDAY = FIXTURE_WEEK_START_MS + 6 * 7 * DAY_MS;
@@ -89,8 +89,8 @@ function renderGrid(timezone: string, weekStartMs: number, events: CalendarEvent
 
 afterEach(cleanup);
 
-describe("REF-07 A1 hora local en la rejilla", () => {
-  it("coloca las 10:00 de Madrid en la fila 10 el día del cambio de hora", () => {
+describe("local time in the grid", () => {
+  it("places Madrid's 10:00 in row 10 on the day the clocks change", () => {
     renderGrid(MADRID, WEEK_START_MS, [
       event(
         "local-ten",
@@ -106,7 +106,7 @@ describe("REF-07 A1 hora local en la rejilla", () => {
     expect(button.textContent).toContain("10:00");
   });
 
-  it("dibuja enteras las dos partes de un evento que cruza medianoche", () => {
+  it("draws both parts of an event that crosses midnight whole", () => {
     renderGrid(MADRID, WEEK_START_MS, [
       event(
         "overnight",
@@ -125,9 +125,9 @@ describe("REF-07 A1 hora local en la rejilla", () => {
     ]);
   });
 
-  it("con una zona al oeste de UTC no desplaza el evento a la columna siguiente", () => {
+  it("with a zone west of UTC it does not shift the event to the next column", () => {
     // Sunday 10:00 in New York is 14:00 UTC of that same Sunday. The week is
-    // published at New York's midnight (REF-40) and the event belongs under
+    // published at New York's midnight and the event belongs under
     // the Sunday column, not under Monday's.
     renderGrid(NEW_YORK, NEW_YORK_WEEK_START_MS, [
       event(
@@ -145,7 +145,7 @@ describe("REF-07 A1 hora local en la rejilla", () => {
     expect(button.textContent).toContain("10:00");
   });
 
-  it("el 29 de marzo de 2026 en Madrid: la fila es la hora local y el salto se dibuja entero", () => {
+  it("on 29 March 2026 in Madrid: the row is the local hour and the jump is drawn whole", () => {
     // 10:00 in Madrid on the spring-change Sunday is 08:00 UTC; and an
     // event from 01:30 to 04:30 wall clock crosses the 02:00→03:00 jump
     // (00:30Z→02:30Z) and must still be one whole box on its Sunday.
@@ -177,7 +177,7 @@ describe("REF-07 A1 hora local en la rejilla", () => {
     expect(jump.style.height).toBe(`${3 * HOUR_PX - 3}px`);
   });
 
-  it("un evento que termina a medianoche local no pinta un trozo vacío al día siguiente", () => {
+  it("an event that ends at local midnight paints no empty piece on the next day", () => {
     // 22:00→24:00 Madrid on the week's first Sunday (the autumn-change one):
     // 21:00Z to 23:00Z, ending on local midnight. One segment, and nothing
     // on Monday.
@@ -191,7 +191,7 @@ describe("REF-07 A1 hora local en la rejilla", () => {
     expect(segments).toEqual([{ day: days[0], endMinutes: 24 * 60, startMinutes: 22 * 60 }]);
   });
 
-  it("un evento de cien años no genera más segmentos que la semana pinta", () => {
+  it("a hundred-year event makes no more segments than the week paints", () => {
     const days = rangeDays(week(WEEK_START_MS, MADRID), MADRID);
     const segments = eventSegments(
       WEEK_START_MS - DAY_MS,

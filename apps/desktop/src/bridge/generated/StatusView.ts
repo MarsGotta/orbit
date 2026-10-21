@@ -16,6 +16,6 @@ notice_availability: FeatureAvailability,
 notice_epoch?: string, notice: Notice | null, 
 /**
  * The recent notices, oldest first: the interface reads the ones it has
- * not seen yet, in order (SIM-21).
+ * not seen yet, in order.
  */
 notices: Array<Notice>, };

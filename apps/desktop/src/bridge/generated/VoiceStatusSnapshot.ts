@@ -2,7 +2,7 @@
 import type { VoiceOffCause } from "./VoiceOffCause";
 
 /**
- * P9-12: whether «Oye Deimos» listens during the recording, as the pill
+ * Whether «Oye Deimos» listens during the recording, as the pill
  * and the panel say it; absent outside a recording.
  */
 export type VoiceStatusSnapshot = { "state": "listening" } | { "state": "starting" } | { "state": "downloading", percent?: number, } | { "state": "not_listening", why: VoiceOffCause, };

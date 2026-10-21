@@ -12,7 +12,7 @@ export interface CallPanelProps {
 }
 
 /**
- * P9-11: what the floating panel says — an offer, a recording that started
+ * What the floating panel says — an offer, a recording that started
  * on its own, or the countdown after the call ended — and nothing else. Each
  * button names what it answers.
  */

@@ -11,9 +11,9 @@ interface VoiceFailure {
 }
 
 /**
- * Why a note stopped before its transcription, when Orbit itself stopped it
- * (SIM-57): each cause in its own words, never «Vuelve a grabarla» for
- * something she did not do wrong.
+ * Why a note stopped before its transcription, when Orbit itself stopped it:
+ * each cause in its own words, never «Vuelve a grabarla» for
+ * something the user did not do wrong.
  */
 const STOPPED_BEFORE_TRANSCRIPTION: Record<string, string> = {
   voice_transcription_joined_next_turn: "Va junto con lo que dijiste a continuación.",
@@ -27,7 +27,7 @@ const STOPPED_BEFORE_TRANSCRIPTION: Record<string, string> = {
   voice_transcription_slot_unavailable: "Otra nota se estaba transcribiendo.",
 };
 
-/** The numbers a failed transcription carries, in the order she reads them. */
+/** The numbers a failed transcription carries, in the order the user reads them. */
 function failureNumbers(failure: VoiceFailure): string[] {
   const numbers = [`código ${failure.code}`];
   if (failure.hub_status != null) numbers.push(`hub ${failure.hub_status}`);
@@ -41,9 +41,9 @@ function failureNumbers(failure: VoiceFailure): string[] {
 }
 
 /**
- * Why a voice note was not transcribed, as she can act on it (SIM-24): what
- * to do when she can do something; otherwise its cause and its numbers
- * (SIM-57), so the line names what happened.
+ * Why a voice note was not transcribed, as the user can act on it: what
+ * to do when they can do something; otherwise its cause and its numbers,
+ * so the line names what happened.
  */
 function voiceFailureText(failure: VoiceFailure): string {
   if (failure.code === "voice_transcription_empty") return "No se oyó nada en la nota de voz.";
@@ -53,6 +53,7 @@ function voiceFailureText(failure: VoiceFailure): string {
     failure.code === "transcription_hub_invalid_url"
   )
     return "No se pudo transcribir: empareja Orbit en Ajustes y graba otra nota.";
+  // wire/stored name kept for compatibility with 0.9.0
   if (failure.code === "voice_transcription_interrupted_by_mars")
     return "Interrumpiste la transcripción.";
   const stopped = STOPPED_BEFORE_TRANSCRIPTION[failure.code];
@@ -79,7 +80,7 @@ const base = {
     voiceFailure: voiceFailureText,
     audioUnavailable: "Audio no disponible",
     voiceProgress: "Progreso de la nota de voz",
-    // REF-11: said while macOS grants Screen Recording and privacy is armed.
+    // Said while macOS grants Screen Recording and privacy is armed.
     watchingScreen: "Puede ver tu pantalla",
 
     loadMoreSessions: "Cargar más conversaciones",

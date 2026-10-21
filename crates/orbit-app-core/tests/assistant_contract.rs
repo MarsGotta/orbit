@@ -24,7 +24,7 @@ fn projected_json(value: orbit_core::topics::assistant::Value, screen: Permissio
 }
 
 #[test]
-fn a2_projects_pending_call_and_voice_note_from_topic_frames() {
+fn projects_pending_call_and_voice_note_from_topic_frames() {
     let mut approval = assistant_topic::assistant_value();
     approval.pending = Some(Approval {
         request_id: "approval-1".into(),
@@ -92,7 +92,7 @@ fn a2_projects_pending_call_and_voice_note_from_topic_frames() {
 }
 
 #[test]
-fn ref308_projects_voice_failure_without_inventing_a_transcript() {
+fn projects_voice_failure_without_inventing_a_transcript() {
     let message: Message = serde_json::from_value(json!({
         "id":"voice-failed", "role":"user", "text":"", "complete":true,
         "voice":{"duration_ms":2000,"audio_available":true,
@@ -116,7 +116,7 @@ fn ref308_projects_voice_failure_without_inventing_a_transcript() {
 }
 
 #[test]
-fn a2_projects_the_open_session_and_no_list_of_messages() {
+fn projects_the_open_session_and_no_list_of_messages() {
     let mut value = assistant_topic::assistant_value();
     value.session_id = Some("session-active".into());
     let chat = projected_json(value, PermissionState::Unknown)["chat"].clone();

@@ -15,7 +15,7 @@ const STACK_ID = "orbit-notices";
 // Five seconds is enough to read a short confirmation without covering the view.
 const DONE_VISIBLE_MS = 5_000;
 // A notice the reader can act on (undo a deletion, open the saved note) stays
-// ten seconds: reaching its button takes longer than reading it (Mars, 2026-10-20).
+// ten seconds: reaching its button takes longer than reading it (reported 2026-10-20).
 const ACTIONABLE_VISIBLE_MS = 10_000;
 
 export function ToastStack() {

@@ -23,9 +23,9 @@ import styles from "./TimeGrid.module.css";
 
 export interface TimeGridProps {
   allDayOpen: boolean;
-  /** P9-22: create, move and stretch with the mouse; absent, read only. */
+  /** Create, move and stretch with the mouse; absent, read only. */
   edit?: GridEdit;
-  /** P9-22: the all-day lane's own gestures. */
+  /** The all-day lane's own gestures. */
   laneEdit?: LaneEdit;
   calendars: AppSnapshot["calendar"]["calendars"];
   events: CalendarEvent[];
@@ -38,7 +38,7 @@ export interface TimeGridProps {
   timezone: string;
 }
 
-/** The days a grid paints: the range, without weekends when Mars hides them
+/** The days a grid paints: the range, without weekends when the user hides them
  *  in a view a week wide or wider. A day view always shows its day. */
 export function gridDays(range: Range, timezone: string, showWeekends: boolean): number[] {
   const days = rangeDays(range, timezone);
@@ -71,8 +71,8 @@ function useDaySegments(events: readonly CalendarEvent[], days: number[], timezo
   );
 }
 
-/** P9-20: on opening, the present less fifteen minutes is at the top. Only
- *  on opening: the clock ticking must not move what Mars scrolled to. */
+/** On opening, the present less fifteen minutes is at the top. Only
+ *  on opening: the clock ticking must not move what the user scrolled to. */
 function useOpenAtNow(nowMs: number, timezone: string, hourPx: number) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const opening = useRef({ hourPx, nowMs, timezone });
@@ -114,7 +114,7 @@ export function TimeGrid(props: TimeGridProps) {
   );
 }
 
-/** The 24 hours of every day in view, where the gestures happen (P9-22). */
+/** The 24 hours of every day in view, where the gestures happen. */
 function GridBody(props: TimeGridProps & { days: number[]; today: number }) {
   const { days, today } = props;
   const nowMinutes = days.includes(today) ? eventMinutes(props.nowMs, props.timezone) : null;

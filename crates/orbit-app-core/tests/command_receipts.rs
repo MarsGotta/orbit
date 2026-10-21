@@ -7,7 +7,7 @@ use std::error::Error;
 mod fake_daemon;
 
 #[tokio::test]
-async fn a2_local_order_receipt_names_the_frame_it_just_published() -> Result<(), Box<dyn Error>> {
+async fn local_order_receipt_names_the_frame_it_just_published() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let paths = Paths::resolve(Some(directory.path().to_path_buf()))?;
     let client = DaemonClient::connect(paths, fake_daemon::idle());
@@ -31,7 +31,7 @@ async fn a2_local_order_receipt_names_the_frame_it_just_published() -> Result<()
 }
 
 #[tokio::test]
-async fn a2_applied_order_reports_the_missing_topic_revision() -> Result<(), Box<dyn Error>> {
+async fn applied_order_reports_the_missing_topic_revision() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let paths = Paths::resolve(Some(directory.path().to_path_buf()))?;
     let (calls, mut incoming) = tokio::sync::mpsc::channel::<orbit_ipc::Call>(32);

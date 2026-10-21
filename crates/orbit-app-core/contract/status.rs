@@ -13,7 +13,7 @@ app_type! {
 }
 
 app_type! {
-    /// REF-11 A3: the engine, and why it is not ready when it is not. The
+    /// The engine, and why it is not ready when it is not. The
     /// macOS permission is the whole decision, so there is no «enabled» here:
     /// only the permissions it is missing or has not been told about yet.
     #[serde(tag = "state", rename_all = "snake_case")]
@@ -70,7 +70,7 @@ app_type! {
         pub remaining_steps: u16,
         #[ts(type = "number")]
         pub expires_in_ms: u64,
-        /// REF-11: whether the engine is ready and, when it is not, why — the
+        /// Whether the engine is ready and, when it is not, why — the
         /// macOS permission it is missing, the privacy stop, or its failure.
         pub engine: EngineSnapshot,
         /// The tools the engine declares, as it declares them.

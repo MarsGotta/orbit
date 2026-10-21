@@ -4,10 +4,10 @@ use orbit_core::{
     topics::{Knowledge, TopicData, TopicFrame, TopicId, control},
 };
 
-/// DEI-12 A4/A6: the typed topic and keyed catalogue carry no retired
+/// The typed topic and keyed catalogue carry no retired
 /// frictionless or per-action approval field.
 #[test]
-fn dei12_a4_projects_the_engine_catalogue_and_nothing_to_approve() {
+fn projects_the_engine_catalogue_and_nothing_to_approve() {
     let mut topics = TopicCache::default();
     topics.observe_at(
         TopicFrame {

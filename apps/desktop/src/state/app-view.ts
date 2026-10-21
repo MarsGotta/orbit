@@ -34,7 +34,7 @@ export function composeView(frames: FeatureFrame[], revision: FrameRevision): Ap
   const byFeature = new Map(frames.map((frame) => [frame.feature, frame]));
   const view = <F extends FeatureFrame["feature"]>(feature: F): ViewOf<F> => {
     const frame = byFeature.get(feature);
-    if (!frame) throw new Error(`Falta el marco de ${feature} en el arranque`);
+    if (!frame) throw new Error(`The ${feature} frame is missing at startup`);
     return frame.view as ViewOf<F>;
   };
   const status = view("status");

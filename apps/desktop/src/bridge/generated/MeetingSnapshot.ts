@@ -14,29 +14,29 @@ import type { VoiceStatusSnapshot } from "./VoiceStatusSnapshot";
 
 export type MeetingSnapshot = { phase: MeetingPhase, recording_id: string | null, title: string | null, started_at_ms: number | null, ends_at_ms: number | null, audio: MeetingAudioKind, tracks: Array<MeetingTrackSnapshot>, upload: MeetingUploadSnapshot, 
 /**
- * P9-11: what the floating panel says, if anything.
+ * What the floating panel says, if anything.
  */
 call_panel: CallPanelSnapshot | null, 
 /**
- * P9-11: «Al detectar una llamada»; `None` while not known.
+ * «Al detectar una llamada»; `None` while not known.
  */
 call_preference: CallPreference | null, 
 /**
- * P9-11: why the preference could not be read, when it could not.
+ * Why the preference could not be read, when it could not.
  * Absent with no preference: not published yet.
  */
 call_preference_unreadable?: string, 
 /**
- * P9-12: the last question to Deimos during the meeting, while the
+ * The last question to Deimos during the meeting, while the
  * panel shows it.
  */
 question?: MeetingQuestionSnapshot, 
 /**
- * P9-12: «Preguntar a Deimos», while a recording is in progress.
+ * «Preguntar a Deimos», while a recording is in progress.
  */
 ask?: MeetingAskSnapshot, 
 /**
- * P9-12: whether «Oye Deimos» listens during the recording, and
+ * Whether «Oye Deimos» listens during the recording, and
  * why not; absent outside a recording.
  */
 voice_trigger?: VoiceStatusSnapshot, recent: Array<RecentMeetingSnapshot>, applications: Array<MeetingApplicationSnapshot>, applications_state: MeetingApplicationsState, 
