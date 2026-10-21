@@ -20,6 +20,13 @@ fn registry_matches_rust() {
             entry["value"]
                 .as_str()
                 .is_some_and(|value| !value.is_empty())
+        } else if entry["unit"] == "texts" {
+            entry["value"].as_array().is_some_and(|texts| {
+                !texts.is_empty()
+                    && texts
+                        .iter()
+                        .all(|text| text.as_str().is_some_and(|text| !text.is_empty()))
+            })
         } else {
             entry["value"].as_u64().is_some_and(|value| value > 0)
         };

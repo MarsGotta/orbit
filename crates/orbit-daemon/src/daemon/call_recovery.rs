@@ -1,6 +1,11 @@
 //! Startup reconciliation of continuous originals, separate from call authority.
 //! A manifest is durable before audio_start. Recovering it may queue closure,
 //! but must never reconstruct a detector, microphone producer or derived prompt.
+//!
+//! Its errors are in English: they abort startup, and their text only reaches
+//! the app's stderr (`daemon_thread.rs`, «terminó con un error: …») and the
+//! development binary's. Neither the person nor the assistant reads them: the
+//! app quits with the daemon, and the error reports carry codes, never text.
 use super::Runtime;
 use anyhow::{Context, Result, bail};
 use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
@@ -41,7 +46,7 @@ impl Runtime {
             || !self.capture.pending_seals.is_empty()
             || self.capture.buffer.has_pending_audio()
         {
-            bail!("La recuperación de llamadas requiere captura revocada y audio drenado");
+            bail!("call recovery needs capture revoked and audio drained");
         }
         let mut cursor = None;
         let mut recovered = 0;
@@ -68,7 +73,7 @@ impl Runtime {
                     if self.state.capabilities().native_helper() || self.state.durable.voice_active
                     {
                         bail!(
-                            "La recuperación de llamadas se hace al arrancar, antes de conectar el helper; ahora hay helper o voz activos"
+                            "call recovery runs at startup, before the helper connects; the helper or voice is active now"
                         );
                     }
                     recovered +=
@@ -87,7 +92,7 @@ impl Runtime {
             || manifest.started_at_ms < 0
             || manifest.expires_at_ms < manifest.started_at_ms
         {
-            bail!("Manifiesto de llamada incoherente; se conserva sin reactivar captura");
+            bail!("inconsistent call manifest; kept without reactivating capture");
         }
         if let Some(closure) = self
             .reader
@@ -96,7 +101,7 @@ impl Runtime {
             if closure.kind != "recording_finalize"
                 || closure.payload["recording_id"] != manifest.recording_id
             {
-                bail!("Identidad de cierre de llamada en conflicto");
+                bail!("conflicting call closure identity");
             }
             // Includes running, unknown, blocked and completed closures. Never
             // rewrite a manifest that may already have reached the server.
@@ -114,7 +119,7 @@ impl Runtime {
                 || boundary.recovered_at_ms < manifest.started_at_ms
                 || boundary.reason != REASON
             {
-                bail!("Límite de recuperación de llamada en conflicto");
+                bail!("conflicting call recovery boundary");
             }
             boundary
         } else {
@@ -131,7 +136,7 @@ impl Runtime {
                 state: JobState::Succeeded,
                 created_at: boundary.recovered_at_ms,
                 payload: serde_json::to_value(&boundary)
-                    .context("Límite de recuperación inválido")?,
+                    .context("invalid call recovery boundary")?,
             };
             self.store_actor
                 .run(move |store| Ok(store.enqueue_job(&job)?))

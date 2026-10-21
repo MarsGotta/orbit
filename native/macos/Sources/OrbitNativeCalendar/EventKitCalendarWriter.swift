@@ -149,8 +149,8 @@ extension EventKitCalendarReader {
             return try Self.milliseconds(original) == target.occurrenceStart ? item : nil
         }
         let reach = Self.occurrenceSearchMilliseconds
-        let lower = max(target.occurrenceStart - reach, -62_135_596_800_000)
-        let upper = min(target.occurrenceStart + reach, 253_402_300_799_999)
+        let lower = max(target.occurrenceStart - reach, CalendarLimits.minimumUnixMilliseconds)
+        let upper = min(target.occurrenceStart + reach, CalendarLimits.maximumUnixMilliseconds)
         let predicate = store.predicateForEvents(withStart: Self.date(lower), end: Self.date(upper), calendars: nil)
         for event in store.events(matching: predicate) where event.calendarItemIdentifier == target.calendarItemID {
             guard let original = event.occurrenceDate else { continue }

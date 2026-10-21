@@ -260,6 +260,17 @@ def test_rejected_interrupt_publishes_a_snapshot_with_the_live_turn(refused_inte
     ]
 
 
+# How long the interrupt's answer may take while prompt.submit is held. The
+# submit is released only after the answer (or this bound), so waiting longer
+# cannot let an interrupt queued behind it pass: the bound only ends a hang.
+# Measured 2026-10-21, 300 runs each, from sending the interrupt to its
+# answer: idle machine median 2.8 ms, max 92 ms; 64 busy CPUs max 152 ms;
+# 64 busy CPUs and four fsync writers p99 3.06 s, max 3.96 s (8 of 300 over
+# the former 2 s). Under that load the whole test, setup included, took up to
+# 9.5 s. 60 s is six times the slowest whole test and costs a passing run nothing.
+INTERRUPT_ANSWER_BOUND_SECONDS = 60
+
+
 def test_websocket_interrupt_is_answered_while_submit_waits_for_hermes(held):
     _, store, adapter = held
     paired = device(store)
@@ -285,9 +296,12 @@ def test_websocket_interrupt_is_answered_while_submit_waits_for_hermes(held):
         answered = []
         reader = threading.Thread(target=lambda: answered.append(receive_event(ws)), daemon=True)
         reader.start()
-        reader.join(2)
+        reader.join(INTERRUPT_ANSWER_BOUND_SECONDS)
         try:
-            assert not reader.is_alive(), "chat.interrupt did not answer while chat.send waited"
+            assert not reader.is_alive(), (
+                f"chat.interrupt did not answer within {INTERRUPT_ANSWER_BOUND_SECONDS} s "
+                "while chat.send waited"
+            )
             assert answered[0]["event"] == "chat.interrupted"
             assert answered[0]["id"] == command
         finally:

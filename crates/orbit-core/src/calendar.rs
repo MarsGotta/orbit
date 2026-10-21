@@ -174,6 +174,11 @@ pub const READ_LIFETIME_NS: u64 = 5_000_000_000;
 /// undetermined with no error to show for it.
 pub const PERMISSION_LIFETIME_NS: u64 = 120_000_000_000;
 pub const CLOCK_DOMAIN: &str = "mach_absolute_time";
+/// The wire's range of dates, from year 1 to the end of year 9999: a range of
+/// representable dates, not a policy. The hub and the helper hold the same
+/// ceiling; `contracts/constants.json` registers its copies (`MAX_UNIX_MS`)
+/// and the guard compares them. The registry holds positive numbers only, so
+/// the floor's one copy, in the helper, is kept in step by hand.
 pub const MIN_UNIX_MS: i64 = -62_135_596_800_000;
 pub const MAX_UNIX_MS: i64 = 253_402_300_799_999;
 

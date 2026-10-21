@@ -71,7 +71,14 @@ def allowed_transport(scope, settings: Settings) -> bool:
     return settings.allow_insecure_localhost and host in LOOPBACK_HOSTS
 
 
-async def bounded_body(request: Request, maximum: int) -> bytes:
+async def bounded_body(request: Request, maximum: int, resource: str = "hub_request") -> bytes:
+    """The request's body, refused past `maximum` bytes with what it was.
+
+    `resource` names the body in the refusal: `capture`, `recording` or `audio`
+    for a route of one of those (a chunk, a manifest, a WAV or a text to speak),
+    `hub_request` for any other body.
+    `bytes` is what had arrived when the ceiling was crossed, not the whole body.
+    """
     body = bytearray()
     async for piece in request.stream():
         if len(body) + len(piece) > maximum:
@@ -79,7 +86,7 @@ async def bounded_body(request: Request, maximum: int) -> bytes:
                 "too_large",
                 "Carga demasiado grande",
                 numbers={
-                    "resource": "ipc_request",
+                    "resource": resource,
                     "bytes": len(body) + len(piece),
                     "max_bytes": maximum,
                 },

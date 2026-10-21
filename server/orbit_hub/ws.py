@@ -91,6 +91,12 @@ def mount(
                 exc_info=False,
             )
             device_version = None
+        # Four connections per device: the Mac keeps one, and a reconnection
+        # can open the next before the hub has seen the last one end (a send
+        # waits up to 10 s). Each costs a queue of up to 256 frames
+        # (runtime.subscribe). It protects the hub from one device opening
+        # sockets without end; why four, and not two, was not measured. It does
+        # not limit devices, turns or requests over HTTP.
         if len(runtime.listeners) >= 4:
             await ws.close(code=4429)
             return

@@ -45,7 +45,8 @@ is non-zero if any of them fails.
 
 Zones:
   rust      format, strict clippy, cargo test --workspace and generated TypeScript
-  guards    python3 -B -m unittest discover -s scripts/tests
+  guards    python3 -B -m unittest discover -s scripts/tests (after the hub's
+            environment: the hub publish guards run uv offline from its cache)
   hub       ruff, format, the hub's pytest with its e2e, and the harness dry run
   ui        lint, typecheck, vitest and build of apps/desktop
 
@@ -284,13 +285,17 @@ run_rust_zone() {
     python3 -B "$CHECK_DIR/generated.py" compare "$GENERATED_TYPES" "$LOG_DIR/generated.json"
 }
 
+# The hub publish guards (scripts/tests/test_hub_publish.py) build a release
+# with the real uv offline, so the wheels of server/uv.lock must already be in
+# uv's cache. env-hub is what fills it (with --install) or proves a synced
+# server/.venv is there: without it, a fresh machine failed 11 guards with
+# "Network connectivity is disabled" (CI, 2026-10-21).
 run_guards_zone() {
-  check_run guards "guards" --needs env-rust --cwd "$ROOT" --report "unittest:$LOG_DIR/guards.json" -- \
+  check_run guards "guards" --needs env-rust --needs env-hub --cwd "$ROOT" --report "unittest:$LOG_DIR/guards.json" -- \
     python3 -B "$CHECK_DIR/unittest_runner.py" scripts/tests "$LOG_DIR/guards.json"
 }
 
 run_hub_zone() {
-  check_run env-hub "environment · hub (server/.venv)" --cwd "$ROOT" -- check_hub_environment
   check_run hub-ruff "hub · ruff" --needs env-hub --cwd "$ROOT/server" -- \
     .venv/bin/ruff check orbit_hub orbit_mcp tests ../scripts/e2e-mac "$HARNESS_TEST"
   check_run hub-format "hub · format" --needs env-hub --cwd "$ROOT/server" -- \
@@ -333,6 +338,9 @@ if selected rust hub; then
     "${DAEMON_BUILD[@]}"
 fi
 if selected rust; then run_rust_zone; fi
+if selected guards hub; then
+  check_run env-hub "environment · hub (server/.venv)" --cwd "$ROOT" -- check_hub_environment
+fi
 if selected guards; then run_guards_zone; fi
 if selected hub; then run_hub_zone; fi
 if selected ui; then run_ui_zone; fi

@@ -171,7 +171,12 @@ durable `last_seen`; a timeout does not fabricate activity.
 A refusal travels as `{"refusal":{"code":<code>,"retry":<policy>,…}}`. The code
 identifies the cause and fields preserve its numbers. The UI and translator
 render those fields in Spanish. `code` remains 1–64 characters `[a-z0-9_]` and
-`retry` retains its four values. The hub/translator no longer accept the old
+`retry` retains its four values. An HTTP request body over its ceiling is
+`413 too_large` with `resource` (`capture`, `recording`, `audio`, or
+`hub_request` for any other body), the `bytes` received when it was cut and
+`max_bytes`. The storage quota refuses with `507 quota_exceeded` and `bytes`
+(the write), `reserved_bytes` (what admission reserves for it), `used_bytes`
+and `max_bytes`. The hub/translator no longer accept the old
 0.6.x `refused` + `code` response; connected Macs must upgrade together.
 Historical journal receipts remain readable.
 
@@ -192,7 +197,8 @@ did throughout 0.3.11.
 `POST /v1/audio/speech` accepts `{text}` and returns the complete Hermes clip
 (at most 4 MiB), retaining `Content-Type` and declaring
 `X-Orbit-Speech-Kind: clip`/`X-Orbit-Speech-Provider`. Failures yield
-`speech_unavailable`; oversize yields `speech_too_large`. The server profile
+`speech_unavailable`; oversize yields `speech_too_large` with `bytes` and
+`max_bytes` (the 4 MiB clip, or Hermes's 6 MiB answer around it). The server profile
 selects voice, format and provider; credentials stay server-side.
 
 ## Private meetings for the assistant

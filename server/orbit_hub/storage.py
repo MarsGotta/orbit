@@ -249,10 +249,21 @@ class Store:
         a strict physical ceiling. Revocation and existing-job state changes remain
         available at the admission ceiling; no content is deleted or rotated.
         """
-        reserve = max(0, payload_bytes) * 3 + 256 * 1024
-        if self.physical_bytes() + reserve > self._quota:
+        payload_bytes = max(0, payload_bytes)
+        reserve = payload_bytes * 3 + 256 * 1024
+        used = self.physical_bytes()
+        if used + reserve > self._quota:
+            # The refusal says the rule that fired: what the write brought, what
+            # admission reserves for it, what the database already uses and the quota.
             raise HubError(
-                "quota_exceeded", "Cuota del servidor alcanzada; conserva la copia local"
+                "quota_exceeded",
+                "Cuota del servidor alcanzada; conserva la copia local",
+                numbers={
+                    "bytes": payload_bytes,
+                    "reserved_bytes": reserve,
+                    "used_bytes": used,
+                    "max_bytes": self._quota,
+                },
             )
 
     @staticmethod

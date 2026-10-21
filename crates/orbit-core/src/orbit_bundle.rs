@@ -349,6 +349,42 @@ mod tests {
         }
     }
 
+    /// `contracts/constants.json` at build time: the registry a test compares
+    /// with, never read by the product.
+    fn registered(name: &str) -> String {
+        let registry: Vec<serde_json::Value> =
+            serde_json::from_str(include_str!("../../../contracts/constants.json"))
+                .unwrap_or_default();
+        registry
+            .iter()
+            .find(|entry| entry["name"] == name)
+            .and_then(|entry| entry["value"].as_str())
+            .unwrap_or_default()
+            .to_owned()
+    }
+
+    /// The installer and the data directory name the same folder; the
+    /// registry's INSTALL_DATA_DIRECTORY is compared with install.sh.
+    #[cfg(not(feature = "pruebas"))]
+    #[test]
+    fn the_installer_writes_into_the_official_data_directory() {
+        assert_eq!(
+            registered("INSTALL_DATA_DIRECTORY"),
+            format!("Library/Application Support/{}", DATA_DIRECTORY.join("."))
+        );
+    }
+
+    /// The real-test harness finds Orbit Pruebas's data by this name
+    /// (`scripts/e2e-mac/mac.py`, compared by the registry's guard).
+    #[cfg(feature = "pruebas")]
+    #[test]
+    fn the_registry_names_the_orbit_pruebas_data_directory() {
+        assert_eq!(
+            registered("PRUEBAS_DATA_DIRECTORY"),
+            DATA_DIRECTORY.join(".")
+        );
+    }
+
     #[cfg(feature = "pruebas")]
     #[test]
     fn orbit_pruebas_has_its_own_name_data_directory_and_keychain() {

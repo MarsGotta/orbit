@@ -52,8 +52,9 @@ from pathlib import Path
 
 BUNDLE_ID = "app.orbit.companion.pruebas"
 # The last part of orbit_bundle::DATA_DIRECTORY with the feature `pruebas`
-# (directories::ProjectDirs on macOS). No guard compares the two: keep them
-# in step by hand.
+# (directories::ProjectDirs on macOS). contracts/constants.json registers it
+# (PRUEBAS_DATA_DIRECTORY): its guard compares this copy, and orbit-core's
+# pruebas test the Rust one.
 DATA_DIRECTORY = "com.MarsGotta.OrbitPruebas"
 SCRIPT = Path(__file__).resolve().with_name("meeting-script.txt")
 # Lists a process's windows on every layer (CuaDriver lists layer 0 only).

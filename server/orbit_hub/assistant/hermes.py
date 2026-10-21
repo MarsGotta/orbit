@@ -97,6 +97,11 @@ class HermesConnection:
 
     async def open(self) -> None:
         try:
+            # One Hermes message may be 4 MiB, and 32 of them may wait unread
+            # before the socket stops reading: at most 128 MiB held per
+            # device's connection. They protect the hub's memory from Hermes;
+            # the sizes of real Hermes messages were not measured here. They do
+            # not limit a reply, which streams as many messages, nor a resume.
             self._ws = await connect(
                 self.backend.ws_url("/api/ws"),
                 max_size=4 * 1024 * 1024,
@@ -565,6 +570,12 @@ class HermesSpeech:
 
     async def synthesize(self, text: str) -> SpeechClip:
         try:
+            # 10 s to connect to Hermes and 180 s for each read, write or pooled
+            # connection, as for dictation: it protects the request from a
+            # Hermes that stops answering. It is not a total: a slow stream is
+            # bounded by its 6 MiB, not by time. The Mac gives up on this route
+            # after 90 s (HUB_HTTP_TIMEOUT in orbit-daemon's hub.rs), so past
+            # that the hub waits for nobody; 180 s was not measured for speech.
             async with (
                 httpx.AsyncClient(
                     timeout=httpx.Timeout(180, connect=10), follow_redirects=False
@@ -580,8 +591,15 @@ class HermesSpeech:
                 body = bytearray()
                 async for chunk in response.aiter_bytes():
                     if len(chunk) > MAX_SPEECH_RESPONSE_BYTES - len(body):
+                        # Hermes's whole answer (JSON around the base64 clip),
+                        # cut while it streams: `bytes` is what had arrived.
                         raise HubError(
-                            "speech_too_large", "El clip de voz supera el límite de 4 MiB"
+                            "speech_too_large",
+                            "La respuesta de voz de Hermes supera el límite de 6 MiB",
+                            numbers={
+                                "bytes": len(body) + len(chunk),
+                                "max_bytes": MAX_SPEECH_RESPONSE_BYTES,
+                            },
                         )
                     body.extend(chunk)
             payload = json.loads(body)
@@ -604,12 +622,24 @@ class HermesSpeech:
                 raise ValueError("Invalid speech data URL")
             maximum_encoded = 4 * ((MAX_SPEECH_CLIP_BYTES + 2) // 3)
             if len(encoded) > maximum_encoded:
-                raise HubError("speech_too_large", "El clip de voz supera el límite de 4 MiB")
+                # The clip's size from its base64 length, before decoding it.
+                raise HubError(
+                    "speech_too_large",
+                    "El clip de voz supera el límite de 4 MiB",
+                    numbers={
+                        "bytes": len(encoded) // 4 * 3 - (len(encoded) - len(encoded.rstrip("="))),
+                        "max_bytes": MAX_SPEECH_CLIP_BYTES,
+                    },
+                )
             audio = base64.b64decode(encoded, validate=True)
             if not audio:
                 raise ValueError("Empty speech clip")
             if len(audio) > MAX_SPEECH_CLIP_BYTES:
-                raise HubError("speech_too_large", "El clip de voz supera el límite de 4 MiB")
+                raise HubError(
+                    "speech_too_large",
+                    "El clip de voz supera el límite de 4 MiB",
+                    numbers={"bytes": len(audio), "max_bytes": MAX_SPEECH_CLIP_BYTES},
+                )
             logger.info(
                 "hermes_speech_clip",
                 extra={"event": "hermes_speech_clip", "code": f"{provider}|{mime_type}"},

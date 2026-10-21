@@ -14,7 +14,7 @@ def mount(
     @app.post("/v1/audio/transcribe")
     async def transcribe(request: Request):
         device = identity(request)
-        body = await bounded_body(request, settings.max_audio_bytes)
+        body = await bounded_body(request, settings.max_audio_bytes, "audio")
         validate_wav(body)
         text = await transcriptions.transcribe(device, body)
         if not store.is_active(device):
@@ -25,8 +25,14 @@ def mount(
     @app.post("/v1/audio/speech")
     async def speech(request: Request):
         device = identity(request)
+        # 128 KiB holds every valid request: 16,000 characters of text encode,
+        # in the Mac's JSON (control characters as \u00XX), to at most 96,011
+        # bytes (computed 2026-10-21). It protects the hub from reading an
+        # unbounded body before validating it; it does not limit the clip.
         try:
-            payload = SpeechRequest.model_validate_json(await bounded_body(request, 128 * 1024))
+            payload = SpeechRequest.model_validate_json(
+                await bounded_body(request, 128 * 1024, "audio")
+            )
         except ValidationError as exc:
             raise HubError("invalid_request", "Texto de síntesis no válido") from exc
         audio = await voice.synthesize(payload.text)

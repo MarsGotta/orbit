@@ -64,7 +64,7 @@ NOTE_CAUSES = {
     "note_internal_error": "un fallo interno del hub al escribirla",
     "quota_exceeded": (
         "el hub llegó a su cuota de almacenamiento: usa {used_bytes} bytes de {max_bytes} y "
-        "guardar esto pedía {bytes} más"
+        "guardar esto ({bytes} bytes) reserva {reserved_bytes}"
     ),
 }
 _STATE_KEYS = frozenset({"cause", "attempt", "attempts", "retry_at_ms", "code", "retry"})

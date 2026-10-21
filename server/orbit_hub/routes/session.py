@@ -12,6 +12,19 @@ from ..protocol import HUB_PROTOCOL, PairRequest
 from ..storage import SESSION_LIST_LIMIT, SESSION_MESSAGES_PAGE_LIMIT
 
 PAIR_ATTEMPT_RETENTION_SECONDS = 60
+# Pairing comes before any device credential, so its bounds protect
+# the hub from anyone who can reach it, not the code: a pairing code is
+# `token_urlsafe(24)` (192 bits) and lives at most 600 s, past guessing at any
+# rate.
+# - 10 attempts per address per 60 s keep one peer from turning pairing into
+#   unbounded store work; a person mistyping a code needs a few. Why 10 was not
+#   measured.
+# - 4,096 addresses bound the table of attempts in memory: measured on
+#   2026-10-21, 4,096 IPv4 entries take about 0.6 MiB (156 bytes each). It does
+#   not limit devices already paired.
+# - 2,048 bytes of body hold every valid request: a code of at most 160
+#   characters and a name of at most 80 encode, in the Mac's JSON (control
+#   characters as \u00XX), to at most 1,461 bytes (computed 2026-10-21).
 
 
 def mount(app, store, identity, bounded_body, now, pair_attempts, store_executor):

@@ -846,6 +846,30 @@
     "copies": [
       {
         "file": "crates/orbit-core/src/calendar.rs",
+        "name": "MAX_UNIX_MS",
+        "unit": "milliseconds"
+      },
+      {
+        "file": "native/macos/Sources/OrbitNativeProtocol/CalendarModels.swift",
+        "name": "maximumUnixMilliseconds",
+        "unit": "milliseconds"
+      },
+      {
+        "file": "server/orbit_hub/unix_time.py",
+        "name": "MAX_UNIX_MS",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "MAX_UNIX_MS",
+    "resource": "latest wire date, the end of year 9999: a range of representable dates, not a policy",
+    "source": "registry",
+    "unit": "milliseconds",
+    "value": 253402300799999
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/calendar.rs",
         "name": "MAX_TITLE_BYTES",
         "unit": "bytes"
       },
@@ -1364,6 +1388,20 @@
   {
     "copies": [
       {
+        "file": "scripts/e2e-mac/mac.py",
+        "name": "DATA_DIRECTORY",
+        "unit": "path"
+      }
+    ],
+    "name": "PRUEBAS_DATA_DIRECTORY",
+    "resource": "Orbit Pruebas data directory under Application Support: orbit_bundle::DATA_DIRECTORY with the feature pruebas, joined by dots (its Rust test compares it)",
+    "source": "registry",
+    "unit": "path",
+    "value": "com.MarsGotta.OrbitPruebas"
+  },
+  {
+    "copies": [
+      {
         "file": "crates/orbit-core/src/orbit_bundle.rs",
         "name": "ENGINE_RELATIVE_PATH",
         "unit": "path"
@@ -1389,5 +1427,32 @@
     "source": "registry",
     "unit": "path",
     "value": "Helpers/Orbit Engine.app/Contents/MacOS/cua-driver"
+  },
+  {
+    "copies": [
+      {
+        "file": "apps/desktop/src/i18n/es/status.ts",
+        "name": "problem",
+        "unit": "texts"
+      },
+      {
+        "file": "scripts/e2e-mac/checks.py",
+        "name": "PILL",
+        "unit": "texts"
+      }
+    ],
+    "name": "STATUS_PILL_TEXTS",
+    "resource": "the status pill's texts, each up to its first variable part; the real test fails a screen that shows one. A new pill text is added here",
+    "source": "registry",
+    "unit": "texts",
+    "value": [
+      "Orbit no responde.",
+      "Privacidad detenida",
+      "Este Mac no está emparejado",
+      "El hub retiró este Mac",
+      "Sin conexión. Comprueba tu red.",
+      "Falta el permiso de",
+      "Faltan permisos"
+    ]
   }
 ]

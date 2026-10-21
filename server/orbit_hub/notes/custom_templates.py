@@ -18,7 +18,6 @@ from pydantic import Field, field_validator
 
 from ..protocol import HubError
 from .models import NoteInputs, SeriesKey, Strict, TemplateId, TemplateSource
-from .quota import reserve
 from .templates import (
     BUILTIN_TEMPLATES,
     DEFAULT_TEMPLATE_ID,
@@ -204,7 +203,7 @@ class TemplateRepository:
                 numbers={"bytes": size, "max_bytes": MAX_TEMPLATE_LISTING_BYTES},
             )
         sealed = self._seal(device, template_id, template)
-        reserve(self.store, len(sealed))
+        self.store.ensure_capacity(len(sealed))
         with self.store.transaction() as db:
             db.execute(
                 "INSERT INTO note_templates(device_id,id,body,created,updated) VALUES (?,?,?,?,?) "
@@ -265,7 +264,7 @@ class TemplateRepository:
                 http_status=409,
                 numbers={"links": count, "max_links": MAX_TEMPLATE_LINKS},
             )
-        reserve(self.store, len(request.calendar_item_id.encode()) + 128)
+        self.store.ensure_capacity(len(request.calendar_item_id.encode()) + 128)
         with self.store.transaction() as db:
             db.execute(
                 "INSERT INTO note_template_links(device_id,series,template_id,updated) "

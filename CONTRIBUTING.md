@@ -64,7 +64,7 @@ without running them. Pass one or more zones to run only those:
 | Zone | What it checks |
 |---|---|
 | `rust` | `cargo fmt`, strict Clippy, `cargo test` for every workspace crate in two Cargo feature groups (the daemon and its crates; the app), `orbit-core` with the `pruebas` feature, and that the generated TypeScript is current |
-| `guards` | The Python guards in `scripts/tests`: shared constants and their copies, packaging, installer and release scripts |
+| `guards` | The Python guards in `scripts/tests`: shared constants and their copies, packaging, installer and release scripts. It runs after the hub's environment step and is skipped, saying why, without it: the hub publish guards build a release with the real `uv` offline, from the cache that syncing `server/.venv` fills |
 | `hub` | Ruff and Ruff format over the hub and the harness, the hub's pytest suite, including end-to-end tests against the real daemon binary, and the real-test harness's dry run |
 | `ui` | Lint, typecheck, Vitest and the production build of `apps/desktop` |
 

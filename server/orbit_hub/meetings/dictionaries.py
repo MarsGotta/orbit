@@ -193,8 +193,6 @@ def substitute(value: str, terms: list[dict]) -> str:
 
 
 def execute(store, device: str, order: Save | Select | Correct | Remove) -> dict:
-    from ..notes.quota import reserve
-
     chosen_id = identifier(order.dictionary_id) if order.dictionary_id is not None else None
     with store.transaction() as db:
         dictionaries = listing(store, db, device)
@@ -316,7 +314,7 @@ def execute(store, device: str, order: Save | Select | Correct | Remove) -> dict
             )
             for d in dictionaries
         ]
-        reserve(store, sum(len(body) for _, body in sealed))
+        store.ensure_capacity(sum(len(body) for _, body in sealed))
         for identity, body in sealed:
             db.execute(
                 "INSERT INTO meeting_dictionaries VALUES (?,?,?) ON CONFLICT(device_id,id) DO UPDATE SET body=excluded.body",

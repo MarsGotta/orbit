@@ -44,7 +44,7 @@ def mount(
             raise HubError(
                 "unsupported_capture_type", "Se requiere una imagen PNG", http_status=415
             )
-        body = await bounded_body(request, MAX_CAPTURE_BYTES)
+        body = await bounded_body(request, MAX_CAPTURE_BYTES, "capture")
         if hashlib.sha256(body).hexdigest() != digest:
             raise HubError("invalid_capture", "El resumen de la captura no coincide")
         stored = captures.put(device, capture_id, request_id, body)
@@ -77,7 +77,7 @@ def mount(
                 raise ValueError("Invalid metadata")
         except (KeyError, ValueError) as exc:
             raise HubError("invalid_chunk", "Metadatos de fragmento no válidos") from exc
-        body = await bounded_body(request, settings.max_chunk_bytes)
+        body = await bounded_body(request, settings.max_chunk_bytes, "recording")
         validate_wav(body)
         metadata = {}
         fields = ('started_at_ms', 'monotonic_ns', 'first_sample', 'frames', 'sample_rate', 'channels')  # fmt: skip

@@ -109,6 +109,13 @@ public struct CalendarInventoryPage: Encodable, Equatable, Sendable {
 }
 
 public enum CalendarLimits {
+    /// The wire's range of dates in milliseconds since 1970: from year 1 to the
+    /// end of year 9999. A range of representable dates, not a policy. Mirror
+    /// `MIN_UNIX_MS`/`MAX_UNIX_MS` in `orbit_core::calendar`; the hub has the
+    /// same ceiling, and `contracts/constants.json` registers the copies of the
+    /// ceiling for its guard.
+    public static let minimumUnixMilliseconds: Int64 = -62_135_596_800_000
+    public static let maximumUnixMilliseconds: Int64 = 253_402_300_799_999
     /// How many bytes of events a page carries before the next one starts.
     /// Soft: a page always carries at least one whole event. Mirrors
     /// `orbit_core::calendar::NATIVE_PAGE_EVENT_BYTES`; contracts/constants.json
@@ -184,7 +191,7 @@ public enum CalendarLimits {
         !value.isEmpty && value.utf8.count <= maximumLabelBytes
             && !value.unicodeScalars.contains { $0.value < 32 || $0.value == 127 }
     }
-    public static func date(_ value: Int64) -> Bool { (-62_135_596_800_000...253_402_300_799_999).contains(value) }
+    public static func date(_ value: Int64) -> Bool { (minimumUnixMilliseconds...maximumUnixMilliseconds).contains(value) }
     public static func encodedSize<T: Encodable>(_ value: T) throws -> Int {
         try JSONEncoder().encode(value).count
     }

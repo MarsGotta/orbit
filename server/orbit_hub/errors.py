@@ -54,7 +54,15 @@ _RESOURCES = {
     "session": "session",
     "speech": "audio",
 }
-_KNOWN_SIZE_RESOURCES = frozenset(_RESOURCES.values()) | {"ipc_request", "ipc_response"}
+# `hub_request` is the body of an HTTP request to the hub that no narrower
+# resource names (pairing, notes, templates, dictionaries, meeting edits);
+# `ipc_request`/`ipc_response` are the Mac's own IPC lines.
+_KNOWN_SIZE_RESOURCES = frozenset(_RESOURCES.values()) | {
+    "capture",
+    "hub_request",
+    "ipc_request",
+    "ipc_response",
+}
 
 
 def _wire_u64(value: object) -> bool:

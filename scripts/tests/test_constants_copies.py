@@ -43,6 +43,8 @@ def read_constant(source, name):
     def evaluate(node, resolving):
         if isinstance(node, ast.Constant) and type(node.value) in (int, str):
             return node.value
+        if isinstance(node, (ast.Tuple, ast.List)):
+            return [evaluate(element, resolving) for element in node.elts]
         if isinstance(node, ast.Name):
             return number(node.id, resolving)
         if isinstance(node, ast.BinOp) and type(node.op) in OPERATIONS:
@@ -51,7 +53,26 @@ def read_constant(source, name):
             )
         raise ValueError(f"constant expression not supported: {ast.dump(node)}")
 
+    # A tuple or list spans lines: parse the whole bracketed declaration.
+    bracketed = re.search(
+        rf"(?ms)^{re.escape(name)}(?:\s*:[^=\n]+)?\s*=\s*(\(.*?^\)|\[.*?^\])", source
+    )
+    if bracketed is not None:
+        return evaluate(ast.parse(bracketed.group(1), mode="eval").body, (name,))
     return number(name, ())
+
+
+def interface_texts(source, name):
+    """The texts of the TypeScript object `name`, each up to its first `${…}`.
+
+    `name: {` opens the object and the next line indented as deeply closes it.
+    Every string or template literal inside is one text.
+    """
+    block = re.search(rf"(?ms)^([ \t]*){re.escape(name)}: \{{\n(.*?)^\1\}}", source)
+    if block is None:
+        raise ValueError(f"the object {name} is missing")
+    literals = re.findall(r'"([^"\n]*)"|`([^`\n]*)`', block.group(2))
+    return [(string or template).split("${")[0] for string, template in literals]
 
 
 class ConstantsCopies(unittest.TestCase):
@@ -65,7 +86,24 @@ class ConstantsCopies(unittest.TestCase):
                 if relative.startswith("server/"):
                     continue
                 with self.subTest(file=relative, name=copy["name"]):
-                    actual = read_constant((ROOT / relative).read_text(), copy["name"])
+                    source = (ROOT / relative).read_text()
+                    if copy["unit"] == "texts" and relative.endswith(".ts"):
+                        # The interface holds whole texts; the registry, how
+                        # each one starts, which is what the real test matches.
+                        texts = interface_texts(source, copy["name"])
+                        missing = [
+                            start
+                            for start in entry["value"]
+                            if not any(text.startswith(start) for text in texts)
+                        ]
+                        self.assertEqual(
+                            missing,
+                            [],
+                            f"{relative}:{copy['name']} has no text starting with these "
+                            f"({entry['name']}); its texts are {texts}",
+                        )
+                        continue
+                    actual = read_constant(source, copy["name"])
                     if copy["unit"] == entry["unit"]:
                         expected = entry["value"]
                     else:

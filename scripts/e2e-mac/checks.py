@@ -104,9 +104,10 @@ REMOVED_PATTERNS = (
     re.compile(r"HTTP \d{3}"),
     re.compile(r"\d+ ms\b"),
 )
-# The status pill's texts (apps/desktop/src/i18n/es/status.ts, `problem`): with
-# everything in order none of them shows. No guard compares this list with
-# that file: keep them in step by hand.
+# The status pill's texts (apps/desktop/src/i18n/es/status.ts, `problem`), each
+# up to its first variable part: with everything in order none of them shows.
+# contracts/constants.json registers them (STATUS_PILL_TEXTS) and its guard
+# checks this list and that file against it; a new pill text is added there.
 PILL = (
     "Orbit no responde.",
     "Privacidad detenida",

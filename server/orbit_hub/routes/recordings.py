@@ -38,7 +38,7 @@ def mount(
         try:
             recording_id = canonical_uuid(recording_id)
             manifest = RecordingManifest.model_validate_json(
-                await bounded_body(request, MAX_MANIFEST_BYTES)
+                await bounded_body(request, MAX_MANIFEST_BYTES, "recording")
             )
             if manifest.event is not None:
                 manifest = manifest.model_copy(

@@ -105,6 +105,13 @@ class DeviceRuntime:
         raise HubError("revoked", "Dispositivo revocado")
 
     def subscribe(self) -> asyncio.Queue:
+        # 256 frames waiting for one connection: it protects the hub's memory
+        # from a client that stops reading. A full queue drops that connection
+        # with `slow_client` and the client reads its history again (`offer`).
+        # Every connection of a device queues the same frame objects, so the
+        # four connections ws.py admits do not hold four copies. Why 256 was not
+        # measured: no burst of a real Hermes answer has been counted. It does
+        # not limit a turn's length, the stored history or one frame's size.
         queue: asyncio.Queue = asyncio.Queue(maxsize=256)
         self.listeners.add(queue)
         if self.bindings:
@@ -118,6 +125,21 @@ class DeviceRuntime:
         return await in_store(self.store_executor, function)
 
     def snapshot(self) -> dict:
+        """The device's live turns and their pending questions, in one frame.
+
+        Bounded to the last 64 turns, 128 pending questions per turn and about
+        100 KiB of JSON, with `omitted` set when anything was left out: the
+        frame goes to every connection on each change, and the Mac's ceiling for
+        a hub frame is 1 MiB (MAX_HUB_INCOMING_FRAME_BYTES). It does not limit
+        what is pending: a question left out stays pending in the hub.
+        Measured on 2026-10-21 with synthetic turns (64 × 128 approvals of
+        2,048 characters): the largest frame sent was 105,747 bytes, and
+        building it took a median 1.6 s on the event loop, because every
+        question after the 100 KiB mark is still encoded once to be refused.
+        The bound counts `json.dumps` with ASCII escapes, up to three times
+        the bytes sent for characters outside the BMP. Why 64 and 128 was not
+        measured; one turn rarely has more than one question pending.
+        """
         if self._snapshot_cache is not None:
             return self._snapshot_cache
         sessions, omitted = [], len(self.turn_ids) > 64

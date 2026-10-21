@@ -206,7 +206,7 @@ extension EventKitCalendarReader {
 
     nonisolated static func milliseconds(_ date: Date) throws -> Int64 {
         let value = date.timeIntervalSince1970 * 1000
-        guard value.isFinite, value >= -62_135_596_800_000, value <= 253_402_300_799_999 else {
+        guard value.isFinite, value >= Double(CalendarLimits.minimumUnixMilliseconds), value <= Double(CalendarLimits.maximumUnixMilliseconds) else {
             throw CalendarFailure.readFailed
         }
         return Int64(value.rounded(.towardZero))

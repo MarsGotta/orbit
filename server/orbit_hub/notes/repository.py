@@ -13,7 +13,6 @@ from ..meetings import repository as meetings
 from ..protocol import HubError
 from .custom_templates import SCHEMA as TEMPLATES_SCHEMA
 from .models import EditRequest, EventContext, GeneratedNote, NoteEdits, NoteInputs
-from .quota import reserve
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS recording_notes (
@@ -137,7 +136,7 @@ class NoteRepository:
                 recording,
                 self.planned(db, device, recording, template_id).model_dump(mode="json"),
             )
-            reserve(self.store, len(inputs))
+            self.store.ensure_capacity(len(inputs))
             if row is None:
                 db.execute(
                     "INSERT INTO recording_notes(device_id,recording,state,revision,inputs,"
@@ -246,7 +245,7 @@ class NoteRepository:
     def complete(self, job: dict, note: GeneratedNote, now: float) -> None:
         device, recording = job["device_id"], job["recording"]
         sealed = self._seal("note", device, recording, note.model_dump(mode="json"))
-        reserve(self.store, len(sealed))
+        self.store.ensure_capacity(len(sealed))
         with self.store.transaction() as db:
             row = db.execute(
                 "SELECT edits FROM recording_notes WHERE device_id=? AND recording=?",

@@ -45,7 +45,7 @@ package enum CalendarBridge {
 
     package static func unixMilliseconds() -> Int64? {
         let value = Date().timeIntervalSince1970 * 1000
-        guard value.isFinite, value >= -62_135_596_800_000, value <= 253_402_300_799_999 else { return nil }
+        guard value.isFinite, value >= Double(CalendarLimits.minimumUnixMilliseconds), value <= Double(CalendarLimits.maximumUnixMilliseconds) else { return nil }
         return Int64(value.rounded(.towardZero))
     }
 }

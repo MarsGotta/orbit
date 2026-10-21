@@ -27,6 +27,14 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 - When a meeting note is queued for a retry, the refusal the assistant gets
   now says how long until that retry, instead of a fixed 45 seconds.
+- Three hub refusals now carry their numbers (fields added, codes unchanged):
+  every storage-quota refusal says the bytes of the write, what admission
+  reserves for it, what the hub uses and the quota; an HTTP body over its
+  ceiling names what it was (`capture`, `recording`, `audio` or
+  `hub_request`) instead of always `ipc_request`; and `speech_too_large` says
+  the clip's size and its ceiling.
+- On a fresh machine the gate prepares the hub's environment before the guards,
+  whose hub publish tests build a release with `uv` offline from its cache.
 
 ## [0.9.0] - 2026-10-21
 
