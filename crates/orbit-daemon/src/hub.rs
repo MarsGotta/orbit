@@ -1340,8 +1340,13 @@ mod watchdog_tests {
             let _ = first.next().await;
             let (second, _) = listener.accept().await?;
             let mut second = tokio_tungstenite::accept_async(second).await?;
-            if let Some(Ok(Message::Text(text))) = second.next().await {
-                written.send(text.to_string()).await?;
+            // The frame under test is the first text one: the client may ping
+            // first, since its ping interval's first tick is immediate.
+            while let Some(Ok(message)) = second.next().await {
+                if let Message::Text(text) = message {
+                    written.send(text.to_string()).await?;
+                    break;
+                }
             }
             let _ = second.next().await;
             anyhow::Ok(())
