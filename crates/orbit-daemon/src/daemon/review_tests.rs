@@ -56,7 +56,7 @@ async fn privacy_keeps_ptt_tail_until_a_confirmed_barrier_and_quarantines_source
     runtime.apply(Event::VoiceStart).await?;
     runtime.native_event(frame(&stream, 0, 100)).await?;
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     assert_eq!(
         runtime
@@ -237,7 +237,7 @@ async fn replacing_an_interrupted_meeting_persists_its_closure_with_a_gap() -> R
     let stream = start(&mut runtime, &mut receiver).await?;
     runtime.native_event(frame(&stream, 0, 100)).await?;
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     privacy_ack(&mut runtime, &mut receiver).await?;
     settle_seal_receipts(&mut runtime).await?;
@@ -288,7 +288,7 @@ async fn pending_old_pcm_blocks_replacement_without_overwriting_its_identity() -
     let stream = start(&mut runtime, &mut receiver).await?;
     runtime.native_event(frame(&stream, 0, 100)).await?;
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     privacy_ack(&mut runtime, &mut receiver).await?;
     runtime.apply(Event::LocalRearm).await?;
@@ -388,7 +388,7 @@ async fn a_gap_during_privacy_drain_remains_attached_to_the_interrupted_recordin
     let stream = start(&mut runtime, &mut receiver).await?;
     runtime.native_event(frame(&stream, 0, 100)).await?;
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     assert_eq!(
         runtime
@@ -469,7 +469,7 @@ async fn abandoning_an_unconfirmed_stop_declares_missing_tail_before_finalizatio
     let stream = start(&mut runtime, &mut receiver).await?;
     runtime.native_event(frame(&stream, 0, 100)).await?;
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     runtime.abandon_audio_drain().await?;
     settle_seal_receipts(&mut runtime).await?;

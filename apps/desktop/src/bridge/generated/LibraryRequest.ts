@@ -3,8 +3,8 @@ import type { DictionaryRequest } from "./DictionaryRequest";
 import type { TemplateDraft } from "./TemplateDraft";
 
 /**
- * Mars's orders about templates and series (`Command::NoteLibrary`). Each
- * goes to the hub as she gives it; nothing is queued on the Mac.
+ * The user's orders about templates and series (`Command::NoteLibrary`). Each
+ * goes to the hub as they give it; nothing is queued on the Mac.
  */
 export type LibraryRequest = { "action": "dictionary", request: DictionaryRequest, } | { "action": "save_template", template_id: string, draft: TemplateDraft, } | { "action": "delete_template", template_id: string, } | { "action": "restore_template", 
 /**

@@ -3,16 +3,16 @@
 use orbit_core::{AccountSummary, Message, PermissionState, State, Turn, VoiceNote};
 use serde_json::Value;
 
-const GOLDEN_RESPONSE: &str = include_str!("fixtures/p4_01_response_with_two_views.json");
+const GOLDEN_RESPONSE: &str = include_str!("fixtures/golden_response_with_two_views.json");
 
-/// The state a daemon with DAE-02 applied serves: a voice note with its
+/// The state a daemon with voice notes and tri-state permissions serves: a voice note with its
 /// moment and duration, a reply after it, the account Ajustes shows, the vault publication policy, and the tri-state
 /// permissions in the model; snapshots retain legacy permission fields.
 fn state_with_new_fields() -> State {
     let mut state = State::default();
     state.durable.turn = Some(Turn {
         user: Message {
-            id: "dae02-voice".into(),
+            id: "voice-turn".into(),
             role: "user".into(),
             text: "Nota de voz sintética".into(),
             complete: true,
@@ -23,7 +23,7 @@ fn state_with_new_fields() -> State {
             }),
         },
         answer: Some(Message {
-            id: "dae02-voice:assistant".into(),
+            id: "voice-turn:assistant".into(),
             role: "assistant".into(),
             text: "Respuesta sintética".into(),
             complete: true,
@@ -95,28 +95,28 @@ fn a_snapshot_without_additive_fields_loads_with_defaults() {
 }
 
 #[test]
-fn a1_an_old_state_fixture_loads_in_the_new_daemon_with_defaults() {
+fn an_old_state_fixture_loads_in_the_new_daemon_with_defaults() {
     let golden: Value = serde_json::from_str(GOLDEN_RESPONSE).unwrap();
     let restored: State = serde_json::from_value(golden["state"].clone()).unwrap();
-    // SIM-30: a state saved with its messages loads without a turn; the
+    // A state saved with its messages loads without a turn; the
     // conversation is the hub's.
     assert!(restored.durable.turn.is_none());
     assert!(restored.views.account.is_none());
 }
 
-/// SIM-30 criterion 3: the turn in progress is all the Mac keeps of a
-/// conversation, and it survives a restart as before: Mars's message stays,
+/// The turn in progress is all the Mac keeps of a conversation, and it
+/// survives a restart as before: the user's message stays,
 /// the turn is no longer in flight and the notice says it was lost.
 #[test]
-fn sim30_the_turn_in_progress_survives_a_restart() {
+fn the_turn_in_progress_survives_a_restart() {
     let mut state = state_with_new_fields();
     if let Some(turn) = state.durable.turn.as_mut() {
         // A typed question: a voice note without its transcript is marked
-        // interrupted on restart, which `ref308` covers.
+        // interrupted on restart, which the voice note contract tests cover.
         turn.user.voice = None;
         turn.answer = None;
     }
-    state.durable.active_request = Some("dae02-voice".into());
+    state.durable.active_request = Some("voice-turn".into());
     let saved = serde_json::to_value(&state.durable).unwrap();
     assert!(
         saved.get("messages").is_none(),

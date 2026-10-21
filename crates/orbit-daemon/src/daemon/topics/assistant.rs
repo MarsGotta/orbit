@@ -369,7 +369,7 @@ mod tests {
         }
         runtime
             .cancel_voice_transcription(crate::daemon::audio::VoiceCancellationCause::Authority(
-                orbit_core::authority::AuthorityChange::MarsStop,
+                orbit_core::authority::AuthorityChange::UserStop,
             ))
             .await
             .unwrap();

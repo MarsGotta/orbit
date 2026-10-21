@@ -1,5 +1,5 @@
 //! Shared synthetic Swift/Rust wire evidence for one page of an all-calendar
-//! read (REF-10), not EventKit or remote authority.
+//! read, not EventKit or remote authority.
 
 use serde_json::{Value, json};
 
@@ -194,7 +194,7 @@ fn clocks_and_date_window_have_exact_inclusive_exclusive_limits() -> TestResult 
     for (start, end, valid) in [
         (MIN_UNIX_MS, MIN_UNIX_MS + 1, true),
         (MAX_UNIX_MS - 1, MAX_UNIX_MS, true),
-        // REF-10: a page covers whatever window it was asked for; the width is
+        // A page covers whatever window it was asked for; the width is
         // bounded when the helper is asked (`CalendarReadQuery`), not here.
         (0, EVENTKIT_MAX_QUERY_MS, true),
         (0, 0, false),
@@ -251,7 +251,7 @@ fn overlap_is_half_open_without_clipping_or_guessing_timezone() -> TestResult {
     Ok(())
 }
 
-/// REF-10: every page asks for invitees and the URL, so their status is one
+/// Every page asks for invitees and the URL, so their status is one
 /// of `not_provided` or `provided`, and presence has to agree with it.
 #[test]
 fn optional_categories_are_always_requested_and_presence_must_agree() -> TestResult {
@@ -446,7 +446,7 @@ fn swift_failure_codes() -> TestResult<Vec<String>> {
     Ok(codes)
 }
 
-/// REF-10: every failure the helper can put in a status decodes here. A
+/// Every failure the helper can put in a status decodes here. A
 /// status carrying a code this side does not know is refused whole, and the
 /// permission it reported with it: `calendar_event_too_large` was such a code.
 #[test]

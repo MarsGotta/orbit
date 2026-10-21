@@ -3,7 +3,10 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorityChange {
-    MarsStop,
+    /// The user's privacy stop.
+    // Wire name kept for compatibility with 0.9.0.
+    #[serde(rename = "mars_stop")]
+    UserStop,
     Revoked,
     Rearm,
     RearmWithoutStop,
@@ -22,8 +25,8 @@ pub enum AuthorityChange {
 pub enum RetireSlot {
     Bridge,
     Computer,
-    /// P9-11: the call detection's offer and the recording it owns. Only
-    /// Mars's stop, a revocation and closing retire it: it is local, and the
+    /// The call detection's offer and the recording it owns. Only
+    /// the user's stop, a revocation and closing retire it: it is local, and the
     /// hub coming and going says nothing about a call on this Mac.
     CallDetection,
     Calendar,
@@ -34,7 +37,7 @@ pub enum RetireSlot {
     HubLink,
     Upload,
     InFlightReads,
-    /// SIM-41: the private notes and the note and template orders on their
+    /// The private notes and the note and template orders on their
     /// way to the hub.
     RecordingNotes,
 }
@@ -51,11 +54,12 @@ pub struct RetirePlan {
 pub fn retire(change: AuthorityChange) -> RetirePlan {
     use RetireSlot::*;
     // Slot order follows the base's volatile retirement. The calendar refusal
-    // precedes bridge release (REF-303b A5), while ReadEpoch retires reads
+    // precedes bridge release, so it reaches Deimos before the release can
+    // consume the ask it answers, while ReadEpoch retires reads
     // before any of these slots can await. The cache lock is reached only
     // after all the old volatile aborts.
     let slots: &'static [RetireSlot] = match change {
-        AuthorityChange::MarsStop | AuthorityChange::Revoked | AuthorityChange::Closing => &[
+        AuthorityChange::UserStop | AuthorityChange::Revoked | AuthorityChange::Closing => &[
             Calendar,
             Bridge,
             CallDetection,
@@ -72,7 +76,7 @@ pub fn retire(change: AuthorityChange) -> RetirePlan {
         AuthorityChange::Rearm => &[InFlightReads, Computer, Bridge],
         AuthorityChange::RearmWithoutStop => &[InFlightReads, Computer],
         AuthorityChange::HubLink => &[],
-        // P9-15: this plan held only the context query, which is retired.
+        // This plan held only the context query, which is retired.
         // The kernel, audio and computer control still react to the change
         // on their own, outside the plan.
         AuthorityChange::HubTransportReady => &[],
@@ -83,7 +87,7 @@ pub fn retire(change: AuthorityChange) -> RetirePlan {
         AuthorityChange::Device => &[InFlightReads, VoiceTranscription, RecordingNotes, HubLink],
     };
     let durable_slots: &'static [RetireSlot] = match change {
-        AuthorityChange::MarsStop | AuthorityChange::Revoked | AuthorityChange::Closing => {
+        AuthorityChange::UserStop | AuthorityChange::Revoked | AuthorityChange::Closing => {
             &[Computer, Sources]
         }
         AuthorityChange::Rearm

@@ -11,13 +11,13 @@ use crate::orbit_bundle::{self, Member};
 /// Bounds one synchronous process census (`ps`) of the daemon: the old engine
 /// listener's ancestry at startup and the meeting applications. Two seconds
 /// allow a short local census; it was first sized against the app's quit
-/// wait, whose census left with SIM-51. It is not a measured macOS `ps`
+/// wait, whose census left when the daemon moved inside the app. It is not a measured macOS `ps`
 /// percentile or grace for an engine to exit.
 pub const PS_LISTING_TIMEOUT: Duration = Duration::from_secs(2);
 
-/// Existing SYS-06 observation window after SIGKILL, shared by the CLI and
+/// Observation window after SIGKILL, shared by the CLI and
 /// startup cleanup. It bounds how long they wait to report whether the exact
-/// process is still listed. SYS-06 chose 500 ms as a bounded observation
+/// process is still listed. 500 ms was chosen as a bounded observation
 /// window; no macOS disappearance distribution has been measured for it.
 /// It is not a grace period before signaling or proof of an orderly shutdown.
 pub const KILL_OBSERVATION_WAIT: Duration = Duration::from_millis(500);
@@ -116,7 +116,7 @@ pub fn tree_entries(listing: &str) -> Vec<ProcessTreeEntry<'_>> {
 /// Decide whether the process listening on an old CUA socket is an orphan from
 /// this exact package. A missing row or ancestry link is unknown and keeps the
 /// listener alive; only a chain known to end at launchd without reaching a live
-/// daemon authorizes the sweep. The daemon runs inside the app (SIM-51), so a
+/// daemon authorizes the sweep. The daemon runs inside the app, so a
 /// live daemon is a live `Contents/MacOS/Orbit` of this bundle among the
 /// ancestors.
 pub fn decide_engine_listener(
@@ -216,7 +216,7 @@ mod tests {
     }
 
     #[test]
-    fn ref46_only_an_orphaned_listener_from_this_bundle_and_user_is_selected() {
+    fn only_an_orphaned_listener_from_this_bundle_and_user_is_selected() {
         let bundle = bundle_path("/Users/sample/Applications/Orbit.app");
         let cases = [
             (
@@ -235,7 +235,7 @@ mod tests {
                 }]),
             ),
             (
-                // SIM-51: the daemon runs inside the app, so the engine's
+                // The daemon runs inside the app, so the engine's
                 // parent is `MacOS/Orbit` itself; that app is alive.
                 "engine descended from the live app its daemon runs in",
                 concat!(
@@ -323,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    fn ref46_absent_parent_is_unknown_not_orphaned() {
+    fn absent_parent_is_unknown_not_orphaned() {
         let listing = concat!(
             "  40   1 501 /Users/sample/Applications/Orbit.app/Contents/MacOS/Orbit\n",
             "  92 777 501 /Users/sample/Applications/Orbit.app/Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver\n",
@@ -343,7 +343,7 @@ mod tests {
     }
 
     #[test]
-    fn ref46_foreign_bundle_parent_is_never_a_sweep_target() {
+    fn foreign_bundle_parent_is_never_a_sweep_target() {
         let listing = concat!(
             "  77 1 501 /Applications/Other.app/Contents/MacOS/cua-driver\n",
             "  78 77 501 /Applications/Orbit.app/Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver\n",

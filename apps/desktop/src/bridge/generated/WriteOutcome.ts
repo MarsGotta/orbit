@@ -4,7 +4,7 @@ import type { CalendarWriteStage } from "./CalendarWriteStage";
 import type { WriteTarget } from "./WriteTarget";
 
 /**
- * One write's outcome as the agenda head carries it (P9-22): small on
+ * One write's outcome as the agenda head carries it: small on
  * purpose. The event itself travels in the read the daemon starts after
  * every write; this only says where the write is and, once saved, which
  * occurrence it became, so the app can undo it.
@@ -17,7 +17,7 @@ export type WriteOutcome = { request_id: string, operation: CalendarWriteOperati
  */
 code?: string, 
 /**
- * What Mars reads about a refusal or an unknown outcome, with its
+ * What the user reads about a refusal or an unknown outcome, with its
  * numbers (`CalendarWriteRefusal::notice`).
  */
 notice?: string, 

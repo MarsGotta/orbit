@@ -3,7 +3,7 @@
 use orbit_core::State;
 use serde_json::Value;
 
-const GOLDEN_RESPONSE: &str = include_str!("fixtures/p4_01_response_with_two_views.json");
+const GOLDEN_RESPONSE: &str = include_str!("fixtures/golden_response_with_two_views.json");
 
 #[test]
 fn saved_permissions_preserve_non_grants_without_inventing_legacy_observations() {
@@ -65,19 +65,19 @@ fn saved_permissions_preserve_non_grants_without_inventing_legacy_observations()
     }
 }
 
-/// DAE-03 A5/R5: the audio-source and per-track fields are additive. A
-/// golden answer written before they existed keeps loading with them at
-/// their defaults, and a state that carries them round-trips intact. (SIM-41
-/// removed the meeting history: the meetings are read from the hub.)
+/// The audio-source and per-track fields are additive. A golden answer
+/// written before they existed keeps loading with them at their defaults, and
+/// a state that carries them round-trips intact. (The meeting history is gone:
+/// the meetings are read from the hub.)
 #[test]
-fn dae03_sources_and_tracks_are_additive_on_the_golden_contract() {
+fn sources_and_tracks_are_additive_on_the_golden_contract() {
     use orbit_core::{AudioSource, CapturePhase, Recording, State, TrackProgress};
 
     let golden: Value = serde_json::from_str(GOLDEN_RESPONSE).unwrap();
     let older: State = serde_json::from_value(golden["state"].clone()).unwrap();
     assert!(
         older.views.audio_sources.is_empty(),
-        "a pre-DAE-03 answer must keep loading with an empty inventory"
+        "an answer from before the audio inventory must keep loading with an empty inventory"
     );
 
     let mut state = State::default();
@@ -87,7 +87,7 @@ fn dae03_sources_and_tracks_are_additive_on_the_golden_contract() {
         bundle_id: "com.google.Chrome".into(),
     }];
     state.durable.recording = Some(Recording {
-        id: "dae03-round-trip".into(),
+        id: "sources-round-trip".into(),
         title: "Reunión sintética".into(),
         started_at_ms: 1_700_000_000_000,
         ended_at_ms: None,

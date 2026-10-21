@@ -1,10 +1,10 @@
-//! SIM-41: Mars's private notes waiting for the hub, in the `records` table
+//! The user's private notes waiting for the hub, in the `records` table
 //! under the `recording_notes` namespace, one row per recording
 //! (`note-private-{recording}`).
 //!
 //! A row exists only while the hub has not confirmed that text: the daemon
 //! sends it, and deletes the row when the hub answers with a revision for
-//! exactly that text. The rows an older Mac kept here (P9-03, same kind and
+//! exactly that text. The rows an older Mac kept here (same kind and
 //! identity) are private notes the hub never had, so they go up the same way
 //! once and leave the Mac when the hub confirms them.
 //!
@@ -29,7 +29,7 @@ const PRIVATE_PREFIX: &str = "note-private-";
 pub const MAX_PRIVATE_NOTES_BYTES: usize = 512 * 1024;
 /// What an older Mac kept under this namespace and nothing reads any more:
 /// the note's cached document and list line, the hub's templates and
-/// assignments, and the template orders not yet sent (P9-03/04/05).
+/// assignments, and the template orders not yet sent.
 /// Removed when the store opens (`migrations::retire_meeting_mirror`).
 pub(crate) const RETIRED_KINDS: [&str; 5] = [
     "recording_note_sync",
@@ -56,7 +56,7 @@ fn id_of(recording: &str) -> String {
 }
 
 impl Store {
-    /// Keeps Mars's private notes of one recording until the hub confirms
+    /// Keeps the user's private notes of one recording until the hub confirms
     /// them, at most `MAX_PRIVATE_NOTES_CHARS` characters (the hub's bound).
     pub fn save_private_notes(&mut self, notes: &PendingPrivateNotes, now_ms: i64) -> Result<()> {
         check_private_notes(&notes.markdown)?;
@@ -128,7 +128,7 @@ impl Store {
     }
 
     /// The hub confirmed `markdown` for `recording`: the row leaves the Mac,
-    /// unless Mars wrote something newer meanwhile, which stays to be sent.
+    /// unless the user wrote something newer meanwhile, which stays to be sent.
     /// Returns whether it left.
     pub fn confirm_private_notes(&mut self, recording: &str, markdown: &str) -> Result<bool> {
         if self
@@ -149,7 +149,7 @@ impl Store {
 mod tests {
     use super::*;
 
-    /// The private notes an older Mac sealed (P9-03) had no revision: they
+    /// The private notes an older Mac sealed had no revision: they
     /// read as revision 0, the hub's «never had them», and go up once.
     #[test]
     fn the_older_macs_private_notes_are_pending_at_revision_zero() -> Result<()> {

@@ -1,4 +1,4 @@
-//! P9-11: «Al detectar una llamada», one encrypted setting. A preference,
+//! «Al detectar una llamada», one encrypted setting. A preference,
 //! not a permission: the macOS microphone permission is the decision.
 use crate::{
     Result, Store,
@@ -9,11 +9,11 @@ use orbit_core::call_detection::CallPreference;
 
 const CONTEXT: &[u8] = b"orbit:call-preference:v1";
 /// One quoted word: `"nothing"` is nine bytes. The bound only refuses a row
-/// that is not this setting; it is not a limit Mars can reach.
+/// that is not this setting; it is not a limit the user can reach.
 const MAX_BYTES: usize = 64;
 
 impl Store {
-    /// The preference Mars chose, or `None` if she never chose one. A row
+    /// The preference the user chose, or `None` if they never chose one. A row
     /// that cannot be read is an error, never a default.
     pub fn load_call_preference(&self) -> Result<Option<CallPreference>> {
         let bytes = bounded_setting(

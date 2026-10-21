@@ -97,7 +97,7 @@ pub enum DaemonEnded {
     /// It returned an error; the daemon's own words.
     Failed(String),
     /// The thread ended without a word: it panicked, and the panic was
-    /// printed (and reported, if she allows it) where it happened.
+    /// printed (and reported, if the user allows it) where it happened.
     Vanished,
 }
 
@@ -277,7 +277,7 @@ impl LocalClient {
 pub struct Subscription {
     reader: BufReader<OwnedReadHalf>,
     // Kept alive on purpose: dropping the write half shuts the socket's write
-    // side down, the daemon reads EOF and, since P4-03 releases the slot on
+    // side down, the daemon reads EOF and, since the daemon releases the slot on
     // EOF, ends the subscription right after the handshake. A subscriber that
     // never writes still has to hold its end of the socket open.
     _writer: tokio::net::unix::OwnedWriteHalf,
@@ -351,7 +351,8 @@ pub async fn request_command(paths: &Paths, command: Command) -> Result<Response
     request_command_as(paths, command, new_op()).await
 }
 
-/// A new op for an action that starts in this process (SIM-21).
+/// A new op for an action that starts in this process, so its notices and
+/// reports can be followed from end to end.
 pub fn new_op() -> orbit_core::notice::Op {
     uuid::Uuid::new_v4().into()
 }

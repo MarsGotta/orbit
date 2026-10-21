@@ -1,6 +1,6 @@
-//! Writes to the Mac's calendars, decided before they reach the helper (P9-21).
+//! Writes to the Mac's calendars, decided before they reach the helper.
 //!
-//! Mars creates, moves, edits and deletes events from Orbit as she would in
+//! The user creates, moves, edits and deletes events from Orbit as they would in
 //! Calendar. The macOS permission (full access) is the whole decision: there
 //! is no confirmation and no second consent, and a delete is undone in the
 //! app, not asked about.
@@ -724,7 +724,7 @@ impl CalendarWriteRefusal {
         }
     }
 
-    /// What Mars and Deimos read: Spanish, with every number the refusal has.
+    /// What the user and Deimos read: Spanish, with every number the refusal has.
     pub fn notice(&self) -> String {
         match self {
             Self::EventNotFound {

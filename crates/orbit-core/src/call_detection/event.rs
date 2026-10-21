@@ -1,4 +1,4 @@
-//! The calendar event a recording belongs to (P9-11).
+//! The calendar event a recording belongs to.
 //!
 //! A recording is linked to an occurrence by its stable reference —
 //! `calendar_item_id` and the start of the occurrence — never by the
@@ -37,10 +37,10 @@ pub struct LinkedEvent {
     pub ends_at_ms: i64,
     #[serde(default)]
     pub attendees: Vec<Attendee>,
-    /// P9-06: whether the event repeats, as the calendar read it when the
+    /// Whether the event repeats, as the calendar read it when the
     /// recording started. `None` is unknown — a link the app made without
     /// saying, or one stored before this field — and never «single». The
-    /// series memory that read it was removed (SIM-03b); the field stays
+    /// series memory that read it was removed; the field stays
     /// because links already stored carry it and this type refuses unknown
     /// fields.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -93,7 +93,7 @@ impl LinkedEvent {
             starts_at_ms: occurrence.start_unix_ms,
             ends_at_ms: occurrence.end_unix_ms,
             attendees,
-            // A helper with the P9-21 fields omits `recurrence` only when the
+            // A helper that sends the event's details omits `recurrence` only when the
             // event does not repeat; the app reads it the same way.
             recurring: Some(occurrence.recurrence.is_some()),
         }
@@ -188,7 +188,7 @@ fn on_now(occurrence: &CalendarOccurrence, now_ms: i64) -> bool {
     started || soon
 }
 
-/// A meeting rather than a block of time: someone besides Mars is invited, or
+/// A meeting rather than a block of time: someone besides the user is invited, or
 /// it has a video-call link.
 fn is_meeting(occurrence: &CalendarOccurrence) -> bool {
     let guests = occurrence
@@ -200,7 +200,7 @@ fn is_meeting(occurrence: &CalendarOccurrence) -> bool {
     guests || conference_platform_of(occurrence).is_some()
 }
 
-fn declined_by_mars(occurrence: &CalendarOccurrence) -> bool {
+fn declined_by_user(occurrence: &CalendarOccurrence) -> bool {
     occurrence
         .invitees
         .as_deref()
@@ -213,7 +213,7 @@ fn declined_by_mars(occurrence: &CalendarOccurrence) -> bool {
 ///
 /// Candidates are the events on now or starting within ten minutes that are
 /// meetings (guests or a video link), never all-day, cancelled or declined by
-/// Mars. Among them, one whose link is on the same platform as the
+/// the user. Among them, one whose link is on the same platform as the
 /// application wins (Meet ↔ a browser, Zoom ↔ zoom.us…); then the one whose
 /// start is nearest to now, so a meeting about to start beats one that ran
 /// long. Ties go to the earlier start and then the identifier, so the choice
@@ -229,7 +229,7 @@ pub fn choose_event<'a>(
         .filter(|occurrence| {
             !occurrence.is_all_day
                 && !matches!(occurrence.status.as_str(), "cancelled" | "canceled")
-                && !declined_by_mars(occurrence)
+                && !declined_by_user(occurrence)
                 && on_now(occurrence, now_ms)
                 && is_meeting(occurrence)
         })

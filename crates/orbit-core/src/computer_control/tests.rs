@@ -4,7 +4,7 @@ use crate::protocol;
 use serde_json::Value;
 
 #[test]
-fn dei12_a4_the_engine_path_carries_any_tool_the_engine_declares() {
+fn the_engine_path_carries_any_tool_the_engine_declares() {
     // Nothing here names a tool: an engine that grows one reaches Deimos
     // without a change in Orbit.
     for name in [
@@ -22,7 +22,7 @@ fn dei12_a4_the_engine_path_carries_any_tool_the_engine_declares() {
 }
 
 #[test]
-fn dei12_a4_a_malformed_tool_call_is_refused_by_shape_not_by_name() {
+fn a_malformed_tool_call_is_refused_by_shape_not_by_name() {
     let oversize = "x".repeat(MAX_ACTION_BYTES + 1);
     let cases = [
         ToolCall {
@@ -47,18 +47,21 @@ fn dei12_a4_a_malformed_tool_call_is_refused_by_shape_not_by_name() {
     }
 }
 
-/// DEI-16 A6/A7: a tool the engine describes at length is still a tool. The
+/// A tool the engine describes at length is still a tool. The
 /// 4 KiB bound that used to delete it here removed it from the catalogue with
-/// no notice to Mars, none to the assistant and nothing in a log.
+/// no notice to the user, none to the assistant and nothing in a log.
 #[test]
-fn dei16_a6_a_long_description_no_longer_makes_a_tool_invalid() {
+fn a_long_description_no_longer_makes_a_tool_invalid() {
     let verbose = EngineTool {
         name: "a_tool_the_engine_describes_at_length".into(),
         description: "á".repeat(8_000),
         input_schema: serde_json::json!({"type": "object"}),
     };
     assert!(verbose.description.len() > 4_096);
-    assert!(verbose.is_valid(), "la descripción no decide si existe");
+    assert!(
+        verbose.is_valid(),
+        "the description does not decide whether it exists"
+    );
 
     // Only a name Orbit could not forward still disqualifies an entry.
     for name in ["", "tiene espacio", &"x".repeat(MAX_TOOL_NAME_BYTES + 1)] {
@@ -71,12 +74,12 @@ fn dei16_a6_a_long_description_no_longer_makes_a_tool_invalid() {
     }
 }
 
-/// REF-11 A8/A9: the record a previous version kept may name an action with
+/// The record a previous version kept may name an action with
 /// the retired approval word. It still loads — the whole record, and with it
 /// every new action, would be unreadable otherwise — and the word reads as an
 /// end nobody saw, never as a state this version can produce.
 #[test]
-fn ref11_a_recorded_approval_word_loads_as_an_unknown_end() {
+fn a_recorded_approval_word_loads_as_an_unknown_end() {
     let recorded = serde_json::json!({
         "operation_id": "op-1",
         "requested": "launch_app",
@@ -100,7 +103,7 @@ fn ref11_a_recorded_approval_word_loads_as_an_unknown_end() {
 }
 
 #[test]
-fn ref31_a3_history_names_the_request_channel_and_old_rows_remain_readable() {
+fn history_names_the_request_channel_and_old_rows_remain_readable() {
     let current =
         ControlHistoryEntry::new("op-1", "click", "Safari", 1, ControlOutcome::Unknown).unwrap();
     let encoded = serde_json::to_value(&current).unwrap();
@@ -118,9 +121,9 @@ fn ref31_a3_history_names_the_request_channel_and_old_rows_remain_readable() {
     );
 }
 
-/// REF-11: the control command set carries no switch any more.
+/// The control command set carries no switch any more.
 #[test]
-fn ref11_there_is_no_control_switch_command() {
+fn there_is_no_control_switch_command() {
     let frame = serde_json::json!({"command": "computer", "request": {"action": "set_control", "enabled": true}});
     assert!(serde_json::from_value::<protocol::Command>(frame).is_err());
     let remote =

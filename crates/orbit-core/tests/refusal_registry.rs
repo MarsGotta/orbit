@@ -270,7 +270,7 @@ fn storage_failure_preserves_its_cause_and_retry_on_the_wire() {
 }
 
 #[test]
-fn a1_each_family_serializes_cause_numbers_and_retry() {
+fn each_family_serializes_cause_numbers_and_retry() {
     for (refusal, expected_retry) in cases() {
         assert_eq!(refusal.retry(), expected_retry);
         let value = serde_json::to_value(&refusal).unwrap();
@@ -296,7 +296,7 @@ fn a1_each_family_serializes_cause_numbers_and_retry() {
 }
 
 #[test]
-fn ref401_resource_sizes_keep_the_existing_retry_policy() {
+fn resource_sizes_keep_the_existing_retry_policy() {
     for resource in too_large_resources() {
         let refusal = Refusal::TooLarge {
             resource,
@@ -308,7 +308,7 @@ fn ref401_resource_sizes_keep_the_existing_retry_policy() {
 }
 
 #[test]
-fn a1_decisions_preserve_actual_text_and_both_duration_bounds() {
+fn decisions_preserve_actual_text_and_both_duration_bounds() {
     use orbit_core::protocol::MeetingAudio;
     use orbit_core::{Connection, Event, State, decide};
     let online = decide(&State::default(), Event::Connect(Connection::Online), 0)
@@ -428,7 +428,7 @@ fn a1_decisions_preserve_actual_text_and_both_duration_bounds() {
 }
 
 #[test]
-fn ref41_a5_title_length_carries_both_numbers_on_the_wire_and_in_text() {
+fn title_length_carries_both_numbers_on_the_wire_and_in_text() {
     let refusal = Refusal::InvalidParameter {
         parameter: Parameter::Title,
         expected: Expected::TitleLength {
@@ -448,13 +448,13 @@ fn ref41_a5_title_length_carries_both_numbers_on_the_wire_and_in_text() {
     assert_eq!(
         serde_json::from_value::<Refusal>(wire).unwrap(),
         refusal,
-        "REF-41 A5: the title-length refusal must round-trip"
+        "the title-length refusal must round-trip"
     );
     assert_eq!(refusal.retry(), Retry::AfterFix);
 }
 
 #[test]
-fn ref43_invalid_reply_retry_is_not_silently_rewritten() {
+fn invalid_reply_retry_is_not_silently_rewritten() {
     let invalid = json!({
         "code":"device_reply_invalid",
         "field":"result.windows",
@@ -467,7 +467,8 @@ fn ref43_invalid_reply_retry_is_not_silently_rewritten() {
 
 #[test]
 fn existing_refusal_wire_matches_main() {
-    // Wire samples captured on main 3bd3250b before SIM-68. Stored legacy
+    // Wire samples captured on main 3bd3250b, before several refusal
+    // producers were retired. Stored legacy
     // refusals remain part of the contract even after producers are retired.
     let mut values: Vec<_> = cases()
         .into_iter()

@@ -501,7 +501,7 @@ async fn privacy_stop_during_starting_names_no_other_track() -> Result<()> {
     let microphone = receive_helper_command(&mut receiver, "audio_start").await?;
     let remote = receive_helper_command(&mut receiver, "audio_start").await?;
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     let mut stop = None;
     while let Ok(command) = receiver.try_recv() {
@@ -1336,7 +1336,7 @@ async fn privacy_notice_survives_retired_start_failure() -> Result<()> {
         runtime.apply(Event::CallStop).await?;
         let _stop = next_capture_command(&mut receiver)?.context("stop absent")?;
         runtime
-            .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+            .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
             .await;
         assert!(
             said::has(&runtime.state, NoticeCode::PrivacyStopped)
@@ -1493,7 +1493,7 @@ async fn privacy_stop_after_unanswered_call_start(
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver, start) = unanswered_call_start(directory.path()).await?;
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     let mut privacy = None;
     while let Some(command) = next_capture_command(&mut receiver)? {

@@ -1038,7 +1038,7 @@ impl Runtime {
                 ComputerRevocation::Authority(change) => {
                     let change = *change;
                     let reason =
-                        if matches!(change, AuthorityChange::MarsStop | AuthorityChange::Revoked) {
+                        if matches!(change, AuthorityChange::UserStop | AuthorityChange::Revoked) {
                             super::BridgeReleaseReason::PrivacyStopped
                         } else {
                             super::BridgeReleaseReason::Authority(change)

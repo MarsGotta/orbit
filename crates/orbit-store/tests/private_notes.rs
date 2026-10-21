@@ -1,4 +1,4 @@
-//! SIM-41: Mars's private notes wait in the store until the hub confirms
+//! The user's private notes wait in the store until the hub confirms
 //! them; the notes an older Mac kept go up once; the rest of the Mac's copy of
 //! the meetings leaves the store when it opens.
 use orbit_core::notes::MAX_PRIVATE_NOTES_CHARS;
@@ -35,7 +35,7 @@ fn private_notes_wait_until_the_hub_confirms_exactly_that_text() -> Result<()> {
         store.private_notes(RECORDING)?,
         Some(notes(RECORDING, "- **presupuesto**", 3))
     );
-    // Mars typed more while the first save was on its way: the older answer
+    // The user typed more while the first save was on its way: the older answer
     // does not take the newer text away.
     store.save_private_notes(&notes(RECORDING, "- **presupuesto** y plazos", 3), 3)?;
     assert!(!store.confirm_private_notes(RECORDING, "- **presupuesto**")?);

@@ -1,5 +1,5 @@
 //! The control topic: the engine with its cause, the action in progress and
-//! the most recent history entries (REF-212 A1).
+//! the most recent history entries.
 //!
 //! The engine is `Knowledge<Engine>`: ready with how many tools it declares,
 //! coming up, or absent with the refusal that names the cause — Accessibility,
@@ -19,9 +19,9 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-/// How many history entries the head carries. ADR 004 measured 203 B per
-/// entry, so twenty fill ~4 KiB of the 16 KiB ceiling; this bounds the frame
-/// the daemon republishes on every control change, not the record, whose
+/// How many history entries the head carries. An entry measured 203 B, so
+/// twenty fill ~4 KiB of the 16 KiB ceiling; this bounds the frame the daemon
+/// republishes on every control change, not the record, whose
 /// 256 entries (50.7 KiB measured) are the paged `ControlHistory` read.
 pub const RECENT_HISTORY: usize = 20;
 
@@ -156,7 +156,7 @@ mod tests {
     }
 
     #[test]
-    fn a1_every_engine_state_carries_its_cause_or_its_count() {
+    fn every_engine_state_carries_its_cause_or_its_count() {
         assert_eq!(
             engine_knowledge(engine::Status::Ready { tools: 12 }, None),
             Knowledge::Present {
@@ -186,7 +186,7 @@ mod tests {
     }
 
     #[test]
-    fn a1_a_missing_and_an_unreported_permission_never_share_a_word() {
+    fn a_missing_and_an_unreported_permission_never_share_a_word() {
         let missing = engine_knowledge(
             engine::Status::PermissionMissing {
                 permissions: permissions(true, false),
@@ -219,7 +219,7 @@ mod tests {
     }
 
     #[test]
-    fn a1_both_permissions_missing_name_both() {
+    fn both_permissions_missing_name_both() {
         assert_eq!(
             engine_knowledge(
                 engine::Status::PermissionMissing {
@@ -236,7 +236,7 @@ mod tests {
     }
 
     #[test]
-    fn a1_a_non_grant_in_a_missing_set_keeps_the_bridge_cause() {
+    fn a_non_grant_in_a_missing_set_keeps_the_bridge_cause() {
         assert_eq!(
             engine_knowledge_with_permissions(
                 engine::Status::PermissionMissing {
@@ -255,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn a1_a_failed_engine_is_absent_with_which_way_it_failed() {
+    fn a_failed_engine_is_absent_with_which_way_it_failed() {
         assert_eq!(
             engine_knowledge(
                 engine::Status::Failed {
@@ -287,7 +287,7 @@ mod tests {
     }
 
     #[test]
-    fn a1_the_wire_keeps_the_three_values_apart() -> Result<(), serde_json::Error> {
+    fn the_wire_keeps_the_three_values_apart() -> Result<(), serde_json::Error> {
         let cases = [
             engine_knowledge(engine::Status::Ready { tools: 2 }, None),
             engine_knowledge(

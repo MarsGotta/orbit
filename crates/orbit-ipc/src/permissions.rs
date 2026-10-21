@@ -1,7 +1,7 @@
 //! The names of the permissions Orbit can hold and the decoding of the
 //! helper's report of them, in one place.
 //!
-//! Until SIM-01 this module also printed the terminal's permissions report; the
+//! This module once also printed the terminal's permissions report; the
 //! command line is retired and the app shows permissions from its own topic.
 //!
 //! Pure, so a malformed or partial payload can be replayed in a test without a
@@ -29,7 +29,7 @@ const AUTHORIZED: &str = "authorized";
 const DENIED: &str = "denied";
 const NOT_DETERMINED: &str = "notDetermined";
 /// macOS restricts the permission (parental controls, a profile): a known
-/// fact that Mars cannot grant from here, read as the calendar reads it.
+/// fact that the user cannot grant from here, read as the calendar reads it.
 const RESTRICTED: &str = "restricted";
 
 fn microphone_state(value: &str) -> Result<PermissionState, NativeDecodeProblem> {
@@ -205,7 +205,7 @@ mod tests {
     }
 
     #[test]
-    fn ref404b_wrong_permission_field_type_preserves_prior_observations() {
+    fn wrong_permission_field_type_preserves_prior_observations() {
         let mut capabilities = running(true, true, true);
         let before = capabilities.clone();
         let payload = serde_json::json!({
@@ -223,7 +223,7 @@ mod tests {
     }
 
     #[test]
-    fn ref206_a1_negative_preflight_is_known_not_granted_without_a_tcc_cause() {
+    fn negative_preflight_is_known_not_granted_without_a_tcc_cause() {
         let mut capabilities = Capabilities::default();
         let payload = serde_json::json!({
             "microphone": "authorized",
@@ -240,7 +240,7 @@ mod tests {
     }
 
     #[test]
-    fn ref206_a1_native_microphone_not_determined_is_preserved() {
+    fn native_microphone_not_determined_is_preserved() {
         let mut capabilities = Capabilities::default();
         let payload = serde_json::json!({
             "microphone": "not_determined", "screen": false,

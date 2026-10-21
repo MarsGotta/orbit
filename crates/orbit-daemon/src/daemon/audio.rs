@@ -316,7 +316,7 @@ impl Runtime {
         if let Some(operation_id) = pending.as_ref() {
             let code = match cause {
                 VoiceCancellationCause::Authority(change) => match change {
-                    orbit_core::authority::AuthorityChange::MarsStop => {
+                    orbit_core::authority::AuthorityChange::UserStop => {
                         "voice_transcription_privacy_stopped"
                     }
                     orbit_core::authority::AuthorityChange::Interrupt => {

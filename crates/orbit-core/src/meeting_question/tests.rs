@@ -1,6 +1,6 @@
-//! P9-12: admission and following the turn, from facts passed in. No
-//! clock, no daemon. The turn's text is the hub's since SIM-30
-//! (server/tests/test_sim30_chat_from_hub.py).
+//! Questions during a meeting: admission and following the turn, from facts
+//! passed in. No clock, no daemon. The turn's text is the hub's (the hub's
+//! chat tests cover it).
 use super::*;
 
 const START: i64 = 1_800_000_000_000;
@@ -16,7 +16,7 @@ fn ready() -> AskFacts {
 }
 
 #[test]
-fn p9_12_a_question_with_a_meeting_on_and_nothing_in_progress_is_admitted() {
+fn a_question_with_a_meeting_on_and_nothing_in_progress_is_admitted() {
     assert_eq!(
         admit(&ready(), "¿Qué dijo Lucía del presupuesto?", 2),
         Ok(())
@@ -27,7 +27,7 @@ fn p9_12_a_question_with_a_meeting_on_and_nothing_in_progress_is_admitted() {
 }
 
 #[test]
-fn p9_12_her_stop_comes_first_whatever_else_is_wrong() {
+fn the_user_stop_comes_first_whatever_else_is_wrong() {
     let facts = AskFacts {
         privacy_stopped: true,
         connection: Connection::Offline,
@@ -38,7 +38,7 @@ fn p9_12_her_stop_comes_first_whatever_else_is_wrong() {
 }
 
 #[test]
-fn p9_12_each_refusal_names_its_cause_and_its_numbers() {
+fn each_refusal_names_its_cause_and_its_numbers() {
     assert_eq!(admit(&ready(), "   ", 2), Err(QuestionCause::QuestionEmpty));
     let long = "a".repeat(MAX_QUESTION_BYTES + 1);
     assert_eq!(
@@ -98,7 +98,7 @@ fn p9_12_each_refusal_names_its_cause_and_its_numbers() {
     }
 }
 
-/// P9-12 criterion 1, the pure half: the question «¿qué dijo Lucía del
+/// The pure half: the question «¿qué dijo Lucía del
 /// presupuesto?» goes with the meeting and its last 2 minutes, and nothing
 /// older.
 fn asked() -> MeetingQuestion {
@@ -113,7 +113,7 @@ fn asked() -> MeetingQuestion {
 }
 
 #[test]
-fn p9_12_the_question_waits_while_the_turn_is_in_flight_and_shows_its_answer() {
+fn the_question_waits_while_the_turn_is_in_flight_and_shows_its_answer() {
     let mut question = asked();
     assert_eq!(question.stage, QuestionStage::Thinking);
     assert_eq!(question.shown_until_ms(), None, "thinking has no deadline");
@@ -157,7 +157,7 @@ fn p9_12_the_question_waits_while_the_turn_is_in_flight_and_shows_its_answer() {
 }
 
 #[test]
-fn p9_12_a_turn_that_ends_without_an_answer_keeps_the_cause_it_heard() {
+fn a_turn_that_ends_without_an_answer_keeps_the_cause_it_heard() {
     let mut question = asked();
     let cause = QuestionCause::DeimosUnavailable {
         code: "upstream_unavailable".into(),
@@ -190,7 +190,7 @@ fn p9_12_a_turn_that_ends_without_an_answer_keeps_the_cause_it_heard() {
 }
 
 #[test]
-fn p9_12_a_refused_question_is_shown_with_its_cause_for_eight_seconds() {
+fn a_refused_question_is_shown_with_its_cause_for_eight_seconds() {
     let refused = MeetingQuestion::refused(
         "request-2".into(),
         None,
@@ -205,7 +205,7 @@ fn p9_12_a_refused_question_is_shown_with_its_cause_for_eight_seconds() {
 }
 
 #[test]
-fn p9_12_causes_travel_with_their_names_and_numbers() -> Result<(), serde_json::Error> {
+fn causes_travel_with_their_names_and_numbers() -> Result<(), serde_json::Error> {
     assert_eq!(
         serde_json::to_value(QuestionCause::TurnInFlight {
             turn: BusyTurn::VoiceTranscription
@@ -221,12 +221,10 @@ fn p9_12_causes_travel_with_their_names_and_numbers() -> Result<(), serde_json::
     Ok(())
 }
 
-// Review round 1 (2026-10-15).
-
-/// R4: a refused question is stored at most at the ceiling, cut on a
+/// A refused question is stored at most at the ceiling, cut on a
 /// character, and its cause keeps the size it arrived with.
 #[test]
-fn p9_12_r4_a_refused_question_is_kept_at_the_ceiling_with_its_original_size() {
+fn a_refused_question_is_kept_at_the_ceiling_with_its_original_size() {
     let long = "ñ".repeat(10_000);
     let cause = QuestionCause::QuestionTooLong {
         bytes: long.len() as u64,
@@ -276,10 +274,10 @@ fn facts(report: Option<&VoiceTrigger>) -> VoiceFacts<'_> {
     }
 }
 
-/// R2: during a recording the status always says whether «Oye Deimos»
+/// During a recording the status always says whether «Oye Deimos»
 /// listens and, when it does not, why; outside a recording it says nothing.
 #[test]
-fn p9_12_r2_the_voice_status_is_true_and_says_why_it_does_not_listen() {
+fn the_voice_status_is_true_and_says_why_it_does_not_listen() {
     let listening = VoiceTrigger::Listening;
     let idle = VoiceTrigger::Idle;
     let downloading = VoiceTrigger::Downloading { percent: Some(42) };
@@ -385,7 +383,7 @@ fn p9_12_r2_the_voice_status_is_true_and_says_why_it_does_not_listen() {
     }
 }
 
-/// SIM-25: the transcription can write one phrase twice with other marks.
+/// The transcription can write one phrase twice with other marks.
 #[test]
 fn the_same_question_is_the_same_words_whatever_their_marks() {
     assert!(same_question(

@@ -1,4 +1,4 @@
-//! The current notice and the recent ones, typed (SIM-21). The interface
+//! The current notice and the recent ones, typed. The interface
 //! reads every notice it has not seen yet: a turn can say a notice the
 //! person must see (a missing permission) and then one that is only
 //! recorded (the empty recording that followed), and the second must not

@@ -174,7 +174,7 @@ impl<'de> Deserialize<'de> for DeviceReplyParams {
     }
 }
 
-/// REF-403 refusal plus the bounded, sanitized detail used for a bad input.
+/// A refusal plus the bounded, sanitized detail used for a bad input.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BridgeRefusal {
     pub reason: crate::refusal::Refusal,
@@ -278,7 +278,7 @@ pub struct ScreenshotResult {
     pub height: u32,
     pub mime_type: String,
     pub sha256: String,
-    /// SIM-56: on a full screen, what its coordinates are, in plain words
+    /// On a full screen, what its coordinates are, in plain words
     /// with both sizes: the image Deimos sees is fitted, and a desktop action
     /// is given on it. Absent on a window.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -396,7 +396,7 @@ impl<'de> Deserialize<'de> for CalendarBridgeEvent {
 }
 
 #[cfg(test)]
-mod ref44_tests {
+mod tests {
     use super::*;
     use serde_json::json;
 

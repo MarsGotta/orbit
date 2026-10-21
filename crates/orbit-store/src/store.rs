@@ -19,8 +19,8 @@ pub(crate) const KEY_CHECK: &[u8] = b"Orbit encrypted storage key is valid.";
 /// Production connections retain the existing 2 s SQLite busy wait to bound
 /// one external writer collision
 /// (for example, an older Orbit process); the daemon now serializes its own
-/// writes through one actor. REF-502a observed a 6151 ms refusal after three
-/// such waits under load 30.68, so the value remains while that external
+/// writes through one actor. A run on a loaded host (load average 30.68)
+/// observed a 6151 ms refusal after three such waits, so the value remains while that external
 /// case is still possible. It protects against an unbounded SQLite lock wait,
 /// not the length of one actor operation or a privacy-stop deadline.
 pub(crate) const PRODUCTION_BUSY_TIMEOUT: Duration = Duration::from_secs(2);

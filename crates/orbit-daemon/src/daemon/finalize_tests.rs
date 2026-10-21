@@ -228,7 +228,7 @@ async fn empty_privacy_interruption_closes_before_rearm_and_admits_call() -> Res
     }
     start(&mut runtime, &mut receiver, "empty").await?;
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     loop {
         let command = receiver.recv().await.context("privacy stop absent")?;
@@ -898,7 +898,7 @@ async fn legacy_empty_interruption_is_closed_during_recovery() -> Result<()> {
         let (mut runtime, mut receiver) = fixture(directory.path())?;
         start(&mut runtime, &mut receiver, "legacy").await?;
         runtime
-            .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+            .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
             .await;
         // A snapshot after stop but before its helper has answered.
         let saved = serde_json::to_value(&runtime.state)?;
@@ -947,7 +947,7 @@ async fn interrupted_recording_with_a_sealed_chunk_keeps_its_audio() -> Result<(
     let stream = start(&mut runtime, &mut receiver, "with-audio").await?;
     runtime.native_event(frame(&stream, 100)).await?;
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     loop {
         let command = receiver.recv().await.context("privacy stop absent")?;
@@ -1223,7 +1223,7 @@ async fn interrupted(runtime: &mut Runtime, receiver: &mut mpsc::Receiver<Value>
     let stream = start(runtime, receiver, "old").await?;
     runtime.native_event(frame(&stream, 100)).await?;
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     loop {
         let command = receiver.recv().await.context("privacy stop absent")?;
@@ -1521,7 +1521,7 @@ async fn finish_under_privacy_stop_rearm_and_new_meeting_leaves_a_durable_closur
     // Privacy brake, confirmed by the Mac: audio drains and the recording
     // stays Interrupted with privacy still stopped.
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     loop {
         let command = receiver.recv().await.context("privacy stop absent")?;

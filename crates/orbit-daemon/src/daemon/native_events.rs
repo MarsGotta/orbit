@@ -668,7 +668,7 @@ impl Runtime {
         // both sides must say the same.
         let state = NativeStateStop::deserialize(event)?;
         if state.privacy_stopped && !self.state.privacy_stopped() {
-            self.privacy_stop(orbit_core::privacy_stop::MarsStop::HelperLatch { code: None })
+            self.privacy_stop(orbit_core::privacy_stop::UserStop::HelperLatch { code: None })
                 .await;
         }
         Ok(())
@@ -680,14 +680,14 @@ impl Runtime {
         let echo = orbit_core::privacy_stop::DAEMON_ECHO_CODES.contains(&code);
         if orbit_core::privacy_stop::latches(code) && !echo {
             if !self.state.privacy_stopped() {
-                self.privacy_stop(orbit_core::privacy_stop::MarsStop::Helper {
+                self.privacy_stop(orbit_core::privacy_stop::UserStop::Helper {
                     code: code.to_owned(),
                 })
                 .await;
             }
         } else if stop.privacy_stopped || orbit_core::privacy_stop::latches(code) {
             if !self.state.privacy_stopped() {
-                self.privacy_stop(orbit_core::privacy_stop::MarsStop::HelperLatch {
+                self.privacy_stop(orbit_core::privacy_stop::UserStop::HelperLatch {
                     code: Some(code.to_owned()),
                 })
                 .await;
@@ -766,7 +766,7 @@ impl Runtime {
                     .await?
                 }
                 "privacy_stop" if pressed => {
-                    self.privacy_stop(orbit_core::privacy_stop::MarsStop::Hotkey)
+                    self.privacy_stop(orbit_core::privacy_stop::UserStop::Hotkey)
                         .await
                 }
                 "call_toggle" if pressed => {

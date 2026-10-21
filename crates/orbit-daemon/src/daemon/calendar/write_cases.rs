@@ -573,7 +573,7 @@ async fn privacy_stop_refuses_unsent_writes_by_name() -> Result<()> {
     ask(&mut runtime, delete_request("queued")).await?;
     assert_eq!(write(&runtime, "queued")?.stage, CalendarWriteStage::Queued);
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     assert_eq!(
         write(&runtime, "first")?.stage,

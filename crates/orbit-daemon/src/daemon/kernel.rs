@@ -126,8 +126,8 @@ impl Runtime {
         let local_rearm = matches!(event, Event::LocalRearm);
         self.validate_audio_transition(&event)?;
         let decision = decide(&self.state, event, at_ms)?;
-        let voice = if matches!(decision.authority_change, Some(AuthorityChange::MarsStop)) {
-            CallStopVoice::Cancel(VoiceCancellationCause::Authority(AuthorityChange::MarsStop))
+        let voice = if matches!(decision.authority_change, Some(AuthorityChange::UserStop)) {
+            CallStopVoice::Cancel(VoiceCancellationCause::Authority(AuthorityChange::UserStop))
         } else if matches!(decision.authority_change, Some(AuthorityChange::Closing)) {
             CallStopVoice::Cancel(VoiceCancellationCause::Authority(AuthorityChange::Closing))
         } else if matches!(decision.authority_change, Some(AuthorityChange::Revoked)) {
@@ -254,7 +254,7 @@ impl Runtime {
                         state.set_notice(notice);
                     }
                 }
-                AuthorityChange::MarsStop
+                AuthorityChange::UserStop
                 | AuthorityChange::Revoked
                 | AuthorityChange::Rearm
                 | AuthorityChange::RearmWithoutStop
@@ -274,7 +274,7 @@ impl Runtime {
             && !matches!(
                 change,
                 Some(
-                    AuthorityChange::MarsStop | AuthorityChange::Revoked | AuthorityChange::Closing
+                    AuthorityChange::UserStop | AuthorityChange::Revoked | AuthorityChange::Closing
                 )
             )
         {
@@ -284,14 +284,14 @@ impl Runtime {
             let stopped = retire_stopped_decision();
             self.execute_retire_plan(
                 stopped,
-                AuthorityChange::MarsStop,
+                AuthorityChange::UserStop,
                 RetirePhase::Volatile,
                 None,
             )
             .await?;
             self.execute_retire_plan(
                 stopped,
-                AuthorityChange::MarsStop,
+                AuthorityChange::UserStop,
                 RetirePhase::PreSnapshot,
                 None,
             )

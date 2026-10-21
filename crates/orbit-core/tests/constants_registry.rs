@@ -33,6 +33,6 @@ fn registry_matches_rust() {
     assert_eq!(
         source,
         export_constants::render_registry(&source).expect("registry renders"),
-        "contracts/constants.json difiere del registro Rust; ejecuta cargo run -p orbit-core --example export_constants --locked"
+        "contracts/constants.json differs from the Rust registry; run cargo run -p orbit-core --example export_constants --locked"
     );
 }

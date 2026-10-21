@@ -526,7 +526,7 @@ async fn stop_writes_interrupt_to_the_hub_socket_before_retiring_it() -> Result<
     }
     runtime.state.durable.active_request = Some(TURN.into());
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     let frame = tokio::time::timeout(std::time::Duration::from_secs(2), observed).await??;
     assert_eq!(frame["method"], "chat.interrupt");
@@ -689,7 +689,7 @@ async fn a_hub_socket_that_cannot_open_is_reported_as_an_unconfirmed_interrupt()
     }
     runtime.state.durable.active_request = Some(TURN.into());
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     // Unconfirmed, not refused: the queued interrupt is not taken for a
     // socket write. The count goes to daemon.log under the stop's op.
@@ -739,7 +739,7 @@ async fn failed_hub_drain_reports_both_unsent_frames() -> Result<()> {
     }
     runtime.state.durable.active_request = Some(TURN.into());
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     let cause = last_logged(directory.path(), "notice_cause")?;
     assert!(cause.contains("2 tramas"), "wrong unsent count: {cause}");
@@ -797,7 +797,7 @@ async fn privacy_stop_interrupts_the_live_turn_and_keeps_it_hidden() -> Result<(
     runtime.state.durable.active_request = Some(TURN.into());
 
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     let interruption = server.await??;
     assert_eq!(interruption["method"], "chat.interrupt");

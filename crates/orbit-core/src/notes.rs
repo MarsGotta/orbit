@@ -1,8 +1,8 @@
-//! What the Mac still decides about a meeting's note (SIM-41). The hub keeps
-//! the meetings, their turns, speakers, notes and templates; the Mac passes
-//! them through and only owns three things: the name of the account that
-//! labels Mars's microphone, Mars's private notes until the hub confirms
-//! them, and the orders she gives about notes and templates.
+//! What the Mac still decides about a meeting's note. The hub keeps the
+//! meetings, their turns, speakers, notes and templates; the Mac passes them
+//! through and only owns three things: the name of the account that labels
+//! the user's microphone, the user's private notes until the hub confirms
+//! them, and the orders they give about notes and templates.
 //!
 //! Pure: no clock, network, file or process.
 pub mod dictionaries;
@@ -25,7 +25,7 @@ pub const MAX_SECTIONS: usize = 12;
 /// A section's or a template's name. The template editor shows it.
 pub const MAX_NAME_CHARS: usize = 80;
 /// A person's name (`meetings/bounds.py`, `MAX_PERSON_NAME_CHARS`): the
-/// account name sent as the owner of this Mac and a name Mars gives a voice.
+/// account name sent as the owner of this Mac and a name the user gives a voice.
 /// It protects the hub's stored rows and every note's prompt from a name
 /// that is really a paragraph; 128 characters hold any real full name.
 pub const MAX_PERSON_NAME_CHARS: usize = 128;
@@ -33,11 +33,11 @@ pub const MAX_PERSON_NAME_CHARS: usize = 128;
 pub const MAX_CONTEXT_CHARS: usize = 4000;
 /// One section's instructions to the model: a long paragraph.
 pub const MAX_INSTRUCTIONS_CHARS: usize = 2000;
-/// Mars's own templates per device: six built-ins plus 32 of hers is more
+/// The user's own templates per device: six built-ins plus 32 of theirs is more
 /// kinds of meeting than anyone keeps a template for.
 pub const MAX_CUSTOM_TEMPLATES: usize = 32;
 
-/// How the note names Mars when the account has no full name.
+/// How the note names the user when the account has no full name.
 pub const DEFAULT_OWNER_NAME: &str = "Yo";
 
 /// Meetings per page of `GET /v1/recordings` (`views.MAX_LIST_PAGE`): the
@@ -50,18 +50,18 @@ pub const LIST_PAGE: usize = 50;
 /// sized to carry one such page to the app.
 pub const TURN_PAGE_BYTES: usize = 256 * 1024;
 
-// The calendar event a closing manifest carries (P9-11, SIM-40): copies of
+// The calendar event a closing manifest carries: copies of
 // the hub's `EventContext` bounds (`notes/models.py`). The finalize route
 // refuses a manifest past them, and a refused closure is a meeting that
-// never closes, so the Mac cuts to them; it never refuses Mars's recording
-// for her calendar's sake.
+// never closes, so the Mac cuts to them; it never refuses the user's
+// recording for their calendar's sake.
 
 /// The event's title (`MAX_EVENT_TITLE_CHARS`): context for the prompt, cut
 /// past it.
 pub const MAX_EVENT_TITLE_CHARS: usize = 512;
 /// Invitees (`MAX_ATTENDEES`): past two hundred an event is a broadcast; the
 /// note names who spoke from the transcript, and the list only helps put
-/// names to voices. Mars goes first.
+/// names to voices. The user goes first.
 pub const MAX_EVENT_ATTENDEES: usize = 200;
 /// An invitee's name (`Attendee.name`, `MAX_NAME_CHARS * 2`), cut past it.
 pub const MAX_ATTENDEE_NAME_CHARS: usize = 2 * MAX_NAME_CHARS;
@@ -90,7 +90,7 @@ pub struct EventContext {
     pub starts_at_ms: Option<i64>,
     pub ends_at_ms: Option<i64>,
     pub attendees: Vec<EventAttendee>,
-    /// The series key: the template assigned to it writes the note (P9-05).
+    /// The series key: the template assigned to it writes the note.
     pub calendar_item_id: String,
 }
 
@@ -99,7 +99,7 @@ pub fn event_context(linked: &crate::call_detection::LinkedEvent) -> EventContex
     let cut = |text: &str, max: usize| text.chars().take(max).collect::<String>();
     let instant = |value: i64| (value >= 0).then_some(value);
     let mut attendees = linked.attendees.iter().collect::<Vec<_>>();
-    // Stable: Mars first, everyone else in the calendar's order.
+    // Stable: the user first, everyone else in the calendar's order.
     attendees.sort_by_key(|attendee| !attendee.is_self);
     EventContext {
         title: cut(&linked.title, MAX_EVENT_TITLE_CHARS),
@@ -165,7 +165,7 @@ pub fn check_private_notes(markdown: &str) -> Result<(), NoteCommandError> {
     Ok(())
 }
 
-/// A name Mars gives a speaker: trimmed, 1 to [`MAX_PERSON_NAME_CHARS`] characters,
+/// A name the user gives a speaker: trimmed, 1 to [`MAX_PERSON_NAME_CHARS`] characters,
 /// no control characters. `None` gives the speaker back its default name.
 pub fn speaker_name(name: Option<&str>) -> Result<Option<String>, NoteCommandError> {
     let Some(name) = name else {
@@ -182,7 +182,7 @@ pub fn speaker_name(name: Option<&str>) -> Result<Option<String>, NoteCommandErr
     Ok(Some(name.to_owned()))
 }
 
-/// A meeting's name as Mars types it (SIM-52): trimmed, one line, within the
+/// A meeting's name as the user types it: trimmed, one line, within the
 /// title a meeting already has ([`crate::MAX_MANIFEST_TITLE_CHARACTERS`],
 /// the hub's `MAX_RECORDING_TITLE_CHARACTERS`). Empty gives the meeting back
 /// its own title.
@@ -211,7 +211,7 @@ pub fn meeting_language(language: &str) -> Result<(), NoteCommandError> {
     }
 }
 
-/// How the hub names Mars's microphone: the full name of the macOS account
+/// How the hub names the user's microphone: the full name of the macOS account
 /// (the first field of `pw_gecos`), or «Yo» when there is none or it does
 /// not fit the hub's [`MAX_PERSON_NAME_CHARS`].
 pub fn owner_name(gecos: Option<&str>) -> String {
@@ -226,7 +226,7 @@ pub fn owner_name(gecos: Option<&str>) -> String {
         .map_or_else(|| DEFAULT_OWNER_NAME.to_owned(), str::to_owned)
 }
 
-/// One section of the note as Mars edits it (`PUT …/note/edits`).
+/// One section of the note as the user edits it (`PUT …/note/edits`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -250,7 +250,7 @@ pub struct TemplateSection {
     pub instructions: String,
 }
 
-/// `PUT /v1/note-templates/{id}`: create or replace one of Mars's templates.
+/// `PUT /v1/note-templates/{id}`: create or replace one of the user's templates.
 /// The id is chosen on the Mac, so a save sent twice replaces the same one.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -266,8 +266,8 @@ pub struct TemplateDraft {
     pub forked_from: Option<String>,
 }
 
-/// Mars's orders about templates and series (`Command::NoteLibrary`). Each
-/// goes to the hub as she gives it; nothing is queued on the Mac.
+/// The user's orders about templates and series (`Command::NoteLibrary`). Each
+/// goes to the hub as they give it; nothing is queued on the Mac.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -279,7 +279,7 @@ pub enum LibraryRequest {
     Dictionary {
         request: DictionaryRequest,
     },
-    /// Create or replace one of her templates under an id the app chose.
+    /// Create or replace one of the user's templates under an id the app chose.
     /// Editing a built-in saves a new id with `forked_from`.
     SaveTemplate {
         template_id: String,
@@ -288,7 +288,7 @@ pub enum LibraryRequest {
     DeleteTemplate {
         template_id: String,
     },
-    /// P9-14 «Deshacer» a delete: the template as Mars had it, under the
+    /// «Deshacer» a delete: the template as the user had it, under the
     /// same id, and the series that used it.
     RestoreTemplate {
         /// Chosen by the app, so it knows which undo the library answers.
@@ -309,7 +309,7 @@ pub enum LibraryRequest {
 
 impl LibraryRequest {
     /// What the order is about, so two orders about the same thing reach
-    /// the hub in the order Mars gave them.
+    /// the hub in the order the user gave them.
     pub fn target(&self) -> String {
         match self {
             Self::Dictionary { request } => request.target(),
@@ -323,7 +323,7 @@ impl LibraryRequest {
     }
 }
 
-// The hub's routes of the device (SIM-40 «Contrato»), as the Mac reads them.
+// The hub's routes of the device, as the Mac reads them.
 // What the hub answers is read tolerantly (no `deny_unknown_fields`): the hub
 // is published before the Mac, so a field it adds must not make an older Mac
 // refuse its meetings. Fields marked «Mac» are added by the daemon, never by
@@ -355,7 +355,7 @@ pub enum TranscriptState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NoteState {
-    /// The hub has no processing model: nothing Mars or the Mac can repair.
+    /// The hub has no processing model: nothing the user or the Mac can repair.
     NotConfigured,
     WaitingTranscript,
     Queued,
@@ -459,7 +459,7 @@ pub struct TranscriptProgress {
     pub pending_chunks: u64,
     #[serde(default)]
     pub failed_groups: Vec<FailedGroup>,
-    /// SIM-52: a change of language is repeating the meeting.
+    /// A change of language is repeating the meeting.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retranscribing: Option<Retranscribing>,
 }
@@ -514,7 +514,7 @@ pub struct ActionItem {
     pub done: bool,
 }
 
-/// The note as Mars sees it: what the model wrote with her edits applied.
+/// The note as the user sees it: what the model wrote with their edits applied.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SeenNote {
     #[serde(default)]
@@ -595,7 +595,7 @@ pub enum SpeakerRenameScope {
     },
 }
 
-/// «Mac»: the calendar event the recording was started from (P9-11).
+/// «Mac»: the calendar event the recording was started from.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MeetingEvent {
     #[serde(default)]
@@ -603,7 +603,7 @@ pub struct MeetingEvent {
     pub title: String,
     pub starts_at_ms: i64,
     pub ends_at_ms: i64,
-    /// The series key the note's template can be assigned to (P9-05).
+    /// The series key the note's template can be assigned to.
     pub calendar_item_id: String,
 }
 
@@ -697,7 +697,7 @@ pub struct TemplateLinks {
 
 /// What the library read carries, one per page item (`ReadId::NoteLibrary`).
 /// The templates and assignments are the hub's; the rest is what this Mac
-/// knows of the orders Mars gave in this session.
+/// knows of the orders the user gave in this session.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "item", rename_all = "snake_case")]
 pub enum LibraryItem {
@@ -752,16 +752,16 @@ mod tests {
 
     #[test]
     fn owner_name_is_the_account_name_or_yo() {
-        assert_eq!(owner_name(Some("Alina Gotta,,,")), "Alina Gotta");
+        assert_eq!(owner_name(Some("Alina Prieto,,,")), "Alina Prieto");
         assert_eq!(owner_name(Some("  ")), DEFAULT_OWNER_NAME);
         assert_eq!(owner_name(None), DEFAULT_OWNER_NAME);
         assert_eq!(owner_name(Some(&"x".repeat(128))), "x".repeat(128));
         assert_eq!(owner_name(Some(&"x".repeat(129))), DEFAULT_OWNER_NAME);
-        assert_eq!(owner_name(Some("Ma\u{7}rs")), DEFAULT_OWNER_NAME);
+        assert_eq!(owner_name(Some("Ali\u{7}na")), DEFAULT_OWNER_NAME);
     }
 
     #[test]
-    fn an_event_is_cut_to_the_hubs_bounds_with_mars_first() {
+    fn an_event_is_cut_to_the_hubs_bounds_with_the_user_first() {
         let attendee = |name: &str, email: &str, is_self: bool| crate::call_detection::Attendee {
             name: name.into(),
             email: email.into(),

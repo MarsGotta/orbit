@@ -59,7 +59,7 @@ fn succeeded_job_cannot_transition_back_to_queued() -> TestResult {
         kind: "chunk_upload".into(),
         state: JobState::Succeeded,
         created_at: 1,
-        payload: json!({"fixture":"P6-02"}),
+        payload: json!({"fixture":"terminal"}),
     };
     store.enqueue_job(&job)?;
 

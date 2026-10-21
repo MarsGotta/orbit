@@ -179,7 +179,7 @@ async fn stop_answers_pending_calendar_read_once() -> Result<()> {
     assert!(mac.frames.try_recv().is_err());
 
     mac.runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
 
     let frame = mac.frames.try_recv()?;

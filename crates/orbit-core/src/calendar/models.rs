@@ -36,7 +36,7 @@ pub enum CalendarFailure {
     ClockUnavailable,
     #[serde(rename = "privacy_stopped")]
     PrivacyStopped,
-    /// REF-10: one event whose own fields do not fit the largest page the
+    /// One event whose own fields do not fit the largest page the
     /// helper may send (`MAX_NATIVE_PAGE_BYTES`), in practice thousands of
     /// invitees. Named, never trimmed; the helper reports it in its status too.
     #[serde(rename = "calendar_event_too_large")]
@@ -44,10 +44,10 @@ pub enum CalendarFailure {
 }
 
 /// What the helper says about the calendar without reading it: the macOS
-/// permission and whether an EventKit call is still running. REF-10 removed the
-/// selection (`connected`, `scope`) it used to carry: nothing is selected.
+/// permission and whether an EventKit call is still running. The selection
+/// (`connected`, `scope`) it used to carry is gone: nothing is selected.
 ///
-/// P9-21 removed `read_only`: the helper now writes events too, and what it
+/// `read_only` is gone too: the helper now writes events too, and what it
 /// can do is the `calendar` capability in `ready`, not a field here. A helper
 /// from before still sends `read_only:true`; it is read and dropped, never
 /// sent again.
@@ -68,7 +68,7 @@ impl<'de> Deserialize<'de> for CalendarStatus {
             physical_read_pending: bool,
             #[serde(default, deserialize_with = "super::wire::present")]
             failure: Option<CalendarFailure>,
-            // Before P9-21 every helper said `read_only:true`. Accepted so an
+            // Before the helper wrote events, every helper said `read_only:true`. Accepted so an
             // older status still reads; it means nothing now.
             #[serde(
                 default,
@@ -100,7 +100,7 @@ pub struct CalendarEntry {
     pub title: String,
     pub source_title: String,
     pub calendar_type: String,
-    /// The calendar's own color in macOS, `#RRGGBB` (P9-21). Absent when the
+    /// The calendar's own color in macOS, `#RRGGBB`. Absent when the
     /// helper predates it or macOS gave a color it could not express in sRGB:
     /// unknown, never a default.
     #[serde(
@@ -128,7 +128,7 @@ pub struct CalendarEntry {
 
 /// One page of the list of every calendar on the Mac, as the helper sends it.
 ///
-/// REF-10: the list no longer offers anything to choose from — every calendar
+/// The list no longer offers anything to choose from — every calendar
 /// the permission covers is read. It exists so the app can say how many
 /// calendars there are and name the one an event belongs to. It is paged for
 /// the same reason a read is: a Mac with a great many calendars must not need
@@ -188,7 +188,7 @@ pub struct CalendarReadQuery {
 /// occurrences EventKit returned that are not events Orbit can describe (no
 /// title, outside the window) — never events left out for size or count.
 /// `oversized` names, for the whole window, each event that could not travel
-/// (decision 4): absent when there is none, so the page before it is unchanged.
+/// by name: absent when there is none, so the page before it is unchanged.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct CalendarReadPage {
@@ -220,7 +220,7 @@ pub struct CalendarReadPage {
 
 /// The calendars a read covered and what it read of each event.
 ///
-/// Before REF-10 this was a person's selection, confirmed by the helper. Now
+/// This used to be a person's selection, confirmed by the helper. Now
 /// nothing is selected: the daemon builds it for the read it assembled, listing
 /// the calendars the read's events came from, with invitees and event URL
 /// always read, because the macOS permission is the only consent. It is kept as
@@ -326,7 +326,7 @@ pub struct CalendarOccurrence {
     )]
     pub event_url: Option<String>,
     pub event_url_status: CalendarFieldStatus,
-    /// P9-21. The fields below are absent from a helper that predates them;
+    /// The fields below are absent from a helper that predates them;
     /// absent means not read, never empty or «no».
     #[serde(
         default,
@@ -378,7 +378,7 @@ pub struct CalendarOccurrence {
         skip_serializing_if = "Option::is_none"
     )]
     pub can_edit: Option<bool>,
-    /// P9-22: the event's reminders Orbit can edit — alerts relative to the
+    /// The event's reminders Orbit can edit — alerts relative to the
     /// start, at it or before it — as minutes before the start, at most
     /// `MAX_EVENT_ALARMS`, each at most `MAX_ALARM_MINUTES`. Absent: not read
     /// (a helper that predates it, or more of them than fit), never «none».
@@ -388,7 +388,7 @@ pub struct CalendarOccurrence {
         skip_serializing_if = "Option::is_none"
     )]
     pub alarms_minutes: Option<Vec<u64>>,
-    /// P9-22: how many reminders Orbit does not edit — at a date, on
+    /// How many reminders Orbit does not edit — at a date, on
     /// arriving or leaving a place, after the start, or past the limits
     /// above. A write of `alarms_minutes` keeps them. Absent: none.
     #[serde(
@@ -415,10 +415,10 @@ pub struct CalendarOmission {
     pub count: u32,
 }
 
-/// One event that could not travel, named instead of trimmed (REF-10,
-/// decision 4). The read it belonged to arrives whole without it; this says,
-/// by itself, which event it was — its dates and identifier — and why: the
-/// field that is too large, its bytes and the bytes that fit.
+/// One event that could not travel, named instead of trimmed. The read it
+/// belonged to arrives whole without it; this says, by itself, which event it
+/// was — its dates and identifier — and why: the field that is too large, its
+/// bytes and the bytes that fit.
 ///
 /// `field` is one of `title`, `event_url`, `event_timezone`,
 /// `interpreted_timezone`, `calendar_item_id`, `event_id`, `invitee_name`,

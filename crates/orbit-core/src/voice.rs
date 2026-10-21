@@ -31,11 +31,11 @@ pub struct VoicePolicy {
     pub release_ms: u64,
     pub minimum_speech_ms: u64,
     pub maximum_turn_ms: u64,
-    /// Mars's silence that ends a call by itself: a minute in which she says
-    /// nothing and Deimos is neither working on an answer nor speaking it.
-    /// It protects her from an open microphone streaming to Orbit after the
-    /// conversation is over. It is not the time Deimos takes (SIM-55: counted
-    /// as hers, it cut a call 20 s into his spoken answer) and not the
+    /// The user's silence that ends a call by itself: a minute in which they
+    /// say nothing and Deimos is neither working on an answer nor speaking it.
+    /// It protects the user from an open microphone streaming to Orbit after
+    /// the conversation is over. It is not the time Deimos takes (counted as
+    /// the user's, it cut a call 20 s into his spoken answer on 2026-10-18) and not the
     /// daemon's check that audio is still arriving (`CALL_AUDIO_SILENCE_LIMIT`).
     pub idle_timeout_ms: i64,
     pub rms_threshold: u16,
@@ -71,10 +71,11 @@ pub enum StopReason {
     ProcessingLost,
     Discontinuity,
     Expired,
-    /// Mars silent for `idle_timeout_ms` with no answer from Deimos in course.
+    /// The user silent for `idle_timeout_ms` with no answer from Deimos in
+    /// course.
     Idle,
     /// No audio arriving from the Mac at all: the daemon's own check, not
-    /// Mars's silence (her silence is still audio).
+    /// the user's silence (their silence is still audio).
     NoAudio,
 }
 
@@ -128,8 +129,8 @@ impl TurnDetector {
         self.capturing
     }
 
-    /// When Mars last spoke, or Deimos last answered, in the frames' received
-    /// time: where her silence starts.
+    /// When the user last spoke, or Deimos last answered, in the frames'
+    /// received time: where their silence starts.
     pub fn last_activity_ms(&self) -> i64 {
         self.last_activity_ms
     }
@@ -178,7 +179,7 @@ impl TurnDetector {
         }
         next.last_monotonic_ns = Some(frame.monotonic_ns);
         if frame.response_active {
-            // Deimos working or speaking is the conversation going on; her
+            // Deimos working or speaking is the conversation going on; their
             // silence counts from when he is done.
             next.last_activity_ms = frame.received_at_ms;
         }
@@ -406,12 +407,12 @@ mod tests {
             TurnAction::Stop(StopReason::Expired)
         );
     }
-    /// SIM-55: Mars's call of 2026-10-18 stopped `idle` 20 s into Deimos's
-    /// spoken answer, after ~40 s of tool work: a minute after her last turn.
-    /// Deimos working or speaking is not her silence; the minute counts from
+    /// A call of 2026-10-18 stopped `idle` 20 s into Deimos's spoken answer,
+    /// after ~40 s of tool work: a minute after the user's last turn.
+    /// Deimos working or speaking is not the user's silence; the minute counts from
     /// when he is done.
     #[test]
-    fn deimos_working_or_speaking_is_not_mars_silence() {
+    fn deimos_working_or_speaking_is_not_user_silence() {
         let policy = VoicePolicy::default();
         let idle = policy.idle_timeout_ms as u64;
         let at = |ms: u64, response_active: bool| VoiceObservation {
@@ -421,12 +422,12 @@ mod tests {
             ..frame(0, false)
         };
         let state = TurnDetector::authorized(5, 0, 10 * idle as i64);
-        // A minute and more after her last activity, Deimos still answering.
+        // A minute and more after the user's last activity, Deimos still answering.
         let (state, action) = state.observe(policy, at(idle, true));
         assert_eq!(action, TurnAction::None);
         let (state, action) = state.observe(policy, at(idle + 20_000, true));
         assert_eq!(action, TurnAction::None);
-        // He is done at idle + 20 s: her silence starts there.
+        // He is done at idle + 20 s: their silence starts there.
         let (state, action) = state.observe(policy, at(idle + 20_000 + idle - 1, false));
         assert_eq!(action, TurnAction::None);
         assert_eq!(

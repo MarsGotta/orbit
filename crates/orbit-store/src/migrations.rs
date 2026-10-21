@@ -70,6 +70,8 @@ pub(crate) fn migrate(connection: &mut Connection, version: i64) -> Result<()> {
     let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
     // Retire their triggers before their counters: otherwise the history
     // triggers left by older versions would reject future audio job writes.
+    // The trigger and setting names below are the ones older stores hold, so
+    // they cannot change.
     transaction.execute_batch(
         "
 DROP TRIGGER IF EXISTS ref19_history_mark_jobs_insert_v1;
@@ -109,7 +111,7 @@ VALUES(4,unixepoch('now'),'retire source persistence and unused verticals');
     Ok(())
 }
 
-/// SIM-30: the copy of each conversation an older daemon wrote here, one
+/// The copy of each conversation an older daemon wrote here, one
 /// encrypted row per message, which nothing read. The conversations are the
 /// hub's, read a page at a time, so the table goes with its rows.
 ///
@@ -122,7 +124,7 @@ pub(crate) fn retire_messages(connection: &Connection) -> Result<()> {
     Ok(())
 }
 
-/// SIM-41: what the Mac kept of the hub's meetings and notes. The hub is now
+/// What the Mac kept of the hub's meetings and notes. The hub is now
 /// their only home, so an older store's copy is removed when the store opens:
 /// the final transcripts and their fetches (`transcript`, `transcript_fetch`
 /// jobs, `transcript_fetches` retries), the long transcripts' archives

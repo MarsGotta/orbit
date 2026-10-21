@@ -2,7 +2,7 @@
 use super::*;
 use orbit_core::{
     RecoveryStatus, RecoveryStep,
-    privacy_stop::MarsStop,
+    privacy_stop::UserStop,
     refusal::{Refusal, Resource, recovery_step_name as step_name},
 };
 use std::{collections::VecDeque, sync::Arc, time::Instant};
@@ -185,9 +185,9 @@ impl StopStore {
 
 pub(super) fn needs_runtime_stop(checkpoint: &State, runtime: &State) -> bool {
     checkpoint.privacy_stopped()
-        && checkpoint.privacy_stop_by() == Some(orbit_core::privacy_stop::StopRequester::Mars)
+        && checkpoint.privacy_stop_by() == Some(orbit_core::privacy_stop::StopRequester::User)
         && (!runtime.privacy_stopped()
-            || runtime.privacy_stop_by() != Some(orbit_core::privacy_stop::StopRequester::Mars))
+            || runtime.privacy_stop_by() != Some(orbit_core::privacy_stop::StopRequester::User))
 }
 
 pub(super) fn prepare_environment(
@@ -303,7 +303,7 @@ impl<'a> RecoveryService<'a> {
                 return Ok(());
             }
             let mut decision = decide(&self.state, Event::PrivacyStop, now())?;
-            decision.state.set_notice(MarsStop::Order.notice());
+            decision.state.set_notice(UserStop::Order.notice());
             self.state = decision.state;
 
             self.pending_stops.push_back(call);
@@ -673,7 +673,7 @@ mod tests {
         crate::daemon::authority_fixture::set(
             &mut checkpoint,
             "privacy_stop_by",
-            serde_json::json!(StopRequester::Mars),
+            serde_json::json!(StopRequester::User),
         );
         let mut runtime = State::default();
         crate::daemon::authority_fixture::set(

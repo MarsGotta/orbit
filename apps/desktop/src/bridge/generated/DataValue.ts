@@ -5,12 +5,12 @@
  * `&str` or `String`, so free text does not compile:
  * ```compile_fail
  * use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
- * let _ = Notice::new(NoticeCode::CaptureCut).with(NoticeKey::Cause, "Mars dijo algo privado");
+ * let _ = Notice::new(NoticeCode::CaptureCut).with(NoticeKey::Cause, "Alguien dijo algo privado");
  * ```
  * ```compile_fail
  * use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
  * let _ = Notice::new(NoticeCode::CaptureCut)
- *     .with(NoticeKey::Cause, String::from("Mars dijo algo privado"));
+ *     .with(NoticeKey::Cause, String::from("Alguien dijo algo privado"));
  * ```
  */
 export type DataValue = boolean | number | string;

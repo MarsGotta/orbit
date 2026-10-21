@@ -17,23 +17,23 @@ pub struct Value {
     pub recording_signal: Option<Box<RecordingSignalView>>,
     pub pending_jobs: u64,
     pub offline: bool,
-    /// P9-11: the call detection. Absent from a daemon that predates it, or
+    /// The call detection. Absent from a daemon that predates it, or
     /// when its preference could not be read: unknown, never «no».
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub call: Option<Box<Call>>,
     pub applications: Knowledge<Vec<Application>>,
-    /// P9-12: the last question to Deimos during the meeting and where its
+    /// The last question to Deimos during the meeting and where its
     /// turn is; the answer is the conversation's message `{id}:assistant`.
     /// Absent: nothing to show (an older daemon, or none asked).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub question: Option<Box<crate::meeting_question::MeetingQuestion>>,
-    /// P9-12: whether «Oye Deimos» listens during the recording and, when
+    /// Whether «Oye Deimos» listens during the recording and, when
     /// not, why. Absent outside a recording (nothing to say then).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub voice_trigger: Option<crate::meeting_question::VoiceStatus>,
 }
 
-/// What the call detection says: Mars's preference and what the floating
+/// What the call detection says: the user's preference and what the floating
 /// panel has to say, if anything.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Call {
@@ -49,7 +49,7 @@ pub struct Call {
     pub panel: Option<CallPanel>,
 }
 
-/// The floating panel's content (P9-11). Each state names what its button
+/// The floating panel's content. Each state names what its button
 /// answers: the offer's `call_id`, or the recording's id.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case")]

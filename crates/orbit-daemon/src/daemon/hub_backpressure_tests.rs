@@ -54,7 +54,7 @@ async fn privacy_stop_keeps_its_notice_with_a_pending_bridge_request() -> Result
         calendar_cursor: None,
     });
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     assert!(runtime.state.privacy_stopped());
     assert!(runtime.conversation.bridge_request.is_none());
@@ -99,7 +99,7 @@ async fn privacy_stop_queues_refusal_before_retiring_hub() -> Result<()> {
     });
 
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
 
     assert!(runtime.state.privacy_stopped());
@@ -143,7 +143,7 @@ async fn privacy_stop_orders_native_cut_before_hub_refusal() -> Result<()> {
         runtime.native.try_send(json!({"fixture":"occupied"}))?;
     }
 
-    let stop = runtime.privacy_stop(orbit_core::privacy_stop::MarsStop::Order);
+    let stop = runtime.privacy_stop(orbit_core::privacy_stop::UserStop::Order);
     tokio::pin!(stop);
     assert!(stop.as_mut().now_or_never().is_none());
     assert!(

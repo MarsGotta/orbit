@@ -7,7 +7,7 @@
 //!
 //! - [`Runtime::privacy_stop`] is the user's stop. It latches, it survives a
 //!   restart, and only the user's controls can reach it: its argument is a
-//!   [`MarsStop`], which has no variant for an automatic cause.
+//!   [`UserStop`], which has no variant for an automatic cause.
 //! - [`Runtime::cut_capture`] cuts the live recording, call or voice note
 //!   with its cause and what was kept. Orbit keeps working, nothing latches,
 //!   the helper's durable latch is not touched and nothing is resumed.
@@ -24,7 +24,7 @@ use orbit_core::authority::{AuthorityChange, RetirePlan, retire};
 use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
 use orbit_core::{
     failure::is_capture_command,
-    privacy_stop::{MarsStop, StopCause, StopClass},
+    privacy_stop::{StopCause, StopClass, UserStop},
     wire::native::{NativeEventHeader, NativeResponseIdRef},
 };
 
@@ -50,7 +50,7 @@ fn recording_interruption_cause(
         StopCause::ListenerStopped => Some(Interruption::ListenerStopped),
         StopCause::Order
         | StopCause::Hotkey
-        | StopCause::HelperMarsStop
+        | StopCause::HelperUserStop
         | StopCause::HelperLatch
         | StopCause::HelperRefusedStopped
         | StopCause::NativeEventFailed
@@ -212,8 +212,8 @@ impl Runtime {
             if tokio::time::timeout(
                 RETIREMENT_RETRY_SLICE,
                 self.retire_authority_durable(
-                    retire(AuthorityChange::MarsStop),
-                    AuthorityChange::MarsStop,
+                    retire(AuthorityChange::UserStop),
+                    AuthorityChange::UserStop,
                 ),
             )
             .await
@@ -280,7 +280,7 @@ impl Runtime {
             StopClass::CutCapture if !self.state.privacy_stopped() && self.capture_live() => {
                 Box::pin(self.cut_capture(cause, code, text)).await;
             }
-            StopClass::MarsStop => {
+            StopClass::UserStop => {
                 self.log("stop_misrouted", &[("cause", cause.name())]);
                 self.say_durably(contained(cause, code)).await;
             }
@@ -449,10 +449,10 @@ impl Runtime {
 
     /// The user's stop, and the only function that latches one.
     /// Every caller names the control they used; nothing automatic can be
-    /// written as a [`MarsStop`].
-    pub(super) async fn privacy_stop(&mut self, origin: MarsStop) {
+    /// written as a [`UserStop`].
+    pub(super) async fn privacy_stop(&mut self, origin: UserStop) {
         let message = origin.notice();
-        let plan = retire(AuthorityChange::MarsStop);
+        let plan = retire(AuthorityChange::UserStop);
         // Logged at the single point every one of the user's stops passes through;
         // the cause is Orbit's own name for the control, never content.
         self.log("privacy_stopped", &[("cause", origin.cause().name())]);
@@ -485,8 +485,8 @@ impl Runtime {
                 });
             }
             let event = match origin {
-                MarsStop::HelperLatch { .. } => Event::HelperLatched,
-                MarsStop::Order | MarsStop::Hotkey | MarsStop::Helper { .. } => Event::PrivacyStop,
+                UserStop::HelperLatch { .. } => Event::HelperLatched,
+                UserStop::Order | UserStop::Hotkey | UserStop::Helper { .. } => Event::PrivacyStop,
             };
             let Ok(mut decision) = decide(&self.state, event, now()) else {
                 return;
@@ -499,7 +499,7 @@ impl Runtime {
             if let Err(error) = self
                 .execute_retire_plan(
                     plan,
-                    AuthorityChange::MarsStop,
+                    AuthorityChange::UserStop,
                     RetirePhase::ReadEpoch,
                     None,
                 )
@@ -518,7 +518,7 @@ impl Runtime {
             for effect in [Effect::StopPlayback, Effect::StopCall] {
                 let result = if matches!(effect, Effect::StopCall) {
                     self.stop_call_audio(CallStopVoice::Cancel(VoiceCancellationCause::Authority(
-                        AuthorityChange::MarsStop,
+                        AuthorityChange::UserStop,
                     )))
                     .await
                 } else {
@@ -540,12 +540,12 @@ impl Runtime {
                         | Effect::CancelNetwork
                 )
             });
-            self.retire_authority_volatile(plan, AuthorityChange::MarsStop)
+            self.retire_authority_volatile(plan, AuthorityChange::UserStop)
                 .await;
             if let Err(error) = self
                 .execute_retire_plan(
                     plan,
-                    AuthorityChange::MarsStop,
+                    AuthorityChange::UserStop,
                     RetirePhase::Link,
                     interrupted_request.as_deref(),
                 )
@@ -561,12 +561,12 @@ impl Runtime {
             // later durable work; it is not a microphone deadline or proof
             // that the snapshot landed. The helper was ordered above.
             let durable_tail = async {
-                Box::pin(self.retire_authority_durable(plan, AuthorityChange::MarsStop)).await;
+                Box::pin(self.retire_authority_durable(plan, AuthorityChange::UserStop)).await;
                 decision.state = self.state.clone();
                 Box::pin(self.halt(
                     decision,
                     CallStopVoice::Cancel(VoiceCancellationCause::Authority(
-                        AuthorityChange::MarsStop,
+                        AuthorityChange::UserStop,
                     )),
                 ))
                 .await;
@@ -596,8 +596,8 @@ impl Runtime {
         // The attribution is the control the user pressed, independent of whether
         // the writer subsequently responds within the retirement budget.
         let event = match origin {
-            MarsStop::HelperLatch { .. } => Event::HelperLatched,
-            MarsStop::Order | MarsStop::Hotkey | MarsStop::Helper { .. } => Event::PrivacyStop,
+            UserStop::HelperLatch { .. } => Event::HelperLatched,
+            UserStop::Order | UserStop::Hotkey | UserStop::Helper { .. } => Event::PrivacyStop,
         };
         match decide(&self.state, event, now()) {
             Ok(decision) => self.state = decision.state,
@@ -608,17 +608,17 @@ impl Runtime {
                 );
             }
         }
-        self.retire_authority_volatile(plan, AuthorityChange::MarsStop)
+        self.retire_authority_volatile(plan, AuthorityChange::UserStop)
             .await;
         if let Err(error) = self
-            .execute_retire_plan(plan, AuthorityChange::MarsStop, RetirePhase::Link, None)
+            .execute_retire_plan(plan, AuthorityChange::UserStop, RetirePhase::Link, None)
             .await
         {
             self.log("retire_link_failed", &[("error", &error.to_string())]);
         }
         if tokio::time::timeout(
             shutdown::SHUTDOWN_BUDGET,
-            self.retire_authority_durable(plan, AuthorityChange::MarsStop),
+            self.retire_authority_durable(plan, AuthorityChange::UserStop),
         )
         .await
         .is_err()

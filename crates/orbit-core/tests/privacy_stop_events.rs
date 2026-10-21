@@ -1,4 +1,4 @@
-//! REF-12 A2/A4/A5 in the pure core: which events may latch the stop, who
+//! The privacy stop in the pure core: which events may latch the stop, who
 //! asked for it, and what every former automatic stop does now.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -45,7 +45,7 @@ fn classify(event: &Event) -> (usize, bool) {
         Event::CallReady => (21, false),
         Event::CallPhase(_) => (22, false),
         Event::CallTurnStarted => (23, false),
-        // Mars's stop, and the helper's record of one.
+        // The user's stop, and the helper's record of one.
         Event::PrivacyStop => (24, true),
         Event::HelperLatched => (25, true),
         Event::LocalRearm => (26, false),
@@ -70,7 +70,7 @@ const VARIANTS: usize = 46;
 fn voice_transcription_retires_with_authority_but_survives_hub_link_changes() {
     use orbit_core::authority::{AuthorityChange, RetireSlot, retire};
     for change in [
-        AuthorityChange::MarsStop,
+        AuthorityChange::UserStop,
         AuthorityChange::Interrupt,
         AuthorityChange::Closing,
         AuthorityChange::Conversation,
@@ -220,7 +220,7 @@ fn live_recording() -> State {
     let started = decide(
         &base,
         Event::StartMeeting {
-            id: "ref12".into(),
+            id: "live-recording".into(),
             title: "Reunión".into(),
             audio: MeetingAudio::MicrophoneOnly,
             duration_ms: 600_000,
@@ -235,7 +235,7 @@ fn live_recording() -> State {
 }
 
 #[test]
-fn ref12_a5_only_her_stop_the_helper_latch_and_a_revocation_ever_latch() {
+fn only_the_user_stop_the_helper_latch_and_a_revocation_ever_latch() {
     let mut covered = [false; VARIANTS];
     let mut variants: [Option<std::mem::Discriminant<Event>>; VARIANTS] = [None; VARIANTS];
     for event in samples() {
@@ -266,7 +266,7 @@ fn ref12_a5_only_her_stop_the_helper_latch_and_a_revocation_ever_latch() {
 }
 
 #[test]
-fn ref12_a2_only_her_local_rearm_lifts_a_stop() {
+fn only_the_user_local_rearm_lifts_a_stop() {
     let stopped = decide(&State::default(), Event::PrivacyStop, 0)
         .unwrap()
         .state;
@@ -283,12 +283,12 @@ fn ref12_a2_only_her_local_rearm_lifts_a_stop() {
 }
 
 #[test]
-fn ref12_a2_the_stop_records_who_asked_for_it() {
-    let hers = decide(&State::default(), Event::PrivacyStop, 0)
+fn the_stop_records_who_asked_for_it() {
+    let by_user = decide(&State::default(), Event::PrivacyStop, 0)
         .unwrap()
         .state;
-    assert_eq!(hers.privacy_stop_by(), Some(StopRequester::Mars));
-    assert!(latches_helper(&hers));
+    assert_eq!(by_user.privacy_stop_by(), Some(StopRequester::User));
+    assert!(latches_helper(&by_user));
     let adopted = decide(&State::default(), Event::HelperLatched, 0)
         .unwrap()
         .state;
@@ -308,31 +308,31 @@ fn ref12_a2_the_stop_records_who_asked_for_it() {
         !latches_helper(&revoked),
         "a revocation never writes the helper's durable latch"
     );
-    // Her stop wins over a revocation that arrives later, and stays hers.
-    let both = decide(&hers, Event::Connect(Connection::Revoked), 1)
+    // The user's stop wins over a revocation that arrives later, and stays theirs.
+    let both = decide(&by_user, Event::Connect(Connection::Revoked), 1)
         .unwrap()
         .state;
-    assert_eq!(both.privacy_stop_by(), Some(StopRequester::Mars));
+    assert_eq!(both.privacy_stop_by(), Some(StopRequester::User));
     // Rearming forgets who asked.
-    let rearmed = decide(&hers, Event::LocalRearm, 2).unwrap().state;
+    let rearmed = decide(&by_user, Event::LocalRearm, 2).unwrap().state;
     assert_eq!(rearmed.privacy_stop_by(), None);
 }
 
 #[test]
-fn ref12_a2_a_revocation_is_asked_again_after_a_restart_not_carried() {
+fn a_revocation_is_asked_again_after_a_restart_not_carried() {
     let revoked = decide(&State::default(), Event::Connect(Connection::Revoked), 0)
         .unwrap()
         .state;
     let recovered = revoked.durable().recovered();
     assert!(!recovered.privacy_stopped());
     assert_eq!(recovered.privacy_stop_by(), None);
-    let hers = decide(&State::default(), Event::PrivacyStop, 0)
+    let by_user = decide(&State::default(), Event::PrivacyStop, 0)
         .unwrap()
         .state;
-    let recovered = hers.durable().recovered();
+    let recovered = by_user.durable().recovered();
     assert!(recovered.privacy_stopped());
-    assert_eq!(recovered.privacy_stop_by(), Some(StopRequester::Mars));
-    // Hers, and the interface's entry for it names the way out (Rearmar).
+    assert_eq!(recovered.privacy_stop_by(), Some(StopRequester::User));
+    // The user's, and the interface's entry for it names the way out (Rearmar).
     assert_eq!(
         recovered.notice,
         Some(orbit_core::notice::Notice {
@@ -340,13 +340,13 @@ fn ref12_a2_a_revocation_is_asked_again_after_a_restart_not_carried() {
             ..orbit_core::notice::Notice::new(orbit_core::notice::NoticeCode::PrivacyStopKept)
                 .with(orbit_core::notice::NoticeKey::Attributed, true)
         }),
-        "her kept stop says it is hers: {:?}",
+        "the user's kept stop says it is theirs: {:?}",
         recovered.notice
     );
 }
 
 #[test]
-fn ref12_a4_a_cut_interrupts_the_capture_says_why_and_latches_nothing() {
+fn a_cut_interrupts_the_capture_says_why_and_latches_nothing() {
     let state = live_recording();
     let decision = decide(
         &state,
@@ -379,9 +379,9 @@ fn ref12_a4_a_cut_interrupts_the_capture_says_why_and_latches_nothing() {
             .any(|effect| matches!(effect, Effect::StartCapture { .. })),
         "the microphone is not reopened"
     );
-    // SIM-21: the cause sentence stays in the daemon's log; the notice says
+    // The cause sentence stays in the daemon's log; the notice says
     // what was cut and counts what was kept, and offers no rearm (its class
-    // is a failure, not a stop of hers).
+    // is a failure, not a stop of the user's).
     let notice = decision.state.durable.notice.clone().unwrap();
     assert_eq!(notice.code, orbit_core::notice::NoticeCode::CaptureCut);
     assert_eq!(
@@ -396,7 +396,7 @@ fn ref12_a4_a_cut_interrupts_the_capture_says_why_and_latches_nothing() {
 }
 
 #[test]
-fn ref12_a4_closing_cuts_and_retires_network_without_latching() {
+fn closing_cuts_and_retires_network_without_latching() {
     let state = live_recording();
     let decision = decide(
         &state,
@@ -426,13 +426,13 @@ fn ref12_a4_closing_cuts_and_retires_network_without_latching() {
 }
 
 #[test]
-fn ref12_a5_every_former_automatic_stop_has_its_class() {
-    // The same table the A5 report prints, fixed here cause by cause.
+fn every_former_automatic_stop_has_its_class() {
+    // The same classification table, fixed here cause by cause.
     let expected = [
-        (StopCause::Order, StopClass::MarsStop),
-        (StopCause::Hotkey, StopClass::MarsStop),
-        (StopCause::HelperMarsStop, StopClass::MarsStop),
-        (StopCause::HelperLatch, StopClass::MarsStop),
+        (StopCause::Order, StopClass::UserStop),
+        (StopCause::Hotkey, StopClass::UserStop),
+        (StopCause::HelperUserStop, StopClass::UserStop),
+        (StopCause::HelperLatch, StopClass::UserStop),
         (StopCause::HelperCaptureStop, StopClass::CutCapture),
         (StopCause::HelperIntegrityFailure, StopClass::CutCapture),
         (StopCause::HelperRefusedStopped, StopClass::Notice),

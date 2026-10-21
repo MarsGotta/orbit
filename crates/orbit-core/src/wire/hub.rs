@@ -56,7 +56,7 @@ pub struct ChatSendParams {
     pub session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub call_active: Option<bool>,
-    /// SIM-30: the Mac's id for the message, kept in the hub's row so the
+    /// The Mac's id for the message, kept in the hub's row so the
     /// Mac finds its own turn and its voice note's audio by it.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub client_id: Option<String>,
@@ -65,12 +65,12 @@ pub struct ChatSendParams {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub meeting: Option<ChatMeeting>,
 }
-/// SIM-30: the turn is a voice note of this length; its audio stays on the Mac.
+/// The turn is a voice note of this length; its audio stays on the Mac.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ChatVoice {
     pub duration_ms: u64,
 }
-/// SIM-30: the turn is a question about this meeting. The hub adds its last
+/// The turn is a question about this meeting. The hub adds its last
 /// `minutes` of transcript and keeps only the question and its mark; the
 /// title travels because the hub learns it only when the recording closes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -190,7 +190,7 @@ pub struct EmptyData {}
 pub struct SessionData {
     pub session_id: String,
 }
-/// SIM-40: something of one of this device's recordings changed on the hub
+/// Something of one of this device's recordings changed on the hub
 /// (a group transcribed or failed, its note, its speakers' names, its private
 /// notes). The Mac reads that recording again; the event carries no content.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -567,7 +567,7 @@ mod tests {
     }
 
     #[test]
-    fn ref43_reply_error_is_an_additive_wire_field() -> Result<(), String> {
+    fn reply_error_is_an_additive_wire_field() -> Result<(), String> {
         let error: ErrorData = serde_json::from_value(serde_json::json!({
             "code":"device_reply_invalid", "message":"respuesta fuera de contrato",
             "numbers":{"field":"result.windows", "expected":"lista", "device_version":"0.3.13"},

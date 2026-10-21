@@ -1,4 +1,4 @@
-//! The local report log (SIM-21): one JSON line per notice or failure, with
+//! The local report log: one JSON line per notice or failure, with
 //! no content, read over SSH.
 //!
 //! Each process writes its own file through one function, [`ReportLog::report`]:

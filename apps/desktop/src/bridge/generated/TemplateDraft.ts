@@ -2,7 +2,7 @@
 import type { TemplateSection } from "./TemplateSection";
 
 /**
- * `PUT /v1/note-templates/{id}`: create or replace one of Mars's templates.
+ * `PUT /v1/note-templates/{id}`: create or replace one of the user's templates.
  * The id is chosen on the Mac, so a save sent twice replaces the same one.
  */
 export type TemplateDraft = { name: string, context: string, sections: Array<TemplateSection>, 

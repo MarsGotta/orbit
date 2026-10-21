@@ -1,4 +1,4 @@
-//! REF-12 A1/A2 in the pure core: a restart keeps only the stop Mars asked
+//! Restarts in the pure core: a restart keeps only the stop the user asked
 //! for, and a recording that was running comes back interrupted, with its
 //! fragments counted and nothing that restarts it.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
@@ -11,7 +11,7 @@ use orbit_core::{
 
 fn recording(phase: CapturePhase) -> Recording {
     Recording {
-        id: "ref12-recording".into(),
+        id: "restart-recording".into(),
         title: "Reunión sintética".into(),
         started_at_ms: 1_000,
         ended_at_ms: None,
@@ -31,7 +31,7 @@ fn said(state: &DurableState) -> Vec<Notice> {
 }
 
 #[test]
-fn ref12_a1_a_restart_without_her_stop_comes_back_working() {
+fn a_restart_without_the_user_stop_comes_back_working() {
     // An update, a crash or the Mac booting: nobody pressed anything.
     let mut wire = serde_json::to_value(DurableState::default()).unwrap();
     wire["generation"] = serde_json::json!(7);
@@ -46,7 +46,7 @@ fn ref12_a1_a_restart_without_her_stop_comes_back_working() {
         assert_ne!(
             notice.code,
             NoticeCode::PrivacyStopKept,
-            "a restart without her stop asks for no rearm: {notice:?}"
+            "a restart without the user's stop asks for no rearm: {notice:?}"
         );
     }
     // What a restart really changes is still true: a new generation, no
@@ -57,7 +57,7 @@ fn ref12_a1_a_restart_without_her_stop_comes_back_working() {
 }
 
 #[test]
-fn ref12_a1_a_recording_that_was_running_stays_interrupted_with_its_fragments() {
+fn a_recording_that_was_running_stays_interrupted_with_its_fragments() {
     for phase in [
         CapturePhase::Starting,
         CapturePhase::Recording,
@@ -118,7 +118,7 @@ fn ref12_a1_a_recording_that_was_running_stays_interrupted_with_its_fragments() 
 }
 
 #[test]
-fn ref307_recovery_does_not_relabel_a_phase_that_was_not_live() {
+fn recovery_does_not_relabel_a_phase_that_was_not_live() {
     for phase in [
         CapturePhase::Idle,
         CapturePhase::Paused,
@@ -138,12 +138,15 @@ fn ref307_recovery_does_not_relabel_a_phase_that_was_not_live() {
 }
 
 #[test]
-fn ref12_a2_her_stop_survives_the_restart_and_only_her_rearm_lifts_it() {
+fn the_user_stop_survives_the_restart_and_only_their_rearm_lifts_it() {
     let stopped = decide(&State::default(), Event::PrivacyStop, 0)
         .unwrap()
         .state;
     let recovered = State::from(stopped.durable().recovered());
-    assert!(recovered.privacy_stopped(), "her stop survives the restart");
+    assert!(
+        recovered.privacy_stopped(),
+        "the user's stop survives the restart"
+    );
     // Nothing that can arrive from the hub or the helper rearms it.
     for event in [
         Event::Connect(Connection::Online),
@@ -163,16 +166,22 @@ fn ref12_a2_her_stop_survives_the_restart_and_only_her_rearm_lifts_it() {
         },
     ] {
         let next = decide(&recovered, event.clone(), 10).unwrap().state;
-        assert!(next.privacy_stopped(), "{event:?} must not rearm her stop");
+        assert!(
+            next.privacy_stopped(),
+            "{event:?} must not rearm the user's stop"
+        );
     }
     let rearmed = decide(&recovered, Event::LocalRearm, 20).unwrap().state;
-    assert!(!rearmed.privacy_stopped(), "her local rearm lifts it");
-    // And after her rearm, the next restart has nothing to keep.
+    assert!(
+        !rearmed.privacy_stopped(),
+        "the user's local rearm lifts it"
+    );
+    // And after their rearm, the next restart has nothing to keep.
     assert!(!rearmed.durable().recovered().privacy_stopped());
 }
 
 #[test]
-fn ref12_a2_a_stop_saved_before_this_version_is_kept_because_nobody_can_say_whose() {
+fn a_stop_saved_before_this_version_is_kept_because_nobody_can_say_whose() {
     // A snapshot written by an older daemon says it was stopped and not who
     // asked. Absence is not a "no": the stop is kept once more.
     let mut legacy = serde_json::to_value(DurableState::default()).unwrap();

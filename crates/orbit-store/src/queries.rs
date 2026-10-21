@@ -250,7 +250,7 @@ impl Store {
         let limit_value = limit as i64;
         self.collect_jobs(sql, &[&after_id as &dyn rusqlite::ToSql, &limit_value])
     }
-    /// Cursor page over queue-kind rows only. Domain records live in a separate table, so their padded ciphertext cannot make the traversal fail or shadow queue work. The payload-size guard at the closure still fires for oversized queue-kind rows, keeping the defence against corruption that R3 requires.
+    /// Cursor page over queue-kind rows only. Domain records live in a separate table, so their padded ciphertext cannot make the traversal fail or shadow queue work. The payload-size guard at the closure still fires for oversized queue-kind rows, keeping the defence against corruption.
     fn query_queue_jobs(&self, after_id: Option<&str>, limit: usize) -> Result<Vec<Job>> {
         validate_page(limit)?;
         if let Some(after_id) = after_id {

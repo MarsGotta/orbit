@@ -33,17 +33,17 @@ macro_rules! reads {
 // none limits a collection's length.
 // AgendaRange: 128 KiB holds a loaded week (112 KiB); months continue by cursor.
 // AgendaCalendars: 64 KiB holds about 330 calendars, without a calendar limit.
-// NotesPage (SIM-41): one page of the hub's list, at most fifty meetings
+// NotesPage: one page of the hub's list, at most fifty meetings
 // (`notes::LIST_PAGE`), plus on the first page this Mac's recordings the hub
 // does not have whole (the one being recorded and up to a hundred still
 // uploading). At every bound — a 256-character title and a 1,000-character
 // short summary per hub row, a 256-character title per local one, every
 // character a control character escaped as six bytes — the page measured
-// 562,524 bytes (`sim41_a_first_page_at_every_bound_fits_its_read`); 640 KiB
+// 562,524 bytes (the daemon's test of a first page at every bound); 640 KiB
 // holds it, the largest read there already is. A larger page is refused with
 // its size.
-// NoteDetail: the hub's document of one meeting with its note as Mars sees it
-// and her private notes, not the turns. Measured on 2026-10-14 (P9-03): a
+// NoteDetail: the hub's document of one meeting with its note as the user sees
+// it and their private notes, not the turns. Measured on 2026-10-14: a
 // four-hour note is ~19 KB, 52,933 bytes at the hub's default 8,192-token
 // completion ceiling; private notes go up to 65,536 characters, 131,072 bytes
 // of accented Spanish. 256 KiB holds both; it bounds one read.
@@ -52,17 +52,17 @@ macro_rules! reads {
 // passed through, the largest measured 261,814 bytes with its fields. 4 KiB
 // above the hub's bound holds the page's own fields. A single turn larger
 // than that is refused with its size, never cut.
-// NoteLibrary (P9-05): templates and assignments, one per item, paged by
+// NoteLibrary: templates and assignments, one per item, paged by
 // index. A template written to every hub bound is ~116 KiB of four-byte text,
 // so a 256 KiB page always holds one.
 // Sessions: one hub page of 128 rows (`SESSION_LIST_LIMIT`), each an id and
 // three numbers, measured at 19,637 bytes with 36-byte ids and the largest
-// numbers (`sim30_a_full_sessions_page_fits_its_read`); 32 KiB holds it, not a
+// numbers (the daemon's test of a full sessions page); 32 KiB holds it, not a
 // history limit.
-// SessionMessages (SIM-30): one hub page of a conversation, at most 512 KiB of
+// SessionMessages: one hub page of a conversation, at most 512 KiB of
 // JSON (`SESSION_MESSAGES_PAGE_BYTES` in server/orbit_hub/storage.py), with
 // what the daemon adds to each message (`audio_available`, the Mac's id): a
-// full page measured 516,314 bytes (`sim30_a_full_messages_page_fits_its_read`).
+// full page measured 516,314 bytes (the daemon's test of a full messages page).
 // 640 KiB holds it below the 1 MiB IPC frame. This bounds one read, not a
 // conversation.
 // ControlHistory and EngineTools: 96 KiB pages the 148 KiB measured catalog.

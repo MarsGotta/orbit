@@ -1,9 +1,8 @@
 //! When the control engine runs, decided from the macOS permissions alone.
 //!
-//! REF-11 A0 — how the engine starts, lives and dies, and why it is decided
-//! here.
+//! How the engine starts, lives and dies, and why it is decided here.
 //!
-//! Until REF-11 the engine (`cua-driver serve` plus its MCP proxy, both
+//! Before this module the engine (`cua-driver serve` plus its MCP proxy, both
 //! children of the daemon) was started by one switch, «Permitir control»
 //! (`settings.remote_action`): turning it on called `ensure_engine_connected`,
 //! and the actor's one-second maintenance called it again while the switch
@@ -15,7 +14,7 @@
 //! maintenance tick started a new one and asked it for its catalogue again.
 //! The macOS permissions were consulted nowhere on that path.
 //!
-//! From REF-11 the decision is this module, a pure function of facts the
+//! Now the decision is this module, a pure function of facts the
 //! daemon passes in:
 //!
 //! - the engine starts when macOS grants both Accessibility and Screen
@@ -36,13 +35,13 @@
 //! - changing conversation and losing the hub are not facts here at all, so
 //!   they cannot touch the engine or make it fetch its catalogue again.
 //!
-//! How the hub knows this Mac can act, without Mars deciding anything twice:
+//! How the hub knows this Mac can act, without the user deciding anything twice:
 //! it does not keep a copy. The hub's record of the device is the pairing;
 //! whether the Mac can act right now is answered by the Mac, on every request,
 //! from this same decision — served, or refused with the permission that is
 //! missing or still unknown. A copy on the hub would be one more state to fall
-//! out of step with macOS (proposal §1.5), and a new field in the frame would
-//! be refused by a hub that has not been updated (ADR 004, decision 8).
+//! out of step with macOS, and a new field in the frame would be refused by a
+//! hub that has not been updated.
 use crate::{
     PermissionState,
     refusal::{Permission, Refusal, missing_permission_name, missing_system_permission_refusal},
@@ -243,7 +242,7 @@ pub enum Status {
     Ready { tools: u32 },
     /// Both permissions are granted and Orbit is starting it.
     Starting,
-    /// Privacy is latched; it starts again once Mars rearms.
+    /// Privacy is latched; it starts again once the user rearms.
     PrivacyStopped,
     /// The helper that reports the permissions is not connected.
     HelperNotConnected,

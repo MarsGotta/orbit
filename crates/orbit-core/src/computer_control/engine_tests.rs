@@ -1,4 +1,4 @@
-//! REF-11: the engine's lifecycle as a pure decision, walked over every
+//! The engine's lifecycle as a pure decision, walked over every
 //! combination of the facts it reads: 5 × 5 permission states × privacy ×
 //! helper × running × retry = 400.
 use super::*;
@@ -56,10 +56,10 @@ fn known_no(state: PermissionState) -> bool {
     )
 }
 
-/// A2: with both permissions and privacy armed, the engine starts, and the
+/// With both permissions and privacy armed, the engine starts, and the
 /// facts the decision reads name no switch, no pairing and no hub.
 #[test]
-fn ref11_a2_both_permissions_start_the_engine_and_nothing_else_is_asked() {
+fn both_permissions_start_the_engine_and_nothing_else_is_asked() {
     let facts = Facts {
         observed: reported(PermissionState::Granted, PermissionState::Granted),
         running: false,
@@ -85,10 +85,10 @@ fn ref11_a2_both_permissions_start_the_engine_and_nothing_else_is_asked() {
     );
 }
 
-/// REF-12: these are the facts the decision currently sees on the first
+/// These are the facts the decision currently sees on the first
 /// maintenance turn after close_for_exit. They must not permit a restart.
 #[test]
-fn ref12_closing_does_not_restart_a_granted_engine() {
+fn closing_does_not_restart_a_granted_engine() {
     let after_close = Facts {
         observed: reported(PermissionState::Granted, PermissionState::Granted),
         running: false,
@@ -105,10 +105,10 @@ fn ref12_closing_does_not_restart_a_granted_engine() {
     );
 }
 
-/// A3: without a permission it does not start, and the refusal says which one
+/// Without a permission it does not start, and the refusal says which one
 /// is missing; an unknown permission is its own refusal, never a «no».
 #[test]
-fn ref11_a3_a_missing_permission_is_named_and_an_unknown_one_is_not_a_no() {
+fn a_missing_permission_is_named_and_an_unknown_one_is_not_a_no() {
     let refused = |accessibility, screen_recording| {
         admits(
             SystemPermissions::ENGINE,
@@ -204,7 +204,7 @@ fn ref11_a3_a_missing_permission_is_named_and_an_unknown_one_is_not_a_no() {
 /// with no helper nothing will answer, however often somebody asks. Whatever
 /// the permissions last reported, and whether or not they were granted.
 #[test]
-fn ref11_review_b_no_helper_is_its_own_cause_and_promises_no_answer() {
+fn no_helper_is_its_own_cause_and_promises_no_answer() {
     for accessibility in STATES {
         for screen_recording in STATES {
             let observed = Observed {
@@ -237,9 +237,9 @@ fn ref11_review_b_no_helper_is_its_own_cause_and_promises_no_answer() {
     assert_eq!(
         Status::refused(refusal),
         Some(Status::HelperNotConnected),
-        "la app recibe la misma causa"
+        "the app receives the same cause"
     );
-    // The privacy stop still comes first: it is Mars's, and it is known.
+    // The privacy stop still comes first: it is the user's, and it is known.
     assert_eq!(
         admits(
             SystemPermissions::ENGINE,
@@ -253,11 +253,11 @@ fn ref11_review_b_no_helper_is_its_own_cause_and_promises_no_answer() {
     );
 }
 
-/// A3: what is not known — a report not in yet, or no helper to make one —
+/// What is not known — a report not in yet, or no helper to make one —
 /// neither starts the engine nor stops it, over all 400 combinations of the
 /// facts rather than a hand-picked few.
 #[test]
-fn ref11_a3_unknown_neither_starts_nor_stops_over_every_combination() {
+fn unknown_neither_starts_nor_stops_over_every_combination() {
     let all = every_fact();
     assert_eq!(all.len(), 400);
     for facts in all {
@@ -289,10 +289,10 @@ fn ref11_a3_unknown_neither_starts_nor_stops_over_every_combination() {
     }
 }
 
-/// A4: withdrawing a permission stops a running engine, and the stop says
+/// Withdrawing a permission stops a running engine, and the stop says
 /// which one was withdrawn.
 #[test]
-fn ref11_a4_withdrawing_a_permission_stops_the_engine_with_its_name() {
+fn withdrawing_a_permission_stops_the_engine_with_its_name() {
     let running = Facts {
         observed: reported(PermissionState::Denied, PermissionState::Granted),
         running: true,
@@ -300,7 +300,7 @@ fn ref11_a4_withdrawing_a_permission_stops_the_engine_with_its_name() {
         closing: false,
     };
     let Decision::Stop(refusal) = decide(running) else {
-        panic!("una retirada conocida no paró el motor");
+        panic!("a known withdrawal did not stop the engine");
     };
     assert_eq!(refusal.code().name(), "permission_denied");
 
@@ -315,9 +315,9 @@ fn ref11_a4_withdrawing_a_permission_stops_the_engine_with_its_name() {
     );
 }
 
-/// A7: the privacy stop still stops it, whatever the permissions say.
+/// The privacy stop still stops it, whatever the permissions say.
 #[test]
-fn ref11_a7_the_privacy_stop_stops_the_engine_whatever_the_permissions_say() {
+fn the_privacy_stop_stops_the_engine_whatever_the_permissions_say() {
     for accessibility in STATES {
         for screen_recording in STATES {
             for helper_connected in [false, true] {
@@ -343,7 +343,7 @@ fn ref11_a7_the_privacy_stop_stops_the_engine_whatever_the_permissions_say() {
                         ..facts
                     }),
                     Decision::Keep,
-                    "con la parada echada no arranca: {facts:?}"
+                    "with the stop in force it does not start: {facts:?}"
                 );
             }
         }

@@ -53,7 +53,7 @@ fn snapshot_v0_7_0_with_views_loads_without_losing_durable_fields() -> Result<()
     assert!(loaded.privacy_stopped());
     assert_eq!(
         loaded.privacy_stop_by(),
-        Some(orbit_core::privacy_stop::StopRequester::Mars)
+        Some(orbit_core::privacy_stop::StopRequester::User)
     );
     Ok(())
 }
@@ -150,7 +150,7 @@ async fn startup_stop_receipt_cannot_be_replaced_by_an_older_runtime_snapshot() 
     crate::daemon::authority_fixture::set(
         &mut stopped,
         "privacy_stop_by",
-        serde_json::json!(orbit_core::privacy_stop::StopRequester::Mars),
+        serde_json::json!(orbit_core::privacy_stop::StopRequester::User),
     );
     crate::daemon::authority_fixture::set(&mut stopped, "generation", serde_json::json!(1));
     actor.startup_stop_writer()?.persist(stopped).await?;
@@ -162,7 +162,7 @@ async fn startup_stop_receipt_cannot_be_replaced_by_an_older_runtime_snapshot() 
     assert!(saved.privacy_stopped());
     assert_eq!(
         saved.privacy_stop_by(),
-        Some(orbit_core::privacy_stop::StopRequester::Mars)
+        Some(orbit_core::privacy_stop::StopRequester::User)
     );
     actor.finish_startup().await?;
     let mut rearmed = State::default();
@@ -194,7 +194,7 @@ async fn two_startup_stops_do_not_replace_a_user_stopped_runtime_snapshot() -> R
         crate::daemon::authority_fixture::set(
             &mut stopped,
             "privacy_stop_by",
-            serde_json::json!(orbit_core::privacy_stop::StopRequester::Mars),
+            serde_json::json!(orbit_core::privacy_stop::StopRequester::User),
         );
         crate::daemon::authority_fixture::set(
             &mut stopped,
@@ -208,7 +208,7 @@ async fn two_startup_stops_do_not_replace_a_user_stopped_runtime_snapshot() -> R
     crate::daemon::authority_fixture::set(
         &mut runtime,
         "privacy_stop_by",
-        serde_json::json!(orbit_core::privacy_stop::StopRequester::Mars),
+        serde_json::json!(orbit_core::privacy_stop::StopRequester::User),
     );
     crate::daemon::authority_fixture::set(&mut runtime, "generation", serde_json::json!(1));
     runtime.durable.active_request = Some("runtime-recovered-request".into());
@@ -1085,7 +1085,7 @@ async fn stop_reaches_helper_while_store_actor_is_inside_a_write() -> Result<()>
     let release = hold_the_actor(&runtime)?;
     let outcome = {
         let mut stopping =
-            std::pin::pin!(runtime.privacy_stop(orbit_core::privacy_stop::MarsStop::Order,));
+            std::pin::pin!(runtime.privacy_stop(orbit_core::privacy_stop::UserStop::Order,));
         let mut context = std::task::Context::from_waker(std::task::Waker::noop());
         stopping.as_mut().poll(&mut context)
     };
@@ -1148,7 +1148,7 @@ async fn stop_retires_playback_and_volatile_work_before_a_blocked_write() -> Res
     let release = hold_the_actor(&runtime)?;
     let outcome = {
         let mut stopping =
-            std::pin::pin!(runtime.privacy_stop(orbit_core::privacy_stop::MarsStop::Order));
+            std::pin::pin!(runtime.privacy_stop(orbit_core::privacy_stop::UserStop::Order));
         let mut context = std::task::Context::from_waker(std::task::Waker::noop());
         stopping.as_mut().poll(&mut context)
     };
@@ -1214,13 +1214,13 @@ async fn reentered_stop_is_the_users_even_when_retirement_runs_out_of_time() -> 
     let release = hold_the_actor(&runtime)?;
     let outcome = {
         let mut stopping =
-            std::pin::pin!(runtime.privacy_stop(orbit_core::privacy_stop::MarsStop::Order));
+            std::pin::pin!(runtime.privacy_stop(orbit_core::privacy_stop::UserStop::Order));
         let mut context = std::task::Context::from_waker(std::task::Waker::noop());
         stopping.as_mut().poll(&mut context)
     };
     let by = runtime.state.privacy_stop_by();
     release.send(())?;
-    assert_eq!(by, Some(orbit_core::privacy_stop::StopRequester::Mars));
+    assert_eq!(by, Some(orbit_core::privacy_stop::StopRequester::User));
     assert!(
         outcome.is_pending(),
         "fixture did not hold the durable retirement"
@@ -1239,7 +1239,7 @@ async fn owed_retirement_persists_after_the_writer_recovers() -> Result<()> {
     // loaded host; it does not decide whether the stop or recovery passes.
     let stopped = tokio::time::timeout(
         std::time::Duration::from_secs(60),
-        runtime.privacy_stop(orbit_core::privacy_stop::MarsStop::Order),
+        runtime.privacy_stop(orbit_core::privacy_stop::UserStop::Order),
     )
     .await;
     if stopped.is_err() {
@@ -1277,7 +1277,7 @@ async fn privacy_snapshot_waits_for_writer_without_holding_maintenance() -> Resu
     let release = hold_the_actor(&runtime)?;
     let stopped = tokio::time::timeout(
         std::time::Duration::from_secs(60),
-        runtime.privacy_stop(orbit_core::privacy_stop::MarsStop::Order),
+        runtime.privacy_stop(orbit_core::privacy_stop::UserStop::Order),
     )
     .await;
     if stopped.is_err() {
@@ -1310,7 +1310,7 @@ async fn privacy_snapshot_waits_for_writer_without_holding_maintenance() -> Resu
     assert!(saved.privacy_stopped());
     assert_eq!(
         saved.privacy_stop_by(),
-        Some(orbit_core::privacy_stop::StopRequester::Mars)
+        Some(orbit_core::privacy_stop::StopRequester::User)
     );
     Ok(())
 }

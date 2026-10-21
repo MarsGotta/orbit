@@ -24,35 +24,35 @@ pub struct Settings {
     pub retired_max_source_intents: u64,
     #[serde(default, rename = "max_source_bytes", skip_serializing)]
     pub retired_max_source_bytes: u64,
-    /// SIM-23 «Enviar informes de errores anónimos»: off by default, and a
+    /// «Enviar informes de errores anónimos»: off by default, and a
     /// `config.toml` written before the switch existed loads as off.
     #[serde(default)]
     pub error_reports: bool,
-    /// REF-11: «Ver mi pantalla» is gone. Deimos sees the screen because macOS
+    /// «Ver mi pantalla» is gone. Deimos sees the screen because macOS
     /// granted Screen Recording, not because a key in a file says so, and
     /// nothing reads this. Like `calendar_sharing` below, the key is still
     /// *accepted* — `deny_unknown_fields` would otherwise refuse every
-    /// `config.toml` the previous version wrote, Mars's included — and it is
+    /// `config.toml` the previous version wrote, the user's included — and it is
     /// dropped the next time the settings are saved.
     #[serde(default, rename = "remote_observation", skip_serializing)]
     pub retired_remote_observation: bool,
-    /// REF-11: «Permitir control» is gone; macOS Accessibility and Screen
+    /// «Permitir control» is gone; macOS Accessibility and Screen
     /// Recording decide. Accepted, never read, dropped on the next save.
     #[serde(default, rename = "remote_action", skip_serializing)]
     pub retired_remote_action: bool,
-    /// CAL-01 A4: there is no «compartir agenda» switch any more. The copy
+    /// There is no «compartir agenda» switch any more. The copy
     /// leaves the Mac because macOS granted the calendar permission, not
     /// because a key in a file says so, and nothing reads this. The key is
     /// still *accepted* — `deny_unknown_fields` would otherwise refuse every
-    /// `config.toml` written before this release, Mars's included — and it is
+    /// `config.toml` written before this release, the user's included — and it is
     /// dropped the next time the settings are saved.
     #[serde(default, rename = "calendar_sharing", skip_serializing)]
     pub retired_calendar_sharing: bool,
-    /// REF-11: «Reuniones» is gone; Deimos sees the meetings always.
+    /// «Reuniones» is gone; Deimos sees the meetings always.
     /// Accepted, never read, dropped on the next save.
     #[serde(default, rename = "meeting_sharing", skip_serializing)]
     pub retired_meeting_sharing: bool,
-    /// SIM-03a: the separate live-voice engine and its early synthesis are
+    /// The separate live-voice engine and its early synthesis are
     /// gone; the call always uses the local detector. Both keys are accepted,
     /// never read, and dropped on the next save.
     #[serde(default, rename = "voice_live", skip_serializing)]
@@ -177,11 +177,11 @@ pub fn atomic_private_write(path: &std::path::Path, bytes: &[u8]) -> Result<()> 
 mod tests {
     use super::*;
 
-    /// REF-11 A10: a `config.toml` written by the previous version, with the
+    /// A `config.toml` written by the previous version, with the
     /// three retired switches on, still loads; nothing keeps them, and the next
     /// save forgets them.
     #[test]
-    fn ref11_a10_a_config_with_the_three_old_switches_loads_and_forgets_them() -> Result<()> {
+    fn a_config_with_the_three_old_switches_loads_and_forgets_them() -> Result<()> {
         let directory = tempfile::tempdir()?;
         let paths = Paths::resolve(Some(directory.path().to_owned()))?;
         paths.initialize()?;
@@ -197,13 +197,13 @@ mod tests {
         for key in ["remote_observation", "remote_action", "meeting_sharing"] {
             assert!(
                 !written.contains(key),
-                "{key} sigue en config.toml tras guardar:\n{written}"
+                "{key} is still in config.toml after saving:\n{written}"
             );
         }
         Ok(())
     }
 
-    /// SIM-23: a `config.toml` written before «Enviar informes de errores
+    /// A `config.toml` written before «Enviar informes de errores
     /// anónimos» existed loads with it off, and the choice survives a save.
     #[test]
     fn a_config_without_the_error_report_switch_loads_with_it_off() -> Result<()> {
@@ -222,7 +222,7 @@ mod tests {
         Ok(())
     }
 
-    /// SIM-03a: a `config.toml` written with the live-voice engine switched on
+    /// A `config.toml` written with the live-voice engine switched on
     /// still loads after the engine was removed, and the next save forgets it.
     #[test]
     fn a_config_with_the_retired_live_voice_keys_loads_and_forgets_them() -> Result<()> {

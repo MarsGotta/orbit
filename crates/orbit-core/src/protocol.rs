@@ -54,8 +54,8 @@ pub enum Command {
     TranscriptRetry {
         recording_id: String,
     },
-    /// Mars's private notes of one recording: kept in the daemon's outbox
-    /// until the hub confirms them (SIM-41). `base_revision` is the hub's
+    /// The user's private notes of one recording: kept in the daemon's outbox
+    /// until the hub confirms them. `base_revision` is the hub's
     /// revision the app was showing. Allowed while recording.
     #[cfg_attr(feature = "ts", ts(skip))]
     NotePrivateSave {
@@ -64,7 +64,7 @@ pub enum Command {
         #[serde(default)]
         base_revision: u64,
     },
-    /// Mars changed the note's sections or a task, on the hub's revision
+    /// The user changed the note's sections or a task, on the hub's revision
     /// `base_revision`. Absent fields stay as they are; `sections` replaces
     /// the whole list.
     #[cfg_attr(feature = "ts", ts(skip))]
@@ -95,19 +95,19 @@ pub enum Command {
         #[serde(default)]
         scope: crate::notes::SpeakerRenameScope,
     },
-    /// SIM-52: transcribe the meeting in this language (ISO 639-1, «en»),
+    /// Transcribe the meeting in this language (ISO 639-1, «en»),
     /// and again what is already transcribed; the hub writes the note again.
     MeetingLanguage {
         recording_id: String,
         language: String,
     },
-    /// SIM-52: Mars's name for the meeting, everywhere it is named; an empty
+    /// The user's name for the meeting, everywhere it is named; an empty
     /// one gives it back its own.
     MeetingRename {
         recording_id: String,
         title: String,
     },
-    /// P9-05: Mars's templates and their assignment to a series. Allowed
+    /// The user's templates and their assignment to a series. Allowed
     /// while recording.
     NoteLibrary {
         request: crate::notes::LibraryRequest,
@@ -116,7 +116,7 @@ pub enum Command {
         text: String,
     },
     AudioSourcesRefresh,
-    /// P9-11 «Grabar» on the call the floating panel offers, naming the
+    /// «Grabar» on the call the floating panel offers, naming the
     /// offer it answers. The press is the decision.
     CallRecord {
         call_id: String,
@@ -131,7 +131,7 @@ pub enum Command {
     RecordingKeep {
         recording_id: String,
     },
-    /// P9-12 «Preguntar a Deimos» during a recording, typed in the pill or
+    /// «Preguntar a Deimos» during a recording, typed in the pill or
     /// the floating panel: a turn to Deimos with the meeting and its last
     /// `minutes` of transcript (2, 5 or 10; 2 by default). The receipt says
     /// the question was taken; whether it reached Deimos, and its answer or
@@ -141,21 +141,21 @@ pub enum Command {
         #[serde(default = "default_meeting_minutes")]
         minutes: u16,
     },
-    /// P9-12: Mars closed the question in the floating panel. A question
+    /// The user closed the question in the floating panel. A question
     /// already gone is not an error.
     MeetingQuestionClose {
         id: String,
     },
-    /// «Al detectar una llamada»: Mars's preference, kept by the daemon.
+    /// «Al detectar una llamada»: the user's preference, kept by the daemon.
     CallPreference {
         preference: crate::call_detection::CallPreference,
     },
-    /// SIM-23 «Enviar informes de errores anónimos»: her choice, kept by the
-    /// daemon with its settings. Off until she turns it on.
+    /// «Enviar informes de errores anónimos»: the user's choice, kept by the
+    /// daemon with its settings. Off until they turn it on.
     ErrorReports {
         enabled: bool,
     },
-    /// SIM-23: a line the interface wrote to the app's report log, handed to
+    /// A line the interface wrote to the app's report log, handed to
     /// the daemon so its one error-report client decides whether it leaves.
     /// The type admits only codes, numbers and closed tokens.
     #[cfg_attr(feature = "ts", ts(skip))]
@@ -185,7 +185,7 @@ pub enum Command {
         #[serde(default)]
         audio: MeetingAudio,
         duration_minutes: u16,
-        /// P9-11: the calendar event the recording belongs to, by its stable
+        /// The calendar event the recording belongs to, by its stable
         /// reference («Grabar» on an event). Absent: not linked.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         event: Option<crate::call_detection::LinkedEvent>,
@@ -304,7 +304,7 @@ impl Command {
 pub struct Request {
     pub v: u8,
     pub id: String,
-    /// The action this order belongs to, from end to end (SIM-21). The app
+    /// The action this order belongs to, from end to end. The app
     /// always sends one; a request without it gets a new one in the daemon.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub op: Option<crate::notice::Op>,

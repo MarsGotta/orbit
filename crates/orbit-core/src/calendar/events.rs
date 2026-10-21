@@ -118,7 +118,7 @@ impl CalendarOversizedEvent {
 
 impl CalendarOccurrence {
     /// One event on its own terms, wherever it lies: what a write answers
-    /// with (P9-21). Invitees and the URL are always read.
+    /// with. Invitees and the URL are always read.
     pub(super) fn validate_alone(&self, timezone: &str) -> Result<(), CalendarError> {
         self.validate_fields(timezone, true, true)
     }
@@ -195,7 +195,7 @@ impl CalendarOccurrence {
         {
             return Err(CalendarError::LimitExceeded);
         }
-        // P9-21: notes that did not travel say so with their numbers, and
+        // Notes that did not travel say so with their numbers, and
         // never alongside notes that did.
         if let Some(left_out) = self.notes_left_out
             && (self.notes.is_some()
@@ -204,7 +204,7 @@ impl CalendarOccurrence {
         {
             return Err(CalendarError::InvalidValue);
         }
-        // P9-22: the reminders that travel are the ones a write may set,
+        // The reminders that travel are the ones a write may set,
         // under the same limits; the others are a count, never zero.
         if self.alarms_minutes.as_ref().is_some_and(|minutes| {
             minutes.len() > MAX_EVENT_ALARMS

@@ -1,8 +1,8 @@
 //! The shipped macOS bundle's identity and paths. All decisions use supplied
 //! paths; callers resolve symlinks before asking and own any filesystem access.
 //!
-//! SIM-25: the Cargo feature `pruebas` builds «Orbit Pruebas», the copy the
-//! real test on the Mac installs beside Mars's Orbit. It differs only in what
+//! The Cargo feature `pruebas` builds «Orbit Pruebas», the copy the
+//! real test on the Mac installs beside the user's Orbit. It differs only in what
 //! would make the two collide — the bundle name, the data directory and the
 //! Keychain service — and in reaching its test hub over plain HTTP on the
 //! tailnet, and in exposing `orbit.sock` to the real-test harness.
@@ -121,7 +121,7 @@ pub fn retirement(
     }
 }
 
-/// The executables of the bundle. The daemon runs inside the app since SIM-51:
+/// The executables of the bundle. The daemon runs inside the app since 0.6.0:
 /// `Contents/Resources/orbit`, its executable until 0.5.x, is not shipped and
 /// is not a member; only `scripts/release/install.sh` still knows its path, to wait for
 /// a 0.5.x daemon before replacing its bundle.
@@ -191,7 +191,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn sim95_retirement_uses_exact_names_readiness_and_a_known_listing()
+    fn retirement_uses_exact_names_readiness_and_a_known_listing()
     -> Result<(), Box<dyn std::error::Error>> {
         let system = Path::new("/fixture/Applications");
         let user = Path::new("/fixture/home/Applications");
@@ -263,7 +263,7 @@ mod tests {
     }
 
     #[test]
-    fn sim98_engine_is_a_member_only_inside_its_own_app() {
+    fn engine_is_a_member_only_inside_its_own_app() {
         let bundle = Path::new("/fixture/Applications").join(NAME);
         let engine = bundle.join("Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver");
         assert_eq!(member_path(&bundle, Member::Engine), Some(engine.clone()));
@@ -290,7 +290,7 @@ mod tests {
     }
 
     #[test]
-    fn ref501_route_table() {
+    fn bundle_kinds_route_by_path() {
         for (bundle, expected) in [
             (format!("/Applications/{NAME}"), Some(BundleKind::Installed)),
             (
@@ -319,19 +319,20 @@ mod tests {
             "/Applications/Editor.app/Contents/MacOS/Orbit",
             "/Users/sample/notes/Orbit.app/Contents/MacOS/OrbitNative.backup",
             "/build/target/debug/orbit",
-            // SIM-51: the 0.5.x daemon's path is no longer a member.
+            // The 0.5.x daemon's path is no longer a member.
             "/Applications/Orbit.app/Contents/Resources/orbit",
         ] {
             assert_eq!(member_of(Path::new(path)), None, "{path}");
         }
     }
 
-    /// SIM-25: «Orbit Pruebas» is chosen at build time, and the build that is
-    /// published must not move: Mars's permissions are tied to this name, her
-    /// data lives in this directory and her keys in this Keychain service.
+    /// «Orbit Pruebas» is chosen at build time, and the build that is
+    /// published must not move: the user's permissions are tied to this name,
+    /// their data lives in this directory and their keys in this Keychain
+    /// service.
     #[cfg(not(feature = "pruebas"))]
     #[test]
-    fn sim25_the_official_build_keeps_its_name_data_directory_and_keychain() {
+    fn the_official_build_keeps_its_name_data_directory_and_keychain() {
         assert_eq!(NAME, "Orbit.app");
         assert_eq!(IDENTIFIER, "app.orbit.companion");
         assert_eq!(PARKED_PREFIX, "Orbit.app.anterior-");
@@ -350,7 +351,7 @@ mod tests {
 
     #[cfg(feature = "pruebas")]
     #[test]
-    fn sim25_orbit_pruebas_has_its_own_name_data_directory_and_keychain() {
+    fn orbit_pruebas_has_its_own_name_data_directory_and_keychain() {
         assert_eq!(NAME, "Orbit Pruebas.app");
         assert_eq!(IDENTIFIER, "app.orbit.companion.pruebas");
         assert_eq!(PARKED_PREFIX, "Orbit Pruebas.app.anterior-");

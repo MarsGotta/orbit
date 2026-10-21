@@ -2,9 +2,9 @@
 //!
 //! A rejection is shown and changes nothing; a degradation is recorded and
 //! the capture keeps going; an integrity failure cuts the live capture with
-//! its cause. None of them latches: since REF-12 only Mars's own stop does,
-//! and no helper answer can stand in for her. This module is the pure table
-//! behind that split (REF-12).
+//! its cause. None of them latches: only the user's own stop does, and no
+//! helper answer can stand in for the user. This module is the pure table
+//! behind that split.
 
 use crate::model::{CapturePhase, State};
 
@@ -25,7 +25,7 @@ pub enum DegradedKind {
 ///
 /// `Refused` is shown to the person and does not change the capture.
 /// `Degraded` is recorded and adds a notice while the capture keeps going.
-/// `IntegrityFailure` cuts the live capture. None of them latches (REF-12).
+/// `IntegrityFailure` cuts the live capture. None of them latches.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Outcome {
     /// Shown, capture untouched.
@@ -86,9 +86,9 @@ pub fn classify_native_response(command_kind: &str, error_code: &str, state: &St
 
 /// A gap in the audio source is declared; the recording continues.
 ///
-/// R4 in the spec used to escalate gaps to a privacy stop. The audit changed
-/// the product decision: a hole is recorded with an additive notice, never
-/// used to fail closed a live recording. P1-02 retires `escalates_to_privacy_stop`.
+/// Gaps used to escalate to a privacy stop. The product decision changed: a
+/// hole is recorded with an additive notice, never used to fail closed a live
+/// recording, and `escalates_to_privacy_stop` is retired.
 pub fn classify_gap(_state: &State) -> Outcome {
     Outcome::Degraded {
         kind: DegradedKind::AudioGap,
@@ -106,8 +106,8 @@ fn has_live_recording(state: &State) -> bool {
 }
 
 /// Orders that start, stop or drain a capture source. The daemon also uses
-/// this list to tell a failure of the capture itself from another vertical's
-/// (REF-12): only the first may cut a recording.
+/// this list to tell a failure of the capture itself from another vertical's:
+/// only the first may cut a recording.
 pub fn is_capture_command(command_kind: &str) -> bool {
     matches!(
         command_kind,
@@ -227,8 +227,8 @@ const TABLE: &[(&str, CodeClass)] = &[
     ),
     ("audio_drain_incomplete", CodeClass::IntegrityFailureIfLive),
     ("local_rearm_unavailable", CodeClass::Refused),
-    // Her rearm could not remove the latch: her stop stays in force, which
-    // is said; nothing new stops (REF-12).
+    // The user's rearm could not remove the latch: their stop stays in
+    // force, which is said; nothing new stops.
     ("privacy_rearm_failed", CodeClass::Refused),
     (
         "daemon_disconnected",
@@ -240,7 +240,7 @@ const TABLE: &[(&str, CodeClass)] = &[
     ),
     // The helper refuses with this while its latch is set and also while a
     // capture stop is still cleaning up. Only its `state` says which, so a
-    // refusal is shown and never taken for her stop (REF-12 A2).
+    // refusal is shown and never taken for the user's stop.
     ("privacy_stopped", CodeClass::Refused),
     (
         "native_operation_failed",
@@ -284,8 +284,8 @@ const TABLE: &[(&str, CodeClass)] = &[
         "hotkey_registration_failed",
         CodeClass::Degraded(DegradedKind::HelperRejected),
     ),
-    // The helper could not make her latch durable; the daemon's own record
-    // still holds her stop, and the failure is said.
+    // The helper could not make the user's latch durable; the daemon's own
+    // record still holds their stop, and the failure is said.
     ("privacy_stop_persistence_failed", CodeClass::Refused),
     // NativeChannel.swift: admission and transport failure reasons.
     (
@@ -341,10 +341,10 @@ mod tests {
     }
 
     #[test]
-    fn a2_audio_gap_degradation_is_declared_and_recording_continues() {
+    fn audio_gap_degradation_is_declared_and_recording_continues() {
         let state = live_recording();
         // A gap is classified, not escalated: declaring it is the product
-        // decision the audit took (R4).
+        // decision.
         assert!(matches!(
             classify_gap(&state),
             Outcome::Degraded {
@@ -396,7 +396,7 @@ mod tests {
     }
 
     #[test]
-    fn a3_her_stop_keeps_its_effects_and_an_integrity_failure_cuts_without_latching() {
+    fn the_user_stop_keeps_its_effects_and_an_integrity_failure_cuts_without_latching() {
         // The removed event_for adapter had no production caller. Exercise the
         // real decision boundary for the integrity cut instead.
         let state = live_recording();
@@ -450,7 +450,7 @@ mod tests {
     }
 
     #[test]
-    fn a4_native_response_classification_pins_the_audit_cases() {
+    fn native_response_classification_pins_the_audit_cases() {
         let idle = State::default();
         assert!(matches!(
             classify_native_response("playback", "playback_backpressure", &idle),

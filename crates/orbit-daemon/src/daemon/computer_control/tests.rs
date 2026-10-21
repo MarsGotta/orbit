@@ -217,7 +217,7 @@ async fn computer_retirement_keeps_non_control_bridge_requests() -> Result<()> {
 #[tokio::test]
 async fn each_authority_revocation_answers_deimos_with_its_cause() -> Result<()> {
     for change in [
-        AuthorityChange::MarsStop,
+        AuthorityChange::UserStop,
         AuthorityChange::Revoked,
         AuthorityChange::Closing,
         AuthorityChange::Rearm,
@@ -258,7 +258,7 @@ async fn each_authority_revocation_answers_deimos_with_its_cause() -> Result<()>
             "{change:?}: {frame}"
         );
         let interruption = &frame["params"]["refusal"]["interruption"];
-        if matches!(change, AuthorityChange::MarsStop | AuthorityChange::Revoked) {
+        if matches!(change, AuthorityChange::UserStop | AuthorityChange::Revoked) {
             assert_eq!(interruption["code"], "privacy_stopped");
         } else {
             assert_eq!(interruption["code"], "read_interrupted");

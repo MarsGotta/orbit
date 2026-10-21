@@ -122,14 +122,14 @@ pub enum NativeCommand {
         id: String,
         calendar_query: CalendarReadQuery,
     },
-    /// P9-21: create an event or change an occurrence.
+    /// Create an event or change an occurrence.
     #[serde(rename = "calendar_save")]
     CalendarSave {
         v: u8,
         id: String,
         calendar_save: CalendarSave,
     },
-    /// P9-21: delete an occurrence, or it and the ones after it.
+    /// Delete an occurrence, or it and the ones after it.
     #[serde(rename = "calendar_delete")]
     CalendarDelete {
         v: u8,
@@ -176,7 +176,7 @@ pub enum NativeCommand {
         stream_id: String,
         purpose: NativeMicrophonePurpose,
     },
-    /// P9-12: listen (or stop listening) for «Oye Deimos» on the live
+    /// Listen (or stop listening) for «Oye Deimos» on the live
     /// microphone stream `stream_id`. The meeting recording turns it on when
     /// it starts or resumes, even on a stream a voice note opened; pausing,
     /// finishing and the privacy stop turn it off, even while the stream
@@ -463,7 +463,7 @@ pub enum NativeEvent {
         v: u8,
         applications: Vec<MeetingApplication>,
     },
-    /// P9-12: Mars said «Oye Deimos, …» on her own microphone while a
+    /// The user said «Oye Deimos, …» on their own microphone while a
     /// recording was on: the question that followed the phrase, until a
     /// 1.5 s pause or 30 s, as text. Nothing else heard leaves the Mac.
     /// `stream_id` is the microphone stream it was heard on; the times are
@@ -476,7 +476,7 @@ pub enum NativeEvent {
         started_ms: i64,
         ended_ms: i64,
     },
-    /// P9-12: where the «Oye Deimos» detector is: `unavailable` (with
+    /// Where the «Oye Deimos» detector is: `unavailable` (with
     /// `cause` and, for the system version, `os_version`), `idle`,
     /// `downloading` (with `percent`), `listening` or `failed` (with `cause`
     /// and Apple's `detail`).
@@ -493,7 +493,7 @@ pub enum NativeEvent {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         os_version: Option<String>,
     },
-    /// SIM-23: a step the helper reports that answers no order, as a code
+    /// A step the helper reports that answers no order, as a code
     /// the daemon turns into a notice: `wake_phrase_heard`,
     /// `wake_phrase_abandoned`, `wake_phrase_question_dropped`. Never words
     /// that were said.
@@ -538,7 +538,7 @@ pub struct WakePhraseAbandonment {
 pub struct NativeError {
     pub code: String,
     pub message: String,
-    /// The refusal's numbers and names, by code (P9-21: the calendar write
+    /// The refusal's numbers and names, by code (the calendar write
     /// refusals). Absent from every other error.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub detail: Option<Value>,

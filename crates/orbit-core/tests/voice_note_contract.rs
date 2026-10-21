@@ -7,7 +7,7 @@ use orbit_core::{
 use serde_json::json;
 
 #[test]
-fn a1_voice_note_audio_command_and_payload_have_a_bounded_local_wire_shape() {
+fn voice_note_audio_command_and_payload_have_a_bounded_local_wire_shape() {
     let command: Command = serde_json::from_value(json!({
         "command": "voice_note_audio",
         "message_id": "30000000-0000-4000-8000-000000000003"
@@ -34,7 +34,7 @@ fn a1_voice_note_audio_command_and_payload_have_a_bounded_local_wire_shape() {
 }
 
 #[test]
-fn ref308_failure_marks_only_the_pending_note_and_cannot_replace_a_transcript() {
+fn failure_marks_only_the_pending_note_and_cannot_replace_a_transcript() {
     let state = decide(
         &State::default(),
         Event::Connect(orbit_core::Connection::Online),
@@ -148,7 +148,7 @@ fn ref308_failure_marks_only_the_pending_note_and_cannot_replace_a_transcript() 
 }
 
 #[test]
-fn a2_voice_metadata_is_additive_and_defaults_for_an_older_message() {
+fn voice_metadata_is_additive_and_defaults_for_an_older_message() {
     let note = VoiceNote {
         duration_ms: 1_250,
         transcript: Some("nota sintética".into()),
@@ -178,7 +178,7 @@ fn a2_voice_metadata_is_additive_and_defaults_for_an_older_message() {
 }
 
 #[test]
-fn ref308_restart_marks_a_pending_voice_note_as_interrupted_instead_of_in_progress() {
+fn restart_marks_a_pending_voice_note_as_interrupted_instead_of_in_progress() {
     let pending = decide(
         &decide(
             &State::default(),

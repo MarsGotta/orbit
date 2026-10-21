@@ -1,4 +1,4 @@
-//! P9-11: «Al detectar una llamada» is kept by the daemon, encrypted, and
+//! «Al detectar una llamada» is kept by the daemon, encrypted, and
 //! survives a restart. Real encrypted SQLite; nothing native is started.
 use orbit_core::call_detection::CallPreference;
 use orbit_store::Store;

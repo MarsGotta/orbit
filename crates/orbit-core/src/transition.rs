@@ -71,9 +71,9 @@ pub enum Event {
     CallReady,
     CallPhase(crate::voice::CallPhase),
     CallTurnStarted,
-    /// Mars asked for her privacy stop: the app's button or tray, `orbit
-    /// stop`, ⌃⌥Esc or the helper's own menu. The only event that latches as
-    /// hers (REF-12).
+    /// The user asked for their privacy stop: the app's button or tray,
+    /// `orbit stop`, ⌃⌥Esc or the helper's own menu. The only event that
+    /// latches as theirs.
     PrivacyStop,
     /// The helper held a privacy stop on disk when it reported its state.
     /// Adopted so the daemon and the helper say the same; who pressed it is
@@ -106,13 +106,13 @@ pub enum Event {
     /// stopped it on its own: the recording, call or voice note is cut with
     /// its cause (a code: a helper code or a stop cause's name) and what was
     /// kept. Orbit keeps working; nothing latches,
-    /// nothing is resumed (REF-12 A4).
+    /// nothing is resumed.
     CaptureCut {
         cause: String,
     },
     /// Orbit is closing (shutdown, IPC listener lost): the capture is cut,
     /// the turn and network work are retired, and nothing latches, so the
-    /// next start comes back working (REF-12 A1).
+    /// next start comes back working.
     Close {
         cause: String,
     },
@@ -136,8 +136,8 @@ pub enum Effect {
     },
     StopCapture,
     /// Stop every capture source in the helper without touching its durable
-    /// latch, and wait for the drain (REF-12). `StopCapture` under a privacy
-    /// stop asks the helper for her latching stop instead.
+    /// latch, and wait for the drain. `StopCapture` under a privacy
+    /// stop asks the helper for the user's latching stop instead.
     CutCapture,
     StartVoice,
     FinishVoice,
@@ -298,10 +298,10 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
         | Event::CallTurnStarted) => decide_call(state, &mut next, &mut effects, event, now_ms)?,
         Event::PrivacyStop => {
             if state.durable.privacy_stopped {
-                next.durable.privacy_stop_by = Some(StopRequester::Mars);
+                next.durable.privacy_stop_by = Some(StopRequester::User);
             } else {
-                authority_change = Some(AuthorityChange::MarsStop);
-                decide_privacy_stop(&mut next, &mut effects, Some(StopRequester::Mars));
+                authority_change = Some(AuthorityChange::UserStop);
+                decide_privacy_stop(&mut next, &mut effects, Some(StopRequester::User));
             }
         }
         Event::HelperLatched => {
@@ -310,7 +310,7 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
                     next.durable.privacy_stop_by = None;
                 }
             } else {
-                authority_change = Some(AuthorityChange::MarsStop);
+                authority_change = Some(AuthorityChange::UserStop);
                 decide_privacy_stop(&mut next, &mut effects, None);
             }
         }
@@ -371,7 +371,7 @@ fn decide_new_session(next: &mut State) {
     next.durable.pending_approval = None;
 }
 
-/// SIM-30: the conversation's messages are the hub's; the app reads them.
+/// The conversation's messages are the hub's; the app reads them.
 fn decide_open_session(next: &mut State, id: String) {
     next.durable.turn = None;
     next.durable.pending_approval = None;
@@ -387,8 +387,8 @@ fn decide_capabilities(next: &mut State, effects: &mut Vec<Effect>, connection: 
     }
     if connection == Connection::Revoked {
         next.durable.generation = next.durable.generation.saturating_add(1);
-        // Remote traffic may stop Orbit, never rearm it. A stop she already
-        // pressed stays hers; otherwise this one is the hub's to repeat.
+        // Remote traffic may stop Orbit, never rearm it. A stop the user already
+        // pressed stays theirs; otherwise this one is the hub's to repeat.
         if !next.durable.privacy_stopped {
             next.durable.privacy_stop_by = Some(StopRequester::Revocation);
         }
@@ -944,7 +944,7 @@ fn decide_capture_finish(
             expected: crate::refusal::Expected::CorrectCaptureState,
         });
     }
-    // R1: an interrupted capture or one finalised under the privacy brake
+    // An interrupted capture or one finalised under the privacy brake
     // has no producer left to drain, so we close the recording locally
     // instead of parking it in `Finalizing` waiting for an ACK that will
     // never come.
@@ -1111,9 +1111,9 @@ fn decide_call(
     }
 }
 
-/// The only decision that latches a stop Mars can come back to. `requester`
-/// is `None` only for a latch the helper already held: a stop she pressed
-/// again stays hers, and nothing downgrades one of hers.
+/// The only decision that latches a stop the user can come back to.
+/// `requester` is `None` only for a latch the helper already held: a stop
+/// the user pressed again stays theirs, and nothing downgrades one of theirs.
 fn decide_privacy_stop(
     next: &mut State,
     effects: &mut Vec<Effect>,
@@ -1184,7 +1184,7 @@ fn decide_tick(state: &State, next: &mut State, effects: &mut Vec<Effect>, now_m
             .as_ref()
             .is_some_and(|recording| recording.sealed_chunks > 0);
         // The ceiling it was started with (by hand, from the calendar or for
-        // a call, P9-11), in whole minutes: there is no permission to expire.
+        // a call), in whole minutes: there is no permission to expire.
         let minutes = next.durable.recording.as_ref().map_or(0, |recording| {
             recording
                 .expires_at_ms
@@ -1198,7 +1198,7 @@ fn decide_tick(state: &State, next: &mut State, effects: &mut Vec<Effect>, now_m
                 .with(NoticeKey::Fragments, has_fragments),
         );
     }
-    // R2: bound the wait for the Mac's drain ACK. If the confirmation does
+    // Bound the wait for the Mac's drain ACK. If the confirmation does
     // not arrive, the recording falls back to `Interrupted` with a registered
     // gap so the next tick or a later review can detect it.
     if let Some(recording) = next.durable.recording.as_mut()
@@ -1217,7 +1217,7 @@ fn decide_tick(state: &State, next: &mut State, effects: &mut Vec<Effect>, now_m
     }
 }
 
-/// Cuts whatever is live (REF-12 A4): the recording is interrupted with its
+/// Cuts whatever is live: the recording is interrupted with its
 /// fragments counted, a call ends with its turn, a voice note is dropped.
 /// The helper is asked to stop capturing without latching, and nothing is
 /// ever resumed from here. `closing` says Orbit itself is going away, so the
@@ -1270,7 +1270,7 @@ fn decide_degraded(next: &mut State, kind: DegradedKind) {
 
 /// Longest byte offset of `text` not exceeding `limit` that lies on a UTF-8
 /// character boundary. Treating the byte budget as raw bytes (instead of
-/// characters) preserves the `MAX_TEXT_BYTES` cap from R2 of P3-04: cutting
+/// characters) preserves the `MAX_TEXT_BYTES` cap: cutting
 /// `é` (two bytes) by characters would double the budget and a blind cut
 /// could split a multi-byte character.
 fn clamp_utf8(text: &str, limit: usize) -> usize {
@@ -1331,7 +1331,7 @@ fn interrupt_recording(state: &mut State) {
 /// Spanish notice for a refused audio start. The known permission codes are
 /// named; every other reason is shown verbatim so a future Swift file can be
 /// reflected without an edit here.
-/// A missing permission is something Mars can grant; any other refusal is
+/// A missing permission is something the user can grant; any other refusal is
 /// said with the helper's code.
 fn capture_refused_notice(reason: &str, otherwise: NoticeCode) -> Notice {
     match reason {
@@ -1347,7 +1347,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn ref206_a2_microphone_decision_uses_observed_permission() {
+    fn microphone_decision_uses_observed_permission() {
         for (permission, allowed) in [
             (PermissionState::Unknown, false),
             (PermissionState::Denied, false),
@@ -1370,7 +1370,7 @@ mod tests {
     }
 
     #[test]
-    fn ref206_a2_screen_decision_uses_observed_permission() {
+    fn screen_decision_uses_observed_permission() {
         for (permission, allowed) in [
             (PermissionState::Unknown, false),
             (PermissionState::Denied, false),
@@ -1392,7 +1392,7 @@ mod tests {
             let result = decide(
                 &state,
                 Event::StartMeeting {
-                    id: "ref206-screen".into(),
+                    id: "screen-permission".into(),
                     title: "Fixture sintética".into(),
                     audio: MeetingAudio::System,
                     duration_ms: 60_000,
@@ -1404,7 +1404,7 @@ mod tests {
     }
 
     #[test]
-    fn ref206_a2_common_refusal_preserves_unknown_and_denied() {
+    fn common_refusal_preserves_unknown_and_denied() {
         for (observed, expected) in [
             (
                 PermissionState::Unknown,
@@ -1850,7 +1850,7 @@ mod tests {
     }
 
     #[test]
-    fn a1_finish_meeting_while_privacy_stopped_closes_the_recording_locally() {
+    fn finish_meeting_while_privacy_stopped_closes_the_recording_locally() {
         for phase in [CapturePhase::Interrupted, CapturePhase::Paused] {
             let state = crate::authority_fixture::stopped_state(state_with_recording(
                 recording_in_phase(phase.clone()),
@@ -1867,16 +1867,16 @@ mod tests {
                     .effects
                     .iter()
                     .all(|effect| !matches!(effect, Effect::StopCapture)),
-                "sin Finalizing no hay productor que drenar: {:#?}",
+                "without Finalizing there is no producer to drain: {:#?}",
                 decision.effects
             );
         }
     }
 
-    /// P9-11: a recording that reaches its ceiling says so with the
+    /// A recording that reaches its ceiling says so with the
     /// minutes it was started with; there is no permission to expire.
     #[test]
-    fn p9_11_a_recording_at_its_ceiling_says_its_minutes() {
+    fn a_recording_at_its_ceiling_says_its_minutes() {
         let mut recording = recording_in_phase(CapturePhase::Recording);
         recording.started_at_ms = 0;
         recording.expires_at_ms = 240 * 60_000;
@@ -1895,7 +1895,7 @@ mod tests {
     }
 
     #[test]
-    fn a2_tick_past_the_finalizing_deadline_interrupts_with_gap_and_notice() {
+    fn tick_past_the_finalizing_deadline_interrupts_with_gap_and_notice() {
         let since = 10_000;
         let state = state_with_recording(Recording {
             finalizing_since_ms: Some(since),
@@ -1913,7 +1913,7 @@ mod tests {
     }
 
     #[test]
-    fn a3_tick_before_the_finalizing_deadline_keeps_the_phase() {
+    fn tick_before_the_finalizing_deadline_keeps_the_phase() {
         let since = 10_000;
         let state = state_with_recording(Recording {
             finalizing_since_ms: Some(since),
@@ -1927,7 +1927,7 @@ mod tests {
     }
 
     #[test]
-    fn a4_finish_or_resume_on_a_closed_recording_is_refused_as_capture_closed() {
+    fn finish_or_resume_on_a_closed_recording_is_refused_as_capture_closed() {
         let state = state_with_recording(Recording {
             ended_at_ms: Some(2_000),
             ..recording_in_phase(CapturePhase::Idle)
@@ -1949,7 +1949,7 @@ mod tests {
     }
 
     #[test]
-    fn a5_after_the_local_closure_a_new_meeting_is_accepted() {
+    fn after_the_local_closure_a_new_meeting_is_accepted() {
         let interrupted = crate::authority_fixture::stopped_state(state_with_recording(
             recording_in_phase(CapturePhase::Interrupted),
         ));
@@ -1972,7 +1972,7 @@ mod tests {
         assert_eq!(
             decision.state.durable.recording.as_ref().unwrap().id,
             "next",
-            "la nueva reunión debe sustituir a la cerrada"
+            "the new meeting must replace the closed one"
         );
         assert!(
             decision
@@ -1983,7 +1983,7 @@ mod tests {
     }
 
     #[test]
-    fn a2_initial_delta_of_200_kib_is_clamped_to_max_text_bytes_of_valid_utf8() {
+    fn initial_delta_of_200_kib_is_clamped_to_max_text_bytes_of_valid_utf8() {
         let state = State {
             durable: crate::DurableState {
                 connection: Connection::Online,
@@ -2035,9 +2035,9 @@ mod tests {
         assert!(payload.starts_with(message.text.as_str()));
     }
 
-    fn sys01_audio_start(audio: crate::protocol::MeetingAudio) -> Event {
+    fn audio_start(audio: crate::protocol::MeetingAudio) -> Event {
         Event::StartMeeting {
-            id: "sys01-recording".into(),
+            id: "audio-scope-recording".into(),
             title: "Reunión de sistema".into(),
             audio,
             duration_ms: 60_000,
@@ -2045,7 +2045,7 @@ mod tests {
     }
 
     #[test]
-    fn sys01_a1_system_and_application_scopes_need_screen_audio_but_not_microphone_only() {
+    fn system_and_application_scopes_need_screen_audio_but_not_microphone_only() {
         let capable = |screen_granted: bool| State {
             durable: crate::DurableState {
                 capabilities: Capabilities {
@@ -2062,12 +2062,12 @@ mod tests {
             },
             ..State::default()
         };
-        // SYS-01 R2: the system scope is authorized by the same screen
+        // The system scope is authorized by the same screen
         // recording permission an application scope already needed.
         assert_eq!(
             decide(
                 &capable(false),
-                sys01_audio_start(crate::protocol::MeetingAudio::System),
+                audio_start(crate::protocol::MeetingAudio::System),
                 0
             )
             .unwrap_err(),
@@ -2078,7 +2078,7 @@ mod tests {
         assert_eq!(
             decide(
                 &capable(false),
-                sys01_audio_start(crate::protocol::MeetingAudio::Application {
+                audio_start(crate::protocol::MeetingAudio::Application {
                     application_pid: 4242
                 }),
                 0
@@ -2090,7 +2090,7 @@ mod tests {
         );
         let admitted = decide(
             &capable(true),
-            sys01_audio_start(crate::protocol::MeetingAudio::System),
+            audio_start(crate::protocol::MeetingAudio::System),
             0,
         )
         .unwrap();
@@ -2104,7 +2104,7 @@ mod tests {
         // Microphone-only records nothing remote, so no screen permission.
         decide(
             &capable(false),
-            sys01_audio_start(crate::protocol::MeetingAudio::MicrophoneOnly),
+            audio_start(crate::protocol::MeetingAudio::MicrophoneOnly),
             0,
         )
         .unwrap();
@@ -2112,13 +2112,11 @@ mod tests {
         assert!(
             decide(
                 &capable(true),
-                sys01_audio_start(crate::protocol::MeetingAudio::Application {
-                    application_pid: 0
-                }),
+                audio_start(crate::protocol::MeetingAudio::Application { application_pid: 0 }),
                 0
             )
             .is_err(),
-            "un PID nulo no identifica ninguna aplicación"
+            "a null PID identifies no application"
         );
     }
 }

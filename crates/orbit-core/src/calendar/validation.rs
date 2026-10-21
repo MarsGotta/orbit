@@ -39,7 +39,7 @@ pub(super) fn joined_interval(
 impl CalendarStatus {
     pub fn validate(&self) -> Result<(), CalendarError> {
         // A physical SDK read can remain pending after delivery was revoked.
-        // It is not proof that any data was delivered. P9-21: nothing says
+        // It is not proof that any data was delivered. Nothing says
         // «read only» any more; the helper writes too.
         wire::size(self)
     }

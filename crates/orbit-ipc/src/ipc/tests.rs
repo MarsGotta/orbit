@@ -269,7 +269,7 @@ fn oversized_read_page_becomes_a_numbered_absence() {
         panic!("page must be absent with a numbered refusal")
     };
     assert!(actual > max_bytes);
-    // SIM-41: a page of the hub's list and this Mac's own recordings is
+    // A page of the hub's list and this Mac's own recordings is
     // bounded at 640 KiB plus the envelope.
     assert_eq!(max_bytes, 644 * 1024);
 }
@@ -282,7 +282,7 @@ async fn topic_wire_command_reaches_the_actor() {
     let handler = tokio::spawn(handle(server, sender));
     let request = json!({
         "v": PROTOCOL_VERSION,
-        "id": "ref204-admission",
+        "id": "admission",
         "body": {"command": "subscribe_topics", "topics": ["status"]}
     });
     let mut wire = serde_json::to_vec(&request).unwrap();
@@ -347,7 +347,7 @@ fn assert_oversize(response: &Response) {
 }
 
 #[tokio::test]
-async fn ref401_a2_public_request_preserves_refusal_through_unix_ipc() {
+async fn public_request_preserves_refusal_through_unix_ipc() {
     let directory = tempfile::tempdir().unwrap();
     let paths = Paths::resolve(Some(directory.path().to_owned())).unwrap();
     paths.initialize().unwrap();
@@ -390,7 +390,7 @@ async fn ref401_a2_public_request_preserves_refusal_through_unix_ipc() {
 }
 
 #[tokio::test]
-async fn ref401_a2_capacity_and_busy_are_typed_on_the_wire() {
+async fn capacity_and_busy_are_typed_on_the_wire() {
     let (mut client, server) = UnixStream::pair().unwrap();
     let (sender, mut actor) = mpsc::channel(1);
     let handler = tokio::spawn(handle_connection(

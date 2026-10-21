@@ -99,7 +99,7 @@ fn the_snapshot_survives_restart_without_plaintext() -> TestResult {
     Ok(())
 }
 
-/// SIM-30: the copy of the conversations an older daemon kept here goes, rows
+/// The copy of the conversations an older daemon kept here goes, rows
 /// and table, when the store opens; the rest of the store stays.
 #[test]
 fn opening_drops_the_conversation_copy_an_older_daemon_wrote() -> TestResult {

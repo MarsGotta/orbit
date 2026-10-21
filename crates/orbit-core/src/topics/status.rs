@@ -10,9 +10,9 @@ pub struct Value {
     pub account: Option<AccountSummary>,
     pub privacy_stopped: bool,
     pub helper_connected: bool,
-    /// SIM-23 «Enviar informes de errores anónimos»: her choice. `None` when
+    /// «Enviar informes de errores anónimos»: the user's choice. `None` when
     /// this build carries no Sentry address, so the switch is not offered;
-    /// a daemon from before SIM-23 says nothing, which reads the same.
+    /// a daemon from before the switch says nothing, which reads the same.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error_reports: Option<bool>,
 }

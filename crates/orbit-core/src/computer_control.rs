@@ -16,8 +16,8 @@ pub const MAX_ENGINE_TOOLS: usize = 256;
 pub const MAX_TOOL_NAME_BYTES: usize = 128;
 pub use crate::limits::MAX_ACTION_BYTES;
 /// The whole catalogue, with every input schema, as the engine hands it over.
-/// Why this number: the engine on Mars's Mac answers `tools/list` with 147 909
-/// bytes (measured 2026-09-23), so 256 KiB leaves a newer engine roughly a 1.7x
+/// Why this number: the engine on a development Mac answers `tools/list` with
+/// 147 909 bytes (measured 2026-09-23), so 256 KiB leaves a newer engine roughly a 1.7x
 /// margin to grow tools without a change here, and still refuses a runaway
 /// catalogue well before the 1 MiB MCP frame the transport accepts. It is
 /// deliberately not the screen-observation bound: a catalogue is the engine's
@@ -42,12 +42,12 @@ impl EngineTool {
     /// Whether this is a tool at all — whether it has a name Orbit can forward.
     /// Nothing about how much the engine wrote about it is judged here.
     ///
-    /// DEI-16: there used to be a 4 KiB bound on the description, and a tool
+    /// There used to be a 4 KiB bound on the description, and a tool
     /// that exceeded it was dropped from the catalogue in silence: no notice to
-    /// Mars, none to the assistant, nothing in a log. The catalogue is already
+    /// the user, none to the assistant, nothing in a log. The catalogue is already
     /// bounded where it arrives (`MAX_ENGINE_CATALOGUE_BYTES`) and where it
     /// travels (`device_bridge::catalogue_page`), and that second bound keeps
-    /// the name of anything that will not fit and says why, as DEI-14 settled.
+    /// the name of anything that will not fit and says why.
     /// A tool the engine describes at length therefore reaches whoever asked.
     pub fn is_valid(&self) -> bool {
         valid_tool_name(&self.name)
@@ -56,7 +56,7 @@ impl EngineTool {
 
 /// A request to run one engine tool. The arguments travel as the engine's own
 /// JSON object: validating their shape here would recreate the hand-written
-/// vocabulary this spec removes.
+/// vocabulary that was removed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ToolCall {
@@ -94,9 +94,9 @@ fn valid_tool_name(value: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
 }
 
-/// How one action ended, as the local record keeps it. REF-11: there is no
-/// state for «waiting for somebody's approval» — nothing on this path waits for
-/// one, and the word once told Mars a page had not opened when it had.
+/// How one action ended, as the local record keeps it. There is no state for
+/// «waiting for somebody's approval» — nothing on this path waits for one, and
+/// the word once told the user a page had not opened when it had.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ControlOutcome {

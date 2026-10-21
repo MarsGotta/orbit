@@ -1,4 +1,4 @@
-//! P9-11 criterion 2: which event a call belongs to.
+//! Which event a call belongs to.
 use super::*;
 use crate::calendar::{
     CalendarFieldStatus, CalendarInvitee, CalendarOccurrence, CalendarReference,
@@ -42,7 +42,7 @@ fn event(item: &str, start: i64, end: i64) -> CalendarOccurrence {
         status: "confirmed".into(),
         last_modified_unix_ms: None,
         invitees: Some(vec![
-            guest("mars", true, "accepted"),
+            guest("alba", true, "accepted"),
             guest("lucia", false, "accepted"),
         ]),
         invitees_status: CalendarFieldStatus::Provided,
@@ -66,7 +66,7 @@ fn with_link(mut occurrence: CalendarOccurrence, url: &str) -> CalendarOccurrenc
 }
 
 fn alone(mut occurrence: CalendarOccurrence) -> CalendarOccurrence {
-    occurrence.invitees = Some(vec![guest("mars", true, "accepted")]);
+    occurrence.invitees = Some(vec![guest("alba", true, "accepted")]);
     occurrence
 }
 
@@ -167,7 +167,7 @@ fn all_day_cancelled_and_declined_events_are_never_the_call() {
     cancelled.status = "cancelled".into();
     let mut declined = event("declined", NOW - 5 * MINUTE, NOW + 25 * MINUTE);
     declined.invitees = Some(vec![
-        guest("mars", true, "declined"),
+        guest("alba", true, "declined"),
         guest("lucia", false, "accepted"),
     ]);
     assert_eq!(chosen(&[all_day, cancelled, declined], ZOOM_APP), None);
@@ -187,12 +187,12 @@ fn the_link_is_the_stable_reference_never_the_observation() {
     assert_eq!(linked.check(), Ok(()));
 }
 
-/// P9-06: whether the event repeats is kept with the link, as the calendar
+/// Whether the event repeats is kept with the link, as the calendar
 /// read it when the recording started, so the note never has to find the
 /// event again in whatever range the calendar shows later. A link stored
 /// before the field existed reads as unknown, never as «single».
 #[test]
-fn p9_06_the_link_keeps_whether_the_event_repeats() -> Result<(), serde_json::Error> {
+fn the_link_keeps_whether_the_event_repeats() -> Result<(), serde_json::Error> {
     let single = LinkedEvent::from_occurrence(&event("single", NOW, NOW + MINUTE));
     assert_eq!(single.recurring, Some(false));
     let mut weekly = event("weekly", NOW, NOW + MINUTE);

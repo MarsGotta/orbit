@@ -54,7 +54,7 @@ async fn a_failed_write_retains_both_tracks_until_a_durable_receipt() -> Result<
         32000
     );
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     assert!(runtime.flush_stopped_audio().await.is_err());
     assert_eq!(runtime.capture.pending_seals.len(), 2);

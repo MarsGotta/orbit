@@ -15,7 +15,7 @@ pub(super) enum RetirePhase {
 
 pub(super) fn computer_reason(change: AuthorityChange) -> &'static str {
     match change {
-        AuthorityChange::MarsStop | AuthorityChange::Revoked => {
+        AuthorityChange::UserStop | AuthorityChange::Revoked => {
             "Privacidad detenida: conexión, observaciones y autorización de control revocadas."
         }
         AuthorityChange::Closing => {
@@ -189,13 +189,13 @@ impl Runtime {
                             if computer
                                 && !matches!(
                                     change,
-                                    AuthorityChange::MarsStop | AuthorityChange::Revoked
+                                    AuthorityChange::UserStop | AuthorityChange::Revoked
                                 )
                             {
                                 BridgeReleaseReason::Authority(change)
                             } else {
                                 match change {
-                                    AuthorityChange::MarsStop | AuthorityChange::Revoked => {
+                                    AuthorityChange::UserStop | AuthorityChange::Revoked => {
                                         BridgeReleaseReason::PrivacyStopped
                                     }
                                     AuthorityChange::Rearm
@@ -216,7 +216,7 @@ impl Runtime {
                 RecordingNotes => self.retire_recording_notes(),
                 Calendar => {
                     let code = match change {
-                        AuthorityChange::MarsStop | AuthorityChange::Revoked => "privacy_stopped",
+                        AuthorityChange::UserStop | AuthorityChange::Revoked => "privacy_stopped",
                         AuthorityChange::Closing
                         | AuthorityChange::Device
                         | AuthorityChange::Rearm
@@ -279,7 +279,7 @@ impl Runtime {
         } else if phase == Link {
             if slot == HubLink {
                 let reason = match change {
-                    AuthorityChange::MarsStop | AuthorityChange::Revoked => {
+                    AuthorityChange::UserStop | AuthorityChange::Revoked => {
                         hub_link::Retirement::PrivacyStop
                     }
                     AuthorityChange::Device => {
@@ -314,7 +314,7 @@ impl Runtime {
         } else {
             match slot {
                 Computer => {
-                    if matches!(change, AuthorityChange::MarsStop | AuthorityChange::Closing) {
+                    if matches!(change, AuthorityChange::UserStop | AuthorityChange::Closing) {
                         self.revoke_computer_with_cause(
                             computer_reason(change),
                             super::computer_control::ComputerRevocation::Authority(change),
@@ -338,7 +338,7 @@ mod authority_cause_tests {
     #[test]
     fn each_computer_authority_retirement_names_its_actual_cause() {
         for (change, cause) in [
-            (AuthorityChange::MarsStop, "Privacidad detenida"),
+            (AuthorityChange::UserStop, "Privacidad detenida"),
             (AuthorityChange::Revoked, "Privacidad detenida"),
             (AuthorityChange::Closing, "Orbit se está cerrando"),
             (AuthorityChange::Rearm, "Rearme local"),
@@ -359,7 +359,7 @@ mod authority_cause_tests {
         ] {
             let text = computer_reason(change);
             assert!(text.contains(cause), "{change:?}: {text}");
-            if !matches!(change, AuthorityChange::MarsStop | AuthorityChange::Revoked) {
+            if !matches!(change, AuthorityChange::UserStop | AuthorityChange::Revoked) {
                 assert!(!text.contains("Privacidad detenida"), "{change:?}: {text}");
             }
         }

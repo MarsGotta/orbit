@@ -1,10 +1,10 @@
 //! Local calendar intents and an ephemeral IPC projection, never read authority.
 //!
-//! REF-10: the macOS calendar permission is the only decision. The daemon
+//! The macOS calendar permission is the only decision. The daemon
 //! observes its state; a client can ask macOS for the permission and read a
 //! window of every calendar; there is nothing to list, select or disconnect.
 //!
-//! P9-21: a client can also create, change and delete events. The same
+//! A client can also create, change and delete events. The same
 //! permission is the whole decision: a write is validated and sent, never
 //! confirmed, and its outcome — saved, refused by name, or unknown because its
 //! answer was lost — is in the view under the client's `request_id`.
@@ -29,13 +29,13 @@ pub enum CalendarCommand {
     Read {
         window: CalendarWindow,
     },
-    /// Create an event or change an occurrence (P9-21). `request_id` is the
+    /// Create an event or change an occurrence. `request_id` is the
     /// client's, to find the outcome in `CalendarView::writes`.
     Save {
         request_id: String,
         save: CalendarSave,
     },
-    /// Delete an occurrence, or it and the ones after it (P9-21).
+    /// Delete an occurrence, or it and the ones after it.
     Delete {
         request_id: String,
         delete: CalendarDelete,
@@ -162,7 +162,7 @@ pub struct CalendarView {
     /// Every calendar on the Mac, from the last complete listing. `None` means
     /// not known yet — never «none».
     pub calendars: Option<Vec<CalendarEntry>>,
-    /// P9-21: the writes waiting, in progress and recently finished, oldest
+    /// The writes waiting, in progress and recently finished, oldest
     /// first. A finished write drops out when newer ones need its place; its
     /// absence then says nothing about the store.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -203,7 +203,7 @@ mod tests {
     }
 
     #[test]
-    fn ref10_a2_a_read_takes_any_positive_window() -> Result<(), serde_json::Error> {
+    fn a_read_takes_any_positive_window() -> Result<(), serde_json::Error> {
         let year = serde_json::json!({
             "action": "read",
             "window": {"start_unix_ms": 1_767_225_600_000_i64, "end_unix_ms": 1_798_761_600_000_i64}

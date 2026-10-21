@@ -13,14 +13,14 @@ pub struct Value {
     pub read_window: Option<CalendarWindow>,
     pub read_id: Option<String>,
     pub timezone: Option<String>,
-    /// P9-22: how the writes Mars made from Orbit ended, newest last. Only
+    /// How the writes the user made from Orbit ended, newest last. Only
     /// the newest that fit the head's budget travel (the daemon keeps more);
     /// a write missing here says nothing about the store.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub writes: Vec<WriteOutcome>,
 }
 
-/// One write's outcome as the agenda head carries it (P9-22): small on
+/// One write's outcome as the agenda head carries it: small on
 /// purpose. The event itself travels in the read the daemon starts after
 /// every write; this only says where the write is and, once saved, which
 /// occurrence it became, so the app can undo it.
@@ -41,7 +41,7 @@ pub struct WriteOutcome {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "ts", ts(optional))]
     pub code: Option<String>,
-    /// What Mars reads about a refusal or an unknown outcome, with its
+    /// What the user reads about a refusal or an unknown outcome, with its
     /// numbers (`CalendarWriteRefusal::notice`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "ts", ts(optional))]
@@ -71,7 +71,7 @@ pub struct WriteTarget {
 }
 
 /// The local calendar decision. The caller supplies macOS's observation and
-/// Mars's durable privacy stop; no app setting or selected-calendar list votes.
+/// the user's durable privacy stop; no app setting or selected-calendar list votes.
 pub fn access(authorization: CalendarAuthorization, privacy_stopped: bool) -> Knowledge<()> {
     if privacy_stopped {
         return Knowledge::Absent {
@@ -106,7 +106,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn ref207_a4_access_keeps_unknown_absent_and_present_distinct() {
+    fn access_keeps_unknown_absent_and_present_distinct() {
         assert!(matches!(
             access(CalendarAuthorization::Unknown, false),
             Knowledge::Unknown {

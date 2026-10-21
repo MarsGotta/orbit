@@ -13,7 +13,7 @@ fn pressing_stop_again_attributes_it_without_retiring_twice() {
         .state;
     let repeated = decide(&adopted, Event::PrivacyStop, 2)
         .expect("Alina may press stop while it is already latched");
-    assert_eq!(repeated.state.privacy_stop_by(), Some(StopRequester::Mars));
+    assert_eq!(repeated.state.privacy_stop_by(), Some(StopRequester::User));
     assert_eq!(repeated.state.generation(), adopted.generation());
     assert!(repeated.effects.is_empty());
 }
@@ -50,14 +50,13 @@ fn helper_latch_drops_revocation_attribution_without_new_authority() {
 fn published_0312_state_recovers_with_the_same_wire_fields() {
     // This fixture has the same git blob in f972121 (0.3.12) and this base.
     let wire: serde_json::Value =
-        serde_json::from_str(include_str!("fixtures/p4_01_response_with_two_views.json"))
+        serde_json::from_str(include_str!("fixtures/golden_response_with_two_views.json"))
             .expect("published state fixture");
     let state: orbit_core::State =
         serde_json::from_value(wire["state"].clone()).expect("0.3.12 state loads");
-    // The meeting proposal view the fixture carries was retired in P9-08,
-    // the publication view and proposal fields in SIM-03a, and the messages
-    // in SIM-30: they are dropped, and every other field keeps its exact
-    // wire shape.
+    // The meeting proposal view the fixture carries, the publication view
+    // and proposal fields, and the messages were retired: they are dropped,
+    // and every other field keeps its exact wire shape.
     let mut expected = wire;
     let expected_state = expected["state"].as_object_mut().expect("state object");
     for retired in [

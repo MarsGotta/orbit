@@ -108,7 +108,7 @@ fn empty_capture_closure_keeps_the_capture_cut_cause_in_notice_history() {
         state.durable.recording.as_ref().unwrap().ended_at_ms,
         Some(2_001)
     );
-    // SIM-21: the cut is said with what it cut, then the empty close.
+    // The cut is said with what it cut, then the empty close.
     let codes: Vec<NoticeCode> = state
         .durable
         .notice_log

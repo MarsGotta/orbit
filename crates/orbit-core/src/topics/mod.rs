@@ -83,7 +83,7 @@ macro_rules! topics {
 }
 
 // Each ceiling protects one subscriber's frame allocation and actor serialization
-// time, using the ADR 004 measured payloads. None limits stored data or grants
+// time, using the measured payloads. None limits stored data or grants
 // permission; large collections belong in paged reads.
 topics! {
     // 102-byte measured head; 4 KiB catches accidental growth, not status data.
@@ -95,30 +95,30 @@ topics! {
     Recording => recording: 16 * 1024, 250;
     // Two things share it. The read head (window, read id, zone, counts) is
     // below 1 KiB and needs no more: events travel in paged reads, so this is
-    // not a calendar limit. P9-22 adds the outcomes of the writes Mars makes
-    // from Orbit, each a few hundred bytes with its notice; the daemon puts in
+    // not a calendar limit. The head also carries the outcomes of the writes
+    // the user makes from Orbit, each a few hundred bytes with its notice; the daemon puts in
     // the newest that fit in what is left and leaves the older ones out. One
     // left out is not lost: the view counts a write the head never names as
     // unknown after `calendar::WRITE_LIFETIME_NS`, says so and reads again,
-    // and it is never sent twice. Not a limit on how many writes she makes.
+    // and it is never sent twice. Not a limit on how many writes the user makes.
     Agenda => agenda: 4 * 1024, 0;
-    // SIM-41: three counters and at most 32 named recordings, about 2.3 KiB
+    // Three counters and at most 32 named recordings, about 2.3 KiB
     // with every number at its widest (`the_head_with_every_name_fits_its_
     // frame`). 8 KiB catches growth; the meetings themselves are read from
     // the hub. 1 s bounds list rereads, not how often the hub announces.
     Notes => notes: 8 * 1024, 1_000;
-    // SIM-30: one turn, never the conversation (the app reads that from the
+    // One turn, never the conversation (the app reads that from the
     // hub). A turn at its ceilings — a 32 KiB question, a 96 KiB answer
     // (`MAX_TEXT_BYTES` and three times it) and a 16 KB pending description —
     // in characters that escape to two bytes (quotes, line breaks) measured
-    // 294,699 bytes, under 288 KiB (294,912;
-    // `sim30_a_turn_at_its_ceilings_fits_the_topic`). Control characters
+    // 294,699 bytes, under 288 KiB (294,912; the daemon's test of a turn at
+    // its ceilings). Control characters
     // escape to six bytes; such a turn is refused with its size. 100 ms
     // bounds streamed-text redraws, not hub message throughput.
     Assistant => assistant: 288 * 1024, 100;
     // Twenty control rows use 4 KiB; 16 KiB excludes the paged tool catalog.
     Control => control: 16 * 1024, 0;
-    // One typed notice (SIM-21): a code, an op of at most 64 bytes and data
+    // One typed notice: a code, an op of at most 64 bytes and data
     // from a closed set of keys whose values are numbers, booleans or
     // tokens of at most 64 bytes, so every key filled stays near 2 KiB
     // (`notices_frame_fits_with_every_key_at_its_longest`). 8 KiB bounds one

@@ -231,7 +231,7 @@ impl Runtime {
                 self.apply(Event::Interrupt).await?;
             }
             Command::PrivacyStop => {
-                self.privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+                self.privacy_stop(orbit_core::privacy_stop::UserStop::Order)
                     .await
             }
             Command::Shutdown => {

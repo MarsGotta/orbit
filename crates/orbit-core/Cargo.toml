@@ -22,7 +22,7 @@ ts-rs = { version = "11", features = ["serde-compat"], optional = true }
 # The interface uses the core commands and calendar/note types directly.
 # Enabled by orbit-app-core, whose tests write their TypeScript bindings.
 ts = ["dep:ts-rs"]
-# SIM-25: «Orbit Pruebas», the copy the real test on the Mac installs beside
+# «Orbit Pruebas», the copy the real test on the Mac installs beside
 # Orbit (`orbit_bundle`). Only `ORBIT_PRUEBAS=1 scripts/macos/bundle.sh` sets it.
 pruebas = []
 

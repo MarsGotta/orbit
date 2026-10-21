@@ -24,7 +24,7 @@ pub const MAX_COMMAND_RESPONSE_BYTES: usize = 1024 * 1024;
 pub const MAX_DEFAULT_COMMAND_BYTES: usize = 1024 * 1024;
 // A 4 MiB playback clip becomes 5,592,408 base64 bytes; the measured JSON
 // command with a UUID id and 128-byte playback/provider fields is 5,592,815
-// bytes including newline (`ref406_helper_line` integration test).
+// bytes including newline, as measured.
 // Six MiB protects helper stdin and is not a bound on helper events.
 pub const MAX_HELPER_COMMAND_LINE_BYTES: usize = 6 * 1024 * 1024;
 // The largest helper event is a screenshot response: a 700,000-byte PNG cap
@@ -73,8 +73,9 @@ pub const MAX_SPEECH_CLIP_BYTES: usize = 4 * 1024 * 1024;
 // It protects one window listing, not the image captured from a window.
 pub const MAX_WINDOW_INVENTORY_BYTES: usize = 160 * 1024;
 // The calendar values below are owned by `calendar`, mirrored in Swift and
-// compared by the existing DAE-09 guard. Registry entries cite them directly;
-// they are not second definitions of those ceilings.
+// compared by the constants guard (`scripts/tests/test_constants_copies.py`).
+// Registry entries cite them directly; they are not second definitions of
+// those ceilings.
 
 #[derive(Serialize)]
 pub struct Limit {
@@ -98,7 +99,7 @@ pub fn registry() -> Vec<Limit> {
     vec![
         // Page ceilings are owned by the topic/read registries and calculated
         // here, never copied as another literal. They protect one page, not
-        // retained topic or read history; see their ADR 004 measurements.
+        // retained topic or read history; see the measurements beside each.
         Limit {
             name: "TOPIC_TRANSPORT_MAX_BYTES",
             value: crate::topics::transport_max_bytes() as u64,
@@ -114,7 +115,7 @@ pub fn registry() -> Vec<Limit> {
             unit: "bytes",
             resource: "largest paged read",
         },
-        // SIM-56: one capture's PNG, mirrored by the hub's upload route
+        // One capture's PNG, mirrored by the hub's upload route
         // (server/orbit_hub/captures.py) and the helper's encoder
         // (Limits.swift); scripts/tests/test_constants_copies.py compares them.
         Limit {
@@ -218,7 +219,7 @@ pub fn registry() -> Vec<Limit> {
             unit: "characters",
             resource: "linked event guest address",
         },
-        // P9-11: the call detection's times. The app shows the countdown
+        // The call detection's times. The app shows the countdown
         // (from the deadline the daemon publishes, never a copy of these).
         Limit {
             name: "CALL_CONFIRM_MS",
@@ -244,7 +245,7 @@ pub fn registry() -> Vec<Limit> {
             unit: "milliseconds",
             resource: "how soon an event starts to be a call's event",
         },
-        // P9-05: copies of the hub's template bounds
+        // Copies of the hub's template bounds
         // (`orbit_hub/notes/{templates,custom_templates}.py`), shown by the
         // template editor; see `notes`.
         Limit {
@@ -265,7 +266,7 @@ pub fn registry() -> Vec<Limit> {
             unit: "templates",
             resource: "custom note templates of one device",
         },
-        // P9-12: Deimos during a meeting. The pause and the longest spoken
+        // Deimos during a meeting. The pause and the longest spoken
         // question are decided in the helper; Swift mirrors them
         // (`NativeLimits`, compared by the constants guard).
         Limit {
@@ -370,7 +371,7 @@ pub fn registry() -> Vec<Limit> {
             unit: "days",
             resource: "widest N-day calendar grid",
         },
-        // P9-21: the bounds of the calendar writes and of the notes a read carries.
+        // The bounds of the calendar writes and of the notes a read carries.
         Limit {
             name: "MAX_NOTES_BYTES",
             value: crate::calendar::MAX_NOTES_BYTES as u64,

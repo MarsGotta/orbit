@@ -133,12 +133,12 @@ fn invitee(url: &str, email: Option<&str>) -> CalendarInvitee {
     }
 }
 
-// ------------------------------------------------------------------- REF-10
+// ------------------------------------------------- paged reads of every calendar
 
-/// REF-10 A3: no constant limits how many calendars are listed. A thousand is
+/// No constant limits how many calendars are listed. A thousand is
 /// a page like any other, and several pages join into one list.
 #[test]
-fn ref10_a3_any_number_of_calendars_is_listed_and_joined() -> TestResult {
+fn any_number_of_calendars_is_listed_and_joined() -> TestResult {
     let all: Vec<_> = (0..1_000).map(entry).collect();
     let whole = inventory(all.clone());
     whole.validate_response(0, &facts())?;
@@ -158,7 +158,7 @@ fn ref10_a3_any_number_of_calendars_is_listed_and_joined() -> TestResult {
 }
 
 #[test]
-fn ref10_a3_a_listing_that_changed_between_pages_is_listed_again() -> TestResult {
+fn a_listing_that_changed_between_pages_is_listed_again() -> TestResult {
     let all: Vec<_> = (0..4).map(entry).collect();
     let mut first = inventory(all[..2].to_vec());
     first.total = 4;
@@ -172,10 +172,10 @@ fn ref10_a3_a_listing_that_changed_between_pages_is_listed_again() -> TestResult
     Ok(())
 }
 
-/// REF-10 A3: a window with more events than a page is read in pages, joined
+/// A window with more events than a page is read in pages, joined
 /// in order, and nothing is counted as left out.
 #[test]
-fn ref10_a3_a_full_day_arrives_whole_in_pages() -> TestResult {
+fn a_full_day_arrives_whole_in_pages() -> TestResult {
     let events: Vec<_> = (0..500).map(event).collect();
     let mut first = page(events[..200].to_vec());
     first.total = 500;
@@ -213,7 +213,7 @@ fn ref10_a3_a_full_day_arrives_whole_in_pages() -> TestResult {
 /// A page from another enumeration of the same window — EventKit changed in
 /// between — never joins the first: the window is read again from its start.
 #[test]
-fn ref10_pages_of_two_different_enumerations_are_never_joined() -> TestResult {
+fn pages_of_two_different_enumerations_are_never_joined() -> TestResult {
     let mut first = page(vec![event(1), event(2)]);
     first.total = 3;
     first.next_after_index = Some(2);
@@ -240,7 +240,7 @@ fn ref10_pages_of_two_different_enumerations_are_never_joined() -> TestResult {
 }
 
 #[test]
-fn ref10_page_indexes_must_add_up_and_a_continuing_page_carries_something() {
+fn page_indexes_must_add_up_and_a_continuing_page_carries_something() {
     let mut value = page(vec![event(1)]);
     value.total = 2;
     assert_eq!(value.validate(), Err(CalendarError::InvalidValue));
@@ -260,10 +260,10 @@ fn ref10_page_indexes_must_add_up_and_a_continuing_page_carries_something() {
     );
 }
 
-/// REF-10 A2: any range becomes windows the helper reads whole, none wider
+/// Any range becomes windows the helper reads whole, none wider
 /// than `READ_WINDOW_MS`, together covering it exactly.
 #[test]
-fn ref10_a2_any_range_is_cut_into_windows_that_cover_it_exactly() {
+fn any_range_is_cut_into_windows_that_cover_it_exactly() {
     let start = 1_767_225_600_000; // 2026-01-01
     let end = start + 365 * DAY_MS;
     let mut windows = Vec::new();
@@ -286,7 +286,7 @@ fn ref10_a2_any_range_is_cut_into_windows_that_cover_it_exactly() {
 }
 
 #[test]
-fn ref10_a_helper_query_never_asks_eventkit_for_more_than_it_reads_whole() {
+fn a_helper_query_never_asks_eventkit_for_more_than_it_reads_whole() {
     let mut value = query();
     value.end_unix_ms = EVENTKIT_MAX_QUERY_MS;
     assert_eq!(value.validate(), Ok(()));
@@ -299,7 +299,7 @@ fn ref10_a_helper_query_never_asks_eventkit_for_more_than_it_reads_whole() {
 /// An event that overlaps two windows is returned by both and kept once: in
 /// the window where it starts.
 #[test]
-fn ref10_an_event_across_two_windows_is_kept_once() -> TestResult {
+fn an_event_across_two_windows_is_kept_once() -> TestResult {
     let mut first = page(vec![event(1)]);
     first.events[0].start_unix_ms = DAY_MS - 1_000;
     first.events[0].end_unix_ms = DAY_MS + 1_000;
@@ -320,10 +320,10 @@ fn ref10_an_event_across_two_windows_is_kept_once() -> TestResult {
     Ok(())
 }
 
-/// REF-10 A4: the agenda view reads every calendar and says which calendars its
+/// The agenda view reads every calendar and says which calendars its
 /// events came from; invitees and URL are always read.
 #[test]
-fn ref10_a4_the_assembled_view_covers_every_calendar_it_found() -> TestResult {
+fn the_assembled_view_covers_every_calendar_it_found() -> TestResult {
     let mut events: Vec<_> = (0..6).map(event).collect();
     for (index, item) in events.iter_mut().enumerate() {
         item.calendar = reference(index % 3);
@@ -344,7 +344,7 @@ fn ref10_a4_the_assembled_view_covers_every_calendar_it_found() -> TestResult {
 
 /// A meeting with more guests than the old ceiling of 64 is one valid event.
 #[test]
-fn ref10_a_meeting_with_hundreds_of_invitees_is_one_valid_event() -> TestResult {
+fn a_meeting_with_hundreds_of_invitees_is_one_valid_event() -> TestResult {
     let mut value = page(vec![event(1)]);
     value.events[0].invitees_status = CalendarFieldStatus::Provided;
     value.events[0].invitees = Some(vec![invitee("urn:test", None); 300]);
@@ -352,7 +352,7 @@ fn ref10_a_meeting_with_hundreds_of_invitees_is_one_valid_event() -> TestResult 
     Ok(())
 }
 
-// ------------------------------------------------ events, as before REF-10
+// ------------------------------------------------ events, as before the paging
 
 #[test]
 fn clocks_have_unrelated_origins_and_wall_time_does_not_refresh_a_response() -> TestResult {
@@ -492,7 +492,7 @@ fn data_unicode_and_control_characters_are_not_normalized_or_truncated() -> Test
     let original = value.clone();
     value.validate()?;
     assert_eq!(decode_read_page(&serde_json::to_vec(&value)?)?, original);
-    // Decision 4: a long title is data, not a reason to refuse the page —
+    // A long title is data, not a reason to refuse the page —
     // 5 KB passes; only one past a whole bridge page is a limit.
     value.events[0].title = "ñ".repeat(2_600);
     value.validate()?;
@@ -550,7 +550,7 @@ fn status_denial_physical_pending_and_empty_local_read_are_not_conflated() -> Te
     let mut value = page(vec![event(1)]);
     value.provider_sync_status = "complete".into();
     assert_eq!(value.validate(), Err(CalendarError::InvalidValue));
-    // REF-10: a status never carries a selection any more.
+    // A status never carries a selection any more.
     assert_eq!(
         decode_status(
             br#"{"authorization":"full_access","connected":true,
@@ -582,10 +582,10 @@ fn strict_wire_rejects_floats_negative_u64_invalid_utf8_and_null_status() -> Tes
     Ok(())
 }
 
-/// P9-22: an event's reminders travel in the read under the limits a write
+/// An event's reminders travel in the read under the limits a write
 /// has, and the ones Orbit does not edit as a count that is never zero.
 #[test]
-fn p9_22_reminders_travel_under_the_write_limits() {
+fn reminders_travel_under_the_write_limits() {
     let with = |minutes: Option<Vec<u64>>, other: Option<u32>| CalendarOccurrence {
         alarms_minutes: minutes,
         alarms_not_editable: other,

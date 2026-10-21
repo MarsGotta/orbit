@@ -30,7 +30,7 @@ async fn stop_and_revocation_clear_the_active_calendar_view() -> Result<()> {
                 .await?;
         } else {
             runtime
-                .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+                .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
                 .await;
         }
         assert!(
@@ -1513,7 +1513,7 @@ async fn a_rearm_does_not_keep_the_stop_as_the_agenda_answer() -> Result<()> {
         orbit_core::topics::Knowledge::Present { .. }
     ));
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     assert!(runtime.state.privacy_stopped());
     assert!(matches!(

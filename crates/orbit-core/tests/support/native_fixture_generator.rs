@@ -301,7 +301,7 @@ fn create_draft() -> Value {
         "alarms_minutes":[10,0]})
 }
 
-/// One event with every field a read carries (P9-21), organized by Mars.
+/// One event with every field a read carries, organized by the user.
 fn full_occurrence() -> Value {
     json!({"observation_id":"00000000-0000-4000-8000-000000000912",
         "calendar":{"calendar_id":"local-calendar","source_id":"local-source"},
@@ -350,7 +350,7 @@ fn invitation_occurrence() -> Value {
 
 /// Every write variant besides the ones in `commands/` and `results/`: the
 /// change of an occurrence, and one refusal per code, as the helper's
-/// `response` event with its detail (P9-21).
+/// `response` event with its detail.
 fn calendar_variants(root: &Path, id: &str) -> Result<(), Box<dyn Error>> {
     write(
         &root.join("commands"),

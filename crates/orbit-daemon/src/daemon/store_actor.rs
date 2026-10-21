@@ -925,7 +925,7 @@ impl Writer {
             self.startup_guard_active.load(Ordering::Acquire)
                 && (!pending.state.privacy_stopped()
                     || pending.state.privacy_stop_by()
-                        != Some(orbit_core::privacy_stop::StopRequester::Mars))
+                        != Some(orbit_core::privacy_stop::StopRequester::User))
         });
         let state = effective.map_or(pending.state.as_ref(), Box::as_ref);
         let result = self
@@ -961,7 +961,7 @@ impl Writer {
                 && self.startup_guard_active.load(Ordering::Acquire)
                 && (!critical.state.privacy_stopped()
                     || critical.state.privacy_stop_by()
-                        != Some(orbit_core::privacy_stop::StopRequester::Mars))
+                        != Some(orbit_core::privacy_stop::StopRequester::User))
         });
         let state = effective.map_or(critical.state.as_ref(), Box::as_ref);
         let result = match critical.job {

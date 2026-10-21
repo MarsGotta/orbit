@@ -1,6 +1,6 @@
 //! The helper's pages, and the reads the daemon joins them into.
 //!
-//! REF-10. A read of any range is a sequence of windows (`READ_WINDOW_MS`) and
+//! A read of any range is a sequence of windows (`READ_WINDOW_MS`) and
 //! each window a sequence of pages (`NATIVE_PAGE_EVENT_BYTES`). Nothing here
 //! decides how many windows or pages a read may take: that is the only way a
 //! year, or a day with more events than fit one message, arrives whole.
@@ -206,7 +206,7 @@ pub struct WindowRead {
     pub system_timezone: String,
     pub events: Vec<CalendarOccurrence>,
     pub omitted: Vec<CalendarOmission>,
-    /// The window's events that could not travel, named (decision 4). Like
+    /// The window's events that could not travel, named. Like
     /// `omitted`, the helper repeats them on every page of the window; the
     /// first page's list is the window's.
     pub oversized: Vec<CalendarOversizedEvent>,
@@ -334,7 +334,7 @@ pub fn assemble_view(windows: Vec<WindowRead>) -> Result<CalendarSnapshot, Calen
             .count();
         left_out = left_out.saturating_add(u32::try_from(later).unwrap_or(u32::MAX));
     }
-    // Decision 4: what could not travel is counted where the view keeps its
+    // What could not travel is counted where the view keeps its
     // omissions; the reads Deimos makes name each one.
     if left_out > 0 {
         omitted.push(CalendarOmission {

@@ -872,7 +872,7 @@ async fn privacy_stop_stalled_once_is_retried_until_the_microphone_closes() {
     runtime.native = stalled_native;
 
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     assert!(runtime.state.privacy_stopped());
     assert!(

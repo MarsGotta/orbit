@@ -29,7 +29,7 @@ fn offline_submission_is_hub_unreachable_without_inventing_a_timestamp() {
 }
 
 #[test]
-fn a1_decision_refusal_names_actual_text_size_and_ceiling() {
+fn decision_refusal_names_actual_text_size_and_ceiling() {
     let state = decide(&State::default(), Event::Connect(Connection::Online), 0)
         .unwrap()
         .state;
@@ -48,7 +48,7 @@ fn a1_decision_refusal_names_actual_text_size_and_ceiling() {
 }
 
 #[test]
-fn a2_refused_response_has_structured_cause_and_keeps_legacy_text() {
+fn refused_response_has_structured_cause_and_keeps_legacy_text() {
     let response: Response = serde_json::from_value(json!({
         "v": 1, "id": "synthetic", "ok": false,
         "error": "Demasiados suscriptores",

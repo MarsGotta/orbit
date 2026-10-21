@@ -2,7 +2,7 @@
 //!
 //! The daemon and this crate used to write Spanish sentences for the screen,
 //! so the screen narrated internal steps and an unforeseen failure could go
-//! unsaid (SIM-21). A notice is now a
+//! unsaid. A notice is now a
 //! [`NoticeCode`], the [`Op`] of the action it belongs to and [`NoticeData`]
 //! that only admits numbers, booleans and short ASCII tokens: no type here can
 //! carry the content of a meeting, a conversation or an event. The interface
@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 
 /// The identifier of one action from end to end: the order in the
 /// interface, the daemon, the request to the hub, the logs and the notice.
-/// Shared contract with the hub (SIM-22): 8 to 64 characters of
+/// Shared contract with the hub: 8 to 64 characters of
 /// `[A-Za-z0-9-]`, so a UUID fits and nothing else rides along.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 #[serde(transparent)]
@@ -174,7 +174,7 @@ notice_codes! {
     HelperError => Failed,
     /// Orbit.app is not running: open it.
     HelperNotRunning => Fixable,
-    /// Her privacy stop is in force: rearm to continue.
+    /// The user's privacy stop is in force: rearm to continue.
     PrivacyStopActive => Fixable,
     /// A shortcut's order was refused (`code`).
     ShortcutRefused => Failed,
@@ -224,7 +224,7 @@ notice_codes! {
     /// The preference could not be read: choose it again in Ajustes.
     CallPreferenceUnreadable => Fixable,
     CallDetectionFailed => Failed,
-    /// Recording a call without asking, as she chose.
+    /// Recording a call without asking, as the user chose.
     CallRecordingStartedAutomatically => Done,
     CallRecordingStarted => Silent,
     CallRecordingFinished => Done,
@@ -254,7 +254,7 @@ notice_codes! {
     /// The Mac stopped its capture with nothing recording: nothing was cut.
     MacStoppedIdleCapture => Silent,
     // What Deimos asks of this Mac (screen, selection, actions, calendar).
-    /// Deimos reads the cause in its reply and tells Mars; only recorded here.
+    /// Deimos reads the cause in its reply and tells the user; only recorded here.
     /// `code` is the refusal's; `too_large` carries `bytes` and `max_bytes`.
     BridgeRefused => Silent,
     /// What Deimos asked of this Mac (`code`), said while it is served:
@@ -271,7 +271,7 @@ notice_codes! {
     /// `max_bytes`, or `engine_error`), `step` `helper_fallback` when the
     /// helper answered instead. The text is in daemon.log under the same op.
     /// An answer to what Deimos asked to see that is merely too large is not
-    /// this: it is a `bridge_refused` or a helper fallback (SIM-56).
+    /// this: it is a `bridge_refused` or a helper fallback.
     EngineFailed => Silent,
     /// A process ended before Orbit stopped it: `cause` is engine/proxy,
     /// `code` exit/signal/wait_status, `status` its collected number.
@@ -281,7 +281,7 @@ notice_codes! {
     PairingFailed => Fixable,
     Paired => Done,
     SessionOpened => Silent,
-    /// SIM-30: the conversations are read from the hub, and there is no
+    /// The conversations are read from the hub, and there is no
     /// connection with it.
     ConversationsNeedHub => Fixable,
     HubSendFailed => Silent,
@@ -289,7 +289,7 @@ notice_codes! {
     /// A question to Deimos about the meeting was not sent (`cause`).
     MeetingQuestionNotSent => Failed,
     /// A second question while Deimos still answers the first: it was not
-    /// sent, and Mars can ask it again when the answer arrives.
+    /// sent, and the user can ask it again when the answer arrives.
     MeetingQuestionStillAnswering => Fixable,
     /// Audio was lost for lack of memory: keep Orbit open while it saves.
     AudioReserveExhausted => Fixable,
@@ -315,14 +315,14 @@ notice_codes! {
     // Window sources Deimos captures.
     SourceProgress => Silent,
     SourceFailed => Failed,
-    // Meetings and their notes, on the hub (SIM-41).
+    // Meetings and their notes, on the hub.
     TranscriptRetryRequested => Done,
     /// The manual final pass was refused, with the hub code and HTTP status.
     TranscriptRetranscribeRefused => Fixable,
     /// The hub did not confirm the manual final pass; it may be in progress.
     TranscriptRetranscribeUnconfirmed => Fixable,
     /// A change of a note (an edit, a rewrite, a speaker's name, a retry)
-    /// did not reach the hub: nothing changed; she can do it again when the
+    /// did not reach the hub: nothing changed; the user can do it again when the
     /// hub is back.
     NoteChangeUnsent => Fixable,
     /// The hub refused a change of a note (`step` the order, `status` and
@@ -330,11 +330,11 @@ notice_codes! {
     NoteChangeRefused => Failed,
     /// The hub replaced the transcript after the selected turn was read.
     TurnNoLongerExists => Fixable,
-    /// SIM-52: the meeting was not transcribed again in another language
+    /// The meeting was not transcribed again in another language
     /// because the hub cannot read the audio of `count` of its `total`
     /// groups; nothing changed.
     MeetingAudioUnreadable => Fixable,
-    // What the interface meets (SIM-24): failures whose cause no longer
+    // What the interface meets: failures whose cause no longer
     // reaches the screen, reported by the app so none is silent. Their data
     // is closed (a stage, a code, a cause kind), never the cause's text.
     /// The interface could not connect to Orbit.
@@ -360,7 +360,7 @@ notice_codes! {
     /// A calendar write was refused or its outcome is unknown (`code`,
     /// `stage`): the daemon only records it in the agenda topic.
     CalendarWriteFailed => Silent,
-    // What the helper reports through the daemon (SIM-23): where an order
+    // What the helper reports through the daemon: where an order
     // to the Mac failed and where «Oye Deimos» is, so a lost question can be
     // followed step by step in the log.
     /// The helper answered an order with an error (`step` is the order,
@@ -381,7 +381,7 @@ notice_codes! {
     WakePhraseHeard => Silent,
     /// The phrase was heard and no question followed it.
     WakePhraseAbandoned => Silent,
-    /// The helper heard a question and did not send it: her stop, or the
+    /// The helper heard a question and did not send it: the user's stop, or the
     /// microphone stream changed.
     WakePhraseQuestionDropped => Silent,
     /// A spoken question reached the daemon and is asked.
@@ -411,7 +411,7 @@ macro_rules! notice_keys {
             /// Whether this key's token is a closed enumeration: a code some
             /// component already speaks (the daemon, the helper, the hub),
             /// never a name or a word somebody said. Only these tokens may
-            /// leave the Mac in an error report (SIM-23); any other key's
+            /// leave the Mac in an error report; any other key's
             /// token stays in the local log.
             pub const fn closed(self) -> bool {
                 matches!(self, Self::Cause | Self::Code | Self::Origin | Self::Step)
@@ -502,8 +502,8 @@ impl<'de> Deserialize<'de> for Token {
 impl NoticeCode {
     /// Whether this code says that something in Orbit failed: every
     /// `failed` code, and the `silent` ones that are failures nobody needs
-    /// to see on screen. Only failures leave for Sentry (SIM-23); a
-    /// condition she can fix (`fixable`: a missing permission, no network),
+    /// to see on screen. Only failures leave for Sentry; a
+    /// condition the user can fix (`fixable`: a missing permission, no network),
     /// work in progress, work done and the rest of the silent trail stay in
     /// the local log. The one place that decides it.
     pub const fn is_failure(self) -> bool {
@@ -512,7 +512,7 @@ impl NoticeCode {
                 self,
                 // An order the helper answered with an error.
                 Self::HelperCommandFailed
-                    // The engine that acts on the computer failed (SIM-25).
+                    // The engine that acts on the computer failed.
                     | Self::EngineFailed
                     // The «Oye Deimos» detector broke, or a heard question
                     // never left the helper.
@@ -524,7 +524,7 @@ impl NoticeCode {
                     // An order to the Mac whose outcome never came back.
                     | Self::HelperCommandUnconfirmed
                     | Self::RetiredStopUnconfirmed
-                    // What the interface meets (SIM-24): reads, writes and
+                    // What the interface meets: reads, writes and
                     // checks that failed and no longer say so on screen.
                     | Self::ConnectFailed
                     | Self::NoteReadProblem
@@ -565,12 +565,12 @@ impl<'de> Deserialize<'de> for NoticeCode {
 /// `&str` or `String`, so free text does not compile:
 /// ```compile_fail
 /// use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
-/// let _ = Notice::new(NoticeCode::CaptureCut).with(NoticeKey::Cause, "Mars dijo algo privado");
+/// let _ = Notice::new(NoticeCode::CaptureCut).with(NoticeKey::Cause, "Alguien dijo algo privado");
 /// ```
 /// ```compile_fail
 /// use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
 /// let _ = Notice::new(NoticeCode::CaptureCut)
-///     .with(NoticeKey::Cause, String::from("Mars dijo algo privado"));
+///     .with(NoticeKey::Cause, String::from("Alguien dijo algo privado"));
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(
@@ -686,8 +686,8 @@ impl From<NoticeCode> for Notice {
     }
 }
 
-/// Reads a notice written by any version. A notice from before SIM-21 was a
-/// sentence and is not carried forward; one a newer daemon wrote with data
+/// Reads a notice written by any version. A notice from before notices were
+/// typed was a sentence and is not carried forward; one a newer daemon wrote with data
 /// this build cannot read keeps its op, as [`NoticeCode::Unknown`], so the
 /// person still sees the generic failure with its code instead of nothing.
 pub fn lenient_notice<'de, D: Deserializer<'de>>(
@@ -706,7 +706,7 @@ pub fn lenient_notices<'de, D: Deserializer<'de>>(
 }
 
 fn read_notice(value: serde_json::Value) -> Option<Notice> {
-    // A sentence, or a `{text}` record, from before SIM-21 has no code.
+    // A sentence, or a `{text}` record, from before typed notices has no code.
     value.get("code").and_then(serde_json::Value::as_str)?;
     let op = value
         .get("op")
@@ -779,7 +779,7 @@ impl Eq for NoticeLog {}
 
 impl<'de> Deserialize<'de> for NoticeLog {
     /// Keeps every record that is a typed notice; sentences saved before
-    /// SIM-21 are dropped rather than refusing the whole saved state.
+    /// notices were typed are dropped rather than refusing the whole saved state.
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
         struct Raw {
@@ -822,8 +822,8 @@ pub struct Report {
 }
 
 impl Report {
-    /// Whether this line says something failed (SIM-23: only these leave
-    /// for Sentry). A line the interface reports as `failed` (a view that
+    /// Whether this line says something failed (only these leave for
+    /// Sentry). A line the interface reports as `failed` (a view that
     /// failed to paint, an uncaught error, a code it has no entry for) is a
     /// failure; any other is one when its code is a [`NoticeCode`] that
     /// [`NoticeCode::is_failure`] says is.
@@ -910,11 +910,11 @@ mod tests {
 
     #[test]
     fn notice_data_refuses_free_text_on_the_wire() {
-        let text = r#"{"code":"capture_cut","data":{"cause":"Mars dijo algo privado"}}"#;
+        let text = r#"{"code":"capture_cut","data":{"cause":"Alguien dijo algo privado"}}"#;
         assert!(serde_json::from_str::<Notice>(text).is_err());
         let unknown_key = r#"{"code":"capture_cut","data":{"transcript":"x"}}"#;
         assert!(serde_json::from_str::<Notice>(unknown_key).is_err());
-        let report = r#"{"op":"0123abcd","code":"ui_render_failed","class":"failed","source":"ui","data":{"cause":"Hola Mars"}}"#;
+        let report = r#"{"op":"0123abcd","code":"ui_render_failed","class":"failed","source":"ui","data":{"cause":"Hola Lucía"}}"#;
         assert!(serde_json::from_str::<Report>(report).is_err());
         let fine = r#"{"code":"capture_cut","op":"0123abcd","data":{"cause":"helper_lost","fragments":3,"closing":false}}"#;
         let notice: Notice = serde_json::from_str(fine).unwrap();
@@ -995,7 +995,7 @@ mod tests {
         assert_eq!(notice.op.map(|op| op.short()), Some("7F3A2C".to_owned()));
     }
 
-    /// SIM-23: every `failed` code is a failure; nothing she can fix,
+    /// Every `failed` code is a failure; nothing the user can fix,
     /// nothing in progress and nothing done is; the silent trail is not,
     /// except the silent codes that are failures.
     #[test]

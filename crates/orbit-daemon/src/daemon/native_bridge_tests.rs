@@ -803,7 +803,7 @@ async fn audio_route_recovery_during_privacy_drain_never_announces_continuation(
     let (mut runtime, mut commands) = fixture(directory.path())?;
     let stream = start_meeting(&mut runtime, &mut commands).await?;
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     runtime
         .native_event(

@@ -1,4 +1,4 @@
-//! What changed in the meetings and notes (SIM-41). The meetings live on the
+//! What changed in the meetings and notes. The meetings live on the
 //! hub; this head only says when the app should read them again: the list
 //! when `revision` moves, an open note when its own counter moves.
 use serde::{Deserialize, Serialize};
@@ -25,7 +25,7 @@ pub struct Value {
     /// in `recordings` may have changed as late as this.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub floor: u64,
-    /// P9-05: moves when a template or assignment order is answered, so
+    /// Moves when a template or assignment order is answered, so
     /// the app reads the library again.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub library_revision: u64,

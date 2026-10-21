@@ -1,9 +1,9 @@
-//! P9-11: Orbit notices a call, offers to record it, and ends a recording the
+//! Orbit notices a call, offers to record it, and ends a recording the
 //! call started when the call ends.
 //!
 //! A call is an application of the call list (`meeting_audio::call_kind`)
-//! that the helper reports holding the microphone (`microphone_activity`,
-//! P9-10) for at least [`CALL_CONFIRM_MS`]. What happens then is Mars's one
+//! that the helper reports holding the microphone (`microphone_activity`)
+//! for at least [`CALL_CONFIRM_MS`]. What happens then is the user's one
 //! preference, «Al detectar una llamada» ([`CallPreference`]); the macOS
 //! microphone permission is the only door, so there is nothing else to
 //! accept, review or renew. A recording the detection started (accepted or on
@@ -31,7 +31,7 @@ mod tests;
 
 /// How long an application must hold the microphone before it is a call.
 ///
-/// Protects: Mars from an offer for a dictation, a microphone test or the
+/// Protects: the user from an offer for a dictation, a microphone test or the
 /// first second of a voice message — a second or two of microphone that is
 /// not a call. Why three seconds: the measured debounce before treating a
 /// change as settled, and a call's first words take longer than that to
@@ -51,7 +51,7 @@ pub const CALL_RELEASE_MS: i64 = 3_000;
 /// The visible countdown before a recording the call started ends on its own.
 ///
 /// Protects: the end of a call that is not really over (a reconnect, a second
-/// call right after) — Mars sees «termino de grabar en 13 s» and can press
+/// call right after) — the user sees «termino de grabar en 13 s» and can press
 /// «Seguir grabando», and the application coming back cancels it. Why
 /// thirteen seconds: long enough to read and press, short
 /// enough not to record the silence after the call. It is not a recording
@@ -66,7 +66,7 @@ pub const AUTO_STOP_COUNTDOWN_MS: i64 = 13_000;
 /// ten the call is not that event. It is not a limit on reading the agenda.
 pub const EVENT_LOOKAHEAD_MS: i64 = 600_000;
 
-/// «Al detectar una llamada»: Mars's preference, kept by the daemon. A
+/// «Al detectar una llamada»: the user's preference, kept by the daemon. A
 /// preference, not a permission: the microphone permission is the decision.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -235,7 +235,7 @@ pub struct CallDetector {
     offer: Option<Offer>,
     starting: Option<Offer>,
     owned: Option<Owned>,
-    /// After Mars's privacy stop: what holds the microphone when she rearms
+    /// After the user's privacy stop: what holds the microphone when they rearm
     /// was there before, and nothing resumes on its own.
     quiet: bool,
     stopped: bool,
@@ -317,14 +317,14 @@ impl CallDetector {
         self.owned.as_ref().map(|owned| owned.recording_id.as_str())
     }
 
-    /// Retired from outside an input (Mars's stop, a revocation, Orbit
+    /// Retired from outside an input (the user's stop, a revocation, Orbit
     /// closing): everything is forgotten and nothing resumes on its own.
     pub fn retire(&mut self) {
         self.stop();
     }
 
-    /// Mars's privacy stop: everything is forgotten, including a recording
-    /// the call started (her stop cut it), and nothing resumes on its own.
+    /// The user's privacy stop: everything is forgotten, including a recording
+    /// the call started (their stop cut it), and nothing resumes on its own.
     fn stop(&mut self) {
         self.holders = None;
         self.handled.clear();
@@ -365,7 +365,7 @@ impl CallDetector {
                 self.starting = Some(offer);
             }
             CallInput::Dismiss { call_id } => {
-                // An offer already gone is what she asked for.
+                // An offer already gone is what the user asked for.
                 self.offer.take_if(|offer| offer.call_id == call_id);
             }
             CallInput::Keep { recording_id } => {

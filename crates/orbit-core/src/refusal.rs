@@ -173,7 +173,7 @@ pub enum Expected {
         bytes: u64,
         max_bytes: u64,
     },
-    /// REF-41 A5 · a meeting title over the manifest maximum. Counted in
+    /// A meeting title over the manifest maximum. Counted in
     /// characters, the unit `MAX_MANIFEST_TITLE_CHARACTERS` is defined in,
     /// unlike the byte-based `TextLength` above.
     TitleLength {
@@ -227,7 +227,7 @@ parameter_enum!(EngineCause { NotInstalled => "not_installed", NotRunning => "no
 /// The existing size, upstream, timeout and parameter families cannot carry a
 /// download URL, declared-versus-observed size, available manifest keys and
 /// network cause together. Updates therefore have one typed family; the CLI
-/// maps each cause to the corresponding REF-401 exit-code family.
+/// maps each cause to the corresponding exit-code family.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum UpdateSizeSource {
@@ -626,9 +626,10 @@ refusals! {
 
 impl Refusal {
     /// The hub cannot be asked now: this Mac is not paired, has no link to
-    /// it, or Mars's privacy stop is on. What the hub keeps (notes,
+    /// it, or the user's privacy stop is on. What the hub keeps (notes,
     /// templates) is then unknown here, never a failure of the read: the
-    /// connection and the stop say themselves elsewhere (SIM-25 run 20).
+    /// connection and the stop say themselves elsewhere (seen in a run of the
+    /// real test on the Mac).
     pub fn needs_the_hub(&self) -> bool {
         matches!(
             self,

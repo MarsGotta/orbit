@@ -83,7 +83,7 @@ pub struct TrackProgress {
 }
 
 /// Bounds the human recording title copied into the final manifest, and
-/// the name Mars gives a meeting afterwards (SIM-52, `notes::meeting_title`):
+/// the name the user gives a meeting afterwards (`notes::meeting_title`):
 /// the same title on the hub (`MAX_RECORDING_TITLE_CHARACTERS`). 256 Unicode
 /// scalar values matches Pydantic's `str` length and the hub intake; this is
 /// not a byte or transcript limit.
@@ -141,8 +141,8 @@ pub struct Message {
     pub voice: Option<VoiceNote>,
 }
 
-/// The turn in progress, or the last one until another begins (SIM-30): what
-/// Mars said and Deimos's answer as it arrives. It is all the Mac keeps of a
+/// The turn in progress, or the last one until another begins: what
+/// the user said and Deimos's answer as it arrives. It is all the Mac keeps of a
 /// conversation; the conversation itself is the hub's, read a page at a time.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Turn {
@@ -152,7 +152,7 @@ pub struct Turn {
 }
 
 impl Turn {
-    /// The message with this id, Mars's or the answer.
+    /// The message with this id, the user's or the answer.
     fn message_mut(&mut self, id: &str) -> Option<&mut Message> {
         if self.user.id == id {
             Some(&mut self.user)
@@ -161,7 +161,7 @@ impl Turn {
         }
     }
 
-    /// Mars's voice note `id`, while it has no transcript yet.
+    /// The user's voice note `id`, while it has no transcript yet.
     pub fn untranscribed_voice_mut(&mut self, id: &str) -> Option<&mut VoiceNote> {
         self.message_mut(id)
             .filter(|message| message.role == "user")
@@ -220,7 +220,7 @@ pub struct Approval {
     pub clarification: bool,
 }
 
-/// One conversation as the hub lists it (SIM-30). Its title is its date,
+/// One conversation as the hub lists it. Its title is its date,
 /// written by the app from `created_at_ms`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SessionSummary {
@@ -231,15 +231,16 @@ pub struct SessionSummary {
     pub message_count: u64,
 }
 
-/// One message of a conversation as the hub keeps it (SIM-30).
+/// One message of a conversation as the hub keeps it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SessionMessage {
-    /// The Mac's id for it when the Mac sent it (Mars's messages), so her
-    /// turn and her voice note's audio are found by it; else the hub's.
+    /// The Mac's id for it when the Mac sent it (the user's messages), so
+    /// their turn and their voice note's audio are found by it; else the hub's.
     pub id: String,
     pub role: String,
     pub text: String,
-    /// When it was written; `None` for messages stored before SIM-30.
+    /// When it was written; `None` for messages stored before the hub kept
+    /// the conversations.
     pub at_ms: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub voice: Option<SessionVoice>,
@@ -357,8 +358,8 @@ pub struct Capabilities {
     /// with every status, so a missing value means the app is not running.
     #[serde(default)]
     pub(crate) calendar: Option<crate::calendar::CalendarAuthorization>,
-    /// How many calendars the Mac has, from the last complete listing. REF-10
-    /// A4: what Ajustes shows beside the permission, taken from the data and
+    /// How many calendars the Mac has, from the last complete listing: what
+    /// Ajustes shows beside the permission, taken from the data and
     /// kept here rather than in the calendar view so that opening another
     /// screen cannot turn it into «0». `None` means not known yet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -515,8 +516,8 @@ pub struct DurableState {
     pub schema: u8,
     pub(crate) generation: u64,
     pub(crate) privacy_stopped: bool,
-    /// Who asked for the stop in force (REF-12): only Mars's is carried
-    /// across a restart as hers. `None` with a stop in force is a stop
+    /// Who asked for the stop in force: only the user's is carried
+    /// across a restart as theirs. `None` with a stop in force is a stop
     /// nobody can attribute, and is kept. Omitted rather than nulled so a
     /// state that is not stopped stays byte-identical on the wire.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -524,7 +525,8 @@ pub struct DurableState {
     pub(crate) connection: Connection,
     pub(crate) session_id: Option<String>,
     pub active_request: Option<String>,
-    /// A state saved before SIM-30 held up to 200 messages here, under
+    /// A state saved before the hub kept the conversations held up to 200
+    /// messages here, under
     /// `messages`; it loads without a turn.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub turn: Option<Turn>,
@@ -534,7 +536,7 @@ pub struct DurableState {
     pub call: Option<crate::voice::CallState>,
     pub pending_approval: Option<Approval>,
     pub(crate) capabilities: Capabilities,
-    /// The last notice said, typed (SIM-21). A state saved before typed
+    /// The last notice said, typed. A state saved before typed
     /// notices held a sentence here; it loads as no notice.
     #[serde(default, deserialize_with = "crate::notice::lenient_notice")]
     pub notice: Option<crate::notice::Notice>,
@@ -597,18 +599,18 @@ impl DurableState {
         self.notice.as_ref().map(|notice| notice.code)
     }
     /// A restart never silently restarts physical capture or uncertain
-    /// prompts, and never invents a stop (REF-12 A1): an update, a crash or
-    /// the Mac booting comes back working unless Mars had pressed her stop.
+    /// prompts, and never invents a stop: an update, a crash or the Mac
+    /// booting comes back working unless the user had pressed their stop.
     pub fn recovered(mut self) -> Self {
         use crate::privacy_stop::StopRequester;
         match (self.privacy_stopped, self.privacy_stop_by) {
             // The hub decides a revocation again at the next connection; a
-            // restart does not carry it as if she had asked for it.
+            // restart does not carry it as if the user had asked for it.
             (true, Some(StopRequester::Revocation)) | (false, _) => {
                 self.privacy_stopped = false;
                 self.privacy_stop_by = None;
             }
-            (true, Some(StopRequester::Mars)) => self.set_notice(
+            (true, Some(StopRequester::User)) => self.set_notice(
                 Notice::new(NoticeCode::PrivacyStopKept).with(NoticeKey::Attributed, true),
             ),
             // Saved by a version that did not record who asked. Absence is
@@ -676,7 +678,7 @@ pub struct Views {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub audio_sources: Vec<AudioSource>,
     /// Why the helper's inventory of applications with audio is not shown,
-    /// with its numbers (REF-12 A3). Absent while the list is fine or has
+    /// with its numbers. Absent while the list is fine or has
     /// not been read: an empty list with no reason is "none running", and
     /// one with a reason is "could not be verified", never the same.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -707,7 +709,7 @@ pub enum RecoveryStep {
     Snapshot,
     Environment,
     Operations,
-    /// P9-11: «Al detectar una llamada», read from the encrypted store.
+    /// «Al detectar una llamada», read from the encrypted store.
     CallPreference,
 }
 
@@ -833,12 +835,11 @@ mod projection_tests {
     }
 
     #[test]
-    fn sim51_a_snapshot_that_still_names_the_daemon_version_loads() -> Result<(), serde_json::Error>
-    {
+    fn a_snapshot_that_still_names_the_daemon_version_loads() -> Result<(), serde_json::Error> {
         // Up to 0.5.x the daemon stamped its build version on the state it
         // served, and a snapshot could keep it. One executable has one
-        // version (SIM-51): the field is gone, and a snapshot that still
-        // carries it loads as if it never had.
+        // version since the daemon runs inside the app: the field is gone,
+        // and a snapshot that still carries it loads as if it never had.
         let mut saved = serde_json::to_value(DurableState::default())?;
         if let Some(fields) = saved.as_object_mut() {
             fields.insert("daemon_version".into(), "0.5.1".into());
@@ -854,8 +855,8 @@ mod projection_tests {
     }
 
     #[test]
-    fn a4_the_ipc_state_says_whether_a_helper_is_connected() {
-        // P0-12 R4: «nadie lo ha preguntado todavía» and «no hay quien lo
+    fn the_ipc_state_says_whether_a_helper_is_connected() {
+        // «nadie lo ha preguntado todavía» and «no hay quien lo
         // pregunte» are only distinguishable while the state says whether a
         // helper is connected at all.
         let connected = State {
@@ -874,7 +875,7 @@ mod projection_tests {
     }
 
     #[test]
-    fn a7_snapshot_without_finalizing_since_ms_deserializes() -> Result<(), serde_json::Error> {
+    fn snapshot_without_finalizing_since_ms_deserializes() -> Result<(), serde_json::Error> {
         let state = State {
             durable: crate::DurableState {
                 recording: Some(Recording {

@@ -4,7 +4,7 @@
 //! the recording captured the microphone and nothing else. That failure is
 //! silent and only shows up afterwards, in a transcript where everyone except
 //! the person holding the Mac is missing: a 35-minute meeting came back as 318
-//! words, all of them Mars's.
+//! words, all of them the user's.
 //!
 //! The decision is a pure function of what the Mac reported so it can be tested
 //! without a Mac, and so that a wrong guess is a visible refusal rather than an
@@ -16,7 +16,7 @@
 /// also everything else on the screen. Order inside a rank does not matter; the
 /// ranks are what decide.
 ///
-/// P9-11: the same list says which application holding the microphone is a
+/// The same list says which application holding the microphone is a
 /// call. Whereby and Google Meet are web pages, so their call is the browser's.
 const DEDICATED: [&str; 11] = [
     "us.zoom.xos",
@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn every_outcome_says_what_the_recording_will_contain() {
-        // The defect being fixed is silence: Mars recorded 35 minutes and only
+        // The defect being fixed is silence: the user recorded 35 minutes and only
         // learned afterwards that no other voice was in it.
         use crate::notice::{NoticeClass, NoticeCode};
         let recorded = notice(&AudioChoice::Application {
@@ -254,13 +254,13 @@ mod tests {
             assert_eq!(
                 warning.class(),
                 NoticeClass::Fixable,
-                "una grabación con una sola voz debe decirlo: {warning:?}"
+                "a recording with a single voice must say so: {warning:?}"
             );
         }
     }
 
     #[test]
-    fn p9_11_a_call_is_a_call_application_or_a_browser_and_nothing_else() {
+    fn a_call_is_a_call_application_or_a_browser_and_nothing_else() {
         assert_eq!(call_kind("com.apple.FaceTime"), Some(CallKind::Dedicated));
         assert_eq!(call_kind("us.zoom.xos"), Some(CallKind::Dedicated));
         assert_eq!(call_kind("com.google.Chrome"), Some(CallKind::Browser));
@@ -281,6 +281,6 @@ mod tests {
         assert!(ids.contains(&"com.google.Chrome".to_owned()));
         assert!(!ids.contains(&"com.apple.Notes".to_owned()));
         // The native side caps how many identifiers it will accept.
-        assert!(ids.len() <= 32, "la lista no puede crecer sin límite");
+        assert!(ids.len() <= 32, "the list cannot grow without a bound");
     }
 }

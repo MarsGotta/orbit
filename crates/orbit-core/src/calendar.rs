@@ -1,14 +1,14 @@
 //! EventKit wire contract: the local read the daemon assembles, and the
-//! writes Mars makes from Orbit (P9-21).
+//! writes the user makes from Orbit.
 //!
-//! REF-10: the macOS calendar permission is the only decision about Mars's
+//! The macOS calendar permission is the only decision about the user's
 //! agenda. Nothing is selected, confirmed, copied or kept: the helper reads
 //! every calendar the permission covers, one window of the local store at a
 //! time and in pages, and the daemon joins the pages. These values neither read
 //! calendars nor authorize audio, remote sharing, persistence or input.
 //!
-//! P9-21: the same permission (full access) is the whole decision for writes
-//! too. A write Mars makes in Orbit is validated here, purely, before it
+//! The same permission (full access) is the whole decision for writes
+//! too. A write the user makes in Orbit is validated here, purely, before it
 //! reaches the helper; there is no confirmation and no second consent.
 //!
 //! The caller must correlate each native response with its outstanding
@@ -34,7 +34,7 @@ pub use pages::*;
 pub use wire::{decode_inventory_page, decode_read_page, decode_status};
 pub use writes::*;
 
-/// The widest grid of N days in the app's calendar, the `0` key (P9-20).
+/// The widest grid of N days in the app's calendar, the `0` key.
 /// Protects nothing beyond the layout: past fourteen columns a column is
 /// narrower than an event title. It is not a read limit — a month and the
 /// agenda are wider and read whole. The interface copies it once
@@ -58,7 +58,7 @@ pub const MAX_NATIVE_PAGE_BYTES: usize = 768 * 1024;
 ///
 /// Soft: a page always carries at least one whole event, so a large event is
 /// never split or dropped here. Why 256 KiB: the size of a helper calendar
-/// reply before REF-10, known to cross the link without stalling audio; three
+/// reply before the reads were paged, known to cross the link without stalling audio; three
 /// such pages fit under `MAX_NATIVE_PAGE_BYTES`. Mirrored by
 /// `CalendarLimits.pageEventBytes` in Swift; their copies are compared through
 /// `contracts/constants.json`.
@@ -89,12 +89,12 @@ pub const READ_WINDOW_MS: i64 = 31 * 86_400_000;
 /// Protects: that no single field is larger than the page it has to travel in.
 /// Why 96 KiB: it is `device_bridge::MAX_CALENDAR_PAGE_BYTES`, the largest
 /// answer the link to the hub carries; a longer field could never reach Deimos
-/// whatever else the event held. Decision 4 of REF-10 (the reviewer's): a field
-/// is not a reason to leave an event out while the event fits a page on its
-/// own — the 2,048-byte title bound this replaced stopped whole reads for a
-/// title a person could paste. What it is not: a limit on events, calendars or
-/// invitees, nor a ceiling that stops a read. An event with a field past it,
-/// or one that does not fit a page alone, is left out *by name* — its dates,
+/// whatever else the event held. A field is not a reason to leave an event out
+/// while the event fits a page on its own — the 2,048-byte title bound this
+/// replaced stopped whole reads for a title a person could paste. What it is
+/// not: a limit on events, calendars or invitees, nor a ceiling that stops a
+/// read. An event with a field past it, or one that does not fit a page
+/// alone, is left out *by name* — its dates,
 /// its identifier, the field and its bytes against the bytes that fit
 /// (`CalendarOversizedEvent`) — and the rest of the read arrives whole; it is
 /// never trimmed. Mirrored by `CalendarLimits.maximumTitleBytes` in Swift;
@@ -115,7 +115,7 @@ pub const MAX_LABEL_BYTES: usize = 1_024;
 pub const MAX_TIMEZONE_BYTES: usize = 128;
 
 /// The longest event notes (the description) that travel with an event, in
-/// bytes (P9-21).
+/// bytes.
 ///
 /// Protects: the pages around the event. Notes are free text pasted by
 /// anyone who sends an invitation; one event's description must not crowd out
@@ -129,11 +129,11 @@ pub const MAX_TIMEZONE_BYTES: usize = 128;
 /// longer arrives whole without them and says so with `notes_left_out`
 /// (their bytes and this limit); on a write, notes longer than this are
 /// refused by name with the same two numbers. Mirrored by
-/// `CalendarLimits.maximumNotesBytes`, kept equal by hand (SIM-00 removed the
-/// guard that compared them).
+/// `CalendarLimits.maximumNotesBytes`, kept equal by hand (the guard that
+/// compared them was removed).
 pub const MAX_NOTES_BYTES: usize = 32 * 1024;
 
-/// How many alarms one event written from Orbit may carry (P9-21).
+/// How many alarms one event written from Orbit may carry.
 ///
 /// Protects: the size of one write command, which is checked whole before it
 /// reaches EventKit. Why 16: Calendar offers two alerts per event and a person
@@ -142,7 +142,7 @@ pub const MAX_NOTES_BYTES: usize = 32 * 1024;
 /// with the count and this limit. Mirrored by `CalendarLimits.maximumAlarms`.
 pub const MAX_EVENT_ALARMS: usize = 16;
 
-/// The furthest an alarm may sound before its event, in minutes (P9-21).
+/// The furthest an alarm may sound before its event, in minutes.
 ///
 /// A shape check, like `MAX_LABEL_BYTES`: four weeks (40,320 minutes) is past
 /// the longest custom alert Calendar offers, so a larger number is a malformed
@@ -151,7 +151,7 @@ pub const MAX_EVENT_ALARMS: usize = 16;
 pub const MAX_ALARM_MINUTES: u64 = 40_320;
 
 /// How long the helper may hold one EventKit write (save or remove) before it
-/// answers that the outcome is unknown (P9-21).
+/// answers that the outcome is unknown.
 ///
 /// Protects: the single EventKit slot and the person waiting on the change.
 /// Why five seconds: a commit to the local store takes milliseconds — the same

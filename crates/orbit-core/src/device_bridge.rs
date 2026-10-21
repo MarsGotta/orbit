@@ -6,11 +6,11 @@
 //! about what it may reach is a pure decision, decided here and testable
 //! without a Mac.
 //!
-//! REF-11: every capability answers to a permission macOS grants — Screen
-//! Recording, Accessibility or Calendars — and to nothing Orbit keeps. Mars
-//! grants and withdraws those in System Settings; that is the whole of her
-//! decision, so no switch inside Orbit stands in front of any of them. What
-//! still cuts everything is her privacy stop.
+//! Every capability answers to a permission macOS grants — Screen
+//! Recording, Accessibility or Calendars — and to nothing Orbit keeps. The
+//! user grants and withdraws those in System Settings; that is the whole of
+//! their decision, so no switch inside Orbit stands in front of any of them.
+//! What still cuts everything is their privacy stop.
 
 use crate::computer_control::engine::SystemPermissions;
 
@@ -32,7 +32,7 @@ pub enum Capability {
     PerformAction,
     /// The calendar, read from EventKit for the dates the caller names, now.
     ///
-    /// CAL-03: not a copy of a window Orbit chose in advance. The range travels
+    /// Not a copy of a window Orbit chose in advance. The range travels
     /// with the request, the read happens when it arrives, and nothing is kept.
     CalendarRead,
 }
@@ -41,8 +41,8 @@ pub enum Capability {
 ///
 /// One arm per kind, so adding a capability forces a decision about which
 /// permission governs it instead of defaulting into whichever branch is the
-/// `else`. None of them is a switch in Orbit: CAL-01 removed the calendar's,
-/// DEI-16 the per-action consent and REF-11 the last three.
+/// `else`. None of them is a switch in Orbit: the calendar's switch, the
+/// per-action consent and the last three switches were all removed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Class {
     /// The screen and the computer: Screen Recording, Accessibility or both.
@@ -115,7 +115,7 @@ pub const MAX_REPORTED_WINDOWS: usize = 24;
 /// identifiers it was never given a way to obtain.
 ///
 /// Titles do go out: "what do I have open" is unanswerable without them. What
-/// lets them out is the Screen Recording permission Mars grants in macOS.
+/// lets them out is the Screen Recording permission the user grants in macOS.
 pub fn window_summary(inventory: &crate::sources::WindowInventory) -> Vec<(String, String)> {
     inventory
         .windows
@@ -150,7 +150,7 @@ pub const MAX_CATALOGUE_PAGE_BYTES: usize = 96 * 1024;
 /// between a tool it can ask about and a tool that silently does not exist. The
 /// detail does not, because nothing can make it fit.
 ///
-/// DEI-16: it names the detail, not only the schema. Since a description is no
+/// It names the detail, not only the schema. Since a description is no
 /// longer bounded on its own, either half of what the engine wrote about a tool
 /// can be the half that will not travel, and the notice has to be true of both.
 const DETAIL_TOO_LARGE: &str = "Orbit no puede enviar el detalle de esta herramienta —su \
@@ -237,7 +237,7 @@ pub fn catalogue_page(
 /// 128 KiB — a ceiling shared with recordings, transcripts and messages so one
 /// large reply cannot monopolise it. Why 96 KiB: the same reasoning and number
 /// as `MAX_CATALOGUE_PAGE_BYTES`, leaving 32 KiB for the envelope. What it is
-/// not: a limit on how much of the agenda Deimos gets. REF-10: an answer that
+/// not: a limit on how much of the agenda Deimos gets. An answer that
 /// does not fit is paged, and the translator joins the pages into one reply.
 pub const MAX_CALENDAR_PAGE_BYTES: usize = 96 * 1024;
 
@@ -257,7 +257,7 @@ pub struct CalendarPage {
     pub used: usize,
     /// Where to continue in this window, or nothing when it is exhausted.
     pub next: Option<CalendarPosition>,
-    /// Events that could not fit a page even alone, named (decision 4). They
+    /// Events that could not fit a page even alone, named. They
     /// are passed over; the slice goes on with the next event.
     pub oversized: Vec<crate::calendar::CalendarOversizedEvent>,
 }
@@ -280,8 +280,8 @@ fn encoded(value: &serde_json::Value) -> usize {
 /// its own is a meeting with a great many invitees, and it is not trimmed: it
 /// travels in fragments, each the same event with the next part of its invitee
 /// list, every fragment but the last marked `invitees_continued`. The reader
-/// joins them. REF-10 A3: nothing a day holds is left out for size — except,
-/// by the reviewer's decision 4, the event that cannot fit a page even alone
+/// joins them. Nothing a day holds is left out for size — except the event
+/// that cannot fit a page even alone
 /// (without its guests, or with its single largest guest). That one is passed
 /// over and named in `oversized`, with the field to blame, its bytes and the
 /// page's; the rest of the window goes on.
@@ -385,7 +385,7 @@ pub fn calendar_page(
 /// Whether one event cannot travel in a page of `budget` bytes even alone:
 /// without its guests (`base` bytes), or with the largest of them — fragments
 /// carry at least one guest each. Names the field to blame, its bytes and the
-/// page's (decision 4).
+/// page's.
 fn cannot_travel(
     event: &crate::calendar::CalendarOccurrence,
     base: usize,
@@ -432,7 +432,7 @@ fn cannot_travel(
 
 /// What the Mac knows of Orbit's calendar permission, in three values.
 ///
-/// REF-10 A8: `Unknown` is not a softer `NotGranted` and not an optimistic
+/// `Unknown` is not a softer `NotGranted` and not an optimistic
 /// `Granted`. It is the state between the helper starting and it saying.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CalendarPermission {
@@ -458,7 +458,7 @@ impl CalendarPermission {
 /// Everything the decision needs, passed in rather than read from the world.
 ///
 /// Every permission here is what macOS says, in three values; nothing is a
-/// switch of Orbit. REF-11 took the last two (`observation` and `action`) out,
+/// switch of Orbit. The last two switches (`observation` and `action`) are gone,
 /// and keeping the calendar beside the other two is what stops a future edit
 /// from quietly adding an Orbit-side switch in front of any of them.
 #[derive(Debug, Clone, Copy)]
@@ -552,13 +552,13 @@ mod tests {
         granted(PermissionState::Granted, PermissionState::Granted)
     }
 
-    /// CAL-03 A7: her macOS calendar permission is the only decision.
+    /// The user's macOS calendar permission is the only decision.
     ///
     /// The computer permissions are refused here on purpose. If this ever
     /// goes back to refusing the calendar, the calendar has grown a second
-    /// layer again — the exact shape CAL-01 removed.
+    /// layer again — the exact shape that was removed.
     #[test]
-    fn cal03_a7_the_calendar_read_answers_to_the_system_permission_alone() {
+    fn the_calendar_read_answers_to_the_system_permission_alone() {
         let calendar_only = Conditions {
             calendar: CalendarPermission::Granted,
             ..granted(PermissionState::Denied, PermissionState::Denied)
@@ -570,12 +570,12 @@ mod tests {
         assert_eq!(Capability::CalendarRead.class(), Class::Calendar);
     }
 
-    /// CAL-03 A6: withdrawing the permission cuts it off, and says why.
+    /// Withdrawing the permission cuts it off, and says why.
     ///
     /// Every other permission is granted here, so the only thing refusing is
     /// the calendar's.
     #[test]
-    fn cal03_a6_without_the_system_permission_the_calendar_is_refused_by_name() {
+    fn without_the_system_permission_the_calendar_is_refused_by_name() {
         let revoked = Conditions {
             calendar: CalendarPermission::NotGranted,
             ..everything()
@@ -616,7 +616,7 @@ mod tests {
     /// Granting the calendar does not open the screen, and the screen and the
     /// computer do not open the calendar.
     #[test]
-    fn cal03_the_calendar_does_not_leak_into_the_computer_or_back() {
+    fn the_calendar_does_not_leak_into_the_computer_or_back() {
         let calendar_only = granted(PermissionState::Denied, PermissionState::Denied);
         assert_eq!(
             admits("screenshot", calendar_only),
@@ -646,10 +646,10 @@ mod tests {
         );
     }
 
-    /// REF-11 A6: with the permissions granted, every capability is served,
+    /// With the permissions granted, every capability is served,
     /// and the conditions carry no setting of Orbit to consult.
     #[test]
-    fn ref11_a6_every_capability_is_served_with_the_permissions_and_no_switch() {
+    fn every_capability_is_served_with_the_permissions_and_no_switch() {
         for (name, capability) in [
             ("screenshot", Capability::Screenshot),
             ("screen_sources", Capability::ScreenSources),
@@ -660,7 +660,7 @@ mod tests {
             assert_eq!(
                 admits(name, everything()),
                 Ok(capability),
-                "{name} se negó con los permisos concedidos"
+                "{name} was refused with the permissions granted"
             );
         }
         assert_eq!(
@@ -669,10 +669,10 @@ mod tests {
         );
     }
 
-    /// REF-11 A3: a refusal names the permission that is missing, and one the
+    /// A refusal names the permission that is missing, and one the
     /// Mac has not reported is its own refusal, never a «no».
     #[test]
-    fn ref11_a3_a_refusal_names_which_permission_and_unknown_is_not_no() {
+    fn a_refusal_names_which_permission_and_unknown_is_not_no() {
         let no_accessibility = granted(PermissionState::Denied, PermissionState::Granted);
         assert_eq!(
             admits("perform_action", no_accessibility),
@@ -766,11 +766,10 @@ mod tests {
         }
     }
 
-    /// REF-10 A3: whole events while they fit, and a page that stops says
+    /// Whole events while they fit, and a page that stops says
     /// exactly where the next one starts. Nothing is counted as left out.
     #[test]
-    fn ref10_a3_a_page_takes_whole_events_and_says_where_to_go_on() -> Result<(), serde_json::Error>
-    {
+    fn a_page_takes_whole_events_and_says_where_to_go_on() -> Result<(), serde_json::Error> {
         let events: Vec<_> = (0..50).map(|index| occurrence(index, 2)).collect();
         let everything = calendar_page(
             &events,
@@ -781,7 +780,7 @@ mod tests {
         assert_eq!(
             everything.events.len(),
             50,
-            "todo cabe de sobra bajo el techo"
+            "everything fits well under the ceiling"
         );
         assert_eq!(everything.next, None);
 
@@ -827,11 +826,10 @@ mod tests {
         Ok(())
     }
 
-    /// REF-10 A3: a meeting whose own invitees do not fit one frame travels in
+    /// A meeting whose own invitees do not fit one frame travels in
     /// fragments, each under the budget, and no invitee is dropped.
     #[test]
-    fn ref10_a3_one_event_larger_than_a_page_travels_in_fragments() -> Result<(), serde_json::Error>
-    {
+    fn one_event_larger_than_a_page_travels_in_fragments() -> Result<(), serde_json::Error> {
         let events = vec![occurrence(0, 2_000), occurrence(1, 1)];
         let mut fragments = Vec::new();
         let mut position = Some(CalendarPosition::default());
@@ -883,10 +881,10 @@ mod tests {
         );
     }
 
-    /// REF-10 A8: a permission the Mac has not reported yet is neither granted
+    /// A permission the Mac has not reported yet is neither granted
     /// nor denied, and the refusal says which of the three it is.
     #[test]
-    fn ref10_a8_an_unknown_calendar_permission_is_its_own_refusal() {
+    fn an_unknown_calendar_permission_is_its_own_refusal() {
         use crate::calendar::CalendarAuthorization as Authorization;
         let conditions = |calendar| Conditions {
             calendar,
@@ -1011,7 +1009,7 @@ mod tests {
     }
 
     #[test]
-    fn dei07_a1_rejections_keep_their_security_precedence() {
+    fn rejections_keep_their_security_precedence() {
         let stopped_without_permissions = Conditions {
             privacy_stopped: true,
             calendar: CalendarPermission::NotGranted,
@@ -1099,8 +1097,8 @@ mod tests {
         assert_eq!(window_summary(&inventory(many)).len(), MAX_REPORTED_WINDOWS);
     }
 
-    /// The order of magnitude the real engine publishes, measured on Mars's Mac
-    /// on 2026-09-23: 147 909 bytes of tools and input schemas. Every earlier
+    /// The order of magnitude the real engine publishes, measured on a
+    /// development Mac on 2026-09-23: 147 909 bytes of tools and input schemas. Every earlier
     /// test of this path used a toy catalogue of a few hundred bytes, which is
     /// exactly why the size reached the Mac twice.
     const REAL_CATALOGUE_BYTES: usize = 147_909;
@@ -1166,7 +1164,7 @@ mod tests {
         let mut rounds = 0usize;
         loop {
             let page = catalogue_page(catalogue, after);
-            assert_eq!(page.after_index, after, "una página contesta a su índice");
+            assert_eq!(page.after_index, after, "a page answers its own index");
             assert_eq!(page.total, catalogue.len());
             let encoded = serde_json::to_vec(&page.tools).map_or(usize::MAX, |bytes| bytes.len());
             widest = widest.max(encoded);
@@ -1174,7 +1172,7 @@ mod tests {
             rounds += 1;
             match page.next_after_index {
                 Some(next) => {
-                    assert!(next > after, "el recorrido avanza y no se repite");
+                    assert!(next > after, "the walk moves forward and never repeats");
                     after = next;
                 }
                 None => return (assembled, widest, rounds),
@@ -1183,35 +1181,35 @@ mod tests {
     }
 
     #[test]
-    fn dei14_a1_a_real_sized_catalogue_crosses_in_pages_that_fit_the_hub_frame() {
+    fn a_real_sized_catalogue_crosses_in_pages_that_fit_the_hub_frame() {
         let (catalogue, bytes) = catalogue_of(150 * 1024);
         assert!(
             (REAL_CATALOGUE_BYTES..=REAL_CATALOGUE_BYTES * 2).contains(&bytes),
-            "la prueba usa un catálogo del orden del real ({REAL_CATALOGUE_BYTES} bytes), no uno de juguete: {bytes} bytes"
+            "the test uses a catalogue the size of the real one ({REAL_CATALOGUE_BYTES} bytes), not a toy: {bytes} bytes"
         );
         assert!(
             bytes > HUB_FRAME_CEILING,
-            "el catálogo entero no cabe en una trama: por eso se pagina"
+            "the whole catalogue does not fit one frame: that is why it is paged"
         );
 
         let (assembled, widest, rounds) = walk(&catalogue);
-        assert_eq!(assembled, catalogue, "el catálogo llega entero y en orden");
+        assert_eq!(
+            assembled, catalogue,
+            "the catalogue arrives whole and in order"
+        );
         assert!(
             widest <= MAX_CATALOGUE_PAGE_BYTES,
-            "ninguna página rebasa su presupuesto: {widest} bytes"
+            "no page exceeds its budget: {widest} bytes"
         );
         assert!(
             widest + 1024 < HUB_FRAME_CEILING,
-            "una página deja sitio de sobra para el sobre de la respuesta: {widest} bytes"
+            "a page leaves plenty of room for the reply envelope: {widest} bytes"
         );
-        assert_eq!(
-            rounds, 2,
-            "un catálogo real cuesta dos vueltas, no una docena"
-        );
+        assert_eq!(rounds, 2, "a real catalogue takes two rounds, not a dozen");
     }
 
     #[test]
-    fn dei14_a1_a_catalogue_that_already_fits_still_travels_in_one_page() {
+    fn a_catalogue_that_already_fits_still_travels_in_one_page() {
         let (catalogue, _) = catalogue_of(4 * 1024);
         let page = catalogue_page(&catalogue, 0);
         assert_eq!(page.after_index, 0);
@@ -1221,7 +1219,7 @@ mod tests {
     }
 
     #[test]
-    fn dei14_r2_an_empty_catalogue_is_one_empty_final_page() {
+    fn an_empty_catalogue_is_one_empty_final_page() {
         let page = catalogue_page(&[], 0);
         assert!(page.tools.is_empty());
         assert_eq!(page.total, 0);
@@ -1229,7 +1227,7 @@ mod tests {
     }
 
     #[test]
-    fn dei14_r2_an_index_past_the_end_says_nothing_is_left_rather_than_failing() {
+    fn an_index_past_the_end_says_nothing_is_left_rather_than_failing() {
         let (catalogue, _) = catalogue_of(4 * 1024);
         let page = catalogue_page(&catalogue, catalogue.len() + 99);
         assert!(page.tools.is_empty());
@@ -1239,7 +1237,7 @@ mod tests {
     }
 
     #[test]
-    fn dei14_r2_a_tool_too_large_for_a_page_keeps_its_name_and_loses_its_schema() {
+    fn a_tool_too_large_for_a_page_keeps_its_name_and_loses_its_schema() {
         // Nothing can make this schema fit, so the choice is between a name the
         // assistant can still ask about and a tool that silently vanishes.
         let catalogue = vec![
@@ -1255,22 +1253,22 @@ mod tests {
             realistic_tool(1),
         ];
         let (assembled, widest, _) = walk(&catalogue);
-        assert_eq!(assembled.len(), 3, "no se pierde ninguna herramienta");
+        assert_eq!(assembled.len(), 3, "no tool is lost");
         assert_eq!(assembled[1].name, "engine_tool_enorme");
         assert!(assembled[1].input_schema.is_null());
         assert_eq!(assembled[1].description, DETAIL_TOO_LARGE);
-        assert_eq!(assembled[0], catalogue[0], "las demás llegan intactas");
+        assert_eq!(assembled[0], catalogue[0], "the others arrive intact");
         assert_eq!(assembled[2], catalogue[2]);
         assert!(widest <= MAX_CATALOGUE_PAGE_BYTES);
     }
 
-    /// DEI-16 A6: with the description no longer bounded on its own, a
+    /// With the description no longer bounded on its own, a
     /// description can be the half that will not travel. It takes the same
-    /// route DEI-14 settled for a schema — the name survives, and the notice
+    /// route as a schema — the name survives, and the notice
     /// says which tool it is and why its detail is missing — instead of the
     /// whole tool disappearing without anyone being told.
     #[test]
-    fn dei16_a6_a_description_too_large_for_a_page_keeps_its_name_and_says_why() {
+    fn a_description_too_large_for_a_page_keeps_its_name_and_says_why() {
         let catalogue = vec![
             realistic_tool(0),
             crate::computer_control::EngineTool {
@@ -1281,22 +1279,22 @@ mod tests {
             realistic_tool(1),
         ];
         let (assembled, widest, _) = walk(&catalogue);
-        assert_eq!(assembled.len(), 3, "no se pierde ninguna herramienta");
+        assert_eq!(assembled.len(), 3, "no tool is lost");
         assert_eq!(assembled[1].name, "engine_tool_muy_descrita");
         assert_eq!(assembled[1].description, DETAIL_TOO_LARGE);
         assert!(
             DETAIL_TOO_LARGE.contains("descripción") && DETAIL_TOO_LARGE.contains("esquema"),
-            "el aviso nombra lo que no cabe, no sólo una de las dos mitades"
+            "the notice names what does not fit, not only one of the two halves"
         );
-        assert_eq!(assembled[0], catalogue[0], "las demás llegan intactas");
+        assert_eq!(assembled[0], catalogue[0], "the others arrive intact");
         assert_eq!(assembled[2], catalogue[2]);
         assert!(widest <= MAX_CATALOGUE_PAGE_BYTES);
     }
 
-    /// DEI-16 A6/A7: a description merely longer than the old 4 KiB bound is
+    /// A description merely longer than the old 4 KiB bound is
     /// not a problem at all. It travels whole, and the count is unchanged.
     #[test]
-    fn dei16_a6_a_description_over_the_old_bound_travels_untouched() {
+    fn a_description_over_the_old_bound_travels_untouched() {
         let verbose = crate::computer_control::EngineTool {
             name: "engine_tool_descrita_con_detalle".into(),
             description: "á".repeat(5_000),
@@ -1310,7 +1308,7 @@ mod tests {
     }
 
     #[test]
-    fn dei14_r2_the_worst_catalogue_the_contract_allows_still_pages_within_budget() {
+    fn the_worst_catalogue_the_contract_allows_still_pages_within_budget() {
         let worst: Vec<crate::computer_control::EngineTool> = (0
             ..crate::computer_control::MAX_ENGINE_TOOLS)
             .map(|index| crate::computer_control::EngineTool {
@@ -1325,6 +1323,9 @@ mod tests {
         let (assembled, widest, rounds) = walk(&worst);
         assert_eq!(assembled, worst);
         assert!(widest <= MAX_CATALOGUE_PAGE_BYTES);
-        assert!(rounds >= 2, "un catálogo así no cabe en una sola vuelta");
+        assert!(
+            rounds >= 2,
+            "such a catalogue does not fit in a single round"
+        );
     }
 }

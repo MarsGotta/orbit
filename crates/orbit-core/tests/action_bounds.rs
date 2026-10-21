@@ -16,7 +16,7 @@ fn call_with_size(size: usize) -> ToolCall {
 }
 
 #[test]
-fn ref406_a3_action_boundary_is_the_encoded_action_with_numbers() {
+fn action_boundary_is_the_encoded_action_with_numbers() {
     assert!(call_with_size(16_384).validate().is_ok());
     let error = call_with_size(16_385)
         .validate()
@@ -26,7 +26,7 @@ fn ref406_a3_action_boundary_is_the_encoded_action_with_numbers() {
 }
 
 #[test]
-fn ref406_a2_receipt_has_a_separate_numbered_bound() {
+fn receipt_has_a_separate_numbered_bound() {
     let limit = orbit_core::limits::MAX_ACTION_RECEIPT_BYTES;
     let empty = serde_json::to_vec(&serde_json::json!({"receipt": ""}))
         .expect("fixture serializes")

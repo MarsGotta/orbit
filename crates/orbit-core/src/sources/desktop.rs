@@ -1,4 +1,4 @@
-//! SIM-56: the whole screen as Deimos sees it. The engine captures the
+//! The whole screen as Deimos sees it. The engine captures the
 //! primary display in true screen pixels with no downscale; a capture can
 //! carry at most `MAX_WINDOW_WIDTH`×`MAX_WINDOW_HEIGHT` and `MAX_SOURCE_BYTES`.
 //! This fits one into the other and keeps the scale between them, so a
@@ -9,7 +9,7 @@ use crate::refusal::{Expected, Parameter, Refusal};
 
 /// The largest display macOS drives at native pixels: 8K, 7680×4320, which
 /// Apple supports on its Mac Studio and Mac Pro. Apple's own largest display,
-/// the Pro Display XDR, is 6016×3384, and Mars's MacBook is 3024×1964. A
+/// the Pro Display XDR, is 6016×3384, and a 14-inch MacBook Pro is 3024×1964. A
 /// capture with more pixels than this is not of a Mac display and is refused.
 pub const MAX_DESKTOP_WIDTH: u32 = 7680;
 pub const MAX_DESKTOP_HEIGHT: u32 = 4320;

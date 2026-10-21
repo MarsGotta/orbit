@@ -1395,7 +1395,7 @@ async fn a_second_entry_into_her_stop_does_not_ask_the_helper_to_stop_again() ->
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     let stop = receiver.recv().await.context("privacy stop absent")?;
     assert_eq!(stop["command"], "privacy_stop");
@@ -1405,7 +1405,7 @@ async fn a_second_entry_into_her_stop_does_not_ask_the_helper_to_stop_again() ->
         .await?;
 
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Hotkey)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Hotkey)
         .await;
 
     assert_eq!(
@@ -1716,7 +1716,7 @@ async fn a_later_privacy_stop_does_not_relabel_a_refused_audio_start() -> Result
         CapturePhase::Interrupted
     );
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     let stop = receiver.recv().await.context("privacy stop absent")?;
     assert_eq!(stop["command"], "privacy_stop");
@@ -1799,7 +1799,7 @@ async fn two_entries_into_the_user_stop_keep_one_stop_two_causes_and_one_durable
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     assert_eq!(
         receiver.recv().await.context("privacy stop absent")?["command"],
@@ -1812,7 +1812,7 @@ async fn two_entries_into_the_user_stop_keep_one_stop_two_causes_and_one_durable
     let generation_after_first = runtime.state.generation();
 
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Hotkey)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Hotkey)
         .await;
 
     assert_eq!(
@@ -1854,7 +1854,7 @@ async fn the_user_stop_stops_playback_at_the_helper() -> Result<()> {
     let (mut runtime, mut receiver) = fixture(directory.path())?;
 
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
 
     let mut commands = Vec::new();

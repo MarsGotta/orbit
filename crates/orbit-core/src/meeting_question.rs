@@ -1,8 +1,8 @@
-//! P9-12: Deimos during a meeting. Mars asks with her voice («Oye Deimos,
+//! Deimos during a meeting. The user asks with their voice («Oye Deimos,
 //! …»), with «Preguntar a Deimos» in the pill or the floating panel, or with
 //! the dictation shortcut while recording; the question goes to Deimos as a
-//! turn about the meeting (SIM-30: the hub adds the meeting's last minutes
-//! from its own transcript) and the floating panel follows that turn to its
+//! turn about the meeting (the hub adds the meeting's last minutes from its
+//! own transcript) and the floating panel follows that turn to its
 //! answer or to its cause.
 //!
 //! Pure: what may be asked now and following the turn. Time and facts are
@@ -10,8 +10,8 @@
 use crate::Connection;
 use serde::{Deserialize, Serialize};
 
-/// The windows of transcript Mars can choose from the button, in minutes.
-/// Mars fixed 2 as the default for REF-602 (2026-09-29); P9-12 keeps it.
+/// The windows of transcript the user can choose from the button, in minutes.
+/// 2 is the default (product decision, 2026-09-29).
 /// The app receives them from app-core, never copies them.
 pub const WINDOW_MINUTES: [u8; 3] = [2, 5, 10];
 pub const DEFAULT_WINDOW_MINUTES: u8 = 2;
@@ -27,7 +27,7 @@ pub const DEFAULT_WINDOW_MINUTES: u8 = 2;
 pub const MAX_QUESTION_BYTES: usize = 1024;
 
 /// How long an answer stays in the floating panel after it arrives, unless
-/// Mars closes it first. Forty-five seconds is long enough to
+/// the user closes it first. Forty-five seconds is long enough to
 /// read a few lines during a call. It is not how long the answer is kept: it
 /// stays in the conversation.
 pub const ANSWER_SHOWN_MS: i64 = 45_000;
@@ -48,11 +48,11 @@ pub const QUESTION_PAUSE_MS: u64 = 1_500;
 /// (`NativeLimits.maximumAssistantQuestionMilliseconds`).
 pub const MAX_SPOKEN_QUESTION_MS: u64 = 30_000;
 
-/// How Mars asked.
+/// How the user asked.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QuestionOrigin {
-    /// «Oye Deimos, …» on her own microphone.
+    /// «Oye Deimos, …» on their own microphone.
     Voice,
     /// «Preguntar a Deimos» in the pill or the panel.
     Typed,
@@ -70,14 +70,14 @@ pub enum QuestionStage {
     Failed,
 }
 
-/// What is already in progress when Mars asks: one word each, never one for
+/// What is already in progress when the user asks: one word each, never one for
 /// all of them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BusyTurn {
     /// Deimos is still answering the previous turn.
     AssistantTurn,
-    /// The previous turn waits for Mars to allow or answer something.
+    /// The previous turn waits for the user to allow or answer something.
     PendingApproval,
     /// A voice note is being recorded (⌃⌥Espacio held).
     VoiceNote,
@@ -92,7 +92,7 @@ pub enum BusyTurn {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "cause", rename_all = "snake_case")]
 pub enum QuestionCause {
-    /// Mars's privacy stop is on.
+    /// The user's privacy stop is on.
     PrivacyStopped,
     /// There is no recording in progress to ask about.
     NoMeeting,
@@ -110,7 +110,7 @@ pub enum QuestionCause {
     WindowNotOffered { minutes: u16, offered: Vec<u8> },
     /// Deimos ended the turn with an error.
     TurnFailed,
-    /// Mars interrupted the turn.
+    /// The user interrupted the turn.
     Interrupted,
     /// The hub refused the turn: its code and its message.
     HubRefused { code: String, message: String },
@@ -131,8 +131,8 @@ pub struct AskFacts {
     pub in_meeting: bool,
 }
 
-/// Whether Mars can ask this now. The order is the order in which she can
-/// fix things: her stop first, then what she wrote, then the meeting, the
+/// Whether the user can ask this now. The order is the order in which they
+/// can fix things: their stop first, then what they wrote, then the meeting, the
 /// link and what is in progress.
 pub fn admit(facts: &AskFacts, question: &str, minutes: u16) -> Result<(), QuestionCause> {
     if facts.privacy_stopped {
@@ -280,7 +280,7 @@ impl MeetingQuestion {
     }
 
     /// Until when the panel shows it; `None` while Deimos is thinking (the
-    /// panel stays until the answer or Mars closes it).
+    /// panel stays until the answer or the user closes it).
     pub fn shown_until_ms(&self) -> Option<i64> {
         let finished = self.finished_at_ms?;
         match self.stage {
@@ -317,7 +317,7 @@ pub enum VoiceTrigger {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         percent: Option<u8>,
     },
-    /// Listening on Mars's microphone for this recording.
+    /// Listening on the user's microphone for this recording.
     Listening,
     /// It stopped listening: the helper's cause code and Apple's detail,
     /// which never carries what was heard.
@@ -456,7 +456,7 @@ pub fn voice_status(facts: &VoiceFacts<'_>) -> Option<VoiceStatus> {
     }
 }
 
-/// Mars's question, trimmed as it goes to Deimos.
+/// The user's question, trimmed as it goes to Deimos.
 pub fn clean_question(question: &str) -> &str {
     question.trim()
 }

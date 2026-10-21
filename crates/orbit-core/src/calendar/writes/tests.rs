@@ -1,4 +1,4 @@
-//! P9-21 criterion 3: a write is refused before it reaches the helper, by
+//! A write is refused before it reaches the helper, by
 //! field and with its numbers.
 use serde_json::json;
 
@@ -343,7 +343,7 @@ fn the_wire_shapes_are_the_documented_ones() -> TestResult {
     Ok(())
 }
 
-/// P9-21 criterion 1, Rust side: every calendar fixture the helper and the
+/// Rust side: every calendar fixture the helper and the
 /// daemon share decodes through the production types and passes validation —
 /// the read with every field, `calendar_save` (create and change),
 /// `calendar_delete`, both results and one refusal per code.

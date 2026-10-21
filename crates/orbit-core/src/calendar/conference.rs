@@ -1,5 +1,5 @@
-//! Which video-call service a calendar link opens (P9-20 «Unirse», P9-11
-//! the event of a call).
+//! Which video-call service a calendar link opens («Unirse», and the event
+//! of a call).
 //!
 //! Pure: the host is read from the link itself, never fetched. A host is what
 //! follows `https://` up to the path, after any `user@` and before any port,

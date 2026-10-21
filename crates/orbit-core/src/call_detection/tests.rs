@@ -1,4 +1,4 @@
-//! P9-11 criterion 1: the decision table, with time as an argument.
+//! The call detection's decision table, with time as an argument.
 use super::*;
 
 const ZOOM: &str = "us.zoom.xos";
@@ -110,7 +110,7 @@ impl Table {
         table.holding(0, &[zoom()]);
         table.tick(3_000);
         let Some((call_id, _)) = table.starts().into_iter().next() else {
-            panic!("«Grabar sin preguntar» no empezó a grabar");
+            panic!("«Grabar sin preguntar» did not start recording");
         };
         table.recording_live = true;
         table.at(
@@ -377,7 +377,7 @@ fn privacy_stop_forgets_a_recording_the_call_started() {
     table.ticks(6_000, 60_000);
     assert!(
         table.finishes().is_empty(),
-        "after her stop, nothing about that recording happens on its own"
+        "after the user's stop, nothing about that recording happens on its own"
     );
 }
 
@@ -468,7 +468,7 @@ fn an_answer_to_an_offer_that_is_gone_is_refused_by_name() {
         })
     );
     assert!(table.starts().is_empty());
-    // «Ahora no» on something already gone is what she asked for.
+    // «Ahora no» on something already gone is what the user asked for.
     let dismissed = table.at(
         4_000,
         CallInput::Dismiss {
@@ -535,7 +535,7 @@ fn a_recording_started_by_hand_answers_the_offer() {
     table.holding(0, &[zoom()]);
     table.tick(3_000);
     assert!(table.offer_id(3_000).is_some());
-    // Mars pressed «Grabar» on the calendar instead.
+    // The user pressed «Grabar» on the calendar instead.
     table.recording_live = true;
     table.tick(4_000);
     assert_eq!(table.detector.panel(4_000), None);
@@ -548,7 +548,7 @@ fn a_recording_started_by_hand_answers_the_offer() {
     );
 }
 
-/// P9-11: «Grabar» on a calendar event captures the call's application
+/// «Grabar» on a calendar event captures the call's application
 /// when the detection knows one holds the microphone; otherwise the system.
 #[test]
 fn the_call_holding_the_microphone_is_known_only_from_the_signal() {

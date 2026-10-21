@@ -1,4 +1,4 @@
-//! The live turn (SIM-30): the open conversation, the turn in progress and
+//! The live turn: the open conversation, the turn in progress and
 //! what is pending. The conversation's messages are read from the hub.
 use crate::{
     Approval, Turn,

@@ -1,6 +1,6 @@
-//! Who may stop Orbit, and what every other stop cause does instead (REF-12).
+//! Who may stop Orbit, and what every other stop cause does instead.
 //!
-//! Mars's own stop is the only one that latches and survives a restart: the
+//! The user's own stop is the only one that latches and survives a restart: the
 //! app's button or tray, ⌃⌥Esc or the helper's own menu. Every
 //! other cause that used to stop Orbit by itself now either cuts the live
 //! capture, saying why and what was kept, or is said as a notice with its
@@ -8,7 +8,7 @@
 //! table behind that split, without clocks, files or state of its own.
 //!
 //! The helper always knew why it stopped and wrote the code to its own log;
-//! the code travels in the notice's data (SIM-21), so it is the key into
+//! the code travels in the notice's data, so it is the key into
 //! `~/Library/Logs/Orbit/native.log`.
 
 use crate::model::State;
@@ -23,9 +23,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StopRequester {
-    /// Mars, with one of her controls: the only stop carried across a
-    /// restart as hers.
-    Mars,
+    /// The user, with one of their controls: the only stop carried across a
+    /// restart as theirs.
+    // Wire/stored name kept for compatibility with 0.9.0.
+    #[serde(rename = "mars")]
+    User,
     /// The hub refused this device's credential. Remote traffic may stop
     /// Orbit and never rearm it; the next connection asks the hub again, so
     /// this stop is not carried across a restart and never writes the
@@ -33,38 +35,39 @@ pub enum StopRequester {
     Revocation,
 }
 
-/// Where Mars asked for her stop.
+/// Where the user asked for their stop.
 ///
-/// Every variant is one of her controls or the helper's record of one: an
+/// Every variant is one of their controls or the helper's record of one: an
 /// automatic cause has no way to be written here, which is what keeps the
-/// latch hers (REF-12 A5).
+/// latch theirs.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum MarsStop {
-    /// An order on her own local socket: the app's button or tray.
+pub enum UserStop {
+    /// An order on the user's own local socket: the app's button or tray.
     Order,
     /// ⌃⌥Esc, as the daemon heard it from the helper's `hotkey` event.
     Hotkey,
-    /// The helper stopped because she asked it to, and says which control
+    /// The helper stopped because the user asked it to, and says which control
     /// with one of [`LATCHING_HELPER_CODES`].
     Helper { code: String },
     /// The helper said its durable latch is set: in its `state`, or in a
-    /// stop event whose code is not one of hers (`code`). Nobody can say who
+    /// stop event whose code is not one of theirs (`code`). Nobody can say who
     /// pressed it, and it is kept, so both sides say the same.
     HelperLatch { code: Option<String> },
 }
 
-impl MarsStop {
-    /// The cause this stop is recorded under in the A5 table.
+impl UserStop {
+    /// The cause this stop is recorded under in the stop-cause table
+    /// ([`StopCause::class`]).
     pub fn cause(&self) -> StopCause {
         match self {
             Self::Order => StopCause::Order,
             Self::Hotkey => StopCause::Hotkey,
-            Self::Helper { .. } => StopCause::HelperMarsStop,
+            Self::Helper { .. } => StopCause::HelperUserStop,
             Self::HelperLatch { .. } => StopCause::HelperLatch,
         }
     }
 
-    /// What she is told: her stop, where it came from and, when the helper
+    /// What the user is told: their stop, where it came from and, when the helper
     /// gave one, its code. The interface's entry names the way back
     /// (Rearmar).
     pub fn notice(&self) -> Notice {
@@ -79,7 +82,7 @@ impl MarsStop {
     }
 }
 
-/// Helper stop codes that are Mars's own brake: the only ones for which the
+/// Helper stop codes that are the user's own brake: the only ones for which the
 /// helper writes its durable latch. Every other code stops capture and
 /// playback and leaves the latch as it was.
 ///
@@ -92,12 +95,12 @@ pub const LATCHING_HELPER_CODES: [&str; 2] = ["local_hotkey", "daemon_requested"
 /// stop: their echo is not a new cause.
 pub const DAEMON_ECHO_CODES: [&str; 3] = ["daemon_requested", "daemon_cut", "shutdown"];
 
-/// True when the helper stops with this code only because Mars asked.
+/// True when the helper stops with this code only because the user asked.
 pub fn latches(code: &str) -> bool {
     LATCHING_HELPER_CODES.contains(&code)
 }
 
-/// Whether the stop in force belongs in the helper's durable latch: hers, or
+/// Whether the stop in force belongs in the helper's durable latch: the user's, or
 /// one nobody can attribute. The hub's revocation stops capture in the helper
 /// without writing it, because it is not carried across a restart.
 pub fn latches_helper(state: &State) -> bool {
@@ -119,12 +122,12 @@ pub fn capture_live(state: &State) -> bool {
         || state.durable.voice_active
 }
 
-/// What one former automatic stop does now (REF-12 A5).
+/// What one former automatic stop does now.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StopClass {
-    /// Mars's stop: capture, voice and network stop and stay stopped, across
-    /// restarts, until she rearms.
-    MarsStop,
+    /// The user's stop: capture, voice and network stop and stay stopped,
+    /// across restarts, until they rearm.
+    UserStop,
     /// The live recording, call or voice note is cut, and the notice says
     /// why and how many fragments were kept. Orbit keeps working, asks for no
     /// rearm and does not reopen the microphone on its own. With nothing live
@@ -139,7 +142,8 @@ impl StopClass {
     /// A stable name for the diagnostic log.
     pub const fn name(self) -> &'static str {
         match self {
-            Self::MarsStop => "mars_stop",
+            // Log name kept for compatibility with 0.9.0.
+            Self::UserStop => "mars_stop",
             Self::CutCapture => "cut_capture",
             Self::Notice => "notice",
         }
@@ -147,15 +151,15 @@ impl StopClass {
 }
 
 /// Every cause that reached the old automatic stop (`fail_closed`), and the
-/// feeders that reached it through an error (REF-12 A5).
+/// feeders that reached it through an error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StopCause {
     /// `Command::PrivacyStop`: the app's button or tray.
     Order,
     /// The helper's `hotkey` event for ⌃⌥Esc.
     Hotkey,
-    /// A helper `privacy_stop` event whose code is one of Mars's controls.
-    HelperMarsStop,
+    /// A helper `privacy_stop` event whose code is one of the user's controls.
+    HelperUserStop,
     /// The helper's `state` said its durable latch is set.
     HelperLatch,
     /// The helper stopped its capture on its own: `capture_stopped`, or a
@@ -184,13 +188,13 @@ pub enum StopCause {
     CaptureMaintenanceFailed,
     /// Any other part of the maintenance failed: a vertical's journal or
     /// timers, the core tick, the upload queue. A data fault, never a
-    /// reason to cut a recording (Mars, 2026-09-25).
+    /// reason to cut a recording (product decision, 2026-09-25).
     VerticalMaintenanceFailed,
     /// The Mac did not confirm an audio stop within its window.
     AudioStopUnconfirmed,
     /// An audio stop could not reach the helper within 500 ms.
     CaptureStopUndelivered,
-    /// Mars's own stop could not reach the helper within 500 ms; it is
+    /// The user's own stop could not reach the helper within 500 ms; it is
     /// already in force in the daemon.
     PrivacyStopUndelivered,
     /// `Command::Shutdown`: Orbit is closing.
@@ -203,11 +207,11 @@ pub enum StopCause {
 }
 
 impl StopCause {
-    /// Every cause, in the order of the A5 report.
+    /// Every cause, in the order the classification is reported and tested.
     pub const ALL: [Self; 18] = [
         Self::Order,
         Self::Hotkey,
-        Self::HelperMarsStop,
+        Self::HelperUserStop,
         Self::HelperLatch,
         Self::HelperCaptureStop,
         Self::HelperIntegrityFailure,
@@ -229,8 +233,8 @@ impl StopCause {
     /// compile until someone decides what it does.
     pub const fn class(self) -> StopClass {
         match self {
-            Self::Order | Self::Hotkey | Self::HelperMarsStop | Self::HelperLatch => {
-                StopClass::MarsStop
+            Self::Order | Self::Hotkey | Self::HelperUserStop | Self::HelperLatch => {
+                StopClass::UserStop
             }
             Self::HelperCaptureStop
             | Self::HelperIntegrityFailure
@@ -254,7 +258,8 @@ impl StopCause {
         match self {
             Self::Order => "order",
             Self::Hotkey => "hotkey",
-            Self::HelperMarsStop => "helper_mars_stop",
+            // Wire name (the notice's `origin`) kept for compatibility with 0.9.0.
+            Self::HelperUserStop => "helper_mars_stop",
             Self::HelperLatch => "helper_latch",
             Self::HelperCaptureStop => "helper_capture_stop",
             Self::HelperIntegrityFailure => "helper_integrity_failure",
@@ -295,16 +300,16 @@ mod tests {
     ];
 
     #[test]
-    fn her_stop_says_where_it_came_from_and_the_helper_code() {
+    fn the_user_stop_says_where_it_came_from_and_the_helper_code() {
         use crate::notice::{DataValue, Token};
         for origin in [
-            MarsStop::Order,
-            MarsStop::Hotkey,
-            MarsStop::HelperLatch { code: None },
-            MarsStop::HelperLatch {
+            UserStop::Order,
+            UserStop::Hotkey,
+            UserStop::HelperLatch { code: None },
+            UserStop::HelperLatch {
                 code: Some("unreported".into()),
             },
-            MarsStop::Helper {
+            UserStop::Helper {
                 code: "local_hotkey".into(),
             },
         ] {
@@ -317,10 +322,10 @@ mod tests {
                     .as_ref(),
                 "{origin:?}"
             );
-            assert_eq!(origin.cause().class(), StopClass::MarsStop, "{origin:?}");
+            assert_eq!(origin.cause().class(), StopClass::UserStop, "{origin:?}");
         }
         assert_eq!(
-            MarsStop::Helper {
+            UserStop::Helper {
                 code: "local_hotkey".into()
             }
             .notice()
@@ -329,7 +334,7 @@ mod tests {
             Token::new("local_hotkey").map(DataValue::Token).as_ref()
         );
         assert_eq!(
-            MarsStop::HelperLatch { code: None }
+            UserStop::HelperLatch { code: None }
                 .notice()
                 .data
                 .get(&NoticeKey::Code),
@@ -339,9 +344,9 @@ mod tests {
     }
 
     #[test]
-    fn only_her_brake_latches_the_helper() {
+    fn only_the_user_brake_latches_the_helper() {
         // Quitting, sleeping, a changed audio route, a dead service or the
-        // daemon's own shutdown stop capture; none of them is her brake.
+        // daemon's own shutdown stop capture; none of them is the user's brake.
         for code in HELPER_CODES {
             assert_eq!(
                 latches(code),
@@ -353,6 +358,24 @@ mod tests {
         for code in DAEMON_ECHO_CODES {
             assert!(HELPER_CODES.contains(&code), "{code} is a helper code");
         }
+    }
+
+    /// The user's stop keeps the names 0.9.0 wrote: the stored requester, the
+    /// authority change on the wire and the cause and class in notices and
+    /// logs. A value written by the old name loads and is written back
+    /// byte for byte.
+    #[test]
+    fn the_user_stop_keeps_its_stored_and_wire_names() -> Result<(), serde_json::Error> {
+        use crate::authority::AuthorityChange;
+        let requester: StopRequester = serde_json::from_str(r#""mars""#)?;
+        assert_eq!(requester, StopRequester::User);
+        assert_eq!(serde_json::to_string(&requester)?, r#""mars""#);
+        let change: AuthorityChange = serde_json::from_str(r#""mars_stop""#)?;
+        assert_eq!(change, AuthorityChange::UserStop);
+        assert_eq!(serde_json::to_string(&change)?, r#""mars_stop""#);
+        assert_eq!(StopClass::UserStop.name(), "mars_stop");
+        assert_eq!(StopCause::HelperUserStop.name(), "helper_mars_stop");
+        Ok(())
     }
 
     #[test]

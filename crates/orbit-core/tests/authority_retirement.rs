@@ -57,7 +57,7 @@ fn every_authority_change_has_the_agreed_slots() {
         HubLink,
     ];
     let table: &[(AuthorityChange, &[RetireSlot])] = &[
-        (AuthorityChange::MarsStop, &full),
+        (AuthorityChange::UserStop, &full),
         (AuthorityChange::Revoked, &full),
         (AuthorityChange::Closing, &full),
         (AuthorityChange::Rearm, &[InFlightReads, Computer, Bridge]),
@@ -87,10 +87,10 @@ fn every_authority_change_has_the_agreed_slots() {
     }
     assert_eq!(
         retire(AuthorityChange::Revoked),
-        retire(AuthorityChange::MarsStop)
+        retire(AuthorityChange::UserStop)
     );
     for change in [
-        AuthorityChange::MarsStop,
+        AuthorityChange::UserStop,
         AuthorityChange::Revoked,
         AuthorityChange::Closing,
     ] {
@@ -113,10 +113,10 @@ fn every_authority_change_has_the_agreed_slots() {
         assert!(!retire(change).slots.contains(&Computer), "{change:?}");
     }
     assert_eq!(retire_stopped_decision().slots, &[CallDetection, Computer]);
-    // REF-303b A5: the calendar refusal reaches Deimos before the bridge
+    // The calendar refusal reaches Deimos before the bridge
     // release can consume the ask it answers.
     for change in [
-        AuthorityChange::MarsStop,
+        AuthorityChange::UserStop,
         AuthorityChange::Revoked,
         AuthorityChange::Closing,
     ] {

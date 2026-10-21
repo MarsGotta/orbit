@@ -336,7 +336,7 @@ async fn stop_during_environment_preparation_is_durable() -> Result<()> {
                 .load_snapshot::<DurableState>()?
                 .context("saved snapshot missing")?;
             assert!(snapshot.privacy_stopped());
-            assert_eq!(snapshot.privacy_stop_by(), Some(StopRequester::Mars));
+            assert_eq!(snapshot.privacy_stop_by(), Some(StopRequester::User));
             Ok(())
         })
         .await
@@ -365,7 +365,7 @@ async fn a_user_stop_during_recovery_attributes_an_old_unknown_stop() -> Result<
             let _ = wait_for_step(&paths, "environment").await?;
             let stopped = ipc::request(&paths, Command::PrivacyStop).await?;
             let state = stopped.status.context("stop had no state")?;
-            assert_eq!(state.privacy_stop_by, Some(StopRequester::Mars));
+            assert_eq!(state.privacy_stop_by, Some(StopRequester::User));
             gate.release()?;
             std::fs::remove_file(paths.root.join("development-device.key"))?;
             let _ = recovery_finished(&paths).await?;
@@ -375,7 +375,7 @@ async fn a_user_stop_during_recovery_attributes_an_old_unknown_stop() -> Result<
             let saved = store
                 .load_snapshot::<DurableState>()?
                 .context("saved snapshot missing")?;
-            assert_eq!(saved.privacy_stop_by(), Some(StopRequester::Mars));
+            assert_eq!(saved.privacy_stop_by(), Some(StopRequester::User));
             Ok(())
         })
         .await

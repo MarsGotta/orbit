@@ -779,7 +779,7 @@ impl InFlightReads {
     fn retire(&mut self, change: orbit_core::authority::AuthorityChange) {
         use orbit_core::authority::AuthorityChange;
         match change {
-            AuthorityChange::MarsStop | AuthorityChange::Revoked => {
+            AuthorityChange::UserStop | AuthorityChange::Revoked => {
                 publish_privacy_epoch(true, &mut self.was_privacy_stopped, &self.privacy_epoch_tx);
             }
             AuthorityChange::Closing => {
@@ -1194,7 +1194,7 @@ async fn run_with_helper_inner(
             orbit_core::RecoveryStep::Snapshot,
             async {
                 runtime
-                    .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+                    .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
                     .await;
                 Ok(())
             },

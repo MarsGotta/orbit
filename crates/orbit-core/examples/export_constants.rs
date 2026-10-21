@@ -8,14 +8,14 @@ pub fn render_registry(source: &str) -> Result<String, Box<dyn Error>> {
     let mut rust_names = BTreeSet::new();
     for limit in limits::registry() {
         if !rust_names.insert(limit.name) {
-            return Err(format!("Nombre Rust repetido: {}", limit.name).into());
+            return Err(format!("Rust name repeated: {}", limit.name).into());
         }
         let entry = entries
             .iter_mut()
             .find(|entry| entry["name"] == limit.name)
-            .ok_or_else(|| format!("Falta {} en contracts/constants.json", limit.name))?;
+            .ok_or_else(|| format!("{} is missing from contracts/constants.json", limit.name))?;
         if entry["source"] != "rust" {
-            return Err(format!("{} debe tener fuente rust", limit.name).into());
+            return Err(format!("{} must have source rust", limit.name).into());
         }
         entry["value"] = Value::from(limit.value);
         entry["unit"] = Value::from(limit.unit);
@@ -23,9 +23,9 @@ pub fn render_registry(source: &str) -> Result<String, Box<dyn Error>> {
     }
     for entry in &entries {
         if entry["source"] == "rust"
-            && !rust_names.contains(entry["name"].as_str().ok_or("Nombre ausente")?)
+            && !rust_names.contains(entry["name"].as_str().ok_or("missing name")?)
         {
-            return Err(format!("{} ya no está en el registro Rust", entry["name"]).into());
+            return Err(format!("{} is no longer in the Rust registry", entry["name"]).into());
         }
     }
     Ok(format!("{}\n", serde_json::to_string_pretty(&entries)?))

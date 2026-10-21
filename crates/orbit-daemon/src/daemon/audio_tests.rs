@@ -424,7 +424,7 @@ async fn privacy_stop_cancels_tasks_and_drains_only_the_bound_old_stream() -> Re
         .context("speech worker absent")?
         .abort_handle();
     runtime
-        .privacy_stop(orbit_core::privacy_stop::MarsStop::Order)
+        .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     tokio::task::yield_now().await;
     assert!(voice_abort.is_finished() && speech_abort.is_finished());
@@ -1372,7 +1372,7 @@ async fn assert_voice_retirement_cause(
 #[tokio::test]
 async fn user_stop_names_privacy_as_the_voice_retirement_cause() -> Result<()> {
     assert_voice_retirement_cause(
-        orbit_core::authority::AuthorityChange::MarsStop,
+        orbit_core::authority::AuthorityChange::UserStop,
         "voice_transcription_privacy_stopped",
     )
     .await
