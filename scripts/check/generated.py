@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The generated TypeScript does not change when the tests run (REF-02 A1).
+"""The generated TypeScript does not change when the tests run.
 
 ts-rs writes `apps/desktop/src/bridge/generated/` as a side effect of
 `cargo test`. A snapshot taken right before the tests and compared right after
@@ -31,14 +31,15 @@ def main(arguments: list[str]) -> int:
         return 2
     action, directory, snapshot = arguments[0], Path(arguments[1]), Path(arguments[2])
     if not directory.is_dir():
-        print(f"no existe el directorio de tipos generados {directory}")
+        print(f"the directory of generated types {directory} does not exist")
         return 1
     if action == "snapshot":
         snapshot.write_text(json.dumps(digests(directory), indent=1), encoding="utf-8")
         return 0
     if not snapshot.is_file():
         print(
-            f"no hay instantánea previa {snapshot}; no se puede saber si los tests cambiaron {directory}"
+            f"there is no earlier snapshot {snapshot}; whether the tests changed {directory} "
+            "cannot be known"
         )
         return 1
     before = json.loads(snapshot.read_text(encoding="utf-8"))
@@ -47,15 +48,15 @@ def main(arguments: list[str]) -> int:
     added = sorted(after.keys() - before.keys())
     removed = sorted(before.keys() - after.keys())
     if not (changed or added or removed):
-        print(f"{directory}: {len(after)} ficheros, ninguno cambió al ejecutar los tests")
+        print(f"{directory}: {len(after)} files, none changed when the tests ran")
         return 0
-    for label, names in (("cambiado", changed), ("nuevo", added), ("borrado", removed)):
+    for label, names in (("changed", changed), ("added", added), ("removed", removed)):
         for name in names:
             print(f"  {label}: {directory / name}")
     print(
-        f"cargo test cambió {len(changed)}, añadió {len(added)} y borró {len(removed)} ficheros "
-        f"de {directory}: el TypeScript del árbol no es el que generan los tipos de Rust. "
-        f"Revisa `git diff -- {directory}` e incluye los ficheros generados en el cambio."
+        f"cargo test changed {len(changed)}, added {len(added)} and removed {len(removed)} files "
+        f"of {directory}: the TypeScript in the tree is not what the Rust types generate. "
+        f"Review `git diff -- {directory}` and include the generated files in the change."
     )
     return 1
 

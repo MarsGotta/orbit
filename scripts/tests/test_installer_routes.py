@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-INSTALL = Path(__file__).resolve().parents[1] / "install.sh"
+INSTALL = Path(__file__).resolve().parents[1] / "release" / "install.sh"
 
 
 class InstallerRoutes(unittest.TestCase):

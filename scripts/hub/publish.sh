@@ -21,7 +21,7 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 usage() {
-	printf 'Uso: %s [<commit>]\n' "${0##*/}" >&2
+	printf 'Usage: %s [<commit>]\n' "${0##*/}" >&2
 	exit 2
 }
 [[ $# -le 1 ]] || usage
@@ -30,10 +30,10 @@ ref=${1:-HEAD}
 
 repo=${ORBIT_REPO:-$(git -C "$HUB_SCRIPTS_DIR" rev-parse --show-toplevel 2>/dev/null || true)}
 [[ -n "$repo" ]] && git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 ||
-	hub_fail "no encuentro el repositorio de Orbit (${repo:-sin ruta}); fija ORBIT_REPO."
+	hub_fail "cannot find the Orbit repository (${repo:-no path}); set ORBIT_REPO."
 
 uv=${ORBIT_UV:-$(command -v uv || printf '%s' "$HOME/.local/bin/uv")}
-[[ -x "$uv" ]] || hub_fail "no encuentro uv ($uv); fija ORBIT_UV."
+[[ -x "$uv" ]] || hub_fail "cannot find uv ($uv); set ORBIT_UV."
 
 # --- What is being published ---------------------------------------------------
 
@@ -41,47 +41,47 @@ uv=${ORBIT_UV:-$(command -v uv || printf '%s' "$HOME/.local/bin/uv")}
 # changes in server/ is refused anyway: whoever publishes it most likely
 # believes they are publishing what they see.
 if ! dirty=$(GIT_OPTIONAL_LOCKS=0 git -C "$repo" status --porcelain --untracked-files=all -- server 2>&1); then
-	hub_fail "git status falló en $repo: $dirty"
+	hub_fail "git status failed in $repo: $dirty"
 fi
 if [[ -n "$dirty" ]]; then
-	printf 'Error: hay cambios sin commitear en server/ de %s. Una versión sale de un commit, así que no publico:\n%s\n' \
+	printf 'Error: there are uncommitted changes in server/ of %s. A version comes from a commit, so nothing is published:\n%s\n' \
 		"$repo" "$dirty" >&2
 	exit 1
 fi
 
 commit=$(git -C "$repo" rev-parse --verify --quiet --end-of-options "$ref^{commit}") ||
-	hub_fail "no encuentro el commit «$ref» en $repo."
+	hub_fail "cannot find the commit '$ref' in $repo."
 short=${commit:0:12}
 
 pyproject=$(git -C "$repo" show "$commit:server/pyproject.toml" 2>/dev/null) ||
-	hub_fail "el commit $short no tiene server/pyproject.toml."
+	hub_fail "commit $short has no server/pyproject.toml."
 lock=$(git -C "$repo" show "$commit:server/uv.lock" 2>/dev/null) ||
-	hub_fail "el commit $short no tiene server/uv.lock."
+	hub_fail "commit $short has no server/uv.lock."
 pattern=$'(^|\n)version = "([0-9]+\\.[0-9]+\\.[0-9]+)"'
-[[ "$pyproject" =~ $pattern ]] || hub_fail "server/pyproject.toml del commit $short no declara una versión X.Y.Z."
+[[ "$pyproject" =~ $pattern ]] || hub_fail "server/pyproject.toml of commit $short declares no X.Y.Z version."
 version=${BASH_REMATCH[2]}
 pattern=$'(^|\n)name = "orbit-hub"\nversion = "([^"]*)"'
-[[ "$lock" =~ $pattern ]] || hub_fail "server/uv.lock del commit $short no tiene la entrada de orbit-hub."
+[[ "$lock" =~ $pattern ]] || hub_fail "server/uv.lock of commit $short has no orbit-hub entry."
 locked=${BASH_REMATCH[2]}
 if [[ "$locked" != "$version" ]]; then
-	hub_fail "en el commit $short, server/pyproject.toml dice $version y server/uv.lock dice $locked para orbit-hub: uv sync --locked no construiría esa versión. Cambia la versión con scripts/set-version.py, que escribe las dos, y commitea."
+	hub_fail "in commit $short, server/pyproject.toml says $version and server/uv.lock says $locked for orbit-hub: uv sync --locked would not build that version. Change the version with scripts/release/set-version.py, which writes both, and commit."
 fi
 
 releases="$ORBIT_HUB_BASE/releases"
 target="$releases/$version"
-mkdir -p -- "$releases" || hub_fail "no puedo crear $releases."
+mkdir -p -- "$releases" || hub_fail "cannot create $releases."
 hub_take_lock
 
 if [[ -e "$target" || -L "$target" ]]; then
 	if [[ ! -f "$target/RELEASE" ]]; then
-		hub_fail "$target existe pero está incompleta (no tiene RELEASE): es lo que deja una publicación interrumpida, y no la toco. Bórrala y vuelve a publicar: chmod -R u+w '$target' && rm -rf '$target'"
+		hub_fail "$target exists but is incomplete (it has no RELEASE): that is what an interrupted publication leaves, and it is left alone. Delete it and publish again: chmod -R u+w '$target' && rm -rf '$target'"
 	fi
 	published=$(hub_release_field "$version" commit)
 	if [[ "$published" == "$commit" ]]; then
-		hub_say "La $version ya está publicada desde este mismo commit ($short) en $target; no hay nada que hacer."
+		hub_say "$version is already published from this same commit ($short) in $target; there is nothing to do."
 		exit 0
 	fi
-	hub_fail "la $version ya está publicada desde el commit ${published:0:12}, y este es $short. Una versión publicada no se rehace: cambia la versión con scripts/set-version.py, commitea y publica esa."
+	hub_fail "$version is already published from commit ${published:0:12}, and this one is $short. A published version is not rebuilt: change the version with scripts/release/set-version.py, commit and publish that."
 fi
 
 # --- Build ---------------------------------------------------------------------
@@ -96,7 +96,7 @@ cleanup() {
 	if [[ -n "$created" ]]; then
 		find "$created" ! -type l -exec chmod u+w {} + 2>/dev/null || true
 		rm -rf -- "$created"
-		printf 'Se ha borrado la publicación a medias de %s.\n' "$created" >&2
+		printf 'The half-done publication of %s was deleted.\n' "$created" >&2
 	fi
 	rm -f -- "$log"
 	exit "$status"
@@ -111,7 +111,7 @@ step() {
 	local what=$1
 	shift
 	if ! "$@" >"$log" 2>&1; then
-		printf 'Error: falló %s (en %s):\n' "$what" "$target" >&2
+		printf 'Error: %s failed (in %s):\n' "$what" "$target" >&2
 		tail -n 40 "$log" >&2
 		exit 1
 	fi
@@ -119,10 +119,10 @@ step() {
 
 mkdir -- "$target"
 created=$target
-hub_say "Publicando la $version desde el commit $short en $target…"
+hub_say "Publishing $version from commit $short in $target…"
 
 extract_server() { git -C "$repo" archive --format=tar "$commit" server | tar -x -C "$target" --strip-components=1; }
-step "copiar server/ del commit $short (git archive)" extract_server
+step "copying server/ of commit $short (git archive)" extract_server
 
 # --link-mode copy: uv hardlinks from its cache by default, and a hardlinked
 # file is the same file as the cache's and every other environment's (the
@@ -134,10 +134,10 @@ build_environment() (
 	cd "$target" && env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT -u UV_FROZEN -u UV_NO_EDITABLE \
 		"$uv" sync --locked --no-dev --link-mode copy --compile-bytecode
 )
-step "uv sync --locked (el entorno de la versión, desde el uv.lock del commit)" build_environment
+step "uv sync --locked (the version's environment, from the commit's uv.lock)" build_environment
 
 python="$target/.venv/bin/python"
-step "compilar orbit_hub y orbit_mcp" "$python" -I -m compileall -q "$target/orbit_hub" "$target/orbit_mcp"
+step "compiling orbit_hub and orbit_mcp" "$python" -I -m compileall -q "$target/orbit_hub" "$target/orbit_mcp"
 
 # --- Check what was built ------------------------------------------------------
 
@@ -148,28 +148,29 @@ step "compilar orbit_hub y orbit_mcp" "$python" -I -m compileall -q "$target/orb
 # nothing else. PYTHONPATH and PYTHONHOME are dropped so the operator's shell
 # cannot lend the release a module it does not have.
 clean_env=(env -u PYTHONPATH -u PYTHONHOME)
-step "orbit-hub --help con el entorno de la versión" \
+step "orbit-hub --help with the version's environment" \
 	"${clean_env[@]}" timeout 60 "$target/.venv/bin/orbit-hub" --help
 
 # orbit-mcp has no --help and would serve stdio if it found a configuration.
 # Pointed at one that does not exist it imports everything it serves with and
 # stops with its safe startup message: that proves the entry point without
-# starting anything or reading the real configuration.
+# starting anything or reading the real configuration. Releases up to 0.9.0
+# word that message in Spanish, later ones in English.
 mcp_status=0
-mcp_output=$(ORBIT_MCP_CONFIG="$target/.sin-configuracion.toml" "${clean_env[@]}" \
+mcp_output=$(ORBIT_MCP_CONFIG="$target/.no-configuration.toml" "${clean_env[@]}" \
 	timeout 60 "$target/.venv/bin/orbit-mcp" </dev/null 2>&1) || mcp_status=$?
-if [[ "$mcp_status" -ne 1 || "$mcp_output" != *"Orbit MCP no puede arrancar"* || "$mcp_output" == *Traceback* ]]; then
-	printf 'Error: orbit-mcp no respondió como debe sin configuración (esperaba salida 1 y «Orbit MCP no puede arrancar»; salió %s):\n%s\n' \
+if [[ "$mcp_status" -ne 1 || ( "$mcp_output" != *"Orbit MCP cannot start"* && "$mcp_output" != *"Orbit MCP no puede arrancar"* ) || "$mcp_output" == *Traceback* ]]; then
+	printf "Error: orbit-mcp did not answer as it must without configuration (expected status 1 and 'Orbit MCP cannot start'; it exited %s):\n%s\n" \
 		"$mcp_status" "$mcp_output" >&2
 	exit 1
 fi
 
 reported=$("${clean_env[@]}" timeout 60 "$python" -I -c \
 	'import orbit_mcp.server; from orbit_hub.app import hub_version; print(hub_version())' 2>&1) ||
-	hub_fail "el entorno de la versión no importa el hub y el traductor:
+	hub_fail "the version's environment does not import the hub and the translator:
 $reported"
 [[ "$reported" == "$version" ]] ||
-	hub_fail "hub_version() del entorno construido dice «$reported» y la versión es $version."
+	hub_fail "hub_version() of the built environment says '$reported' and the version is $version."
 
 python_version=$("$python" -I -c 'import sys; print("%d.%d.%d" % sys.version_info[:3])')
 commit_date=$(git -C "$repo" show -s --format=%cI "$commit")
@@ -188,5 +189,5 @@ mv -- "$target/RELEASE.partial" "$target/RELEASE"
 find "$target" ! -type l -exec chmod a-w {} +
 created=""
 
-hub_say "Publicada la $version (commit $short, Python $python_version) en $target."
-hub_say "Para activarla: $HUB_SCRIPTS_DIR/activate.sh $version"
+hub_say "Published $version (commit $short, Python $python_version) in $target."
+hub_say "To activate it: $HUB_SCRIPTS_DIR/activate.sh $version"

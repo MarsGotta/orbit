@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A skipped test is not a passed test (REF-02 A2).
+"""A skipped test is not a passed test.
 
 Reads what a suite really ran, from its own report, and fails when a test was
 skipped (or marked as an expected failure) without an entry in
@@ -10,7 +10,7 @@ skipped (or marked as an expected failure) without an entry in
 - ``--unittest``: the JSON written by ``unittest_runner.py``.
 
 Every text is read with its colour codes removed first, so a coloured
-``ignored`` cannot hide a skip (A8).
+``ignored`` cannot hide a skip.
 
 Usage:
   skips.py --suite ID --allow FILE [--cause-file FILE] (--junit X | --cargo-log X | --unittest X)...
@@ -72,7 +72,7 @@ def load_allowlist(path: Path) -> dict[tuple[str, str], str]:
     try:
         document = tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as error:
-        raise InvalidAllowlist(f"no puedo leer {path}: {error}") from error
+        raise InvalidAllowlist(f"cannot read {path}: {error}") from error
     allowed = {}
     for index, entry in enumerate(document.get("skip", []), start=1):
         missing = [
@@ -81,31 +81,31 @@ def load_allowlist(path: Path) -> dict[tuple[str, str], str]:
             if not isinstance(entry.get(field), str) or not entry[field].strip()
         ]
         if missing:
-            names = {"suite": "suite", "test": "test", "reason": "reason (el motivo)"}
+            names = {"suite": "suite", "test": "test", "reason": "reason (why)"}
             raise InvalidAllowlist(
-                f"{path}: la entrada {index} ({entry.get('test', 'sin test')}) no tiene "
+                f"{path}: entry {index} ({entry.get('test', 'no test')}) has no "
                 + ", ".join(names[field] for field in missing)
-                + "; un salto sólo se permite con su suite, su test y su motivo"
+                + "; a skip is allowed only with its suite, its test and its reason"
             )
         key = (entry["suite"].strip(), entry["test"].strip())
         if key in allowed:
-            raise InvalidAllowlist(f"{path}: {key[1]} aparece dos veces en {key[0]}")
+            raise InvalidAllowlist(f"{path}: {key[1]} appears twice in {key[0]}")
         allowed[key] = entry["reason"].strip()
     unknown = set(document) - {"skip"}
     if unknown:
-        raise InvalidAllowlist(f"{path}: claves desconocidas {sorted(unknown)}")
+        raise InvalidAllowlist(f"{path}: unknown keys {sorted(unknown)}")
     return allowed
 
 
 def read_junit(path: Path) -> Report:
     if not path.is_file():
         return Report(
-            0, [], [f"no se generó el informe {path}; sin él no se sabe qué tests corrieron"]
+            0, [], [f"the report {path} was not written; without it nobody knows which tests ran"]
         )
     try:
         root = ElementTree.fromstring(strip_ansi(path.read_text(encoding="utf-8")))
     except ElementTree.ParseError as error:
-        return Report(0, [], [f"el informe {path} no es XML válido: {error}"])
+        return Report(0, [], [f"the report {path} is not valid XML: {error}"])
     tests = 0
     skips = []
     failed = []
@@ -122,7 +122,7 @@ def read_junit(path: Path) -> Report:
 
 def read_cargo_log(path: Path) -> Report:
     if not path.is_file():
-        return Report(0, [], [f"no existe la salida de cargo {path}"])
+        return Report(0, [], [f"there is no cargo output {path}"])
     binary = "?"
     tests = 0
     counted_ignored = 0
@@ -144,8 +144,8 @@ def read_cargo_log(path: Path) -> Report:
     problems = []
     if counted_ignored != len(skips):
         problems.append(
-            f"cargo contó {counted_ignored} tests ignorados y sólo se identificaron {len(skips)}; "
-            "sin nombre no se pueden comparar con la lista de saltos permitidos"
+            f"cargo counted {counted_ignored} ignored tests and only {len(skips)} were named; "
+            "without a name they cannot be compared with the allowed skips"
         )
     return Report(tests, skips, problems, failed)
 
@@ -153,18 +153,18 @@ def read_cargo_log(path: Path) -> Report:
 def read_unittest(path: Path) -> Report:
     if not path.is_file():
         return Report(
-            0, [], [f"no se generó el informe {path}; sin él no se sabe qué guards corrieron"]
+            0, [], [f"the report {path} was not written; without it nobody knows which guards ran"]
         )
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         skips = [Skip(test, reason) for test, reason in data["skipped"]]
         skips += [
-            Skip(test, "marcado como fallo esperado") for test, _ in data["expected_failures"]
+            Skip(test, "marked as an expected failure") for test, _ in data["expected_failures"]
         ]
         failed = [test for test, _ in data.get("failures", []) + data.get("errors", [])]
         return Report(int(data["tests_run"]), skips, [], failed)
     except (ValueError, KeyError, TypeError) as error:
-        return Report(0, [], [f"el informe {path} no se puede leer: {error}"])
+        return Report(0, [], [f"the report {path} cannot be read: {error}"])
 
 
 def plural(count: int, singular: str, plural_form: str) -> str:
@@ -179,13 +179,13 @@ def check(
     skips = [skip for report in reports for skip in report.skips]
     failed = [test for report in reports for test in report.failed]
     for test in failed:
-        print(f"  falló: {test}")
+        print(f"  failed: {test}")
     for problem in problems:
         print(f"  {problem}")
     if not problems and tests == 0:
-        problems.append("el informe no contiene ningún test")
+        problems.append("the report contains no test")
         print(
-            f"  {suite}: el informe no contiene ningún test; una suite vacía no es una suite pasada"
+            f"  {suite}: the report contains no test; an empty suite is not a passed suite"
         )
     refused = []
     for skip in skips:
@@ -193,36 +193,36 @@ def check(
         if reason is None:
             refused.append(skip)
         else:
-            print(f"  salto permitido: {skip.test} · {reason}")
+            print(f"  allowed skip: {skip.test} · {reason}")
     for skip in refused:
-        said = f" (el test dice: {skip.reason})" if skip.reason else ""
-        print(f"  salto no permitido: {skip.test}{said}")
+        said = f" (the test says: {skip.reason})" if skip.reason else ""
+        print(f"  skip not allowed: {skip.test}{said}")
     if refused:
         print(
-            f"  {suite}: {plural(len(refused), 'salto no permitido', 'saltos no permitidos')}. "
-            f"Un test saltado no es un test pasado: haz que corra, o añádelo a {ALLOWLIST_HINT} "
-            "con su suite y su motivo."
+            f"  {suite}: {plural(len(refused), 'skip not allowed', 'skips not allowed')}. "
+            f"A skipped test is not a passed test: make it run, or add it to {ALLOWLIST_HINT} "
+            "with its suite and its reason."
         )
     causes = []
     if failed:
         named = ", ".join(failed[:NAMED_FAILURES])
         if len(failed) > NAMED_FAILURES:
-            named += f" y {len(failed) - NAMED_FAILURES} más"
-        causes.append(f"{len(failed)} de {tests} tests fallaron: {named}")
+            named += f" and {len(failed) - NAMED_FAILURES} more"
+        causes.append(f"{len(failed)} of {tests} tests failed: {named}")
     if refused:
-        causes.append(plural(len(refused), "salto no permitido", "saltos no permitidos"))
+        causes.append(plural(len(refused), "skip not allowed", "skips not allowed"))
     causes.extend(problems)
     status = 1 if refused or problems else 0
     if not causes:
         print(
-            f"  {suite}: {tests} tests, {plural(len(skips), 'salto permitido', 'saltos permitidos')}"
+            f"  {suite}: {tests} tests, {plural(len(skips), 'allowed skip', 'allowed skips')}"
         )
     return status, "; ".join(causes)
 
 
 def main(arguments: list[str]) -> int:
     parser = argparse.ArgumentParser(
-        description="Compara los saltos de una suite con su lista permitida."
+        description="Compares a suite's skips with its allowed list."
     )
     parser.add_argument("--allow", required=True, type=Path)
     parser.add_argument("--suite")
@@ -237,22 +237,22 @@ def main(arguments: list[str]) -> int:
     except InvalidAllowlist as error:
         print(error)
         if options.cause_file:
-            options.cause_file.write_text("lista de saltos permitidos inválida\n", encoding="utf-8")
+            options.cause_file.write_text("invalid list of allowed skips\n", encoding="utf-8")
         return 2
     if options.validate:
         print(
-            f"{options.allow}: {plural(len(allowed), 'salto permitido', 'saltos permitidos')}, todos con motivo"
+            f"{options.allow}: {plural(len(allowed), 'allowed skip', 'allowed skips')}, all with a reason"
         )
         return 0
     if not options.suite:
-        parser.error("--suite es obligatorio salvo con --validate")
+        parser.error("--suite is required except with --validate")
     reports = (
         [read_junit(path) for path in options.junit]
         + [read_cargo_log(path) for path in options.cargo_log]
         + [read_unittest(path) for path in options.unittest]
     )
     if not reports:
-        parser.error("falta un informe: --junit, --cargo-log o --unittest")
+        parser.error("a report is missing: --junit, --cargo-log or --unittest")
     status, cause = check(options.suite, allowed, reports)
     if options.cause_file and cause:
         options.cause_file.write_text(cause + "\n", encoding="utf-8")

@@ -17,11 +17,11 @@ closed-set cause and audio durations, without recognized words. Swift compares
 its encoding with this Rust-generated JSON.
 
 `calendar/` holds calendar-write variants that do not fit “one command and one
-result per name” (P9-21): `commands/calendar_save-change.json` (an occurrence
+result per name”: `commands/calendar_save-change.json` (an occurrence
 change; `commands/calendar_save.json` is creation) and `refusals/<code>.json`,
 an `ok:false` response with its `detail` for each refusal. The same command
 generates them, and Rust and Swift decode them.
 
 `commands/audio_purpose.json` changes the consumer of a shared microphone without
-reopening it (SIM-101). Its response only acknowledges the command; the daemon
+reopening it. Its response only acknowledges the command; the daemon
 does not read its body, just as with `audio_wake_phrase`.

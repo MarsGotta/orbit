@@ -16,7 +16,7 @@ class SigningFileTests(unittest.TestCase):
         self.addCleanup(self.scratch.cleanup)
         self.root = Path(self.scratch.name)
         self.repo = self.root / "repo"
-        for name in ("scripts/e2e-mac/compilar-pruebas.sh", "scripts/release/lib.sh"):
+        for name in ("scripts/e2e-mac/build-test-app.sh", "scripts/release/lib.sh"):
             target = self.repo / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, target)
@@ -27,7 +27,8 @@ class SigningFileTests(unittest.TestCase):
         uname.write_text("#!/bin/sh\necho Darwin\n")
         uname.chmod(0o755)
         # Stop at the build boundary, before any system tooling or installation.
-        (self.repo / "scripts/bundle-macos.sh").write_text(
+        (self.repo / "scripts/macos").mkdir(parents=True)
+        (self.repo / "scripts/macos/bundle.sh").write_text(
             '#!/bin/bash\nprintf "%s\\n" "$ORBIT_SIGN_IDENTITY" "${ORBIT_NOTARY_KEY-unset}" > "$ORBIT_FIXTURE_RECEIPT"\nexit 77\n'
         )
         self.receipt = self.root / "receipt"
@@ -43,7 +44,7 @@ class SigningFileTests(unittest.TestCase):
         self.file.write_text(self.base if contents is None else contents)
         self.file.chmod(mode)
         return subprocess.run(
-            ["/bin/bash", str(self.repo / "scripts/e2e-mac/compilar-pruebas.sh")],
+            ["/bin/bash", str(self.repo / "scripts/e2e-mac/build-test-app.sh")],
             cwd=self.root,
             env={
                 **os.environ,
@@ -61,18 +62,18 @@ class SigningFileTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn(reason, result.stderr)
         self.assertFalse(
-            self.receipt.exists(), "se llegó a compilar con un fichero rechazado"
+            self.receipt.exists(), "the build ran with a refused file"
         )
 
     def test_unknown_key_is_refused_before_building(self):
         self.assert_refused(
             self.run_build(self.base + "UNRECOGNIZED=value\n"),
-            "clave no admitida: UNRECOGNIZED",
+            "a key that is not accepted: UNRECOGNIZED",
         )
 
     def test_a_line_without_equals_is_refused_before_building(self):
         self.assert_refused(
-            self.run_build(self.base + "BROKEN_LINE\n"), "sin CLAVE=valor"
+            self.run_build(self.base + "BROKEN_LINE\n"), "without KEY=value"
         )
 
     def test_signing_values_are_data_and_notary_keys_do_not_reach_the_bundle(self):
@@ -84,7 +85,7 @@ class SigningFileTests(unittest.TestCase):
         self.assertFalse((self.root / "injected").exists())
 
     def test_group_readable_material_is_refused(self):
-        self.assert_refused(self.run_build(mode=0o640), "modo 640")
+        self.assert_refused(self.run_build(mode=0o640), "mode 640")
 
     def test_symlink_and_material_inside_the_repository_are_refused(self):
         link = self.root / "link.env"
@@ -93,7 +94,7 @@ class SigningFileTests(unittest.TestCase):
         inside = self.repo / "signing.env"
         inside.write_text(self.base)
         inside.chmod(0o600)
-        self.assert_refused(self.run_build(file=inside), "fuera del repositorio")
+        self.assert_refused(self.run_build(file=inside), "outside the repository")
 
 
 if __name__ == "__main__":

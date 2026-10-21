@@ -1,0 +1,35 @@
+# The synthetic meeting of the real test on the Mac. What is said stays in
+# Spanish: it is the meeting Orbit transcribes.
+#
+# Each line is «A: text» or «B: text»: A and B are the two Spanish voices the
+# Mac has (if it has only one, both are the same). «---» separates the three
+# parts that are said separately: the first half, the question to Deimos and
+# the second half. Between the question and the second half the test waits
+# for Deimos to answer. Lines that start with «#» are not said.
+#
+# It carries actions with an owner and a date, and a decision, so that the
+# note has something to write its summary and its actions from.
+
+A: Buenos días. Empezamos la reunión de seguimiento del proyecto de la biblioteca municipal.
+B: Buenos días. Yo traigo el estado del presupuesto y del calendario de obras.
+A: Perfecto. Primero el presupuesto: la semana pasada quedamos en revisar el coste de las estanterías nuevas.
+B: Sí. El proveedor ha mandado una oferta de doce mil euros, un poco por encima de lo previsto.
+A: Entonces hay que negociar. Laura, ¿puedes llamar al proveedor antes del viernes para pedir un descuento?
+B: De acuerdo, llamo al proveedor el jueves por la mañana y os cuento el resultado.
+A: Bien. Sobre el calendario, las obras de la sala de lectura empiezan el tres de noviembre.
+B: El arquitecto confirmó esa fecha, pero necesita los planos firmados antes del veintiocho de octubre.
+A: ¿Y el permiso de obras? La última vez el ayuntamiento tardó casi un mes en contestar.
+B: Ya está concedido. Llegó el martes por correo y lo tengo guardado en la carpeta del proyecto.
+---
+A: Oye Deimos, ¿de qué estamos hablando?
+---
+A: Gracias. Sigamos. Decidimos mantener la fecha del tres de noviembre para empezar las obras.
+B: Me parece bien. Yo me encargo de enviar los planos firmados al arquitecto el lunes.
+A: Queda un tema abierto: la mudanza de los libros durante las obras. Todavía no sabemos dónde guardarlos.
+B: Podemos preguntar al ayuntamiento si nos deja el almacén del polideportivo.
+A: Buena idea. Pedro, escribe al ayuntamiento esta semana para pedir el almacén.
+B: Apuntado. También conviene avisar a los usuarios de la biblioteca con un cartel en la entrada.
+A: De acuerdo, el cartel lo preparamos la semana que viene.
+B: Y la próxima reunión la hacemos el martes que viene a las diez.
+A: Perfecto. Resumen: Laura llama al proveedor, Pedro escribe al ayuntamiento y los planos salen el lunes.
+B: Gracias a todos. Hasta el martes.

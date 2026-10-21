@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parents[1] / "check-macos-sdk.sh"
+SCRIPT = Path(__file__).resolve().parents[1] / "macos" / "check-sdk.sh"
 
 # Every allowed command is read-only. Unexpected arguments, including selection
 # or installation attempts, fail and remain visible in the fixture call log.
@@ -129,9 +129,9 @@ class SDKPreflightTests(unittest.TestCase):
         result, calls = self.run_fixture(["xctest"], fail=command)
         self.assertEqual(result.returncode, 1)
         self.assertEqual(calls, [command])
-        self.assertIn("XCTest no está disponible", result.stderr)
-        self.assertIn("No se omiten las pruebas", result.stderr)
-        self.assertNotIn("Xcode no está instalado", result.stderr)
+        self.assertIn("XCTest is not available", result.stderr)
+        self.assertIn("The tests are not skipped", result.stderr)
+        self.assertNotIn("Xcode is not installed", result.stderr)
 
     def installed_xcode(self, root, *, with_runner=True):
         """An Xcode that is on disk, with or without the test runner in it."""
@@ -157,7 +157,7 @@ class SDKPreflightTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn(str(developer), result.stderr)
             self.assertIn("DEVELOPER_DIR", result.stderr)
-            self.assertNotIn("No se omiten las pruebas", result.stderr)
+            self.assertNotIn("The tests are not skipped", result.stderr)
 
     def test_a_missing_runner_without_any_xcode_states_the_exact_requirement(self):
         with tempfile.TemporaryDirectory(prefix="orbit-xcode-") as temporary:
@@ -167,7 +167,7 @@ class SDKPreflightTests(unittest.TestCase):
             result, _ = self.run_fixture(["xctest"], fail=command, search=str(root))
             self.assertEqual(result.returncode, 1)
             self.assertIn("Contents/Developer/usr/bin/xctest", result.stderr)
-            self.assertIn("No se omiten las pruebas", result.stderr)
+            self.assertIn("The tests are not skipped", result.stderr)
 
     def test_unknown_missing_or_extra_mode_runs_no_commands(self):
         for args in ([], ["install"], ["sdk", "xctest"]):

@@ -7,7 +7,7 @@ source "$release_dir/lib.sh"
 release_test_tools
 archive=${1:-}
 if [[ ! -f $archive ]]; then
-  echo "No existe el ZIP del Mac: '$archive'." >&2
+  echo "The Mac's ZIP does not exist: '$archive'." >&2
   exit 1
 fi
 scratch="$(mktemp -d)"
@@ -16,10 +16,10 @@ ditto -x -k "$archive" "$scratch"
 bundle="$scratch/Orbit.app"
 echo 'codesign --verify --deep --strict'
 codesign --verify --deep --strict "$bundle"
-echo 'Firma aceptada'
+echo 'Signature accepted'
 echo 'spctl --assess --type execute'
 spctl --assess --type execute "$bundle"
-echo 'Gatekeeper aceptado'
+echo 'Gatekeeper accepted'
 echo 'xcrun stapler validate'
 xcrun stapler validate "$bundle"
-echo 'Grapado aceptado'
+echo 'Stapling accepted'

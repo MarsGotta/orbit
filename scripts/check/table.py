@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Prints the final table of scripts/check.sh from its `resultados.tsv`.
+"""Prints the final table of scripts/check.sh from its `results.tsv`.
 
-Columns of the TSV, one step per line: id, result (ok | fallo | omitido |
-interrumpido), seconds, label, cause.
+Columns of the TSV, one step per line: id, result (ok | failed | skipped |
+interrupted), seconds, label, cause.
 
 A row carries its cause cut to a readable width; every cause is then listed
 whole under the table, so a long list of failed tests never hides the table
@@ -14,7 +14,7 @@ Usage: table.py RESULTS.tsv TOTAL_SECONDS
 import sys
 from pathlib import Path
 
-SHOWN = {"ok": "ok", "fallo": "FALLO", "omitido": "omitido", "interrumpido": "INTERRUMPIDO"}
+SHOWN = {"ok": "ok", "failed": "FAILED", "skipped": "skipped", "interrupted": "INTERRUPTED"}
 # Characters of a cause shown inside its row; the whole cause follows the table.
 ROW_CAUSE = 60
 
@@ -41,9 +41,9 @@ def main(arguments: list[str]) -> int:
             shown = f"{status} ({short})"
         rows.append((label, shown, duration(float(seconds or 0)), result, status, cause))
     passed = sum(1 for row in rows if row[3] == "ok")
-    verdict = "ok" if rows and passed == len(rows) else "FALLO"
-    summary = f"{len(rows)} pasos: {passed} ok, {len(rows) - passed} no"
-    header = ("Paso", "Resultado", "Duración")
+    verdict = "ok" if rows and passed == len(rows) else "FAILED"
+    summary = f"{len(rows)} steps: {passed} ok, {len(rows) - passed} not"
+    header = ("Step", "Result", "Duration")
     label_width = max([len(header[0]), len(summary)] + [len(row[0]) for row in rows])
     result_width = max([len(header[1]), len(verdict)] + [len(row[1]) for row in rows])
     rule = "─" * (label_width + result_width + 16)
@@ -57,7 +57,7 @@ def main(arguments: list[str]) -> int:
     print(f"{summary:<{label_width}}  {verdict:<{result_width}}  {duration(total):>10}")
     causes = [(label, status, cause) for label, _, _, result, status, cause in rows if cause]
     if causes:
-        print("\nCausas:")
+        print("\nCauses:")
         for label, status, cause in causes:
             print(f"  {label} · {status}: {cause}")
     return 0

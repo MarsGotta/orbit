@@ -72,13 +72,13 @@ DEIMOS_STATUS_OUTPUT = (
 )
 # Synthetic default status; acceptance still depends on its new translator.
 HOST_STATUS_OUTPUT = "✓ Gateway is running — PID 200"
-# Hermes's refusal recorded in SIM-86 on 2026-10-20 (the omitted middle is not
-# supplied in the spec). It must never replace the translator or report success.
+# Hermes's refusal as recorded on 2026-10-20 (its omitted middle was not
+# recorded). It must never replace the translator or report success.
 DEIMOS_RESTART_OUTPUT = (
     "The host gateway already serves profile 'deimos' … "
     "Manage the host gateway instead: hermes -p default gateway restart"
 )
-# What Mars's `hermes -p deimos gateway restart` answered on 2026-10-15; the
+# What the operator's `hermes -p deimos gateway restart` answered on 2026-10-15; the
 # restart had worked all the same.
 PENDING_RESTART_OUTPUT = (
     "Profile 'deimos' restart was not confirmed: host operation is still pending."
@@ -90,7 +90,7 @@ def translator_args(base, version):
     return f"{base}/releases/{version}/.venv/bin/python {base}/current/.venv/bin/orbit-mcp"
 
 
-# What the unit said before REF-05, for the tests that refuse it.
+# What the unit said before hub releases existed, for the tests that refuse it.
 DEVELOPMENT_EXEC_START = (
     "/home/example/.local/bin/uv run --frozen orbit-hub --config"
     " /srv/orbit/stacks/orbit-hub/etc/orbit.toml serve --host 127.0.0.1 --port 8700"
@@ -100,7 +100,7 @@ DEVELOPMENT_WORKING_DIRECTORY = "/home/example/projects/orbit/server"
 FAKE_MARK = "ORBIT_HUB_FAKE_"
 linux_only = unittest.skipUnless(
     sys.platform.startswith("linux"),
-    "los scripts del hub son del servidor Linux: usan systemd, flock y mv -T",
+    "the hub scripts are the Linux server's: they use systemd, flock and mv -T",
 )
 
 FAKE_SYSTEMCTL = r"""#!/usr/bin/env python3
@@ -123,7 +123,7 @@ record({
     "env": {key: os.environ.get(key) for key in ("XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS")},
 })
 if not arguments or arguments[0] != "--user":
-    print("systemctl falso: sólo atiende --user", file=sys.stderr)
+    print("fake systemctl: it only serves --user", file=sys.stderr)
     sys.exit(64)
 arguments = arguments[1:]
 verb = arguments[0] if arguments else ""
@@ -176,10 +176,10 @@ if verb == "is-active":
     print(active)
     sys.exit(0 if active == "active" else 3)
 if verb == "status":
-    print(f"● {unit} - estado falso para las pruebas")
+    print(f"● {unit} - fake status for the tests")
     print(f"     Active: {active} ({state.get('SubState', 'running')})")
     sys.exit(0 if active == "active" else 3)
-print(f"systemctl falso: verbo no previsto: {verb}", file=sys.stderr)
+print(f"fake systemctl: unexpected verb: {verb}", file=sys.stderr)
 sys.exit(64)
 """
 
@@ -192,8 +192,8 @@ arguments = sys.argv[1:]
 with open(os.path.join(STATE, "events.jsonl"), "a", encoding="utf-8") as handle:
     handle.write(json.dumps({"tool": "journalctl", "argv": arguments}) + "\n")
 unit = arguments[arguments.index("-u") + 1] if "-u" in arguments[:-1] else "?"
-print(f"-- diario falso de {unit} --")
-print(f"{unit}: línea falsa del diario para las pruebas")
+print(f"-- fake journal of {unit} --")
+print(f"{unit}: fake journal line for the tests")
 """
 
 FAKE_PS = r"""#!/usr/bin/env python3
@@ -241,7 +241,7 @@ if arguments == ["-p", "deimos", "gateway", "status"]:
     print(@DEIMOS_STATUS_OUTPUT@)
     sys.exit(0)
 if arguments[:3] != ["-p", "default", "gateway"] or len(arguments) != 4:
-    print(f"hermes falso: orden no prevista: {arguments}", file=sys.stderr)
+    print(f"fake hermes: unexpected command: {arguments}", file=sys.stderr)
     sys.exit(64)
 verb = arguments[3]
 if verb == "restart":
@@ -268,7 +268,7 @@ if verb == "restart":
 if verb == "status":
     print(config.get("status_output", ""))
     sys.exit(config.get("status_exit", 0))
-print(f"hermes falso: verbo no previsto: {verb}", file=sys.stderr)
+print(f"fake hermes: unexpected verb: {verb}", file=sys.stderr)
 sys.exit(64)
 """
 
@@ -383,7 +383,7 @@ class HubSandbox:
     """One temporary world for the hub scripts. Always close() it."""
 
     def __init__(self):
-        self.root = Path(tempfile.mkdtemp(prefix="orbit-ref05-"))
+        self.root = Path(tempfile.mkdtemp(prefix="orbit-hub-sandbox-"))
         self.base = self.root / "base"
         self.bin = self.root / "bin"
         self.state = self.root / "fake"
@@ -627,7 +627,7 @@ class HubSandbox:
             ),
         )
         self.git("init", "-q", "-b", "main")
-        return self.commit("servidor de este árbol")
+        return self.commit("server of this tree")
 
     def commit(self, message):
         self.git("add", "-A")
@@ -641,7 +641,7 @@ class HubSandbox:
         return project_version(self.repo_file("pyproject.toml").read_text(encoding="utf-8"))
 
     def set_repo_version(self, version, lock=True):
-        """Change the version the way set-version.py does, or only in pyproject."""
+        """Change the version the way scripts/release/set-version.py does, or only in pyproject."""
         pyproject = self.repo_file("pyproject.toml")
         text = pyproject.read_text(encoding="utf-8")
         pyproject.write_text(
@@ -702,25 +702,25 @@ class HubSandbox:
         first = env.get("PATH", "").split(os.pathsep)[0]
         problems = []
         if self.root not in base.parents:
-            problems.append(f"la base {base} no está en {self.root}")
+            problems.append(f"the base {base} is not in {self.root}")
         if first != str(self.bin):
-            problems.append(f"el PATH no empieza por los falsos ({first})")
+            problems.append(f"the PATH does not start with the fakes ({first})")
         for tool in ("systemctl", "journalctl", "ps", "hermes"):
             if FAKE_MARK not in (self.bin / tool).read_text(encoding="utf-8"):
-                problems.append(f"{tool} no es el falso")
+                problems.append(f"{tool} is not the fake")
         hermes = Path(env.get("ORBIT_HUB_HERMES", "/"))
         if self.root not in hermes.parents:
-            problems.append(f"ORBIT_HUB_HERMES ({hermes}) no está en {self.root}")
+            problems.append(f"ORBIT_HUB_HERMES ({hermes}) is not in {self.root}")
         elif hermes.exists() and FAKE_MARK not in hermes.read_text(encoding="utf-8"):
-            problems.append(f"ORBIT_HUB_HERMES ({hermes}) no es el falso")
+            problems.append(f"ORBIT_HUB_HERMES ({hermes}) is not the fake")
         if env.get("ORBIT_HUB_URL") != self.hub.url:
-            problems.append("ORBIT_HUB_URL no es el hub falso")
+            problems.append("ORBIT_HUB_URL is not the fake hub")
         if Path(env.get("ORBIT_DEIMOS_PROFILE", "/")).parent != self.root:
-            problems.append("ORBIT_DEIMOS_PROFILE no está en el directorio temporal")
+            problems.append("ORBIT_DEIMOS_PROFILE is not in the temporary directory")
         if env.get("ORBIT_HUB_UNDER_TEST") != "1":
-            problems.append("falta ORBIT_HUB_UNDER_TEST")
+            problems.append("ORBIT_HUB_UNDER_TEST is missing")
         if problems:
-            raise AssertionError("prueba sin redirección: " + "; ".join(problems))
+            raise AssertionError("test without redirection: " + "; ".join(problems))
 
     def run(self, script, *arguments, env=None, timeout=300):
         env = self.env() if env is None else env
@@ -750,4 +750,4 @@ class HubSandbox:
                 stdin=subprocess.DEVNULL,
             )
         except (FileNotFoundError, PermissionError) as error:
-            return subprocess.CompletedProcess(command, 127, "", f"no se pudo ejecutar: {error}")
+            return subprocess.CompletedProcess(command, 127, "", f"could not run: {error}")

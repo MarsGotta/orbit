@@ -3,14 +3,14 @@
 release_test_tools() {
   [[ ${ORBIT_RELEASE_UNDER_TEST:-} == 1 ]] || return 0
   if [[ -z ${ORBIT_TEST_BIN:-} || ! -d $ORBIT_TEST_BIN ]]; then
-    echo 'Falta ORBIT_TEST_BIN: directorio de dobles para el test.' >&2
+    echo 'ORBIT_TEST_BIN is missing: the directory of test doubles.' >&2
     return 1
   fi
   local tool found
   for tool in ssh rsync codesign xcrun spctl security cc rustup; do
     found="$(type -P "$tool" || true)"
     if [[ $found != "$ORBIT_TEST_BIN/$tool" || ! -f $found || ! -x $found || -L $found ]]; then
-      echo "Test detenido: $tool no es el doble ejecutable de ORBIT_TEST_BIN ($found)." >&2
+      echo "Test stopped: $tool is not the executable double in ORBIT_TEST_BIN ($found)." >&2
       return 1
     fi
   done
@@ -19,18 +19,18 @@ release_test_tools() {
 release_arguments() {
   local version=${1:-} commit=${2:-}
   if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ || ! $commit =~ ^[0-9a-f]{40}$ ]]; then
-    echo "Versión o commit inválido: versión='$version', commit='$commit'." >&2
+    echo "Invalid version or commit: version='$version', commit='$commit'." >&2
     return 2
   fi
 }
 
 release_connection() {
   if [[ ! ${ORBIT_MAC_HOST:-} =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]*(@[A-Za-z0-9_][A-Za-z0-9_.-]*)?$ ]]; then
-    echo "ORBIT_MAC_HOST inválido: '${ORBIT_MAC_HOST:-}'." >&2
+    echo "Invalid ORBIT_MAC_HOST: '${ORBIT_MAC_HOST:-}'." >&2
     return 2
   fi
   if [[ ! ${ORBIT_MAC_SSH_KEY:-} =~ ^/[A-Za-z0-9_./-]+$ || ! -f ${ORBIT_MAC_SSH_KEY:-} ]]; then
-    echo "ORBIT_MAC_SSH_KEY ausente o inválida: '${ORBIT_MAC_SSH_KEY:-}'." >&2
+    echo "ORBIT_MAC_SSH_KEY missing or invalid: '${ORBIT_MAC_SSH_KEY:-}'." >&2
     return 2
   fi
 }
@@ -48,7 +48,7 @@ RELEASE_HOST_PATH='$HOME/.cargo/bin:$HOME/.local/bin:/opt/homebrew/bin:/usr/loca
 release_source_commit() {
   release_arguments "$version" "$commit" || return
   if ! git -C "$repo" cat-file -e "$commit^{commit}" 2>/dev/null; then
-    echo "Commit inexistente: versión='$version', commit='$commit'." >&2
+    echo "No such commit: version='$version', commit='$commit'." >&2
     return 1
   fi
 }
@@ -58,19 +58,19 @@ release_source_commit() {
 release_private_file() {
   local file="$1" label="$2" mode
   if [[ ! -f $file || -L $file ]]; then
-    echo "$label no es un fichero regular: $file" >&2
+    echo "$label is not a regular file: $file" >&2
     return 1
   fi
   RELEASE_PRIVATE_FILE="$(cd -- "$(dirname -- "$file")" && pwd -P)/$(basename -- "$file")"
   if [[ $RELEASE_PRIVATE_FILE == "$repo"/* ]]; then
-    echo "$label debe estar fuera del repositorio: $RELEASE_PRIVATE_FILE" >&2
+    echo "$label must be outside the repository: $RELEASE_PRIVATE_FILE" >&2
     return 1
   fi
   if ! mode="$(stat -f '%Lp' "$RELEASE_PRIVATE_FILE" 2>/dev/null)"; then
     mode="$(stat -c '%a' "$RELEASE_PRIVATE_FILE")" || return
   fi
   if [[ ! $mode =~ ^[0-7]{3,4}$ || $((8#$mode & 077)) -ne 0 ]]; then
-    echo "$label tiene modo $mode; grupo y otros no pueden leerlo." >&2
+    echo "$label has mode $mode; group and others must not be able to read it." >&2
     return 1
   fi
 }
@@ -81,7 +81,7 @@ release_read_signing_env() {
   while IFS= read -r line || [[ -n $line ]]; do
     [[ -z $line || $line == \#* ]] && continue
     if [[ $line != *=* ]]; then
-      echo 'ORBIT_SIGNING_ENV contiene una línea sin CLAVE=valor.' >&2
+      echo 'ORBIT_SIGNING_ENV contains a line without KEY=value.' >&2
       return 1
     fi
     key=${line%%=*}
@@ -91,7 +91,7 @@ release_read_signing_env() {
         printf -v "$key" '%s' "$value"
         export "$key"
         ;;
-      *) echo "ORBIT_SIGNING_ENV contiene una clave no admitida: $key" >&2; return 1 ;;
+      *) echo "ORBIT_SIGNING_ENV contains a key that is not accepted: $key" >&2; return 1 ;;
     esac
   done < "$RELEASE_PRIVATE_FILE"
 }

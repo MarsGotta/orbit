@@ -57,7 +57,7 @@ export const notes = {
     // The language the transcript is in, chosen (Spanish by
     // default), not detected; each one is named in its own language.
     // Distinct from the header's picker («Idioma»): the real test
-    // reads this line (scripts/e2e-mac/comprobaciones.py).
+    // reads this line (scripts/e2e-mac/checks.py).
     transcriptLanguage: "Idioma de la transcripción",
     languages: {
       es: "Español",

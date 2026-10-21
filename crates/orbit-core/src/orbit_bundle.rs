@@ -6,7 +6,7 @@
 //! would make the two collide — the bundle name, the data directory and the
 //! Keychain service — and in reaching its test hub over plain HTTP on the
 //! tailnet, and in exposing `orbit.sock` to the real-test harness.
-//! `scripts/bundle-macos.sh` turns it on with `ORBIT_PRUEBAS=1` and
+//! `scripts/macos/bundle.sh` turns it on with `ORBIT_PRUEBAS=1` and
 //! gives the bundle its own identifier; nothing else ever does.
 
 use std::net::Ipv4Addr;
@@ -123,7 +123,7 @@ pub fn retirement(
 
 /// The executables of the bundle. The daemon runs inside the app since SIM-51:
 /// `Contents/Resources/orbit`, its executable until 0.5.x, is not shipped and
-/// is not a member; only `scripts/install.sh` still knows its path, to wait for
+/// is not a member; only `scripts/release/install.sh` still knows its path, to wait for
 /// a 0.5.x daemon before replacing its bundle.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Member {

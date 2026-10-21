@@ -1,0 +1,66 @@
+{
+ "home": {
+  "click:Saltar este paso": "briefing"
+ },
+ "briefing": {
+  "click:Notas": "notes-empty"
+ },
+ "notes-empty": {
+  "click:Grabar reunión ahora": "dialog"
+ },
+ "dialog": {
+  "click:Sistema Fuente de audio": "dialog-menu"
+ },
+ "dialog-menu": {
+  "press_key:down": "dialog-menu-down"
+ },
+ "dialog-menu-down": {
+  "press_key:return": "dialog-microphone"
+ },
+ "dialog-microphone": {
+  "click:Grabar": "recording"
+ },
+ "recording": {
+  "click:Terminar": "saved"
+ },
+ "saved": {
+  "click:Abrir nota": "note-summary"
+ },
+ "note-summary": {
+  "click:Resumen": "note-summary",
+  "click:Acciones": "note-actions",
+  "click:Transcripción": "note-transcript",
+  "click:Notas": "notes-list",
+  "click:Asistente": "assistant"
+ },
+ "note-actions": {
+  "click:Resumen": "note-summary",
+  "click:Acciones": "note-actions",
+  "click:Transcripción": "note-transcript",
+  "click:Notas": "notes-list",
+  "click:Asistente": "assistant"
+ },
+ "note-transcript": {
+  "click:Resumen": "note-summary",
+  "click:Acciones": "note-actions",
+  "click:Transcripción": "note-transcript",
+  "click:Notas": "notes-list",
+  "click:Asistente": "assistant"
+ },
+ "notes-list": {
+  "click:R Reunión 16/10/26, 10:00 Se revisó el presupuesto y el calendario de obras 16 oct, 10:00": "note-summary",
+  "click:Asistente": "assistant"
+ },
+ "assistant": {
+  "type_text:Escribe o usa el micrófono para dictar… Mensaje": "assistant-typed"
+ },
+ "assistant-typed": {
+  "click:Enviar": "assistant-answered"
+ },
+ "assistant-answered": {
+  "click:Nueva conversación Nueva conversación": "assistant-new"
+ },
+ "assistant-new": {
+  "click:1 16 de octubre de 2025, 10:01 › 16 de octubre de 2025, 10:01 16 oct": "assistant-reopened"
+ }
+}

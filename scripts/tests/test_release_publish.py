@@ -1,4 +1,4 @@
-"""REF-503b: publish only a verified version, from isolated release fixtures."""
+"""Publish only a verified version, from isolated release fixtures."""
 
 import hashlib
 import os
@@ -12,7 +12,7 @@ from pathlib import Path
 from scripts.tests.test_release_build import FORBIDDEN_SECRET_FORMS
 
 ROOT = Path(__file__).resolve().parents[2]
-PUBLISH = ROOT / "scripts/publish-macos.sh"
+PUBLISH = ROOT / "scripts/release/publish-macos.sh"
 PREPARE = ROOT / "scripts/release/prepare-publish.sh"
 COMMIT = "a" * 40
 VERSION = "0.3.14"
@@ -24,7 +24,7 @@ def sha(data):
 
 class PublishContract(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory(prefix="orbit-ref503b-")
+        self.tmp = tempfile.TemporaryDirectory(prefix="orbit-publish-")
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
         self.source = self.root / VERSION
@@ -58,7 +58,7 @@ class PublishContract(unittest.TestCase):
         )
 
     def publish(self, env=None):
-        # umask 007 is the publishing shell's (review of REF-503b): files it
+        # umask 007 is the publishing shell's (seen in a review): files it
         # creates are unreadable to the web server unless the publisher sets
         # 0644 itself.
         return subprocess.run(
@@ -74,7 +74,7 @@ class PublishContract(unittest.TestCase):
             self.assertIn(value, result.stderr)
         self.assertFalse((self.serve / "latest.txt").exists())
 
-    def test_a1_exact_package_and_manifest_fields(self):
+    def test_exact_package_and_manifest_fields(self):
         other = self.source / "Orbit-0.3.13-macos-arm64.zip"
         other.write_bytes(b"other")
         self.refusal(other.name, VERSION, "0.3.13")
@@ -87,18 +87,18 @@ class PublishContract(unittest.TestCase):
         self.zip.rename(self.source / "Orbit-0.3.13-macos-arm64.zip")
         self.refusal("Orbit-0.3.13", VERSION, "0.3.13")
 
-    def test_a1_missing_manifest(self):
+    def test_missing_manifest(self):
         (self.source / "build-manifest.txt").unlink()
-        self.refusal("build-manifest.txt", VERSION, "ausente")
+        self.refusal("build-manifest.txt", VERSION, "absent")
 
-    def test_a1_nested_old_package_is_not_ignored(self):
+    def test_nested_old_package_is_not_ignored(self):
         nested = self.source / "leftover"
         nested.mkdir()
         old = nested / "Orbit-0.3.13-macos-arm64.zip"
         old.write_bytes(b"other")
         self.refusal(old.name, VERSION, "0.3.13")
 
-    def test_a1_each_false_manifest_claim(self):
+    def test_each_false_manifest_claim(self):
         for field, expected, found in (
             ("version", VERSION, "0.3.13"),
             ("architecture", "arm64", "x86_64"),
@@ -111,7 +111,7 @@ class PublishContract(unittest.TestCase):
                 self.refusal(field, expected, found)
         self.write_manifest()
 
-    def test_a2_installer_digest_is_pinned_and_republication_restores_it(self):
+    def test_installer_digest_is_pinned_and_republication_restores_it(self):
         good = self.installer.read_bytes()
         self.installer.write_bytes(b"#!/bin/sh\nexit 9\n")
         self.refusal("install.sh", sha(good), sha(self.installer.read_bytes()))
@@ -123,7 +123,7 @@ class PublishContract(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(served.read_bytes(), good)
 
-    def test_a3_manifest_has_both_provenance_fields(self):
+    def test_manifest_has_both_provenance_fields(self):
         result = self.publish()
         self.assertEqual(result.returncode, 0, result.stderr)
         fields = dict(line.split("=", 1) for line in (self.serve / "latest.txt").read_text().splitlines())
@@ -139,7 +139,7 @@ class PublishContract(unittest.TestCase):
         ) + "\n"
         self.assertEqual(normalized, fixture.read_text())
 
-    def test_a4_failed_manifest_move_restores_served_pair(self):
+    def test_failed_manifest_move_restores_served_pair(self):
         self.assertEqual(self.publish().returncode, 0)
         old_manifest = (self.serve / "latest.txt").read_bytes()
         old_installer = (self.serve / "install.sh").read_bytes()
@@ -168,7 +168,7 @@ class PublishContract(unittest.TestCase):
         for path in served:
             self.assertEqual(path.stat().st_mode & 0o777, 0o644, path.name)
 
-    def test_a4_failed_manifest_copy_restores_served_pair(self):
+    def test_failed_manifest_copy_restores_served_pair(self):
         self.assertEqual(self.publish().returncode, 0)
         old_manifest = (self.serve / "latest.txt").read_bytes()
         old_installer = (self.serve / "install.sh").read_bytes()
@@ -177,14 +177,14 @@ class PublishContract(unittest.TestCase):
         bin_dir = self.root / "bin"
         bin_dir.mkdir()
         copy = bin_dir / "cp"
-        copy.write_text('#!/bin/sh\ncase "$2" in */latest.txt.parcial) exit 1;; esac\nexec /bin/cp "$@"\n')
+        copy.write_text('#!/bin/sh\ncase "$2" in */latest.txt.partial) exit 1;; esac\nexec /bin/cp "$@"\n')
         copy.chmod(0o755)
         result = self.publish({"PATH": f"{bin_dir}:{os.environ['PATH']}"})
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual((self.serve / "latest.txt").read_bytes(), old_manifest)
         self.assertEqual((self.serve / "install.sh").read_bytes(), old_installer)
 
-    def test_a4_served_installer_is_measured_before_manifest_changes(self):
+    def test_served_installer_is_measured_before_manifest_changes(self):
         self.assertEqual(self.publish().returncode, 0)
         old_manifest = (self.serve / "latest.txt").read_bytes()
         old_installer = (self.serve / "install.sh").read_bytes()
@@ -193,15 +193,15 @@ class PublishContract(unittest.TestCase):
         bin_dir = self.root / "bin"
         bin_dir.mkdir()
         copy = bin_dir / "cp"
-        copy.write_text('#!/bin/sh\ncase "$2" in */install.sh.parcial) printf corrupted > "$2"; exit 0;; esac\nexec /bin/cp "$@"\n')
+        copy.write_text('#!/bin/sh\ncase "$2" in */install.sh.partial) printf corrupted > "$2"; exit 0;; esac\nexec /bin/cp "$@"\n')
         copy.chmod(0o755)
         result = self.publish({"PATH": f"{bin_dir}:{os.environ['PATH']}"})
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("servido=", result.stderr)
+        self.assertIn("served=", result.stderr)
         self.assertEqual((self.serve / "latest.txt").read_bytes(), old_manifest)
         self.assertEqual((self.serve / "install.sh").read_bytes(), old_installer)
 
-    def test_a6_test_marker_refuses_srv(self):
+    def test_test_marker_refuses_srv(self):
         bin_dir = self.root / "no-host-writes"
         bin_dir.mkdir()
         attempted = self.root / "host-attempt"
@@ -209,27 +209,27 @@ class PublishContract(unittest.TestCase):
         mkdir.write_text('#!/bin/sh\nprintf "%s\\n" "$*" > "$ORBIT_TEST_HOST_ATTEMPT"\nexit 99\n')
         mkdir.chmod(0o755)
         result = subprocess.run(
-            ["bash", str(PUBLISH), VERSION, str(self.source), "/srv/orbit-ref503b"],
+            ["bash", str(PUBLISH), VERSION, str(self.source), "/srv/orbit-fixture"],
             capture_output=True, text=True, timeout=15,
             env={**os.environ, "ORBIT_RELEASE_UNDER_TEST": "1",
                  "ORBIT_TEST_HOST_ATTEMPT": str(attempted),
                  "PATH": f"{bin_dir}:{os.environ['PATH']}"},
         )
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("/srv prohibido en tests", result.stderr)
-        self.assertFalse(attempted.exists(), "el comando llegó al doble que bloquea escrituras del host")
+        self.assertIn("/srv is forbidden in tests", result.stderr)
+        self.assertFalse(attempted.exists(), "the command reached the double that blocks host writes")
 
-    def test_a5_prepare_uses_built_commit_and_generated_script(self):
+    def test_prepare_uses_built_commit_and_generated_script(self):
         repo = self.root / "repo"
         scripts = repo / "scripts"
         release = scripts / "release"
         release.mkdir(parents=True)
-        shutil.copy2(PUBLISH, scripts / "publish-macos.sh")
+        shutil.copy2(PUBLISH, release / "publish-macos.sh")
         shutil.copy2(ROOT / "scripts/release/lib.sh", release / "lib.sh")
         if PREPARE.exists():
             shutil.copy2(PREPARE, release / "prepare-publish.sh")
-        (scripts / "install.sh").write_bytes(self.installer.read_bytes())
-        (scripts / "verify-macos-archive.py").write_text(
+        (release / "install.sh").write_bytes(self.installer.read_bytes())
+        (release / "verify-macos-archive.py").write_text(
             "import os, pathlib, sys\n"
             "archive = pathlib.Path(sys.argv[1])\n"
             "assert archive.is_file() and archive.name == 'Orbit-0.3.14-macos-arm64.zip'\n"
@@ -251,11 +251,11 @@ class PublishContract(unittest.TestCase):
         commit = subprocess.check_output(
             ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True, timeout=10
         ).strip()
-        old_installer = (scripts / "install.sh").read_bytes()
+        old_installer = (release / "install.sh").read_bytes()
         # The checkout moves ahead of the built commit twice: a later commit
         # (HEAD) and an uncommitted edit (the working tree), each with its own
         # installer. Only the built commit's installer may be published.
-        (scripts / "install.sh").write_bytes(b"#!/bin/sh\nexit 98\n")
+        (release / "install.sh").write_bytes(b"#!/bin/sh\nexit 98\n")
         subprocess.run(
             ["git", "-C", str(repo), "-c", "user.name=Fixture",
              "-c", "user.email=fixture@example.invalid", "commit", "-qam", "moved ahead"],
@@ -265,7 +265,7 @@ class PublishContract(unittest.TestCase):
             ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True, timeout=10
         ).strip()
         self.assertNotEqual(head, commit)
-        (scripts / "install.sh").write_bytes(b"#!/bin/sh\nexit 99\n")
+        (release / "install.sh").write_bytes(b"#!/bin/sh\nexit 99\n")
         self.write_manifest(source_commit=commit)
         bin_dir = self.root / "doubles"
         bin_dir.mkdir()
@@ -287,7 +287,7 @@ class PublishContract(unittest.TestCase):
         self.assertEqual(self.installer.read_bytes(), old_installer)
         self.assertEqual((self.source / "install.sha256").read_text().split()[0], sha(old_installer))
         self.assertEqual((self.source / "publish-macos.sh").read_bytes(),
-                         (scripts / "publish-macos.sh").read_bytes())
+                         (release / "publish-macos.sh").read_bytes())
         generated = self.source / f"publish-{VERSION}.sh"
         self.assertTrue(generated.is_file())
         text = generated.read_text()
@@ -307,11 +307,11 @@ class PublishContract(unittest.TestCase):
         mkdir.chmod(0o755)
         blocked = subprocess.run(
             ["bash", str(generated)], capture_output=True, text=True, timeout=15,
-            env={**env, "ORBIT_SERVE_DIR": "/srv/orbit-ref503b",
+            env={**env, "ORBIT_SERVE_DIR": "/srv/orbit-fixture",
                  "ORBIT_TEST_HOST_ATTEMPT": str(attempted)},
         )
         self.assertNotEqual(blocked.returncode, 0)
-        self.assertIn("/srv prohibido en tests", blocked.stderr)
+        self.assertIn("/srv is forbidden in tests", blocked.stderr)
         self.assertFalse(attempted.exists())
 
 

@@ -1,6 +1,6 @@
 """Run scripts/release/install-on-mac.sh against a local origin.
 
-It replaced the terminal's update for installing over SSH (SIM-01).
+It replaced the terminal's update for installing over SSH.
 What is fixed here: an installer whose digest does not match the manifest is
 never run and the app is not even asked to quit; a matching one runs with
 --relaunch against the same origin, after the app was asked to quit.
@@ -80,7 +80,7 @@ class InstallOnMacTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("0" * 64, result.stderr)
         self.assertIn(self.digest, result.stderr)
-        self.assertEqual(self.recorded(), [], "se cerró la app o corrió el instalador")
+        self.assertEqual(self.recorded(), [], "the app was quit or the installer ran")
 
     def test_a_manifest_without_an_installer_digest_is_refused(self):
         self.publish_manifest("")

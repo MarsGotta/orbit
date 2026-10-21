@@ -142,7 +142,7 @@ def test_a11_uncertain_action_stays_uncertain_through_websocket_and_result_route
     frame = json.loads(
         (
             Path(__file__).resolve().parents[2]
-            / "contracts/fixtures/ref403-active-action-reply.json"
+            / "contracts/fixtures/active-action-outcome-unknown-reply.json"
         ).read_text()
     )
     monkeypatch.setattr(bridge_route.uuid, "uuid4", lambda: UUID(frame["id"]))

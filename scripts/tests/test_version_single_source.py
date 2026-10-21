@@ -5,7 +5,8 @@ one afternoon: the packager produced 0.1.1 while the archive verifier and the CI
 workflow both looked for a 0.1.0 that no longer existed. A release script alone
 would not have caught that, because nothing stopped a sixth copy from appearing.
 
-So the list of files allowed to state a version lives in set-version.py, and this
+So the list of files allowed to state a version lives in
+scripts/release/set-version.py, and this
 refuses any other file that declares one.
 
 Run: python3 -B -m unittest discover -s scripts/tests -v
@@ -24,7 +25,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location(
-    "set_version", ROOT / "scripts" / "set-version.py"
+    "set_version", ROOT / "scripts" / "release" / "set-version.py"
 )
 set_version = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(set_version)
@@ -39,7 +40,7 @@ class SingleSourceTests(unittest.TestCase):
     def test_every_declared_file_agrees_with_the_workspace_manifest(self):
         expected = set_version.current()
         for name, value in set_version.declared().items():
-            self.assertEqual(value, expected, f"{name} declara {value}, no {expected}")
+            self.assertEqual(value, expected, f"{name} declares {value}, not {expected}")
 
     def test_no_other_tracked_file_states_a_version_of_its_own(self):
         # A copy added later is the failure mode this exists for: it stays quiet
@@ -61,8 +62,8 @@ class SingleSourceTests(unittest.TestCase):
             for pattern in (STATEMENT, PLIST_STATEMENT):
                 found = pattern.search(text)
                 if found is not None:
-                    strays.append(f"{name} declara {found.group(1)}")
-        self.assertEqual(strays, [], "hay versiones fuera de la lista de set-version.py")
+                    strays.append(f"{name} declares {found.group(1)}")
+        self.assertEqual(strays, [], "there are versions outside the list of set-version.py")
 
     def test_no_script_or_workflow_names_the_archive_by_hand(self):
         # Spelling out Orbit-X.Y.Z-macos is another copy of the version wearing a
@@ -86,7 +87,7 @@ class SingleSourceTests(unittest.TestCase):
                 continue
             if named.search(path.read_text(encoding="utf-8", errors="replace")):
                 strays.append(name)
-        self.assertEqual(strays, [], "el nombre del archivo está escrito a mano")
+        self.assertEqual(strays, [], "the archive name is written by hand")
 
 
 
@@ -94,7 +95,7 @@ class SingleSourceTests(unittest.TestCase):
 FAKE_CARGO = """#!/bin/sh
 echo "cargo $*" >> "$(dirname "$0")/cargo.log"
 if [ -n "$FAKE_CARGO_FAILS" ]; then
-  echo "error: cargo falso sin red" >&2
+  echo "error: fake cargo without network" >&2
   exit 101
 fi
 exit 0
@@ -110,10 +111,10 @@ def find_uv():
 
 
 class SetVersionRunTests(unittest.TestCase):
-    """REF-05 A5: set-version.py run whole, on a copy of the tree, with a stand-in cargo.
+    """set-version.py run whole, on a copy of the tree, with a stand-in cargo.
 
     The copy holds every declared file, the whole server/ (so uv can build it)
-    and the script itself, whose ROOT is its own parent's parent. Cargo is a
+    and the script itself, whose ROOT is two directories above it. Cargo is a
     stand-in because the workspace is not copied; uv is the real one, offline.
     """
 
@@ -126,7 +127,7 @@ class SetVersionRunTests(unittest.TestCase):
             ignore=shutil.ignore_patterns(".venv", "__pycache__", ".pytest_cache", ".ruff_cache"),
         )
         names = {name for name, _, _ in set_version.DECLARATIONS}
-        for name in names | {"server/uv.lock", "scripts/set-version.py"}:
+        for name in names | {"server/uv.lock", "scripts/release/set-version.py"}:
             target = self.root / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, target)
@@ -139,7 +140,7 @@ class SetVersionRunTests(unittest.TestCase):
         environment = dict(os.environ, PATH=f"{self.bin}{os.pathsep}{os.environ.get('PATH', '')}")
         environment.update(env)
         return subprocess.run(
-            [sys.executable, "-B", str(self.root / "scripts" / "set-version.py"), *arguments],
+            [sys.executable, "-B", str(self.root / "scripts" / "release" / "set-version.py"), *arguments],
             cwd=self.root,
             env=environment,
             capture_output=True,
@@ -151,8 +152,8 @@ class SetVersionRunTests(unittest.TestCase):
         uv = find_uv()
         if uv is None:
             if sys.platform.startswith("linux"):
-                self.fail("no encuentro uv: el servidor lo necesita para publicar el hub")
-            self.skipTest("sin uv en esta máquina")
+                self.fail("uv not found: the server needs it to publish the hub")
+            self.skipTest("no uv on this machine")
         written = self.set_version("7.8.9")
         self.assertEqual(written.returncode, 0, written.stdout + written.stderr)
         self.assertEqual(self.set_version("--check").returncode, 0)
@@ -186,7 +187,7 @@ class SetVersionRunTests(unittest.TestCase):
         self.assertNotEqual(failed.returncode, 0)
         output = failed.stdout + failed.stderr
         self.assertIn("Cargo.lock", output)
-        self.assertIn("cargo falso sin red", output)
+        self.assertIn("fake cargo without network", output)
 
     def test_a_missing_cargo_fails_the_command_and_says_so(self):
         empty = self.root / "empty-bin"
@@ -200,7 +201,7 @@ class SetVersionRunTests(unittest.TestCase):
     def test_a_file_that_no_longer_declares_its_version_fails_the_command(self):
         lock = self.root / "server" / "uv.lock"
         text = lock.read_text(encoding="utf-8")
-        lock.write_text(text.replace('name = "orbit-hub"\nversion = ', 'name = "orbit-hub"\nversión = ', 1), encoding="utf-8")
+        lock.write_text(text.replace('name = "orbit-hub"\nversion = ', 'name = "orbit-hub"\nrelease = ', 1), encoding="utf-8")
         failed = self.set_version("7.8.9")
         self.assertNotEqual(failed.returncode, 0)
         self.assertIn("server/uv.lock", failed.stdout + failed.stderr)

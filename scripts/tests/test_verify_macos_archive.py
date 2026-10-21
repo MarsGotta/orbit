@@ -23,7 +23,7 @@ from unittest import mock
 sys.dont_write_bytecode = True
 SPEC = importlib.util.spec_from_file_location(
     "verify_macos_archive",
-    Path(__file__).resolve().parents[1] / "verify-macos-archive.py",
+    Path(__file__).resolve().parents[1] / "release" / "verify-macos-archive.py",
 )
 verify = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(verify)
@@ -220,7 +220,7 @@ class ArchiveVerificationTests(unittest.TestCase):
                 external = self.root / "build-manifest.txt"
                 external.write_bytes(manifest(architecture))
                 report = verify.verify_archive(path, **options, manifest=external)
-                # SIM-98: the nested engine app adds its plist and resource seal.
+                # The nested engine app adds its plist and resource seal.
                 self.assertEqual(report["members"], 23)
                 self.assertEqual(report["source_commit"], COMMIT)
                 self.assertEqual(report["architecture"], architecture)
@@ -228,20 +228,20 @@ class ArchiveVerificationTests(unittest.TestCase):
                 self.assertFalse(report["notarization_verified"])
                 # What the build claimed, kept apart from what was proved here.
                 self.assertFalse(report["manifest_notarized"])
-                self.assertIn("no autentica", report["trust_note"])
+                self.assertIn("does not authenticate", report["trust_note"])
 
-    def test_sys05_a4_driver_is_required_executable_and_architecture_checked(self):
+    def test_driver_is_required_executable_and_architecture_checked(self):
         driver = verify.CONTENTS + "/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver"
         self.assertIn(driver, verify.REQUIRED_FILES)
         self.assertIn(driver, verify.EXECUTABLES)
         self.assertIn(driver, verify.MACHOS)
         self.rejected(
             [entry for entry in entries() if entry[0] != driver],
-            message="faltan archivos obligatorios",
+            message="required bundle files are missing",
         )
         self.rejected(
             changed(entries(), driver, mode=stat.S_IFREG | 0o644),
-            message="ejecutable sin permisos",
+            message="executable without",
         )
 
     def test_nested_engine_identity_is_required_and_cannot_be_the_parent(self):
@@ -260,11 +260,11 @@ class ArchiveVerificationTests(unittest.TestCase):
                 info[field] = value
                 self.rejected(
                     changed(original, ENGINE_PLIST, data=plistlib.dumps(info)),
-                    message="motor",
+                    message="engine",
                 )
         self.rejected(
             [entry for entry in original if entry[0] != ENGINE_PLIST],
-            message="faltan archivos obligatorios",
+            message="required bundle files are missing",
         )
 
     def test_verification_never_extracts_executes_or_writes(self):
@@ -303,7 +303,7 @@ class ArchiveVerificationTests(unittest.TestCase):
     def test_fifo_input_is_refused_without_waiting_for_a_writer(self):
         fifo = self.root / "synthetic.fifo"
         os.mkfifo(fifo, 0o600)
-        with self.assertRaisesRegex(verify.VerificationError, "archivo regular"):
+        with self.assertRaisesRegex(verify.VerificationError, "regular file"):
             verify.read_limited(fifo, 4096)
 
     def test_checksum_digest_name_multiple_lines_and_renamed_archive_rejected(self):
@@ -323,7 +323,7 @@ class ArchiveVerificationTests(unittest.TestCase):
         path, options = self.fixture()
         other = path.with_name("renamed.zip")
         path.rename(other)
-        with self.assertRaisesRegex(verify.VerificationError, "nombre ZIP"):
+        with self.assertRaisesRegex(verify.VerificationError, "ZIP name"):
             verify.verify_archive(other, **options)
 
     def test_commit_requires_exact_40_hex_and_manifest_match(self):
@@ -339,7 +339,7 @@ class ArchiveVerificationTests(unittest.TestCase):
         path, options = self.fixture()
         other = self.root / "manifest.txt"
         other.write_bytes(manifest() + b"\n")
-        with self.assertRaisesRegex(verify.VerificationError, "byte a byte"):
+        with self.assertRaisesRegex(verify.VerificationError, "byte for byte"):
             verify.verify_archive(path, **options, manifest=other)
 
     def test_manifest_rejects_wrong_fields_values_duplicates_and_dirty_builds(self):
@@ -367,15 +367,15 @@ class ArchiveVerificationTests(unittest.TestCase):
     def test_missing_required_file_and_unexpected_ds_store_rejected(self):
         for missing in verify.REQUIRED_FILES:
             self.rejected(
-                [entry for entry in entries() if entry[0] != missing], message="faltan"
+                [entry for entry in entries() if entry[0] != missing], message="missing"
             )
         self.rejected(
             entries() + [(verify.RESOURCES + "/.DS_Store", b"x", stat.S_IFREG | 0o644)],
-            message="inesperado",
+            message="unexpected",
         )
 
-    def test_sim51_an_archive_with_a_separate_daemon_is_refused(self):
-        # SIM-51: the daemon runs inside MacOS/Orbit. A package that still
+    def test_an_archive_with_a_separate_daemon_is_refused(self):
+        # The daemon runs inside MacOS/Orbit. A package that still
         # carries Contents/Resources/orbit was built by the old script, and its
         # daemon would never run: it is not this release.
         daemon = verify.RESOURCES + "/orbit"
@@ -383,13 +383,13 @@ class ArchiveVerificationTests(unittest.TestCase):
         self.assertNotIn(daemon, verify.MACHOS)
         header = struct.pack("<8I", 0xFEEDFACF, verify.CPU_TYPES["arm64"], 0, 2, 0, 0, 0, 0)
         self.rejected(
-            entries() + [(daemon, header, stat.S_IFREG | 0o755)], message="inesperado"
+            entries() + [(daemon, header, stat.S_IFREG | 0o755)], message="unexpected"
         )
 
     def test_missing_or_modified_cua_driver_license_is_rejected(self):
         self.rejected(
             [entry for entry in entries() if entry[0] != verify.DRIVER_LICENSE],
-            message="faltan archivos obligatorios",
+            message="required bundle files are missing",
         )
         self.rejected(
             changed(
@@ -397,7 +397,7 @@ class ArchiveVerificationTests(unittest.TestCase):
                 verify.DRIVER_LICENSE,
                 data=verify.DRIVER_LICENSE_BYTES + b"modified\n",
             ),
-            message="licencia de cua-driver",
+            message="cua-driver's licence",
         )
 
     def test_a_notarized_package_carries_its_stapled_ticket(self):
@@ -419,13 +419,13 @@ class ArchiveVerificationTests(unittest.TestCase):
                 for entry in entries(stapled=True)
                 if entry[0] != verify.STAPLED_TICKET
             ],
-            message="contradicen",
+            message="contradict",
         )
 
     def test_a_stapled_ticket_the_manifest_does_not_declare_is_rejected(self):
         self.rejected(
             entries() + [(verify.STAPLED_TICKET, TICKET, stat.S_IFREG | 0o644)],
-            message="contradicen",
+            message="contradict",
         )
 
     def test_a_file_parked_at_the_ticket_path_is_not_a_ticket(self):
@@ -433,7 +433,7 @@ class ArchiveVerificationTests(unittest.TestCase):
             changed(
                 entries(stapled=True), verify.STAPLED_TICKET, data=b"not a ticket\n"
             ),
-            message="marca",
+            message="mark",
         )
 
     def test_explicit_directory_and_signature_records_are_optional(self):
@@ -456,14 +456,14 @@ class ArchiveVerificationTests(unittest.TestCase):
                     (verify.RESOURCES + "/" + name, b"", stat.S_IFREG | 0o644)
                     for name in (first, second)
                 ]
-                self.rejected(entries() + extra, message="duplicada|colisión")
+                self.rejected(entries() + extra, message="duplicate|collision")
 
     def test_file_directory_prefix_conflict(self):
         original = [
             entry for entry in entries() if entry[0] != verify.CONTENTS + "/MacOS/"
         ]
         original.append((verify.CONTENTS + "/MacOS", b"x", stat.S_IFREG | 0o644))
-        self.rejected(original, message="conflicto entre archivo y directorio")
+        self.rejected(original, message="conflict between a ZIP file and directory")
 
     def test_traversal_absolute_backslash_empty_component_and_controls(self):
         for name in (
@@ -534,7 +534,7 @@ class ArchiveVerificationTests(unittest.TestCase):
             b"<key>CFBundleIdentifier</key><string>app.orbit.companion</string></dict>",
         )
         self.rejected(
-            changed(entries(), verify.PLIST, data=duplicate), message="duplicada"
+            changed(entries(), verify.PLIST, data=duplicate), message="duplicate"
         )
 
     def test_minimum_macos_15_plus_must_match_both_documents(self):
@@ -572,7 +572,7 @@ class ArchiveVerificationTests(unittest.TestCase):
                     # Demonstrate why using ZipExtFile plus len/CRC is insufficient.
                     with zipfile.ZipFile(io.BytesIO(forged)) as clipped:
                         self.assertEqual(clipped.read(name), b"X")
-                    self.rejected(raw=forged, message="ZIP_STORED|expansión")
+                    self.rejected(raw=forged, message="ZIP_STORED|expansion")
 
     def test_raw_deflate_rejects_unfinished_stream_and_unused_or_second_stream(self):
         original = b"synthetic complete output" * 20
@@ -621,7 +621,7 @@ class ArchiveVerificationTests(unittest.TestCase):
             with self.subTest(relative=relative):
                 forged = bytearray(raw)
                 forged[info.header_offset + relative] ^= 1
-                self.rejected(raw=bytes(forged), message="local|solapad")
+                self.rejected(raw=bytes(forged), message="local|overlapping")
 
     def test_zip_member_total_metadata_and_outer_size_budgets(self):
         path, options = self.fixture()
@@ -644,11 +644,11 @@ class ArchiveVerificationTests(unittest.TestCase):
             for index in range(129)
         ]
         raw = zip_bytes(original)
-        self.rejected(raw=raw, message="miembros")
+        self.rejected(raw=raw, message="members")
         forged = bytearray(raw)
         end = forged.rfind(b"PK\x05\x06")
         struct.pack_into("<HH", forged, end + 8, 1, 1)
-        self.rejected(raw=bytes(forged), message="directorio ZIP excedido")
+        self.rejected(raw=bytes(forged), message="ZIP directory limit exceeded")
 
     def test_truncated_nonzip_appended_and_multidisk_archives_rejected(self):
         raw = zip_bytes(entries())
@@ -656,13 +656,13 @@ class ArchiveVerificationTests(unittest.TestCase):
             self.rejected(raw=data)
         forged = bytearray(raw)
         struct.pack_into("<H", forged, forged.rfind(b"PK\x05\x06") + 4, 1)
-        self.rejected(raw=bytes(forged), message="multidisco")
+        self.rejected(raw=bytes(forged), message="multi-disk")
 
     def test_encrypted_and_unsupported_compression_flags_rejected(self):
         raw = zip_bytes(entries())
         for offset, value, message in (
-            (8, 1, "cifrado"),
-            (10, zipfile.ZIP_BZIP2, "compresión"),
+            (8, 1, "encrypted"),
+            (10, zipfile.ZIP_BZIP2, "compression"),
         ):
             forged = bytearray(raw)
             struct.pack_into("<H", forged, forged.find(b"PK\x01\x02") + offset, value)
@@ -685,7 +685,7 @@ class ArchiveVerificationTests(unittest.TestCase):
         options["checksum_file"].write_bytes(b"wrong")
         with redirect_stderr(io.StringIO()) as errors:
             self.assertEqual(verify.main(arguments), 1)
-        self.assertIn("Verificación rechazada", errors.getvalue())
+        self.assertIn("Verification refused", errors.getvalue())
         self.assertNotIn("Traceback", errors.getvalue())
 
 

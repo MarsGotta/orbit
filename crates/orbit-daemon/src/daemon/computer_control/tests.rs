@@ -920,7 +920,7 @@ async fn failed_active_action_replies_with_uncertain_outcome() -> Result<()> {
         );
         let expected: Value = serde_json::from_str(include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../contracts/fixtures/ref403-active-action-reply.json"
+            "/../../contracts/fixtures/active-action-outcome-unknown-reply.json"
         )))?;
         assert_eq!(frame, expected);
         assert_eq!(frame["params"]["refusal"]["code"], "outcome_unknown");

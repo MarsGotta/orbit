@@ -345,7 +345,7 @@ fn parser_reads_a_log_written_by_the_real_installer() -> Result<(), Box<dyn Erro
         .arg("--posix")
         .arg(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../scripts/install.sh"
+            "/../../scripts/release/install.sh"
         ))
         .env("HOME", home.path())
         .env(

@@ -48,7 +48,7 @@ const HUB_VOICE_DEADLINE_SECONDS: u64 = 240;
 /// hub's ceiling plus the existing 10 s connection budget, so the hub's causal
 /// refusal reaches the note first. This is not the Whisper deadline, a retry
 /// interval, or permission to send the audio twice. A literal, because the
-/// real test on the Mac (`scripts/e2e-mac/prueba.py`) reads it from here.
+/// real test on the Mac (`scripts/e2e-mac/real_test.py`) reads it from here.
 const VOICE_HUB_HTTP_TIMEOUT: Duration = Duration::from_secs(250);
 const _: () = assert!(VOICE_HUB_HTTP_TIMEOUT.as_secs() == HUB_VOICE_DEADLINE_SECONDS + 10);
 

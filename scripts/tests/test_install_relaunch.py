@@ -1,4 +1,4 @@
-"""APP-09 A1: relaunch waits for the bundle, installs, and opens Orbit.
+"""Relaunch waits for the bundle, installs, and opens Orbit.
 
 The macOS-only commands are replaced with the same fixtures as the installer
 tests next door.  The synthetic bundle process is real: the ps stand-in reports
@@ -72,11 +72,11 @@ class RelaunchFixture(Fixture):
             if self.ps_seen.exists():
                 return
             time.sleep(0.01)
-        self.fail("el instalador no comprobó los procesos del bundle")
+        self.fail("the installer did not check the bundle's processes")
 
 
 class InstallRelaunchTests(RelaunchFixture):
-    def test_ref502b_a3_log_rotates_before_a_full_installation(self):
+    def test_the_log_rotates_before_a_full_installation(self):
         self.synthetic_empty_listing()
         self.publish(self.build_package())
         server = Server(self.work / "serve")
@@ -92,7 +92,7 @@ class InstallRelaunchTests(RelaunchFixture):
         self.assertTrue(content.startswith(b"x" * 32_768))
         self.assertIn(b"resultado|0.1.0|", content)
 
-    def test_ref502b_a3_detached_posix_installer_records_result(self):
+    def test_a_detached_posix_installer_records_its_result(self):
         self.synthetic_empty_listing()
         self.publish(self.build_package(b"version-nueva"))
         server = Server(self.work / "serve")
@@ -112,12 +112,12 @@ class InstallRelaunchTests(RelaunchFixture):
                 break
             time.sleep(0.01)
         else:
-            self.fail("el instalador sin padre y sin salida no registró el resultado")
+            self.fail("the installer without a parent and without output did not record its result")
         self.assertIn("1/4 · Buscando la versión publicada", log.read_text())
         self.assertLess(log.stat().st_size, 2048)
-        print(f"REF502B_LOG_BYTES={log.stat().st_size}")
+        print(f"INSTALLER_LOG_BYTES={log.stat().st_size}")
 
-    def test_ref502b_a4_reopens_after_download_failure(self):
+    def test_it_reopens_after_a_download_failure(self):
         self.synthetic_empty_listing()
         previous = self.applications / "Orbit.app" / "Contents" / "MacOS"
         previous.mkdir(parents=True)
@@ -125,14 +125,14 @@ class InstallRelaunchTests(RelaunchFixture):
         install = self.install_command("http://127.0.0.1:1", "--relaunch")
         stdout, stderr = install.communicate(timeout=10)
         self.assertNotEqual(install.returncode, 0, stdout + stderr)
-        self.assertTrue(self.open_log.is_file(), "no se volvió a abrir Orbit tras fallar la descarga")
+        self.assertTrue(self.open_log.is_file(), "Orbit was not reopened after the download failed")
         self.assertIn(
             "|fallo|",
             (self.work / "open.log.log-at-open").read_text(),
-            "Orbit se abrió antes de que constase el fallo",
+            "Orbit opened before the failure was recorded",
         )
 
-    def test_ref502b_a4_restores_and_reopens_after_move_failure(self):
+    def test_it_restores_and_reopens_after_a_move_failure(self):
         self.synthetic_empty_listing()
         previous = self.applications / "Orbit.app" / "Contents" / "MacOS"
         previous.mkdir(parents=True)
@@ -149,15 +149,15 @@ class InstallRelaunchTests(RelaunchFixture):
         stdout, stderr = install.communicate(timeout=10)
         self.assertNotEqual(install.returncode, 0, stdout + stderr)
         self.assertEqual((previous / "Orbit").read_bytes(), b"version-anterior")
-        self.assertTrue(self.open_log.is_file(), "no se volvió a abrir la versión anterior")
+        self.assertTrue(self.open_log.is_file(), "the previous version was not reopened")
         self.assertIn(
             "|fallo|",
             (self.work / "open.log.log-at-open").read_text(),
-            "Orbit se abrió antes de que constase el fallo",
+            "Orbit opened before the failure was recorded",
         )
 
 
-    def test_a1_relaunch_waits_for_the_bundle_then_installs_and_opens_orbit(self):
+    def test_relaunch_waits_for_the_bundle_then_installs_and_opens_orbit(self):
         self.publish(self.build_package(b"version-nueva"))
         server = Server(self.work / "serve")
         self.addCleanup(server.close)
@@ -165,7 +165,7 @@ class InstallRelaunchTests(RelaunchFixture):
 
         install = self.install_command(server.url, "--relaunch")
         self.wait_until_installer_sees_process()
-        self.assertIsNone(process.poll(), "el instalador mató el proceso del bundle")
+        self.assertIsNone(process.poll(), "the installer killed the bundle's process")
         release.touch()
         process.wait(timeout=5)
         stdout, stderr = install.communicate(timeout=10)
@@ -173,11 +173,11 @@ class InstallRelaunchTests(RelaunchFixture):
         self.assertEqual(install.returncode, 0, stdout + stderr)
         installed = self.applications / "Orbit.app"
         self.assertTrue(installed.is_dir())
-        self.assertTrue(self.open_log.is_file(), "el instalador no llamó a open")
+        self.assertTrue(self.open_log.is_file(), "the installer did not call open")
         self.assertIn(
             "|bien|",
             (self.work / "open.log.log-at-open").read_text(),
-            "Orbit se abrió antes de que constase la instalación",
+            "Orbit opened before the installation was recorded",
         )
         invocation = self.open_log.read_text().splitlines()
         self.assertGreaterEqual(len(invocation), 2)
@@ -229,13 +229,13 @@ class InstallRelaunchTests(RelaunchFixture):
         self.assertEqual(install.returncode, 0, stdout + stderr)
         self.assertGreaterEqual(
             len(calls.read_text().splitlines()), 2,
-            "el instalador reemplazó el paquete sin volver a comprobar la app viva",
+            "the installer replaced the package without checking the live app again",
         )
         self.assertEqual(process.wait(timeout=5), 0)
         installed = self.applications / "Orbit.app" / "Contents" / "MacOS" / "Orbit"
         self.assertEqual(installed.read_bytes(), b"version-nueva")
 
-    def test_a1_install_without_relaunch_does_not_open_orbit(self):
+    def test_install_without_relaunch_does_not_open_orbit(self):
         self.publish(self.build_package())
         server = Server(self.work / "serve")
         self.addCleanup(server.close)
@@ -244,7 +244,7 @@ class InstallRelaunchTests(RelaunchFixture):
         stdout, stderr = install.communicate(timeout=10)
 
         self.assertEqual(install.returncode, 0, stdout + stderr)
-        self.assertFalse(self.open_log.exists(), "open se ejecutó sin --relaunch")
+        self.assertFalse(self.open_log.exists(), "open ran without --relaunch")
 
 
 if __name__ == "__main__":

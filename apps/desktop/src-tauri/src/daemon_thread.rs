@@ -21,7 +21,7 @@ use tokio::sync::watch;
 /// daemon under the whole test suite answers in about half a second; this is
 /// the bound the app has always used, and a daemon that misses it fails the
 /// app's start with the time it waited, rather than being waited for without
-/// end. `scripts/e2e-mac/prueba.py` reads this number for its «daemon» wait.
+/// end. `scripts/e2e-mac/real_test.py` reads this number for its «daemon» wait.
 pub const DAEMON_READY_WAIT: Duration = Duration::from_secs(15);
 
 /// How long quitting waits for the daemon's thread to end after asking it to
@@ -44,7 +44,7 @@ pub const DAEMON_READY_WAIT: Duration = Duration::from_secs(15);
 /// which an ordinary closure does in well under a second. Nor is it a kill:
 /// a thread cannot be killed, so at the deadline the app exits and the exit of
 /// the process ends the daemon where it was, as the old group kill did.
-/// `scripts/e2e-mac/prueba.py` reads this number for its «cerrar» wait.
+/// `scripts/e2e-mac/real_test.py` reads this number for its «close» wait.
 pub const DAEMON_EXIT_WAIT: Duration = Duration::from_secs(17);
 
 const _: () = assert!(

@@ -13,19 +13,19 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 [[ $# -eq 0 ]] || {
-	printf 'Uso: %s\n' "${0##*/}" >&2
+	printf 'Usage: %s\n' "${0##*/}" >&2
 	exit 2
 }
 
 version=$(hub_link_version current)
 [[ -n "$version" ]] ||
-	hub_fail "no hay ninguna versión activa ($ORBIT_HUB_BASE/current no existe); activa una con $HUB_SCRIPTS_DIR/activate.sh <versión>."
+	hub_fail "there is no active version ($ORBIT_HUB_BASE/current does not exist); activate one with $HUB_SCRIPTS_DIR/activate.sh <version>."
 hub_take_lock
 problem=$(hub_release_problem "$version")
-[[ -z "$problem" ]] || hub_fail "la versión activa, $version, no se puede arrancar: $problem."
+[[ -z "$problem" ]] || hub_fail "the active version, $version, cannot be started: $problem."
 hub_require_unit_runs_from_current
 hub_require_hermes
 
 hub_restart_services "$version" "$(hub_way_back "$version")"
 hub_check_deimos_profile
-hub_say "Reiniciados el hub, $SERVE_UNIT y $GATEWAY_NAME con la $version."
+hub_say "Restarted the hub, $SERVE_UNIT and $GATEWAY_NAME with $version."

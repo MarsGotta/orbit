@@ -652,7 +652,7 @@ mod limits_tests {
     use super::*;
 
     fn shell_limit(name: &str) -> Option<u64> {
-        include_str!("../../../scripts/install.sh")
+        include_str!("../../../scripts/release/install.sh")
             .lines()
             .find_map(|line| line.strip_prefix(name)?.parse().ok())
     }

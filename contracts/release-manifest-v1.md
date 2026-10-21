@@ -1,7 +1,7 @@
 # Release manifest v1
 
 `latest.txt` is UTF-8 text, one `key=value` per line, with a final LF.
-`scripts/publish-macos.sh` writes it after copying packages and the installer.
+`scripts/release/publish-macos.sh` writes it after copying packages and the installer.
 Each file is published by rename. Older four-key manifests remain readable;
 the extended format adds provenance and installer verification.
 

@@ -48,7 +48,7 @@
       },
       {
         "file": "scripts/e2e-mac/mac.py",
-        "name": "MAX_LINEA_BYTES",
+        "name": "MAX_LINE_BYTES",
         "unit": "bytes"
       }
     ],
@@ -440,7 +440,7 @@
       },
       {
         "file": "scripts/e2e-mac/mac.py",
-        "name": "MAX_NOMBRE_PERSONA",
+        "name": "MAX_PERSON_NAME",
         "unit": "characters"
       }
     ],
@@ -1069,7 +1069,7 @@
         "unit": "bytes"
       },
       {
-        "file": "scripts/publish-macos.sh",
+        "file": "scripts/release/publish-macos.sh",
         "name": "INSTALLER_CEILING_BYTES",
         "unit": "bytes"
       },
@@ -1080,7 +1080,7 @@
       }
     ],
     "name": "INSTALLER_CEILING_BYTES",
-    "resource": "installer download: measured 11,171-byte SYS-06 baseline + 50% headroom, not signature verification",
+    "resource": "installer download: a measured 11,171-byte baseline + 50% headroom, not signature verification",
     "source": "registry",
     "unit": "bytes",
     "value": 16756
@@ -1331,7 +1331,7 @@
         "unit": "path"
       },
       {
-        "file": "scripts/install.sh",
+        "file": "scripts/release/install.sh",
         "name": "SYSTEM_APPLICATIONS",
         "unit": "path"
       }
@@ -1350,7 +1350,7 @@
         "unit": "path"
       },
       {
-        "file": "scripts/install.sh",
+        "file": "scripts/release/install.sh",
         "name": "INSTALL_DATA_DIRECTORY",
         "unit": "path"
       }
@@ -1369,7 +1369,7 @@
         "unit": "path"
       },
       {
-        "file": "scripts/bundle-macos.sh",
+        "file": "scripts/macos/bundle.sh",
         "name": "CUA_ENGINE_RELATIVE_PATH",
         "unit": "path"
       },
@@ -1379,7 +1379,7 @@
         "unit": "path"
       },
       {
-        "file": "scripts/verify-macos-archive.py",
+        "file": "scripts/release/verify-macos-archive.py",
         "name": "CUA_ENGINE_RELATIVE_PATH",
         "unit": "path"
       }

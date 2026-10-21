@@ -1,10 +1,10 @@
-"""SYS-06: the installer counts the chain, not everything inside the bundle.
+"""The installer counts the chain, not everything inside the bundle.
 
 Updating to 0.3.8 failed with Orbit closed. `pgrep -f "Orbit.app/Contents"`
-matches any process whose command line merely contains that path, and since
-SYS-05 the engine ships inside Orbit.app — so the engine
-was counted as Orbit. Since DEI-12 Orbit starts the engine itself, so this would
-have happened on every update made with control enabled.
+matches any process whose command line merely contains that path, and the
+engine ships inside Orbit.app — so the engine was counted as Orbit. Orbit
+starts the engine itself, so this would have happened on every update made
+with control enabled.
 
 The chain is the app and its native helper, each identified by the executable
 it runs. The platform tools are stood in for as in
@@ -44,7 +44,7 @@ class ChainFixture(Fixture):
 
 
 class InstallerChainTests(ChainFixture):
-    def test_a1_the_engine_inside_the_bundle_does_not_stop_the_install(self):
+    def test_the_engine_inside_the_bundle_does_not_stop_the_install(self):
         # The measured failure: Orbit closed, the engine alive, nothing else.
         engine = self.bundle_process(ENGINE)
         url = self.serve_a_package()
@@ -56,7 +56,7 @@ class InstallerChainTests(ChainFixture):
         # job, not the installer's.
         self.assertIsNone(engine.poll())
 
-    def test_a1_a_process_that_merely_mentions_the_bundle_is_not_orbit(self):
+    def test_a_process_that_merely_mentions_the_bundle_is_not_orbit(self):
         # `tail` is not part of the chain, whatever file it is following.
         watched = self.work / "runtime" / "Orbit.app" / "Contents" / "Resources"
         watched.mkdir(parents=True)
@@ -73,7 +73,7 @@ class InstallerChainTests(ChainFixture):
 
         self.assert_installed(self.install(url))
 
-    def test_a2_a_live_helper_still_refuses_and_the_message_names_it(self):
+    def test_a_live_helper_still_refuses_and_the_message_names_it(self):
         self.bundle_process(HELPER)
         url = self.serve_a_package()
 
@@ -82,11 +82,11 @@ class InstallerChainTests(ChainFixture):
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn("Orbit está en marcha", result.stderr)
         self.assertIn("su ayudante nativo", result.stderr)
-        # R3: the refusal still names a way out when no icon is left to close.
+        # The refusal still names a way out when no icon is left to close.
         self.assertIn("Monitor de Actividad", result.stderr)
         self.assertFalse((self.applications / "Orbit.app").exists())
 
-    def test_a2_the_open_app_is_named_as_what_it_is(self):
+    def test_the_open_app_is_named_as_what_it_is(self):
         self.bundle_process(APP)
         url = self.serve_a_package()
 

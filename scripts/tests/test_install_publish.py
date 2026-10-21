@@ -25,8 +25,8 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-INSTALL = ROOT / "scripts" / "install.sh"
-PUBLISH = ROOT / "scripts" / "publish-macos.sh"
+INSTALL = ROOT / "scripts" / "release" / "install.sh"
+PUBLISH = ROOT / "scripts" / "release" / "publish-macos.sh"
 EOL = chr(10)
 
 UNAME = """#!/bin/bash
@@ -176,7 +176,7 @@ class Fixture(unittest.TestCase):
         return process
 
     def build_package(self, contents=b"orbit-binary"):
-        # SIM-51: the bundle's one Rust executable is the app; the daemon runs
+        # The bundle's one Rust executable is the app; the daemon runs
         # inside it and Contents/Resources/orbit is no longer shipped.
         staging = self.work / "staging"
         app = staging / "Orbit.app" / "Contents" / "MacOS"
@@ -288,7 +288,7 @@ class InstallTests(Fixture):
 
 
     def test_previous_copies_wait_for_the_new_app_to_open_the_store(self):
-        # Mars had three stale bundles in ~/Applications after three updates,
+        # A user had three stale bundles in ~/Applications after three updates,
         # 25 MB each, and macOS lists every one of them under Privacy as its own
         # app: a permission granted to a copy that no longer runs reads as a
         # permission that is missing.
@@ -298,8 +298,8 @@ class InstallTests(Fixture):
         (stale / "marker").write_bytes(b"stale")
         previous = applications / "Orbit.app" / "Contents" / "Resources"
         previous.mkdir(parents=True)
-        (previous / "orbit").write_bytes(b"version-anterior")
-        self.publish(self.build_package(b"version-nueva"))
+        (previous / "orbit").write_bytes(b"previous-version")
+        self.publish(self.build_package(b"new-version"))
         server = Server(self.work / "serve")
         self.addCleanup(server.close)
 
@@ -312,15 +312,15 @@ class InstallTests(Fixture):
         self.assertEqual(len(latest), 1)
         self.assertEqual(
             (latest[0] / "Contents" / "Resources" / "orbit").read_bytes(),
-            b"version-anterior",
+            b"previous-version",
         )
 
     def test_the_installer_is_published_with_the_packages_it_installs(self):
         # The served installer belongs to the same source as the package.
         self.publish(self.build_package())
         served = self.work / "serve" / "install.sh"
-        self.assertTrue(served.is_file(), "el instalador no se publica")
-        source = Path(__file__).resolve().parents[1] / "install.sh"
+        self.assertTrue(served.is_file(), "the installer is not published")
+        source = INSTALL
         self.assertEqual(served.read_bytes(), source.read_bytes())
 
 
@@ -349,10 +349,10 @@ class InstallTests(Fixture):
 
 class PublishTests(Fixture):
     def test_a_published_version_cannot_be_replaced_with_other_contents(self):
-        self.assertEqual(self.publish(self.build_package(b"primera")).returncode, 0)
-        result = self.publish(self.build_package(b"segunda"))
+        self.assertEqual(self.publish(self.build_package(b"first")).returncode, 0)
+        result = self.publish(self.build_package(b"second"))
         self.assertEqual(result.returncode, 1)
-        self.assertIn("sube la", result.stderr)
+        self.assertIn("raise the version", result.stderr)
 
     def test_republishing_the_identical_package_is_allowed(self):
         source = self.build_package()
@@ -364,13 +364,13 @@ class PublishTests(Fixture):
         next(source.glob("*.sha256")).write_text("0" * 64 + "  package")
         result = self.publish(source)
         self.assertEqual(result.returncode, 1)
-        self.assertIn("sha256 esperado='" + "0" * 64, result.stderr)
-        self.assertIn("encontrado='" + digest(next(source.glob("*.zip"))), result.stderr)
+        self.assertIn("sha256 expected='" + "0" * 64, result.stderr)
+        self.assertIn("found='" + digest(next(source.glob("*.zip"))), result.stderr)
 
 
     def test_a_version_that_is_not_a_plain_name_is_refused(self):
         source = self.build_package()
-        for bad in ["../escape", "con espacio", ""]:
+        for bad in ["../escape", "with space", ""]:
             self.assertEqual(self.publish(source, version=bad).returncode, 1, bad)
 
     def test_a_source_without_packages_publishes_nothing(self):

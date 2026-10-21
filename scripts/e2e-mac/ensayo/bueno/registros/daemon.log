@@ -1,4 +1,0 @@
-{"time":"2026-10-16T10:00:01.000Z","pid":4300,"event":"hub_connected","fields":{"op":"0b1e2f30-pair","attempt":"1"}}
-{"time":"2026-10-16T10:07:10.000Z","pid":4300,"event":"call_audio_opened","fields":{"input_channels":"10","op":"0b1e2f40-call","sample_rate":"48000"}}
-{"time":"2026-10-16T10:07:12.000Z","pid":4300,"event":"computer_control_failed","fields":{"op":"0b1e2f41","detail":"/Users/ensayo/Documents/privado.txt"}}
-{"time":"2026-10-16T10:07:14.000Z","pid":4300,"event":"call_audio_heard","fields":{"frames":"1173","gaps":"0","longest_voiced_ms":"0","loudest_rms":"180","op":"0b1e2f42-call","speech_rms_threshold":"500","voiced_frames":"0"}}

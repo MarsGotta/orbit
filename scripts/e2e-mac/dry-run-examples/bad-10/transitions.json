@@ -1,0 +1,19 @@
+{
+ "recording": {
+  "click:Terminar": {
+   "to": "saved",
+   "log": {
+    "report-daemon.log": {
+     "op": "7f3a2c11-dryrun",
+     "code": "capture_cut",
+     "class": "failed",
+     "source": "daemon",
+     "data": {
+      "fragments": 2,
+      "cause": "helper_lost"
+     }
+    }
+   }
+  }
+ }
+}

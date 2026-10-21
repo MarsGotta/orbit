@@ -1,5 +1,5 @@
 {
-  "fixture": "Synthetic local read of every calendar, as the daemon assembles it for the agenda view and a meeting association extracts from it. REF-10: nothing here was selected, confirmed, copied or sent anywhere; no EventKit, permission, synchronization or identity evidence.",
+  "fixture": "Synthetic local read of every calendar, as the daemon assembles it for the agenda view and a meeting association extracts from it. Nothing here was selected, confirmed, copied or sent anywhere; no EventKit, permission, synchronization or identity evidence.",
   "snapshot": {
     "snapshot_id": "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA",
     "scope": {

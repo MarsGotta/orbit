@@ -19,7 +19,7 @@ const INSTALLER_BASELINE_BYTES: usize = 11_171;
 const INSTALLER_HEADROOM_PERCENT: usize = 50;
 /// Protects bash from a substituted page passed as an installer. The 11,171 B
 /// script measured when this ceiling was set, plus 50% headroom, gives 16,756 B. This is not a
-/// signature check. `scripts/publish-macos.sh` refuses to publish an installer
+/// signature check. `scripts/release/publish-macos.sh` refuses to publish an installer
 /// larger than this, because the updater of every Mac already installed
 /// downloads at most this many bytes.
 pub const INSTALLER_CEILING_BYTES: usize =

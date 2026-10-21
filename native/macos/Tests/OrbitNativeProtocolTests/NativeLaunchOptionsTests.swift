@@ -132,7 +132,7 @@ final class NativeLaunchOptionsTests: XCTestCase {
     }
 
     /// The name each mode reports in `ready` and in its diagnostics; the
-    /// isolated one is what `scripts/smoke-native-macos.py` requires.
+    /// isolated one is what `scripts/macos/smoke-native.py` requires.
     func testLaunchModeNamesMatchWhatReadyReports() throws {
         XCTAssertEqual(try NativeLaunchOptions.parse(["--stdio", "--managed"]).launchModeName,
                        "managed_stdio")

@@ -70,7 +70,7 @@ when this Mac still has their encrypted audio, found by `client_id`.
 
 Client: `{v:1,id:<uuid>,method:<method>,params:{...}}`.
 Methods: `chat.send` (`text`, `session_id` optional Orbit ID, `call_active`
-optional boolean defaulting to false; SIM-30 adds the optional `client_id`, the
+optional boolean defaulting to false; also optional are `client_id`, the
 Mac's id for the message, `voice:{duration_ms}` for a voice note, and
 `meeting:{recording_id,minutes,title}` for a question about a meeting: the hub
 adds the meeting's last `minutes` of transcript and keeps only the question and
@@ -78,8 +78,8 @@ adds the meeting's last `minutes` of transcript and keeps only the question and
 `meeting_not_found`), `chat.interrupt` (`session_id`,`turn_id`), `approval.respond`
 (`session_id`,`request_id`,`approved`,`turn_id`), `clarify.respond`
 (`session_id`,`request_id`,`answer`,`question_id` optional), `ping`.
-REF-10 retired `calendar.ask` and the routes of the hub's copy of the agenda;
-since SIM-02 (2026-10-15) the hub no longer keeps a notice for them and refuses
+`calendar.ask` and the routes of the hub's copy of the agenda are retired;
+since 2026-10-15 the hub no longer keeps a notice for them and refuses
 them like any other method or route outside this contract. The only way
 anything reads the Mac's calendar is the live `calendar_read` below.
 `turn_id` is the UUID of the original `chat.send`, never a newly generated control
@@ -275,8 +275,8 @@ complete is refused with `upstream_failed` (`service: hub`) rather than left una
 `full_screen:true` is exclusive with `application` and
 `title` and asks Cua for the complete desktop; ordinary window requests fall
 back to the native helper when Cua is absent or cannot provide a valid image.
-Selected-text replies carry `application`, `title` and `text` and never use Cua
-in DEI-09.
+Selected-text replies carry `application`, `title` and `text` and never use
+Cua.
 
 Remote `calendar_read` depends only on full macOS Calendar permission. This is
 the user's sole calendar consent, with no switch or second confirmation.
@@ -305,8 +305,8 @@ invitee list, all but the last marked `invitees_continued:true` — and
 page even alone — without its guests, or with its largest guest — is left out
 and named in the page's `oversized` list (its calendar, `calendar_item_id`,
 dates, the `field` to blame and its `bytes` against the `limit` that fits), and
-the rest of the read arrives; so does what the helper itself could not carry
-(REF-10, the reviewer's decision 4). Nothing is trimmed and
+the rest of the read arrives; so does what the helper itself could not carry.
+Nothing is trimmed and
 nothing is reported as incomplete because of a ceiling of Orbit's: the
 translator's `orbit_calendar` walks every page and joins them, so Deimos asks
 once. A page the Mac takes longer than 10 s to fill is sent with what it has.
@@ -329,7 +329,7 @@ not loose restart codes. Historical `legacy.text` receipts remain readable with
 bounded detail. Missing permission never becomes zero events.
 
 A Deimos read decides nothing, asks nobody and leaves no local record: the
-activity log that once showed it was retired in SIM-03a.
+activity log that once showed it was retired.
 
 Remote `control_tools` reads the Mac engine catalogue by page, without an
 additional Orbit observation permission. `{}` starts; `{"after_index":integer ≥ 0}`
@@ -356,7 +356,7 @@ the whole nested action is bounded to 16 KiB and the Mac validates the exact
 typed arguments, then runs it: the macOS permissions are the only consent and
 there is no confirmation on top ([control policy](control-policy-v1.md)). One
 attempt only. The `{"adapter_id":"<uuid>","effect_id":"<uuid>"}` form went with
-the native adapters in REF-11.
+the native adapters.
 The request route does not wait for the action to finish: after
 reserving the request in `operations`, it returns HTTP 202 with
 `{"state":"pending","outcome":"in_progress","operation_id":"<uuid>"}`.
@@ -423,7 +423,7 @@ receipts are not rewritten. An opaque keyed equality index supports scoped reads
 `{tracks:[{track,chunk_count,last_sequence,total_frames}],gaps,started_at_ms,finalized_at_ms,title?,kind?,event?}`.
 `title` is optional for compatibility with older devices and, when present, is
 a string of at most 256 characters. The hub stores it with the encrypted
-recording manifest. `kind` (SIM-40) is `meeting` (the default) or `voice_call`;
+recording manifest. `kind` is `meeting` (the default) or `voice_call`;
 `event` is the calendar event the meeting was started from, in the shape of a
 note's `event` (`{title,starts_at_ms,ends_at_ms,attendees,calendar_item_id}`).
 The body is bounded to 512 KiB, the largest valid event escaped.
@@ -564,8 +564,8 @@ Template content never enters logs.
 
 ### Recording context (retired)
 
-`GET` and `POST /v1/recordings/{uuid}/context` were retired by P9-15
-(2026-10-15) with their only consumer, the terminal's context query. They answer
+`GET` and `POST /v1/recordings/{uuid}/context` were retired on 2026-10-15
+with their only consumer, the terminal's context query. They answer
 404. The index table a hub kept for them is left in place, unread.
 
 Device revocation closes active sockets and rejects uploads. Administrative

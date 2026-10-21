@@ -22,7 +22,7 @@ def read_constant(source, name):
 
     def number(symbol, resolving):
         if symbol in resolving:
-            raise ValueError(f"referencia circular: {symbol}")
+            raise ValueError(f"circular reference: {symbol}")
         declaration = re.search(
             rf"(?m)^[ \t]*(?:(?:pub(?:\([^)]*\))?|public|static|export|const|let)\s+)*"
             rf"{re.escape(symbol)}(?:\s*:[^=\n]+)?\s*=\s*([^;\n#]+)",
@@ -35,7 +35,7 @@ def read_constant(source, name):
         )
         match = declaration or assertion
         if match is None:
-            raise ValueError(f"falta la definición de {symbol}")
+            raise ValueError(f"the definition of {symbol} is missing")
         return evaluate(
             ast.parse(match.group(1).strip(), mode="eval").body, (*resolving, symbol)
         )
@@ -49,7 +49,7 @@ def read_constant(source, name):
             return OPERATIONS[type(node.op)](
                 evaluate(node.left, resolving), evaluate(node.right, resolving)
             )
-        raise ValueError(f"expresión de constante no admitida: {ast.dump(node)}")
+        raise ValueError(f"constant expression not supported: {ast.dump(node)}")
 
     return number(name, ())
 
@@ -77,7 +77,7 @@ class ConstantsCopies(unittest.TestCase):
                         actual,
                         expected,
                         f"{relative}:{copy['name']}={actual} {copy['unit']}; "
-                        f"esperado {expected} {copy['unit']} ({entry['name']})",
+                        f"expected {expected} {copy['unit']} ({entry['name']})",
                     )
 
 

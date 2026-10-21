@@ -1,6 +1,6 @@
 """What the packaging script does, checked away from macOS.
 
-bundle-macos.sh builds, signs, notarizes and archives, and only its first part
+scripts/macos/bundle.sh builds, signs, notarizes and archives, and only its first part
 runs anywhere but a Mac. That first part is executed here: the refusals that
 come before any build — the engine driver is required, executable and at the
 version the daemon verifies, and notarization credentials come whole or not at
@@ -12,10 +12,10 @@ The two source/data guards retained here protect keychain password output and
 permission entitlements. Signing, notarization and archive contents are checked
 when the real package is built and verified on the Mac.
 
-What the finished archive contains — the app (with the daemon inside it since
-SIM-51), the helper, the driver, the icon and both licences, byte for byte — is
+What the finished archive contains — the app (with the daemon inside it), the
+helper, the driver, the icon and both licences, byte for byte — is
 not checked here: the
-archive verifier checks the real archive (`scripts/verify-macos-archive.py`,
+archive verifier checks the real archive (`scripts/release/verify-macos-archive.py`,
 tested by `test_verify_macos_archive.py`).
 """
 
@@ -29,7 +29,7 @@ from pathlib import Path
 from driver_fixture import verified_driver_version
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = ROOT / "scripts" / "bundle-macos.sh"
+SCRIPT = ROOT / "scripts" / "macos" / "bundle.sh"
 INFO_PLIST = ROOT / "native" / "macos" / "Info.plist"
 CUA_DRIVER_LICENSE = ROOT / "third-party" / "cua-driver" / "LICENSE.md"
 EXPECTED_CUA_DRIVER_LICENSE = """MIT License
@@ -62,14 +62,14 @@ class BundleLayoutTests(unittest.TestCase):
         self.assertEqual(
             CUA_DRIVER_LICENSE.read_text(encoding="utf-8"),
             EXPECTED_CUA_DRIVER_LICENSE,
-            "la licencia versionada de cua-driver no es la MIT acordada",
+            "the versioned cua-driver licence is not the agreed MIT text",
         )
 
     def test_the_info_plist_describes_a_dock_app_that_explains_each_permission(self):
         info = plistlib.loads(INFO_PLIST.read_bytes())
         self.assertEqual(info.get("CFBundleExecutable"), "Orbit")
         self.assertEqual(info.get("CFBundleIdentifier"), "app.orbit.companion")
-        self.assertNotIn("LSUIElement", info, "Orbit seguiría oculta del Dock")
+        self.assertNotIn("LSUIElement", info, "Orbit would stay hidden from the Dock")
         self.assertIs(info.get("NSHighResolutionCapable"), True)
         for key in (
             "NSCalendarsFullAccessUsageDescription",
@@ -77,18 +77,18 @@ class BundleLayoutTests(unittest.TestCase):
             "NSAudioCaptureUsageDescription",
             "NSScreenCaptureUsageDescription",
         ):
-            self.assertTrue(info.get(key), f"falta la descripción de uso {key}")
+            self.assertTrue(info.get(key), f"the usage description {key} is missing")
 
     def test_the_calendar_usage_text_says_orbit_reads_and_writes_events(self):
-        # P9-21: Orbit creates, moves, edits and deletes events when Mars does
+        # Orbit creates, moves, edits and deletes events when the user does
         # so from Orbit. The text macOS shows with the permission must say so,
         # and must not keep the promise it no longer makes.
         info = plistlib.loads(INFO_PLIST.read_bytes())
         text = info.get("NSCalendarsFullAccessUsageDescription", "").lower()
         for verb in ("leer", "crear", "mover", "editar", "borrar"):
-            self.assertIn(verb, text, f"el texto del permiso de Calendarios no dice «{verb}»")
-        self.assertNotIn("no creará", text, "el texto aún promete que Orbit no escribe eventos")
-        self.assertNotIn("que elijas", text, "no hay calendarios que elegir (REF-10)")
+            self.assertIn(verb, text, f"the Calendars permission text does not say «{verb}»")
+        self.assertNotIn("no creará", text, "the text still promises that Orbit does not write events")
+        self.assertNotIn("que elijas", text, "there are no calendars to choose")
 
 
 class ArchiveCommandTests(unittest.TestCase):
@@ -101,15 +101,15 @@ class ArchiveCommandTests(unittest.TestCase):
         # log is read and pasted around: the only safe shape is reading it from a
         # file and sending the command's own output to /dev/null.
         unlock = [line for line in self.text.splitlines() if "unlock-keychain" in line]
-        self.assertTrue(unlock, "el guion no desbloquea el llavero de firma")
-        self.assertIn("cat --", unlock[0], "la contraseña no se lee de un fichero")
-        self.assertIn("/dev/null", unlock[0], "el desbloqueo puede imprimir la contraseña")
+        self.assertTrue(unlock, "the script does not unlock the signing keychain")
+        self.assertIn("cat --", unlock[0], "the password is not read from a file")
+        self.assertIn("/dev/null", unlock[0], "the unlock may print the password")
 
     def test_every_protected_resource_asked_for_is_also_entitled(self):
         # Under the hardened runtime a resource the binary does not declare is
         # refused with no dialog at all, so an Info.plist that asks for calendar
         # access while the entitlements stay silent produces exactly the failure
-        # Mars hit: "no me aparece ningun dialog". The two files must agree.
+        # once reported as "no dialog appears". The two files must agree.
         import plistlib
 
         native = Path(__file__).resolve().parents[2] / "native" / "macos"
@@ -130,8 +130,8 @@ class ArchiveCommandTests(unittest.TestCase):
             if key in info:
                 self.assertTrue(
                     granted.get(entitlement) is True,
-                    f"{key} pide un recurso sin declarar {entitlement}: "
-                    "macOS lo negará sin mostrar diálogo",
+                    f"{key} asks for a resource without declaring {entitlement}: "
+                    "macOS will deny it without showing a dialog",
                 )
 
 
@@ -156,7 +156,7 @@ class PreludeTests(unittest.TestCase):
         for tool in BUILD_TOOLS:
             self._executable(
                 tools / tool,
-                f'#!/bin/sh\necho "herramienta de build invocada: {tool}" >&2\nexit {BUILD_STARTED}\n',
+                f'#!/bin/sh\necho "build tool invoked: {tool}" >&2\nexit {BUILD_STARTED}\n',
             )
         self.path = f"{tools}:/usr/bin:/bin"
 
@@ -192,24 +192,24 @@ class PreludeTests(unittest.TestCase):
         code, stderr = outcome
         self.assertEqual(code, 1, stderr)
         self.assertIn(reason, stderr)
-        self.assertNotIn("herramienta de build invocada", stderr)
+        self.assertNotIn("build tool invoked", stderr)
 
     def test_the_engine_driver_is_required_before_anything_is_built(self):
-        self.assert_refused(self.package(), "Falta ORBIT_CUA_DRIVER_BINARY")
+        self.assert_refused(self.package(), "ORBIT_CUA_DRIVER_BINARY is missing")
         self.assert_refused(
-            self.package(ORBIT_CUA_DRIVER_BINARY="relativa/cua-driver"),
-            "debe ser una ruta absoluta",
+            self.package(ORBIT_CUA_DRIVER_BINARY="relative/cua-driver"),
+            "must be an absolute path",
         )
-        idle = self.scratch / "sin-permiso-de-ejecucion"
+        idle = self.scratch / "not-executable"
         idle.write_text("", encoding="utf-8")
         self.assert_refused(
-            self.package(ORBIT_CUA_DRIVER_BINARY=idle), "no existe o no es ejecutable"
+            self.package(ORBIT_CUA_DRIVER_BINARY=idle), "does not exist or is not executable"
         )
 
     def test_a_driver_at_another_version_is_refused_naming_both(self):
         expected = verified_driver_version()
         code, stderr = self.package(ORBIT_CUA_DRIVER_BINARY=self.driver("cua-driver 0.0.1"))
-        self.assert_refused((code, stderr), f"se esperaba '{expected}'")
+        self.assert_refused((code, stderr), f"expected '{expected}'")
         self.assertIn("cua-driver 0.0.1", stderr)
 
 
@@ -220,22 +220,22 @@ class PreludeTests(unittest.TestCase):
         for present in ("ORBIT_NOTARY_KEY", "ORBIT_NOTARY_KEY_ID", "ORBIT_NOTARY_ISSUER"):
             with self.subTest(present=present):
                 self.assert_refused(
-                    self.package(ORBIT_CUA_DRIVER_BINARY=driver, **{present: "sintetico"}),
-                    "Notarización a medias",
+                    self.package(ORBIT_CUA_DRIVER_BINARY=driver, **{present: "synthetic"}),
+                    "Partial notarization settings",
                 )
 
     def test_an_ad_hoc_signature_is_never_sent_to_be_notarized(self):
         driver = self.driver(f"cua-driver {verified_driver_version()}")
-        key = self.scratch / "AuthKey_sintetica.p8"
-        key.write_text("clave sintética", encoding="utf-8")
+        key = self.scratch / "AuthKey_synthetic.p8"
+        key.write_text("synthetic key", encoding="utf-8")
         self.assert_refused(
             self.package(
                 ORBIT_CUA_DRIVER_BINARY=driver,
                 ORBIT_NOTARY_KEY=key,
-                ORBIT_NOTARY_KEY_ID="clave-sintetica",
-                ORBIT_NOTARY_ISSUER="emisor-sintetico",
+                ORBIT_NOTARY_KEY_ID="synthetic-key",
+                ORBIT_NOTARY_ISSUER="synthetic-issuer",
             ),
-            "No se puede notarizar una firma ad-hoc",
+            "An ad-hoc signature cannot be notarized",
         )
 
 

@@ -38,7 +38,7 @@ def main(arguments: list[str]) -> int:
         encoding="utf-8",
     )
     if result.testsRun == 0:
-        print(f"no se encontró ningún guard en {start}", file=sys.stderr)
+        print(f"no guard was found in {start}", file=sys.stderr)
         return 5
     return 0 if result.wasSuccessful() else 1
 

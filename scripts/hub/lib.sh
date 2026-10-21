@@ -19,7 +19,7 @@ set -euo pipefail
 
 ORBIT_HUB_DEFAULT_URL=http://127.0.0.1:8700
 
-# --- Tests never reach the machine (REF-05 A8) -------------------------------
+# --- Tests never reach the machine --------------------------------------------
 #
 # scripts/tests/hub_harness.py marks every test process with
 # ORBIT_HUB_UNDER_TEST. Under that mark each thing these scripts could touch on
@@ -32,28 +32,28 @@ hub_refuse_unredirected_test_run() {
 	[[ -n "${ORBIT_HUB_UNDER_TEST:-}" ]] || return 0
 	local problems=() tool found
 	if [[ -z "${ORBIT_HUB_BASE:-}" ]]; then
-		problems+=("ORBIT_HUB_BASE sin fijar")
+		problems+=("ORBIT_HUB_BASE unset")
 	elif [[ "$ORBIT_HUB_BASE" == /srv || "$ORBIT_HUB_BASE" == /srv/* ]]; then
-		problems+=("ORBIT_HUB_BASE=$ORBIT_HUB_BASE está bajo /srv")
+		problems+=("ORBIT_HUB_BASE=$ORBIT_HUB_BASE is under /srv")
 	fi
 	for tool in systemctl journalctl ps; do
 		found=$(command -v "$tool" || true)
 		if [[ -z "$found" ]] || ! grep -q "ORBIT_HUB_FAKE_${tool^^}" "$found" 2>/dev/null; then
-			problems+=("$tool no es el falso de las pruebas: ${found:-no está en el PATH}")
+			problems+=("$tool is not the tests' fake: ${found:-not on the PATH}")
 		fi
 	done
 	# A path that does not exist cannot reach Hermes, and is how the tests
 	# check the message for a missing hermes; anything that exists must be
 	# the fake.
 	if [[ -z "${ORBIT_HUB_HERMES:-}" ]]; then
-		problems+=("ORBIT_HUB_HERMES sin fijar: sería el hermes real (${HOME:-~}/.local/bin/hermes)")
+		problems+=("ORBIT_HUB_HERMES unset: it would be the real hermes (${HOME:-~}/.local/bin/hermes)")
 	elif [[ -e "$ORBIT_HUB_HERMES" ]] && ! grep -q ORBIT_HUB_FAKE_HERMES "$ORBIT_HUB_HERMES" 2>/dev/null; then
-		problems+=("ORBIT_HUB_HERMES=$ORBIT_HUB_HERMES no es el falso de las pruebas")
+		problems+=("ORBIT_HUB_HERMES=$ORBIT_HUB_HERMES is not the tests' fake")
 	fi
-	[[ -n "${ORBIT_HUB_URL:-}" ]] || problems+=("ORBIT_HUB_URL sin fijar: sería $ORBIT_HUB_DEFAULT_URL")
-	[[ -n "${ORBIT_DEIMOS_PROFILE:-}" ]] || problems+=("ORBIT_DEIMOS_PROFILE sin fijar: sería el perfil real de Deimos")
+	[[ -n "${ORBIT_HUB_URL:-}" ]] || problems+=("ORBIT_HUB_URL unset: it would be $ORBIT_HUB_DEFAULT_URL")
+	[[ -n "${ORBIT_DEIMOS_PROFILE:-}" ]] || problems+=("ORBIT_DEIMOS_PROFILE unset: it would be the real Deimos profile")
 	if ((${#problems[@]})); then
-		printf 'Prueba sin redirección: %s no toca nada.\n' "${0##*/}" >&2
+		printf 'Test without redirection: %s touches nothing.\n' "${0##*/}" >&2
 		printf '  - %s\n' "${problems[@]}" >&2
 		exit 3
 	fi
@@ -63,14 +63,14 @@ hub_refuse_unredirected_test_run
 # --- Settings ------------------------------------------------------------------
 
 # Deployment paths are explicit; a public checkout cannot select a host.
-: "${ORBIT_HUB_BASE:?falta ORBIT_HUB_BASE}"
+: "${ORBIT_HUB_BASE:?ORBIT_HUB_BASE is missing}"
 ORBIT_HUB_URL=${ORBIT_HUB_URL:-$ORBIT_HUB_DEFAULT_URL}
-: "${ORBIT_DEIMOS_PROFILE:?falta ORBIT_DEIMOS_PROFILE}"
+: "${ORBIT_DEIMOS_PROFILE:?ORBIT_DEIMOS_PROFILE is missing}"
 # Hermes's command line, through which the gateway is restarted and asked about.
 ORBIT_HUB_HERMES=${ORBIT_HUB_HERMES:-${HOME:?}/.local/bin/hermes}
 
 # How long activation waits for the hub to answer /health once systemd has
-# started it. Measured for REF-05 (2026-09-25): a hub started from a read-only
+# started it. Measured on 2026-09-25: a hub started from a read-only
 # release on this server, with its working directory inside it and an empty
 # store, answered /health in 0.68–1.73 s over 30 cold starts (median 0.80 s).
 # Production opens a larger store and may start with a cold page cache, which
@@ -104,9 +104,9 @@ ORBIT_HUB_GATEWAY_POLL=${ORBIT_HUB_GATEWAY_POLL:-1}
 HUB_UNIT=orbit-hub.service
 SERVE_UNIT=hermes-serve-orbit.service
 # Hermes manages the single host gateway through default; it serves Deimos
-# and every other profile. Restarting it requires Mars's explicit approval.
+# and every other profile. Restarting it requires its operator's explicit approval.
 GATEWAY_PROFILE=default
-GATEWAY_NAME="el gateway del host (compartido con Deimos)"
+GATEWAY_NAME="the host's gateway (shared with Deimos)"
 HUB_DOC=docs/self-hosting.md
 HUB_SCRIPTS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -125,21 +125,21 @@ fi
 export XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS
 
 if [[ "$ORBIT_HUB_BASE" != /* ]]; then
-	printf 'Error: ORBIT_HUB_BASE tiene que ser una ruta absoluta (es «%s»).\n' "$ORBIT_HUB_BASE" >&2
+	printf "Error: ORBIT_HUB_BASE must be an absolute path (it is '%s').\n" "$ORBIT_HUB_BASE" >&2
 	exit 2
 fi
 if [[ ! "$ORBIT_HUB_HEALTH_TIMEOUT" =~ ^[1-9][0-9]*$ ]]; then
-	printf 'Error: ORBIT_HUB_HEALTH_TIMEOUT tiene que ser un número de segundos (es «%s»).\n' \
+	printf "Error: ORBIT_HUB_HEALTH_TIMEOUT must be a number of seconds (it is '%s').\n" \
 		"$ORBIT_HUB_HEALTH_TIMEOUT" >&2
 	exit 2
 fi
 if [[ ! "$ORBIT_HUB_GATEWAY_TIMEOUT" =~ ^[1-9][0-9]*$ ]]; then
-	printf 'Error: ORBIT_HUB_GATEWAY_TIMEOUT tiene que ser un número de segundos (es «%s»).\n' \
+	printf "Error: ORBIT_HUB_GATEWAY_TIMEOUT must be a number of seconds (it is '%s').\n" \
 		"$ORBIT_HUB_GATEWAY_TIMEOUT" >&2
 	exit 2
 fi
 if [[ ! "$ORBIT_HUB_GATEWAY_POLL" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
-	printf 'Error: ORBIT_HUB_GATEWAY_POLL tiene que ser un número de segundos (es «%s»).\n' \
+	printf "Error: ORBIT_HUB_GATEWAY_POLL must be a number of seconds (it is '%s').\n" \
 		"$ORBIT_HUB_GATEWAY_POLL" >&2
 	exit 2
 fi
@@ -147,7 +147,7 @@ fi
 # --- Messages ------------------------------------------------------------------
 
 hub_say() { printf '%s\n' "$*"; }
-hub_warn() { printf 'Aviso: %s\n' "$*" >&2; }
+hub_warn() { printf 'Warning: %s\n' "$*" >&2; }
 hub_fail() {
 	printf 'Error: %s\n' "$*" >&2
 	exit 1
@@ -173,21 +173,21 @@ hub_release_field() {
 hub_release_problem() {
 	local dir="$ORBIT_HUB_BASE/releases/$1" recorded name
 	if [[ ! -d "$dir" ]]; then
-		printf 'no está publicada (no existe %s)' "$dir"
+		printf 'is not published (%s does not exist)' "$dir"
 		return
 	fi
 	if [[ ! -f "$dir/RELEASE" ]]; then
-		printf '%s está incompleta: no tiene RELEASE, es lo que deja una publicación interrumpida' "$dir"
+		printf '%s is incomplete: it has no RELEASE, which is what an interrupted publication leaves' "$dir"
 		return
 	fi
 	recorded=$(hub_release_field "$1" version)
 	if [[ "$recorded" != "$1" ]]; then
-		printf '%s/RELEASE dice versión «%s»' "$dir" "$recorded"
+		printf "%s/RELEASE says version '%s'" "$dir" "$recorded"
 		return
 	fi
 	for name in orbit-hub orbit-mcp; do
 		if [[ ! -x "$dir/.venv/bin/$name" ]]; then
-			printf 'a %s le falta .venv/bin/%s' "$dir" "$name"
+			printf '%s lacks .venv/bin/%s' "$dir" "$name"
 			return
 		fi
 	done
@@ -205,20 +205,20 @@ hub_print_releases() {
 		fi
 	done
 	if ((${#names[@]} == 0)); then
-		printf 'No hay versiones publicadas en %s.\n' "$ORBIT_HUB_BASE/releases"
+		printf 'There are no published versions in %s.\n' "$ORBIT_HUB_BASE/releases"
 		return
 	fi
-	printf 'Versiones publicadas en %s:\n' "$ORBIT_HUB_BASE/releases"
+	printf 'Published versions in %s:\n' "$ORBIT_HUB_BASE/releases"
 	while IFS= read -r version; do
 		dir="$ORBIT_HUB_BASE/releases/$version"
 		marks=""
-		[[ "$version" != "$current" ]] || marks+="  ← actual"
-		[[ "$version" != "$previous" ]] || marks+="  ← anterior"
+		[[ "$version" != "$current" ]] || marks+="  ← current"
+		[[ "$version" != "$previous" ]] || marks+="  ← previous"
 		if [[ -f "$dir/RELEASE" ]]; then
-			printf '  %-10s commit %.12s  publicada %s%s\n' "$version" \
+			printf '  %-10s commit %.12s  published %s%s\n' "$version" \
 				"$(hub_release_field "$version" commit)" "$(hub_release_field "$version" published_at)" "$marks"
 		else
-			printf '  %-10s incompleta (sin RELEASE): no se puede activar%s\n' "$version" "$marks"
+			printf '  %-10s incomplete (no RELEASE): cannot be activated%s\n' "$version" "$marks"
 		fi
 	done < <(printf '%s\n' "${names[@]}" | sort -V)
 }
@@ -234,9 +234,9 @@ hub_point_link() {
 
 # One mutating command at a time over the same base.
 hub_take_lock() {
-	[[ -d "$ORBIT_HUB_BASE" ]] || hub_fail "no existe $ORBIT_HUB_BASE: no hay nada publicado todavía ($HUB_SCRIPTS_DIR/publish.sh)."
-	exec 9>>"$ORBIT_HUB_BASE/.lock" || hub_fail "no puedo abrir $ORBIT_HUB_BASE/.lock."
-	flock -n 9 || hub_fail "otra orden del hub está en curso sobre $ORBIT_HUB_BASE (tiene .lock); espera a que termine."
+	[[ -d "$ORBIT_HUB_BASE" ]] || hub_fail "$ORBIT_HUB_BASE does not exist: nothing is published yet ($HUB_SCRIPTS_DIR/publish.sh)."
+	exec 9>>"$ORBIT_HUB_BASE/.lock" || hub_fail "cannot open $ORBIT_HUB_BASE/.lock."
+	flock -n 9 || hub_fail "another hub command is running on $ORBIT_HUB_BASE (it holds .lock); wait for it to finish."
 }
 
 # --- systemd -------------------------------------------------------------------
@@ -251,7 +251,7 @@ hub_unit_property() {
 		printf '%s' "$value"
 		return 0
 	fi
-	hub_fail "no pude preguntar a systemd por $2 de $1: $(hub_systemctl show "$1" "--property=$2" --value 2>&1 >/dev/null || true)"
+	hub_fail "could not ask systemd for $2 of $1: $(hub_systemctl show "$1" "--property=$2" --value 2>&1 >/dev/null || true)"
 }
 
 # is-active's answer (active, failed, activating…), from stdout only.
@@ -263,7 +263,7 @@ hub_unit_active() {
 hub_report_unit() {
 	printf '\n--- systemctl --user status %s ---\n' "$1" >&2
 	hub_systemctl status "$1" --no-pager --lines=0 2>&1 | tail -n 20 >&2 || true
-	printf -- '--- journalctl --user -u %s (últimas 30 líneas) ---\n' "$1" >&2
+	printf -- '--- journalctl --user -u %s (last 30 lines) ---\n' "$1" >&2
 	journalctl --user -u "$1" -n 30 --no-pager 2>&1 | tail -n 30 >&2 || true
 }
 
@@ -284,16 +284,16 @@ hub_require_unit_runs_from_current() {
 	working=$(hub_unit_property "$HUB_UNIT" WorkingDirectory)
 	reload=$(hub_unit_property "$HUB_UNIT" NeedDaemonReload)
 	[[ "$exec_start" == *"$binary "* ]] ||
-		problems+=("ExecStart no arranca $binary (dice: ${exec_start:-nada})")
+		problems+=("ExecStart does not start $binary (it says: ${exec_start:-nothing})")
 	[[ "$working" == "$ORBIT_HUB_BASE/current" ]] ||
-		problems+=("WorkingDirectory no es $ORBIT_HUB_BASE/current (dice: ${working:-nada})")
+		problems+=("WorkingDirectory is not $ORBIT_HUB_BASE/current (it says: ${working:-nothing})")
 	[[ "$reload" == no ]] ||
-		problems+=("systemd no ha releído la unidad (NeedDaemonReload=${reload:-?}): falta systemctl --user daemon-reload")
+		problems+=("systemd has not reread the unit (NeedDaemonReload=${reload:-?}): systemctl --user daemon-reload is missing")
 	if ((${#problems[@]})); then
-		printf 'Error: %s no arranca desde %s/current, así que reiniciarlo no pondría en marcha la versión activa. No se ha tocado nada.\n' \
+		printf 'Error: %s does not start from %s/current, so restarting it would not run the active version. Nothing was touched.\n' \
 			"$HUB_UNIT" "$ORBIT_HUB_BASE" >&2
 		printf '  - %s\n' "${problems[@]}" >&2
-		printf 'Cambia la unidad como dice %s («Primera vez»).\n' "$HUB_DOC" >&2
+		printf 'Change the unit as %s says ("Install and configure the hub").\n' "$HUB_DOC" >&2
 		exit 1
 	fi
 }
@@ -303,10 +303,10 @@ hub_way_back() {
 	local previous
 	previous=$(hub_link_version previous)
 	if [[ -n "$previous" ]]; then
-		printf 'La versión activa es ahora la %s. Para volver a la %s:\n  %s/activate.sh %s' \
+		printf 'The active version is now %s. To go back to %s:\n  %s/activate.sh %s' \
 			"$1" "$previous" "$HUB_SCRIPTS_DIR" "$previous"
 	else
-		printf 'La versión activa es ahora la %s y no hay otra anterior. Para volver al hub de la carpeta de desarrollo, sigue «Volver al estado de hoy» en %s.' \
+		printf 'The active version is now %s and there is no earlier one. To go back to the hub of the development checkout, see "Storage and upgrades" in %s.' \
 			"$1" "$HUB_DOC"
 	fi
 }
@@ -319,7 +319,7 @@ hub_restart_unit() {
 		status=$?
 	fi
 	hub_service_failure "$1" \
-		"no se pudo reiniciar $1: systemctl --user restart terminó con salida $status: ${output:-sin salida}" "$2"
+		"could not restart $1: systemctl --user restart exited with status $status: ${output:-no output}" "$2"
 }
 
 # Wait for the hub to answer /health, stopping at once if systemd says it died,
@@ -345,32 +345,32 @@ hub_wait_for_hub() {
 		sub=$(hub_unit_property "$HUB_UNIT" SubState)
 		if [[ "$state" == failed || "$state" == inactive || "$sub" == auto-restart ]]; then
 			hub_service_failure "$HUB_UNIT" \
-				"el hub ($HUB_UNIT) se cayó al arrancar: systemd dice ActiveState=$state SubState=$sub. Último intento en $ORBIT_HUB_URL/health: ${last:-ninguno}. No se ha reiniciado $SERVE_UNIT ni $GATEWAY_NAME." \
+				"the hub ($HUB_UNIT) went down while starting: systemd says ActiveState=$state SubState=$sub. Last attempt at $ORBIT_HUB_URL/health: ${last:-none}. Neither $SERVE_UNIT nor $GATEWAY_NAME was restarted." \
 				"$way_back"
 		fi
 		if ((SECONDS >= deadline)); then
 			hub_service_failure "$HUB_UNIT" \
-				"el hub ($HUB_UNIT) sigue en marcha ($state/$sub) pero no contestó en $ORBIT_HUB_URL/health en $ORBIT_HUB_HEALTH_TIMEOUT s. Última respuesta: ${last:-ninguna}. No se ha reiniciado $SERVE_UNIT ni $GATEWAY_NAME." \
+				"the hub ($HUB_UNIT) is still running ($state/$sub) but did not answer at $ORBIT_HUB_URL/health within $ORBIT_HUB_HEALTH_TIMEOUT s. Last answer: ${last:-none}. Neither $SERVE_UNIT nor $GATEWAY_NAME was restarted." \
 				"$way_back"
 		fi
 		sleep 0.5
 	done
 	# /health says nothing about the version; the API description does.
 	if ! response=$(curl -fsS --noproxy '*' --max-time 10 "$ORBIT_HUB_URL/openapi.json" 2>&1); then
-		hub_warn "no pude leer la versión del hub en $ORBIT_HUB_URL/openapi.json: $response"
-		hub_say "  el hub contesta en $ORBIT_HUB_URL/health; su versión no se ha podido comprobar."
+		hub_warn "could not read the hub's version at $ORBIT_HUB_URL/openapi.json: $response"
+		hub_say "  the hub answers at $ORBIT_HUB_URL/health; its version could not be checked."
 		return 0
 	fi
 	reported=$(printf '%s' "$response" | python3 -c 'import json, sys; print(json.load(sys.stdin)["info"]["version"])' 2>/dev/null) || reported=""
 	if [[ -z "$reported" ]]; then
-		hub_warn "$ORBIT_HUB_URL/openapi.json no dice la versión del hub."
-		hub_say "  el hub contesta en $ORBIT_HUB_URL/health; su versión no se ha podido comprobar."
+		hub_warn "$ORBIT_HUB_URL/openapi.json does not say the hub's version."
+		hub_say "  the hub answers at $ORBIT_HUB_URL/health; its version could not be checked."
 	elif [[ "$reported" != "$expected" ]]; then
 		hub_service_failure "$HUB_UNIT" \
-			"el hub que contesta dice ser la $reported, no la $expected que se acaba de activar. No se ha reiniciado $SERVE_UNIT ni $GATEWAY_NAME." \
+			"the hub that answers says it is $reported, not the $expected just activated. Neither $SERVE_UNIT nor $GATEWAY_NAME was restarted." \
 			"$way_back"
 	else
-		hub_say "  el hub contesta en $ORBIT_HUB_URL/health y dice ser la $expected."
+		hub_say "  the hub answers at $ORBIT_HUB_URL/health and says it is $expected."
 	fi
 }
 
@@ -384,9 +384,9 @@ hub_gateway_command() {
 # Why hermes cannot be run, or nothing if it can.
 hub_hermes_problem() {
 	if [[ ! -e "$ORBIT_HUB_HERMES" ]]; then
-		printf 'no encuentro hermes en %s: no existe (ORBIT_HUB_HERMES cambia la ruta)' "$ORBIT_HUB_HERMES"
+		printf 'hermes not found at %s: it does not exist (ORBIT_HUB_HERMES changes the path)' "$ORBIT_HUB_HERMES"
 	elif [[ ! -x "$ORBIT_HUB_HERMES" ]]; then
-		printf 'hermes está en %s pero no es ejecutable (ORBIT_HUB_HERMES cambia la ruta)' "$ORBIT_HUB_HERMES"
+		printf 'hermes is at %s but is not executable (ORBIT_HUB_HERMES changes the path)' "$ORBIT_HUB_HERMES"
 	fi
 }
 
@@ -397,11 +397,11 @@ hub_require_hermes() {
 	local problem
 	problem=$(hub_hermes_problem)
 	[[ -z "$problem" ]] ||
-		hub_fail "$problem. Sin él no se puede reiniciar $GATEWAY_NAME, así que no se ha tocado nada."
+		hub_fail "$problem. Without it $GATEWAY_NAME cannot be restarted, so nothing was touched."
 }
 
 # This user's processes, "<pid> <ppid> <args>" one per line. The gateway runs
-# as this user (measured: Mars's uid, child of her systemd --user, outside any
+# as this user (measured: the operator's uid, child of their systemd --user, outside any
 # unit). On failure, says why on stderr and returns 1.
 hub_processes() {
 	local listing status
@@ -411,7 +411,7 @@ hub_processes() {
 	else
 		status=$?
 	fi
-	printf 'ps -U %s -o pid=,ppid=,args= terminó con salida %s: %s\n' "$(id -u)" "$status" "${listing:-sin salida}" >&2
+	printf 'ps -U %s -o pid=,ppid=,args= exited with status %s: %s\n' "$(id -u)" "$status" "${listing:-no output}" >&2
 	return 1
 }
 
@@ -461,26 +461,26 @@ hub_gateway_processes_in() {
 }
 
 # A translator's <where>, in words, against the version it should be. With
-# `activa` as third argument, that version is named as the active one.
+# `active` as third argument, that version is named as the active one.
 hub_describe_where() {
 	local where=$1 wanted=$2 role=${3:-} matches mismatch
-	if [[ "$role" == activa ]]; then
-		matches=", la activa"
-		mismatch="no la activa ($wanted)"
+	if [[ "$role" == active ]]; then
+		matches=", the active one"
+		mismatch="not the active one ($wanted)"
 	else
 		matches=""
-		mismatch="no la $wanted"
+		mismatch="not $wanted"
 	fi
 	case "$where" in
 	release:*)
 		if [[ "${where#release:}" == "$wanted" ]]; then
-			printf 'la %s%s' "$wanted" "$matches"
+			printf '%s%s' "$wanted" "$matches"
 		else
-			printf 'la %s, %s' "${where#release:}" "$mismatch"
+			printf '%s, %s' "${where#release:}" "$mismatch"
 		fi
 		;;
-	current:) printf 'desde %s/current, sin poder decir de qué versión' "$ORBIT_HUB_BASE" ;;
-	*) printf 'de fuera de %s (%s), %s' "$ORBIT_HUB_BASE" "${where#other:}" "$mismatch" ;;
+	current:) printf 'from %s/current, without being able to say which version' "$ORBIT_HUB_BASE" ;;
+	*) printf 'from outside %s (%s), %s' "$ORBIT_HUB_BASE" "${where#other:}" "$mismatch" ;;
 	esac
 }
 
@@ -490,21 +490,21 @@ hub_describe_where() {
 hub_describe_gateway() {
 	local wanted=$1 role=${2:-} listing translators pid gateway where gateways
 	if ! listing=$(hub_processes 2>&1); then
-		printf '  no pude leer la lista de procesos: %s\n' "$listing"
+		printf '  could not read the process list: %s\n' "$listing"
 		return 0
 	fi
 	translators=$(hub_gateway_translators_in <<<"$listing")
 	if [[ -z "$translators" ]]; then
 		gateways=$(hub_gateway_processes_in <<<"$listing")
 		if [[ -n "$gateways" ]]; then
-			printf '  ningún orbit-mcp cuelga de un proceso «gateway run»; los de este usuario: %s.\n' "$gateways"
+			printf "  no orbit-mcp hangs from a 'gateway run' process; this user's are: %s.\n" "$gateways"
 		else
-			printf '  ningún orbit-mcp cuelga de un gateway: no hay ningún proceso «gateway run» de este usuario.\n'
+			printf "  no orbit-mcp hangs from a gateway: this user has no 'gateway run' process.\n"
 		fi
 		return 0
 	fi
 	while read -r pid gateway where; do
-		printf '  orbit-mcp del gateway: PID %s, hijo del gateway PID %s: %s.\n' \
+		printf "  the gateway's orbit-mcp: PID %s, child of gateway PID %s: %s.\n" \
 			"$pid" "$gateway" "$(hub_describe_where "$where" "$wanted" "$role")"
 	done <<<"$translators"
 }
@@ -526,8 +526,8 @@ hub_show_gateway_status() {
 	else
 		status=$?
 	fi
-	printf '  %s (salida %s):\n' "$asked" "$status"
-	printf '%s\n' "${output:-sin salida}" | sed 's/^./    &/'
+	printf '  %s (status %s):\n' "$asked" "$status"
+	printf '%s\n' "${output:-no output}" | sed 's/^./    &/'
 	return "$status"
 }
 
@@ -535,12 +535,12 @@ hub_gateway_failure() {
 	local message=$1 wanted=$2 way_back=$3
 	printf 'Error: %s\n' "$message" >&2
 	{
-		printf '\n--- lo que se ve del gateway de Deimos ---\n'
+		printf "\n--- what can be seen of Deimos's gateway ---\n"
 		hub_describe_gateway "$wanted"
-		printf -- '--- lo que dice Hermes ---\n'
+		printf -- '--- what Hermes says ---\n'
 		hub_show_gateway_status || true
 		printf '\n%s\n' "$way_back"
-		printf 'Para reintentar sólo el gateway: %s\n' "$(hub_gateway_command restart)"
+		printf 'To retry only the gateway: %s\n' "$(hub_gateway_command restart)"
 	} >&2
 	exit 1
 }
@@ -560,9 +560,9 @@ hub_restart_gateway() {
 	local pid gateway where found="" after="" others=()
 	restart=$(hub_gateway_command restart)
 	listing=$(hub_processes) ||
-		hub_fail "no pude leer la lista de procesos antes de reiniciar $GATEWAY_NAME, así que no podría saber si coge la $expected. No se ha reiniciado. $way_back"
+		hub_fail "could not read the process list before restarting $GATEWAY_NAME, so whether it takes $expected could not be known. It was not restarted. $way_back"
 	before=$(hub_gateway_translators_in <<<"$listing")
-	hub_say "Reiniciando $GATEWAY_NAME ($restart)…"
+	hub_say "Restarting $GATEWAY_NAME ($restart)…"
 	if output=$("$ORBIT_HUB_HERMES" -p "$GATEWAY_PROFILE" gateway restart 2>&1); then
 		status=0
 	else
@@ -570,7 +570,7 @@ hub_restart_gateway() {
 	fi
 	if ((status != 0)) && ! hub_gateway_restart_pending "$output"; then
 		hub_gateway_failure \
-			"no se pudo reiniciar $GATEWAY_NAME: $restart terminó con salida $status: ${output:-sin salida}" \
+			"could not restart $GATEWAY_NAME: $restart exited with status $status: ${output:-no output}" \
 			"$expected" "$way_back"
 	fi
 	deadline=$((SECONDS + ORBIT_HUB_GATEWAY_TIMEOUT))
@@ -587,14 +587,14 @@ hub_restart_gateway() {
 		fi
 		if ((SECONDS >= deadline)); then
 			hub_gateway_failure \
-				"$GATEWAY_NAME no ha arrancado un orbit-mcp nuevo de la $expected en $ORBIT_HUB_GATEWAY_TIMEOUT s tras $restart, que terminó con salida $status: ${output:-sin salida}" \
+				"$GATEWAY_NAME has not started a new orbit-mcp of $expected within $ORBIT_HUB_GATEWAY_TIMEOUT s after $restart, which exited with status $status: ${output:-no output}" \
 				"$expected" "$way_back"
 		fi
 		sleep "$ORBIT_HUB_GATEWAY_POLL"
 	done
-	hub_say "  $GATEWAY_NAME (PID ${found#* }): orbit-mcp nuevo, PID ${found%% *}, con la $expected."
+	hub_say "  $GATEWAY_NAME (PID ${found#* }): new orbit-mcp, PID ${found%% *}, with $expected."
 	if ((status != 0)) || hub_gateway_restart_pending "$output"; then
-		hub_warn "$restart terminó con salida $status («${output:-sin salida}»), pero $GATEWAY_NAME ya corre el orbit-mcp de la $expected."
+		hub_warn "$restart exited with status $status ('${output:-no output}'), but $GATEWAY_NAME already runs the orbit-mcp of $expected."
 	fi
 	while read -r pid gateway where; do
 		[[ -n "$pid" && "$where" != "release:$expected" ]] || continue
@@ -602,33 +602,33 @@ hub_restart_gateway() {
 	done <<<"$after"
 	if ((${#others[@]})); then
 		printf -v joined '%s; ' "${others[@]}"
-		hub_warn "el gateway tiene además otros orbit-mcp que no son de la $expected: ${joined%; }."
+		hub_warn "the gateway also has other orbit-mcp processes that are not of $expected: ${joined%; }."
 	fi
 }
 
 # Hub first, then the two Hermes that each start their own orbit-mcp, which
-# talks to the hub: see «Por qué este orden» in the operations document.
+# talks to the hub (docs/self-hosting.md, "Hermes and orbit-mcp").
 hub_restart_services() {
 	local expected=$1 way_back=$2 state
-	hub_say "Reiniciando $HUB_UNIT…"
+	hub_say "Restarting $HUB_UNIT…"
 	hub_restart_unit "$HUB_UNIT" "$way_back"
 	hub_wait_for_hub "$expected" "$way_back"
-	hub_say "Reiniciando $SERVE_UNIT…"
+	hub_say "Restarting $SERVE_UNIT…"
 	hub_restart_unit "$SERVE_UNIT" "$way_back"
 	state=$(hub_unit_active "$SERVE_UNIT")
 	[[ "$state" == active ]] ||
-		hub_service_failure "$SERVE_UNIT" "$SERVE_UNIT no quedó activo tras reiniciarse (is-active: ${state:-sin respuesta}). No se ha reiniciado $GATEWAY_NAME." "$way_back"
+		hub_service_failure "$SERVE_UNIT" "$SERVE_UNIT is not active after restarting (is-active: ${state:-no answer}). $GATEWAY_NAME was not restarted." "$way_back"
 	hub_say "  $SERVE_UNIT: active."
 	hub_restart_gateway "$expected" "$way_back"
 }
 
 # The translator Deimos runs is named in its profile; activation cannot change
-# that line (it is Mars's), but it can say when it points elsewhere.
+# that line (it is the profile owner's), but it can say when it points elsewhere.
 hub_check_deimos_profile() {
 	local line="command: $ORBIT_HUB_BASE/current/.venv/bin/orbit-mcp"
 	if [[ ! -r "$ORBIT_DEIMOS_PROFILE" ]]; then
-		hub_warn "no pude leer el perfil de Deimos ($ORBIT_DEIMOS_PROFILE) para ver de dónde arranca orbit-mcp."
+		hub_warn "could not read the Deimos profile ($ORBIT_DEIMOS_PROFILE) to see where orbit-mcp starts from."
 	elif ! grep -Fq -- "$line" "$ORBIT_DEIMOS_PROFILE"; then
-		hub_warn "el perfil de Deimos ($ORBIT_DEIMOS_PROFILE) no arranca el traductor desde la versión activa, así que Deimos sigue con otro orbit-mcp. La línea tiene que ser «$line» ($HUB_DOC, «Primera vez»)."
+		hub_warn "the Deimos profile ($ORBIT_DEIMOS_PROFILE) does not start the translator from the active version, so Deimos keeps another orbit-mcp. The line must be '$line' ($HUB_DOC, \"Hermes and orbit-mcp\")."
 	fi
 }

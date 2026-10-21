@@ -213,9 +213,10 @@ See [self-hosting](../docs/self-hosting.md) for reporting and deployment setup.
 The gate (`scripts/check.sh hub`, from the root) runs these checks, including e2e:
 
 ```sh
-uv run --frozen ruff check orbit_hub orbit_mcp tests ../scripts/e2e-mac
-uv run --frozen ruff format --check orbit_hub orbit_mcp tests ../scripts/e2e-mac
+uv run --frozen ruff check orbit_hub orbit_mcp tests ../scripts/e2e-mac ../scripts/tests/mac_harness_dry_run_test.py
+uv run --frozen ruff format --check orbit_hub orbit_mcp tests ../scripts/e2e-mac ../scripts/tests/mac_harness_dry_run_test.py
 uv run --frozen pytest -q
+uv run --frozen pytest -q -c pyproject.toml --rootdir . ../scripts/tests/mac_harness_dry_run_test.py
 ```
 
 The e2e tests also exercise the real Rust daemon. Build its binary from the root

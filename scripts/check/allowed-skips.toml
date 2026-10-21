@@ -1,23 +1,24 @@
-# Saltos permitidos de scripts/check.sh (REF-02 A2).
+# Allowed skips of scripts/check.sh.
 #
-# Un test saltado no es un test pasado. La puerta falla con cualquier salto
-# (o fallo esperado) que no esté aquí con su suite, su test y su motivo.
+# A skipped test is not a passed test. The gate fails on any skip (or
+# expected failure) that is not listed here with its suite, its test and its
+# reason.
 #
-# - suite: el identificador del paso que lo ejecuta (`scripts/check.sh --plan`).
-# - test: como lo nombra el informe de esa suite:
-#     pytest, vitest              ->  clase::nombre del informe JUnit
-#     cargo test                  ->  binario-sin-hash::ruta::del::test
-#     guards (unittest)           ->  modulo.Clase.test
-# - reason: por qué no puede correr aquí. Sin motivo no hay salto.
+# - suite: the id of the step that runs it (`scripts/check.sh --plan`).
+# - test: as that suite's report names it:
+#     pytest, vitest              ->  class::name from the JUnit report
+#     cargo test                  ->  binary-without-hash::path::of::the::test
+#     guards (unittest)           ->  module.Class.test
+# - reason: why it cannot run here. No reason, no skip.
 #
-# Los e2e del hub no están ni pueden estar: la puerta les da ORBIT_TEST_BINARY.
+# The hub's e2e tests are not here and cannot be: the gate gives them ORBIT_TEST_BINARY.
 
 [[skip]]
 suite = "rust-test"
 test = "orbit_daemon::daemon::finalize::tests::write_manifest_fixtures"
-reason = "no es una prueba: regenera los tres manifiestos contractuales de REF-24; la comparación semántica de sus valores JSON sí corre siempre"
+reason = "not a test: it regenerates the three contract recording manifests; the semantic comparison of their JSON values always runs"
 
 [[skip]]
 suite = "rust-test"
 test = "orbit_daemon::daemon::topics::measurement_tests::measure_worst_case_projections"
-reason = "medida manual repetible de SIM-74 en el Mac (la orden está junto al test); imprime tiempos y no comprueba nada"
+reason = "a repeatable manual measurement on the Mac (the command is next to the test); it prints timings and checks nothing"

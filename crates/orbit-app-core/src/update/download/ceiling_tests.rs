@@ -28,7 +28,7 @@ fn published_installer() -> Vec<u8> {
 }
 
 fn installer_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/install.sh")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/release/install.sh")
 }
 
 /// An origin that answers one request with exactly these bytes and closes.
@@ -564,7 +564,7 @@ fn the_installer_this_tree_publishes_fits_under_its_ceiling() {
     let size = published_installer().len();
     assert!(
         size <= INSTALLER.ceiling,
-        "scripts/install.sh measures {size} bytes and the installer's ceiling is {} \
+        "scripts/release/install.sh measures {size} bytes and the installer's ceiling is {} \
          ({INSTALLER_BASELINE_BYTES} of baseline plus {INSTALLER_HEADROOM_PERCENT} %). \
          Do not just raise the ceiling: a larger ceiling with no reason is the same \
          defect with a later date. Derive the baseline again from what it measures \
