@@ -47,6 +47,10 @@ is in Spanish; the labels quoted below are the ones it shows.
   them, a PDF goes as its text and page images, and any other file through
   `orbit-mcp`'s new `orbit_attachment`. The chat shows thumbnails, a viewer
   for images and PDFs, and «Abrir» or «Mostrar en Finder» for the rest.
+  «Adjuntar ventana» sends the window's text beside its capture, as a `.txt`
+  read through Accessibility (never a secure field, at most 128 KiB). A HEIC
+  or HEIF photo chosen on the Mac is attached as a JPEG, upright and without
+  its metadata, so without its location.
 - Answers in full Markdown: code with its language and «Copiar», tables that
   scroll and copy as Markdown, no raw HTML, images never fetched. Each answer
   can be copied, retried, read aloud («Escuchar»), opened in a Markdown
