@@ -12,7 +12,17 @@ from support_pdf import pdf_bytes
 from test_attachments import NOTES, PNG
 from test_deimos_meeting_reads import deimos
 
+from orbit_hub.assistant.agents import IMPLICIT_AGENT_ID
 from orbit_hub.meetings_bridge.page import MAX_ANSWER_CHARS
+
+
+def attached(store, device_id, name, body):
+    """A file attached to a message of a conversation with the default agent,
+    the one an orbit-mcp without `ORBIT_MCP_AGENT` reads for."""
+    attachment = store.attachments.put(device_id, name, body, now_ms=1)
+    session = store.create_session(device_id, IMPLICIT_AGENT_ID, "rt", "st", "ep", 1.0)
+    store.append_message(session, "user", "Mira", now_ms=1, attachments=[attachment["id"]])
+    return attachment
 
 
 async def test_an_attached_text_reads_a_page_at_a_time(environment, tmp_path):
@@ -20,7 +30,7 @@ async def test_an_attached_text_reads_a_page_at_a_time(environment, tmp_path):
     owner = device(store)["device_id"]
     line = "Paso del itinerario por el valle y vuelta al refugio.\n"
     text = line * (MAX_ANSWER_CHARS // len(line) + 20)
-    attachment = store.attachments.put(owner, "itinerario.txt", text.encode(), now_ms=1)
+    attachment = attached(store, owner, "itinerario.txt", text.encode())
     async with deimos(environment, tmp_path, owner) as server:
         first = await server.call_tool(
             "orbit_attachment", {"device": DEFAULT_DEVICE, "attachment_id": attachment["id"]}
@@ -41,7 +51,7 @@ async def test_an_attached_text_reads_a_page_at_a_time(environment, tmp_path):
 async def test_an_attached_image_comes_back_as_an_image(environment, tmp_path):
     _, store, _ = environment
     owner = device(store)["device_id"]
-    attachment = store.attachments.put(owner, "foto.png", PNG, now_ms=1)
+    attachment = attached(store, owner, "foto.png", PNG)
     async with deimos(environment, tmp_path, owner) as server:
         result = await server.call_tool(
             "orbit_attachment", {"device": DEFAULT_DEVICE, "attachment_id": attachment["id"]}
@@ -57,7 +67,7 @@ async def test_an_attached_pdf_reads_as_its_text_by_page(environment, tmp_path):
     _, store, _ = environment
     owner = device(store)["device_id"]
     document = pdf_bytes(["Primera parada: el lago.", "Segunda parada: la ermita."])
-    attachment = store.attachments.put(owner, "ruta.pdf", document, now_ms=1)
+    attachment = attached(store, owner, "ruta.pdf", document)
     async with deimos(environment, tmp_path, owner) as server:
         result = await server.call_tool(
             "orbit_attachment", {"device": DEFAULT_DEVICE, "attachment_id": attachment["id"]}
@@ -72,7 +82,7 @@ async def test_an_attached_pdf_reads_as_its_text_by_page(environment, tmp_path):
 async def test_an_attachment_of_another_device_is_not_found(environment, tmp_path):
     _, store, _ = environment
     owner, other = device(store)["device_id"], device(store, "otro")["device_id"]
-    attachment = store.attachments.put(other, "ajena.txt", NOTES, now_ms=1)
+    attachment = attached(store, other, "ajena.txt", NOTES)
     async with deimos(environment, tmp_path, owner) as server:
         result = await server.call_tool(
             "orbit_attachment", {"device": DEFAULT_DEVICE, "attachment_id": attachment["id"]}

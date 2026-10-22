@@ -217,9 +217,9 @@ fn each_refusal_of_the_contract_carries_its_numbers() {
             json!({"agent_id": "orion", "agent_ids": "atlas,vega"}),
         ),
         (
-            409,
-            "field_not_editable",
-            json!({"agent_id": "vega", "field": "access", "kind": "hermes"}),
+            403,
+            "skill_delete_unsupported",
+            json!({"agent_id": "vega", "kind": "hermes"}),
         ),
         (
             400,

@@ -15,12 +15,6 @@ export const accessGroups: ReadonlyArray<{ group: keyof AccessGroups; label: str
   { group: "files", label: "Archivos" },
 ];
 
-const fieldNames: Record<string, string> = {
-  personality: "la personalidad",
-  access: "los accesos",
-  skills: "las skills",
-};
-
 type Numbers = AgentRefusal["numbers"];
 
 function text(numbers: Numbers, key: string): string | undefined {
@@ -50,12 +44,8 @@ const refusals: Record<string, (numbers: Numbers) => string | undefined> = {
     const known = text(n, "agent_ids");
     return `El hub no tiene el agente «${agent}»${known ? `; tiene ${known}` : ""}.`;
   },
-  field_not_editable: (n) => {
-    const field = text(n, "field");
-    const kind = text(n, "kind");
-    if (field === undefined || kind === undefined) return undefined;
-    return `Un agente de tipo «${kind}» no deja cambiar ${fieldNames[field] ?? `«${field}»`} desde Orbit.`;
-  },
+  skill_delete_unsupported: () =>
+    "El panel de Hermes no puede borrar skills: desactívala aquí o bórrala en el servidor de Hermes.",
   skill_invalid: (n) => {
     const name = text(n, "name");
     const rule = text(n, "rule");

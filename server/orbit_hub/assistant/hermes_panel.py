@@ -116,12 +116,14 @@ class HermesPanelAdmin:
         )
 
     async def delete_skill(self, name: str) -> None:
+        # Its own code: the same agent's skills are created, replaced and
+        # switched from Orbit, so «not editable» would be untrue.
         raise HubError(
-            "field_not_editable",
-            "El panel de Hermes no tiene forma de borrar una skill: desactívala aquí o bórrala "
+            "skill_delete_unsupported",
+            "El panel de Hermes no puede borrar skills: desactívala aquí o bórrala "
             "en el servidor de Hermes",
             http_status=403,
-            numbers={"agent_id": self.agent_id, "field": "skills", "kind": "hermes"},
+            numbers={"agent_id": self.agent_id, "kind": "hermes"},
         )
 
     async def _entry(self, name: str) -> SkillEntry:

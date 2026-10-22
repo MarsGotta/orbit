@@ -53,3 +53,4 @@ class AttachmentRequest(PrivateModel):
     device_id: str = Field(min_length=1, max_length=128)
     attachment_id: str = Field(min_length=1, max_length=80)
     after_index: int = Field(default=0, ge=0, le=2**31 - 1)
+    agent_id: str | None = AGENT_ID

@@ -220,6 +220,24 @@ def test_an_invalid_skill_names_its_rule_and_changes_nothing(hub):
     assert AgentConfigStore(store).skills("vega") == []
 
 
+def test_a_skill_name_with_a_slash_is_refused_with_its_rule(hub):
+    """The Mac sends the name the file declares as one encoded segment
+    (`mis%2Fskill`); the hub reads it as a name, not as two path segments, and
+    refuses it with the rule it breaks rather than an uncoded 404, which the
+    Mac takes for a hub without agent configuration."""
+    client, headers, _, store = hub
+    response = client.put(
+        "/v1/agents/vega/skills/mis%2Fskill",
+        headers=headers,
+        json={"content": skill_md("mis/skill")},
+    )
+    assert refusal(response, 422, "skill_invalid") == {
+        "name": "mis/skill",
+        "rule": "name_characters",
+    }
+    assert AgentConfigStore(store).skills("vega") == []
+
+
 def test_a_skill_over_its_ceiling_is_refused_with_its_bytes(hub):
     client, headers, _, _ = hub
     content = skill_md("larga", body="x" * MAX_SKILL_BYTES)
@@ -323,13 +341,14 @@ def test_a_hermes_agent_creates_replaces_and_switches_skills_through_the_panel(h
     ]
     read = client.get("/v1/agents/atlas/skills/notas-diarias", headers=headers)
     assert read.json()["content"] == skill_md("notas-diarias", description="Otra.")
-    # Hermes's panel cannot delete a skill: the refusal says which field and kind.
+    # Hermes's panel cannot delete a skill: the refusal says that deleting is
+    # what it cannot do, while this agent's skills are still edited here.
     numbers = refusal(
         client.delete("/v1/agents/atlas/skills/notas-diarias", headers=headers),
         403,
-        "field_not_editable",
+        "skill_delete_unsupported",
     )
-    assert numbers == {"agent_id": "atlas", "field": "skills", "kind": "hermes"}
+    assert numbers == {"agent_id": "atlas", "kind": "hermes"}
     # Orbit's own rules apply before anything reaches Hermes.
     calls = len(panel.calls)
     invalid = client.put(

@@ -19,6 +19,7 @@ from support_orbit_mcp import (
 )
 
 from orbit_hub.private_auth import canonical
+from orbit_mcp import files
 
 PROJECTS = "/Users/ejemplo/Proyectos"
 NOTES = "/Users/ejemplo/Notas"
@@ -359,3 +360,20 @@ async def test_what_leaves_the_translator_is_the_shared_contract(tmp_path):
         assert json.dumps(sent["parameters"], sort_keys=True) == json.dumps(
             contracted[capability], sort_keys=True
         ), capability
+
+
+def test_a_listing_asked_past_its_end_says_so_instead_of_an_impossible_range():
+    # The helper answers an `after_index` past the end with no entries and the
+    # real total (`AssistantFiles.listNow` clamps the start); the text must
+    # not read «entradas 101–100 de 5», a range that cannot exist.
+    text = files.render_list(
+        {
+            "path": PROJECTS,
+            "entries": [],
+            "total": 5,
+            "after_index": 100,
+            "next_after_index": None,
+        }
+    )
+    assert "101–100" not in text, text
+    assert "5 entradas" in text and "after_index=100" in text, text

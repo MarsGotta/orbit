@@ -16,8 +16,10 @@ describe("a hub refusal of an agent's configuration", () => {
       "El hub no tiene el agente «orion»; tiene atlas,vega.",
     ],
     [
-      refusal("field_not_editable", 409, { agent_id: "atlas", field: "access", kind: "hermes" }),
-      "Un agente de tipo «hermes» no deja cambiar los accesos desde Orbit.",
+      // What the hub answers to «Borrar» on a Hermes agent's skill, while the
+      // same screen edits, creates and switches that agent's skills.
+      refusal("skill_delete_unsupported", 403, { agent_id: "atlas", kind: "hermes" }),
+      "El panel de Hermes no puede borrar skills: desactívala aquí o bórrala en el servidor de Hermes.",
     ],
     [
       refusal("skill_invalid", 400, { name: "Resumen", rule: "name_lowercase" }),

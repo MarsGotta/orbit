@@ -404,8 +404,9 @@ cause.
 message's text, and Orbit's screenshots as images in the tools' results; the
 agent lists `images` among its capabilities. It is false by default, because
 not every OpenAI-compatible server or model takes images; then the message only
-names each image, which the agent reads with `orbit_attachment`, and a
-screenshot reaches it as a sentence saying it was left out. The conversation
+names each image and says the agent cannot see it, and a screenshot or an
+image read with `orbit_attachment` reaches it as a sentence saying it was left
+out. The conversation
 the hub keeps for later turns holds a line naming each image's attachment, not
 its bytes. A provider that refuses a message with images (HTTP 400, 413, 415
 or 422 to its first request) fails the turn with `attachment_refused`, naming

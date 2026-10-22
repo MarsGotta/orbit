@@ -63,6 +63,11 @@ MAX_NAME_CHARS = 255
 # user removes, or a message never sent, leaves a file nobody will bind; it is
 # deleted after this long. One hour outlasts any composing of one message.
 UNBOUND_TTL_MS = 60 * 60 * 1000
+# How often the hub deletes those files, every device's in one statement, so a
+# Mac that never uploads again does not keep its own. A file is gone at most a
+# minute past its hour; the statement reads only unbound rows
+# (`attachments_unbound_age`).
+UNBOUND_SWEEP_SECONDS = 60
 # A page with fewer characters of text than this is a scan or a figure: it
 # goes to the agent as an image. 32 is a page number and a header; a page of
 # prose has hundreds. Not measured against real documents.
@@ -118,6 +123,8 @@ CREATE TABLE IF NOT EXISTS attachments (
 CREATE INDEX IF NOT EXISTS attachments_session ON attachments(session_id);
 CREATE INDEX IF NOT EXISTS attachments_message ON attachments(message_id);
 CREATE INDEX IF NOT EXISTS attachments_unbound ON attachments(device_id, message_id);
+CREATE INDEX IF NOT EXISTS attachments_unbound_age ON attachments(created_ms)
+    WHERE message_id IS NULL;
 """
 
 
@@ -341,19 +348,27 @@ def turn_parts(attachments: list[Stored], images: bool) -> tuple[str, list[TurnI
                 )
                 said = "va como imagen en este mensaje."
             else:
-                said = "este agente no recibe imágenes en el mensaje; míralo con orbit_attachment."
+                # orbit_attachment hands such an agent a note in its place
+                # (`assistant/openai.py`): there is nowhere it could look.
+                said = "este agente no admite imágenes: no puede verla, ni con orbit_attachment."
             lines.append(f"{head}imagen {attachment.mime}{tail}{said}")
         elif attachment.kind == KIND_PDF:
             pages = attachment.page_texts or ()
             whole = pdf_text(pages)
             shown = whole[:budget]
             budget -= len(shown)
-            said = "su texto va abajo"
-            if len(shown) < len(whole):
-                said += (
-                    f" hasta el carácter {len(shown)} de {len(whole)}; el resto, con "
-                    f"orbit_attachment y after_index {len(shown)}"
+            if whole and not shown:
+                said = (
+                    f"su texto no va en este mensaje, que ya lleva los {MAX_TURN_PDF_CHARS} "
+                    f"caracteres de PDF que caben; léelo con orbit_attachment"
                 )
+            elif len(shown) < len(whole):
+                said = (
+                    f"su texto va abajo hasta el carácter {len(shown)} de {len(whole)}; el "
+                    f"resto, con orbit_attachment y after_index {len(shown)}"
+                )
+            else:
+                said = "su texto va abajo"
             if shown:
                 texts.append(f"[Texto de «{attachment.name}»]\n{shown}")
             empty = [index for index, text in enumerate(pages) if len(text) < MIN_PAGE_TEXT_CHARS]
@@ -371,11 +386,15 @@ def turn_parts(attachments: list[Stored], images: bool) -> tuple[str, list[TurnI
                     )
                 said += "; " + _pages_said(chosen, len(empty))
             elif empty:
-                said += f"; {len(empty)} páginas casi sin texto no van como imagen"
-            lines.append(f"{head}PDF de {len(pages)} páginas{tail}{said}.")
+                said += f"; las páginas casi sin texto ({len(empty)}) no van como imagen"
+            lines.append(f"{head}PDF de {_pages(len(pages))}{tail}{said}.")
         else:
             lines.append(f"{head}texto{tail}léelo con orbit_attachment cuando lo necesites.")
     return "\n".join([*lines, *texts]), carried
+
+
+def _pages(count: int) -> str:
+    return "1 página" if count == 1 else f"{count} páginas"
 
 
 def _pages_said(chosen: list[int], empty: int) -> str:
@@ -413,12 +432,7 @@ class AttachmentRepository:
                 f"attachment:{attachment_id}:extract",
             )
         with store.transaction() as db:
-            # A file that waited longer than an hour for its message will not get one.
-            db.execute(
-                "DELETE FROM attachments WHERE device_id=? AND message_id IS NULL"
-                " AND created_ms < ?",
-                (device, now_ms - UNBOUND_TTL_MS),
-            )
+            _expire(db, now_ms)
             store.ensure_capacity(len(data) + (len(extract) if extract else 0) + 1024)
             db.execute(
                 "INSERT INTO attachments(id,device_id,kind,mime,size,sha256,pages,name,body,"
@@ -440,6 +454,11 @@ class AttachmentRepository:
         return _public(
             attachment_id, name, kind, mime, len(data), None if pages is None else len(pages)
         )
+
+    def expire(self, now_ms: int) -> None:
+        """Delete every device's files that waited longer than an hour for their message."""
+        with self.store.transaction() as db:
+            _expire(db, now_ms)
 
     def admit(self, device: str, session_id: str | None, ids: list[str]) -> list[Stored]:
         """The attachments a turn names, decrypted, or the refusal of the
@@ -587,6 +606,14 @@ class AttachmentRepository:
                 _public(row["id"], name, row["kind"], row["mime"], row["size"], row["pages"])
             )
         return found
+
+
+def _expire(db, now_ms: int) -> None:
+    # A file that waited longer than an hour for its message will not get one.
+    db.execute(
+        "DELETE FROM attachments WHERE message_id IS NULL AND created_ms < ?",
+        (now_ms - UNBOUND_TTL_MS,),
+    )
 
 
 def too_large_file(name: str, size: int) -> HubError:

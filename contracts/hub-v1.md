@@ -1080,7 +1080,9 @@ Each write answers `200` with the agent's whole configuration, exactly as
   the five groups, each a boolean; a missing or extra key is refused.
 - `PUT /v1/agents/{agent_id}/skills/{name}` `{"content":"---\nname: resumen-semanal\ndescription: Resume la semana en cinco puntos.\n---\n1. Lee la agenda…"}`
   creates the skill, enabled, or replaces its file keeping whether it is
-  enabled.
+  enabled. A `name` with an encoded slash (`mis%2Fskill`) is `422
+  skill_invalid` with `rule:"name_characters"`, as any other character
+  outside the standard's.
 - `PUT /v1/agents/{agent_id}/skills/{name}/enabled` `{"enabled":false}`.
 - `DELETE /v1/agents/{agent_id}/skills/{name}`. Deleting a skill that is not
   there is `skill_not_found`, so a Mac that lost the answer to a delete can
@@ -1132,7 +1134,7 @@ array there):
 | status | code | numbers |
 |---|---|---|
 | 404 | `agent_not_found` | `agent_id`, `agent_ids` (comma-joined, in the hub's order) |
-| 403 | `field_not_editable` | `agent_id`, `field` (`personality`, `skills` or `access`), `kind` |
+| 403 | `skill_delete_unsupported` | `agent_id`, `kind` (`hermes`: its panel cannot delete a skill) |
 | 422 | `skill_invalid` | `name`, `rule`, and for the length rules `characters`, `max_characters` |
 | 404 | `skill_not_found` | `name` |
 | 413 | `skill_too_large` | `name`, `bytes`, `max_bytes` |
@@ -1154,7 +1156,7 @@ with the credential it already holds for Hermes (`X-Hermes-Session-Token`):
 (replace) and `PUT /api/skills/toggle`. Those routes carry no version, so they
 are checked against the installed Hermes at each release. The panel has no
 route to delete a skill: `DELETE` on a `hermes` agent's skill is `403
-field_not_editable` with `field:"skills"`, `kind:"hermes"`. Orbit's own rules
+skill_delete_unsupported` with `kind:"hermes"`. Orbit's own rules
 and bounds apply before anything is sent to Hermes; creating a skill counts
 the profile's skills against the 128.
 
@@ -1231,7 +1233,7 @@ the body). It answers `{"attachment":{"id","name","kind","mime","bytes",
 `image` (PNG, JPEG, GIF or WebP), `pdf` (opened and its text extracted with
 pypdfium2; `pages` is its page count) or `text` (UTF-8 without NUL, `mime`
 `text/plain`). The file is stored encrypted, unbound, and deleted when no turn
-names it within an hour.
+names it within an hour: the hub sweeps every device's every minute.
 
 `POST /v1/attachments/capture` with `{capture_id,request_id,name}` keeps as an
 attachment a window capture the Mac uploaded (`PUT /v1/captures/{capture_id}`
@@ -1260,7 +1262,8 @@ them to the message, and so to its session, in the message's own transaction.
 - `422 attachment_unreadable` `{name,cause}` (`pdf_locked`, `pdf_damaged`) at
   upload, or `{cause:"render_failed"}` at `chat.send`;
 - `404 attachment_not_found` `{attachment_id}`: another device's, expired, or
-  already sent with another message;
+  already sent with another message; for `orbit_attachment`, also one that is
+  not in a conversation of the asking agent;
 - `attachment_refused` `{name,upstream_code}`: the agent refused an image
   (Hermes `image.attach_bytes` 4016, 4017, 4018); the prompt is not sent.
   From an `openai` agent it is the turn's `error` event, `{name,provider_status}`:
@@ -1278,16 +1281,21 @@ size and id. An image goes as an image to an agent that takes them (Hermes:
 `image.attach_bytes` with a data URL before `prompt.submit`; ACP: an image
 content block when the agent declares `promptCapabilities.image`; `openai`:
 an image part after the text when the agent has `images = true`; otherwise
-the text says to read it with `orbit_attachment`). A PDF goes as its text,
+the text names it and says the agent cannot see it, since `orbit_attachment`
+hands such an agent a note in its place). A PDF goes as its text,
 page by page, up to 48,000 characters per turn, and its pages with fewer than
 32 characters of text (a scan, a figure) as PNG images, at most 8 per turn,
 1,568 px on the long side. A text file is read with `orbit_attachment`.
 
 **`orbit_attachment`** (orbit-mcp) reads one by id through
 `POST /internal/v1/attachments/read`, signed with the meetings key
-(`orbit_meetings_bridge_v1`), `{device_id,attachment_id,after_index?}`: an
-image whole (`data_base64`), the text of a PDF or a text file in pages of
+(`orbit_meetings_bridge_v1`), `{device_id,attachment_id,after_index?,agent_id?}`:
+an image whole (`data_base64`), the text of a PDF or a text file in pages of
 48,000 characters with `after_index`, `next_after_index` and `total_chars`.
+`agent_id` is the agent orbit-mcp serves (`ORBIT_MCP_AGENT`; none is the
+default agent): only a file sent in a conversation of that agent is read,
+anything else is `404 attachment_not_found`, and an unknown agent is `404
+agent_not_found`.
 
 `orbit_skill(name)` asks `POST /internal/v1/agent/skill`, signed the same way
 over `{"protocol":"orbit_device_bridge_v1","agent_id"?:"lyra","name":"resumen-semanal"}`

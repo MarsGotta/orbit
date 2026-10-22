@@ -121,7 +121,19 @@ def mount(app, settings, agents: Agents, configs: AgentConfigStore, identity, bo
         entry, content = await admin(agent).skill(name)
         return JSONResponse({**entry.public(), "content": content})
 
-    @app.put("/v1/agents/{agent_id}/skills/{name}")
+    @app.put("/v1/agents/{agent_id}/skills/{name}/enabled")
+    async def write_enabled(agent_id: str, name: str, request: Request):
+        identity(request)
+        agent = agents.get(agent_id)
+        enabled = body(Enabled, await bounded_body(request, SMALL_BODY_BYTES), "Skill").enabled
+        await admin(agent).set_skill_enabled(name, enabled)
+        return JSONResponse(await configuration(agent))
+
+    # The Mac sends the name its file declares as one encoded segment, and the
+    # router decodes `%2F`: `:path` takes a name with a slash, so it is refused
+    # with the rule it breaks, not answered with an uncoded 404 that reads as
+    # a hub without agents. Registered after `…/enabled`, which it would match.
+    @app.put("/v1/agents/{agent_id}/skills/{name:path}")
     async def write_skill(agent_id: str, name: str, request: Request):
         identity(request)
         agent = agents.get(agent_id)
@@ -130,14 +142,6 @@ def mount(app, settings, agents: Agents, configs: AgentConfigStore, identity, bo
         if (refusal := size_refusal(name, content)) is not None:
             raise refusal
         await admin(agent).put_skill(parse(name, content))
-        return JSONResponse(await configuration(agent))
-
-    @app.put("/v1/agents/{agent_id}/skills/{name}/enabled")
-    async def write_enabled(agent_id: str, name: str, request: Request):
-        identity(request)
-        agent = agents.get(agent_id)
-        enabled = body(Enabled, await bounded_body(request, SMALL_BODY_BYTES), "Skill").enabled
-        await admin(agent).set_skill_enabled(name, enabled)
         return JSONResponse(await configuration(agent))
 
     @app.delete("/v1/agents/{agent_id}/skills/{name}")

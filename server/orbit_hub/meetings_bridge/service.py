@@ -100,6 +100,8 @@ class MeetingsBridgeService:
             request = AttachmentRequest.model_validate_json(body)
         except (ValueError, TypeError, UnicodeError, RecursionError):
             raise MeetingsBridgeError(400, "invalid_request") from None
+        if self.access is not None:
+            self._require_own(request)
         try:
             stored = self.store.attachments.read(request.device_id, request.attachment_id)
         except HubError as exc:
@@ -128,6 +130,22 @@ class MeetingsBridgeService:
             total_chars=len(text),
         )
         return answer
+
+    def _require_own(self, request: AttachmentRequest) -> None:
+        """The file belongs to a message of a conversation of the asking agent
+        (no id: the default one), or it is not found, as another Mac's is:
+        an agent learns nothing of another agent's conversations."""
+        agent = self.access.agent(request.agent_id)
+        with self.store.read_snapshot() as db:
+            session = db.execute(
+                "SELECT s.agent_id FROM attachments a JOIN sessions s ON s.id=a.session_id"
+                " WHERE a.id=? AND a.device_id=?",
+                (request.attachment_id, request.device_id),
+            ).fetchone()
+        if session is None or self.access.agents.owner(session) != agent.id:
+            raise MeetingsBridgeError(
+                404, "attachment_not_found", {"attachment_id": request.attachment_id}
+            )
 
     def list_meetings(self, headers, body: bytes) -> dict:
         """Newest first by start, the open ones included, `limit` at a time.

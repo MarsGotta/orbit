@@ -70,6 +70,9 @@ class SyntheticHermes:
         # Hermes's code for every `image.attach_bytes` (4018: over its
         # 25 MiB); None stages each image as tui_gateway does.
         self.image_refusal: int | None = None
+        # Hermes's reply to `image.attach_bytes` in place of tui_gateway's
+        # staging one: an answer that does not confirm the image.
+        self.image_reply: dict | None = None
         self.server = serve(self.handle, "127.0.0.1", 0)
         self.port = self.server.socket.getsockname()[1]
         self.closing = False
@@ -141,6 +144,8 @@ class SyntheticHermes:
                 # tui_gateway's reply: the image is queued for the next turn.
                 staged = f"/synthetic/images/upload_{number}.{params['ext']}"
                 result = {"attached": True, "path": staged, "count": 1, "remainder": ""}
+                if self.image_reply is not None:
+                    result = self.image_reply
             elif method == "image.detach":
                 result = {"detached": True, "count": 0}
             elif method == "session.create":

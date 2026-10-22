@@ -10,15 +10,19 @@ import hashlib
 import logging
 import sqlite3
 import struct
+import time
 import zlib
 from urllib.parse import quote
 
 import pytest
 from conftest import device
+from fastapi.testclient import TestClient
 from support_pdf import pdf_bytes
 from test_agents import SyntheticHermes, hub, send, socket, until
 
 from orbit_hub import attachments
+from orbit_hub.app import create_app
+from orbit_hub.attachments import KIND_IMAGE, KIND_PDF, Stored, turn_parts
 
 PNG = (
     b"\x89PNG\r\n\x1a\n"
@@ -183,6 +187,88 @@ def test_a_file_never_sent_is_deleted_after_an_hour(environment):
     assert stale["id"] not in kept
 
 
+def test_a_file_never_sent_is_deleted_at_its_time_without_another_upload(environment, monkeypatch):
+    """The Mac that uploaded it may never upload again: the hub deletes it
+    on its own, one sweep for every file, while it runs."""
+    settings, store, adapter = environment
+    monkeypatch.setattr(attachments, "UNBOUND_SWEEP_SECONDS", 0.01)
+    owner = device(store)["device_id"]
+    clock = [1000.0]
+    waiting = store.attachments.put(owner, "olvidada.txt", NOTES, now_ms=1_000_000)
+    app = create_app(settings, store=store, assistant=adapter, speech=adapter, now=lambda: clock[0])
+
+    def kept():
+        with sqlite3.connect(settings.data_dir / "hub.sqlite3") as db:
+            return {row[0] for row in db.execute("SELECT id FROM attachments")}
+
+    with TestClient(app, base_url="https://localhost"):
+        # Swept within its hour: still there.
+        time.sleep(0.1)
+        assert kept() == {waiting["id"]}
+        clock[0] += attachments.UNBOUND_TTL_MS / 1000 + 1
+        deadline = time.monotonic() + 5
+        while kept() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert kept() == set()
+
+
+# What a turn says of its files -------------------------------------------------
+
+
+def stored_pdf(attachment_id: str, name: str, chars: int) -> Stored:
+    page = ("Presupuesto de la excursión al lago. " * (chars // 37 + 1))[:chars]
+    return Stored(
+        id=attachment_id,
+        name=name,
+        kind=KIND_PDF,
+        mime="application/pdf",
+        size=10_000,
+        pages=1,
+        body=b"%PDF-1.4",
+        page_texts=(page,),
+    )
+
+
+def line_of(said: str, start: str) -> str:
+    return next(line for line in said.splitlines() if line.startswith(start))
+
+
+def test_a_pdf_past_the_turn_s_text_budget_is_not_said_to_go_below():
+    # The first PDF uses the whole turn budget; none of the second's text goes.
+    first = stored_pdf(
+        "a0000000-0000-4000-8000-000000000001", "uno.pdf", attachments.MAX_TURN_PDF_CHARS
+    )
+    second = stored_pdf("a0000000-0000-4000-8000-000000000002", "dos.pdf", 500)
+    said, carried = turn_parts([first, second], images=False)
+    assert carried == []
+    assert "[Texto de «dos.pdf»]" not in said
+    line = line_of(said, "2. «dos.pdf»")
+    assert "su texto va abajo" not in line, line
+    assert "«dos.pdf» · PDF de 1 página ·" in line, line
+    assert "orbit_attachment" in line, line
+    assert f"{attachments.MAX_TURN_PDF_CHARS}" in line, line
+
+
+def test_an_image_for_an_agent_without_images_is_not_sent_to_orbit_attachment():
+    # orbit_attachment hands such an agent a note in place of the image
+    # (`assistant/openai.py`), so the turn must not tell it to look there.
+    image = Stored(
+        id="a0000000-0000-4000-8000-000000000003",
+        name="mapa.png",
+        kind=KIND_IMAGE,
+        mime="image/png",
+        size=len(PNG),
+        pages=None,
+        body=PNG,
+        page_texts=None,
+    )
+    said, carried = turn_parts([image], images=False)
+    assert carried == []
+    line = line_of(said, "1. «mapa.png»")
+    assert "míralo con orbit_attachment" not in line, line
+    assert "no puede verla" in line, line
+
+
 # Turns ----------------------------------------------------------------------
 
 
@@ -251,6 +337,22 @@ def test_an_image_hermes_refuses_stops_the_turn_and_names_the_file(environment, 
     ]
     assert logged.numbers == {"upstream_code": 4018}
     assert all("panorámica" not in str(record.__dict__) for record in records)
+
+
+def test_an_image_hermes_does_not_confirm_stops_the_turn_and_names_the_file(environment, tmp_path):
+    settings, store, adapter = environment
+    paired = device(store)
+    with SyntheticHermes(tmp_path) as hermes:
+        hermes.image_reply = {"attached": False}
+        configured = hermes.settings(settings)
+        with hub(configured, store, adapter) as http, socket(http, paired) as ws:
+            image = uploaded(http, paired, "panorámica.png", PNG)
+            refused = until(ws, send(ws, "Mira", attachments=[image["id"]]), "error")
+    assert refused["data"]["code"] == "attachment_refused"
+    assert "panorámica.png" in refused["data"]["message"]
+    # The Mac words the refusal from its numbers: the file goes there too.
+    assert refused["data"]["refusal"]["name"] == "panorámica.png"
+    assert "prompt.submit" not in [method for _, method, _ in hermes.calls]
 
 
 def test_a_pdf_goes_as_its_text_and_its_pages_without_text_as_images(environment, tmp_path):

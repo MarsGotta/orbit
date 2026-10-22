@@ -687,6 +687,7 @@ class HermesConnection:
             raise HubError(
                 "attachment_refused",
                 f"Hermes no confirmó la imagen «{block.name}»; el mensaje no se envió",
+                numbers={"name": block.name},
             )
         return path
 

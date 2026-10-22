@@ -138,7 +138,7 @@ ERROR_MESSAGES = {
     "note_generating": "El modelo está escribiendo ahora la nota de esa grabación; todavía no hay nota que leer. Vuelve a pedirla en un par de minutos.",
     "note_queued": "La nota de esa grabación falló por una causa pasajera y el hub la volverá a intentar solo; todavía no hay nota que leer.",
     "note_failed": "La nota de esa grabación no se pudo escribir y el hub no lo volverá a intentar solo. Se puede pedir otra vez desde la nota en Orbit cuando la causa esté resuelta.",
-    "attachment_not_found": "Ese adjunto no está en el hub para ese Mac. Usa el id que da el mensaje que lo adjuntó.",
+    "attachment_not_found": "Ese adjunto no está en el hub para ese Mac, o no es de una conversación de este agente. Usa el id que da el mensaje que lo adjuntó.",
     "after_index_out_of_range": "after_index pasa del final del texto pedido; empieza de nuevo sin after_index o con uno menor.",
     # Orbit no longer keeps a copy of the agenda anywhere, so every code
     # that described one is gone with it. What is left are the conditions that

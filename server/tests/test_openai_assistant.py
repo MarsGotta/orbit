@@ -743,7 +743,7 @@ def test_an_attached_image_reaches_the_model_after_the_text_and_then_by_its_id(
     ) in held["content"]
 
 
-def test_without_images_an_attachment_is_named_for_orbit_attachment(
+def test_without_images_an_image_is_named_as_one_the_agent_cannot_see(
     environment, orbit_hub_for_tools
 ):
     _, mcp_config = orbit_hub_for_tools
@@ -756,7 +756,9 @@ def test_without_images_an_attachment_is_named_for_orbit_attachment(
     content = provider.requests[0]["messages"][-1]["content"]
     assert isinstance(content, str), "no image part goes to a model without images"
     assert f"«foto.png» · imagen image/png · {len(PNG)} B · id {image}: " in content
-    assert "este agente no recibe imágenes en el mensaje; míralo con orbit_attachment." in content
+    # orbit_attachment would hand it a note in place of the image: not sent there.
+    assert "míralo con orbit_attachment" not in content
+    assert "no puede verla" in content
 
 
 def test_an_image_the_provider_refuses_fails_the_turn_naming_the_file(

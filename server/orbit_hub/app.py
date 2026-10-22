@@ -17,7 +17,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from . import error_reports
+from . import attachments, error_reports
 from .assistant.access import AgentAccess
 from .assistant.agent_config import AgentConfigStore
 from .assistant.agents import Agents
@@ -225,13 +225,21 @@ def create_app(
                         runtimes.pop(device)
             await asyncio.sleep(1)
 
-    async def shutdown(descriptor, revocations):
+    async def expire_attachments():
+        # Files nobody sent, every device's: the Mac that uploaded one may
+        # never upload again (`attachments.UNBOUND_SWEEP_SECONDS`).
+        loop = asyncio.get_running_loop()
+        while True:
+            await loop.run_in_executor(store_executor, store.attachments.expire, int(now() * 1000))
+            await asyncio.sleep(attachments.UNBOUND_SWEEP_SECONDS)
+
+    async def shutdown(descriptor, loops):
         # This task, including Store.close below, has a single owner and is
         # never cancelled by a lifespan waiter.
         try:
-            if revocations is not None:
-                revocations.cancel()
-                await asyncio.gather(revocations, return_exceptions=True)
+            for task in loops:
+                task.cancel()
+            await asyncio.gather(*loops, return_exceptions=True)
             await final_passes.close()
             await transcriptions.close()
             await notes.close()
@@ -257,7 +265,7 @@ def create_app(
         descriptor = os.open(
             settings.data_dir / "hub.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600
         )
-        revocations = None
+        loops = []
         try:
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
             store.recover_interrupted()
@@ -266,12 +274,13 @@ def create_app(
             transcriptions.start()
             final_passes.start()
             notes.start()
-            revocations = asyncio.create_task(
-                supervised("enforce_revocations", enforce_revocations)
+            loops.append(
+                asyncio.create_task(supervised("enforce_revocations", enforce_revocations))
             )
+            loops.append(asyncio.create_task(supervised("expire_attachments", expire_attachments)))
             yield
         finally:
-            physical = asyncio.create_task(shutdown(descriptor, revocations))
+            physical = asyncio.create_task(shutdown(descriptor, loops))
             cancelled = False
             while not physical.done():
                 try:

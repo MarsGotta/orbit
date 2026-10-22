@@ -158,6 +158,11 @@ def render_list(result: dict) -> str:
         following = start + shown
     if total == 0:
         return f"{directory} está vacía."
+    if not entries and start >= total:
+        return (
+            f"{directory} tiene {total} {'entrada' if total == 1 else 'entradas'}: "
+            f"after_index={start} queda después de la última; usa uno menor que {total}."
+        )
     header = f"Contenido de {directory} (entradas {start + 1}–{start + shown} de {total}):"
     text = header + "\n" + "\n".join(lines)
     if type(following) is int:

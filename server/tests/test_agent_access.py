@@ -23,7 +23,7 @@ from orbit_hub.assistant import access
 from orbit_hub.assistant.agent_config import AgentConfigStore
 from orbit_hub.assistant.skills import parse
 from orbit_hub.bridge_route import ACCESS_PATH, ACTION_RESULT_PATH, PATH, PROTOCOL, SKILL_PATH
-from orbit_hub.meetings_bridge import LIST_PATH
+from orbit_hub.meetings_bridge import ATTACHMENT_PATH, LIST_PATH
 from orbit_hub.meetings_bridge import PROTOCOL as MEETINGS_PROTOCOL
 from orbit_hub.private_auth import sign_request
 from orbit_mcp.bridge import PARAMETER_MODELS
@@ -294,6 +294,52 @@ async def test_a_meeting_read_is_refused_when_meetings_are_off(bridged_agents):
         await post(app, (LIST_PATH, payload, headers)), 403, "agent_access_disabled"
     )
     assert numbers == {"agent_id": "vega", "group": "meetings"}
+
+
+def signed_attachment_read(owner, attachment_id, agent_id=None):
+    """`orbit_attachment`'s signed read, as orbit-mcp sends it for `agent_id`."""
+    fields = {"device_id": owner["device_id"], "attachment_id": attachment_id}
+    if agent_id is not None:
+        fields["agent_id"] = agent_id
+    payload = json.dumps(fields, separators=(",", ":")).encode()
+    headers = {
+        "content-type": "application/json",
+        **sign_request(
+            MEETINGS_PROTOCOL,
+            ATTACHMENT_PATH,
+            MEETINGS_KEY_ID,
+            MEETINGS_KEY,
+            payload,
+            issued_at_ms=BRIDGE_NOW_MS,
+            nonce=str(uuid4()),
+        ),
+    }
+    return ATTACHMENT_PATH, payload, headers
+
+
+async def test_an_agent_reads_the_files_of_its_own_conversations_only(bridged_agents):
+    """orbit-mcp names its agent in every signed read (`ORBIT_MCP_AGENT`,
+    always set for `openai` and `acp` agents). An attachment read naming it
+    reaches the file when it belongs to a conversation of that agent, and is
+    not found for another agent, as a file of another Mac is."""
+    app, store = bridged_agents
+    owner = device(store)
+    attachment = store.attachments.put(owner["device_id"], "ruta.txt", b"Lago y ermita.\n", 1)
+    session = store.create_session(owner["device_id"], "vega", "rt", "st", "ep", 1.0)
+    store.append_message(session, "user", "Mira", now_ms=1, attachments=[attachment["id"]])
+    vega, default, unknown = await post(
+        app,
+        signed_attachment_read(owner, attachment["id"], "vega"),
+        # No agent id is the default agent (atlas), whose conversation it is not.
+        signed_attachment_read(owner, attachment["id"]),
+        signed_attachment_read(owner, attachment["id"], "orion"),
+    )
+    assert vega.status_code == 200, vega.text
+    assert vega.json()["text"] == "Lago y ermita.\n"
+    numbers, _ = refusal_of(default, 404, "attachment_not_found")
+    assert numbers == {"attachment_id": attachment["id"]}
+    numbers, _ = refusal_of(unknown, 404, "agent_not_found")
+    assert numbers == {"agent_id": "orion", "agent_ids": "atlas,vega"}
 
 
 async def test_the_access_route_tells_orbit_mcp_its_agents_groups(bridged_agents):
