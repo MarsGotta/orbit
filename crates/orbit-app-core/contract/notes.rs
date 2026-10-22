@@ -351,6 +351,11 @@ app_type! {
         #[serde(skip)]
         #[ts(skip)]
         pub(crate) projection_clock: Option<Box<(i64, crate::LocalZone)>>,
+        /// The last read of the next meeting's series (`client::series`),
+        /// which Hoy projects (`briefing.next.previous_actions`).
+        #[serde(skip)]
+        #[ts(skip)]
+        pub(crate) series_previous: Option<Box<SeriesPreviousRead>>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub index: Option<Box<NotesIndexSnapshot>>,
@@ -366,6 +371,15 @@ app_type! {
 }
 
 pub use orbit_core::notes::Section;
+
+/// One read of a series' earlier meeting: what it asked and what came back.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SeriesPreviousRead {
+    pub calendar_item_id: String,
+    pub before_ms: i64,
+    /// The hub's answer, or why it could not be read.
+    pub answer: Result<orbit_core::notes::SeriesPrevious, String>,
+}
 
 app_type! {
     pub struct NoteFinalPassSnapshot {

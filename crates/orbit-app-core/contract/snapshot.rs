@@ -138,6 +138,7 @@ impl Default for AppSnapshot {
             notes: Some(NotesSnapshot {
                 list: Vec::new(),
                 projection_clock: None,
+                series_previous: None,
                 index: None,
                 open: None,
                 open_read: None,

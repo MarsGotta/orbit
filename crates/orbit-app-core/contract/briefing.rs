@@ -33,6 +33,44 @@ app_type! {
 }
 
 app_type! {
+    /// One task of the series' earlier note, as its Actions tab has it.
+    pub struct BriefingActionSnapshot {
+        pub id: String,
+        pub owner: Option<String>,
+        pub text: String,
+        pub due: Option<String>,
+        pub done: bool,
+    }
+}
+
+app_type! {
+    /// «Pendiente de la última vez»: the tasks of the note of the series'
+    /// earlier meeting, read from the hub (`GET /v1/series/previous-meeting`).
+    #[serde(tag = "state", rename_all = "snake_case")]
+    pub enum BriefingPreviousActions {
+        /// Not read yet, or it could not be read, with why: never «nothing».
+        Unknown { cause: String },
+        /// The series has no earlier meeting: nothing is pending, a fact.
+        NoPreviousMeeting,
+        /// The earlier meeting has no written note (not asked for, being
+        /// written or failed), so its tasks are not known.
+        NoteNotWritten {
+            recording_id: String,
+            /// The hub's state of the note; `None` when nobody asked for it.
+            note_state: Option<String>,
+        },
+        /// The earlier note's tasks, done or not. Marking one is
+        /// `note_action_toggle` with this `recording_id`, on `note_revision`.
+        Known {
+            recording_id: String,
+            #[ts(type = "number")]
+            note_revision: u64,
+            items: Vec<BriefingActionSnapshot>,
+        },
+    }
+}
+
+app_type! {
     #[serde(rename_all = "snake_case")]
     pub enum BriefingRecordingState {
         None,
@@ -55,6 +93,11 @@ app_type! {
         pub url: Option<String>,
         pub series_key: String,
         pub previous: Option<BriefingPreviousSnapshot>,
+        /// Only on the next meeting of a calendar series: absent on the rest
+        /// of the day's meetings and on an event without a series.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub previous_actions: Option<BriefingPreviousActions>,
         pub recording: BriefingRecordingState,
     }
 }

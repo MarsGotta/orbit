@@ -16,6 +16,7 @@ fn action(name: &str) -> NoteLibraryAction {
         "delete" => NoteLibraryAction::Delete,
         "assign" => NoteLibraryAction::Assign,
         "unassign" => NoteLibraryAction::Unassign,
+        "use_for_series" => NoteLibraryAction::UseForSeries,
         _ => NoteLibraryAction::Save,
     }
 }
@@ -97,6 +98,7 @@ pub(crate) fn project_library(items: Vec<LibraryItem>) -> NoteLibrarySnapshot {
                 action: action(&refused.action),
                 status: refused.status,
                 code: refused.code,
+                numbers: (!refused.numbers.is_empty()).then_some(refused.numbers),
             }),
             LibraryItem::Restored {
                 request_id,

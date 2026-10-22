@@ -394,7 +394,8 @@ pub(super) fn dispatch(
         ReadRequest::NotesPage { .. }
         | ReadRequest::NoteDetail { .. }
         | ReadRequest::NoteTranscript { .. }
-        | ReadRequest::NoteLibrary { .. } => Knowledge::Unknown {
+        | ReadRequest::NoteLibrary { .. }
+        | ReadRequest::SeriesPrevious { .. } => Knowledge::Unknown {
             why: Pending::NotObservedYet,
         },
         // The IPC loop answers these with one asynchronous hub page, so a

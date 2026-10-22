@@ -25,6 +25,7 @@ fn the_library_shows_the_hubs_lists_with_the_orders_on_their_way() {
             action: "assign".into(),
             status: 0,
             code: "hub_unreachable".into(),
+            numbers: std::collections::BTreeMap::new(),
         }),
         LibraryItem::Restored {
             request_id: "deshacer-1".into(),
@@ -41,6 +42,24 @@ fn the_library_shows_the_hubs_lists_with_the_orders_on_their_way() {
     assert_eq!(library.refusals[0].action, NoteLibraryAction::Assign);
     assert_eq!(library.restores[0].request_id, "deshacer-1");
     assert_eq!(library.templates.state, NoteTemplatesState::Available);
+}
+
+#[test]
+fn a_refused_series_order_keeps_its_action_and_the_hubs_numbers() {
+    let library = project_library(vec![LibraryItem::Refused(LibraryRefusal {
+        target_kind: "meeting_series".into(),
+        target_id: "6f2b7d5a-9c41-4b7e-8d3f-1a2b3c4d5e6f".into(),
+        action: "use_for_series".into(),
+        status: 409,
+        code: "note_template_links_full".into(),
+        numbers: [("links".to_owned(), 256), ("max_links".to_owned(), 256)].into(),
+    })]);
+    let refusal = &library.refusals[0];
+    assert_eq!(refusal.action, NoteLibraryAction::UseForSeries);
+    assert_eq!(refusal.target_kind, "meeting_series");
+    let numbers = refusal.numbers.as_ref();
+    assert_eq!(numbers.and_then(|n| n.get("links")), Some(&256));
+    assert_eq!(numbers.and_then(|n| n.get("max_links")), Some(&256));
 }
 
 #[test]

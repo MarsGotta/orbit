@@ -66,6 +66,12 @@ macro_rules! reads {
 // 640 KiB holds it below the 1 MiB IPC frame. This bounds one read, not a
 // conversation.
 // ControlHistory and EngineTools: 96 KiB pages the 148 KiB measured catalog.
+// SeriesPrevious: the earlier meeting of a calendar series and the tasks of
+// its note (`GET /v1/series/previous-meeting`), one item. The tasks are part of
+// a note the model wrote, and a whole note measured 52,933 bytes at the hub's
+// default completion ceiling (NoteDetail above); its tasks, title and short
+// summary are a fraction of it, so 64 KiB holds them. A larger answer is
+// refused with its size, never cut.
 reads! {
     AgendaRange { start_ms: i64, end_ms: i64 } => 128 * 1024;
     AgendaCalendars => 64 * 1024;
@@ -77,6 +83,7 @@ reads! {
     SessionMessages { session_id: String } => 640 * 1024;
     ControlHistory => 96 * 1024;
     EngineTools => 96 * 1024;
+    SeriesPrevious { calendar_item_id: String, before_ms: i64 } => 64 * 1024;
 }
 
 pub const fn max_page_bytes() -> usize {

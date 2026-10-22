@@ -7,6 +7,12 @@ import type { NoteLibraryAction } from "./NoteLibraryAction";
  */
 export type NoteLibraryRefusalSnapshot = { 
 /**
- * `template` or `series`.
+ * `template`, `series` (by its `calendar_item_id`) or
+ * `meeting_series` (the series of a meeting, by its recording id).
  */
-target_kind: string, target_id: string, action: NoteLibraryAction, status: number, code: string, };
+target_kind: string, target_id: string, action: NoteLibraryAction, status: number, code: string, 
+/**
+ * The hub's numbers for its refusal (`links` of `max_links`,
+ * `series` of `max_series`, `bytes` of `max_bytes`…), when it gave any.
+ */
+numbers?: Record<string, number>, };

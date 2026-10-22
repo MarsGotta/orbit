@@ -10,4 +10,4 @@ export type LibraryRequest = { "action": "dictionary", request: DictionaryReques
 /**
  * Chosen by the app, so it knows which undo the library answers.
  */
-request_id: string, template_id: string, draft: TemplateDraft, series?: Array<string>, } | { "action": "assign", calendar_item_id: string, template_id: string | null, };
+request_id: string, template_id: string, draft: TemplateDraft, series?: Array<string>, } | { "action": "assign", calendar_item_id: string, template_id: string | null, } | { "action": "use_for_series", recording_id: string, template_id: string, dictionary_id: string | null, };

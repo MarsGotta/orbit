@@ -9,6 +9,7 @@ pub mod dictionaries;
 pub use dictionaries::*;
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 // Copies of the hub's bounds (`server/orbit_hub/notes/{models,templates,
 // custom_templates}.py`), registered in `limits.rs` and compared by
@@ -305,6 +306,14 @@ pub enum LibraryRequest {
         calendar_item_id: String,
         template_id: Option<String>,
     },
+    /// «Usar lo mismo en toda la serie»: the series of this meeting takes
+    /// this template and this dictionary (`None`: no dictionary), both or
+    /// neither (`PUT /v1/recordings/{id}/series`).
+    UseForSeries {
+        recording_id: String,
+        template_id: String,
+        dictionary_id: Option<String>,
+    },
 }
 
 impl LibraryRequest {
@@ -319,6 +328,7 @@ impl LibraryRequest {
             Self::Assign {
                 calendar_item_id, ..
             } => format!("series:{calendar_item_id}"),
+            Self::UseForSeries { recording_id, .. } => format!("meeting_series:{recording_id}"),
         }
     }
 }
@@ -639,6 +649,40 @@ pub struct MeetingDocument {
     pub hub_refusal: Option<crate::refusal::Refusal>,
 }
 
+/// `GET /v1/series/previous-meeting`: the latest closed meeting of a
+/// calendar series that started before `before_ms`. `previous: None` is the
+/// hub saying the series has none — a fact, not an unknown.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SeriesPrevious {
+    pub calendar_item_id: String,
+    pub before_ms: i64,
+    pub previous: Option<PreviousMeeting>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PreviousMeeting {
+    pub recording_id: String,
+    pub title: String,
+    pub started_at_ms: i64,
+    /// `None`: nobody asked for its note.
+    #[serde(default)]
+    pub note: Option<PreviousNote>,
+}
+
+/// The earlier meeting's note: where it stands and, once written, its tasks
+/// as its Actions tab shows them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PreviousNote {
+    pub state: NoteState,
+    /// The revision an edit of the note (a task marked done) is made on.
+    pub revision: u64,
+    #[serde(default)]
+    pub short_summary: Option<String>,
+    /// `None`: the note is not written, so its tasks are not known yet.
+    #[serde(default)]
+    pub action_items: Option<Vec<ActionItem>>,
+}
+
 /// One turn of `GET /v1/recordings/{id}/turns`: its time from the start of
 /// the recording, who speaks (a key of `speakers`) and what was said.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -744,6 +788,10 @@ pub struct LibraryRefusal {
     pub status: u16,
     /// The hub's code, or `hub_unreachable`.
     pub code: String,
+    /// The hub's numbers for its refusal (`links`, `max_links`, `series`,
+    /// `max_series`, `bytes`…); empty when it gave none.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub numbers: BTreeMap<String, u64>,
 }
 
 #[cfg(test)]

@@ -171,12 +171,15 @@ pub(crate) struct BriefingFixture {
     pub events: Vec<CalendarOccurrence>,
     /// The notes list the client read.
     pub recordings: Vec<crate::NoteListItem>,
+    /// The next meeting's series, as the client read it.
+    pub series: Option<crate::SeriesPreviousRead>,
 }
 
 pub(crate) fn briefing_fixture(events: Vec<CalendarOccurrence>) -> BriefingFixture {
     BriefingFixture {
         events,
         recordings: Vec::new(),
+        series: None,
     }
 }
 
@@ -282,6 +285,7 @@ pub(crate) fn projected_briefing(fixture: &BriefingFixture, now_ms: i64) -> Valu
     local.calendar.authorization = crate::CalendarAuthorizationSnapshot::Granted;
     if let Some(notes) = local.notes.as_mut() {
         notes.list = fixture.recordings.clone();
+        notes.series_previous = fixture.series.clone().map(Box::new);
         notes.index = Some(Box::new(crate::NotesIndexSnapshot {
             state: crate::NotesIndexState::Available,
             more: false,

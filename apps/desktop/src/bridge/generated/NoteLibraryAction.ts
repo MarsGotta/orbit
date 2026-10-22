@@ -3,4 +3,4 @@
 /**
  * What a refused order was about.
  */
-export type NoteLibraryAction = "save" | "delete" | "assign" | "unassign";
+export type NoteLibraryAction = "save" | "delete" | "assign" | "unassign" | "use_for_series";

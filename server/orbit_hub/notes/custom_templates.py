@@ -246,16 +246,21 @@ class TemplateRepository:
         }
 
     def link(self, device: str, request: LinkRequest, now: float) -> dict:
-        with self.store.read_snapshot() as db:
-            if (
-                builtin(request.template_id) is None
-                and self._custom(db, device, request.template_id) is None
-            ):
-                raise not_found(request.template_id)
-            count = db.execute(
-                "SELECT count(*) FROM note_template_links WHERE device_id=? AND series<>?",
-                (device, request.calendar_item_id),
-            ).fetchone()[0]
+        with self.store.transaction() as db:
+            return self.link_in(db, device, request.calendar_item_id, request.template_id, now)
+
+    def link_in(self, db, device: str, series: str, template_id: str, now: float) -> dict:
+        """Assign `template_id` to `series` inside the caller's write transaction.
+
+        A refusal of anything written with it in that transaction (the
+        series' dictionary, `meetings/series.py`) rolls this back too.
+        """
+        if builtin(template_id) is None and self._custom(db, device, template_id) is None:
+            raise not_found(template_id)
+        count = db.execute(
+            "SELECT count(*) FROM note_template_links WHERE device_id=? AND series<>?",
+            (device, series),
+        ).fetchone()[0]
         if count >= MAX_TEMPLATE_LINKS:
             raise HubError(
                 "note_template_links_full",
@@ -264,17 +269,16 @@ class TemplateRepository:
                 http_status=409,
                 numbers={"links": count, "max_links": MAX_TEMPLATE_LINKS},
             )
-        self.store.ensure_capacity(len(request.calendar_item_id.encode()) + 128)
-        with self.store.transaction() as db:
-            db.execute(
-                "INSERT INTO note_template_links(device_id,series,template_id,updated) "
-                "VALUES (?,?,?,?) ON CONFLICT(device_id,series) DO UPDATE SET "
-                "template_id=excluded.template_id, updated=excluded.updated",
-                (device, request.calendar_item_id, request.template_id, now),
-            )
+        self.store.ensure_capacity(len(series.encode()) + 128)
+        db.execute(
+            "INSERT INTO note_template_links(device_id,series,template_id,updated) "
+            "VALUES (?,?,?,?) ON CONFLICT(device_id,series) DO UPDATE SET "
+            "template_id=excluded.template_id, updated=excluded.updated",
+            (device, series, template_id, now),
+        )
         return {
-            "calendar_item_id": request.calendar_item_id,
-            "template_id": request.template_id,
+            "calendar_item_id": series,
+            "template_id": template_id,
             "updated_at_ms": int(now * 1000),
         }
 

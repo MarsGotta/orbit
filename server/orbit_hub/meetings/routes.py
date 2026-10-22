@@ -12,8 +12,9 @@ from ..errors import HubError
 from ..identifiers import canonical_uuid
 from ..log import in_store
 from ..notes.http import parse
-from ..notes.models import MAX_PRIVATE_NOTES_CHARS, MAX_SPEAKERS
-from . import dictionaries, repository, turns, views
+from ..notes.models import MAX_PRIVATE_NOTES_CHARS, MAX_SPEAKERS, TemplateId
+from ..notes.series_key import SeriesKeyError, valid_series_key
+from . import dictionaries, repository, series, turns, views
 
 # Bodies of the small requests: one name (≤ 128 characters), a few voices'
 # names, a meeting's title (≤ 256) or a language code. Each character
@@ -53,6 +54,13 @@ class TitleRequest(Strict):
     title: str
 
 
+class SeriesRequest(Strict):
+    """«Usar lo mismo en toda la serie»: a null dictionary leaves the series without one."""
+
+    template_id: TemplateId
+    dictionary_id: str | None
+
+
 class LanguageRequest(Strict):
     # ISO 639-1, the shape `[meeting_transcription] language` takes.
     language: str = Field(pattern=r"^[a-z]{2}$")
@@ -66,6 +74,24 @@ def recording_of(value: str, field: str = "recording_id") -> str:
             "invalid_parameters",
             f"Identificador de grabación no válido en {field}",
             numbers={"field": field},
+        ) from None
+
+
+def series_of(value: str | None) -> str:
+    """A calendar series key from a query, or a refusal naming the field and its numbers."""
+    if value is None:
+        raise HubError(
+            "invalid_parameters",
+            "Falta calendar_item_id, la serie del calendario",
+            numbers={"field": "calendar_item_id"},
+        )
+    try:
+        return valid_series_key(value)
+    except SeriesKeyError as error:
+        raise HubError(
+            "invalid_parameters",
+            f"calendar_item_id no válido: {error.reason}",
+            numbers={"field": "calendar_item_id", **error.numbers},
         ) from None
 
 
@@ -150,6 +176,42 @@ def mount(
                 )
             )
         )
+
+    @app.get("/v1/series/previous-meeting")
+    async def previous_meeting(
+        request: Request, calendar_item_id: str | None = None, before_ms: str | None = None
+    ):
+        """The earlier meeting of a series and its note's tasks, for Hoy."""
+        device, key = identity(request), series_of(calendar_item_id)
+        if before_ms is None:
+            raise HubError(
+                "invalid_parameters",
+                "Falta before_ms, el inicio de la reunión siguiente",
+                numbers={"field": "before_ms"},
+            )
+        before = integer(before_ms, "before_ms", default=None, minimum=1, maximum=2**63 - 1)
+        found = await read(
+            lambda db: series.previous(store, repository_of_notes, db, device, key, before)
+        )
+        return JSONResponse({"calendar_item_id": key, "before_ms": before, "previous": found})
+
+    @app.put("/v1/recordings/{recording_id}/series")
+    async def put_series(recording_id: str, request: Request):
+        """The template and the dictionary of the meeting's series, saved together."""
+        device, recording = identity(request), recording_of(recording_id)
+        payload = await body_of(request, SeriesRequest, MAX_SMALL_BODY_BYTES)
+        saved = await run(
+            lambda: series.use_for_series(
+                store,
+                notes.templates,
+                device,
+                recording,
+                payload.template_id,
+                payload.dictionary_id,
+                now(),
+            )
+        )
+        return JSONResponse(saved)
 
     @app.get("/v1/recordings/{recording_id}")
     async def read_recording(recording_id: str, request: Request):

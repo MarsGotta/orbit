@@ -391,7 +391,7 @@ impl Runtime {
         library.in_flight.cancel();
         if !dropped.is_empty() {
             for request in &dropped {
-                refuse_order(library, request, 0, "not_sent");
+                refuse_order(library, request, 0, "not_sent", BTreeMap::new());
             }
             notes.head.touch_library();
         }
@@ -750,6 +750,8 @@ impl Runtime {
             self.dictionary_answer(request, outcome);
             return;
         }
+        let series = matches!(request, LibraryRequest::UseForSeries { .. });
+        let changed = matches!(outcome, Outcome::Done { .. });
         let library = &mut self.features.notes.library;
         match outcome {
             Outcome::Done { .. } => {
@@ -771,21 +773,43 @@ impl Runtime {
                     }
                 }
             }
-            Outcome::Refused { status, code, .. } => {
-                refuse_order(
-                    library,
-                    request,
-                    status,
-                    code.as_deref().unwrap_or("refused"),
-                );
+            Outcome::Refused {
+                status,
+                code,
+                numbers,
+            } => {
+                // Every refusal of the hub's own carries its code; a 404
+                // without one is a route this hub does not have (an older hub).
+                let code = code.unwrap_or_else(|| {
+                    if status == 404 {
+                        "hub_route_missing".into()
+                    } else {
+                        "refused".into()
+                    }
+                });
+                refuse_order(library, request, status, &code, numbers);
             }
             Outcome::Unreachable { cause } => {
                 self.log("note_library_unsent", &[("cause", &cause.to_string())]);
                 let library = &mut self.features.notes.library;
-                refuse_order(library, request, 0, "hub_unreachable");
+                refuse_order(library, request, 0, "hub_unreachable", BTreeMap::new());
             }
         }
+        if series && changed {
+            // The series' dictionary can change the transcripts of its
+            // meetings: every read is read again once, as for a dictionary.
+            self.invalidate_note_reads();
+        }
         self.features.notes.head.touch_library();
+    }
+
+    /// Every note read is read again once (a dictionary changed), rather than
+    /// one WebSocket event per historical recording.
+    fn invalidate_note_reads(&mut self) {
+        let head = &mut self.features.notes.head;
+        head.touch();
+        head.recordings.clear();
+        head.floor = head.revision;
     }
 
     fn dictionary_answer(&mut self, request: &core::DictionaryRequest, outcome: Outcome) {
@@ -861,10 +885,7 @@ impl Runtime {
             // A shared dictionary can change any open transcript. Its confirmed
             // write invalidates all reads once, rather than flooding the hub's
             // bounded WebSocket queue with one event per historical recording.
-            let head = &mut self.features.notes.head;
-            head.touch();
-            head.recordings.clear();
-            head.floor = head.revision;
+            self.invalidate_note_reads();
         }
         self.features.notes.head.touch_library();
         if let Some(report) = report {
@@ -1046,7 +1067,13 @@ fn refusal_target(refusal: &LibraryRefusal) -> String {
     format!("{}:{}", refusal.target_kind, refusal.target_id)
 }
 
-fn refuse_order(library: &mut LibraryRuntime, request: &LibraryRequest, status: u16, code: &str) {
+fn refuse_order(
+    library: &mut LibraryRuntime,
+    request: &LibraryRequest,
+    status: u16,
+    code: &str,
+    numbers: BTreeMap<String, u64>,
+) {
     let (target_kind, target_id, action) = match request {
         LibraryRequest::Dictionary { request } => {
             library
@@ -1073,6 +1100,9 @@ fn refuse_order(library: &mut LibraryRuntime, request: &LibraryRequest, status: 
             calendar_item_id,
             template_id: None,
         } => ("series", calendar_item_id, "unassign"),
+        LibraryRequest::UseForSeries { recording_id, .. } => {
+            ("meeting_series", recording_id, "use_for_series")
+        }
     };
     library.refusals.push_back(LibraryRefusal {
         target_kind: target_kind.into(),
@@ -1080,6 +1110,7 @@ fn refuse_order(library: &mut LibraryRuntime, request: &LibraryRequest, status: 
         action: action.into(),
         status,
         code: code.into(),
+        numbers,
     });
     while library.refusals.len() > MAX_KEPT_REFUSALS {
         library.refusals.pop_front();
@@ -1214,6 +1245,14 @@ async fn send_library_order(hub: &NoteHub, request: &LibraryRequest) -> Outcome 
             calendar_item_id,
             template_id: None,
         } => hub.unlink(calendar_item_id).await.into(),
+        LibraryRequest::UseForSeries {
+            recording_id,
+            template_id,
+            dictionary_id,
+        } => hub
+            .use_for_series(recording_id, template_id, dictionary_id.as_deref())
+            .await
+            .into(),
         LibraryRequest::RestoreTemplate {
             template_id,
             draft,

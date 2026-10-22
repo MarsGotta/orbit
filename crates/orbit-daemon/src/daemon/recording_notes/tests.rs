@@ -989,3 +989,145 @@ async fn a_missing_turn_rename_keeps_the_hubs_code_and_numbers() -> Result<()> {
     assert!(!log.contains("Lucía"));
     Ok(())
 }
+
+const SERIES: &str = "serie-comité 1";
+
+async fn series_previous(runtime: &Runtime) -> Knowledge<Page<Value>> {
+    let request = ReadRequest::SeriesPrevious {
+        calendar_item_id: SERIES.into(),
+        before_ms: START,
+        cursor: None,
+    };
+    match runtime.notes_read(&request) {
+        Some(future) => future.await,
+        None => Knowledge::Unknown {
+            why: orbit_core::topics::Pending::NotObservedYet,
+        },
+    }
+}
+
+/// «Pendiente de la última vez»: the earlier meeting of the next meeting's
+/// series, with its tasks done or not, as the hub gives it; the hub's «none»
+/// is a fact, and a hub without the route is not «none».
+#[tokio::test]
+async fn the_series_earlier_meeting_passes_through_and_an_older_hub_is_not_none() -> Result<()> {
+    use orbit_core::notes::{NoteState, SeriesPrevious};
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _) = fixture(directory.path())?;
+    let hub = paired(&mut runtime).await?;
+
+    let Knowledge::Present { value: page, .. } = series_previous(&runtime).await else {
+        bail!("a series without an earlier meeting was not answered");
+    };
+    let none: SeriesPrevious = serde_json::from_value(page.items[0].clone())?;
+    assert_eq!(none.previous, None);
+    assert_eq!(
+        (none.calendar_item_id.as_str(), none.before_ms),
+        (SERIES, START)
+    );
+    let asked = lock(&hub)
+        .received
+        .last()
+        .map(|request| request.query.clone());
+    assert!(
+        asked.is_some_and(|query| query.contains("before_ms=1800000000000")
+            && query.contains("calendar_item_id=serie-comit%C3%A9+1"))
+    );
+
+    let note = fake_hub::note(7);
+    lock(&hub).series_previous.insert(
+        SERIES.into(),
+        json!({"recording_id": OLDER, "title": "Comité", "started_at_ms": START - 604_800_000,
+            "note": {"state": "ready", "revision": 7, "short_summary": "Resumen corto.",
+                "action_items": note["note"]["action_items"]}}),
+    );
+    let Knowledge::Present { value: page, .. } = series_previous(&runtime).await else {
+        bail!("the earlier meeting was not answered");
+    };
+    let found: SeriesPrevious = serde_json::from_value(page.items[0].clone())?;
+    let meeting = found.previous.context("the earlier meeting")?;
+    assert_eq!(meeting.recording_id, OLDER);
+    let note = meeting.note.context("its note")?;
+    assert_eq!((note.state, note.revision), (NoteState::Ready, 7));
+    let items = note.action_items.context("its tasks")?;
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0].owner.as_deref(), Some("Nerea"));
+    assert!(!items[0].done);
+
+    lock(&hub).without_series_routes = true;
+    match series_previous(&runtime).await {
+        Knowledge::Absent {
+            refusal:
+                orbit_core::refusal::Refusal::UpstreamFailed {
+                    status: Some(404), ..
+                },
+        } => {}
+        other => bail!("an older hub was read as {other:?}"),
+    }
+    Ok(())
+}
+
+/// «Usar lo mismo en toda la serie»: one order to the hub's one route; done,
+/// every read is read again (the series' dictionary can change transcripts);
+/// refused, the refusal keeps its code and numbers; an older hub names itself.
+#[tokio::test]
+async fn the_series_template_and_dictionary_go_together_and_a_refusal_keeps_its_numbers()
+-> Result<()> {
+    use orbit_core::notes::{LibraryItem, LibraryRequest};
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _) = fixture(directory.path())?;
+    let mut events = runtime.features.notes.test_events();
+    let hub = paired(&mut runtime).await?;
+    lock(&hub).documents.insert(
+        RECORDING.into(),
+        fake_hub::document(RECORDING, "Comité", START),
+    );
+    let order = || Command::NoteLibrary {
+        request: LibraryRequest::UseForSeries {
+            recording_id: RECORDING.into(),
+            template_id: "project".into(),
+            dictionary_id: Some("0d9a7c3e-2b1f-4e6a-9c8d-7f6e5d4c3b2a".into()),
+        },
+    };
+
+    runtime.features.notes.head.touch_recording(OLDER);
+    let library_before = runtime.features.notes.head.library_revision;
+    runtime.command(order()).await?;
+    assert!(runtime.library_state().contains(&LibraryItem::Pending {
+        target: format!("meeting_series:{RECORDING}")
+    }));
+    answer(&mut runtime, &mut events, START).await?;
+    assert_eq!(
+        received(&hub, "PUT", &format!("/v1/recordings/{RECORDING}/series")),
+        [json!({"template_id": "project",
+            "dictionary_id": "0d9a7c3e-2b1f-4e6a-9c8d-7f6e5d4c3b2a"})]
+    );
+    let head = &runtime.features.notes.head;
+    assert!(head.recordings.is_empty());
+    assert_eq!(head.floor, head.revision);
+    assert!(head.library_revision > library_before);
+    assert!(runtime.library_state().is_empty());
+
+    lock(&hub).series_refusal = Some((
+        409,
+        "note_template_links_full",
+        json!({"links": 256, "max_links": 256}),
+    ));
+    runtime.command(order()).await?;
+    answer(&mut runtime, &mut events, START).await?;
+    assert!(runtime.library_state().iter().any(|item| matches!(item,
+        LibraryItem::Refused(refusal) if refusal.target_kind == "meeting_series"
+            && refusal.target_id == RECORDING && refusal.action == "use_for_series"
+            && refusal.status == 409 && refusal.code == "note_template_links_full"
+            && refusal.numbers.get("links") == Some(&256)
+            && refusal.numbers.get("max_links") == Some(&256))));
+
+    lock(&hub).series_refusal = None;
+    lock(&hub).without_series_routes = true;
+    runtime.command(order()).await?;
+    answer(&mut runtime, &mut events, START).await?;
+    assert!(runtime.library_state().iter().any(|item| matches!(item,
+        LibraryItem::Refused(refusal) if refusal.action == "use_for_series"
+            && refusal.status == 404 && refusal.code == "hub_route_missing")));
+    Ok(())
+}

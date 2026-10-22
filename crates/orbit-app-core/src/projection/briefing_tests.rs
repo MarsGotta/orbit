@@ -181,3 +181,136 @@ fn the_day_the_clocks_go_back_has_twenty_five_hours() {
     assert_eq!(briefing["summary"]["meetings_today"], 4);
     assert_eq!(briefing["summary"]["focus_minutes"], 560);
 }
+
+fn series_answer(before_ms: i64, previous: Value) -> crate::SeriesPreviousRead {
+    crate::SeriesPreviousRead {
+        calendar_item_id: "item-design-review".into(),
+        before_ms,
+        answer: Ok(serde_json::from_value(json!({
+            "calendar_item_id": "item-design-review", "before_ms": before_ms,
+            "previous": previous,
+        }))
+        .expect("series answer fixture")),
+    }
+}
+
+fn design_review() -> BriefingFixture {
+    let mut state = briefing_fixture(vec![
+        briefing_event(
+            "design-review",
+            "Revisión de diseño",
+            at_local(11, 0),
+            at_local(11, 45),
+            &["alina.perez", "bruno.soler"],
+            None,
+        ),
+        briefing_event(
+            "lunch",
+            "Comida con Ribera",
+            at_local(14, 0),
+            at_local(15, 0),
+            &["alina.perez"],
+            None,
+        ),
+    ]);
+    // Same title, another meeting: the title match the series replaces.
+    state.recordings = vec![recording_summary(
+        "rec-by-title",
+        "Revisión de diseño",
+        at_local(11, 0) - 86_400_000,
+    )];
+    state
+}
+
+/// «Pendiente de la última vez»: the tasks of the series' earlier note, done
+/// or not, on the revision a task is marked done on; its note is the earlier
+/// one of the card.
+#[test]
+fn the_next_meeting_brings_the_tasks_of_its_series_earlier_note() {
+    let mut state = design_review();
+    state.series = Some(series_answer(
+        at_local(11, 0),
+        json!({"recording_id": "rec-series", "title": "Revisión de diseño",
+            "started_at_ms": at_local(11, 0) - 7 * 86_400_000,
+            "note": {"state": "ready", "revision": 9, "short_summary": "Se cerró el flujo de alta.",
+                "action_items": [
+                    {"id": "a000000000001", "owner": "Lucía", "text": "Enviar el acta",
+                        "due": "viernes", "done": false},
+                    {"id": "a000000000002", "owner": null, "text": "Revisar los iconos",
+                        "due": null, "done": true}]}}),
+    ));
+    let briefing = projected_briefing(&state, at_local(9, 0));
+    let next = &briefing["next"];
+    assert_eq!(next["previous"]["recording_id"], "rec-series");
+    assert_eq!(next["previous"]["summary"], "Se cerró el flujo de alta.");
+    assert_eq!(
+        next["previous_actions"],
+        json!({"state": "known", "recording_id": "rec-series", "note_revision": 9, "items": [
+            {"id": "a000000000001", "owner": "Lucía", "text": "Enviar el acta",
+                "due": "viernes", "done": false},
+            {"id": "a000000000002", "owner": null, "text": "Revisar los iconos",
+                "due": null, "done": true}]})
+    );
+    // Only the next meeting carries it.
+    assert!(briefing["upcoming"][1].get("previous_actions").is_none());
+}
+
+/// No earlier meeting is a fact; an earlier note not written, a read for
+/// another meeting, none yet, or a failed one are unknown, never «nothing».
+#[test]
+fn the_series_says_none_apart_from_not_known() {
+    let mut state = design_review();
+    state.series = Some(series_answer(at_local(11, 0), Value::Null));
+    let next = projected_briefing(&state, at_local(9, 0))["next"].clone();
+    assert_eq!(
+        next["previous_actions"],
+        json!({"state": "no_previous_meeting"})
+    );
+    // The title match still opens the note of that name.
+    assert_eq!(next["previous"]["recording_id"], "rec-by-title");
+
+    state.series = Some(series_answer(
+        at_local(11, 0),
+        json!({"recording_id": "rec-series", "title": "Revisión de diseño",
+            "started_at_ms": at_local(11, 0) - 7 * 86_400_000,
+            "note": {"state": "generating", "revision": 2, "short_summary": null,
+                "action_items": null}}),
+    ));
+    let next = projected_briefing(&state, at_local(9, 0))["next"].clone();
+    assert_eq!(
+        next["previous_actions"],
+        json!({"state": "note_not_written", "recording_id": "rec-series",
+            "note_state": "generating"})
+    );
+
+    state.series = Some(series_answer(
+        at_local(11, 0),
+        json!({"recording_id": "rec-series", "title": "Revisión de diseño",
+            "started_at_ms": at_local(11, 0) - 7 * 86_400_000, "note": null}),
+    ));
+    let next = projected_briefing(&state, at_local(9, 0))["next"].clone();
+    assert_eq!(
+        next["previous_actions"],
+        json!({"state": "note_not_written", "recording_id": "rec-series", "note_state": null})
+    );
+
+    // A read for the meeting before is not this one's.
+    state.series = Some(series_answer(at_local(10, 0), Value::Null));
+    let next = projected_briefing(&state, at_local(9, 0))["next"].clone();
+    assert_eq!(
+        next["previous_actions"],
+        json!({"state": "unknown", "cause": "series_not_read"})
+    );
+
+    state.series = Some(crate::SeriesPreviousRead {
+        calendar_item_id: "item-design-review".into(),
+        before_ms: at_local(11, 0),
+        answer: Err("El hub respondió HTTP 404".into()),
+    });
+    let next = projected_briefing(&state, at_local(9, 0))["next"].clone();
+    assert_eq!(
+        next["previous_actions"],
+        json!({"state": "unknown", "cause": "El hub respondió HTTP 404"})
+    );
+    assert_eq!(next["previous"]["recording_id"], "rec-by-title");
+}

@@ -86,6 +86,11 @@ pub fn cases() -> Vec<(Value, FeatureId)> {
             FeatureId::Notes,
         ),
         (
+            json!({"command":"note_library","request":{"action":"use_for_series","recording_id":"recording-1",
+                    "template_id":"project","dictionary_id":null}}),
+            FeatureId::Notes,
+        ),
+        (
             json!({"command":"notes_open","recording_id":"recording-1"}),
             FeatureId::Note,
         ),

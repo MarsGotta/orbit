@@ -240,6 +240,16 @@ impl Runtime {
                 let revision = head.library_revision;
                 Box::pin(library(hub, skip, state, revision))
             }
+            ReadRequest::SeriesPrevious {
+                calendar_item_id,
+                before_ms,
+                ..
+            } => Box::pin(series_previous(
+                hub,
+                calendar_item_id.clone(),
+                *before_ms,
+                head.revision,
+            )),
             ReadRequest::AgendaRange { .. }
             | ReadRequest::AgendaCalendars { .. }
             | ReadRequest::Sessions { .. }
@@ -413,6 +423,42 @@ async fn transcript(
         Err(Refusal::NotFound { .. }) if local && offset == 0 => {
             bounded_page(&[] as &[Value], None, 0, revision, ReadId::NoteTranscript)
         }
+        Err(refusal) => absent(refusal),
+    }
+}
+
+/// The earlier meeting of a series and its note's tasks, as the hub gives
+/// them; `previous: null` is the hub's fact that there is none.
+async fn series_previous(
+    hub: Result<NoteHub, Refusal>,
+    calendar_item_id: String,
+    before_ms: i64,
+    revision: u64,
+) -> Knowledge<Page<Value>> {
+    let read = match hub {
+        Ok(hub) => match hub.previous_meeting(&calendar_item_id, before_ms).await {
+            // The route names no recording, so its 404 is a hub that does
+            // not have it (0.10 and earlier): unknown, never «none».
+            crate::hub_notes::Answer::Refused { status: 404, .. } => Err(Refusal::UpstreamFailed {
+                service: orbit_core::refusal::Service::Hub,
+                status: Some(404),
+            }),
+            answer @ (crate::hub_notes::Answer::Value(_)
+            | crate::hub_notes::Answer::Refused { .. }
+            | crate::hub_notes::Answer::Unreachable(_)) => answer.into_result(),
+        },
+        Err(refusal) => Err(refusal),
+    };
+    match read {
+        Ok(answer)
+            if answer.calendar_item_id == calendar_item_id && answer.before_ms == before_ms =>
+        {
+            bounded_page(&[answer], None, 1, revision, ReadId::SeriesPrevious)
+        }
+        Ok(_) => absent(Refusal::HubReplyInvalid {
+            field: "calendar_item_id".into(),
+            received_bytes: None,
+        }),
         Err(refusal) => absent(refusal),
     }
 }

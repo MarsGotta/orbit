@@ -317,6 +317,37 @@ impl NoteHub {
         .await
     }
 
+    /// `GET /v1/series/previous-meeting?calendar_item_id=&before_ms=`.
+    pub async fn previous_meeting(
+        &self,
+        calendar_item_id: &str,
+        before_ms: i64,
+    ) -> Answer<orbit_core::notes::SeriesPrevious> {
+        let mut url = self.endpoint(&["v1", "series", "previous-meeting"]);
+        if let Ok(url) = url.as_mut() {
+            url.query_pairs_mut()
+                .append_pair("calendar_item_id", calendar_item_id)
+                .append_pair("before_ms", &before_ms.to_string());
+        }
+        self.send(reqwest::Method::GET, url, None).await
+    }
+
+    /// `PUT /v1/recordings/{id}/series`: the series' template and
+    /// dictionary, saved together.
+    pub async fn use_for_series(
+        &self,
+        recording: &str,
+        template_id: &str,
+        dictionary_id: Option<&str>,
+    ) -> Answer<Value> {
+        self.send(
+            reqwest::Method::PUT,
+            self.recording(recording, &["series"]),
+            Some(json!({"template_id": template_id, "dictionary_id": dictionary_id})),
+        )
+        .await
+    }
+
     /// `PUT /v1/recordings/{id}/private-notes`.
     pub async fn private_notes(
         &self,

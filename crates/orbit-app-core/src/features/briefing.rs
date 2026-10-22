@@ -164,12 +164,24 @@ pub fn project(input: &FeatureInput<'_>) -> View {
     } else {
         Vec::new()
     };
-    let upcoming = events
+    let mut upcoming = events
         .iter()
         .copied()
         .map(|event| next_event(event, note_lookup.as_ref()))
         .collect::<Vec<_>>();
-    let next = upcoming.iter().find(|event| event.end_ms > now_ms).cloned();
+    let series = input
+        .local
+        .notes
+        .as_ref()
+        .and_then(|notes| notes.series_previous.as_deref());
+    // The next meeting is also the day's entry for it, the same in both.
+    let next = upcoming
+        .iter_mut()
+        .find(|event| event.end_ms > now_ms)
+        .map(|next| {
+            *next = with_series(next.clone(), series);
+            next.clone()
+        });
     let agenda = events.iter().map(|event| agenda_event(event)).collect();
     let greeting = BriefingGreetingSnapshot {
         name: input
@@ -332,11 +344,75 @@ fn next_event(
         url: event.url.clone(),
         series_key: series_key(&event.title),
         previous,
+        previous_actions: None,
         recording: event
             .recording
             .clone()
             .unwrap_or(BriefingRecordingState::None),
     }
+}
+
+/// The next meeting with what its calendar series says of the earlier one:
+/// its note, and the tasks Hoy shows as «Pendiente de la última vez». A
+/// series read for another meeting, or none yet, is unknown; the hub's
+/// «no earlier meeting» is a fact. The title match stays the earlier note
+/// when the series has none or cannot be read.
+fn with_series(
+    mut next: BriefingNextSnapshot,
+    read: Option<&crate::SeriesPreviousRead>,
+) -> BriefingNextSnapshot {
+    use crate::{BriefingActionSnapshot, BriefingPreviousActions};
+    let Some(series) = next.event.as_ref().map(|event| &event.calendar_item_id) else {
+        return next;
+    };
+    let read =
+        read.filter(|read| read.calendar_item_id == *series && read.before_ms == next.start_ms);
+    let actions = match read.map(|read| &read.answer) {
+        None => BriefingPreviousActions::Unknown {
+            cause: "series_not_read".into(),
+        },
+        Some(Err(cause)) => BriefingPreviousActions::Unknown {
+            cause: cause.clone(),
+        },
+        Some(Ok(answer)) => match &answer.previous {
+            None => BriefingPreviousActions::NoPreviousMeeting,
+            Some(meeting) => {
+                let note = meeting.note.as_ref();
+                next.previous = Some(BriefingPreviousSnapshot {
+                    recording_id: meeting.recording_id.clone(),
+                    title: Some(meeting.title.clone()),
+                    summary: note.and_then(|note| note.short_summary.clone()),
+                    open_items: Vec::new(),
+                });
+                match note.and_then(|note| Some((note.revision, note.action_items.as_ref()?))) {
+                    Some((revision, items)) => BriefingPreviousActions::Known {
+                        recording_id: meeting.recording_id.clone(),
+                        note_revision: revision,
+                        items: items
+                            .iter()
+                            .map(|item| BriefingActionSnapshot {
+                                id: item.id.clone(),
+                                owner: item.owner.clone(),
+                                text: item.text.clone(),
+                                due: item.due.clone(),
+                                done: item.done,
+                            })
+                            .collect(),
+                    },
+                    None => BriefingPreviousActions::NoteNotWritten {
+                        recording_id: meeting.recording_id.clone(),
+                        note_state: note.and_then(|note| {
+                            serde_json::to_value(note.state)
+                                .ok()
+                                .and_then(|state| state.as_str().map(str::to_owned))
+                        }),
+                    },
+                }
+            }
+        },
+    };
+    next.previous_actions = Some(actions);
+    next
 }
 
 fn agenda_event(event: &CalendarEventSnapshot) -> BriefingAgendaSnapshot {

@@ -40,6 +40,16 @@ pub(crate) struct Hub {
     /// Groups whose audio the hub cannot read, of how many: a change
     /// of language is refused as the hub refuses it.
     pub unreadable_audio: Option<(u64, u64)>,
+    /// `GET /v1/series/previous-meeting`: the earlier meeting of each
+    /// series as the hub finds it; a series not here has none.
+    pub series_previous: BTreeMap<String, Value>,
+    /// `PUT /v1/recordings/{id}/series` refused with this status, code and
+    /// numbers, as `meetings/series.py` refuses.
+    pub series_refusal: Option<(u16, &'static str, Value)>,
+    /// A hub of 0.10 or earlier: the series routes are not there, and
+    /// FastAPI answers them as it answered then (`{"detail":"Not Found"}`,
+    /// measured against 0.10.1's code).
+    pub without_series_routes: bool,
 }
 
 pub(crate) type Shared = Arc<Mutex<Hub>>;
@@ -72,6 +82,25 @@ fn query_value(query: &str, name: &str) -> Option<String> {
         let (key, value) = pair.split_once('=')?;
         (key == name).then(|| value.to_owned())
     })
+}
+
+/// A query value as the hub reads it: `%XX` escapes decoded, `None` when
+/// they do not make UTF-8.
+fn urlencoding_decode(value: &str) -> Option<String> {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            let hex = value.get(index + 1..index + 3)?;
+            decoded.push(u8::from_str_radix(hex, 16).ok()?);
+            index += 3;
+        } else {
+            decoded.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8(decoded).ok()
 }
 
 /// A meeting the hub has, closed and transcribed, as its document says it.
@@ -186,7 +215,46 @@ impl Hub {
             return refusal(status, "synthetic_failure", "Fallo sintético");
         }
         let segments = path.trim_start_matches('/').split('/').collect::<Vec<_>>();
+        let series_route = matches!(
+            (method, segments.as_slice()),
+            ("GET", ["v1", "series", "previous-meeting"])
+                | ("PUT", ["v1", "recordings", _, "series"])
+        );
+        if series_route && self.without_series_routes {
+            return (404, json!({"detail": "Not Found"}));
+        }
         match (method, segments.as_slice()) {
+            ("GET", ["v1", "series", "previous-meeting"]) => {
+                let series = query_value(query, "calendar_item_id")
+                    .map(|value| value.replace('+', " "))
+                    .and_then(|value| urlencoding_decode(&value))
+                    .unwrap_or_default();
+                let before_ms = query_value(query, "before_ms")
+                    .and_then(|value| value.parse::<i64>().ok())
+                    .unwrap_or_default();
+                let previous = self
+                    .series_previous
+                    .get(&series)
+                    .cloned()
+                    .unwrap_or(Value::Null);
+                (
+                    200,
+                    json!({"calendar_item_id": series, "before_ms": before_ms, "previous": previous}),
+                )
+            }
+            ("PUT", ["v1", "recordings", id, "series"]) => {
+                if let Some((status, code, numbers)) = self.series_refusal.clone() {
+                    return numbered(status, code, "No se guardó nada", numbers);
+                }
+                if !self.documents.contains_key(*id) {
+                    return refusal(404, "recording_not_found", "Grabación no disponible");
+                }
+                (
+                    200,
+                    json!({"recording_id": id, "calendar_item_id": "serie-comite",
+                        "template_id": body["template_id"], "dictionary_id": body["dictionary_id"]}),
+                )
+            }
             ("PUT", ["v1", "device", "profile"]) => {
                 let name = body["owner_name"].as_str().unwrap_or_default().to_owned();
                 self.owner_name = Some(name.clone());

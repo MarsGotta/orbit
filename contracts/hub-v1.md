@@ -685,6 +685,8 @@ All routes use the device bearer token and expose only that device's data.
   `409 note_template_links_full` `{links,max_links}`.
 - `DELETE /v1/note-template-links` with `{calendar_item_id}` →
   `{calendar_item_id,deleted}`.
+- A series' template and dictionary saved together, from one of its meetings:
+  `PUT /v1/recordings/{uuid}/series` (Meetings for the Mac).
 
 `calendar_item_id` is the stable calendar event/series identifier, 1–1024 UTF-8
 bytes without control characters, matching core's `MAX_LABEL_BYTES`.
@@ -753,6 +755,41 @@ Device bearer authentication; errors include `code`, numbered `refusal` and `op`
   At most 65536 characters. A stale revision yields `409 stale_revision`
   `{revision,base_revision}`. Generation reads these notes. Legacy note-request
   private text is preserved at revision 0.
+- `GET /v1/series/previous-meeting?calendar_item_id=&before_ms=` →
+  `{calendar_item_id,before_ms,previous}`: the latest closed meeting (not a
+  voice call, not an open recording) whose manifest event carries that series
+  key and that started before `before_ms`, latest start then highest recording
+  ID. Hoy shows its open tasks as «Pendiente de la última vez» for the next
+  meeting of the series. `previous` is null when the series has no such
+  meeting — a fact, not an unknown — or
+  `{recording_id,title,started_at_ms,note}`. `note` is null when nobody asked
+  for it, otherwise `{state,revision,short_summary,action_items}`; until the
+  note is written `short_summary` and `action_items` are null (unknown, never
+  an empty list). Each task is `{id,owner,text,due,done}`, as the note's Actions
+  tab has it with the user's marks; marking one is the note's own
+  `PUT …/note/edits` `{base_revision: revision, done:{id:bool}}`, which
+  announces `recording.changed` for that recording. Both query parameters are
+  required: a missing one, or a key that is not one (empty, control
+  characters, over 1024 bytes with `bytes,max_bytes`), yields
+  `400 invalid_parameters` `{field,…}`. A hub before this route answers 404
+  without a code; the Mac reads that as unknown, never as «no earlier meeting».
+- `PUT /v1/recordings/{uuid}/series` `{template_id,dictionary_id:string|null}` →
+  `{recording_id,calendar_item_id,template_id,dictionary_id}`: «Usar lo mismo en
+  toda la serie». The meeting's series takes this template (the link of
+  `PUT /v1/note-template-links`) and this dictionary (`select` with
+  `use_for_series:true`; null leaves the series without one) in one
+  transaction: either both are saved or neither. The meeting's own dictionary
+  choice is cleared so it follows its series; written notes keep their template
+  until written again. Refusals name their cause and numbers, and nothing is
+  saved: `404 recording_not_found`, `409 meeting_series_missing` (the meeting
+  has no calendar series), `404 note_template_not_found` `{template_id}`,
+  `409 note_template_links_full` `{links,max_links}`,
+  `404 dictionary_not_found`, `400 invalid_dictionary_id`,
+  `409 dictionary_series_full` `{series,max_series}`,
+  `413 dictionaries_too_large`/`dictionary_too_large` `{bytes,max_bytes}`,
+  `400 invalid_parameters` `{field}`. The language is not a property of the
+  series: it stays the recording's (`PUT …/language`). A hub before this route
+  answers 404 without a code; the Mac names it `hub_route_missing`.
 - WebSocket `recording.changed {recording_id}` reaches only the owning device's
   connections after closure, group completion/failure, note state/edit changes,
   names, private notes, title or language changes; retranscribed groups notify

@@ -42,6 +42,8 @@ app_type! {
         Delete,
         Assign,
         Unassign,
+        /// «Usar lo mismo en toda la serie»: template and dictionary together.
+        UseForSeries,
     }
 }
 
@@ -49,12 +51,18 @@ app_type! {
     /// An order the hub refused (its status and code) or that did not reach
     /// it (`status` 0, `hub_unreachable` or `not_sent`).
     pub struct NoteLibraryRefusalSnapshot {
-        /// `template` or `series`.
+        /// `template`, `series` (by its `calendar_item_id`) or
+        /// `meeting_series` (the series of a meeting, by its recording id).
         pub target_kind: String,
         pub target_id: String,
         pub action: NoteLibraryAction,
         pub status: u16,
         pub code: String,
+        /// The hub's numbers for its refusal (`links` of `max_links`,
+        /// `series` of `max_series`, `bytes` of `max_bytes`…), when it gave any.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional, type = "Record<string, number>")]
+        pub numbers: Option<std::collections::BTreeMap<String, u64>>,
     }
 }
 

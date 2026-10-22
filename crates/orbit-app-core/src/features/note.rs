@@ -64,11 +64,22 @@ fn open_note<'a>(snapshot: &'a AppSnapshot, recording_id: &str) -> Option<&'a Op
         .filter(|note| note.recording_id == recording_id)
 }
 
-/// The hub's revision of the open note an edit is made on.
+/// The hub's revision of the note an edit is made on: the open note's, or
+/// the series' earlier note Hoy shows the tasks of.
 fn note_revision(snapshot: &AppSnapshot, recording_id: &str) -> Result<u64, crate::AppError> {
     open_note(snapshot, recording_id)
         .and_then(|note| note.note_revision)
+        .or_else(|| series_note_revision(snapshot, recording_id))
         .ok_or_else(crate::AppError::note_unavailable)
+}
+
+/// The revision of the series' earlier note, when that is `recording_id` and
+/// its note is written (`client::series`).
+fn series_note_revision(snapshot: &AppSnapshot, recording_id: &str) -> Option<u64> {
+    let read = snapshot.notes.as_ref()?.series_previous.as_deref()?;
+    let meeting = read.answer.as_ref().ok()?.previous.as_ref()?;
+    let note = meeting.note.as_ref()?;
+    (meeting.recording_id == recording_id && note.action_items.is_some()).then_some(note.revision)
 }
 
 pub(crate) fn map_command(
@@ -226,6 +237,51 @@ mod mapping_tests {
             serde_json::to_value(mapped)?["scope"],
             serde_json::json!({"kind": "turn", "at_ms": 12_000})
         );
+        Ok(())
+    }
+
+    /// Hoy marks a task of the series' earlier note done through the same
+    /// order as its Actions tab, on the revision the series read gave.
+    #[test]
+    fn a_task_of_the_series_earlier_note_is_marked_on_its_revision() -> Result<(), serde_json::Error>
+    {
+        const EARLIER: &str = "11111111-1111-4111-8111-111111111111";
+        let mut snapshot = snapshot()?;
+        let answer = |note: serde_json::Value| -> Result<_, serde_json::Error> {
+            serde_json::from_value(serde_json::json!({
+                "calendar_item_id": "serie", "before_ms": 10,
+                "previous": {"recording_id": EARLIER, "title": "Comité", "started_at_ms": 1,
+                    "note": note}
+            }))
+        };
+        let toggle = || NoteCommand::NoteActionToggle {
+            recording_id: EARLIER.into(),
+            action_id: "a0123456789ab".into(),
+            done: true,
+        };
+        if let Some(notes) = snapshot.notes.as_mut() {
+            notes.series_previous = Some(Box::new(crate::SeriesPreviousRead {
+                calendar_item_id: "serie".into(),
+                before_ms: 10,
+                answer: Ok(answer(serde_json::json!({"state": "ready", "revision": 4,
+                    "short_summary": null, "action_items": []}))?),
+            }));
+        }
+        assert!(matches!(map_command(toggle(), &snapshot),
+            Ok(Command::NoteEdit { base_revision: 4, recording_id, sections: None, done })
+                if recording_id == EARLIER && done.get("a0123456789ab") == Some(&true)));
+        // A note not written has no tasks to mark: refused, never revision 0.
+        if let Some(notes) = snapshot.notes.as_mut() {
+            notes.series_previous = Some(Box::new(crate::SeriesPreviousRead {
+                calendar_item_id: "serie".into(),
+                before_ms: 10,
+                answer: Ok(answer(
+                    serde_json::json!({"state": "generating", "revision": 4,
+                    "short_summary": null, "action_items": null}),
+                )?),
+            }));
+        }
+        assert!(map_command(toggle(), &snapshot).is_err());
         Ok(())
     }
 

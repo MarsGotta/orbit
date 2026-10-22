@@ -99,6 +99,7 @@ mod agents;
 mod library;
 mod note_read;
 mod notes;
+mod series;
 mod sessions;
 use agenda::*;
 mod local;
@@ -179,6 +180,7 @@ impl DaemonClient {
             // library again only when their published heads change.
             let mut seen: Option<(u64, Option<String>)> = None;
             let mut seen_library = None;
+            let mut seen_series: Option<(Option<series::SeriesTarget>, u64)> = None;
             while changes.changed().await.is_ok() {
                 changes.borrow_and_update();
                 let Some(inner) = weak.upgrade() else { break };
@@ -210,6 +212,14 @@ impl DaemonClient {
                 if seen_library != Some(head.library_revision) {
                     seen_library = Some(head.library_revision);
                     client.read_library().await;
+                }
+                // Hoy's next meeting: its series is read again when the
+                // meeting changes or any recording does (a task marked done).
+                let target = client.next_series().await;
+                let series = (target.clone(), head.revision);
+                if seen_series.as_ref() != Some(&series) {
+                    seen_series = Some(series);
+                    client.read_series_previous(target).await;
                 }
                 // An open note is read again when the hub says it
                 // changed (`recording.changed`).

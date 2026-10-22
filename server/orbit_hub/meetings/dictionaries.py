@@ -270,56 +270,8 @@ def execute(store, device: str, order: Save | Select | Correct | Remove) -> dict
                     "La reunión no tiene serie de calendario",
                     http_status=409,
                 )
-            for dictionary in dictionaries:
-                dictionary["series"] = [
-                    s
-                    for s in dictionary["series"]
-                    if s["calendar_item_id"] != series["calendar_item_id"]
-                ]
-            if chosen:
-                chosen["series"].append(series)
-            count = sum(len(d["series"]) for d in dictionaries)
-            if count > MAX_SERIES:
-                raise HubError(
-                    "dictionary_series_full",
-                    f"Hay {count} series; el máximo es {MAX_SERIES}",
-                    http_status=409,
-                    numbers={"series": count, "max_series": MAX_SERIES},
-                )
-        encoded = json.dumps(
-            {"dictionaries": dictionaries}, ensure_ascii=False, separators=(",", ":")
-        ).encode()
-        if len(encoded) > MAX_LIST_BYTES:
-            raise HubError(
-                "dictionaries_too_large",
-                f"La lista ocupa {len(encoded)} bytes; el máximo es {MAX_LIST_BYTES}",
-                http_status=413,
-                numbers={"bytes": len(encoded), "max_bytes": MAX_LIST_BYTES},
-            )
-        for dictionary in dictionaries:
-            size = len(json.dumps(dictionary, ensure_ascii=False, separators=(",", ":")).encode())
-            if size > MAX_DICTIONARY_BYTES:
-                raise HubError(
-                    "dictionary_too_large",
-                    f"El diccionario ocupa {size} bytes; el máximo es {MAX_DICTIONARY_BYTES}",
-                    http_status=413,
-                    numbers={"bytes": size, "max_bytes": MAX_DICTIONARY_BYTES},
-                )
-        sealed = [
-            (
-                d["id"],
-                store.encrypt(
-                    json.dumps(d, ensure_ascii=False).encode(), f"dictionary:{device}:{d['id']}"
-                ),
-            )
-            for d in dictionaries
-        ]
-        store.ensure_capacity(sum(len(body) for _, body in sealed))
-        for identity, body in sealed:
-            db.execute(
-                "INSERT INTO meeting_dictionaries VALUES (?,?,?) ON CONFLICT(device_id,id) DO UPDATE SET body=excluded.body",
-                (device, identity, body),
-            )
+            assign_series(dictionaries, chosen, series)
+        save_all(store, db, device, dictionaries)
         if assign:
             db.execute(
                 "DELETE FROM recording_dictionaries WHERE device_id=? AND recording=?",
@@ -331,6 +283,62 @@ def execute(store, device: str, order: Save | Select | Correct | Remove) -> dict
                     (device, order.recording_id, chosen_id),
                 )
     return chosen or {"dictionary_id": None}
+
+
+def assign_series(dictionaries: list[dict], chosen: dict | None, series: dict) -> None:
+    """`chosen` (or none) becomes the series' dictionary: one per series."""
+    for dictionary in dictionaries:
+        dictionary["series"] = [
+            s for s in dictionary["series"] if s["calendar_item_id"] != series["calendar_item_id"]
+        ]
+    if chosen:
+        chosen["series"].append(series)
+    count = sum(len(d["series"]) for d in dictionaries)
+    if count > MAX_SERIES:
+        raise HubError(
+            "dictionary_series_full",
+            f"Hay {count} series; el máximo es {MAX_SERIES}",
+            http_status=409,
+            numbers={"series": count, "max_series": MAX_SERIES},
+        )
+
+
+def save_all(store, db, device: str, dictionaries: list[dict]) -> None:
+    """Every dictionary of the device, within its bounds, in the caller's transaction."""
+    encoded = json.dumps(
+        {"dictionaries": dictionaries}, ensure_ascii=False, separators=(",", ":")
+    ).encode()
+    if len(encoded) > MAX_LIST_BYTES:
+        raise HubError(
+            "dictionaries_too_large",
+            f"La lista ocupa {len(encoded)} bytes; el máximo es {MAX_LIST_BYTES}",
+            http_status=413,
+            numbers={"bytes": len(encoded), "max_bytes": MAX_LIST_BYTES},
+        )
+    for dictionary in dictionaries:
+        size = len(json.dumps(dictionary, ensure_ascii=False, separators=(",", ":")).encode())
+        if size > MAX_DICTIONARY_BYTES:
+            raise HubError(
+                "dictionary_too_large",
+                f"El diccionario ocupa {size} bytes; el máximo es {MAX_DICTIONARY_BYTES}",
+                http_status=413,
+                numbers={"bytes": size, "max_bytes": MAX_DICTIONARY_BYTES},
+            )
+    sealed = [
+        (
+            d["id"],
+            store.encrypt(
+                json.dumps(d, ensure_ascii=False).encode(), f"dictionary:{device}:{d['id']}"
+            ),
+        )
+        for d in dictionaries
+    ]
+    store.ensure_capacity(sum(len(body) for _, body in sealed))
+    for identity, body in sealed:
+        db.execute(
+            "INSERT INTO meeting_dictionaries VALUES (?,?,?) ON CONFLICT(device_id,id) DO UPDATE SET body=excluded.body",
+            (device, identity, body),
+        )
 
 
 def mount(app, store, identity, bounded_body, run):
