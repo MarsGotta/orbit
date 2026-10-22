@@ -478,9 +478,13 @@ pub async fn request_command_as(
         stream.write_all(&frame).await?;
         let bytes = read_frame(BufReader::new(stream)).await?;
         let response: Response = serde_json::from_slice(&bytes)?;
-        if response.v != request.v || response.id != request.id {
-            bail!("Respuesta IPC no válida");
-        }
+        check_answer(
+            "Respuesta IPC",
+            &request,
+            response.v,
+            &response.id,
+            response.refusal.as_ref(),
+        )?;
         if !response.ok {
             if let Some(refusal) = response.refusal {
                 return Err(refusal.into());
@@ -559,14 +563,13 @@ pub async fn read_topic(paths: &Paths, read: ReadRequest) -> Result<TopicRespons
 fn decode_topic_response(request: &Request, bytes: &[u8]) -> Result<TopicResponse> {
     let response: TopicResponse =
         serde_json::from_slice(bytes).context("Respuesta IPC de temas no válida")?;
-    if response.id != request.id || response.v != PROTOCOL_VERSION {
-        bail!(
-            "Respuesta IPC de temas no válida: versión {} (requerida {}), identificador coincidente: {}",
-            response.v,
-            PROTOCOL_VERSION,
-            response.id == request.id
-        );
-    }
+    check_answer(
+        "Respuesta IPC de temas",
+        request,
+        response.v,
+        &response.id,
+        response.refusal.as_ref(),
+    )?;
     if !response.ok {
         if let Some(refusal) = response.refusal {
             return Err(refusal.into());
@@ -608,9 +611,13 @@ async fn voice_note_audio_inner(paths: &Paths, message_id: String) -> Result<Voi
     )
     .await?;
     let response: VoiceNoteAudioResponse = serde_json::from_slice(&bytes)?;
-    if response.v != request.v || response.id != request.id {
-        bail!("Respuesta IPC no válida");
-    }
+    check_answer(
+        "Respuesta IPC",
+        &request,
+        response.v,
+        &response.id,
+        response.refusal.as_ref(),
+    )?;
     if !response.ok {
         if let Some(refusal) = response.refusal {
             return Err(refusal.into());
@@ -634,7 +641,13 @@ async fn connect(paths: &Paths) -> Result<UnixStream> {
 }
 
 fn validate_response(request: &Request, response: &Response) -> Result<()> {
-    validate_response_identity(request, response)?;
+    check_answer(
+        "Respuesta IPC",
+        request,
+        response.v,
+        &response.id,
+        response.refusal.as_ref(),
+    )?;
     if !response.ok {
         if let Some(refusal) = response.refusal.clone() {
             return Err(refusal.into());
@@ -647,11 +660,35 @@ fn validate_response(request: &Request, response: &Response) -> Result<()> {
     Ok(())
 }
 
-fn validate_response_identity(request: &Request, response: &Response) -> Result<()> {
-    if response.v != PROTOCOL_VERSION || response.id != request.id {
-        bail!("Respuesta IPC no válida");
+/// Whether a frame read back is this request's answer. The daemon writes an
+/// empty id only when it refused the connection before it could read one
+/// (every slot taken, or a frame without a readable id) and it invents none:
+/// that refusal is this connection's answer and reaches the caller with its
+/// numbers. It can only ever be an error, never another order's success.
+/// Any other mismatch names both versions and both ids, never the body.
+fn check_answer(
+    what: &str,
+    request: &Request,
+    v: u8,
+    id: &str,
+    refusal: Option<&Refusal>,
+) -> Result<()> {
+    if v == PROTOCOL_VERSION && id == request.id {
+        return Ok(());
     }
-    Ok(())
+    if id.is_empty()
+        && let Some(refusal) = refusal
+    {
+        return Err(refusal.clone().into());
+    }
+    // Request ids are at most 128 bytes (the daemon refuses longer ones). The
+    // received id is cut to 128 characters so a malformed answer cannot grow
+    // this message to the size of its frame.
+    let received: String = id.chars().take(128).collect();
+    bail!(
+        "{what} no válida: versión {v} (esperada {PROTOCOL_VERSION}), identificador «{received}» (esperado «{}»)",
+        request.id
+    );
 }
 
 pub async fn listen(
@@ -683,6 +720,14 @@ pub async fn listen(
             .peer_cred()
             .is_ok_and(|peer| peer.uid() == rustix::process::geteuid().as_raw())
         {
+            continue;
+        }
+        // A peer that connected and closed without a byte (a liveness probe,
+        // `listen`'s own check for a running instance) is gone before its
+        // accept. Its slot used to be held until its handler read EOF: with
+        // the host loaded, a burst of such probes filled the 64 slots ahead
+        // of their handlers and the live order behind them was refused.
+        if closed_without_a_byte(&stream) {
             continue;
         }
         let Ok(permit) = capacity.clone().try_acquire_owned() else {
@@ -845,6 +890,21 @@ async fn stream_topics(
     };
     watchers.abort_all();
     result
+}
+
+/// The peer has already closed and sent nothing: a peek reads end-of-file.
+/// It consumes nothing; a live peer that has not written yet reads
+/// `WouldBlock` and keeps its connection.
+fn closed_without_a_byte(stream: &UnixStream) -> bool {
+    let mut byte = [0_u8; 1];
+    matches!(
+        rustix::net::recv(
+            stream,
+            &mut byte,
+            rustix::net::RecvFlags::PEEK | rustix::net::RecvFlags::DONTWAIT,
+        ),
+        Ok((0, _))
+    )
 }
 
 fn connection_refusal(count: usize) -> Refusal {

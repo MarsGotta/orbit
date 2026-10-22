@@ -986,3 +986,110 @@ async fn an_agent_call_returns_its_outcome_and_refuses_another_reply() -> Result
     assert_eq!(decoded["outcome"]["outcome"], "done");
     Ok(())
 }
+
+/// Answers every call with an `ok` status, the way the daemon's actor would.
+fn answering_actor(mut calls: mpsc::Receiver<Call>) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        while let Some(call) = calls.recv().await {
+            let mut answer = response();
+            answer.id = call.request.id;
+            let _ = call.reply.send(answer);
+        }
+    })
+}
+
+#[tokio::test]
+async fn probes_closed_before_their_accept_hold_no_connection_slot() {
+    let directory = tempfile::tempdir().unwrap();
+    let paths = Paths::resolve(Some(directory.path().to_path_buf())).unwrap();
+    let (calls, actor) = mpsc::channel(1);
+    let actor = answering_actor(actor);
+    let (ready, bound) = oneshot::channel();
+    let server_paths = paths.clone();
+    let listener = tokio::spawn(async move {
+        listen(&server_paths, calls, TopicChannels::new(), Some(ready)).await
+    });
+    bound.await.unwrap();
+    // On this single-threaded runtime the listener cannot run until the
+    // request below yields: every probe is connected and closed in the
+    // backlog before the listener accepts the first one, which is how a
+    // loaded CI runner saw it with the real daemon.
+    let probes = MAX_CONNECTIONS + MAX_BUSY_READERS + 32;
+    for _ in 0..probes {
+        drop(std::os::unix::net::UnixStream::connect(&paths.socket).unwrap());
+    }
+    let answer = request(&paths, Command::Status).await;
+    assert!(
+        answer.as_ref().is_ok_and(|answer| answer.ok),
+        "{probes} closed probes held the slots of a live order: {answer:?}"
+    );
+    listener.abort();
+    let _ = listener.await;
+    actor.abort();
+}
+
+#[tokio::test]
+async fn a_refusal_written_before_the_id_was_read_reaches_the_caller() {
+    let directory = tempfile::tempdir().unwrap();
+    let paths = Paths::resolve(Some(directory.path().to_path_buf())).unwrap();
+    let (calls, _actor) = mpsc::channel(1);
+    let (ready, bound) = oneshot::channel();
+    let server_paths = paths.clone();
+    let listener = tokio::spawn(async move {
+        listen(&server_paths, calls, TopicChannels::new(), Some(ready)).await
+    });
+    bound.await.unwrap();
+    let mut occupied = Vec::new();
+    for _ in 0..MAX_CONNECTIONS + MAX_BUSY_READERS {
+        let mut stream = UnixStream::connect(&paths.socket).await.unwrap();
+        stream.write_all(b"{").await.unwrap();
+        occupied.push(stream);
+    }
+    let error = request(&paths, Command::Status).await.unwrap_err();
+    assert_eq!(
+        error.downcast_ref::<Refusal>(),
+        Some(&Refusal::TooMany {
+            resource: Resource::IpcRequest,
+            count: 69,
+            max: 64,
+        }),
+        "{error:#}"
+    );
+    drop(occupied);
+    listener.abort();
+    let _ = listener.await;
+}
+
+#[test]
+fn a_mismatched_answer_names_both_versions_and_ids() {
+    let request = Request {
+        v: PROTOCOL_VERSION,
+        id: id(7),
+        op: None,
+        body: Command::Status,
+    };
+    let mut answer = response();
+    answer.id = id(8);
+    answer.v = PROTOCOL_VERSION + 1;
+    answer.error = Some("cuerpo privado".into());
+    let message = validate_response(&request, &answer)
+        .unwrap_err()
+        .to_string();
+    assert_eq!(
+        message,
+        format!(
+            "Respuesta IPC no válida: versión {} (esperada {PROTOCOL_VERSION}), identificador «{}» (esperado «{}»)",
+            PROTOCOL_VERSION + 1,
+            id(8),
+            id(7)
+        )
+    );
+    // An empty id without a refusal is no answer either, and says so.
+    answer.v = PROTOCOL_VERSION;
+    answer.id = String::new();
+    answer.ok = true;
+    let message = validate_response(&request, &answer)
+        .unwrap_err()
+        .to_string();
+    assert!(message.contains("identificador «» (esperado"), "{message}");
+}
