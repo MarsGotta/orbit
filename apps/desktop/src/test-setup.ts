@@ -50,8 +50,8 @@ function pinDate(): void {
 pinDate();
 beforeEach(pinDate);
 
-// The note editor (ProseMirror) measures the selection to scroll it
-// into view when it takes the focus. jsdom lays nothing out and has no
+// The Markdown editor (CodeMirror) measures the text and the cursor to
+// place them and to scroll the cursor into view. jsdom lays nothing out and has no
 // `Range.getClientRects`; WebKit has. An empty layout is what jsdom would
 // report for everything else, so the editor sees nothing to scroll.
 if (!("getClientRects" in Range.prototype)) {

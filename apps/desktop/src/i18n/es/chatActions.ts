@@ -21,10 +21,9 @@ const base = {
     you: "Tú",
     voiceNoteSuffix: "(nota de voz)",
     editorTitle: "Editar la respuesta",
-    editorText: "Texto",
     editorTextLabel: "Texto de la respuesta",
-    editorPreview: "Así se verá",
-    characters: (count: number) => `${count.toLocaleString("es-ES")} caracteres`,
+    charactersCopied: (count: number) =>
+      `${count.toLocaleString("es-ES")} caracteres · se copia como Markdown`,
     copiedConversation: "✓ Copiada",
     close: "Cerrar",
     closeEditor: "Cerrar el editor",

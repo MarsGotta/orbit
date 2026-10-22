@@ -21,6 +21,7 @@ import { floatingPanelCopy } from "./floatingPanel";
 import { onboardingCopy } from "./onboarding";
 import { paletteCopy } from "./palette";
 import { failures } from "./failures";
+import { editorCopy } from "./editor";
 
 import { globalShortcuts } from "./shortcuts";
 export { globalShortcuts };
@@ -49,6 +50,7 @@ export function spanish(assistantName = "Deimos") {
     ...onboardingCopy(assistantName),
     ...paletteCopy(assistantName),
     ...failures,
+    ...editorCopy,
   } as const;
 }
 

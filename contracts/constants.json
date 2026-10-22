@@ -375,6 +375,11 @@
         "file": "server/orbit_hub/notes/models.py",
         "name": "MAX_PRIVATE_NOTES_CHARS",
         "unit": "characters"
+      },
+      {
+        "file": "apps/desktop/src/features/notes/private-notes-draft.ts",
+        "name": "MAX_PRIVATE_NOTES_CHARS",
+        "unit": "characters"
       }
     ],
     "name": "MAX_PRIVATE_NOTES_CHARS",

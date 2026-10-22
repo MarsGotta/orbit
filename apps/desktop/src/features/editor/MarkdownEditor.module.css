@@ -1,0 +1,268 @@
+/* The editor's frame (guide 6, «El editor»): its saving and «Markdown» over
+   the text, the menus and the format bar over it, the help line under it. */
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-8);
+  margin-bottom: var(--o-space-14);
+  font: var(--o-text-meta);
+  color: var(--o-ink3);
+}
+
+/* Without a saving to say, only «Markdown», closer to the text. */
+.bar[data-quiet] {
+  margin-bottom: var(--o-space-6);
+}
+
+.status {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-6);
+}
+
+.rawToggle {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-6);
+  padding: 0 9px;
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-7);
+  background: transparent;
+  color: var(--o-ink2);
+  font: 500 12px/1 var(--o-font-sans);
+  cursor: pointer;
+}
+
+.rawToggle:hover {
+  background: var(--o-hover);
+}
+
+.rawToggle[aria-pressed="true"] {
+  border-color: var(--o-accText);
+  background: var(--o-accSoft);
+  color: var(--o-accText);
+}
+
+.md {
+  font-family: var(--o-font-mono);
+  font-size: 11px;
+}
+
+.limit {
+  margin: calc(-1 * var(--o-space-8)) 0 var(--o-space-12);
+  color: var(--o-warn);
+  font: var(--o-text-meta);
+}
+
+.box {
+  position: relative;
+}
+
+.editor[data-raw] .text {
+  min-height: 200px;
+  padding: 14px 16px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-10);
+  background: var(--o-bg);
+}
+
+.help {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--o-space-6) var(--o-space-14);
+  margin: 22px 0 0;
+  padding-top: var(--o-space-12);
+  border-top: 1px solid var(--o-line);
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.keys {
+  color: var(--o-ink2);
+  font-family: var(--o-font-mono);
+}
+
+/* The «/», «[[» and «@» menus: 320 wide, under the line. */
+.menu {
+  position: absolute;
+  left: 0;
+  z-index: 7;
+  width: 320px;
+  padding: var(--o-space-6);
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-12);
+  background: var(--o-surface);
+  box-shadow: var(--o-shadow);
+  animation: orbit-in 120ms var(--o-ease) both;
+}
+
+.menuTitle {
+  padding: 6px 8px 4px;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.menuRows {
+  max-height: 288px;
+  overflow: auto;
+}
+
+.menuRow {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 8px;
+  border-radius: var(--o-radius-8);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.menuRow[aria-selected="true"] {
+  background: var(--o-raised);
+}
+
+.menuIcon {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-7);
+  color: var(--o-ink2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.menuLabel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.menuLabel > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menuDetail {
+  color: var(--o-ink3);
+  font-size: 12px;
+}
+
+.menuHint {
+  color: var(--o-ink3);
+  font-family: var(--o-font-mono);
+  font-size: 11px;
+}
+
+.menuEmpty {
+  margin: 0;
+  padding: var(--o-space-8);
+  color: var(--o-ink3);
+  font-size: 13px;
+}
+
+.menuKeys {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 6px 8px 2px;
+  border-top: 1px solid var(--o-line);
+  color: var(--o-ink3);
+  font-size: 11px;
+}
+
+/* The bar over a selection. */
+.formatBar {
+  position: absolute;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-10);
+  background: var(--o-surface);
+  box-shadow: var(--o-shadow);
+  animation: orbit-in 120ms var(--o-ease) both;
+}
+
+.format {
+  min-width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--o-radius-7);
+  background: transparent;
+  color: var(--o-ink);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.format:hover,
+.ask:hover {
+  background: var(--o-hover);
+}
+
+.format[data-kind="bold"] {
+  font-weight: 700;
+}
+
+.format[data-kind="italic"] {
+  font-family: Georgia, serif;
+  font-style: italic;
+}
+
+.format[data-kind="mono"] {
+  font-family: var(--o-font-mono);
+  font-size: 11px;
+}
+
+.format[data-kind="highlight"] {
+  background: var(--o-warnSoft);
+  font-weight: 600;
+}
+
+.formatRule {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--o-line2);
+}
+
+.ask {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--o-radius-7);
+  background: transparent;
+  color: var(--o-accText);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu,
+  .formatBar {
+    animation: none;
+  }
+}

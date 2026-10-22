@@ -118,7 +118,8 @@ export const chatMediaScenarios: Scenario[] = [
   chat({
     id: "chat-editor",
     state: "Editar y copiar",
-    description: "Una respuesta en el editor: su texto a la izquierda y cómo se verá a la derecha.",
+    description:
+      "«Editar la respuesta»: el mismo editor de las notas en una ventana de 820 × 660, con «Copiar» y «Mandar a Deimos».",
     views: lastTurnDone,
     ready: "text=Estado de los cinco hoteles",
     steps: [

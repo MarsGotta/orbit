@@ -9,6 +9,7 @@ import { es } from "../../i18n/es";
 import { ActionsTab } from "./ActionsTab";
 import { NoteHeader } from "./NoteHeader";
 import { NoteProgress } from "./NoteProgress";
+import type { NoteWriting } from "./note-writing";
 import { type NoteTab, defaultTab } from "./note-tabs";
 import { PrivateNotes } from "./PrivateNotes";
 import type { Send } from "./send";
@@ -37,21 +38,36 @@ function tabsOf(note: OpenNoteSnapshot): { id: NoteTab; label: string }[] {
   ];
 }
 
-/** One meeting: its header, how its note is coming along, and its parts. */
-export function NoteDetail({
-  error,
-  library,
-  note,
-  row,
-  send,
-}: {
+interface NoteParts {
   error: string | null;
   library?: NoteLibrarySnapshot | null;
   note: OpenNoteSnapshot;
-  /** The meeting's row in the list: whether it was today or yesterday. */
-  row?: NoteListItem;
   send: Send;
-}) {
+  /** What the note's editors offer: notes to link, people to mention, the principal. */
+  writing?: NoteWriting;
+}
+
+/** The tab shown: its own part of the note. */
+function NotePart({ error, library, note, send, tab, writing }: NoteParts & { tab: NoteTab }) {
+  const key = note.recording_id;
+  if (tab === "summary") {
+    return <SummaryTab key={key} library={library} note={note} send={send} writing={writing} />;
+  }
+  if (tab === "actions") return <ActionsTab key={key} note={note} send={send} />;
+  if (tab === "transcript") {
+    return <TranscriptTab key={key} library={library} note={note} send={send} />;
+  }
+  return <PrivateNotes error={error} key={key} note={note} send={send} writing={writing} />;
+}
+
+/** One meeting: its header, how its note is coming along, and its parts. */
+export function NoteDetail(
+  props: NoteParts & {
+    /** The meeting's row in the list: whether it was today or yesterday. */
+    row?: NoteListItem;
+  },
+) {
+  const { error, library, note, row, send } = props;
   const [tab, setTab] = useNoteTab(note);
   const ask = () => {
     void send({ command: "ask_orbit_about", recording_id: note.recording_id });
@@ -75,14 +91,7 @@ export function NoteDetail({
             selected={tab}
             tabs={tabsOf(note)}
           >
-            {tab === "summary" && (
-              <SummaryTab key={note.recording_id} library={library} note={note} send={send} />
-            )}
-            {tab === "actions" && <ActionsTab key={note.recording_id} note={note} send={send} />}
-            {tab === "transcript" && (
-              <TranscriptTab key={note.recording_id} library={library} note={note} send={send} />
-            )}
-            {tab === "private" && <PrivateNotes key={note.recording_id} note={note} send={send} />}
+            <NotePart {...props} tab={tab} />
           </Tabs>
         </div>
       </article>

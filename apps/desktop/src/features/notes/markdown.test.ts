@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Block, type Run, parseInline, parseMarkdown, safeHref } from "./markdown";
-import { serializeInline, serializeMarkdown } from "./markdown-write";
-
-const once = (markdown: string) => serializeMarkdown(parseMarkdown(markdown));
+import { type Block, parseInline, parseMarkdown, safeHref } from "./markdown";
 
 describe("markdown subset", () => {
   it("parses what the hub writes into blocks and runs", () => {
@@ -31,58 +28,6 @@ describe("markdown subset", () => {
     expect(tasks.items.map((item) => item.checked)).toEqual([true, false]);
     const link = blocks[5] as Extract<Block, { kind: "paragraph" }>;
     expect(link.runs[1]).toEqual({ text: "acta", href: "https://example.com/acta" });
-  });
-
-  it("is stable markdown → model → markdown for the subset", () => {
-    const corpus = [
-      "Texto llano.",
-      "# Título\n\nUno *dos* **tres** ~~cuatro~~.",
-      "- a\n- b **c**\n\n1. x\n2. y",
-      "- [ ] tarea\n- [x] hecha con [enlace](https://orbit.example/x)",
-      "snake_case y 2*3 = 6 y un \\* escapado",
-      "**_ambas_** y *cursiva*antes y **negrita**después",
-      "# no es título\\n",
-      "Línea uno\nsigue el párrafo\n\nOtro párrafo",
-      "- item\n  continuación del item",
-      "> cita\n\n```\ncódigo\n```",
-    ];
-    for (const markdown of corpus) {
-      const first = once(markdown);
-      expect(once(first), markdown).toBe(first);
-      expect(parseMarkdown(first), markdown).toEqual(parseMarkdown(markdown));
-    }
-  });
-
-  it("keeps every combination of marks through a round trip", () => {
-    const marks: Array<Omit<Run, "text">> = [
-      {},
-      { bold: true },
-      { italic: true },
-      { strike: true },
-      { bold: true, italic: true },
-      { href: "https://example.com/a" },
-      { bold: true, href: "https://example.com/b" },
-    ];
-    const words = ["uno", "dos_tres", "a*b", "[x]", "#4", "~fin"];
-    for (const first of marks) {
-      for (const second of marks) {
-        for (const word of words) {
-          const runs: Run[] = [
-            { text: word, ...first },
-            { text: " y ", ...second },
-            { text: "fin", ...first },
-          ];
-          const markdown = serializeInline(runs);
-          const again = serializeInline(parseInline(markdown));
-          expect(again, `${JSON.stringify(runs)} → ${markdown}`).toBe(markdown);
-          expect(
-            parseInline(markdown)
-              .map((run) => run.text)
-              .join(""),
-          ).toBe(`${word} y fin`);
-        }
-      }
-    }
   });
 
   it("never links outside http(s) and never produces HTML", () => {

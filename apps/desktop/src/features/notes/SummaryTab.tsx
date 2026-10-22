@@ -1,4 +1,4 @@
-import { type CSSProperties, useRef } from "react";
+import { type CSSProperties, useRef, useState } from "react";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import type { Section } from "../../bridge/generated/Section";
@@ -9,6 +9,7 @@ import { CopyButton } from "./copy-button";
 import { notRequested, templateOf } from "./note-progress";
 import { shortName, summaryMarkdown } from "./notes-format";
 import type { Send } from "./send";
+import type { NoteWriting } from "./note-writing";
 import { SummarySection } from "./SummarySection";
 import { useDebouncedCommit } from "./use-debounced-commit";
 import styles from "./Note.module.css";
@@ -89,11 +90,19 @@ function useSectionEdits(note: OpenNoteSnapshot, send: Send) {
   const save = useDebouncedCommit<Section[]>((value) => {
     void send({ command: "note_edit", recording_id: note.recording_id, sections: value });
   });
+  // An edit repaints the tab, so its section says «Guardando…» until the note carries it.
+  const [, repaint] = useState(0);
   const change = (index: number, markdown: string) => {
     edits.set(index, markdown);
     save.schedule(merged());
+    repaint((count) => count + 1);
   };
-  return { sections: merged(), change, flush: save.flush };
+  return {
+    sections: merged(),
+    change,
+    flush: save.flush,
+    unsaved: (index: number) => edits.has(index),
+  };
 }
 
 /** Before the note is written: what will come, in the shape it will have. */
@@ -121,13 +130,15 @@ export function SummaryTab({
   library,
   note,
   send,
+  writing,
 }: {
   library?: NoteLibrarySnapshot | null;
   note: OpenNoteSnapshot;
   send: Send;
+  writing?: NoteWriting;
 }) {
   const summary = note.summary;
-  const { sections, change, flush } = useSectionEdits(note, send);
+  const { sections, change, flush, unsaved } = useSectionEdits(note, send);
   if (!summary) return <Unwritten library={library} note={note} />;
   return (
     <div className={styles.summary}>
@@ -140,7 +151,9 @@ export function SummaryTab({
           key={`${section.name}-${index}`}
           onChange={(markdown) => change(index, markdown)}
           onDone={flush}
+          saving={unsaved(index)}
           section={{ ...section, markdown: sections[index]?.markdown ?? section.markdown }}
+          writing={writing}
         />
       ))}
       {(note.decisions.length > 0 || note.open_topics.length > 0) && (

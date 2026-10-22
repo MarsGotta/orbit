@@ -4,6 +4,7 @@ import type { NoteTemplateDetailSnapshot } from "../../../bridge/generated/NoteT
 import { Button } from "../../../design/Button";
 import { es } from "../../../i18n/es";
 import { refusalText } from "../../../app/library-refusal";
+import { MarkdownEditor } from "../../editor/MarkdownEditor";
 import { type RemovedTemplate, type TemplateDraft, removedTemplate } from "./template-draft";
 import { TemplateSections } from "./TemplateSections";
 import { useTemplateEditor } from "./use-template-editor";
@@ -63,17 +64,19 @@ function TemplateFields({
           value={draft.name}
         />
       </label>
-      <label className={styles.field}>
-        <span>{es.library.context}</span>
-        <textarea
-          maxLength={bounds.max_context_chars}
-          onBlur={flush}
-          onChange={(event) => change({ ...draft, context: event.target.value })}
-          placeholder={es.library.contextHint}
-          rows={3}
-          value={draft.context}
-        />
-      </label>
+      <div className={styles.field}>
+        <span aria-hidden="true">{es.library.context}</span>
+        <div className={styles.context}>
+          <MarkdownEditor
+            label={es.library.context}
+            maxChars={bounds.max_context_chars}
+            onBlur={flush}
+            onChange={(context) => change({ ...draft, context })}
+            placeholder={es.library.contextHint}
+            value={draft.context}
+          />
+        </div>
+      </div>
     </>
   );
 }

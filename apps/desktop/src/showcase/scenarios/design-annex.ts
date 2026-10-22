@@ -62,4 +62,14 @@ export const designAnnexScenarios: Scenario[] = [
       "El menú de 420 de una palabra abajo en la transcripción se abre encima, con los diccionarios elegidos y la lista abierta.",
     steps: [{ click: 'role=button[name="Orvit"]' }, { click: "role=button[name=/Se añade a/]" }],
   },
+  {
+    ...SHEET,
+    id: "anexo-editor-escrito-por",
+    state: "Editor · lo que escribe el asistente",
+    description:
+      "Sin dibujar: lo que devuelve «Pedir a Deimos que siga escribiendo», marcado «Escrito por Deimos» con «Aceptar» y «Descartar»; no se guarda hasta aceptarlo.",
+    // The sheet grows by the editor's section at its foot.
+    size: { width: 1440, height: 1800 },
+    steps: [{ wait: 'role=group[name="Escrito por Deimos"]' }],
+  },
 ];

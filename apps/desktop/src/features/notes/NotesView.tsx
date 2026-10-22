@@ -11,6 +11,7 @@ import type { AppView } from "../../state/app-view";
 import { MeetingsColumn } from "./MeetingsColumn";
 import { NoteDetail } from "./NoteDetail";
 import { openMeeting, routeRecordingId } from "./note-route";
+import { noteWriting } from "./note-writing";
 import { useNoteArrows } from "./use-note-arrows";
 import styles from "./Note.module.css";
 
@@ -162,12 +163,14 @@ function opened({
   routeId,
   readMatches,
   send,
+  snapshot,
 }: {
   error: string | null;
   notes: NotesSnapshot;
   routeId: string;
   readMatches: boolean;
   send: Send;
+  snapshot: AppView;
 }) {
   const read = notes.open_read;
   if (routeId !== "") {
@@ -183,6 +186,7 @@ function opened({
       note={note}
       row={notes.list.find((item) => item.recording_id === note.recording_id)}
       send={send}
+      writing={noteWriting(snapshot, note, send)}
     />
   );
 }
@@ -196,7 +200,7 @@ export default function NotesView({ error, onRecord, send, snapshot }: NotesView
   useNoteArrows(notes.list, routeId || (notes.open?.recording_id ?? ""), (note) =>
     openMeeting(note.recording_id, send),
   );
-  const note = opened({ error, notes, routeId, readMatches, send });
+  const note = opened({ error, notes, routeId, readMatches, send, snapshot });
   return (
     <section aria-label={es.notes.section} className={styles.view}>
       <MeetingsColumn send={send} snapshot={snapshot} />

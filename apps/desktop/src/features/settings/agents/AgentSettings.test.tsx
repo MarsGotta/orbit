@@ -8,7 +8,7 @@ import type { AppView } from "../../../state/app-view";
 import SettingsView from "../SettingsView";
 import { AgentSettings } from "./AgentSettings";
 
-// The Markdown editor is Tiptap's, tested on its own (PersonalityEditor);
+// The Markdown editor is tested on its own (PersonalityEditor, MarkdownEditor);
 // here a text box stands in for it so the orders can be typed.
 vi.mock("./PersonalityEditor", () => ({
   default: ({

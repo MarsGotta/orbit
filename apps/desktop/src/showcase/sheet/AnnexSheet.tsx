@@ -4,6 +4,7 @@ import { Icon, type IconName } from "../../design/Icon";
 import { BeingRedone, ProgressCard } from "../../design/ProgressCard";
 import { toggleTheme, useTheme } from "../../design/theme";
 import { ViewNotice } from "../../design/ViewNotice";
+import { EditorSection } from "./AnnexEditor";
 import { AnswerActions, HeaderSection } from "./AnnexMenus";
 import { MenusSection } from "./AnnexWord";
 import sheet from "./DesignSheet.module.css";
@@ -60,6 +61,7 @@ export function AnnexSheet() {
         <NoticesSection />
       </div>
       <MenusSection />
+      <EditorSection />
     </main>
   );
 }

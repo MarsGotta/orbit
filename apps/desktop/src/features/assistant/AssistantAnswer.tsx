@@ -10,7 +10,7 @@ import { CopyButton } from "./CopyButton";
 import { spokenText } from "./spoken-text";
 import styles from "./MessageActions.module.css";
 
-// The editor (Tiptap and its Markdown) loads only when an answer is opened in it.
+// The editor (CodeMirror and its Markdown) loads only when an answer is opened in it.
 const AnswerEditor = lazy(() => import("./AnswerEditor"));
 
 interface AnswerProps {

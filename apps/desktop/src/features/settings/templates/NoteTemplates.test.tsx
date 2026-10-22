@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
+import { blur, editorNamed, focusAt, typeText } from "../../editor/test-editor";
 import { NoteTemplates } from "./NoteTemplates";
 
 // Ajustes › Reuniones › Plantillas. Invented templates.
@@ -120,4 +121,28 @@ it("shows the templates' shape while they have not been read", () => {
   render(<NoteTemplates library={library("unknown")} send={vi.fn()} />);
   const templates = screen.getByRole("region", { name: "Plantillas" });
   expect(templates.querySelector("[aria-busy='true']")).toBeTruthy();
+});
+
+it("edits the context in the notes' editor, and saves it as typed when it loses the focus", () => {
+  const send = vi.fn();
+  render(<NoteTemplates library={library()} send={send} />);
+  fireEvent.click(screen.getByRole("button", { name: "Entrevista" }));
+  const editor = editorNamed("De qué va esta reunión y qué importa");
+  expect(editor.state.doc.toString()).toBe("Una persona candidata.");
+  focusAt(editor);
+  typeText(editor, "\n- Pregunta por **su** último equipo");
+  blur(editor);
+  expect(send).toHaveBeenLastCalledWith({
+    command: "note_library",
+    request: {
+      action: "save_template",
+      template_id: "entrevista",
+      draft: {
+        name: "Entrevista",
+        context: "Una persona candidata.\n- Pregunta por **su** último equipo",
+        sections: SECTIONS,
+        forked_from: null,
+      },
+    },
+  });
 });

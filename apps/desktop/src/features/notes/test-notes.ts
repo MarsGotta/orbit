@@ -193,7 +193,14 @@ export function notesSnapshot(change: Partial<NotesSnapshot> = {}): NotesSnapsho
   };
 }
 
-/** The app's view with only what the notes screen reads. */
+/**
+ * The app's view with only what the notes screen reads: the notes, and for
+ * the editors the agents (none) and the calendar's events (none).
+ */
 export function appView(notes: NotesSnapshot): AppView {
-  return { notes } as unknown as AppView;
+  return {
+    notes,
+    settings: { agents: [], assistant_name: "Deimos", default_agent_id: null },
+    calendar: { events: [] },
+  } as unknown as AppView;
 }

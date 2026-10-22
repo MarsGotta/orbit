@@ -1,11 +1,11 @@
 /**
  * The markdown Orbit's notes speak: the subset the hub's prompt asks
- * the model for and the editor writes back. Paragraphs, headings (three
+ * the model for. Paragraphs, headings (three
  * levels), bullet, numbered and task lists, bold, italic, strike, links to
  * http(s) and line breaks inside a paragraph or an item (a run's `\n`).
  * Anything else stays as literal text (`>`, fences, a fourth heading level):
- * no line is dropped and nothing becomes HTML. Pure and without dependencies; `Markdown.tsx` renders it as React
- * nodes and `markdown-doc.ts` maps it to the editor.
+ * no line is dropped and nothing becomes HTML. Pure and without dependencies;
+ * `MarkdownView.tsx` renders it as React nodes.
  */
 
 export interface Run {
@@ -40,7 +40,7 @@ type Marks = Omit<Run, "text">;
 
 const PUNCTUATION = /[\\*_~[\]()#+\-.!`>]/;
 /** A letter or digit: `_` next to one is part of a word, not a mark. */
-export const WORD = /[\p{L}\p{N}]/u;
+const WORD = /[\p{L}\p{N}]/u;
 
 function closing(source: string, from: number, delimiter: string): number {
   let index = from;

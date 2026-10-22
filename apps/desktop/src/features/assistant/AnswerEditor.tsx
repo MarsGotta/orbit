@@ -4,7 +4,7 @@ import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { useModalFocus } from "../../design/use-modal-focus";
 import { useSpanish } from "../../i18n/AssistantCopy";
-import { ChatMarkdown } from "./ChatMarkdown";
+import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { useCopy, copyStatus } from "./CopyButton";
 import styles from "./AnswerEditor.module.css";
 
@@ -33,7 +33,11 @@ function EditorHeader({ onClose, titleId }: { onClose: () => void; titleId: stri
   );
 }
 
-/** The count of characters, «Cerrar», «Copiar» (→ «✓ Copiado») and «Mandar a Deimos». */
+/**
+ * The count of characters, «Cerrar», «Copiar» (→ «✓ Copiado») and «Mandar
+ * a {agente}». The window closes once the message was taken: refused, it
+ * stays open with what was written, and the view says why.
+ */
 function EditorFooter({
   onClose,
   send,
@@ -45,10 +49,11 @@ function EditorFooter({
 }) {
   const es = useSpanish();
   const { copy, state } = useCopy();
+  const [sending, setSending] = useState(false);
   const failure = copyStatus(state);
   return (
     <footer className={styles.footer}>
-      <span className={styles.count}>{es.chatActions.characters(text.length)}</span>
+      <span className={styles.count}>{es.chatActions.charactersCopied(text.length)}</span>
       {failure !== null && (
         <span className={styles.failure} role="alert">
           {failure}
@@ -67,12 +72,17 @@ function EditorFooter({
         </span>
       </Button>
       <Button
-        disabled={text.trim() === ""}
+        disabled={text.trim() === "" || sending}
         onClick={() => {
           const message = text.trim();
           if (message === "") return;
-          send({ command: "chat", text: message });
-          onClose();
+          setSending(true);
+          void Promise.resolve(send({ command: "chat", text: message }))
+            .then((accepted) => {
+              if (accepted !== false) onClose();
+            })
+            .catch(() => undefined)
+            .finally(() => setSending(false));
         }}
         size={36}
         variant="accent"
@@ -84,16 +94,14 @@ function EditorFooter({
 }
 
 /**
- * An answer opened to change it: its Markdown on the left and, on the
- * right, how it will look, at once. Then copy it, or send it to the agent
- * as a new message. Closing it (×, «Cerrar», Esc or outside) sends nothing.
+ * An answer opened to change it, in the notes' Markdown editor: copy it,
+ * or send it to the agent as a new message. Closing it (×, «Cerrar», Esc
+ * or outside) sends nothing.
  */
 export default function AnswerEditor({ markdown, onClose, send }: AnswerEditorProps) {
   const es = useSpanish();
   const panel = useModalFocus(true);
   const titleId = useId();
-  const textId = useId();
-  const previewId = useId();
   const [text, setText] = useState(markdown);
   return (
     <div
@@ -116,30 +124,14 @@ export default function AnswerEditor({ markdown, onClose, send }: AnswerEditorPr
         role="dialog"
       >
         <EditorHeader onClose={onClose} titleId={titleId} />
-        <div className={styles.columns}>
-          <div className={styles.column}>
-            <span aria-hidden="true" className={styles.label}>
-              {es.chatActions.editorText}
-            </span>
-            <label className={styles.hidden} htmlFor={textId}>
-              {es.chatActions.editorTextLabel}
-            </label>
-            <textarea
-              className={styles.text}
-              id={textId}
-              onChange={(event) => setText(event.target.value)}
-              spellCheck={false}
-              value={text}
-            />
-          </div>
-          <section aria-labelledby={previewId} className={styles.preview}>
-            <h3 className={styles.label} id={previewId}>
-              {es.chatActions.editorPreview}
-            </h3>
-            <div className={styles.rendered}>
-              <ChatMarkdown source={text} />
-            </div>
-          </section>
+        <div className={styles.body}>
+          <MarkdownEditor
+            autoFocus
+            label={es.chatActions.editorTextLabel}
+            onChange={setText}
+            status={es.editor.onlyHere}
+            value={markdown}
+          />
         </div>
         <EditorFooter onClose={onClose} send={send} text={text} />
       </section>

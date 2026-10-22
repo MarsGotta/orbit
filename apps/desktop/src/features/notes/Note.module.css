@@ -854,17 +854,14 @@
   font: var(--o-text-meta);
 }
 
-/* Notas privadas. */
-.privateNotes .quiet {
-  margin-top: var(--o-space-14);
+/* Notas privadas: the editor on the page, 720 wide to read (guide 6). */
+.privateNotes {
+  max-width: 720px;
+  margin-top: 18px;
 }
 
-.privateBox {
-  margin-top: var(--o-space-10);
-  padding: 18px 20px;
-  border: 1px solid var(--o-line);
-  border-radius: var(--o-radius-lg);
-  background: var(--o-surface);
+.saveRefused {
+  color: var(--o-recText);
 }
 
 @media (max-width: 720px) {

@@ -106,9 +106,7 @@ const base = {
     you: "Tú",
     actionDue: (due: string) => `para el ${due}`,
 
-    privateHelp: "Solo las ves tú. Orbit las usa para escribir la nota.",
     privateLabel: "Notas privadas",
-    privatePlaceholder: "Escribe tus notas privadas…",
 
     // The notice when a note is ready (proposal 7).
     ready: "Tu nota está lista",
