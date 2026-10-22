@@ -387,6 +387,14 @@ impl Runtime {
         )
     }
 
+    /// The agent whose voice reads the open conversation's answers aloud:
+    /// its own, or the default agent's when it has none (as the hub falls back).
+    pub(super) fn reading_voice(&self) -> String {
+        let roster = self.settings.roster();
+        let agent_id = self.state.agent_id().unwrap_or(roster.default_agent_id());
+        roster.reading_voice(agent_id).to_owned()
+    }
+
     pub(super) async fn effect(&mut self, effect: Effect) -> Result<()> {
         match effect {
             Effect::SendText {

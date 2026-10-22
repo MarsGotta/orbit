@@ -154,7 +154,11 @@ async fn the_hubs_agents_reach_the_app_and_the_wake_phrase_and_survive_a_restart
     let published = status(&runtime)?;
     assert_eq!(
         published["status"]["agents"],
-        json!([{"id":"deimos","name":"Deimos"},{"id":"atlas","name":"Atlas"}])
+        json!([
+            {"id":"deimos","name":"Deimos","voice":true},
+            {"id":"atlas","name":"Atlas","voice":false}
+        ]),
+        "each agent says whether it has a voice of its own, from its capabilities"
     );
     assert_eq!(published["status"]["default_agent_id"], "deimos");
     let commands = helper_commands(&mut helper);
@@ -172,6 +176,7 @@ async fn the_hubs_agents_reach_the_app_and_the_wake_phrase_and_survive_a_restart
     let roster = restarted.roster();
     assert_eq!(roster.names(), ["Deimos", "Atlas"]);
     assert_eq!(roster.default_agent_id(), "deimos");
+    assert_eq!(roster.reading_voice("atlas"), "deimos");
     Ok(())
 }
 
@@ -486,5 +491,88 @@ async fn read_aloud_to_a_hub_without_agents_names_none() -> Result<()> {
         .await?;
     let body = speech_request(&mut runtime, &seen, &mut work_events).await?;
     assert_eq!(body, json!({"text": "Respuesta sintética"}));
+    Ok(())
+}
+
+/// What a hub says with three agents: Deimos, the default, and Atlas each
+/// with a voice of its own, and Nova without one, read in Deimos's.
+fn three_voices() -> Value {
+    json!({"event":"ready", "data": {
+        "device_id": DEVICE, "hub_protocol": 1, "assistant_name": "Deimos",
+        "agents": [
+            {"id":"deimos","name":"Deimos","kind":"hermes","capabilities":["voice","resume"]},
+            {"id":"atlas","name":"Atlas","kind":"hermes","capabilities":["voice","resume"]},
+            {"id":"nova","name":"Nova","kind":"acp","capabilities":["resume"]}
+        ],
+        "default_agent_id": "deimos"
+    }})
+}
+
+/// Reads one answer aloud in a conversation with `agent_id` against a hub
+/// whose voice does not arrive, and returns the assistant topic's voice.
+async fn a_voice_fails(runtime: &mut Runtime, agent_id: Option<&str>) -> Result<Value> {
+    open_with(runtime, agent_id).await?;
+    let (seen, mut work_events) = speech_hub(runtime).await?;
+    runtime
+        .command(Command::Speak {
+            message_id: "answer-voice".into(),
+            text: "Respuesta sintética".into(),
+        })
+        .await?;
+    speech_request(runtime, &seen, &mut work_events).await?;
+    Ok(status(runtime)?["assistant"]["voice"].clone())
+}
+
+async fn open_with(runtime: &mut Runtime, agent_id: Option<&str>) -> Result<()> {
+    runtime
+        .command(Command::NewSession {
+            agent_id: agent_id.map(str::to_owned),
+        })
+        .await
+}
+
+/// The assistant topic's voice in a new conversation with `agent_id`.
+async fn voice_with(runtime: &mut Runtime, agent_id: Option<&str>) -> Result<Value> {
+    open_with(runtime, agent_id).await?;
+    Ok(status(runtime)?["assistant"]["voice"].clone())
+}
+
+/// Atlas's own voice failing says nothing of Deimos's: each voice keeps
+/// what its last reading said, and one not read yet is unknown, not «no».
+#[tokio::test]
+async fn a_failed_voice_is_not_another_agents() -> Result<()> {
+    let (_directory, mut runtime, _hub, _helper) = with_hub()?;
+    ready(&mut runtime, three_voices()).await?;
+    let failed = a_voice_fails(&mut runtime, Some("atlas")).await?;
+    assert_eq!(failed["state"], "absent", "{failed}");
+    assert_eq!(failed["code"], "speech_unavailable");
+    assert_eq!(voice_with(&mut runtime, None).await?["state"], "unknown");
+    assert_eq!(
+        voice_with(&mut runtime, Some("nova")).await?["state"],
+        "unknown",
+        "Nova is read in Deimos's voice, which has not failed"
+    );
+    assert_eq!(
+        voice_with(&mut runtime, Some("atlas")).await?["state"],
+        "absent",
+        "Atlas's failure stays known in its next conversation"
+    );
+    Ok(())
+}
+
+/// An agent without a voice of its own is read in the default agent's, so
+/// what fails is the default agent's voice: for Nova and Deimos alike, not
+/// for Atlas.
+#[tokio::test]
+async fn an_agent_read_in_the_default_voice_shares_its_failure() -> Result<()> {
+    let (_directory, mut runtime, _hub, _helper) = with_hub()?;
+    ready(&mut runtime, three_voices()).await?;
+    let failed = a_voice_fails(&mut runtime, Some("nova")).await?;
+    assert_eq!(failed["state"], "absent", "{failed}");
+    assert_eq!(voice_with(&mut runtime, None).await?["state"], "absent");
+    assert_eq!(
+        voice_with(&mut runtime, Some("atlas")).await?["state"],
+        "unknown"
+    );
     Ok(())
 }

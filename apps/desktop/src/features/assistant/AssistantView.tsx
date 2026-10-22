@@ -14,7 +14,7 @@ import { turnInFlight } from "./conversation";
 import { UnknownAssistant, useAssistantCall } from "./AssistantAvailability";
 import { MessageList } from "./MessageList";
 import { PendingCard } from "./PendingCard";
-import { agentFor, agentsOf } from "./agents";
+import { agentFor, agentsOf, readsAloud } from "./agents";
 import { useConversation } from "./useConversation";
 import styles from "./AssistantView.module.css";
 
@@ -119,14 +119,15 @@ function CallOrb({ call, onEnd }: { call: AppSnapshot["call"]; onEnd: () => void
 }
 
 function ConversationThread({
-  chat,
   readMessages,
   send,
+  snapshot,
 }: {
-  chat: AppSnapshot["chat"];
   readMessages?: DaemonPort["readSessionMessages"];
   send: AssistantViewProps["send"];
+  snapshot: AppSnapshot;
 }) {
+  const { chat } = snapshot;
   const history = useConversation(chat, readMessages);
   return (
     <div
@@ -149,6 +150,7 @@ function ConversationThread({
         />
         <MessageList
           busy={turnInFlight(chat)}
+          listenable={readsAloud(snapshot, chat.agent_id)}
           messages={history.messages}
           send={send}
           speaking={chat.speaking ?? null}
@@ -181,10 +183,10 @@ export default function AssistantView({ error, readMessages, send, snapshot }: A
       <AssistantHeader send={send} snapshot={snapshot} />
       <ViewError error={error} />
       <ConversationThread
-        chat={chat}
         key={chat.session_id ?? "no-session"}
         readMessages={readMessages}
         send={send}
+        snapshot={snapshot}
       />
       <AssistantComposer
         attachmentLimits={snapshot.settings.attachments}

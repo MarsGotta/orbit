@@ -113,7 +113,7 @@ pub(in crate::daemon) fn fixture(
                 voice_task: crate::daemon::ticketed::Ticketed::logical(),
                 voice_operation: None,
                 speech_task: crate::daemon::ticketed::Ticketed::logical(),
-                speech_available: None,
+                speech_voices: BTreeMap::new(),
                 speak_next: false,
                 read_aloud: None,
                 hub_attachments: None,

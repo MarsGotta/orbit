@@ -114,6 +114,8 @@ impl Runtime {
         let generation = self.state.generation();
         // The voice of the agent the answer is from: the open conversation's.
         let agent_id = self.turn_agent_id();
+        // What the result says is remembered for the voice that reads it.
+        let voice = self.reading_voice();
         // A replay request does not erase a known capability. The worker's
         // result may update it; until then the last observed fact still holds.
         self.conversation.speech_task.replace_logical(
@@ -136,6 +138,7 @@ impl Runtime {
                     let event = match result {
                         Ok(()) => WorkResult::SpeechAvailability {
                             ticket,
+                            voice,
                             available: true,
                         },
                         Err(error)
@@ -145,6 +148,7 @@ impl Runtime {
                         {
                             WorkResult::SpeechAvailability {
                                 ticket,
+                                voice,
                                 available: false,
                             }
                         }
@@ -199,10 +203,14 @@ mod tests {
         });
         runtime.token = Some("synthetic-token".into());
         runtime.conversation.speak_next = true;
-        runtime.conversation.speech_available = Some(false);
+        let voice = runtime.reading_voice();
+        runtime
+            .conversation
+            .speech_voices
+            .insert(voice.clone(), false);
         runtime.start_speech();
         assert!(runtime.conversation.speech_task.active().is_some());
-        assert_eq!(runtime.conversation.speech_available, Some(false));
+        assert_eq!(runtime.conversation.speech_voices.get(&voice), Some(&false));
         if let Some(task) = runtime.conversation.speech_task.take() {
             task.abort();
         }

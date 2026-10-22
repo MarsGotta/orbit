@@ -34,7 +34,9 @@ authorization or proof of echo cancellation. `VoicePolicy::default` sets:
 
 Hermes transcribes turns through `POST /v1/audio/transcribe`. Their encrypted
 audio stays local (`upload_allowed:false`). Text travels as `chat.send` with
-`call_active:true`; `POST /v1/audio/speech` and native playback speak the reply.
+`call_active:true`; `POST /v1/audio/speech` and native playback speak the reply,
+in the voice of the call's agent (`agent_id`), or the default agent's when that
+agent has no voice of its own. Transcription stays the default agent's.
 
 ## Automatic stops
 

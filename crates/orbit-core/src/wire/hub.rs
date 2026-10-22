@@ -208,8 +208,8 @@ pub struct ReadyData {
     #[serde(default)]
     pub device_version: Option<String>,
 }
-/// One agent as `ready` lists it. The Mac reads `id` and `name`; `kind`
-/// and `capabilities` are the hub's and travel for the contract.
+/// One agent as `ready` lists it. The Mac reads `id`, `name` and whether
+/// `capabilities` has `voice`; `kind` and the rest travel for the contract.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HubAgent {
     pub id: String,

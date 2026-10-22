@@ -22,10 +22,15 @@ impl ProjectTopic for Projector {
             voice_active: state.durable.voice_active,
             turn_in_flight: state.durable.active_request.is_some(),
             activity: activity(source),
-            voice: match source
-                .runtime
-                .and_then(|runtime| runtime.conversation.speech_available)
-            {
+            // The voice that reads this conversation's answers, as its
+            // last reading left it; another agent's voice says nothing here.
+            voice: match source.runtime.and_then(|runtime| {
+                runtime
+                    .conversation
+                    .speech_voices
+                    .get(&runtime.reading_voice())
+                    .copied()
+            }) {
                 Some(true) => VoiceAvailability::Present,
                 Some(false) => VoiceAvailability::Absent {
                     code: VoiceAbsence::SpeechUnavailable,
@@ -426,6 +431,7 @@ mod tests {
         runtime
             .work_event(WorkResult::SpeechAvailability {
                 ticket,
+                voice: orbit_core::agents::IMPLICIT_AGENT_ID.into(),
                 available: false,
             })
             .await
@@ -450,6 +456,7 @@ mod tests {
         runtime
             .work_event(WorkResult::SpeechAvailability {
                 ticket,
+                voice: orbit_core::agents::IMPLICIT_AGENT_ID.into(),
                 available: true,
             })
             .await

@@ -283,10 +283,12 @@ mod tests {
                 orbit_core::agents::Agent {
                     id: "deimos".into(),
                     name: "Deimos".into(),
+                    voice: None,
                 },
                 orbit_core::agents::Agent {
                     id: "atlas".into(),
                     name: "Atlas".into(),
+                    voice: None,
                 },
             ],
             Some("atlas".into()),

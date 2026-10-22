@@ -20,6 +20,16 @@ export function agentFor(
 }
 
 /**
+ * Whether an answer of a conversation with `agentId` can be read aloud: in
+ * its agent's own voice, or in the default agent's, which the hub reads an
+ * agent without one in. Only an agent that says it has no voice counts as
+ * none: one of a hub without agents (0.9.0) does not say, and is offered.
+ */
+export function readsAloud(snapshot: AppView | null | undefined, agentId?: string | null): boolean {
+  return agentFor(snapshot, agentId)?.voice !== false || agentFor(snapshot)?.voice !== false;
+}
+
+/**
  * The name every text uses: the open conversation's agent; before the
  * agents are known, the hub's `assistant_name` (and «Deimos» before that).
  */

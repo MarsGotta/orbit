@@ -18,6 +18,8 @@ interface Answering {
   busy?: boolean;
   /** The answer being read aloud, by its message id. */
   speaking?: string | null;
+  /** «Escuchar» is offered: some voice can read this conversation's answers. */
+  listenable?: boolean;
 }
 
 function Message({
@@ -49,6 +51,7 @@ function Message({
           // Deimos answers in Markdown; the user's own text stays as they wrote it.
           <AssistantAnswer
             busy={answering.busy ?? false}
+            listenable={answering.listenable ?? true}
             message={message}
             retry={retry}
             send={send}

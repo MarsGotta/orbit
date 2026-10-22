@@ -176,6 +176,7 @@ async fn work_delivery_waits_for_capacity_and_handles_closed_receiver() {
         sender
             .send(WorkResult::SpeechAvailability {
                 ticket: crate::daemon::ticketed::WorkTicket::test(1),
+                voice: "default".into(),
                 available: true,
             })
             .await
@@ -185,6 +186,7 @@ async fn work_delivery_waits_for_capacity_and_handles_closed_receiver() {
         &sender,
         WorkResult::SpeechAvailability {
             ticket: crate::daemon::ticketed::WorkTicket::test(2),
+            voice: "default".into(),
             available: false,
         },
     );
@@ -207,6 +209,7 @@ async fn work_delivery_waits_for_capacity_and_handles_closed_receiver() {
         &sender,
         WorkResult::SpeechAvailability {
             ticket: crate::daemon::ticketed::WorkTicket::test(3),
+            voice: "default".into(),
             available: false,
         },
     )

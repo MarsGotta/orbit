@@ -1,7 +1,9 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AppCommand } from "../../bridge/generated";
+import type { Agent } from "../../bridge/generated/Agent";
+import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import type { ChatSessionSummary } from "../../bridge/generated/ChatSessionSummary";
 import { contextForView } from "../../app/ContextPanel";
 import { AssistantCopy } from "../../i18n/AssistantCopy";
@@ -23,7 +25,7 @@ const TWO = [
 
 function snapshot(
   chat: Partial<AppSnapshot["chat"]>,
-  agents = TWO,
+  agents: Agent[] = TWO,
   defaultAgent: string | undefined = "deimos",
 ): AppSnapshot {
   return {
@@ -154,5 +156,68 @@ describe("the agents as frames arrive", () => {
     const kept = applyFrame(known, status({ agents: [] }));
     expect(kept.settings.agents).toEqual(TWO);
     expect(kept.settings.default_agent_id).toBe("atlas");
+  });
+});
+
+describe("«Escuchar» and the agents' voices", () => {
+  // The hub reads an agent without a voice of its own in the default agent's.
+  const answer: ChatMessage = {
+    id: "answer-voz",
+    role: "assistant",
+    text: "La sala Norte tiene 8 plazas.",
+    at_ms: 1_700_000_000_000,
+    streaming: false,
+    voice: null,
+    receipts: [],
+  };
+
+  async function offersListening(agents: Agent[], agentId?: string): Promise<boolean> {
+    render(
+      <AssistantView
+        error={null}
+        readMessages={() =>
+          Promise.resolve({
+            state: "present",
+            value: { items: [answer], next: null, total: 1, revision: 1 },
+            as_of_ms: null,
+          })
+        }
+        send={() => undefined}
+        snapshot={snapshot({ session_id: "session-voz", agent_id: agentId }, agents)}
+      />,
+    );
+    const article = (await screen.findByText(/sala Norte/)).closest("article") as HTMLElement;
+    const offered = within(article).queryByRole("button", { name: "Escuchar" }) !== null;
+    cleanup();
+    return offered;
+  }
+
+  it("is not offered when neither the conversation's agent nor the default one has a voice", async () => {
+    const mute = [
+      { id: "deimos", name: "Deimos", voice: false },
+      { id: "atlas", name: "Atlas", voice: false },
+    ];
+    expect(await offersListening(mute, "atlas")).toBe(false);
+    expect(await offersListening(mute)).toBe(false);
+  });
+
+  it("is offered with the conversation's own voice or the default agent's", async () => {
+    const own = [
+      { id: "deimos", name: "Deimos", voice: false },
+      { id: "atlas", name: "Atlas", voice: true },
+    ];
+    expect(await offersListening(own, "atlas")).toBe(true);
+    const borrowed = [
+      { id: "deimos", name: "Deimos", voice: true },
+      { id: "atlas", name: "Atlas", voice: false },
+    ];
+    expect(await offersListening(borrowed, "atlas")).toBe(true);
+  });
+
+  it("is offered as before when the agents do not say", async () => {
+    // A hub without agents (0.9.0) has one that says nothing of its voice;
+    // before the daemon says, there are none.
+    expect(await offersListening([{ id: "default", name: "Vega" }])).toBe(true);
+    expect(await offersListening([])).toBe(true);
   });
 });

@@ -65,23 +65,23 @@ impl Runtime {
                     self.on_work_problem(message).await?;
                 }
             }
-            WorkResult::SpeechAvailability { ticket, available } => {
+            WorkResult::SpeechAvailability {
+                ticket,
+                voice,
+                available,
+            } => {
                 let settlement = self
                     .conversation
                     .speech_task
                     .settle(&ticket, self.state.generation());
                 if self.settled_value("speech", settlement).is_some() {
-                    self.conversation.speech_available = Some(available);
+                    // The voice that did not arrive is the one that was reading.
+                    let agent_name = crate::speech::agent_name(&self.settings, Some(&voice));
+                    self.conversation.speech_voices.insert(voice, available);
                     if !available {
                         self.conversation.read_aloud = None;
                         self.on_work_problem(
-                            crate::speech::SpeechUnavailable {
-                                agent_name: crate::speech::agent_name(
-                                    &self.settings,
-                                    self.turn_agent_id().as_deref(),
-                                ),
-                            }
-                            .to_string(),
+                            crate::speech::SpeechUnavailable { agent_name }.to_string(),
                         )
                         .await?;
                     }

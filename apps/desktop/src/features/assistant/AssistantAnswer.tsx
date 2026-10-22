@@ -22,6 +22,8 @@ interface AnswerProps {
   busy: boolean;
   /** The answer being read aloud, by its message id. */
   speaking: string | null;
+  /** Some voice can read it: the conversation's agent's or the default one's. */
+  listenable: boolean;
 }
 
 /** The selected text inside `root`, if the selection lies wholly in it. */
@@ -79,7 +81,7 @@ function ListenButton({
  * Markdown, ask again, hear it, open it in the editor and quote a fragment
  * of it in the composer. None of these sends anything by itself.
  */
-export function AssistantAnswer({ busy, message, retry, send, speaking }: AnswerProps) {
+export function AssistantAnswer({ busy, listenable, message, retry, send, speaking }: AnswerProps) {
   const content = useRef<HTMLDivElement>(null);
   const { fragment, observe, setFragment } = useFragment(content);
   const [editing, setEditing] = useState(false);
@@ -99,12 +101,14 @@ export function AssistantAnswer({ busy, message, retry, send, speaking }: Answer
           >
             {es.chatActions.retry}
           </Button>
-          <ListenButton
-            id={message.id}
-            send={send}
-            speaking={speaking}
-            text={() => (content.current === null ? message.text : spokenText(content.current))}
-          />
+          {listenable && (
+            <ListenButton
+              id={message.id}
+              send={send}
+              speaking={speaking}
+              text={() => (content.current === null ? message.text : spokenText(content.current))}
+            />
+          )}
           <Button onClick={() => setEditing(true)} size={26} variant="ghost">
             {es.chatActions.openEditor}
           </Button>

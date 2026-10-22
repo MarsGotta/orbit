@@ -629,6 +629,8 @@ enum WorkResult {
     },
     SpeechAvailability {
         ticket: ticketed::WorkTicket,
+        /// The agent whose voice was reading.
+        voice: String,
         available: bool,
     },
     BridgeCaptureUpload {
@@ -855,7 +857,12 @@ struct ConversationRuntime {
     voice_operation: Option<String>,
     /// One playback at a time; a replay replaces the current one.
     speech_task: ticketed::Ticketed<()>,
-    speech_available: Option<bool>,
+    /// What the last reading in each voice said, by the agent whose voice
+    /// it is (`AgentRoster::reading_voice`): `true` it played, `false` the
+    /// hub's voice did not arrive. A voice not read yet is not here, which
+    /// is unknown, not «no». One entry per voice that has read, so at most
+    /// one per agent a hub has listed while the daemon runs.
+    speech_voices: BTreeMap<String, bool>,
     speak_next: bool,
     speech_notice_call_id: Option<String>,
     /// The answer the user asked to hear («Escuchar»), while it plays.
@@ -1170,7 +1177,7 @@ async fn run_with_helper_inner(
             voice_task: ticketed::Ticketed::logical(),
             voice_operation: None,
             speech_task: ticketed::Ticketed::logical(),
-            speech_available: None,
+            speech_voices: BTreeMap::new(),
             speak_next: false,
             read_aloud: None,
             hub_attachments: None,

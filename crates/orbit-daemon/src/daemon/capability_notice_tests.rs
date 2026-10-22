@@ -503,10 +503,12 @@ async fn speech_unavailable_names_the_agent_asked_for() -> Result<()> {
             orbit_core::agents::Agent {
                 id: "vega".into(),
                 name: "Vega".into(),
+                voice: None,
             },
             orbit_core::agents::Agent {
                 id: "atlas".into(),
                 name: "Atlas".into(),
+                voice: None,
             },
         ],
         Some("vega".into()),

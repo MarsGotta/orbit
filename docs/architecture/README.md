@@ -137,7 +137,15 @@ WAV locally with `upload_allowed:false`, sends it for interactive dictation to
 A note shorter than `MINIMUM_SPEECH_MS` (160 ms, the speech a call turn needs)
 is neither stored nor sent; the composer says its length and that minimum.
 The hub asks Hermes; text events return to the Mac. `POST /v1/audio/speech` gets
-the spoken response for native playback. When the transcription fails, «Reintentar
+the spoken response for native playback, and «Escuchar» reads an answer the same
+way. The request names the conversation's agent (`agent_id`, to a hub that lists
+its agents); the hub reads in that agent's voice, or in the default agent's when
+it has none of its own (`voice` absent from its `capabilities` in `ready`).
+Dictation stays the default agent's. The daemon remembers whether the last
+reading worked per voice that read, so one agent's failed voice is not reported
+for another, and the chat offers «Escuchar» only when the conversation's agent
+or the default agent has a voice; a hub without agents is offered it as before.
+When the transcription fails, «Reintentar
 transcripción» sends the stored WAV again; if this Mac no longer holds it, the
 refusal says the audio is missing. During a meeting, dictation becomes
 a question about that meeting; it does not play the response aloud.

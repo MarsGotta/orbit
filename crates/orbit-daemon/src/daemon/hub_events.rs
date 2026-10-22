@@ -380,6 +380,7 @@ impl Runtime {
             .map(|agent| orbit_core::agents::Agent {
                 id: agent.id.clone(),
                 name: agent.name.clone(),
+                voice: Some(agent.capabilities.iter().any(|name| name == "voice")),
             })
             .collect();
         match orbit_core::agents::AgentRoster::admit(agents, data.default_agent_id.clone()) {

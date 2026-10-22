@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 /// implicit agent.
 pub const IMPLICIT_AGENT_ID: &str = "default";
 
-/// One agent as the interface shows it: its stable id and the name the user
-/// reads and says aloud.
+/// One agent as the interface shows it: its stable id, the name the user
+/// reads and says aloud, and whether it reads aloud in a voice of its own.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -19,6 +19,12 @@ pub const IMPLICIT_AGENT_ID: &str = "default";
 pub struct Agent {
     pub id: String,
     pub name: String,
+    /// `voice` among its `capabilities` in `ready`. `None` when the hub did
+    /// not say: the one agent of a hub that lists none (0.9.0), or a list
+    /// kept by an older Mac. Not saying is not «no voice».
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub voice: Option<bool>,
 }
 
 /// The agents a hub said it has, in its order, and which one is its default.
@@ -133,6 +139,7 @@ impl AgentRoster {
             agents: vec![Agent {
                 id: IMPLICIT_AGENT_ID.into(),
                 name: name.into(),
+                voice: None,
             }],
         }
     }
@@ -160,6 +167,19 @@ impl AgentRoster {
             .map_or("", |agent| agent.name.as_str())
     }
 
+    /// The agent whose voice reads `agent_id`'s answers aloud: its own, or
+    /// the default agent's for one that says it has none, as the hub falls
+    /// back. One that does not say is read in its own, which the hub tries
+    /// first.
+    pub fn reading_voice<'a>(&'a self, agent_id: &'a str) -> &'a str {
+        match self.agent(agent_id) {
+            Some(Agent {
+                voice: Some(false), ..
+            }) => &self.default_agent_id,
+            _ => agent_id,
+        }
+    }
+
     /// The agent whose name the helper heard. The helper answers with the
     /// name exactly as it was given in `assistant_names`.
     pub fn named(&self, name: &str) -> Option<&Agent> {
@@ -180,6 +200,7 @@ mod tests {
         Agent {
             id: id.into(),
             name: name.into(),
+            voice: None,
         }
     }
 
@@ -260,5 +281,33 @@ mod tests {
         assert_eq!(roster.default_name(), "Atlas");
         assert_eq!(roster.names(), ["Atlas"]);
         assert_eq!(roster.clone().checked(), Some(roster));
+    }
+
+    #[test]
+    fn an_agent_without_a_voice_is_read_in_the_default_agents() {
+        let voiced = |id: &str, voice: Option<bool>| Agent {
+            voice,
+            ..agent(id, id)
+        };
+        let roster = AgentRoster::admit(
+            vec![
+                voiced("deimos", Some(true)),
+                voiced("atlas", Some(true)),
+                voiced("nova", Some(false)),
+                voiced("vega", None),
+            ],
+            Some("deimos".into()),
+        )
+        .unwrap_or_else(|refusal| panic!("{refusal:?}"));
+        assert_eq!(roster.reading_voice("atlas"), "atlas");
+        assert_eq!(roster.reading_voice("nova"), "deimos");
+        assert_eq!(roster.reading_voice("deimos"), "deimos");
+        assert_eq!(
+            roster.reading_voice("vega"),
+            "vega",
+            "an agent that does not say is tried in its own voice first"
+        );
+        let single = AgentRoster::single("Vega");
+        assert_eq!(single.reading_voice(IMPLICIT_AGENT_ID), IMPLICIT_AGENT_ID);
     }
 }
