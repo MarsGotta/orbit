@@ -518,37 +518,32 @@ async def test_a_command_that_does_not_start_is_refused_when_the_session_opens(
     assert "no existe" in refused.value.message
 
 
-@pytest.mark.parametrize(
-    ("agent", "login"),
-    [
-        ("claude-code", "CLAUDE_CONFIG_DIR={home} {command} --cli auth login --console"),
-        ("codex", "CODEX_HOME={home} {command} cli login --device-auth"),
-    ],
-)
-async def test_an_agent_asking_to_sign_in_is_refused_with_the_command_to_run_on_the_server(
-    environment, tmp_path, agent, login
-):
+@pytest.mark.parametrize("agent", ["claude-code", "codex"])
+async def test_an_agent_asking_to_sign_in_says_to_sign_in_from_orbit(environment, tmp_path, agent):
     settings, _store, _speech = environment
-    folder = settings.data_dir / "agents" / "claude-prueba"
-    home = shlex.quote(str(folder / ("claude-config" if agent == "claude-code" else "codex-home")))
-    raw = raw_settings(tmp_path, "--auth-required", agent=agent)
-    expected = login.format(home=home, command=shlex.join(raw["command"]))
-    connection = acp.build_backend(settings, configured(raw)).connection(
-        "equipo-1", "Mac", Events()
-    )
+    service = "Claude" if agent == "claude-code" else "ChatGPT"
+    learned = []
+    backend = acp.build_backend(settings, configured(raw_settings(tmp_path, "--auth-required", agent=agent)))  # fmt: skip
+    backend.observe = lambda fact, **values: learned.append(fact)
+    connection = backend.connection("equipo-1", "Mac", Events())
     await connection.open()
     with pytest.raises(HubError) as refused:
         await connection.create_session()
     await connection.close()
     assert refused.value.code == "agent_auth_required"
-    assert expected in refused.value.message
-    assert "Orbit no inicia sesiones" in refused.value.message
+    assert f"no tiene la sesión de {service} iniciada en el hub" in refused.value.message
+    assert "inicia sesión desde Orbit" in refused.value.message
+    # No command to run on the server any more, and no folder of the hub's.
+    assert "login" not in refused.value.message
+    assert str(settings.data_dir) not in refused.value.message
+    assert learned == ["auth_required"]
 
-    # Signed out between turns: the turn fails with the same instruction.
-    raw = raw_settings(tmp_path, agent=agent)
-    expected = login.format(home=home, command=shlex.join(raw["command"]))
+    # Signed out between turns: the turn fails with the same cause.
     events = Events()
-    connection = acp.build_backend(settings, configured(raw)).connection("equipo-1", "Mac", events)
+    backend = acp.build_backend(settings, configured(raw_settings(tmp_path, agent=agent)))
+    learned.clear()
+    backend.observe = lambda fact, **values: learned.append(fact)
+    connection = backend.connection("equipo-1", "Mac", events)
     await connection.open()
     try:
         opened = await connection.create_session()
@@ -558,7 +553,70 @@ async def test_an_agent_asking_to_sign_in_is_refused_with_the_command_to_run_on_
         await connection.close()
     assert isinstance(done, TurnFailed)
     assert done.code == "agent_auth_required"
-    assert expected in done.message
+    assert "inicia sesión desde Orbit" in done.message
+    assert learned == ["auth_required"]
+
+
+@pytest.mark.parametrize(
+    ("prompt", "numbers", "until", "said"),
+    [
+        # Codex marks the limit and says when only in its sentence.
+        ("agota el plan", None, None, "Try again at 3:04 PM."),
+        # Claude Code's report of the limit carries when it resets.
+        (
+            "tope del plan",
+            {"resets_at_ms": 1_790_000_000_000},
+            1_790_000_000_000,
+            "You've hit your session limit",
+        ),
+    ],
+)
+async def test_a_plans_limit_ends_the_turn_with_its_reset_time_when_given(
+    environment, tmp_path, prompt, numbers, until, said
+):
+    settings, _store, _speech = environment
+    learned = []
+    backend = backend_for(settings, tmp_path)
+    backend.observe = lambda fact, **values: learned.append((fact, values))
+    events = Events()
+    connection = backend.connection("equipo-1", "Mac", events)
+    await connection.open()
+    try:
+        opened = await connection.create_session()
+        await connection.prompt(opened.session_id, [TextBlock(prompt)])
+        done = await events.wait_for(ended)
+    finally:
+        await connection.close()
+    assert isinstance(done, TurnFailed)
+    assert done.code == "agent_limit_reached"
+    assert done.numbers == numbers
+    assert "llegó al límite de tu plan" in done.message
+    assert said in done.message
+    assert ("limit", {"until_ms": until}) in learned
+
+
+async def test_the_adapters_account_and_plan_use_reach_the_registry(environment, tmp_path):
+    settings, _store, _speech = environment
+    learned = []
+    backend = backend_for(settings, tmp_path)
+    backend.observe = lambda fact, **values: learned.append((fact, values))
+    events = Events()
+    connection = backend.connection("equipo-1", "Mac", events)
+    await connection.open()
+    try:
+        opened = await connection.create_session()
+        await connection.prompt(opened.session_id, [TextBlock("cuenta")])
+        await events.wait_for(completed)
+    finally:
+        await connection.close()
+    assert learned == [
+        ("status", {"kind": "account", "email": "marta.soler@ejemplo.test", "plan": "Plan Pro"}),
+        (
+            "usage",
+            {"used_percent": 72, "window": "seven_day", "resets_at_ms": 1_790_000_000_000},
+        ),
+        ("answered", {}),
+    ]
 
 
 async def test_a_resumed_session_loads_without_replaying_its_old_text(environment, tmp_path):

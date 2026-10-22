@@ -219,6 +219,15 @@ pub enum Command {
         #[cfg_attr(feature = "ts", ts(optional))]
         agent_id: Option<String>,
     },
+    /// «Seguir con {nombre}»: a new conversation with `agent_id` that takes
+    /// over `session_id`, the hub's conversation whose agent could not
+    /// answer, with `text`, the question left unanswered (hub-v1 «Handing a
+    /// conversation over»). Only to a hub that lists `addable_agents`.
+    Handover {
+        session_id: String,
+        agent_id: String,
+        text: String,
+    },
     Interrupt,
     PrivacyStop,
     Rearm,
@@ -329,6 +338,7 @@ impl Command {
             | Self::AttachmentFetch { .. }
             | Self::AttachmentSave { .. }
             | Self::NewSession { .. }
+            | Self::Handover { .. }
             | Self::Interrupt
             | Self::VoiceStart
             | Self::VoiceEnd

@@ -57,6 +57,11 @@ TWO_AGENTS = (
 HERMES_CAPABILITIES = ["images", "voice", "resume"]
 
 
+def profile(service, color):
+    """What `ready` adds of an agent nobody has given a profile in Orbit."""
+    return {"service": service, "description": "", "color": color, "removable": False}
+
+
 class SyntheticHermes:
     """Hermes's gateway as far as the hub uses it, on a thread of its own so
     the synchronous TestClient can drive the hub at the same time. Each live
@@ -363,7 +368,13 @@ def test_ready_lists_the_implicit_agent_for_a_0_9_0_configuration(environment):
     assert ready["data"]["assistant_name"] == "Atlas"
     assert ready["data"]["default_agent_id"] == "default"
     assert ready["data"]["agents"] == [
-        {"id": "default", "name": "Atlas", "kind": "hermes", "capabilities": HERMES_CAPABILITIES}
+        {
+            "id": "default",
+            "name": "Atlas",
+            "kind": "hermes",
+            "capabilities": HERMES_CAPABILITIES,
+            **profile("hermes", "c1"),
+        }
     ]
 
 
@@ -376,8 +387,20 @@ def test_ready_lists_every_agent_and_names_the_default(environment):
     assert ready["assistant_name"] == "Lyra"
     assert ready["default_agent_id"] == "lyra"
     assert ready["agents"] == [
-        {"id": "deimos", "name": "Deimos", "kind": "hermes", "capabilities": HERMES_CAPABILITIES},
-        {"id": "lyra", "name": "Lyra", "kind": "hermes", "capabilities": HERMES_CAPABILITIES},
+        {
+            "id": "deimos",
+            "name": "Deimos",
+            "kind": "hermes",
+            "capabilities": HERMES_CAPABILITIES,
+            **profile("hermes", "c1"),
+        },
+        {
+            "id": "lyra",
+            "name": "Lyra",
+            "kind": "hermes",
+            "capabilities": HERMES_CAPABILITIES,
+            **profile("hermes", "c2"),
+        },
     ]
 
 

@@ -25,16 +25,20 @@ it: Claude Code in each session's `_meta.systemPrompt.append` (with
 `tools: []` it could not open one), Codex in the `AGENTS.md` of its folder.
 A skill's instructions come from orbit-mcp's `orbit_skill`.
 
-The account is the operator's: Orbit never offers a sign-in and never sees a
-token. An agent that asks to authenticate is refused with the command to run
-on the server.
+The agent signs in with the vendor's own tool, run by the hub in the agent's
+folder (`sign_in`); the hub never sees a token. What the agent says of its
+account reaches the registry through `AcpBackend.observe`: a refusal for want
+of a sign-in (the session expired), the plan's limit (`agent_limit_reached`,
+with its reset time when the adapter forwards it), the plan's use (Claude
+Code's `_claude/rateLimit` in `usage_update`, the one structured report
+either adapter gives) and the account's address and plan
+(`_auth/status_update`).
 """
 
 import asyncio
 import base64
 import json
 import os
-import shlex
 import signal
 import sys
 from collections.abc import Sequence
@@ -63,12 +67,13 @@ from acp.schema import (
     TextContentBlock,
     ToolCallProgress,
     ToolCallStart,
+    UsageUpdate,
 )
 from pydantic import ValidationError
 
 from ..errors import HubError
 from ..log import clear_op, report
-from .acp_settings import AcpAgentSettings
+from .acp_settings import HOME_FOLDERS, AcpAgentSettings
 from .agent_config import (
     MAX_INSTRUCTIONS_TEXT_BYTES,
     AgentInstructions,
@@ -191,26 +196,20 @@ class AcpBackend:
         self.settings: AcpAgentSettings = agent.settings
         self.instructions = instructions
         self.folder = hub.data_dir / "agents" / agent.id
-        self.config_dir = self.folder / (
-            "claude-config" if self.settings.agent == "claude-code" else "codex-home"
-        )
+        self.config_dir = self.folder / HOME_FOLDERS[self.settings.agent]
         # Every running process, the one used longest ago first.
         self.processes: list[_AgentProcess] = []
         self._admission = asyncio.Lock()
+        # What the agent's processes learn of its account goes to the
+        # registry (`Agents.observe`), which sets this.
+        self.observe = _ignore
+
+    def rename(self, name: str) -> None:
+        """The profile's name, for the texts that name the agent from now on."""
+        self.agent_name = name
 
     def connection(self, device: str, device_name: str, on_event: EventSink) -> "AcpConnection":
         return AcpConnection(self, on_event)
-
-    def login_command(self) -> str:
-        """What the operator runs on the server to sign the agent in, in its own home."""
-        command = shlex.join(self.settings.command)
-        home = shlex.quote(str(self.config_dir))
-        if self.settings.agent == "claude-code":
-            # `--cli` runs the adapter's bundled `claude`. Console, not the
-            # subscription, until Anthropic answers about Orbit in writing.
-            return f"CLAUDE_CONFIG_DIR={home} {command} --cli auth login --console"
-        # `cli` runs codex-acp's bundled `codex`; a device code suits a server.
-        return f"CODEX_HOME={home} {command} cli login --device-auth"
 
     def environment(self) -> dict[str, str]:
         environment = acp.default_environment()
@@ -407,12 +406,17 @@ class _LineTransport:
                 self.writer.close()
 
 
+def _ignore(fact: str, **values: Any) -> None:
+    return None
+
+
 class _AgentProcess:
     """One adapter process holding one ACP session; the SDK's `Client` for it."""
 
     def __init__(self, backend: AcpBackend, connection: "AcpConnection"):
         self.backend, self.connection = backend, connection
-        self.name = backend.agent_name
+        # When the plan's limit resets, if the adapter said in this turn.
+        self.limit_resets_ms: int | None = None
         self.process: asyncio.subprocess.Process | None = None
         self.transport: _LineTransport | None = None
         self.peer: ClientSideConnection | None = None
@@ -433,6 +437,10 @@ class _AgentProcess:
         # Permission requests the agent waits on: request id -> (answer, options).
         self.permissions: dict[str, tuple[asyncio.Future, list[PermissionOption]]] = {}
         self.stopped = False
+
+    @property
+    def name(self) -> str:
+        return self.backend.agent_name
 
     @property
     def idle(self) -> bool:
@@ -507,6 +515,7 @@ class _AgentProcess:
             return await asyncio.wait_for(call, timeout)
         except acp.RequestError as exc:
             if exc.code == AUTH_REQUIRED:
+                self.backend.observe("auth_required")
                 raise self.refusal("agent_auth_required", self.sign_in_cause()) from exc
             raise self.refusal(
                 "agent_rejected", f"rechazó {method} (código {exc.code}): {_reason(exc)}"
@@ -519,10 +528,10 @@ class _AgentProcess:
             raise self.refusal("agent_stopped", *await self.exit_cause(method)) from exc
 
     def sign_in_cause(self) -> str:
+        service = "Claude" if self.backend.settings.agent == "claude-code" else "ChatGPT"
         return (
-            "no tiene sesión iniciada en el servidor. Orbit no inicia sesiones ni guarda "
-            "credenciales; ejecuta en el servidor, como el usuario del hub: "
-            f"{self.backend.login_command()}"
+            f"no tiene la sesión de {service} iniciada en el hub, o caducó: inicia sesión "
+            "desde Orbit, en sus ajustes"
         )
 
     async def exit_cause(self, method: str) -> tuple[str, dict[str, int] | None]:
@@ -602,6 +611,7 @@ class _AgentProcess:
             )
         self.text = []
         self.tools, self.thought, self.thought_id, self.planned = {}, [], None, False
+        self.limit_resets_ms = None
         self.backend.used(self)
         self.turn = asyncio.create_task(self.run_turn(prompt))
 
@@ -612,7 +622,17 @@ class _AgentProcess:
             answer = await self.peer.prompt(session_id=session_id, prompt=prompt)
         except acp.RequestError as exc:
             if exc.code == AUTH_REQUIRED:
+                self.backend.observe("auth_required")
                 await self.fail(session_id, "agent_auth_required", self.sign_in_cause())
+            elif _is_limit(exc):
+                until = self.limit_resets_ms
+                self.backend.observe("limit", until_ms=until)
+                await self.fail(
+                    session_id,
+                    "agent_limit_reached",
+                    f"llegó al límite de tu plan: {_limit_reason(exc)}",
+                    {"resets_at_ms": until} if until is not None else None,
+                )
             else:
                 cause = f"rechazó el turno (código {exc.code}): {_reason(exc)}"
                 await self.fail(session_id, "agent_rejected", cause, {"acp_code": exc.code})
@@ -633,6 +653,8 @@ class _AgentProcess:
                     {"stop_reason": answer.stop_reason},
                 )
             else:
+                if status == "completed":
+                    self.backend.observe("answered")
                 await self.connection.emit(MessageComplete(session_id, "".join(self.text), status))
         finally:
             self.turn = None
@@ -721,6 +743,9 @@ class _AgentProcess:
     async def session_update(self, session_id: str, update: Any, **_meta: Any) -> None:
         # Outside a turn (a load's replay included) an update belongs to no turn.
         if self.turn is None or session_id != self.session_id:
+            return
+        if isinstance(update, UsageUpdate):
+            self.rate_limit(update.field_meta)
             return
         if not isinstance(update, AgentThoughtChunk):
             await self.end_thought(session_id)
@@ -836,7 +861,45 @@ class _AgentProcess:
         raise _not_offered(f"_{method}", "extensiones")
 
     async def ext_notification(self, method: str, params: dict[str, Any]) -> None:
-        return None
+        # Both adapters say which account they run with after starting, at
+        # each session and at each turn: `{authStatus: {kind, label,
+        # account: {email, plan}}}`. Nothing else of it is kept.
+        if method != "auth/status_update" or not isinstance(params, dict):
+            return
+        status = params.get("authStatus")
+        if not isinstance(status, dict) or not isinstance(status.get("kind"), str):
+            return
+        account = status.get("account") if isinstance(status.get("account"), dict) else {}
+        self.backend.observe(
+            "status",
+            kind=status["kind"],
+            email=_short_text(account.get("email"), MAX_ACCOUNT_EMAIL_BYTES),
+            plan=_short_text(account.get("plan"), MAX_PLAN_BYTES)
+            or _short_text(status.get("label"), MAX_PLAN_BYTES),
+        )
+        return
+
+    def rate_limit(self, meta: Any) -> None:
+        """Claude Code's report of its plan's limit (`_claude/rateLimit`, the
+        Agent SDK's `SDKRateLimitInfo`): the share used of a window, as a
+        fraction, and when it resets, in seconds. Sent when it changes, and
+        only for a claude.ai subscription. Codex sends nothing of the kind."""
+        info = meta.get("_claude/rateLimit") if isinstance(meta, dict) else None
+        if not isinstance(info, dict):
+            return
+        resets = info.get("resetsAt")
+        resets_ms = round(resets * 1000) if isinstance(resets, int | float) else None
+        if info.get("status") == "rejected":
+            self.limit_resets_ms = resets_ms
+        used = info.get("utilization")
+        if isinstance(used, int | float) and not isinstance(used, bool) and 0 <= used <= 1:
+            window = info.get("rateLimitType")
+            self.backend.observe(
+                "usage",
+                used_percent=round(used * 100),
+                window=window if isinstance(window, str) and len(window) <= 64 else None,
+                resets_at_ms=resets_ms,
+            )
 
 
 class AcpConnection:
@@ -999,6 +1062,51 @@ def _not_offered(method: str, capability: str) -> acp.RequestError:
         "usa las herramientas de Orbit",
         {"method": method},
     )
+
+
+# What tells a plan's limit apart from other refusals of a turn: Codex's
+# `codexErrorInfo` and Claude Code's `errorKind`, in the `-32603` refusal's
+# data (codex-acp 2.2.2, claude-agent-acp 0.94.0). Neither carries the reset
+# time: Codex writes it only in its sentence, Claude Code in `rateLimit`.
+LIMIT_MARKS = (("codexErrorInfo", "usageLimitExceeded"), ("errorKind", "rate_limit"))
+
+
+def _is_limit(exc: acp.RequestError) -> bool:
+    data = exc.data if isinstance(exc.data, dict) else {}
+    return any(data.get(key) == value for key, value in LIMIT_MARKS)
+
+
+def _limit_reason(exc: acp.RequestError) -> str:
+    """The agent's own sentence, which says when to try again («Try again at
+    3:04 PM»), bounded like any reason of an agent."""
+    data = exc.data if isinstance(exc.data, dict) else {}
+    message = data.get("message")
+    text = message if isinstance(message, str) and message.strip() else str(exc)
+    text = " ".join(text.split())
+    if len(text) <= MAX_AGENT_REASON_CHARS:
+        return text
+    return text[: MAX_AGENT_REASON_CHARS - 1] + "…"
+
+
+# What the adapter says of its account, kept and published to every Mac in
+# `ready` and `agents.changed`. What they protect: each Mac's status topic,
+# which carries every agent (orbit-core `TopicId::Status`). Why these sizes:
+# an address of 128 bytes and a plan's name of 64 hold any real one
+# («ChatGPT Plus», «Claude Pro»); a longer one is dropped, not cut.
+MAX_ACCOUNT_EMAIL_BYTES = 128
+MAX_PLAN_BYTES = 64
+
+
+def _short_text(value: Any, max_bytes: int) -> str | None:
+    """A label the adapter gives, kept if it is printable text within `max_bytes`."""
+    if (
+        isinstance(value, str)
+        and value
+        and value.isprintable()
+        and len(value.encode("utf-8")) <= max_bytes
+    ):
+        return value
+    return None
 
 
 def _reason(exc: acp.RequestError) -> str:

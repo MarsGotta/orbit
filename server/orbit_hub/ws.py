@@ -117,10 +117,12 @@ def mount(
                         "device_id": device,
                         "hub_protocol": HUB_PROTOCOL,
                         "hub_version": hub_version(),
-                        # The default agent's, for Macs from before agents (0.9.0).
-                        "assistant_name": agents.default.name,
-                        "agents": agents.public(),
-                        "default_agent_id": agents.default.id,
+                        # The primary's, for Macs from before agents (0.9.0),
+                        # whose turns name none and so go to it.
+                        "assistant_name": agents.by_id[agents.primary_id].name,
+                        # `agents`, `default_agent_id` (the primary) and
+                        # `addable_agents`, as `agents.changed` repeats them.
+                        **agents.listing(),
                         # Absent from a 0.9.0 hub, which has no attachments:
                         # the Mac offers none to it (contracts/hub-v1.md).
                         "attachments": attachment_limits(),

@@ -247,6 +247,7 @@ mod tests {
                         assistant_name: None,
                         agents: Vec::new(),
                         default_agent_id: None,
+                        addable_agents: None,
                         hub: orbit_core::Connection::Offline,
                         account: None,
                         privacy_stopped: true,

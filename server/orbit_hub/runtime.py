@@ -10,6 +10,7 @@ from dataclasses import replace
 from functools import partial
 from uuid import uuid4
 
+from .assistant import handover
 from .assistant.activity import public_item
 from .assistant.agents import Agents
 from .assistant.backend import (
@@ -918,6 +919,31 @@ class DeviceRuntime:
                 **receipt,
             }
 
+    async def _handover_turn(self, params) -> MeetingTurn:
+        """The first turn of a conversation handed over from another one of
+        this device: what was said there and the question, refused before
+        anything reaches an agent when there is no question to carry."""
+        source = self.store.session(self.device, params.handover_from)
+        page = await self._run_store(
+            lambda: self.store.session_messages(
+                self.device, params.handover_from, None, SESSION_MESSAGES_PAGE_LIMIT
+            )
+        )
+        turn = handover.handover_turn(
+            page["messages"],
+            page["total"],
+            params.text,
+            self.agent_name(self.agents.owner(source), starts=True),
+        )
+        if turn is None:
+            raise HubError(
+                "handover_no_question",
+                "La conversación no tiene ninguna pregunta sin respuesta que pasar; "
+                "escribe la pregunta",
+                numbers={"messages": page["total"]},
+            )
+        return turn
+
     async def _meeting_turn(self, params) -> MeetingTurn:
         """The question with the meeting the hub holds; refused as
         `meeting_not_found` before anything reaches the agent."""
@@ -1011,7 +1037,8 @@ class DeviceRuntime:
             if session is None:
                 return named.id
         if session is None:
-            return self.agents.default.id
+            # The primary: the agent that answers when none is named.
+            return self.agents.primary_id
         owner = self.agents.owner(session)
         if asked is not None and asked != owner:
             # A conversation is one agent's: its history lives with that agent.
@@ -1050,6 +1077,8 @@ class DeviceRuntime:
         to the same session while hydration is pending; controls can still answer.
         """
         meeting = await self._meeting_turn(params) if params.meeting is not None else None
+        if params.handover_from is not None:
+            meeting = await self._handover_turn(params)
         # The files the turn names, refused before anything reaches an agent
         # when one is not this device's, was sent already, or crosses a ceiling.
         attached: list[Stored] = (
@@ -1119,6 +1148,13 @@ class DeviceRuntime:
                     self.now(),
                 )
                 self.bindings[agent_id, created.session_id] = session_id
+                if params.handover_from is not None:
+                    handover.record(
+                        self.store,
+                        session_id,
+                        params.handover_from,
+                        self.agents.owner(self.store.session(self.device, params.handover_from)),
+                    )
             self.expire_stale_interrupt(session_id)
             state = self.turn_state(session_id)
             if state is TurnState.OUTCOME_UNKNOWN:

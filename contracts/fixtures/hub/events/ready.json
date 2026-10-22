@@ -13,7 +13,11 @@
           "images",
           "voice",
           "resume"
-        ]
+        ],
+        "service": "hermes",
+        "description": "Tu asistente de siempre",
+        "color": "c1",
+        "removable": false
       },
       {
         "id": "vega",
@@ -21,10 +25,18 @@
         "kind": "hermes",
         "capabilities": [
           "resume"
-        ]
+        ],
+        "service": "hermes",
+        "description": "",
+        "color": "c2",
+        "removable": false
       }
     ],
     "default_agent_id": "atlas",
+    "addable_agents": [
+      "claude-code",
+      "codex"
+    ],
     "attachments": {
       "max_file_bytes": 20971520,
       "max_message_files": 10,

@@ -80,6 +80,7 @@ pub fn snapshot_with_privacy(
                     assistant_name: None,
                     agents: Vec::new(),
                     default_agent_id: None,
+                    addable_agents: None,
                     hub: orbit_core::Connection::Online,
                     account: None,
                     privacy_stopped,

@@ -720,11 +720,20 @@ async fn an_interrupted_turns_work_ends() -> Result<()> {
 /// `count` agents at the hub's bounds: a 32-byte id and a 48-character
 /// name in four-byte characters.
 fn many_agents(count: usize) -> Value {
+    // Each at the hub's bounds: a 32-byte id, a 48-character name, a
+    // 90-character description, four bytes a character, and every field of
+    // its profile and account the hub publishes.
     let agents: Vec<Value> = (0..count)
         .map(|index| {
             json!({"id": format!("agente-{index:025}"),
                 "name": format!("{index:02}{}", "𝔸".repeat(46)),
-                "kind": "openai", "capabilities": []})
+                "kind": "acp", "capabilities": ["images", "voice", "resume"],
+                "service": "claude-code", "description": "𝔸".repeat(90), "color": "c4",
+                "removable": true, "account": "signed_out",
+                "account_email": "a".repeat(128), "plan": "𝔸".repeat(16),
+                "limit": {"until_ms": 9_999_999_999_999_i64},
+                "usage": {"used_percent": 100, "window": "seven_day_overage_included",
+                          "resets_at_ms": 9_999_999_999_999_i64}})
         })
         .collect();
     json!({"event":"ready", "data": {
@@ -780,5 +789,98 @@ async fn forty_agents_keep_the_status_topic_and_the_list_the_mac_had() -> Result
         "refused whole: {}",
         knowledge["refusal"]
     );
+    Ok(())
+}
+
+/// The hub's agents changed (a profile, one added, an account): the Mac
+/// keeps the new list, publishes each agent's profile and account, and the
+/// wake phrase hears the new names.
+#[tokio::test]
+async fn a_changed_list_replaces_the_one_the_mac_had() -> Result<()> {
+    let (directory, mut runtime, _hub, mut helper) = with_hub()?;
+    meeting(&mut runtime);
+    runtime.features.question.helper_listens = true;
+    ready(&mut runtime, two_agents()).await?;
+    runtime.sync_wake_phrase().await?;
+    helper_commands(&mut helper);
+    runtime
+        .hub_event(HubEvent::Frame(json!({"event": "agents.changed", "data": {
+            "agents": [
+                {"id":"deimos","name":"Eris","kind":"hermes","capabilities":["voice"],
+                 "service":"hermes","description":"Tu asistente","color":"c3","removable":false},
+                {"id":"codex-1a2b3c4d","name":"Nova","kind":"acp","capabilities":["images"],
+                 "service":"codex","description":"","color":"c2","removable":true,
+                 "account":"expired","limit":{"until_ms":1_790_000_000_000_i64}}
+            ],
+            "default_agent_id": "codex-1a2b3c4d",
+            "addable_agents": ["codex"]}})))
+        .await?;
+    let published = status(&runtime)?;
+    assert_eq!(
+        published["status"]["agents"],
+        json!([
+            {"id":"deimos","name":"Eris","voice":true,"service":"hermes",
+             "description":"Tu asistente","color":"c3"},
+            {"id":"codex-1a2b3c4d","name":"Nova","voice":false,"service":"codex",
+             "description":"","color":"c2","removable":true,"account":"expired",
+             "limit":{"until_ms":1_790_000_000_000_i64}}
+        ])
+    );
+    assert_eq!(published["status"]["default_agent_id"], "codex-1a2b3c4d");
+    assert_eq!(runtime.settings.assistant_name(), "Nova");
+    let wake = helper_commands(&mut helper)
+        .into_iter()
+        .find(|c| c["command"] == "audio_wake_phrase" && c["enabled"] == true)
+        .context("wake again")?;
+    assert_eq!(wake["assistant_names"], json!(["Eris", "Nova"]));
+    // Kept for a start without the hub, with what it can add.
+    drop(runtime);
+    let restarted =
+        crate::config::Paths::resolve(Some(directory.path().to_owned()))?.load_settings()?;
+    assert_eq!(restarted.roster().names(), ["Eris", "Nova"]);
+    assert_eq!(
+        restarted.roster().addable(),
+        Some(&["codex".to_owned()][..])
+    );
+    Ok(())
+}
+
+/// «Seguir con Deimos»: a new conversation with the other agent whose first
+/// turn names the one it takes over; a hub that cannot hand over is not asked.
+#[tokio::test]
+async fn a_handover_opens_a_conversation_that_names_the_one_it_takes_over() -> Result<()> {
+    let (_directory, mut runtime, mut frames, _helper) = with_hub()?;
+    ready(&mut runtime, two_agents()).await?;
+    let refused = runtime
+        .command(Command::Handover {
+            session_id: SESSION.into(),
+            agent_id: "deimos".into(),
+            text: "¿Y mañana?".into(),
+        })
+        .await;
+    assert!(
+        refused
+            .as_ref()
+            .is_err_and(|error| error.to_string().contains("no pasa conversaciones")),
+        "{refused:?}"
+    );
+    let mut able = two_agents();
+    able["data"]["addable_agents"] = json!([]);
+    ready(&mut runtime, able).await?;
+    runtime
+        .command(Command::Handover {
+            session_id: SESSION.into(),
+            agent_id: "atlas".into(),
+            text: "¿Y mañana?".into(),
+        })
+        .await?;
+    let params = chat_send(&mut frames).await?;
+    assert_eq!(params["handover_from"], SESSION);
+    assert_eq!(params["agent_id"], "atlas");
+    assert_eq!(params["text"], "¿Y mañana?");
+    assert!(params.get("session_id").is_none(), "{params}");
+    assert_eq!(runtime.state.agent_id(), Some("atlas"));
+    // Only its first turn names it.
+    assert_eq!(runtime.conversation.handover_from, None);
     Ok(())
 }

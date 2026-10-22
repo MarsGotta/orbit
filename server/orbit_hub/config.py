@@ -8,6 +8,7 @@ from typing import Any, ClassVar, Literal
 from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass
 
+from .assistant.acp_settings import AcpAgentSettings, parse_adapter
 from .assistant.agents import AgentConfiguration, configured_agents
 from .error_reports import ErrorReportsConfiguration
 from .meeting_diarization import DiarizationConfiguration
@@ -30,6 +31,10 @@ class Settings:
     # `[[agents]]` as TOML read them; each kind reads its own keys.
     agents: tuple[dict[str, Any], ...] | None = None
     default_agent: str | None = None
+    # `[acp_adapters.claude-code]` and `[acp_adapters.codex]`: the adapter the
+    # hub starts for each agent of that service added from Orbit. Without a
+    # table, that service cannot be added.
+    acp_adapters: dict[str, dict[str, Any]] | None = None
     hermes_ws_auth: Literal["token"] = "token"
     allow_insecure_localhost: bool = False
     allowed_hosts: tuple[str, ...] = ("localhost", "127.0.0.1")
@@ -64,6 +69,14 @@ class Settings:
             )
         protected_url(self.hermes_url, allow_insecure_localhost=self.allow_insecure_localhost)
         self.agent_configurations()
+        self.adapter_settings()
+
+    def adapter_settings(self) -> dict[str, AcpAgentSettings]:
+        """The adapter of each service agents can be added with, in the order written."""
+        return {
+            service: parse_adapter(service, keys)
+            for service, keys in (self.acp_adapters or {}).items()
+        }
 
     def agent_configurations(self) -> tuple[tuple[AgentConfiguration, ...], str]:
         """The agents this configuration describes and the default's id."""

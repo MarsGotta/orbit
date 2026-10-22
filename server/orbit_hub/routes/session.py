@@ -5,6 +5,7 @@ from math import ceil
 from fastapi import Request
 from pydantic import ValidationError
 
+from ..assistant import handover
 from ..errors import HubError
 from ..identifiers import canonical_uuid
 from ..log import in_store
@@ -91,7 +92,16 @@ def mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_
         page, total, next_cursor = store.sessions_after(
             device, before or None, bounded_limit(limit, SESSION_LIST_LIMIT, "sesiones")
         )
-        sessions = [{**row, "agent_id": agents.owner(row)} for row in page]
+        # The conversation each was handed over from, when it was (`handover`).
+        handed = handover.origins(store, [row["id"] for row in page])
+        sessions = [
+            {
+                **row,
+                "agent_id": agents.owner(row),
+                **({"handed_over_from": handed[row["id"]]} if row["id"] in handed else {}),
+            }
+            for row in page
+        ]
         return {"sessions": sessions, "total": total, "next": next_cursor}
 
     @app.get("/v1/sessions/{session_id}/messages")
@@ -108,7 +118,12 @@ def mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_
             before,
             bounded_limit(limit, SESSION_MESSAGES_PAGE_LIMIT, "mensajes"),
         )
-        return {**page, "agent_id": agents.owner(page)}
+        handed = handover.origins(store, [session_id])
+        return {
+            **page,
+            "agent_id": agents.owner(page),
+            **({"handed_over_from": handed[session_id]} if session_id in handed else {}),
+        }
 
 
 def bounded_limit(limit: int | None, maximum: int, what: str) -> int:

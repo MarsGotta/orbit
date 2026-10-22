@@ -269,6 +269,47 @@ impl Runtime {
                 self.ensure_conversation_can_change()?;
                 self.apply(Event::NewSession { agent_id }).await?;
             }
+            Command::Handover {
+                session_id,
+                agent_id,
+                text,
+            } => {
+                if self
+                    .settings
+                    .hub_agents
+                    .as_ref()
+                    .and_then(|roster| roster.addable())
+                    .is_none()
+                {
+                    bail!(
+                        "Este hub no pasa conversaciones a otro asistente: actualízalo para seguir con otro"
+                    );
+                }
+                if self.capture.buffer.voice.is_some()
+                    || self.conversation.voice_task.active().is_some()
+                {
+                    bail!(
+                        "Termina o interrumpe el turno actual antes de seguir con otro asistente"
+                    );
+                }
+                self.ensure_known_agent(Some(&agent_id))?;
+                self.ensure_conversation_can_change()?;
+                self.apply(Event::NewSession {
+                    agent_id: Some(agent_id),
+                })
+                .await?;
+                self.conversation.handover_from = Some(session_id);
+                let submitted = self
+                    .apply(Event::Submit {
+                        id: id(),
+                        text,
+                        attachments: Vec::new(),
+                    })
+                    .await;
+                // Only the first turn carries it, sent or not.
+                self.conversation.handover_from = None;
+                submitted?;
+            }
             Command::Interrupt => {
                 self.meeting_question_interrupted();
                 self.apply(Event::Interrupt).await?;

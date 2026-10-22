@@ -328,3 +328,79 @@ async fn a_hub_that_hangs_up_after_the_order_is_not_called_unreachable() -> Resu
     );
     Ok(())
 }
+
+/// Assistants from Orbit: adding answers the id the hub made, a sign-in its
+/// address and code, and the orders that change the list are done (the list
+/// itself arrives as `agents.changed`).
+#[tokio::test]
+async fn assistant_calls_come_back_with_the_id_or_the_sign_in() -> Result<()> {
+    let (outcome, wire) = exchange(
+        AgentCall::Add {
+            service: "codex".into(),
+            name: "Nova".into(),
+            description: String::new(),
+            color: "c2".into(),
+            access: AccessGroups {
+                screen: true,
+                control: true,
+                calendar: true,
+                meetings: true,
+                files: true,
+            },
+        },
+        json_response(
+            "201 Created",
+            r#"{"agent_id":"codex-1a2b3c4d","agents":[],"default_agent_id":"vega","addable_agents":["codex"]}"#,
+        ),
+    )
+    .await?;
+    assert_eq!(wire.start_line, "POST /v1/agents HTTP/1.1");
+    assert_eq!(
+        outcome,
+        AgentOutcome::Added {
+            agent_id: "codex-1a2b3c4d".into()
+        }
+    );
+    let (outcome, wire) = exchange(
+        AgentCall::SignIn {
+            agent_id: "codex-1a2b3c4d".into(),
+        },
+        json_response(
+            "200 OK",
+            r#"{"agent_id":"codex-1a2b3c4d","state":"waiting","expires_at_ms":1790000000000,
+                "expects_code":false,"url":"https://auth.example.test/codex/device","code":"ABCD-1234"}"#,
+        ),
+    )
+    .await?;
+    assert_eq!(
+        wire.start_line,
+        "POST /v1/agents/codex-1a2b3c4d/sign-in HTTP/1.1"
+    );
+    let AgentOutcome::SignIn { attempt } = outcome else {
+        panic!("not a sign-in: {outcome:?}");
+    };
+    assert_eq!(
+        attempt.url.as_deref(),
+        Some("https://auth.example.test/codex/device")
+    );
+    assert_eq!(attempt.code.as_deref(), Some("ABCD-1234"));
+    for (call, start_line) in [
+        (
+            AgentCall::Remove {
+                agent_id: "codex-1a2b3c4d".into(),
+            },
+            "DELETE /v1/agents/codex-1a2b3c4d HTTP/1.1",
+        ),
+        (
+            AgentCall::SignOut {
+                agent_id: "codex-1a2b3c4d".into(),
+            },
+            "POST /v1/agents/codex-1a2b3c4d/sign-out HTTP/1.1",
+        ),
+    ] {
+        let (outcome, wire) = exchange(call, json_response("200 OK", r#"{"agents":[]}"#)).await?;
+        assert_eq!(outcome, AgentOutcome::Done);
+        assert_eq!(wire.start_line, start_line);
+    }
+    Ok(())
+}

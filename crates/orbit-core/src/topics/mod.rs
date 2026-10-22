@@ -88,9 +88,11 @@ macro_rules! topics {
 topics! {
     // 102-byte measured head; 4 KiB catches its accidental growth, not status
     // data. The hub's agents ride it too: `agents::MAX_AGENTS` at the hub's
-    // bounds take about 7.6 KiB, so 8 KiB more holds them
-    // (`agents_at_their_ceiling_keep_the_status_topic`).
-    Status => status: 12 * 1024, 0;
+    // bounds, each with its profile, account and usage (a 90-character
+    // description, four bytes a character, a 128-byte address), measured
+    // 34,329 bytes for the whole topic on 2026-10-22, so 32 KiB more holds
+    // them with 6 KiB to spare (`agents_at_their_ceiling_keep_the_status_topic`).
+    Status => status: 36 * 1024, 0;
     // 317-byte measured permissions; 2 KiB catches growth, not a permission gate.
     Permissions => permissions: 2 * 1024, 0;
     // ~1 KiB plus 60 B/app; 16 KiB fits 200 apps, not an app-count limit.

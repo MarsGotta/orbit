@@ -12,6 +12,7 @@ fn status_topic(hub: Connection, privacy_stopped: bool) -> TopicData {
             assistant_name: None,
             agents: Vec::new(),
             default_agent_id: None,
+            addable_agents: None,
             hub,
             account: None,
             privacy_stopped,

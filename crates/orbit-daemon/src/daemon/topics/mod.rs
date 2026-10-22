@@ -247,7 +247,8 @@ mod tests {
         };
         let mut state = State::default();
         state.views.account = Some(AccountSummary {
-            device_name: Some("\\".repeat(9 * 1024).into()),
+            // Each backslash is two bytes of JSON: twice the topic's ceiling.
+            device_name: Some("\\".repeat(TopicId::Status.max_bytes()).into()),
             ..AccountSummary::default()
         });
         let mut board = TopicBoard::new("bounded-topic".into());

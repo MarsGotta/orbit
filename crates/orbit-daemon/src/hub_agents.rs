@@ -37,6 +37,7 @@ impl AgentHub {
         let method = match route.method {
             HubMethod::Get => reqwest::Method::GET,
             HubMethod::Put => reqwest::Method::PUT,
+            HubMethod::Post => reqwest::Method::POST,
             HubMethod::Delete => reqwest::Method::DELETE,
         };
         let mut request = crate::hub::request(method, url, Some(&self.token), &self.op)
@@ -81,19 +82,25 @@ impl AgentHub {
                 },
             );
         }
-        let read = match call {
-            AgentCall::Config { .. } | AgentCall::Skill { .. } => true,
+        // What the Mac reads from an accepted call; an order that answers
+        // with nothing it reads is done, and the screen reads again.
+        let answer = match call {
+            AgentCall::Config { .. } => Answer::Config,
+            AgentCall::Skill { .. } => Answer::Skill,
+            AgentCall::Add { .. } => Answer::Added,
+            AgentCall::SignIn { .. }
+            | AgentCall::SignInStatus { .. }
+            | AgentCall::SignInCode { .. }
+            | AgentCall::SignInCancel { .. } => Answer::SignIn,
             AgentCall::Personality { .. }
             | AgentCall::Access { .. }
             | AgentCall::SkillSave { .. }
             | AgentCall::SkillEnabled { .. }
-            | AgentCall::SkillDelete { .. } => false,
+            | AgentCall::SkillDelete { .. }
+            | AgentCall::Profile { .. }
+            | AgentCall::Remove { .. }
+            | AgentCall::SignOut { .. } => return Ok(AgentOutcome::Done),
         };
-        if !read {
-            // What an accepted order answers is not part of the contract;
-            // the screen reads the configuration again.
-            return Ok(AgentOutcome::Done);
-        }
         let bytes = crate::hub::bounded_body(response, MAX_HUB_HTTP_BODY_BYTES)
             .await
             .map_err(|error| {
@@ -109,13 +116,39 @@ impl AgentHub {
                     },
                 })
             })?;
-        let outcome = if matches!(call, AgentCall::Config { .. }) {
-            serde_json::from_slice(&bytes).map(|config| AgentOutcome::Config { config })
-        } else {
-            serde_json::from_slice(&bytes).map(|skill| AgentOutcome::Skill { skill })
+        let outcome = match answer {
+            Answer::Config => {
+                serde_json::from_slice(&bytes).map(|config| AgentOutcome::Config { config })
+            }
+            Answer::Skill => {
+                serde_json::from_slice(&bytes).map(|skill| AgentOutcome::Skill { skill })
+            }
+            Answer::Added => {
+                serde_json::from_slice::<Added>(&bytes).map(|added| AgentOutcome::Added {
+                    agent_id: added.agent_id,
+                })
+            }
+            Answer::SignIn => {
+                serde_json::from_slice(&bytes).map(|attempt| AgentOutcome::SignIn { attempt })
+            }
         };
         outcome.map_err(|_| invalid("body"))
     }
+}
+
+/// What an accepted call answers that the Mac reads.
+enum Answer {
+    Config,
+    Skill,
+    Added,
+    SignIn,
+}
+
+/// What `POST /v1/agents` answers that the Mac reads: the id the hub made.
+/// The whole list beside it arrives as `agents.changed`.
+#[derive(serde::Deserialize)]
+struct Added {
+    agent_id: String,
 }
 
 fn failed(refusal: Refusal) -> Box<AgentOutcome> {

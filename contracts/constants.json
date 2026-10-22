@@ -42,6 +42,20 @@
   {
     "copies": [
       {
+        "file": "server/orbit_hub/assistant/roster.py",
+        "name": "MAX_AGENTS",
+        "unit": "agents"
+      }
+    ],
+    "name": "MAX_AGENTS",
+    "resource": "agents one hub offers and the Mac takes",
+    "source": "rust",
+    "unit": "agents",
+    "value": 32
+  },
+  {
+    "copies": [
+      {
         "file": "crates/orbit-core/src/limits.rs",
         "name": "MAX_IPC_LINE_BYTES",
         "unit": "bytes"

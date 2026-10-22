@@ -19,6 +19,7 @@ export const commandFeature = {
   "chat": "assistant",
   "clarify": "assistant",
   "error_reports": "status",
+  "handover": "assistant",
   "interrupt": "assistant",
   "login_item": "local",
   "meeting_ask": "recording",

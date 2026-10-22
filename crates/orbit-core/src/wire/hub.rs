@@ -73,6 +73,10 @@ pub struct ChatSendParams {
     /// hub ignores unknown fields, and the turn would go without its files.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub attachments: Vec<String>,
+    /// The conversation this new one takes over (hub-v1 «Handing a
+    /// conversation over»). Sent only to a hub that lists `addable_agents`.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub handover_from: Option<String>,
 }
 /// The turn is a voice note of this length; its audio stays on the Mac.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -195,6 +199,11 @@ pub struct ReadyData {
     pub agents: Option<Vec<HubAgent>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_agent_id: Option<String>,
+    /// The services an agent can be added with from Orbit (hub-v1
+    /// «Assistants from Orbit»), possibly none; absent from a hub without
+    /// those routes (0.10.1 and before).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub addable_agents: Option<Vec<String>>,
     /// The hub's attachment ceilings; absent from a 0.9.0 hub, which has no
     /// attachments.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -236,8 +245,10 @@ fn lenient_storage<'de, D: Deserializer<'de>>(
     Ok(serde_json::from_value(value).ok())
 }
 
-/// One agent as `ready` lists it. The Mac reads `id`, `name` and whether
-/// `capabilities` has `voice`; `kind` and the rest travel for the contract.
+/// One agent as `ready` and `agents.changed` list it. The Mac reads `id`,
+/// `name`, whether `capabilities` has `voice`, and its profile and account
+/// (hub-v1 «Assistants from Orbit»), each absent from a hub before them;
+/// `kind` and the rest travel for the contract.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HubAgent {
     pub id: String,
@@ -246,6 +257,49 @@ pub struct HubAgent {
     pub kind: String,
     #[serde(default)]
     pub capabilities: Vec<String>,
+    /// What answers: `hermes`, `openai`, `claude-code`, `codex`, or one this
+    /// Mac does not know yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub service: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// `c1` to `c4`, or one this Mac does not know yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+    /// Added from Orbit, so Orbit can remove it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub removable: Option<bool>,
+    /// `signed_in`, `signed_out`, `expired` or `unknown`; only an agent
+    /// Orbit can sign in has one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<String>,
+    /// The account's address and the plan's name, when the agent's adapter said them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_email: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan: Option<String>,
+    /// Present while the agent's plan is at its limit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit: Option<HubAgentLimit>,
+    /// The plan's use, when the provider reported it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage: Option<crate::agents::AgentUsage>,
+}
+/// An agent at its plan's limit: when it resets, when the provider said.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HubAgentLimit {
+    #[serde(default)]
+    pub until_ms: Option<i64>,
+}
+/// The hub's agents changed (a profile, one added or removed, an account):
+/// the whole list again, as `ready` gives it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AgentsChangedData {
+    pub agents: Vec<HubAgent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_agent_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub addable_agents: Option<Vec<String>>,
 }
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct EmptyData {}
@@ -494,6 +548,8 @@ pub enum HubEventKind {
     /// The hub became nearly full, or stopped being (absent from 0.10.1).
     #[serde(rename = "storage.status")]
     StorageStatus(HubStorage),
+    #[serde(rename = "agents.changed")]
+    AgentsChanged(AgentsChangedData),
     #[serde(skip)]
     Unrecognized { name: String },
 }
@@ -610,6 +666,7 @@ impl HubEvent {
             "revoked" => decode!(EmptyData, Revoked),
             "recording.changed" => decode!(RecordingChangedData, RecordingChanged),
             "storage.status" => decode!(HubStorage, StorageStatus),
+            "agents.changed" => decode!(AgentsChangedData, AgentsChanged),
             _ => HubEventKind::Unrecognized { name: name.into() },
         };
         Ok(Self { id, kind })

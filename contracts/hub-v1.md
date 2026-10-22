@@ -146,7 +146,10 @@ without an answer: `error` on the same turn with `session_id`, a Spanish
 `assistant_turn_too_long` (`max_requests`), `assistant_provider_error` and
 `assistant_failed`.
 An ACP agent (`kind = "acp"`) names its causes the same way: `agent_auth_required`
-(the message gives the sign-in command to run on the server), `agent_rejected`
+(its session on the server expired or never began: sign in from Orbit, see
+[Assistants from Orbit](#assistants-from-orbit)), `agent_limit_reached` (its
+plan's limit; `resets_at_ms` when the adapter said when it resets, and the
+message quotes the agent's own sentence, which may say it), `agent_rejected`
 (`acp_code`; the message quotes the agent's reason, bounded), `agent_stopped`
 (`exit_status` when its process ended, or `max_bytes` when one of its messages
 crossed that ceiling), `agent_protocol`, and `agent_turn_unfinished`
@@ -1343,6 +1346,158 @@ object and `id:null`. A 0.10.1 hub sends neither; a 0.10.1 Mac ignores the
 field and records the event as unrecognized. A Mac that cannot read `storage`
 leaves it out and keeps the `ready`. The Mac says a nearly full hub once,
 with the numbers and the fix, and again only after the hub has had room.
+
+## Assistants from Orbit
+
+Each agent has a **profile** the hub keeps over what its configuration says
+(how Orbit shows and calls it, never the agent itself: renaming a Hermes agent
+does not touch Hermes), and Claude Code and Codex agents can be **added,
+signed in and out and removed** from Orbit. Everything here is additive: a Mac
+that knows none of it keeps working, and a hub that sends no `addable_agents`
+in `ready` has none of these routes (`404` with no `code`) and takes no
+`handover_from`.
+
+**`ready`** and **`agents.changed`** carry, for each agent, besides `id`,
+`name`, `kind` and `capabilities`:
+
+| field | |
+|---|---|
+| `service` | what answers: `hermes`, `openai`, `claude-code` or `codex`; a Mac accepts any other text |
+| `description` | at most 90 characters, possibly empty |
+| `color` | `c1` to `c4`; until someone chooses one, the four in turn by position |
+| `removable` | added from Orbit, so Orbit can remove it |
+| `account` | only for `acp` agents: `signed_in`, `signed_out`, `expired` (it refused for want of a sign-in after having one) or `unknown` (the hub has not learned it yet) |
+| `account_email`, `plan` | only when the agent's adapter said them (`_auth/status_update`) |
+| `limit` | only while the plan is at its limit: `{"until_ms": integer\|null}`, null when the provider did not say when it resets; a Mac treats one whose time has passed as over |
+| `usage` | only when the provider reported it: `{"used_percent": 0-100, "window": "five_hour"\|"seven_day"\|…\|null, "resets_at_ms": integer\|null}`. Today only Claude Code with a claude.ai subscription reports it, when it changes; Codex reports none, so a Codex agent has no usage |
+
+`default_agent_id` is the **primary**: the agent a turn without `agent_id`
+goes to, and the one the wake phrase without a name, the floating panel and
+«Preguntar» use. `assistant_name` is the primary's name. `addable_agents`
+lists the services the hub has an adapter for, possibly none.
+
+`agents.changed` (`id:null`) is sent to every connected device whenever the
+list changes: a profile, an agent added or removed, a sign-in or sign-out, an
+account the hub learned (expired, at its limit, its address), a usage report.
+Its `data` is `{"agents":[…],"default_agent_id":…,"addable_agents":[…]}`,
+exactly as `ready` gives them; a Mac before it ignores the event.
+
+```json
+{"v":1,"id":null,"event":"agents.changed","data":{
+  "agents":[
+    {"id":"atlas","name":"Atlas","kind":"hermes","capabilities":["images","voice","resume"],
+     "service":"hermes","description":"Tu asistente de siempre","color":"c1","removable":false},
+    {"id":"codex-1a2b3c4d","name":"Nova","kind":"acp","capabilities":["images","resume"],
+     "service":"codex","description":"Programa conmigo","color":"c2","removable":true,
+     "account":"signed_in","limit":{"until_ms":1790000000000}}],
+  "default_agent_id":"atlas","addable_agents":["codex"]}}
+```
+
+### Routes
+
+All use the device bearer token. Each write answers the whole list as
+`agents.changed` carries it (`POST /v1/agents` adds the new `agent_id`).
+
+- `GET /v1/agents` → the list.
+- `PUT /v1/agents/{agent_id}/profile`
+  `{"name":"Nova","description":"Programa conmigo","color":"c2","primary":false}`:
+  all four. The name is trimmed, 1 to 24 characters without control
+  characters, and no other agent's said the same (ignoring case and accents,
+  because the wake phrase hears it). The description is at most 90
+  characters on one line. `primary:true` makes it the primary; the primary
+  stops being it only when another one is made primary. A name set in
+  `orbit.toml` longer than 24 stays until renamed here.
+- `POST /v1/agents`
+  `{"service":"codex","name":"Nova","description":"","color":"c2","access":{"screen":true,"control":false,"calendar":true,"meetings":true,"files":true}}`
+  → `201` with `agent_id`. The Mac chooses only the service, the profile and
+  the access groups: the command comes from the hub's `[acp_adapters]`, and
+  the id (`codex-` or `claude-` and eight hex digits) and its folder are the
+  hub's. It starts signed out. A hub offers at most 32 agents, its
+  configuration's and the added ones together, and refuses to start with
+  more.
+- `DELETE /v1/agents/{agent_id}`: only an agent added from Orbit. Its
+  processes stop, its folder (with its account's credentials) is removed, and
+  the hub forgets its profile, access, personality and skills. Its
+  conversations stay, listed with its `agent_id`; a turn in one is
+  `agent_not_found`.
+- `POST /v1/agents/{agent_id}/sign-in` → a sign-in (below), started or the
+  one already waiting. `GET` reads it, `DELETE` cancels it: the vendor's tool
+  is stopped and the agent's account stays as it was. The Mac reads it again
+  until it is no longer `waiting`; `done` is also published as
+  `account:"signed_in"`.
+- `POST /v1/agents/{agent_id}/sign-in/code` `{"code":"<code>#<state>"}`:
+  for Claude Code, the code its page shows after signing in, only URL-safe
+  characters around one `#`.
+- `POST /v1/agents/{agent_id}/sign-out`: the vendor's own sign-out, which
+  revokes the account and deletes its credentials; the agent's processes
+  stop. → the list, the agent `signed_out`.
+
+A sign-in:
+
+```json
+{"agent_id":"codex-1a2b3c4d","state":"waiting","expires_at_ms":1790000900000,
+ "expects_code":false,"url":"https://auth.openai.com/codex/device","code":"ABCD-1234"}
+```
+
+`state` is `waiting`, `done`, `cancelled` or `failed`; a Mac reads another as
+unknown. While waiting: `url`, the address the Mac opens in the browser;
+`code`, Codex's one-time code the user types there; `expects_code`, true for
+Claude Code, whose page shows a code the user pastes back into Orbit; and
+`expires_at_ms`, when the hub stops it (15 minutes, the life of Codex's code).
+A failed one has `cause` and, when the tool ended with one, `exit_status`:
+
+| cause | |
+|---|---|
+| `device_code_disabled` | the ChatGPT account does not allow sign-in with a device code (its security settings) |
+| `expired` | the vendor's code expired before the user finished |
+| `code_rejected` | the code pasted into Orbit was not accepted |
+| `login_disabled` | the vendor's configuration forbids this way of signing in |
+| `timed_out` | 15 minutes passed |
+| `no_url` | the tool showed no address in 30 seconds |
+| `no_credentials` | the tool said it finished but wrote no credentials |
+| `exited` | the tool ended with an error the hub does not tell apart |
+| `not_started` | the tool did not start (also refused at once as `sign_in_failed`) |
+
+The hub runs the vendor's tool through the agent's own adapter, in the
+agent's folder; the tool writes the account's credentials there. The hub
+never reads, logs or returns them, and nothing of the tool's output reaches a
+Mac or a log but the address, the code and the cause.
+
+### Handing a conversation over
+
+`chat.send` takes `handover_from`, a conversation of this device, beside
+`agent_id` and without `session_id` or `meeting`: the turn opens a new
+conversation with `agent_id` whose first message to the agent carries what
+was said in the old one (its newest messages that fit in 32,768 characters,
+about 8,000 tokens, a quarter of a 32,000-token window, oldest first; those
+left out are counted in it), and then the question. An empty `text` carries over the old
+conversation's unanswered question (the user's messages after its last
+answer); a `text` that repeats it is carried once. The new conversation keeps
+only the question as the user's message, and its rows (`GET /v1/sessions`, the
+page of `GET /v1/sessions/{id}/messages`) carry
+`"handed_over_from":{"session_id":"…","agent_id":"…"}`. The old one stays as
+it was. Nothing to carry is `handover_no_question` (`messages`).
+
+### Refusals
+
+| status | code | numbers |
+|---|---|---|
+| 422 | `agent_profile_invalid` | `field` (`name`, `description`, `color`), `rule` (`empty`, `too_long`, `control_characters`, `unknown_color`), `characters`, `max_characters` |
+| 409 | `agent_name_taken` | `field`, `agent_id` (the agent already called that) |
+| 409 | `agent_primary_required` | `agent_id` |
+| 403 | `agent_add_unsupported` | `service` (`hermes`, `openai`: the UI says «Pídeselo a quien gestiona tu hub») |
+| 409 | `agent_adapter_missing` | `service`: no `[acp_adapters]` table for it, or its command does not start |
+| 409 | `too_many_agents` | `count`, `max` |
+| 403 | `agent_not_removable` | `agent_id`: from the hub's configuration |
+| 500 | `agent_folder_not_removed` | `agent_id`, `errno`; the agent stays |
+| 409 | `sign_in_unsupported` | `agent_id`, `kind` (not an `acp` agent) |
+| 404 | `sign_in_not_found` | `agent_id` |
+| 409 | `sign_in_not_waiting_for_code` | `agent_id` |
+| 422 | `sign_in_code_invalid` | `agent_id`, `characters` |
+| 502 | `sign_in_failed` | `agent_id`, `cause` |
+| 502 | `sign_out_failed` | `agent_id`, `exit_status` |
+| 504 | `sign_out_timeout` | `agent_id`, `timeout_ms` |
+| 400 | `invalid_agent_config` | `field`: a body outside these shapes, a `command` or an `id` included |
 
 ## Attachments
 

@@ -292,3 +292,128 @@ fn lists_and_objects_are_not_numbers() {
     assert!(!refusal.numbers.contains_key("seen"));
     assert!(!refusal.numbers.contains_key("nested"));
 }
+
+#[test]
+fn each_assistant_call_names_its_route_method_and_body() {
+    let groups = AccessGroups {
+        screen: true,
+        control: false,
+        calendar: true,
+        meetings: true,
+        files: true,
+    };
+    let cases = [
+        (
+            AgentCall::Profile {
+                agent_id: "vega".into(),
+                name: "Nova".into(),
+                description: "Programa conmigo".into(),
+                color: "c2".into(),
+                primary: true,
+            },
+            HubMethod::Put,
+            vec!["v1", "agents", "vega", "profile"],
+            Some(
+                json!({"name": "Nova", "description": "Programa conmigo", "color": "c2",
+                        "primary": true}),
+            ),
+        ),
+        (
+            AgentCall::Add {
+                service: "codex".into(),
+                name: "Nova".into(),
+                description: String::new(),
+                color: "c3".into(),
+                access: groups,
+            },
+            HubMethod::Post,
+            vec!["v1", "agents"],
+            Some(
+                json!({"service": "codex", "name": "Nova", "description": "", "color": "c3",
+                        "access": {"screen": true, "control": false, "calendar": true,
+                                   "meetings": true, "files": true}}),
+            ),
+        ),
+        (
+            AgentCall::Remove {
+                agent_id: "codex-1a2b3c4d".into(),
+            },
+            HubMethod::Delete,
+            vec!["v1", "agents", "codex-1a2b3c4d"],
+            None,
+        ),
+        (
+            AgentCall::SignIn {
+                agent_id: "vega".into(),
+            },
+            HubMethod::Post,
+            vec!["v1", "agents", "vega", "sign-in"],
+            None,
+        ),
+        (
+            AgentCall::SignInStatus {
+                agent_id: "vega".into(),
+            },
+            HubMethod::Get,
+            vec!["v1", "agents", "vega", "sign-in"],
+            None,
+        ),
+        (
+            AgentCall::SignInCode {
+                agent_id: "vega".into(),
+                code: "codigo#estado".into(),
+            },
+            HubMethod::Post,
+            vec!["v1", "agents", "vega", "sign-in", "code"],
+            Some(json!({"code": "codigo#estado"})),
+        ),
+        (
+            AgentCall::SignInCancel {
+                agent_id: "vega".into(),
+            },
+            HubMethod::Delete,
+            vec!["v1", "agents", "vega", "sign-in"],
+            None,
+        ),
+        (
+            AgentCall::SignOut {
+                agent_id: "vega".into(),
+            },
+            HubMethod::Post,
+            vec!["v1", "agents", "vega", "sign-out"],
+            None,
+        ),
+    ];
+    for (call, method, segments, body) in cases {
+        let route = call.route();
+        assert_eq!(route.method, method, "{call:?}");
+        assert_eq!(route.segments, segments, "{call:?}");
+        assert_eq!(route.body, body, "{call:?}");
+    }
+}
+
+#[test]
+fn a_sign_in_reads_with_its_address_code_and_outcome() {
+    let waiting: SignInAttempt = serde_json::from_value(json!({
+        "agent_id": "codex-1a2b3c4d", "state": "waiting", "expires_at_ms": 1_790_000_000_000_i64,
+        "expects_code": false, "url": "https://auth.example.test/codex/device",
+        "code": "ABCD-1234", "future_field": true
+    }))
+    .expect("contract shape");
+    assert_eq!(waiting.state, SignInState::Waiting);
+    assert_eq!(waiting.code.as_deref(), Some("ABCD-1234"));
+    assert_eq!(waiting.expires_at_ms, Some(1_790_000_000_000));
+    let failed: SignInAttempt = serde_json::from_value(json!({
+        "agent_id": "codex-1a2b3c4d", "state": "failed", "cause": "device_code_disabled",
+        "exit_status": 1
+    }))
+    .expect("contract shape");
+    assert_eq!(failed.state, SignInState::Failed);
+    assert_eq!(failed.cause.as_deref(), Some("device_code_disabled"));
+    assert_eq!(failed.exit_status, Some(1));
+    assert!(!failed.expects_code);
+    // A state a newer hub adds is not read as any of these.
+    let newer: SignInAttempt =
+        serde_json::from_value(json!({"agent_id": "vega", "state": "paused"})).expect("tolerant");
+    assert_eq!(newer.state, SignInState::Unknown);
+}

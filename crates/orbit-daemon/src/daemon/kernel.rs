@@ -425,6 +425,12 @@ impl Runtime {
                     meeting,
                     agent_id: self.turn_agent_id(),
                     attachments,
+                    // The conversation this new one takes over; only its first turn.
+                    handover_from: if self.state.session_id().is_none() {
+                        self.conversation.handover_from.take()
+                    } else {
+                        None
+                    },
                 })?;
                 self.send(hub::command(&id, "chat.send", params)?).await?
             }

@@ -12,6 +12,11 @@ pub struct Value {
     pub agents: Vec<crate::agents::Agent>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_agent_id: Option<String>,
+    /// The services an agent can be added with from Orbit; absent for a hub
+    /// without «Assistants from Orbit», which adds none and hands no
+    /// conversation over.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub addable_agents: Option<Vec<String>>,
     /// The connected hub's attachment ceilings, from its last `ready`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attachments: Option<crate::attachments::AttachmentLimits>,

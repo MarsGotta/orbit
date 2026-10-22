@@ -182,12 +182,18 @@ def test_ready_lists_every_kind_with_what_it_accepts(environment, tmp_path, spee
         ready = ws.receive_json()["data"]
     assert ready["default_agent_id"] == "atlas"
     assert ready["assistant_name"] == "Atlas"
+    # Each with its profile (none chosen yet: no description and the colours
+    # in turn), and an ACP agent with the account Orbit can sign in.
+    profile = {"description": "", "removable": False}
     assert ready["agents"] == [
         {
             "id": "atlas",
             "name": "Atlas",
             "kind": "hermes",
             "capabilities": ["images", "voice", "resume"],
+            "service": "hermes",
+            "color": "c1",
+            **profile,
         },
         {
             "id": "lyra",
@@ -196,9 +202,21 @@ def test_ready_lists_every_kind_with_what_it_accepts(environment, tmp_path, spee
             # Voice is read-aloud, which only `[agents.speech]` gives it; images
             # only `images = true`, false by default.
             "capabilities": ["voice", "resume"] if speech else ["resume"],
+            "service": "openai",
+            "color": "c2",
+            **profile,
         },
         # An ACP agent that declares no image input is named the files instead.
-        {"id": "vega", "name": "Vega", "kind": "acp", "capabilities": ["images", "resume"]},
+        {
+            "id": "vega",
+            "name": "Vega",
+            "kind": "acp",
+            "capabilities": ["images", "resume"],
+            "service": "claude-code",
+            "color": "c3",
+            "account": "unknown",
+            **profile,
+        },
     ]
 
 

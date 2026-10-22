@@ -881,6 +881,9 @@ struct ConversationRuntime {
     /// The connected hub's attachment ceilings, from its last `ready`;
     /// `None` before one arrives and for a 0.9.0 hub, which has none.
     hub_attachments: Option<orbit_core::attachments::AttachmentLimits>,
+    /// The conversation the next new one takes over (`Command::Handover`),
+    /// sent with its first `chat.send` and then forgotten.
+    handover_from: Option<String>,
     /// «Adjuntar ventana» while its capture runs (`window_attachment`).
     window_attachment: Option<window_attachment::PendingWindow>,
 }
@@ -1190,6 +1193,7 @@ async fn run_with_helper_inner(
             speak_next: false,
             read_aloud: None,
             hub_attachments: None,
+            handover_from: None,
             window_attachment: None,
             speech_notice_call_id: None,
             work: None,

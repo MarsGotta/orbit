@@ -156,13 +156,108 @@ pub enum AgentCall {
         agent_id: String,
         name: String,
     },
+    /// The agent's profile (hub-v1 «Assistants from Orbit»): how Orbit
+    /// shows and calls it, and whether it is the primary.
+    Profile {
+        agent_id: String,
+        name: String,
+        description: String,
+        color: String,
+        primary: bool,
+    },
+    /// A Claude Code (`claude-code`) or Codex (`codex`) agent on the hub's
+    /// own adapter: the Mac chooses only these.
+    Add {
+        service: String,
+        name: String,
+        description: String,
+        color: String,
+        access: AccessGroups,
+    },
+    /// An agent added from Orbit; its conversations stay.
+    Remove {
+        agent_id: String,
+    },
+    /// The vendor's sign-in, run by the hub: the address to open.
+    SignIn {
+        agent_id: String,
+    },
+    SignInStatus {
+        agent_id: String,
+    },
+    /// Claude Code's: the code its page shows, `<code>#<state>`. Never logged.
+    SignInCode {
+        agent_id: String,
+        code: String,
+    },
+    SignInCancel {
+        agent_id: String,
+    },
+    SignOut {
+        agent_id: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HubMethod {
     Get,
     Put,
+    Post,
     Delete,
+}
+
+/// Where one sign-in is, as the hub says it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+)]
+pub enum SignInState {
+    /// The user has the address (and the code) to sign in with.
+    Waiting,
+    Done,
+    Cancelled,
+    /// `cause` says why.
+    Failed,
+    /// A state a newer hub added.
+    #[serde(other)]
+    Unknown,
+}
+
+/// `POST|GET|DELETE /v1/agents/{agent_id}/sign-in`. Read tolerantly.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+)]
+pub struct SignInAttempt {
+    pub agent_id: String,
+    pub state: SignInState,
+    /// The address the Mac opens in the browser, while waiting.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub url: Option<String>,
+    /// Codex's one-time code, shown to the user to type on that page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub code: Option<String>,
+    /// Claude Code waits for the code its page shows (`SignInCode`).
+    #[serde(default)]
+    pub expects_code: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional, type = "number"))]
+    pub expires_at_ms: Option<i64>,
+    /// Why it failed: `device_code_disabled`, `expired`, `code_rejected`,
+    /// `timed_out`, `no_url`, `exited`…
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub cause: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional, type = "number"))]
+    pub exit_status: Option<i64>,
 }
 
 /// Where one call goes: its path segments (each encoded by the adapter, so
@@ -175,7 +270,8 @@ pub struct HubRoute {
 }
 
 impl AgentCall {
-    pub fn agent_id(&self) -> &str {
+    /// The agent the call is about; `None` for one that adds an agent.
+    pub fn agent_id(&self) -> Option<&str> {
         match self {
             Self::Config { agent_id }
             | Self::Personality { agent_id, .. }
@@ -183,16 +279,25 @@ impl AgentCall {
             | Self::Skill { agent_id, .. }
             | Self::SkillSave { agent_id, .. }
             | Self::SkillEnabled { agent_id, .. }
-            | Self::SkillDelete { agent_id, .. } => agent_id,
+            | Self::SkillDelete { agent_id, .. }
+            | Self::Profile { agent_id, .. }
+            | Self::Remove { agent_id }
+            | Self::SignIn { agent_id }
+            | Self::SignInStatus { agent_id }
+            | Self::SignInCode { agent_id, .. }
+            | Self::SignInCancel { agent_id }
+            | Self::SignOut { agent_id } => Some(agent_id),
+            Self::Add { .. } => None,
         }
     }
 
     pub fn route(&self) -> HubRoute {
         let agent = |tail: &[&str]| {
-            ["v1", "agents", self.agent_id()]
-                .iter()
-                .chain(tail)
-                .map(|segment| (*segment).to_owned())
+            ["v1", "agents"]
+                .into_iter()
+                .chain(self.agent_id())
+                .chain(tail.iter().copied())
+                .map(str::to_owned)
                 .collect::<Vec<_>>()
         };
         let (method, segments, body) = match self {
@@ -219,6 +324,43 @@ impl AgentCall {
                 Some(serde_json::json!({ "enabled": enabled })),
             ),
             Self::SkillDelete { name, .. } => (HubMethod::Delete, agent(&["skills", name]), None),
+            Self::Profile {
+                name,
+                description,
+                color,
+                primary,
+                ..
+            } => (
+                HubMethod::Put,
+                agent(&["profile"]),
+                Some(serde_json::json!({
+                    "name": name, "description": description, "color": color, "primary": primary
+                })),
+            ),
+            Self::Add {
+                service,
+                name,
+                description,
+                color,
+                access,
+            } => (
+                HubMethod::Post,
+                agent(&[]),
+                Some(serde_json::json!({
+                    "service": service, "name": name, "description": description,
+                    "color": color, "access": access
+                })),
+            ),
+            Self::Remove { .. } => (HubMethod::Delete, agent(&[]), None),
+            Self::SignIn { .. } => (HubMethod::Post, agent(&["sign-in"]), None),
+            Self::SignInStatus { .. } => (HubMethod::Get, agent(&["sign-in"]), None),
+            Self::SignInCode { code, .. } => (
+                HubMethod::Post,
+                agent(&["sign-in", "code"]),
+                Some(serde_json::json!({ "code": code })),
+            ),
+            Self::SignInCancel { .. } => (HubMethod::Delete, agent(&["sign-in"]), None),
+            Self::SignOut { .. } => (HubMethod::Post, agent(&["sign-out"]), None),
         };
         HubRoute {
             method,
@@ -321,8 +463,16 @@ pub enum AgentOutcome {
     Skill {
         skill: SkillDocument,
     },
-    /// The hub accepted the order.
+    /// The hub accepted the order. The agents it changed arrive as
+    /// `agents.changed`, on the status topic.
     Done,
+    /// The agent the hub added, by the id it made.
+    Added {
+        agent_id: String,
+    },
+    SignIn {
+        attempt: SignInAttempt,
+    },
     Refused {
         refusal: AgentRefusal,
     },

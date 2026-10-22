@@ -12,6 +12,11 @@ export type StatusSettingsView = { assistant_name?: string,
  */
 agents: Array<Agent>, default_agent_id?: string, 
 /**
+ * The services an agent can be added with from Orbit; absent for a hub
+ * that adds none and hands no conversation over.
+ */
+addable_agents?: Array<string>, 
+/**
  * The connected hub's attachment ceilings; absent before its `ready`
  * and for a hub without attachments (0.9.0), when the composer offers none.
  */

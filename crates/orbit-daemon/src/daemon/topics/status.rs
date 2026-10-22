@@ -19,7 +19,12 @@ impl ProjectTopic for Projector {
                     .as_ref()
                     .map(|roster| roster.agents().to_vec())
                     .unwrap_or_default(),
-                default_agent_id: roster.map(|roster| roster.default_agent_id().to_owned()),
+                default_agent_id: roster
+                    .as_ref()
+                    .map(|roster| roster.default_agent_id().to_owned()),
+                addable_agents: roster
+                    .as_ref()
+                    .and_then(|roster| roster.addable().map(<[String]>::to_vec)),
                 attachments: source
                     .runtime
                     .and_then(|runtime| runtime.conversation.hub_attachments),

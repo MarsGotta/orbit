@@ -419,8 +419,12 @@ the files.
 ## Claude Code and Codex agents
 
 An agent of kind `acp` runs Claude Code or Codex through its official Agent
-Client Protocol adapter, unmodified, with the account its operator signs in
-on the server. Orbit never offers a sign-in, and never stores or sees a token.
+Client Protocol adapter, unmodified, with an account signed in on the server
+by the vendor's own tool. The user signs it in from Orbit (see
+[Assistants added from Orbit](#assistants-added-from-orbit)): the hub runs the
+vendor's sign-in in the agent's folder and the Mac only opens the address it
+shows. The credentials stay in the agent's folder on the server; the hub
+never reads, logs or returns them, and they never reach a Mac.
 Install Node 22 or later and the pinned adapters outside the repository:
 
 ```sh
@@ -440,9 +444,10 @@ when it is missing or not executable, and refuses a session whose process does
 not start, with the path and the cause. `env` names variables passed from the
 hub's environment; besides them the agent receives only `HOME`, `LOGNAME`,
 `PATH`, `SHELL`, `TERM` and `USER`. `--hide-claude-auth` makes the adapter
-refuse any session a claude.ai subscription would pay for: use an API key or a
-Console sign-in until Anthropic confirms in writing that a subscription may be
-used through Orbit.
+refuse any session a claude.ai subscription would pay for; with it, Orbit's
+sign-in asks for a Console account instead of a subscription. Whether a
+subscription may be used through Orbit is a question of your account's terms
+(below): keep the flag until you have that answer.
 
 Every agent has a private folder, `<data_dir>/agents/<id>` (mode `0700`), which
 is its working directory. Claude Code's `CLAUDE_CONFIG_DIR` is its
@@ -465,20 +470,30 @@ set to `orbit_mcp_config` and `ORBIT_MCP_AGENT` to the agent's id. At most four
 processes of one agent run at once; an idle session gives its process up and
 is reloaded with `session/load` on its next turn.
 
-Sign each agent in on the server, as the hub's user, before its first
-conversation. A signed-out agent's refusal names the same command:
+Each agent is signed in from Orbit, in its settings, before its first
+conversation; a signed-out or expired agent's refusal says so. The hub runs
+the vendor's sign-in through the agent's own `command`, as the hub's user:
 
-```sh
-CLAUDE_CONFIG_DIR=/opt/orbit/data/agents/claude/claude-config \
-  /opt/orbit/agents/node_modules/.bin/claude-agent-acp --hide-claude-auth \
-  --cli auth login --console
-CODEX_HOME=/opt/orbit/data/agents/codex/codex-home \
-  /opt/orbit/agents/node_modules/.bin/codex-acp cli login --device-auth
-```
+- Claude Code: `<command> --cli auth login --claudeai` (`--console` when
+  `command` has `--hide-claude-auth`) with `CLAUDE_CONFIG_DIR` set to the
+  agent's `claude-config`. It shows an address; the user signs in in the
+  browser and pastes the code that page shows back into Orbit, which hands it
+  to the tool. The tool writes `.credentials.json` (or, for a Console account,
+  its key in `.claude.json`) in that folder.
+- Codex: `<command> cli login --device-auth`, which shows an address and a
+  one-time code valid for 15 minutes. Device-code sign-in must first be
+  enabled in the ChatGPT account's security settings, or the sign-in fails
+  with `device_code_disabled`. Codex deletes the account it had when its
+  sign-in starts, so the hub runs it with a `CODEX_HOME` of its own inside
+  the agent's folder and moves the new `auth.json` into `codex-home` only
+  when it succeeds: a cancelled or failed sign-in leaves the agent as it was.
 
-`--cli` and `cli` run the adapter's bundled `claude` and `codex`. Device-code
-sign-in must first be enabled in your ChatGPT security settings. A Claude API
-key can reach the agent through `env` instead; Codex stores one with
+`--cli` and `cli` run the adapter's bundled `claude` and `codex`. A sign-in
+that waits more than 15 minutes is stopped. Signing out from Orbit runs
+`<command> --cli auth logout` or `<command> cli logout`, which revoke the
+account and delete its credentials. You can still sign an agent in by hand,
+in the same folder: a Claude API key can reach the agent through `env`, and
+Codex stores one with
 `printenv OPENAI_API_KEY | CODEX_HOME=… codex-acp cli login --with-api-key`.
 Read the terms that apply to your account before connecting it: Anthropic's
 [legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)
@@ -501,6 +516,60 @@ process running as that user could read them. For example, with an
   `<data_dir>/agents` without listing them (`setfacl -m u:orbit-agent:x`);
 - give `orbit-agent` its own `orbit_mcp_config` and copies of the HMAC keys,
   owned by it with mode `0600`, and read access to the hub's installation.
+
+## Assistants added from Orbit
+
+Orbit can add a Claude Code or Codex agent to the hub, without restarting it,
+for each service whose adapter you configure in `[acp_adapters]`. The table
+has the keys of an `acp` entry but `agent`, which is the table's name:
+
+```toml
+[acp_adapters.claude-code]
+command = ["/opt/orbit/agents/node_modules/.bin/claude-agent-acp", "--hide-claude-auth"]
+orbit_mcp_config = "/opt/orbit/config/mcp-added.toml"   # required, absolute
+# env = ["ANTHROPIC_API_KEY"]
+
+[acp_adapters.codex]
+command = ["/opt/orbit/agents/node_modules/.bin/codex-acp"]
+orbit_mcp_config = "/opt/orbit/config/mcp-added.toml"
+```
+
+Without a table, that service cannot be added and Orbit says so
+(`agent_adapter_missing`); a Hermes or `openai` agent is never added from
+Orbit. The Mac chooses only the service, the name, the description, the
+colour and the access groups: the command is always the table's, and the
+agent's id (`codex-` or `claude-` and eight hex digits) and its folder,
+`<data_dir>/agents/<id>`, are the hub's. Added agents are kept in the hub's
+database beside those of `orbit.toml` and are signed in from Orbit as above.
+Orbit removes only the agents it added: their processes stop, their folder
+and its credentials are deleted, and their conversations stay. An agent of
+`orbit.toml` is removed by editing the file.
+
+A hub offers at most 32 agents, `orbit.toml`'s and the added ones together,
+and refuses to start with more. It also refuses to start, naming the agent,
+when an added agent's `[acp_adapters]` table is gone: restore it, then remove
+the agent from Orbit if you no longer want it. The adapters' processes and
+their files follow every rule of
+[Claude Code and Codex agents](#claude-code-and-codex-agents), including the
+advice to run them as a separate system user.
+
+**Profiles.** Orbit keeps each agent's name, description, colour and which
+one is the primary in the hub's database, over `orbit.toml`'s `name` and
+`default_agent`, so every Mac sees the same. The primary answers when no
+agent is named. Renaming an agent changes how Orbit shows it and the name the
+wake phrase listens for, nothing of the agent: a Hermes profile is not
+touched. `default_agent` still owns conversations stored before agents
+existed, speaks for an `orbit-mcp` that names no agent and lends its voice
+to dictation, whichever agent is primary.
+
+**What the hub publishes of each account** (`account` in
+[the protocol](../contracts/hub-v1.md#assistants-from-orbit)): signed in,
+signed out, or expired when the agent refuses for want of a sign-in; the
+address and plan the adapter reports; the plan's limit, with its reset time
+when the adapter gives it (Claude Code does in its rate-limit report; Codex
+writes it only in its sentence, which Orbit shows); and the plan's use, which
+only Claude Code with a claude.ai subscription reports. Codex reports no use,
+so Orbit shows none for it.
 
 ## Personality, skills and access of each agent
 

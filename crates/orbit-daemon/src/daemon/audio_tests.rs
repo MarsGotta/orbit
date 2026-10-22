@@ -118,6 +118,7 @@ pub(in crate::daemon) fn fixture(
                 speak_next: false,
                 read_aloud: None,
                 hub_attachments: None,
+                handover_from: None,
                 window_attachment: None,
                 speech_notice_call_id: None,
                 work: None,

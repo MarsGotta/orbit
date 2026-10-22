@@ -19,6 +19,10 @@ AGENTS: tuple[AgentName, ...] = ("claude-code", "codex")
 VARIABLE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 # What Orbit itself sets in an agent's environment; `env` cannot replace it.
 LOCK_DOWN_VARIABLES = ("CLAUDE_CONFIG_DIR", "CODEX_HOME", "CODEX_CONFIG", "INITIAL_AGENT_MODE")
+# The folder inside the agent's own (`<data_dir>/agents/<id>`) where each
+# service keeps its configuration and account: `CLAUDE_CONFIG_DIR` and
+# `CODEX_HOME`.
+HOME_FOLDERS: dict[str, str] = {"claude-code": "claude-config", "codex": "codex-home"}
 # An entry's own keys: `id`, `name` and `kind` belong to every `[[agents]]`
 # entry, and the registry checks them.
 KEYS = {"agent", "command", "env", "orbit_mcp_config"}
@@ -72,3 +76,21 @@ def parse_settings(raw: Mapping[str, Any]) -> AcpAgentSettings:
     if not isinstance(mcp_config, str) or not os.path.isabs(mcp_config):
         raise ValueError(f"`orbit_mcp_config` must be an absolute path; got {mcp_config!r}")
     return AcpAgentSettings(agent, tuple(command), Path(mcp_config), tuple(env))
+
+
+def parse_adapter(service: str, raw: Any) -> AcpAgentSettings:
+    """One `[acp_adapters.<service>]` table: the adapter the hub starts for
+    every agent of that service added from Orbit. The same keys as an `acp`
+    entry but `agent`, which is the table's name, or a refusal naming the
+    table and why. Like `parse_settings`, it reads no file."""
+    where = f"[acp_adapters.{service}]"
+    if service not in AGENTS:
+        raise ValueError(f'{where}: unknown service; it must be "claude-code" or "codex"')
+    if not isinstance(raw, Mapping):
+        raise ValueError(f"{where} must be a table")  # noqa: TRY004 - a configuration refusal
+    if "agent" in raw:
+        raise ValueError(f"{where}: `agent` is the table's name; remove it")
+    try:
+        return parse_settings({**raw, "agent": service})
+    except ValueError as exc:
+        raise ValueError(f"{where}: {exc}") from None

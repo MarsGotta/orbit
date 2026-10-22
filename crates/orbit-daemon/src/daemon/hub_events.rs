@@ -2,8 +2,8 @@
 use super::*;
 use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
 use orbit_core::wire::hub::{
-    CompletedData, DeltaData, ErrorData, HubEvent as WireHubEvent, HubEventKind, ItemData,
-    ReadyData, RequiredData, SessionData,
+    AgentsChangedData, CompletedData, DeltaData, ErrorData, HubEvent as WireHubEvent, HubEventKind,
+    ItemData, ReadyData, RequiredData, SessionData,
 };
 
 /// Bounds names retained only to suppress repeated diagnostics: 128 distinct
@@ -224,6 +224,7 @@ impl Runtime {
             | HubEventKind::Revoked(_)
             | HubEventKind::RecordingChanged(_)
             | HubEventKind::StorageStatus(_)
+            | HubEventKind::AgentsChanged(_)
             | HubEventKind::Unrecognized { .. } => None,
         };
         let is_turn_event = matches!(
@@ -299,6 +300,7 @@ impl Runtime {
                 }
             }
             HubEventKind::ChatItem(data) => self.on_hub_chat_item(&data),
+            HubEventKind::AgentsChanged(data) => self.on_hub_agents_changed(&data).await?,
             HubEventKind::ChatInterrupted(_) => {
                 // The local interrupt already hid the turn. Its terminal state
                 // is reconciled from state.snapshot, not this request ACK.
@@ -396,21 +398,78 @@ impl Runtime {
         self.hub_storage_nearly_full = Some(storage.nearly_full);
     }
 
+    /// The hub's agents changed (a profile, one added or removed, an
+    /// account): the Mac keeps the new list, and the wake phrase hears its
+    /// names, as after `ready`.
+    async fn on_hub_agents_changed(&mut self, data: &AgentsChangedData) -> Result<()> {
+        let Some(roster) = self.admitted_agents(
+            &data.agents,
+            data.default_agent_id.clone(),
+            data.addable_agents.clone(),
+        ) else {
+            return Ok(());
+        };
+        if self.settings.hub_agents.as_ref() == Some(&roster) {
+            return Ok(());
+        }
+        let mut settings = self.settings.clone();
+        settings.assistant_name = Some(roster.default_name().to_owned());
+        settings.hub_agents = Some(roster);
+        self.paths.save_settings(&settings)?;
+        self.settings = settings;
+        if let Some(stream) = self.features.question.wake_stream.clone() {
+            self.send_wake_order(stream, true).await;
+        }
+        Ok(())
+    }
+
     /// The agents this hub has, from its `ready`: none listed is a hub
     /// with one (0.9.0); a list the Mac cannot rely on is logged with its
     /// cause and numbers, and the one the Mac had stays.
     fn learned_agents(&self, data: &ReadyData) -> Option<orbit_core::agents::AgentRoster> {
-        let listed = data.agents.as_ref()?;
+        self.admitted_agents(
+            data.agents.as_ref()?,
+            data.default_agent_id.clone(),
+            data.addable_agents.clone(),
+        )
+    }
+
+    /// A list of agents as `ready` and `agents.changed` give it, admitted;
+    /// one the Mac cannot rely on is logged with its cause and numbers, and
+    /// the one the Mac had stays.
+    fn admitted_agents(
+        &self,
+        listed: &[orbit_core::wire::hub::HubAgent],
+        default_agent_id: Option<String>,
+        addable: Option<Vec<String>>,
+    ) -> Option<orbit_core::agents::AgentRoster> {
         let agents = listed
             .iter()
             .map(|agent| orbit_core::agents::Agent {
                 id: agent.id.clone(),
                 name: agent.name.clone(),
                 voice: Some(agent.capabilities.iter().any(|name| name == "voice")),
+                service: agent.service.clone(),
+                description: agent.description.clone(),
+                color: agent.color.clone(),
+                removable: agent.removable.unwrap_or(false),
+                account: agent
+                    .account
+                    .as_deref()
+                    .map(orbit_core::agents::AgentAccount::from_wire),
+                account_email: agent.account_email.clone(),
+                plan: agent.plan.clone(),
+                limit: agent
+                    .limit
+                    .as_ref()
+                    .map(|limit| orbit_core::agents::AgentLimit {
+                        until_ms: limit.until_ms,
+                    }),
+                usage: agent.usage.clone(),
             })
             .collect();
-        match orbit_core::agents::AgentRoster::admit(agents, data.default_agent_id.clone()) {
-            Ok(roster) => Some(roster),
+        match orbit_core::agents::AgentRoster::admit(agents, default_agent_id) {
+            Ok(roster) => Some(roster.with_addable(addable)),
             Err(refusal) => {
                 let numbers = refusal
                     .numbers()

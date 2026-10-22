@@ -850,6 +850,7 @@ mod tests {
                         assistant_name: None,
                         agents: Vec::new(),
                         default_agent_id: None,
+                        addable_agents: None,
                         hub: Connection::Offline,
                         account: None,
                         privacy_stopped: false,

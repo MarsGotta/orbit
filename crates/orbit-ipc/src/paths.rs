@@ -280,16 +280,8 @@ mod tests {
     fn agents() -> orbit_core::agents::AgentRoster {
         orbit_core::agents::AgentRoster::admit(
             vec![
-                orbit_core::agents::Agent {
-                    id: "deimos".into(),
-                    name: "Deimos".into(),
-                    voice: None,
-                },
-                orbit_core::agents::Agent {
-                    id: "atlas".into(),
-                    name: "Atlas".into(),
-                    voice: None,
-                },
+                orbit_core::agents::Agent::named("deimos", "Deimos"),
+                orbit_core::agents::Agent::named("atlas", "Atlas"),
             ],
             Some("atlas".into()),
         )

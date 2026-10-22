@@ -197,6 +197,7 @@ fn project(fixture: &CalendarFixture) -> AppSnapshot {
                     assistant_name: None,
                     agents: Vec::new(),
                     default_agent_id: None,
+                    addable_agents: None,
                     hub: fixture.connection.clone(),
                     account: fixture.account.clone(),
                     privacy_stopped: false,

@@ -14,6 +14,9 @@ permission, honours `session/cancel`, and replays a conversation on
     enorme    one message over the hub's ceiling
     rechaza   the turn refused with a JSON-RPC error and a long reason
     corta     a partial answer, then the stop reason the prompt names after «con»
+    agota     Codex's plan limit: its sentence, then the refusal it marks
+    tope      Claude Code's: its `_claude/rateLimit` report, then the refusal
+    cuenta    the adapter says which account it runs with, then answers
 
 Flags: `--record PATH` writes what the agent saw as JSON lines;
 `--auth-required` refuses `session/new` the way the adapters do when signed
@@ -37,6 +40,7 @@ from acp.schema import (
     PromptCapabilities,
     PromptResponse,
     ToolCallUpdate,
+    UsageUpdate,
 )
 from mcp import ClientSession, StdioServerParameters, stdio_client
 
@@ -283,6 +287,66 @@ class InventedAgent:
             return PromptResponse(stop_reason="cancelled")
         if "inicia" in text:
             raise acp.RequestError.auth_required()
+        if "agota" in text:
+            sentence = "You've hit your usage limit. Try again at 3:04 PM."
+            await self.say(session_id, sentence + "\n\n")
+            raise acp.RequestError(
+                -32603,
+                "Internal error",
+                {"message": sentence, "codexErrorInfo": "usageLimitExceeded"},
+            )
+        if "tope" in text:
+            await self.say(session_id, "Empiezo… ")
+            await self.client.session_update(
+                session_id,
+                UsageUpdate(
+                    session_update="usage_update",
+                    used=1000,
+                    size=200000,
+                    field_meta={
+                        "_claude/rateLimit": {
+                            "status": "rejected",
+                            "resetsAt": 1_790_000_000,
+                            "rateLimitType": "five_hour",
+                            "utilization": 1.0,
+                        }
+                    },
+                ),
+            )
+            raise acp.RequestError(
+                -32603,
+                "Internal error: You've hit your session limit · resets 6pm",
+                {"errorKind": "rate_limit"},
+            )
+        if "cuenta" in text:
+            await self.client.ext_notification(
+                "auth/status_update",
+                {
+                    "authStatus": {
+                        "kind": "account",
+                        "label": "Plan inventado",
+                        "account": {"email": "marta.soler@ejemplo.test", "plan": "Plan Pro"},
+                    }
+                },
+            )
+            await self.client.session_update(
+                session_id,
+                UsageUpdate(
+                    session_update="usage_update",
+                    used=10,
+                    size=200000,
+                    field_meta={
+                        "_claude/rateLimit": {
+                            "status": "allowed_warning",
+                            "resetsAt": 1_790_000_000,
+                            "rateLimitType": "seven_day",
+                            "utilization": 0.72,
+                        }
+                    },
+                ),
+            )
+            await self.say(session_id, "Hola.")
+            return PromptResponse(stop_reason="end_turn")
         if "muere" in text:
             await self.say(session_id, "Empiezo… ")
             os._exit(3)

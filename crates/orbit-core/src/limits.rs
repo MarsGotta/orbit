@@ -131,6 +131,15 @@ pub fn registry() -> Vec<Limit> {
             unit: "bytes",
             resource: "capture PNG",
         },
+        // The agents one hub offers, which every Mac's status topic carries;
+        // the hub refuses to start or to add one past it
+        // (server/orbit_hub/assistant/roster.py).
+        Limit {
+            name: "MAX_AGENTS",
+            value: crate::agents::MAX_AGENTS as u64,
+            unit: "agents",
+            resource: "agents one hub offers and the Mac takes",
+        },
         item!(MAX_IPC_LINE_BYTES, "bytes", "app IPC line"),
         item!(MAX_COMMAND_RESPONSE_BYTES, "bytes", "command response"),
         item!(MAX_DEFAULT_COMMAND_BYTES, "bytes", "default command"),

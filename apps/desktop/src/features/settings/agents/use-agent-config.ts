@@ -39,7 +39,10 @@ async function ask(agent: AgentPort, call: AgentCall): Promise<Result> {
         return { kind: "config", config: outcome.config };
       case "skill":
         return { kind: "skill", skill: outcome.skill };
+      // `added` and `sign_in` answer the assistant calls, which this screen does not make.
       case "done":
+      case "added":
+      case "sign_in":
         return { kind: "done" };
       case "refused":
         return { kind: "error", text: agentRefusalText(outcome.refusal) };

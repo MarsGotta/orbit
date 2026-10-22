@@ -1,0 +1,51 @@
+{
+  "v": 1,
+  "id": null,
+  "event": "agents.changed",
+  "data": {
+    "agents": [
+      {
+        "id": "atlas",
+        "name": "Atlas",
+        "kind": "hermes",
+        "capabilities": [
+          "images",
+          "voice",
+          "resume"
+        ],
+        "service": "hermes",
+        "description": "Tu asistente de siempre",
+        "color": "c1",
+        "removable": false
+      },
+      {
+        "id": "codex-1a2b3c4d",
+        "name": "Nova",
+        "kind": "acp",
+        "capabilities": [
+          "images",
+          "resume"
+        ],
+        "service": "codex",
+        "description": "Programa conmigo",
+        "color": "c2",
+        "removable": true,
+        "account": "signed_in",
+        "account_email": "marta.soler@ejemplo.test",
+        "plan": "Plan Pro",
+        "limit": {
+          "until_ms": 1790000000000
+        },
+        "usage": {
+          "used_percent": 72,
+          "window": "seven_day",
+          "resets_at_ms": 1790000000000
+        }
+      }
+    ],
+    "default_agent_id": "atlas",
+    "addable_agents": [
+      "codex"
+    ]
+  }
+}

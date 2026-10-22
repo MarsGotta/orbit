@@ -47,6 +47,16 @@ _AFTER_FIX = {
     # Settings › Agents: the user fixes the file or removes a skill first.
     "skill_invalid",
     "too_many_skills",
+    # Assistants from Orbit: the user changes the profile, signs in, or the
+    # operator installs the adapter first.
+    "agent_profile_invalid",
+    "agent_name_taken",
+    "agent_primary_required",
+    "agent_adapter_missing",
+    "too_many_agents",
+    "agent_auth_required",
+    "sign_in_code_invalid",
+    "handover_no_question",
     # A file the user can replace, convert or leave out (attachments.py).
     "attachments_too_many",
     "attachment_type_unsupported",

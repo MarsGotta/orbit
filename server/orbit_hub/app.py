@@ -22,6 +22,8 @@ from .assistant.access import AgentAccess
 from .assistant.agent_config import AgentConfigStore
 from .assistant.agents import Agents
 from .assistant.backend import AssistantBackend
+from .assistant.roster import Roster
+from .assistant.sign_in import SignIns
 from .assistant.speech import SpeechBackend
 from .bridge_route import BridgeService
 from .bridge_route import mount as mount_device_bridge
@@ -134,12 +136,22 @@ def create_app(
     # drive the hub with doubles.
     # Each agent's personality, skills and access groups (Settings › Agents).
     configs = AgentConfigStore(store)
-    agents = Agents.from_settings(settings, assistant, speech, configs)
+    # Each agent's profile, the primary, and the agents added from Orbit.
+    agents = Agents.from_settings(settings, assistant, speech, configs, Roster(store))
     access = AgentAccess(agents, configs)
     # Dictation is the default agent's: it is input for any agent, and the
     # route names none (contracts/hub-v1.md).
     speech = agents.default.speech
     runtimes: dict[str, DeviceRuntime] = {}
+
+    def agents_changed() -> None:
+        """Every connected Mac learns the new list, as `ready` would give it."""
+        frame = emit("agents.changed", agents.listing())
+        for runtime in list(runtimes.values()):
+            runtime.offer(frame)
+
+    agents.changed = agents_changed
+    sign_ins = SignIns(settings, agents)
     turn_inputs = TurnInputTracker(now)
     # Questions a remote assistant has put to a Mac, and the callers waiting on
     # them. Kept beside the runtimes rather than inside one: a device that
@@ -262,6 +274,7 @@ def create_app(
             await final_passes.close()
             await transcriptions.close()
             await notes.close()
+            await sign_ins.close()
             await asyncio.gather(*(runtime.close() for runtime in runtimes.values()))
         finally:
             try:
@@ -442,6 +455,7 @@ def create_app(
     mount_meetings_bridge(app, meetings_bridge, lambda scope: allowed_transport(scope, settings))
 
     from .routes import agents as agent_routes
+    from .routes import assistants as assistant_routes
     from .routes import attachments as attachment_routes
     from .routes import audio, health, recordings, session
     from .routes import captures as capture_routes
@@ -450,6 +464,9 @@ def create_app(
     session.mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_executor)
     health.mount(app, settings)
     agent_routes.mount(app, settings, agents, configs, identity, bounded_body)
+    assistant_routes.mount(
+        app, settings, agents, configs, runtimes, sign_ins, identity, bounded_body, now
+    )
     attachment_routes.mount(app, store, identity, bounded_body, store_executor, now, captures)
     audio.mount(
         app,

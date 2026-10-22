@@ -20,6 +20,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from . import safety
 from .assistant.agent_config import SCHEMA as AGENT_CONFIG_SCHEMA
+from .assistant.handover import SCHEMA as HANDOVER_SCHEMA
+from .assistant.roster import SCHEMA as ROSTER_SCHEMA
 from .attachments import SCHEMA as ATTACHMENTS_SCHEMA
 from .attachments import AttachmentRepository
 from .group_storage import SCHEMA as GROUP_SCHEMA
@@ -291,6 +293,10 @@ class Store:
         migrate_dictionaries(self._db)
         # Each agent's personality, skills and access groups.
         self._db.executescript(AGENT_CONFIG_SCHEMA)
+        # Each agent's profile, the primary, the agents added from Orbit,
+        # their accounts, and which conversation another was handed over from.
+        self._db.executescript(ROSTER_SCHEMA)
+        self._db.executescript(HANDOVER_SCHEMA)
         self._db.executescript(ATTACHMENTS_SCHEMA)
         self._db.executescript(_KEY_CHECK_SCHEMA)
         self._db.execute(

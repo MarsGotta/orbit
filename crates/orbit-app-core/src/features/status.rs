@@ -52,6 +52,11 @@ pub struct StatusSettingsView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub default_agent_id: Option<String>,
+    /// The services an agent can be added with from Orbit; absent for a hub
+    /// that adds none and hands no conversation over.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub addable_agents: Option<Vec<String>>,
     /// The connected hub's attachment ceilings; absent before its `ready`
     /// and for a hub without attachments (0.9.0), when the composer offers none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -110,6 +115,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
             assistant_name: None,
             agents: Vec::new(),
             default_agent_id: None,
+            addable_agents: None,
             hub: SettingsHubSnapshot {
                 url: None,
                 paired: false,
@@ -182,6 +188,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
                 view.settings.assistant_name = value.assistant_name.clone();
                 view.settings.agents = value.agents.clone();
                 view.settings.default_agent_id = value.default_agent_id.clone();
+                view.settings.addable_agents = value.addable_agents.clone();
                 view.settings.attachments = value.attachments;
                 view.settings.error_reports = value.error_reports;
             }
@@ -547,6 +554,41 @@ mod assistant_name_tests {
         let view = serde_json::to_value(status::project(&FeatureInput::new(&snapshot, &topics)))?;
         assert_eq!(view["settings"]["agents"], serde_json::json!([]));
         assert!(view["settings"].get("default_agent_id").is_none());
+        Ok(())
+    }
+
+    /// Each agent's profile and account, and the services the hub can add,
+    /// reach the interface (hub-v1 «Assistants from Orbit»); a hub before
+    /// them says none, and the interface offers no adding.
+    #[test]
+    fn status_projects_the_profiles_and_what_the_hub_can_add()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use crate::{
+            features::{FeatureInput, status},
+            topics::TopicCache,
+        };
+        use orbit_core::topics::TopicFrame;
+        let snapshot = crate::AppSnapshot::default();
+        let mut topics = TopicCache::default();
+        let nova = serde_json::json!({"id":"codex-1a2b3c4d","name":"Nova","service":"codex",
+            "description":"Programa conmigo","color":"c2","removable":true,"account":"expired",
+            "limit":{"until_ms":1_790_000_000_000_i64},
+            "usage":{"used_percent":72,"window":"seven_day"}});
+        let frame: TopicFrame = serde_json::from_value(serde_json::json!({
+            "epoch": "agents", "revision": 1, "data": {"topic": "status",
+            "knowledge": {"state": "present", "value": {
+                "hub":"online", "account": null, "helper_connected": true,
+                "privacy_stopped": false, "agents": [nova.clone()],
+                "default_agent_id": "codex-1a2b3c4d", "addable_agents": ["codex"]
+            }}}
+        }))?;
+        topics.observe(frame);
+        let view = serde_json::to_value(status::project(&FeatureInput::new(&snapshot, &topics)))?;
+        assert_eq!(view["settings"]["agents"], serde_json::json!([nova]));
+        assert_eq!(
+            view["settings"]["addable_agents"],
+            serde_json::json!(["codex"])
+        );
         Ok(())
     }
 }

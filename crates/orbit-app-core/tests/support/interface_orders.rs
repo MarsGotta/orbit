@@ -192,6 +192,11 @@ pub fn cases() -> Vec<(Value, FeatureId)> {
             FeatureId::Assistant,
         ),
         (json!({"command":"new_session"}), FeatureId::Assistant),
+        (
+            json!({"command":"handover","session_id":"30000000-0000-4000-8000-000000000005",
+                   "agent_id":"deimos","text":"¿Y mañana?"}),
+            FeatureId::Assistant,
+        ),
         (json!({"command":"interrupt"}), FeatureId::Assistant),
         (
             json!({"command":"approval","approved":true}),

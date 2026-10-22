@@ -124,7 +124,7 @@ function unfinished(stopReason: Value, name: string): string {
 function agentFailure(data: NoticeData, name: string): string | undefined {
   switch (data.code) {
     case "agent_auth_required":
-      return `${name} no tiene la sesión iniciada en el servidor del hub. Quien gestiona tu hub debe iniciarla allí (Orbit no inicia sesiones).`;
+      return `${name} no tiene la sesión iniciada en el hub, o caducó. Inicia sesión otra vez en sus ajustes; si tu hub no lo permite, pídeselo a quien lo gestiona.`;
     case "agent_rejected":
       return `${name} rechazó el turno (código ${code(data.acp_code)}). ${ASK_ADMIN}`;
     case "agent_stopped": {

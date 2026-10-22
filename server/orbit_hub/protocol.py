@@ -110,11 +110,22 @@ class SendParams(StrictModel):
     # before the hub counts them; the ceiling the user hears, with its numbers,
     # is `attachments.MAX_MESSAGE_ATTACHMENTS`. An id is a UUID.
     attachments: list[str] = Field(default_factory=list, max_length=64)
+    # Hand this conversation of the device over to `agent_id` (`handover`):
+    # the turn opens a new conversation that carries what was said in it,
+    # and, with an empty `text`, its unanswered question. 80 is the session
+    # id's bound.
+    handover_from: str | None = Field(default=None, min_length=1, max_length=80)
 
     @model_validator(mode="after")
     def text_or_attachments(self):
-        if not self.text and not self.attachments:
+        if not self.text and not self.attachments and self.handover_from is None:
             raise ValueError("chat.send needs text or attachments")
+        if self.handover_from is not None and (
+            self.session_id is not None or self.meeting is not None or self.agent_id is None
+        ):
+            raise ValueError(
+                "handover_from opens a new conversation with agent_id, without session_id or meeting"
+            )
         if any(not 1 <= len(attachment) <= 80 for attachment in self.attachments):
             raise ValueError("an attachment id has 1 to 80 characters")
         return self

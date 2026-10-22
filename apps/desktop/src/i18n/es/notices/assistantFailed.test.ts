@@ -136,9 +136,9 @@ describe("a turn the agent's provider ended without an answer", () => {
 });
 
 describe("a turn a Claude Code or Codex agent ended without an answer", () => {
-  it("says the agent is signed out on the hub's server", () => {
+  it("says the agent is signed out on the hub and where to sign it in", () => {
     expect(said({ code: "agent_auth_required" }, "Vega")).toBe(
-      "Vega no tiene la sesión iniciada en el servidor del hub. Quien gestiona tu hub debe iniciarla allí (Orbit no inicia sesiones).",
+      "Vega no tiene la sesión iniciada en el hub, o caducó. Inicia sesión otra vez en sus ajustes; si tu hub no lo permite, pídeselo a quien lo gestiona.",
     );
   });
 

@@ -29,6 +29,7 @@ const commands: Record<AppCommand["command"], string> = {
   chat: "enviar el mensaje",
   clarify: "enviar tu respuesta",
   error_reports: "cambiar los informes de errores",
+  handover: "seguir la conversación con otro asistente",
   interrupt: "detener la respuesta",
   login_item: "cambiar si Orbit se abre al iniciar sesión",
   meeting_ask: "mandar la pregunta",

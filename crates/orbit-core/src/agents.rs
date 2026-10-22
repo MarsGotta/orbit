@@ -10,15 +10,19 @@ pub const IMPLICIT_AGENT_ID: &str = "default";
 
 /// The agents the Mac takes from one hub. Every one rides the status topic,
 /// whose frame it protects: 32 at the hub's own bounds (a 32-byte id, a
-/// 48-character name, each character up to four bytes) take about 7.6 KiB
-/// of it (`TopicId::Status`). Sixteen times the two the self-hosting guide
-/// configures; not measured with users. A longer list is refused with its
-/// count, and the Mac keeps the list it had. It does not limit what the hub
-/// itself runs.
+/// 48-character name, a 90-character description, each character up to four
+/// bytes, and the account and usage) take about 33 KiB of it (`TopicId::Status`).
+/// Sixteen times the two the self-hosting guide configures; not measured
+/// with users. The hub holds the same ceiling (`roster.MAX_AGENTS`), refusing
+/// to start or to add one past it. A longer list is refused with its count,
+/// and the Mac keeps the list it had.
 pub const MAX_AGENTS: usize = 32;
 
 /// One agent as the interface shows it: its stable id, the name the user
-/// reads and says aloud, and whether it reads aloud in a voice of its own.
+/// reads and says aloud, whether it reads aloud in a voice of its own, and
+/// what the hub keeps of it (hub-v1 «Assistants from Orbit»): its profile,
+/// whether Orbit can remove it, and its account. A hub before that says
+/// none of the last, and a list kept by an older Mac has none either.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -34,6 +38,125 @@ pub struct Agent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "ts", ts(optional))]
     pub voice: Option<bool>,
+    /// What answers: `hermes`, `openai`, `claude-code`, `codex`, or one this
+    /// Mac does not know yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub service: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub description: Option<String>,
+    /// `c1` to `c4`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub color: Option<String>,
+    /// Added from Orbit: Orbit can remove it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<bool>", optional))]
+    pub removable: bool,
+    /// Only for an agent Orbit can sign in (Claude Code, Codex).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub account: Option<AgentAccount>,
+    /// The account's address and the plan's name, when its adapter said them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub account_email: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub plan: Option<String>,
+    /// Present while its plan is at its limit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub limit: Option<AgentLimit>,
+    /// Present only when its provider reported it: no report, no bar.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub usage: Option<AgentUsage>,
+}
+
+/// The share of a plan's window used, as the provider last reported it
+/// (today only Claude Code with a claude.ai subscription, when it changes).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+)]
+pub struct AgentUsage {
+    /// 0 to 100.
+    pub used_percent: u8,
+    /// `five_hour`, `seven_day`… as the provider names it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub window: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional, type = "number"))]
+    pub resets_at_ms: Option<i64>,
+}
+
+/// What the hub last learned of an agent's account on the server.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+)]
+pub enum AgentAccount {
+    SignedIn,
+    SignedOut,
+    /// Its session on the server expired: it answers again once signed in.
+    Expired,
+    /// The hub has not learned it yet, or said something this Mac does not know.
+    #[serde(other)]
+    Unknown,
+}
+
+/// An agent at its plan's limit; `until_ms` is when it resets, when the
+/// provider said. Not saying is not «no limit».
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+)]
+pub struct AgentLimit {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional, type = "number"))]
+    pub until_ms: Option<i64>,
+}
+
+impl AgentAccount {
+    /// The hub's word for it; one this Mac does not know is `Unknown`.
+    pub fn from_wire(text: &str) -> Self {
+        match text {
+            "signed_in" => Self::SignedIn,
+            "signed_out" => Self::SignedOut,
+            "expired" => Self::Expired,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+impl Agent {
+    /// An agent known only by its id and name, as a hub before profiles lists it.
+    pub fn named(id: &str, name: &str) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            voice: None,
+            service: None,
+            description: None,
+            color: None,
+            removable: false,
+            account: None,
+            account_email: None,
+            plan: None,
+            limit: None,
+            usage: None,
+        }
+    }
 }
 
 /// The agents a hub said it has, in its order, and which one is its default.
@@ -43,6 +166,11 @@ pub struct Agent {
 pub struct AgentRoster {
     default_agent_id: String,
     agents: Vec<Agent>,
+    /// The services an agent can be added with from Orbit; `None` from a hub
+    /// without «Assistants from Orbit», which adds none and hands no
+    /// conversation over.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    addable: Option<Vec<String>>,
 }
 
 /// Why a hub's list of agents was not taken. The Mac keeps the list it had.
@@ -147,24 +275,34 @@ impl AgentRoster {
         Ok(Self {
             default_agent_id,
             agents,
+            addable: None,
         })
+    }
+
+    /// The services the hub said agents can be added with (`addable_agents`).
+    pub fn with_addable(self, addable: Option<Vec<String>>) -> Self {
+        Self { addable, ..self }
+    }
+
+    pub fn addable(&self) -> Option<&[String]> {
+        self.addable.as_deref()
     }
 
     /// The one agent of a hub that names none, called by its `assistant_name`.
     pub fn single(name: &str) -> Self {
         Self {
             default_agent_id: IMPLICIT_AGENT_ID.into(),
-            agents: vec![Agent {
-                id: IMPLICIT_AGENT_ID.into(),
-                name: name.into(),
-                voice: None,
-            }],
+            agents: vec![Agent::named(IMPLICIT_AGENT_ID, name)],
+            addable: None,
         }
     }
 
     /// A roster read back from disk, admitted again; `None` if it no longer holds.
     pub fn checked(self) -> Option<Self> {
-        Self::admit(self.agents, Some(self.default_agent_id)).ok()
+        let addable = self.addable;
+        Self::admit(self.agents, Some(self.default_agent_id))
+            .ok()
+            .map(|roster| roster.with_addable(addable))
     }
 
     pub fn agents(&self) -> &[Agent] {
@@ -215,11 +353,7 @@ mod tests {
     use super::*;
 
     fn agent(id: &str, name: &str) -> Agent {
-        Agent {
-            id: id.into(),
-            name: name.into(),
-            voice: None,
-        }
+        Agent::named(id, name)
     }
 
     #[test]
