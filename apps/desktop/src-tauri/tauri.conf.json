@@ -28,7 +28,7 @@
         "label": "panel",
         "title": "Orbit · llamada",
         "url": "index.html",
-        "width": 360,
+        "width": 340,
         "height": 120,
         "decorations": false,
         "alwaysOnTop": true,

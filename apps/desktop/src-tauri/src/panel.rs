@@ -19,22 +19,38 @@ static ASKING: AtomicBool = AtomicBool::new(false);
 /// The panel window's label, named by its capability (`capabilities/panel.json`).
 pub const PANEL_LABEL: &str = "panel";
 
-/// The panel's width in logical points; mirrors `width` of the panel window
-/// in `tauri.conf.json`, which the configuration test reads.
-const PANEL_WIDTH: f64 = 360.0;
+/// The panel's width in logical points: the window is the design's 340 point
+/// card. Mirrors `width` of the panel window in `tauri.conf.json`, which the
+/// configuration test reads.
+const PANEL_WIDTH: f64 = 340.0;
 
 /// How far in from the top and right edges of the work area (below the menu
 /// bar) the panel sits, in logical points, as macOS notifications do.
 const PANEL_MARGIN: f64 = 16.0;
 
-/// The panel's height for a call alone, in logical points; mirrors `height`
-/// of the panel window in `tauri.conf.json`.
+// The window is as tall as the one card the interface shows
+// (`features/call-panel`), in logical points: 14 of padding each side, the
+// card's lines and its 32 point buttons. None limits what a card says: the
+// answer scrolls, and stays whole in the conversation.
+
+/// A call to answer: its app, its event and «Grabar» / «Ahora no». Mirrors
+/// `height` of the panel window in `tauri.conf.json`.
 pub const PANEL_HEIGHT: f64 = 120.0;
 
-/// The panel's height while it shows a question to Deimos and its
-/// answer: the question, a few lines of answer (it scrolls past them) and
-/// «Cerrar». It is not a limit on the answer, which stays whole in the
-/// conversation.
+/// The call ended: the countdown, its bar and «Seguir grabando».
+pub const PANEL_ENDING_HEIGHT: f64 = 132.0;
+
+/// A recording in progress: its time, what it records, «Preguntar a Deimos»
+/// and «Parar», and whether «Oye Deimos» listens (up to two lines).
+pub const PANEL_RECORDING_HEIGHT: f64 = 164.0;
+
+/// A question being written: the field, the minutes it listens to, a line
+/// for a question too long, «Cancelar» and «Preguntar».
+pub const PANEL_ASK_HEIGHT: f64 = 200.0;
+
+/// A question to Deimos and its answer: the question, a few lines of answer
+/// (it scrolls past them), what Deimos asks to do meanwhile and «Otra
+/// pregunta».
 pub const PANEL_ANSWER_HEIGHT: f64 = 300.0;
 
 /// Whether the panel must be visible after `frame`: only the recording frame
@@ -52,13 +68,17 @@ pub fn panel_visible(frame: &FeatureFrame) -> Option<bool> {
     }
 }
 
-/// The panel's height after `frame`.
+/// The panel's height after `frame`: that of the card the interface shows,
+/// in its order (a call to answer, a call that ended, a question, the
+/// recording). The question being written is `ASKING`'s.
 pub fn panel_height(frame: &FeatureFrame) -> Option<f64> {
+    use orbit_app_core::CallPanelSnapshot;
     match frame {
-        FeatureFrame::Recording { view, .. } => Some(if view.meeting.question.is_some() {
-            PANEL_ANSWER_HEIGHT
-        } else {
-            PANEL_HEIGHT
+        FeatureFrame::Recording { view, .. } => Some(match &view.meeting.call_panel {
+            Some(CallPanelSnapshot::Offer { .. }) => PANEL_HEIGHT,
+            Some(CallPanelSnapshot::Ending { .. }) => PANEL_ENDING_HEIGHT,
+            _ if view.meeting.question.is_some() => PANEL_ANSWER_HEIGHT,
+            _ => PANEL_RECORDING_HEIGHT,
         }),
         _ => None,
     }
@@ -73,8 +93,7 @@ pub fn focus<R: tauri::Runtime>(app: &tauri::AppHandle<R>, focus: bool) {
         return;
     };
     if focus
-        && let Err(error) =
-            window.set_size(tauri::LogicalSize::new(PANEL_WIDTH, PANEL_ANSWER_HEIGHT))
+        && let Err(error) = window.set_size(tauri::LogicalSize::new(PANEL_WIDTH, PANEL_ASK_HEIGHT))
     {
         eprintln!("No se pudo ajustar el tamaño del panel flotante: {error}");
     }
@@ -126,7 +145,7 @@ pub fn apply<R: tauri::Runtime>(app: &tauri::AppHandle<R>, visible: bool, height
     };
     let shown = window.is_visible().unwrap_or(false);
     let height = if ASKING.load(Ordering::Relaxed) {
-        height.max(PANEL_ANSWER_HEIGHT)
+        PANEL_ASK_HEIGHT
     } else {
         height
     };

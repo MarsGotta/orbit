@@ -1,12 +1,12 @@
 - AXWindow "Orbit · llamada"
   - AXWebArea
     - AXGroup (Deimos en la reunión)
-      - AXStaticText = "Tu pregunta: de qué estamos hablando?"
+      - AXStaticText = "de qué estamos hablando?"
+      - [1] AXButton (Cerrar) [actions=[press]]
       - AXGroup
         - AXStaticText = "Estáis hablando del proyecto de la biblioteca municipal. Lo llevado hasta ahora:
 
 - **Presupuesto**: las estanterías salen por encima de lo previsto.
 - **Calendario**: las obras empiezan el 3 de noviembre."
-      - AXStaticText = "Queda también en tu conversación con Deimos"
-      - [1] AXButton "Cerrar" [actions=[press]]
-    - [2] AXButton "Otra pregunta" [actions=[press]]
+      - AXStaticText = "Queda también en tu conversación"
+      - [2] AXButton "Otra pregunta" [actions=[press]]

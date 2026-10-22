@@ -16,7 +16,7 @@ import { createServer } from "vite";
 
 const desktopDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MAIN_WINDOW = { width: 1440, height: 900 };
-const PANEL_WINDOW = { width: 360, height: 120 };
+const PANEL_WINDOW = { width: 340, height: 120 };
 const THEMES = { light: "claro", dark: "oscuro" };
 // The app reads `navigator.userAgent` to leave room for the Mac's window
 // buttons; the webview of Orbit.app is WebKit on macOS.

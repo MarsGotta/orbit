@@ -8,7 +8,13 @@
       - [5] AXButton (Ajustes) [actions=[press]]
     - AXGroup
       - AXStaticText = "Reunión guardada"
-      - [6] AXLink "Abrir nota" [actions=[press]]
+      - AXStaticText = "Te avisamos cuando la nota esté lista."
+      - [6] AXButton (Cerrar aviso) [actions=[press]]
+    - AXGroup
+      - AXStaticText = "Tu nota está lista"
+      - AXStaticText = "Reunión 16/10/26, 10:00"
+      - [7] AXButton "Abrir" [actions=[press]]
+      - [9] AXButton (Cerrar aviso) [actions=[press]]
     - AXHeading
       - AXStaticText = "Reuniones"
     - AXHeading

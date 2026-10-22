@@ -53,7 +53,7 @@ export interface Scenario {
   sheet?: boolean;
   /**
    * The window's size in points, as the app gives it: the main window is
-   * 1440 × 900 and the panel 360 × 120, or 360 × 300 with a question
+   * 1440 × 900 and the panel 340 points wide, as tall as its card
    * (`tauri.conf.json`, `src-tauri/src/panel.rs`).
    */
   size?: { width: number; height: number };

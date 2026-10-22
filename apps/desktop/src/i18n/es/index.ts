@@ -16,6 +16,7 @@ import { errors } from "./errors";
 import { noteScreenCopy } from "./noteScreen";
 import { library } from "./library";
 import { meetingQuestionCopy } from "./meetingQuestion";
+import { floatingPanelCopy } from "./floatingPanel";
 
 import { globalShortcuts } from "./shortcuts";
 export { globalShortcuts };
@@ -39,6 +40,7 @@ export function spanish(assistantName = "Deimos") {
     ...noteScreenCopy(assistantName),
     ...library,
     ...meetingQuestionCopy(assistantName),
+    ...floatingPanelCopy(assistantName),
   } as const;
 }
 

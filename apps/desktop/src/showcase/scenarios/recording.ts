@@ -1,6 +1,5 @@
 import type { MeetingSnapshot } from "../../bridge/generated/MeetingSnapshot";
-import { idleMeeting, recordingMeeting } from "../data/recording";
-import { at, NOW } from "../data/time";
+import { recordingMeeting } from "../data/recording";
 import type { Scenario, Views } from "../scenario";
 
 /** `views` with the meeting changed, and the briefing saying it records. */
@@ -29,13 +28,6 @@ const record = (scenario: Omit<Scenario, "view" | "route"> & { route?: string })
 const pill = "role=status[name=/Grabando ·/]";
 
 export const recordingScenarios: Scenario[] = [
-  record({
-    id: "grabar-lanzador",
-    state: "Empezar a grabar",
-    description: "«Grabar reunión» abre «Nueva grabación»: qué reunión, qué audio y cuánto dura.",
-    ready: "text=Agenda de hoy",
-    steps: [{ click: "role=button[name='Grabar reunión']" }, { wait: "role=dialog" }],
-  }),
   record({
     id: "grabando",
     state: "Grabación en curso",
@@ -85,30 +77,5 @@ export const recordingScenarios: Scenario[] = [
       }),
     ready: "role=status[name=/Micrófono en silencio/]",
     steps: [{ hover: "role=status[name=/Micrófono en silencio/]" }],
-  }),
-  record({
-    id: "reunion-guardada",
-    state: "Reunión guardada",
-    description: "Al terminar, el aviso de que la reunión se guardó, con el enlace a su nota.",
-    views: (base) => withMeeting(base, { ...recordingMeeting, phase: "finishing" }),
-    later: (views) => {
-      const saved = withMeeting(views, {
-        ...idleMeeting,
-        recent: [
-          {
-            recording_id: recordingMeeting.recording_id ?? "",
-            title: recordingMeeting.title ?? "",
-            started_at_ms: at(0, 10, 22),
-            duration_ms: NOW - at(0, 10, 22),
-            calendar_event_id: "design-review",
-            transcription: { pending: 2, running: 1, completed: 15, failed: 0 },
-            summary: "pending",
-          },
-          ...idleMeeting.recent,
-        ],
-      });
-      return { recording: saved.recording, briefing: saved.briefing };
-    },
-    ready: "text=Reunión guardada",
   }),
 ];

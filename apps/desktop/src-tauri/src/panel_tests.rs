@@ -54,20 +54,20 @@ fn the_recording_frame_shows_the_panel_only_with_something_to_say() {
 
 #[test]
 fn the_panel_sits_at_the_top_right_of_its_monitor() {
-    // A 1512-point-wide Retina display at 2x, the panel 360 points wide and
+    // A 1512-point-wide Retina display at 2x, the panel 340 points wide and
     // 16 points in from the top and right edges.
     assert_eq!(
-        top_right(0, 0, 3024, 2.0, 360.0, 16.0),
+        top_right(0, 0, 3024, 2.0, 340.0, 16.0),
         Placement {
-            x: 3024 - 720 - 32,
+            x: 3024 - 680 - 32,
             y: 32
         }
     );
     // A second monitor to the right of the first, at 1x.
     assert_eq!(
-        top_right(1920, 0, 2560, 1.0, 360.0, 16.0),
+        top_right(1920, 0, 2560, 1.0, 340.0, 16.0),
         Placement {
-            x: 1920 + 2560 - 360 - 16,
+            x: 1920 + 2560 - 340 - 16,
             y: 16
         }
     );
@@ -234,8 +234,8 @@ fn a_question_to_deimos_shows_the_panel_with_room_for_the_answer() {
 
 /// A recording started by hand has no call to answer, and «Preguntar a
 /// Deimos» is offered during it as during a detected call's: the panel
-/// shows while any recording runs or is paused (`ask`), at its call height,
-/// and goes when it ends.
+/// shows while any recording runs or is paused (`ask`), at the height of
+/// the recording card, and goes when it ends.
 #[test]
 fn any_recording_shows_the_panel_to_ask_deimos() {
     let recording = recording(None).map(|frame| match frame {
@@ -261,8 +261,68 @@ fn any_recording_shows_the_panel_to_ask_deimos() {
     assert_eq!(recording.as_ref().and_then(panel_visible), Some(true));
     assert_eq!(
         recording.as_ref().and_then(panel_height),
-        Some(PANEL_HEIGHT)
+        Some(PANEL_RECORDING_HEIGHT)
     );
+}
+
+/// The window is the card it shows, one at a time, in the order the
+/// interface picks it (`PanelApp.tsx`): the countdown of a call that ended
+/// comes before a question, so its height does too.
+#[test]
+fn the_panel_is_as_tall_as_the_card_it_shows() {
+    let ending = || CallPanelSnapshot::Ending {
+        recording_id: "rec-1".into(),
+        application: "zoom.us".into(),
+        ends_at_ms: 13_000,
+    };
+    let height = |frame: Option<FeatureFrame>| frame.as_ref().and_then(panel_height);
+    assert_eq!(
+        height(recording_with(Some(ending()), None)),
+        Some(PANEL_ENDING_HEIGHT)
+    );
+    assert_eq!(
+        height(recording_with(Some(ending()), Some(thinking()))),
+        Some(PANEL_ENDING_HEIGHT)
+    );
+    let by_call = CallPanelSnapshot::Recording {
+        recording_id: "rec-1".into(),
+        application: "zoom.us".into(),
+        event_title: Some("Ribera Norte".into()),
+    };
+    assert_eq!(
+        height(recording_with(Some(by_call), None)),
+        Some(PANEL_RECORDING_HEIGHT)
+    );
+    let heights = [
+        PANEL_HEIGHT,
+        PANEL_ENDING_HEIGHT,
+        PANEL_RECORDING_HEIGHT,
+        PANEL_ASK_HEIGHT,
+        PANEL_ANSWER_HEIGHT,
+    ];
+    assert!(
+        heights.windows(2).all(|pair| pair[0] < pair[1]),
+        "{heights:?}"
+    );
+}
+
+/// The configuration opens the panel at the width of the 340 point card
+/// and at the offer's height, the constants the code resizes it with.
+#[test]
+fn the_configured_panel_window_is_the_card() -> Result<(), Box<dyn std::error::Error>> {
+    let config: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json"))?;
+    let windows = config["app"]["windows"].as_array().ok_or("windows")?;
+    let panel = windows
+        .iter()
+        .find(|window| window["label"] == PANEL_LABEL)
+        .ok_or("the panel window")?;
+    assert_eq!(panel["width"].as_f64(), Some(PANEL_WIDTH));
+    assert_eq!(panel["height"].as_f64(), Some(PANEL_HEIGHT));
+    assert_eq!(
+        panel["focusable"], false,
+        "the panel never takes the keyboard by itself"
+    );
+    Ok(())
 }
 
 /// The answer's links open through the panel's own closed order, only

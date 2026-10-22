@@ -504,13 +504,9 @@ class RealTest:
             # Microphone only: the script plays into BlackHole, the default
             # input, and with system audio too every line would be recorded
             # twice.
-            ui.choose(
-                self.main,
-                "Qué audio grabar",
-                "Solo mi micrófono",
-                # MeetingStartDialog.tsx SourceField: system, then microphone.
-                ("Audio del sistema", "Solo mi micrófono"),
-            )
+            # «Qué audio grabar» is a list of radios, each labelled with its
+            # explanation (AudioSourceField.tsx): pressed by its name.
+            ui.press(self.main, "Solo mi micrófono", ("AXRadioButton",), contains=True)
             ui.press(self.main, "Empezar a grabar", ("AXButton",))
             recording = self.wait_mac("recording")
             self.ev["recording"] = dict(recording)
@@ -539,7 +535,8 @@ class RealTest:
                         panel,
                         "panel",
                         READS["panel"],
-                        lambda text: "Tu pregunta:" in text,
+                        # Shown only with the answer whole (PanelAnswer.tsx).
+                        lambda text: "Queda también en tu conversación" in text,
                         self.bounds["screen"][0],
                     ),
                 )
@@ -553,17 +550,6 @@ class RealTest:
             # accessibility, as the keyboard would.
             ui.press(self.main, "Terminar", ("AXButton",))
 
-        # The «Reunión guardada» notice goes away by itself after five seconds,
-        # long before the note is written. Every round trip to the engine
-        # takes seconds (real runs 2 and 3 of 2026-10-20: the link came after
-        # the notice had gone), so its link is looked for at once, before
-        # waiting on anything else, and the page it opens is read once the
-        # note is ready.
-        with self.step("«Abrir nota» from the notice", (6,), critical=False):
-            ui.press(self.main, "Abrir nota", ("AXLink", "AXButton"))
-            # What the page shows while its note is still being written.
-            ui.read(self.main, "find the note just opened (whole window)", None)
-
         with self.step("the saved recording", (1, 2, 3, 4, 5, 6)):
             saved = self.wait_mac("saved", self.ev["recording"]["id"])
             self.ev["recording"].update(saved)
@@ -572,6 +558,19 @@ class RealTest:
         with self.step("the note", (1, 2, 3, 4, 5, 6), critical=False):
             self.ev["note_phase"] = self.wait_mac("note", identifier)
             self.ev["detail"] = self.mac.read("detail", identifier)["items"][0]
+
+        # «Reunión guardada» opens nothing: the note is not written yet.
+        # «Tu nota está lista» says when it is, with «Abrir», and goes away by
+        # itself after ten seconds; every round trip to the engine takes
+        # seconds (real runs 2 and 3 of 2026-10-20 missed a notice's link), so
+        # it is pressed as soon as the note is final, before anything else
+        # waits.
+        with self.step("«Abrir» from «Tu nota está lista»", (6,), critical=False):
+            ui.press(self.main, "Abrir", ("AXLink", "AXButton"))
+            # What the page shows once it opens.
+            ui.read(self.main, "find the note just opened (whole window)", None)
+
+        with self.step("the note on screen", (1, 2, 3, 4, 5, 6), critical=False):
             # Until the interface stops saying the note is on its way.
             self.measure(
                 "screen",

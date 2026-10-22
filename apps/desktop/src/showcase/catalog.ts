@@ -3,6 +3,7 @@ import { chatScenarios } from "./scenarios/chat";
 import { chatMediaScenarios } from "./scenarios/chat-media";
 import { designScenarios } from "./scenarios/design";
 import { firstRunScenarios } from "./scenarios/first-run";
+import { grabarScenarios } from "./scenarios/grabar";
 import { hoyScenarios } from "./scenarios/hoy";
 import { notesScenarios } from "./scenarios/notes";
 import { panelScenarios } from "./scenarios/panel";
@@ -20,6 +21,7 @@ export const scenarios: Scenario[] = [
   ...chatScenarios,
   ...chatMediaScenarios,
   ...recordingScenarios,
+  ...grabarScenarios,
   ...panelScenarios,
   ...settingsScenarios,
   ...firstRunScenarios,

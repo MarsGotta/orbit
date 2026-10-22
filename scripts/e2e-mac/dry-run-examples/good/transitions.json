@@ -9,13 +9,7 @@
   "click:Grabar reunión": "dialog"
  },
  "dialog": {
-  "click:Audio del sistema Qué audio grabar": "dialog-menu"
- },
- "dialog-menu": {
-  "press_key:down": "dialog-menu-down"
- },
- "dialog-menu-down": {
-  "press_key:return": "dialog-microphone"
+  "click:Solo mi micrófono Para una reunión en persona.": "dialog-microphone"
  },
  "dialog-microphone": {
   "click:Empezar a grabar": "recording"
@@ -24,7 +18,7 @@
   "click:Terminar": "saved"
  },
  "saved": {
-  "click:Abrir nota": "note-summary"
+  "click:Abrir": "note-summary"
  },
  "note-summary": {
   "click:Resumen": "note-summary",

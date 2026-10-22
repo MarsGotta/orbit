@@ -1,0 +1,106 @@
+/* «Nueva grabación» (prototype Grabar.dc.html): inside the 520 px Dialog. */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--o-space-20);
+}
+
+.title {
+  display: flex;
+  flex-direction: column;
+  gap: var(--o-space-6);
+}
+
+.meta {
+  margin: 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.suggestion {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--o-accText);
+  font: var(--o-text-meta);
+  text-align: left;
+  cursor: pointer;
+}
+
+.suggestion:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.fieldset {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--o-space-6);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.label {
+  padding: 0;
+  font: var(--o-text-control);
+}
+
+.chips,
+.below {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--o-space-8);
+  margin-top: var(--o-space-4);
+}
+
+.below {
+  justify-content: space-between;
+}
+
+.chip {
+  height: var(--o-control-sm);
+  padding: 0 var(--o-space-10);
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-pill);
+  background: transparent;
+  color: var(--o-ink2);
+  font: var(--o-text-meta);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--o-dur-fast),
+    border-color var(--o-dur-fast);
+}
+
+.chip:hover {
+  background: var(--o-hover);
+}
+
+.chip[aria-pressed="true"] {
+  border-color: var(--o-accText);
+  background: var(--o-accSoft);
+  color: var(--o-accText);
+}
+
+.refusal {
+  margin: 0;
+  color: var(--o-recText);
+  font: var(--o-text-meta);
+}
+
+/* The white dot of «Empezar a grabar». */
+.recordDot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--o-white);
+}
+
+button:disabled .recordDot {
+  background: var(--o-ink3);
+}

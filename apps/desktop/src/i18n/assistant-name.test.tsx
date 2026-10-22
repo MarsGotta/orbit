@@ -67,11 +67,25 @@ it("uses the hub name in the panel and wake status as frames arrive", async () =
   expect(await screen.findByText("Deimos está pensando…")).toBeTruthy();
   await act(async () => listener?.(status("Atlas")));
   expect(screen.getByText("Atlas está pensando…")).toBeTruthy();
-  expect(screen.getByText("«Oye Atlas» te escucha")).toBeTruthy();
   expect(screen.getByRole("region", { name: "Atlas en la reunión" })).toBeTruthy();
   expect(screen.getByText("¿Qué decidió Ana Pérez?", { exact: false })).toBeTruthy();
   await act(async () => listener?.(status()));
   expect(screen.getByText("Atlas está pensando…")).toBeTruthy();
+  // Answered and gone: the panel shows the recording, and how to ask by voice.
+  await act(async () =>
+    listener?.({
+      feature: "recording",
+      revision: { epoch: 1, counter: ++counter },
+      view: {
+        meeting: {
+          phase: "recording",
+          voice_trigger: { state: "listening" },
+          ask: { windows: [{ minutes: 2 }], default_minutes: 2, max_question_bytes: 1024 },
+        },
+      },
+    } as unknown as FeatureFrame),
+  );
+  expect(screen.getByText("Di «Oye Atlas» y tu pregunta")).toBeTruthy();
 });
 
 it("uses the configured name in chat, notes, permissions and notices, preserving supplied text", () => {

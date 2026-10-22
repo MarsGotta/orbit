@@ -1,76 +1,260 @@
-/* The floating panel. One small card that fills its window; with a
-   question to Deimos the cards stack. */
+/* The floating panel (prototype Panel.dc.html): its window is one 340 px
+   card that says one thing at a time. The window carries the shadow. */
 .root {
-  background: var(--o-bg);
-  box-sizing: border-box;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
   height: 100vh;
-  overflow: hidden;
-}
-
-.askButton {
-  align-self: flex-end;
-  flex: 0 0 auto;
-}
-
-.panel {
-  align-items: center;
-  background: var(--o-side);
-  border: 1px solid var(--o-line2);
-  border-radius: 12px;
   box-sizing: border-box;
+  flex-direction: column;
+  gap: var(--o-space-8);
+  overflow: hidden;
+  padding: var(--o-space-14);
+  border: 1px solid var(--o-line2);
+  background: var(--o-surface);
   color: var(--o-ink);
+  font: var(--o-text-body);
+}
+
+.card {
   display: flex;
-  flex: 0 0 auto;
-  gap: 10px;
-  padding: 12px 14px;
-}
-
-.panel:only-child {
-  flex: 1 1 auto;
-}
-
-.dot {
-  background: var(--o-warn);
-  border-radius: 50%;
-  flex: 0 0 auto;
-  height: 8px;
-  width: 8px;
-}
-
-.copy {
-  display: flex;
+  min-height: 0;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
 }
 
-.copy strong {
-  font-size: 13px;
+.title {
+  margin: 0;
+  font-size: 14px;
   font-weight: 600;
+  line-height: 1.5;
 }
 
-.event {
-  color: var(--o-ink2);
-  font-size: 12px;
+.sub {
   overflow: hidden;
+  margin: 0;
+  color: var(--o-ink2);
+  font-size: 13px;
+  line-height: 1.5;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.actions {
-  display: flex;
-  flex: 0 0 auto;
-  gap: 6px;
+.meta,
+.hint {
+  margin: 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
 }
 
-/* Whether «Oye Deimos» listens, under the panel's cards. */
-.voice {
+.hint {
+  margin-top: var(--o-space-8);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--o-space-6);
+  margin-top: var(--o-space-12);
+}
+
+.end {
+  justify-content: flex-end;
+}
+
+.grow {
+  flex: 1 1 0;
+}
+
+.deny {
+  color: var(--o-recText);
+}
+
+/* «● Grabando · 08:12». */
+.status {
+  display: flex;
+  align-items: center;
+  margin: 0 0 var(--o-space-2);
+  gap: var(--o-space-8);
+  color: var(--o-recText);
+  font: var(--o-text-control);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.status[data-paused] {
   color: var(--o-ink2);
-  flex: 0 0 auto;
-  font-size: 11px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--o-rec);
+  animation: orbit-pulse var(--o-dur-pulse) ease-in-out infinite;
+}
+
+.status[data-paused] .dot {
+  background: var(--o-ink3);
+  animation: none;
+}
+
+.countdown {
+  font-variant-numeric: tabular-nums;
+}
+
+/* What is left, as a bar that empties: the call's countdown, the answer's
+   45 s. The words beside it say the same for whoever cannot see it. */
+.track {
+  height: 3px;
+  margin-top: var(--o-space-10);
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--o-raised);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--o-ink2);
+  transform-origin: left;
+  transition: transform 1s linear;
+}
+
+.edge {
+  height: 2px;
+  margin: var(--o-space-12) calc(-1 * var(--o-space-14)) calc(-1 * var(--o-space-14));
+  border-radius: 0;
+}
+
+.edge .fill {
+  background: var(--o-ink3);
+}
+
+/* «Preguntar sin hablar». */
+.field {
+  height: 38px;
+  margin-top: var(--o-space-6);
+  padding: 0 var(--o-space-10);
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-md);
+  background: var(--o-surface);
+  color: var(--o-ink);
+  font-size: 13px;
+}
+
+.field::placeholder {
+  color: var(--o-ink3);
+}
+
+.field:focus {
+  border-color: var(--o-accText);
+  outline: none;
+}
+
+.windows {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--o-space-6);
+  margin-top: var(--o-space-10);
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.window {
+  height: 24px;
+  padding: 0 var(--o-space-8);
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-pill);
+  background: transparent;
+  color: var(--o-ink2);
+  font: var(--o-text-meta);
+  cursor: pointer;
+}
+
+.window[aria-checked="true"] {
+  border-color: var(--o-accText);
+  background: var(--o-accSoft);
+  color: var(--o-accText);
+}
+
+.refusal {
+  margin: var(--o-space-6) 0 0;
+  color: var(--o-recText);
+  font: var(--o-text-meta);
+}
+
+/* The question and its answer. */
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--o-space-8);
+}
+
+.asked {
+  min-width: 0;
+  flex: 1 1 auto;
   margin: 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.close {
+  display: flex;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  margin: -4px -6px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--o-radius-sm);
+  background: transparent;
+  color: var(--o-ink3);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--o-hover);
+}
+
+.body {
+  min-height: 0;
+  flex: 1 1 auto;
+  margin-top: var(--o-space-6);
+  overflow-y: auto;
+}
+
+.answer {
+  font-size: 14px;
+  line-height: 1.55;
+  user-select: text;
+}
+
+.answer p {
+  margin: 0 0 var(--o-space-6);
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-6);
+  margin-top: var(--o-space-12);
+}
+
+.foot .meta {
+  flex: 1 1 auto;
+}
+
+.permission {
+  margin: var(--o-space-10) 0 0;
+  font: var(--o-text-control);
+}
+
+.cause {
+  margin: 0;
+  color: var(--o-ink2);
+  font-size: 13px;
+  line-height: 1.5;
 }

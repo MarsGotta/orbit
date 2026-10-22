@@ -13,7 +13,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("the saved meeting lets its note be opened and offers to close the notice", () => {
+it("the saved meeting says so, and that the note follows, without opening it half-written", () => {
   const props = {
     error: null,
     onErrorDismiss: vi.fn(),
@@ -23,7 +23,10 @@ it("the saved meeting lets its note be opened and offers to close the notice", (
   };
   const view = render(<MeetingOverlays {...props} snapshot={snapshot("recording")} />);
   view.rerender(<MeetingOverlays {...props} snapshot={snapshot("idle")} />);
-  expect(screen.getByRole("link").getAttribute("href")).toBe("#/notes/fixture");
+  const notice = screen.getByRole("status");
+  expect(notice.textContent).toContain("Reunión guardada");
+  expect(notice.textContent).toContain("Te avisamos cuando la nota esté lista.");
+  expect(screen.queryByRole("link")).toBeNull();
   expect(screen.getByRole("button", { name: "Cerrar aviso" })).toBeTruthy();
 });
 

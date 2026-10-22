@@ -1,6 +1,6 @@
 {
  "saved": {
-  "click:Abrir nota": "note-other"
+  "click:Abrir": "note-other"
  },
  "note-other": {
   "click:Resumen": "note-summary",

@@ -12,8 +12,14 @@
     - AXGroup (Nueva grabación)
       - AXHeading
         - AXStaticText = "Nueva grabación"
-      - [7] AXButton "×" (Cerrar) [actions=[press]]
-      - [8] AXTextField = "Reunión 16/10/26, 10:00" (Título) [actions=[confirm]]
-      - [9] AXPopUpButton = "Audio del sistema" (Qué audio grabar) [actions=[press,showmenu]]
-      - [10] AXButton "Cerrar" [actions=[press]]
-      - [11] AXButton "Empezar a grabar" [actions=[press]]
+      - AXStaticText = "Orbit graba y, al terminar, escribe la nota por ti."
+      - [7] AXButton (Cerrar) [actions=[press]]
+      - [8] AXTextField (Título) [actions=[confirm]]
+      - AXRadioGroup (Qué audio grabar)
+        - [9] AXRadioButton "Audio del sistema Lo que suena en el Mac y tu micrófono. Para videollamadas." [actions=[press]]
+        - [10] AXRadioButton "Solo mi micrófono Para una reunión en persona." [actions=[press]]
+        - [11] AXRadioButton "Una app concreta Solo el sonido de la app que elijas." [actions=[press]]
+      - AXStaticText = "Graba hasta 60 min, hasta las 11:00. Si cierras la ventana, sigue grabando."
+      - AXStaticText = "esc para cerrar"
+      - [12] AXButton "Cancelar" [actions=[press]]
+      - [13] AXButton "Empezar a grabar" [actions=[press]]

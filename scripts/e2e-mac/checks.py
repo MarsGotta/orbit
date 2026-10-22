@@ -22,7 +22,7 @@ NAMES = {
     3: "The local microphone appears under its name",
     4: "No repeated or empty entries",
     5: "The note is written with a summary and actions, and «Transcribiendo…» goes away",
-    6: "«Abrir nota», from the notice and from the list of Notes, opens that note",
+    6: "«Abrir», from «Tu nota está lista», and the list of Notes open that note",
     7: "«Oye Deimos» asks a question and the answer appears in the panel",
     8: "The Assistant answers and reopens an earlier conversation with its messages",
     9: "No status pill and none of the texts the interface removed",
@@ -340,8 +340,8 @@ def c7_oye_deimos(ev: dict) -> tuple[bool, str]:
     if "de que estamos hablando" not in ax_tree.plain(question.get("question") or ""):
         return False, f"the question heard is not the script's: «{question.get('question')}»"
     panel = ax_tree.all_text(_tree(ev, "panel"))
-    if "Tu pregunta:" not in panel:
-        return False, "the panel does not show the question"
+    if "Queda también en tu conversación" not in panel:
+        return False, "the panel does not show the answer as whole"
     for failure in ("Deimos no respondió", "La pregunta no llegó a Deimos", "Deimos está pensando"):
         if failure in panel:
             return False, f"the panel says «{failure}»"
