@@ -703,6 +703,7 @@ def build_server(config: Config, hub_client: HubClient, *, clock=time.time) -> M
             return _ok(_text(f"Adjunto {head}, {where}.\n{payload['text']}"))
 
         return await invoke(operation, device)
+
     # In no access group: it reads the agent's own configuration in the hub,
     # nothing of the user's Mac or meetings.
     @server.tool(
