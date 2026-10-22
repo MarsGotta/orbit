@@ -13,6 +13,7 @@ fn chat(activity: Option<AssistantActivity>) -> ChatSnapshot {
         streaming: false,
         voice: None,
         receipts: Vec::new(),
+        attachments: Vec::new(),
     }];
     chat
 }

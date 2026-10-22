@@ -16,6 +16,7 @@ use orbit_core::{
 fn answered(text: &str, complete: bool) -> Turn {
     Turn {
         user: Message {
+            attachments: Vec::new(),
             id: "turn".into(),
             role: "user".into(),
             text: "Pregunta".into(),
@@ -24,6 +25,7 @@ fn answered(text: &str, complete: bool) -> Turn {
             voice: None,
         },
         answer: Some(Message {
+            attachments: Vec::new(),
             id: "turn:assistant".into(),
             role: "assistant".into(),
             text: text.into(),
@@ -74,6 +76,7 @@ fn projects_voice_transcript_and_audio_availability() {
     let mut value = assistant_topic::assistant_value();
     value.turn = Some(Box::new(Turn {
         user: Message {
+            attachments: Vec::new(),
             id: "voice-app-12".into(),
             role: "user".into(),
             text: "Si Dario no contesta, lo llevo yo a la daily.".into(),

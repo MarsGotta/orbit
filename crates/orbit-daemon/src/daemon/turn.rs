@@ -123,6 +123,12 @@ impl Runtime {
 
     /// Sends one frame to the hub under this turn's op.
     pub(super) fn send_frame(&mut self, frame: anyhow::Result<Value>) -> hub_link::SendResult {
+        // «Adjuntar ventana»'s capture answers the app, never the hub.
+        if let Ok(frame) = &frame
+            && self.divert_window_reply(frame)
+        {
+            return hub_link::SendResult::Queued;
+        }
         self.hub.send_or_report(frame, &self.turn.op)
     }
 

@@ -250,6 +250,7 @@ async fn an_engine_that_connects_while_the_helper_captures_fails_nothing() -> Re
         .take()
         .context("fixture service")?;
     h.runtime.conversation.bridge_request = Some(crate::daemon::BridgeAsk {
+        for_attachment: false,
         id: "full-screen-1".into(),
         capability: orbit_core::device_bridge::Capability::Screenshot,
         application: None,
@@ -295,6 +296,7 @@ async fn the_front_window_is_not_the_cursor_overlay() -> Result<()> {
     let mut runtime = h.runtime;
     let listing = json!({"structured": windows_with_the_cursor_overlay_in_front()});
     let ask = |application: Option<&str>| crate::daemon::BridgeAsk {
+        for_attachment: false,
         id: "window-1".into(),
         capability: orbit_core::device_bridge::Capability::Screenshot,
         application: application.map(str::to_owned),

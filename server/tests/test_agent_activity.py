@@ -163,6 +163,12 @@ async def test_a_hermes_subagent_is_an_item_and_its_failure_carries_the_cause(re
             "Leyendo un archivo del Mac",
             "las carpetas",
         ),
+        (
+            "mcp__orbit__orbit_attachment",
+            {"attachment_id": "00000000-0000-4000-8000-000000000003"},
+            "Leyendo un adjunto del mensaje",
+            "los adjuntos",
+        ),
         ("mcp_otro_buscar", {}, "mcp_otro_buscar", "mcp_otro_buscar"),
     ],
 )

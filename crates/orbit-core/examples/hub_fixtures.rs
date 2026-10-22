@@ -32,7 +32,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 "meeting":{
                     "recording_id":"00000000-0000-4000-8000-000000000904",
                     "minutes":2,"title":"Reunión sintética"
-                }
+                },
+                "attachments":["00000000-0000-4000-8000-000000000905"]
             }),
         ),
         ("chat.interrupt", json!({"session_id":session,"turn_id":id})),
@@ -98,6 +99,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                     },
                 ]),
                 default_agent_id: Some("atlas".into()),
+                attachments: Some(orbit_core::attachments::AttachmentLimits {
+                    max_file_bytes: 20 * 1024 * 1024,
+                    max_message_files: 10,
+                    max_message_bytes: 32 * 1024 * 1024,
+                    max_session_bytes: 256 * 1024 * 1024,
+                }),
                 device_id: Some("device-1".into()),
                 hub_protocol: Some(1),
                 hub_version: Some("0.3.12".into()),

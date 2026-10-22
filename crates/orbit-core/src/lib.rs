@@ -4,6 +4,7 @@ pub mod agent_config;
 pub mod agent_work;
 pub mod agents;
 pub mod assistant_files;
+pub mod attachments;
 pub mod audio_gap;
 pub mod audio_signal;
 pub mod authority;

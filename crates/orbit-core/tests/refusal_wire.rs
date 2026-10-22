@@ -12,6 +12,7 @@ fn offline_submission_is_hub_unreachable_without_inventing_a_timestamp() {
     let refusal: orbit_core::refusal::Refusal = decide(
         &State::default(),
         Event::Submit {
+            attachments: Vec::new(),
             id: "offline".into(),
             text: "Pregunta sintética".into(),
         },
@@ -36,6 +37,7 @@ fn decision_refusal_names_actual_text_size_and_ceiling() {
     let refusal = decide(
         &state,
         Event::Submit {
+            attachments: Vec::new(),
             id: "synthetic".into(),
             text: "x".repeat(32_769),
         },

@@ -243,6 +243,7 @@ mod tests {
                 revision: 4,
                 data: TopicData::Status(Knowledge::Present {
                     value: orbit_core::topics::status::Value {
+                        attachments: None,
                         assistant_name: None,
                         agents: Vec::new(),
                         default_agent_id: None,

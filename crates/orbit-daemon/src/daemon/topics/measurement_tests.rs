@@ -15,6 +15,7 @@ const SAMPLES: usize = 2_048;
 
 fn worst_case(runtime: &mut Runtime) -> anyhow::Result<()> {
     let message = |role: &str, text: String| Message {
+        attachments: Vec::new(),
         id: "request-measured".into(),
         role: role.into(),
         text,

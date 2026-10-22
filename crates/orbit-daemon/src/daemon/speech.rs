@@ -176,6 +176,7 @@ mod tests {
         }
         runtime.state.durable.turn = Some(Turn {
             user: Message {
+                attachments: Vec::new(),
                 id: "synthetic".into(),
                 role: "user".into(),
                 text: "Pregunta de prueba".into(),
@@ -184,6 +185,7 @@ mod tests {
                 voice: None,
             },
             answer: Some(Message {
+                attachments: Vec::new(),
                 id: "synthetic:assistant".into(),
                 role: "assistant".into(),
                 text: "Texto de prueba".into(),

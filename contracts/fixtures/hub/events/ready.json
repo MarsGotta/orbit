@@ -25,6 +25,12 @@
       }
     ],
     "default_agent_id": "atlas",
+    "attachments": {
+      "max_file_bytes": 20971520,
+      "max_message_files": 10,
+      "max_message_bytes": 33554432,
+      "max_session_bytes": 268435456
+    },
     "device_id": "device-1",
     "hub_protocol": 1,
     "hub_version": "0.3.12",

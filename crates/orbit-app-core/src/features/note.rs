@@ -124,6 +124,7 @@ pub(crate) fn map_command(
                 })
                 .unwrap_or(recording_id.as_str());
             Ok(DaemonCommand::Chat {
+                attachments: Vec::new(),
                 text: format!("Quiero preguntar sobre la nota «{title}» ({recording_id})."),
             })
         }

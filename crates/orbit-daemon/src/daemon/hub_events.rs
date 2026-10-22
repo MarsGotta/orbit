@@ -353,6 +353,9 @@ impl Runtime {
                 settings.assistant_name = Some(name.clone());
             }
             settings.hub_agents = self.learned_agents(data);
+            // What this hub takes now: a hub that names no ceilings has no
+            // attachments (0.9.0), and the composer offers none.
+            self.conversation.hub_attachments = data.attachments;
             if settings.assistant_name != self.settings.assistant_name
                 || settings.hub_agents != self.settings.hub_agents
             {
@@ -465,7 +468,11 @@ impl Runtime {
             if data.status.as_deref() == Some("error") {
                 self.conversation.speak_next = false;
                 self.meeting_question_turn_failed();
-                self.apply(Event::Failure("assistant_error".into())).await?;
+                self.apply(Event::Failure {
+                    code: "assistant_error".into(),
+                    numbers: Vec::new(),
+                })
+                .await?;
             } else {
                 self.apply(Event::Completed {
                     request_id,
@@ -548,7 +555,28 @@ impl Runtime {
             self.meeting_question_hub_error(data.code.as_deref(), &data.message);
             self.conversation.speak_next = false;
             self.log("chat_rejected", &fields);
-            self.apply(Event::Failure(code.into())).await?;
+            // The refusal's sizes and counts reach the person with its code.
+            let numbers = data
+                .refusal
+                .as_ref()
+                .map(|refusal| {
+                    [
+                        (NoticeKey::Bytes, refusal.bytes),
+                        (NoticeKey::MaxBytes, refusal.max_bytes),
+                        (NoticeKey::Count, refusal.files),
+                        (NoticeKey::Max, refusal.max_files),
+                        (NoticeKey::Stored, refusal.session_bytes),
+                    ]
+                    .into_iter()
+                    .filter_map(|(key, value)| value.map(|value| (key, value)))
+                    .collect()
+                })
+                .unwrap_or_default();
+            self.apply(Event::Failure {
+                code: code.into(),
+                numbers,
+            })
+            .await?;
         } else if !interrupt_refused {
             self.log("hub_error", &fields);
             self.say(Notice::new(NoticeCode::HubError).with_token(

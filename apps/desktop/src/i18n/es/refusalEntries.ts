@@ -1,5 +1,6 @@
 import type { RecoveryStep } from "../../bridge/generated/RecoveryStep";
 import { fields, helperRefused, helperReplyInvalid } from "./refusalDetails";
+import { attachmentRefusalText } from "./attachments";
 import { macPermission } from "./permissions";
 import type { Refusal, RefusalCode } from "../../bridge/refusal";
 import { openSettings, rearm, systemPrivacy, type NoticeAction } from "./notices/types";
@@ -103,6 +104,7 @@ function daemonReply(refusal: Refusal): string {
 }
 
 export const refusalEntries: Record<RefusalCode, RefusalEntry> = {
+  attachment: { class: "fixable", text: attachmentRefusalText },
   encode_failed: {
     class: "failed",
     text: () => "Orbit no pudo codificar la respuesta de esa lectura.",

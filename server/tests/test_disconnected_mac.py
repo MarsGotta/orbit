@@ -101,6 +101,9 @@ class DisconnectedHub:
     async def note(self, *_args):
         await self._unavailable("note")
 
+    async def attachment(self, *_args):
+        await self._unavailable("attachment")
+
     # `orbit_calendar` walks the Mac's pages through `calendar_read`;
     # `calendar_query` served the retired stored copy.
     async def calendar_read(self, *_args):
@@ -122,6 +125,7 @@ ARGUMENTS = {
     "orbit_files_list": {},
     "orbit_files_search": {"query": "plan"},
     "orbit_files_read": {"path": "/Users/ejemplo/Proyectos/plan.md"},
+    "orbit_attachment": {"attachment_id": "00000000-0000-4000-8000-000000000003"},
 }
 
 

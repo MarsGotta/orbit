@@ -11,7 +11,12 @@
     "allow-orbit-agent",
     "allow-orbit-send",
     "allow-orbit-report",
+    "allow-orbit-attachment-add",
+    "allow-orbit-attachment-content",
+    "allow-orbit-attachment-open",
     "clipboard-manager:allow-write-text",
+    "clipboard-manager:allow-write-image",
+    "dialog:allow-open",
     {
       "identifier": "opener:allow-open-url",
       "allow": [

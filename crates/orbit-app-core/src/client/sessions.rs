@@ -53,6 +53,7 @@ impl DaemonClient {
                     }),
                     text: message.text,
                     receipts: Vec::new(),
+                    attachments: message.attachments,
                 })
             },
         )

@@ -155,6 +155,7 @@ impl Runtime {
         let decision = match decide(
             &self.state,
             Event::Submit {
+                attachments: Vec::new(),
                 id: request_id.clone(),
                 text: question.clone(),
             },

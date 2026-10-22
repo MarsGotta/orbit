@@ -187,6 +187,7 @@ export default function AssistantView({ error, readMessages, send, snapshot }: A
         send={send}
       />
       <AssistantComposer
+        attachmentLimits={snapshot.settings.attachments}
         callActive={Boolean(call)}
         callPending={callRequested}
         chat={chat}

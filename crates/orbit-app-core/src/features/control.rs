@@ -226,6 +226,7 @@ fn refused_engine(refusal: &Refusal, retry_at_ms: Option<i64>) -> crate::EngineS
         | Refusal::WorkExpired { .. }
         | Refusal::Recovering { .. }
         | Refusal::CalendarReadLimit { .. }
+        | Refusal::Attachment { .. }
         | Refusal::EncodeFailed { .. }
         | Refusal::HelperReplyInvalid { .. }
         | Refusal::ReadInterrupted { .. }

@@ -263,6 +263,7 @@ impl HubReadContext {
                     text: message.text,
                     at_ms: message.at_ms,
                     voice,
+                    attachments: message.attachments,
                 }
             })
             .collect::<Vec<_>>();
@@ -938,6 +939,7 @@ mod hub_page_tests {
     fn a_full_messages_page_fits_its_read() {
         let text = "\"".repeat(10 * 1024);
         let message = |index: usize| orbit_core::SessionMessage {
+            attachments: Vec::new(),
             id: format!("00000000-0000-4000-8000-{index:012}"),
             role: "user".into(),
             text: text.clone(),

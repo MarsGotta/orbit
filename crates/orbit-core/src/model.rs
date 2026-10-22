@@ -139,6 +139,9 @@ pub struct Message {
     pub at_ms: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub voice: Option<VoiceNote>,
+    /// The files the user's message carried.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attachments: Vec<crate::attachments::Attachment>,
 }
 
 /// The turn in progress, or the last one until another begins: what
@@ -268,6 +271,9 @@ pub struct SessionMessage {
     pub at_ms: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub voice: Option<SessionVoice>,
+    /// The files the message carried, as the hub lists them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attachments: Vec<crate::attachments::Attachment>,
 }
 
 /// A voice note in a conversation: its length, and whether this Mac still

@@ -9,6 +9,7 @@ import { agenda } from "./agenda";
 import { notes } from "./notes";
 import { assistantCopy } from "./assistant";
 import { chatActions } from "./chatActions";
+import { attachmentsCopy } from "./attachments";
 import { errors } from "./errors";
 
 import { noteScreenCopy } from "./noteScreen";
@@ -31,6 +32,7 @@ export function spanish(assistantName = "Deimos") {
     ...notes,
     ...assistantCopy(assistantName),
     ...chatActions,
+    ...attachmentsCopy,
     ...errors,
     ...noteScreenCopy(assistantName),
     ...library,

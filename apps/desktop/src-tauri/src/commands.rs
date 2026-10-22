@@ -167,6 +167,86 @@ fn order_op(op: Option<String>) -> orbit_core::notice::Op {
         .unwrap_or_else(orbit_ipc::new_op)
 }
 
+/// The daemon in this process, for the composer's files. Their
+/// bytes never cross the interface except the ones it already holds (a
+/// pasted image or text) and the ones the chat's viewer shows.
+pub struct Attachments {
+    pub client: orbit_ipc::LocalClient,
+}
+
+/// A refused attachment order, as the interface reads every refusal
+/// (`refusalOf` in `src/bridge/refusal.ts`).
+#[derive(Debug, serde::Serialize)]
+pub struct AttachmentRefusal {
+    refusal: Refusal,
+}
+
+impl From<anyhow::Error> for AttachmentRefusal {
+    fn from(error: anyhow::Error) -> Self {
+        let refusal = error
+            .chain()
+            .find_map(|cause| cause.downcast_ref::<Refusal>().cloned())
+            .unwrap_or_else(|| Refusal::Internal {
+                cause: orbit_core::refusal::InternalCause::AppOperation {
+                    code: "attachment".into(),
+                    error: error.to_string(),
+                },
+            });
+        Self { refusal }
+    }
+}
+
+/// «Adjuntar», a dropped file or a pasted image or text: the daemon reads
+/// it and uploads it to the hub; the answer is what the hub keeps.
+#[tauri::command]
+pub async fn orbit_attachment_add(
+    source: orbit_core::attachments::AttachmentSource,
+    attachments: State<'_, Attachments>,
+) -> Result<orbit_core::attachments::Attachment, AttachmentRefusal> {
+    let response = attachments
+        .client
+        .attachment(orbit_core::protocol::Command::AttachmentAdd { source })
+        .await?;
+    response
+        .attachment
+        .ok_or_else(|| anyhow::anyhow!("El daemon no entregó el adjunto").into())
+}
+
+/// One attachment's bytes for the chat's viewer, as raw bytes (an
+/// `ArrayBuffer` in the interface), not JSON.
+#[tauri::command]
+pub async fn orbit_attachment_content(
+    attachment_id: String,
+    attachments: State<'_, Attachments>,
+) -> Result<tauri::ipc::Response, AttachmentRefusal> {
+    let content = attachments.client.attachment_content(attachment_id).await?;
+    Ok(tauri::ipc::Response::new(content.bytes))
+}
+
+/// «Abrir» (with the Mac's app for its type) or «Mostrar en Finder»: the
+/// daemon writes the attachment to its folder and macOS opens or reveals it.
+#[tauri::command]
+pub async fn orbit_attachment_open(
+    attachment_id: String,
+    reveal: bool,
+    app: AppHandle,
+    attachments: State<'_, Attachments>,
+) -> Result<(), AttachmentRefusal> {
+    let response = attachments
+        .client
+        .attachment(orbit_core::protocol::Command::AttachmentSave { attachment_id })
+        .await?;
+    let path = response
+        .path
+        .ok_or_else(|| anyhow::anyhow!("El daemon no escribió el adjunto"))?;
+    let opened = if reveal {
+        app.opener().reveal_item_in_dir(&path)
+    } else {
+        app.opener().open_path(&path, None::<&str>)
+    };
+    opened.map_err(|error| anyhow::anyhow!("macOS no pudo abrir el adjunto: {error}").into())
+}
+
 #[tauri::command(rename = "orbit_send")]
 pub async fn orbit_send_desktop(
     command: AppCommand,

@@ -382,10 +382,24 @@ pub(super) struct BridgeAsk {
     pub(super) calendar_cursor: Option<super::calendar::Cursor>,
     /// What a `files_*` request asked, as it asked it.
     pub(super) files: Option<super::assistant_files::FilesAsk>,
+    /// «Adjuntar ventana»: the user's own capture of the frontmost
+    /// window. Its answer goes to the app as an attachment, never to the hub
+    /// as a `device.reply` (`window_attachment`), and Orbit's own windows,
+    /// in front while the user presses the button, are never the one taken.
+    pub(super) for_attachment: bool,
 }
+
+/// The bundle identifiers of Orbit's own windows (Orbit, Orbit Pruebas, the
+/// engine): what the helper also calls its own (`ownBundlePrefix`).
+const ORBIT_BUNDLE_PREFIX: &str = "app.orbit.";
 
 impl BridgeAsk {
     fn matches_window_filter(&self, application: &str, bundle: Option<&str>, title: &str) -> bool {
+        if self.for_attachment
+            && bundle.is_some_and(|bundle| bundle.starts_with(ORBIT_BUNDLE_PREFIX))
+        {
+            return false;
+        }
         self.application.as_ref().is_none_or(|wanted| {
             application.eq_ignore_ascii_case(wanted)
                 || bundle.is_some_and(|bundle| bundle.eq_ignore_ascii_case(wanted))
@@ -2054,6 +2068,7 @@ impl Runtime {
             return Ok(());
         }
         let ask = BridgeAsk {
+            for_attachment: false,
             id: request_id.clone(),
             capability,
             application,

@@ -384,6 +384,7 @@ async fn submitting_snapshot_keeps_new_turn_and_discards_interrupted_reply() -> 
 
     runtime
         .command(Command::Chat {
+            attachments: Vec::new(),
             text: "E2E_SLOW".into(),
         })
         .await?;
@@ -408,6 +409,7 @@ async fn submitting_snapshot_keeps_new_turn_and_discards_interrupted_reply() -> 
         .await?;
     runtime
         .command(Command::Chat {
+            attachments: Vec::new(),
             text: "E2E_NEW".into(),
         })
         .await?;
@@ -1310,6 +1312,7 @@ fn in_turn(runtime: &mut Runtime) {
             complete: true,
             at_ms: 1_000,
             voice: None,
+            attachments: Vec::new(),
         },
         answer: None,
     });

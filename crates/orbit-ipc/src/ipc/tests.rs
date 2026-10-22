@@ -594,6 +594,7 @@ fn the_client_refuses_an_oversized_command_before_sending_it_with_its_numbers() 
         id: "local".into(),
         op: None,
         body: Command::Chat {
+            attachments: Vec::new(),
             text: "x".repeat(MAX_IPC_LINE_BYTES),
         },
     };

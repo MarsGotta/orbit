@@ -9,6 +9,7 @@ runtime and the store. No Hermes and no network beyond loopback.
 """
 
 import asyncio
+import base64
 import json
 import logging
 import os
@@ -40,11 +41,13 @@ from support_orbit_mcp import (
     write_mcp_config,
 )
 from support_synthetic_stt import SyntheticStt
+from test_attachments import PNG, uploaded
 
 from orbit_hub.app import create_app
 from orbit_hub.assistant import openai as backend_module
 from orbit_hub.assistant.backend import (
     ActivityItem,
+    ImageBlock,
     MessageComplete,
     StatusNotice,
     StoredConversation,
@@ -297,7 +300,7 @@ def mcp_toml(tmp_path):
     return path
 
 
-async def run_turn(agent, hub_settings, text="Hola"):
+async def run_turn(agent, hub_settings, text="Hola", blocks=None):
     """One turn on a connection of its own; the events it produced."""
     events = []
 
@@ -310,7 +313,7 @@ async def run_turn(agent, hub_settings, text="Hola"):
     await connection.open()
     try:
         opened = await connection.create_session()
-        await connection.prompt(opened.session_id, (TextBlock(text),))
+        await connection.prompt(opened.session_id, blocks or (TextBlock(text),))
         async with asyncio.timeout(TURN_DEADLINE_SECONDS):
             while not events or not isinstance(events[-1], MessageComplete | TurnFailed):
                 await asyncio.sleep(0.01)
@@ -665,6 +668,158 @@ def test_a_turn_failure_reaches_the_mac_with_its_cause_and_numbers(
     assert error["data"]["refusal"]["retry_after_ms"] == 3000
     assert store.session(paired["device_id"], session)["status"] == "failed"
     assert said(store, paired["device_id"], session) == [{"role": "user", "text": "Hola"}]
+
+
+# ---------------------------------------------------------------- attachments
+
+
+def attached_turns(environment, mcp_config, provider, *turns, **extra):
+    """Turns of one conversation, each `(text, file_name)` with a PNG attached
+    when it names one, on a hub with this agent; `ready` and each turn's frames."""
+    settings, store, speech = environment
+    with serve(provider.app) as provider_url:
+        agent = configured(entry(provider_url, mcp_config, **extra))
+        paired = device(store, name="Portátil de Prueba")
+        headers = {"Authorization": "Bearer " + paired["token"]}
+        app = create_app(
+            settings, store=store, assistant=build_backend(settings, agent), speech=speech
+        )
+        with (
+            TestClient(app, base_url="https://localhost") as http,
+            http.websocket_connect("wss://localhost/v1/ws", headers=headers) as ws,
+        ):
+            ready = next_event(ws)
+            assert ready["event"] == "ready"
+            session, done = None, []
+            for text, name in turns:
+                ids = [uploaded(http, paired, name, PNG)["id"]] if name else []
+                turn = str(uuid4())
+                params = {"text": text, "attachments": ids}
+                if session is not None:
+                    params["session_id"] = session
+                ws.send_json({"v": 1, "id": turn, "method": "chat.send", "params": params})
+                frames = turn_frames(ws, turn)
+                session = frames[0]["data"]["session_id"]
+                done.append((ids, frames))
+    return ready["data"], done
+
+
+def test_an_attached_image_reaches_the_model_after_the_text_and_then_by_its_id(
+    environment, orbit_hub_for_tools
+):
+    _, mcp_config = orbit_hub_for_tools
+    provider = FakeProvider(Text(("Marca el sendero rojo.",)), Text(("Sí, el rojo.",)))
+    ready, [([image], first), (_, second)] = attached_turns(
+        environment,
+        mcp_config,
+        provider,
+        ("¿Qué ruta marca?", "mapa de la excursión.png"),
+        ("¿Seguro?", None),
+        images=True,
+    )
+    assert "images" in ready["agents"][0]["capabilities"]
+    assert first[-1]["event"] == "chat.completed", first[-1]
+    assert second[-1]["event"] == "chat.completed", second[-1]
+    text, picture = provider.requests[0]["messages"][-1]["content"]
+    assert text["type"] == "text"
+    assert "¿Qué ruta marca?" in text["text"]
+    assert (
+        f"«mapa de la excursión.png» · imagen image/png · {len(PNG)} B · id {image}"
+        in (text["text"])
+    )
+    assert picture == {
+        "type": "image_url",
+        "image_url": {"url": "data:image/png;base64," + base64.b64encode(PNG).decode()},
+    }
+    # The next turn carries the image as a line naming its attachment, never
+    # its bytes again: the model looks at it once more with orbit_attachment.
+    later = json.dumps(provider.requests[1]["messages"], ensure_ascii=False)
+    assert "data:image" not in later
+    held = provider.requests[1]["messages"][1]
+    assert held["role"] == "user"
+    assert (
+        f"[Orbit · la imagen «mapa de la excursión.png» (adjunto {image}) iba en este "
+        "mensaje y no se vuelve a enviar; para verla otra vez, orbit_attachment con ese id]"
+    ) in held["content"]
+
+
+def test_without_images_an_attachment_is_named_for_orbit_attachment(
+    environment, orbit_hub_for_tools
+):
+    _, mcp_config = orbit_hub_for_tools
+    provider = FakeProvider(Text(("La miro.",)))
+    ready, [([image], frames)] = attached_turns(
+        environment, mcp_config, provider, ("Mira esto", "foto.png")
+    )
+    assert "images" not in ready["agents"][0]["capabilities"]
+    assert frames[-1]["event"] == "chat.completed", frames[-1]
+    content = provider.requests[0]["messages"][-1]["content"]
+    assert isinstance(content, str), "no image part goes to a model without images"
+    assert f"«foto.png» · imagen image/png · {len(PNG)} B · id {image}: " in content
+    assert "este agente no recibe imágenes en el mensaje; míralo con orbit_attachment." in content
+
+
+def test_an_image_the_provider_refuses_fails_the_turn_naming_the_file(
+    environment, orbit_hub_for_tools, caplog
+):
+    _, mcp_config = orbit_hub_for_tools
+    refusal = Refusal(
+        400,
+        {
+            "error": {
+                "message": "Invalid image data",
+                "type": "invalid_request_error",
+                "code": "invalid_image",
+            }
+        },
+    )
+    provider = FakeProvider(refusal, Text(("Hola.",)))
+    with caplog.at_level(logging.DEBUG):
+        _, [(_, refused), (_, retried)] = attached_turns(
+            environment,
+            mcp_config,
+            provider,
+            ("Mira", "panorámica del valle.png"),
+            ("Sin la foto, entonces", None),
+            images=True,
+        )
+    error = refused[-1]
+    assert error["event"] == "error", error
+    assert error["data"]["code"] == "attachment_refused"
+    assert "«panorámica del valle.png»" in error["data"]["message"]
+    assert "HTTP 400" in error["data"]["message"]
+    assert error["data"]["refusal"]["name"] == "panorámica del valle.png"
+    assert error["data"]["refusal"]["provider_status"] == 400
+    assert error["data"]["refusal"]["retry"] == {"kind": "after_fix"}
+    # The model never read the refused message: the next turn starts without it.
+    assert retried[-1]["event"] == "chat.completed", retried[-1]
+    assert [message["role"] for message in provider.requests[1]["messages"]] == ["system", "user"]
+    # The file's name goes to the Mac, never to the hub's log.
+    assert "panorámica" not in caplog.text
+
+
+async def test_a_refusal_after_the_model_answered_is_not_blamed_on_the_image(
+    environment, orbit_hub_for_tools
+):
+    """Only the provider's first answer can be about the turn's images: a
+    refusal after a tool call keeps its own cause."""
+    settings, _, _ = environment
+    _, mcp_config = orbit_hub_for_tools
+    provider = FakeProvider(
+        ToolCall("orbit_devices"),
+        Refusal(400, {"error": {"message": "Bad request", "type": "invalid_request_error"}}),
+    )
+    with serve(provider.app) as provider_url:
+        agent = configured(entry(provider_url, mcp_config, images=True))
+        events = await run_turn(
+            agent,
+            settings,
+            blocks=(TextBlock("Mira"), ImageBlock("adjunto-1", "a.png", "image/png", PNG)),
+        )
+    failed = events[-1]
+    assert isinstance(failed, TurnFailed), events
+    assert failed.code == "assistant_http_error"
+    assert failed.numbers == {"provider_status": 400}
 
 
 # ---------------------------------------------------------------- voice

@@ -8,6 +8,7 @@ agent starts the way the adapters do, against the loopback fake hub.
 """
 
 import asyncio
+import hashlib
 import json
 import os
 import shlex
@@ -29,6 +30,7 @@ from orbit_hub.assistant import acp
 from orbit_hub.assistant.activity import public_item
 from orbit_hub.assistant.backend import (
     ActivityItem,
+    ImageBlock,
     MessageChunk,
     MessageComplete,
     PermissionRequested,
@@ -711,3 +713,44 @@ def test_settings_keep_what_the_agent_needs(tmp_path):
     )
     assert acp.KIND == "acp"
     assert os.path.isabs(parsed.command[0])
+
+
+# A one-pixel PNG, invented.
+PIXEL = bytes.fromhex(
+    "89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de0000000049454e44ae426082"
+)
+
+
+@pytest.mark.parametrize("declares", [True, False], ids=["takes_images", "no_images"])
+async def test_an_attached_image_reaches_an_acp_agent_as_an_image_block(
+    environment, tmp_path, declares
+):
+    settings, _store, _speech = environment
+    flags = ("--images",) if declares else ()
+    events = Events()
+    connection = backend_for(settings, tmp_path, *flags).connection("equipo-1", "Mac", events)
+    await connection.open()
+    try:
+        opened = await connection.create_session()
+        await connection.prompt(
+            opened.session_id,
+            [
+                TextBlock("¿Qué hay en la foto?"),
+                ImageBlock("00000000-0000-4000-8000-000000000007", "foto.png", "image/png", PIXEL),
+            ],
+        )
+        await events.wait_for(completed)
+    finally:
+        await connection.close()
+    [prompt] = records(tmp_path, "session/prompt")
+    if declares:
+        assert prompt["images"] == [
+            {"mime_type": "image/png", "sha256": hashlib.sha256(PIXEL).hexdigest()}
+        ]
+        assert prompt["text"] == "¿Qué hay en la foto?"
+    else:
+        # Not declared: no image block, and the text says where the image is.
+        assert prompt["images"] == []
+        assert "no declara recibir imágenes" in prompt["text"]
+        assert "«foto.png» (id 00000000-0000-4000-8000-000000000007)" in prompt["text"]
+        assert "orbit_attachment" in prompt["text"]

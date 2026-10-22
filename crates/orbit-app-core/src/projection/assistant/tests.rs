@@ -8,6 +8,7 @@ fn the_turn_and_approval_are_projected_without_assuming_unknown_roles() {
         agent_id: Some("atlas".into()),
         turn: Some(Box::new(orbit_core::Turn {
             user: orbit_core::Message {
+                attachments: Vec::new(),
                 id: "1".into(),
                 role: "user".into(),
                 text: "Hola".into(),
@@ -16,6 +17,7 @@ fn the_turn_and_approval_are_projected_without_assuming_unknown_roles() {
                 voice: None,
             },
             answer: Some(orbit_core::Message {
+                attachments: Vec::new(),
                 id: "2".into(),
                 role: "future-role".into(),
                 text: "Dato".into(),

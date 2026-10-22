@@ -178,15 +178,22 @@ def test_ready_lists_every_kind_with_what_it_accepts(environment, tmp_path, spee
     assert ready["default_agent_id"] == "atlas"
     assert ready["assistant_name"] == "Atlas"
     assert ready["agents"] == [
-        {"id": "atlas", "name": "Atlas", "kind": "hermes", "capabilities": ["voice", "resume"]},
+        {
+            "id": "atlas",
+            "name": "Atlas",
+            "kind": "hermes",
+            "capabilities": ["images", "voice", "resume"],
+        },
         {
             "id": "lyra",
             "name": "Lyra",
             "kind": "openai",
-            # Voice is read-aloud, which only `[agents.speech]` gives it.
+            # Voice is read-aloud, which only `[agents.speech]` gives it; images
+            # only `images = true`, false by default.
             "capabilities": ["voice", "resume"] if speech else ["resume"],
         },
-        {"id": "vega", "name": "Vega", "kind": "acp", "capabilities": ["resume"]},
+        # An ACP agent that declares no image input is named the files instead.
+        {"id": "vega", "name": "Vega", "kind": "acp", "capabilities": ["images", "resume"]},
     ]
 
 

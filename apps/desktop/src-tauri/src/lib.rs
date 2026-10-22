@@ -23,6 +23,8 @@ pub fn run() -> anyhow::Result<()> {
         // Only Rust posts notifications (notify.rs); the interface has no
         // permission for the plugin's commands.
         .plugin(tauri_plugin_notification::init())
+        // «Adjuntar» opens macOS's panel; it answers with paths only.
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             None,
@@ -34,7 +36,10 @@ pub fn run() -> anyhow::Result<()> {
             commands::orbit_agent,
             commands::orbit_send_desktop,
             commands::orbit_panel_send,
-            commands::orbit_report
+            commands::orbit_report,
+            commands::orbit_attachment_add,
+            commands::orbit_attachment_content,
+            commands::orbit_attachment_open
         ])
         .setup(setup)
         .on_window_event(hide_on_close)
@@ -100,6 +105,9 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         Ok::<_, anyhow::Error>((daemon, DaemonClient::connect(paths.clone(), transport)))
     })?;
     let transport = tauri::async_runtime::block_on(daemon.client())?;
+    app.manage(commands::Attachments {
+        client: transport.clone(),
+    });
     app.manage(commands::AppReportLog {
         log: orbit_ipc::report::ReportLog::app(&paths.root),
         client: transport,

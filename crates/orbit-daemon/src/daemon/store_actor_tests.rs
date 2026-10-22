@@ -840,6 +840,7 @@ async fn delta_bursts_write_no_snapshot_and_a_completed_turn_writes_one() -> Res
     runtime.hub.install(hub);
     runtime
         .apply(Event::Submit {
+            attachments: Vec::new(),
             id: "delta-burst-request".into(),
             text: "SYNTHETIC QUESTION".into(),
         })

@@ -197,7 +197,9 @@ hub version.
 Tools: `orbit_devices`, `orbit_windows`, `orbit_screenshot`,
 `orbit_look`, `orbit_selected_text`, `orbit_control_tools`,
 `orbit_perform_action`, `orbit_action_result`, `orbit_calendar`,
-`orbit_meetings`, `orbit_transcript` and `orbit_note`, plus the files tools.
+`orbit_meetings`, `orbit_transcript`, `orbit_note`, `orbit_files_list`,
+`orbit_files_search`, `orbit_files_read` and `orbit_attachment` (a file the
+user attached to a message, by the id the message gives).
 Each agent's access groups (`orbit_hub/assistant/access.py`) decide which of
 them it lists and runs: the translator knows its agent from `ORBIT_MCP_AGENT`
 and the hub checks the same groups on every private request. Each agent's

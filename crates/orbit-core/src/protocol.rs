@@ -117,8 +117,36 @@ pub enum Command {
     NoteLibrary {
         request: crate::notes::LibraryRequest,
     },
+    /// A turn to the open conversation's agent. `attachments`: the files
+    /// the hub already holds for it (`AttachmentAdd`), sent by their ids;
+    /// with them the text may be empty.
     Chat {
         text: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        #[cfg_attr(
+            feature = "ts",
+            ts(as = "Option<Vec<crate::attachments::Attachment>>", optional)
+        )]
+        attachments: Vec<crate::attachments::Attachment>,
+    },
+    /// «Adjuntar», a file dropped on the window or a pasted image or text:
+    /// the daemon reads it (by path) and uploads it to the hub, off its loop,
+    /// and answers with the attachment (`AttachmentResponse`). Nothing is
+    /// sent to the agent until a `Chat` names it.
+    #[cfg_attr(feature = "ts", ts(skip))]
+    AttachmentAdd {
+        source: crate::attachments::AttachmentSource,
+    },
+    /// One attachment's bytes, for the chat's viewer.
+    #[cfg_attr(feature = "ts", ts(skip))]
+    AttachmentFetch {
+        attachment_id: String,
+    },
+    /// «Abrir» and «Mostrar en Finder»: the attachment written to this Mac's
+    /// attachment folder; the answer carries the file's path.
+    #[cfg_attr(feature = "ts", ts(skip))]
+    AttachmentSave {
+        attachment_id: String,
     },
     AudioSourcesRefresh,
     /// «Grabar» on the call the floating panel offers, naming the
@@ -293,6 +321,9 @@ impl Command {
             Self::Permissions { .. } => Some(FeatureId::Permissions),
             Self::SessionOpen { .. }
             | Self::Chat { .. }
+            | Self::AttachmentAdd { .. }
+            | Self::AttachmentFetch { .. }
+            | Self::AttachmentSave { .. }
             | Self::NewSession { .. }
             | Self::Interrupt
             | Self::VoiceStart
@@ -435,6 +466,49 @@ pub struct AgentResponse {
     pub v: u8,
     pub id: String,
     pub outcome: crate::agent_config::AgentOutcome,
+}
+
+/// The answer to an attachment order, outside `State`: the attachment the
+/// hub keeps (`AttachmentAdd`), its bytes (`AttachmentFetch`) or the path it
+/// was written to (`AttachmentSave`).
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AttachmentResponse {
+    pub v: u8,
+    pub id: String,
+    pub ok: bool,
+    pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refusal: Option<crate::refusal::Refusal>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attachment: Option<crate::attachments::Attachment>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content: Option<AttachmentContent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+}
+
+/// An attachment's bytes as the hub returned them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AttachmentContent {
+    /// The file's name, as the hub keeps it.
+    pub name: String,
+    pub mime: String,
+    #[serde(with = "base64_bytes")]
+    pub bytes: Vec<u8>,
+}
+
+mod base64_bytes {
+    use base64::{Engine, engine::general_purpose::STANDARD};
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&STANDARD.encode(bytes))
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
+        let text = String::deserialize(deserializer)?;
+        STANDARD.decode(text).map_err(serde::de::Error::custom)
+    }
 }
 
 /// A topic subscription receipt or a keyed read answer.

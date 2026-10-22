@@ -4,7 +4,7 @@ from functools import partial
 
 from ..errors import render
 from ..private_route import json_response, private_route
-from .models import LIST_PATH, NOTE_PATH, REQUEST_BYTES, TRANSCRIPT_PATH
+from .models import ATTACHMENT_PATH, LIST_PATH, NOTE_PATH, REQUEST_BYTES, TRANSCRIPT_PATH
 
 
 def failure(exc):
@@ -28,3 +28,4 @@ def mount(app, service, transport_allowed):
     route(LIST_PATH, service.list_meetings, REQUEST_BYTES)
     route(TRANSCRIPT_PATH, service.transcript, REQUEST_BYTES)
     route(NOTE_PATH, service.note, REQUEST_BYTES)
+    route(ATTACHMENT_PATH, service.attachment, REQUEST_BYTES)

@@ -152,7 +152,7 @@ model = "example-model"                           # required
 orbit_mcp_config = "/opt/orbit/config/mcp.toml"   # required: orbit-mcp's TOML, absolute
 # api_key_file = "/opt/orbit/secrets/lyra.key"    # 0600; required with provider = "anthropic"
 # provider = "anthropic"                          # "openai" (the default) or "anthropic"
-# images = true                                   # the model reads screenshots as images
+# images = true                                   # the model reads images; default false
 # [agents.speech]                                 # read-aloud; without it, no voice
 # base_url = "https://speech.example/v1"          # required in the table: POST {base_url}/audio/speech
 # model = "example-tts"                           # required in the table
@@ -366,11 +366,12 @@ mcp_servers:
 ```
 
 Use the executable from the hub version you actually run. The translator uses
-stdio, not a second HTTP listener. Its fifteen tools are `orbit_devices`,
+stdio, not a second HTTP listener. Its sixteen tools are `orbit_devices`,
 `orbit_windows`, `orbit_screenshot`, `orbit_look`, `orbit_selected_text`,
 `orbit_control_tools`, `orbit_perform_action`, `orbit_action_result`,
 `orbit_calendar`, `orbit_meetings`, `orbit_transcript`, `orbit_note`,
-`orbit_files_list`, `orbit_files_search` and `orbit_files_read`.
+`orbit_files_list`, `orbit_files_search`, `orbit_files_read` and
+`orbit_attachment`.
 Validate discovery with an isolated profile first. Apply profile changes using
 the commands supported by your installed Hermes version; a gateway restart can
 interrupt other profiles and must be coordinated with their users.
@@ -394,6 +395,18 @@ up to 65 536 characters, and is told how many older ones were left out.
 Dictation uses `[meeting_transcription]`; read-aloud needs `[agents.speech]`.
 The hub does not retry provider requests; a failure reaches the Mac with its
 cause.
+
+`images = true` says the model reads images: the images attached to a message
+(and the pages of a PDF with almost no text) go to it as image parts after the
+message's text, and Orbit's screenshots as images in the tools' results; the
+agent lists `images` among its capabilities. It is false by default, because
+not every OpenAI-compatible server or model takes images; then the message only
+names each image, which the agent reads with `orbit_attachment`, and a
+screenshot reaches it as a sentence saying it was left out. The conversation
+the hub keeps for later turns holds a line naming each image's attachment, not
+its bytes. A provider that refuses a message with images (HTTP 400, 413, 415
+or 422 to its first request) fails the turn with `attachment_refused`, naming
+the files.
 
 ## Claude Code and Codex agents
 

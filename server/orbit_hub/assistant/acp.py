@@ -8,7 +8,7 @@ spoken to over its stdio:
     initialize           once per process; the hub declares neither `fs` nor `terminal`
     session/new          orbit-mcp as the one MCP server, the agent's folder as `cwd`
     session/load         to resume, when the agent declares `loadSession`
-    session/prompt       the turn's text; its stop reason ends the turn
+    session/prompt       the turn's text and images; its stop reason ends the turn
     session/cancel       a cancellation; pending permissions answer `cancelled`
     request_permission   the Mac's approval, answered with the option it chose
     session/update       message chunks, tool calls, plans and thoughts, as typed events
@@ -24,6 +24,7 @@ on the server.
 """
 
 import asyncio
+import base64
 import json
 import os
 import re
@@ -49,6 +50,7 @@ from acp.schema import (
     DeniedOutcome,
     EnvVariable,
     FileSystemCapabilities,
+    ImageContentBlock,
     Implementation,
     McpServerStdio,
     PermissionOption,
@@ -67,6 +69,7 @@ from .backend import (
     ClarificationReceipt,
     ContentBlock,
     EventSink,
+    ImageBlock,
     MessageChunk,
     MessageComplete,
     OpenedSession,
@@ -76,6 +79,7 @@ from .backend import (
     PlanStep,
     RequestExpired,
     ResumedSession,
+    TextBlock,
     UnreadableUpdate,
 )
 from .skills import NAME_CHARACTERS
@@ -212,12 +216,14 @@ def codex_lock_down() -> dict:
 class AcpBackend:
     """One ACP agent and its processes, at most `MAX_AGENT_PROCESSES` at once."""
 
-    # Images: Orbit's turns carry none (see `Capabilities.images`). Resume is
+    # Images go as ACP image blocks to an agent that declares
+    # `promptCapabilities.image`; to one that does not, the turn names them
+    # for `orbit_attachment` instead (`_AgentProcess.turn_prompt`). Resume is
     # `session/load`, refused with its cause by an agent that lacks it. History:
     # the agent keeps each conversation and replays it itself on load, which is
     # over when it answers, so the resume says so and no `HistoryLoaded` follows.
     # Voice: ACP carries no audio.
-    capabilities = Capabilities(images=False, resume=True, history=True, voice=False)
+    capabilities = Capabilities(images=True, resume=True, history=True, voice=False)
 
     def __init__(self, agent: "AgentConfiguration", hub: "Settings", instructions=no_instructions):
         self.agent_id, self.settings = agent.id, agent.settings
@@ -464,6 +470,8 @@ class _AgentProcess:
         self.peer: ClientSideConnection | None = None
         self.watcher: asyncio.Task | None = None
         self.can_load = False
+        # The agent declared `promptCapabilities.image` when it started.
+        self.can_image = False
         self.session_id: str | None = None
         self.turn: asyncio.Task | None = None
         self.text: list[str] = []
@@ -536,6 +544,8 @@ class _AgentProcess:
             )
         capabilities = answer.agent_capabilities
         self.can_load = bool(capabilities and capabilities.load_session)
+        prompts = capabilities.prompt_capabilities if capabilities else None
+        self.can_image = bool(prompts and prompts.image)
 
     async def watch(self) -> None:
         """An agent that ends between turns gives its session up, to be reloaded."""
@@ -613,7 +623,29 @@ class _AgentProcess:
         )
         self.session_id = stored_id
 
-    def start_turn(self, text: str) -> None:
+    def turn_prompt(self, blocks: Sequence[ContentBlock]) -> list:
+        """The turn as ACP content: its text, then its images when the agent
+        takes them; otherwise the text names them for `orbit_attachment`."""
+        text = "".join(block.text for block in blocks if isinstance(block, TextBlock))
+        images = [block for block in blocks if isinstance(block, ImageBlock)]
+        if images and not self.can_image:
+            named = "; ".join(f"«{image.name}» (id {image.attachment_id})" for image in images)
+            text += (
+                f"\n[Este agente no declara recibir imágenes, así que no van en el mensaje; "
+                f"míralas con orbit_attachment: {named}]"
+            )
+            images = []
+        return [
+            TextContentBlock(type="text", text=text),
+            *(
+                ImageContentBlock(
+                    type="image", data=base64.b64encode(image.data).decode(), mime_type=image.mime
+                )
+                for image in images
+            ),
+        ]
+
+    def start_turn(self, prompt: list) -> None:
         if self.turn is not None:
             raise HubError(
                 "turn_in_progress", f"El agente «{self.name}» ya tiene un turno en curso"
@@ -621,15 +653,13 @@ class _AgentProcess:
         self.text = []
         self.tools, self.thought, self.thought_id, self.planned = {}, [], None, False
         self.backend.used(self)
-        self.turn = asyncio.create_task(self.run_turn(text))
+        self.turn = asyncio.create_task(self.run_turn(prompt))
 
-    async def run_turn(self, text: str) -> None:
+    async def run_turn(self, prompt: list) -> None:
         clear_op()
         session_id = self.session_id
         try:
-            answer = await self.peer.prompt(
-                session_id=session_id, prompt=[TextContentBlock(type="text", text=text)]
-            )
+            answer = await self.peer.prompt(session_id=session_id, prompt=prompt)
         except acp.RequestError as exc:
             if exc.code == AUTH_REQUIRED:
                 await self.fail(session_id, "agent_auth_required", self.sign_in_cause())
@@ -920,7 +950,8 @@ class AcpConnection:
         return process
 
     async def prompt(self, session_id: str, blocks: Sequence[ContentBlock]) -> None:
-        self._live(session_id).start_turn("".join(block.text for block in blocks))
+        process = self._live(session_id)
+        process.start_turn(process.turn_prompt(blocks))
 
     async def cancel(self, session_id: str) -> None:
         await self._live(session_id).cancel()

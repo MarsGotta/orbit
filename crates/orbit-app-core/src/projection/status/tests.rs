@@ -8,6 +8,7 @@ use orbit_core::{
 fn status_topic(hub: Connection, privacy_stopped: bool) -> TopicData {
     TopicData::Status(Knowledge::Present {
         value: orbit_core::topics::status::Value {
+            attachments: None,
             assistant_name: None,
             agents: Vec::new(),
             default_agent_id: None,

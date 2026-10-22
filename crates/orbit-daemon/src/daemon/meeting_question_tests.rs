@@ -279,6 +279,7 @@ async fn each_failure_of_the_turn_reaches_the_panel_with_its_cause() -> Result<(
     // The previous turn is still running.
     runtime
         .command(Command::Chat {
+            attachments: Vec::new(),
             text: "Otra cosa".into(),
         })
         .await?;

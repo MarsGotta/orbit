@@ -32,8 +32,9 @@ from ..errors import HubError
 class Capabilities:
     """What a backend declares it accepts."""
 
-    # A turn may carry images. No turn does today: SendParams holds text only,
-    # and screenshots reach the assistant as orbit-mcp tool results.
+    # A turn may carry `ImageBlock`s: the images the user attached, and the
+    # pages of a PDF that have almost no text. Without it the turn only names
+    # them, and the agent reads them with orbit-mcp's `orbit_attachment`.
     images: bool
     # A stored session reopens by its stored id after its live id is gone.
     resume: bool
@@ -49,12 +50,24 @@ class Capabilities:
 
 @dataclass(frozen=True)
 class TextBlock:
-    """The one content block a turn carries today."""
-
     text: str
 
 
-ContentBlock = TextBlock
+@dataclass(frozen=True)
+class ImageBlock:
+    """An image the user attached (or a PDF page rendered by the hub), whole.
+    Only a backend whose `Capabilities.images` is true receives one."""
+
+    # The attachment it comes from, which `orbit_attachment` reads again.
+    attachment_id: str
+    # What the user sees: the file's name, or «name · página N».
+    name: str
+    # image/png, image/jpeg, image/gif or image/webp.
+    mime: str
+    data: bytes
+
+
+ContentBlock = TextBlock | ImageBlock
 
 
 @dataclass(frozen=True)
@@ -209,7 +222,8 @@ class TurnFailed:
     session_id: str
     code: str
     message: str
-    numbers: dict[str, int] | None = None
+    # Numbers, and the name of a file a refusal is about (`attachment_refused`).
+    numbers: dict[str, int | str] | None = None
 
 
 @dataclass(frozen=True)

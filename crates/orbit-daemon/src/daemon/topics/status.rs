@@ -20,6 +20,9 @@ impl ProjectTopic for Projector {
                     .map(|roster| roster.agents().to_vec())
                     .unwrap_or_default(),
                 default_agent_id: roster.map(|roster| roster.default_agent_id().to_owned()),
+                attachments: source
+                    .runtime
+                    .and_then(|runtime| runtime.conversation.hub_attachments),
                 hub: state.connection().clone(),
                 account: state.views.account.clone(),
                 privacy_stopped: state.privacy_stopped(),

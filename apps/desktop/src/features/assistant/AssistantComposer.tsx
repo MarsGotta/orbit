@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type KeyboardEvent } from "react";
+import type { AttachmentLimits } from "../../bridge/generated/AttachmentLimits";
 import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
 import type { HubLinkConnection } from "../../bridge/generated/HubLinkConnection";
 import { Button } from "../../design/Button";
@@ -8,9 +9,13 @@ import { es } from "../../i18n/es";
 import { mmss } from "../../time-format";
 import { useVoiceNote, type VoiceSend } from "./useVoiceNote";
 import { useComposerInsert } from "./composer-insert";
+import { AttachButtons, AttachmentChips } from "./AttachmentChips";
+import { useAttachmentDrafts } from "./useAttachmentDrafts";
 import styles from "./AssistantView.module.css";
 
 interface ComposerProps {
+  /** The hub's attachment ceilings; absent, the hub has no attachments. */
+  attachmentLimits?: AttachmentLimits;
   callActive: boolean;
   callPending: boolean;
   chat: ChatSnapshot;
@@ -25,7 +30,8 @@ interface ComposerProps {
   send: VoiceSend;
 }
 
-function useComposer({ chat, daemonReady, hub, paired, send, voiceUnknown }: ComposerProps) {
+function useComposer(props: ComposerProps) {
+  const { attachmentLimits, chat, daemonReady, hub, paired, send, voiceUnknown } = props;
   const [draft, setDraft] = useState("");
   const box = useRef<HTMLTextAreaElement>(null);
   // «Responder a esto» quotes a fragment after what is already written.
@@ -41,11 +47,19 @@ function useComposer({ chat, daemonReady, hub, paired, send, voiceUnknown }: Com
     send,
   });
 
+  const attachments = useAttachmentDrafts(attachmentLimits);
+  // Text, or files without text; never while a file is still uploading.
+  const canSend =
+    !disabled && !attachments.uploading && (draft.trim() !== "" || attachments.ready.length > 0);
   const submit = () => {
+    if (!canSend) return;
+    const files = attachments.ready;
     const text = draft.trim();
-    if (!text || disabled) return;
-    send({ command: "chat", text });
+    send(
+      files.length > 0 ? { command: "chat", text, attachments: files } : { command: "chat", text },
+    );
     setDraft("");
+    attachments.clear();
   };
   const keyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -53,7 +67,7 @@ function useComposer({ chat, daemonReady, hub, paired, send, voiceUnknown }: Com
       submit();
     }
   };
-  return { box, disabled, draft, keyDown, setDraft, submit, voice };
+  return { attachments, box, canSend, disabled, draft, keyDown, setDraft, submit, voice };
 }
 
 type Controls = ReturnType<typeof useComposer>;
@@ -109,6 +123,12 @@ function ComposerActions({
   const recording = controls.voice.recording;
   return (
     <div className={styles.composerActions}>
+      <AttachButtons
+        disabled={controls.disabled}
+        onAttach={controls.attachments.choose}
+        onAttachWindow={controls.attachments.addWindow}
+        supported={controls.attachments.supported}
+      />
       <Button
         aria-label={callActive ? es.design.hangUp : es.assistant.call}
         disabled={!callActive && (controls.disabled || callPending || callUnknown === true)}
@@ -121,7 +141,7 @@ function ComposerActions({
       <MicrophoneButton controls={controls} voiceUnknown={voiceUnknown} />
       <Button
         aria-label={recording ? es.assistant.sendVoiceNote : es.chat.send}
-        disabled={!recording && (controls.disabled || !controls.draft.trim())}
+        disabled={!recording && !controls.canSend}
         onClick={recording ? controls.voice.finish : controls.submit}
         size={30}
         variant="accent"
@@ -163,11 +183,16 @@ export function AssistantComposer(props: ComposerProps) {
         </p>
       )}
       <div className={styles.composer}>
+        <AttachmentChips
+          drafts={controls.attachments.drafts}
+          onRemove={controls.attachments.remove}
+        />
         <textarea
           aria-label={es.chat.inputLabel}
           disabled={controls.disabled}
           onChange={(event) => controls.setDraft(event.target.value)}
           onKeyDown={controls.keyDown}
+          onPaste={controls.attachments.paste}
           placeholder={es.assistant.composerPlaceholder}
           ref={controls.box}
           rows={2}

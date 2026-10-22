@@ -68,6 +68,11 @@ pub struct ChatSendParams {
     /// that listed its agents in `ready`: a 0.9.0 hub refuses the field.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub agent_id: Option<String>,
+    /// The ids of the files uploaded for this turn (hub-v1 «Attachments»).
+    /// Sent only to a hub that announced attachments in `ready`: a 0.9.0
+    /// hub ignores unknown fields, and the turn would go without its files.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub attachments: Vec<String>,
 }
 /// The turn is a voice note of this length; its audio stays on the Mac.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -190,6 +195,10 @@ pub struct ReadyData {
     pub agents: Option<Vec<HubAgent>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_agent_id: Option<String>,
+    /// The hub's attachment ceilings; absent from a 0.9.0 hub, which has no
+    /// attachments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attachments: Option<crate::attachments::AttachmentLimits>,
     #[serde(default)]
     pub device_id: Option<String>,
     #[serde(default)]
@@ -382,6 +391,15 @@ pub struct RefusalData {
     pub waited_ms: Option<u64>,
     #[serde(default)]
     pub deadline_ms: Option<u64>,
+    /// An attachment refusal's counts: the message's files and their
+    /// ceiling, and what the conversation already holds (hub-v1
+    /// «Attachments»).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub files: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_files: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_bytes: Option<u64>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]

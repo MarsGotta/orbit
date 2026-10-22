@@ -344,6 +344,64 @@ pub enum UpdateCause {
     },
 }
 
+/// Which of the attachment ceilings a refusal names (`attachments`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AttachmentCeiling {
+    File,
+    Message,
+    Session,
+}
+
+/// Why a file cannot be attached or a turn cannot carry its files. Each
+/// carries the file's name and the numbers of the rule that fired.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum AttachmentCause {
+    /// The hub has no attachments (0.9.0): nothing is read or sent.
+    Unsupported,
+    TooLarge {
+        ceiling: AttachmentCeiling,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        files: Option<u64>,
+        bytes: u64,
+        /// What the conversation already holds, for the session ceiling.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        session_bytes: Option<u64>,
+        max_bytes: u64,
+    },
+    TooMany {
+        files: u64,
+        max_files: u64,
+    },
+    /// No agent reads this type; `mime` is what its content looks like.
+    TypeUnsupported {
+        name: String,
+        mime: String,
+    },
+    /// The file could not be read: on this Mac (`missing`, `permission`,
+    /// `not_a_file`, `io`), or by the hub (`pdf_locked`, `pdf_damaged`,
+    /// `render_failed`).
+    Unreadable {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        reason: String,
+    },
+    /// The agent refused it (Hermes's `image.attach_bytes` code).
+    Refused {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        upstream_code: Option<i64>,
+    },
+    /// The hub no longer has it: never sent within the hour, or sent already.
+    NotFound {
+        attachment_id: String,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum CalendarReadLimit {
@@ -498,6 +556,7 @@ macro_rules! refusals {
 }
 
 refusals! {
+    Attachment => "attachment" { cause: AttachmentCause },
     CalendarReadLimit => "calendar_read_limit" { cause: CalendarReadLimit },
     EncodeFailed => "encode_failed" { resource: Resource },
     HelperReplyInvalid => "helper_reply_invalid" { field: String, expected: Expected, received_type: String },
@@ -699,6 +758,7 @@ impl Refusal {
             | Self::NotFound { .. }
             | Self::PendingRecording { .. }
             | Self::TooMany { .. }
+            | Self::Attachment { .. }
             | Self::NoFolders
             | Self::OutsideFolders { .. }
             | Self::FolderUnavailable { .. }
@@ -918,6 +978,7 @@ impl Serialize for Refusal {
             Self::CalendarReadLimit { cause } => {
                 json!({"code":"calendar_read_limit","cause":cause})
             }
+            Self::Attachment { cause } => json!({"code":"attachment","cause":cause}),
             Self::EncodeFailed { resource } => json!({"code":"encode_failed","resource":resource}),
             Self::HelperReplyInvalid {
                 field,

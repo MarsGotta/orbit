@@ -16,7 +16,9 @@ the date as the visible title.
 `GET /v1/sessions/{id}/messages?before=&limit=` returns
 `{"messages":[{"id":integer,"role":"user"|"assistant","text":string,
 "at_ms":integer|null,"kind":"text"|"voice","duration_ms"?:integer,
-"client_id"?:string}],"next":integer|null,"total":integer,"agent_id"?:string}` in order.
+"client_id"?:string,"attachments"?:[attachment]}],"next":integer|null,"total":integer,
+"agent_id"?:string}` in order. `attachments` lists a user message's files; see
+[Attachments](#attachments).
 `agent_id` is the session's agent; see [Agents](#agents).
 Pages allow 200 messages and 512 KiB of JSON without cutting a message; `next`
 reads older messages. A message unable to fit alone yields
@@ -39,7 +41,19 @@ commands are available to the app; unknown or repeated fields remain invalid:
 {"command":"voice_note_audio","message_id":"30000000-0000-4000-8000-000000000003"}
 {"command":"speak","message_id":"30000000-0000-4000-8000-000000000004","text":"Texto de la respuesta"}
 {"command":"speak_stop"}
+{"command":"chat","text":"¿Qué ruta marca?","attachments":[{"id":"…","name":"mapa.png","kind":"image","mime":"image/png","bytes":120}]}
+{"command":"attachment_add","source":{"from":"path","path":"/Users/example/mapa.png"}}
+{"command":"attachment_add","source":{"from":"bytes","name":"Imagen pegada.png","data_base64":"iVBOR…"}}
+{"command":"attachment_add","source":{"from":"window"}}
+{"command":"attachment_fetch","attachment_id":"…"}
+{"command":"attachment_save","attachment_id":"…"}
 ```
+
+The `attachment_*` orders run off the daemon's loop and answer outside `State`
+with `{"v":1,"id":…,"ok":…,"error":…,"refusal"?:…,"attachment"?:…,"content"?:
+{"name","mime","bytes"},"path"?:string}` (`content.bytes` is base64 on the
+socket; the app takes it in process). The app waits 100 s for one: the hub
+request's own 90 s and 10 s for the daemon. See [Attachments](#attachments).
 
 `pair`/`setup` validate the hub origin and restart only the daemon's hub
 connection. The UI never stores its own credential/configuration.
@@ -79,7 +93,8 @@ when this Mac still has their encrypted audio, found by `client_id`.
 `GET /v1/ws`, header `Authorization: Bearer <device token>`, exchanges JSON:
 
 Client: `{v:1,id:<uuid>,method:<method>,params:{...}}`.
-Methods: `chat.send` (`text`, `session_id` optional Orbit ID, `call_active`
+Methods: `chat.send` (`text`, empty only beside `attachments`, the ids of the
+turn's files (see [Attachments](#attachments)); `session_id` optional Orbit ID, `call_active`
 optional boolean defaulting to false; also optional are `client_id`, the
 Mac's id for the message, `voice:{duration_ms}` for a voice note, and
 `meeting:{recording_id,minutes,title}` for a question about a meeting, and
@@ -100,7 +115,8 @@ The server rejects a control for another device, session or stale turn. Legacy
 positive approvals may omit it but still require an exact live pending request.
 
 Server: `{v:1,id:<request uuid or null>,event:<event>,data:{...}}`.
-Events: `ready` (`device_id`, `assistant_name`, `agents`, `default_agent_id`), `chat.session` (`session_id`), `chat.delta`
+Events: `ready` (`device_id`, `assistant_name`, `agents`, `default_agent_id`,
+`attachments`), `chat.session` (`session_id`), `chat.delta`
 (`session_id`,`text`), `chat.completed` (`session_id`,`text`,`status`,
 `persisted`,`warning`), `approval.required`
 (`session_id`,`request_id`,`description`), `clarify.required`
@@ -1167,3 +1183,85 @@ agent_not_found` with `agent_id` and `agent_ids`. Neither reaches the Mac.
 Both checks trust the agent id `orbit-mcp` signs with the bridge key: the
 groups configure a cooperative agent's tools, and they are not a boundary
 against a hostile process on the same machine that holds that key.
+
+## Attachments
+
+A user's message can carry files. The addition is optional on both
+sides, as agents are: a 0.9.0 Mac sends no `attachments` and reads pages
+without them; a Mac with attachments offers none to a hub whose `ready` has no
+`attachments` (0.9.0), because that hub ignores unknown `chat.send` fields and
+the turn would reach the agent without its files. The Mac refuses such a turn
+locally (`attachment` refusal, cause `unsupported`) before anything leaves.
+
+**`ready`** adds `attachments`, the hub's ceilings:
+`{"max_file_bytes":20971520,"max_message_files":10,"max_message_bytes":33554432,
+"max_session_bytes":268435456}`. Each is registered in `contracts/constants.json`
+with what it protects (`server/orbit_hub/attachments.py`).
+
+**Upload.** The Mac reads a file by its path (or takes the bytes of a pasted
+image or text) and uploads it before the turn, over HTTP like audio, because a
+frame is at most 128 KiB:
+
+`POST /v1/attachments`, device bearer token, body the file's bytes,
+`X-Orbit-Attachment-Name` (the name, percent-encoded UTF-8, 1–255 characters,
+no control characters and no `/`) and `X-Orbit-SHA256` (lowercase SHA-256 of
+the body). It answers `{"attachment":{"id","name","kind","mime","bytes",
+"pages"?}}`. `kind` is what the hub found in the content, never the name:
+`image` (PNG, JPEG, GIF or WebP), `pdf` (opened and its text extracted with
+pypdfium2; `pages` is its page count) or `text` (UTF-8 without NUL, `mime`
+`text/plain`). The file is stored encrypted, unbound, and deleted when no turn
+names it within an hour.
+
+`POST /v1/attachments/capture` with `{capture_id,request_id,name}` keeps as an
+attachment a window capture the Mac uploaded (`PUT /v1/captures/{capture_id}`
+bound to `request_id`) for «Adjuntar ventana»: the PNG crosses the network
+once and is taken once (`404 capture_missing` `{capture_id}` afterwards).
+
+`GET /v1/attachments/{id}` returns the bytes with their `Content-Type` and the
+name in `X-Orbit-Attachment-Name`, for the device that uploaded them.
+
+**`chat.send`** adds `attachments`, the ids in the order the user attached
+them (at most 64 in the frame); with them `text` may be empty. The hub binds
+them to the message, and so to its session, in the message's own transaction.
+
+**Refusals**, each with its numbers and the file's name where there is one:
+
+- `413 attachments_too_large` `{ceiling:"file",name,bytes,max_bytes}` at upload,
+  before the body is read when `Content-Length` says it;
+  `{ceiling:"message",files,bytes,max_bytes}` and
+  `{ceiling:"session",bytes,session_bytes,max_bytes}` at `chat.send`;
+- `attachments_too_many` `{files,max_files}` at `chat.send`;
+- `415 attachment_type_unsupported` `{name,mime}` (what the content looks like:
+  `application/zip`, `image/heic`, `application/octet-stream`…) at upload;
+- `422 attachment_unreadable` `{name,cause}` (`pdf_locked`, `pdf_damaged`) at
+  upload, or `{cause:"render_failed"}` at `chat.send`;
+- `404 attachment_not_found` `{attachment_id}`: another device's, expired, or
+  already sent with another message;
+- `attachment_refused` `{name,upstream_code}`: the agent refused an image
+  (Hermes `image.attach_bytes` 4016, 4017, 4018); the prompt is not sent.
+  From an `openai` agent it is the turn's `error` event, `{name,provider_status}`:
+  the provider answered the turn's first request, which carried its images,
+  with HTTP 400, 413, 415 or 422 for a cause other than the context; `name`
+  lists the turn's images, because the provider does not say which one.
+
+On the Mac these are one typed refusal, `attachment` with `cause.kind`
+`too_large`, `too_many`, `type_unsupported`, `unreadable`, `refused`,
+`not_found` or `unsupported`; a turn refused for its files keeps the sizes and
+counts in its notice (`bytes`, `max_bytes`, `stored`, `count`, `max`).
+
+**What reaches the agent.** The turn's text names every file with its kind,
+size and id. An image goes as an image to an agent that takes them (Hermes:
+`image.attach_bytes` with a data URL before `prompt.submit`; ACP: an image
+content block when the agent declares `promptCapabilities.image`; `openai`:
+an image part after the text when the agent has `images = true`; otherwise
+the text says to read it with `orbit_attachment`). A PDF goes as its text,
+page by page, up to 48,000 characters per turn, and its pages with fewer than
+32 characters of text (a scan, a figure) as PNG images, at most 8 per turn,
+1,568 px on the long side. A text file is read with `orbit_attachment`.
+
+**`orbit_attachment`** (orbit-mcp) reads one by id through
+`POST /internal/v1/attachments/read`, signed with the meetings key
+(`orbit_meetings_bridge_v1`), `{device_id,attachment_id,after_index?}`: an
+image whole (`data_base64`), the text of a PDF or a text file in pages of
+48,000 characters with `after_index`, `next_after_index` and `total_chars`.
+

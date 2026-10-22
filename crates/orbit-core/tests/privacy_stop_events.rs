@@ -55,7 +55,7 @@ fn classify(event: &Event) -> (usize, bool) {
         Event::CalendarAuthorization(_) => (44, false),
         Event::HelperStopUndelivered => (45, false),
         Event::Tick => (28, false),
-        Event::Failure(_) => (29, false),
+        Event::Failure { .. } => (29, false),
         Event::Degraded(_) => (30, false),
         Event::CaptureRefused { .. } => (31, false),
         // The two that replace automatic stops: they cut, they never latch.
@@ -117,6 +117,7 @@ fn samples() -> Vec<Event> {
         Event::Connect(Connection::Online),
         Event::Connect(Connection::Revoked),
         Event::Submit {
+            attachments: Vec::new(),
             id: "a".into(),
             text: "hola".into(),
         },
@@ -202,7 +203,10 @@ fn samples() -> Vec<Event> {
         Event::HelperLatched,
         Event::LocalRearm,
         Event::Tick,
-        Event::Failure("x".into()),
+        Event::Failure {
+            code: "x".into(),
+            numbers: Vec::new(),
+        },
         Event::Degraded(DegradedKind::AudioGap),
         Event::CaptureRefused {
             reason: "microphone_permission_required".into(),

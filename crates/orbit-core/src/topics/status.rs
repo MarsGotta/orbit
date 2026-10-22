@@ -12,6 +12,9 @@ pub struct Value {
     pub agents: Vec<crate::agents::Agent>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_agent_id: Option<String>,
+    /// The connected hub's attachment ceilings, from its last `ready`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attachments: Option<crate::attachments::AttachmentLimits>,
     pub hub: Connection,
     pub account: Option<AccountSummary>,
     pub privacy_stopped: bool,

@@ -95,6 +95,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
                 audio_available: voice.audio_available,
             }),
             receipts: Vec::new(),
+            attachments: message.attachments.clone(),
         })
         .collect();
     view.pending_contract = value.pending.as_ref().map(|pending| {

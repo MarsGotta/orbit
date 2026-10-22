@@ -84,6 +84,7 @@ async fn chat_send(frames: &mut mpsc::Receiver<Value>) -> Result<Value> {
 async fn ask(runtime: &mut Runtime, frames: &mut mpsc::Receiver<Value>) -> Result<Value> {
     runtime
         .command(Command::Chat {
+            attachments: Vec::new(),
             text: "pregunta sintética".into(),
         })
         .await?;

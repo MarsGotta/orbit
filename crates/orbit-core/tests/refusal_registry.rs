@@ -322,6 +322,7 @@ fn decisions_preserve_actual_text_and_both_duration_bounds() {
     let text = decide(
         &online,
         Event::Submit {
+            attachments: Vec::new(),
             id: "synthetic".into(),
             text: "x".repeat(text_bytes),
         },
@@ -347,6 +348,7 @@ fn decisions_preserve_actual_text_and_both_duration_bounds() {
     let whitespace = decide(
         &online,
         Event::Submit {
+            attachments: Vec::new(),
             id: "blank".into(),
             text: "   ".into(),
         },

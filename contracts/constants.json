@@ -1458,6 +1458,67 @@
   {
     "copies": [
       {
+        "file": "server/orbit_hub/attachments.py",
+        "name": "MAX_ATTACHMENT_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "crates/orbit-core/src/limits.rs",
+        "name": "MAX_ATTACHMENT_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_ATTACHMENT_BYTES",
+    "resource": "one attached file, read whole by the Mac and the hub",
+    "source": "python",
+    "unit": "bytes",
+    "value": 20971520
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/attachments.py",
+        "name": "MAX_MESSAGE_ATTACHMENTS",
+        "unit": "files"
+      }
+    ],
+    "name": "MAX_MESSAGE_ATTACHMENTS",
+    "resource": "attached files in one chat turn",
+    "source": "python",
+    "unit": "files",
+    "value": 10
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/attachments.py",
+        "name": "MAX_MESSAGE_ATTACHMENT_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_MESSAGE_ATTACHMENT_BYTES",
+    "resource": "attached bytes in one chat turn",
+    "source": "python",
+    "unit": "bytes",
+    "value": 33554432
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/attachments.py",
+        "name": "MAX_SESSION_ATTACHMENT_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_SESSION_ATTACHMENT_BYTES",
+    "resource": "attached bytes in one conversation",
+    "source": "python",
+    "unit": "bytes",
+    "value": 268435456
+  },
+  {
+    "copies": [
+      {
         "file": "crates/orbit-core/src/assistant_files.rs",
         "name": "MAX_PATH_BYTES",
         "unit": "bytes"

@@ -22,7 +22,13 @@ fn a_new_conversation_is_with_the_agent_chosen_and_keeps_it() {
     assert_eq!(state.session_id().as_deref(), Some("session-1"));
     assert_eq!(state.agent_id(), Some("atlas"));
     // A conversation the hub no longer has starts again with the same agent.
-    let state = after(&state, Event::Failure("session_not_found".into()));
+    let state = after(
+        &state,
+        Event::Failure {
+            code: "session_not_found".into(),
+            numbers: Vec::new(),
+        },
+    );
     assert!(state.session_id().is_none());
     assert_eq!(state.agent_id(), Some("atlas"));
     // «Nueva conversación» without a choice is with the default agent.

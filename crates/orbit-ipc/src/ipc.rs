@@ -5,8 +5,8 @@ use orbit_core::{
     PROTOCOL_VERSION,
     limits::MAX_IPC_LINE_BYTES,
     protocol::{
-        AgentResponse, Command, Request, Response, TopicEvent, TopicResponse, VoiceNoteAudio,
-        VoiceNoteAudioResponse,
+        AgentResponse, AttachmentContent, AttachmentResponse, Command, Request, Response,
+        TopicEvent, TopicResponse, VoiceNoteAudio, VoiceNoteAudioResponse,
     },
     reads::ReadRequest,
     refusal::{Refusal, Resource},
@@ -53,7 +53,21 @@ pub enum Reply {
     VoiceNoteAudio(VoiceNoteAudioResponse),
     Topics(TopicResponse),
     Agent(AgentResponse),
+    Attachment(AttachmentResponse),
 }
+
+impl From<AttachmentResponse> for Reply {
+    fn from(response: AttachmentResponse) -> Self {
+        Self::Attachment(response)
+    }
+}
+
+/// How long the app waits for an attachment order: the hub request's own
+/// 90 s (`HUB_HTTP_TIMEOUT` in orbit-daemon's hub.rs) and 10 s for the
+/// daemon to take it and answer. It bounds one upload or read of up to
+/// 20 MiB, which the 10 s of other orders could not hold on a slow link;
+/// it is not a retry, and a lost answer is never sent again.
+const ATTACHMENT_CALL_TIMEOUT: Duration = Duration::from_secs(100);
 
 impl From<Response> for Reply {
     fn from(response: Response) -> Self {
@@ -173,6 +187,15 @@ impl LocalClient {
     }
 
     async fn call(&self, command: Command, op: Option<orbit_core::notice::Op>) -> Result<Reply> {
+        self.call_within(command, op, Duration::from_secs(10)).await
+    }
+
+    async fn call_within(
+        &self,
+        command: Command,
+        op: Option<orbit_core::notice::Op>,
+        wait: Duration,
+    ) -> Result<Reply> {
         let (reply, receive) = oneshot::channel();
         let call = Call {
             request: Request {
@@ -186,7 +209,7 @@ impl LocalClient {
         // The channel already bounds admission at 32 calls. Keep the existing
         // ten-second confirmation window, including queue time, until the
         // caller decides whether a slow order may still be running. Never retry.
-        tokio::time::timeout(Duration::from_secs(10), async {
+        tokio::time::timeout(wait, async {
             if self.calls.send(call).await.is_err() {
                 return Err(self.stopped().await);
             }
@@ -196,7 +219,12 @@ impl LocalClient {
             }
         })
         .await
-        .context("El daemon no confirmó en 10000 ms; no se repite la orden ni la lectura")?
+        .with_context(|| {
+            format!(
+                "El daemon no confirmó en {} ms; no se repite la orden ni la lectura",
+                wait.as_millis()
+            )
+        })?
     }
 
     pub async fn request_command(&self, command: Command) -> Result<Response> {
@@ -224,7 +252,7 @@ impl LocalClient {
                 }
                 Ok(response)
             }
-            Reply::Topics(_) | Reply::VoiceNoteAudio(_) | Reply::Agent(_) => {
+            Reply::Topics(_) | Reply::VoiceNoteAudio(_) | Reply::Agent(_) | Reply::Attachment(_) => {
                 bail!("El daemon entregó otra clase de respuesta a una orden")
             }
         }
@@ -248,6 +276,7 @@ impl LocalClient {
             },
             Reply::VoiceNoteAudio(_) => bail!("El daemon entregó audio en lugar de la lectura"),
             Reply::Agent(_) => bail!("El daemon entregó un agente en lugar de la lectura"),
+            Reply::Attachment(_) => bail!("El daemon entregó un adjunto en lugar de la lectura"),
         }
     }
 
@@ -279,6 +308,7 @@ impl LocalClient {
             },
             Reply::Topics(_) => bail!("El daemon entregó una lectura en lugar del audio"),
             Reply::Agent(_) => bail!("El daemon entregó un agente en lugar del audio"),
+            Reply::Attachment(_) => bail!("El daemon entregó un adjunto en lugar del audio"),
         }
     }
 
@@ -297,10 +327,49 @@ impl LocalClient {
                 Some(refusal) => Err(refusal.into()),
                 None => bail!("El daemon entregó una orden en lugar del agente"),
             },
-            Reply::Topics(_) | Reply::VoiceNoteAudio(_) => {
+            Reply::Topics(_) | Reply::VoiceNoteAudio(_) | Reply::Attachment(_) => {
                 bail!("El daemon entregó otra clase de respuesta al agente")
             }
         }
+    }
+
+    /// One attachment order (`AttachmentAdd`, `AttachmentFetch`,
+    /// `AttachmentSave`) and its answer, or its typed refusal.
+    pub async fn attachment(&self, command: Command) -> Result<AttachmentResponse> {
+        match self
+            .call_within(command, Some(new_op()), ATTACHMENT_CALL_TIMEOUT)
+            .await?
+        {
+            Reply::Attachment(response) => {
+                if let Some(refusal) = response.refusal.clone() {
+                    return Err(refusal.into());
+                }
+                if !response.ok {
+                    bail!(
+                        "{}",
+                        response
+                            .error
+                            .as_deref()
+                            .unwrap_or("Adjunto rechazado sin causa")
+                    );
+                }
+                Ok(response)
+            }
+            Reply::Command(response) => match response.refusal {
+                Some(refusal) => Err(refusal.into()),
+                None => bail!("El daemon entregó una orden en lugar del adjunto"),
+            },
+            Reply::Topics(_) | Reply::VoiceNoteAudio(_) | Reply::Agent(_) => {
+                bail!("El daemon entregó otra clase de respuesta en lugar del adjunto")
+            }
+        }
+    }
+
+    pub async fn attachment_content(&self, attachment_id: String) -> Result<AttachmentContent> {
+        self.attachment(Command::AttachmentFetch { attachment_id })
+            .await?
+            .content
+            .context("El daemon no entregó el adjunto")
     }
 }
 

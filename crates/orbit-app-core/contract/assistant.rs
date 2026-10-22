@@ -103,6 +103,10 @@ app_type! {
         pub streaming: bool,
         pub voice: Option<VoiceNote>,
         pub receipts: Vec<ToolReceipt>,
+        /// The files the user's message carried.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        #[ts(as = "Option<Vec<orbit_core::attachments::Attachment>>", optional)]
+        pub attachments: Vec<orbit_core::attachments::Attachment>,
     }
 }
 

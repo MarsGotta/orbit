@@ -225,6 +225,7 @@ async fn returning_online_keeps_the_bridge_and_the_detection() -> Result<()> {
     }
     offer_a_call(&mut runtime);
     runtime.conversation.bridge_request = Some(BridgeAsk {
+        for_attachment: false,
         id: "still-pending".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
         application: None,
@@ -249,6 +250,7 @@ async fn a_lost_hub_still_retires_the_bridge_and_keeps_the_call() -> Result<()> 
     let (mut runtime, _native) = fixture(directory.path())?;
     offer_a_call(&mut runtime);
     runtime.conversation.bridge_request = Some(BridgeAsk {
+        for_attachment: false,
         id: "lost-link".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
         application: None,
@@ -284,6 +286,7 @@ async fn review_rearm_with_a_latch_closes_generation_bound_work() -> Result<()> 
         crate::daemon::authority_fixture::set(&mut runtime.state, "privacy_stopped", fixture_value);
     }
     runtime.conversation.bridge_request = Some(BridgeAsk {
+        for_attachment: false,
         id: "old".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
         application: None,

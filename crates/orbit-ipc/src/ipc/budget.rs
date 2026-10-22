@@ -12,6 +12,12 @@ use serde::Serialize;
 use std::io::{self, Write};
 
 pub(super) const MAX_VOICE_NOTE_RESPONSE_FRAME_BYTES: usize = 12 * 1024 * 1024;
+// One attachment's bytes over the socket (a development client; the app
+// takes the answer in process, unserialized): the largest file
+// (`MAX_ATTACHMENT_BYTES`) in base64, and 64 KiB for its name, type and
+// envelope. It bounds one answer, not the file, which has its own ceiling.
+pub(super) const MAX_ATTACHMENT_RESPONSE_FRAME_BYTES: usize =
+    orbit_core::limits::MAX_ATTACHMENT_BYTES.div_ceil(3) * 4 + 64 * 1024;
 
 pub(super) fn encode_reply(reply: Reply) -> Result<Vec<u8>> {
     match reply {
@@ -23,6 +29,9 @@ pub(super) fn encode_reply(reply: Reply) -> Result<Vec<u8>> {
         // The hub's answer is read whole up to `MAX_HUB_HTTP_BODY_BYTES`;
         // the reply line keeps the command response's own ceiling.
         Reply::Agent(response) => encode_with_limit(&response, MAX_COMMAND_RESPONSE_BYTES),
+        Reply::Attachment(response) => {
+            encode_with_limit(&response, MAX_ATTACHMENT_RESPONSE_FRAME_BYTES)
+        }
     }
 }
 

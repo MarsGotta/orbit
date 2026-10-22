@@ -9,6 +9,7 @@ use orbit_core::{
 
 fn question(id: &str) -> Message {
     Message {
+        attachments: Vec::new(),
         id: id.into(),
         role: "user".into(),
         text: "Pregunta".into(),
@@ -52,6 +53,7 @@ fn projects_pending_call_and_voice_note_from_topic_frames() {
     call.turn = Some(Box::new(Turn {
         user: question("turn-1"),
         answer: Some(Message {
+            attachments: Vec::new(),
             id: "turn-1:assistant".into(),
             role: "assistant".into(),
             text: "Estoy revisando el error de la pantalla.".into(),
@@ -73,6 +75,7 @@ fn projects_pending_call_and_voice_note_from_topic_frames() {
     let mut voice = assistant_topic::assistant_value();
     voice.turn = Some(Box::new(Turn {
         user: Message {
+            attachments: Vec::new(),
             id: "voice-1".into(),
             role: "user".into(),
             text: "Si Dario no contesta, lo llevo yo a la daily.".into(),

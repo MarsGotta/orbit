@@ -16,6 +16,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from . import safety
 from .assistant.agent_config import SCHEMA as AGENT_CONFIG_SCHEMA
+from .attachments import SCHEMA as ATTACHMENTS_SCHEMA
+from .attachments import AttachmentRepository
 from .group_storage import SCHEMA as GROUP_SCHEMA
 from .group_storage import GroupRepository
 from .log import report
@@ -183,7 +185,9 @@ class Store:
         self._db.executescript(DICTIONARIES_SCHEMA)
         # Each agent's personality, skills and access groups.
         self._db.executescript(AGENT_CONFIG_SCHEMA)
+        self._db.executescript(ATTACHMENTS_SCHEMA)
         self.groups = GroupRepository(self)
+        self.attachments = AttachmentRepository(self)
 
     def recover_interrupted(self) -> None:
         """Only hub startup calls this; opening the admin CLI must not alter live turns."""
@@ -496,11 +500,14 @@ class Store:
         kind: str = "text",
         duration_ms: int | None = None,
         client_id: str | None = None,
+        attachments: list[str] | tuple[str, ...] = (),
     ) -> None:
+        """Append one message; `attachments`, the ids its turn named, are bound
+        to it in the same transaction (`AttachmentRepository.bind`)."""
         encoded = text.encode()
         with self.transaction() as db:
             self.ensure_capacity(len(encoded) + 256)
-            db.execute(
+            cursor = db.execute(
                 "INSERT INTO messages(session_id,role,body,created_at_ms,kind,duration_ms,"
                 "client_id) VALUES (?,?,?,?,?,?,?)",
                 (
@@ -513,6 +520,8 @@ class Store:
                     client_id,
                 ),
             )
+            if attachments:
+                self.attachments.bind(db, session_id, cursor.lastrowid, list(attachments))
 
     def session_messages(
         self, device: str, session_id: str, before: int | None, limit: int
@@ -539,6 +548,8 @@ class Store:
                 " ORDER BY id DESC LIMIT ?",
                 (session_id, before, before, limit + 1),
             ).fetchall()
+            # Each message's attachments, listed (not their content).
+            attached = self.attachments.of_messages(self._db, [row["id"] for row in rows[:limit]])
             for row in rows[:limit]:
                 body = self._db.execute(
                     "SELECT body FROM messages WHERE id=?", (row["id"],)
@@ -554,6 +565,8 @@ class Store:
                     message["duration_ms"] = row["duration_ms"]
                 if row["client_id"] is not None:
                     message["client_id"] = row["client_id"]
+                if row["id"] in attached:
+                    message["attachments"] = attached[row["id"]]
                 # As the route writes it (FastAPI: compact, UTF-8), plus its comma.
                 size = (
                     len(json.dumps(message, ensure_ascii=False, separators=(",", ":")).encode()) + 1

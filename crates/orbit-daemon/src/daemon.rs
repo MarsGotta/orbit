@@ -399,6 +399,7 @@ mod ipc_tests {
         record_ipc_reply_loss(
             sender.send(()),
             &Command::Chat {
+                attachments: Vec::new(),
                 text: "SECRET_FIXTURE_CONVERSATION".into(),
             },
             Some(&diagnostics),
@@ -532,6 +533,7 @@ const WORK_EVENTS_CAPACITY: usize = 16;
 mod actions;
 mod agent_config;
 mod assistant_files;
+mod attachments;
 mod audio;
 mod audio_sources;
 mod bridge;
@@ -568,6 +570,7 @@ pub(crate) mod ticketed;
 mod topics;
 mod track_signal;
 mod turn;
+mod window_attachment;
 use turn::refusal_notice;
 mod work;
 
@@ -575,6 +578,8 @@ mod work;
 mod agent_config_tests;
 #[cfg(test)]
 mod agents_tests;
+#[cfg(test)]
+mod attachments_tests;
 #[cfg(test)]
 mod capability_notice_tests;
 #[cfg(test)]
@@ -838,6 +843,11 @@ struct ConversationRuntime {
     /// What the agent did in the turn in progress, or the last one
     /// (`chat.item`). Live only: a restart starts without it.
     work: Option<orbit_core::agent_work::AgentWork>,
+    /// The connected hub's attachment ceilings, from its last `ready`;
+    /// `None` before one arrives and for a 0.9.0 hub, which has none.
+    hub_attachments: Option<orbit_core::attachments::AttachmentLimits>,
+    /// «Adjuntar ventana» while its capture runs (`window_attachment`).
+    window_attachment: Option<window_attachment::PendingWindow>,
 }
 
 struct CaptureRuntime {
@@ -1142,6 +1152,8 @@ async fn run_with_helper_inner(
             speech_available: None,
             speak_next: false,
             read_aloud: None,
+            hub_attachments: None,
+            window_attachment: None,
             speech_notice_call_id: None,
             work: None,
         },
@@ -1298,13 +1310,19 @@ async fn run_with_helper_inner(
                         orbit_core::notice::ReportSource::Daemon,
                     );
                     let command = call.request.body;
-                    // Reads, and Ajustes › Agentes, change nothing of the
-                    // daemon's state; both are answered off the loop.
+                    // Reads, Ajustes › Agentes and the attachment orders change
+                    // nothing of the daemon's state; they are answered off the loop.
                     let topic_command = matches!(&command, Command::SubscribeTopics { .. } | Command::Read { .. } | Command::Agent { .. });
-                    if !topic_command {
+                    let attachment_command = matches!(
+                        &command,
+                        Command::AttachmentAdd { .. }
+                            | Command::AttachmentFetch { .. }
+                            | Command::AttachmentSave { .. }
+                    );
+                    if !topic_command && !attachment_command {
                         topic_board.state_changed();
                     }
-                    let result = if topic_command {
+                    let result = if topic_command || attachment_command {
                         Ok(())
                     } else {
                         closing.command(command.clone(), &mut runtime).await
@@ -1312,7 +1330,7 @@ async fn run_with_helper_inner(
                     // The transport has already attached the subscription's
                     // receivers. Refresh their dirty heads before waking the
                     // caller, which otherwise can accept an older turn as current.
-                    if !topic_command || matches!(&command, Command::SubscribeTopics { .. }) {
+                    if (!topic_command && !attachment_command) || matches!(&command, Command::SubscribeTopics { .. }) {
                         runtime.report_notices();
                         let source = topics::TopicSource {
                             state: &runtime.state,
@@ -1325,6 +1343,14 @@ async fn run_with_helper_inner(
                         runtime.serve_read(read.clone(), call.request.id, call.reply, topic_board.revisions());
                     } else if let Command::Agent { call: agent_call } = &command {
                         runtime.serve_agent(agent_call.clone(), call.request.id, call.reply);
+                    } else if matches!(
+                        &command,
+                        Command::AttachmentAdd { source: orbit_core::attachments::AttachmentSource::Window }
+                    ) {
+                        // The window is captured on the loop, as the assistant's are.
+                        runtime.attach_window(call.request.id, call.reply).await;
+                    } else if attachment_command {
+                        runtime.serve_attachment(command.clone(), call.request.id, call.reply);
                     } else if topic_command {
                         record_ipc_reply_loss(call.reply.send(topic_response(call.request.id, topic_board.revisions(), None, None)), &command, runtime.diagnostics.as_ref());
                     } else if let Command::VoiceNoteAudio { message_id } = &command {

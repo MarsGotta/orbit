@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from uvicorn.protocols.utils import ClientDisconnected
 
 from . import safety
+from .attachments import limits as attachment_limits
 from .errors import HubError, render
 from .log import bind_op, current_op, report
 from .protocol import HUB_PROTOCOL, PARAMETERS, DeviceReplyParams, Frame, emit
@@ -119,6 +120,9 @@ def mount(
                         "assistant_name": agents.default.name,
                         "agents": agents.public(),
                         "default_agent_id": agents.default.id,
+                        # Absent from a 0.9.0 hub, which has no attachments:
+                        # the Mac offers none to it (contracts/hub-v1.md).
+                        "attachments": attachment_limits(),
                         "device_version": device_version,
                     },
                 )

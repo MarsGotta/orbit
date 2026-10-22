@@ -47,6 +47,12 @@ _AFTER_FIX = {
     # Settings › Agents: the user fixes the file or removes a skill first.
     "skill_invalid",
     "too_many_skills",
+    # A file the user can replace, convert or leave out (attachments.py).
+    "attachments_too_many",
+    "attachment_type_unsupported",
+    "attachment_unreadable",
+    "attachment_refused",
+    "invalid_attachment",
 }
 
 _OPERATIONS = {

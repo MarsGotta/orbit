@@ -96,6 +96,8 @@ TOOL_NAMES = (
     "orbit_files_list",
     "orbit_files_search",
     "orbit_files_read",
+    # A file the user attached to a message.
+    "orbit_attachment",
 )
 
 CONFIG_TEMPLATE = """\

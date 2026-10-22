@@ -15,7 +15,7 @@ from orbit_hub.bridge_route import IN_FLIGHT as IN_FLIGHT_OUTCOME
 from orbit_hub.bridge_route import PATH as BRIDGE_PATH
 from orbit_hub.bridge_route import PROTOCOL as BRIDGE_PROTOCOL
 from orbit_hub.log import current_op, get_logger, new_op
-from orbit_hub.meetings_bridge import LIST_PATH, NOTE_PATH, TRANSCRIPT_PATH
+from orbit_hub.meetings_bridge import ATTACHMENT_PATH, LIST_PATH, NOTE_PATH, TRANSCRIPT_PATH
 from orbit_hub.meetings_bridge import PROTOCOL as MEETINGS_PROTOCOL
 from orbit_hub.private_auth import canonical, sign_request
 
@@ -504,6 +504,28 @@ class HubClient:
             or not isinstance(payload.get("state"), str)
             or not isinstance(payload.get("private_notes"), str)
             or not isinstance(payload.get("edited"), dict)
+        ):
+            raise HubClientError("invalid_response")
+        return payload
+
+    async def attachment(self, device_id: str, attachment_id: str, after_index: int = 0) -> dict:
+        """One file the user attached: an image whole, text from `after_index`."""
+        request = {"device_id": device_id, "attachment_id": attachment_id}
+        if after_index:
+            request["after_index"] = after_index
+        payload = await self._meetings_call(ATTACHMENT_PATH, request, device_id)
+        attachment = payload.get("attachment")
+        if not isinstance(attachment, dict) or not all(
+            isinstance(attachment.get(key), str) for key in ("id", "name", "kind", "mime")
+        ):
+            raise HubClientError("invalid_response")
+        if attachment["kind"] == "image":
+            if not isinstance(payload.get("data_base64"), str):
+                raise HubClientError("invalid_response")
+        elif (
+            not isinstance(payload.get("text"), str)
+            or payload.get("after_index") != after_index
+            or type(payload.get("total_chars")) is not int
         ):
             raise HubClientError("invalid_response")
         return payload

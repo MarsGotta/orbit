@@ -97,6 +97,7 @@ async fn chat_send_declares_an_active_call() -> Result<()> {
 
     runtime
         .command(Command::Chat {
+            attachments: Vec::new(),
             text: "pregunta durante la llamada".into(),
         })
         .await?;
@@ -119,6 +120,7 @@ async fn chat_turn_messages_carry_increasing_at_ms() -> Result<()> {
 
     runtime
         .command(Command::Chat {
+            attachments: Vec::new(),
             text: "pregunta sintética".into(),
         })
         .await?;

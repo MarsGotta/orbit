@@ -19,6 +19,7 @@ from .assistant.backend import (
     ClarificationRequested,
     ConnectionLost,
     HistoryLoaded,
+    ImageBlock,
     MessageChunk,
     MessageComplete,
     PermissionRequest,
@@ -33,6 +34,7 @@ from .assistant.backend import (
     UnreadableReceipt,
     UnreadableUpdate,
 )
+from .attachments import Stored, turn_parts
 from .errors import render
 from .interactions import pending_data, public_receipt
 from .log import current_op, in_store, logger, report
@@ -730,6 +732,10 @@ class DeviceRuntime:
         return self.store.session(self.device, session_id), resumed.loading_history
 
     def log_chat_rejection(self, code, numbers=None):
+        # A file's name is the user's words: the refusal carries it to the
+        # Mac, never to the log.
+        if numbers and "name" in numbers:
+            numbers = {key: value for key, value in numbers.items() if key != "name"}
         logger.info(
             "chat_send_rejected",
             extra={
@@ -931,6 +937,7 @@ class DeviceRuntime:
             kind="voice" if params.voice is not None else "text",
             duration_ms=params.voice.duration_ms if params.voice is not None else None,
             client_id=params.client_id,
+            attachments=params.attachments,
         )
         if state is not TurnState.IDLE:
             # completed/failed first return to idle; the table has no
@@ -971,6 +978,17 @@ class DeviceRuntime:
         same session while hydration is pending; controls can still answer.
         """
         meeting = await self._meeting_turn(params) if params.meeting is not None else None
+        # The files the turn names, refused before anything reaches an agent
+        # when one is not this device's, was sent already, or crosses a ceiling.
+        attached: list[Stored] = (
+            await self._run_store(
+                lambda: self.store.attachments.admit(
+                    self.device, params.session_id, params.attachments
+                )
+            )
+            if params.attachments
+            else []
+        )
         async with self.lock:
             if not self.store.is_active(self.device):
                 raise HubError("revoked", "Dispositivo revocado")
@@ -1062,8 +1080,10 @@ class DeviceRuntime:
             finally:
                 self.resume_pending.discard(session_id)
                 self.resume_deadline = None
+        # A failure here fails the turn itself: nothing reached the agent.
+        blocks = await self._turn_blocks(session_id, agent_id, upstream_text, attached)
         try:
-            await connection.prompt(binding["runtime_id"], (TextBlock(upstream_text),))
+            await connection.prompt(binding["runtime_id"], blocks)
         except HubError as exc:
             # The submit may have reached Hermes; never resend it. A terminal
             # event observed during the RPC keeps its more authoritative state.
@@ -1071,6 +1091,11 @@ class DeviceRuntime:
                 if exc.code == "session_runtime_not_found":
                     connection.live_sessions.discard(binding["runtime_id"])
                     self.resumed_message_counts.pop((agent_id, binding["runtime_id"]), None)
+                    self.store.status(session_id, TurnState.FAILED.value)
+                    await self.changed()
+                elif exc.code == "attachment_refused":
+                    # The agent refused a file before the prompt went: the
+                    # turn never started, and its staged images were taken back.
                     self.store.status(session_id, TurnState.FAILED.value)
                     await self.changed()
                 else:
@@ -1083,6 +1108,34 @@ class DeviceRuntime:
             # forbidden hop back, and this reply must not claim it either.
             status = self.turn_state(session_id).value
         return "chat.session", {"session_id": session_id, "status": status}
+
+    async def _turn_blocks(
+        self, session_id: str, agent_id: str, text: str, attached: list[Stored]
+    ) -> tuple:
+        """The turn's content: its text, what it says of its files and the
+        images that go with it (`attachments.turn_parts`, off the loop)."""
+        if not attached:
+            return (TextBlock(text),)
+        images = self.agents.get(agent_id).backend.capabilities.images
+        try:
+            said, carried = await asyncio.to_thread(turn_parts, attached, images)
+        except Exception as exc:
+            report(event="attachment_render_failed", code="attachment_unreadable")
+            async with self.lock:
+                self.store.status(session_id, TurnState.FAILED.value)
+                await self.changed()
+            raise HubError(
+                "attachment_unreadable",
+                "No se pudieron preparar los adjuntos del mensaje para el agente; no se envió",
+                numbers={"cause": "render_failed"},
+            ) from exc
+        return (
+            TextBlock(f"{text}\n\n{said}"),
+            *(
+                ImageBlock(image.attachment_id, image.name, image.mime, image.data)
+                for image in carried
+            ),
+        )
 
     async def revoke(self) -> None:
         """Stop this device's live sessions even when it has no connected viewers.

@@ -88,8 +88,11 @@ function presentNotice(notice: Notice, assistantName?: string): Presented {
     return failure(op, { op, code: token(notice.code), class: "failed", source: "ui", data });
   }
   if (entry.class === "silent") return { op, class: "silent", text: "", report: null };
-  if (entry.class === "failed") return failure(op, null);
   const data = notice.data ?? {};
+  if (entry.class === "failed") {
+    const result = failure(op, null);
+    return { ...result, text: entry.text?.(data) ?? result.text };
+  }
   return { op, class: entry.class, text: entry.text(data), action: entry.action, report: null };
 }
 

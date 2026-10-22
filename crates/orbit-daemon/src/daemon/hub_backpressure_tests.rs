@@ -42,6 +42,7 @@ async fn privacy_stop_keeps_its_notice_with_a_pending_bridge_request() -> Result
     let (mut runtime, _) = fixture(directory.path())?;
     logging(&mut runtime, directory.path());
     runtime.conversation.bridge_request = Some(BridgeAsk {
+        for_attachment: false,
         id: "pending-during-stop".into(),
         capability: orbit_core::device_bridge::Capability::ScreenSources,
         application: None,
@@ -87,6 +88,7 @@ async fn privacy_stop_queues_refusal_before_retiring_hub() -> Result<()> {
         crate::daemon::authority_fixture::set(&mut runtime.state, "connection", fixture_value);
     }
     runtime.conversation.bridge_request = Some(BridgeAsk {
+        for_attachment: false,
         id: "pending-during-stop".into(),
         capability: orbit_core::device_bridge::Capability::ScreenSources,
         application: None,
@@ -130,6 +132,7 @@ async fn privacy_stop_orders_native_cut_before_hub_refusal() -> Result<()> {
     let (sender, mut hub_frames) = mpsc::channel(2);
     runtime.hub.install(sender);
     runtime.conversation.bridge_request = Some(BridgeAsk {
+        for_attachment: false,
         id: "cut-before-refusal".into(),
         capability: orbit_core::device_bridge::Capability::ScreenSources,
         application: None,
@@ -263,6 +266,7 @@ async fn action_receipt_is_reported_only_after_queue_admission() -> Result<()> {
     sender.try_send(json!({"fixture":"occupied"}))?;
     runtime.hub.install(sender);
     let ask = BridgeAsk {
+        for_attachment: false,
         id: "remote-action".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
         application: None,
@@ -332,6 +336,7 @@ async fn bridge_release_reports_full_and_retired_link() -> Result<()> {
     let (mut runtime, _) = fixture(directory.path())?;
     logging(&mut runtime, directory.path());
     let ask = BridgeAsk {
+        for_attachment: false,
         id: "release-fixture".into(),
         capability: orbit_core::device_bridge::Capability::ScreenSources,
         application: None,
@@ -377,6 +382,7 @@ async fn engine_windows_reply_reports_full_and_retired_link() -> Result<()> {
     let (mut runtime, _) = fixture(directory.path())?;
     logging(&mut runtime, directory.path());
     let ask = BridgeAsk {
+        for_attachment: false,
         id: "engine-windows".into(),
         capability: orbit_core::device_bridge::Capability::ScreenSources,
         application: None,
@@ -428,6 +434,7 @@ async fn helper_windows_reply_reports_full_and_retired_link() -> Result<()> {
     let (mut runtime, _) = fixture(directory.path())?;
     logging(&mut runtime, directory.path());
     let ask = BridgeAsk {
+        for_attachment: false,
         id: "helper-windows".into(),
         capability: orbit_core::device_bridge::Capability::ScreenSources,
         application: None,

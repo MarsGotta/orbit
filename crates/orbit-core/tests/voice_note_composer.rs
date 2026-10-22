@@ -136,6 +136,7 @@ fn a_short_note_is_kept_for_the_composer_with_its_numbers_until_the_next_note() 
     let typed = decide(
         &refused,
         Event::Submit {
+            attachments: Vec::new(),
             id: "typed".into(),
             text: "Hola".into(),
         },

@@ -10,9 +10,12 @@ where it is and never read; so is ``deimos_meeting_notifications``, from the
 notice Deimos got when a transcript finished, retired on 2026-10-15.
 """
 
+import base64
 import json
 from time import monotonic
 
+from ..attachments import KIND_IMAGE, KIND_PDF, pdf_text
+from ..errors import HubError
 from ..meetings import repository as meetings
 from ..meetings import turns, views
 from ..meetings.note_state import progress
@@ -21,11 +24,13 @@ from ..notes import NoteRepository
 from ..private_auth import Authenticator, read_key
 from ..transcription_failure import durable_details
 from .models import (
+    ATTACHMENT_PATH,
     HEADER_PREFIX,
     LIST_PATH,
     NOTE_PATH,
     PROTOCOL,
     TRANSCRIPT_PATH,
+    AttachmentRequest,
     ListRequest,
     MeetingsBridgeConfiguration,
     MeetingsBridgeError,
@@ -60,7 +65,7 @@ class MeetingsBridgeService:
             if configuration is not None
             else None
         )
-        self.list_auth = self.transcript_auth = self.note_auth = None
+        self.list_auth = self.transcript_auth = self.note_auth = self.attachment_auth = None
         # Read only: the notes worker writes them. Created here too so that a
         # bridge read never meets a missing table on a hub that has none yet.
         self.notes = NoteRepository(store)
@@ -80,9 +85,49 @@ class MeetingsBridgeService:
         self.list_auth = Authenticator(path=LIST_PATH, **common)
         self.transcript_auth = Authenticator(path=TRANSCRIPT_PATH, **common)
         self.note_auth = Authenticator(path=NOTE_PATH, **common)
+        self.attachment_auth = Authenticator(path=ATTACHMENT_PATH, **common)
 
     def close(self) -> None:
-        self.list_auth = self.transcript_auth = self.note_auth = None
+        self.list_auth = self.transcript_auth = self.note_auth = self.attachment_auth = None
+
+    def attachment(self, headers, body: bytes) -> dict:
+        """One file the user attached, as `orbit_attachment` hands it to the agent:
+        an image whole, the text of a PDF or a text file a page at a time."""
+        if self.attachment_auth is None:
+            raise MeetingsBridgeError(503, "unavailable")
+        self.attachment_auth.admit(headers, body, int(self.now() * 1000), monotonic())
+        try:
+            request = AttachmentRequest.model_validate_json(body)
+        except (ValueError, TypeError, UnicodeError, RecursionError):
+            raise MeetingsBridgeError(400, "invalid_request") from None
+        try:
+            stored = self.store.attachments.read(request.device_id, request.attachment_id)
+        except HubError as exc:
+            raise MeetingsBridgeError(404, exc.code, exc.numbers) from None
+        answer = {"attachment": stored.public()}
+        if stored.kind == KIND_IMAGE:
+            answer["data_base64"] = base64.b64encode(stored.body).decode()
+            return answer
+        text = (
+            pdf_text(stored.page_texts or ())
+            if stored.kind == KIND_PDF
+            else stored.body.decode("utf-8")
+        )
+        if request.after_index > len(text):
+            raise MeetingsBridgeError(
+                400,
+                "after_index_out_of_range",
+                {"after_index": request.after_index, "total_chars": len(text)},
+            )
+        page = cut(text[request.after_index :])
+        end = request.after_index + len(page)
+        answer.update(
+            text=page,
+            after_index=request.after_index,
+            next_after_index=end if end < len(text) else None,
+            total_chars=len(text),
+        )
+        return answer
 
     def list_meetings(self, headers, body: bytes) -> dict:
         """Newest first by start, the open ones included, `limit` at a time.

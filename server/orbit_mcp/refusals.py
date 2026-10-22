@@ -33,6 +33,7 @@ ERROR_MESSAGES = {
     "protocol_version": "La versión del protocolo recibida no coincide con la requerida.",
     "hub_reply_invalid": "La respuesta del hub no cumple el contrato; no se usa como una lista vacía.",
     "daemon_reply_invalid": "La respuesta del servicio de Orbit no cumple el contrato; no se usa como una lista vacía.",
+    "attachment": "Un adjunto del mensaje no se pudo usar; el mensaje de error dice qué fichero, por qué y con qué números.",
     "calendar_read_limit": "El helper no pudo entregar una lectura de calendario dentro de los límites indicados; nada se recortó.",
     "capture_clock_unavailable": "El helper no pudo comprobar el reloj de la captura. No se entregó ninguna lectura; vuelve a pedirla.",
     "invalid_screenshot_dimensions": "La captura tiene dimensiones no válidas; no se entregó. Vuelve a pedirla si sigue haciendo falta.",
@@ -134,6 +135,7 @@ ERROR_MESSAGES = {
     "note_generating": "El modelo está escribiendo ahora la nota de esa grabación; todavía no hay nota que leer. Vuelve a pedirla en un par de minutos.",
     "note_queued": "La nota de esa grabación falló por una causa pasajera y el hub la volverá a intentar solo; todavía no hay nota que leer.",
     "note_failed": "La nota de esa grabación no se pudo escribir y el hub no lo volverá a intentar solo. Se puede pedir otra vez desde la nota en Orbit cuando la causa esté resuelta.",
+    "attachment_not_found": "Ese adjunto no está en el hub para ese Mac. Usa el id que da el mensaje que lo adjuntó.",
     "after_index_out_of_range": "after_index pasa del final del texto pedido; empieza de nuevo sin after_index o con uno menor.",
     # Orbit no longer keeps a copy of the agenda anywhere, so every code
     # that described one is gone with it. What is left are the conditions that

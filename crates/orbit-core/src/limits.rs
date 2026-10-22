@@ -69,6 +69,13 @@ pub const CAPTURE_UPLOAD_TIMEOUT_SECONDS: u64 = 20;
 // The playback decoder accepts at most 4 MiB of compressed audio; measured
 // base64 expansion is 5,592,408 bytes. This bounds decoded audio, not a line.
 pub const MAX_SPEECH_CLIP_BYTES: usize = 4 * 1024 * 1024;
+// One attached file, the hub's `MAX_ATTACHMENT_BYTES`. What it
+// protects on the Mac: the daemon's memory, since it reads a file whole by its
+// path before uploading it and holds one whole when the chat's viewer asks
+// for it. The hub refuses past it too; this copy lets the Mac refuse before
+// reading. Why 20 MiB, and what it does not limit, is written in
+// server/orbit_hub/attachments.py.
+pub const MAX_ATTACHMENT_BYTES: usize = 20 * 1024 * 1024;
 // A 160 KiB inventory leaves 2 KiB for the JSON envelope after bounded rows.
 // It protects one window listing, not the image captured from a window.
 pub const MAX_WINDOW_INVENTORY_BYTES: usize = 160 * 1024;

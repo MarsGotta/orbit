@@ -152,6 +152,7 @@ async fn other_revocation_answers_remote_action_with_its_cause() -> Result<()> {
     let (sender, mut frames) = mpsc::channel(4);
     h.runtime.hub.install(sender);
     h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
+        for_attachment: false,
         id: "remote-revocation".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
         application: None,
@@ -190,6 +191,7 @@ async fn computer_retirement_keeps_non_control_bridge_requests() -> Result<()> {
         let (sender, mut frames) = mpsc::channel(4);
         h.runtime.hub.install(sender);
         h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
+            for_attachment: false,
             id: "unrelated-reading".into(),
             capability,
             application: None,
@@ -237,6 +239,7 @@ async fn each_authority_revocation_answers_deimos_with_its_cause() -> Result<()>
         let (sender, mut frames) = mpsc::channel(4);
         h.runtime.hub.install(sender);
         h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
+            for_attachment: false,
             id: "authority-change".into(),
             capability: orbit_core::device_bridge::Capability::PerformAction,
             application: None,
@@ -281,6 +284,7 @@ async fn engine_refusal_reports_full_and_retired_hub() -> Result<()> {
     let logs = tempfile::tempdir()?;
     said::trace(&mut h.runtime, logs.path());
     let ask = super::super::BridgeAsk {
+        for_attachment: false,
         id: "engine-refusal".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
         application: None,
@@ -851,6 +855,7 @@ async fn real_engine_failure_handler_never_replies_with_system_text() -> Result<
     let (sender, mut hub) = mpsc::channel(16);
     h.runtime.hub.install(sender);
     h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
+        for_attachment: false,
         id: "engine-error".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
         application: None,
@@ -891,6 +896,7 @@ async fn failed_active_action_replies_with_uncertain_outcome() -> Result<()> {
         h.runtime.upsert_control_history(entry.clone())?;
         h.runtime.features.computer.active_general = Some(entry);
         h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
+            for_attachment: false,
             id: "11111111-1111-4111-8111-111111111111".into(),
             capability: orbit_core::device_bridge::Capability::PerformAction,
             application: None,
@@ -959,6 +965,7 @@ async fn an_engine_failure_leaves_its_cause_and_a_report_line() -> Result<()> {
         arguments: json!({"pid": 11, "window_id": 22, "query": ENORMOUS_TREE}),
     };
     h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
+        for_attachment: false,
         id: "whole-window-read".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
         application: None,

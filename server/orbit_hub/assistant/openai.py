@@ -86,6 +86,7 @@ from .backend import (
     ClarificationReceipt,
     ContentBlock,
     EventSink,
+    ImageBlock,
     MessageChunk,
     MessageComplete,
     OpenedSession,
@@ -93,6 +94,7 @@ from .backend import (
     ResumedSession,
     StatusNotice,
     StoredConversation,
+    TextBlock,
     TurnFailed,
 )
 from .skills import Skill
@@ -205,7 +207,10 @@ class OpenAIAgentSettings:
     api_key_file: Path | None
     # orbit-mcp's own TOML (`ORBIT_MCP_CONFIG`).
     orbit_mcp_config: Path
-    # The model accepts images: screenshots from Orbit's tools reach it as such.
+    # The model accepts images: the images attached to a turn and screenshots
+    # from Orbit's tools reach it as such. False by default, because not every
+    # OpenAI-compatible server or model takes them; without it the turn names
+    # each image for `orbit_attachment` and a screenshot is described in words.
     images: bool
     speech: SpeechSettings | None
 
@@ -342,6 +347,36 @@ def _leaf(error: BaseException) -> BaseException:
     while isinstance(error, BaseExceptionGroup) and error.exceptions:
         error = error.exceptions[0]
     return error
+
+
+# What a provider answers to a request whose image it cannot take: OpenAI's
+# `invalid_image` is a 400, a gateway's body ceiling a 413, a server without
+# vision 400, 415 or 422. Other statuses keep their own causes.
+_IMAGE_REFUSAL_STATUSES = {400, 413, 415, 422}
+
+
+def image_refusal(
+    error: BaseException, settings: OpenAIAgentSettings, images: Sequence[ImageBlock]
+) -> HubError | None:
+    """`attachment_refused` when the provider refused the turn's first request,
+    which carried `images`, for a cause that is not the key, a rate limit or
+    the context; None for any other failure."""
+    error = _leaf(error)
+    if not images or not isinstance(error, ModelHTTPError):
+        return None
+    if error.status_code not in _IMAGE_REFUSAL_STATUSES or _CONTEXT_WORDS.search(str(error.body)):
+        return None
+    names = ", ".join(f"«{image.name}»" for image in images)
+    what = f"la imagen {names}" if len(images) == 1 else f"las imágenes del mensaje ({names})"
+    return HubError(
+        "attachment_refused",
+        f"El proveedor del asistente ({provider_url(settings)}) no aceptó {what} "
+        f"(HTTP {error.status_code}); el modelo no leyó el mensaje",
+        numbers={
+            "name": ", ".join(image.name for image in images),
+            "provider_status": error.status_code,
+        },
+    )
 
 
 def describe_failure(
@@ -766,15 +801,43 @@ class OpenAIConnection:
         session = self._session(session_id)
         if session.turn is not None and not session.turn.done():
             raise HubError("session_busy", "Espera o interrumpe el turno en curso")
-        text = "".join(block.text for block in blocks)
-        session.turn = asyncio.create_task(self._turn(session_id, session, text))
+        text = "".join(block.text for block in blocks if isinstance(block, TextBlock))
+        # The runtime sends images only when `capabilities.images` says so.
+        images = [block for block in blocks if isinstance(block, ImageBlock)]
+        session.turn = asyncio.create_task(self._turn(session_id, session, text, images))
 
-    async def _turn(self, session_id: str, session: _Session, text: str) -> None:
+    async def _turn(
+        self, session_id: str, session: _Session, text: str, images: list[ImageBlock]
+    ) -> None:
         clear_op()
         chunks: list[str] = []
         separate = False
         history_chars = 0
         work = _Work(session_id, self.on_event)
+        # The user prompt: the text, then each image whole. What the
+        # conversation keeps of it is `said`: the text and a line naming each
+        # image's attachment, so a later turn never sends its bytes again.
+        prompt: str | list[str | BinaryContent] = text
+        said = text
+        if images:
+            prompt = [
+                text,
+                *(BinaryContent(data=image.data, media_type=image.mime) for image in images),
+            ]
+            said = "\n".join(
+                [
+                    text,
+                    *(
+                        f"[Orbit · la imagen «{image.name}» (adjunto {image.attachment_id}) iba "
+                        "en este mensaje y no se vuelve a enviar; para verla otra vez, "
+                        "orbit_attachment con ese id]"
+                        for image in images
+                    ),
+                ]
+            )
+        # Whether the provider answered anything: only its first answer can be
+        # a refusal of the turn's images.
+        answered = False
         try:
             history, history_chars = session.history()
             if session.left_out:
@@ -795,7 +858,7 @@ class OpenAIConnection:
             if current.skills:
                 toolsets.append(skill_toolset(current.skills))
             async with self.backend.agent_loop.run_stream_events(
-                text,
+                prompt,
                 message_history=history,
                 instructions=turn_instructions(current),
                 toolsets=toolsets,
@@ -803,6 +866,9 @@ class OpenAIConnection:
             ) as events:
                 async for event in events:
                     piece = ""
+                    answered = answered or isinstance(
+                        event, PartStartEvent | PartDeltaEvent | FunctionToolCallEvent
+                    )
                     await work.on(event)
                     if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
                         piece = event.part.content
@@ -822,24 +888,28 @@ class OpenAIConnection:
                         await self.on_event(MessageChunk(session_id, piece))
             await work.end_thought()
             answer = "".join(chunks) or output
-            session.held += [("user", text), ("assistant", answer)]
+            session.held += [("user", said), ("assistant", answer)]
             await self.on_event(MessageComplete(session_id, answer, "completed"))
         except asyncio.CancelledError:
             if self._closing:
                 raise
             await work.end_thought()
             answer = "".join(chunks)
-            session.held.append(("user", text))
+            session.held.append(("user", said))
             if answer:
                 session.held.append(("assistant", answer))
             await self.on_event(MessageComplete(session_id, answer, "interrupted"))
         except Exception as exc:  # noqa: BLE001 - every failure ends the turn with its cause
-            failure = describe_failure(exc, self.backend.settings, history_chars)
+            refused = None if answered else image_refusal(exc, self.backend.settings, images)
+            failure = refused or describe_failure(exc, self.backend.settings, history_chars)
             report(
                 event="assistant_turn_failed", code=failure.code, device=self.device, exc_info=False
             )
             await work.end_thought()
-            session.held.append(("user", text))
+            # Kept for the next turn unless its image was refused: then the
+            # model never read it, as Hermes never receives such a prompt.
+            if refused is None:
+                session.held.append(("user", said))
             await self.on_event(
                 TurnFailed(session_id, failure.code, failure.message, failure.numbers)
             )
@@ -904,11 +974,14 @@ class OpenAIBackend:
         self.agent, self.settings = agent, agent.settings
         # The personality and enabled skills the hub keeps for this agent.
         self.instructions = instructions
-        # Images: no turn carries one (`TextBlock` only); screenshots from the
-        # tools reach the model as images when `settings.images` says it reads them.
-        # History: the hub's own (see the module). Voice: read-aloud configured.
+        # Images: the turn's own and the tools' screenshots, when
+        # `settings.images` says the model reads them. History: the hub's own
+        # (see the module). Voice: read-aloud configured.
         self.capabilities = Capabilities(
-            images=False, resume=True, history=False, voice=self.settings.speech is not None
+            images=self.settings.images,
+            resume=True,
+            history=False,
+            voice=self.settings.speech is not None,
         )
         self.agent_loop = Agent(
             model, instructions=INSTRUCTIONS.format(name=agent.name), output_type=str

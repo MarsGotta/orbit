@@ -402,6 +402,7 @@ def create_app(
     mount_meetings_bridge(app, meetings_bridge, lambda scope: allowed_transport(scope, settings))
 
     from .routes import agents as agent_routes
+    from .routes import attachments as attachment_routes
     from .routes import audio, health, recordings, session
     from .routes import captures as capture_routes
     from .ws import mount as mount_ws
@@ -409,6 +410,7 @@ def create_app(
     session.mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_executor)
     health.mount(app, settings)
     agent_routes.mount(app, settings, agents, configs, identity, bounded_body)
+    attachment_routes.mount(app, store, identity, bounded_body, store_executor, now, captures)
     audio.mount(
         app,
         store,

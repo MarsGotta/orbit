@@ -824,6 +824,7 @@ async fn turn_frames_without_session_id_do_not_change_selected_session() -> Resu
         runtime.hub.install(hub);
         runtime
             .apply(Event::Submit {
+                attachments: Vec::new(),
                 id: "active-request".into(),
                 text: "SYNTHETIC QUESTION".into(),
             })
@@ -856,6 +857,7 @@ async fn unrelated_error_ids_cannot_finish_the_active_request() -> Result<()> {
     runtime.hub.install(hub);
     runtime
         .apply(Event::Submit {
+            attachments: Vec::new(),
             id: "active-request".into(),
             text: "SYNTHETIC QUESTION".into(),
         })

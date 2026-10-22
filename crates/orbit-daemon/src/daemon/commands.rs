@@ -241,14 +241,29 @@ impl Runtime {
                 .await?
             }
             Command::MeetingQuestionClose { id } => self.close_meeting_question(&id),
-            Command::Chat { text } => {
+            Command::Chat { text, attachments } => {
                 if self.capture.buffer.voice.is_some()
                     || self.conversation.voice_task.active().is_some()
                 {
                     bail!("Termina o interrumpe el turno actual antes de enviar otro mensaje");
                 }
-                self.apply(Event::Submit { id: id(), text }).await?;
+                // The message's files against the hub's ceilings, before any
+                // frame leaves; a 0.9.0 hub takes none.
+                orbit_core::attachments::admit_message(
+                    self.conversation.hub_attachments.as_ref(),
+                    &attachments,
+                )?;
+                self.apply(Event::Submit {
+                    id: id(),
+                    text,
+                    attachments,
+                })
+                .await?;
             }
+            // Served off the loop by `serve_attachment`, never here.
+            Command::AttachmentAdd { .. }
+            | Command::AttachmentFetch { .. }
+            | Command::AttachmentSave { .. } => {}
             Command::NewSession { agent_id } => {
                 self.ensure_known_agent(agent_id.as_deref())?;
                 self.ensure_conversation_can_change()?;

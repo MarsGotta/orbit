@@ -54,7 +54,7 @@ TWO_AGENTS = (
     {"id": "deimos", "name": "Deimos", "kind": "hermes", "profile": "deimos-profile"},
     {"id": "lyra", "name": "Lyra", "kind": "hermes", "profile": "lyra-profile"},
 )
-HERMES_CAPABILITIES = ["voice", "resume"]
+HERMES_CAPABILITIES = ["images", "voice", "resume"]
 
 
 class SyntheticHermes:
@@ -67,6 +67,9 @@ class SyntheticHermes:
         self.connections = itertools.count(1)
         self.numbers = itertools.count(1)
         self.profiles: dict[str, str] = {}
+        # Hermes's code for every `image.attach_bytes` (4018: over its
+        # 25 MiB); None stages each image as tui_gateway does.
+        self.image_refusal: int | None = None
         self.server = serve(self.handle, "127.0.0.1", 0)
         self.port = self.server.socket.getsockname()[1]
         self.closing = False
@@ -123,7 +126,24 @@ class SyntheticHermes:
             method, params = request["method"], request["params"]
             self.calls.append((connection, method, params))
             number = next(self.numbers)
-            if method == "session.create":
+            if method == "image.attach_bytes" and self.image_refusal is not None:
+                ws.send(
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": request["id"],
+                            "error": {"code": self.image_refusal, "message": "image refused"},
+                        }
+                    )
+                )
+                continue
+            if method == "image.attach_bytes":
+                # tui_gateway's reply: the image is queued for the next turn.
+                staged = f"/synthetic/images/upload_{number}.{params['ext']}"
+                result = {"attached": True, "path": staged, "count": 1, "remainder": ""}
+            elif method == "image.detach":
+                result = {"detached": True, "count": 0}
+            elif method == "session.create":
                 live = f"{params['profile']}-live-{number}"
                 self.profiles[live] = params["profile"]
                 result = {"session_id": live, "stored_session_id": f"{params['profile']}-stored"}

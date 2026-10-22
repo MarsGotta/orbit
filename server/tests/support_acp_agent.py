@@ -20,6 +20,8 @@ out; `--exit-before-initialize` exits at once; `--no-load` declares no
 """
 
 import asyncio
+import base64
+import hashlib
 import json
 import os
 import sys
@@ -30,6 +32,7 @@ from acp.schema import (
     LoadSessionResponse,
     NewSessionResponse,
     PermissionOption,
+    PromptCapabilities,
     PromptResponse,
     ToolCallUpdate,
 )
@@ -58,10 +61,11 @@ def instructions_in(folder):
 
 
 class InventedAgent:
-    def __init__(self, record_path, *, auth_required, load):
+    def __init__(self, record_path, *, auth_required, load, images=False):
         self.record_path = record_path
         self.auth_required = auth_required
         self.load = load
+        self.images = images
         self.client = None
         self.sessions = {}
         self.cancelled = {}
@@ -90,7 +94,10 @@ class InventedAgent:
         )
         return acp.InitializeResponse(
             protocol_version=1,
-            agent_capabilities=AgentCapabilities(load_session=self.load),
+            agent_capabilities=AgentCapabilities(
+                load_session=self.load,
+                prompt_capabilities=PromptCapabilities(image=self.images),
+            ),
             auth_methods=[],
         )
 
@@ -168,7 +175,15 @@ class InventedAgent:
 
     async def prompt(self, session_id, prompt, **_):
         text = "".join(block.text for block in prompt if block.type == "text")
-        self.record("session/prompt", session_id=session_id, text=text)
+        images = [
+            {
+                "mime_type": block.mime_type,
+                "sha256": hashlib.sha256(base64.b64decode(block.data)).hexdigest(),
+            }
+            for block in prompt
+            if block.type == "image"
+        ]
+        self.record("session/prompt", session_id=session_id, text=text, images=images)
         if "nota" in text:
             await self.refused(
                 "fs/read_text_file",
@@ -287,6 +302,7 @@ def main():
         record_path,
         auth_required="--auth-required" in arguments,
         load="--no-load" not in arguments,
+        images="--images" in arguments,
     )
     asyncio.run(acp.run_agent(agent))
 

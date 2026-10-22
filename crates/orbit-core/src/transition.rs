@@ -15,6 +15,8 @@ pub enum Event {
     Submit {
         id: String,
         text: String,
+        /// The files the hub already holds for this turn.
+        attachments: Vec<crate::attachments::Attachment>,
     },
     SubmitVoice {
         id: String,
@@ -113,8 +115,13 @@ pub enum Event {
     CalendarAuthorization(crate::calendar::CalendarAuthorization),
     HelperStopUndelivered,
     Tick,
-    /// A failed chat turn, carrying the hub code rather than its message.
-    Failure(String),
+    /// A failed chat turn, carrying the hub code rather than its message,
+    /// and the numbers of its refusal (a size and its ceiling, a count and
+    /// its ceiling) as notice tokens.
+    Failure {
+        code: String,
+        numbers: Vec<(NoticeKey, u64)>,
+    },
     Degraded(DegradedKind),
     /// The helper refused an `audio_start` for a non-stop reason (a missing
     /// permission, an application scope, etc.). The recording is moved to
@@ -150,6 +157,8 @@ pub enum Effect {
         text: String,
         voice: Option<crate::wire::hub::ChatVoice>,
         meeting: Option<crate::wire::hub::ChatMeeting>,
+        /// The hub's ids of the turn's files.
+        attachments: Vec<String>,
     },
     Interrupt,
     StartCapture {
@@ -257,9 +266,19 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
             next.durable.capabilities.calendar = Some(authorization);
         }
         Event::HelperStopUndelivered => next.durable.capabilities.native_helper = false,
-        Event::Submit { id, text } => {
-            decide_chat_submit(state, &mut next, &mut effects, id, text, now_ms)?
-        }
+        Event::Submit {
+            id,
+            text,
+            attachments,
+        } => decide_chat_submit(
+            state,
+            &mut next,
+            &mut effects,
+            id,
+            text,
+            attachments,
+            now_ms,
+        )?,
         Event::SubmitVoice {
             id,
             text,
@@ -306,17 +325,18 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
             authority_change = Some(AuthorityChange::Interrupt);
             decide_chat_interrupt(&mut next, &mut effects);
         }
-        Event::Failure(code) => {
+        Event::Failure { code, numbers } => {
             let notice = if code == "session_not_found" {
                 decide_new_session(&mut next);
                 NoticeCode::AssistantSessionNotFound
             } else {
                 NoticeCode::AssistantFailed
             };
-            decide_chat_failure(
-                &mut next,
+            let notice = numbers.into_iter().fold(
                 Notice::new(notice).with_token(NoticeKey::Code, &code),
+                |notice, (key, value)| notice.with_token(key, &value.to_string()),
             );
+            decide_chat_failure(&mut next, notice);
         }
         event @ (Event::StartMeeting { .. }
         | Event::CaptureStarted
@@ -458,6 +478,7 @@ fn decide_chat_submit(
     effects: &mut Vec<Effect>,
     id: String,
     text: String,
+    attachments: Vec<crate::attachments::Attachment>,
     now_ms: i64,
 ) -> Result<(), Refusal> {
     ensure_active(state)?;
@@ -472,7 +493,8 @@ fn decide_chat_submit(
     }
     let received_bytes = text.len();
     let text = text.trim().to_owned();
-    if text.is_empty() || text.len() > MAX_TEXT_BYTES {
+    // A file alone is a question too: only a turn without files needs text.
+    if (text.is_empty() && attachments.is_empty()) || text.len() > MAX_TEXT_BYTES {
         return Err(Refusal::InvalidParameter {
             parameter: crate::refusal::Parameter::Text,
             expected: crate::refusal::Expected::TextLength {
@@ -490,6 +512,7 @@ fn decide_chat_submit(
             complete: true,
             at_ms: observed_at_ms(now_ms),
             voice: None,
+            attachments: attachments.clone(),
         },
         answer: None,
     });
@@ -500,6 +523,10 @@ fn decide_chat_submit(
         text,
         voice: None,
         meeting: None,
+        attachments: attachments
+            .into_iter()
+            .map(|attachment| attachment.id)
+            .collect(),
     });
     Ok(())
 }
@@ -529,6 +556,7 @@ fn decide_voice_stored(
     }
     next.durable.turn = Some(Turn {
         user: Message {
+            attachments: Vec::new(),
             id,
             role: "user".into(),
             text: String::new(),
@@ -636,6 +664,7 @@ fn decide_voice_submit(
         None => {
             next.durable.turn = Some(Turn {
                 user: Message {
+                    attachments: Vec::new(),
                     id: id.clone(),
                     role: "user".into(),
                     text: text.clone(),
@@ -650,6 +679,7 @@ fn decide_voice_submit(
     next.durable.active_request = Some(id.clone());
     next.set_notice(NoticeCode::AssistantThinking);
     effects.push(Effect::SendText {
+        attachments: Vec::new(),
         id,
         text,
         voice: Some(crate::wire::hub::ChatVoice { duration_ms }),
@@ -678,6 +708,7 @@ fn decide_chat_delta(next: &mut State, request_id: String, text: String, now_ms:
     }
     let end = clamp_utf8(&text, MAX_TEXT_BYTES);
     turn.answer = Some(Message {
+        attachments: Vec::new(),
         id: format!("{request_id}:assistant"),
         role: "assistant".into(),
         text: text[..end].to_owned(),
@@ -707,6 +738,7 @@ fn decide_chat_completed(next: &mut State, request_id: String, text: Option<Stri
                 Some(answer) => answer.text = text,
                 None => {
                     turn.answer = Some(Message {
+                        attachments: Vec::new(),
                         id: format!("{request_id}:assistant"),
                         role: "assistant".into(),
                         text,
@@ -1540,6 +1572,7 @@ mod tests {
         let state = decide(
             &state,
             Event::Submit {
+                attachments: Vec::new(),
                 id: "a".into(),
                 text: "hola".into(),
             },
@@ -1605,6 +1638,7 @@ mod tests {
             decide(
                 &state,
                 Event::Submit {
+                    attachments: Vec::new(),
                     id: "a".into(),
                     text: "hola".into()
                 },
@@ -1630,6 +1664,7 @@ mod tests {
         let state = decide(
             &state,
             Event::Submit {
+                attachments: Vec::new(),
                 id: "a".into(),
                 text: "hola".into(),
             },
@@ -1704,6 +1739,7 @@ mod tests {
         let state = decide(
             &state,
             Event::Submit {
+                attachments: Vec::new(),
                 id: "a".into(),
                 text: "hola".into(),
             },
@@ -1753,6 +1789,7 @@ mod tests {
         let state = decide(
             &state,
             Event::Submit {
+                attachments: Vec::new(),
                 id: "a".into(),
                 text: "hola".into(),
             },
@@ -1815,6 +1852,7 @@ mod tests {
         let state = decide(
             &state,
             Event::Submit {
+                attachments: Vec::new(),
                 id: "a".into(),
                 text: "hola".into(),
             },
@@ -1868,6 +1906,7 @@ mod tests {
         let state = decide(
             &state,
             Event::Submit {
+                attachments: Vec::new(),
                 id: "a".into(),
                 text: "hola".into(),
             },
@@ -1912,6 +1951,7 @@ mod tests {
         let state = decide(
             &state,
             Event::Submit {
+                attachments: Vec::new(),
                 id: "a".into(),
                 text: "hola".into(),
             },
@@ -2136,6 +2176,7 @@ mod tests {
         let state = decide(
             &state,
             Event::Submit {
+                attachments: Vec::new(),
                 id: "a".into(),
                 text: "hola".into(),
             },

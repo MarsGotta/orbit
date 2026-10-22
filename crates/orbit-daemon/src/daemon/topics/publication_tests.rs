@@ -54,6 +54,7 @@ async fn event_sequence_preserves_frames_revisions_and_recomputation() -> anyhow
             3 => {
                 runtime.state.durable.turn = Some(Turn {
                     user: Message {
+                        attachments: Vec::new(),
                         id: "question".into(),
                         role: "user".into(),
                         text: "Prueba".into(),
@@ -62,6 +63,7 @@ async fn event_sequence_preserves_frames_revisions_and_recomputation() -> anyhow
                         voice: None,
                     },
                     answer: Some(Message {
+                        attachments: Vec::new(),
                         id: "answer".into(),
                         role: "assistant".into(),
                         text: "Respuesta".into(),
@@ -272,6 +274,7 @@ async fn decoded_chat_events_publish_their_facts_and_pong_keeps_the_revision() -
         runtime.state.durable.active_request = Some(REQUEST.into());
         runtime.state.durable.turn = Some(Turn {
             user: Message {
+                attachments: Vec::new(),
                 id: REQUEST.into(),
                 role: "user".into(),
                 text: "Pregunta".into(),

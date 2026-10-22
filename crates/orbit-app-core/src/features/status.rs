@@ -52,6 +52,11 @@ pub struct StatusSettingsView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub default_agent_id: Option<String>,
+    /// The connected hub's attachment ceilings; absent before its `ready`
+    /// and for a hub without attachments (0.9.0), when the composer offers none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub attachments: Option<orbit_core::attachments::AttachmentLimits>,
     pub hub: SettingsHubSnapshot,
     pub helper_connected: bool,
     pub calendars: CalendarSettingsSnapshot,
@@ -101,6 +106,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         system_timezone,
         system_timezone_error,
         settings: StatusSettingsView {
+            attachments: None,
             assistant_name: None,
             agents: Vec::new(),
             default_agent_id: None,
@@ -176,6 +182,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
                 view.settings.assistant_name = value.assistant_name.clone();
                 view.settings.agents = value.agents.clone();
                 view.settings.default_agent_id = value.default_agent_id.clone();
+                view.settings.attachments = value.attachments;
                 view.settings.error_reports = value.error_reports;
             }
             Knowledge::Unknown { why } => {

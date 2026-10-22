@@ -37,6 +37,7 @@ from .backend import (
     ContentBlock,
     EventSink,
     HistoryLoaded,
+    ImageBlock,
     MessageChunk,
     MessageComplete,
     OpenedSession,
@@ -47,6 +48,7 @@ from .backend import (
     RequestExpired,
     ResumedSession,
     StatusNotice,
+    TextBlock,
     TurnError,
     UnreadableReceipt,
     UnreadableUpdate,
@@ -63,6 +65,13 @@ RESUME_HISTORY_ERROR_PREFIX = "Could not reopen that session (its transcript cou
 # Hermes errors that end a turn before the agent ran, without a message.complete.
 TERMINAL_ERRORS = {'Context injection refused.', 'Turn cancelled before the agent was ready', 'Session no longer running before the agent was ready'}  # fmt: skip
 MAX_SPEECH_RESPONSE_BYTES = 6 * 1024 * 1024
+# What Hermes's `image.attach_bytes` refusals mean (tui_gateway/
+# prompt_attachments.py and methods_prompt.py, read 2026-10-22).
+HERMES_IMAGE_REFUSALS = {
+    4016: "no admite ese tipo de imagen",
+    4017: "no pudo decodificarla",
+    4018: "pasa de su techo de 25 MiB por imagen",
+}
 # Existing 180 s provider and 10 s connection budgets, shared with the
 # refusal's millisecond numbers. They bound one dictation call, not meeting
 # ASR, queue wait, or an automatic retry.
@@ -459,6 +468,11 @@ class HermesConnection:
             "session.resume",
             "session.status",
             "prompt.submit",
+            # A turn's images, queued on the session before its prompt.submit,
+            # and taken back when one of them is refused (tui_gateway's
+            # methods_prompt.py; the gateway stages and returns the path).
+            "image.attach_bytes",
+            "image.detach",
             "session.interrupt",
             "approval.respond",
             "clarify.respond",
@@ -477,7 +491,15 @@ class HermesConnection:
             if "error" in frame:
                 error = frame["error"] if isinstance(frame["error"], dict) else {}
                 code = error.get("code")
-                if method == "prompt.submit" and code == 4001:
+                if method == "image.attach_bytes" and code in {4016, 4017, 4018}:
+                    # 4016 an extension it does not take, 4017 bytes it cannot
+                    # decode, 4018 over its 25 MiB ceiling.
+                    raise HubError(
+                        "attachment_refused",
+                        f"Hermes no aceptó una imagen del mensaje (código {code})",
+                        numbers={"upstream_code": code},
+                    )
+                if method in {"prompt.submit", "image.attach_bytes"} and code == 4001:
                     self.live_sessions.discard(params.get("session_id"))
                     raise HubError(
                         "session_runtime_not_found",
@@ -617,9 +639,56 @@ class HermesConnection:
         )
 
     async def prompt(self, session_id: str, blocks: Sequence[ContentBlock]) -> None:
-        # Hermes takes a turn as one text; the hub sends it one text block.
-        text = "".join(block.text for block in blocks)
+        # Hermes takes a turn as one text, and its images queued on the
+        # session beforehand: `prompt.submit` takes them with the turn.
+        text = "".join(block.text for block in blocks if isinstance(block, TextBlock))
+        staged: list[str] = []
+        try:
+            for block in blocks:
+                if isinstance(block, ImageBlock):
+                    staged.append(await self.attach_image(session_id, block))
+        except HubError:
+            # One refused image: none of the turn's images stays queued for
+            # the next turn, and the prompt is not sent.
+            for path in staged:
+                with suppress(HubError):
+                    await self.rpc("image.detach", {"session_id": session_id, "path": path})
+            raise
         await self.rpc("prompt.submit", {"session_id": session_id, "text": text})
+
+    async def attach_image(self, session_id: str, block: ImageBlock) -> str:
+        """Queue one image on the session; the path Hermes staged it at."""
+        extension = block.mime.removeprefix("image/").replace("jpeg", "jpg")
+        encoded = base64.b64encode(block.data).decode()
+        try:
+            result = await self.rpc(
+                "image.attach_bytes",
+                {
+                    "session_id": session_id,
+                    "content_base64": f"data:{block.mime};base64,{encoded}",
+                    # The extension, not the name: Hermes takes a name's suffix
+                    # as the type, and «informe.pdf · página 3» would be refused.
+                    "ext": extension,
+                },
+            )
+        except HubError as exc:
+            if exc.code != "attachment_refused":
+                raise
+            code = (exc.numbers or {}).get("upstream_code")
+            cause = HERMES_IMAGE_REFUSALS.get(code, "la rechazó")
+            raise HubError(
+                "attachment_refused",
+                f"Hermes no aceptó la imagen «{block.name}» (código {code}): {cause}; "
+                "el mensaje no se envió",
+                numbers={"name": block.name, "upstream_code": code},
+            ) from exc
+        path = result.get("path")
+        if result.get("attached") is not True or not isinstance(path, str) or not path:
+            raise HubError(
+                "attachment_refused",
+                f"Hermes no confirmó la imagen «{block.name}»; el mensaje no se envió",
+            )
+        return path
 
     async def cancel(self, session_id: str) -> None:
         await self.rpc("session.interrupt", {"session_id": session_id})
@@ -680,8 +749,8 @@ class HermesConnection:
 class HermesBackend:
     """The assistant is the Hermes profile `profile`."""
 
-    # Images: Orbit's turns carry none (see `Capabilities.images`).
-    capabilities = Capabilities(images=False, resume=True, history=True, voice=True)
+    # Images go through `image.attach_bytes` before the prompt.
+    capabilities = Capabilities(images=True, resume=True, history=True, voice=True)
 
     def __init__(self, settings: Settings, profile: str):
         self.settings, self.profile = settings, profile

@@ -6,6 +6,7 @@ export type IconName =
   | "calendar"
   | "notes"
   | "assistant"
+  | "attach"
   | "search"
   | "settings"
   | "phone"
@@ -39,6 +40,9 @@ const paths: Record<IconName, ReactNode> = {
       <path d="M20.5 12a8.5 8.5 0 1 1-4.1-7.3" />
       <path d="M4.5 19.5l1.3-3.4M17 3v4M15 5h4" />
     </>
+  ),
+  attach: (
+    <path d="M20 11.5l-7.8 7.8a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8" />
   ),
   search: (
     <>

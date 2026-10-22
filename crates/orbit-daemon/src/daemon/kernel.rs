@@ -393,6 +393,7 @@ impl Runtime {
                 text,
                 voice,
                 meeting,
+                attachments,
             } => {
                 // The turn's id is the Mac's id for the user's message,
                 // kept in the hub's row so the app finds their turn by it.
@@ -404,6 +405,7 @@ impl Runtime {
                     voice,
                     meeting,
                     agent_id: self.turn_agent_id(),
+                    attachments,
                 })?;
                 self.send(hub::command(&id, "chat.send", params)?).await?
             }

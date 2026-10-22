@@ -1821,6 +1821,7 @@ async fn real_daemon_publishes_chat_deltas_and_resolves_pending_interactions()
     let admitted = client
         .send(AppCommand::Daemon(Box::new(
             orbit_core::protocol::Command::Chat {
+                attachments: Vec::new(),
                 text: "Prepárame la daily".into(),
             },
         )))
@@ -1887,6 +1888,7 @@ async fn real_daemon_publishes_chat_deltas_and_resolves_pending_interactions()
     client
         .send(AppCommand::Daemon(Box::new(
             orbit_core::protocol::Command::Chat {
+                attachments: Vec::new(),
                 text: "Actualiza la agenda".into(),
             },
         )))
@@ -1913,6 +1915,7 @@ async fn real_daemon_publishes_chat_deltas_and_resolves_pending_interactions()
     client
         .send(AppCommand::Daemon(Box::new(
             orbit_core::protocol::Command::Chat {
+                attachments: Vec::new(),
                 text: "Añade el bloque".into(),
             },
         )))

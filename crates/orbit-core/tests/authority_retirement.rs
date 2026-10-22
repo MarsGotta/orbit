@@ -216,6 +216,7 @@ fn explicit_conversation_events_clear_the_turn_and_pending_approval()
     let mut state = decide(&State::default(), Event::Session("before".into()), 0)?.state;
     state.durable.turn = Some(orbit_core::Turn {
         user: orbit_core::Message {
+            attachments: Vec::new(),
             id: "message".into(),
             role: "user".into(),
             text: "fixture".into(),

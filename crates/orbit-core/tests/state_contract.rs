@@ -12,6 +12,7 @@ fn state_with_new_fields() -> State {
     let mut state = State::default();
     state.durable.turn = Some(Turn {
         user: Message {
+            attachments: Vec::new(),
             id: "voice-turn".into(),
             role: "user".into(),
             text: "Nota de voz sintética".into(),
@@ -23,6 +24,7 @@ fn state_with_new_fields() -> State {
             }),
         },
         answer: Some(Message {
+            attachments: Vec::new(),
             id: "voice-turn:assistant".into(),
             role: "assistant".into(),
             text: "Respuesta sintética".into(),

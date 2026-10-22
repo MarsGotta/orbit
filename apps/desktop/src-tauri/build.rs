@@ -12,6 +12,9 @@ fn main() {
             "orbit_send",
             "orbit_panel_send",
             "orbit_report",
+            "orbit_attachment_add",
+            "orbit_attachment_content",
+            "orbit_attachment_open",
         ]));
     if let Err(error) = tauri_build::try_build(attributes) {
         // A build script reports by exiting: the message names the cause.

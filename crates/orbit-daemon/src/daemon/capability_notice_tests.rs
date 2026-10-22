@@ -407,6 +407,7 @@ async fn speech_refusal_reaches_the_assistant_topic_as_a_code() -> Result<()> {
     }
     runtime.state.durable.turn = Some(orbit_core::Turn {
         user: orbit_core::Message {
+            attachments: Vec::new(),
             id: "speech-refusal".into(),
             role: "user".into(),
             text: "Pregunta sintética".into(),
@@ -415,6 +416,7 @@ async fn speech_refusal_reaches_the_assistant_topic_as_a_code() -> Result<()> {
             voice: None,
         },
         answer: Some(orbit_core::Message {
+            attachments: Vec::new(),
             id: "speech-refusal:assistant".into(),
             role: "assistant".into(),
             text: "Respuesta sintética".into(),

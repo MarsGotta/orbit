@@ -119,6 +119,7 @@ mod tests {
 
     fn message(id: &str, role: &str, text: &str, complete: bool, at_ms: u64) -> Message {
         Message {
+            attachments: Vec::new(),
             id: id.into(),
             role: role.into(),
             text: text.into(),

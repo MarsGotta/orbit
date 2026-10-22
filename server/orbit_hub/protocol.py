@@ -91,7 +91,8 @@ class MeetingParams(StrictModel):
 
 
 class SendParams(StrictModel):
-    text: str = Field(min_length=1, max_length=32000)
+    # Empty only beside attachments: a file alone is a question too.
+    text: str = Field(max_length=32000)
     session_id: str | None = Field(default=None, max_length=80)
     call_active: bool = False
     # The Mac's id for the message, kept in the user's row so the Mac
@@ -104,6 +105,19 @@ class SendParams(StrictModel):
     # default. 80 bounds what `agent_not_found` echoes back, like the session
     # id: an id is at most 32, so a longer one is refused as not found.
     agent_id: str | None = Field(default=None, min_length=1, max_length=80)
+    # The ids of the files uploaded for this turn (`POST /v1/attachments`),
+    # in the order the user attached them. 64 bounds what the frame validates
+    # before the hub counts them; the ceiling the user hears, with its numbers,
+    # is `attachments.MAX_MESSAGE_ATTACHMENTS`. An id is a UUID.
+    attachments: list[str] = Field(default_factory=list, max_length=64)
+
+    @model_validator(mode="after")
+    def text_or_attachments(self):
+        if not self.text and not self.attachments:
+            raise ValueError("chat.send needs text or attachments")
+        if any(not 1 <= len(attachment) <= 80 for attachment in self.attachments):
+            raise ValueError("an attachment id has 1 to 80 characters")
+        return self
 
 
 class ApprovalParams(SessionParams):

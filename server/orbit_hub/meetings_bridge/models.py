@@ -15,6 +15,10 @@ PROTOCOL = "orbit_meetings_bridge_v1"
 LIST_PATH = "/internal/v1/meetings/list"
 TRANSCRIPT_PATH = "/internal/v1/meetings/transcript"
 NOTE_PATH = "/internal/v1/meetings/note"
+# The files the user attached to their turns, read by orbit-mcp's
+# `orbit_attachment` with the same key as the meetings: both are what the
+# user keeps on the hub, read for the agent that answers them.
+ATTACHMENT_PATH = "/internal/v1/attachments/read"
 HEADER_PREFIX = "x-orbit-meetings-"
 REQUEST_BYTES = 16 * 1024
 # The agent whose orbit-mcp asks (`ORBIT_MCP_AGENT`); none is the default agent.
@@ -43,3 +47,9 @@ class TranscriptRequest(PrivateModel):
     format: Literal["text", "segments"] = "text"
     after_index: int = Field(default=0, ge=0, le=2**31 - 1)
     agent_id: str | None = AGENT_ID
+
+
+class AttachmentRequest(PrivateModel):
+    device_id: str = Field(min_length=1, max_length=128)
+    attachment_id: str = Field(min_length=1, max_length=80)
+    after_index: int = Field(default=0, ge=0, le=2**31 - 1)
