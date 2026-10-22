@@ -13,6 +13,7 @@ import os
 import sqlite3
 import threading
 from dataclasses import replace
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -53,7 +54,7 @@ TWO_AGENTS = (
     {"id": "deimos", "name": "Deimos", "kind": "hermes", "profile": "deimos-profile"},
     {"id": "lyra", "name": "Lyra", "kind": "hermes", "profile": "lyra-profile"},
 )
-HERMES_CAPABILITIES = {"images": False, "voice": True, "resume": True}
+HERMES_CAPABILITIES = ["voice", "resume"]
 
 
 class SyntheticHermes:
@@ -355,6 +356,26 @@ def test_ready_lists_every_agent_and_names_the_default(environment):
     ]
 
 
+def test_ready_agents_have_the_shape_the_mac_decodes(environment):
+    """The Mac decodes `ready` with the types that write the shared fixture
+    (`contracts/fixtures/hub/events/ready.json`, from `crates/orbit-core`); an
+    agent entry of another shape makes it refuse the whole frame. Each side
+    once tested only its own shape, and they disagreed on `capabilities`."""
+    fixture = Path(__file__).resolve().parents[2] / "contracts/fixtures/hub/events/ready.json"
+    shared = json.loads(fixture.read_text(encoding="utf-8"))["data"]
+    settings, store, adapter = environment
+    settings = replace(settings, agents=TWO_AGENTS, default_agent="lyra")
+    paired = device(store)
+    with hub(settings, store, adapter) as http, socket(http, paired) as ws:
+        ready = ws.receive_json()["data"]
+    for agent in ready["agents"]:
+        assert set(agent) == set(shared["agents"][0])
+        assert all(isinstance(agent[key], str) for key in ("id", "name", "kind"))
+        assert isinstance(agent["capabilities"], list)
+        assert set(agent["capabilities"]) <= {"images", "voice", "resume"}
+    assert isinstance(ready["default_agent_id"], str)
+
+
 # Turns ---------------------------------------------------------------------
 
 
@@ -460,7 +481,7 @@ def test_an_unknown_agent_is_refused_with_the_agents_that_exist(
     assert refused["data"]["refusal"] == {
         "code": "agent_not_found",
         "agent_id": "zeta",
-        "agent_ids": ["deimos", "lyra"],
+        "agent_ids": "deimos,lyra",
         "retry": {"kind": "after_fix"},
     }
     assert hermes.created_profiles() == (["deimos-profile"] if with_session else [])

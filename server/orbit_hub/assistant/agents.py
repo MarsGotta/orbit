@@ -200,11 +200,18 @@ class Agent:
             "id": self.id,
             "name": self.name,
             "kind": self.kind,
-            "capabilities": {
-                "images": capabilities.images,
-                "voice": capabilities.voice,
-                "resume": capabilities.resume,
-            },
+            # A list of names, as contracts/hub-v1.md fixes and the Mac decodes
+            # (`HubAgent.capabilities: Vec<String>`): an object would make the
+            # Mac refuse the whole `ready`.
+            "capabilities": [
+                name
+                for name, accepted in (
+                    ("images", capabilities.images),
+                    ("voice", capabilities.voice),
+                    ("resume", capabilities.resume),
+                )
+                if accepted
+            ],
         }
 
 
@@ -243,7 +250,9 @@ class Agents:
             raise HubError(
                 "agent_not_found",
                 f"Este hub no tiene el agente «{agent_id}»; tiene: {', '.join(ids)}",
-                numbers={"agent_id": agent_id, "agent_ids": ids},
+                # Comma-joined: the Mac decodes refusal numbers as integers,
+                # strings or booleans only, and an array would refuse the frame.
+                numbers={"agent_id": agent_id, "agent_ids": ",".join(ids)},
             )
         return agent
 
