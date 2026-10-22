@@ -7,7 +7,7 @@ export function NoteReadFailure({
   send,
 }: {
   recordingId: string;
-  send: (command: AppCommand) => Promise<void>;
+  send: (command: AppCommand) => Promise<unknown>;
 }) {
   return (
     <section className={styles.empty}>

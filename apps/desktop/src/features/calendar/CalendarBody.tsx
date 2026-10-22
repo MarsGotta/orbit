@@ -27,7 +27,7 @@ interface CalendarBodyProps {
   calendar: AppSnapshot["calendar"];
   error: string | null;
   library?: NoteLibrarySnapshot | null;
-  send: (command: AppCommand) => Promise<void>;
+  send: (command: AppCommand) => Promise<unknown>;
   timezone: string;
   view: ReturnType<typeof useCalendarView>;
   visibility: ReturnType<typeof useCalendarVisibility>;

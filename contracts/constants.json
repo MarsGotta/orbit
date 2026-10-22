@@ -977,6 +977,11 @@
         "file": "native/macos/Sources/OrbitNativeProtocol/CalendarModels.swift",
         "name": "permissionLifetimeNanoseconds",
         "unit": "nanoseconds"
+      },
+      {
+        "file": "apps/desktop/src/features/calendar/edit/pending.ts",
+        "name": "PERMISSION_LIFETIME_MS",
+        "unit": "milliseconds"
       }
     ],
     "name": "PERMISSION_LIFETIME_NS",
@@ -1339,6 +1344,11 @@
         "file": "crates/orbit-daemon/src/hub.rs",
         "name": "HUB_VOICE_DEADLINE_SECONDS",
         "unit": "seconds"
+      },
+      {
+        "file": "apps/desktop/src/state/ceilings.ts",
+        "name": "HUB_VOICE_DEADLINE_SECONDS",
+        "unit": "seconds"
       }
     ],
     "name": "INTERACTIVE_TRANSCRIPTION_TIMEOUT_SECONDS",
@@ -1687,5 +1697,157 @@
         "orbit_selected_text"
       ]
     }
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-ipc/src/ipc.rs",
+        "name": "CALL_TIMEOUT_SECONDS",
+        "unit": "seconds"
+      },
+      {
+        "file": "apps/desktop/src/state/ceilings.ts",
+        "name": "CALL_TIMEOUT_SECONDS",
+        "unit": "seconds"
+      }
+    ],
+    "name": "CALL_TIMEOUT_SECONDS",
+    "resource": "one app call to the daemon, queue included",
+    "source": "registry",
+    "unit": "seconds",
+    "value": 10
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-ipc/src/ipc.rs",
+        "name": "ATTACHMENT_CALL_TIMEOUT_SECONDS",
+        "unit": "seconds"
+      },
+      {
+        "file": "apps/desktop/src/state/ceilings.ts",
+        "name": "ATTACHMENT_CALL_TIMEOUT_SECONDS",
+        "unit": "seconds"
+      }
+    ],
+    "name": "ATTACHMENT_CALL_TIMEOUT_SECONDS",
+    "resource": "one attachment call from the app",
+    "source": "registry",
+    "unit": "seconds",
+    "value": 100
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-daemon/src/hub.rs",
+        "name": "HUB_HTTP_TIMEOUT_SECONDS",
+        "unit": "seconds"
+      },
+      {
+        "file": "apps/desktop/src/state/ceilings.ts",
+        "name": "HUB_HTTP_TIMEOUT_SECONDS",
+        "unit": "seconds"
+      }
+    ],
+    "name": "HUB_HTTP_TIMEOUT_SECONDS",
+    "resource": "one ordinary daemon request to the hub",
+    "source": "registry",
+    "unit": "seconds",
+    "value": 90
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-app-core/src/update/download.rs",
+        "name": "DOWNLOAD_TIMEOUT_SECONDS",
+        "unit": "seconds"
+      },
+      {
+        "file": "apps/desktop/src/state/ceilings.ts",
+        "name": "DOWNLOAD_TIMEOUT_SECONDS",
+        "unit": "seconds"
+      }
+    ],
+    "name": "DOWNLOAD_TIMEOUT_SECONDS",
+    "resource": "one updater download",
+    "source": "registry",
+    "unit": "seconds",
+    "value": 60
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-app-core/src/client/mod.rs",
+        "name": "READ_WAIT_SECONDS",
+        "unit": "seconds"
+      },
+      {
+        "file": "apps/desktop/src/state/ceilings.ts",
+        "name": "READ_WAIT_SECONDS",
+        "unit": "seconds"
+      }
+    ],
+    "name": "READ_WAIT_SECONDS",
+    "resource": "the agenda's confirmation of a period read",
+    "source": "registry",
+    "unit": "seconds",
+    "value": 10
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-app-core/src/client/notes.rs",
+        "name": "MAX_LIST_PAGES",
+        "unit": "pages"
+      },
+      {
+        "file": "apps/desktop/src/state/ceilings.ts",
+        "name": "MAX_LIST_PAGES",
+        "unit": "pages"
+      }
+    ],
+    "name": "MAX_LIST_PAGES",
+    "resource": "pages one notes-list refresh reads",
+    "source": "registry",
+    "unit": "pages",
+    "value": 20
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-app-core/src/client/note_read.rs",
+        "name": "MAX_TURN_PAGES",
+        "unit": "pages"
+      },
+      {
+        "file": "apps/desktop/src/state/ceilings.ts",
+        "name": "MAX_TURN_PAGES",
+        "unit": "pages"
+      }
+    ],
+    "name": "MAX_TURN_PAGES",
+    "resource": "pages of turns one note read reads",
+    "source": "registry",
+    "unit": "pages",
+    "value": 64
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-daemon/src/daemon/calendar.rs",
+        "name": "DEADLINE_MARGIN_NS",
+        "unit": "nanoseconds"
+      },
+      {
+        "file": "apps/desktop/src/features/calendar/edit/pending.ts",
+        "name": "DEADLINE_MARGIN_MS",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "DEADLINE_MARGIN_NS",
+    "resource": "how long past a calendar job's deadline the daemon waits for the helper",
+    "source": "registry",
+    "unit": "nanoseconds",
+    "value": 2000000000
   }
 ]

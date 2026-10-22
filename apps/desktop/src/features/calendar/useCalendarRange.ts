@@ -17,7 +17,7 @@ import {
   widthTier,
 } from "./range";
 
-type Send = (command: AppCommand) => Promise<void>;
+type Send = (command: AppCommand) => Promise<unknown>;
 
 function choiceKey(choice: ViewChoice, weekStart: CalendarWeekStart): string {
   return `${choice.view}:${choice.days}:${weekStart}`;

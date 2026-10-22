@@ -3,6 +3,7 @@ import type { CallPreference } from "../../bridge/generated/CallPreference";
 import { Card } from "../../design/Card";
 import { SectionLabel } from "../../design/SectionLabel";
 import { es } from "../../i18n/es";
+import { useHeldChoice } from "../../state/use-held-choice";
 import styles from "./SettingsView.module.css";
 
 const OPTIONS: { value: CallPreference; label: string }[] = [
@@ -22,8 +23,9 @@ export function CallPreferenceSection({
   send,
 }: {
   preference: CallPreference | null;
-  send: (command: AppCommand) => void;
+  send: (command: AppCommand) => unknown;
 }) {
+  const choice = useHeldChoice(preference, send);
   return (
     <section aria-label={es.callSettings.section} className={styles.section}>
       <SectionLabel>{es.callSettings.section}</SectionLabel>
@@ -35,9 +37,14 @@ export function CallPreferenceSection({
           {OPTIONS.map((option) => (
             <label className={styles.choice} key={option.value}>
               <input
-                checked={preference === option.value}
+                checked={choice.shown === option.value}
                 name="call-preference"
-                onChange={() => send({ command: "call_preference", preference: option.value })}
+                onChange={() =>
+                  choice.choose(option.value, {
+                    command: "call_preference",
+                    preference: option.value,
+                  })
+                }
                 type="radio"
                 value={option.value}
               />

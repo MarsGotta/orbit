@@ -8,6 +8,7 @@ import {
 import type { AttachmentLimits } from "../../bridge/generated/AttachmentLimits";
 import { refusalOf } from "../../bridge/refusal";
 import { es } from "../../i18n/es";
+import { useTrack } from "../../state/use-in-flight";
 import { localRefusal, settled, type DraftAttachment } from "./attachment-drafts";
 
 /**
@@ -93,6 +94,7 @@ export function useAttachmentDrafts(limits: AttachmentLimits | undefined) {
   // Several files arrive at once; each is checked against the ones before it.
   const current = useRef<DraftAttachment[]>([]);
   const nextKey = useRef(0);
+  const track = useTrack();
   const update = useCallback((change: (drafts: DraftAttachment[]) => DraftAttachment[]) => {
     current.current = change(current.current);
     setDrafts(current.current);
@@ -106,7 +108,7 @@ export function useAttachmentDrafts(limits: AttachmentLimits | undefined) {
       return;
     }
     update((all) => [...all, { key, state: "uploading", name, bytes }]);
-    addAttachment(source).then(
+    track("attachment_add", "assistant", () => addAttachment(source), "assistant").then(
       (added) => update((all) => settled(limits, all, key, added, () => nextKey.current++)),
       (error: unknown) =>
         update((all) =>

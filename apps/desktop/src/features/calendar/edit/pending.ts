@@ -13,6 +13,7 @@ import type { CalendarSpan } from "../../../bridge/generated/CalendarSpan";
 import type { WriteOutcome } from "../../../bridge/generated/WriteOutcome";
 import type { WriteTarget } from "../../../bridge/generated/WriteTarget";
 import type { CalendarEvent } from "../eventLook";
+import { DELIVERY_MS } from "../../../state/ceilings";
 import { sameTarget, type Target, targetOf, updatedTarget } from "./commands";
 
 /**
@@ -37,6 +38,30 @@ export const APPLIED_WAIT_MS = 10_000;
  */
 export const WRITE_LIFETIME_MS = 5_000;
 
+/** Copy of the daemon's `PERMISSION_LIFETIME_NS`: the longest job the EventKit slot runs. */
+export const PERMISSION_LIFETIME_MS = 120_000;
+/** Copy of the daemon's `DEADLINE_MARGIN_NS`: how long past a job's deadline it waits for the helper. */
+export const DEADLINE_MARGIN_MS = 2_000;
+
+/**
+ * How long a write the head names as queued may stay so. The daemon sends
+ * writes one at a time through the single EventKit slot, so a queued write
+ * waits for the job ahead of it, the longest being a permission request
+ * (`PERMISSION_LIFETIME_MS` and its margin), then runs within its own
+ * lifetime and margin; the head then carries its outcome to the screen
+ * (`DELIVERY_MS`). Past that, it waits for something no deadline covers (a
+ * helper that is gone), and the screen says the outcome is unknown and reads
+ * the agenda again. It protects the card from «Guardando…» for ever; it is not
+ * a retry: the write is never sent a second time, and if it lands later the
+ * read shows it.
+ */
+export const QUEUED_WRITE_CEILING_MS =
+  PERMISSION_LIFETIME_MS +
+  DEADLINE_MARGIN_MS +
+  WRITE_LIFETIME_MS +
+  DEADLINE_MARGIN_MS +
+  DELIVERY_MS;
+
 export interface PendingWrite {
   appliedAtMs?: number;
   changes?: CalendarEventChanges;
@@ -55,7 +80,8 @@ export interface PendingWrite {
 }
 
 export interface Finished {
-  /** `null`: the head never said, within `WRITE_LIFETIME_MS`. */
+  /** `null`: the head never said, within `WRITE_LIFETIME_MS`, or never
+   *  finished it, within `QUEUED_WRITE_CEILING_MS`. */
   record: WriteOutcome | null;
   write: PendingWrite;
 }
@@ -111,6 +137,10 @@ export function reconcile(
       result.failed.push({ record: null, write });
       continue;
     }
+    if (record?.stage === "queued" && nowMs - write.sentAtMs >= QUEUED_WRITE_CEILING_MS) {
+      result.failed.push({ record: null, write });
+      continue;
+    }
     let next = write;
     if (
       (record?.stage === "saved" || record?.stage === "deleted") &&
@@ -153,15 +183,17 @@ function unheardFor(write: PendingWrite, nowMs: number): number {
 }
 
 /** When `reconcile` next has something to decide by the clock alone: a saved
- *  write no read showed, or a write the head has not mentioned. */
+ *  write no read showed, a write the head has not mentioned, or one it still
+ *  names as queued. */
 export function nextDeadline(
   pending: readonly PendingWrite[],
   writes: readonly WriteOutcome[],
 ): number | null {
   const instants = pending.map((write) => {
     if (write.appliedAtMs !== undefined) return write.appliedAtMs + APPLIED_WAIT_MS;
-    const heard = writes.some((item) => item.request_id === write.requestId);
-    return heard ? Infinity : write.sentAtMs + WRITE_LIFETIME_MS;
+    const heard = writes.find((item) => item.request_id === write.requestId);
+    if (heard === undefined) return write.sentAtMs + WRITE_LIFETIME_MS;
+    return heard.stage === "queued" ? write.sentAtMs + QUEUED_WRITE_CEILING_MS : Infinity;
   });
   const due = Math.min(...instants);
   return Number.isFinite(due) ? due : null;

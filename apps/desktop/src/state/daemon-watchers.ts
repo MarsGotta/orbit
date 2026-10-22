@@ -56,12 +56,16 @@ interface Lifecycle {
 }
 
 /** The daemon's notices, each once and in order. */
+/** Told of each notice shown, by code and op, to bound the working ones. */
+type NoticeFollower = (code: string, op: string | undefined) => void;
+
 function noticeWatcher(
   port: DaemonPort,
   get: Get,
   set: Set,
   options: StoreOptions,
   lifecycle: Lifecycle,
+  follow: NoticeFollower,
 ) {
   let last: number | null = null;
   let epoch: string | undefined;
@@ -84,16 +88,23 @@ function noticeWatcher(
       for (const notice of taken.fresh) {
         if (watching && notice.code === "orbit_closing") lifecycle.closing = true;
         intercept(port, get, set, { kind: "notice", notice });
+        follow(notice.code, notice.op);
       }
     }
   };
 }
 
 /** The notices and the failures a window reports, sharing what the notices say. */
-export function daemonWatchers(port: DaemonPort, get: Get, set: Set, options: StoreOptions) {
+export function daemonWatchers(
+  port: DaemonPort,
+  get: Get,
+  set: Set,
+  options: StoreOptions,
+  follow: NoticeFollower = () => undefined,
+) {
   const lifecycle: Lifecycle = { closing: false };
   return {
-    notices: noticeWatcher(port, get, set, options, lifecycle),
+    notices: noticeWatcher(port, get, set, options, lifecycle, follow),
     failures: failureWatcher(port, get, options, lifecycle),
   };
 }

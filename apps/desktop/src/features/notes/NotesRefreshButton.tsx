@@ -3,7 +3,7 @@ import type { AppCommand } from "../../bridge/generated";
 import { Button } from "../../design/Button";
 import { es } from "../../i18n/es";
 
-export function NotesRefreshButton({ send }: { send: (command: AppCommand) => Promise<void> }) {
+export function NotesRefreshButton({ send }: { send: (command: AppCommand) => Promise<unknown> }) {
   const [refreshing, setRefreshing] = useState(false);
   const mounted = useRef(true);
 

@@ -12,6 +12,7 @@ import { attachmentBytes } from "../../bridge/attachments";
 import type { Attachment } from "../../bridge/generated/Attachment";
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import { refusalOf } from "../../bridge/refusal";
+import { useTrack } from "../../state/use-in-flight";
 import { attachmentFailure } from "./attachment-drafts";
 import { AttachmentViewer } from "./AttachmentViewer";
 
@@ -80,15 +81,24 @@ export function AttachmentGallery({
       messages.flatMap((message) => message.attachments ?? []).filter((a) => a.kind === "image"),
     [messages],
   );
-  const bytes = useCallback((attachmentId: string) => {
-    const known = cache.current.get(attachmentId);
-    if (known !== undefined) return known;
-    const loading = attachmentBytes(attachmentId);
-    cache.current.set(attachmentId, loading);
-    // A failure is not kept: opening it again asks again.
-    loading.catch(() => cache.current.delete(attachmentId));
-    return loading;
-  }, []);
+  const track = useTrack();
+  const bytes = useCallback(
+    (attachmentId: string) => {
+      const known = cache.current.get(attachmentId);
+      if (known !== undefined) return known;
+      const loading = track(
+        "attachment_content",
+        "assistant",
+        () => attachmentBytes(attachmentId),
+        "assistant",
+      );
+      cache.current.set(attachmentId, loading);
+      // A failure is not kept: opening it again asks again.
+      loading.catch(() => cache.current.delete(attachmentId));
+      return loading;
+    },
+    [track],
+  );
   const gallery = useMemo<Gallery>(
     () => ({
       bytes,

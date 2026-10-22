@@ -28,7 +28,7 @@ export interface EventDetailsProps {
   onJoin: (url: string) => void;
   onRecord: () => void;
   onSave: (span: CalendarSpan) => void;
-  send: (command: AppCommand) => Promise<void> | void;
+  send: (command: AppCommand) => Promise<unknown> | void;
   timezone: string;
 }
 

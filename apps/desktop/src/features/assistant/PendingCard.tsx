@@ -4,7 +4,23 @@ import type { ChatPending } from "../../bridge/generated/ChatPending";
 import { Button } from "../../design/Button";
 import { TextInput } from "../../design/TextInput";
 import { es } from "../../i18n/es";
+import { useHeldChoice } from "../../state/use-held-choice";
 import styles from "./AssistantView.module.css";
+
+type Send = (command: AppCommand) => unknown;
+
+/**
+ * An answer given to what the agent asked (`key`: the request and its
+ * question): its buttons wait while it travels and until the hub takes the
+ * question away, and wake again if it is refused.
+ */
+function useAnswer(key: string, send: Send) {
+  const answer = useHeldChoice(key, send);
+  return {
+    answered: answer.pending,
+    give: (command: AppCommand) => answer.choose(key, command),
+  };
+}
 
 /** An approval choice in Spanish; one Orbit does not know keeps its own name. */
 function choiceLabel(choice: string): string {
@@ -16,16 +32,21 @@ function Approval({
   send,
 }: {
   pending: Extract<ChatPending, { kind: "approval" }>;
-  send: (command: AppCommand) => void;
+  send: Send;
 }) {
+  const { answered, give } = useAnswer(pending.id, send);
   if (pending.choices.length === 0) {
     // The agent named no choices: allow once or refuse, as a 0.9.0 Mac does.
     return (
       <div>
-        <Button onClick={() => send({ command: "approval", approved: true })} variant="accent">
+        <Button
+          disabled={answered}
+          onClick={() => give({ command: "approval", approved: true })}
+          variant="accent"
+        >
           {es.chat.approve}
         </Button>
-        <Button onClick={() => send({ command: "approval", approved: false })}>
+        <Button disabled={answered} onClick={() => give({ command: "approval", approved: false })}>
           {es.chat.reject}
         </Button>
       </div>
@@ -35,8 +56,9 @@ function Approval({
     <div className={styles.choices}>
       {pending.choices.map((choice) => (
         <Button
+          disabled={answered}
           key={choice}
-          onClick={() => send({ command: "approval", approved: choice !== "deny", choice })}
+          onClick={() => give({ command: "approval", approved: choice !== "deny", choice })}
           variant={choice === "once" ? "accent" : undefined}
         >
           {choiceLabel(choice)}
@@ -63,12 +85,14 @@ function Choices({
   selected,
   setSelected,
   reply,
+  answered,
 }: {
   choices: string[];
   multiple: boolean;
   selected: string[];
   setSelected: (update: (chosen: string[]) => string[]) => void;
   reply: (answer: string) => void;
+  answered: boolean;
 }) {
   if (choices.length === 0) return null;
   const toggle = (choice: string) =>
@@ -80,6 +104,7 @@ function Choices({
       {choices.map((choice) => (
         <Button
           aria-pressed={multiple ? selected.includes(choice) : undefined}
+          disabled={answered}
           key={choice}
           onClick={() => (multiple ? toggle(choice) : reply(choice))}
         >
@@ -95,19 +120,20 @@ function Clarify({
   send,
 }: {
   pending: Extract<ChatPending, { kind: "clarify" }>;
-  send: (command: AppCommand) => void;
+  send: Send;
 }) {
   const [answer, setAnswer] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   // One question at a time: the hub removes each once answered.
   const current = pending.questions[0] ?? null;
   const asked = useAsked(pending.id, pending.questions.length);
+  const { answered, give } = useAnswer(`${pending.id}:${current?.qid ?? ""}`, send);
   useEffect(() => {
     setAnswer("");
     setSelected([]);
   }, [pending.id, current?.qid]);
   const reply = (text: string) =>
-    send(
+    give(
       current
         ? { command: "clarify", answer: text, question_id: current.qid }
         : { command: "clarify", answer: text },
@@ -124,6 +150,7 @@ function Clarify({
       <Choices
         choices={current ? current.choices : pending.choices}
         multiple={current?.multi_select ?? false}
+        answered={answered}
         reply={reply}
         selected={selected}
         setSelected={setSelected}
@@ -136,7 +163,7 @@ function Clarify({
         variant="dotted"
       />
       <Button
-        disabled={typed === "" && selected.length === 0}
+        disabled={answered || (typed === "" && selected.length === 0)}
         // Several chosen travel as a JSON list, which Hermes reads as such.
         onClick={() => reply(typed !== "" ? typed : JSON.stringify(selected))}
         variant="accent"
@@ -152,13 +179,7 @@ function Clarify({
  * approval choice; a clarification one question at a time, with its
  * suggestions and free text. No countdown: the hub sends no expiry.
  */
-export function PendingCard({
-  pending,
-  send,
-}: {
-  pending: ChatPending;
-  send: (command: AppCommand) => void;
-}) {
+export function PendingCard({ pending, send }: { pending: ChatPending; send: Send }) {
   return (
     <section className={styles.pending}>
       {pending.kind === "approval" ? (

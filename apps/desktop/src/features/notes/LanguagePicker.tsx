@@ -1,6 +1,7 @@
 import type { AppCommand } from "../../bridge/generated";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { es } from "../../i18n/es";
+import { useHeldChoice } from "../../state/use-held-choice";
 import { languageName } from "./notes-format";
 import styles from "./NoteScreen.module.css";
 
@@ -18,9 +19,11 @@ export function LanguagePicker({
   send,
 }: {
   note: OpenNoteSnapshot;
-  send: (command: AppCommand) => void;
+  send: (command: AppCommand) => unknown;
 }) {
-  const current = note.transcript.language;
+  // The language chosen stays shown until the hub has the meeting in it.
+  const language = useHeldChoice(note.transcript.language, send);
+  const current = language.shown;
   if (current == null) return null;
   const options = LANGUAGES.includes(current) ? LANGUAGES : [...LANGUAGES, current];
   const repeating = note.transcript.retranscribing;
@@ -30,7 +33,7 @@ export function LanguagePicker({
         <span>{es.noteScreen.language}</span>
         <select
           onChange={(event) =>
-            send({
+            language.choose(event.target.value, {
               command: "meeting_language",
               recording_id: note.recording_id,
               language: event.target.value,

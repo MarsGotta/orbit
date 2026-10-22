@@ -16,6 +16,8 @@ export interface Restoring {
   /** The connection with the daemon was not ready at some point after the
    *  press: a restart loses the answers it kept in memory. */
   interrupted: boolean;
+  /** Nothing settled it within `HUB_CONFIRMATION_MS` of the press. */
+  expired?: boolean;
 }
 
 export interface RestoreNotice {
@@ -38,6 +40,23 @@ export function restoreNotice(
   error: string | null,
   daemon: DaemonConnection = "ready",
 ): RestoreNotice {
+  const notice = settledNotice(restoring, library, error, daemon);
+  if (notice !== null) return notice;
+  const { name } = restoring.removed;
+  // Past its ceiling an undo still on its way is not known to finish: the
+  // list says what there is.
+  return restoring.expired === true
+    ? { kind: "status", text: es.library.restoreUnknownAfterRestart(name) }
+    : { kind: "status", text: es.library.restoring(name) };
+}
+
+/** What the undo came to, or `null` while it is still on its way. */
+function settledNotice(
+  restoring: Restoring,
+  library: Library,
+  error: string | null,
+  daemon: DaemonConnection,
+): RestoreNotice | null {
   const { name, id, series } = restoring.removed;
   const refused = library?.refusals.find(
     (refusal) => refusal.target_kind === "template" && refusal.target_id === id,
@@ -51,13 +70,12 @@ export function restoreNotice(
     const newError = error !== null && error !== restoring.errorBefore;
     return restoring.settled && newError && shown === undefined
       ? { kind: "alert", text: es.library.restoreRefused(name) }
-      : { kind: "status", text: es.library.restoring(name) };
+      : null;
   }
-  if (shown === undefined || shown.pending)
-    return { kind: "status", text: es.library.restoring(name) };
+  if (shown === undefined || shown.pending) return null;
   if (series === null) return { kind: "status", text: es.library.restored(name) };
   const refusedSeries = seriesRefused(series, id, library);
-  if (refusedSeries === null) return { kind: "status", text: es.library.restoring(name) };
+  if (refusedSeries === null) return null;
   return refusedSeries > 0
     ? { kind: "alert", text: es.library.restoredSomeSeriesNot(name) }
     : { kind: "status", text: es.library.restored(name) };
@@ -68,10 +86,13 @@ export function restoreNotice(
  * again, is all that is known. A template still owed is in the durable
  * outbox and on its way; one not shown may or may not come back.
  */
-function withoutAnswer(name: string, shown: { pending: boolean } | undefined): RestoreNotice {
+function withoutAnswer(
+  name: string,
+  shown: { pending: boolean } | undefined,
+): RestoreNotice | null {
   if (shown === undefined)
     return { kind: "status", text: es.library.restoreUnknownAfterRestart(name) };
-  if (shown.pending) return { kind: "status", text: es.library.restoring(name) };
+  if (shown.pending) return null;
   return { kind: "status", text: es.library.restored(name) };
 }
 

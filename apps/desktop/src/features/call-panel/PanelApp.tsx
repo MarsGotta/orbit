@@ -12,6 +12,7 @@ import type { DaemonPort } from "../../bridge/port";
 import { Button } from "../../design/Button";
 import { AssistantCopy, useSpanish } from "../../i18n/AssistantCopy";
 import { createOrbitStore, type OrbitStore } from "../../state/orbit-store";
+import { OrbitStoreProvider } from "../../state/use-in-flight";
 import { AskDeimos } from "../../app/meeting-question/AskDeimos";
 import { QuestionCard } from "../../app/meeting-question/QuestionCard";
 import { voiceStatusText } from "../../app/meeting-question/copy";
@@ -35,9 +36,11 @@ export function PanelApp({ port }: { port: DaemonPort }) {
   useCrashReporting(crash);
   return (
     <ViewBoundary onCrash={() => crash("ui_render_failed")}>
-      <AssistantCopy name={assistantName}>
-        <PanelContent port={port} store={store} />
-      </AssistantCopy>
+      <OrbitStoreProvider store={store}>
+        <AssistantCopy name={assistantName}>
+          <PanelContent port={port} store={store} />
+        </AssistantCopy>
+      </OrbitStoreProvider>
     </ViewBoundary>
   );
 }
@@ -49,7 +52,9 @@ function PanelContent({ port, store }: { port: DaemonPort; store: OrbitStore }) 
   const snapshot = useStore(store, (state) => state.snapshot);
   const send = useStore(store, (state) => state.send);
   const refused = useStore(store, (state) => messageFor("recording", state.messages)?.text);
-  const dispatch = (command: AppCommand) => void send(command, "recording");
+  // A panel that could not connect says so, as the window does; its cause stays in the log.
+  const unconnected = useStore(store, (state) => (state.error === null ? null : es.connectFailed));
+  const dispatch = (command: AppCommand) => send(command, "recording");
   const stopped = snapshot?.privacy_stopped === true;
   const meeting = snapshot?.meeting;
   const call = stopped ? null : (meeting?.call_panel ?? null);
@@ -92,7 +97,7 @@ function PanelContent({ port, store }: { port: DaemonPort; store: OrbitStore }) 
         </Button>
       )}
       <CallPanel panel={call} send={dispatch} />
-      <Refusals texts={[refused, links.refused]} />
+      <Refusals texts={[unconnected, refused, links.refused]} />
       {voice !== null && <p className={styles.voice}>{voice}</p>}
     </div>
   );

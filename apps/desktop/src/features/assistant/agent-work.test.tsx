@@ -174,6 +174,9 @@ describe("questions and approvals with the agent's real choices", () => {
       "Permitir siempre",
     ]);
     await userEvent.click(screen.getByRole("button", { name: "Permitir en esta conversación" }));
+    // One answer per request: the card then waits for the hub.
+    cleanup();
+    render(<PendingCard pending={approval} send={send} />);
     await userEvent.click(screen.getByRole("button", { name: "Rechazar" }));
     expect(send.mock.calls).toEqual([
       [{ command: "approval", approved: true, choice: "session" }],
@@ -198,6 +201,9 @@ describe("questions and approvals with the agent's real choices", () => {
     expect(screen.queryByText("¿A qué hora?")).toBeNull();
     expect(screen.getByText("Pregunta 1 de 2")).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Norte" }));
+    // One answer per question: a free text goes in another card for it.
+    cleanup();
+    render(<PendingCard pending={clarify} send={send} />);
     await userEvent.type(screen.getByRole("textbox", { name: "Respuesta" }), "La grande");
     await userEvent.click(screen.getByRole("button", { name: "Responder" }));
     expect(send.mock.calls).toEqual([

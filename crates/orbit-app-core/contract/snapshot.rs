@@ -140,7 +140,13 @@ impl Default for AppSnapshot {
                 list: Vec::new(),
                 projection_clock: None,
                 series_previous: None,
-                index: None,
+                // Not read yet: on its way, never «no notes». The first read
+                // (`client::notes`) replaces it with what it found.
+                index: Some(Box::new(NotesIndexSnapshot {
+                    state: NotesIndexState::Loading,
+                    more: false,
+                    detail: None,
+                })),
                 open: None,
                 open_read: None,
                 library: None,

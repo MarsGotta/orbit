@@ -11,7 +11,7 @@ import styles from "./CalendarView.module.css";
 
 interface CalendarViewProps {
   error: string | null;
-  send: (command: AppCommand) => Promise<void>;
+  send: (command: AppCommand) => Promise<unknown>;
   snapshot: AppSnapshot;
 }
 

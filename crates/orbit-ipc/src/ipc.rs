@@ -67,7 +67,15 @@ impl From<AttachmentResponse> for Reply {
 /// daemon to take it and answer. It bounds one upload or read of up to
 /// 20 MiB, which the 10 s of other orders could not hold on a slow link;
 /// it is not a retry, and a lost answer is never sent again.
-const ATTACHMENT_CALL_TIMEOUT: Duration = Duration::from_secs(100);
+const ATTACHMENT_CALL_TIMEOUT: Duration = Duration::from_secs(ATTACHMENT_CALL_TIMEOUT_SECONDS);
+/// In seconds, as the interface reads it (`contracts/constants.json`).
+pub const ATTACHMENT_CALL_TIMEOUT_SECONDS: u64 = 100;
+
+/// How long the app waits for one call to the daemon, its queue included: the
+/// ten-second confirmation window every order and read has. The interface
+/// waits this, then the frames the reply published, before it calls the wait
+/// a failure (`apps/desktop/src/state/ceilings.ts`). Never a retry.
+pub const CALL_TIMEOUT_SECONDS: u64 = 10;
 
 impl From<Response> for Reply {
     fn from(response: Response) -> Self {
@@ -187,7 +195,8 @@ impl LocalClient {
     }
 
     async fn call(&self, command: Command, op: Option<orbit_core::notice::Op>) -> Result<Reply> {
-        self.call_within(command, op, Duration::from_secs(10)).await
+        self.call_within(command, op, Duration::from_secs(CALL_TIMEOUT_SECONDS))
+            .await
     }
 
     async fn call_within(

@@ -19,6 +19,7 @@ import {
 import { TemplateEditor } from "./TemplateEditor";
 import { TemplateList } from "./TemplateList";
 import styles from "./Templates.module.css";
+import { HUB_CONFIRMATION_MS } from "../../../state/ceilings";
 
 interface Editing {
   /** One editing session: a new one starts only when the user picks another. */
@@ -115,6 +116,14 @@ function useDeleteUndo(send: Send, error: string | null, daemon: DaemonConnectio
         errorBefore: error,
         interrupted: daemon !== "ready",
       });
+      // Nothing settles an undo the hub never answers: past this, it is unknown.
+      setTimeout(
+        () =>
+          setRestoring((current) =>
+            current?.requestId === requestId ? { ...current, expired: true } : current,
+          ),
+        HUB_CONFIRMATION_MS,
+      );
       void Promise.resolve(send(restoreCommand(removed, requestId))).then(() =>
         setRestoring((current) =>
           current?.removed === removed ? { ...current, settled: true } : current,

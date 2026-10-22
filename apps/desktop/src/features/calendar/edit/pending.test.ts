@@ -6,6 +6,7 @@ import {
   APPLIED_WAIT_MS,
   nextDeadline,
   type PendingWrite,
+  QUEUED_WRITE_CEILING_MS,
   reconcile,
   WRITE_LIFETIME_MS,
   withPending,
@@ -83,10 +84,23 @@ describe("a write the agenda head does not mention", () => {
     expect(late.failed).toEqual([{ record: null, write }]);
   });
 
-  it("when the head names it, the deadline is the daemon's and the view waits", () => {
+  it("when the head names it queued, the view waits as long as the EventKit slot can make it wait", () => {
     const queued = reconcile([write], [record("queued")], [event], START + 60_000);
     expect(queued.pending).toHaveLength(1);
-    expect(nextDeadline([write], [record("queued")])).toBeNull();
+    expect(nextDeadline([write], [record("queued")])).toBe(START + QUEUED_WRITE_CEILING_MS);
+  });
+
+  it("a write still queued past that becomes unknown, never sent again", () => {
+    const early = reconcile(
+      [write],
+      [record("queued")],
+      [event],
+      START + QUEUED_WRITE_CEILING_MS - 1,
+    );
+    expect(early.pending).toHaveLength(1);
+    const late = reconcile([write], [record("queued")], [event], START + QUEUED_WRITE_CEILING_MS);
+    expect(late.pending).toHaveLength(0);
+    expect(late.failed).toEqual([{ record: null, write }]);
   });
 });
 

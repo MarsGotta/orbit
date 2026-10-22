@@ -196,7 +196,19 @@ pub(super) struct PendingResponse {
     request_id: String,
     session_id: String,
     clarification: bool,
+    /// When it left for the hub: past `INTERACTION_RESPONSE_DEADLINE` it is let go.
+    sent_at: std::time::Instant,
 }
+
+/// How long an answer to the agent (an approval or a clarification) waits for
+/// the hub to confirm it. The hub hands it to the agent within its own 30 s
+/// call (`rpc_timeout_seconds` in `server/orbit_hub/assistant/hermes.py`) and
+/// replies on the link; this is the daemon's bound for any ordinary hub
+/// request (`HUB_HTTP_TIMEOUT`), three times that. Past it the answer's outcome
+/// is unknown and said so, and the person may answer again: until then every
+/// other answer was refused as «not confirmed yet». Nothing is resent. It does
+/// not limit how long the agent's turn runs.
+pub(super) const INTERACTION_RESPONSE_DEADLINE: std::time::Duration = crate::hub::HUB_HTTP_TIMEOUT;
 
 impl Runtime {
     pub(super) fn remember_interrupted_turn(&mut self, turn_id: &str) {
@@ -318,8 +330,25 @@ impl Runtime {
             request_id: request,
             session_id,
             clarification: method == "clarify.respond",
+            sent_at: std::time::Instant::now(),
         });
         self.say(NoticeCode::ApprovalSent);
+        Ok(())
+    }
+
+    /// Lets go of an answer the hub has not confirmed within
+    /// `INTERACTION_RESPONSE_DEADLINE`: its outcome is unknown, said so.
+    pub(super) async fn expire_interaction_response(&mut self) -> Result<()> {
+        if self
+            .conversation
+            .interaction_response
+            .as_ref()
+            .is_some_and(|pending| pending.sent_at.elapsed() > INTERACTION_RESPONSE_DEADLINE)
+        {
+            self.conversation.interaction_response = None;
+            self.say(NoticeCode::ApprovalOutcomeUnknown);
+            self.store_actor.snapshot(&self.state).await?;
+        }
         Ok(())
     }
 

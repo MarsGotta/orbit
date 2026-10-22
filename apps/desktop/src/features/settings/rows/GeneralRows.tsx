@@ -11,9 +11,10 @@ import { toggleTheme, useTheme } from "../../../design/theme";
 import { AccountPairingControls } from "../AccountPairingControls";
 import { LastInstallation, UpdateStatus } from "./UpdateStatus";
 import styles from "../SettingsView.module.css";
+import { useHeldChoice } from "../../../state/use-held-choice";
 
 interface CommandProps {
-  send: (command: AppCommand) => void;
+  send: (command: AppCommand) => unknown;
   settings: SettingsSnapshot;
   statusAvailability?: AppSnapshot["status_availability"];
 }
@@ -61,6 +62,7 @@ export function AccountSection({
 }
 
 export function StartupSection({ send, settings }: CommandProps) {
+  const loginItem = useHeldChoice(settings.login_item === "on", send);
   return (
     <section aria-label={es.settings.startup} className={styles.section}>
       <SectionLabel>{es.settings.startup}</SectionLabel>
@@ -68,9 +70,9 @@ export function StartupSection({ send, settings }: CommandProps) {
         <div className={styles.inlineControl}>
           <strong>{es.settings.openAtLogin}</strong>
           <Switch
-            checked={settings.login_item === "on"}
+            checked={loginItem.shown}
             label={es.settings.openAtLogin}
-            onCheckedChange={(on) => send({ command: "login_item", on })}
+            onCheckedChange={(on) => loginItem.choose(on, { command: "login_item", on })}
           />
         </div>
       </Card>
@@ -133,6 +135,7 @@ export function UpdatesSection({ send, settings }: CommandProps) {
 export function PrivacySection({ send, settings, statusAvailability }: CommandProps) {
   // An unknown state says nothing: the button still stops.
   const unknown = statusAvailability?.state === "unknown" || statusAvailability?.state === "absent";
+  const reports = useHeldChoice(settings.error_reports, send);
   return (
     <section aria-label={es.settings.privacy} className={styles.section}>
       <SectionLabel>{es.settings.privacy}</SectionLabel>
@@ -158,9 +161,11 @@ export function PrivacySection({ send, settings, statusAvailability }: CommandPr
               <span>{es.settings.errorReportsHelp}</span>
             </div>
             <Switch
-              checked={settings.error_reports}
+              checked={reports.shown ?? false}
               label={es.settings.errorReports}
-              onCheckedChange={(on) => send({ command: "error_reports", enabled: on })}
+              onCheckedChange={(on) =>
+                reports.choose(on, { command: "error_reports", enabled: on })
+              }
             />
           </div>
         )}

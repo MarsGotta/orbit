@@ -23,7 +23,7 @@ export interface SettingsViewProps {
   agent?: AgentPort;
   error: string | null;
   onReopenOnboarding: (mode?: "pair") => void;
-  send: (command: AppCommand) => void | Promise<void>;
+  send: (command: AppCommand) => unknown;
   snapshot: AppSnapshot;
 }
 

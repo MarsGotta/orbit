@@ -7,8 +7,8 @@ import { paletteCommands } from "./palette";
 
 export function usePaletteCommands(
   navigate: (view: ViewId) => void,
-  send: (command: AppCommand) => Promise<void>,
-  sendWithOrigin: (command: AppCommand, origin?: ErrorOrigin) => Promise<void>,
+  send: (command: AppCommand) => Promise<unknown>,
+  sendWithOrigin: (command: AppCommand, origin?: ErrorOrigin) => Promise<unknown>,
   setMeetingOpen: Dispatch<SetStateAction<boolean>>,
   assistantName?: string,
 ) {

@@ -9,6 +9,33 @@ import { conversationView, turnInFlight, withNewest, withOlder } from "./convers
 
 type Reader = NonNullable<DaemonPort["readSessionMessages"]>;
 
+export type FirstPage = "reading" | "failed" | "read";
+
+function firstPage(
+  reads: boolean,
+  sessionId: string | null,
+  answered: { sessionId: string; read: boolean } | null,
+): FirstPage {
+  if (!reads) return "read";
+  if (answered?.sessionId !== sessionId) return "reading";
+  return answered.read ? "read" : "failed";
+}
+
+/**
+ * When the newest page is read again: after each turn that ended, and when
+ * asked to (`again`, after a failed read).
+ */
+function useNewestReads(inFlight: boolean) {
+  const [token, setToken] = useState(0);
+  const wasInFlight = useRef(inFlight);
+  useEffect(() => {
+    if (wasInFlight.current && !inFlight) setToken((value) => value + 1);
+    wasInFlight.current = inFlight;
+  }, [inFlight]);
+  const again = useCallback(() => setToken((value) => value + 1), []);
+  return [token, again] as const;
+}
+
 /**
  * The open conversation, read from the hub a page at a time, with
  * the turn in progress after it. The newest page is read when the
@@ -21,13 +48,10 @@ export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
   const [older, setOlder] = useState<AssistantCursor | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [newestToken, setNewestToken] = useState(0);
-  const wasInFlight = useRef(inFlight);
-
-  useEffect(() => {
-    if (wasInFlight.current && !inFlight) setNewestToken((token) => token + 1);
-    wasInFlight.current = inFlight;
-  }, [inFlight]);
+  const [newestToken, readNewestAgain] = useNewestReads(inFlight);
+  // The conversation whose newest page answered, and whether it was read:
+  // until then nothing is known about it, which is not «no messages».
+  const [answered, setAnswered] = useState<{ sessionId: string; read: boolean } | null>(null);
 
   useEffect(() => {
     if (!read || sessionId === null) return;
@@ -35,15 +59,21 @@ export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
     void read(sessionId, null)
       .then((answer: MessagesPage) => {
         if (!current) return;
-        // A failure says so, without its cause; an unknown is quiet.
-        if (answer.state === "absent") setError(es.assistant.historyFailed);
-        if (answer.state !== "present") return;
+        setAnswered({ sessionId, read: answer.state === "present" });
+        // A failure says so, without its cause; so does an answer that says
+        // nothing, which leaves the conversation unread, not empty.
+        if (answer.state !== "present") {
+          setError(es.assistant.historyFailed);
+          return;
+        }
         setError(null);
         setStored((known) => withNewest(known, answer.value.items));
         setOlder((cursor) => (newestToken === 0 ? answer.value.next : cursor));
       })
       .catch(() => {
-        if (current) setError(es.assistant.historyFailed);
+        if (!current) return;
+        setAnswered({ sessionId, read: false });
+        setError(es.assistant.historyFailed);
       });
     return () => {
       current = false;
@@ -70,6 +100,14 @@ export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
     hasOlder: older !== null,
     loadOlder,
     loading,
+    /**
+     * Whether this conversation's first page is known: still being read, its
+     * read failed (the error says so), or read. A new conversation, with
+     * nothing to read, is read.
+     */
+    firstPage: firstPage(read !== undefined && sessionId !== null, sessionId, answered),
     error,
+    /** Reads the newest page again, after a failed read. */
+    retry: readNewestAgain,
   };
 }

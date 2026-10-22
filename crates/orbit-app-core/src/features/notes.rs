@@ -33,3 +33,20 @@ pub enum NotesCommand {
     /// «Cargar más»: one more page of the hub's list.
     NotesMore,
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{AppSnapshot, DaemonConnection, NotesIndexState};
+
+    /// Before the first read of the list the app does not know whether there
+    /// are notes: the list is on its way, never «no notes».
+    #[test]
+    fn the_list_never_read_is_on_its_way_not_empty() {
+        let snapshot = AppSnapshot::empty(0, DaemonConnection::Connecting);
+        let index = snapshot.notes.and_then(|notes| notes.index);
+        assert_eq!(
+            index.map(|index| index.state),
+            Some(NotesIndexState::Loading)
+        );
+    }
+}

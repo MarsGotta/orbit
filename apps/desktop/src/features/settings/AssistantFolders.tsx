@@ -46,7 +46,7 @@ export function AssistantFolders({
 }: {
   daemonReady: boolean;
   folders?: AssistantFoldersSnapshot;
-  send: (command: AppCommand) => void | Promise<void>;
+  send: (command: AppCommand) => unknown;
 }) {
   const es = useSpanish();
   const copy = es.folders;

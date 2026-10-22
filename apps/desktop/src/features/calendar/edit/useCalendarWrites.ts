@@ -20,7 +20,7 @@ import { type PendingWrite, withPending } from "./pending";
 import { usePendingWrites } from "./usePendingWrites";
 import { undoPending } from "./undoPending";
 
-type Send = (command: AppCommand) => Promise<void>;
+type Send = (command: AppCommand) => Promise<unknown>;
 type Draft = Omit<PendingWrite, "requestId" | "sentAtMs">;
 /** ⌘Z reaches this far back in the session: a short stack in the view's
  *  memory; older changes stay as they are. */

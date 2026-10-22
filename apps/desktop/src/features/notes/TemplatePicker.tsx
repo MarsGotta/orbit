@@ -2,6 +2,7 @@ import type { AppCommand } from "../../bridge/generated";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { es } from "../../i18n/es";
+import { useHeldChoice } from "../../state/use-held-choice";
 import styles from "./NoteScreen.module.css";
 
 /**
@@ -19,8 +20,10 @@ export function TemplatePicker({
   blocked?: string;
   library?: NoteLibrarySnapshot | null;
   note: OpenNoteSnapshot;
-  send: (command: AppCommand) => void;
+  send: (command: AppCommand) => unknown;
 }) {
+  // The template chosen stays shown until the note is written again with it.
+  const template = useHeldChoice(note.summary?.template_id ?? "general", send);
   // Templates not read yet, or not readable without the hub, say
   // nothing; a failed read says so.
   if (
@@ -36,20 +39,19 @@ export function TemplatePicker({
       </span>
     );
   }
-  const current = note.summary?.template_id ?? "general";
   return (
     <label className={styles.templatePicker} title={blocked}>
       <span>{es.noteScreen.template}</span>
       <select
         disabled={blocked !== undefined}
         onChange={(event) =>
-          send({
+          template.choose(event.target.value, {
             command: "note_regenerate",
             recording_id: note.recording_id,
             template_id: event.target.value,
           })
         }
-        value={current}
+        value={template.shown}
       >
         {library.items.map((template) => (
           <option

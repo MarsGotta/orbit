@@ -10,7 +10,7 @@ import styles from "./AssistantView.module.css";
 
 export interface VoiceNoteProps {
   messageId: string;
-  send: (command: AppCommand) => void;
+  send: (command: AppCommand) => unknown;
   voice: VoiceNoteSnapshot;
   /** The audio the user last asked to hear, when it is this note's. */
   audio?: VoiceNoteAudioSnapshot;
@@ -50,9 +50,24 @@ function VoiceTranscript({ messageId, send, voice }: Omit<VoiceNoteProps, "audio
   );
 }
 
+/**
+ * Asks the app for a note's audio, once at a time; once answered (refused or
+ * not) it can be asked again: the audio, when it came, is already on its way.
+ */
+function useAudioRequest(messageId: string, send: VoiceNoteProps["send"]) {
+  const [requested, setRequested] = useState(false);
+  return () => {
+    if (requested) return;
+    setRequested(true);
+    void Promise.resolve(send({ command: "voice_note_audio", message_id: messageId })).finally(() =>
+      setRequested(false),
+    );
+  };
+}
+
 export function VoiceNote({ audio, messageId, send, voice }: VoiceNoteProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [requested, setRequested] = useState(false);
+  const request = useAudioRequest(messageId, send);
   const [source, setSource] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const available = voice.audio_available ?? false;
@@ -72,9 +87,7 @@ export function VoiceNote({ audio, messageId, send, voice }: VoiceNoteProps) {
       play(audioRef.current);
       return;
     }
-    if (requested) return;
-    setRequested(true);
-    send({ command: "voice_note_audio", message_id: messageId });
+    request();
   };
   const seconds = Math.max(0, voice.duration_ms / 1_000);
   return (

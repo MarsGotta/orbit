@@ -8,7 +8,7 @@ export interface OnboardingProps {
   error: string | null;
   onDone: () => void;
   requested: OnboardingRequest;
-  send: (command: AppCommand) => Promise<void>;
+  send: (command: AppCommand) => Promise<unknown>;
   snapshot: AppSnapshot;
 }
 

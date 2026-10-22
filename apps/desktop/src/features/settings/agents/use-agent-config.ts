@@ -51,6 +51,20 @@ async function ask(agent: AgentPort, call: AgentCall): Promise<Result> {
   }
 }
 
+/**
+ * What a read of the configuration shows. Any answer other than the
+ * configuration or its refusal is not it: a failed read, never «Leyendo…»
+ * for ever.
+ */
+function configView(result: Result): ConfigView {
+  if (result.kind === "config") return { state: "config", config: result.config };
+  if (result.kind === "error") return { state: "failed", text: result.text };
+  return {
+    state: "failed",
+    text: agentFailureText({ code: "hub_reply_invalid", field: "outcome" }),
+  };
+}
+
 /** Whether the screen that asked is still there when the hub answers. */
 function useAlive() {
   const alive = useRef(true);
@@ -77,8 +91,7 @@ export function useAgentConfig(agent: AgentPort, agentId: string) {
   const read = useCallback(async () => {
     const result = await ask(agent, { call: "config", agent_id: agentId });
     if (!alive.current) return;
-    if (result.kind === "config") setView({ state: "config", config: result.config });
-    else if (result.kind === "error") setView({ state: "failed", text: result.text });
+    setView(configView(result));
   }, [agent, agentId, alive]);
 
   useEffect(() => {

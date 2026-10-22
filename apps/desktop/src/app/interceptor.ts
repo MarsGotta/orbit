@@ -6,6 +6,7 @@ import type { Report } from "../bridge/port";
 import type { Refusal } from "../bridge/refusal";
 import { noticesForAssistant, type NoticeAction, type NoticeData } from "../i18n/es/notices";
 import { refusalEntries } from "../i18n/es/refusalEntries";
+import { waits } from "../i18n/es/waits";
 import type { ViewId } from "../state/ui";
 
 /** Where a command's refusal is shown: the view, overlay or panel that sent it. */
@@ -32,10 +33,26 @@ export interface Message {
 
 export type CrashCode = "ui_uncaught_error" | "ui_render_failed";
 
+/**
+ * A wait past its ceiling (`state/ceilings.ts`): which part of it (`stage`),
+ * what it waited on (`subject`: the order, the call or the feature) and how
+ * long, against which ceiling.
+ */
+export interface Exceeded {
+  kind: "exceeded";
+  op: string;
+  stage: "receipt" | "frame" | "call" | "first_state" | "working";
+  subject: string;
+  feature: FeatureId;
+  elapsedMs: number;
+  ceilingMs: number;
+}
+
 export type Incoming =
   | { kind: "notice"; notice: Notice }
   | { kind: "refusal"; op: string; refusal: Refusal }
-  | { kind: "crash"; op: string; code: CrashCode };
+  | { kind: "crash"; op: string; code: CrashCode }
+  | Exceeded;
 
 export type Context = Pick<Message, "place" | "feature" | "command">;
 
@@ -137,9 +154,41 @@ function presentRefusal(op: string, refusal: Refusal): Presented {
   };
 }
 
+/** The report line of a wait past its ceiling: its stage, subject and numbers. */
+export function exceededReport(incoming: Exceeded): Report {
+  return {
+    op: incoming.op,
+    code: "ui_wait_exceeded",
+    class: "failed",
+    source: "ui",
+    data: closedData({
+      stage: incoming.stage,
+      code: incoming.subject,
+      elapsed_ms: incoming.elapsedMs,
+      timeout_ms: incoming.ceilingMs,
+    }),
+  };
+}
+
+/**
+ * A wait past its ceiling is a failure that says how long it waited. A
+ * working message the daemon never closed is only logged: what it described
+ * has ended and its outcome was said by its own code.
+ */
+function presentExceeded(incoming: Exceeded): Presented {
+  const report = exceededReport(incoming);
+  if (incoming.stage === "working") return { op: incoming.op, class: "silent", text: "", report };
+  const text =
+    incoming.stage === "first_state"
+      ? waits.firstState(incoming.feature, incoming.ceilingMs)
+      : waits.exceeded(incoming.ceilingMs, incoming.op.slice(0, 6).toUpperCase());
+  return { op: incoming.op, class: "failed", text, report };
+}
+
 function present(incoming: Incoming, assistantName?: string): Presented {
   if (incoming.kind === "notice") return presentNotice(incoming.notice, assistantName);
   if (incoming.kind === "refusal") return presentRefusal(incoming.op, incoming.refusal);
+  if (incoming.kind === "exceeded") return presentExceeded(incoming);
   const { op, code } = incoming;
   const what = code === "ui_render_failed" ? "mostrar esta vista" : undefined;
   return failure(op, { op, code, class: "failed", source: "ui", data: {} }, what);

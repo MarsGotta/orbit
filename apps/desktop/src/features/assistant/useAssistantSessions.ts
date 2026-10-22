@@ -23,8 +23,10 @@ function fromAnswer(answer: SessionPage, previous: SessionsState, first: boolean
       loading: false,
       error: es.assistant.sessionsFailed,
     };
-  // Not known yet: nothing to say.
-  if (answer.state === "unknown") return { ...previous, loading: false };
+  // An answer that says nothing leaves the list unread, not empty: it is a
+  // failed read, which «Reintentar» asks again.
+  if (answer.state === "unknown")
+    return { ...previous, loading: false, error: es.assistant.sessionsFailed };
   const seen = new Set(first ? [] : previous.items.map((session) => session.id));
   const items = first ? [] : [...previous.items];
   for (const session of answer.value.items) {

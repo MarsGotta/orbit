@@ -10,7 +10,7 @@ import { useCalendarWrites } from "./useCalendarWrites";
 import { drawn, isDirty, saveChoices, useEventEditor } from "./useEventEditor";
 import { useEditKeys } from "./useEditKeys";
 
-type Send = (command: AppCommand) => Promise<void>;
+type Send = (command: AppCommand) => Promise<unknown>;
 
 interface ViewSelection {
   selectedEvent: CalendarEvent | null;

@@ -3,6 +3,7 @@ import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibraryS
 import { refusalText, seriesRefusals } from "../../../app/library-refusal";
 import { es } from "../../../i18n/es";
 import styles from "./EventTemplate.module.css";
+import { useHeldChoice } from "../../../state/use-held-choice";
 
 const GENERAL = "general";
 
@@ -18,7 +19,7 @@ export function EventTemplate({
 }: {
   calendarItemId: string;
   library: NoteLibrarySnapshot | null | undefined;
-  send: (command: AppCommand) => Promise<void> | void;
+  send: (command: AppCommand) => Promise<unknown> | void;
 }) {
   return (
     <section aria-label={es.library.noteTemplate} className={styles.section}>
@@ -34,7 +35,7 @@ function TemplateState({
 }: {
   calendarItemId: string;
   library: NoteLibrarySnapshot | null | undefined;
-  send: (command: AppCommand) => Promise<void> | void;
+  send: (command: AppCommand) => Promise<unknown> | void;
 }) {
   if (library?.templates.state === "failed") {
     return (
@@ -73,14 +74,16 @@ function TemplateSelect({
   assigned: string;
   calendarItemId: string;
   library: NoteLibrarySnapshot;
-  send: (command: AppCommand) => Promise<void> | void;
+  send: (command: AppCommand) => Promise<unknown> | void;
 }) {
+  // The template chosen stays shown until the library is read again with it.
+  const template = useHeldChoice(assigned, send);
   return (
     <label className={styles.template} title={es.library.noteTemplateHint}>
       <span>{es.library.noteTemplate}</span>
       <select
         onChange={(change) =>
-          void send({
+          template.choose(change.target.value, {
             command: "note_library",
             request: {
               action: "assign",
@@ -89,7 +92,7 @@ function TemplateSelect({
             },
           })
         }
-        value={assigned}
+        value={template.shown}
       >
         {library.items.map((template) => (
           <option key={template.id} value={template.id}>

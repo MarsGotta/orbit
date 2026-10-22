@@ -28,7 +28,10 @@ const PROFILE_NAME_FILE: &str = "app-profile-name";
 /// this client already uses for every other daemon confirmation. It is not a
 /// limit on the read: the daemon keeps reading, and the week appears as soon
 /// as it is there.
-const READ_WAIT: Duration = Duration::from_secs(10);
+const READ_WAIT: Duration = Duration::from_secs(READ_WAIT_SECONDS);
+/// In seconds, as the interface reads it for the calendar orders' ceilings
+/// (`apps/desktop/src/state/ceilings.ts`, `contracts/constants.json`).
+const READ_WAIT_SECONDS: u64 = 10;
 const MAX_PROFILE_NAME_CHARS: usize = 80;
 const MAX_PROFILE_NAME_BYTES: usize = MAX_PROFILE_NAME_CHARS * 4;
 

@@ -188,6 +188,7 @@ async fn malformed_or_misbound_receipts_cannot_claim_an_approval_was_applied() -
             request_id: "question-one".into(),
             session_id: "selected".into(),
             clarification: false,
+            sent_at: std::time::Instant::now(),
         });
         let mut data = json!({"status":"ok","applied":true,"resolved":1,"request_id":"question-one","session_id":"selected"});
         match alteration {
@@ -216,6 +217,7 @@ fn pending_response(clarification: bool) -> PendingResponse {
         request_id: "question-one".into(),
         session_id: "selected".into(),
         clarification,
+        sent_at: std::time::Instant::now(),
     }
 }
 
@@ -1639,5 +1641,29 @@ async fn the_turns_items_are_its_work_until_it_ends() -> Result<()> {
     )?;
     assert_eq!(data["knowledge"]["value"]["work"]["turn_id"], TURN);
     assert_eq!(data["knowledge"]["value"]["work"]["tools"], 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_answer_the_hub_never_confirms_is_let_go_after_its_deadline() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _) = fixture(directory.path())?;
+    runtime.conversation.interaction_response = Some(pending_response(false));
+    runtime.expire_interaction_response().await?;
+    assert!(
+        runtime.conversation.interaction_response.is_some(),
+        "an answer just sent is still the hub's to confirm"
+    );
+    let mut stale = pending_response(false);
+    stale.sent_at = std::time::Instant::now()
+        .checked_sub(INTERACTION_RESPONSE_DEADLINE + std::time::Duration::from_secs(1))
+        .context("the test clock cannot go back that far")?;
+    runtime.conversation.interaction_response = Some(stale);
+    runtime.expire_interaction_response().await?;
+    assert!(runtime.conversation.interaction_response.is_none());
+    assert!(said::has(
+        &runtime.state,
+        NoticeCode::ApprovalOutcomeUnknown
+    ));
     Ok(())
 }

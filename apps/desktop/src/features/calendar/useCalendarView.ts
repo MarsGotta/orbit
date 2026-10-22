@@ -7,7 +7,7 @@ import { effectiveTimezone } from "./date";
 
 export type CalendarEvent = AppSnapshot["calendar"]["events"][number];
 type Calendar = AppSnapshot["calendar"];
-type Send = (command: AppCommand) => Promise<void>;
+type Send = (command: AppCommand) => Promise<unknown>;
 
 export function useCalendarView(calendar: Calendar, systemTimezone: string, send: Send) {
   const selectedCalendarEventId = useUiStore((state) => state.selectedCalendarEventId);

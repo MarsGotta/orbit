@@ -7,7 +7,7 @@ import type {
   FrameRevision,
 } from "../bridge/generated";
 import type { DaemonPort, Unsubscribe } from "../bridge/port";
-import { commandError, refusalOf } from "../bridge/refusal";
+import { refusalOf } from "../bridge/refusal";
 import { daemonWatchers, intercept } from "./daemon-watchers";
 import {
   newOp,
@@ -19,7 +19,10 @@ import {
 } from "../app/interceptor";
 import { applyFrame, newer } from "./feature-frame";
 import { composeView, type AppView } from "./app-view";
-import { commandFeature } from "../bridge/generated/commandFeatures";
+import { CONNECT_CEILING_MS } from "./ceilings";
+import type { Wait } from "./in-flight";
+import { sender } from "./sender";
+import { firstStateFollower, WaitRegistry, workingFollower } from "./wait-registry";
 
 export type { ErrorOrigin } from "../app/interceptor";
 
@@ -28,9 +31,17 @@ export interface OrbitState {
   features: Partial<Record<FeatureId, FeatureFrame>>;
   /** What the interceptor shows: at most one message per op. */
   messages: Message[];
+  /** What is in flight, oldest first (`in-flight.ts` reads it). */
+  waits: Wait[];
   error: string | null;
   connect: () => Promise<Unsubscribe>;
-  send: (command: AppCommand, origin?: ErrorOrigin) => Promise<void>;
+  /**
+   * Sends an order; `true` once it was accepted, `false` when it was refused
+   * or went past its ceiling (its message already says which).
+   */
+  send: (command: AppCommand, origin?: ErrorOrigin) => Promise<boolean>;
+  /** A call to the app outside `send`, followed by the registry (`WaitRegistry.track`). */
+  track: WaitRegistry["track"];
   /** A view that failed to paint or an uncaught error; returns its words. */
   crash: (code: CrashCode) => string;
   dismiss: (op: string) => void;
@@ -51,6 +62,15 @@ function errorMessage(error: unknown): string {
   return String(error);
 }
 
+/** Rejects once `ms` pass, unless `promise` settles first. */
+function within<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const ceiling = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(`${what} did not settle within ${ms} ms`)), ms);
+  });
+  return Promise.race([promise, ceiling]).finally(() => clearTimeout(timer));
+}
+
 async function connectPort(
   port: DaemonPort,
   acceptFrame: (frame: FeatureFrame) => void,
@@ -59,17 +79,30 @@ async function connectPort(
 ): Promise<Unsubscribe> {
   const pending: FeatureFrame[] = [];
   let ready = false;
+  let closed = false;
   let unsubscribe: Unsubscribe | undefined;
   try {
-    unsubscribe = await port.subscribeFrames((frame) => {
+    // Both are answered by the app from what it holds: past one call's
+    // bound the window says it could not connect (`CONNECT_CEILING_MS`).
+    const subscribing = port.subscribeFrames((frame) => {
+      if (closed) return;
       if (ready) acceptFrame(frame);
       else pending.push(frame);
     });
-    acceptBootstrap(await port.snapshot());
+    // A subscription that arrives after the window gave up is let go.
+    void subscribing.then(
+      (stop) => {
+        if (closed) stop();
+      },
+      () => undefined,
+    );
+    unsubscribe = await within(subscribing, CONNECT_CEILING_MS, "subscribing to frames");
+    acceptBootstrap(await within(port.snapshot(), CONNECT_CEILING_MS, "reading the first view"));
     ready = true;
     for (const frame of pending) acceptFrame(frame);
     return unsubscribe;
   } catch (error: unknown) {
+    closed = true;
     unsubscribe?.();
     // The screen says what to do; the log keeps which failure it was.
     const refusal = refusalOf(error);
@@ -116,45 +149,28 @@ function bootstrapper(revisions: Revisions, get: Get, set: Set) {
   };
 }
 
-function sender(port: DaemonPort, get: Get, set: Set): OrbitState["send"] {
-  return async (command, origin) => {
-    const feature = commandFeature[command.command];
-    const op = newOp();
-    try {
-      await port.send(command, op);
-    } catch (error: unknown) {
-      const { refusal } = commandError(error, command);
-      const context = { place: origin, feature, command };
-      // One refusal per function, as before: the newest replaces the last.
-      set({ messages: get().messages.filter((message) => message.feature !== feature) });
-      intercept(port, get, set, { kind: "refusal", op, refusal }, context);
-      return;
-    }
-    // An accepted order clears its function; rearm also lifts privacy refusals elsewhere.
-    set({
-      messages: get().messages.filter(
-        (message) =>
-          message.feature !== feature &&
-          !(command.command === "rearm" && message.refusalCode === "privacy_stopped"),
-      ),
-    });
-  };
-}
-
 export function createOrbitStore(port: DaemonPort, options: StoreOptions = { notices: true }) {
   return createStore<OrbitState>((set, get) => {
     const revisions: Revisions = {};
-    const { notices, failures } = daemonWatchers(port, get, set, options);
+    const waits = new WaitRegistry(port, get, set);
+    const followFirstStates = firstStateFollower(waits, get, options.notices);
+    const working = workingFollower(port, get, set);
+    const { notices, failures } = daemonWatchers(port, get, set, options, working);
     const acceptFrame = (frame: FeatureFrame) => {
-      if (!acceptFeatureFrame(frame, revisions, get, set)) return;
+      const accepted = acceptFeatureFrame(frame, revisions, get, set);
+      // A frame not newer for its feature was already shown: still taken.
+      waits.observe(frame.revision);
+      if (!accepted) return;
       notices([frame]);
       failures();
+      followFirstStates();
     };
     const bootstrap = bootstrapper(revisions, get, set);
     return {
       snapshot: null,
       features: {},
       messages: [],
+      waits: [],
       error: null,
       connect: () =>
         connectPort(
@@ -162,11 +178,14 @@ export function createOrbitStore(port: DaemonPort, options: StoreOptions = { not
           acceptFrame,
           (snapshot) => {
             notices(bootstrap(snapshot));
+            waits.observe(snapshot.revision);
             failures();
+            followFirstStates();
           },
           (message) => set({ error: message }),
         ),
-      send: sender(port, get, set),
+      send: sender(port, get, set, waits),
+      track: waits.track,
       crash: (code) => {
         const op = newOp();
         const place = code === "ui_render_failed" ? "boundary" : undefined;

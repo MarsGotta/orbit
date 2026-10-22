@@ -12,6 +12,8 @@ import { MessageAttachments } from "./MessageAttachments";
 import { retryText } from "./conversation-markdown";
 import { UserText } from "./UserText";
 import { VoiceNote, type VoiceNoteProps } from "./VoiceNote";
+import { waits } from "../../i18n/es/waits";
+import type { FirstPage } from "./useConversation";
 import styles from "./AssistantView.module.css";
 
 interface Answering {
@@ -89,16 +91,28 @@ export function MessageList({
   voiceAudio,
   work,
   workInFlight = false,
+  firstPage = "read",
   ...answering
 }: {
   messages: ChatMessage[];
+  /** Until its first page is read nothing is known: never «no messages». */
+  firstPage?: FirstPage;
   send: VoiceNoteProps["send"];
   voiceAudio?: VoiceNoteAudioSnapshot;
   /** What the agent did in the last turn; it sits after that turn's question. */
   work?: AgentWork | null;
   workInFlight?: boolean;
 } & Answering) {
-  if (messages.length === 0) return <p className={styles.empty}>{es.chat.empty}</p>;
+  if (messages.length === 0) {
+    if (firstPage === "failed") return null;
+    if (firstPage === "reading")
+      return (
+        <p className={styles.empty} role="status">
+          {waits.readingConversation}
+        </p>
+      );
+    return <p className={styles.empty}>{es.chat.empty}</p>;
+  }
   return (
     <AttachmentGallery messages={messages}>
       {messages.map((message, index) => (

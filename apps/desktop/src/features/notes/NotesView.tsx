@@ -17,11 +17,11 @@ import styles from "./NotesView.module.css";
 interface NotesViewProps {
   error: string | null;
   onRecord: () => void;
-  send: (command: AppCommand) => Promise<void>;
+  send: (command: AppCommand) => Promise<unknown>;
   snapshot: AppSnapshot;
 }
 
-function useNotesMidnightRefresh(send: (command: AppCommand) => Promise<void>) {
+function useNotesMidnightRefresh(send: (command: AppCommand) => Promise<unknown>) {
   useEffect(() => {
     let timer: number;
     const schedule = () => {
@@ -41,7 +41,7 @@ function useNotesMidnightRefresh(send: (command: AppCommand) => Promise<void>) {
 
 /** The note the route names is read when it is not the one read already;
  * the client reads it again when the hub says it changed. */
-function useNoteRoute(snapshot: AppSnapshot, send: (command: AppCommand) => Promise<void>) {
+function useNoteRoute(snapshot: AppSnapshot, send: (command: AppCommand) => Promise<unknown>) {
   const routeRecordingId = decodeURIComponent(
     window.location.hash.match(/^#\/notes\/([^/]+)$/)?.[1] ?? "",
   );
@@ -54,7 +54,7 @@ function useNoteRoute(snapshot: AppSnapshot, send: (command: AppCommand) => Prom
   return { routeRecordingId, readMatches };
 }
 
-function openNote(note: NoteListItem, send: (command: AppCommand) => Promise<void>) {
+function openNote(note: NoteListItem, send: (command: AppCommand) => Promise<unknown>) {
   window.location.hash = `#/notes/${encodeURIComponent(note.recording_id)}`;
   void send({ command: "notes_open", recording_id: note.recording_id });
 }
@@ -67,7 +67,7 @@ function listTitle(notes: NotesSnapshot): string | undefined {
 function unreadNoteView(
   read: NotesSnapshot["open_read"],
   recordingId: string,
-  send: (command: AppCommand) => Promise<void>,
+  send: (command: AppCommand) => Promise<unknown>,
 ) {
   if (read?.state !== "failed") return null;
   return <NoteReadFailure recordingId={recordingId} send={send} />;
@@ -84,7 +84,7 @@ function noteRouteView({
   notes: NotesSnapshot;
   readMatches: boolean;
   routeRecordingId: string;
-  send: (command: AppCommand) => Promise<void>;
+  send: (command: AppCommand) => Promise<unknown>;
 }) {
   const read = notes.open_read;
   if (routeRecordingId && !readMatches) {

@@ -5,14 +5,15 @@ import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { Button } from "../../design/Button";
 import { useModalFocus } from "../../design/use-modal-focus";
 import { es } from "../../i18n/es";
-import { DictionaryFeedback, sendDictionary } from "./DictionaryPicker";
+import { useHeldChoice } from "../../state/use-held-choice";
+import { DictionaryFeedback } from "./DictionaryPicker";
 import styles from "./SpeakerRenameDialog.module.css";
 
 interface Props {
   wrong: string;
   note: OpenNoteSnapshot;
   library?: NoteLibrarySnapshot | null;
-  send: (command: AppCommand) => void;
+  send: (command: AppCommand) => unknown;
   onClose: () => void;
 }
 
@@ -25,7 +26,7 @@ function useCorrection({ wrong, note, library, send, onClose }: Props) {
   const [submitted, setSubmitted] = useState(false);
   const id = chosen || identity;
   const dictionary = library?.dictionary_items?.find((item) => item.dictionary.id === id);
-  const pending =
+  const held =
     dictionary?.pending === true ||
     (library?.dictionary_pending ?? []).includes(`dictionary:${id}`);
   const saved =
@@ -34,6 +35,10 @@ function useCorrection({ wrong, note, library, send, onClose }: Props) {
         entry.correct === correct.trim() &&
         entry.wrong.some((form) => form.toLowerCase() === wrong.toLowerCase()),
     ) === true;
+  // Saving from the press until the library says what became of it: held by
+  // the hub, saved, or the order refused (then it can be pressed again).
+  const press = useHeldChoice(`${held}:${saved}`, send);
+  const pending = held || press.pending;
   useEffect(() => {
     if (submitted && !pending && saved) onClose();
   }, [submitted, pending, saved, onClose]);
@@ -42,13 +47,19 @@ function useCorrection({ wrong, note, library, send, onClose }: Props) {
   const save = () => {
     if (disabled) return;
     setSubmitted(true);
-    sendDictionary(send, {
-      action: "correct",
-      recording_id: note.recording_id,
-      dictionary_id: id,
-      wrong,
-      correct: correct.trim(),
-      name: chosen ? null : name.trim(),
+    press.choose("pressed", {
+      command: "note_library",
+      request: {
+        action: "dictionary",
+        request: {
+          action: "correct",
+          recording_id: note.recording_id,
+          dictionary_id: id,
+          wrong,
+          correct: correct.trim(),
+          name: chosen ? null : name.trim(),
+        },
+      },
     });
   };
   return { correct, setCorrect, chosen, setChosen, name, setName, pending, known, disabled, save };

@@ -417,3 +417,14 @@ function folderFile(path: string, text: string): File {
   });
   return file;
 }
+
+describe("reading a configuration that answers something else", () => {
+  it("is a failed read with its cause, never «Leyendo…» for ever", async () => {
+    replies.set("config:vega", { outcome: "done" });
+    render(<AgentSettings agents={AGENTS} defaultAgentId="vega" agent={agent} />);
+    expect(
+      await screen.findByText("La respuesta del hub no cumple el contrato (campo outcome)."),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Leyendo la configuración/)).toBeNull();
+  });
+});

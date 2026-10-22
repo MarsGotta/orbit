@@ -8,7 +8,7 @@ import styles from "./OnboardingView.module.css";
 
 interface AccessProps {
   onContinue: () => void;
-  send: (command: AppCommand) => Promise<void>;
+  send: (command: AppCommand) => Promise<unknown>;
 }
 
 export function PermissionsStep({

@@ -13,7 +13,7 @@ export function NotesIndexMessage({
   send,
 }: {
   index: NotesIndexSnapshot;
-  send: (command: AppCommand) => Promise<void>;
+  send: (command: AppCommand) => Promise<unknown>;
 }) {
   return (
     <section className={styles.empty}>

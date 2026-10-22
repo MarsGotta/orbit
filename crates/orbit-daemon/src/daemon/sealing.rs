@@ -241,8 +241,8 @@ impl Runtime {
         Ok(())
     }
 
-    /// The verticals' timers: notes, the meeting question, calendars,
-    /// sources, control and call detection. A failure here is a data fault of
+    /// The verticals' timers: notes, the meeting question, calendars, an
+    /// answer to the agent, sources, control and call detection. A failure here is a data fault of
     /// that vertical, never the capture's.
     pub(super) fn maintain_verticals(
         &mut self,
@@ -251,6 +251,7 @@ impl Runtime {
             self.maintain_recording_notes();
             Box::pin(self.maintain_meeting_question()).await?;
             self.maintain_calendar();
+            Box::pin(self.expire_interaction_response()).await?;
             Box::pin(self.check_source_timeout()).await?;
             self.check_files_timeout();
             Box::pin(self.maintain_computer()).await?;

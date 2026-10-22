@@ -25,6 +25,7 @@ import type { OnboardingRequest } from "./Onboarding";
 import styles from "./App.module.css";
 import { usePaletteCommands } from "./use-palette-commands";
 import { useScopedSend } from "./use-scoped-send";
+import { OrbitStoreProvider } from "../state/use-in-flight";
 
 export interface AppContentProps {
   commands: CommandItem[];
@@ -37,9 +38,9 @@ export interface AppContentProps {
   onboardingError: string | null;
   navigate: (view: ViewId) => void;
   paletteOpen: boolean;
-  send: (command: AppCommand) => Promise<void>;
-  sendOnboarding: (command: AppCommand) => Promise<void>;
-  sendRecording: (command: AppCommand) => Promise<void>;
+  send: (command: AppCommand) => Promise<unknown>;
+  sendOnboarding: (command: AppCommand) => Promise<unknown>;
+  sendRecording: (command: AppCommand) => Promise<unknown>;
   setMeetingOpen: (open: boolean) => void;
   setPaletteOpen: (open: boolean) => void;
   snapshot: AppSnapshot;
@@ -130,10 +131,14 @@ function AppContent(props: AppContentProps) {
 }
 
 export function App({ port }: { port: DaemonPort }) {
-  // What a read could not read is reported; the screen only says so.
-  const { readSessionsPage, readSessionMessages } = useMemo(() => reportingReads(port), [port]);
-  const agent = useMemo(() => reportingAgent(port), [port]);
   const { store, snapshot, error, send, messages, dismiss, crash } = useAppStore(port);
+  // What a read could not read is reported; the screen only says so. Each
+  // read is followed by the registry of what is in flight.
+  const { readSessionsPage, readSessionMessages } = useMemo(
+    () => reportingReads(port, store.getState().track),
+    [port, store],
+  );
+  const agent = useMemo(() => reportingAgent(port, store.getState().track), [port, store]);
   const { view, navigate } = useUiStore();
   const { errorView, visibleError, onboardingError, recordingError } = useErrorSelection(
     store,
@@ -160,29 +165,31 @@ export function App({ port }: { port: DaemonPort }) {
     );
   }
   return (
-    <AssistantCopy name={conversationAgentName(snapshot)}>
-      <AppContent
-        commands={commands}
-        crash={crash}
-        dismiss={dismiss}
-        error={visibleError ?? error}
-        messages={messages}
-        onboardingError={onboardingError ?? error}
-        recordingError={recordingError}
-        meetingOpen={meetingOpen}
-        navigate={navigate}
-        paletteOpen={paletteOpen}
-        send={sendFromView}
-        sendOnboarding={sendOnboarding}
-        sendRecording={sendRecording}
-        setMeetingOpen={setMeetingOpen}
-        setPaletteOpen={setPaletteOpen}
-        snapshot={snapshot}
-        readSessionsPage={readSessionsPage}
-        readSessionMessages={readSessionMessages}
-        agent={agent}
-        view={view}
-      />
-    </AssistantCopy>
+    <OrbitStoreProvider store={store}>
+      <AssistantCopy name={conversationAgentName(snapshot)}>
+        <AppContent
+          commands={commands}
+          crash={crash}
+          dismiss={dismiss}
+          error={visibleError ?? error}
+          messages={messages}
+          onboardingError={onboardingError ?? error}
+          recordingError={recordingError}
+          meetingOpen={meetingOpen}
+          navigate={navigate}
+          paletteOpen={paletteOpen}
+          send={sendFromView}
+          sendOnboarding={sendOnboarding}
+          sendRecording={sendRecording}
+          setMeetingOpen={setMeetingOpen}
+          setPaletteOpen={setPaletteOpen}
+          snapshot={snapshot}
+          readSessionsPage={readSessionsPage}
+          readSessionMessages={readSessionMessages}
+          agent={agent}
+          view={view}
+        />
+      </AssistantCopy>
+    </OrbitStoreProvider>
   );
 }

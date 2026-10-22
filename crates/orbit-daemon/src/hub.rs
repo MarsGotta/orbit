@@ -37,7 +37,10 @@ use orbit_core::limits::MAX_SESSION_ID_BYTES;
 pub(crate) const MAX_HUB_CODE_BYTES: usize = 64;
 // Existing shared deadlines for ordinary hub calls. They do not govern voice:
 // the transcription endpoint has its own ordered budget below.
-const HUB_HTTP_TIMEOUT: Duration = Duration::from_secs(90);
+pub(crate) const HUB_HTTP_TIMEOUT: Duration = Duration::from_secs(HUB_HTTP_TIMEOUT_SECONDS);
+/// In seconds, as the interface reads it: how long it keeps a choice the hub
+/// confirms (`apps/desktop/src/state/ceilings.ts`, `contracts/constants.json`).
+const HUB_HTTP_TIMEOUT_SECONDS: u64 = 90;
 const HUB_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 /// The hub's ceiling for one voice request, queue and provider, itself
 /// outside the provider's 180 s call (`INTERACTIVE_TRANSCRIPTION_TIMEOUT_SECONDS`

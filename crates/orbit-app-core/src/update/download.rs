@@ -27,7 +27,10 @@ pub const INSTALLER_CEILING_BYTES: usize =
 
 /// One GET gets 60 seconds, matching the existing CLI's network budget. It
 /// bounds an unavailable origin, not the installer process or user consent.
-pub const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(60);
+pub const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(DOWNLOAD_TIMEOUT_SECONDS);
+/// In seconds, as the interface reads it for the update orders' ceilings
+/// (`apps/desktop/src/state/ceilings.ts`, `contracts/constants.json`).
+pub const DOWNLOAD_TIMEOUT_SECONDS: u64 = 60;
 
 /// Bounds redirect loops and request amplification. Ten preserves reqwest's
 /// previous default; the published origin was measured at zero redirects on

@@ -1,7 +1,13 @@
 import type { DaemonPort } from "../bridge/port";
 import type { ReadPage } from "../bridge/reads";
 import { refusalOf } from "../bridge/refusal";
+import type { OrbitState } from "../state/orbit-store";
+import type { DirectCall } from "../state/ceilings";
 import { newOp, refusalReport } from "./interceptor";
+
+/** Runs a call through the registry of what is in flight; as is, without one. */
+type Track = OrbitState["track"];
+const untracked: Track = (_call, _feature, work) => work();
 
 /**
  * A refusal met outside an order the store sent (a link the panel
@@ -16,11 +22,13 @@ export function reportRefused(port: DaemonPort, error: unknown): void {
 function reported<A extends unknown[], T>(
   port: DaemonPort,
   read: ((...args: A) => Promise<ReadPage<T>>) | undefined,
+  call: DirectCall,
+  track: Track,
 ): ((...args: A) => Promise<ReadPage<T>>) | undefined {
   if (!read) return undefined;
   return async (...args) => {
     try {
-      const answer = await read.apply(port, args);
+      const answer = await track(call, "assistant", () => read.apply(port, args), "assistant");
       if (answer.state === "absent")
         void port.report(refusalReport(newOp(), answer.refusal)).catch(() => undefined);
       return answer;
@@ -37,10 +45,11 @@ function reported<A extends unknown[], T>(
  */
 export function reportingReads(
   port: DaemonPort,
+  track: Track = untracked,
 ): Pick<DaemonPort, "readSessionsPage" | "readSessionMessages"> {
   return {
-    readSessionsPage: reported(port, port.readSessionsPage),
-    readSessionMessages: reported(port, port.readSessionMessages),
+    readSessionsPage: reported(port, port.readSessionsPage, "sessions_page", track),
+    readSessionMessages: reported(port, port.readSessionMessages, "session_messages", track),
   };
 }
 
@@ -49,12 +58,12 @@ export function reportingReads(
  * the hub's code, never the text of a personality or a skill. The screen
  * says the cause with its numbers.
  */
-export function reportingAgent(port: DaemonPort): DaemonPort["agent"] {
+export function reportingAgent(port: DaemonPort, track: Track = untracked): DaemonPort["agent"] {
   const agent = port.agent;
   if (!agent) return undefined;
   return async (call) => {
     try {
-      const answer = await agent.call(port, call);
+      const answer = await track("agent", "assistant", () => agent.call(port, call), "settings");
       const { outcome } = answer;
       if (outcome.outcome === "failed")
         void port

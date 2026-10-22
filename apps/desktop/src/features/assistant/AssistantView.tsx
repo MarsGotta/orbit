@@ -14,7 +14,8 @@ import { turnInFlight } from "./conversation";
 import { UnknownAssistant, useAssistantCall } from "./AssistantAvailability";
 import { MessageList } from "./MessageList";
 import { PendingCard } from "./PendingCard";
-import { agentFor, agentsOf, readsAloud } from "./agents";
+import { readsAloud } from "./agents";
+import { ConversationAgent } from "./ConversationAgent";
 import { useConversation } from "./useConversation";
 import styles from "./AssistantView.module.css";
 
@@ -23,41 +24,6 @@ interface AssistantViewProps {
   send: (command: AppCommand) => void;
   snapshot: AppSnapshot;
   readMessages?: DaemonPort["readSessionMessages"];
-}
-
-/**
- * With several agents, whose the conversation is: a new one, before its
- * first message, picks its agent; an open one says it and keeps it. With
- * one agent there is nothing to say.
- */
-function ConversationAgent({
-  snapshot,
-  send,
-}: {
-  snapshot: AppSnapshot;
-  send: AssistantViewProps["send"];
-}) {
-  const agents = agentsOf(snapshot);
-  const { chat } = snapshot;
-  const current = agentFor(snapshot, chat.agent_id);
-  if (agents.length < 2 || !current) return null;
-  if (chat.session_id !== null || chat.turn.length > 0)
-    return <span>{es.assistant.conversationWith(current.name)}</span>;
-  return (
-    <label className={styles.agentPicker}>
-      <span>{es.assistant.agentPicker}</span>
-      <select
-        onChange={(event) => send({ command: "new_session", agent_id: event.target.value })}
-        value={current.id}
-      >
-        {agents.map((agent) => (
-          <option key={agent.id} value={agent.id}>
-            {agent.name}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
 }
 
 function AssistantHeader({
@@ -141,6 +107,9 @@ function ConversationThread({
         {history.hasOlder && <Button onClick={history.loadOlder}>{es.assistant.loadOlder}</Button>}
         {history.loading && <p role="status">{es.assistant.loadingOlder}</p>}
         {history.error !== null && <p role="alert">{history.error}</p>}
+        {history.error !== null && history.firstPage === "failed" && (
+          <Button onClick={history.retry}>{es.retry}</Button>
+        )}
         <ConversationTools
           inFlight={turnInFlight(chat)}
           messages={history.messages}
@@ -149,6 +118,7 @@ function ConversationThread({
           turn={chat.turn}
         />
         <MessageList
+          firstPage={history.firstPage}
           busy={turnInFlight(chat)}
           listenable={readsAloud(snapshot, chat.agent_id)}
           messages={history.messages}

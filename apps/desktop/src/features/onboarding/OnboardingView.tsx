@@ -29,7 +29,7 @@ interface Props {
   error: string | null;
   forcePair?: boolean;
   onComplete: () => void;
-  send: (command: AppCommand) => Promise<void>;
+  send: (command: AppCommand) => Promise<unknown>;
   snapshot: AppSnapshot;
   startAtPair?: boolean;
 }

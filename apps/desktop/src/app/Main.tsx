@@ -55,7 +55,7 @@ export interface MainProps {
   error: string | null;
   onRecord: () => void;
   onReopenOnboarding: (mode?: "pair") => void;
-  send: (command: AppCommand) => Promise<void>;
+  send: (command: AppCommand) => Promise<unknown>;
   snapshot: AppSnapshot;
   readSessionMessages?: DaemonPort["readSessionMessages"];
   agent?: DaemonPort["agent"];

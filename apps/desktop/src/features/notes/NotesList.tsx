@@ -33,7 +33,7 @@ export function NotesList({
   more: boolean;
   notes: NoteListItem[];
   onOpen: (note: NoteListItem) => void;
-  send: (command: AppCommand) => Promise<void>;
+  send: (command: AppCommand) => Promise<unknown>;
 }) {
   const visible = notes;
   return (

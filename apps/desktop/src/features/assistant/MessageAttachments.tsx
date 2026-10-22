@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { openAttachment } from "../../bridge/attachments";
+import { useTrack } from "../../state/use-in-flight";
 import type { Attachment } from "../../bridge/generated/Attachment";
 import { refusalOf } from "../../bridge/refusal";
 import { Button } from "../../design/Button";
@@ -34,12 +35,16 @@ function Thumbnail({ attachment }: { attachment: Attachment }) {
 /** A PDF or any other file: its facts, and «Ver» (PDF), «Abrir», «Mostrar en Finder». */
 function FileChip({ attachment }: { attachment: Attachment }) {
   const { view } = useGallery();
+  const track = useTrack();
   const [failure, setFailure] = useState<string | null>(null);
   const open = (reveal: boolean) => {
     setFailure(null);
-    openAttachment(attachment.id, reveal).catch((error: unknown) =>
-      setFailure(attachmentFailure(refusalOf(error), attachment.name)),
-    );
+    track(
+      "attachment_open",
+      "assistant",
+      () => openAttachment(attachment.id, reveal),
+      "assistant",
+    ).catch((error: unknown) => setFailure(attachmentFailure(refusalOf(error), attachment.name)));
   };
   const facts = [fileSize(attachment.bytes)];
   if (attachment.pages !== undefined) facts.unshift(es.attachments.pages(attachment.pages));
