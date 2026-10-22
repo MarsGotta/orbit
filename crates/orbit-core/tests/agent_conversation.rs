@@ -95,3 +95,33 @@ fn a_state_from_before_agents_is_with_the_default_agent() {
     let saved = serde_json::to_value(&chosen.durable).unwrap();
     assert_eq!(saved["agent_id"], "atlas");
 }
+
+#[test]
+fn a_failed_turn_keeps_its_numbers_and_closed_tokens_in_its_notice() {
+    use orbit_core::notice::{DataValue, NoticeCode, NoticeKey, Token};
+    let state = after(
+        &State::default(),
+        Event::Failure {
+            code: "agent_rejected".into(),
+            numbers: vec![
+                (NoticeKey::AcpCode, "-32603".into()),
+                (NoticeKey::StopReason, "refusal".into()),
+                // Not a token: the notice keeps that there was a value, never the value.
+                (NoticeKey::ExitStatus, "Hola, Vega".into()),
+            ],
+        },
+    );
+    let notice = state.durable.notice.as_ref().unwrap();
+    assert_eq!(notice.code, NoticeCode::AssistantFailed);
+    let token = |key| match notice.data.get(&key) {
+        Some(DataValue::Token(token)) => token.clone(),
+        other => panic!("{key:?} is not a token: {other:?}"),
+    };
+    assert_eq!(
+        token(NoticeKey::Code),
+        Token::new("agent_rejected").unwrap()
+    );
+    assert_eq!(token(NoticeKey::AcpCode), Token::new("-32603").unwrap());
+    assert_eq!(token(NoticeKey::StopReason), Token::new("refusal").unwrap());
+    assert_eq!(token(NoticeKey::ExitStatus), Token::unrecognized());
+}

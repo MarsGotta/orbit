@@ -555,17 +555,34 @@ impl Runtime {
             self.meeting_question_hub_error(data.code.as_deref(), &data.message);
             self.conversation.speak_next = false;
             self.log("chat_rejected", &fields);
-            // The refusal's sizes and counts reach the person with its code.
+            // The refusal's numbers and closed tokens reach the person with
+            // its code; its message, free text, never does.
             let numbers = data
                 .refusal
                 .as_ref()
                 .map(|refusal| {
+                    let unsigned = |value: Option<u64>| value.map(|value| value.to_string());
+                    let signed = |value: Option<i64>| value.map(|value| value.to_string());
                     [
-                        (NoticeKey::Bytes, refusal.bytes),
-                        (NoticeKey::MaxBytes, refusal.max_bytes),
-                        (NoticeKey::Count, refusal.files),
-                        (NoticeKey::Max, refusal.max_files),
-                        (NoticeKey::Stored, refusal.session_bytes),
+                        (NoticeKey::Bytes, unsigned(refusal.bytes)),
+                        (NoticeKey::MaxBytes, unsigned(refusal.max_bytes)),
+                        (NoticeKey::Count, unsigned(refusal.files)),
+                        (NoticeKey::Max, unsigned(refusal.max_files)),
+                        (NoticeKey::Stored, unsigned(refusal.session_bytes)),
+                        (NoticeKey::ProviderStatus, unsigned(refusal.provider_status)),
+                        (NoticeKey::RetryAfterMs, unsigned(refusal.retry_after_ms)),
+                        // A refusal carries one deadline: the connection's or the answer's.
+                        (
+                            NoticeKey::TimeoutMs,
+                            unsigned(refusal.connect_timeout_ms.or(refusal.timeout_ms)),
+                        ),
+                        (NoticeKey::HistoryChars, unsigned(refusal.history_chars)),
+                        (NoticeKey::Tokens, unsigned(refusal.tokens)),
+                        (NoticeKey::MaxTokens, unsigned(refusal.max_tokens)),
+                        (NoticeKey::MaxRequests, unsigned(refusal.max_requests)),
+                        (NoticeKey::AcpCode, signed(refusal.acp_code)),
+                        (NoticeKey::ExitStatus, signed(refusal.exit_status)),
+                        (NoticeKey::StopReason, refusal.stop_reason.clone()),
                     ]
                     .into_iter()
                     .filter_map(|(key, value)| value.map(|value| (key, value)))

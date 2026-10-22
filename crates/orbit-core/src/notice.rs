@@ -465,6 +465,18 @@ notice_keys! {
     Turns,
     DurationMs,
     MinimumMs,
+    // The numbers and closed tokens of a turn that ended without an answer
+    // (hub-v1: the generic agent's and an ACP agent's causes).
+    ProviderStatus,
+    RetryAfterMs,
+    TimeoutMs,
+    HistoryChars,
+    Tokens,
+    MaxTokens,
+    MaxRequests,
+    AcpCode,
+    ExitStatus,
+    StopReason,
 }
 
 /// A short machine value: a code a component already speaks (`privacy_stopped`,

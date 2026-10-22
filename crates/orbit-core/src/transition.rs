@@ -116,11 +116,12 @@ pub enum Event {
     HelperStopUndelivered,
     Tick,
     /// A failed chat turn, carrying the hub code rather than its message,
-    /// and the numbers of its refusal (a size and its ceiling, a count and
-    /// its ceiling) as notice tokens.
+    /// and the numbers and closed tokens of its refusal (a size and its
+    /// ceiling, a provider's status, an agent's stop reason) as notice
+    /// tokens; a value that is not a token is kept only as unrecognized.
     Failure {
         code: String,
-        numbers: Vec<(NoticeKey, u64)>,
+        numbers: Vec<(NoticeKey, String)>,
     },
     Degraded(DegradedKind),
     /// The helper refused an `audio_start` for a non-stop reason (a missing
@@ -334,7 +335,7 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
             };
             let notice = numbers.into_iter().fold(
                 Notice::new(notice).with_token(NoticeKey::Code, &code),
-                |notice, (key, value)| notice.with_token(key, &value.to_string()),
+                |notice, (key, value)| notice.with_token(key, &value),
             );
             decide_chat_failure(&mut next, notice);
         }

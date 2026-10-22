@@ -361,8 +361,9 @@ pub struct ErrorData {
     pub status: Option<String>,
     #[serde(default)]
     pub numbers: Option<std::collections::BTreeMap<String, ErrorDetail>>,
+    /// Boxed: a refusal's fields would make every hub event as large as it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub refusal: Option<RefusalData>,
+    pub refusal: Option<Box<RefusalData>>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -400,6 +401,31 @@ pub struct RefusalData {
     pub max_files: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_bytes: Option<u64>,
+    /// Why a turn ended without an answer (hub-v1: the generic agent's
+    /// `assistant_*` and an ACP agent's `agent_*` causes): the provider's
+    /// HTTP status, the deadline that ran out, the context that did not fit,
+    /// the model requests a turn took, the agent's own error code, exit
+    /// status or stop reason.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_status: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub connect_timeout_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub history_chars: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_requests: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acp_code: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exit_status: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop_reason: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]

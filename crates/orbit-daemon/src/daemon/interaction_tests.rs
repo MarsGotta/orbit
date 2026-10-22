@@ -1300,6 +1300,71 @@ async fn hub_rejection_diagnostics_keep_numbers_without_text() -> Result<()> {
     Ok(())
 }
 
+/// A turn the agent or its provider ended without an answer reaches the
+/// failure notice with its cause's numbers and closed tokens, never the hub's
+/// message; the generic agent's and an ACP agent's arrive the same way.
+#[tokio::test]
+async fn a_failed_turn_keeps_its_numbers_and_stop_reason_in_the_notice() -> Result<()> {
+    for (refusal, expected) in [
+        (
+            json!({"code": "assistant_rate_limited", "provider_status": 429,
+                "retry_after_ms": 2500, "retry": {"kind": "never"}}),
+            json!({"code": "assistant_rate_limited", "provider_status": "429",
+                "retry_after_ms": "2500"}),
+        ),
+        (
+            json!({"code": "assistant_context_exceeded", "history_chars": 60000,
+                "max_history_chars": 65536, "tokens": 40000, "max_tokens": 32768,
+                "retry": {"kind": "never"}}),
+            json!({"code": "assistant_context_exceeded", "history_chars": "60000",
+                "tokens": "40000", "max_tokens": "32768"}),
+        ),
+        (
+            json!({"code": "assistant_turn_too_long", "max_requests": 50,
+                "retry": {"kind": "never"}}),
+            json!({"code": "assistant_turn_too_long", "max_requests": "50"}),
+        ),
+        (
+            json!({"code": "assistant_unreachable", "connect_timeout_ms": 10000,
+                "retry": {"kind": "never"}}),
+            json!({"code": "assistant_unreachable", "timeout_ms": "10000"}),
+        ),
+        (
+            json!({"code": "agent_turn_unfinished", "stop_reason": "max_tokens",
+                "retry": {"kind": "never"}}),
+            json!({"code": "agent_turn_unfinished", "stop_reason": "max_tokens"}),
+        ),
+        (
+            json!({"code": "agent_rejected", "acp_code": -32603, "retry": {"kind": "never"}}),
+            json!({"code": "agent_rejected", "acp_code": "-32603"}),
+        ),
+        (
+            json!({"code": "agent_stopped", "exit_status": 3, "retry": {"kind": "never"}}),
+            json!({"code": "agent_stopped", "exit_status": "3"}),
+        ),
+    ] {
+        let directory = tempfile::tempdir()?;
+        let (mut runtime, _helper) = fixture(directory.path())?;
+        runtime.state.durable.active_request = Some("failed-turn".into());
+        let code = refusal["code"].clone();
+        runtime
+            .hub_event(HubEvent::Frame(
+                json!({"event": "error", "id": "failed-turn",
+                "data": {"session_id": "s", "code": code, "message": "PRIVATE HUB MESSAGE",
+                    "refusal": refusal}}),
+            ))
+            .await?;
+        let notice =
+            serde_json::to_value(runtime.state.durable.notice.as_ref().context("notice")?)?;
+        assert_eq!(notice["code"], "assistant_failed");
+        assert_eq!(notice["data"], expected);
+        assert!(!notice.to_string().contains("PRIVATE"));
+    }
+    // A stop reason is shown, never sent off the Mac in an error report.
+    assert!(!NoticeKey::StopReason.closed());
+    Ok(())
+}
+
 /// The selected conversation with a turn in flight, its question sent at 1 s.
 fn in_turn(runtime: &mut Runtime) {
     crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", json!("selected"));
