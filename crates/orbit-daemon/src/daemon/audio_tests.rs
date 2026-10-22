@@ -140,6 +140,7 @@ pub(in crate::daemon) fn fixture(
                 question: Default::default(),
                 native_host: Default::default(),
                 notes: crate::daemon::recording_notes::NotesRuntime::for_tests(notes_events),
+                files: Default::default(),
             },
             reads: Default::default(),
         },

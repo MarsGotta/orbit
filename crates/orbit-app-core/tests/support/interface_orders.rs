@@ -175,6 +175,14 @@ pub fn cases() -> Vec<(Value, FeatureId)> {
             FeatureId::Recording,
         ),
         (
+            json!({"command":"assistant_folder_add"}),
+            FeatureId::Control,
+        ),
+        (
+            json!({"command":"assistant_folder_remove","id":"00000000-0000-4000-8000-000000000913"}),
+            FeatureId::Control,
+        ),
+        (
             json!({"command":"chat","text":"Hola"}),
             FeatureId::Assistant,
         ),

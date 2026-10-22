@@ -19,6 +19,29 @@
       "parameters": {
         "full_screen": true
       }
+    },
+    {
+      "capability": "files_list",
+      "parameters": {
+        "path": "/Users/ejemplo/Proyectos",
+        "after_index": 200
+      }
+    },
+    {
+      "capability": "files_search",
+      "parameters": {
+        "query": "presupuesto",
+        "path": "/Users/ejemplo/Proyectos",
+        "content": true
+      }
+    },
+    {
+      "capability": "files_read",
+      "parameters": {
+        "path": "/Users/ejemplo/Proyectos/manual.pdf",
+        "after_index": 0,
+        "after_page": 2
+      }
     }
   ],
   "continuations": [

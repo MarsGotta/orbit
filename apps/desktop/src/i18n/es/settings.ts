@@ -88,6 +88,25 @@ const base = {
     skipStep: "Saltar este paso",
     start: "Empezar a usar Orbit",
   },
+  // The assistant's folders: choosing one in the macOS panel is the whole
+  // permission; nothing here switches it on or off.
+  folders: {
+    section: "Carpetas del asistente",
+    add: "Añadir carpeta",
+    remove: (path: string) => `Quitar ${path}`,
+    removeLabel: "Quitar",
+    empty: "Todavía no hay carpetas.",
+    accessible: "Accesible",
+    unknown: "Sin comprobar todavía",
+    unreadable: "No se pudieron leer las carpetas guardadas.",
+    full: (max: number) => `${max} carpetas como máximo. Quita una para añadir otra.`,
+    missing: "No se encuentra: se borró o su disco no está conectado.",
+    notAFolder: "Ya no es una carpeta.",
+    accessDenied: "macOS no deja abrirla.",
+    tooLong: (bytes: number, max: number) => `Su ruta ocupa ${bytes} bytes; Orbit admite ${max}.`,
+    bookmarkTooLarge: (bytes: number, max: number) =>
+      `Su marcador ocupa ${bytes} bytes; Orbit admite ${max}.`,
+  },
   // «Al detectar una llamada», a preference and not a permission.
   callSettings: {
     section: "Llamadas",
@@ -111,6 +130,7 @@ export function settingsCopy(assistantName: string) {
         failed: `${assistantName} no puede usar este Mac ahora. Orbit lo vuelve a intentar.`,
       },
       pairAgainWarning: `${assistantName} verá este Mac como un dispositivo nuevo.`,
+      foldersHelp: `${assistantName} puede leer los archivos de estas carpetas, sin cambiarlos. Elegirlas en el panel de macOS es todo el permiso.`,
     },
     fullControl: {
       ...base.fullControl,

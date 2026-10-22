@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "id": null,
+  "event": "device.request",
+  "data": {
+    "request_id": "00000000-0000-4000-8000-000000000405",
+    "capability": "files_list",
+    "parameters": {
+      "path": "/Users/ejemplo/Proyectos",
+      "after_index": 200
+    }
+  }
+}

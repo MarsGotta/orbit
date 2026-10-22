@@ -82,5 +82,35 @@ app_type! {
         #[ts(optional)]
         pub history_error: Option<String>,
         pub history: Vec<ControlHistorySnapshot>,
+        /// Ajustes › the assistant's folders: each one and whether it opens.
+        #[serde(default)]
+        pub folders: AssistantFoldersSnapshot,
+    }
+}
+
+app_type! {
+    /// What Ajustes knows of the folders the user gave the assistant. A
+    /// list that could not be read says so; one not reported yet is
+    /// `unknown`, never an empty list.
+    #[derive(Default)]
+    pub struct AssistantFoldersSnapshot {
+        pub state: AssistantFoldersState,
+        pub folders: Vec<orbit_core::assistant_files::FolderView>,
+        /// How many folders can be given (`assistant_files::MAX_FOLDERS`).
+        pub max: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub unreadable: Option<String>,
+    }
+}
+
+app_type! {
+    #[derive(Copy, Default)]
+    #[serde(rename_all = "snake_case")]
+    pub enum AssistantFoldersState {
+        Known,
+        #[default]
+        Unknown,
+        Unreadable,
     }
 }

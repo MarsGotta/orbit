@@ -85,6 +85,10 @@ TOOL_NAMES = (
     "orbit_transcript",
     # The note of a recording, as the user sees it.
     "orbit_note",
+    # The folders the user gave the assistant, read-only.
+    "orbit_files_list",
+    "orbit_files_search",
+    "orbit_files_read",
 )
 
 CONFIG_TEMPLATE = """\

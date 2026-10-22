@@ -1,0 +1,25 @@
+{
+  "method": "device.reply",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000405",
+  "params": {
+    "request_id": "00000000-0000-4000-8000-000000000405",
+    "result": {
+      "path": "/Users/ejemplo/Proyectos/manual.pdf",
+      "size_bytes": 120000,
+      "modified_ms": 1790200800000,
+      "content": "pdf",
+      "pages": [
+        {
+          "page": 3,
+          "text": "Capítulo sintético."
+        }
+      ],
+      "page_count": 12,
+      "after_page": 2,
+      "after_index": 0,
+      "next_after_page": 3,
+      "next_after_index": 0
+    }
+  }
+}

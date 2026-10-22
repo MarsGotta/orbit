@@ -139,3 +139,11 @@ Current limitations: default microphone; system audio per app, not per tab;
 VoiceProcessing available only after real readback, without acoustically validated
 AEC; acoustic tests, setup latency and TCC acceptance remain pending on Mac.
 Compiling the code does not establish that these capabilities work.
+
+`AssistantFilesTests` cover the assistant's folders on a temporary folder with
+invented names: resolution of links and `..` to canonical paths, the refusal to
+read a path that is no longer canonical, listings and searches that never follow
+a link, text pages cut at characters, PDF text through PDFKit, an image fitted
+into a PNG capture, and bookmarks of a deleted, replaced or moved folder. Run
+them with `swift test --package-path native/macos --filter AssistantFilesTests`.
+They open no panel and touch no TCC-protected folder.

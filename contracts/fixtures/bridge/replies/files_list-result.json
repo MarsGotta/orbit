@@ -1,0 +1,26 @@
+{
+  "method": "device.reply",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000405",
+  "params": {
+    "request_id": "00000000-0000-4000-8000-000000000405",
+    "result": {
+      "path": "/Users/ejemplo/Proyectos",
+      "entries": [
+        {
+          "name": "informes",
+          "kind": "folder",
+          "modified_ms": 1790200800000
+        },
+        {
+          "name": "plan.md",
+          "kind": "file",
+          "size_bytes": 2048,
+          "modified_ms": 1790200800000
+        }
+      ],
+      "total": 202,
+      "after_index": 200
+    }
+  }
+}

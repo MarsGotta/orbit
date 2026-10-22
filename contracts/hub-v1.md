@@ -410,6 +410,59 @@ Extra keys are rejected by MCP and the corresponding Mac boundary. MCP window
 filters retain a 1024-character budget. Actions are measured as canonical JSON,
 at most 16384 bytes. Uncertain outcomes never authorize repetition.
 
+### Assistant folders
+
+Remote `files_list`, `files_search` and `files_read` read, never change, the
+folders the user chose in Ajustes with the macOS panel. That choice is the only
+consent: there is no confirmation, expiry or switch. No macOS permission is
+consulted; the privacy stop refuses them and a missing helper is
+`helper_not_running`. Parameters (pinned in `fixtures/device-bridge-request-v1.json`):
+
+- `files_list`: `{}` lists the folders themselves, each entry named by its
+  whole path, with `unavailable:{kind,…}` when its bookmark does not open;
+  `{"path":<absolute>,"after_index"?:int ≥ 0}` lists one folder inside them.
+  Result `{path?,entries:[{name,kind:"file"|"folder"|"link"|"other",
+  size_bytes?,modified_ms?,unavailable?}],total,after_index,next_after_index?}`,
+  sorted by name, at most 200 entries (`MAX_LIST_ENTRIES`) and 96 KiB
+  (`MAX_PAGE_BYTES`) per page. A link is listed, never followed.
+- `files_search`: `{"query":<1–256 bytes>,"path"?:<absolute>,"content"?:bool}`.
+  Names match ignoring case and accents; with `content` also the lines of
+  UTF-8 files without NUL. Result `{query,path?,content,results:[{path,kind,
+  size_bytes?,line?,snippet?}],visited,files_read,bytes_read,partial_files,
+  stopped?:{cause,limit}}`. `cause` is `results` (50), `visited` (20,000
+  entries), `files_read` (1,000), `bytes_read` (32 MiB), `deadline` (10,000 ms)
+  or `page_bytes`; each file is searched in its first MiB, and
+  `partial_files` counts those read in part. A search never follows a link.
+- `files_read`: `{"path":<absolute>,"after_index"?:int,"after_page"?:int}`.
+  Result `{path,size_bytes,modified_ms?,content,…}` where `path` is canonical:
+  `content:"text"` with `text,after_index,next_after_index?` (48,000 bytes per
+  page, `MAX_TEXT_PAGE_BYTES`, cut at a character); `content:"pdf"` with
+  `pages:[{page,text}],page_count,after_page,after_index,next_after_page?,
+  next_after_index?` (PDFKit text, at most 50 pages per answer); or
+  `content:"image"` with `capture_id,width,height,mime_type:"image/png",
+  sha256,source_width,source_height`. The image is fitted within 1280×1024 and
+  700,000 bytes and uploaded by `PUT /v1/captures/{capture_id}` like a
+  screenshot; the hub swaps `capture_id` for `data_base64`. A PDF over 64 MiB
+  or an image over 32 MiB is refused before it is opened. Text has no file-size
+  ceiling: it is read a page at a time.
+
+Paths are absolute, at most 1024 bytes (macOS `PATH_MAX`). The Mac resolves the
+path with `realpath` and admits it only when that canonical path is a folder or
+lies inside one, by whole components; a link or `..` that leads out is refused
+like any other path outside. Refusals: `no_folders`; `outside_folders`
+`{path,resolved,folders}` (the path asked, where it led when that differs, and
+every folder); `folder_unavailable {path,cause}` with `cause.kind`
+`bookmark_unresolvable {domain,code}`, `not_a_folder`, `access_denied {errno}`,
+`path_too_long`/`bookmark_too_large {bytes,max_bytes}`;
+`file_unavailable {path,cause}` with `cause.kind` `not_found`, `not_a_file`,
+`not_a_folder`, `not_text`, `pdf_unreadable`, `image_unreadable`,
+`image_does_not_fit {smallest_png_bytes,max_png_bytes}`, `changed`,
+`read_failed {errno}`, `past_end {after_index,size_bytes}`,
+`not_character_boundary {after_index}`, `past_last_page {after_page,page_count}`;
+and `file_too_large {path,content,bytes,max_bytes}`. A missing path outside the
+folders is `outside_folders`, never `not_found`. A helper step unanswered
+within 20 s is `timeout {operation:"files",waited_ms,deadline_ms}`.
+
 If encoded `device.reply` exceeds 131072 bytes (128 KiB, the outgoing WebSocket
 JSON frame limit), the device sends a replacement with the same `id`/`request_id`
 and a typed `too_large` refusal: `resource:"message"`, original `bytes` and

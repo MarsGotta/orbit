@@ -530,6 +530,7 @@ pub(crate) const MAX_PENDING_NATIVE: usize = 64;
 const WORK_EVENTS_CAPACITY: usize = 16;
 
 mod actions;
+mod assistant_files;
 mod audio;
 mod audio_sources;
 mod bridge;
@@ -860,6 +861,8 @@ struct FeatureRuntime {
     question: meeting_question::QuestionRuntime,
     native_host: native_host::NativeHost,
     notes: recording_notes::NotesRuntime,
+    /// The folders the user gave the assistant, and the helper's word on them.
+    files: assistant_files::FilesRuntime,
 }
 
 use bridge::{BridgeAsk, BridgeReleaseReason};
@@ -1158,6 +1161,7 @@ async fn run_with_helper_inner(
             question: meeting_question::QuestionRuntime::default(),
             native_host: native_host::NativeHost::default(),
             notes: recording_notes::NotesRuntime::new(notes_events),
+            files: assistant_files::FilesRuntime::default(),
         },
         reads: InFlightReads::default(),
     };
@@ -1183,6 +1187,7 @@ async fn run_with_helper_inner(
         runtime.recover_recording_notes()?;
         runtime_progress_tx.send_replace(orbit_core::RecoveryStep::CallPreference);
         runtime.recover_call_preference();
+        runtime.recover_assistant_folders();
         Ok(())
     };
     let (checkpoint, ()) = startup::serve_runtime_recovery(

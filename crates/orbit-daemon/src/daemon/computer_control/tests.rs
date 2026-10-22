@@ -162,6 +162,7 @@ async fn other_revocation_answers_remote_action_with_its_cause() -> Result<()> {
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     });
     h.runtime
         .revoke_computer(&orbit_core::refusal::Refusal::PermissionDenied {
@@ -199,6 +200,7 @@ async fn computer_retirement_keeps_non_control_bridge_requests() -> Result<()> {
             catalogue_after: 0,
             calendar_window: None,
             calendar_cursor: None,
+            files: None,
         });
         h.runtime
             .revoke_computer(&orbit_core::refusal::Refusal::ReadInterrupted {
@@ -245,6 +247,7 @@ async fn each_authority_revocation_answers_deimos_with_its_cause() -> Result<()>
             catalogue_after: 0,
             calendar_window: None,
             calendar_cursor: None,
+            files: None,
         });
         h.runtime
             .revoke_computer_with_cause(
@@ -288,6 +291,7 @@ async fn engine_refusal_reports_full_and_retired_hub() -> Result<()> {
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     };
     let (sender, mut frames) = mpsc::channel(1);
     sender.try_send(json!({"fixture":"occupied"}))?;
@@ -857,6 +861,7 @@ async fn real_engine_failure_handler_never_replies_with_system_text() -> Result<
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     });
     h.runtime
         .computer_failed(&anyhow::anyhow!(
@@ -896,6 +901,7 @@ async fn failed_active_action_replies_with_uncertain_outcome() -> Result<()> {
             catalogue_after: 0,
             calendar_window: None,
             calendar_cursor: None,
+            files: None,
         });
         h.runtime
             .computer_failed(&anyhow::anyhow!("engine lost its receipt"))
@@ -963,6 +969,7 @@ async fn an_engine_failure_leaves_its_cause_and_a_report_line() -> Result<()> {
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     });
     h.runtime.begin_turn(
         orbit_core::notice::Op::parse("op-engine-0001").context("op")?,

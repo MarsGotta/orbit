@@ -102,6 +102,31 @@ pub fn generate() -> Result<(), Box<dyn Error>> {
         ("screen_sources", json!({})),
         ("screenshot", json!({"window_binding":binding})),
         ("selected_text", json!({"window_binding":binding})),
+        ("assistant_folder_pick", json!({})),
+        (
+            "assistant_folders",
+            json!({"folders":[{"id":FOLDER_ID,"bookmark_base64":"Ym9va21hcms="}],
+                "path":"/Users/ejemplo/Proyectos/plan.md"}),
+        ),
+        (
+            "assistant_files_list",
+            json!({"folder":{"id":FOLDER_ID,"bookmark_base64":"Ym9va21hcms="},
+                "path":"/Users/ejemplo/Proyectos","after_index":0,"max_entries":200}),
+        ),
+        (
+            "assistant_files_search",
+            json!({"roots":[{"folder":{"id":FOLDER_ID,"bookmark_base64":"Ym9va21hcms="},
+                "path":"/Users/ejemplo/Proyectos"}],"query":"presupuesto","content":true,
+                "limits":{"max_results":50,"max_visited":20000,"max_files_read":1000,
+                    "max_bytes_read":33554432,"max_file_bytes":1048576,
+                    "max_snippet_chars":160,"deadline_ms":10000}}),
+        ),
+        (
+            "assistant_files_read",
+            json!({"folder":{"id":FOLDER_ID,"bookmark_base64":"Ym9va21hcms="},
+                "path":"/Users/ejemplo/Proyectos/plan.md",
+                "read":{"as":"text","after_index":0,"max_bytes":48000}}),
+        ),
     ] {
         write(
             &root.join("commands"),
@@ -283,11 +308,46 @@ pub fn generate() -> Result<(), Box<dyn Error>> {
             "application_name":"Fixture","bundle_id":"com.example.meeting",
             "binding":application_binding,"unavailable_reason":null}],"omitted_count":0}),
         ),
+        (
+            "assistant_folder_pick",
+            json!({"state":"chosen","path":"/Users/ejemplo/Proyectos",
+                "bookmark_base64":"Ym9va21hcms="}),
+        ),
+        (
+            "assistant_folders",
+            json!({"folders":[{"state":"accessible","id":FOLDER_ID,
+                    "path":"/Users/ejemplo/Proyectos"},
+                {"state":"unavailable","id":"00000000-0000-4000-8000-000000000914",
+                    "cause":{"kind":"bookmark_unresolvable","domain":"NSCocoaErrorDomain","code":4}}],
+                "requested":{"state":"found","path":"/Users/ejemplo/Proyectos/plan.md",
+                    "kind":"file","size_bytes":2048,"modified_ms":OCCURRENCE_MS}}),
+        ),
+        (
+            "assistant_files_list",
+            json!({"entries":[{"name":"informes","kind":"folder","modified_ms":OCCURRENCE_MS},
+                {"name":"plan.md","kind":"file","size_bytes":2048,"modified_ms":OCCURRENCE_MS},
+                {"name":"atajo","kind":"link"}],
+                "total":3,"after_index":0}),
+        ),
+        (
+            "assistant_files_search",
+            json!({"results":[{"path":"/Users/ejemplo/Proyectos/plan.md","kind":"file",
+                    "size_bytes":2048,"line":3,"snippet":"El presupuesto del trimestre."}],
+                "visited":12,"files_read":4,"bytes_read":8192,"partial_files":0}),
+        ),
+        (
+            "assistant_files_read",
+            json!({"content":"text","text":"# Plan\nEl presupuesto del trimestre.\n",
+                "after_index":0,"size_bytes":37}),
+        ),
     ] {
         write(&root.join("results"), name, &result)?;
     }
     calendar_variants(&root.join("calendar"), id)
 }
+
+/// The folder every assistant-folder fixture is about.
+const FOLDER_ID: &str = "00000000-0000-4000-8000-000000000913";
 
 /// Wednesday 14 October 2026, 10:00 UTC: the occurrence every calendar
 /// fixture is about.

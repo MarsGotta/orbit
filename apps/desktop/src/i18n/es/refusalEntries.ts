@@ -197,4 +197,20 @@ export const refusalEntries: Record<RefusalCode, RefusalEntry> = {
   upstream_failed: failed,
   work_expired: failed,
   work_in_flight: failed,
+  // The assistant's folders: these reach Deimos with their paths; in the app
+  // only the missing folder has something to fix.
+  no_folders: {
+    class: "fixable",
+    text: () => "El asistente no tiene carpetas de este Mac. Añádelas en Ajustes.",
+    action: () => openSettings,
+  },
+  outside_folders: failed,
+  folder_unavailable: {
+    class: "fixable",
+    text: (refusal) =>
+      `La carpeta ${String(refusal.path)} ya no se puede abrir. Quítala y vuelve a añadirla en Ajustes.`,
+    action: () => openSettings,
+  },
+  file_unavailable: failed,
+  file_too_large: failed,
 };

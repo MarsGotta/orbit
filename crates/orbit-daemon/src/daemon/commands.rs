@@ -224,6 +224,8 @@ impl Runtime {
             }
             Command::CallPreference { preference } => self.set_call_preference(preference).await?,
             Command::ErrorReports { enabled } => self.set_error_reports(enabled)?,
+            Command::AssistantFolderAdd => self.add_assistant_folder()?,
+            Command::AssistantFolderRemove { id } => self.remove_assistant_folder(&id).await?,
             // Already in the app's report log: it only goes to the client.
             Command::Report { report } => self
                 .error_reports

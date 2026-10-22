@@ -47,6 +47,16 @@ pub enum BridgeRequest {
     CalendarRead {
         parameters: CalendarReadParameters,
     },
+    FilesList {
+        #[serde(default)]
+        parameters: FilesListParameters,
+    },
+    FilesSearch {
+        parameters: FilesSearchParameters,
+    },
+    FilesRead {
+        parameters: FilesReadParameters,
+    },
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -138,6 +148,65 @@ pub struct CalendarReadParameters {
         skip_serializing_if = "Option::is_none"
     )]
     pub after_invitee: Option<usize>,
+}
+
+/// Without `path`, the folders themselves; with it, one folder inside them,
+/// from `after_index`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FilesListParameters {
+    #[serde(
+        default,
+        deserialize_with = "present_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub path: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "present_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub after_index: Option<u64>,
+}
+
+/// A name, or with `content` also the text of plain-text files, under `path`
+/// or every folder.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FilesSearchParameters {
+    pub query: String,
+    #[serde(
+        default,
+        deserialize_with = "present_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub path: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "present_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub content: Option<bool>,
+}
+
+/// One file, from the position the previous answer gave: `after_index` in a
+/// text file, `after_page` and `after_index` in a PDF.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FilesReadParameters {
+    pub path: String,
+    #[serde(
+        default,
+        deserialize_with = "present_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub after_index: Option<u64>,
+    #[serde(
+        default,
+        deserialize_with = "present_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub after_page: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -267,6 +336,80 @@ pub enum BridgeResult {
     ControlTools(ControlToolsResult),
     PerformAction(PerformActionResult),
     CalendarRead(CalendarReadResult),
+    FilesList(FilesListResult),
+    FilesSearch(FilesSearchResult),
+    FilesRead(FilesReadResult),
+}
+
+/// A page of a folder, or of the folders themselves when `path` is absent
+/// (their entries are then named by their whole path).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FilesListResult {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    pub entries: Vec<crate::assistant_files::Entry>,
+    pub total: u64,
+    pub after_index: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_after_index: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FilesSearchResult {
+    pub query: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    pub content: bool,
+    pub results: Vec<crate::assistant_files::SearchHit>,
+    pub visited: u64,
+    pub files_read: u64,
+    pub bytes_read: u64,
+    pub partial_files: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stopped: Option<crate::assistant_files::SearchStop>,
+}
+
+/// One file as read: `path` is where it resolved on the Mac.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FilesReadResult {
+    pub path: String,
+    pub size_bytes: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub modified_ms: Option<i64>,
+    #[serde(flatten)]
+    pub content: FileContent,
+}
+
+/// What a read carries. An image travels as a capture, like a screenshot:
+/// the hub swaps `capture_id` for the bytes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "content", rename_all = "snake_case")]
+pub enum FileContent {
+    Text {
+        text: String,
+        after_index: u64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        next_after_index: Option<u64>,
+    },
+    Pdf {
+        pages: Vec<crate::assistant_files::PdfPage>,
+        page_count: u32,
+        after_page: u32,
+        after_index: u64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        next_after_page: Option<u32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        next_after_index: Option<u64>,
+    },
+    Image {
+        capture_id: String,
+        width: u32,
+        height: u32,
+        mime_type: String,
+        sha256: String,
+        source_width: u32,
+        source_height: u32,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

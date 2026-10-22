@@ -260,6 +260,7 @@ async fn an_engine_that_connects_while_the_helper_captures_fails_nothing() -> Re
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     });
     h.runtime.source_windows().await?;
     assert!(h.runtime.source_operation_pending());
@@ -304,6 +305,7 @@ async fn the_front_window_is_not_the_cursor_overlay() -> Result<()> {
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     };
     runtime.conversation.bridge_request = Some(ask(None));
     let front = runtime

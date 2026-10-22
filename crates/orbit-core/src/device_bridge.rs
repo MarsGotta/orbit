@@ -35,6 +35,12 @@ pub enum Capability {
     /// Not a copy of a window Orbit chose in advance. The range travels
     /// with the request, the read happens when it arrives, and nothing is kept.
     CalendarRead,
+    /// What one of the folders the user gave the assistant holds.
+    FilesList,
+    /// Files in those folders, by name or by their text.
+    FilesSearch,
+    /// One file in those folders: text, a PDF's text or an image.
+    FilesRead,
 }
 
 /// Which permission of macOS governs a capability.
@@ -49,16 +55,23 @@ pub enum Class {
     Computer(SystemPermissions),
     /// Reads the calendar: the macOS calendar permission and nothing else.
     Calendar,
+    /// Reads the folders the user chose in the macOS panel. That choice is
+    /// the permission, and it lives in the folders themselves: there is no
+    /// system permission to consult, only the helper that opens them.
+    Files,
 }
 
 impl Capability {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 9] = [
         Self::Screenshot,
         Self::ScreenSources,
         Self::SelectedText,
         Self::ControlTools,
         Self::PerformAction,
         Self::CalendarRead,
+        Self::FilesList,
+        Self::FilesSearch,
+        Self::FilesRead,
     ];
 
     pub const fn wire_name(self) -> &'static str {
@@ -69,6 +82,9 @@ impl Capability {
             Self::ControlTools => "control_tools",
             Self::PerformAction => "perform_action",
             Self::CalendarRead => "calendar_read",
+            Self::FilesList => "files_list",
+            Self::FilesSearch => "files_search",
+            Self::FilesRead => "files_read",
         }
     }
 
@@ -80,6 +96,9 @@ impl Capability {
             "control_tools" => Some(Self::ControlTools),
             "perform_action" => Some(Self::PerformAction),
             "calendar_read" => Some(Self::CalendarRead),
+            "files_list" => Some(Self::FilesList),
+            "files_search" => Some(Self::FilesSearch),
+            "files_read" => Some(Self::FilesRead),
             _ => None,
         }
     }
@@ -97,6 +116,7 @@ impl Capability {
                 Class::Computer(SystemPermissions::ENGINE)
             }
             Self::CalendarRead => Class::Calendar,
+            Self::FilesList | Self::FilesSearch | Self::FilesRead => Class::Files,
         }
     }
 }
@@ -514,6 +534,8 @@ pub fn admits(
             });
         }
         Class::Calendar => {}
+        Class::Files if !conditions.helper_connected => return Err(Refusal::HelperNotRunning),
+        Class::Files => {}
     }
     Ok(capability)
 }
@@ -957,6 +979,46 @@ mod tests {
                     permission: crate::refusal::missing_permission_name(ONLY_ACCESSIBILITY)
                 }),
                 "{capability}"
+            );
+        }
+    }
+
+    /// The folders answer to the panel choice alone: no macOS permission of
+    /// the computer or the calendar opens or closes them, and the privacy
+    /// stop still cuts them.
+    #[test]
+    fn the_folders_answer_to_no_system_permission_and_obey_privacy() {
+        let nothing_granted = Conditions {
+            calendar: CalendarPermission::NotGranted,
+            ..granted(PermissionState::Denied, PermissionState::Denied)
+        };
+        for (name, capability) in [
+            ("files_list", Capability::FilesList),
+            ("files_search", Capability::FilesSearch),
+            ("files_read", Capability::FilesRead),
+        ] {
+            assert_eq!(capability.class(), Class::Files);
+            assert_eq!(capability.wire_name(), name);
+            assert_eq!(admits(name, nothing_granted), Ok(capability));
+            assert_eq!(
+                admits(
+                    name,
+                    Conditions {
+                        privacy_stopped: true,
+                        ..everything()
+                    }
+                ),
+                Err(Refusal::PrivacyStopped { since_ms: None })
+            );
+            assert_eq!(
+                admits(
+                    name,
+                    Conditions {
+                        helper_connected: false,
+                        ..everything()
+                    }
+                ),
+                Err(Refusal::HelperNotRunning)
             );
         }
     }

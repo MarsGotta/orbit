@@ -4,6 +4,8 @@ import type { FeatureId } from "./FeatureId";
 export const commandFeature = {
   "approval": "assistant",
   "ask_orbit_about": "note",
+  "assistant_folder_add": "control",
+  "assistant_folder_remove": "control",
   "audio_sources_refresh": "recording",
   "calendar": "agenda",
   "calendar_refresh": "agenda",

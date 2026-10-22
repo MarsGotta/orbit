@@ -116,8 +116,12 @@ topics! {
     // escape to six bytes; such a turn is refused with its size. 100 ms
     // bounds streamed-text redraws, not hub message throughput.
     Assistant => assistant: 288 * 1024, 100;
-    // Twenty control rows use 4 KiB; 16 KiB excludes the paged tool catalog.
-    Control => control: 16 * 1024, 0;
+    // Twenty control rows use 4 KiB, and the assistant's folders at their
+    // costliest (eight 1024-byte paths of control characters, six bytes each
+    // once escaped, with their causes) about 51 KiB: 80 KiB holds both
+    // (`maximal_recent_record_fits_the_control_topic_ceiling`). It excludes
+    // the paged tool catalog and limits neither the record nor the files.
+    Control => control: 80 * 1024, 0;
     // One typed notice: a code, an op of at most 64 bytes and data
     // from a closed set of keys whose values are numbers, booleans or
     // tokens of at most 64 bytes, so every key filled stays near 2 KiB

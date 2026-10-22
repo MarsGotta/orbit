@@ -37,7 +37,8 @@ window screenshots/selected text, microphone-using app observations and its own
 privacy latch. `orbit-mcp` exposes `orbit_devices`, `orbit_windows`,
 `orbit_screenshot`, `orbit_look`, `orbit_selected_text`, `orbit_control_tools`,
 `orbit_perform_action`, `orbit_action_result`, `orbit_calendar`,
-`orbit_meetings`, `orbit_transcript` and `orbit_note`.
+`orbit_meetings`, `orbit_transcript`, `orbit_note`, `orbit_files_list`,
+`orbit_files_search` and `orbit_files_read`.
 
 | Crate | Responsibility |
 |---|---|
@@ -183,13 +184,34 @@ Calendar permission is the sole consent; there is no hub calendar copy, activati
 switch or change to the week currently visible in the app. Missing permissions
 are explicit refusals, never an empty calendar.
 
+### Assistant folders
+
+«Añadir carpeta» in Ajustes asks the helper for the macOS panel (folders only);
+the folder chosen there is the whole permission. The helper returns its path
+and a security-scoped bookmark, which the daemon keeps in the encrypted store
+(`assistant_folders_v1`, at most eight folders); «Quitar» forgets it. The
+control topic publishes each folder with `accessible`, `unknown` or
+`unavailable` and its cause.
+
+`orbit_files_list`, `orbit_files_search` and `orbit_files_read` send
+`files_list`, `files_search` and `files_read` through the signed bridge. Each
+takes two helper steps: `assistant_folders` opens every bookmark and resolves
+the requested path with `realpath` (links and `..` followed), and
+`orbit_core::assistant_files::admit` decides, without the disk, whether that
+canonical path lies in a folder; only then does `assistant_files_list|search|
+read` run on the canonical path, which the helper reads only while it is still
+canonical (`O_NOFOLLOW`). A search never follows a link. Text arrives in pages
+of 48,000 bytes, a PDF's text (PDFKit) by pages, and an image fitted by ImageIO
+into a PNG capture uploaded like a screenshot. Refusals name the path, where it
+led and every folder. Read-only; paths and content never enter the logs.
+
 ## Storage and trust
 
 See [local storage](storage.md) for encryption, retention and recovery.
 
 | Location | Data and lifetime |
 |---|---|
-| Mac store | Durable current state/turn, jobs, encrypted pending audio, upload receipts, pending private notes and call preference; no hub history cache |
+| Mac store | Durable current state/turn, jobs, encrypted pending audio, upload receipts, pending private notes, call preference and the assistant's folders with their bookmarks; no hub history cache |
 | Mac data directory | Configuration without tokens, instance lock, engine socket/temporary screenshot, bounded control history and logs |
 | Keychain | Storage key and revocable device token |
 | Helper | Durable local privacy latch and content-free native diagnostics |

@@ -233,6 +233,7 @@ async fn returning_online_keeps_the_bridge_and_the_detection() -> Result<()> {
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     });
     runtime.apply(Event::Connect(Connection::Online)).await?;
     assert!(runtime.conversation.bridge_request.is_some());
@@ -256,6 +257,7 @@ async fn a_lost_hub_still_retires_the_bridge_and_keeps_the_call() -> Result<()> 
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     });
     runtime.hub_event(HubEvent::Disconnected).await?;
     assert!(runtime.conversation.bridge_request.is_none());
@@ -290,6 +292,7 @@ async fn review_rearm_with_a_latch_closes_generation_bound_work() -> Result<()> 
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     });
 
     runtime.apply(Event::LocalRearm).await?;

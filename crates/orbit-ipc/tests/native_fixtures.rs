@@ -61,6 +61,11 @@ fn command_name(command: &NativeCommand) -> &'static str {
         NativeCommand::ScreenSources { .. } => "screen_sources",
         NativeCommand::Screenshot { .. } => "screenshot",
         NativeCommand::SelectedText { .. } => "selected_text",
+        NativeCommand::AssistantFolderPick { .. } => "assistant_folder_pick",
+        NativeCommand::AssistantFolders { .. } => "assistant_folders",
+        NativeCommand::AssistantFilesList { .. } => "assistant_files_list",
+        NativeCommand::AssistantFilesSearch { .. } => "assistant_files_search",
+        NativeCommand::AssistantFilesRead { .. } => "assistant_files_read",
     }
 }
 
@@ -100,7 +105,8 @@ fn every_native_variant_has_one_consumed_fixture() -> Result<(), Box<dyn Error>>
     assert_eq!(fixture_names(&root.join("commands"))?, expected_commands);
     assert_eq!(fixture_names(&root.join("events"))?, expected_events);
     // Result bodies are exercised by their production readers here, in the
-    // core calendar tests, and in the daemon's audio/inventory tests.
+    // core calendar and assistant-folder tests, and in the daemon's
+    // audio/inventory tests.
     let consumed_results: BTreeSet<String> = [
         "hello",
         "heartbeat",
@@ -119,6 +125,11 @@ fn every_native_variant_has_one_consumed_fixture() -> Result<(), Box<dyn Error>>
         "audio_stop",
         "application_sources",
         "selected_text",
+        "assistant_folder_pick",
+        "assistant_folders",
+        "assistant_files_list",
+        "assistant_files_search",
+        "assistant_files_read",
     ]
     .into_iter()
     .map(String::from)

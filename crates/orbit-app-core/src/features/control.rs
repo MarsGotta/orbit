@@ -71,7 +71,9 @@ fn from_topic(
         Some(Knowledge::Absent { refusal }) => (Vec::new(), Some(refusal.to_string())),
         Some(Knowledge::Unknown { .. }) | None => (Vec::new(), None),
     };
+    let folders = folders_snapshot(&value.folders);
     crate::ComputerControlSnapshot {
+        folders,
         availability: Some(match freshness {
             TopicFreshness::Current => FeatureAvailability::Current,
             TopicFreshness::Stale { since_ms } => FeatureAvailability::Stale {
@@ -126,6 +128,37 @@ fn unknown_view(availability: FeatureAvailability) -> crate::ComputerControlSnap
         engine_tools_error: None,
         history_error: None,
         history: Vec::new(),
+        folders: crate::AssistantFoldersSnapshot {
+            max: MAX_FOLDERS,
+            ..Default::default()
+        },
+    }
+}
+
+const MAX_FOLDERS: u16 = orbit_core::assistant_files::MAX_FOLDERS as u16;
+
+/// The folders in their three values: listed, not reported yet, or a list
+/// the store could not read (with its cause).
+fn folders_snapshot(
+    knowledge: &Knowledge<Vec<orbit_core::assistant_files::FolderView>>,
+) -> crate::AssistantFoldersSnapshot {
+    match knowledge {
+        Knowledge::Present { value, .. } => crate::AssistantFoldersSnapshot {
+            state: crate::AssistantFoldersState::Known,
+            folders: value.clone(),
+            max: MAX_FOLDERS,
+            unreadable: None,
+        },
+        Knowledge::Unknown { .. } => crate::AssistantFoldersSnapshot {
+            max: MAX_FOLDERS,
+            ..Default::default()
+        },
+        Knowledge::Absent { refusal } => crate::AssistantFoldersSnapshot {
+            state: crate::AssistantFoldersState::Unreadable,
+            folders: Vec::new(),
+            max: MAX_FOLDERS,
+            unreadable: Some(refusal.to_string()),
+        },
     }
 }
 
@@ -201,7 +234,12 @@ fn refused_engine(refusal: &Refusal, retry_at_ms: Option<i64>) -> crate::EngineS
         | Refusal::ProtocolVersion { .. }
         | Refusal::HubReplyInvalid { .. }
         | Refusal::DaemonReplyInvalid { .. }
-        | Refusal::Legacy { .. } => crate::EngineSnapshot::Unknown,
+        | Refusal::Legacy { .. }
+        | Refusal::NoFolders
+        | Refusal::OutsideFolders { .. }
+        | Refusal::FolderUnavailable { .. }
+        | Refusal::FileUnavailable { .. }
+        | Refusal::FileTooLarge { .. } => crate::EngineSnapshot::Unknown,
     }
 }
 
@@ -273,9 +311,68 @@ mod topic_tests {
                     },
                     as_of_ms: None,
                 },
+                folders: Box::new(Knowledge::Unknown {
+                    why: orbit_core::topics::Pending::NotObservedYet,
+                }),
             },
             as_of_ms: None,
         })
+    }
+
+    /// Ajustes shows each folder with whether it opens, an unreadable list
+    /// with its cause, and an unreported one as unknown, never as empty.
+    #[test]
+    fn the_folders_reach_ajustes_in_their_three_values() {
+        use orbit_core::assistant_files::{FolderAccess, FolderCause, FolderView};
+        let snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
+        let with = |folders| {
+            let TopicData::Control(Knowledge::Present {
+                mut value,
+                as_of_ms,
+            }) = ready_head()
+            else {
+                panic!("the ready head is present");
+            };
+            value.folders = Box::new(folders);
+            cache_with_control(TopicData::Control(Knowledge::Present { value, as_of_ms }))
+        };
+        let folder = FolderView {
+            id: "folder-1".into(),
+            path: "/Users/ejemplo/Proyectos".into(),
+            access: FolderAccess::Unavailable {
+                cause: FolderCause::NotAFolder,
+            },
+        };
+        let listed = with(Knowledge::Present {
+            value: vec![folder.clone()],
+            as_of_ms: None,
+        });
+        let view = project(&input(&snapshot, &listed)).expect("a head must fill the view");
+        assert_eq!(view.folders.state, crate::AssistantFoldersState::Known);
+        assert_eq!(view.folders.folders, vec![folder]);
+        assert_eq!(
+            usize::from(view.folders.max),
+            orbit_core::assistant_files::MAX_FOLDERS
+        );
+        let unreadable = with(Knowledge::Absent {
+            refusal: Refusal::StorageFailed {
+                operation: orbit_core::refusal::Operation::Files,
+                cause: Some("fila dañada".to_owned().into()),
+            },
+        });
+        let view = project(&input(&snapshot, &unreadable)).expect("a head must fill the view");
+        assert_eq!(view.folders.state, crate::AssistantFoldersState::Unreadable);
+        assert!(
+            view.folders
+                .unreadable
+                .is_some_and(|cause| cause.contains("fila dañada"))
+        );
+        let unknown = with(Knowledge::Unknown {
+            why: orbit_core::topics::Pending::NotObservedYet,
+        });
+        let view = project(&input(&snapshot, &unknown)).expect("a head must fill the view");
+        assert_eq!(view.folders.state, crate::AssistantFoldersState::Unknown);
+        assert!(view.folders.folders.is_empty());
     }
 
     #[test]
@@ -377,6 +474,7 @@ mod topic_tests {
             engine_tools_error: None,
             history_error: None,
             history: Vec::new(),
+            folders: Default::default(),
         }));
         let topics = TopicCache::default();
         let view = project(&input(&snapshot, &topics)).expect("unknown control view");
@@ -407,6 +505,9 @@ mod topic_tests {
                     },
                     as_of_ms: None,
                 },
+                folders: Box::new(Knowledge::Unknown {
+                    why: orbit_core::topics::Pending::NotObservedYet,
+                }),
             },
             as_of_ms: None,
         });

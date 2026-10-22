@@ -333,10 +333,11 @@ mcp_servers:
 ```
 
 Use the executable from the hub version you actually run. The translator uses
-stdio, not a second HTTP listener. Its twelve tools are `orbit_devices`,
+stdio, not a second HTTP listener. Its fifteen tools are `orbit_devices`,
 `orbit_windows`, `orbit_screenshot`, `orbit_look`, `orbit_selected_text`,
 `orbit_control_tools`, `orbit_perform_action`, `orbit_action_result`,
-`orbit_calendar`, `orbit_meetings`, `orbit_transcript` and `orbit_note`.
+`orbit_calendar`, `orbit_meetings`, `orbit_transcript`, `orbit_note`,
+`orbit_files_list`, `orbit_files_search` and `orbit_files_read`.
 Validate discovery with an isolated profile first. Apply profile changes using
 the commands supported by your installed Hermes version; a gateway restart can
 interrupt other profiles and must be coordinated with their users.

@@ -64,6 +64,9 @@ fn every_bridge_capability_has_a_consumed_request_and_both_replies() -> Result<(
                         | ("control_tools", BridgeResult::ControlTools(_))
                         | ("perform_action", BridgeResult::PerformAction(_))
                         | ("calendar_read", BridgeResult::CalendarRead(_))
+                        | ("files_list", BridgeResult::FilesList(_))
+                        | ("files_search", BridgeResult::FilesSearch(_))
+                        | ("files_read", BridgeResult::FilesRead(_))
                 );
                 assert!(shape_matches, "wrong result for {name}");
             }

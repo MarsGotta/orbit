@@ -107,6 +107,15 @@ fn invalid_parameter_refusal(
             orbit_core::device_bridge::Capability::CalendarRead => {
                 path::<CalendarReadParameters>(parameters)
             }
+            orbit_core::device_bridge::Capability::FilesList => {
+                path::<orbit_core::wire::bridge::FilesListParameters>(parameters)
+            }
+            orbit_core::device_bridge::Capability::FilesSearch => {
+                path::<orbit_core::wire::bridge::FilesSearchParameters>(parameters)
+            }
+            orbit_core::device_bridge::Capability::FilesRead => {
+                path::<orbit_core::wire::bridge::FilesReadParameters>(parameters)
+            }
         }
         .unwrap_or_else(|| "parameters".into())
     } else {
@@ -142,9 +151,12 @@ fn invalid_parameter_refusal(
     let expected =
         if field == "parameters" || field.ends_with("arguments") || field.ends_with("action") {
             "object"
-        } else if field.ends_with("full_screen") {
+        } else if field.ends_with("full_screen") || field.ends_with("content") {
             "boolean"
-        } else if field.ends_with("after_index") || field.ends_with("after_invitee") {
+        } else if field.ends_with("after_index")
+            || field.ends_with("after_invitee")
+            || field.ends_with("after_page")
+        {
             "nonnegative_integer"
         } else if field.ends_with("start_ms")
             || field.ends_with("end_ms")
@@ -176,7 +188,10 @@ fn unknown_capture_filter(
         orbit_core::device_bridge::Capability::ScreenSources
         | orbit_core::device_bridge::Capability::ControlTools
         | orbit_core::device_bridge::Capability::PerformAction
-        | orbit_core::device_bridge::Capability::CalendarRead => return None,
+        | orbit_core::device_bridge::Capability::CalendarRead
+        | orbit_core::device_bridge::Capability::FilesList
+        | orbit_core::device_bridge::Capability::FilesSearch
+        | orbit_core::device_bridge::Capability::FilesRead => return None,
     };
     let parameters = raw.get("parameters")?.as_object()?;
     let key = parameters
@@ -251,12 +266,18 @@ pub(super) enum PendingCapture {
     Helper {
         source_id: String,
     },
+    /// An image from the assistant's folders, fitted by the helper; the
+    /// answer waits for the hub to hold it, as a screenshot's does.
+    File {
+        capture_id: String,
+        result: Box<orbit_core::wire::bridge::FilesReadResult>,
+    },
 }
 
 impl PendingCapture {
     fn id(&self) -> &str {
         match self {
-            Self::Engine { capture_id, .. } => capture_id,
+            Self::Engine { capture_id, .. } | Self::File { capture_id, .. } => capture_id,
             Self::Helper { source_id } => source_id,
         }
     }
@@ -359,6 +380,8 @@ pub(super) struct BridgeAsk {
     pub(super) calendar_window: Option<(i64, i64)>,
     /// Where a `CalendarRead` continues, when it is not the first page.
     pub(super) calendar_cursor: Option<super::calendar::Cursor>,
+    /// What a `files_*` request asked, as it asked it.
+    pub(super) files: Option<super::assistant_files::FilesAsk>,
 }
 
 impl BridgeAsk {
@@ -792,6 +815,11 @@ impl Runtime {
                     }
                 }
             }
+            // The folders the user chose in the macOS panel, resolved by
+            // the helper and decided in `orbit_core::assistant_files`.
+            orbit_core::device_bridge::Capability::FilesList
+            | orbit_core::device_bridge::Capability::FilesSearch
+            | orbit_core::device_bridge::Capability::FilesRead => self.files_bridge_start(ask),
         }
     }
 
@@ -983,16 +1011,7 @@ impl Runtime {
         application: &str,
         title: &str,
     ) -> Result<Option<String>> {
-        let (Some(hub_url), Some(token)) = (self.settings.hub_url.clone(), self.token.clone())
-        else {
-            return self.refuse_capture_upload(ask, None).await.map(|()| None);
-        };
         let capture_id = uuid::Uuid::new_v4().to_string();
-        let upload_id = capture_id.clone();
-        let request_id = ask.id.clone();
-        let generation = self.state.generation();
-        let development = self.development;
-        let work = self.work.work_events.clone();
         let capture = PendingCapture::Engine {
             capture_id: capture_id.clone(),
             application: application.to_owned(),
@@ -1001,6 +1020,44 @@ impl Runtime {
             height,
             mime_type,
         };
+        self.start_capture_upload(ask, bytes, capture_id, capture)
+            .await
+    }
+
+    /// An image read from the assistant's folders goes up the way a
+    /// screenshot does; `partial` is its answer without the capture's id and
+    /// digest, which the upload supplies.
+    pub(super) async fn upload_file_capture(
+        &mut self,
+        ask: &BridgeAsk,
+        bytes: Vec<u8>,
+        partial: orbit_core::wire::bridge::FilesReadResult,
+    ) -> Result<Option<String>> {
+        let capture_id = uuid::Uuid::new_v4().to_string();
+        let capture = PendingCapture::File {
+            capture_id: capture_id.clone(),
+            result: Box::new(partial),
+        };
+        self.start_capture_upload(ask, bytes, capture_id, capture)
+            .await
+    }
+
+    async fn start_capture_upload(
+        &mut self,
+        ask: &BridgeAsk,
+        bytes: Vec<u8>,
+        capture_id: String,
+        capture: PendingCapture,
+    ) -> Result<Option<String>> {
+        let (Some(hub_url), Some(token)) = (self.settings.hub_url.clone(), self.token.clone())
+        else {
+            return self.refuse_capture_upload(ask, None).await.map(|()| None);
+        };
+        let upload_id = capture_id.clone();
+        let request_id = ask.id.clone();
+        let generation = self.state.generation();
+        let development = self.development;
+        let work = self.work.work_events.clone();
         // A second capture replaces the first: its upload is aborted here, not
         // left running to be discarded later as `upload_replaced`.
         if let Some(mut previous) = self.features.sources.bridge_upload.take() {
@@ -1152,7 +1209,10 @@ impl Runtime {
                 orbit_core::device_bridge::Capability::ScreenSources
                 | orbit_core::device_bridge::Capability::ControlTools
                 | orbit_core::device_bridge::Capability::PerformAction
-                | orbit_core::device_bridge::Capability::CalendarRead => return Ok(()),
+                | orbit_core::device_bridge::Capability::CalendarRead
+                | orbit_core::device_bridge::Capability::FilesList
+                | orbit_core::device_bridge::Capability::FilesSearch
+                | orbit_core::device_bridge::Capability::FilesRead => return Ok(()),
             };
             if self
                 .source_capture_as(&token, "Deimos".to_owned(), format)
@@ -1247,7 +1307,10 @@ impl Runtime {
                 orbit_core::device_bridge::Capability::ScreenSources
                 | orbit_core::device_bridge::Capability::ControlTools
                 | orbit_core::device_bridge::Capability::PerformAction
-                | orbit_core::device_bridge::Capability::CalendarRead => return Ok(()),
+                | orbit_core::device_bridge::Capability::CalendarRead
+                | orbit_core::device_bridge::Capability::FilesList
+                | orbit_core::device_bridge::Capability::FilesSearch
+                | orbit_core::device_bridge::Capability::FilesRead => return Ok(()),
             };
         let sent = self.send_frame(hub::command(
             &ask.id,
@@ -1365,7 +1428,14 @@ impl Runtime {
         let stale_cause = match self.conversation.bridge_request.as_ref() {
             None => Some("request_released"),
             Some(ask) if ask.id != request_id => Some("request_replaced"),
-            Some(ask) if ask.capability != orbit_core::device_bridge::Capability::Screenshot => {
+            Some(ask)
+                if ask.capability
+                    != if matches!(capture, PendingCapture::File { .. }) {
+                        orbit_core::device_bridge::Capability::FilesRead
+                    } else {
+                        orbit_core::device_bridge::Capability::Screenshot
+                    } =>
+            {
                 Some("capability_changed")
             }
             Some(_)
@@ -1390,6 +1460,31 @@ impl Runtime {
             return Ok(());
         };
         let from_engine = matches!(&capture, PendingCapture::Engine { .. });
+        if let (
+            PendingCapture::File { capture_id, result },
+            CaptureUploadOutcome::Uploaded(sha256),
+        ) = (&capture, &outcome)
+        {
+            let mut result = (**result).clone();
+            if let orbit_core::wire::bridge::FileContent::Image {
+                capture_id: id,
+                sha256: digest,
+                ..
+            } = &mut result.content
+            {
+                id.clone_from(capture_id);
+                digest.clone_from(sha256);
+            }
+            self.features.sources.bridge_upload.take();
+            let sent = self.send_frame(hub::command(
+                &ask.id,
+                "device.reply",
+                result_payload(&ask.id, BridgeResult::FilesRead(result)),
+            ));
+            self.note_bridge_send(&sent, "the folder image");
+            self.conversation.bridge_request = None;
+            return Ok(());
+        }
         let screenshot = match (capture, outcome) {
             (_, CaptureUploadOutcome::TimedOut { waited_ms }) => {
                 self.release_bridge_request(BridgeReleaseReason::CaptureUploadTimeout {
@@ -1434,6 +1529,7 @@ impl Runtime {
                     coordinates: desktop.map(|scale| scale.describe()),
                 }
             }
+            (PendingCapture::File { .. }, CaptureUploadOutcome::Uploaded(_)) => return Ok(()),
             (PendingCapture::Helper { source_id }, CaptureUploadOutcome::Uploaded(sha256)) => {
                 let Some(screenshot) = self
                     .features
@@ -1826,6 +1922,9 @@ impl Runtime {
             BridgeRequest::ControlTools { .. } => "control_tools",
             BridgeRequest::PerformAction { .. } => "perform_action",
             BridgeRequest::CalendarRead { .. } => "calendar_read",
+            BridgeRequest::FilesList { .. } => "files_list",
+            BridgeRequest::FilesSearch { .. } => "files_search",
+            BridgeRequest::FilesRead { .. } => "files_read",
         };
         let capability = match orbit_core::device_bridge::admits(name, self.bridge_conditions()) {
             Err(refusal) => {
@@ -1833,6 +1932,13 @@ impl Runtime {
                 return Ok(());
             }
             Ok(capability) => capability,
+        };
+        let files = match super::assistant_files::FilesAsk::from_request(&data.request) {
+            Ok(files) => files,
+            Err(refusal) => {
+                self.refuse_bridge_admission(&request_id, &refusal).await?;
+                return Ok(());
+            }
         };
         let (
             application,
@@ -1929,6 +2035,9 @@ impl Runtime {
                     cursor,
                 )
             }
+            BridgeRequest::FilesList { .. }
+            | BridgeRequest::FilesSearch { .. }
+            | BridgeRequest::FilesRead { .. } => (None, None, false, None, 0, None, None),
         };
         if self.conversation.bridge_request.is_some() {
             let refusal = orbit_core::refusal::Refusal::Busy {
@@ -1955,6 +2064,7 @@ impl Runtime {
             catalogue_after,
             calendar_window,
             calendar_cursor,
+            files,
         };
         self.conversation.bridge_request = Some(ask.clone());
         // What Deimos asked for, said while it is served: Deimos never looks
@@ -1969,6 +2079,9 @@ impl Runtime {
             orbit_core::device_bridge::Capability::ControlTools => "control_tools",
             orbit_core::device_bridge::Capability::PerformAction => "perform_action",
             orbit_core::device_bridge::Capability::CalendarRead => "calendar_read",
+            orbit_core::device_bridge::Capability::FilesList => "files_list",
+            orbit_core::device_bridge::Capability::FilesSearch => "files_search",
+            orbit_core::device_bridge::Capability::FilesRead => "files_read",
         };
         // A start that fails is answered here and now. Leaving the request open
         // would spend the caller's whole timeout on a Mac that already knows it

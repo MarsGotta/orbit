@@ -155,6 +155,15 @@ pub enum Command {
     CallPreference {
         preference: crate::call_detection::CallPreference,
     },
+    /// «Añadir carpeta»: the helper opens the macOS panel, folders only. The
+    /// folder the person chooses there is the assistant's to read; choosing
+    /// none changes nothing.
+    AssistantFolderAdd,
+    /// «Quitar»: the assistant no longer reads this folder. One already gone
+    /// is not an error.
+    AssistantFolderRemove {
+        id: String,
+    },
     /// «Enviar informes de errores anónimos»: the user's choice, kept by the
     /// daemon with its settings. Off until they turn it on.
     ErrorReports {
@@ -264,6 +273,9 @@ impl Command {
             | Self::MeetingResume
             | Self::MeetingFinish => Some(FeatureId::Recording),
             Self::Calendar { .. } => Some(FeatureId::Agenda),
+            Self::AssistantFolderAdd | Self::AssistantFolderRemove { .. } => {
+                Some(FeatureId::Control)
+            }
             Self::Permissions { .. } => Some(FeatureId::Permissions),
             Self::SessionOpen { .. }
             | Self::Chat { .. }

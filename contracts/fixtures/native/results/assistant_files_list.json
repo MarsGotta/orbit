@@ -1,0 +1,21 @@
+{
+  "after_index": 0,
+  "entries": [
+    {
+      "kind": "folder",
+      "modified_ms": 1792058400000,
+      "name": "informes"
+    },
+    {
+      "kind": "file",
+      "modified_ms": 1792058400000,
+      "name": "plan.md",
+      "size_bytes": 2048
+    },
+    {
+      "kind": "link",
+      "name": "atajo"
+    }
+  ],
+  "total": 3
+}

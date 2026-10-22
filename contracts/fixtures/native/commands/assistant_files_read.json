@@ -1,0 +1,15 @@
+{
+  "command": "assistant_files_read",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000911",
+  "folder": {
+    "id": "00000000-0000-4000-8000-000000000913",
+    "bookmark_base64": "Ym9va21hcms="
+  },
+  "path": "/Users/ejemplo/Proyectos/plan.md",
+  "read": {
+    "as": "text",
+    "after_index": 0,
+    "max_bytes": 48000
+  }
+}

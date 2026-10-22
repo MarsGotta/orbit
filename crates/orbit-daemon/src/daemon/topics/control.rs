@@ -52,6 +52,7 @@ impl ProjectTopic for Projector {
                 retry_at_ms,
                 action: runtime.active_control_action().cloned(),
                 history,
+                folders: Box::new(runtime.folders_knowledge()),
             },
             as_of_ms: None,
         })

@@ -31,6 +31,13 @@ MAX_ACTION_BYTES = 16_384
 MAX_BRIDGE_DETAIL_CHARS = 400
 # Bounds the helper's diagnostic cause code, independently of its detail.
 MAX_BRIDGE_CODE_BYTES = 64
+# A path into the assistant's folders: macOS's PATH_MAX, the longest path its
+# system calls accept. A copy of orbit_core::assistant_files::MAX_PATH_BYTES,
+# compared by the guard of contracts/constants.json.
+MAX_PATH_BYTES = 1024
+# A search text: an APFS file name is at most 255 bytes, so a longer text
+# matches none. A copy of orbit_core::assistant_files::MAX_QUERY_BYTES.
+MAX_QUERY_BYTES = 256
 
 
 class EmptyParameters(WireModel):
@@ -155,6 +162,67 @@ class CalendarReadParameters(WireModel):
         return self
 
 
+def bounded_path(value):
+    if value is None:
+        return value
+    size = len(value.encode("utf-8"))
+    if not value.startswith("/") or size > MAX_PATH_BYTES or "\x00" in value:
+        raise PydanticCustomError(
+            "folder_path",
+            "Ruta inválida",
+            {
+                "field": "path",
+                "expected": f"ruta absoluta de hasta {MAX_PATH_BYTES} bytes",
+                "bytes": size,
+                "max_bytes": MAX_PATH_BYTES,
+            },
+        )
+    return value
+
+
+class FilesListParameters(WireModel):
+    path: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    after_index: int | None = Field(default=None, ge=0, exclude_if=lambda value: value is None)
+
+    _present_values = field_validator("path", "after_index", mode="before")(present_value)
+    _bounded_path = field_validator("path")(bounded_path)
+
+
+class FilesSearchParameters(WireModel):
+    query: str
+    path: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    content: bool | None = Field(default=None, exclude_if=lambda value: value is None)
+
+    _present_values = field_validator("path", "content", mode="before")(present_value)
+    _bounded_path = field_validator("path")(bounded_path)
+
+    @field_validator("query")
+    @classmethod
+    def bounded_query(cls, value):
+        size = len(value.encode("utf-8"))
+        if not value.strip() or size > MAX_QUERY_BYTES:
+            raise PydanticCustomError(
+                "search_query",
+                "Búsqueda inválida",
+                {
+                    "field": "query",
+                    "expected": f"texto de 1 a {MAX_QUERY_BYTES} bytes",
+                    "bytes": size,
+                    "max_bytes": MAX_QUERY_BYTES,
+                },
+            )
+        return value
+
+
+class FilesReadParameters(WireModel):
+    path: str
+    after_index: int | None = Field(default=None, ge=0, exclude_if=lambda value: value is None)
+    after_page: int | None = Field(default=None, ge=0, exclude_if=lambda value: value is None)
+
+    _present_values = field_validator("after_index", "after_page", mode="before")(present_value)
+    _bounded_path = field_validator("path")(bounded_path)
+
+
 PARAMETER_MODELS = {
     "screenshot": ScreenshotParameters,
     "screen_sources": EmptyParameters,
@@ -162,6 +230,9 @@ PARAMETER_MODELS = {
     "control_tools": ControlToolsParameters,
     "perform_action": PerformActionParameters,
     "calendar_read": CalendarReadParameters,
+    "files_list": FilesListParameters,
+    "files_search": FilesSearchParameters,
+    "files_read": FilesReadParameters,
 }
 
 
@@ -337,6 +408,98 @@ class CalendarReadResult(WireModel):
     _bounded_read_id = field_validator("read_id")(bounded_read_id)
 
 
+class FolderCause(WireModel):
+    model_config = ConfigDict(strict=True, extra="allow")
+    kind: str
+
+
+class FileEntry(WireModel):
+    name: str
+    kind: Literal["file", "folder", "link", "other"]
+    size_bytes: int | None = None
+    modified_ms: int | None = None
+    unavailable: FolderCause | None = None
+
+
+class FilesListResult(WireModel):
+    path: str | None = None
+    entries: list[FileEntry]
+    total: int
+    after_index: int
+    next_after_index: int | None = None
+
+
+class SearchHit(WireModel):
+    path: str
+    kind: Literal["file", "folder", "link", "other"]
+    size_bytes: int | None = None
+    line: int | None = None
+    snippet: str | None = None
+
+
+class SearchStop(WireModel):
+    cause: Literal["results", "visited", "files_read", "bytes_read", "deadline", "page_bytes"]
+    limit: int
+
+
+class FilesSearchResult(WireModel):
+    query: str
+    path: str | None = None
+    content: bool
+    results: list[SearchHit]
+    visited: int
+    files_read: int
+    bytes_read: int
+    partial_files: int
+    stopped: SearchStop | None = None
+
+
+class PdfPage(WireModel):
+    page: int
+    text: str
+
+
+class FilesReadResult(WireModel):
+    """One file as read; an image arrives with its bytes (`data_base64`),
+    which the hub put in place of the Mac's `capture_id`."""
+
+    path: str
+    size_bytes: int
+    modified_ms: int | None = None
+    content: Literal["text", "pdf", "image"]
+    text: str | None = None
+    after_index: int | None = None
+    next_after_index: int | None = None
+    pages: list[PdfPage] | None = None
+    page_count: int | None = None
+    after_page: int | None = None
+    next_after_page: int | None = None
+    width: int | None = None
+    height: int | None = None
+    mime_type: str | None = None
+    sha256: str | None = None
+    source_width: int | None = None
+    source_height: int | None = None
+    capture_id: str | None = None
+    data_base64: str | None = None
+
+    @model_validator(mode="after")
+    def complete_content(self):
+        required = {
+            "text": ("text", "after_index"),
+            "pdf": ("pages", "page_count", "after_page", "after_index"),
+            "image": ("width", "height", "mime_type", "source_width", "source_height"),
+        }[self.content]
+        for field in required:
+            if getattr(self, field) is None:
+                raise PydanticCustomError(
+                    "file_content",
+                    "Lectura incompleta",
+                    {"field": field, "expected": f"campo de {self.content}"},
+                )
+        return self
+
+
 RESULT_MODELS = {
     "screenshot": ScreenshotResult,
     "screen_sources": ScreenSourcesResult,
@@ -344,6 +507,9 @@ RESULT_MODELS = {
     "control_tools": ControlToolsResult,
     "perform_action": PerformActionResult,
     "calendar_read": CalendarReadResult,
+    "files_list": FilesListResult,
+    "files_search": FilesSearchResult,
+    "files_read": FilesReadResult,
 }
 
 
@@ -391,7 +557,14 @@ def validation_detail(error, prefix):
         expected = f"texto de hasta {context['max_length']} caracteres"
     if first["type"] == "value_error" and location in {"application", "title", "full_screen"}:
         expected = "verdadero o falso" if location == "full_screen" else "texto"
-    if first["type"] in {"calendar_cursor", "calendar_range", "action_size"}:
+    if first["type"] in {
+        "calendar_cursor",
+        "calendar_range",
+        "action_size",
+        "folder_path",
+        "search_query",
+        "file_content",
+    }:
         field = context["field"]
         expected = context.get("expected", expected)
     return {"field": field, "expected": expected, **numbers}

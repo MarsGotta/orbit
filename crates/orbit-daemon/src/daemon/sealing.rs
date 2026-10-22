@@ -252,6 +252,7 @@ impl Runtime {
             Box::pin(self.maintain_meeting_question()).await?;
             self.maintain_calendar();
             Box::pin(self.check_source_timeout()).await?;
+            self.check_files_timeout();
             Box::pin(self.maintain_computer()).await?;
             Box::pin(self.maintain_call_detection()).await
         })

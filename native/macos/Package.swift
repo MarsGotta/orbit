@@ -26,7 +26,9 @@ let package = Package(
                 .linkedFramework("AppKit"), .linkedFramework("AVFoundation"),
                 .linkedFramework("ScreenCaptureKit"), .linkedFramework("Carbon"),
                 .linkedFramework("Speech"),
-                .linkedFramework("Security"), .linkedFramework("ServiceManagement")
+                .linkedFramework("Security"), .linkedFramework("ServiceManagement"),
+                .linkedFramework("PDFKit"), .linkedFramework("ImageIO"),
+                .linkedFramework("UniformTypeIdentifiers")
             ]
         ),
         .executableTarget(

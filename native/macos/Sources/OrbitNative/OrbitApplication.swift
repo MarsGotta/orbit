@@ -17,6 +17,8 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     private let audioSession = SharedAudioSession()
     private let hotkeys = GlobalHotkeys()
     private lazy var windowScreenshots = WindowScreenshots(diagnostics: diagnostics)
+    /// The assistant's folders: the panel, their bookmarks, read-only reads.
+    private let assistantFiles = AssistantFiles()
     private let microphoneActivity = MicrophoneActivityObserver()
     /// «Oye Deimos» on the meeting's microphone.
     private lazy var assistantTrigger = AssistantVoiceTrigger(channel: channel)
@@ -263,6 +265,16 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
                     self.channel.reject(command, code: "audio_drain_incomplete", message: "No se confirma cierre hasta drenar el audio previo.")
                 }
             }
+        // The folders never take the general lane: an open panel waits for a
+        // person and a search walks the disk, and neither may hold back a
+        // recording that starts meanwhile. The daemon sends one at a time.
+        case .assistantFolderPick, .assistantFolders, .assistantFilesList, .assistantFilesSearch,
+             .assistantFilesRead:
+            guard connected else {
+                channel.reject(command, code: "daemon_disconnected", message: "Reinicia Orbit para recuperar la conexión local.")
+                return
+            }
+            execute(command, ownsGeneralLane: false)
         case .permissions, .audioStart, .audioPurpose, .audioWakePhrase, .audioStop, .playback,
              .playbackClip, .applicationSources,
              .screenSources, .screenshot, .selectedText:
@@ -327,6 +339,13 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
                     throw NativeFailure("operation_cancelled_by_stop")
                 }
                 self.channel.respond(command, result: result)
+            } catch let failure as AssistantFilesFailure {
+                // A folder refusal carries its cause, never a path or content.
+                if !self.channel.send(.makeRejection(id: command.id, code: failure.code,
+                        message: "Orbit no puede leer eso en las carpetas del asistente.",
+                        detail: failure.detail)) {
+                    FileHandle.standardError.write(Data("native_rejection_not_admitted event=response\n".utf8))
+                }
             } catch {
                 let typed = (error as? WindowSelectionFailure)?.rawValue
                     ?? (error as? SelectedTextFailure)?.rawValue
@@ -493,6 +512,16 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             return try await windowScreenshots.capture(wire.fields.window_binding, kind: .selectedText) { [weak self] in
                 self?.screenAuthorization() ?? (generation: 0, stopped: true)
             }
+        case .assistantFolderPick:
+            return try await assistantFiles.pick()
+        case .assistantFolders(let wire):
+            return try await assistantFiles.resolve(wire.fields)
+        case .assistantFilesList(let wire):
+            return try await assistantFiles.list(wire.fields)
+        case .assistantFilesSearch(let wire):
+            return try await assistantFiles.search(wire.fields)
+        case .assistantFilesRead(let wire):
+            return try await assistantFiles.read(wire.fields)
         case .hello, .heartbeat, .status, .calendarDisconnect,
              .calendarSources, .calendarSnapshot, .calendarSave, .calendarDelete,
              .privacyStop, .captureStop,

@@ -11,6 +11,7 @@ mod store;
 mod validation;
 mod writes;
 pub use model::*;
+mod assistant_folders;
 mod blobs;
 mod call_preference;
 pub use blobs::RecoveryScan;

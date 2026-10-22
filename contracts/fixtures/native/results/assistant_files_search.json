@@ -1,0 +1,15 @@
+{
+  "bytes_read": 8192,
+  "files_read": 4,
+  "partial_files": 0,
+  "results": [
+    {
+      "kind": "file",
+      "line": 3,
+      "path": "/Users/ejemplo/Proyectos/plan.md",
+      "size_bytes": 2048,
+      "snippet": "El presupuesto del trimestre."
+    }
+  ],
+  "visited": 12
+}

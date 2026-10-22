@@ -16,6 +16,12 @@ is in Spanish; the labels quoted below are the ones it shows.
   Hermes profile for now. `ready` lists them, `chat.send` takes an
   `agent_id`, and each conversation keeps its agent. A 0.9.0 `orbit.toml`
   is still one agent.
+- «Carpetas del asistente» in Ajustes: «Añadir carpeta» opens the macOS panel
+  (folders only) and the assistant can then list, search and read, never
+  change, what those folders hold — text and Markdown, the text of a PDF and
+  images — through the new `orbit_files_list`, `orbit_files_search` and
+  `orbit_files_read` tools. Nothing outside them is read, also through links
+  or `..`; a refusal names the path and the folders.
 
 ### Changed
 

@@ -5,6 +5,7 @@ import { Card } from "../../design/Card";
 import { SectionLabel } from "../../design/SectionLabel";
 import { ViewError } from "../../design/ViewError";
 import { es } from "../../i18n/es";
+import { AssistantFolders } from "./AssistantFolders";
 import { AutonomySettings } from "./AutonomySettings";
 import { CallPreferenceSection } from "./CallPreferenceSection";
 import { DeimosSettings } from "./DeimosSettings";
@@ -41,6 +42,11 @@ function SettingsPage({ error, onReopenOnboarding, send, snapshot }: SettingsVie
         />
         <CallPreferenceSection preference={snapshot.meeting.call_preference} send={send} />
         <DeimosSettings control={snapshot.computer_control} />
+        <AssistantFolders
+          daemonReady={snapshot.connection.daemon === "ready"}
+          folders={snapshot.computer_control?.folders}
+          send={send}
+        />
 
         <NoteTemplates
           daemon={snapshot.connection.daemon}

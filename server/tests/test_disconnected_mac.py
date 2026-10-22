@@ -113,6 +113,9 @@ ARGUMENTS = {
     "orbit_meetings": {},
     "orbit_transcript": {"recording_id": "00000000-0000-4000-8000-000000000002"},
     "orbit_note": {"recording_id": "00000000-0000-4000-8000-000000000002"},
+    "orbit_files_list": {},
+    "orbit_files_search": {"query": "plan"},
+    "orbit_files_read": {"path": "/Users/ejemplo/Proyectos/plan.md"},
 }
 
 

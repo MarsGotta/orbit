@@ -18,7 +18,7 @@ from mcp.types import CallToolResult, TextContent
 from orbit_hub.captures import CAPTURE_TTL_SECONDS
 from orbit_hub.log import report
 
-from . import meetings
+from . import files, meetings
 from .devices import DeviceSelection, UnknownDevice, folded_name, seen_ago
 from .hub import MAC_NOTICE_CHARS, HubClientError
 
@@ -163,6 +163,13 @@ ERROR_MESSAGES = {
     "calendar_busy": "EventKit seguía terminando una lectura anterior de la agenda en ese Mac y Orbit no la interrumpe. Vuelve a preguntar en unos segundos.",
     "unknown_device": "No se encontró ese Mac en Orbit. Revisa su nombre con orbit_devices.",
     "config_invalid": "La configuración de Orbit MCP cambió y ya no es válida. Corrige mcp.toml.",
+    # The assistant's folders: each says its path and folders in
+    # `files.refusal_message`; these are the sentences without them.
+    "no_folders": "Quien usa Orbit no ha dado al asistente ninguna carpeta de ese Mac.",
+    "outside_folders": "Esa ruta está fuera de las carpetas que el asistente puede leer.",
+    "folder_unavailable": "Esa carpeta del asistente no se puede abrir ahora.",
+    "file_unavailable": "Ese archivo de las carpetas del asistente no se puede leer como se pidió.",
+    "file_too_large": "Ese archivo pesa más de lo que Orbit lee de su tipo.",
 }
 
 TYPED_PERMISSION_MESSAGES = {
@@ -493,7 +500,10 @@ def error_result(
                 )
     if message is None:
         message = f"El código {spoken_code} no tiene frase en este traductor."
-    if code in meetings.NOTE_REFUSALS or code == "after_index_out_of_range":
+    if code in files.REFUSALS and isinstance(refusal, dict):
+        message = files.refusal_message(code, refusal)
+        numbers = ""
+    elif code in meetings.NOTE_REFUSALS or code == "after_index_out_of_range":
         # Their numbers are already words: when, why and how many times.
         numbers = meetings.refusal_sentence(code, refusal)
     else:

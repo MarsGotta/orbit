@@ -64,8 +64,8 @@ pub fn missing_system_permission_refusal(
         Refusal::PermissionDenied { permission }
     }
 }
-parameter_enum!(Resource { Subscriptions => "subscriptions", IpcResponse => "ipc_response", IpcRequest => "ipc_request", HubResponse => "hub_response", Message => "message", Recording => "recording", Session => "session", Audio => "audio", Calendar => "calendar", Source => "source", Capture => "capture", ComputerAction => "computer_action", Storage => "storage" });
-parameter_enum!(Operation { IpcRequest => "ipc_request", Subscription => "subscription", Chat => "chat", SessionList => "session_list", Interaction => "interaction", Recording => "recording", Audio => "audio", AudioSession => "audio_session", AudioDrain => "audio_drain", Capture => "capture", Playback => "playback", Call => "call", Calendar => "calendar", ComputerAction => "computer_action", Storage => "storage", Pairing => "pairing", VoiceTranscription => "voice_transcription", PrivacyStop => "privacy_stop" });
+parameter_enum!(Resource { Subscriptions => "subscriptions", IpcResponse => "ipc_response", IpcRequest => "ipc_request", HubResponse => "hub_response", Message => "message", Recording => "recording", Session => "session", Audio => "audio", Calendar => "calendar", Source => "source", Capture => "capture", ComputerAction => "computer_action", Storage => "storage", Folder => "folder", File => "file" });
+parameter_enum!(Operation { IpcRequest => "ipc_request", Subscription => "subscription", Chat => "chat", SessionList => "session_list", Interaction => "interaction", Recording => "recording", Audio => "audio", AudioSession => "audio_session", AudioDrain => "audio_drain", Capture => "capture", Playback => "playback", Call => "call", Calendar => "calendar", ComputerAction => "computer_action", Storage => "storage", Pairing => "pairing", VoiceTranscription => "voice_transcription", PrivacyStop => "privacy_stop", Files => "files" });
 parameter_enum!(Parameter { Text => "text", Duration => "duration", Title => "title", ApplicationPid => "application_pid", Request => "request", Selection => "selection", Identifier => "identifier", Meeting => "meeting" });
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -157,6 +157,18 @@ pub enum Expected {
         end_ms: i64,
         min_ms: i64,
         max_ms: i64,
+    },
+    /// A path for the assistant's folders: absolute, without NUL, at most
+    /// `assistant_files::MAX_PATH_BYTES`.
+    AbsolutePath {
+        bytes: u64,
+        max_bytes: u64,
+    },
+    /// A search text: at least one character, at most
+    /// `assistant_files::MAX_QUERY_BYTES`.
+    SearchQuery {
+        bytes: u64,
+        max_bytes: u64,
     },
     CalendarCursor {
         read_id_bytes: Option<u64>,
@@ -622,6 +634,33 @@ refusals! {
     Legacy => "legacy" {
         text: String,
     },
+    // The assistant asked for a file and the user has given it no folder.
+    NoFolders => "no_folders",
+    // The path, as asked and as it resolves on the Mac (links and `..`
+    // followed), is in none of the folders. Names them all so the caller can
+    // correct its path.
+    OutsideFolders => "outside_folders" {
+        path: String,
+        resolved: Option<String>,
+        folders: Vec<String>,
+    },
+    // The folder's bookmark does not open it, and why.
+    FolderUnavailable => "folder_unavailable" {
+        path: String,
+        cause: crate::assistant_files::FolderCause,
+    },
+    // A path inside a folder that cannot be read as asked, and why.
+    FileUnavailable => "file_unavailable" {
+        path: String,
+        cause: crate::assistant_files::FileCause,
+    },
+    // A PDF or an image over the size Orbit reads, with both sizes.
+    FileTooLarge => "file_too_large" {
+        path: String,
+        content: crate::assistant_files::ContentKind,
+        bytes: u64,
+        max_bytes: u64,
+    },
 }
 
 impl Refusal {
@@ -659,7 +698,12 @@ impl Refusal {
             | Self::Expired { .. }
             | Self::NotFound { .. }
             | Self::PendingRecording { .. }
-            | Self::TooMany { .. } => Retry::AfterFix,
+            | Self::TooMany { .. }
+            | Self::NoFolders
+            | Self::OutsideFolders { .. }
+            | Self::FolderUnavailable { .. }
+            | Self::FileUnavailable { .. }
+            | Self::FileTooLarge { .. } => Retry::AfterFix,
             Self::Update { cause } => match cause {
                 UpdateCause::InstallerFailed { .. } | UpdateCause::InstallerIo { .. } => {
                     Retry::CheckOutcome
@@ -708,7 +752,9 @@ impl Refusal {
                     | Resource::Source
                     | Resource::Capture
                     | Resource::ComputerAction
-                    | Resource::Storage,
+                    | Resource::Storage
+                    | Resource::Folder
+                    | Resource::File,
                 ..
             } => Retry::AfterFix,
             Self::Busy {
@@ -892,6 +938,28 @@ impl Serialize for Refusal {
             } => json!({"code":"hub_reply_invalid","field":field,"received_bytes":received_bytes}),
             Self::DaemonReplyInvalid { field, issue } => {
                 json!({"code":"daemon_reply_invalid","field":field,"issue":issue})
+            }
+            Self::NoFolders => json!({"code":"no_folders"}),
+            Self::OutsideFolders {
+                path,
+                resolved,
+                folders,
+            } => {
+                json!({"code":"outside_folders","path":path,"resolved":resolved,"folders":folders})
+            }
+            Self::FolderUnavailable { path, cause } => {
+                json!({"code":"folder_unavailable","path":path,"cause":cause})
+            }
+            Self::FileUnavailable { path, cause } => {
+                json!({"code":"file_unavailable","path":path,"cause":cause})
+            }
+            Self::FileTooLarge {
+                path,
+                content,
+                bytes,
+                max_bytes,
+            } => {
+                json!({"code":"file_too_large","path":path,"content":content,"bytes":bytes,"max_bytes":max_bytes})
             }
         };
         if let Value::Object(ref mut fields) = value {

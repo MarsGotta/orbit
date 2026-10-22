@@ -1,0 +1,29 @@
+{
+  "method": "device.reply",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000405",
+  "params": {
+    "request_id": "00000000-0000-4000-8000-000000000405",
+    "result": {
+      "query": "presupuesto",
+      "content": true,
+      "results": [
+        {
+          "path": "/Users/ejemplo/Proyectos/plan.md",
+          "kind": "file",
+          "size_bytes": 2048,
+          "line": 3,
+          "snippet": "El presupuesto del trimestre."
+        }
+      ],
+      "visited": 12,
+      "files_read": 4,
+      "bytes_read": 8192,
+      "partial_files": 0,
+      "stopped": {
+        "cause": "results",
+        "limit": 50
+      }
+    }
+  }
+}

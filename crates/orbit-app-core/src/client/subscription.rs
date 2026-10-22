@@ -356,6 +356,9 @@ mod topic_tests {
                             },
                             as_of_ms: None,
                         },
+                        folders: Box::new(Knowledge::Unknown {
+                            why: orbit_core::topics::Pending::NotObservedYet,
+                        }),
                     },
                     as_of_ms: None,
                 }),

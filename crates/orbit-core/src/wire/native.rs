@@ -240,6 +240,51 @@ pub enum NativeCommand {
         id: String,
         window_binding: WindowBinding,
     },
+    /// «Añadir carpeta»: the macOS panel, folders only. The person's choice
+    /// there is the permission; the answer is the folder and its bookmark.
+    #[serde(rename = "assistant_folder_pick")]
+    AssistantFolderPick { v: u8, id: String },
+    /// Opens each folder's bookmark and says whether it still opens; with
+    /// `path`, also where that path leads (links and `..` followed).
+    #[serde(rename = "assistant_folders")]
+    AssistantFolders {
+        v: u8,
+        id: String,
+        folders: Vec<crate::assistant_files::FolderBookmark>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        path: Option<String>,
+    },
+    /// One folder's entries, by name, from `after_index`. `path` is the
+    /// canonical path the folders admitted.
+    #[serde(rename = "assistant_files_list")]
+    AssistantFilesList {
+        v: u8,
+        id: String,
+        folder: crate::assistant_files::FolderBookmark,
+        path: String,
+        after_index: u64,
+        max_entries: u32,
+    },
+    /// Names, and with `content` the text of plain-text files, under each
+    /// root, never following a link.
+    #[serde(rename = "assistant_files_search")]
+    AssistantFilesSearch {
+        v: u8,
+        id: String,
+        roots: Vec<crate::assistant_files::SearchRoot>,
+        query: String,
+        content: bool,
+        limits: crate::assistant_files::SearchLimits,
+    },
+    /// One file the folders admitted, read as `read` says.
+    #[serde(rename = "assistant_files_read")]
+    AssistantFilesRead {
+        v: u8,
+        id: String,
+        folder: crate::assistant_files::FolderBookmark,
+        path: String,
+        read: crate::assistant_files::ReadAs,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -326,6 +371,11 @@ impl NativeCommand {
             "screen_sources",
             "screenshot",
             "selected_text",
+            "assistant_folder_pick",
+            "assistant_folders",
+            "assistant_files_list",
+            "assistant_files_search",
+            "assistant_files_read",
         ]
     }
 }

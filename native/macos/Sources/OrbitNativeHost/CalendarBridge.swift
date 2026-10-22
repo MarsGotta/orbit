@@ -38,7 +38,9 @@ package enum CalendarBridge {
              .privacyStop, .captureStop, .playbackStop, .rearm, .shutdown,
              .permissions, .audioStart, .audioPurpose, .audioWakePhrase, .audioStop, .playback,
              .playbackClip, .applicationSources,
-             .screenSources, .screenshot, .selectedText:
+             .screenSources, .screenshot, .selectedText,
+             .assistantFolderPick, .assistantFolders, .assistantFilesList, .assistantFilesSearch,
+             .assistantFilesRead:
             throw CalendarFailure.invalidRequest
         }
     }

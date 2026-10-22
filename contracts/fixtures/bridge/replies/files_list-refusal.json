@@ -1,0 +1,15 @@
+{
+  "method": "device.reply",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000405",
+  "params": {
+    "request_id": "00000000-0000-4000-8000-000000000405",
+    "refusal": {
+      "code": "privacy_stopped",
+      "retry": {
+        "kind": "after_fix"
+      },
+      "since_ms": 1
+    }
+  }
+}

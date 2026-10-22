@@ -385,6 +385,40 @@ Sources: [AXPosition](https://developer.apple.com/documentation/applicationservi
 [substring](https://developer.apple.com/documentation/applicationservices/kaxstringforrangeparameterizedattribute),
 [secure field](https://developer.apple.com/documentation/applicationservices/kaxsecuretextfieldsubrole).
 
+### Assistant folders
+
+These five commands never take the general command lane: a panel waits for a
+person and a search walks the disk, and neither may delay a recording. The
+daemon sends one of each at a time. The privacy latch refuses them.
+
+- `assistant_folder_pick {}` opens `NSOpenPanel` for one folder and returns
+  `{state:"chosen",path,bookmark_base64}` (a security-scoped, read-only
+  bookmark; a plain one where macOS makes no scoped bookmark) or
+  `{state:"cancelled"}`. A second panel while one is open is
+  `assistant_folder_panel_busy`.
+- `assistant_folders {folders:[{id,bookmark_base64}],path?}` opens each
+  bookmark (starting its security-scoped access for this order only) and
+  answers `{folders:[{state:"accessible",id,path,renewed_bookmark_base64?} |
+  {state:"unavailable",id,cause}],requested?}`. `path` is canonical
+  (`realpath`); a stale bookmark is renewed. `requested` is
+  `{state:"found",path,kind,size_bytes,modified_ms?}`, `{state:"not_found"}`
+  or `{state:"unavailable",cause}`. The helper does not decide containment:
+  the daemon does, on these canonical paths.
+- `assistant_files_list {folder,path,after_index,max_entries}`,
+  `assistant_files_search {roots:[{folder,path}],query,content,limits}` and
+  `assistant_files_read {folder,path,read}` run only on a path the daemon
+  admitted. The helper first checks the path is still canonical
+  (`realpath(path) == path`) and reads with `O_NOFOLLOW`; otherwise it refuses
+  `changed`. Listings and searches use `lstat` and never follow a link. `read`
+  is `{as:"text",after_index,max_bytes}`, `{as:"pdf",after_page,after_index,
+  max_bytes,max_pages}` or `{as:"image",max_png_bytes,max_width,max_height}`;
+  every bound travels in the command, so the helper keeps no copy of it.
+
+Refusals use `ok:false` with `assistant_file_unavailable {cause}` or
+`assistant_folder_unavailable {id,cause}`, the causes of `hub-v1.md`
+(«Assistant folders»). Fixtures: `commands/assistant_*.json` and
+`results/assistant_*.json`. No path or content is logged.
+
 ## Stop barrier and preceding audio
 
 `privacy_stop` or nonlatching `capture_stopped` is immediate and includes

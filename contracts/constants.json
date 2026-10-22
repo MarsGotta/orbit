@@ -1454,5 +1454,62 @@
       "Falta el permiso de",
       "Faltan permisos"
     ]
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/assistant_files.rs",
+        "name": "MAX_PATH_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "server/orbit_mcp/bridge.py",
+        "name": "MAX_PATH_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_FOLDER_PATH_BYTES",
+    "resource": "path into the assistant's folders (macOS PATH_MAX)",
+    "source": "registry",
+    "unit": "bytes",
+    "value": 1024
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/assistant_files.rs",
+        "name": "MAX_QUERY_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "server/orbit_mcp/bridge.py",
+        "name": "MAX_QUERY_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_FILES_QUERY_BYTES",
+    "resource": "search text in the assistant's folders",
+    "source": "registry",
+    "unit": "bytes",
+    "value": 256
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/meetings_bridge/page.py",
+        "name": "MAX_ANSWER_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "crates/orbit-core/src/assistant_files.rs",
+        "name": "MAX_TEXT_PAGE_BYTES",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_ANSWER_CHARS",
+    "resource": "text in one assistant tool answer (a file page counts bytes, never fewer than its characters)",
+    "source": "registry",
+    "unit": "characters",
+    "value": 48000
   }
 ]

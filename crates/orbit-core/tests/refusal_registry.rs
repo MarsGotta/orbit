@@ -6,7 +6,7 @@ use orbit_core::refusal::{
 };
 use serde_json::json;
 
-fn too_large_resources() -> [Resource; 13] {
+fn too_large_resources() -> [Resource; 15] {
     [
         Resource::Subscriptions,
         Resource::IpcResponse,
@@ -21,6 +21,8 @@ fn too_large_resources() -> [Resource; 13] {
         Resource::Capture,
         Resource::ComputerAction,
         Resource::Storage,
+        Resource::Folder,
+        Resource::File,
     ]
 }
 
@@ -38,7 +40,9 @@ fn expected_too_large_retry(resource: Resource) -> Retry {
         | Resource::Source
         | Resource::Capture
         | Resource::ComputerAction
-        | Resource::Storage => Retry::AfterFix,
+        | Resource::Storage
+        | Resource::Folder
+        | Resource::File => Retry::AfterFix,
     }
 }
 
@@ -755,4 +759,62 @@ fn existing_refusal_wire_matches_main() {
     )
     .unwrap();
     assert_eq!(serde_json::to_value(values).unwrap(), expected);
+}
+
+/// The assistant's folders refuse by name: the path asked for, where it led,
+/// every folder, the cause and its numbers, and each one can be corrected.
+#[test]
+fn folder_refusals_carry_the_path_the_folders_and_their_numbers() {
+    use orbit_core::assistant_files::{ContentKind, FileCause, FolderCause};
+    let cases = [
+        (
+            Refusal::NoFolders,
+            json!({"code":"no_folders","retry":{"kind":"after_fix"}}),
+        ),
+        (
+            Refusal::OutsideFolders {
+                path: "/Users/ejemplo/Proyectos/atajo".into(),
+                resolved: Some("/Users/ejemplo/Privado/x".into()),
+                folders: vec!["/Users/ejemplo/Proyectos".into()],
+            },
+            json!({"code":"outside_folders","path":"/Users/ejemplo/Proyectos/atajo",
+                "resolved":"/Users/ejemplo/Privado/x","folders":["/Users/ejemplo/Proyectos"],
+                "retry":{"kind":"after_fix"}}),
+        ),
+        (
+            Refusal::FolderUnavailable {
+                path: "/Users/ejemplo/Notas".into(),
+                cause: FolderCause::BookmarkUnresolvable {
+                    domain: "NSCocoaErrorDomain".into(),
+                    code: 4,
+                },
+            },
+            json!({"code":"folder_unavailable","path":"/Users/ejemplo/Notas",
+                "cause":{"kind":"bookmark_unresolvable","domain":"NSCocoaErrorDomain","code":4},
+                "retry":{"kind":"after_fix"}}),
+        ),
+        (
+            Refusal::FileUnavailable {
+                path: "/Users/ejemplo/Notas/a.bin".into(),
+                cause: FileCause::NotText,
+            },
+            json!({"code":"file_unavailable","path":"/Users/ejemplo/Notas/a.bin",
+                "cause":{"kind":"not_text"},"retry":{"kind":"after_fix"}}),
+        ),
+        (
+            Refusal::FileTooLarge {
+                path: "/Users/ejemplo/Notas/manual.pdf".into(),
+                content: ContentKind::Pdf,
+                bytes: 70_000_000,
+                max_bytes: 67_108_864,
+            },
+            json!({"code":"file_too_large","path":"/Users/ejemplo/Notas/manual.pdf",
+                "content":"pdf","bytes":70_000_000,"max_bytes":67_108_864,
+                "retry":{"kind":"after_fix"}}),
+        ),
+    ];
+    for (refusal, wire) in cases {
+        assert_eq!(serde_json::to_value(&refusal).unwrap(), wire);
+        assert_eq!(serde_json::from_value::<Refusal>(wire).unwrap(), refusal);
+    }
 }

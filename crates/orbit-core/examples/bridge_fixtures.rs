@@ -1,5 +1,6 @@
 //! Generate bridge fixtures through the production core wire types.
 use orbit_core::{
+    assistant_files::{Entry, EntryKind, PdfPage, SearchHit, SearchLimit, SearchStop},
     calendar::{
         CalendarFieldStatus, CalendarInvitee, CalendarOccurrence, CalendarOversizedEvent,
         CalendarReference,
@@ -65,6 +66,26 @@ fn main() -> Result<(), Box<dyn Error>> {
                 after_ms: None,
                 after_index: None,
                 after_invitee: None,
+            },
+        },
+        BridgeRequest::FilesList {
+            parameters: FilesListParameters {
+                path: Some("/Users/ejemplo/Proyectos".into()),
+                after_index: Some(200),
+            },
+        },
+        BridgeRequest::FilesSearch {
+            parameters: FilesSearchParameters {
+                query: "presupuesto".into(),
+                path: None,
+                content: Some(true),
+            },
+        },
+        BridgeRequest::FilesRead {
+            parameters: FilesReadParameters {
+                path: "/Users/ejemplo/Proyectos/manual.pdf".into(),
+                after_index: Some(0),
+                after_page: Some(2),
             },
         },
     ];
@@ -180,6 +201,64 @@ fn main() -> Result<(), Box<dyn Error>> {
             next_after_ms: Some(1_790_200_860_000),
             next_after_index: Some(1),
             next_after_invitee: None,
+        }),
+        BridgeResult::FilesList(FilesListResult {
+            path: Some("/Users/ejemplo/Proyectos".into()),
+            entries: vec![
+                Entry {
+                    name: "informes".into(),
+                    kind: EntryKind::Folder,
+                    size_bytes: None,
+                    modified_ms: Some(1_790_200_800_000),
+                    unavailable: None,
+                },
+                Entry {
+                    name: "plan.md".into(),
+                    kind: EntryKind::File,
+                    size_bytes: Some(2_048),
+                    modified_ms: Some(1_790_200_800_000),
+                    unavailable: None,
+                },
+            ],
+            total: 202,
+            after_index: 200,
+            next_after_index: None,
+        }),
+        BridgeResult::FilesSearch(FilesSearchResult {
+            query: "presupuesto".into(),
+            path: None,
+            content: true,
+            results: vec![SearchHit {
+                path: "/Users/ejemplo/Proyectos/plan.md".into(),
+                kind: EntryKind::File,
+                size_bytes: Some(2_048),
+                line: Some(3),
+                snippet: Some("El presupuesto del trimestre.".into()),
+            }],
+            visited: 12,
+            files_read: 4,
+            bytes_read: 8_192,
+            partial_files: 0,
+            stopped: Some(SearchStop {
+                cause: SearchLimit::Results,
+                limit: 50,
+            }),
+        }),
+        BridgeResult::FilesRead(FilesReadResult {
+            path: "/Users/ejemplo/Proyectos/manual.pdf".into(),
+            size_bytes: 120_000,
+            modified_ms: Some(1_790_200_800_000),
+            content: FileContent::Pdf {
+                pages: vec![PdfPage {
+                    page: 3,
+                    text: "Capítulo sintético.".into(),
+                }],
+                page_count: 12,
+                after_page: 2,
+                after_index: 0,
+                next_after_page: Some(3),
+                next_after_index: Some(0),
+            },
         }),
     ];
     for ((capability, request), result) in Capability::ALL.into_iter().zip(requests).zip(results) {

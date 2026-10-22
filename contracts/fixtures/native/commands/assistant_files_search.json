@@ -1,0 +1,25 @@
+{
+  "command": "assistant_files_search",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000911",
+  "roots": [
+    {
+      "folder": {
+        "id": "00000000-0000-4000-8000-000000000913",
+        "bookmark_base64": "Ym9va21hcms="
+      },
+      "path": "/Users/ejemplo/Proyectos"
+    }
+  ],
+  "query": "presupuesto",
+  "content": true,
+  "limits": {
+    "max_results": 50,
+    "max_visited": 20000,
+    "max_files_read": 1000,
+    "max_bytes_read": 33554432,
+    "max_file_bytes": 1048576,
+    "max_snippet_chars": 160,
+    "deadline_ms": 10000
+  }
+}

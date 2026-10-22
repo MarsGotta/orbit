@@ -28,6 +28,9 @@ fn projects_the_engine_catalogue_and_nothing_to_approve() {
                         },
                         as_of_ms: None,
                     },
+                    folders: Box::new(Knowledge::Unknown {
+                        why: orbit_core::topics::Pending::NotObservedYet,
+                    }),
                 },
                 as_of_ms: None,
             }),

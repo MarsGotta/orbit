@@ -52,6 +52,7 @@ async fn privacy_stop_keeps_its_notice_with_a_pending_bridge_request() -> Result
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     });
     runtime
         .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
@@ -96,6 +97,7 @@ async fn privacy_stop_queues_refusal_before_retiring_hub() -> Result<()> {
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     });
 
     runtime
@@ -138,6 +140,7 @@ async fn privacy_stop_orders_native_cut_before_hub_refusal() -> Result<()> {
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     });
     for _ in 0..runtime.native.max_capacity() {
         runtime.native.try_send(json!({"fixture":"occupied"}))?;
@@ -273,6 +276,7 @@ async fn action_receipt_is_reported_only_after_queue_admission() -> Result<()> {
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     };
     runtime.conversation.bridge_request = Some(ask.clone());
     runtime.finish_remote_computer_action("one-attempt", &json!({"ok":true}));
@@ -338,6 +342,7 @@ async fn bridge_release_reports_full_and_retired_link() -> Result<()> {
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     };
     let (sender, mut frames) = mpsc::channel(1);
     sender.try_send(json!({"fixture":"occupied"}))?;
@@ -382,6 +387,7 @@ async fn engine_windows_reply_reports_full_and_retired_link() -> Result<()> {
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     };
     let observation = json!({"structured":{"windows":[]}});
     let (sender, mut frames) = mpsc::channel(1);
@@ -432,6 +438,7 @@ async fn helper_windows_reply_reports_full_and_retired_link() -> Result<()> {
         catalogue_after: 0,
         calendar_window: None,
         calendar_cursor: None,
+        files: None,
     };
     let (sender, mut frames) = mpsc::channel(1);
     sender.try_send(json!({"fixture":"occupied"}))?;

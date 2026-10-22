@@ -57,6 +57,9 @@ impl ReadOnlyStore {
     pub fn next_uploaded_chunk(&self) -> Result<Option<String>> {
         self.store.next_uploaded_chunk()
     }
+    pub fn load_assistant_folders(&self) -> Result<Vec<orbit_core::assistant_files::Folder>> {
+        self.store.load_assistant_folders()
+    }
     pub fn load_call_preference(
         &self,
     ) -> Result<Option<orbit_core::call_detection::CallPreference>> {

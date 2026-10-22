@@ -39,6 +39,19 @@ pub struct Value {
     pub action: Option<ControlHistoryEntry>,
     /// A storage failure affects the record alone, not the engine or action.
     pub history: Knowledge<History>,
+    /// The folders the user gave the assistant, each with whether it opens.
+    /// Unknown from a daemon that predates them; absent with its cause when
+    /// the store could not read them.
+    /// Boxed: a `Knowledge` holds a whole `Refusal`, and inline it doubled
+    /// the shared `TopicData` enum.
+    #[serde(default = "folders_not_observed")]
+    pub folders: Box<Knowledge<Vec<crate::assistant_files::FolderView>>>,
+}
+
+fn folders_not_observed() -> Box<Knowledge<Vec<crate::assistant_files::FolderView>>> {
+    Box::new(Knowledge::Unknown {
+        why: crate::topics::Pending::NotObservedYet,
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -347,6 +360,24 @@ mod tests {
                     },
                     as_of_ms: None,
                 },
+                folders: Box::new(Knowledge::Present {
+                    value: (0..crate::assistant_files::MAX_FOLDERS)
+                        .map(|index| crate::assistant_files::FolderView {
+                            id: format!("{index:0>36}"),
+                            // The costliest path: every byte a control
+                            // character, six bytes once escaped.
+                            path: "\u{01}".repeat(crate::assistant_files::MAX_PATH_BYTES),
+                            access: crate::assistant_files::FolderAccess::Unavailable {
+                                cause: crate::assistant_files::FolderCause::BookmarkUnresolvable {
+                                    domain: "d"
+                                        .repeat(crate::assistant_files::MAX_ERROR_DOMAIN_BYTES),
+                                    code: i64::MIN,
+                                },
+                            },
+                        })
+                        .collect(),
+                    as_of_ms: None,
+                }),
             },
             as_of_ms: None,
         });

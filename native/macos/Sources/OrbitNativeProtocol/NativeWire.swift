@@ -101,6 +101,12 @@ public enum NativeWireCommand: Decodable, Sendable {
     case screenSources(NativeWireEnvelope<NativeEmptyFields>)
     case screenshot(NativeWireEnvelope<NativeWindowFields>)
     case selectedText(NativeWireEnvelope<NativeWindowFields>)
+    /// The assistant's folders (`AssistantFolders.swift`).
+    case assistantFolderPick(NativeWireEnvelope<NativeEmptyFields>)
+    case assistantFolders(NativeWireEnvelope<AssistantFoldersFields>)
+    case assistantFilesList(NativeWireEnvelope<AssistantFilesListFields>)
+    case assistantFilesSearch(NativeWireEnvelope<AssistantFilesSearchFields>)
+    case assistantFilesRead(NativeWireEnvelope<AssistantFilesReadFields>)
 
     private var header: (v: Int, id: String) {
         switch self {
@@ -121,6 +127,11 @@ public enum NativeWireCommand: Decodable, Sendable {
         case .playbackClip(let value): return (value.v, value.id)
         case .applicationSources(let value): return (value.v, value.id)
         case .screenshot(let value), .selectedText(let value): return (value.v, value.id)
+        case .assistantFolderPick(let value): return (value.v, value.id)
+        case .assistantFolders(let value): return (value.v, value.id)
+        case .assistantFilesList(let value): return (value.v, value.id)
+        case .assistantFilesSearch(let value): return (value.v, value.id)
+        case .assistantFilesRead(let value): return (value.v, value.id)
         }
     }
 
@@ -181,6 +192,11 @@ public enum NativeWireCommand: Decodable, Sendable {
         case "screen_sources": self = .screenSources(try .init(from: decoder))
         case "screenshot": self = .screenshot(try .init(from: decoder))
         case "selected_text": self = .selectedText(try .init(from: decoder))
+        case "assistant_folder_pick": self = .assistantFolderPick(try .init(from: decoder))
+        case "assistant_folders": self = .assistantFolders(try .init(from: decoder))
+        case "assistant_files_list": self = .assistantFilesList(try .init(from: decoder))
+        case "assistant_files_search": self = .assistantFilesSearch(try .init(from: decoder))
+        case "assistant_files_read": self = .assistantFilesRead(try .init(from: decoder))
         default: throw DecodingError.dataCorruptedError(forKey: .command,
             in: try decoder.container(keyedBy: CodingKeys.self), debugDescription: "Comando nativo desconocido: \(command)")
         }
@@ -212,6 +228,11 @@ public enum NativeWireCommand: Decodable, Sendable {
         case .screenSources: "screen_sources"
         case .screenshot: "screenshot"
         case .selectedText: "selected_text"
+        case .assistantFolderPick: "assistant_folder_pick"
+        case .assistantFolders: "assistant_folders"
+        case .assistantFilesList: "assistant_files_list"
+        case .assistantFilesSearch: "assistant_files_search"
+        case .assistantFilesRead: "assistant_files_read"
         }
     }
     public static let names: Set<String> = [
@@ -221,7 +242,9 @@ public enum NativeWireCommand: Decodable, Sendable {
         "playback_stop", "rearm", "shutdown", "permissions", "audio_start",
         "audio_purpose", "audio_wake_phrase", "audio_stop", "playback", "playback_clip",
         "application_sources", "screen_sources",
-        "screenshot", "selected_text"
+        "screenshot", "selected_text",
+        "assistant_folder_pick", "assistant_folders", "assistant_files_list",
+        "assistant_files_search", "assistant_files_read"
     ]
 }
 
