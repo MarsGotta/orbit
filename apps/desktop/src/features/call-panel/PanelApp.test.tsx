@@ -55,7 +55,7 @@ it("offers «Preguntar a Deimos» during a recording started by hand, with no ca
     />,
   );
   expect(await screen.findByRole("button", { name: "Preguntar a Deimos" })).toBeTruthy();
-  expect(screen.getByText("«Oye Deimos» escucha en tu micrófono")).toBeTruthy();
+  expect(screen.getByText("«Oye Deimos» te escucha")).toBeTruthy();
 });
 
 it("offers nothing to ask outside a recording", async () => {
