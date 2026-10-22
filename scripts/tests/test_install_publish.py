@@ -361,7 +361,7 @@ class PublishTests(Fixture):
 
     def test_a_declared_checksum_that_does_not_match_stops_the_publication(self):
         source = self.build_package()
-        next(source.glob("*.sha256")).write_text("0" * 64 + "  package")
+        next(source.glob("*.zip.sha256")).write_text("0" * 64 + "  package")
         result = self.publish(source)
         self.assertEqual(result.returncode, 1)
         self.assertIn("sha256 expected='" + "0" * 64, result.stderr)
