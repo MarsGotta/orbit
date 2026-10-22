@@ -90,7 +90,7 @@ public struct AssistantFilesReadFields: Decodable, Sendable {
 }
 
 /// Why a folder's bookmark does not open it (`FolderCause` in orbit-core).
-public enum AssistantFolderCause: Equatable, Sendable {
+public enum AssistantFolderCause: Error, Equatable, Sendable {
     case bookmarkUnresolvable(domain: String, code: Int)
     case notAFolder
     case accessDenied(errno: Int32)
@@ -209,21 +209,28 @@ public enum AssistantText {
     }
 }
 
+/// A system error number (`errno`) as an `Error`, so `realpath`'s failure can
+/// travel in a `Result`.
+public struct SystemErrorNumber: Error, Equatable {
+    public let value: Int32
+    public init(_ value: Int32) { self.value = value }
+}
+
 /// The rule for a read: the path the daemon admitted is canonical, and it is
 /// read only while it still is (no link swapped into it on the way).
 public enum AssistantPathCheck {
     /// `resolve` is `realpath`; its failure is the system's error number.
     public static func stillCanonical(_ path: String,
-                                      resolve: (String) -> Result<String, Int32>) throws {
+                                      resolve: (String) -> Result<String, SystemErrorNumber>) throws {
         switch resolve(path) {
         case .success(let canonical) where canonical == path:
             return
         case .success:
             throw AssistantFilesFailure.file(.changed)
-        case .failure(let error) where error == ENOENT || error == ENOTDIR:
+        case .failure(let error) where error.value == ENOENT || error.value == ENOTDIR:
             throw AssistantFilesFailure.file(.notFound)
         case .failure(let error):
-            throw AssistantFilesFailure.file(.readFailed(errno: error))
+            throw AssistantFilesFailure.file(.readFailed(errno: error.value))
         }
     }
 }

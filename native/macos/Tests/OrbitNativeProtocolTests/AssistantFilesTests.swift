@@ -76,7 +76,7 @@ final class AssistantFilesTests: XCTestCase {
         XCTAssertThrowsError(try AssistantPathCheck.stillCanonical("/a/b") { _ in .success("/c/b") }) {
             XCTAssertEqual($0 as? AssistantFilesFailure, .file(.changed))
         }
-        XCTAssertThrowsError(try AssistantPathCheck.stillCanonical("/a/b") { _ in .failure(ENOENT) }) {
+        XCTAssertThrowsError(try AssistantPathCheck.stillCanonical("/a/b") { _ in .failure(SystemErrorNumber(ENOENT)) }) {
             XCTAssertEqual($0 as? AssistantFilesFailure, .file(.notFound))
         }
     }

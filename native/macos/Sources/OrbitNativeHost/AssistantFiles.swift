@@ -106,10 +106,10 @@ package final class AssistantFiles: @unchecked Sendable {
     /// folder resolves as the person's own access does.
     static func requested(_ path: String) -> [String: Any] {
         switch AssistantPaths.canonical(path) {
-        case .failure(let error) where error == ENOENT || error == ENOTDIR:
+        case .failure(let error) where error.value == ENOENT || error.value == ENOTDIR:
             return ["state": "not_found"]
         case .failure(let error):
-            return ["state": "unavailable", "cause": AssistantFileCause.readFailed(errno: error).fields]
+            return ["state": "unavailable", "cause": AssistantFileCause.readFailed(errno: error.value).fields]
         case .success(let canonical):
             var status = stat()
             guard stat(canonical, &status) == 0 else {
@@ -434,12 +434,12 @@ struct AssistantOpenedFolder {
         let scoped = resolved.url.startAccessingSecurityScopedResource()
         let close = { if scoped { resolved.url.stopAccessingSecurityScopedResource() } }
         switch AssistantPaths.canonical(resolved.url.path) {
-        case .failure(let error) where error == EACCES || error == EPERM:
+        case .failure(let error) where error.value == EACCES || error.value == EPERM:
             close()
-            return .failure(.accessDenied(errno: error))
+            return .failure(.accessDenied(errno: error.value))
         case .failure(let error):
             close()
-            return .failure(.bookmarkUnresolvable(domain: NSPOSIXErrorDomain, code: Int(error)))
+            return .failure(.bookmarkUnresolvable(domain: NSPOSIXErrorDomain, code: Int(error.value)))
         case .success(let canonical):
             var status = stat()
             guard stat(canonical, &status) == 0 else {
@@ -504,8 +504,8 @@ enum AssistantBookmarks {
 
 enum AssistantPaths {
     /// `realpath`: links and `..` followed, or the system's error number.
-    static func canonical(_ path: String) -> Result<String, Int32> {
-        guard let resolved = realpath(path, nil) else { return .failure(errno) }
+    static func canonical(_ path: String) -> Result<String, SystemErrorNumber> {
+        guard let resolved = realpath(path, nil) else { return .failure(SystemErrorNumber(errno)) }
         defer { free(resolved) }
         return .success(String(cString: resolved))
     }
