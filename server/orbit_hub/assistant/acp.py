@@ -91,6 +91,7 @@ from .backend import (
     RequestExpired,
     ResumedSession,
     TextBlock,
+    TurnFailed,
     UnreadableUpdate,
 )
 
@@ -135,6 +136,12 @@ KEYS = {"agent", "command", "env", "orbit_mcp_config"}
 AUTH_REQUIRED = acp.RequestError.auth_required().code
 # JSON-RPC's "method not found", for what the hub does not offer an agent.
 NOT_OFFERED = -32601
+# ACP's stop reasons for a turn the agent ended before finishing its answer.
+UNFINISHED = {
+    "max_tokens": "llegó a su máximo de tokens de respuesta antes de terminar",
+    "max_turn_requests": "llegó a su máximo de peticiones al modelo en un turno antes de terminar",
+    "refusal": "se negó a seguir con el turno",
+}
 
 
 @dataclass(frozen=True)
@@ -474,9 +481,9 @@ class _AgentProcess:
     def idle(self) -> bool:
         return self.session_id is not None and self.turn is None and not self.permissions
 
-    def refusal(self, code: str, cause: str) -> HubError:
+    def refusal(self, code: str, cause: str, numbers: dict[str, int] | None = None) -> HubError:
         command = self.backend.settings.command[0]
-        return HubError(code, f"El agente «{self.name}» ({command}) {cause}")
+        return HubError(code, f"El agente «{self.name}» ({command}) {cause}", numbers=numbers)
 
     async def start(self) -> None:
         from ..app import hub_version
@@ -552,7 +559,7 @@ class _AgentProcess:
                 "agent_timeout", f"no respondió a {method} en {timeout} segundos"
             ) from exc
         except ConnectionError as exc:
-            raise self.refusal("agent_stopped", await self.exit_cause(method)) from exc
+            raise self.refusal("agent_stopped", *await self.exit_cause(method)) from exc
 
     def sign_in_cause(self) -> str:
         return (
@@ -561,19 +568,21 @@ class _AgentProcess:
             f"{self.backend.login_command()}"
         )
 
-    async def exit_cause(self, method: str) -> str:
+    async def exit_cause(self, method: str) -> tuple[str, dict[str, int] | None]:
+        """Why the agent's output ended, and its numbers."""
         if self.transport is not None and self.transport.overrun:
-            return (
+            cause = (
                 f"envió un mensaje de más de {MAX_AGENT_MESSAGE_BYTES} bytes, el techo de "
                 "un mensaje; se detuvo el agente"
             )
+            return cause, {"max_bytes": MAX_AGENT_MESSAGE_BYTES}
         code = None
         if self.process is not None:
             with suppress(TimeoutError):
                 code = await asyncio.wait_for(self.process.wait(), STOP_GRACE_SECONDS)
         if code is None:
-            return f"cerró su salida durante {method}; se detuvo el agente"
-        return f"terminó con código {code} durante {method}"
+            return f"cerró su salida durante {method}; se detuvo el agente", None
+        return f"terminó con código {code} durante {method}", {"exit_status": code}
 
     async def new_session(self) -> str:
         answer = await self.request(
@@ -649,29 +658,41 @@ class _AgentProcess:
                 await self.fail(session_id, "agent_auth_required", self.sign_in_cause())
             else:
                 cause = f"rechazó el turno (código {exc.code}): {_reason(exc)}"
-                await self.fail(session_id, "agent_rejected", cause)
+                await self.fail(session_id, "agent_rejected", cause, {"acp_code": exc.code})
         except ConnectionError:
-            await self.fail(session_id, "agent_stopped", await self.exit_cause("el turno"))
+            await self.fail(session_id, "agent_stopped", *await self.exit_cause("el turno"))
         except Exception:  # noqa: BLE001 - the turn must end, whatever the agent answered
             await self.fail(session_id, "agent_protocol", "respondió al turno algo que el hub no lee")  # fmt: skip
         else:
-            status = {"end_turn": "completed", "cancelled": "interrupted"}.get(
-                answer.stop_reason, answer.stop_reason
-            )
             await self.end_thought(session_id)
-            await self.connection.emit(MessageComplete(session_id, "".join(self.text), status))
+            status = {"end_turn": "completed", "cancelled": "interrupted"}.get(answer.stop_reason)
+            if status is None:
+                # The SDK admits only ACP's stop reasons, so the value is bounded.
+                cause = UNFINISHED.get(answer.stop_reason, "paró el turno sin terminarlo")
+                await self.fail(
+                    session_id,
+                    "agent_turn_unfinished",
+                    f"{cause} (stopReason {answer.stop_reason})",
+                    {"stop_reason": answer.stop_reason},
+                )
+            else:
+                await self.connection.emit(MessageComplete(session_id, "".join(self.text), status))
         finally:
             self.turn = None
             await self.expire_permissions()
             if self.process.returncode is not None:
                 await self.stop()
 
-    async def fail(self, session_id: str, code: str, cause: str) -> None:
-        report("acp_turn_failed", code, exc_info=False)
+    async def fail(
+        self, session_id: str, code: str, cause: str, numbers: dict[str, int | str] | None = None
+    ) -> None:
+        """End the turn without an answer, for its cause: what the agent said
+        before it stays live on the Mac, never stored as the answer."""
+        report("acp_turn_failed", code, numbers=numbers, exc_info=False)
         if code in {"agent_stopped", "agent_protocol"}:
             await self.stop()
         await self.connection.emit(
-            MessageComplete(session_id, f"El agente «{self.name}» {cause}", "error")
+            TurnFailed(session_id, code, f"El agente «{self.name}» {cause}", numbers)
         )
 
     async def cancel(self) -> None:

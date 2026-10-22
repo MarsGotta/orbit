@@ -11,7 +11,7 @@ Adding a kind is one entry in `KINDS`, an `AgentKind` with four functions:
 
     KINDS = {
         "hermes": AgentKind(hermes.parse_agent, hermes.agent_backend, hermes.agent_speech, …),
-        "openai": AgentKind(openai.parse_settings, openai.build_backend, openai.build_speech, …),
+        "openai": AgentKind(openai_settings.parse_settings, _openai_backend, _openai_speech, …),
     }
 
 - `parse(keys: dict[str, Any]) -> S` receives the entry's own keys (all but
@@ -51,7 +51,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from ..errors import HubError
-from . import acp, hermes, openai
+from . import acp, hermes, openai_settings
 from .agent_config import (
     AgentAdmin,
     AgentConfigStore,
@@ -82,6 +82,23 @@ def _no_speech(settings: Settings, agent: AgentConfiguration) -> None:
     return None
 
 
+# The generic backend imports pydantic-ai and both providers' SDKs, over a
+# second together: only a hub that builds an `openai` agent imports it, never
+# the administrator's commands, which load the configuration alone.
+def _openai_backend(
+    settings: Settings, agent: AgentConfiguration, instructions: InstructionSource
+) -> AssistantBackend:
+    from . import openai
+
+    return openai.build_backend(settings, agent, instructions)
+
+
+def _openai_speech(settings: Settings, agent: AgentConfiguration) -> SpeechBackend:
+    from . import openai
+
+    return openai.build_speech(settings, agent)
+
+
 def _stored_admin(settings: Settings, agent: Any, configs: AgentConfigStore) -> AgentAdmin:
     return StoredAdmin(configs, agent.id)
 
@@ -96,7 +113,7 @@ KINDS: dict[str, AgentKind] = {
         hermes.parse_agent, hermes.agent_backend, hermes.agent_speech, _hermes_admin
     ),
     "openai": AgentKind(
-        openai.parse_settings, openai.build_backend, openai.build_speech, _stored_admin
+        openai_settings.parse_settings, _openai_backend, _openai_speech, _stored_admin
     ),
     # Claude Code and Codex speak no audio over ACP: no dictation, no read-aloud.
     "acp": AgentKind(acp.parse_settings, acp.build_backend, _no_speech, _stored_admin),

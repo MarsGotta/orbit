@@ -38,6 +38,7 @@ from orbit_hub.assistant.backend import (
     PlanStep,
     RequestExpired,
     TextBlock,
+    TurnFailed,
 )
 from orbit_hub.errors import HubError
 
@@ -100,6 +101,11 @@ class Events:
 
 def completed(event):
     return isinstance(event, MessageComplete)
+
+
+def ended(event):
+    """A turn's last event: its answer, or the cause it failed for."""
+    return isinstance(event, MessageComplete | TurnFailed)
 
 
 def mode(path):
@@ -546,11 +552,12 @@ async def test_an_agent_asking_to_sign_in_is_refused_with_the_command_to_run_on_
     try:
         opened = await connection.create_session()
         await connection.prompt(opened.session_id, [TextBlock("inicia la sesión")])
-        done = await events.wait_for(completed)
+        done = await events.wait_for(ended)
     finally:
         await connection.close()
-    assert done.status == "error"
-    assert expected in done.text
+    assert isinstance(done, TurnFailed)
+    assert done.code == "agent_auth_required"
+    assert expected in done.message
 
 
 async def test_a_resumed_session_loads_without_replaying_its_old_text(environment, tmp_path):
@@ -637,12 +644,13 @@ async def test_an_agent_that_dies_in_a_turn_fails_it_with_its_exit_code(environm
     try:
         opened = await connection.create_session()
         await connection.prompt(opened.session_id, [TextBlock("muere")])
-        done = await events.wait_for(completed)
+        done = await events.wait_for(ended)
         stopped = await connection.turn_stopped(opened.session_id)
     finally:
         await connection.close()
-    assert done.status == "error"
-    assert "código 3" in done.text
+    assert isinstance(done, TurnFailed)
+    assert (done.code, done.numbers) == ("agent_stopped", {"exit_status": 3})
+    assert "código 3" in done.message
     assert opened.session_id not in connection.live_sessions
     assert stopped is True
 
@@ -655,12 +663,57 @@ async def test_a_message_over_the_ceiling_fails_the_turn_with_its_numbers(enviro
     try:
         opened = await connection.create_session()
         await connection.prompt(opened.session_id, [TextBlock("enorme")])
-        done = await events.wait_for(completed)
+        done = await events.wait_for(ended)
     finally:
         await connection.close()
-    assert done.status == "error"
-    assert f"{acp.MAX_AGENT_MESSAGE_BYTES} bytes" in done.text
+    assert isinstance(done, TurnFailed)
+    assert (done.code, done.numbers) == (
+        "agent_stopped",
+        {"max_bytes": acp.MAX_AGENT_MESSAGE_BYTES},
+    )
+    assert f"{acp.MAX_AGENT_MESSAGE_BYTES} bytes" in done.message
     assert opened.session_id not in connection.live_sessions
+
+
+async def test_a_rejected_turn_fails_with_the_agents_code_and_a_bounded_reason(
+    environment, tmp_path
+):
+    settings, _store, _speech = environment
+    events = Events()
+    connection = backend_for(settings, tmp_path).connection("equipo-1", "Mac", events)
+    await connection.open()
+    try:
+        opened = await connection.create_session()
+        await connection.prompt(opened.session_id, [TextBlock("rechaza el turno")])
+        done = await events.wait_for(ended)
+    finally:
+        await connection.close()
+    assert isinstance(done, TurnFailed)
+    assert (done.code, done.numbers) == ("agent_rejected", {"acp_code": -32603})
+    reason = done.message.split(": ", 1)[1]
+    assert len(reason) == acp.MAX_AGENT_REASON_CHARS
+    assert reason.startswith("Motivo inventado") and reason.endswith("…")
+
+
+@pytest.mark.parametrize("stop_reason", ["max_tokens", "max_turn_requests", "refusal"])
+async def test_a_turn_the_agent_stops_unfinished_fails_with_its_stop_reason(
+    environment, tmp_path, stop_reason
+):
+    settings, _store, _speech = environment
+    events = Events()
+    connection = backend_for(settings, tmp_path).connection("equipo-1", "Mac", events)
+    await connection.open()
+    try:
+        opened = await connection.create_session()
+        await connection.prompt(opened.session_id, [TextBlock(f"corta con {stop_reason}")])
+        done = await events.wait_for(ended)
+    finally:
+        await connection.close()
+    assert isinstance(done, TurnFailed)
+    assert (done.code, done.numbers) == ("agent_turn_unfinished", {"stop_reason": stop_reason})
+    assert stop_reason in done.message
+    # What it said before stopping was streamed live.
+    assert MessageChunk(opened.session_id, "Empiezo la respuesta y ") in events.items
 
 
 async def test_a_clarification_is_refused_with_its_cause(environment, tmp_path):

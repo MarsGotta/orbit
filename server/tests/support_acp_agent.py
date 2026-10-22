@@ -12,6 +12,8 @@ permission, honours `session/cancel`, and replays a conversation on
     inicia    the agent asks to sign in
     muere     the process exits in the middle of the turn
     enorme    one message over the hub's ceiling
+    rechaza   the turn refused with a JSON-RPC error and a long reason
+    corta     a partial answer, then the stop reason the prompt names after «con»
 
 Flags: `--record PATH` writes what the agent saw as JSON lines;
 `--auth-required` refuses `session/new` the way the adapters do when signed
@@ -284,6 +286,11 @@ class InventedAgent:
         if "muere" in text:
             await self.say(session_id, "Empiezo… ")
             os._exit(3)
+        if "rechaza" in text:
+            raise acp.RequestError(-32603, "Motivo inventado " + "muy largo " * 100)
+        if "corta" in text:
+            await self.say(session_id, "Empiezo la respuesta y ")
+            return PromptResponse(stop_reason=text.rsplit("con ", 1)[1].strip())
         if "enorme" in text:
             await self.say(session_id, "x" * (8 * 1024 * 1024 + 1))
             return PromptResponse(stop_reason="end_turn")

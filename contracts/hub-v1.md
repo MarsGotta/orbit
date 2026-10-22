@@ -143,6 +143,13 @@ without an answer: `error` on the same turn with `session_id`, a Spanish
 (`timeout_ms` when an Orbit tool never answered; its outcome is unknown),
 `assistant_turn_too_long` (`max_requests`), `assistant_provider_error` and
 `assistant_failed`.
+An ACP agent (`kind = "acp"`) names its causes the same way: `agent_auth_required`
+(the message gives the sign-in command to run on the server), `agent_rejected`
+(`acp_code`; the message quotes the agent's reason, bounded), `agent_stopped`
+(`exit_status` when its process ended, or `max_bytes` when one of its messages
+crossed that ceiling), `agent_protocol`, and `agent_turn_unfinished`
+(`stop_reason`: `max_tokens`, `max_turn_requests` or `refusal`). What the agent
+said before it stopped was streamed live and is not stored as its answer.
 
 When persisting the assistant's final reply fails inside `message.complete`
 (`append_message`, session status update or quota), the turn still ends with

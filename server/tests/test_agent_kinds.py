@@ -10,8 +10,11 @@ and no network is used.
 """
 
 import asyncio
+import json
+import subprocess
 import sys
 from dataclasses import replace
+from pathlib import Path
 from uuid import uuid4
 
 import httpx
@@ -25,6 +28,7 @@ from orbit_hub.assistant import acp, openai
 from orbit_hub.assistant.agents import KINDS, Agent, Agents
 from orbit_hub.assistant.backend import (
     Capabilities,
+    ConnectionLost,
     MessageComplete,
     OpenedSession,
     PermissionReceipt,
@@ -33,9 +37,10 @@ from orbit_hub.assistant.backend import (
     RequestExpired,
     ResumedSession,
     StoredConversation,
+    TurnError,
 )
 from orbit_hub.assistant.hermes import HermesAgent, HermesSpeech
-from orbit_hub.protocol import ApprovalParams, SendParams
+from orbit_hub.protocol import ApprovalParams, HubError, SendParams
 from orbit_hub.runtime import DeviceRuntime
 
 ORIGINAL_ASYNC_CLIENT = httpx.AsyncClient
@@ -487,3 +492,190 @@ async def test_a_resume_hands_the_stored_history_only_to_an_agent_that_keeps_non
         ("assistant", "Responde vega"),
     ]
     assert handed.total == 2
+
+
+# What the runtime says names the conversation's agent ----------------------------
+
+
+def error_frames(frames):
+    return [frame["data"] for frame in drain(frames) if frame["event"] == "error"]
+
+
+async def test_a_lost_connection_names_the_agent_of_the_conversation(environment):
+    _, store, _ = environment
+    owner = device(store)["device_id"]
+    vega = TwoWayBackend("vega")
+    runtime = DeviceRuntime(owner, store, two_agents(TwoWayBackend("atlas"), vega), lambda: 1000)
+    frames = runtime.subscribe()
+    await runtime.handle("chat.send", SendParams(text="Hola", agent_id="vega"), str(uuid4()))
+    await vega.connections[0].on_event(ConnectionLost())
+    [lost] = error_frames(frames)
+    assert lost["code"] == "outcome_unknown"
+    assert lost["message"] == (
+        "Se perdió la conexión con Vega; consulta el historial antes de continuar"
+    )
+
+
+async def test_a_turn_ended_without_an_answer_names_the_agent_of_the_conversation(environment):
+    _, store, _ = environment
+    owner = device(store)["device_id"]
+    vega = TwoWayBackend("vega")
+    runtime = DeviceRuntime(owner, store, two_agents(TwoWayBackend("atlas"), vega), lambda: 1000)
+    frames = runtime.subscribe()
+    await runtime.handle("chat.send", SendParams(text="Hola", agent_id="vega"), str(uuid4()))
+    [live] = vega.connections[0].live_sessions
+    await vega.connections[0].on_event(TurnError(live, "terminal"))
+    [failed] = error_frames(frames)
+    assert failed["code"] == "upstream_turn_failed"
+    assert failed["message"] == "Vega terminó el turno sin una respuesta final; no se repetirá"
+
+
+async def test_an_agent_the_configuration_no_longer_has_is_called_the_assistant(environment):
+    _, store, _ = environment
+    owner = device(store)["device_id"]
+    before = DeviceRuntime(
+        owner, store, two_agents(TwoWayBackend("atlas"), TwoWayBackend("vega")), lambda: 1000
+    )
+    _, sent = await before.handle(
+        "chat.send", SendParams(text="Hola", agent_id="vega"), str(uuid4())
+    )
+    await before.close()
+    only_atlas = Agents(
+        [Agent("atlas", "Atlas", "invented", None, TwoWayBackend("atlas"))], "atlas"
+    )
+    after = DeviceRuntime(owner, store, only_atlas, lambda: 1001)
+    frames = after.subscribe()
+    turn = str(uuid4())
+    after.turn_ids[sent["session_id"]] = turn
+    await after.fail_turn("vega", sent["session_id"], turn)
+    [failed] = error_frames(frames)
+    assert failed["message"] == (
+        "El asistente terminó el turno sin una respuesta final; no se repetirá"
+    )
+
+
+class HydratingConnection(TwoWayConnection):
+    """A resume whose history is still loading until the test says otherwise."""
+
+    async def resume_session(self, stored_id, history=None):
+        resumed = await super().resume_session(stored_id, history)
+        return replace(resumed, loading_history=True)
+
+
+class HydratingBackend(TwoWayBackend):
+    def connection(self, device, device_name, on_event):
+        connection = HydratingConnection(self, on_event)
+        self.connections.append(connection)
+        return connection
+
+
+async def test_a_resume_in_progress_names_the_agent_loading_the_history(environment):
+    _, store, _ = environment
+    owner = device(store)["device_id"]
+    agents = two_agents(TwoWayBackend("atlas"), HydratingBackend("vega", asks=False))
+    before = DeviceRuntime(owner, store, agents, lambda: 1000)
+    sessions = [
+        (await before.handle("chat.send", SendParams(text="Hola", agent_id="vega"), str(uuid4())))[
+            1
+        ]["session_id"]
+        for _ in range(2)
+    ]
+    await before.close()
+
+    after = DeviceRuntime(owner, store, agents, lambda: 1001)
+    loading = asyncio.create_task(
+        after.handle("chat.send", SendParams(text="Sigo", session_id=sessions[0]), str(uuid4()))
+    )
+    async with asyncio.timeout(5):
+        while after.resume_waiter is None:
+            await asyncio.sleep(0)
+    with pytest.raises(HubError) as same:
+        await after.handle("chat.send", SendParams(text="Otra", session_id=sessions[0]), "x")
+    with pytest.raises(HubError) as other:
+        await after.handle("chat.send", SendParams(text="Otra", session_id=sessions[1]), "y")
+    await after.close()
+    with pytest.raises(HubError):
+        await loading
+    assert same.value.code == other.value.code == "session_resume_in_progress"
+    assert same.value.message.startswith(
+        "Vega sigue cargando el historial de esta conversación; espera"
+    )
+    assert other.value.message.startswith("Vega ya carga otro historial en este dispositivo; ")
+
+
+class LosingConnection(TwoWayConnection):
+    """The connection drops while the agent resumes the conversation."""
+
+    async def resume_session(self, stored_id, history=None):
+        resumed = await super().resume_session(stored_id, history)
+        self.connected = False
+        return resumed
+
+
+class LosingBackend(TwoWayBackend):
+    def connection(self, device, device_name, on_event):
+        connection = LosingConnection(self, on_event)
+        self.connections.append(connection)
+        return connection
+
+
+async def test_a_connection_lost_while_resuming_names_the_agent(environment):
+    _, store, _ = environment
+    owner = device(store)["device_id"]
+    agents = two_agents(TwoWayBackend("atlas"), LosingBackend("vega", asks=False))
+    before = DeviceRuntime(owner, store, agents, lambda: 1000)
+    _, sent = await before.handle(
+        "chat.send", SendParams(text="Hola", agent_id="vega"), str(uuid4())
+    )
+    await before.close()
+    after = DeviceRuntime(owner, store, agents, lambda: 1001)
+    with pytest.raises(HubError) as lost:
+        await after.handle(
+            "chat.send", SendParams(text="Sigo", session_id=sent["session_id"]), str(uuid4())
+        )
+    assert lost.value.code == "session_resume_connection_lost"
+    assert lost.value.message == (
+        "Se perdió la conexión con Vega durante la reanudación; no se envió el mensaje"
+    )
+
+
+# Startup -----------------------------------------------------------------------
+
+
+def test_loading_the_configuration_imports_no_model_library(tmp_path):
+    """The administrator's commands (`pair-code`, `devices`, `revoke`) load the
+    configuration and nothing more. The generic agent's model libraries take
+    more than a second to import: only building its backend imports them."""
+    config = tmp_path / "orbit.toml"
+    entries = "".join(
+        "\n[[agents]]\n" + "".join(f"{key} = {json.dumps(value)}\n" for key, value in entry.items())
+        for entry in every_kind(tmp_path)
+    )
+    config.write_text(
+        f'data_dir = "{tmp_path / "data"}"\n'
+        f'key_file = "{tmp_path / "key"}"\n'
+        'hermes_url = "https://hermes.invalid"\n'
+        f'hermes_credential_file = "{tmp_path / "never-read"}"\n'
+        "\n[meeting_transcription]\n"
+        'endpoint = "https://stt.example/v1"\n'
+        'model = "modelo-sintetico"\n' + entries
+    )
+    script = (
+        "import sys\n"
+        "from pathlib import Path\n"
+        "import orbit_hub.cli\n"
+        "from orbit_hub.config import Settings\n"
+        "configured, _ = Settings.load(Path(sys.argv[1])).agent_configurations()\n"
+        "print(','.join(agent.kind for agent in configured))\n"
+        "print(','.join(sorted({'pydantic_ai', 'openai', 'anthropic'} & set(sys.modules))))\n"
+    )
+    loaded = subprocess.run(
+        [sys.executable, "-c", script, str(config)],
+        cwd=Path(__file__).parents[1],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert loaded.returncode == 0, loaded.stderr
+    assert loaded.stdout.splitlines() == ["hermes,openai,acp", ""]

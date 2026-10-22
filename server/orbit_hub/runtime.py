@@ -117,6 +117,15 @@ class DeviceRuntime:
         self.store_executor = store_executor
         self._snapshot_cache = None
 
+    def agent_name(self, agent_id: str | None, *, starts: bool = False) -> str:
+        """The agent as the user knows it, for a message; «el asistente» when
+        the runtime does not know which agent, or it left the configuration.
+        `starts`: the name opens the sentence."""
+        agent = self.agents.by_id.get(agent_id)
+        if agent is not None:
+            return agent.name
+        return "El asistente" if starts else "el asistente"
+
     def _device_name(self) -> str:
         for row in self.store.active_devices():
             if row["id"] == self.device:
@@ -265,10 +274,10 @@ class DeviceRuntime:
         ), turn_id
 
     async def fail_turn(
-        self, session_id: str, turn_id: str, failure: TurnFailed | None = None
+        self, agent_id: str, session_id: str, turn_id: str, failure: TurnFailed | None = None
     ) -> None:
         """End the turn as failed: for the cause the backend named in
-        `failure`, or, without one, Hermes's terminal error."""
+        `failure`, or, without one, the backend's terminal error."""
         if self.turn_ids.get(session_id) != turn_id:
             return
         # A terminal upstream event is an observed fact, not a decision: it
@@ -280,7 +289,8 @@ class DeviceRuntime:
             data = {
                 "session_id": session_id,
                 "code": "upstream_turn_failed",
-                "message": "Hermes terminó el turno sin una respuesta final; no se repetirá",
+                "message": f"{self.agent_name(agent_id, starts=True)} terminó el turno "
+                "sin una respuesta final; no se repetirá",
             }
         else:
             data = render(
@@ -293,7 +303,12 @@ class DeviceRuntime:
         await self.changed()
 
     async def reconcile_error(
-        self, connection: AssistantConnection, runtime_id: str, session_id: str, turn_id: str
+        self,
+        connection: AssistantConnection,
+        agent_id: str,
+        runtime_id: str,
+        session_id: str,
+        turn_id: str,
     ) -> None:
         try:
             stopped = await connection.turn_stopped(runtime_id)
@@ -303,7 +318,7 @@ class DeviceRuntime:
             if status != "streaming":
                 return
             if stopped:
-                await self.fail_turn(session_id, turn_id)
+                await self.fail_turn(agent_id, session_id, turn_id)
             else:
                 await self.publish(
                     emit(
@@ -311,7 +326,8 @@ class DeviceRuntime:
                         {
                             "session_id": session_id,
                             "kind": "warning",
-                            "text": "Hermes notificó un error; el turno no está confirmado como finalizado",
+                            "text": f"{self.agent_name(agent_id, starts=True)} notificó "
+                            "un error; el turno no está confirmado como finalizado",
                         },
                         turn_id,
                     )
@@ -324,7 +340,9 @@ class DeviceRuntime:
                         {
                             "session_id": session_id,
                             "kind": "warning",
-                            "text": "No se pudo reconciliar Hermes; puedes interrumpir o abrir una sesión nueva",
+                            "text": "No se pudo comprobar el turno con "
+                            f"{self.agent_name(agent_id)}; puedes interrumpir o abrir una "
+                            "sesión nueva",
                         },
                         turn_id,
                     )
@@ -401,7 +419,9 @@ class DeviceRuntime:
                         {
                             "session_id": session_id,
                             "code": "outcome_unknown",
-                            "message": "Se perdió Hermes; consulta el historial antes de continuar",
+                            "message": "Se perdió la conexión con "
+                            f"{self.agent_name(agent_id)}; consulta el historial antes "
+                            "de continuar",
                         },
                         self.turn_ids.get(session_id),
                     )
@@ -460,14 +480,14 @@ class DeviceRuntime:
         if turn_id is None:
             return
         if isinstance(event, TurnFailed):
-            await self.fail_turn(session_id, turn_id, event)
+            await self.fail_turn(agent_id, session_id, turn_id, event)
             return
         if isinstance(event, TurnError):
             if event.cause == "terminal":
-                await self.fail_turn(session_id, turn_id)
+                await self.fail_turn(agent_id, session_id, turn_id)
             elif (session_id, turn_id) not in self.reconciliations:
                 self.reconciliations[(session_id, turn_id)] = asyncio.create_task(
-                    self.reconcile_error(connection, runtime_id, session_id, turn_id)
+                    self.reconcile_error(connection, agent_id, runtime_id, session_id, turn_id)
                 )
             return
         if isinstance(event, MessageChunk):
@@ -522,7 +542,8 @@ class DeviceRuntime:
                         {
                             "session_id": session_id,
                             "code": "session_resume_history_unreadable",
-                            "message": f"Hermes no pudo leer el historial guardado {count_text}; "
+                            "message": f"{self.agent_name(agent_id, starts=True)} no pudo "
+                            f"leer el historial guardado {count_text}; "
                             "este turno falló y no se repetirá. "
                             "Puedes enviar un mensaje nuevo para volver a reanudar",
                         },
@@ -626,7 +647,8 @@ class DeviceRuntime:
                 self.resumed_message_counts.pop(key, None)
                 raise HubError(
                     "session_resume_progress_unavailable",
-                    "Hermes no confirmó si terminó de cargar el historial; no se envió el mensaje",
+                    f"{self.agent_name(agent_id, starts=True)} no confirmó si terminó de "
+                    "cargar el historial; no se envió el mensaje",
                 )
             future: asyncio.Future[str] = asyncio.get_running_loop().create_future()
             self.resume_waiter = (key, future)
@@ -638,8 +660,8 @@ class DeviceRuntime:
                 milliseconds = int(RESUME_HISTORY_TIMEOUT_SECONDS * 1000)
                 raise HubError(
                     "session_resume_history_timeout",
-                    f"Hermes no confirmó la carga del historial en {milliseconds} ms; "
-                    "no se envió el mensaje",
+                    f"{self.agent_name(agent_id, starts=True)} no confirmó la carga del "
+                    f"historial en {milliseconds} ms; no se envió el mensaje",
                 ) from exc
             finally:
                 self.resume_waiter = None
@@ -662,7 +684,8 @@ class DeviceRuntime:
             self.resumed_message_counts.pop(key, None)
             raise HubError(
                 "session_resume_connection_lost",
-                "Se perdió Hermes durante la carga del historial; no se envió el mensaje",
+                f"Se perdió la conexión con {self.agent_name(agent_id)} durante la carga "
+                "del historial; no se envió el mensaje",
             )
         if status == "failed":
             connection.live_sessions.discard(runtime_id)
@@ -670,7 +693,8 @@ class DeviceRuntime:
             count_text = f" ({count} mensajes en el último tramo)" if count else ""
             raise HubError(
                 "session_resume_history_unreadable",
-                f"Hermes no pudo leer el historial guardado{count_text}; "
+                f"{self.agent_name(agent_id, starts=True)} no pudo leer el historial "
+                f"guardado{count_text}; "
                 "no se envió el mensaje. Puedes enviar uno nuevo para volver a reanudar",
             )
 
@@ -711,12 +735,14 @@ class DeviceRuntime:
         if self.connections.get(agent_id) is not connection:
             raise HubError(
                 "session_resume_connection_replaced",
-                "La conexión con Hermes cambió durante la reanudación; no se envió el mensaje",
+                f"La conexión con {self.agent_name(agent_id)} cambió durante la "
+                "reanudación; no se envió el mensaje",
             )
         if not connection.connected:
             raise HubError(
                 "session_resume_connection_lost",
-                "Se perdió Hermes durante la reanudación; no se envió el mensaje",
+                f"Se perdió la conexión con {self.agent_name(agent_id)} durante la "
+                "reanudación; no se envió el mensaje",
             )
         self.store.resume_session(
             self.device,
@@ -767,7 +793,7 @@ class DeviceRuntime:
                 await connection.cancel(runtime_id)
                 state = self.turn_state(params.session_id)
                 if state in {TurnState.SUBMITTING, TurnState.STREAMING}:
-                    # Only Hermes's acknowledgement of the interruption request
+                    # Only the agent's acknowledgement of the interruption request
                     # moves a live turn to interrupting; the deadline after which
                     # it becomes outcome_unknown starts here. A late submit ACK
                     # cannot move interrupting back to streaming.
@@ -869,7 +895,7 @@ class DeviceRuntime:
 
     async def _meeting_turn(self, params) -> MeetingTurn:
         """The question with the meeting the hub holds; refused as
-        `meeting_not_found` before anything reaches Hermes."""
+        `meeting_not_found` before anything reaches the agent."""
         meeting = params.meeting
         lines, started, pending = await self._run_store(
             lambda: read_meeting(self.store, self.device, meeting.recording_id)
@@ -910,7 +936,8 @@ class DeviceRuntime:
         ):
             raise HubError(
                 "session_resume_connection_lost",
-                "Se perdió Hermes antes de enviar el mensaje; no se envió",
+                f"Se perdió la conexión con {self.agent_name(agent_id)} antes de enviar "
+                "el mensaje; no se envió",
             )
         self.expire_stale_interrupt(session_id)
         state = self.turn_state(session_id)
@@ -1006,7 +1033,8 @@ class DeviceRuntime:
                 )
                 raise HubError(
                     "session_resume_in_progress",
-                    "Hermes sigue cargando el historial de esta conversación; espera"
+                    f"{self.agent_name(agent_id, starts=True)} sigue cargando el historial "
+                    "de esta conversación; espera"
                     + (
                         ""
                         if remaining is None
@@ -1024,9 +1052,12 @@ class DeviceRuntime:
                     remaining = math.ceil(
                         max(0.0, self.resume_deadline - asyncio.get_running_loop().time())
                     )
+                    # The agent whose resume holds the device's one wait.
+                    loading = self.resume_waiter[0][0] if self.resume_waiter else None
                     raise HubError(
                         "session_resume_in_progress",
-                        "Hermes ya carga otro historial en este dispositivo; "
+                        f"{self.agent_name(loading, starts=True)} ya carga otro historial en "
+                        "este dispositivo; "
                         f"quedan hasta {remaining} s del plazo de "
                         f"{RESUME_HISTORY_TIMEOUT_SECONDS:g} s",
                     )
@@ -1047,7 +1078,7 @@ class DeviceRuntime:
             state = self.turn_state(session_id)
             if state is TurnState.OUTCOME_UNKNOWN:
                 # Never resend over a session whose previous turn may already
-                # have reached Hermes: the old turn identity stays untouched.
+                # have reached the agent: the old turn identity stays untouched.
                 raise HubError(
                     "turn_outcome_unknown",
                     "El resultado del turno anterior es incierto; abre una sesión"
@@ -1085,7 +1116,7 @@ class DeviceRuntime:
         try:
             await connection.prompt(binding["runtime_id"], blocks)
         except HubError as exc:
-            # The submit may have reached Hermes; never resend it. A terminal
+            # The submit may have reached the agent; never resend it. A terminal
             # event observed during the RPC keeps its more authoritative state.
             async with self.lock:
                 if exc.code == "session_runtime_not_found":
