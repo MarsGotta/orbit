@@ -23,7 +23,7 @@
 .timezone {
   align-self: center;
   padding: 0 8px 0 4px;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-size: var(--o-font-10);
   text-align: right;
 }
@@ -36,13 +36,13 @@
   gap: 6px;
   padding: 0 10px;
   border-left: 1px solid var(--o-line);
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12);
   white-space: nowrap;
 }
 
 .weekendHeading {
-  color: var(--o-subtle);
+  color: var(--o-ink3);
 }
 
 .dayNumber,
@@ -53,13 +53,13 @@
   place-items: center;
   padding: 0 6px;
   border-radius: var(--o-radius-pill);
-  color: var(--o-fg);
+  color: var(--o-ink);
   font-size: var(--o-font-12);
   font-weight: 600;
 }
 
 .todayPill {
-  background: var(--o-accent);
+  background: var(--o-acc);
   color: var(--o-white);
 }
 
@@ -81,7 +81,7 @@
   border: 0;
   border-radius: var(--o-radius-5);
   background: transparent;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   cursor: pointer;
   font: inherit;
   font-size: var(--o-font-9);
@@ -91,7 +91,7 @@
 
 .allDayToggle:hover:not(:disabled) {
   background: var(--o-hover);
-  color: var(--o-fg);
+  color: var(--o-ink);
 }
 
 .allDayToggle:disabled {
@@ -115,7 +115,7 @@
   border-left: 3px solid var(--event-color);
   border-radius: var(--o-radius-5);
   background: var(--event-bg);
-  color: var(--o-fg);
+  color: var(--o-ink);
   cursor: pointer;
   font: inherit;
   font-size: var(--o-font-11-5);
@@ -161,7 +161,7 @@
 .timeRail span {
   position: absolute;
   right: 8px;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-family: var(--o-font-mono);
   font-size: var(--o-font-10);
 }
@@ -170,7 +170,7 @@
   z-index: 1;
   padding-left: 4px;
   background: var(--o-bg);
-  color: var(--o-accent-ink);
+  color: var(--o-accText);
   font-weight: 600;
 }
 
@@ -199,7 +199,7 @@
   left: 0;
   height: 2px;
   margin-top: -1px;
-  background: var(--o-accent);
+  background: var(--o-acc);
   pointer-events: none;
 }
 
@@ -210,7 +210,7 @@
   width: 2px;
   height: 8px;
   border-radius: var(--o-radius-pill);
-  background: var(--o-accent);
+  background: var(--o-acc);
   content: "";
 }
 
@@ -238,14 +238,14 @@
 }
 
 .allDayBar[data-draft="true"] {
-  border: 1px dashed var(--event-color, var(--o-accent));
+  border: 1px dashed var(--event-color, var(--o-acc));
   border-left-width: 3px;
   border-left-style: solid;
-  background: var(--o-s2);
+  background: var(--o-surface);
 }
 
 .allDayBar[data-dragging="true"] {
-  box-shadow: 0 8px 22px var(--o-shadow-medium);
+  box-shadow: var(--o-shadow);
   cursor: grabbing;
 }
 

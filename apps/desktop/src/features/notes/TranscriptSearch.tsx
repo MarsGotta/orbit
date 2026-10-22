@@ -21,7 +21,7 @@ function SearchMoves({ onClose, onMove }: { onClose: () => void; onMove: (step: 
       <Button
         aria-label={es.noteScreen.searchPrevious}
         onClick={() => onMove(-1)}
-        size={26}
+        size={28}
         variant="ghost"
       >
         ↑
@@ -29,12 +29,12 @@ function SearchMoves({ onClose, onMove }: { onClose: () => void; onMove: (step: 
       <Button
         aria-label={es.noteScreen.searchNext}
         onClick={() => onMove(1)}
-        size={26}
+        size={28}
         variant="ghost"
       >
         ↓
       </Button>
-      <Button aria-label={es.noteScreen.searchClose} onClick={onClose} size={26} variant="ghost">
+      <Button aria-label={es.noteScreen.searchClose} onClick={onClose} size={28} variant="ghost">
         ×
       </Button>
     </>

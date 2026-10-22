@@ -6,6 +6,7 @@ import { isPanelWindow } from "./features/call-panel/window";
 import type { DaemonPort } from "./bridge/port";
 import { PanelPort } from "./bridge/panel-port";
 import { TauriPort } from "./bridge/tauri-port";
+import { followTheme } from "./design/theme";
 import "./design/fonts.css";
 import "./design/tokens.css";
 import "./styles.css";
@@ -14,6 +15,8 @@ function choosePort(): DaemonPort {
   return isPanelWindow() ? new PanelPort() : new TauriPort();
 }
 
+// Both windows, the main one and the floating panel, show the same theme.
+followTheme();
 const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(

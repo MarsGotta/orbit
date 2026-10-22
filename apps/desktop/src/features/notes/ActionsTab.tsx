@@ -26,7 +26,7 @@ export function ActionsTab({
       <div className={styles.toolbar}>
         <Button
           onClick={() => void navigator.clipboard?.writeText(actionsMarkdown(groups))}
-          size={26}
+          size={28}
           variant="ghost"
         >
           {es.noteScreen.copyActions}

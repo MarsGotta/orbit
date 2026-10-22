@@ -5,7 +5,7 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background: var(--o-overlay);
+  background: var(--o-scrim);
   backdrop-filter: blur(10px);
 }
 
@@ -16,15 +16,15 @@
   flex-direction: column;
   gap: 14px;
   padding: 20px;
-  border: 1px solid var(--o-line-strong);
+  border: 1px solid var(--o-line2);
   border-radius: var(--o-radius-20);
-  background: var(--o-s2);
-  box-shadow: 0 24px 64px var(--o-shadow-strong);
+  background: var(--o-surface);
+  box-shadow: var(--o-shadow);
 }
 
 .dialog h2 {
   margin: 0;
-  font-family: var(--o-font-display);
+  font-family: var(--o-font-sans);
   font-size: var(--o-font-19);
 }
 
@@ -55,7 +55,7 @@
 .frame blockquote {
   margin: 0 0 8px;
   padding-left: 12px;
-  border-left: 2px solid var(--o-line-strong);
+  border-left: 2px solid var(--o-line2);
 }
 
 .actions {

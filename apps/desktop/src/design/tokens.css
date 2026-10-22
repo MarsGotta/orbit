@@ -1,43 +1,183 @@
-/* prettier-ignore */
-:root{
-  --o-bg:#0A0A0A; --o-s1:#121214; --o-s2:#1A1A1D; --o-s3:#232327;
-  --o-line:rgba(255,255,255,0.09); --o-line-strong:rgba(255,255,255,0.18);
-  --o-fg:#F2F2F4; --o-muted:rgba(255,255,255,0.58); --o-subtle:rgba(255,255,255,0.38);
-  --o-accent:#845ABE; --o-accent-soft:rgba(132,90,190,0.20); --o-accent-ink:#C9B4E8;
-  --o-orange:#E9603A; --o-orange-soft:rgba(233,96,58,0.18);
-  --o-blue:#4E8BF0; --o-blue-soft:rgba(78,139,240,0.16);
-  --o-green:#3AA981; --o-green-soft:rgba(58,169,129,0.16);
-  --o-hover:rgba(255,255,255,0.06); --o-press:rgba(255,255,255,0.12);
-}
-/* prettier-ignore */
-body > div { --o-accent: #845ABE; }
-/* prettier-ignore */
-.o-light{
-  --o-bg:#FFFFFF; --o-s1:#F9F9FA; --o-s2:#F2F2F4; --o-s3:#ECECF0;
-  --o-line:rgba(0,0,0,0.08); --o-line-strong:rgba(0,0,0,0.18);
-  --o-fg:#0A0C11; --o-muted:rgba(10,12,17,0.62); --o-subtle:rgba(10,12,17,0.44);
-  --o-accent:#5F3993; --o-accent-soft:rgba(132,90,190,0.14); --o-accent-ink:#5F3993;
-  --o-orange-soft:rgba(233,96,58,0.14); --o-blue-soft:rgba(78,139,240,0.12); --o-green-soft:rgba(58,169,129,0.12);
-  --o-hover:rgba(0,0,0,0.04); --o-press:rgba(0,0,0,0.09);
+/* Orbit's tokens: the redesign's names with the `--o-` prefix every
+   stylesheet of the app already uses (`--ink2` in the design is `--o-ink2`
+   here). The dark theme is the default; the light one applies when the system
+   asks for it and nothing is fixed, or when `data-theme="light"` is on <html>.
+   `src/design/theme.ts` fixes and remembers the choice. Both themes define the
+   same names; every pair of text and background holds 4.5:1. */
+:root {
+  --o-bg: #131316;
+  --o-side: #161619;
+  --o-surface: #1b1b1f;
+  --o-raised: #232328;
+  --o-hover: rgba(255, 255, 255, 0.05);
+  --o-line: #26262c;
+  --o-line2: #34343b;
+  --o-ink: #f4f4f5;
+  --o-ink2: #a1a1aa;
+  --o-ink3: #8e8e97;
+  --o-acc: #6b5be0;
+  --o-accText: #a99efa;
+  --o-accSoft: rgba(139, 124, 246, 0.13);
+  --o-rec: #d13d44;
+  --o-recText: #ff8a80;
+  --o-recSoft: rgba(229, 72, 77, 0.12);
+  --o-ok: #4cc9a0;
+  --o-okSoft: rgba(76, 201, 160, 0.12);
+  --o-warn: #f5b544;
+  --o-warnSoft: rgba(245, 181, 68, 0.12);
+  --o-info: #6cb4ff;
+  --o-c1: #9d90f5;
+  --o-c2: #6cb4ff;
+  --o-c3: #4cc9a0;
+  --o-c4: #e8b04a;
+  --o-c1s: rgba(157, 144, 245, 0.16);
+  --o-c2s: rgba(108, 180, 255, 0.15);
+  --o-c3s: rgba(76, 201, 160, 0.14);
+  --o-c4s: rgba(232, 176, 74, 0.14);
+  --o-skel: #222227;
+  --o-skel2: #2c2c33;
+  --o-scrim: rgba(0, 0, 0, 0.55);
+  --o-shadow: 0 18px 48px -16px rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
 }
 
+/* The light palette, twice: once for the system, once fixed. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --o-bg: #f7f7f8;
+    --o-side: #f1f1f3;
+    --o-surface: #ffffff;
+    --o-raised: #f4f4f5;
+    --o-hover: rgba(24, 24, 27, 0.045);
+    --o-line: #e4e4e7;
+    --o-line2: #d4d4d8;
+    --o-ink: #18181b;
+    --o-ink2: #52525b;
+    --o-ink3: #6b6b74;
+    --o-acc: #5b4bdb;
+    --o-accText: #5b4bdb;
+    --o-accSoft: rgba(91, 75, 219, 0.08);
+    --o-rec: #c93a40;
+    --o-recText: #c02f35;
+    --o-recSoft: rgba(201, 58, 64, 0.08);
+    --o-ok: #0f7a5a;
+    --o-okSoft: rgba(15, 122, 90, 0.08);
+    --o-warn: #9a5b00;
+    --o-warnSoft: rgba(154, 91, 0, 0.08);
+    --o-info: #1f6fb8;
+    --o-c1: #6b5be0;
+    --o-c2: #2b7cd0;
+    --o-c3: #13936b;
+    --o-c4: #b07a12;
+    --o-c1s: rgba(107, 91, 224, 0.1);
+    --o-c2s: rgba(43, 124, 208, 0.1);
+    --o-c3s: rgba(19, 147, 107, 0.1);
+    --o-c4s: rgba(176, 122, 18, 0.1);
+    --o-skel: #efeff1;
+    --o-skel2: #e4e4e7;
+    --o-scrim: rgba(24, 24, 27, 0.32);
+    --o-shadow: 0 18px 48px -20px rgba(24, 24, 27, 0.28);
+    color-scheme: light;
+  }
+}
+
+:root[data-theme="light"] {
+  --o-bg: #f7f7f8;
+  --o-side: #f1f1f3;
+  --o-surface: #ffffff;
+  --o-raised: #f4f4f5;
+  --o-hover: rgba(24, 24, 27, 0.045);
+  --o-line: #e4e4e7;
+  --o-line2: #d4d4d8;
+  --o-ink: #18181b;
+  --o-ink2: #52525b;
+  --o-ink3: #6b6b74;
+  --o-acc: #5b4bdb;
+  --o-accText: #5b4bdb;
+  --o-accSoft: rgba(91, 75, 219, 0.08);
+  --o-rec: #c93a40;
+  --o-recText: #c02f35;
+  --o-recSoft: rgba(201, 58, 64, 0.08);
+  --o-ok: #0f7a5a;
+  --o-okSoft: rgba(15, 122, 90, 0.08);
+  --o-warn: #9a5b00;
+  --o-warnSoft: rgba(154, 91, 0, 0.08);
+  --o-info: #1f6fb8;
+  --o-c1: #6b5be0;
+  --o-c2: #2b7cd0;
+  --o-c3: #13936b;
+  --o-c4: #b07a12;
+  --o-c1s: rgba(107, 91, 224, 0.1);
+  --o-c2s: rgba(43, 124, 208, 0.1);
+  --o-c3s: rgba(19, 147, 107, 0.1);
+  --o-c4s: rgba(176, 122, 18, 0.1);
+  --o-skel: #efeff1;
+  --o-skel2: #e4e4e7;
+  --o-scrim: rgba(24, 24, 27, 0.32);
+  --o-shadow: 0 18px 48px -20px rgba(24, 24, 27, 0.28);
+  color-scheme: light;
+}
+
+/* What does not change with the theme. */
 :root {
   --o-white: #ffffff;
-  --o-black: #000000;
-  --o-red: #f05149;
-  --o-red-soft: rgba(240, 81, 73, 0.16);
-  --o-overlay: rgba(10, 12, 17, 0.48);
-  --o-glass: rgba(18, 18, 20, 0.92);
-  --o-glass-fg: #f2f2f4;
-  --o-glass-muted: rgba(255, 255, 255, 0.62);
-  --o-glass-line: rgba(255, 255, 255, 0.18);
-  --o-glass-footer: rgba(0, 0, 0, 0.25);
-  --o-shadow-soft: rgba(0, 0, 0, 0.24);
-  --o-shadow-medium: rgba(0, 0, 0, 0.45);
-  --o-shadow-strong: rgba(0, 0, 0, 0.5);
+  --o-font-sans: "Inter", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --o-font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --o-text-title: 600 28px/1.2 var(--o-font-sans);
+  --o-text-h2: 600 20px/1.3 var(--o-font-sans);
+  --o-text-h3: 600 15px/1.4 var(--o-font-sans);
+  --o-text-body: 400 14px/1.5 var(--o-font-sans);
+  --o-text-control: 500 13px/1.4 var(--o-font-sans);
+  --o-text-meta: 400 12px/1.45 var(--o-font-sans);
+  /* Nothing is smaller than this. */
+  --o-text-tiny: 500 11px/1.3 var(--o-font-sans);
+  --o-tracking-title: -0.02em;
+  --o-tracking-h2: -0.01em;
+  --o-radius-xs: 4px;
+  --o-radius-sm: 6px;
+  --o-radius-md: 8px;
+  --o-radius-lg: 10px;
+  --o-radius-xl: 12px;
+  --o-radius-2xl: 16px;
+  --o-radius-pill: 999px;
+  --o-space-2: 2px;
+  --o-space-4: 4px;
+  --o-space-6: 6px;
+  --o-space-8: 8px;
+  --o-space-10: 10px;
+  --o-space-12: 12px;
+  --o-space-14: 14px;
+  --o-space-16: 16px;
+  --o-space-20: 20px;
+  --o-space-24: 24px;
+  --o-space-32: 32px;
+  --o-space-40: 40px;
+  --o-space-48: 48px;
+  --o-space-64: 64px;
+  --o-control-sm: 28px;
+  --o-control-md: 32px;
+  --o-control-lg: 36px;
+  --o-control-xl: 40px;
+  --o-w-sidebar: 224px;
+  --o-w-topbar: 52px;
+  --o-w-list: 272px;
+  --o-w-settingsNav: 256px;
+  --o-w-sidePanel: 360px;
+  --o-w-readMax: 760px;
+  --o-w-hoyMax: 860px;
+  --o-w-dialogMax: 520px;
+  --o-dur-fast: 120ms;
+  --o-dur-in: 180ms;
+  --o-dur-spin: 800ms;
+  --o-dur-pulse: 1600ms;
+  --o-dur-shimmer: 1600ms;
+  --o-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Until each screen is redrawn with the scale above. Every redrawn screen
+   stops using these; whoever removes the last use removes the line. */
+:root {
   --o-scrollbar: rgba(128, 128, 128, 0.32);
-  --o-avatar-start: #e64241;
-  --o-avatar-end: #e9603a;
   --o-orb-start: #845abe;
   --o-orb-end: #5f3993;
   --o-font-9: 9px;
@@ -54,9 +194,7 @@ body > div { --o-accent: #845ABE; }
   --o-font-15: 15px;
   --o-font-16: 16px;
   --o-font-19: 19px;
-  --o-font-22: 22px;
   --o-font-24: 24px;
-  --o-font-25: 25px;
   --o-font-27: 27px;
   --o-font-30: 30px;
   --o-radius-5: 5px;
@@ -71,16 +209,57 @@ body > div { --o-accent: #845ABE; }
   --o-radius-18: 18px;
   --o-radius-20: 20px;
   --o-radius-22: 22px;
-  --o-radius-pill: 99px;
   --o-control-compact: 26px;
   --o-control-small: 28px;
-  --o-control-medium: 30px;
   --o-control-large: 34px;
-  --o-font-body: "Inter Tight", system-ui, sans-serif;
-  --o-font-display: "Sora", system-ui, sans-serif;
-  --o-font-mono: "JetBrains Mono", monospace;
 }
 
+/* A speaker's colour arrives from the daemon as one of these names
+   (`crates/orbit-app-core/src/projection/note.rs`): they stay until the
+   daemon sends the calendar colours' names instead. */
+:root {
+  --o-accent: var(--o-c1);
+  --o-blue: var(--o-c2);
+  --o-green: var(--o-c3);
+  --o-orange: var(--o-c4);
+  --o-red: var(--o-rec);
+  --o-accent-ink: var(--o-accText);
+}
+
+/* The four movements. Nothing else moves. */
+@keyframes orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbit-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes orbit-shimmer {
+  0% {
+    background-position: -300px 0;
+  }
+  100% {
+    background-position: 300px 0;
+  }
+}
+
+@keyframes orbit-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Legacy movements of screens not yet redrawn (the call orb, a saving event). */
 @keyframes o-bar {
   0%,
   100% {
@@ -102,23 +281,13 @@ body > div { --o-accent: #845ABE; }
   }
 }
 
-@keyframes o-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
+/* «Reducir movimiento» on the Mac: everything stays still. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 1ms !important;
-    animation-iteration-count: 1 !important;
+    animation: none !important;
+    transition: none !important;
     scroll-behavior: auto !important;
   }
 }

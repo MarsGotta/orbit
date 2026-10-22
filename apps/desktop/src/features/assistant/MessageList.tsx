@@ -69,7 +69,7 @@ function Message({
             {message.receipts.map((receipt) => (
               <li key={`${receipt.kind}-${receipt.path}`}>
                 <span className={styles.receiptCheck}>
-                  <Icon name="check" size={10} />
+                  <Icon name="check" size={14} />
                 </span>
                 <span>{receipt.label}</span>
               </li>

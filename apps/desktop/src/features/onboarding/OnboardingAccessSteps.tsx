@@ -29,7 +29,7 @@ export function PermissionsStep({
             {permissions[key] === "not_determined" && (
               <Button
                 onClick={() => void send({ command: "permissions", request: [key] })}
-                size={26}
+                size={28}
               >
                 {es.settings.request}
               </Button>
@@ -37,7 +37,7 @@ export function PermissionsStep({
             {(permissions[key] === "granted" ||
               permissions[key] === "denied" ||
               permissions[key] === "not_granted") && (
-              <Button onClick={() => void send({ command: "open_system_privacy", pane })} size={26}>
+              <Button onClick={() => void send({ command: "open_system_privacy", pane })} size={28}>
                 {es.settings.openSystemSettings}
               </Button>
             )}

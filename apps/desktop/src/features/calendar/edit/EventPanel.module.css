@@ -6,7 +6,7 @@
   flex-direction: column;
   gap: 12px;
   overflow-y: auto;
-  animation: o-in 160ms cubic-bezier(0.2, 0.6, 0.2, 1);
+  animation: orbit-in var(--o-dur-in) var(--o-ease);
 }
 
 .title {
@@ -16,19 +16,19 @@
   border: 0;
   border-bottom: 1px solid transparent;
   background: transparent;
-  color: var(--o-fg);
-  font-family: var(--o-font-display);
+  color: var(--o-ink);
+  font-family: var(--o-font-sans);
   font-size: var(--o-font-19);
   font-weight: 600;
   outline: none;
 }
 
 .title::placeholder {
-  color: var(--o-subtle);
+  color: var(--o-ink3);
 }
 
 .title:focus {
-  border-bottom-color: var(--o-accent);
+  border-bottom-color: var(--o-acc);
 }
 
 /* The underline is the focus here; the global ring would box the heading. */
@@ -41,7 +41,7 @@
   padding: 7px 10px;
   border-radius: var(--o-radius-9);
   background: var(--o-hover);
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12);
 }
 
@@ -56,7 +56,7 @@
 }
 
 .label {
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-size: var(--o-font-11);
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -79,7 +79,7 @@
 }
 
 .toggle {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12);
 }
 
@@ -95,8 +95,8 @@
   padding: 0 8px;
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-7);
-  background: var(--o-s1);
-  color: var(--o-fg);
+  background: var(--o-side);
+  color: var(--o-ink);
   font: inherit;
   font-size: var(--o-font-12-5);
   color-scheme: inherit;
@@ -109,7 +109,7 @@
 .repeat select:focus-visible,
 .text:focus-visible,
 .notes:focus-visible {
-  border-color: var(--o-accent);
+  border-color: var(--o-acc);
   outline: none;
 }
 
@@ -124,7 +124,7 @@
 }
 
 .interval span {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12);
 }
 
@@ -176,7 +176,7 @@
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-pill);
   background: transparent;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   cursor: pointer;
   font: inherit;
   font-size: var(--o-font-11-5);
@@ -184,19 +184,19 @@
 
 .chip:hover {
   background: var(--o-hover);
-  color: var(--o-fg);
+  color: var(--o-ink);
 }
 
 .chip[aria-pressed="true"] {
-  border-color: var(--o-accent);
-  background: var(--o-accent-soft);
-  color: var(--o-accent-ink);
+  border-color: var(--o-acc);
+  background: var(--o-accSoft);
+  color: var(--o-accText);
 }
 
 .hint {
   width: 100%;
   margin: 0;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-size: var(--o-font-11);
   line-height: 1.4;
 }
@@ -216,7 +216,7 @@
 
 .delete {
   margin-left: auto;
-  color: var(--o-red);
+  color: var(--o-recText);
 }
 
 .delete + .delete {
@@ -238,26 +238,26 @@
   justify-content: space-between;
   gap: 12px;
   padding: 4px 8px 4px 16px;
-  background: var(--o-red-soft);
-  color: var(--o-red);
+  background: var(--o-recSoft);
+  color: var(--o-recText);
   font-size: var(--o-font-11-5);
   line-height: 1.4;
-  animation: o-in 160ms ease;
+  animation: orbit-in var(--o-dur-in) var(--o-ease);
 }
 
 .notice[data-kind="unknown"] {
-  background: var(--o-orange-soft);
-  color: var(--o-orange);
+  background: var(--o-warnSoft);
+  color: var(--o-warn);
 }
 
 .notice[data-kind="blocked"] {
-  background: var(--o-accent-soft);
-  color: var(--o-accent-ink);
+  background: var(--o-accSoft);
+  color: var(--o-accText);
 }
 
 .notice[data-kind="info"] {
   background: var(--o-hover);
-  color: var(--o-muted);
+  color: var(--o-ink2);
 }
 
 @media (prefers-reduced-motion: reduce) {

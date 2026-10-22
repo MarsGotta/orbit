@@ -1,6 +1,7 @@
 import { agendaScenarios } from "./scenarios/agenda";
 import { chatScenarios } from "./scenarios/chat";
 import { chatMediaScenarios } from "./scenarios/chat-media";
+import { designScenarios } from "./scenarios/design";
 import { firstRunScenarios } from "./scenarios/first-run";
 import { notesScenarios } from "./scenarios/notes";
 import { panelScenarios } from "./scenarios/panel";
@@ -20,4 +21,5 @@ export const scenarios: Scenario[] = [
   ...panelScenarios,
   ...settingsScenarios,
   ...firstRunScenarios,
+  ...designScenarios,
 ];

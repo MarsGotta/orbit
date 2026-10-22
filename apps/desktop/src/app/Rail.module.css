@@ -7,7 +7,7 @@
   gap: 4px;
   padding: 10px 0;
   border-right: 1px solid var(--o-line);
-  background: var(--o-s1);
+  background: var(--o-side);
 }
 
 .item {
@@ -21,7 +21,7 @@
   border: 0;
   border-radius: var(--o-radius-12);
   background: transparent;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   cursor: pointer;
 }
 
@@ -30,8 +30,8 @@
 }
 
 .item[aria-current="page"] {
-  background: var(--o-accent-soft);
-  color: var(--o-accent-ink);
+  background: var(--o-accSoft);
+  color: var(--o-accText);
 }
 
 .badge {
@@ -44,7 +44,7 @@
   padding: 0 3px;
   place-items: center;
   border-radius: var(--o-radius-pill);
-  background: var(--o-orange);
+  background: var(--o-warn);
   color: var(--o-white);
   font-size: var(--o-font-9);
   font-weight: 700;

@@ -50,7 +50,7 @@ function DictionaryEditor({ item, send }: { item: DictionarySnapshot; send: Send
               <strong>{entry.correct}</strong> ← {entry.wrong.join(", ")}{" "}
               <Button
                 aria-label={es.dictionary.remove(entry.correct)}
-                size={26}
+                size={28}
                 variant="ghost"
                 disabled={pending}
                 onClick={() =>

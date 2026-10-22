@@ -43,7 +43,7 @@ export function AttachmentChips({
             onClick={() => onRemove(draft.key)}
             type="button"
           >
-            <Icon name="close" size={10} />
+            <Icon name="close" size={14} />
           </button>
         </li>
       ))}
@@ -73,7 +73,7 @@ export function AttachButtons({
         aria-label={es.attachments.attach}
         disabled={disabled || !supported}
         onClick={onAttach}
-        size={30}
+        size={32}
         title={reason}
         variant="icon"
       >
@@ -83,7 +83,7 @@ export function AttachButtons({
         aria-label={es.attachments.attachWindow}
         disabled={disabled || !supported}
         onClick={onAttachWindow}
-        size={30}
+        size={32}
         title={reason}
         variant="icon"
       >

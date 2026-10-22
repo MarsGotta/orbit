@@ -129,3 +129,44 @@ it("problems and work in progress do not expire", () => {
     expect(screen.getByText(kind)).toBeTruthy();
   }
 });
+
+it("a notice waiting for a place in the corner starts its time only once it shows", () => {
+  vi.useFakeTimers();
+  const closed: string[] = [];
+  render(
+    <>
+      <ToastStack />
+      {["uno", "dos", "tres", "cuatro"].map((message) => (
+        <Toast key={message} message={message} onClose={() => closed.push(message)} />
+      ))}
+    </>,
+  );
+  expect(screen.getAllByRole("status")).toHaveLength(3);
+  expect(screen.queryByText("cuatro")).toBeNull();
+  act(() => vi.advanceTimersByTime(5_000));
+  expect(closed).toEqual(["uno", "dos", "tres"]);
+  expect(screen.getByText("cuatro")).toBeTruthy();
+  act(() => vi.advanceTimersByTime(4_999));
+  expect(screen.getByText("cuatro")).toBeTruthy();
+  act(() => vi.advanceTimersByTime(1));
+  expect(closed).toEqual(["uno", "dos", "tres", "cuatro"]);
+});
+
+it("each class carries its signal, and a failure is an alert", () => {
+  render(
+    <>
+      <Toast kind="working" message="Transcribiendo tu nota de voz…" onClose={() => undefined} />
+      <Toast
+        detail="El hub no contestó. Tu texto se queda aquí."
+        kind="failed"
+        message="No se pudo guardar la nota"
+        onClose={() => undefined}
+      />
+    </>,
+  );
+  const working = screen.getByRole("status");
+  expect(working.querySelector("[data-signal=working]")).not.toBeNull();
+  const failed = screen.getByRole("alert");
+  expect(failed.querySelector("[data-signal=failed]")).not.toBeNull();
+  expect(within(failed).getByText("El hub no contestó. Tu texto se queda aquí.")).toBeTruthy();
+});

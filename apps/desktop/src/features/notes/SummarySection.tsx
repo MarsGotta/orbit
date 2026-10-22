@@ -31,7 +31,7 @@ export function SummarySection({
             if (editing) onDone();
             setEditing(!editing);
           }}
-          size={26}
+          size={28}
           variant="ghost"
         >
           {editing ? es.noteScreen.done : es.noteScreen.edit}

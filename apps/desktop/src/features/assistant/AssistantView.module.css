@@ -32,7 +32,7 @@
 }
 .header span {
   flex: 1;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-size: var(--o-font-11-5);
 }
 .agentPicker {
@@ -49,8 +49,8 @@
   padding: 0 8px;
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-9);
-  background: var(--o-s2);
-  color: var(--o-fg);
+  background: var(--o-surface);
+  color: var(--o-ink);
   font: inherit;
   font-size: var(--o-font-12);
 }
@@ -71,7 +71,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12);
 }
 .activityOrb {
@@ -82,8 +82,8 @@
   justify-content: center;
   gap: 2px;
   border-radius: var(--o-radius-pill);
-  background: var(--o-accent-soft);
-  color: var(--o-accent-ink);
+  background: var(--o-accSoft);
+  color: var(--o-accText);
 }
 .activityOrb i {
   width: 2px;
@@ -101,7 +101,7 @@
 }
 .empty {
   margin: auto;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   text-align: center;
 }
 .message {
@@ -118,7 +118,7 @@
   padding: 13px 16px;
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-16);
-  background: var(--o-s1);
+  background: var(--o-side);
   font-size: var(--o-font-14);
   line-height: 1.65;
 }
@@ -127,7 +127,7 @@
   max-width: 72%;
   border-color: transparent;
   border-bottom-right-radius: var(--o-radius-6);
-  background: var(--o-accent-soft);
+  background: var(--o-accSoft);
 }
 
 .bubble p {
@@ -138,7 +138,7 @@
 .messageLabel {
   display: block;
   margin-bottom: 8px;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-size: var(--o-font-10);
   letter-spacing: 0.1em;
 }
@@ -148,7 +148,7 @@
   display: inline-block;
   margin-left: 3px;
   vertical-align: -2px;
-  background: var(--o-accent-ink);
+  background: var(--o-accText);
   animation: cursor 0.9s steps(1) infinite;
 }
 .receipts {
@@ -162,12 +162,12 @@
   align-items: center;
   gap: 9px;
   padding: 5px 0;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12);
 }
 .receipts code {
   overflow: hidden;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-family: var(--o-font-mono);
   font-size: var(--o-font-10-5);
   text-overflow: ellipsis;
@@ -180,8 +180,8 @@
   display: grid;
   place-items: center;
   border-radius: var(--o-radius-5);
-  background: var(--o-green-soft);
-  color: var(--o-green);
+  background: var(--o-okSoft);
+  color: var(--o-ok);
 }
 .voiceNote {
   display: flex;
@@ -196,17 +196,17 @@
   place-items: center;
   border: 0;
   border-radius: var(--o-radius-pill);
-  background: var(--o-accent);
+  background: var(--o-acc);
   color: var(--o-white);
   cursor: pointer;
 }
 .voiceNote button:disabled {
-  background: var(--o-s3);
-  color: var(--o-subtle);
+  background: var(--o-raised);
+  color: var(--o-ink3);
   cursor: not-allowed;
 }
 .voiceNote time {
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-family: var(--o-font-mono);
   font-size: var(--o-font-11);
 }
@@ -220,7 +220,7 @@
   width: 3px;
   height: 16px;
   border-radius: var(--o-radius-pill);
-  background: var(--o-accent-ink);
+  background: var(--o-accText);
   opacity: 0.8;
 }
 .waveform i:nth-child(2n) {
@@ -234,20 +234,20 @@
   height: 3px;
   display: block;
   margin-top: 8px;
-  accent-color: var(--o-accent);
+  accent-color: var(--o-acc);
 }
 .voiceTranscript {
   margin-top: 8px !important;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12);
 }
 
 .pending {
   max-width: 520px;
   padding: 16px;
-  border: 1px solid var(--o-line-strong);
+  border: 1px solid var(--o-line2);
   border-radius: var(--o-radius-16);
-  background: var(--o-s2);
+  background: var(--o-surface);
 }
 
 .pending p {
@@ -270,14 +270,14 @@
 .questionCount {
   display: block;
   margin-bottom: 6px;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-size: var(--o-font-12);
 }
 
 /* What the agent did in a turn (hub-v1 chat.item). */
 .work {
   max-width: 520px;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12);
 }
 .work summary {
@@ -301,7 +301,7 @@
   white-space: normal;
 }
 .workCause {
-  color: var(--o-orange);
+  color: var(--o-warn);
 }
 .plan {
   margin: 6px 0;
@@ -316,7 +316,7 @@
 }
 .stepStatus {
   margin-left: 8px;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
 }
 .reasoning p {
   margin: 6px 0 0;
@@ -330,7 +330,7 @@
 .availability {
   max-width: 760px;
   margin: 0 auto 8px;
-  color: var(--o-orange);
+  color: var(--o-warn);
   font-size: var(--o-font-12);
   text-align: center;
 }
@@ -341,8 +341,8 @@
   padding: 12px 14px;
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-18);
-  background: var(--o-s1);
-  box-shadow: 0 8px 28px var(--o-shadow-soft);
+  background: var(--o-side);
+  box-shadow: var(--o-shadow);
 }
 
 .composer textarea {
@@ -353,12 +353,12 @@
   border: 0;
   outline: 0;
   background: transparent;
-  color: var(--o-fg);
+  color: var(--o-ink);
   font: inherit;
   font-size: var(--o-font-14);
 }
 .composer textarea::placeholder {
-  color: var(--o-subtle);
+  color: var(--o-ink3);
 }
 .composerActions {
   display: flex;
@@ -367,7 +367,7 @@
 }
 .composerActions > span {
   flex: 1;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-size: var(--o-font-11-5);
 }
 .listening {
@@ -375,23 +375,23 @@
   align-items: center;
   gap: 10px;
   padding: 4px 2px 10px;
-  color: var(--o-green);
+  color: var(--o-ok);
   font-size: var(--o-font-12);
 }
 .recordingDot {
   width: 8px;
   height: 8px;
   border-radius: var(--o-radius-pill);
-  background: var(--o-red);
+  background: var(--o-rec);
   animation: cursor 1s steps(1) infinite;
 }
 .recordingButton {
-  background: var(--o-red);
+  background: var(--o-rec);
   color: var(--o-white);
 }
 .voiceRefused {
   padding: 4px 2px 10px;
-  color: var(--o-orange);
+  color: var(--o-warn);
   font-size: var(--o-font-12);
 }
 

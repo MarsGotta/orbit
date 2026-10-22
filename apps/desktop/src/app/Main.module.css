@@ -10,7 +10,7 @@
   min-height: 100%;
   display: grid;
   place-items: center;
-  color: var(--o-muted);
+  color: var(--o-ink2);
 }
 
 .visuallyHidden {

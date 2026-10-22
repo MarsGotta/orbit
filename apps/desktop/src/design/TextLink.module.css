@@ -1,5 +1,5 @@
 .link {
-  color: var(--o-accent-ink);
+  color: var(--o-accText);
   font: inherit;
   font-weight: 600;
   text-decoration: none;
@@ -12,6 +12,6 @@
 
 .link:focus-visible {
   border-radius: var(--o-radius-5);
-  outline: 2px solid var(--o-accent-ink);
+  outline: 2px solid var(--o-accText);
   outline-offset: 2px;
 }

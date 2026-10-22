@@ -6,8 +6,7 @@
   place-items: center;
   overflow-y: auto;
   padding: 32px;
-  background:
-    radial-gradient(circle at 50% 15%, var(--o-accent-soft), transparent 34%), var(--o-bg);
+  background: radial-gradient(circle at 50% 15%, var(--o-accSoft), transparent 34%), var(--o-bg);
   pointer-events: none;
 }
 
@@ -30,7 +29,7 @@
 
 .step h1 {
   margin: 0;
-  font-family: var(--o-font-display);
+  font-family: var(--o-font-sans);
   font-size: var(--o-font-27);
   letter-spacing: -0.02em;
 }
@@ -38,7 +37,7 @@
 .step p {
   max-width: 54ch;
   margin: 0;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-14);
   line-height: 1.55;
 }
@@ -46,7 +45,7 @@
 .step label {
   display: grid;
   gap: 6px;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12);
 }
 
@@ -74,15 +73,15 @@
   padding: 8px 12px;
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-12);
-  background: var(--o-s2);
+  background: var(--o-surface);
 }
 
 .pairError {
   margin: 0 0 12px;
   padding: 8px 12px;
   border-radius: var(--o-radius-10);
-  background: var(--o-red-soft);
-  color: var(--o-red);
+  background: var(--o-recSoft);
+  color: var(--o-recText);
   font-size: var(--o-font-12);
 }
 

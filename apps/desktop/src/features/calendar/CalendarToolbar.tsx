@@ -60,14 +60,14 @@ export function CalendarToolbar(props: CalendarToolbarProps) {
         </>
       )}
       <div className={styles.weekActions}>
-        <Button aria-label={previous} onClick={() => props.controls.step(-1)} size={26}>
+        <Button aria-label={previous} onClick={() => props.controls.step(-1)} size={28}>
           <Chevron direction="left" />
         </Button>
-        <Button aria-label={next} onClick={() => props.controls.step(1)} size={26}>
+        <Button aria-label={next} onClick={() => props.controls.step(1)} size={28}>
           <Chevron direction="right" />
         </Button>
         {!includes(range, props.nowMs) && (
-          <Button onClick={props.controls.today} size={26} variant="ghost">
+          <Button onClick={props.controls.today} size={28} variant="ghost">
             {es.calendar.today}
           </Button>
         )}

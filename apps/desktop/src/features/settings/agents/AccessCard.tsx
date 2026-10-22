@@ -1,5 +1,5 @@
 import type { AccessConfig } from "../../../bridge/generated/AccessConfig";
-import { Toggle } from "../../../design/Toggle";
+import { Switch } from "../../../design/Switch";
 import { accessGroups } from "../../../i18n/es/agents";
 import settingsStyles from "../SettingsView.module.css";
 import { ACCESS_GROUP_TOOLS } from "./access-tools";
@@ -30,7 +30,7 @@ export function AccessCard({
               <strong>{label}</strong>
               <span>{ACCESS_GROUP_TOOLS[group].join(", ")}</span>
             </div>
-            <Toggle
+            <Switch
               checked={access.groups[group]}
               disabled={!access.editable || busy}
               label={label}

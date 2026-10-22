@@ -18,7 +18,7 @@
   padding: 3px 10px;
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-pill);
-  background: var(--o-s1);
+  background: var(--o-side);
   list-style: none;
   font-size: var(--o-font-11-5);
   cursor: default;
@@ -28,21 +28,21 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   white-space: nowrap;
 }
 
 .pipelineStep[data-state="done"] {
-  color: var(--o-subtle);
+  color: var(--o-ink3);
 }
 
 .pipelineStep[data-state="active"] {
-  color: var(--o-fg);
+  color: var(--o-ink);
   font-weight: 600;
 }
 
 .pipelineStep[data-state="failed"] {
-  color: var(--o-red);
+  color: var(--o-recText);
   font-weight: 600;
 }
 
@@ -55,25 +55,25 @@
 }
 
 .pipelineStep[data-state="done"] .pipelineDot {
-  border-color: var(--o-green);
-  background: var(--o-green);
+  border-color: var(--o-ok);
+  background: var(--o-ok);
 }
 
 .pipelineStep[data-state="active"] .pipelineDot {
-  border-color: var(--o-accent);
-  background: var(--o-accent);
+  border-color: var(--o-acc);
+  background: var(--o-acc);
   animation: pulse 1.6s ease-in-out infinite;
 }
 
 .pipelineStep[data-state="failed"] .pipelineDot {
-  border-color: var(--o-red);
-  background: var(--o-red);
+  border-color: var(--o-rec);
+  background: var(--o-rec);
 }
 
 .pipelineArrow {
   width: 14px;
   height: 1px;
-  background: var(--o-line-strong);
+  background: var(--o-line2);
 }
 
 @keyframes pulse {
@@ -90,7 +90,7 @@
 
 .title {
   margin: 0;
-  font-family: var(--o-font-display);
+  font-family: var(--o-font-sans);
   font-size: var(--o-font-27);
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -104,7 +104,7 @@
   border-radius: var(--o-radius-6);
   outline: none;
   background: transparent;
-  color: var(--o-fg);
+  color: var(--o-ink);
   font: inherit;
   letter-spacing: inherit;
 }
@@ -114,12 +114,12 @@
 }
 
 .titleInput:focus-visible {
-  box-shadow: 0 0 0 2px var(--o-accent-soft);
+  box-shadow: 0 0 0 2px var(--o-accSoft);
 }
 
 .shortSummary {
   margin: 0;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-15);
   line-height: 1.55;
   text-wrap: pretty;
@@ -127,7 +127,7 @@
 
 .dataLine {
   margin: 0;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-family: var(--o-font-mono);
   font-size: var(--o-font-11-5);
 }
@@ -141,7 +141,7 @@
 }
 
 .templateState {
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-size: var(--o-font-12);
 }
 
@@ -149,7 +149,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12);
 }
 
@@ -158,8 +158,8 @@
   padding: 0 8px;
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-9);
-  background: var(--o-s2);
-  color: var(--o-fg);
+  background: var(--o-surface);
+  color: var(--o-ink);
   font: inherit;
 }
 
@@ -178,7 +178,7 @@
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font: inherit;
   font-size: var(--o-font-13);
   white-space: nowrap;
@@ -186,8 +186,8 @@
 }
 
 .tabs button[aria-selected="true"] {
-  border-bottom-color: var(--o-accent);
-  color: var(--o-fg);
+  border-bottom-color: var(--o-acc);
+  color: var(--o-ink);
   font-weight: 600;
 }
 
@@ -202,7 +202,7 @@
   justify-content: flex-end;
   gap: 8px;
   margin-bottom: 14px;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12-5);
 }
 
@@ -218,22 +218,22 @@
   margin: 0 0 14px;
   padding: 10px 12px;
   border-radius: var(--o-radius-10);
-  background: var(--o-orange-soft);
-  color: var(--o-orange);
+  background: var(--o-warnSoft);
+  color: var(--o-warn);
   font-size: var(--o-font-12-5);
 }
 
 /* A version set aside is news, not a fault: it reads quietly. */
 .notice[data-tone="quiet"] {
   border: 1px solid var(--o-line);
-  background: var(--o-s1);
-  color: var(--o-muted);
+  background: var(--o-side);
+  color: var(--o-ink2);
 }
 
 .emptyCopy,
 .emptyTab p {
   margin: 0;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-14);
 }
 
@@ -251,13 +251,13 @@
 .section {
   padding: 13px 15px;
   border: 1px solid var(--o-line);
-  border-left: 3px solid var(--o-accent);
+  border-left: 3px solid var(--o-acc);
   border-radius: var(--o-radius-14);
-  background: var(--o-s1);
+  background: var(--o-side);
 }
 
 .section[data-edited="true"] {
-  border-left-color: var(--o-blue);
+  border-left-color: var(--o-info);
 }
 
 .sectionHead {
@@ -288,13 +288,13 @@
   padding: 13px 15px;
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-14);
-  background: var(--o-s1);
+  background: var(--o-side);
 }
 
 .listBlock h2,
 .actionGroup h2 {
   margin: 0 0 8px;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-size: var(--o-font-11);
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -320,7 +320,7 @@
 }
 
 .actionGroup[data-mine="true"] h2 {
-  color: var(--o-accent-ink);
+  color: var(--o-accText);
 }
 
 .actionRow {
@@ -330,12 +330,12 @@
   padding: 13px 15px;
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-14);
-  background: var(--o-s1);
+  background: var(--o-side);
   cursor: pointer;
 }
 
 .actionRow:hover {
-  border-color: var(--o-line-strong);
+  border-color: var(--o-line2);
 }
 
 .actionRow input {
@@ -343,7 +343,7 @@
   height: 16px;
   flex: none;
   margin: 2px 0 0;
-  accent-color: var(--o-accent);
+  accent-color: var(--o-acc);
 }
 
 .actionRow > span {
@@ -359,12 +359,12 @@
 }
 
 .actionRow[data-done="true"] .actionText {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   text-decoration: line-through;
 }
 
 .actionRow small {
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-family: var(--o-font-mono);
   font-size: var(--o-font-11-5);
 }
@@ -372,7 +372,7 @@
 /* Private notes */
 .privateNotes .help {
   margin: 0 0 14px;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-14);
   line-height: 1.7;
 }
@@ -388,10 +388,10 @@
   gap: 6px;
   margin-bottom: 14px;
   padding: 6px 8px;
-  border: 1px solid var(--o-line-strong);
+  border: 1px solid var(--o-line2);
   border-radius: var(--o-radius-12);
-  background: var(--o-s2);
-  box-shadow: 0 8px 24px var(--o-shadow-soft);
+  background: var(--o-surface);
+  box-shadow: var(--o-shadow);
 }
 
 .search input {
@@ -400,13 +400,13 @@
   border: 0;
   outline: none;
   background: transparent;
-  color: var(--o-fg);
+  color: var(--o-ink);
   font: inherit;
   font-size: var(--o-font-13);
 }
 
 .searchCount {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-family: var(--o-font-mono);
   font-size: var(--o-font-11);
   white-space: nowrap;
@@ -425,7 +425,7 @@
 }
 
 .segment time {
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-family: var(--o-font-mono);
   font-size: var(--o-font-11);
 }
@@ -466,13 +466,13 @@ button.speakerName {
 
 .segment mark {
   border-radius: var(--o-radius-5);
-  background: var(--o-orange-soft);
+  background: var(--o-warnSoft);
   color: inherit;
 }
 
 .segment mark[data-current="true"] {
-  background: var(--o-orange);
-  color: var(--o-black);
+  background: var(--o-warn);
+  color: var(--o-bg);
 }
 
 .end {

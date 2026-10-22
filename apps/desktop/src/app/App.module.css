@@ -5,7 +5,7 @@
   flex-direction: column;
   overflow: hidden;
   background: var(--o-bg);
-  color: var(--o-fg);
+  color: var(--o-ink);
   font-size: var(--o-font-13);
 }
 
@@ -20,5 +20,5 @@
   display: grid;
   place-items: center;
   background: var(--o-bg);
-  color: var(--o-muted);
+  color: var(--o-ink2);
 }

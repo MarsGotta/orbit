@@ -30,7 +30,7 @@ export function SystemPermissions({ send, settings }: Props) {
                   <Button
                     aria-label={`${es.settings.request}: ${label}`}
                     onClick={() => send({ command: "permissions", request: [key] })}
-                    size={26}
+                    size={28}
                     variant="ghost"
                   >
                     {es.settings.request}
@@ -40,7 +40,7 @@ export function SystemPermissions({ send, settings }: Props) {
                   <Button
                     aria-label={`${es.settings.openSystemSettings}: ${label}`}
                     onClick={() => send({ command: "open_system_privacy", pane })}
-                    size={26}
+                    size={28}
                     variant="ghost"
                   >
                     {es.settings.openSystemSettings}

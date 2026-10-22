@@ -61,14 +61,14 @@ function ListenButton({
 }) {
   if (speaking === id)
     return (
-      <Button onClick={() => send({ command: "speak_stop" })} size={26} variant="ghost">
+      <Button onClick={() => send({ command: "speak_stop" })} size={28} variant="ghost">
         {es.chatActions.stopListening}
       </Button>
     );
   return (
     <Button
       onClick={() => send({ command: "speak", message_id: id, text: text() })}
-      size={26}
+      size={28}
       variant="ghost"
     >
       {es.chatActions.listen}
@@ -96,7 +96,7 @@ export function AssistantAnswer({ busy, listenable, message, retry, send, speaki
           <Button
             disabled={busy || retry === null}
             onClick={() => retry !== null && send({ command: "chat", text: retry })}
-            size={26}
+            size={28}
             variant="ghost"
           >
             {es.chatActions.retry}
@@ -109,7 +109,7 @@ export function AssistantAnswer({ busy, listenable, message, retry, send, speaki
               text={() => (content.current === null ? message.text : spokenText(content.current))}
             />
           )}
-          <Button onClick={() => setEditing(true)} size={26} variant="ghost">
+          <Button onClick={() => setEditing(true)} size={28} variant="ghost">
             {es.chatActions.openEditor}
           </Button>
           {fragment !== null && (
@@ -120,7 +120,7 @@ export function AssistantAnswer({ busy, listenable, message, retry, send, speaki
               }}
               // Keeps the selection: a press on a button would otherwise clear it.
               onMouseDown={(event) => event.preventDefault()}
-              size={26}
+              size={28}
               variant="ghost"
             >
               {es.chatActions.replyToThis}

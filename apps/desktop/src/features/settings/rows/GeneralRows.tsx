@@ -4,10 +4,10 @@ import type { AppCommand, SettingsSnapshot } from "../../../bridge/generated";
 import { Button } from "../../../design/Button";
 import { Card } from "../../../design/Card";
 import { SectionLabel } from "../../../design/SectionLabel";
-import { Toggle } from "../../../design/Toggle";
+import { Switch } from "../../../design/Switch";
 import { TextInput } from "../../../design/TextInput";
 import { es } from "../../../i18n/es";
-import { useUiStore } from "../../../state/ui";
+import { toggleTheme, useTheme } from "../../../design/theme";
 import { AccountPairingControls } from "../AccountPairingControls";
 import { LastInstallation, UpdateStatus } from "./UpdateStatus";
 import styles from "../SettingsView.module.css";
@@ -67,7 +67,7 @@ export function StartupSection({ send, settings }: CommandProps) {
       <Card>
         <div className={styles.inlineControl}>
           <strong>{es.settings.openAtLogin}</strong>
-          <Toggle
+          <Switch
             checked={settings.login_item === "on"}
             label={es.settings.openAtLogin}
             onCheckedChange={(on) => send({ command: "login_item", on })}
@@ -79,8 +79,7 @@ export function StartupSection({ send, settings }: CommandProps) {
 }
 
 export function AppearanceSection() {
-  const theme = useUiStore((state) => state.theme);
-  const toggleTheme = useUiStore((state) => state.toggleTheme);
+  const theme = useTheme();
   return (
     <section aria-label={es.settings.appearance} className={styles.section}>
       <SectionLabel>{es.settings.appearance}</SectionLabel>
@@ -158,7 +157,7 @@ export function PrivacySection({ send, settings, statusAvailability }: CommandPr
               <strong>{es.settings.errorReports}</strong>
               <span>{es.settings.errorReportsHelp}</span>
             </div>
-            <Toggle
+            <Switch
               checked={settings.error_reports}
               label={es.settings.errorReports}
               onCheckedChange={(on) => send({ command: "error_reports", enabled: on })}

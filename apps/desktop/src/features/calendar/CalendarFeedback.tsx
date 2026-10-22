@@ -25,7 +25,7 @@ export function CalendarFeedback(props: CalendarFeedbackProps) {
       {Boolean(error) && (
         <div className={styles.calendarError} role="alert">
           <span>{error}</span>
-          <Button onClick={props.onRetry} size={26}>
+          <Button onClick={props.onRetry} size={28}>
             {es.calendar.retry}
           </Button>
         </div>

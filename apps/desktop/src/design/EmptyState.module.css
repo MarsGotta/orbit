@@ -1,0 +1,30 @@
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--o-space-8);
+  padding: var(--o-space-32) var(--o-space-24);
+  text-align: center;
+}
+
+.icon {
+  display: flex;
+  color: var(--o-ink3);
+}
+
+.icon > svg {
+  width: 24px;
+  height: 24px;
+}
+
+.title {
+  margin: var(--o-space-4) 0 0;
+  font: var(--o-text-h3);
+}
+
+.text {
+  max-width: 360px;
+  margin: 0 0 var(--o-space-8);
+  color: var(--o-ink2);
+  font: var(--o-text-body);
+}

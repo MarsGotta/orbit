@@ -108,7 +108,7 @@ function MeetingDetails({
       <div className={styles.actions}>
         <Button
           onClick={() => (recording ? send({ command: "meeting_finish" }) : onRecord())}
-          size={34}
+          size={36}
           variant="accent"
         >
           {recording ? es.briefing.finish : es.briefing.joinRecord}
@@ -118,7 +118,7 @@ function MeetingDetails({
             onClick={() => {
               window.location.hash = `#/notes/${previous.recording_id}`;
             }}
-            size={34}
+            size={36}
           >
             {es.briefing.previousNote}
           </Button>

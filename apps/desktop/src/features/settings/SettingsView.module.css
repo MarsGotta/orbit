@@ -10,7 +10,7 @@
 
 .hero h1 {
   margin: 0 0 6px;
-  font-family: var(--o-font-display);
+  font-family: var(--o-font-sans);
   font-size: var(--o-font-24);
   letter-spacing: -0.02em;
 }
@@ -18,7 +18,7 @@
 .hero p {
   max-width: 62ch;
   margin: 0 0 24px;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-14);
   line-height: 1.55;
 }
@@ -35,7 +35,7 @@
   padding: 15px 17px;
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-16);
-  background: var(--o-s1);
+  background: var(--o-side);
 }
 
 .rowCopy {
@@ -57,12 +57,12 @@
 .inlineControl span,
 .permissionRow span,
 .section p {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12-5);
 }
 
 .rowCopy small {
-  color: var(--o-accent-ink);
+  color: var(--o-accText);
 }
 
 .rowAction,
@@ -94,7 +94,7 @@
 }
 
 .historyRow span {
-  color: var(--o-muted);
+  color: var(--o-ink2);
 }
 
 .section {
@@ -109,8 +109,8 @@
   padding: 10px 12px;
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-10);
-  background: var(--o-orange-soft);
-  color: var(--o-fg);
+  background: var(--o-warnSoft);
+  color: var(--o-ink);
 }
 
 .details,
@@ -125,13 +125,13 @@
 }
 
 .nameField > span {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12-5);
 }
 
 .nameField input {
   border-color: var(--o-line);
-  background: var(--o-s2);
+  background: var(--o-surface);
 }
 
 .permissionRow,
@@ -166,9 +166,9 @@
   flex-direction: column;
   margin-top: 14px;
   padding: 12px;
-  border: 1px solid var(--o-orange);
+  border: 1px solid var(--o-warn);
   border-radius: var(--o-radius-12);
-  background: var(--o-orange-soft);
+  background: var(--o-warnSoft);
 }
 
 @media (max-width: 720px) {
@@ -197,7 +197,7 @@
 
 .choice {
   align-items: center;
-  color: var(--o-fg);
+  color: var(--o-ink);
   cursor: pointer;
   display: inline-flex;
   font-size: 13px;
@@ -205,7 +205,7 @@
 }
 
 .choice input {
-  accent-color: var(--o-accent);
+  accent-color: var(--o-acc);
   margin: 0;
 }
 

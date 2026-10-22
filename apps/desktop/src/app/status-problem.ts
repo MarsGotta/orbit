@@ -1,14 +1,14 @@
 import { permissionRows } from "../i18n/es/permissions";
 import type { HubLinkConnection } from "../bridge/generated/HubLinkConnection";
 import { hasSavedPairing } from "../bridge/hub-state";
-import type { PillStatus } from "../design/Pill";
+import type { StatusKind } from "../design/StatusPill";
 import { es } from "../i18n/es";
 import type { NoticeAction } from "../i18n/es/notices";
 import type { AppView as AppSnapshot } from "../state/app-view";
 
 /** What the status pill says, when it says anything: a problem and what to do. */
 export interface Problem {
-  tone: PillStatus;
+  tone: StatusKind;
   text: string;
   action?: NoticeAction;
 }
@@ -19,7 +19,7 @@ const pair: NoticeAction = { label: es.problem.pair, view: "settings" };
 function daemonProblem(connection: AppSnapshot["connection"]): Problem | null {
   if (connection.daemon === "ready") return null;
   // Connecting is Orbit on its way: nothing to say yet.
-  if (connection.daemon === "lost") return { tone: "disconnected", text: es.problem.orbitLost };
+  if (connection.daemon === "lost") return { tone: "warning", text: es.problem.orbitLost };
   return null;
 }
 
@@ -27,10 +27,9 @@ function hubProblem(snapshot: AppSnapshot, settled: HubLinkConnection | null): P
   const known = snapshot.status_availability?.state;
   if (known === "unknown" || known === "absent") return null;
   if (!hasSavedPairing(snapshot))
-    return { tone: "disconnected", text: es.problem.unpaired, action: pair };
-  if (settled === "revoked")
-    return { tone: "disconnected", text: es.problem.revoked, action: pair };
-  if (settled === "offline") return { tone: "disconnected", text: es.problem.offline };
+    return { tone: "warning", text: es.problem.unpaired, action: pair };
+  if (settled === "revoked") return { tone: "warning", text: es.problem.revoked, action: pair };
+  if (settled === "offline") return { tone: "warning", text: es.problem.offline };
   return null;
 }
 
@@ -48,7 +47,7 @@ function permissionProblem(permissions: AppSnapshot["permissions"]): Problem | n
     missing.length === 1 && only
       ? es.problem.missingPermission(only[1].name)
       : es.problem.missingPermissions;
-  return { tone: "disconnected", text, action: settings };
+  return { tone: "warning", text, action: settings };
 }
 
 /**
@@ -65,7 +64,7 @@ export function statusProblem(
   if (daemon) return daemon;
   if (snapshot.privacy_stopped) {
     return {
-      tone: "privacy",
+      tone: "warning",
       text: es.problem.privacyStopped,
       action: { label: es.problem.rearm, command: { command: "rearm" } },
     };

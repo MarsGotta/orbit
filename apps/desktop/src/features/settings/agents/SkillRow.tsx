@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { SkillSummary } from "../../../bridge/generated/SkillSummary";
 import { Button } from "../../../design/Button";
-import { Toggle } from "../../../design/Toggle";
+import { Switch } from "../../../design/Switch";
 import settingsStyles from "../SettingsView.module.css";
 import styles from "./Agents.module.css";
 import { copy, type OrderProps } from "./parts";
@@ -29,11 +29,11 @@ function DeleteQuestion({
           onDone();
           void order({ call: "skill_delete", agent_id: agentId, name: skill.name }, "skills");
         }}
-        size={26}
+        size={28}
       >
         {copy.confirmDelete}
       </Button>
-      <Button onClick={onDone} size={26} variant="ghost">
+      <Button onClick={onDone} size={28} variant="ghost">
         {copy.cancel}
       </Button>
     </span>
@@ -59,7 +59,7 @@ export function SkillRow(props: RowProps) {
           aria-label={editable ? copy.edit(skill.name) : copy.view(skill.name)}
           disabled={busy}
           onClick={() => onOpen(skill.name)}
-          size={26}
+          size={28}
           variant="ghost"
         >
           {editable ? copy.editLabel : copy.viewLabel}
@@ -69,13 +69,13 @@ export function SkillRow(props: RowProps) {
             aria-label={copy.delete(skill.name)}
             disabled={busy}
             onClick={() => setDeleting(true)}
-            size={26}
+            size={28}
             variant="ghost"
           >
             {copy.deleteLabel}
           </Button>
         )}
-        <Toggle
+        <Switch
           checked={skill.enabled}
           disabled={!editable || busy}
           label={copy.enable(skill.name)}

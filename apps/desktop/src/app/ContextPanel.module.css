@@ -5,7 +5,7 @@
   flex-direction: column;
   min-height: 0;
   border-right: 1px solid var(--o-line);
-  background: var(--o-s1);
+  background: var(--o-side);
 }
 
 .panel[data-narrow="true"] {
@@ -25,7 +25,7 @@
 
 .header span,
 .meta {
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-family: var(--o-font-mono);
   font-size: var(--o-font-10);
 }
@@ -44,7 +44,7 @@
 .group h2 {
   margin: 0;
   padding: 6px 8px;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-size: var(--o-font-10);
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -61,7 +61,7 @@
   border: 0;
   border-radius: var(--o-radius-10);
   background: transparent;
-  color: var(--o-fg);
+  color: var(--o-ink);
   text-align: left;
   cursor: pointer;
 }
@@ -71,7 +71,7 @@
 }
 
 .row[data-active="true"] {
-  background: var(--o-accent-soft);
+  background: var(--o-accSoft);
 }
 
 .initial {
@@ -82,8 +82,8 @@
   margin-top: 1px;
   place-items: center;
   border-radius: var(--o-radius-6);
-  background: var(--o-accent-soft);
-  color: var(--o-accent-ink);
+  background: var(--o-accSoft);
+  color: var(--o-accText);
   font-size: var(--o-font-10);
   font-weight: 700;
   position: relative;
@@ -95,9 +95,9 @@
   bottom: -3px;
   width: 7px;
   height: 7px;
-  border: 2px solid var(--o-s1);
+  border: 2px solid var(--o-side);
   border-radius: var(--o-radius-pill);
-  background: var(--o-orange);
+  background: var(--o-warn);
   content: "";
   animation: session-pulse 1.4s ease-out infinite;
 }
@@ -122,7 +122,7 @@
 
 .copy small {
   margin-top: 1px;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-size: var(--o-font-11-5);
 }
 
@@ -132,7 +132,7 @@
 
 @keyframes session-pulse {
   50% {
-    box-shadow: 0 0 0 5px var(--o-orange-soft);
+    box-shadow: 0 0 0 5px var(--o-warnSoft);
   }
 }
 
@@ -145,11 +145,11 @@
 /* A note's line says it is recording, being worked on or failed. */
 .copy small[data-tone="live"],
 .copy small[data-tone="failed"] {
-  color: var(--o-red);
+  color: var(--o-recText);
 }
 
 .copy small[data-tone="working"] {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-style: italic;
 }
 
@@ -159,7 +159,7 @@
   display: inline-block;
   margin-right: 6px;
   border-radius: var(--o-radius-pill);
-  background: var(--o-red);
+  background: var(--o-rec);
   content: "";
   vertical-align: 1px;
 }

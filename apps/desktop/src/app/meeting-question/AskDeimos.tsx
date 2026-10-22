@@ -70,10 +70,10 @@ export function AskDeimos({ ask, voiceStatus, send, onDone }: AskDeimosProps) {
       )}
       {voice !== null && <p className={styles.hint}>{voice}</p>}
       <div className={styles.actions}>
-        <Button onClick={onDone} size={26} variant="ghost">
+        <Button onClick={onDone} size={28} variant="ghost">
           {es.meetingQuestion.cancel}
         </Button>
-        <Button disabled={empty || tooLong} size={26} type="submit" variant="accent">
+        <Button disabled={empty || tooLong} size={28} type="submit" variant="accent">
           {es.meetingQuestion.send}
         </Button>
       </div>

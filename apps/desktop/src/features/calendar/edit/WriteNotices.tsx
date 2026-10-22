@@ -25,7 +25,7 @@ export function WriteNotices({ writes }: { writes: Writes }) {
           <Button
             aria-label={es.calendar.write.dismiss}
             onClick={writes.dismissNotice}
-            size={26}
+            size={28}
             variant="ghost"
           >
             ×

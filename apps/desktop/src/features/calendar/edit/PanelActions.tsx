@@ -36,7 +36,7 @@ export function PanelActions({ editing, onDelete, onSave }: ActionsProps) {
             disabled={!dirty}
             key={span}
             onClick={() => onSave(span)}
-            size={30}
+            size={32}
             title={dirty ? undefined : es.calendar.edit.needsTitle}
             variant={index === 0 ? "accent" : "outline"}
           >
@@ -51,7 +51,7 @@ export function PanelActions({ editing, onDelete, onSave }: ActionsProps) {
             className={styles.delete}
             key={`delete-${span}`}
             onClick={() => onDelete(span)}
-            size={30}
+            size={32}
             variant="ghost"
           >
             {series

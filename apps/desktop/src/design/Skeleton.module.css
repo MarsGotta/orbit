@@ -1,0 +1,13 @@
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--o-space-8);
+}
+
+.bar {
+  display: block;
+  border-radius: var(--o-radius-sm);
+  background: linear-gradient(90deg, var(--o-skel) 0, var(--o-skel2) 40%, var(--o-skel) 80%);
+  background-size: 600px 100%;
+  animation: orbit-shimmer var(--o-dur-shimmer) linear infinite;
+}

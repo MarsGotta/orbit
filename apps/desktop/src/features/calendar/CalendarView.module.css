@@ -21,21 +21,21 @@
 }
 
 .month {
-  font-family: var(--o-font-display);
+  font-family: var(--o-font-sans);
   font-size: var(--o-font-15);
   font-weight: 600;
   white-space: nowrap;
 }
 
 .weekNumber {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-family: var(--o-font-mono);
   font-size: var(--o-font-12);
 }
 
 .separator {
   margin: 0 -6px;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
 }
 
 .weekActions {
@@ -63,19 +63,19 @@
   border: 1px solid transparent;
   border-radius: var(--o-radius-6);
   background: transparent;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12);
   cursor: pointer;
 }
 
 .calendarCount:hover,
 .calendarCount[aria-expanded="true"] {
-  border-color: var(--o-line-strong);
-  color: var(--o-fg);
+  border-color: var(--o-line2);
+  color: var(--o-ink);
 }
 
 .calendarCount:focus-visible {
-  outline: 2px solid var(--o-accent);
+  outline: 2px solid var(--o-accText);
   outline-offset: 2px;
 }
 
@@ -85,10 +85,10 @@
   top: calc(100% + 8px);
   right: 0;
   width: min(300px, calc(100vw - 32px));
-  border: 1px solid var(--o-line-strong);
+  border: 1px solid var(--o-line2);
   border-radius: var(--o-radius-9);
-  background: var(--o-s1);
-  box-shadow: 0 12px 30px var(--o-shadow-soft);
+  background: var(--o-side);
+  box-shadow: var(--o-shadow);
 }
 
 .choicesHeader {
@@ -117,7 +117,7 @@
 }
 
 .calendarChoice:hover {
-  background: var(--o-s2);
+  background: var(--o-surface);
 }
 
 .calendarChoice > :nth-child(2) {
@@ -127,7 +127,7 @@
 }
 
 .calendarChoice input {
-  accent-color: var(--o-accent);
+  accent-color: var(--o-acc);
 }
 
 .dotStack {
@@ -149,33 +149,33 @@
 
 /* Calendar colors for the dots of the visibility selector. */
 .accent {
-  background: var(--o-accent);
+  background: var(--o-c1);
 }
 
 .blue {
-  background: var(--o-blue);
+  background: var(--o-c2);
 }
 
 .orange {
-  background: var(--o-orange);
+  background: var(--o-c4);
 }
 
 .green {
-  background: var(--o-green);
+  background: var(--o-c3);
 }
 
 .stale {
   padding: 4px 16px;
-  background: var(--o-accent-soft);
-  color: var(--o-accent-ink);
+  background: var(--o-accSoft);
+  color: var(--o-accText);
   font-size: var(--o-font-11);
 }
 
 .readWarning {
   padding: 6px 16px;
   border-bottom: 1px solid var(--o-line);
-  background: var(--o-orange-soft);
-  color: var(--o-orange);
+  background: var(--o-warnSoft);
+  color: var(--o-warn);
   font-size: var(--o-font-11);
 }
 
@@ -185,8 +185,8 @@
   justify-content: space-between;
   gap: 12px;
   padding: 5px 16px;
-  background: var(--o-red-soft);
-  color: var(--o-red);
+  background: var(--o-recSoft);
+  color: var(--o-recText);
   font-size: var(--o-font-11);
 }
 
@@ -203,20 +203,20 @@
   padding: 28px;
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-20);
-  background: var(--o-s1);
+  background: var(--o-side);
 }
 
 .empty h1,
 .dialog h2,
 .eventDetails h2 {
   margin: 0;
-  font-family: var(--o-font-display);
+  font-family: var(--o-font-sans);
   font-size: var(--o-font-19);
 }
 
 .empty p,
 .eventDetails p {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   line-height: 1.5;
 }
 
@@ -228,10 +228,10 @@
   right: 16px;
   width: min(360px, calc(100% - 32px));
   padding: 16px;
-  border: 1px solid var(--o-line-strong);
+  border: 1px solid var(--o-line2);
   border-radius: var(--o-radius-16);
-  background: var(--o-s2);
-  box-shadow: 0 18px 48px var(--o-shadow-medium);
+  background: var(--o-surface);
+  box-shadow: var(--o-shadow);
 }
 
 .dialogHeader,
@@ -257,7 +257,7 @@
 .eventDetails ul {
   margin: 8px 0 16px;
   padding-left: 20px;
-  color: var(--o-muted);
+  color: var(--o-ink2);
 }
 
 .eventDetails a {
@@ -280,7 +280,7 @@
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-10);
   background: transparent;
-  color: var(--o-fg);
+  color: var(--o-ink);
   cursor: pointer;
   font: inherit;
   font-size: var(--o-font-12);
@@ -293,7 +293,7 @@
 }
 
 .viewButton:focus-visible {
-  outline: 2px solid var(--o-accent);
+  outline: 2px solid var(--o-accText);
   outline-offset: 2px;
 }
 
@@ -301,8 +301,8 @@
   width: 6px;
   height: 6px;
   margin-top: -3px;
-  border-right: 1.5px solid var(--o-muted);
-  border-bottom: 1.5px solid var(--o-muted);
+  border-right: 1.5px solid var(--o-ink2);
+  border-bottom: 1.5px solid var(--o-ink2);
   transform: rotate(45deg);
 }
 
@@ -323,7 +323,7 @@
   border: 0;
   border-radius: var(--o-radius-6);
   background: transparent;
-  color: var(--o-fg);
+  color: var(--o-ink);
   cursor: pointer;
   font: inherit;
   font-size: var(--o-font-12-5);
@@ -335,8 +335,8 @@
 }
 
 .viewOption[aria-pressed="true"] {
-  background: var(--o-accent-soft);
-  color: var(--o-accent-ink);
+  background: var(--o-accSoft);
+  color: var(--o-accText);
   font-weight: 600;
 }
 
@@ -362,7 +362,7 @@
   float: left;
   margin-right: 4px;
   padding: 0;
-  color: var(--o-muted);
+  color: var(--o-ink2);
 }
 
 .weekStart label {
@@ -373,7 +373,7 @@
 }
 
 .weekStart input {
-  accent-color: var(--o-accent);
+  accent-color: var(--o-acc);
 }
 
 .zoom {
@@ -382,7 +382,7 @@
   justify-content: space-between;
   gap: 8px;
   padding: 4px 12px;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12);
 }
 
@@ -392,20 +392,20 @@
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-8);
   background: transparent;
-  color: var(--o-fg);
+  color: var(--o-ink);
   cursor: pointer;
   font: inherit;
 }
 
 .zoom button:disabled {
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   cursor: default;
 }
 
 .viewKeys {
   margin: 0;
   padding: 8px 12px 10px;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-size: var(--o-font-10-5);
   line-height: 1.5;
 }
@@ -416,21 +416,21 @@
   margin: 12px 0 0;
   padding: 3px 9px;
   border-radius: var(--o-radius-pill);
-  background: var(--o-green-soft);
-  color: var(--o-green);
+  background: var(--o-okSoft);
+  color: var(--o-ok);
   font-size: var(--o-font-12);
   font-weight: 600;
 }
 
 .selfResponse[data-response="tentative"],
 .selfResponse[data-response="needs_action"] {
-  background: var(--o-orange-soft);
-  color: var(--o-orange);
+  background: var(--o-warnSoft);
+  color: var(--o-warn);
 }
 
 .selfResponse[data-response="declined"] {
-  background: var(--o-red-soft);
-  color: var(--o-red);
+  background: var(--o-recSoft);
+  color: var(--o-recText);
 }
 
 .eventDetails .attendees {
@@ -446,17 +446,17 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  color: var(--o-fg);
+  color: var(--o-ink);
   font-size: var(--o-font-12-5);
 }
 
 .attendees li span + span {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-11-5);
 }
 
 .attendees li[data-response="declined"] span:first-child {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   text-decoration: line-through;
 }
 

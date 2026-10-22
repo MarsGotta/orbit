@@ -88,7 +88,7 @@ function MicrophoneButton({ controls }: { controls: Controls }) {
       onPointerCancel={voice.pointerCancel}
       onPointerDown={voice.pointerDown}
       onPointerUp={voice.pointerUp}
-      size={30}
+      size={32}
       variant="icon"
     >
       <Icon name="mic" size={14} />
@@ -124,7 +124,7 @@ function ComposerActions({
         aria-label={callActive ? es.design.hangUp : es.assistant.call}
         disabled={!callActive && (controls.disabled || callPending || callUnknown === true)}
         onClick={onCallToggle}
-        size={30}
+        size={32}
         variant="icon"
       >
         <Icon name="phone" size={14} />
@@ -134,7 +134,7 @@ function ComposerActions({
         aria-label={recording ? es.assistant.sendVoiceNote : es.chat.send}
         disabled={!recording && !controls.canSend}
         onClick={recording ? controls.voice.finish : controls.submit}
-        size={30}
+        size={32}
         variant="accent"
       >
         <Icon name="send" size={14} />

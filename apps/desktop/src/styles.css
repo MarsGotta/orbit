@@ -1,6 +1,6 @@
 :root {
-  font-family: var(--o-font-body);
-  color: var(--o-fg);
+  font-family: var(--o-font-sans);
+  color: var(--o-ink);
   background: var(--o-bg);
   font-synthesis: none;
 }
@@ -27,9 +27,8 @@ input {
   font: inherit;
 }
 
-button:focus-visible,
-input:focus-visible {
-  outline: 2px solid var(--o-accent-ink);
+:focus-visible {
+  outline: 2px solid var(--o-accText);
   outline-offset: 2px;
 }
 

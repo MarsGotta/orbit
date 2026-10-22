@@ -87,7 +87,7 @@ function PanelContent({ port, store }: { port: DaemonPort; store: OrbitStore }) 
         />
       )}
       {offerAsk && (
-        <Button className={styles.askButton} onClick={() => focus(true)} size={26}>
+        <Button className={styles.askButton} onClick={() => focus(true)} size={28}>
           {question ? es.meetingQuestion.askAgain : es.meetingQuestion.ask}
         </Button>
       )}

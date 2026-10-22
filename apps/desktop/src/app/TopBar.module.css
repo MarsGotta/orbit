@@ -8,7 +8,7 @@
   gap: 14px;
   padding: 0 14px;
   border-bottom: 1px solid var(--o-line);
-  background: var(--o-s1);
+  background: var(--o-side);
 }
 
 .mac {
@@ -23,19 +23,19 @@
 }
 
 .breadcrumbs strong {
-  font-family: var(--o-font-display);
+  font-family: var(--o-font-sans);
   font-size: var(--o-font-13);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 
 .breadcrumbs span:first-of-type {
-  color: var(--o-subtle);
+  color: var(--o-ink3);
 }
 
 .breadcrumbs span:last-of-type {
   overflow: hidden;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-13);
   font-weight: 500;
   text-overflow: ellipsis;

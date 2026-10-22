@@ -40,7 +40,7 @@ function VoiceTranscript({ messageId, send, voice }: Omit<VoiceNoteProps, "audio
       {retry === true && (
         <Button
           onClick={() => send({ command: "voice_retry", message_id: messageId })}
-          size={26}
+          size={28}
           variant="ghost"
         >
           {es.assistant.retryTranscription}
@@ -86,7 +86,7 @@ export function VoiceNote({ audio, messageId, send, voice }: VoiceNoteProps) {
           onClick={start}
           type="button"
         >
-          <Icon name="play" size={10} />
+          <Icon name="play" size={14} />
         </button>
         <span aria-hidden="true" className={styles.waveform}>
           {Array.from({ length: 8 }, (_, index) => (

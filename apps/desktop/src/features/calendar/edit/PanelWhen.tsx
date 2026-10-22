@@ -1,5 +1,5 @@
 import type { CalendarFrequency } from "../../../bridge/generated/CalendarFrequency";
-import { Toggle } from "../../../design/Toggle";
+import { Switch } from "../../../design/Switch";
 import { es } from "../../../i18n/es";
 import { DAY_MS } from "../date";
 import { type EventForm, type Repeat, withAllDay, withStart } from "./form";
@@ -27,7 +27,7 @@ export function PanelWhen({ form, onChange, timezone }: WhenProps) {
       )}
       <div className={styles.row}>
         <span className={styles.toggle}>
-          <Toggle
+          <Switch
             checked={form.allDay}
             label={es.calendar.allDay}
             onCheckedChange={(allDay) => onChange(withAllDay(form, allDay, timezone))}

@@ -164,7 +164,7 @@ export default function NotesView({ error, onRecord, send, snapshot }: NotesView
       <div className={styles.emptyBody}>
         <h2>{es.notes.empty}</h2>
         <p>{es.notes.emptyBody}</p>
-        <Button onClick={onRecord} size={34} variant="accent">
+        <Button onClick={onRecord} size={36} variant="accent">
           {es.meeting.recordNow}
         </Button>
       </div>

@@ -51,7 +51,7 @@ function SectionRow(props: {
         <Button
           aria-label={es.library.removeSection(section.name)}
           onClick={props.onRemove}
-          size={26}
+          size={28}
           variant="ghost"
         >
           ×
@@ -105,7 +105,7 @@ export function TemplateSections({
         onClick={() =>
           onChange([...sections, { name: es.library.newSectionName, instructions: "" }])
         }
-        size={26}
+        size={28}
         variant="outline"
       >
         {es.library.addSection}

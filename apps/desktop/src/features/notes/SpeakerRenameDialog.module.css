@@ -5,28 +5,28 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background: var(--o-overlay);
+  background: var(--o-scrim);
   backdrop-filter: blur(10px);
 }
 
 .dialog {
   width: min(420px, 100%);
   padding: 20px;
-  border: 1px solid var(--o-line-strong);
+  border: 1px solid var(--o-line2);
   border-radius: var(--o-radius-20);
-  background: var(--o-s2);
-  box-shadow: 0 24px 64px var(--o-shadow-strong);
+  background: var(--o-surface);
+  box-shadow: var(--o-shadow);
 }
 
 .dialog h2 {
   margin: 0 0 18px;
-  font-family: var(--o-font-display);
+  font-family: var(--o-font-sans);
   font-size: var(--o-font-19);
   overflow-wrap: anywhere;
 }
 
 .dialog p {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12);
 }
 
@@ -58,9 +58,9 @@
 .name select {
   min-width: 0;
   padding: 8px;
-  color: var(--o-fg);
-  background: var(--o-s1);
-  border: 1px solid var(--o-line-strong);
+  color: var(--o-ink);
+  background: var(--o-side);
+  border: 1px solid var(--o-line2);
   border-radius: var(--o-radius-10);
   font: inherit;
 }

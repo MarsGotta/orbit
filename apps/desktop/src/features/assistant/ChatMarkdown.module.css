@@ -44,8 +44,8 @@
 
 .markdown blockquote {
   padding-left: 12px;
-  border-left: 2px solid var(--o-line-strong);
-  color: var(--o-muted);
+  border-left: 2px solid var(--o-line2);
+  color: var(--o-ink2);
 }
 
 .markdown hr {
@@ -57,13 +57,13 @@
 .markdown :not(pre) > code {
   padding: 1px 5px;
   border-radius: var(--o-radius-5);
-  background: var(--o-s3);
+  background: var(--o-raised);
   font-family: var(--o-font-mono);
   font-size: 0.88em;
 }
 
 .markdown a {
-  color: var(--o-accent-ink);
+  color: var(--o-accText);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -72,7 +72,7 @@
   display: inline-flex;
   padding: 0 8px;
   border-radius: var(--o-radius-pill);
-  background: var(--o-accent-soft);
+  background: var(--o-accSoft);
   text-decoration: none;
 }
 
@@ -90,7 +90,7 @@
   justify-content: space-between;
   padding: 2px 4px 2px 12px;
   border-bottom: 1px solid var(--o-line);
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-family: var(--o-font-mono);
   font-size: var(--o-font-11);
 }
@@ -109,8 +109,14 @@
   color: var(--shiki-dark);
 }
 
-:global(.o-light) .code pre span[style] {
+:global(:root[data-theme="light"]) .code pre span[style] {
   color: var(--shiki-light);
+}
+
+@media (prefers-color-scheme: light) {
+  :global(:root:not([data-theme="dark"])) .code pre span[style] {
+    color: var(--shiki-light);
+  }
 }
 
 .table {
@@ -136,6 +142,6 @@
 }
 
 .table th {
-  background: var(--o-s2);
+  background: var(--o-surface);
   font-weight: 600;
 }

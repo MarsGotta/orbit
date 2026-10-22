@@ -131,7 +131,7 @@ function EmptyState({
         <h1>{title}</h1>
         <p>{description}</p>
         {Boolean(action) && onAction && (
-          <Button onClick={onAction} size={34} variant="accent">
+          <Button onClick={onAction} size={36} variant="accent">
             {action}
           </Button>
         )}

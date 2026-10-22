@@ -7,7 +7,9 @@ import { baseHub, baseViews } from "./base";
 import { scenarios } from "./catalog";
 import { startShowcaseClock } from "./clock";
 import { NOW } from "./data/time";
+import { followTheme } from "../design/theme";
 import { ShowcaseIndex } from "./ShowcaseIndex";
+import { DesignSheet } from "./sheet/DesignSheet";
 import { installDaemon, publish } from "./ipc";
 import type { Scenario } from "./scenario";
 import "../design/fonts.css";
@@ -36,6 +38,12 @@ function prepareStorage(scenario: Scenario, theme: string | null): void {
 function show(scenario: Scenario, root: HTMLElement): void {
   const params = new URLSearchParams(window.location.search);
   prepareStorage(scenario, params.get("tema"));
+  followTheme();
+  if (scenario.sheet === true) {
+    createRoot(root).render(<DesignSheet />);
+    if (window.__showcase) window.__showcase.settled = true;
+    return;
+  }
   if (window.location.hash !== scenario.route) window.location.hash = scenario.route;
   const views = (scenario.views ?? ((base) => base))(baseViews());
   const hub = (scenario.hub ?? ((base) => base))(baseHub());

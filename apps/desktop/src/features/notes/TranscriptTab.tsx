@@ -53,7 +53,7 @@ function Tools({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
             onClick={() =>
               send({ command: "transcript_retranscribe", recording_id: note.recording_id })
             }
-            size={26}
+            size={28}
             variant="ghost"
           >
             {es.notes.retranscribe}
@@ -61,7 +61,7 @@ function Tools({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
         )}
       <Button
         onClick={() => void navigator.clipboard?.writeText(transcriptText(note))}
-        size={26}
+        size={28}
         variant="ghost"
       >
         {es.noteScreen.copyTranscript}

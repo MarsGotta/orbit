@@ -87,7 +87,7 @@ function CalendarChoices({
     >
       <div className={styles.choicesHeader}>
         <strong>{es.calendar.visibleCalendarsLabel}</strong>
-        <Button onClick={onShowAll} size={26} variant="ghost">
+        <Button onClick={onShowAll} size={28} variant="ghost">
           {es.calendar.showAllCalendars}
         </Button>
       </div>

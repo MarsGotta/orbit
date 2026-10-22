@@ -1,0 +1,27 @@
+.list {
+  display: flex;
+  gap: var(--o-space-20);
+  border-bottom: 1px solid var(--o-line);
+}
+
+.tab {
+  height: 40px;
+  margin-bottom: -1px;
+  padding: 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--o-ink2);
+  font: 500 14px/1.4 var(--o-font-sans);
+  cursor: pointer;
+  transition: color var(--o-dur-fast);
+}
+
+.tab:hover {
+  color: var(--o-ink);
+}
+
+.tab[aria-selected="true"] {
+  border-bottom-color: var(--o-ink);
+  color: var(--o-ink);
+}

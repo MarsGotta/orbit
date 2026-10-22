@@ -1,0 +1,41 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: var(--o-control-sm);
+  padding: 0 var(--o-space-10);
+  border-radius: var(--o-radius-pill);
+  font: var(--o-text-meta);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.recording {
+  background: var(--o-recSoft);
+  color: var(--o-recText);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--o-rec);
+  animation: orbit-pulse var(--o-dur-pulse) ease-in-out infinite;
+}
+
+.working {
+  background: var(--o-raised);
+  color: var(--o-ink2);
+}
+
+.done {
+  background: var(--o-okSoft);
+  color: var(--o-ok);
+}
+
+.warning {
+  background: var(--o-warnSoft);
+  color: var(--o-warn);
+}

@@ -2,11 +2,11 @@
    under the recording pill. Orbit's tokens only. */
 .card,
 .ask {
-  background: var(--o-s1);
-  border: 1px solid var(--o-line-strong);
+  background: var(--o-side);
+  border: 1px solid var(--o-line2);
   border-radius: 12px;
   box-sizing: border-box;
-  color: var(--o-fg);
+  color: var(--o-ink);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -19,11 +19,11 @@
 }
 
 .failed {
-  border-color: var(--o-orange);
+  border-color: var(--o-warn);
 }
 
 .question {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: 12px;
   margin: 0;
   overflow: hidden;
@@ -52,13 +52,13 @@
 }
 
 .cause {
-  color: var(--o-fg);
+  color: var(--o-ink);
   font-size: 12px;
   margin: 0;
 }
 
 .hint {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   flex: 1 1 auto;
   font-size: 11px;
   margin: 0;
@@ -73,9 +73,9 @@
 
 .field {
   background: var(--o-bg);
-  border: 1px solid var(--o-line-strong);
+  border: 1px solid var(--o-line2);
   border-radius: 8px;
-  color: var(--o-fg);
+  color: var(--o-ink);
   font: inherit;
   font-size: 13px;
   padding: 6px 8px;
@@ -89,17 +89,17 @@
 
 .window {
   background: transparent;
-  border: 1px solid var(--o-line-strong);
+  border: 1px solid var(--o-line2);
   border-radius: 999px;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   cursor: pointer;
   font-size: 11px;
   padding: 2px 8px;
 }
 
 .window[aria-checked="true"] {
-  background: var(--o-s2);
-  color: var(--o-fg);
+  background: var(--o-surface);
+  color: var(--o-ink);
 }
 
 /* «Preguntar a Deimos» under the recording pill. */

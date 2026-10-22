@@ -47,6 +47,8 @@ export interface Scenario {
   description: string;
   /** The floating call panel instead of the main window. */
   panel?: boolean;
+  /** The design system's sheet instead of the app: its components in their states, no daemon. */
+  sheet?: boolean;
   /**
    * The window's size in points, as the app gives it: the main window is
    * 1440 × 900 and the panel 360 × 120, or 360 × 300 with a question

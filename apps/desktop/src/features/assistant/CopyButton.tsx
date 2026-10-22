@@ -36,7 +36,7 @@ export function CopyButton({ label, text }: { label: string; text: () => string 
   const failure = copyStatus(state);
   return (
     <>
-      <Button aria-label={label} onClick={() => void copy(text())} size={26} variant="ghost">
+      <Button aria-label={label} onClick={() => void copy(text())} size={28} variant="ghost">
         {state.kind === "copied" ? es.chatActions.copied : es.chatActions.copy}
       </Button>
       {failure !== null && <span role="alert">{failure}</span>}

@@ -40,7 +40,7 @@ export function QuestionCard({ question, send, openUrl }: QuestionCardProps) {
         )}
         <Button
           onClick={() => send({ command: "meeting_question_close", id: question.id })}
-          size={26}
+          size={28}
           variant="ghost"
         >
           {es.meetingQuestion.close}

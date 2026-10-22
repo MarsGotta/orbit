@@ -1,13 +1,13 @@
+/* No shadow and never one inside another: parts of a card are separated by a line and space. */
 .card {
   min-width: 0;
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--o-line);
-  border-radius: 20px;
-  background: var(--o-s1);
-  box-shadow: none;
+  border-radius: var(--o-radius-xl);
+  background: var(--o-surface);
 }
 
 .content {
-  padding: 18px;
+  padding: var(--o-space-20);
 }

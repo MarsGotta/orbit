@@ -2,79 +2,160 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: var(--o-space-8);
+  flex: none;
   min-height: 0;
-  padding: 0 12px;
-  border-radius: var(--o-radius-10);
-  font-family: var(--o-font-body);
-  font-size: var(--o-font-12);
-  font-weight: 600;
+  padding: 0 var(--o-space-14);
+  border: 1px solid transparent;
+  border-radius: var(--o-radius-lg);
+  background: transparent;
+  color: var(--o-ink);
+  font: var(--o-text-control);
+  white-space: nowrap;
   cursor: pointer;
-}
-
-.button:focus-visible {
-  outline: 2px solid var(--o-accent-ink);
-  outline-offset: 2px;
+  transition:
+    background var(--o-dur-fast),
+    filter var(--o-dur-fast),
+    color var(--o-dur-fast);
 }
 
 .button:disabled {
+  border-color: transparent;
+  background: var(--o-raised);
+  color: var(--o-ink3);
   cursor: not-allowed;
-  opacity: 0.5;
+}
+
+.button[aria-busy="true"] {
+  cursor: progress;
+}
+
+.accent,
+.danger {
+  color: var(--o-white);
+  font-weight: 600;
 }
 
 .accent {
-  border: 1px solid var(--o-accent);
-  background: var(--o-accent);
-  color: var(--o-white);
+  background: var(--o-acc);
 }
 
-.accent:hover:not(:disabled) {
-  background: var(--o-accent-ink);
+.danger {
+  background: var(--o-rec);
 }
 
-.outline {
-  border: 1px solid var(--o-line-strong);
-  background: transparent;
-  color: var(--o-fg);
+.accent:hover:not(:disabled),
+.danger:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.outline,
+.dangerSoft {
+  border-color: var(--o-line2);
+}
+
+.dangerSoft {
+  color: var(--o-recText);
 }
 
 .ghost {
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--o-muted);
-}
-
-.outline:hover:not(:disabled),
-.ghost:hover:not(:disabled),
-.icon:hover:not(:disabled) {
-  background: var(--o-hover);
+  padding: 0 var(--o-space-12);
+  color: var(--o-ink2);
 }
 
 .icon {
   width: var(--o-button-size);
   padding: 0;
-  border: 1px solid var(--o-line);
-  border-radius: var(--o-radius-8);
-  background: transparent;
-  color: var(--o-muted);
+  color: var(--o-ink2);
 }
 
-.size26 {
-  --o-button-size: var(--o-control-compact);
-  height: 26px;
+.outline:hover:not(:disabled),
+.dangerSoft:hover:not(:disabled),
+.ghost:hover:not(:disabled),
+.icon:hover:not(:disabled) {
+  background: var(--o-hover);
+}
+
+.size28,
+.size32 {
+  border-radius: var(--o-radius-md);
 }
 
 .size28 {
-  --o-button-size: var(--o-control-small);
-  height: 28px;
+  --o-button-size: var(--o-control-sm);
+  height: var(--o-control-sm);
+  padding-inline: var(--o-space-10);
 }
 
-.size30 {
-  --o-button-size: var(--o-control-medium);
-  height: 30px;
+.size32 {
+  --o-button-size: var(--o-control-md);
+  height: var(--o-control-md);
+  padding-inline: var(--o-space-12);
 }
 
-.size34 {
-  --o-button-size: var(--o-control-large);
-  height: 34px;
+.size36 {
+  --o-button-size: var(--o-control-lg);
+  height: var(--o-control-lg);
+}
+
+.size40 {
+  --o-button-size: var(--o-control-xl);
+  height: var(--o-control-xl);
+  padding-inline: var(--o-space-16);
+}
+
+.icon.size28,
+.icon.size32,
+.icon.size36,
+.icon.size40 {
+  padding: 0;
+}
+
+/* Pending and confirmed labels sit in one cell, so the widest sets the width. */
+.labels {
+  display: inline-grid;
+}
+
+.labels > * {
+  display: inline-flex;
+  grid-area: 1 / 1;
+  align-items: center;
+  justify-content: center;
+  gap: var(--o-space-8);
+  visibility: hidden;
+}
+
+.labels > [data-shown="true"] {
+  visibility: visible;
+}
+
+.done {
+  color: var(--o-ok);
+}
+
+.withReason {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--o-space-10);
+  min-width: 0;
+}
+
+.reason {
+  min-width: 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.recordDot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--o-rec);
+}
+
+.shortcut {
+  margin-left: auto;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
 }

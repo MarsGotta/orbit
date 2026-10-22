@@ -3,18 +3,18 @@
   min-height: var(--o-control-large);
   padding: 7px 10px;
   border-radius: var(--o-radius-10);
-  color: var(--o-fg);
+  color: var(--o-ink);
   background: transparent;
-  font-family: var(--o-font-body);
+  font-family: var(--o-font-sans);
   font-size: var(--o-font-12-5);
 }
 
 .input::placeholder {
-  color: var(--o-subtle);
+  color: var(--o-ink3);
 }
 
 .input:focus-visible {
-  outline: 2px solid var(--o-accent-ink);
+  outline: 2px solid var(--o-accText);
   outline-offset: 2px;
 }
 
@@ -25,5 +25,5 @@
 .dotted {
   border-width: 1px;
   border-style: dotted;
-  border-color: var(--o-line-strong);
+  border-color: var(--o-line2);
 }

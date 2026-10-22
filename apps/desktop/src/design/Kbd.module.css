@@ -3,8 +3,8 @@
   align-items: center;
   padding: 1px 5px;
   border-radius: var(--o-radius-5);
-  background: var(--o-s3);
-  color: var(--o-subtle);
+  background: var(--o-raised);
+  color: var(--o-ink3);
   font-family: "JetBrains Mono", monospace;
   font-size: var(--o-font-10);
   font-weight: 400;

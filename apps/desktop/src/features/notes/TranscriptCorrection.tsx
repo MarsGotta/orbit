@@ -41,7 +41,7 @@ export function TranscriptCorrection({
   return (
     <>
       {text && (
-        <Button size={26} variant="ghost" onClick={() => setOpen(true)}>
+        <Button size={28} variant="ghost" onClick={() => setOpen(true)}>
           {es.dictionary.correctText}
         </Button>
       )}

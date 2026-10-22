@@ -31,7 +31,7 @@ export function TopBar({
       </nav>
       <div className={styles.actions}>
         <Button onClick={onOpenPalette} size={28} variant="outline">
-          <Icon name="search" size={13} />
+          <Icon name="search" size={14} />
           {es.shell.askOrbit}
           <Kbd>⌘⇧␣</Kbd>
         </Button>
@@ -42,7 +42,7 @@ export function TopBar({
           title={es.shell.themeTitle}
           variant="icon"
         >
-          <Icon name="theme" size={14} />
+          <Icon name="themeDark" size={14} />
         </Button>
         {meetEntry}
         {status}

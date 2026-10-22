@@ -90,7 +90,7 @@ function ExpandedOrb(props: ExpandedOrbProps) {
         )}
         <span className={styles.footerSpacer} />
         <button aria-label={es.design.collapseCall} onClick={props.collapse} type="button">
-          <Icon name="minus" size={12} />
+          <Icon name="minus" size={14} />
         </button>
         <button
           aria-label={props.endLabel}
@@ -98,7 +98,7 @@ function ExpandedOrb(props: ExpandedOrbProps) {
           onClick={props.end}
           type="button"
         >
-          <Icon name="close" size={13} />
+          <Icon name="close" size={14} />
         </button>
       </footer>
     </section>

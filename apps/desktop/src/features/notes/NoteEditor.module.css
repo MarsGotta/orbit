@@ -3,12 +3,12 @@
   padding: 14px 16px;
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-14);
-  background: var(--o-s1);
+  background: var(--o-side);
   cursor: text;
 }
 
 .frame:focus-within {
-  border-color: var(--o-line-strong);
+  border-color: var(--o-line2);
 }
 
 .editor {
@@ -30,7 +30,7 @@
 .editor h2,
 .editor h3 {
   margin: 14px 0 6px;
-  font-family: var(--o-font-display);
+  font-family: var(--o-font-sans);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -54,7 +54,7 @@
 }
 
 .editor a {
-  color: var(--o-accent-ink);
+  color: var(--o-accText);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -75,18 +75,18 @@
 }
 
 .editor ul[data-type="taskList"] li > label input {
-  accent-color: var(--o-accent);
+  accent-color: var(--o-acc);
 }
 
 .editor ul[data-type="taskList"] li[data-checked="true"] > div {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   text-decoration: line-through;
 }
 
 .editor p:global(.is-editor-empty):first-child::before {
   float: left;
   height: 0;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   content: attr(data-placeholder);
   pointer-events: none;
 }

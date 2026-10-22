@@ -1,0 +1,18 @@
+.spinner {
+  display: inline-block;
+  width: var(--spinner-size);
+  height: var(--spinner-size);
+  flex: none;
+  border: 2px solid var(--o-line2);
+  border-top-color: var(--o-ink2);
+  border-radius: 50%;
+  animation: orbit-spin var(--o-dur-spin) linear infinite;
+}
+
+.loading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--o-space-8);
+  color: var(--o-ink2);
+  font: var(--o-text-meta);
+}

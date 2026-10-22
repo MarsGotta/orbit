@@ -49,14 +49,14 @@ function FileChip({ attachment }: { attachment: Attachment }) {
       <span className={styles.fileFacts}>{facts.join(" · ")}</span>
       <span className={styles.fileActions}>
         {attachment.kind === "pdf" && (
-          <Button onClick={() => view(attachment)} size={26} variant="ghost">
+          <Button onClick={() => view(attachment)} size={28} variant="ghost">
             {es.attachments.view}
           </Button>
         )}
-        <Button onClick={() => open(false)} size={26} variant="ghost">
+        <Button onClick={() => open(false)} size={28} variant="ghost">
           {es.attachments.open}
         </Button>
-        <Button onClick={() => open(true)} size={26} variant="ghost">
+        <Button onClick={() => open(true)} size={28} variant="ghost">
           {es.attachments.reveal}
         </Button>
       </span>

@@ -9,23 +9,23 @@
 }
 
 .accent {
-  background: var(--o-accent);
+  background: var(--o-c1);
 }
 
 .orange {
-  background: var(--o-orange);
+  background: var(--o-c4);
 }
 
 .blue {
-  background: var(--o-blue);
+  background: var(--o-c2);
 }
 
 .green {
-  background: var(--o-green);
+  background: var(--o-c3);
 }
 
 .gray {
-  background: var(--o-muted);
+  background: var(--o-ink2);
 }
 
 .size18 {

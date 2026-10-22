@@ -8,6 +8,6 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  background: var(--o-s3);
-  color: var(--o-muted);
+  background: var(--o-raised);
+  color: var(--o-ink2);
 }

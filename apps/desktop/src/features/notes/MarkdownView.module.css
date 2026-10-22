@@ -36,7 +36,7 @@
 }
 
 .markdown a {
-  color: var(--o-accent-ink);
+  color: var(--o-accText);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -57,16 +57,16 @@
   height: 15px;
   flex: none;
   margin-top: 4px;
-  border: 1.5px solid var(--o-line-strong);
+  border: 1.5px solid var(--o-line2);
   border-radius: 5px;
 }
 
 .tasks li[data-checked="true"] .box {
-  border-color: var(--o-accent);
-  background: var(--o-accent);
+  border-color: var(--o-acc);
+  background: var(--o-acc);
 }
 
 .tasks li[data-checked="true"] > span:last-child {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   text-decoration: line-through;
 }

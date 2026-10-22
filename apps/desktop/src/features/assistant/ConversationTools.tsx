@@ -102,7 +102,7 @@ export function ConversationTools({ inFlight, messages, read, sessionId, turn }:
   return (
     <div className={styles.tools}>
       {status !== null && <span role="status">{status}</span>}
-      <Button onClick={() => void copyConversation()} size={26} variant="ghost">
+      <Button onClick={() => void copyConversation()} size={28} variant="ghost">
         {es.chatActions.copyConversation}
       </Button>
     </div>

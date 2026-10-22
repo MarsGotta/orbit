@@ -2,7 +2,7 @@ import type { AppView as AppSnapshot } from "../state/app-view";
 import { useState } from "react";
 import type { AppCommand } from "../bridge/generated";
 import { currentHubConnection } from "../bridge/hub-state";
-import { Pill } from "../design/Pill";
+import { StatusPill } from "../design/StatusPill";
 import { MeetingEntryPoints } from "../features/meetings/MeetingEntryPoints";
 import { MeetingPill } from "../features/meetings/MeetingPill";
 import type { ViewId } from "../state/ui";
@@ -40,7 +40,7 @@ function ProblemPill({
   if (!problem) return null;
   const { action } = problem;
   return (
-    <Pill status={problem.tone}>
+    <StatusPill kind={problem.tone}>
       {problem.text}
       {action && (
         <button
@@ -51,7 +51,7 @@ function ProblemPill({
           {action.label}
         </button>
       )}
-    </Pill>
+    </StatusPill>
   );
 }
 

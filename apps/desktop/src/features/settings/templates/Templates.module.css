@@ -5,20 +5,20 @@
 
 .title {
   margin: 0 0 4px;
-  color: var(--o-fg);
+  color: var(--o-ink);
   font-size: 15px;
   font-weight: 600;
 }
 
 .hint {
   margin: 0;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: 12px;
 }
 
 .alert {
   margin: 0;
-  color: var(--o-orange);
+  color: var(--o-warn);
   font-size: 12px;
 }
 
@@ -46,7 +46,7 @@
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--o-fg);
+  color: var(--o-ink);
   text-align: left;
   cursor: pointer;
 }
@@ -56,11 +56,11 @@
 }
 
 .row[aria-current="true"] {
-  background: var(--o-accent-soft);
+  background: var(--o-accSoft);
 }
 
 .row small {
-  color: var(--o-subtle);
+  color: var(--o-ink3);
 }
 
 .editor {
@@ -71,7 +71,7 @@
 .field {
   display: grid;
   gap: 4px;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: 12px;
 }
 
@@ -79,8 +79,8 @@
 .field textarea,
 .sectionFields input,
 .sectionFields textarea {
-  background: var(--o-s2);
-  color: var(--o-fg);
+  background: var(--o-surface);
+  color: var(--o-ink);
   border: 1px solid var(--o-line);
   border-radius: 6px;
   padding: 6px 8px;
@@ -104,12 +104,12 @@
   padding: 6px;
   border: 1px solid var(--o-line);
   border-radius: 8px;
-  background: var(--o-s1);
+  background: var(--o-side);
 }
 
 .handle {
   cursor: grab;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   padding-top: 6px;
   user-select: none;
 }

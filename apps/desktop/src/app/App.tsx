@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppCommand } from "../bridge/generated";
 import type { DaemonPort } from "../bridge/port";
 import { CommandPalette, type CommandItem } from "../design/CommandPalette";
+import { toggleTheme } from "../design/theme";
 import { es } from "../i18n/es";
 import { AssistantCopy } from "../i18n/AssistantCopy";
 import { conversationAgentName } from "../features/assistant/agents";
@@ -45,8 +46,6 @@ export interface AppContentProps {
   readSessionsPage?: DaemonPort["readSessionsPage"];
   readSessionMessages?: DaemonPort["readSessionMessages"];
   agent?: DaemonPort["agent"];
-  theme: string;
-  toggleTheme: () => void;
   view: ViewId;
 }
 
@@ -77,13 +76,13 @@ function AppContent(props: AppContentProps) {
   const recordingDispatch = useCommandDispatch(props.sendRecording);
   const displayView = window.location.hash.startsWith("#/notes/") ? "notes" : props.view;
   return (
-    <div className={`${styles.app} ${props.theme === "light" ? "o-light" : ""}`}>
+    <div className={styles.app}>
       <AppTopBar
         dispatch={recordingDispatch}
         onOpenPalette={() => props.setPaletteOpen(true)}
         onRecord={() => props.setMeetingOpen(true)}
         navigate={props.navigate}
-        onToggleTheme={props.toggleTheme}
+        onToggleTheme={toggleTheme}
         snapshot={props.snapshot}
         view={displayView}
       />
@@ -135,7 +134,7 @@ export function App({ port }: { port: DaemonPort }) {
   const { readSessionsPage, readSessionMessages } = useMemo(() => reportingReads(port), [port]);
   const agent = useMemo(() => reportingAgent(port), [port]);
   const { store, snapshot, error, send, messages, dismiss, crash } = useAppStore(port);
-  const { theme, view, navigate, toggleTheme } = useUiStore();
+  const { view, navigate } = useUiStore();
   const { errorView, visibleError, onboardingError, recordingError } = useErrorSelection(
     store,
     view,
@@ -181,8 +180,6 @@ export function App({ port }: { port: DaemonPort }) {
         readSessionsPage={readSessionsPage}
         readSessionMessages={readSessionMessages}
         agent={agent}
-        theme={theme}
-        toggleTheme={toggleTheme}
         view={view}
       />
     </AssistantCopy>

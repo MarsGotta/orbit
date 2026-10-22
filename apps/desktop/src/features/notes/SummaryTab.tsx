@@ -63,7 +63,7 @@ function Notices({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
             onClick={() =>
               send({ command: "note_restore_superseded", recording_id: note.recording_id })
             }
-            size={26}
+            size={28}
             variant="ghost"
           >
             {es.noteScreen.restoreSuperseded}
@@ -118,7 +118,7 @@ export function SummaryTab({ note, send }: { note: OpenNoteSnapshot; send: Send 
       <div className={styles.toolbar}>
         <Button
           onClick={() => void navigator.clipboard?.writeText(summaryMarkdown(note))}
-          size={26}
+          size={28}
           variant="ghost"
         >
           {es.noteScreen.copySummary}

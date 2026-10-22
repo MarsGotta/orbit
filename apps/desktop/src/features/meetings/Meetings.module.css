@@ -7,15 +7,15 @@
   padding: 0 9px;
   border: 1px solid transparent;
   border-radius: var(--o-radius-pill);
-  background: var(--o-orange-soft);
-  color: var(--o-orange);
+  background: var(--o-warnSoft);
+  color: var(--o-warn);
   font-size: var(--o-font-12);
   font-weight: 600;
   white-space: nowrap;
 }
 
 .warning {
-  border-color: color-mix(in srgb, var(--o-orange) 35%, transparent);
+  border-color: color-mix(in srgb, var(--o-warn) 35%, transparent);
 }
 
 .dot {
@@ -79,17 +79,17 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background: var(--o-overlay);
+  background: var(--o-scrim);
   backdrop-filter: blur(10px);
 }
 
 .dialog {
   width: min(420px, 100%);
   padding: 20px;
-  border: 1px solid var(--o-line-strong);
+  border: 1px solid var(--o-line2);
   border-radius: var(--o-radius-20);
-  background: var(--o-s2);
-  box-shadow: 0 24px 64px var(--o-shadow-strong);
+  background: var(--o-surface);
+  box-shadow: var(--o-shadow);
 }
 
 .dialogHeader,
@@ -105,7 +105,7 @@
 
 .dialogHeader h2 {
   margin: 0;
-  font-family: var(--o-font-display);
+  font-family: var(--o-font-sans);
   font-size: var(--o-font-19);
   font-weight: 600;
 }
@@ -118,7 +118,7 @@
   display: grid;
   gap: 6px;
   margin-top: 14px;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12);
   font-weight: 600;
 }
@@ -128,16 +128,16 @@
   width: 100%;
   min-height: 38px;
   padding: 0 11px;
-  border: 1px solid var(--o-line-strong);
+  border: 1px solid var(--o-line2);
   border-radius: var(--o-radius-10);
-  background: var(--o-s1);
-  color: var(--o-fg);
+  background: var(--o-side);
+  color: var(--o-ink);
   font: inherit;
 }
 
 .blocked {
   margin: 12px 0 0;
-  color: var(--o-orange);
+  color: var(--o-warn);
   font-size: var(--o-font-12);
 }
 

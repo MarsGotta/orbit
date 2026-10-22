@@ -29,7 +29,7 @@
   border: 0;
   border-radius: var(--o-radius-8);
   background: transparent;
-  color: var(--o-fg);
+  color: var(--o-ink);
   cursor: pointer;
   font: inherit;
   line-height: 36px;
@@ -41,13 +41,13 @@
 }
 
 .date strong {
-  font-family: var(--o-font-display);
+  font-family: var(--o-font-sans);
   font-size: var(--o-font-16);
   font-weight: 600;
 }
 
 .date span {
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12);
 }
 
@@ -55,7 +55,7 @@
   align-self: center;
   padding: 3px 8px;
   border-radius: var(--o-radius-pill);
-  background: var(--o-accent);
+  background: var(--o-acc);
   color: var(--o-white);
   font-size: var(--o-font-10);
   font-weight: 700;
@@ -71,7 +71,7 @@
 
 .free {
   margin: 0;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-size: var(--o-font-12-5);
   line-height: 36px;
 }
@@ -86,7 +86,7 @@
   border: 0;
   border-radius: var(--o-radius-8);
   background: transparent;
-  color: var(--o-fg);
+  color: var(--o-ink);
   cursor: pointer;
   font: inherit;
   text-align: left;
@@ -97,7 +97,7 @@
 }
 
 .over {
-  color: var(--o-muted);
+  color: var(--o-ink2);
 }
 
 .stripe {
@@ -111,7 +111,7 @@
 .hours {
   width: 112px;
   flex: none;
-  color: var(--o-muted);
+  color: var(--o-ink2);
   font-family: var(--o-font-mono);
   font-size: var(--o-font-11);
   white-space: nowrap;
@@ -132,6 +132,6 @@
   flex: none;
   align-items: center;
   gap: 4px;
-  color: var(--o-subtle);
+  color: var(--o-ink3);
   font-size: var(--o-font-11);
 }
