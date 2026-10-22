@@ -45,6 +45,8 @@ export interface OrbitState {
   /** A view that failed to paint or an uncaught error; returns its words. */
   crash: (code: CrashCode) => string;
   dismiss: (op: string) => void;
+  /** «Reintentar»: sends a failure's order again from where it was sent, in its place. */
+  retry: (op: string) => Promise<void>;
 }
 
 export interface StoreOptions {
@@ -166,6 +168,7 @@ export function createOrbitStore(port: DaemonPort, options: StoreOptions = { not
       followFirstStates();
     };
     const bootstrap = bootstrapper(revisions, get, set);
+    const send = sender(port, get, set, waits);
     return {
       snapshot: null,
       features: {},
@@ -184,7 +187,7 @@ export function createOrbitStore(port: DaemonPort, options: StoreOptions = { not
           },
           (message) => set({ error: message }),
         ),
-      send: sender(port, get, set, waits),
+      send,
       track: waits.track,
       crash: (code) => {
         const op = newOp();
@@ -193,6 +196,13 @@ export function createOrbitStore(port: DaemonPort, options: StoreOptions = { not
         return messages.find((message) => message.op === op)?.text ?? "";
       },
       dismiss: (op) => set({ messages: get().messages.filter((message) => message.op !== op) }),
+      retry: async (op) => {
+        const failed = get().messages.find((message) => message.op === op);
+        const command = failed?.failure?.retry;
+        if (!failed || !command) return;
+        set({ messages: get().messages.filter((message) => message.op !== op) });
+        await send(command, failed.place === "boundary" ? undefined : failed.place);
+      },
     };
   });
 }

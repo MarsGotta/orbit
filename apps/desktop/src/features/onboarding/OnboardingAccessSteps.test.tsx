@@ -6,14 +6,14 @@ import { PermissionsStep } from "./OnboardingAccessSteps";
 
 afterEach(cleanup);
 
-// An unknown permission says nothing (it is not a refusal); denied
-// and not granted read the same to the person, «Sin permiso». The actions
-// stay distinct: nothing is invented for an unknown.
-it("unknown says nothing, denied and not granted read «Sin permiso», without invented actions", () => {
+// A permission macOS has not reported yet is awaited, never read as a
+// refusal (nothing blank: it says it waits for macOS); denied and not granted
+// read the same to the person, «Sin permiso». The actions stay distinct:
+// nothing is invented for an unknown.
+it("unknown waits for macOS, denied and not granted read «Sin permiso», without invented actions", () => {
   const send = vi.fn(async () => undefined);
   render(
     <PermissionsStep
-      onContinue={() => undefined}
       permissions={{
         microphone: "unknown",
         screen: "denied",
@@ -23,16 +23,17 @@ it("unknown says nothing, denied and not granted read «Sin permiso», without i
       send={send}
     />,
   );
-  const microphoneRow = screen.getByText(macPermissions.microphone.label).closest("li");
-  expect(microphoneRow?.textContent).toBe(macPermissions.microphone.label);
+  const row = (label: string) => screen.getByText(label).closest("li") as HTMLElement;
+  const microphone = row(macPermissions.microphone.label);
+  expect(within(microphone).getByText(es.controls.waitingForMacos)).toBeTruthy();
+  expect(within(microphone).queryByRole("button")).toBeNull();
+  expect(within(microphone).queryByText(es.permissions.notGranted)).toBeNull();
   expect(screen.getAllByText(es.permissions.notGranted)).toHaveLength(2);
   expect(screen.queryByText(/Desconocido|Denegado|No concedido/)).toBeNull();
-  const microphone = screen.getByText(macPermissions.microphone.label).closest("li");
-  expect(within(microphone as HTMLElement).queryByRole("button")).toBeNull();
-  const accessibility = screen.getByText(es.onboarding.accessibility).closest("li");
+  expect(within(row(macPermissions.calendar.label)).getByText("✓ Permitido")).toBeTruthy();
   fireEvent.click(
-    within(accessibility as HTMLElement).getByRole("button", {
-      name: es.settings.openSystemSettings,
+    within(row(es.onboarding.accessibility)).getByRole("button", {
+      name: es.onboarding.openSettings,
     }),
   );
   expect(send).toHaveBeenCalledWith({ command: "open_system_privacy", pane: "Accessibility" });

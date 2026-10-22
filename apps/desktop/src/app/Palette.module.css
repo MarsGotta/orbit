@@ -1,0 +1,189 @@
+/* «Buscar y órdenes» (prototype Paleta.dc.html): 600 wide, 120 from the top. */
+.backdrop {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  padding: 120px var(--o-space-16) var(--o-space-24);
+  background: var(--o-scrim);
+}
+
+.palette {
+  width: min(600px, 100%);
+  height: fit-content;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-2xl);
+  background: var(--o-surface);
+  box-shadow: var(--o-shadow);
+  color: var(--o-ink);
+  font: var(--o-text-body);
+  animation: orbit-in var(--o-dur-in) var(--o-ease);
+}
+
+.search {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--o-space-10);
+  height: 54px;
+  padding: 0 var(--o-space-14) 0 var(--o-space-16);
+  border-bottom: 1px solid var(--o-line);
+  color: var(--o-ink3);
+}
+
+.input {
+  min-width: 0;
+  height: 100%;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--o-ink);
+  font: 400 15px/1.4 var(--o-font-sans);
+  outline: none;
+}
+
+.input:focus-visible {
+  /* The dialog is the focus: its field shows no ring of its own. */
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--o-ink3);
+}
+
+.escape {
+  flex: none;
+  padding: 3px 7px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-sm);
+  background: transparent;
+  color: var(--o-ink3);
+  font: var(--o-text-tiny);
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.escape:hover {
+  background: var(--o-hover);
+}
+
+.scroll {
+  min-height: 0;
+  max-height: 500px;
+  overflow-y: auto;
+  padding: var(--o-space-6);
+}
+
+.group {
+  padding: var(--o-space-10) var(--o-space-10) var(--o-space-4);
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  font-weight: 500;
+}
+
+.option {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-12);
+  padding: var(--o-space-6) var(--o-space-10);
+  border: 0;
+  border-radius: var(--o-radius-md);
+  background: transparent;
+  color: var(--o-ink);
+  font: var(--o-text-body);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--o-dur-fast);
+}
+
+/* One row selected at a time, by the keyboard or the pointer. */
+.option[aria-selected="true"] {
+  background: var(--o-raised);
+}
+
+.icon {
+  width: 18px;
+  display: flex;
+  flex: none;
+  justify-content: center;
+  color: var(--o-ink2);
+}
+
+.askIcon {
+  color: var(--o-accText);
+}
+
+.recordDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--o-rec);
+}
+
+.text {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: var(--o-space-8);
+}
+
+.title {
+  flex: none;
+  font-weight: 500;
+}
+
+.subtitle {
+  overflow: hidden;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.askText {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quoted {
+  color: var(--o-ink2);
+}
+
+.shortcut {
+  flex: none;
+  color: var(--o-ink3);
+  font: var(--o-text-tiny);
+  font-weight: 400;
+}
+
+.noMatch {
+  margin: 0;
+  padding: var(--o-space-12) var(--o-space-10);
+  color: var(--o-ink2);
+  font: var(--o-text-control);
+  font-weight: 400;
+}
+
+.footer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--o-space-14);
+  height: 38px;
+  padding: 0 var(--o-space-16);
+  border-top: 1px solid var(--o-line);
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}

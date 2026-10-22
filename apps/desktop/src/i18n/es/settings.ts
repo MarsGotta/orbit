@@ -119,30 +119,6 @@ const base = {
     failed: "Falló",
     unknown: "Resultado incierto",
   },
-  onboarding: {
-    welcome: "Te damos la bienvenida a Orbit",
-    welcomeBody:
-      "En un par de minutos lo dejas listo: conectas este Mac con tu hub y eliges qué puede usar Orbit.",
-    continue: "Continuar",
-    pair: "Emparejar",
-    pairTitle: "Conecta este Mac con tu hub",
-    pairBody:
-      "El hub es donde se guardan tus reuniones y notas. Quien lo gestiona te da la dirección y un código.",
-    pairing: "Emparejando…",
-    paired: "Este Mac ya está emparejado.",
-    hubUrl: "Dirección del hub",
-    code: "Código de emparejamiento",
-    deviceName: "Nombre de este Mac",
-    permissions: "Elige qué puede usar Orbit",
-    permissionsBody: "Puedes concederlos ahora o volver más tarde desde Ajustes.",
-    accessibility: macPermissions.accessibility.label,
-    ready: "Todo listo",
-    readyBody: "Orbit queda preparado. Puedes cambiar cualquier opción desde Ajustes.",
-    // The welcome skips the whole first run; a later step, only itself.
-    skipAll: "Configurarlo más tarde",
-    skipStep: "Hacerlo después",
-    start: "Empezar a usar Orbit",
-  },
   ...settingsLists,
 } as const;
 

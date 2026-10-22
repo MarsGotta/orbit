@@ -44,9 +44,9 @@ describe("a turn the hub refused for its attachments", () => {
     );
   });
 
-  it("keeps the generic failure for every other cause", () => {
-    expect(shown({ code: "provider_timeout" })).toBe(genericFailure(OP));
-    expect(shown(undefined)).toBe(genericFailure(OP));
+  it("keeps the generic failure, naming the unfinished answer, for every other cause", () => {
+    expect(shown({ code: "provider_timeout" })).toBe(genericFailure(OP, "terminar la respuesta"));
+    expect(shown(undefined)).toBe(genericFailure(OP, "terminar la respuesta"));
   });
 });
 

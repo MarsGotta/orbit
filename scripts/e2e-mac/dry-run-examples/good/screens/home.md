@@ -1,7 +1,8 @@
 - AXWindow "Orbit"
   - AXWebArea
+    - [1] AXButton "Configurarlo más tarde" [actions=[press]]
+    - AXStaticText = "Paso 1 de 4"
     - AXHeading
       - AXStaticText = "Te damos la bienvenida a Orbit"
     - AXStaticText = "En un par de minutos lo dejas listo: conectas este Mac con tu hub y eliges qué puede usar Orbit."
-    - [1] AXButton "Configurarlo más tarde" [actions=[press]]
-    - [2] AXButton "Continuar" [actions=[press]]
+    - [2] AXButton "Empezar" [actions=[press]]

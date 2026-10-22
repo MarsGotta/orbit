@@ -1,27 +1,39 @@
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import type { AppCommand } from "../bridge/generated";
 import type { ErrorOrigin } from "../state/orbit-store";
+import type { AppView } from "../state/app-view";
 import type { ViewId } from "../state/ui";
+import { conversationAgentName } from "../features/assistant/agents";
 import { spanish } from "../i18n/es";
-import { paletteCommands } from "./palette";
+import { askAssistant, paletteCommands, type PaletteActions } from "./palette-commands";
+import type { PaletteProps } from "./Palette";
+
+/** What the window's palette offers, and where asking the agent goes. */
+export type PaletteContent = Pick<PaletteProps, "commands" | "onAsk">;
 
 export function usePaletteCommands(
   navigate: (view: ViewId) => void,
-  send: (command: AppCommand) => Promise<unknown>,
-  sendWithOrigin: (command: AppCommand, origin?: ErrorOrigin) => Promise<unknown>,
+  /**
+   * The store's send. The palette floats over the window, not inside a view:
+   * an order without its own view says its refusal in the corner notice.
+   */
+  send: (command: AppCommand, origin?: ErrorOrigin) => Promise<unknown>,
   setMeetingOpen: Dispatch<SetStateAction<boolean>>,
-  assistantName?: string,
-) {
+  snapshot: AppView | null,
+): PaletteContent {
+  const assistantName = snapshot ? conversationAgentName(snapshot) : undefined;
+  const nextMeeting = snapshot?.briefing?.next?.title ?? null;
   const copy = useMemo(() => spanish(assistantName), [assistantName]);
-  return useMemo(
-    () =>
-      paletteCommands(
-        navigate,
-        (command, origin) =>
-          void (origin === undefined ? send(command) : sendWithOrigin(command, origin)),
-        () => setMeetingOpen(true),
-        copy,
-      ),
-    [navigate, send, sendWithOrigin, setMeetingOpen, copy],
-  );
+  return useMemo(() => {
+    const actions: PaletteActions = {
+      navigate,
+      send: (command, origin) => void send(command, origin),
+      openMeeting: () => setMeetingOpen(true),
+      nextMeeting,
+    };
+    return {
+      commands: paletteCommands(actions, copy),
+      onAsk: (text: string) => askAssistant(actions, text),
+    };
+  }, [navigate, send, setMeetingOpen, nextMeeting, copy]);
 }

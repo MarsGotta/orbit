@@ -4,16 +4,6 @@ import { notices, privacyStopped } from "./edit";
 
 export const shellScenarios: Scenario[] = [
   {
-    id: "paleta",
-    view: "Paleta de órdenes",
-    state: "Abierta",
-    description:
-      "«Buscar o preguntar a Deimos» (⌘⇧␣): llamar, mandar una nota de voz, preparar la siguiente reunión o grabar.",
-    route: "#/briefing",
-    ready: "text=Agenda de hoy",
-    steps: [{ click: "role=button[name=/Buscar o preguntar a/]" }, { wait: "role=dialog" }],
-  },
-  {
     id: "privacidad-detenida",
     view: "Privacidad",
     state: "Todo parado",

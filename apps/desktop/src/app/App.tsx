@@ -2,7 +2,6 @@ import type { AppView as AppSnapshot } from "../state/app-view";
 import { useEffect, useMemo, useState } from "react";
 import type { AppCommand } from "../bridge/generated";
 import type { DaemonPort } from "../bridge/port";
-import { CommandPalette, type CommandItem } from "../design/CommandPalette";
 import { AssistantCopy } from "../i18n/AssistantCopy";
 import { conversationAgentName } from "../features/assistant/agents";
 import { AssistantSessions } from "../features/assistant/AssistantSessions";
@@ -16,18 +15,22 @@ import type { Message } from "./interceptor";
 import { reportingAgent, reportingReads } from "./report-failure";
 import type { OnboardingRequest } from "./Onboarding";
 import { Overlays, useCommandDispatch } from "./AppOverlays";
+import { Palette } from "./Palette";
 import { ShellSlots, useShellSlots } from "./shell-slots";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import styles from "./Shell.module.css";
-import { usePaletteCommands } from "./use-palette-commands";
+import { usePaletteCommands, type PaletteContent } from "./use-palette-commands";
+import { FailureActionsProvider } from "./FailureActions";
 import { useScopedSend } from "./use-scoped-send";
 import { OrbitStoreProvider } from "../state/use-in-flight";
 
 export interface AppContentProps {
-  commands: CommandItem[];
+  palette: PaletteContent;
   crash: () => string;
   dismiss: (op: string) => void;
+  /** «Reintentar» on a failure: its order again, from where it was sent. */
+  retry: (op: string) => void;
   error: string | null;
   messages: Message[];
   recordingError: string | null;
@@ -76,18 +79,20 @@ function AppContent(props: AppContentProps) {
             send={props.send}
             snapshot={props.snapshot}
           />
-          <Main
-            agent={props.agent}
-            crash={props.crash}
-            error={props.error}
-            onRecord={onRecord}
-            onReopenOnboarding={(mode) => setRequested(mode ?? "full")}
-            readSessionMessages={props.readSessionMessages}
-            send={props.send}
-            settingsSection={props.settingsSection}
-            snapshot={props.snapshot}
-            view={props.view}
-          />
+          <FailureActionsProvider messages={props.messages} onRetry={props.retry}>
+            <Main
+              agent={props.agent}
+              crash={props.crash}
+              error={props.error}
+              onRecord={onRecord}
+              onReopenOnboarding={(mode) => setRequested(mode ?? "full")}
+              readSessionMessages={props.readSessionMessages}
+              send={props.send}
+              settingsSection={props.settingsSection}
+              snapshot={props.snapshot}
+              view={props.view}
+            />
+          </FailureActionsProvider>
         </div>
         {props.view === "assistant" && (
           <AssistantSessions
@@ -103,7 +108,7 @@ function AppContent(props: AppContentProps) {
 }
 
 export function App({ port }: { port: DaemonPort }) {
-  const { store, snapshot, error, send, messages, dismiss, crash } = useAppStore(port);
+  const { store, snapshot, error, send, messages, dismiss, retry, crash } = useAppStore(port);
   // What a read could not read is reported; the screen only says so. Each
   // read is followed by the registry of what is in flight.
   const { readSessionsPage, readSessionMessages } = useMemo(
@@ -119,8 +124,7 @@ export function App({ port }: { port: DaemonPort }) {
   const { fromView, fromOnboarding, fromRecording } = useScopedSend(send, errorView);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [meetingOpen, setMeetingOpen] = useState(false);
-  const agentName = snapshot ? conversationAgentName(snapshot) : undefined;
-  const commands = usePaletteCommands(navigate, fromView, send, setMeetingOpen, agentName);
+  const palette = usePaletteCommands(navigate, send, setMeetingOpen, snapshot);
   // Closing Orbit is Orbit.app's own order: it works while the daemon does not answer.
   const quit = () => void send({ command: "quit" });
 
@@ -131,7 +135,7 @@ export function App({ port }: { port: DaemonPort }) {
     return (
       <>
         <Starting onClose={quit} />
-        <CommandPalette commands={commands} onOpenChange={setPaletteOpen} open={paletteOpen} />
+        <Palette {...palette} onOpenChange={setPaletteOpen} open={paletteOpen} />
       </>
     );
   if (snapshot.connection.daemon === "lost") return <NotResponding onClose={quit} />;
@@ -140,9 +144,10 @@ export function App({ port }: { port: DaemonPort }) {
       <AssistantCopy name={conversationAgentName(snapshot)}>
         <AppContent
           agent={agent}
-          commands={commands}
+          palette={palette}
           crash={crash}
           dismiss={dismiss}
+          retry={retry}
           error={visibleError ?? error}
           meetingOpen={meetingOpen}
           messages={messages}

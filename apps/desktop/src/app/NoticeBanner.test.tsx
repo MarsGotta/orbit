@@ -18,7 +18,12 @@ it("every notice, work in progress included, can be closed", () => {
   const dismiss = vi.fn();
   for (const kind of ["working", "done", "fixable", "failed"] as const) {
     const view = render(
-      <NoticeBanner messages={[message(kind)]} onAction={vi.fn()} onDismiss={dismiss} />,
+      <NoticeBanner
+        messages={[message(kind)]}
+        onAction={vi.fn()}
+        onDismiss={dismiss}
+        onRetry={vi.fn()}
+      />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Cerrar aviso" }));
     expect(dismiss).toHaveBeenLastCalledWith(kind);

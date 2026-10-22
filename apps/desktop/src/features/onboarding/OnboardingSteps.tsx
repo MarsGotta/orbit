@@ -1,146 +1,133 @@
-import type { FormEvent, ReactNode } from "react";
-import { Button } from "../../design/Button";
-import { TextInput } from "../../design/TextInput";
-import { es } from "../../i18n/es";
+import { useId, type FormEvent, type ReactNode } from "react";
+import { Field } from "../../design/Field";
+import { useSpanish } from "../../i18n/AssistantCopy";
 import styles from "./OnboardingView.module.css";
 
+/** One step: a region named by its title, with the one line under it. */
 export function Step({
   children,
-  region,
+  lead,
   title,
 }: {
-  children: ReactNode;
-  region?: boolean;
+  children?: ReactNode;
+  lead: string;
   title: string;
 }) {
+  const heading = useId();
   return (
-    <section aria-label={region === true ? title : undefined} className={styles.step}>
-      <h1>{title}</h1>
+    <section aria-labelledby={heading} className={styles.step}>
+      <h1 className={styles.title} id={heading}>
+        {title}
+      </h1>
+      <p className={styles.lead}>{lead}</p>
       {children}
     </section>
   );
 }
 
-export function Actions({
-  onContinue,
-  onSkip,
-  skipLabel = es.onboarding.skipStep,
-}: {
-  onContinue: () => void;
-  onSkip: () => void;
-  /** What the skip leaves: this step (the default), or the whole first run. */
-  skipLabel?: string;
-}) {
+export function WelcomeStep() {
+  const es = useSpanish();
+  const copy = es.onboarding;
   return (
-    <div className={styles.actions}>
-      <Button onClick={onSkip} variant="ghost">
-        {skipLabel}
-      </Button>
-      <Button onClick={onContinue} variant="accent">
-        {es.onboarding.continue}
-      </Button>
-    </div>
-  );
-}
-
-export function WelcomeStep(props: { onContinue: () => void; onSkip: () => void }) {
-  return (
-    <Step title={es.onboarding.welcome}>
-      <p>{es.onboarding.welcomeBody}</p>
-      <Actions {...props} skipLabel={es.onboarding.skipAll} />
+    <Step lead={copy.welcomeBody} title={copy.welcome}>
+      <ul className={styles.points}>
+        {copy.welcomePoints.map((point) => (
+          <li key={point.title}>
+            <strong>{point.title}</strong>
+            <span>{point.body}</span>
+          </li>
+        ))}
+      </ul>
+      <p className={styles.quiet}>{copy.welcomeControl}</p>
     </Step>
   );
 }
 
-interface PairProps {
+/** What the pairing form needs; its result is said below the fields. */
+export interface PairFormProps {
   code: string;
   deviceName: string;
-  error: string | null;
   hubUrl: string;
+  formId: string;
   onCode: (value: string) => void;
   onDeviceName: (value: string) => void;
   onHubUrl: (value: string) => void;
   onPair: () => void;
-  onSkip: () => void;
-  pending: boolean;
+  /** The failure's words, or the hub this Mac is paired with. */
+  failure: string | null;
+  pairedWith: string | null;
 }
 
-export function PairStep(props: PairProps) {
+export function PairStep(props: PairFormProps) {
+  const es = useSpanish();
+  const copy = es.onboarding;
   const submit = (event: FormEvent) => {
     event.preventDefault();
     props.onPair();
   };
   return (
-    <form onSubmit={submit}>
-      <Step title={es.onboarding.pairTitle}>
-        <p>{es.onboarding.pairBody}</p>
-        {Boolean(props.error) && (
-          <p className={styles.pairError} role="alert">
-            {props.error}
-          </p>
-        )}
-        <Field label={es.onboarding.hubUrl} onChange={props.onHubUrl} value={props.hubUrl} />
-        <Field label={es.onboarding.code} onChange={props.onCode} value={props.code} />
+    <Step lead={copy.pairBody} title={copy.pairTitle}>
+      <form className={styles.form} id={props.formId} onSubmit={submit}>
         <Field
-          label={es.onboarding.deviceName}
-          onChange={props.onDeviceName}
+          autoComplete="url"
+          label={copy.hubUrl}
+          onChange={(event) => props.onHubUrl(event.currentTarget.value)}
+          placeholder={copy.hubUrlPlaceholder}
+          size={40}
+          type="url"
+          value={props.hubUrl}
+        />
+        <Field
+          autoComplete="one-time-code"
+          className={styles.code}
+          help={copy.codeHelp}
+          inputMode="numeric"
+          label={copy.code}
+          maxLength={6}
+          // Only the six digits: a pasted «482 913» or «482-913» keeps them.
+          onChange={(event) =>
+            props.onCode(event.currentTarget.value.replace(/\D/g, "").slice(0, 6))
+          }
+          placeholder="000000"
+          value={props.code}
+        />
+        <Field
+          label={copy.deviceName}
+          onChange={(event) => props.onDeviceName(event.currentTarget.value)}
+          size={40}
           value={props.deviceName}
         />
-        <div className={styles.actions}>
-          <Button onClick={props.onSkip} type="button" variant="ghost">
-            {es.onboarding.skipStep}
-          </Button>
-          <Button disabled={props.pending} type="submit" variant="accent">
-            {props.pending ? es.onboarding.pairing : es.onboarding.pair}
-          </Button>
-        </div>
-      </Step>
-    </form>
-  );
-}
-
-export function SavedPairStep({ onContinue }: { onContinue: () => void }) {
-  return (
-    <Step title={es.onboarding.pairTitle}>
-      <p>{es.onboarding.paired}</p>
-      <div className={styles.actions}>
-        <Button onClick={onContinue} variant="accent">
-          {es.onboarding.continue}
-        </Button>
-      </div>
+      </form>
+      {props.failure !== null && (
+        <p className={`${styles.result} ${styles.failed}`} role="alert">
+          {props.failure}
+        </p>
+      )}
+      {props.pairedWith !== null && (
+        <p className={`${styles.result} ${styles.paired}`} role="status">
+          {copy.paired(props.pairedWith)}
+        </p>
+      )}
     </Step>
   );
 }
 
-function Field({
-  label,
-  onChange,
-  value,
-}: {
-  label: string;
-  onChange: (value: string) => void;
-  value: string;
-}) {
+export function ReadyStep() {
+  const es = useSpanish();
+  const copy = es.onboarding;
   return (
-    <label>
-      <span>{label}</span>
-      <TextInput
-        aria-label={label}
-        onChange={(event) => onChange(event.target.value)}
-        value={value}
-        variant="dotted"
-      />
-    </label>
-  );
-}
-
-export function ReadyStep({ onComplete }: { onComplete: () => void }) {
-  return (
-    <Step title={es.onboarding.ready}>
-      <p>{es.onboarding.readyBody}</p>
-      <Button onClick={onComplete} variant="accent">
-        {es.onboarding.start}
-      </Button>
+    <Step lead={copy.readyBody} title={copy.ready}>
+      <ul className={styles.rows}>
+        {copy.shortcuts.map((shortcut) => (
+          <li className={styles.shortcutRow} key={shortcut.keys}>
+            <kbd className={styles.keys}>{shortcut.keys}</kbd>
+            <span className={styles.rowText}>
+              <strong>{shortcut.title}</strong>
+              <span>{shortcut.body}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
     </Step>
   );
 }

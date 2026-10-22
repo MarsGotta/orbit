@@ -70,6 +70,8 @@ export interface Scenario {
   refuse?: (command: AppCommand) => Refusal | null;
   /** What the daemon publishes after an order, beyond the showcase's own reactions. */
   react?: (views: Views, command: AppCommand) => Partial<Views> | null;
+  /** The orders the daemon never answers, to show them under way. */
+  hold?: (command: AppCommand) => boolean;
   /** The browser storage the app reads at start, beyond onboarding done. */
   storage?: Record<string, string>;
   /** Whether the first-run guide was completed on this Mac (true by default). */

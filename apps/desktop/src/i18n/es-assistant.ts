@@ -17,8 +17,4 @@ export const esAssistant = {
   conversationWith: (name: string) => `Conversación con ${name}`,
   composerPlaceholder: "Escribe o usa el micrófono para dictar…",
   clarifyPlaceholder: "Escribe tu respuesta…",
-  paletteVoice: "Mandar una nota de voz",
-  paletteVoiceSubtitle: "Abre el chat y graba con el botón del micrófono",
-  paletteBriefing: "Preparar la siguiente reunión",
-  paletteBriefingSubtitle: "Abre Hoy, con tu próxima reunión",
 } as const;

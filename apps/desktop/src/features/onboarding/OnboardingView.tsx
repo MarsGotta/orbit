@@ -1,13 +1,13 @@
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import { useEffect, useState } from "react";
+import { useId, useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
-import { Card } from "../../design/Card";
-import { es } from "../../i18n/es";
+import { useSpanish } from "../../i18n/AssistantCopy";
 import { PermissionsStep } from "./OnboardingAccessSteps";
-import { PairStep, ReadyStep, SavedPairStep, WelcomeStep } from "./OnboardingSteps";
-import styles from "./OnboardingView.module.css";
+import { OnboardingFrame, StepAction } from "./OnboardingFrame";
+import { PairStep, ReadyStep, WelcomeStep } from "./OnboardingSteps";
 
 const completionKey = "orbit.onboarding.done.local";
+const STEPS = 4;
 
 export function onboardingWasCompleted(): boolean {
   try {
@@ -34,130 +34,124 @@ interface Props {
   startAtPair?: boolean;
 }
 
-function useContentInert(step: number): void {
-  useEffect(() => {
-    const content = document.querySelector<HTMLElement>("[data-app-content]");
-    if (step > 0) {
-      content?.setAttribute("aria-hidden", "true");
-      content?.setAttribute("inert", "");
-    }
-    return () => {
-      content?.removeAttribute("aria-hidden");
-      content?.removeAttribute("inert");
-    };
-  }, [step]);
+/** The hub's name as the person reads it: «hub.example», without scheme or path. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host || url;
+  } catch {
+    return url.replace(/^[a-z]+:\/\//i, "").replace(/\/.*$/, "");
+  }
 }
 
-interface HubStepProps {
-  code: string;
-  deviceName: string;
-  error: string | null;
-  forcePair: boolean;
-  hub: AppSnapshot["settings"]["hub"];
-  hubUrl: string;
-  next: () => void;
-  send: Props["send"];
-  setCode: (value: string) => void;
-  setDeviceName: (value: string) => void;
-  setHubUrl: (value: string) => void;
-}
+type Pairing = "idle" | "pending" | "accepted" | "refused";
 
 /**
- * Pairing is the one step that can fail on the daemon's side. It waits for the
- * answer, moves on only when the store reports no failure, and hands the cause
- * to the step when it does; advancing regardless left people believing this Mac
- * was paired when it never was.
+ * Pairing is the one step that can fail on the daemon's side. It waits for
+ * the answer: the store's send says whether the order was accepted, and a
+ * refusal's words come back as this first run's failure. Only an accepted
+ * order with no failure says this Mac is paired. Changing a field starts again.
  */
-function HubStep(props: HubStepProps) {
-  const [pending, setPending] = useState(false);
-  const [attempted, setAttempted] = useState(false);
-  const { error, next, send } = props;
-  useEffect(() => {
-    if (!attempted || pending) return;
-    setAttempted(false);
-    if (error === null) next();
-  }, [attempted, error, next, pending]);
-  if (props.hub.paired && !props.forcePair) {
-    return <SavedPairStep onContinue={props.next} />;
-  }
-  return (
-    <PairStep
-      code={props.code}
-      deviceName={props.deviceName}
-      error={attempted || pending ? null : error}
-      hubUrl={props.hubUrl}
-      onCode={props.setCode}
-      onDeviceName={props.setDeviceName}
-      onHubUrl={props.setHubUrl}
-      onPair={() => {
-        setPending(true);
-        setAttempted(true);
-        void send({
-          command: "pair",
-          hub_url: props.hubUrl,
-          code: props.code,
-          device_name: props.deviceName,
-        }).finally(() => setPending(false));
-      }}
-      onSkip={props.next}
-      pending={pending}
-    />
-  );
+export type PairingState = ReturnType<typeof usePairing>;
+
+function usePairing(props: Props, hubUrl: string) {
+  const [pairing, setPairing] = useState<Pairing>("idle");
+  const es = useSpanish();
+  const { hub } = props.snapshot.settings;
+  const failed = pairing === "refused" || (pairing === "accepted" && props.error !== null);
+  const alreadyPaired = hub.paired && props.forcePair !== true && pairing === "idle";
+  const paired = (pairing === "accepted" && props.error === null) || alreadyPaired;
+  return {
+    pending: pairing === "pending",
+    failure: failed ? (props.error ?? `${es.failure.title(es.failure.commands.pair)}.`) : null,
+    pairedWith: paired ? hostOf(alreadyPaired ? (hub.url ?? hubUrl) : hubUrl) : null,
+    reset: () => setPairing("idle"),
+    pair: (command: AppCommand) => {
+      if (pairing === "pending") return;
+      setPairing("pending");
+      void props.send(command).then(
+        (accepted) => setPairing(accepted === false ? "refused" : "accepted"),
+        () => setPairing("refused"),
+      );
+    },
+  };
 }
 
-export function OnboardingView({
-  error,
-  forcePair = false,
-  onComplete,
-  send,
-  snapshot,
-  startAtPair = false,
-}: Props) {
-  const [step, setStep] = useState(() => (startAtPair ? 1 : 0));
-  const [hubUrl, setHubUrl] = useState(
-    snapshot.settings.hub.url ?? import.meta.env.VITE_ORBIT_HUB_URL ?? "",
-  );
+/** The pairing fields; changing one starts the pairing again. */
+function usePairForm(props: Props, appName: string) {
+  const { hub } = props.snapshot.settings;
+  const [hubUrl, setHubUrl] = useState(hub.url ?? import.meta.env.VITE_ORBIT_HUB_URL ?? "");
   const [code, setCode] = useState("");
-  const [deviceName, setDeviceName] = useState(snapshot.settings.hub.device_name ?? es.appName);
+  const [deviceName, setDeviceName] = useState(hub.device_name ?? appName);
+  const pairing = usePairing(props, hubUrl);
+  const edited =
+    <T,>(set: (value: T) => void) =>
+    (value: T) => {
+      set(value);
+      pairing.reset();
+    };
+  return {
+    pairing,
+    fields: {
+      code,
+      deviceName,
+      hubUrl,
+      onCode: edited(setCode),
+      onDeviceName: edited(setDeviceName),
+      onHubUrl: edited(setHubUrl),
+      onPair: () =>
+        pairing.pair({ command: "pair", hub_url: hubUrl, code, device_name: deviceName }),
+    },
+  };
+}
+
+export function OnboardingView(props: Props) {
+  const { onComplete, send, snapshot } = props;
+  const es = useSpanish();
+  const [step, setStep] = useState(() => (props.startAtPair === true ? 2 : 1));
+  const { pairing, fields } = usePairForm(props, es.appName);
+  const formId = useId();
   // There is no calendar step. Calendarios is one of the macOS
-  // permissions in the step before, and granting it is the whole decision.
-  // Nor a «Deimos» step. What Deimos may see and do is those same
-  // macOS permissions; the first run is pairing and granting them.
-  const next = () => setStep((current) => Math.min(current + 1, 3));
-  useContentInert(step);
+  // permissions, and granting it is the whole decision. Nor a «Deimos» step:
+  // what Deimos may see and do is those same macOS permissions.
   const complete = () => {
     rememberCompletion();
-    send({ command: "onboarding_done" });
+    void send({ command: "onboarding_done" });
     onComplete();
   };
-
-  const steps = [
-    <WelcomeStep key="welcome" onContinue={next} onSkip={complete} />,
-    <HubStep
-      code={code}
-      deviceName={deviceName}
-      error={error}
-      forcePair={forcePair}
-      hub={snapshot.settings.hub}
-      hubUrl={hubUrl}
+  const body = [
+    <WelcomeStep key="welcome" />,
+    <PairStep
+      {...fields}
+      failure={pairing.failure}
+      formId={formId}
       key="pair"
-      next={next}
-      send={send}
-      setCode={setCode}
-      setDeviceName={setDeviceName}
-      setHubUrl={setHubUrl}
+      pairedWith={pairing.pairedWith}
     />,
     <PermissionsStep
+      error={props.error}
       key="permissions"
-      onContinue={next}
       permissions={snapshot.settings.permissions}
       send={send}
     />,
-    <ReadyStep key="ready" onComplete={complete} />,
-  ];
+    <ReadyStep key="ready" />,
+  ][step - 1];
   return (
-    <div className={styles.overlay}>
-      <Card>{steps[step]}</Card>
-    </div>
+    <OnboardingFrame
+      action={
+        <StepAction
+          formId={formId}
+          next={() => setStep(Math.min(step + 1, STEPS))}
+          onComplete={complete}
+          pairing={pairing}
+          step={step}
+        />
+      }
+      goTo={setStep}
+      onSkipAll={complete}
+      step={step}
+      steps={STEPS}
+    >
+      {body}
+    </OnboardingFrame>
   );
 }

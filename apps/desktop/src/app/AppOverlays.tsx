@@ -1,10 +1,10 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import type { AppCommand } from "../bridge/generated";
-import { CommandPalette } from "../design/CommandPalette";
 import { MeetingOverlays } from "../features/meetings/MeetingOverlays";
 import type { AppContentProps } from "./App";
 import { AppNotices } from "./AppNotices";
 import { AppOnboarding } from "./AppOnboarding";
+import { Palette } from "./Palette";
 import type { OnboardingRequest } from "./Onboarding";
 import { ViewBoundary } from "./ViewBoundary";
 import { messageFor } from "./visible-error";
@@ -49,11 +49,7 @@ export function Overlays(props: AppContentProps & { onboarding: OnboardingState 
           snapshot={props.snapshot}
         />
       </ViewBoundary>
-      <CommandPalette
-        commands={props.commands}
-        onOpenChange={props.setPaletteOpen}
-        open={props.paletteOpen}
-      />
+      <Palette {...props.palette} onOpenChange={props.setPaletteOpen} open={props.paletteOpen} />
       <ViewBoundary onCrash={props.crash}>
         <AppOnboarding
           done={done}

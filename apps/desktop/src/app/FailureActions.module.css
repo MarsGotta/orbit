@@ -1,0 +1,17 @@
+.actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--o-space-6);
+}
+
+/* Notice actions are 30 px (design guide 1, «Aviso»). */
+.action {
+  height: 30px;
+  font-size: var(--o-font-12);
+}
+
+.code {
+  color: var(--o-ink);
+  font-family: var(--o-font-mono);
+}

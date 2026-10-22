@@ -254,7 +254,12 @@ describe("an unknown availability paints nothing", () => {
 
   it("without notices, the notice strip paints nothing", () => {
     const view = render(
-      <NoticeBanner messages={[]} onAction={() => undefined} onDismiss={() => undefined} />,
+      <NoticeBanner
+        messages={[]}
+        onAction={() => undefined}
+        onDismiss={() => undefined}
+        onRetry={() => undefined}
+      />,
     );
     expect(view.container.textContent).toBe("");
   });

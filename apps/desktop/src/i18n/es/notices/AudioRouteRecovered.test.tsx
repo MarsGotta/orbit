@@ -35,7 +35,14 @@ it.each<[number | undefined, string]>([
 it("the visible notice has no action and expires after five seconds", () => {
   vi.useFakeTimers();
   const dismiss = vi.fn();
-  render(<NoticeBanner messages={recovered(2_000)} onAction={vi.fn()} onDismiss={dismiss} />);
+  render(
+    <NoticeBanner
+      messages={recovered(2_000)}
+      onAction={vi.fn()}
+      onDismiss={dismiss}
+      onRetry={vi.fn()}
+    />,
+  );
   expect(screen.getByRole("status").textContent).toContain("Se perdió el audio 2 s");
   expect(screen.getAllByRole("button")).toHaveLength(1);
   expect(screen.getByRole("button", { name: "Cerrar aviso" })).toBeTruthy();

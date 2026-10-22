@@ -7,6 +7,7 @@ import { grabarScenarios } from "./scenarios/grabar";
 import { hoyScenarios } from "./scenarios/hoy";
 import { notesScenarios } from "./scenarios/notes";
 import { panelScenarios } from "./scenarios/panel";
+import { paletteScenarios } from "./scenarios/palette";
 import { settingsScenarios } from "./scenarios/settings";
 import { shellScenarios } from "./scenarios/shell";
 import { windowScenarios } from "./scenarios/window";
@@ -25,5 +26,6 @@ export const scenarios: Scenario[] = [
   ...panelScenarios,
   ...settingsScenarios,
   ...firstRunScenarios,
+  ...paletteScenarios,
   ...designScenarios,
 ];

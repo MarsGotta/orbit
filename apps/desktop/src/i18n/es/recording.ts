@@ -2,8 +2,6 @@ export const recording = {
   meeting: {
     // Opens «Nueva grabación»; the menu bar alone starts at once.
     recordNow: "Grabar reunión",
-    paletteRecord: "Grabar una reunión",
-    recordNowSubtitle: "Elige qué audio y empieza",
     defaultTitle: "Reunión",
     starting: "Preparando la grabación…",
     recording: "Grabando",

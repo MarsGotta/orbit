@@ -84,7 +84,12 @@ function added(source: AttachmentSource, index: number): AddedAttachment {
   };
 }
 
-function send(daemon: Daemon, scenario: Scenario, command: AppCommand): CommandReceipt {
+function send(
+  daemon: Daemon,
+  scenario: Scenario,
+  command: AppCommand,
+): CommandReceipt | Promise<never> {
+  if (scenario.hold?.(command) === true) return new Promise(() => undefined);
   const refusal = scenario.refuse?.(command) ?? null;
   if (refusal) throw { refusal };
   const next = scenario.react?.(daemon.views, command) ?? reactTo(daemon.views, command);

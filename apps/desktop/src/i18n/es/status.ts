@@ -13,7 +13,6 @@ const base = {
     collapseCall: "Minimizar",
     hangUp: "Colgar",
     endCallFromOrb: "Colgar desde el orbe",
-    callSubtitle: "Habla en voz alta",
   },
   context: {
     now: "ahora",

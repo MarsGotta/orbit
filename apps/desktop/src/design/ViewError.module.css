@@ -1,5 +1,6 @@
 .viewError {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   padding: 8px 16px;
@@ -7,4 +8,9 @@
   background: var(--o-recSoft);
   color: var(--o-recText);
   font-size: var(--o-font-11);
+}
+
+.text {
+  min-width: 0;
+  flex: 1;
 }

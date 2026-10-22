@@ -33,7 +33,7 @@ export interface ToastProps {
   /** The title: what happened. */
   message: string;
   /** One line more: why, or what to do. */
-  detail?: string;
+  detail?: ReactNode;
   /**
    * `done` goes after 5 s (10 s with an action or «Deshacer»); `working`
    * stays until its work ends; `fixable` and `failed` stay until closed.

@@ -20,6 +20,7 @@ export function useAppStore(port: DaemonPort) {
     send: useStore(store, (state) => state.send),
     messages: useStore(store, (state) => state.messages),
     dismiss: useStore(store, (state) => state.dismiss),
+    retry: useStore(store, (state) => state.retry),
     crash: useCallback(() => storeCrash("ui_render_failed"), [storeCrash]),
   };
 }
