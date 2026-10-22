@@ -138,6 +138,7 @@ async fn real_topic_changes_reach_status_recording_control_and_assistant_frames(
         &daemon.client,
         OrbitCommand::SessionOpen {
             id: "session-e2e".into(),
+            agent_id: None,
         },
     )
     .await?;

@@ -4,4 +4,8 @@
  * One conversation as the hub lists it. Its title is its
  * date, which the interface writes from `created_at_ms`.
  */
-export type ChatSessionSummary = { id: string, created_at_ms: number, last_at_ms: number, message_count: number, };
+export type ChatSessionSummary = { id: string, 
+/**
+ * The agent it is with; absent: the hub's default agent.
+ */
+agent_id?: string, created_at_ms: number, last_at_ms: number, message_count: number, };

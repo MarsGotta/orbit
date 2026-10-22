@@ -7,7 +7,7 @@ server-side settings choose the Hermes profile. Never trust a client device ID.
 one-use and short-lived; create/revoke through the hub's local admin CLI.
 
 `GET /v1/sessions?before=&limit=` uses the device bearer token and returns
-`{"sessions":[{"id":string,"created_at_ms":integer,"last_at_ms":integer,
+`{"sessions":[{"id":string,"agent_id"?:string,"created_at_ms":integer,"last_at_ms":integer,
 "message_count":integer}],"total":integer,"next":string|null}`, newest first,
 at most 128 rows per page. `next` is the next page's `before`. `last_at_ms` is
 the last message's creation time, or the session's if empty. The app renders
@@ -16,7 +16,8 @@ the date as the visible title.
 `GET /v1/sessions/{id}/messages?before=&limit=` returns
 `{"messages":[{"id":integer,"role":"user"|"assistant","text":string,
 "at_ms":integer|null,"kind":"text"|"voice","duration_ms"?:integer,
-"client_id"?:string}],"next":integer|null,"total":integer}` in order.
+"client_id"?:string}],"next":integer|null,"total":integer,"agent_id"?:string}` in order.
+`agent_id` is the session's agent; see [Agents](#agents).
 Pages allow 200 messages and 512 KiB of JSON without cutting a message; `next`
 reads older messages. A message unable to fit alone yields
 `413 session_message_too_large` with `bytes`/`max_bytes`; another device's
@@ -72,7 +73,8 @@ Client: `{v:1,id:<uuid>,method:<method>,params:{...}}`.
 Methods: `chat.send` (`text`, `session_id` optional Orbit ID, `call_active`
 optional boolean defaulting to false; also optional are `client_id`, the
 Mac's id for the message, `voice:{duration_ms}` for a voice note, and
-`meeting:{recording_id,minutes,title}` for a question about a meeting: the hub
+`meeting:{recording_id,minutes,title}` for a question about a meeting, and
+`agent_id` for the agent the turn is for (see [Agents](#agents)): the hub
 adds the meeting's last `minutes` of transcript and keeps only the question and
 «[Durante «título» · últimos N min]»; a recording this device does not hold is
 `meeting_not_found`), `chat.interrupt` (`session_id`,`turn_id`), `approval.respond`
@@ -88,7 +90,7 @@ The server rejects a control for another device, session or stale turn. Legacy
 positive approvals may omit it but still require an exact live pending request.
 
 Server: `{v:1,id:<request uuid or null>,event:<event>,data:{...}}`.
-Events: `ready` (`device_id`, `assistant_name`), `chat.session` (`session_id`), `chat.delta`
+Events: `ready` (`device_id`, `assistant_name`, `agents`, `default_agent_id`), `chat.session` (`session_id`), `chat.delta`
 (`session_id`,`text`), `chat.completed` (`session_id`,`text`,`status`,
 `persisted`,`warning`), `approval.required`
 (`session_id`,`request_id`,`description`), `clarify.required`
@@ -746,3 +748,84 @@ The Mac retains the last learned name for offline use; an older hub omitting
 this optional field does not erase it. Before learning any name it uses Deimos.
 Invalid names are refused during hub configuration loading, before any socket
 can advertise them; see the [self-hosting guide](../docs/self-hosting.md).
+
+## Agents
+
+A hub can offer several agents, each an assistant with its own backend (today
+a Hermes profile per agent). The addition is optional on both sides: a 0.9.0
+Mac keeps working against a hub with agents, and a Mac with agents keeps
+working against a 0.9.0 hub.
+
+**`ready`** adds `agents`, the hub's agents in its order, and
+`default_agent_id`. Each agent is `{id, name, kind, capabilities}`: `id` is
+stable, `[a-z0-9-]`, 1 to 32 characters; `name` is what the app shows and what
+the wake phrase hears («Oye Atlas»); `kind` is `hermes` today;
+`capabilities` lists what the agent accepts today, out of `images`, `voice`
+and `resume`. `assistant_name` stays, with the default agent's name, for Macs
+that do not read `agents`.
+
+```json
+{"v":1,"id":null,"event":"ready","data":{
+  "device_id":"device-1","hub_protocol":1,
+  "assistant_name":"Atlas",
+  "agents":[
+    {"id":"atlas","name":"Atlas","kind":"hermes","capabilities":["images","voice","resume"]},
+    {"id":"vega","name":"Vega","kind":"hermes","capabilities":["resume"]}],
+  "default_agent_id":"atlas"}}
+```
+
+A hub that omits `agents` (0.9.0) has one agent: the Mac calls it by
+`assistant_name` (or the last name it learned, or Deimos) under the id
+`default`, and never sends it `agent_id`, because that hub refuses unknown
+`chat.send` parameters. A hub that omits `default_agent_id` has its first agent
+as default.
+
+The Mac keeps the last list it was given, with `assistant_name`, in
+`hub-agents.toml` beside `config.toml` (never in `config.toml`, which older
+Orbit versions must still load) and uses it to start without the hub; a `ready` without `agents` replaces it with the one agent of
+that hub. The Mac does not take a list that is empty, has an agent with a blank
+`id` or `name`, repeats an `id`, or whose `default_agent_id` is not one of its
+ids: it logs `hub_agents_refused` with the cause (`agents_empty`,
+`agent_id_blank`, `agent_name_blank`, `agent_id_repeated`,
+`default_agent_unknown`) and its positions and count, never a name, and keeps
+the list it had. It does not repeat the hub's bounds on an id's syntax or a
+name's length; the hub refuses those when it loads its configuration, and the
+hub frame bounds the list's size.
+
+**`chat.send`** accepts `agent_id`. Without it the turn is for the default
+agent. A session belongs to one agent:
+
+```json
+{"v":1,"id":"00000000-0000-4000-8000-000000000901","method":"chat.send",
+ "params":{"text":"¿Qué tengo mañana?","client_id":"00000000-0000-4000-8000-000000000903",
+  "call_active":false,"agent_id":"vega"}}
+```
+
+- A `session_id` of another agent's session is refused with
+  `error.code:"agent_mismatch"` and
+  `numbers:{"agent_id":"vega","session_agent_id":"atlas"}`.
+- An `agent_id` the hub does not have is refused with
+  `error.code:"agent_not_found"` and
+  `numbers:{"agent_id":"orion","agent_ids":"atlas,vega"}`, the ids there are
+  in the hub's order, joined by commas.
+
+`numbers` values stay integers, strings or booleans: a Mac decodes no array
+there and would refuse the whole frame. Neither refusal runs a turn. The Mac sends `agent_id` on every `chat.send` to
+a hub that listed agents: the open conversation's agent, or the default one
+for a conversation opened without one. It refuses locally, before anything
+changes, a new or opened conversation with an agent the last list does not
+have, naming the id asked for and the ids there are.
+
+**Sessions** say their agent: `agent_id` on each row of `GET /v1/sessions`
+and on the page of `GET /v1/sessions/{id}/messages`. Sessions from before
+agents are the default agent's; a row without `agent_id` (a 0.9.0 hub) is too.
+
+**On the Mac.** A conversation is bound to its agent when it begins (the
+agent the user picked, or the default one) or when it is opened from the list
+(the row's `agent_id`); it never changes agent. With two or more agents, the
+app offers the choice when a conversation begins and says whose an open one
+is; with one, it offers nothing, as before. Every text names the open
+conversation's agent. The wake phrase hears every agent's name
+([native-v1](native-v1.md)); the question goes to the agent named, in a
+conversation of its own when the open one is another agent's.
+

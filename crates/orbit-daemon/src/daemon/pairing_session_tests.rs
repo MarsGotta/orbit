@@ -258,6 +258,7 @@ async fn sessions_are_the_hubs_rows_and_session_open_makes_one_active() -> Resul
     runtime
         .command(Command::SessionOpen {
             id: "session-two".into(),
+            agent_id: None,
         })
         .await?;
     assert_eq!(
@@ -265,6 +266,37 @@ async fn sessions_are_the_hubs_rows_and_session_open_makes_one_active() -> Resul
         Some("session-two"),
         "opening the session did not make it active"
     );
+    Ok(())
+}
+
+/// Each conversation says the agent it is with, as the hub lists it; a row
+/// without one (a hub without agents) is the default agent's.
+#[tokio::test]
+async fn sessions_say_the_agent_each_one_is_with() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _helper) = fixture(directory.path())?;
+    let (base, _seen) = one_shot_http(json_response(
+        "200 OK",
+        "{\"sessions\":[\
+          {\"id\":\"session-atlas\",\"agent_id\":\"atlas\",\"created_at_ms\":1700000000125,\"last_at_ms\":1700000090000,\"message_count\":4},\
+          {\"id\":\"session-old\",\"created_at_ms\":1700000001750,\"last_at_ms\":1700000001750,\"message_count\":0}],\
+          \"total\":2,\"next\":null}",
+    ))
+    .await?;
+    online_with_hub(&mut runtime, &base);
+    let Knowledge::Present { value, .. } = super::reads::HubReadContext::capture(&runtime, 0)
+        .sessions(None)
+        .await
+    else {
+        bail!("the sessions read did not arrive");
+    };
+    let sessions = value
+        .items
+        .into_iter()
+        .map(serde_json::from_value::<orbit_core::SessionSummary>)
+        .collect::<Result<Vec<_>, _>>()?;
+    assert_eq!(sessions[0].agent_id.as_deref(), Some("atlas"));
+    assert_eq!(sessions[1].agent_id, None);
     Ok(())
 }
 
@@ -287,6 +319,7 @@ async fn opening_a_previous_conversation_shows_its_messages() -> Result<()> {
     runtime
         .command(Command::SessionOpen {
             id: SESSION_ID.into(),
+            agent_id: None,
         })
         .await?;
     let Knowledge::Present { value, .. } = read_messages(&runtime, None).await else {

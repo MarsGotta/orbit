@@ -82,6 +82,9 @@ pub(crate) struct HubSessionsCursorMismatch {
 #[derive(Debug, Deserialize)]
 pub struct HubSession {
     pub id: String,
+    /// The agent it is with; a hub without agents sends none.
+    #[serde(default)]
+    pub agent_id: Option<String>,
     pub created_at_ms: i64,
     pub last_at_ms: i64,
     pub message_count: u64,

@@ -34,8 +34,15 @@ pub enum Event {
     /// That still withdraws the previous context request.
     HubTransportReady,
     HubDisconnected,
-    NewSession,
-    OpenSession(String),
+    /// A new conversation with `agent_id`; `None` is the hub's default agent.
+    NewSession {
+        agent_id: Option<String>,
+    },
+    /// An earlier conversation, with the agent the hub listed it with.
+    OpenSession {
+        id: String,
+        agent_id: Option<String>,
+    },
     DeviceChanged,
     Delta {
         request_id: String,
@@ -199,17 +206,20 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
             }
             next.durable.session_id = Some(id);
         }
-        Event::NewSession => {
+        Event::NewSession { agent_id } => {
             authority_change = Some(AuthorityChange::Conversation);
             decide_new_session(&mut next);
+            next.durable.agent_id = agent_id;
         }
-        Event::OpenSession(id) => {
+        Event::OpenSession { id, agent_id } => {
             authority_change = Some(AuthorityChange::Conversation);
             decide_open_session(&mut next, id);
+            next.durable.agent_id = agent_id;
         }
         Event::DeviceChanged => {
             authority_change = Some(AuthorityChange::Device);
             next.durable.session_id = None;
+            next.durable.agent_id = None;
             next.durable.active_request = None;
             next.durable.pending_approval = None;
         }

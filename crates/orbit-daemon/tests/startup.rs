@@ -199,7 +199,7 @@ async fn socket_reports_recovery_and_rejects_store_commands() -> Result<()> {
                 recovery["elapsed_ms"].is_number(),
                 "status hid elapsed time: {state}"
             );
-            let refusal = match ipc::request(&paths, Command::NewSession).await {
+            let refusal = match ipc::request(&paths, Command::NewSession { agent_id: None }).await {
                 Ok(_) => bail!("store command ran during recovery"),
                 Err(error) => error
                     .downcast_ref::<Refusal>()

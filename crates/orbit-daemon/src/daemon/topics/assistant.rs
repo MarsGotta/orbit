@@ -16,6 +16,7 @@ impl ProjectTopic for Projector {
         // from the hub.
         let value = Value {
             session_id: state.session_id(),
+            agent_id: state.agent_id().map(str::to_owned),
             turn: state.durable.turn.clone().map(Box::new),
             pending: state.durable.pending_approval.clone(),
             voice_active: state.durable.voice_active,

@@ -32,6 +32,9 @@ pub enum VoiceAvailability {
 pub struct Value {
     /// The open conversation, `None` before its first turn.
     pub session_id: Option<String>,
+    /// The agent the open conversation is with; `None` is the default one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<String>,
     /// The turn in progress, or the last one until another begins. Boxed:
     /// two messages would make every topic frame as large as this one.
     pub turn: Option<Box<Turn>>,

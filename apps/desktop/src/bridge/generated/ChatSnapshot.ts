@@ -13,6 +13,10 @@ export type ChatSnapshot = { availability?: FeatureAvailability,
  */
 session_id: string | null, 
 /**
+ * The agent the open conversation is with; absent: the default one.
+ */
+agent_id?: string, 
+/**
  * The turn in progress, or the last one until another begins:
  * the user's message and the answer as it arrives.
  */

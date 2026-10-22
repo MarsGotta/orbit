@@ -13,6 +13,7 @@ import { createOrbitStore, type OrbitStore } from "../../state/orbit-store";
 import { AskDeimos } from "../../app/meeting-question/AskDeimos";
 import { QuestionCard } from "../../app/meeting-question/QuestionCard";
 import { voiceStatusText } from "../../app/meeting-question/copy";
+import { conversationAgentName } from "../assistant/agents";
 import { CallPanel } from "./CallPanel";
 import { openPanelLink } from "./panel-links";
 import styles from "./CallPanel.module.css";
@@ -26,7 +27,7 @@ import styles from "./CallPanel.module.css";
 export function PanelApp({ port }: { port: DaemonPort }) {
   const [store] = useState(() => createOrbitStore(port, { notices: false }));
   const crash = useStore(store, (state) => state.crash);
-  const assistantName = useStore(store, (state) => state.snapshot?.settings.assistant_name);
+  const assistantName = useStore(store, (state) => conversationAgentName(state.snapshot));
   useOrbitConnection(useStore(store, (state) => state.connect));
   useCrashReporting(crash);
   return (

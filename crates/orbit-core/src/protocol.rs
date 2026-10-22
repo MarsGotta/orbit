@@ -45,8 +45,13 @@ pub enum Command {
         code: String,
         device_name: String,
     },
+    /// An earlier conversation, with the agent the hub listed it with
+    /// (absent: the hub's default agent, as every conversation before agents).
     SessionOpen {
         id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        agent_id: Option<String>,
     },
     TranscriptRetranscribe {
         recording_id: String,
@@ -165,7 +170,12 @@ pub enum Command {
     Calendar {
         request: crate::calendar_control::CalendarCommand,
     },
-    NewSession,
+    /// A new conversation with one of the hub's agents (absent: its default).
+    NewSession {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        agent_id: Option<String>,
+    },
     Interrupt,
     PrivacyStop,
     Rearm,
@@ -238,7 +248,7 @@ impl Command {
             Self::Permissions { .. } => Some(FeatureId::Permissions),
             Self::SessionOpen { .. }
             | Self::Chat { .. }
-            | Self::NewSession
+            | Self::NewSession { .. }
             | Self::Interrupt
             | Self::VoiceStart
             | Self::VoiceEnd

@@ -12,6 +12,7 @@ import { AssistantComposer } from "./AssistantComposer";
 import { UnknownAssistant, useAssistantCall } from "./AssistantAvailability";
 import { MessageList } from "./MessageList";
 import { PendingCard } from "./PendingCard";
+import { agentFor, agentsOf } from "./agents";
 import { useConversation } from "./useConversation";
 import styles from "./AssistantView.module.css";
 
@@ -22,13 +23,49 @@ interface AssistantViewProps {
   readMessages?: DaemonPort["readSessionMessages"];
 }
 
-function AssistantHeader({
-  chat,
+/**
+ * With several agents, whose the conversation is: a new one, before its
+ * first message, picks its agent; an open one says it and keeps it. With
+ * one agent there is nothing to say.
+ */
+function ConversationAgent({
+  snapshot,
   send,
 }: {
-  chat: AppSnapshot["chat"];
+  snapshot: AppSnapshot;
   send: AssistantViewProps["send"];
 }) {
+  const agents = agentsOf(snapshot);
+  const { chat } = snapshot;
+  const current = agentFor(snapshot, chat.agent_id);
+  if (agents.length < 2 || !current) return null;
+  if (chat.session_id !== null || chat.turn.length > 0)
+    return <span>{es.assistant.conversationWith(current.name)}</span>;
+  return (
+    <label className={styles.agentPicker}>
+      <span>{es.assistant.agentPicker}</span>
+      <select
+        onChange={(event) => send({ command: "new_session", agent_id: event.target.value })}
+        value={current.id}
+      >
+        {agents.map((agent) => (
+          <option key={agent.id} value={agent.id}>
+            {agent.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function AssistantHeader({
+  snapshot,
+  send,
+}: {
+  snapshot: AppSnapshot;
+  send: AssistantViewProps["send"];
+}) {
+  const { chat } = snapshot;
   // The list names a conversation by its date; here it is the open one.
   const title =
     chat.session_id === null ? es.assistant.emptySessionTitle : es.assistant.openSessionTitle;
@@ -36,6 +73,7 @@ function AssistantHeader({
   return (
     <header className={styles.header}>
       <strong>{title}</strong>
+      <ConversationAgent send={send} snapshot={snapshot} />
       {streaming && (
         <Button onClick={() => send({ command: "interrupt" })} size={28}>
           {es.chat.interrupt}
@@ -123,7 +161,7 @@ export default function AssistantView({ error, readMessages, send, snapshot }: A
   return (
     <section className={styles.view} data-call-screen={call?.seeing_screen ?? false}>
       <h1 className={styles.visuallyHidden}>{es.shell.assistant}</h1>
-      <AssistantHeader chat={chat} send={send} />
+      <AssistantHeader send={send} snapshot={snapshot} />
       <ViewError error={error} />
       <ConversationThread
         chat={chat}

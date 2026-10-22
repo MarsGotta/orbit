@@ -8,6 +8,7 @@ import {
   type Context,
   type Incoming,
 } from "../app/interceptor";
+import { conversationAgentName } from "../features/assistant/agents";
 import { watchFailures } from "./state-failures";
 import type { Get, Set, StoreOptions } from "./orbit-store";
 
@@ -23,7 +24,7 @@ export function intercept(
     get().messages,
     incoming,
     context,
-    get().snapshot?.settings.assistant_name,
+    conversationAgentName(get().snapshot),
   );
   set({ messages });
   if (report) void port.report(report).catch(() => undefined);

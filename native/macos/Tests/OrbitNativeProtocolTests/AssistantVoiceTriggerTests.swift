@@ -43,8 +43,8 @@ final class AssistantVoiceTriggerTests: XCTestCase {
             return XCTFail("missing typed wake command")
         }
         var names = [String]()
-        let trigger = AssistantVoiceTrigger(channel: channel(), makeListener: { name, _, _ in
-            names.append(name)
+        let trigger = AssistantVoiceTrigger(channel: channel(), makeListener: { heard, _, _ in
+            names.append(contentsOf: heard)
             return FakeListener()
         })
         _ = trigger.start(streamID: "mic-1", assistantName: wire.fields.assistant_name,
@@ -53,6 +53,45 @@ final class AssistantVoiceTriggerTests: XCTestCase {
         _ = trigger.start(streamID: "mic-1", allow: { _ in true })
         XCTAssertEqual(names, ["Atlas", "Atlas"])
         trigger.stop()
+    }
+
+    /// Every agent's name reaches the listener and survives a stream
+    /// restart; the default one's field alone still works.
+    func testEveryAgentNameReachesTheListenerAndSurvivesAStreamRestart() throws {
+        let command = try NativeWireCommand.decode(JSONSerialization.data(withJSONObject: [
+            "v": 1, "id": "wake-names", "command": "audio_wake_phrase",
+            "stream_id": "mic-1", "enabled": true, "assistant_name": "Deimos",
+            "assistant_names": ["Deimos", "Atlas"]]))
+        guard case .audioWakePhrase(let wire) = command else {
+            return XCTFail("missing typed wake command")
+        }
+        XCTAssertEqual(wire.fields.assistant_names, ["Deimos", "Atlas"])
+        var heard = [[String]]()
+        let trigger = AssistantVoiceTrigger(channel: channel(), makeListener: { names, _, _ in
+            heard.append(names)
+            return FakeListener()
+        })
+        _ = trigger.start(streamID: "mic-1", assistantName: wire.fields.assistant_name,
+                          assistantNames: wire.fields.assistant_names, allow: { _ in true })
+        trigger.stop()
+        _ = trigger.start(streamID: "mic-1", allow: { _ in true })
+        trigger.stop()
+        _ = trigger.start(streamID: "mic-1", assistantName: "Vega", allow: { _ in true })
+        trigger.stop()
+        XCTAssertEqual(heard, [["Deimos", "Atlas"], ["Deimos", "Atlas"], ["Vega"]])
+    }
+
+    /// The question says which name was heard, so it goes to that agent;
+    /// without one it is today's event.
+    func testTheQuestionSaysTheNameHeard() throws {
+        XCTAssertEqual(try fields(NativeEvent.makeAssistantQuestion(streamID: "mic-1",
+            text: "¿Qué?", startedMS: 1, endedMS: 2, assistantName: "Atlas")),
+            ["v": 1, "event": "assistant_question", "stream_id": "mic-1", "text": "¿Qué?",
+             "started_ms": 1, "ended_ms": 2, "assistant_name": "Atlas"])
+        XCTAssertEqual(try fields(NativeEvent.makeAssistantQuestion(streamID: "mic-1",
+            text: "¿Qué?", startedMS: 1, endedMS: 2)),
+            ["v": 1, "event": "assistant_question", "stream_id": "mic-1", "text": "¿Qué?",
+             "started_ms": 1, "ended_ms": 2])
     }
 
     /// The trigger's `stop` — what every helper stop, the user's privacy

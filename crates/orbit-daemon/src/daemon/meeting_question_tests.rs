@@ -787,7 +787,7 @@ async fn hub_name_reaches_status_and_live_wake_orders_and_survives_restart() -> 
     let status = serde_json::to_value(&channels[&TopicId::Status].borrow().data)?;
     assert_eq!(status["knowledge"]["value"]["assistant_name"], "Atlas");
     let saved = runtime.paths.load_settings()?;
-    assert_eq!(serde_json::to_value(saved)?["assistant_name"], "Atlas");
+    assert_eq!(saved.assistant_name.as_deref(), Some("Atlas"));
 
     runtime.hub_event(HubEvent::Disconnected).await?;
     runtime
@@ -795,23 +795,20 @@ async fn hub_name_reaches_status_and_live_wake_orders_and_survives_restart() -> 
             "device_id": device, "hub_protocol": 1
         }})))
         .await?;
-    assert_eq!(
-        serde_json::to_value(&runtime.settings)?["assistant_name"],
-        "Atlas"
-    );
+    assert_eq!(runtime.settings.assistant_name.as_deref(), Some("Atlas"));
     runtime
         .hub_event(HubEvent::Frame(json!({"event":"ready", "data": {
             "device_id":"other-device", "assistant_name":"Other"
         }})))
         .await?;
     assert_eq!(
-        serde_json::to_value(runtime.paths.load_settings()?)?["assistant_name"],
-        "Atlas"
+        runtime.paths.load_settings()?.assistant_name.as_deref(),
+        Some("Atlas")
     );
     // A new runtime reads the same local settings before any hub connection.
     drop(runtime);
     let restarted =
         crate::config::Paths::resolve(Some(directory.path().to_owned()))?.load_settings()?;
-    assert_eq!(serde_json::to_value(restarted)?["assistant_name"], "Atlas");
+    assert_eq!(restarted.assistant_name.as_deref(), Some("Atlas"));
     Ok(())
 }

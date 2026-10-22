@@ -71,7 +71,11 @@ impl Runtime {
         Ok(())
     }
 
-    pub(super) async fn open_session(&mut self, session_id: String) -> Result<()> {
+    pub(super) async fn open_session(
+        &mut self,
+        session_id: String,
+        agent_id: Option<String>,
+    ) -> Result<()> {
         if session_id.is_empty() || session_id.len() > MAX_SESSION_ID_BYTES {
             bail!(
                 "Identificador de sesión de {} bytes; se admiten entre 1 y {MAX_SESSION_ID_BYTES} bytes",
@@ -84,11 +88,15 @@ impl Runtime {
                 session_id.len()
             );
         }
+        self.ensure_known_agent(agent_id.as_deref())?;
         self.ensure_conversation_can_change()?;
         // The engine is not the conversation's. It stays connected,
         // with its catalogue, whichever conversation is open.
-        self.apply(orbit_core::Event::OpenSession(session_id))
-            .await?;
+        self.apply(orbit_core::Event::OpenSession {
+            id: session_id,
+            agent_id,
+        })
+        .await?;
         self.say(NoticeCode::SessionOpened);
         Ok(())
     }

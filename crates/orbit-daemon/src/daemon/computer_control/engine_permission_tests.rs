@@ -359,8 +359,12 @@ async fn another_conversation_leaves_the_engine_and_its_catalogue_alone() -> Res
         .map(str::to_owned)
         .context("engine connected")?;
 
-    h.runtime.open_session("another-session".into()).await?;
-    h.runtime.command(Command::NewSession).await?;
+    h.runtime
+        .open_session("another-session".into(), None)
+        .await?;
+    h.runtime
+        .command(Command::NewSession { agent_id: None })
+        .await?;
     // Deimos opening one: the hub announces the session it started.
     h.runtime
         .apply(Event::Session("deimos-session".into()))
@@ -602,8 +606,12 @@ async fn another_conversation_does_not_cut_an_action_in_flight() -> Result<()> {
         },
         "local",
     )?;
-    h.runtime.open_session("another-session".into()).await?;
-    h.runtime.command(Command::NewSession).await?;
+    h.runtime
+        .open_session("another-session".into(), None)
+        .await?;
+    h.runtime
+        .command(Command::NewSession { agent_id: None })
+        .await?;
     h.finish().await?;
     assert_eq!(h.calls("launch_app"), 1);
     assert!(

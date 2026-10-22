@@ -35,6 +35,25 @@
   color: var(--o-subtle);
   font-size: var(--o-font-11-5);
 }
+.agentPicker {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.agentPicker span {
+  flex: none;
+}
+.agentPicker select {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-9);
+  background: var(--o-s2);
+  color: var(--o-fg);
+  font: inherit;
+  font-size: var(--o-font-12);
+}
 .conversation {
   min-height: 0;
   flex: 1;

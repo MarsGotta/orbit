@@ -12,6 +12,7 @@ pub(super) struct DurableSnapshot {
     generation: u64,
     connection: Connection,
     session_id: Option<String>,
+    agent_id: Option<String>,
     pending_approval: Option<Approval>,
     call: Option<orbit_core::voice::CallState>,
 }
@@ -25,6 +26,7 @@ impl From<&State> for DurableSnapshot {
             generation: state.generation(),
             connection: state.connection().clone(),
             session_id: state.session_id().clone(),
+            agent_id: state.agent_id().map(str::to_owned),
             pending_approval: state.durable.pending_approval.clone(),
             call: state.durable.call.clone(),
         }
@@ -371,6 +373,19 @@ impl Runtime {
         Ok(())
     }
 
+    /// The agent a turn is for: the open conversation's, or the default
+    /// one. Only a hub that listed its agents is told; a 0.9.0 hub refuses
+    /// the field and has one agent anyway.
+    fn turn_agent_id(&self) -> Option<String> {
+        let roster = self.settings.hub_agents.as_ref()?;
+        Some(
+            self.state
+                .agent_id()
+                .unwrap_or(roster.default_agent_id())
+                .to_owned(),
+        )
+    }
+
     pub(super) async fn effect(&mut self, effect: Effect) -> Result<()> {
         match effect {
             Effect::SendText {
@@ -388,6 +403,7 @@ impl Runtime {
                     client_id: Some(id.clone()),
                     voice,
                     meeting,
+                    agent_id: self.turn_agent_id(),
                 })?;
                 self.send(hub::command(&id, "chat.send", params)?).await?
             }

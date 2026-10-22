@@ -84,7 +84,8 @@ final class WireFixtureTests: XCTestCase {
             "playback_progress": .makePlaybackProgress(id: "play-1", state: "started", active: true, sequence: 0),
             "microphone_activity": .makeMicrophoneActivity([(pid: 4242, bundleID: "us.zoom.xos", name: "zoom.us")]),
             "assistant_question": .makeAssistantQuestion(streamID: "stream-1",
-                text: "¿Qué dijo Lucía del presupuesto?", startedMS: 1_800_000_000_000, endedMS: 1_800_000_004_200),
+                text: "¿Qué dijo Lucía del presupuesto?", startedMS: 1_800_000_000_000, endedMS: 1_800_000_004_200,
+                assistantName: "Vega"),
             "voice_trigger": .makeVoiceTrigger(state: "downloading", percent: 42),
             "notice": .makeNotice(code: "wake_phrase_abandoned", abandonment:
                 .init(cause: .phraseRevised, elapsed_ms: 1_800, silent_ms: 0)),

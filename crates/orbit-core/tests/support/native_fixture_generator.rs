@@ -83,7 +83,8 @@ pub fn generate() -> Result<(), Box<dyn Error>> {
         ),
         (
             "audio_wake_phrase",
-            json!({"stream_id":"stream-1","enabled":true,"assistant_name":"Atlas"}),
+            json!({"stream_id":"stream-1","enabled":true,"assistant_name":"Atlas",
+                "assistant_names":["Atlas","Vega"]}),
         ),
         ("audio_stop", json!({"stream_id":"stream-1"})),
         (
@@ -168,7 +169,8 @@ pub fn generate() -> Result<(), Box<dyn Error>> {
         (
             "assistant_question",
             json!({"stream_id":"stream-1","text":"¿Qué dijo Lucía del presupuesto?",
-            "started_ms":1_800_000_000_000_i64,"ended_ms":1_800_000_004_200_i64}),
+            "started_ms":1_800_000_000_000_i64,"ended_ms":1_800_000_004_200_i64,
+            "assistant_name":"Vega"}),
         ),
         ("voice_trigger", json!({"state":"downloading","percent":42})),
         (

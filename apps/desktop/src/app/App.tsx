@@ -5,6 +5,7 @@ import type { DaemonPort } from "../bridge/port";
 import { CommandPalette, type CommandItem } from "../design/CommandPalette";
 import { es } from "../i18n/es";
 import { AssistantCopy } from "../i18n/AssistantCopy";
+import { conversationAgentName } from "../features/assistant/agents";
 import { MeetingOverlays } from "../features/meetings/MeetingOverlays";
 import { onboardingWasCompleted } from "../features/onboarding/OnboardingView";
 import { initializeUiStore, useUiStore, type ViewId } from "../state/ui";
@@ -152,7 +153,7 @@ export function App({ port }: { port: DaemonPort }) {
     );
   }
   return (
-    <AssistantCopy name={snapshot.settings.assistant_name}>
+    <AssistantCopy name={conversationAgentName(snapshot)}>
       <AppContent
         commands={commands}
         crash={crash}

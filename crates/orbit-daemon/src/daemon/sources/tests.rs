@@ -344,7 +344,9 @@ async fn conversation_and_helper_restart_close_their_own_source_cause() -> Resul
             .id
             .clone();
         if cause == "conversation" {
-            runtime.command(Command::NewSession).await?;
+            runtime
+                .command(Command::NewSession { agent_id: None })
+                .await?;
         } else {
             runtime.native_event(json!({"event":"ready"})).await?;
         }

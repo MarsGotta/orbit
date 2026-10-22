@@ -76,11 +76,16 @@ async fn new_and_open_session_retire_the_same_local_verticals() -> Result<()> {
         });
         if open {
             runtime
-                .command(Command::SessionOpen { id: "after".into() })
+                .command(Command::SessionOpen {
+                    id: "after".into(),
+                    agent_id: None,
+                })
                 .await?;
             assert_eq!(runtime.state.session_id().as_deref(), Some("after"));
         } else {
-            runtime.command(Command::NewSession).await?;
+            runtime
+                .command(Command::NewSession { agent_id: None })
+                .await?;
             assert!(runtime.state.session_id().is_none());
         }
         assert!(runtime.state.durable.pending_approval.is_none());
@@ -114,9 +119,12 @@ async fn each_session_blocker_names_its_cause() -> Result<()> {
                 other => bail!("unexpected test case: {other}"),
             }
             let command = if open {
-                Command::SessionOpen { id: "saved".into() }
+                Command::SessionOpen {
+                    id: "saved".into(),
+                    agent_id: None,
+                }
             } else {
-                Command::NewSession
+                Command::NewSession { agent_id: None }
             };
             let Err(error) = runtime.command(command).await else {
                 bail!("blocker admitted");
@@ -144,7 +152,10 @@ async fn rejected_session_identity_names_bytes_and_ceiling_or_control() -> Resul
     ] {
         let directory = tempfile::tempdir()?;
         let (mut runtime, _native) = fixture(directory.path())?;
-        let Err(error) = runtime.command(Command::SessionOpen { id }).await else {
+        let Err(error) = runtime
+            .command(Command::SessionOpen { id, agent_id: None })
+            .await
+        else {
             bail!("invalid id admitted");
         };
         let text = error.to_string();
@@ -405,13 +416,15 @@ async fn review_interrupt_snapshot_failure_keeps_the_turn_until_effects_can_run(
 
 #[tokio::test]
 async fn review_new_session_snapshot_failure_keeps_the_current_session() -> Result<()> {
-    assert_failed_decision_snapshot_keeps_decision_pending(Command::NewSession).await
+    assert_failed_decision_snapshot_keeps_decision_pending(Command::NewSession { agent_id: None })
+        .await
 }
 
 #[tokio::test]
 async fn review_open_session_snapshot_failure_keeps_the_current_session() -> Result<()> {
     assert_failed_decision_snapshot_keeps_decision_pending(Command::SessionOpen {
         id: "after".into(),
+        agent_id: None,
     })
     .await
 }
@@ -420,8 +433,11 @@ async fn review_open_session_snapshot_failure_keeps_the_current_session() -> Res
 async fn conversation_decisions_keep_the_source_cancellation_receipt() -> Result<()> {
     for command in [
         Command::Interrupt,
-        Command::NewSession,
-        Command::SessionOpen { id: "after".into() },
+        Command::NewSession { agent_id: None },
+        Command::SessionOpen {
+            id: "after".into(),
+            agent_id: None,
+        },
     ] {
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut native) = fixture(directory.path())?;

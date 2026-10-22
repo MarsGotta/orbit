@@ -231,8 +231,14 @@ fn explicit_conversation_events_clear_the_turn_and_pending_approval()
         clarification: false,
     });
     for (event, expected) in [
-        (Event::NewSession, None),
-        (Event::OpenSession("saved".into()), Some("saved")),
+        (Event::NewSession { agent_id: None }, None),
+        (
+            Event::OpenSession {
+                id: "saved".into(),
+                agent_id: None,
+            },
+            Some("saved"),
+        ),
     ] {
         let decision = decide(&state, event, 2)?;
         assert_eq!(

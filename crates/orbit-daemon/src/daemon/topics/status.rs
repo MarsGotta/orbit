@@ -9,11 +9,17 @@ pub(super) struct Projector;
 impl ProjectTopic for Projector {
     fn project(&self, source: &TopicSource<'_>) -> TopicData {
         let state = source.state;
+        let roster = source.runtime.map(|runtime| runtime.settings.roster());
         TopicData::Status(Knowledge::Present {
             value: Value {
                 assistant_name: source
                     .runtime
                     .map(|runtime| runtime.settings.assistant_name().to_owned()),
+                agents: roster
+                    .as_ref()
+                    .map(|roster| roster.agents().to_vec())
+                    .unwrap_or_default(),
+                default_agent_id: roster.map(|roster| roster.default_agent_id().to_owned()),
                 hub: state.connection().clone(),
                 account: state.views.account.clone(),
                 privacy_stopped: state.privacy_stopped(),

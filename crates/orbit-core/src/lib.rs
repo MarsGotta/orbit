@@ -1,5 +1,6 @@
 //! Pure decisions and shared contracts. Effects are descriptions, never execution.
 pub mod actions;
+pub mod agents;
 pub mod audio_gap;
 pub mod audio_signal;
 pub mod authority;

@@ -5,6 +5,7 @@ use orbit_core::topics::{Knowledge, Pending, TopicData, TopicFrame, assistant};
 fn the_turn_and_approval_are_projected_without_assuming_unknown_roles() {
     let value = assistant::Value {
         session_id: Some("session-1".into()),
+        agent_id: Some("atlas".into()),
         turn: Some(Box::new(orbit_core::Turn {
             user: orbit_core::Message {
                 id: "1".into(),
@@ -53,6 +54,11 @@ fn the_turn_and_approval_are_projected_without_assuming_unknown_roles() {
     let local = crate::AppSnapshot::empty(8, DaemonConnection::Ready);
     let chat = crate::features::assistant::project(&FeatureInput::new(&local, &topics));
     assert_eq!(chat.session_id.as_deref(), Some("session-1"));
+    assert_eq!(
+        chat.agent_id.as_deref(),
+        Some("atlas"),
+        "the conversation's agent"
+    );
     assert!(chat.turn.iter().any(|message| message.streaming));
     assert_eq!(chat.turn[0].role, ChatRole::User);
     assert_eq!(chat.turn[0].at_ms, 0);

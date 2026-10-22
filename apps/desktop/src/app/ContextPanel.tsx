@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { es } from "../i18n/es";
 import type { AppCommand } from "../bridge/generated";
 import type { ChatSessionSummary } from "../bridge/generated/ChatSessionSummary";
+import { agentFor, agentsOf } from "../features/assistant/agents";
 import { sessionTitle } from "../features/assistant/session-title";
 import type { RowTone } from "../features/notes/note-row";
 import { notesData } from "./notes-context";
@@ -74,17 +75,25 @@ function assistantData(
     onSelect: () => send?.({ command: "new_session" }),
   });
   const groups: ContextGroup[] = [{ label: es.assistant.activeSessions, rows: activeRows }];
+  // With several agents, each conversation says whose it is.
+  const named = agentsOf(snapshot).length > 1;
   if (recent.length > 0) {
     groups.push({
       label: es.assistant.recentSessions,
       rows: recent.map((session) => {
         const title = sessionTitle(session.created_at_ms);
+        const agent = named ? agentFor(snapshot, session.agent_id) : undefined;
         return {
           initial: title.slice(0, 1) || "O",
           meta: formatSessionDate(session.last_at_ms),
-          subtitle: title,
+          subtitle: agent?.name ?? title,
           title,
-          onSelect: () => send?.({ command: "session_open", id: session.id }),
+          onSelect: () =>
+            send?.({
+              command: "session_open",
+              id: session.id,
+              ...(session.agent_id ? { agent_id: session.agent_id } : {}),
+            }),
         };
       }),
     });

@@ -183,8 +183,13 @@ pub enum NativeCommand {
     /// stays open for the note.
     #[serde(rename = "audio_wake_phrase")]
     AudioWakePhrase {
+        /// The default agent's name, which a helper reading only this hears.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         assistant_name: Option<String>,
+        /// Every agent's name, each heard as «Oye <nombre>», «Hola <nombre>»
+        /// and «<nombre>,»; it includes `assistant_name`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        assistant_names: Option<Vec<String>>,
         v: u8,
         id: String,
         stream_id: String,
@@ -475,6 +480,10 @@ pub enum NativeEvent {
         text: String,
         started_ms: i64,
         ended_ms: i64,
+        /// The name heard, exactly as `audio_wake_phrase` gave it; absent
+        /// from a helper that knows one name.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        assistant_name: Option<String>,
     },
     /// Where the «Oye Deimos» detector is: `unavailable` (with
     /// `cause` and, for the system version, `os_version`), `idle`,

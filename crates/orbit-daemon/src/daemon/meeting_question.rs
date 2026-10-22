@@ -114,13 +114,17 @@ impl Runtime {
     }
 
     /// A question typed or spoken during the meeting. Refused, it is shown
-    /// with its cause; admitted, it goes to Deimos as a turn about the
-    /// meeting, whose text the hub builds.
+    /// with its cause; admitted, it goes to the assistant as a turn about the
+    /// meeting, whose text the hub builds. `agent` is the agent the user
+    /// named («Oye Atlas»): a conversation is with one agent, so when it is
+    /// not the open conversation's, the question begins one of its own.
+    /// `None` asks in the open conversation.
     pub(super) async fn ask_meeting(
         &mut self,
         question: String,
         minutes: u16,
         origin: QuestionOrigin,
+        agent: Option<String>,
     ) -> Result<()> {
         let now_ms = self.question_now();
         let meeting = self.meeting_in_progress();
@@ -142,6 +146,12 @@ impl Runtime {
             );
             return Ok(());
         };
+        if let Some(agent) = agent.filter(|agent| *agent != self.conversation_agent_id()) {
+            self.apply(Event::NewSession {
+                agent_id: Some(agent),
+            })
+            .await?;
+        }
         let decision = match decide(
             &self.state,
             Event::Submit {
@@ -169,6 +179,14 @@ impl Runtime {
             decision, meeting, question, window, origin, request_id, now_ms,
         )
         .await
+    }
+
+    /// The agent the open conversation is with: its own, or the default one.
+    fn conversation_agent_id(&self) -> String {
+        self.state.agent_id().map_or_else(
+            || self.settings.roster().default_agent_id().to_owned(),
+            str::to_owned,
+        )
     }
 
     /// The dictation shortcut during a recording: the transcribed voice note
@@ -363,6 +381,7 @@ impl Runtime {
             text,
             started_ms,
             ended_ms,
+            assistant_name,
             ..
         } = decoded
         else {
@@ -410,10 +429,19 @@ impl Runtime {
             return Ok(());
         }
         self.record(NoticeCode::WakePhraseQuestionReceived);
+        // The agent whose name was heard; a helper that knows one name, or
+        // a name no longer listed, asks in the open conversation.
+        let agent = assistant_name.and_then(|name| {
+            self.settings
+                .roster()
+                .named(&name)
+                .map(|agent| agent.id.clone())
+        });
         self.ask_meeting(
             text,
             u16::from(DEFAULT_WINDOW_MINUTES),
             QuestionOrigin::Voice,
+            agent,
         )
         .await
     }
@@ -562,9 +590,12 @@ impl Runtime {
     }
 
     async fn try_send_wake_order(&mut self, stream: String, enabled: bool) -> Result<()> {
+        // Every agent's name; `assistant_name` stays the default one's.
+        let roster = self.settings.roster();
         let command = crate::native::command(
             "audio_wake_phrase",
-            json!({"stream_id": stream, "enabled": enabled, "assistant_name": self.settings.assistant_name()}),
+            json!({"stream_id": stream, "enabled": enabled,
+                "assistant_name": roster.default_name(), "assistant_names": roster.names()}),
         )?;
         let header = orbit_core::wire::native::NativeCommandHeader::from_value(&command)?;
         let order_id = header.id.to_owned();

@@ -443,7 +443,8 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             guard !id.isEmpty, id.utf8.count <= 128 else { throw NativeFailure("invalid_stream_id") }
             if wire.fields.enabled {
                 guard microphone.activeStreamID == id else { throw NativeFailure("stream_not_found") }
-                let sink = assistantTrigger.start(streamID: id, assistantName: wire.fields.assistant_name ?? "Deimos", allow: { [weak self] stream in
+                let sink = assistantTrigger.start(streamID: id, assistantName: wire.fields.assistant_name ?? "Deimos",
+                                                  assistantNames: wire.fields.assistant_names, allow: { [weak self] stream in
                     guard let self else { return false }
                     return !self.latch.stopped && self.microphone.activeStreamID == stream
                 })

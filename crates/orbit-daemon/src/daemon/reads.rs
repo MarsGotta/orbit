@@ -140,6 +140,7 @@ impl HubReadContext {
             .into_iter()
             .map(|session| orbit_core::SessionSummary {
                 id: session.id,
+                agent_id: session.agent_id,
                 created_at_ms: session.created_at_ms,
                 last_at_ms: session.last_at_ms,
                 message_count: session.message_count,
@@ -907,12 +908,14 @@ mod hub_page_tests {
     }
 
     /// The hub's whole page of conversations, 128 rows with
-    /// canonical ids and the longest numbers, fits the `Sessions` read.
+    /// canonical ids, the longest agent id the hub admits (32 characters)
+    /// and the longest numbers, fits the `Sessions` read.
     #[test]
     fn a_full_sessions_page_fits_its_read() {
         let rows = (0..128)
             .map(|index| orbit_core::SessionSummary {
                 id: format!("00000000-0000-4000-8000-{index:012}"),
+                agent_id: Some("a".repeat(32)),
                 created_at_ms: i64::MAX,
                 last_at_ms: i64::MAX,
                 message_count: u64::MAX,

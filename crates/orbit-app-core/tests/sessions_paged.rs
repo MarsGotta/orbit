@@ -66,12 +66,18 @@ async fn hub(behavior: HubBehavior) -> Result<TestHub, Box<dyn Error>> {
         (0..500)
             .rev()
             .map(|index| {
-                json!({
+                let mut row = json!({
                     "id": format!("00000000-0000-4000-8000-{index:012x}"),
                     "created_at_ms": 1_700_000_000_000_i64 + index,
                     "last_at_ms": 1_700_000_000_000_i64 + index,
                     "message_count": 0,
-                })
+                });
+                // Every other conversation is with a second agent; the
+                // rest carry no agent, as a hub without agents lists them.
+                if index % 2 == 1 {
+                    row["agent_id"] = json!("atlas");
+                }
+                row
             })
             .collect::<Vec<_>>(),
     );
@@ -278,6 +284,26 @@ async fn five_hundred_hub_conversations_reach_the_app_in_four_pages() -> Result<
         ids.iter().collect::<std::collections::BTreeSet<_>>().len(),
         500
     );
+    Ok(())
+}
+
+/// Each conversation reaches the app with the agent it is with.
+#[tokio::test(flavor = "multi_thread")]
+async fn each_conversation_reaches_the_app_with_its_agent() -> Result<(), Box<dyn Error>> {
+    let hub = hub(HubBehavior::Paged).await?;
+    let (_directory, _daemon, app) = paired_client(&hub).await?;
+    let answer = tokio::time::timeout(READ_BUDGET, app.read_sessions_page(None)).await??;
+    let Knowledge::Present { value, .. } = answer else {
+        panic!("expected a complete page")
+    };
+    // Newest first: index 499 (atlas), then 498 (none).
+    let agents = value
+        .items
+        .iter()
+        .take(2)
+        .map(|session| session.agent_id.as_deref())
+        .collect::<Vec<_>>();
+    assert_eq!(agents, [Some("atlas"), None]);
     Ok(())
 }
 

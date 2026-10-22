@@ -12,6 +12,7 @@ use orbit_core::topics::{
 fn assistant_value(active: &str) -> orbit_core::topics::assistant::Value {
     orbit_core::topics::assistant::Value {
         session_id: Some(active.into()),
+        agent_id: None,
         turn: None,
         pending: None,
         voice_active: false,

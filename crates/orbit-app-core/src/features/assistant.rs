@@ -17,6 +17,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
     let mut view = View {
         availability: Some(FeatureAvailability::missing(input.topics)),
         session_id: None,
+        agent_id: None,
         turn: Vec::new(),
         voice_audio: input.local.voice_audio.clone(),
         pending_contract: None,
@@ -57,6 +58,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         },
     });
     view.session_id = value.session_id.clone();
+    view.agent_id = value.agent_id.clone();
     view.turn = value
         .turn
         .iter()

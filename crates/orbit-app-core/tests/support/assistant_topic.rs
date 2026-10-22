@@ -14,6 +14,7 @@ use orbit_core::{
 pub fn assistant_value() -> Value {
     Value {
         session_id: None,
+        agent_id: None,
         turn: None,
         pending: None,
         voice_active: false,
@@ -73,6 +74,8 @@ pub fn snapshot_with_privacy(
             data: TopicData::Status(Knowledge::Present {
                 value: orbit_core::topics::status::Value {
                     assistant_name: None,
+                    agents: Vec::new(),
+                    default_agent_id: None,
                     hub: orbit_core::Connection::Online,
                     account: None,
                     privacy_stopped,

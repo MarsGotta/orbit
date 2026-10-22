@@ -225,6 +225,10 @@ pub struct Approval {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SessionSummary {
     pub id: String,
+    /// The agent it is with; absent from a hub without agents, and then
+    /// the default one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<String>,
     pub created_at_ms: i64,
     /// When its last message was written; its start while it has none.
     pub last_at_ms: i64,
@@ -524,6 +528,11 @@ pub struct DurableState {
     pub(crate) privacy_stop_by: Option<crate::privacy_stop::StopRequester>,
     pub(crate) connection: Connection,
     pub(crate) session_id: Option<String>,
+    /// The agent the open conversation is with (hub-v1 «Agents»), as the
+    /// app chose it or the hub listed it; `None` is the hub's default agent,
+    /// which every conversation from before agents is with.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) agent_id: Option<String>,
     pub active_request: Option<String>,
     /// A state saved before the hub kept the conversations held up to 200
     /// messages here, under
@@ -556,6 +565,7 @@ impl Default for DurableState {
             privacy_stop_by: None,
             connection: Connection::Offline,
             session_id: None,
+            agent_id: None,
             active_request: None,
             turn: None,
             recording: None,
@@ -585,6 +595,9 @@ impl DurableState {
     }
     pub fn session_id(&self) -> Option<String> {
         self.session_id.clone()
+    }
+    pub fn agent_id(&self) -> Option<&str> {
+        self.agent_id.as_deref()
     }
     pub fn capabilities(&self) -> &Capabilities {
         &self.capabilities
@@ -763,6 +776,10 @@ impl State {
     }
     pub fn session_id(&self) -> Option<String> {
         self.durable.session_id()
+    }
+    /// The open conversation's agent; `None` is the hub's default.
+    pub fn agent_id(&self) -> Option<&str> {
+        self.durable.agent_id()
     }
     pub fn capabilities(&self) -> &Capabilities {
         self.durable.capabilities()

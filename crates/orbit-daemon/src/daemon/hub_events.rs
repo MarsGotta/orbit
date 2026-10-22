@@ -338,11 +338,14 @@ impl Runtime {
                 );
             }
         } else {
-            if let Some(name) = &data.assistant_name
-                && self.settings.assistant_name.as_ref() != Some(name)
-            {
-                let mut settings = self.settings.clone();
+            let mut settings = self.settings.clone();
+            if let Some(name) = &data.assistant_name {
                 settings.assistant_name = Some(name.clone());
+            }
+            settings.hub_agents = self.learned_agents(data);
+            if settings.assistant_name != self.settings.assistant_name
+                || settings.hub_agents != self.settings.hub_agents
+            {
                 self.paths.save_settings(&settings)?;
                 self.settings = settings;
                 if let Some(stream) = self.features.question.wake_stream.clone() {
@@ -353,6 +356,34 @@ impl Runtime {
             self.apply(Event::Connect(Connection::Online)).await?;
         }
         Ok(())
+    }
+
+    /// The agents this hub has, from its `ready`: none listed is a hub
+    /// with one (0.9.0); a list the Mac cannot rely on is logged with its
+    /// cause and numbers, and the one the Mac had stays.
+    fn learned_agents(&self, data: &ReadyData) -> Option<orbit_core::agents::AgentRoster> {
+        let listed = data.agents.as_ref()?;
+        let agents = listed
+            .iter()
+            .map(|agent| orbit_core::agents::Agent {
+                id: agent.id.clone(),
+                name: agent.name.clone(),
+            })
+            .collect();
+        match orbit_core::agents::AgentRoster::admit(agents, data.default_agent_id.clone()) {
+            Ok(roster) => Some(roster),
+            Err(refusal) => {
+                let numbers = refusal
+                    .numbers()
+                    .into_iter()
+                    .map(|(key, value)| (key, value.to_string()))
+                    .collect::<Vec<_>>();
+                let mut fields = vec![("cause", refusal.code())];
+                fields.extend(numbers.iter().map(|(key, value)| (*key, value.as_str())));
+                self.log("hub_agents_refused", &fields);
+                self.settings.hub_agents.clone()
+            }
+        }
     }
 
     async fn on_hub_chat_delta(&mut self, data: DeltaData) -> Result<()> {

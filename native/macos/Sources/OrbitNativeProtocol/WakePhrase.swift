@@ -68,6 +68,24 @@ public enum WakePhrase {
         return nil
     }
 
+    /// The configured name that opens a phrase of `text`, and the question
+    /// after it. There is one name per agent (hub-v1 «Agents»), each heard
+    /// by the rules above. A name of more words is tried before a shorter
+    /// one, so «Oye Atlas Azul, …» is Atlas Azul's and not Atlas's.
+    public static func match(after text: String, assistantNames: [String]) -> WakePhraseMatch? {
+        let ordered = assistantNames.enumerated().sorted { lhs, rhs in
+            let left = tokenize(lhs.element).count
+            let right = tokenize(rhs.element).count
+            return left != right ? left > right : lhs.offset < rhs.offset
+        }
+        for entry in ordered {
+            if let heard = question(after: text, assistantName: entry.element) {
+                return WakePhraseMatch(name: entry.element, question: heard)
+            }
+        }
+        return nil
+    }
+
     /// Where the question starts when the phrase starts at `start`.
     private static func phraseEnd(_ tokens: [Token], from start: Int,
                                   name: [Token], acceptsHeardName: Bool) -> Int? {
@@ -139,6 +157,17 @@ public enum WakePhrase {
     }
 }
 
+/// The name that opened a phrase, as it was configured, and what follows it.
+public struct WakePhraseMatch: Equatable, Sendable {
+    public let name: String
+    public let question: String
+
+    public init(name: String, question: String) {
+        self.name = name
+        self.question = question
+    }
+}
+
 /// One transcription result: its text and where it sits on the audio
 /// timeline (seconds from the first sample the listener was fed). A volatile
 /// result is replaced by later ones for the same audio; a final one stays.
@@ -194,17 +223,20 @@ public struct WakePhraseAbandonment: Encodable, Equatable, Sendable {
     }
 }
 
-/// A question heard after the phrase: its text and its span on the audio
-/// timeline, from the phrase's start to the end of the question.
+/// A question heard after the phrase: its text, its span on the audio
+/// timeline, from the phrase's start to the end of the question, and the
+/// configured name that opened it.
 public struct SpokenQuestion: Equatable, Sendable {
     public let text: String
     public let start: Double
     public let end: Double
+    public let name: String
 
-    public init(text: String, start: Double, end: Double) {
+    public init(text: String, start: Double, end: Double, name: String = "Deimos") {
         self.text = text
         self.start = start
         self.end = end
+        self.name = name
     }
 }
 
@@ -246,8 +278,9 @@ public struct SpokenQuestionPolicy {
     public static let catchUpToleranceSeconds = 0.3
 
     private var segments = [HeardSegment]()
-    /// Where the result with the phrase starts, and when it was heard.
-    private var phrase: (segmentStart: Double, heardAt: Double)?
+    /// Where the result with the phrase starts, when it was heard, and the
+    /// name that opened it.
+    private var phrase: (segmentStart: Double, heardAt: Double, name: String)?
     private var lastVoice = 0.0
     /// Where the final results have reached on the audio timeline: the end
     /// of the newest final result with words.
@@ -259,14 +292,24 @@ public struct SpokenQuestionPolicy {
     /// or a phrase forgotten with nothing after it.
     private var ignoreBefore = -Double.infinity
 
-    private let assistantName: String
+    private let assistantNames: [String]
 
     public init(
         assistantName: String = "Deimos",
         pauseSeconds: Double = Double(NativeLimits.assistantQuestionPauseMilliseconds) / 1_000,
         maximumSeconds: Double = Double(NativeLimits.maximumAssistantQuestionMilliseconds) / 1_000
     ) {
-        self.assistantName = assistantName
+        self.init(assistantNames: [assistantName], pauseSeconds: pauseSeconds,
+                  maximumSeconds: maximumSeconds)
+    }
+
+    /// Listens for every agent's name; the question says which one was heard.
+    public init(
+        assistantNames: [String],
+        pauseSeconds: Double = Double(NativeLimits.assistantQuestionPauseMilliseconds) / 1_000,
+        maximumSeconds: Double = Double(NativeLimits.maximumAssistantQuestionMilliseconds) / 1_000
+    ) {
+        self.assistantNames = assistantNames
         self.pauseSeconds = pauseSeconds
         self.maximumSeconds = maximumSeconds
     }
@@ -300,12 +343,19 @@ public struct SpokenQuestionPolicy {
             if segment.isFinal { finalThrough = max(finalThrough, segment.end) }
         }
         if phrase == nil {
-            if let found = segments.first(where: { WakePhrase.question(after: $0.text, assistantName: assistantName) != nil }) {
+            var found: (segment: HeardSegment, name: String)?
+            for known in segments {
+                if let match = WakePhrase.match(after: known.text, assistantNames: assistantNames) {
+                    found = (known, match.name)
+                    break
+                }
+            }
+            if let found {
                 // The ceiling counts from when the phrase was heard, so a
                 // long result that ends with it never cuts the question.
-                phrase = (found.start, now)
+                phrase = (found.segment.start, now, found.name)
                 step = .heard
-                lastVoice = max(lastVoice, found.end)
+                lastVoice = max(lastVoice, found.segment.end)
             }
         } else if currentQuestion() == nil {
             // The words changed and no longer open with the phrase
@@ -352,7 +402,7 @@ public struct SpokenQuestionPolicy {
         let opening = covering ?? segments.first(where: {
             abs($0.start - phrase.segmentStart) < 0.05
         })
-        guard let opening, let first = WakePhrase.question(after: opening.text, assistantName: assistantName) else { return nil }
+        guard let opening, let first = WakePhrase.question(after: opening.text, assistantName: phrase.name) else { return nil }
         let rest = segments.filter({ $0.start > opening.start + 0.05 })
             .map({ $0.text.trimmingCharacters(in: .whitespacesAndNewlines) })
             .filter({ !$0.isEmpty })
@@ -381,7 +431,7 @@ public struct SpokenQuestionPolicy {
                 || silent >= pauseSeconds + Self.catchUpSeconds
                 || elapsed >= maximumSeconds else { return nil }
         let spoken = SpokenQuestion(text: question, start: phrase.segmentStart,
-                                    end: min(lastVoice, now))
+                                    end: min(lastVoice, now), name: phrase.name)
         reset(ignoring: spoken.end)
         return spoken
     }

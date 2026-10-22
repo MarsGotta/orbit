@@ -14,6 +14,10 @@ app_type! {
     /// date, which the interface writes from `created_at_ms`.
     pub struct ChatSessionSummary {
         pub id: String,
+        /// The agent it is with; absent: the hub's default agent.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub agent_id: Option<String>,
         #[ts(type = "number")]
         pub created_at_ms: i64,
         #[ts(type = "number")]
@@ -138,6 +142,10 @@ app_type! {
         /// The open conversation; its messages are read from the hub a page
         /// at a time.
         pub session_id: Option<String>,
+        /// The agent the open conversation is with; absent: the default one.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub agent_id: Option<String>,
         /// The turn in progress, or the last one until another begins:
         /// the user's message and the answer as it arrives.
         pub turn: Vec<ChatMessage>,

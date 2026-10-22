@@ -64,6 +64,10 @@ pub struct ChatSendParams {
     pub voice: Option<ChatVoice>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub meeting: Option<ChatMeeting>,
+    /// The agent the turn is for (hub-v1 «Agents»). Sent only to a hub
+    /// that listed its agents in `ready`: a 0.9.0 hub refuses the field.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub agent_id: Option<String>,
 }
 /// The turn is a voice note of this length; its audio stays on the Mac.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -173,8 +177,15 @@ impl HubRequest {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReadyData {
+    /// The default agent's name, kept for Macs that do not read `agents`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assistant_name: Option<String>,
+    /// The hub's agents in its order; absent from a 0.9.0 hub, which has
+    /// one, named by `assistant_name`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agents: Option<Vec<HubAgent>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_agent_id: Option<String>,
     #[serde(default)]
     pub device_id: Option<String>,
     #[serde(default)]
@@ -183,6 +194,17 @@ pub struct ReadyData {
     pub hub_version: Option<String>,
     #[serde(default)]
     pub device_version: Option<String>,
+}
+/// One agent as `ready` lists it. The Mac reads `id` and `name`; `kind`
+/// and `capabilities` are the hub's and travel for the contract.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HubAgent {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default)]
+    pub capabilities: Vec<String>,
 }
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct EmptyData {}

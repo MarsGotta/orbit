@@ -28,6 +28,8 @@ fn status_snapshot(
             data: TopicData::Status(Knowledge::Present {
                 value: orbit_core::topics::status::Value {
                     assistant_name: None,
+                    agents: Vec::new(),
+                    default_agent_id: None,
                     hub,
                     account,
                     privacy_stopped: false,

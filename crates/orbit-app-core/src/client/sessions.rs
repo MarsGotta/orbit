@@ -16,6 +16,7 @@ impl DaemonClient {
             let session: orbit_core::SessionSummary = serde_json::from_value(item)?;
             Ok(ChatSessionSummary {
                 id: session.id,
+                agent_id: session.agent_id,
                 created_at_ms: session.created_at_ms,
                 last_at_ms: session.last_at_ms,
                 message_count: session.message_count,

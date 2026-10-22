@@ -83,6 +83,21 @@ fn main() -> Result<(), Box<dyn Error>> {
             "ready",
             event(HubEventKind::Ready(ReadyData {
                 assistant_name: Some("Atlas".into()),
+                agents: Some(vec![
+                    HubAgent {
+                        id: "atlas".into(),
+                        name: "Atlas".into(),
+                        kind: "hermes".into(),
+                        capabilities: vec!["images".into(), "voice".into(), "resume".into()],
+                    },
+                    HubAgent {
+                        id: "vega".into(),
+                        name: "Vega".into(),
+                        kind: "hermes".into(),
+                        capabilities: vec!["resume".into()],
+                    },
+                ]),
+                default_agent_id: Some("atlas".into()),
                 device_id: Some("device-1".into()),
                 hub_protocol: Some(1),
                 hub_version: Some("0.3.12".into()),

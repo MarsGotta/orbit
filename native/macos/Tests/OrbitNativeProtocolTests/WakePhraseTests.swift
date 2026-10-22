@@ -74,6 +74,40 @@ final class WakePhraseTests: XCTestCase {
         XCTAssertFalse(policy.listening)
     }
 
+    /// One name per agent: each opens the phrase by the same rules, and the
+    /// match says which one; «Demos» is still only Deimos's.
+    func testEveryAgentNameOpensThePhraseAndSaysWhichOne() {
+        let names = ["Deimos", "Atlas", "Atlas Azul"]
+        let cases: [(String, String, String)] = [
+            ("Oye Atlas, resume", "Atlas", "resume"),
+            ("HOLA ÁTLAS resume", "Atlas", "resume"),
+            ("Atlas Azul, resume", "Atlas Azul", "resume"),
+            ("Oye Atlas Azul qué se decidió", "Atlas Azul", "qué se decidió"),
+            ("Oye, Demos, resume", "Deimos", "resume"),
+            ("Deimos, resume", "Deimos", "resume"),
+            ("Vale. Hola Atlas: ¿y el presupuesto?", "Atlas", "¿y el presupuesto?"),
+        ]
+        for (text, name, question) in cases {
+            XCTAssertEqual(WakePhrase.match(after: text, assistantNames: names),
+                           WakePhraseMatch(name: name, question: question), text)
+        }
+        for text in ["Oye, demos por cerrado esto.", "Le dije oye Atlas, resume", "Oye Vega, resume"] {
+            XCTAssertNil(WakePhrase.match(after: text, assistantNames: names), text)
+        }
+        XCTAssertNil(WakePhrase.match(after: "Oye Atlas, resume", assistantNames: []))
+        XCTAssertNil(WakePhrase.match(after: "Demos, resume", assistantNames: ["Atlas"]))
+    }
+
+    func testTheSpokenQuestionSaysWhichAgentWasNamed() {
+        var policy = SpokenQuestionPolicy(assistantNames: ["Deimos", "Atlas"])
+        XCTAssertNil(policy.heard(final("Oye Atlas, ¿qué decidió Ana Pérez?", 0, 2)))
+        XCTAssertTrue(policy.listening)
+        XCTAssertEqual(policy.voice(at: 3.5, speaking: false),
+                       SpokenQuestion(text: "¿qué decidió Ana Pérez?", start: 0, end: 2, name: "Atlas"))
+        XCTAssertNil(policy.heard(final("Oye, Demos, resume lo último.", 10, 12)))
+        XCTAssertEqual(policy.voice(at: 13.5, speaking: false)?.name, "Deimos")
+    }
+
     // MARK: - The question, from results and the microphone's level
 
     private func final(_ text: String, _ start: Double, _ end: Double) -> HeardSegment {

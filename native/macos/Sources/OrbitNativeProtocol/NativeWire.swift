@@ -50,9 +50,12 @@ public struct NativeAudioStartFields: Decodable, Sendable {
     public let application_pid: Int32?
     public let capture_scope: NativeWireCaptureScope?
 }
-/// «Oye Deimos» on (or off) on the live microphone stream.
+/// «Oye Deimos» on (or off) on the live microphone stream. `assistant_names`
+/// is every agent's name (hub-v1 «Agents»); `assistant_name`, the default
+/// agent's, is what a daemon that knows one name sends.
 public struct NativeAudioWakePhraseFields: Decodable, Sendable {
     public let assistant_name: String?
+    public let assistant_names: [String]?
     public let stream_id: String
     public let enabled: Bool
 }
@@ -357,6 +360,9 @@ public struct NativeAssistantQuestionFields: Encodable {
     public let text: String
     public let started_ms: Int64
     public let ended_ms: Int64
+    /// The name heard, exactly as `audio_wake_phrase` gave it, so the
+    /// question goes to that agent. Omitted when absent.
+    public let assistant_name: String?
 }
 /// Where the «Oye Deimos» detector is: `unavailable` (with `cause`
 /// and `os_version`), `idle`, `downloading` (with `percent`), `listening` or
@@ -625,9 +631,10 @@ public enum NativeEvent: Encodable {
     }
 
     public static func makeAssistantQuestion(streamID: String, text: String,
-        startedMS: Int64, endedMS: Int64) -> NativeEvent {
+        startedMS: Int64, endedMS: Int64, assistantName: String? = nil) -> NativeEvent {
         .assistantQuestion(.init(event: "assistant_question", fields: .init(
-            stream_id: streamID, text: text, started_ms: startedMS, ended_ms: endedMS)))
+            stream_id: streamID, text: text, started_ms: startedMS, ended_ms: endedMS,
+            assistant_name: assistantName)))
     }
 
     public static func makeVoiceTrigger(state: String, cause: String? = nil,

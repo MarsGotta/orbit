@@ -57,7 +57,11 @@ router, host and calendar bridge receive that value. Refusals keep request ID.
 - `audio_start` opens microphone/system audio; app capture includes its PID.
 - `audio_stop` drains that source. `audio_wake_phrase` follows the live meeting
   microphone even if a voice note originally opened it. Its optional
-  `assistant_name` selects the phrase name, defaulting to `Deimos` when omitted.
+  `assistant_names` lists every agent's name, and the helper listens for all
+  of them; its optional `assistant_name` is the default agent's name, which a
+  helper uses alone when `assistant_names` is absent or empty, defaulting to
+  `Deimos` when both are omitted. A later order without either keeps the
+  names the helper had.
 - `playback`/`playback_clip` play; `playback_stop` cancels the playback generation.
 - `screen_sources`/`screenshot`/`selected_text` use the one-use bindings below.
 - `calendar_sources`/`calendar_snapshot` read; `calendar_save`/`calendar_delete`
@@ -546,11 +550,23 @@ absence means unknown, never “nobody uses the microphone”.
 
 `assistant_question` carries the meeting microphone question:
 `stream_id`, `text`, `started_ms`/`ended_ms` (Unix milliseconds at phrase start/
-question end). Phrases at sentence start are “Oye <name>”, “Hola <name>” and
-“<name>,”, ignoring case and accents. The name comes from `audio_wake_phrase`
-and can contain multiple words. Only the default name Deimos accepts the
+question end) and `assistant_name`, the name heard exactly as
+`audio_wake_phrase` gave it, so the daemon sends the question to that agent;
+a question without it goes to the open conversation. Phrases at sentence start
+are “Oye <name>”, “Hola <name>” and “<name>,”, ignoring case and accents, for
+every name. A name can contain multiple words; a longer name is tried before a
+shorter one it starts with, so “Oye Atlas Azul, …” is Atlas Azul's.
+
+```json
+{"v":1,"id":"wake-1","command":"audio_wake_phrase","stream_id":"stream-1","enabled":true,
+ "assistant_name":"Atlas","assistant_names":["Atlas","Vega"]}
+{"v":1,"event":"assistant_question","stream_id":"stream-1","text":"¿Qué dijo Lucía?",
+ "started_ms":1800000000000,"ended_ms":1800000004200,"assistant_name":"Vega"}
+```
+
+Only the name Deimos, whichever agent has it, accepts the
 recognition spelling “Demos”, at sentence start followed by a pause/comma.
-A listener restarted after an audio route change retains its configured name.
+A listener restarted after an audio route change retains its configured names.
 Questions end after 1.5 seconds silence
 (`NativeLimits.assistantQuestionPauseMilliseconds`) or 30 seconds
 (`maximumAssistantQuestionMilliseconds`), guarded copies of

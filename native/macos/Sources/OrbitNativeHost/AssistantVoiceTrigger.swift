@@ -61,7 +61,7 @@ package final class AssistantVoiceTrigger {
     /// Builds a listener from its report and question callbacks. Production
     /// uses macOS 26's speech analysis; tests pass a fake.
     typealias ListenerFactory = (
-        _ assistantName: String,
+        _ assistantNames: [String],
         _ report: @escaping (VoiceTriggerReport) -> Void,
         _ question: @escaping (SpokenQuestion, Double) -> Void
     ) -> PhraseListening
@@ -69,7 +69,8 @@ package final class AssistantVoiceTrigger {
     private let channel: NativeChannel
     private let makeListener: ListenerFactory?
     private var listener: PhraseListening?
-    private var assistantName = "Deimos"
+    /// Every agent's name, as the daemon last gave them.
+    private var assistantNames = ["Deimos"]
 
     package init(channel: NativeChannel) {
         self.channel = channel
@@ -100,13 +101,20 @@ package final class AssistantVoiceTrigger {
         }
     }
 
-    /// Starts listening on the meeting microphone `streamID`. `allow` is
-    /// asked on the main actor before a question leaves: the user's stop off and
-    /// the stream still the active microphone.
+    /// Starts listening on the meeting microphone `streamID` for every name
+    /// in `assistantNames` (or the one `assistantName`); without either, for
+    /// the names it last had. `allow` is asked on the main actor before a
+    /// question leaves: the user's stop off and the stream still the active
+    /// microphone.
     package func start(streamID: String, assistantName: String? = nil,
+                       assistantNames: [String]? = nil,
                        allow: @escaping @MainActor (String) -> Bool) -> MicrophoneFrameSink? {
         stop()
-        if let assistantName { self.assistantName = assistantName }
+        if let assistantNames, !assistantNames.isEmpty {
+            self.assistantNames = assistantNames
+        } else if let assistantName {
+            self.assistantNames = [assistantName]
+        }
         let channel = self.channel
         let report: (VoiceTriggerReport) -> Void = { report in _ = channel.send(report.event) }
         let question: (SpokenQuestion, Double) -> Void = { spoken, fedSeconds in
@@ -115,15 +123,15 @@ package final class AssistantVoiceTrigger {
             let started = now - Int64(((fedSeconds - spoken.start) * 1_000).rounded())
             Task { @MainActor in
                 AssistantVoiceTrigger.deliver(.makeAssistantQuestion(streamID: streamID, text: spoken.text,
-                    startedMS: started, endedMS: ended), streamID: streamID, allow: allow,
-                    channel: channel)
+                    startedMS: started, endedMS: ended, assistantName: spoken.name),
+                    streamID: streamID, allow: allow, channel: channel)
             }
         }
         let listener: PhraseListening
         if let makeListener {
-            listener = makeListener(self.assistantName, report, question)
+            listener = makeListener(self.assistantNames, report, question)
         } else if #available(macOS 26.0, *) {
-            listener = SpeechPhraseListener(assistantName: self.assistantName, report: report, question: question)
+            listener = SpeechPhraseListener(assistantNames: self.assistantNames, report: report, question: question)
         } else {
             announce()
             return nil

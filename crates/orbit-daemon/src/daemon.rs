@@ -570,6 +570,8 @@ use turn::refusal_notice;
 mod work;
 
 #[cfg(test)]
+mod agents_tests;
+#[cfg(test)]
 mod capability_notice_tests;
 #[cfg(test)]
 mod commands_tests;

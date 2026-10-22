@@ -102,6 +102,7 @@ impl Default for AppSnapshot {
             chat: ChatSnapshot {
                 availability: None,
                 session_id: None,
+                agent_id: None,
                 turn: Vec::new(),
                 voice_audio: None,
                 pending_contract: None,

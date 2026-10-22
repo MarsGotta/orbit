@@ -397,7 +397,9 @@ async fn submitting_snapshot_keeps_new_turn_and_discards_interrupted_reply() -> 
     let interruption = hub_frames.recv().await.context("chat.interrupt absent")?;
     assert_eq!(interruption["method"], "chat.interrupt");
     assert_eq!(interruption["params"]["turn_id"], old_turn);
-    runtime.command(Command::NewSession).await?;
+    runtime
+        .command(Command::NewSession { agent_id: None })
+        .await?;
     runtime
         .command(Command::Chat {
             text: "E2E_NEW".into(),

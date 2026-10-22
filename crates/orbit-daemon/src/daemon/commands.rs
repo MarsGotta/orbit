@@ -81,6 +81,29 @@ impl Runtime {
         Ok(recording_id)
     }
 
+    /// A conversation is with an agent the hub listed (the last list it
+    /// gave). Refused with the id asked for and the ones there are, as the
+    /// hub's own `agent_not_found` would say.
+    pub(super) fn ensure_known_agent(&self, agent_id: Option<&str>) -> Result<()> {
+        let Some(agent_id) = agent_id else {
+            return Ok(());
+        };
+        let roster = self.settings.roster();
+        if roster.agent(agent_id).is_none() {
+            let known = roster
+                .agents()
+                .iter()
+                .map(|agent| agent.id.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            bail!(
+                "El hub no tiene el agente «{agent_id}»; tiene {} ({known})",
+                roster.agents().len()
+            );
+        }
+        Ok(())
+    }
+
     pub(super) fn ensure_conversation_can_change(&self) -> Result<()> {
         use orbit_core::refusal::{Operation, Refusal};
         let operation = if self.state.durable.active_request.is_some() {
@@ -128,7 +151,7 @@ impl Runtime {
                 self.retire_device_request_reads().await?;
                 self.pair_device(hub_url, code, device_name).await?;
             }
-            Command::SessionOpen { id } => self.open_session(id).await?,
+            Command::SessionOpen { id, agent_id } => self.open_session(id, agent_id).await?,
             Command::TranscriptRetranscribe { recording_id } => {
                 self.note_order(recording_id, NoteOrder::Retranscribe)?
             }
@@ -210,6 +233,7 @@ impl Runtime {
                     question,
                     minutes,
                     orbit_core::meeting_question::QuestionOrigin::Typed,
+                    None,
                 )
                 .await?
             }
@@ -222,9 +246,10 @@ impl Runtime {
                 }
                 self.apply(Event::Submit { id: id(), text }).await?;
             }
-            Command::NewSession => {
+            Command::NewSession { agent_id } => {
+                self.ensure_known_agent(agent_id.as_deref())?;
                 self.ensure_conversation_can_change()?;
-                self.apply(Event::NewSession).await?;
+                self.apply(Event::NewSession { agent_id }).await?;
             }
             Command::Interrupt => {
                 self.meeting_question_interrupted();

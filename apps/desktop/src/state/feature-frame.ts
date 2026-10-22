@@ -24,6 +24,9 @@ function applyStatusFrame(
       ...snapshot.settings,
       ...view.settings,
       assistant_name: view.settings.assistant_name ?? snapshot.settings.assistant_name,
+      // A status without agents (before the daemon says) keeps the last ones.
+      agents: view.settings.agents?.length ? view.settings.agents : snapshot.settings.agents,
+      default_agent_id: view.settings.default_agent_id ?? snapshot.settings.default_agent_id,
     },
     notice: view.notice,
   };

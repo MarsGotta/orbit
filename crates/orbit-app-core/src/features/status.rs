@@ -45,6 +45,13 @@ pub struct StatusSettingsView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub assistant_name: Option<String>,
+    /// The agents a conversation can be with, in the hub's order; one for
+    /// a hub without agents. Empty until the daemon says.
+    #[serde(default)]
+    pub agents: Vec<orbit_core::agents::Agent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub default_agent_id: Option<String>,
     pub hub: SettingsHubSnapshot,
     pub helper_connected: bool,
     pub calendars: CalendarSettingsSnapshot,
@@ -95,6 +102,8 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         system_timezone_error,
         settings: StatusSettingsView {
             assistant_name: None,
+            agents: Vec::new(),
+            default_agent_id: None,
             hub: SettingsHubSnapshot {
                 url: None,
                 paired: false,
@@ -165,6 +174,8 @@ pub fn project(input: &FeatureInput<'_>) -> View {
                     }),
                 };
                 view.settings.assistant_name = value.assistant_name.clone();
+                view.settings.agents = value.agents.clone();
+                view.settings.default_agent_id = value.default_agent_id.clone();
                 view.settings.error_reports = value.error_reports;
             }
             Knowledge::Unknown { why } => {
@@ -487,6 +498,48 @@ mod assistant_name_tests {
             serde_json::to_value(snapshot)?["settings"]["assistant_name"],
             "Atlas"
         );
+        Ok(())
+    }
+
+    /// The daemon's agents and their default reach the interface; a
+    /// status from before agents has none, and the interface then names
+    /// the assistant by `assistant_name`.
+    #[test]
+    fn status_projects_the_agents_and_their_default() -> Result<(), Box<dyn std::error::Error>> {
+        use crate::{
+            features::{FeatureInput, status},
+            topics::TopicCache,
+        };
+        use orbit_core::topics::TopicFrame;
+        let snapshot = crate::AppSnapshot::default();
+        let mut topics = TopicCache::default();
+        let frame: TopicFrame = serde_json::from_value(serde_json::json!({
+            "epoch": "agents", "revision": 1, "data": {"topic": "status",
+            "knowledge": {"state": "present", "value": {
+                "hub":"online", "account": null, "helper_connected": true,
+                "privacy_stopped": false, "assistant_name":"Deimos",
+                "agents": [{"id":"deimos","name":"Deimos"},{"id":"atlas","name":"Atlas"}],
+                "default_agent_id": "deimos"
+            }}}
+        }))?;
+        topics.observe(frame);
+        let view = serde_json::to_value(status::project(&FeatureInput::new(&snapshot, &topics)))?;
+        assert_eq!(
+            view["settings"]["agents"],
+            serde_json::json!([{"id":"deimos","name":"Deimos"},{"id":"atlas","name":"Atlas"}])
+        );
+        assert_eq!(view["settings"]["default_agent_id"], "deimos");
+        let before: TopicFrame = serde_json::from_value(serde_json::json!({
+            "epoch": "agents", "revision": 2, "data": {"topic": "status",
+            "knowledge": {"state": "present", "value": {
+                "hub":"online", "account": null, "helper_connected": true,
+                "privacy_stopped": false
+            }}}
+        }))?;
+        topics.observe(before);
+        let view = serde_json::to_value(status::project(&FeatureInput::new(&snapshot, &topics)))?;
+        assert_eq!(view["settings"]["agents"], serde_json::json!([]));
+        assert!(view["settings"].get("default_agent_id").is_none());
         Ok(())
     }
 }

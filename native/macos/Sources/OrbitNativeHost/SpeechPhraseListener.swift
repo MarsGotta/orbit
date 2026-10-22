@@ -47,9 +47,9 @@ final class SpeechPhraseListener: PhraseListening, @unchecked Sendable {
     private let report: (VoiceTriggerReport) -> Void
     private let question: (SpokenQuestion, Double) -> Void
 
-    init(assistantName: String, report: @escaping (VoiceTriggerReport) -> Void,
+    init(assistantNames: [String], report: @escaping (VoiceTriggerReport) -> Void,
          question: @escaping (SpokenQuestion, Double) -> Void) {
-        self.policy = SpokenQuestionPolicy(assistantName: assistantName)
+        self.policy = SpokenQuestionPolicy(assistantNames: assistantNames)
         self.report = report
         self.question = question
     }

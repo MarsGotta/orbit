@@ -847,6 +847,8 @@ mod tests {
                 data: TopicData::Status(Knowledge::Present {
                     value: orbit_core::topics::status::Value {
                         assistant_name: None,
+                        agents: Vec::new(),
+                        default_agent_id: None,
                         hub: Connection::Offline,
                         account: None,
                         privacy_stopped: false,
