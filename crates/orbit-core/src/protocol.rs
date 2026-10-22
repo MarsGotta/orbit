@@ -485,6 +485,9 @@ pub struct AttachmentResponse {
     pub content: Option<AttachmentContent>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
+    /// «Adjuntar ventana»: what became of the window's text.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window_text: Option<crate::attachments::WindowText>,
 }
 
 /// An attachment's bytes as the hub returned them.

@@ -65,6 +65,10 @@ function unreadable(cause: Record<string, unknown>): string {
     pdf_locked: `${capitalised(file)} está protegido con contraseña.`,
     pdf_damaged: `${capitalised(file)} está dañado: el hub no pudo leer el PDF.`,
     render_failed: `El hub no pudo convertir en imágenes las páginas de ${file}.`,
+    // A HEIC photo, which the Mac turns into JPEG before uploading it.
+    photo_unreadable: `macOS no pudo leer la foto ${file} para pasarla a JPEG.`,
+    photo_jpeg_failed: `macOS no pudo pasar ${file} a JPEG.`,
+    helper_restarted: `El ayudante de Orbit se reinició mientras pasaba ${file} a JPEG.`,
   };
   return (
     reasons[String(cause.reason)] ?? `No se pudo leer ${file} (causa ${String(cause.reason)}).`
@@ -100,6 +104,14 @@ export function attachmentRefusalText(refusal: Refusal): string {
   }
 }
 
+/** Why «Adjuntar ventana» sent the capture without the window's text. */
+const WINDOW_TEXT_MISSING: Record<string, string> = {
+  empty: "La ventana no tiene texto legible; va sólo la captura.",
+  accessibility_permission_required:
+    "Sin el permiso de Accesibilidad, Orbit no lee su texto; va sólo la captura.",
+  timeout: "Su app no dio el texto a tiempo; va sólo la captura.",
+};
+
 /** What the composer and the messages say about attachments. */
 export const attachmentsCopy = {
   attachments: {
@@ -112,6 +124,10 @@ export const attachmentsCopy = {
     pastedImage: "Imagen pegada.png",
     pastedText: "Texto pegado.txt",
     failed: (name: string, code: string) => `No se pudo adjuntar “${name}” (${code}).`,
+    windowTextMissing: (cause: string) =>
+      WINDOW_TEXT_MISSING[cause] ??
+      `No se pudo leer su texto (causa ${cause}); va sólo la captura.`,
+    windowTextRefused: (reason: string) => `Su texto no se adjuntó: ${reason}`,
     pages: (pages: number) => (pages === 1 ? "1 página" : `${pages} páginas`),
     view: "Ver",
     viewImage: (name: string) => `Ver ${name}`,

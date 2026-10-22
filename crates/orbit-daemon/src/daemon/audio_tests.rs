@@ -93,6 +93,7 @@ pub(in crate::daemon) fn fixture(
             snapshot_revision: None,
             hub_events,
             pending_native: BTreeMap::new(),
+            helper_waits: BTreeMap::new(),
             token: None,
             work: WorkRuntime {
                 worker: crate::daemon::ticketed::Ticketed::logical(),

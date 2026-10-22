@@ -561,6 +561,7 @@ mod retire;
 mod sealing;
 mod shutdown;
 pub use shutdown::{SHUTDOWN_BUDGET, SNAPSHOT_RECEIPT_GRACE};
+mod helper_waits;
 mod sources;
 mod speech;
 mod startup;
@@ -759,6 +760,10 @@ struct Runtime {
     /// are removed when the matching response arrives, so a late refusal can
     /// be classified without parsing names out of the id.
     pending_native: BTreeMap<String, String>,
+    /// Helper orders a task off the loop waits for (`helper_waits`), by id.
+    /// An entry leaves when its reply arrives, when its task gave up and
+    /// the next order is sent, or when the helper restarts.
+    helper_waits: BTreeMap<String, tokio::sync::oneshot::Sender<helper_waits::HelperAnswer>>,
     token: Option<String>,
     work: WorkRuntime,
     conversation: ConversationRuntime,
@@ -1130,6 +1135,7 @@ async fn run_with_helper_inner(
         snapshot_revision: None,
         hub_events,
         pending_native: BTreeMap::new(),
+        helper_waits: BTreeMap::new(),
         token,
         work: WorkRuntime {
             worker: ticketed::Ticketed::logical(),

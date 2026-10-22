@@ -127,6 +127,16 @@ pub fn generate() -> Result<(), Box<dyn Error>> {
                 "path":"/Users/ejemplo/Proyectos/plan.md",
                 "read":{"as":"text","after_index":0,"max_bytes":48000}}),
         ),
+        (
+            "window_text",
+            json!({"application_pid":4242,"window_id":42,
+                "limits":{"max_bytes":131072,"max_nodes":2000,"deadline_ms":3000}}),
+        ),
+        (
+            "photo_jpeg",
+            json!({"source_path":"/Users/ejemplo/Fotos/IMG_0001.HEIC",
+                "destination_path":"/Users/ejemplo/Library/Application Support/Orbit/attachments/convert-1/IMG_0001.jpg"}),
+        ),
     ] {
         write(
             &root.join("commands"),
@@ -339,6 +349,10 @@ pub fn generate() -> Result<(), Box<dyn Error>> {
             "assistant_files_read",
             json!({"content":"text","text":"# Plan\nEl presupuesto del trimestre.\n",
                 "after_index":0,"size_bytes":37}),
+        ),
+        (
+            "window_text",
+            json!({"text":"Lista de la compra\nPan\nAgua","stopped":"deadline"}),
         ),
     ] {
         write(&root.join("results"), name, &result)?;

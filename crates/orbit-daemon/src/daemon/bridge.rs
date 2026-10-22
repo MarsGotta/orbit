@@ -1270,13 +1270,17 @@ impl Runtime {
                 .refuse_bridge_request(&ask, "source_capture_failed")
                 .await;
         };
-        let (application, title) = match &receipt.intent.target {
+        let (application, title, binding) = match &receipt.intent.target {
             orbit_core::sources::SourceTarget::NativeWindow {
                 application_name,
                 title,
+                binding,
                 ..
-            } => (application_name.clone(), title.clone()),
+            } => (application_name.clone(), title.clone(), binding),
         };
+        if ask.for_attachment {
+            self.window_captured_by_helper(binding.application_pid, binding.window_id);
+        }
         let result =
             match ask.capability {
                 orbit_core::device_bridge::Capability::Screenshot => {

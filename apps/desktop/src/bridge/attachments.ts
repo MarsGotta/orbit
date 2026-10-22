@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Image } from "@tauri-apps/api/image";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { Attachment } from "./generated/Attachment";
+import type { AddedAttachment } from "./generated/AddedAttachment";
 
 /** Where a new attachment's bytes come from; the daemon reads or captures them. */
 export type AttachmentSource =
@@ -10,9 +10,12 @@ export type AttachmentSource =
   | { from: "bytes"; name: string; data_base64: string }
   | { from: "window" };
 
-/** Uploads a file to the hub, which keeps it for this device until it is sent. */
-export function addAttachment(source: AttachmentSource): Promise<Attachment> {
-  return invoke<Attachment>("orbit_attachment_add", { source });
+/**
+ * Uploads a file to the hub, which keeps it for this device until it is
+ * sent; for a window, also what became of its text.
+ */
+export function addAttachment(source: AttachmentSource): Promise<AddedAttachment> {
+  return invoke<AddedAttachment>("orbit_attachment_add", { source });
 }
 
 /** A stored attachment's bytes, for its thumbnail or the viewer. */

@@ -7,7 +7,10 @@ import styles from "./Attachments.module.css";
 
 function detail(draft: DraftAttachment): string {
   if (draft.state === "uploading") return es.attachments.uploading;
-  if (draft.state === "ready") return fileSize(draft.attachment.bytes);
+  if (draft.state === "ready") {
+    const size = fileSize(draft.attachment.bytes);
+    return draft.note === undefined ? size : `${size} · ${draft.note}`;
+  }
   return attachmentFailure(draft.refusal, draft.name);
 }
 

@@ -419,6 +419,32 @@ Refusals use `ok:false` with `assistant_file_unavailable {cause}` or
 («Assistant folders»). Fixtures: `commands/assistant_*.json` and
 `results/assistant_*.json`. No path or content is logged.
 
+### Attachments: a window's text and a photo as JPEG
+
+Two orders of the composer's «Adjuntar». Like the folders, neither takes the
+general command lane, and the privacy latch refuses both.
+
+- `window_text {application_pid,window_id,limits:{max_bytes,max_nodes,
+  deadline_ms}}` reads the text Accessibility shows in the window «Adjuntar
+  ventana» just captured, when the engine is not running (with the engine,
+  the daemon asks its `get_window_state` for the tree instead). The window is
+  found among the app's `AXWindows` by the frame CoreGraphics gives
+  `window_id`; exactly one must match (`window_text_window_gone`,
+  `window_text_window_not_found`, `window_text_window_ambiguous`). The walk is
+  read-only and depth first, one line per element that shows a title, value
+  or description; a secure field and its children are never read. It answers
+  `{text,stopped?}`, where `stopped` is `bytes`, `nodes` or `deadline` when a
+  bound cut it. Without Accessibility it refuses
+  `accessibility_permission_required`. The text is never logged.
+- `photo_jpeg {source_path,destination_path}` reads a photo no agent reads
+  (an iPhone's HEIC) with ImageIO and writes it as JPEG at
+  `destination_path`, a private folder of the daemon's: at its full size,
+  turned as its EXIF says, without its metadata. It answers `{width,height}`
+  or refuses `photo_unreadable` or `photo_jpeg_failed`.
+
+Fixtures: `commands/window_text.json`, `commands/photo_jpeg.json` and
+`results/window_text.json`.
+
 ## Stop barrier and preceding audio
 
 `privacy_stop` or nonlatching `capture_stopped` is immediate and includes

@@ -66,6 +66,8 @@ fn command_name(command: &NativeCommand) -> &'static str {
         NativeCommand::AssistantFilesList { .. } => "assistant_files_list",
         NativeCommand::AssistantFilesSearch { .. } => "assistant_files_search",
         NativeCommand::AssistantFilesRead { .. } => "assistant_files_read",
+        NativeCommand::WindowText { .. } => "window_text",
+        NativeCommand::PhotoJpeg { .. } => "photo_jpeg",
     }
 }
 
@@ -130,6 +132,7 @@ fn every_native_variant_has_one_consumed_fixture() -> Result<(), Box<dyn Error>>
         "assistant_files_list",
         "assistant_files_search",
         "assistant_files_read",
+        "window_text",
     ]
     .into_iter()
     .map(String::from)

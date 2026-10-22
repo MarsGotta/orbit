@@ -130,3 +130,11 @@ fn projects_the_open_session_and_no_list_of_messages() {
     assert!(chat.get("messages").is_none());
     assert!(chat.get("sessions").is_none());
 }
+
+/// The answer to «Adjuntar» (`orbit_attachment_add`): the file the hub keeps
+/// and, for «Adjuntar ventana», what became of the window's text.
+#[test]
+fn the_attachment_answer_is_written_for_the_interface() -> std::io::Result<()> {
+    <orbit_core::attachments::AddedAttachment as ts_rs::TS>::export_all()
+        .map_err(|error| std::io::Error::other(error.to_string()))
+}

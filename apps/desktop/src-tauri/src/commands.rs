@@ -196,20 +196,25 @@ impl From<anyhow::Error> for AttachmentRefusal {
     }
 }
 
-/// «Adjuntar», a dropped file or a pasted image or text: the daemon reads
-/// it and uploads it to the hub; the answer is what the hub keeps.
+/// «Adjuntar», a dropped file, a pasted image or text, or «Adjuntar
+/// ventana»: the daemon reads or captures it and uploads it to the hub; the
+/// answer is what the hub keeps and, for a window, what became of its text.
 #[tauri::command]
 pub async fn orbit_attachment_add(
     source: orbit_core::attachments::AttachmentSource,
     attachments: State<'_, Attachments>,
-) -> Result<orbit_core::attachments::Attachment, AttachmentRefusal> {
+) -> Result<orbit_core::attachments::AddedAttachment, AttachmentRefusal> {
     let response = attachments
         .client
         .attachment(orbit_core::protocol::Command::AttachmentAdd { source })
         .await?;
-    response
+    let attachment = response
         .attachment
-        .ok_or_else(|| anyhow::anyhow!("El daemon no entregó el adjunto").into())
+        .ok_or_else(|| anyhow::anyhow!("El daemon no entregó el adjunto"))?;
+    Ok(orbit_core::attachments::AddedAttachment {
+        attachment,
+        window_text: response.window_text,
+    })
 }
 
 /// One attachment's bytes for the chat's viewer, as raw bytes (an

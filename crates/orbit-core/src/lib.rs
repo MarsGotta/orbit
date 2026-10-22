@@ -33,6 +33,7 @@ pub mod topics;
 pub mod transition;
 pub mod update;
 pub mod voice;
+pub mod window_text;
 
 pub use model::*;
 pub use transition::{Decision, Effect, Event, decide};

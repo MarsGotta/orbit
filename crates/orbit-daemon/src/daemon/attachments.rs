@@ -1,15 +1,51 @@
 //! The composer's files: read here by path or taken as bytes,
 //! uploaded to the hub, read back for the chat's viewer and written to this
 //! Mac's attachment folder for «Abrir». Each order runs off the loop, like a
-//! hub read, and answers its own `AttachmentResponse`.
+//! hub read, and answers its own `AttachmentResponse`. A HEIC photo, which
+//! no agent reads, is first written as JPEG by the helper.
 use super::Runtime;
+use super::helper_waits::{self, HelperAnswer};
 use anyhow::{Context, Result};
 use base64::{Engine, engine::general_purpose::STANDARD};
-use orbit_core::attachments::{Attachment, AttachmentLimits, AttachmentSource, admit_file};
+use orbit_core::attachments::{
+    Attachment, AttachmentLimits, AttachmentSource, admit_file, is_heif_photo, jpeg_name,
+};
 use orbit_core::protocol::{AttachmentContent, AttachmentResponse, Command};
-use orbit_core::refusal::{AttachmentCause, Refusal};
+use orbit_core::refusal::{AttachmentCause, Operation, Refusal};
+use serde_json::json;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use tokio::io::AsyncReadExt;
+use tokio::sync::oneshot;
+
+/// How long a HEIC photo waits for the helper's JPEG.
+///
+/// Protects: the person waiting on the photo's chip, and the order's slot,
+/// when the helper does not answer. Why 20 s: decoding and encoding a
+/// 48-megapixel photo with ImageIO takes a few seconds on a Mac; not
+/// measured. Past it the photo is refused with `timeout`; it does not limit
+/// the upload that follows.
+const PHOTO_WAIT: Duration = Duration::from_secs(20);
+
+/// A HEIC photo on its way to JPEG: the helper writes `destination`, inside
+/// `folder`, which goes with the order however it ends.
+struct PhotoConversion {
+    name: String,
+    folder: RemovedOnDrop,
+    destination: PathBuf,
+    answer: Result<oneshot::Receiver<HelperAnswer>>,
+}
+
+/// A folder of the daemon's removed when its order ends, a privacy stop
+/// that drops the order included: the JPEG in it is a plain copy of the
+/// user's photo.
+struct RemovedOnDrop(PathBuf);
+
+impl Drop for RemovedOnDrop {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
 
 /// What an attachment order needs, taken from the runtime when it arrives.
 pub(super) struct AttachmentContext {
@@ -54,16 +90,24 @@ impl Runtime {
         reply: orbit_ipc::ReplySender,
     ) {
         let context = self.attachment_context();
+        let photo = self.convert_photo(&command);
         let mut privacy_epoch = self.reads.privacy_epoch_rx.clone();
         let started_at_epoch = *privacy_epoch.borrow_and_update();
         let log_root = self.paths.root.clone();
         self.reads.tasks.push(tokio::spawn(async move {
+            let id = request_id.clone();
+            let answer = async move {
+                match photo {
+                    Some(photo) => respond(id, context.add_photo(photo).await.map(Answer::Added)),
+                    None => context.answer(command, id).await,
+                }
+            };
             // A privacy stop while it runs ends it: nothing more leaves.
             let response = tokio::select! {
                 _ = privacy_epoch.changed() => {
                     refused(request_id, Refusal::PrivacyStopped { since_ms: None })
                 }
-                response = context.answer(command, request_id.clone()) => response,
+                response = answer => response,
             };
             let response = if started_at_epoch != *privacy_epoch.borrow() && response.ok {
                 refused(response.id, Refusal::PrivacyStopped { since_ms: None })
@@ -75,6 +119,73 @@ impl Runtime {
                     .record("ipc_reply_receiver_gone", &[("command", "attachment")]);
             }
         }));
+    }
+
+    /// A HEIC photo chosen by its path is first written as JPEG by the
+    /// helper, under the photo's name with `.jpg`, in a private folder of
+    /// the daemon's; `None` for any other order, and for a hub that takes
+    /// no attachments (the order is refused for that).
+    fn convert_photo(&mut self, command: &Command) -> Option<PhotoConversion> {
+        let Command::AttachmentAdd {
+            source: AttachmentSource::Path { path },
+        } = command
+        else {
+            return None;
+        };
+        let name = Path::new(path).file_name()?.to_string_lossy().into_owned();
+        if !is_heif_photo(&name) || self.conversation.hub_attachments.is_none() {
+            return None;
+        }
+        let folder = self
+            .paths
+            .root
+            .join("attachments")
+            .join(format!("photo-{}", uuid::Uuid::new_v4()));
+        let destination = folder.join(jpeg_name(&name));
+        let answer = private_folder(&folder)
+            .map_err(|_| unreadable(Some(&name), "io"))
+            .and_then(|()| {
+                self.ask_helper(
+                    "photo_jpeg",
+                    json!({"source_path": path, "destination_path": destination}),
+                    Operation::Files,
+                )
+                .map_err(anyhow::Error::from)
+            });
+        Some(PhotoConversion {
+            name,
+            folder: RemovedOnDrop(folder),
+            destination,
+            answer,
+        })
+    }
+}
+
+/// The order's whole answer: what it produced, or its typed refusal.
+fn respond(id: String, outcome: Result<Answer>) -> AttachmentResponse {
+    match outcome {
+        Ok(answer) => {
+            let mut response = AttachmentResponse {
+                v: 1,
+                id,
+                ok: true,
+                error: None,
+                refusal: None,
+                attachment: None,
+                content: None,
+                path: None,
+                window_text: None,
+            };
+            match answer {
+                Answer::Added(attachment) => response.attachment = Some(attachment),
+                Answer::Fetched(content) => response.content = Some(content),
+                Answer::Saved(path) => {
+                    response.path = Some(path.to_string_lossy().into_owned());
+                }
+            }
+            response
+        }
+        Err(error) => refused(id, super::refusal_from_error(&error)),
     }
 }
 
@@ -88,6 +199,7 @@ fn refused(id: String, refusal: Refusal) -> AttachmentResponse {
         attachment: None,
         content: None,
         path: None,
+        window_text: None,
     }
 }
 
@@ -115,29 +227,46 @@ impl AttachmentContext {
         } else {
             Err(anyhow::anyhow!("Orden de adjunto desconocida"))
         };
-        match outcome {
-            Ok(answer) => {
-                let mut response = AttachmentResponse {
-                    v: 1,
-                    id: request_id,
-                    ok: true,
-                    error: None,
-                    refusal: None,
-                    attachment: None,
-                    content: None,
-                    path: None,
-                };
-                match answer {
-                    Answer::Added(attachment) => response.attachment = Some(attachment),
-                    Answer::Fetched(content) => response.content = Some(content),
-                    Answer::Saved(path) => {
-                        response.path = Some(path.to_string_lossy().into_owned());
+        respond(request_id, outcome)
+    }
+
+    /// The JPEG the helper wrote for a HEIC photo, read and uploaded as any
+    /// file; the photo is refused with the helper's cause when there is
+    /// none. The folder goes either way.
+    async fn add_photo(&self, photo: PhotoConversion) -> Result<Attachment> {
+        let PhotoConversion {
+            name,
+            folder: _folder,
+            destination,
+            answer,
+        } = photo;
+        helper_waits::wait(answer?, PHOTO_WAIT)
+            .await
+            .map_err(|cause| -> anyhow::Error {
+                if cause == "timeout" {
+                    let waited_ms = u64::try_from(PHOTO_WAIT.as_millis()).unwrap_or(u64::MAX);
+                    Refusal::Timeout {
+                        operation: Operation::Files,
+                        waited_ms,
+                        deadline_ms: waited_ms,
                     }
+                    .into()
+                } else {
+                    unreadable(Some(&name), &cause)
                 }
-                response
-            }
-            Err(error) => refused(request_id, super::refusal_from_error(&error)),
-        }
+            })?;
+        self.add(AttachmentSource::Path {
+            path: destination.to_string_lossy().into_owned(),
+        })
+        .await
+    }
+
+    /// Bytes the daemon itself made (the window's text), uploaded under
+    /// `name` within the same ceilings as any file.
+    pub(super) async fn add_bytes(&self, name: &str, bytes: Vec<u8>) -> Result<Attachment> {
+        let token = self.token()?;
+        admit_file(self.limits.as_ref(), name, bytes.len() as u64)?;
+        self.upload(token, name, bytes).await
     }
 
     fn token(&self) -> Result<&str> {
@@ -308,15 +437,10 @@ fn retire_saved(folder: &Path, now: std::time::SystemTime) {
     }
 }
 
-/// Write `bytes` as `directory/name`, both private to this user.
-fn write_private(directory: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf> {
-    use std::io::Write;
-    use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
-    let name = match name {
-        "" | "." | ".." => "adjunto",
-        name if name.contains('/') => "adjunto",
-        name => name,
-    };
+/// `directory` and its parent (the attachment folder), both private to this
+/// user.
+fn private_folder(directory: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
     if let Some(parent) = directory.parent() {
         std::fs::DirBuilder::new()
             .recursive(true)
@@ -327,7 +451,19 @@ fn write_private(directory: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf> 
     std::fs::DirBuilder::new()
         .recursive(true)
         .mode(0o700)
-        .create(directory)?;
+        .create(directory)
+}
+
+/// Write `bytes` as `directory/name`, both private to this user.
+fn write_private(directory: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf> {
+    use std::io::Write;
+    use std::os::unix::fs::OpenOptionsExt;
+    let name = match name {
+        "" | "." | ".." => "adjunto",
+        name if name.contains('/') => "adjunto",
+        name => name,
+    };
+    private_folder(directory)?;
     let path = directory.join(name);
     let mut file = std::fs::OpenOptions::new()
         .write(true)

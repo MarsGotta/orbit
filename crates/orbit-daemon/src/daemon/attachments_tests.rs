@@ -156,18 +156,18 @@ async fn more_files_than_the_hub_takes_are_refused_before_sending() -> Result<()
 // The loopback hub ------------------------------------------------------------
 
 #[derive(Debug, Clone)]
-struct Request {
-    method: String,
-    path: String,
-    headers: std::collections::BTreeMap<String, String>,
-    body: Vec<u8>,
+pub(in crate::daemon) struct Request {
+    pub(in crate::daemon) method: String,
+    pub(in crate::daemon) path: String,
+    pub(in crate::daemon) headers: std::collections::BTreeMap<String, String>,
+    pub(in crate::daemon) body: Vec<u8>,
 }
 
-type Recorded = Arc<Mutex<Vec<Request>>>;
+pub(in crate::daemon) type Recorded = Arc<Mutex<Vec<Request>>>;
 
 /// A hub on a loopback port that records each request and answers each with
 /// `(status, content type, extra headers, body)`.
-async fn http_hub(
+pub(in crate::daemon) async fn http_hub(
     answer: impl Fn(&Request) -> (u16, &'static str, Vec<(&'static str, String)>, Vec<u8>)
     + Send
     + Sync
@@ -562,31 +562,39 @@ async fn helper_command(helper: &mut mpsc::Receiver<Value>, name: &str) -> Resul
     }
 }
 
-#[tokio::test]
-async fn a_window_is_captured_as_the_assistant_s_and_kept_as_an_attachment() -> Result<()> {
-    let (_directory, mut runtime, mut frames, mut helper) =
+/// «Adjuntar ventana» through the helper, to its end: the listing, the
+/// capture of the window behind Orbit's, its upload, and the window's text,
+/// which the helper answers with `text_reply` (`ok` and `result` or `error`),
+/// after the person latched privacy when `stop_first`.
+struct WindowRun {
+    runtime: Runtime,
+    frames: mpsc::Receiver<Value>,
+    answered: Result<orbit_core::protocol::AttachmentResponse>,
+    requests: Vec<Request>,
+    text_order: Value,
+}
+
+async fn attach_the_editor_window(text_reply: Value, stop_first: bool) -> Result<WindowRun> {
+    let (_directory, mut runtime, frames, mut helper) =
         connected(Some(limits(10_000_000, 10))).await?;
     let (work, mut work_events) = mpsc::channel(16);
     runtime.work.work_events = work;
     let (url, recorded) = http_hub(|request| {
-        if request.path == "/v1/attachments/capture" {
-            let body = json!({"attachment": {"id": PICTURE, "name": "Editor — Nota sintética.png",
-                "kind": "image", "mime": "image/png", "bytes": 70}});
-            (
-                200,
-                "application/json",
-                Vec::new(),
-                body.to_string().into_bytes(),
-            )
+        let body = if request.path == "/v1/attachments/capture" {
+            json!({"attachment": {"id": PICTURE, "name": "Editor — Nota sintética.png",
+                "kind": "image", "mime": "image/png", "bytes": 70}})
+        } else if request.path == "/v1/attachments" {
+            json!({"attachment": {"id": NOTES, "name": "Editor — Nota sintética.txt",
+                "kind": "text", "mime": "text/plain", "bytes": request.body.len()}})
         } else {
-            let body = json!({"capture_id": "stored", "stored": true});
-            (
-                200,
-                "application/json",
-                Vec::new(),
-                body.to_string().into_bytes(),
-            )
-        }
+            json!({"capture_id": "stored", "stored": true})
+        };
+        (
+            200,
+            "application/json",
+            Vec::new(),
+            body.to_string().into_bytes(),
+        )
     })
     .await?;
     runtime.settings.hub_url = Some(url);
@@ -627,14 +635,59 @@ async fn a_window_is_captured_as_the_assistant_s_and_kept_as_an_attachment() -> 
         .flatten()
         .context("the capture upload never ended")?;
     runtime.work_event(uploaded).await?;
+    let text_order = helper_command(&mut helper, "window_text").await?;
+    if stop_first {
+        runtime
+            .reads
+            .retire(orbit_core::authority::AuthorityChange::UserStop);
+    }
+    let mut reply = text_reply;
+    reply["event"] = json!("response");
+    reply["id"] = text_order["id"].clone();
+    runtime.native_event(reply).await?;
     let answered = tokio::time::timeout(std::time::Duration::from_secs(10), asked)
         .await
-        .context("no answer")???;
+        .context("no answer")??;
+    let requests = recorded.lock().map(|seen| seen.clone()).unwrap_or_default();
+    Ok(WindowRun {
+        runtime,
+        frames,
+        answered,
+        requests,
+        text_order,
+    })
+}
+
+#[tokio::test]
+async fn a_window_is_captured_as_the_assistant_s_and_kept_as_an_attachment() -> Result<()> {
+    let WindowRun {
+        runtime,
+        mut frames,
+        answered,
+        requests,
+        text_order,
+    } = attach_the_editor_window(json!({"ok": true, "result": {"text": " \n "}}), false).await?;
+    let answered = answered?;
     assert_eq!(
         answered.attachment.map(|attachment| attachment.name),
         Some("Editor — Nota sintética.png".to_owned())
     );
-    let requests = recorded.lock().map(|seen| seen.clone()).unwrap_or_default();
+    // The window just captured is the one whose text is read.
+    assert_eq!(
+        (&text_order["application_pid"], &text_order["window_id"]),
+        (&json!(1022), &json!(22))
+    );
+    assert_eq!(
+        text_order["limits"],
+        json!({"max_bytes": 131_072, "max_nodes": 2_000, "deadline_ms": 3_000})
+    );
+    // A window without readable text sends the capture alone, and says so.
+    assert_eq!(
+        answered.window_text,
+        Some(orbit_core::attachments::WindowText::Missing {
+            cause: "empty".into()
+        })
+    );
     let [capture, kept] = requests.as_slice() else {
         bail!("expected the capture and its attachment, got {requests:?}");
     };
@@ -666,6 +719,95 @@ async fn a_window_is_captured_as_the_assistant_s_and_kept_as_an_attachment() -> 
     }
     assert!(runtime.conversation.bridge_request.is_none());
     assert!(runtime.conversation.window_attachment.is_none());
+    Ok(())
+}
+
+/// The window's text goes as a second attachment, a `.txt` named like the
+/// capture, with the text the helper read.
+#[tokio::test]
+async fn the_window_s_text_is_attached_next_to_its_capture() -> Result<()> {
+    let text = "Lista de la compra\nPan\nAgua";
+    let run =
+        attach_the_editor_window(json!({"ok": true, "result": {"text": text}}), false).await?;
+    let answered = run.answered?;
+    assert_eq!(
+        answered.attachment.map(|attachment| attachment.id),
+        Some(PICTURE.to_owned())
+    );
+    let [_capture, _kept, file] = run.requests.as_slice() else {
+        bail!(
+            "expected the capture, its attachment and the text, got {:?}",
+            run.requests
+        );
+    };
+    assert_eq!(
+        (file.method.as_str(), file.path.as_str()),
+        ("POST", "/v1/attachments")
+    );
+    assert_eq!(file.body, text.as_bytes());
+    assert_eq!(
+        file.headers
+            .get("x-orbit-attachment-name")
+            .map(String::as_str),
+        Some("Editor%20%E2%80%94%20Nota%20sint%C3%A9tica.txt")
+    );
+    let Some(orbit_core::attachments::WindowText::Attached { attachment }) = answered.window_text
+    else {
+        bail!("the text was not attached: {:?}", answered.window_text);
+    };
+    assert_eq!(
+        (attachment.id.as_str(), attachment.name.as_str()),
+        (NOTES, "Editor — Nota sintética.txt")
+    );
+    Ok(())
+}
+
+/// Without Accessibility the helper reads nothing: the capture goes alone
+/// and the answer names that permission.
+#[tokio::test]
+async fn a_window_whose_text_cannot_be_read_sends_the_capture_and_its_cause() -> Result<()> {
+    let run = attach_the_editor_window(
+        json!({"ok": false,
+        "error": {"code": "accessibility_permission_required", "message": "untrusted text"}}),
+        false,
+    )
+    .await?;
+    let answered = run.answered?;
+    assert!(answered.ok, "{:?}", answered.refusal);
+    assert_eq!(
+        answered.window_text,
+        Some(orbit_core::attachments::WindowText::Missing {
+            cause: "accessibility_permission_required".into()
+        })
+    );
+    assert_eq!(run.requests.len(), 2, "{:?}", run.requests);
+    Ok(())
+}
+
+/// A privacy stop while the window's text is on its way: the text never
+/// leaves, and the app hears the stop rather than an attachment.
+#[tokio::test]
+async fn a_privacy_stop_keeps_the_window_s_text_on_the_mac() -> Result<()> {
+    let run = attach_the_editor_window(
+        json!({"ok": true, "result": {"text": "Lista de la compra"}}),
+        true,
+    )
+    .await?;
+    let refused = run
+        .answered
+        .err()
+        .context("a window was attached after the privacy stop")?;
+    assert_eq!(
+        refusal_of(&refused),
+        Some(Refusal::PrivacyStopped { since_ms: None })
+    );
+    assert!(
+        run.requests
+            .iter()
+            .all(|request| request.path != "/v1/attachments"),
+        "{:?}",
+        run.requests
+    );
     Ok(())
 }
 
@@ -703,6 +845,145 @@ async fn a_window_the_helper_cannot_take_answers_the_app_with_its_cause() -> Res
         assert_ne!(frame["method"], "device.reply", "{frame}");
     }
     assert!(runtime.conversation.window_attachment.is_none());
+    Ok(())
+}
+
+// HEIC photos ---------------------------------------------------------------
+
+/// An order for a file by its path, answered on the app's real reply channel.
+async fn order_through_the_app(
+    runtime: &mut Runtime,
+    command: Command,
+) -> Result<tokio::task::JoinHandle<Result<orbit_core::protocol::AttachmentResponse, anyhow::Error>>>
+{
+    let (calls, mut received) = mpsc::channel(4);
+    let (_ended, ended) = tokio::sync::watch::channel(None);
+    let client = orbit_ipc::LocalClient::new(calls, &std::collections::BTreeMap::new(), ended);
+    let sent = command.clone();
+    let asked = tokio::spawn(async move { client.attachment(sent).await });
+    let call = received.recv().await.context("no order")?;
+    runtime.serve_attachment(command, call.request.id, call.reply);
+    Ok(asked)
+}
+
+fn heic_photo(directory: &tempfile::TempDir) -> Result<PathBuf> {
+    let photo = directory.path().join("IMG_0001.HEIC");
+    std::fs::write(&photo, b"\x00\x00\x00\x18ftypheic synthetic photo")?;
+    Ok(photo)
+}
+
+/// No agent reads a HEIC photo, so the helper writes it as JPEG in a folder
+/// of the daemon's; that JPEG is uploaded under the photo's name with
+/// `.jpg`, and the folder is gone once it is.
+#[tokio::test]
+async fn a_heic_photo_is_uploaded_as_the_jpeg_the_helper_wrote() -> Result<()> {
+    let (directory, mut runtime, _frames, mut helper) =
+        connected(Some(limits(1_000_000, 10))).await?;
+    let photo = heic_photo(&directory)?;
+    let (url, recorded) = http_hub(|request| {
+        let body = json!({"attachment": {"id": PICTURE, "name": "IMG_0001.jpg",
+            "kind": "image", "mime": "image/jpeg", "bytes": request.body.len()}});
+        (
+            200,
+            "application/json",
+            Vec::new(),
+            body.to_string().into_bytes(),
+        )
+    })
+    .await?;
+    runtime.settings.hub_url = Some(url);
+    let asked = order_through_the_app(
+        &mut runtime,
+        Command::AttachmentAdd {
+            source: AttachmentSource::Path {
+                path: photo.to_string_lossy().into_owned(),
+            },
+        },
+    )
+    .await?;
+    let convert = helper_command(&mut helper, "photo_jpeg").await?;
+    assert_eq!(convert["source_path"], photo.to_string_lossy().as_ref());
+    let destination = PathBuf::from(
+        convert["destination_path"]
+            .as_str()
+            .context("no destination")?,
+    );
+    assert!(
+        destination.starts_with(runtime.paths.root.join("attachments")),
+        "{}",
+        destination.display()
+    );
+    assert_eq!(
+        destination.file_name().and_then(|name| name.to_str()),
+        Some("IMG_0001.jpg")
+    );
+    // The helper's work: the JPEG where it was asked to write it.
+    let jpeg = b"\xff\xd8\xff synthetic jpeg";
+    std::fs::write(&destination, jpeg)?;
+    runtime
+        .native_event(json!({"event":"response","id":convert["id"],"ok":true,
+            "result":{"width":4032,"height":3024}}))
+        .await?;
+    let answered = tokio::time::timeout(std::time::Duration::from_secs(10), asked)
+        .await
+        .context("no answer")???;
+    assert!(answered.ok, "{:?}", answered.refusal);
+    let requests = recorded.lock().map(|seen| seen.clone()).unwrap_or_default();
+    let [upload] = requests.as_slice() else {
+        bail!("expected one upload, got {requests:?}");
+    };
+    assert_eq!(upload.body, jpeg);
+    assert_eq!(
+        upload
+            .headers
+            .get("x-orbit-attachment-name")
+            .map(String::as_str),
+        Some("IMG_0001.jpg")
+    );
+    let folder = destination.parent().context("no folder")?;
+    assert!(!folder.exists(), "{} was left behind", folder.display());
+    Ok(())
+}
+
+/// A photo the helper cannot turn into JPEG is refused with its name and
+/// the helper's cause; nothing is uploaded.
+#[tokio::test]
+async fn a_heic_photo_the_helper_cannot_convert_is_refused_with_its_cause() -> Result<()> {
+    let (directory, mut runtime, _frames, mut helper) =
+        connected(Some(limits(1_000_000, 10))).await?;
+    let photo = heic_photo(&directory)?;
+    let (url, recorded) =
+        http_hub(move |_| (200, "application/json", Vec::new(), hub_attachment("x", 1))).await?;
+    runtime.settings.hub_url = Some(url);
+    let asked = order_through_the_app(
+        &mut runtime,
+        Command::AttachmentAdd {
+            source: AttachmentSource::Path {
+                path: photo.to_string_lossy().into_owned(),
+            },
+        },
+    )
+    .await?;
+    let convert = helper_command(&mut helper, "photo_jpeg").await?;
+    runtime
+        .native_event(json!({"event":"response","id":convert["id"],"ok":false,
+            "error":{"code":"photo_unreadable","message":"untrusted text"}}))
+        .await?;
+    let refused = tokio::time::timeout(std::time::Duration::from_secs(10), asked)
+        .await
+        .context("no answer")??
+        .err()
+        .context("a photo the helper could not convert was attached")?;
+    assert_eq!(
+        refusal_of(&refused),
+        Some(Refusal::Attachment {
+            cause: AttachmentCause::Unreadable {
+                name: Some("IMG_0001.HEIC".into()),
+                reason: "photo_unreadable".into(),
+            }
+        })
+    );
+    assert!(recorded.lock().map(|seen| seen.is_empty()).unwrap_or(false));
     Ok(())
 }
 

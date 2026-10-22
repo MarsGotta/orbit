@@ -40,7 +40,7 @@ package enum CalendarBridge {
              .playbackClip, .applicationSources,
              .screenSources, .screenshot, .selectedText,
              .assistantFolderPick, .assistantFolders, .assistantFilesList, .assistantFilesSearch,
-             .assistantFilesRead:
+             .assistantFilesRead, .windowText, .photoJPEG:
             throw CalendarFailure.invalidRequest
         }
     }

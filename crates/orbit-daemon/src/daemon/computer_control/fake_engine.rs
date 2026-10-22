@@ -40,6 +40,8 @@ pub(super) struct FakeEngine {
     pub hang_input: bool,
     pub timeout: Duration,
     pub record: EngineRecord,
+    /// The window's tree, answered to a `get_window_state` without a picture.
+    pub tree: Option<String>,
 }
 
 impl Default for FakeEngine {
@@ -69,6 +71,7 @@ impl Default for FakeEngine {
             hang_input: false,
             timeout: Duration::from_millis(300),
             record: EngineRecord::default(),
+            tree: None,
         }
     }
 }
@@ -133,6 +136,13 @@ impl FakeEngine {
                                         json!({"status":"ok","tool":name,"snapshot_id":"general-1",
                                             "screenshot_width":self.desktop_dimensions.0,"screenshot_height":self.desktop_dimensions.1})
                                     }
+                                } else if let Some(tree) = self
+                                    .tree
+                                    .as_ref()
+                                    .filter(|_| call["arguments"]["include_screenshot"] == false)
+                                {
+                                    json!({"status":"ok","tool":name,"snapshot_id":"general-2",
+                                        "tree_markdown":tree})
                                 } else {
                                     content = json!([{"type":"image","mimeType":"image/png","data":self.png}]);
                                     if call["arguments"]["query"] == ENORMOUS_TREE {

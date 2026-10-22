@@ -1235,7 +1235,10 @@ names it within an hour.
 `POST /v1/attachments/capture` with `{capture_id,request_id,name}` keeps as an
 attachment a window capture the Mac uploaded (`PUT /v1/captures/{capture_id}`
 bound to `request_id`) for «Adjuntar ventana»: the PNG crosses the network
-once and is taken once (`404 capture_missing` `{capture_id}` afterwards).
+once and is taken once (`404 capture_missing` `{capture_id}` afterwards). The
+window's text, when it has some, follows as an ordinary `POST /v1/attachments`
+of a `.txt` with the capture's name. A HEIC photo is turned into JPEG on the
+Mac before its upload, so this hub refuses one only from another client.
 
 `GET /v1/attachments/{id}` returns the bytes with their `Content-Type` and the
 name in `X-Orbit-Attachment-Name`, for the device that uploaded them.

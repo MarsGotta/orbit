@@ -107,6 +107,9 @@ public enum NativeWireCommand: Decodable, Sendable {
     case assistantFilesList(NativeWireEnvelope<AssistantFilesListFields>)
     case assistantFilesSearch(NativeWireEnvelope<AssistantFilesSearchFields>)
     case assistantFilesRead(NativeWireEnvelope<AssistantFilesReadFields>)
+    /// «Adjuntar ventana»'s text and a HEIC photo as JPEG (`WindowText.swift`).
+    case windowText(NativeWireEnvelope<NativeWindowTextFields>)
+    case photoJPEG(NativeWireEnvelope<NativePhotoJPEGFields>)
 
     private var header: (v: Int, id: String) {
         switch self {
@@ -132,6 +135,8 @@ public enum NativeWireCommand: Decodable, Sendable {
         case .assistantFilesList(let value): return (value.v, value.id)
         case .assistantFilesSearch(let value): return (value.v, value.id)
         case .assistantFilesRead(let value): return (value.v, value.id)
+        case .windowText(let value): return (value.v, value.id)
+        case .photoJPEG(let value): return (value.v, value.id)
         }
     }
 
@@ -197,6 +202,8 @@ public enum NativeWireCommand: Decodable, Sendable {
         case "assistant_files_list": self = .assistantFilesList(try .init(from: decoder))
         case "assistant_files_search": self = .assistantFilesSearch(try .init(from: decoder))
         case "assistant_files_read": self = .assistantFilesRead(try .init(from: decoder))
+        case "window_text": self = .windowText(try .init(from: decoder))
+        case "photo_jpeg": self = .photoJPEG(try .init(from: decoder))
         default: throw DecodingError.dataCorruptedError(forKey: .command,
             in: try decoder.container(keyedBy: CodingKeys.self), debugDescription: "Comando nativo desconocido: \(command)")
         }
@@ -233,6 +240,8 @@ public enum NativeWireCommand: Decodable, Sendable {
         case .assistantFilesList: "assistant_files_list"
         case .assistantFilesSearch: "assistant_files_search"
         case .assistantFilesRead: "assistant_files_read"
+        case .windowText: "window_text"
+        case .photoJPEG: "photo_jpeg"
         }
     }
     public static let names: Set<String> = [
@@ -244,7 +253,8 @@ public enum NativeWireCommand: Decodable, Sendable {
         "application_sources", "screen_sources",
         "screenshot", "selected_text",
         "assistant_folder_pick", "assistant_folders", "assistant_files_list",
-        "assistant_files_search", "assistant_files_read"
+        "assistant_files_search", "assistant_files_read",
+        "window_text", "photo_jpeg"
     ]
 }
 

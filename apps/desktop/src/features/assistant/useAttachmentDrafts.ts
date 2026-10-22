@@ -8,7 +8,7 @@ import {
 import type { AttachmentLimits } from "../../bridge/generated/AttachmentLimits";
 import { refusalOf } from "../../bridge/refusal";
 import { es } from "../../i18n/es";
-import { localRefusal, uploadedRefusal, type DraftAttachment } from "./attachment-drafts";
+import { localRefusal, settled, type DraftAttachment } from "./attachment-drafts";
 
 /**
  * A paste longer than this becomes «Texto pegado.txt» instead of going into
@@ -106,19 +106,14 @@ export function useAttachmentDrafts(limits: AttachmentLimits | undefined) {
       return;
     }
     update((all) => [...all, { key, state: "uploading", name, bytes }]);
-    const settle = (draft: DraftAttachment) =>
-      update((all) => all.map((each) => (each.key === key ? draft : each)));
     addAttachment(source).then(
-      (attachment) => {
-        const others = current.current.filter((each) => each.key !== key);
-        const overflow = uploadedRefusal(limits, others, attachment);
-        settle(
-          overflow === null
-            ? { key, state: "ready", name: attachment.name, attachment }
-            : { key, state: "failed", name: attachment.name, refusal: overflow },
-        );
-      },
-      (error: unknown) => settle({ key, state: "failed", name, refusal: refusalOf(error) }),
+      (added) => update((all) => settled(limits, all, key, added, () => nextKey.current++)),
+      (error: unknown) =>
+        update((all) =>
+          all.map((each) =>
+            each.key === key ? { key, state: "failed", name, refusal: refusalOf(error) } : each,
+          ),
+        ),
     );
   };
 

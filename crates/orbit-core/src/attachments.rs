@@ -78,6 +78,60 @@ pub enum AttachmentSource {
     Window,
 }
 
+/// What «Adjuntar ventana» did with the window's text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum WindowText {
+    /// Kept as its own `.txt` attachment, next to the capture.
+    Attached { attachment: Attachment },
+    /// Not read; the capture went alone. `cause` is `empty` for a window
+    /// that shows no text Accessibility can read, or the code of what
+    /// failed: the helper's (`accessibility_permission_required`…), the
+    /// engine's (`engine_…`) or the wait's (`timeout`, `helper_restarted`).
+    Missing { cause: String },
+    /// Read, but the hub did not keep it: its refusal, names and numbers
+    /// included. The capture went alone.
+    Refused {
+        #[cfg_attr(feature = "ts", ts(type = "unknown"))]
+        refusal: Refusal,
+    },
+}
+
+/// The answer to «Adjuntar»: the file the hub keeps and, for «Adjuntar
+/// ventana», what became of the window's text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+)]
+pub struct AddedAttachment {
+    pub attachment: Attachment,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub window_text: Option<WindowText>,
+}
+
+/// Whether a file's name says it is a HEIF photo (an iPhone's `.HEIC`).
+/// No agent reads one, so the Mac turns it into JPEG before uploading it.
+pub fn is_heif_photo(name: &str) -> bool {
+    name.rsplit_once('.').is_some_and(|(stem, extension)| {
+        !stem.is_empty()
+            && (extension.eq_ignore_ascii_case("heic") || extension.eq_ignore_ascii_case("heif"))
+    })
+}
+
+/// The name of a photo once it is JPEG: the same name, with `.jpg`.
+pub fn jpeg_name(name: &str) -> String {
+    let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
+    format!("{stem}.jpg")
+}
+
 /// Whether one file of `bytes` may be uploaded: the hub must take
 /// attachments, and the file must fit both the hub's ceiling and the Mac's
 /// (`limits::MAX_ATTACHMENT_BYTES`, what the daemon reads whole).
@@ -250,6 +304,18 @@ mod tests {
                 }
             })
         );
+    }
+
+    #[test]
+    fn a_heic_photo_is_known_by_its_name_and_becomes_a_jpg() {
+        for name in ["IMG_0001.HEIC", "foto.heic", "playa.Heif"] {
+            assert!(is_heif_photo(name), "{name}");
+        }
+        for name in ["foto.jpg", "heic", ".heic", "notas.heic.txt"] {
+            assert!(!is_heif_photo(name), "{name}");
+        }
+        assert_eq!(jpeg_name("IMG_0001.HEIC"), "IMG_0001.jpg");
+        assert_eq!(jpeg_name("vacaciones.2026.heif"), "vacaciones.2026.jpg");
     }
 
     #[test]

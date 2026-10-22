@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Refusal } from "../../bridge/refusal";
-import { fileSize } from "./attachments";
+import { attachmentsCopy, fileSize } from "./attachments";
 import { refusalEntries } from "./refusalEntries";
 
 // Every attachment refusal names the file and the numbers of the rule that
@@ -25,6 +25,15 @@ describe("file sizes", () => {
 describe("attachment refusals", () => {
   it("a hub without attachments asks to update it", () => {
     expect(text({ kind: "unsupported" })).toBe("Este hub no admite adjuntos; actualízalo.");
+  });
+
+  it("says why a HEIC photo could not be turned into JPEG", () => {
+    expect(text({ kind: "unreadable", name: "IMG_0001.HEIC", reason: "photo_unreadable" })).toBe(
+      "macOS no pudo leer la foto “IMG_0001.HEIC” para pasarla a JPEG.",
+    );
+    expect(text({ kind: "unreadable", name: "IMG_0001.HEIC", reason: "photo_jpeg_failed" })).toBe(
+      "macOS no pudo pasar “IMG_0001.HEIC” a JPEG.",
+    );
   });
 
   it("names the type no agent reads and what can be attached", () => {
@@ -89,6 +98,20 @@ describe("attachment refusals", () => {
   it("an attachment the hub no longer keeps says why and what to do", () => {
     expect(text({ kind: "not_found", attachment_id: "adjunto-1" })).toBe(
       "Ese adjunto ya no está en el hub (se borra si no se envía en una hora); vuelve a adjuntarlo.",
+    );
+  });
+});
+
+describe("the window's text", () => {
+  const missing = attachmentsCopy.attachments.windowTextMissing;
+  it("says when the capture goes alone, and why", () => {
+    expect(missing("empty")).toBe("La ventana no tiene texto legible; va sólo la captura.");
+    expect(missing("accessibility_permission_required")).toBe(
+      "Sin el permiso de Accesibilidad, Orbit no lee su texto; va sólo la captura.",
+    );
+    expect(missing("timeout")).toBe("Su app no dio el texto a tiempo; va sólo la captura.");
+    expect(missing("engine_failed")).toBe(
+      "No se pudo leer su texto (causa engine_failed); va sólo la captura.",
     );
   });
 });

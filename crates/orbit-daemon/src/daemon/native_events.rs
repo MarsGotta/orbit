@@ -176,6 +176,7 @@ impl Runtime {
         self.cancel_sources_with_cause("helper_restarted", "El helper se reinició antes de entregar la respuesta anterior; no se conoce aún la instancia nueva.").await?;
         // A request into the folders the old helper held has no answer.
         self.files_helper_restarted();
+        self.end_helper_waits();
         let retired_call_starts = self.capture.retired_call_starts.len();
         let retired_stops = self.capture.retired_stops.len();
         if retired_call_starts > 0 || retired_stops > 0 {
@@ -311,6 +312,9 @@ impl Runtime {
                 &[("id", &response.id), ("code", "stream_not_found")],
             );
             self.mark_overtaken_stop_answered(&response.id);
+            return Ok(());
+        }
+        if self.answer_helper_wait(&response) {
             return Ok(());
         }
         if self.files_response(event).await? {
@@ -723,6 +727,7 @@ impl Runtime {
     async fn on_native_helper_disconnected(&mut self, event: &Value) -> Result<()> {
         let cause = NativeHelperDisconnect::deserialize(event)?;
         self.files_helper_restarted();
+        self.end_helper_waits();
         // The line that explains a menu bar icon vanishing without a
         // crash report, which is otherwise invisible after the fact.
         self.log(

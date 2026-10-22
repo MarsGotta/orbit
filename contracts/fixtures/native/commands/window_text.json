@@ -1,0 +1,12 @@
+{
+  "command": "window_text",
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000911",
+  "application_pid": 4242,
+  "window_id": 42,
+  "limits": {
+    "max_bytes": 131072,
+    "max_nodes": 2000,
+    "deadline_ms": 3000
+  }
+}

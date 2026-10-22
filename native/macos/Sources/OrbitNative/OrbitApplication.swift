@@ -19,6 +19,8 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     private lazy var windowScreenshots = WindowScreenshots(diagnostics: diagnostics)
     /// The assistant's folders: the panel, their bookmarks, read-only reads.
     private let assistantFiles = AssistantFiles()
+    private let windowText = WindowTextReading()
+    private let photoJPEG = PhotoJPEG()
     private let microphoneActivity = MicrophoneActivityObserver()
     /// «Oye Deimos» on the meeting's microphone.
     private lazy var assistantTrigger = AssistantVoiceTrigger(channel: channel)
@@ -268,8 +270,10 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         // The folders never take the general lane: an open panel waits for a
         // person and a search walks the disk, and neither may hold back a
         // recording that starts meanwhile. The daemon sends one at a time.
+        // Nor do a window's text, which waits on another app, and a photo's
+        // JPEG, which decodes a whole image: each is the user's one attachment.
         case .assistantFolderPick, .assistantFolders, .assistantFilesList, .assistantFilesSearch,
-             .assistantFilesRead:
+             .assistantFilesRead, .windowText, .photoJPEG:
             guard connected else {
                 channel.reject(command, code: "daemon_disconnected", message: "Reinicia Orbit para recuperar la conexión local.")
                 return
@@ -522,6 +526,10 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             return try await assistantFiles.search(wire.fields)
         case .assistantFilesRead(let wire):
             return try await assistantFiles.read(wire.fields)
+        case .windowText(let wire):
+            return try await windowText.read(wire.fields)
+        case .photoJPEG(let wire):
+            return try await photoJPEG.convert(wire.fields)
         case .hello, .heartbeat, .status, .calendarDisconnect,
              .calendarSources, .calendarSnapshot, .calendarSave, .calendarDelete,
              .privacyStop, .captureStop,

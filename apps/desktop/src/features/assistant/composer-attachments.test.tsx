@@ -45,9 +45,10 @@ let dropped: (paths: string[]) => void = () => undefined;
 beforeEach(() => {
   dropped = () => undefined;
   bridge.addAttachment.mockImplementation((source: Source) => {
-    if (source.from === "path") return Promise.resolve(stored(source.path.split("/").pop()!));
-    if (source.from === "bytes") return Promise.resolve(stored(source.name));
-    return Promise.resolve(stored("Ventana de Notas.png"));
+    if (source.from === "path")
+      return Promise.resolve({ attachment: stored(source.path.split("/").pop()!) });
+    if (source.from === "bytes") return Promise.resolve({ attachment: stored(source.name) });
+    return Promise.resolve({ attachment: stored("Ventana de Notas.png") });
   });
   bridge.chooseFiles.mockResolvedValue([]);
   bridge.onFilesDropped.mockImplementation((handler: (paths: string[]) => void) => {
@@ -126,9 +127,9 @@ describe("attaching from the dialog", () => {
   });
 
   it("sends attachments without text, but not while one is still uploading", async () => {
-    let finish: (attachment: Attachment) => void = () => undefined;
+    let finish: (added: { attachment: Attachment }) => void = () => undefined;
     bridge.addAttachment.mockImplementation(
-      () => new Promise<Attachment>((resolve) => (finish = resolve)),
+      () => new Promise<{ attachment: Attachment }>((resolve) => (finish = resolve)),
     );
     bridge.chooseFiles.mockResolvedValue(["/Users/usuaria/notas.txt"]);
     const { send } = renderComposer();
@@ -138,7 +139,7 @@ describe("attaching from the dialog", () => {
       "Subiendo…",
     );
     expect(sendButton()).toHaveProperty("disabled", true);
-    await act(async () => finish(stored("notas.txt")));
+    await act(async () => finish({ attachment: stored("notas.txt") }));
     expect(sendButton()).toHaveProperty("disabled", false);
     await userEvent.click(sendButton());
     expect(send).toHaveBeenCalledWith({
@@ -157,6 +158,57 @@ describe("attaching from the dialog", () => {
     expect(send.mock.calls[0]?.[0]).toMatchObject({
       attachments: [stored("Ventana de Notas.png")],
     });
+  });
+
+  it("attaches the window's text next to its capture", async () => {
+    bridge.addAttachment.mockResolvedValue({
+      attachment: stored("Ventana de Notas.png"),
+      window_text: { state: "attached", attachment: stored("Ventana de Notas.txt", 300) },
+    });
+    const { send } = renderComposer();
+    await userEvent.click(screen.getByRole("button", { name: "Adjuntar ventana" }));
+    await screen.findByRole("group", { name: "Ventana de Notas.txt" });
+    expect(chip("Ventana de Notas.png").textContent).toContain("2 KB");
+    await userEvent.click(sendButton());
+    expect(send.mock.calls[0]?.[0]).toMatchObject({
+      attachments: [stored("Ventana de Notas.png"), stored("Ventana de Notas.txt", 300)],
+    });
+  });
+
+  it("says when a window without readable text goes as its capture alone", async () => {
+    bridge.addAttachment.mockResolvedValue({
+      attachment: stored("Ventana de Notas.png"),
+      window_text: { state: "missing", cause: "empty" },
+    });
+    renderComposer();
+    await userEvent.click(screen.getByRole("button", { name: "Adjuntar ventana" }));
+    await waitFor(() =>
+      expect(chip("Ventana de Notas.png").textContent).toContain(
+        "La ventana no tiene texto legible; va sólo la captura.",
+      ),
+    );
+    expect(screen.queryByRole("group", { name: "Ventana de Notas.txt" })).toBeNull();
+  });
+
+  it("names the hub's refusal of the window's text", async () => {
+    bridge.addAttachment.mockResolvedValue({
+      attachment: stored("Ventana de Notas.png"),
+      window_text: {
+        state: "refused",
+        refusal: {
+          code: "attachment",
+          cause: { kind: "too_many", files: 11, max_files: 10 },
+          retry: { kind: "after_fix" },
+        },
+      },
+    });
+    renderComposer();
+    await userEvent.click(screen.getByRole("button", { name: "Adjuntar ventana" }));
+    await waitFor(() =>
+      expect(chip("Ventana de Notas.png").textContent).toContain(
+        "Su texto no se adjuntó: Este mensaje llevaría 11 adjuntos y el máximo por mensaje es 10.",
+      ),
+    );
   });
 
   it("removes a chip, which is then not sent", async () => {

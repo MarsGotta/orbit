@@ -345,6 +345,8 @@ mod engine_action_tests;
 mod engine_permission_tests;
 #[path = "screen_capture_tests.rs"]
 mod screen_capture_tests;
+#[path = "window_text_tests.rs"]
+mod window_text_tests;
 
 #[test]
 fn retry_countdown_does_not_change_the_control_revision() -> Result<()> {

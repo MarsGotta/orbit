@@ -285,6 +285,26 @@ pub enum NativeCommand {
         path: String,
         read: crate::assistant_files::ReadAs,
     },
+    /// «Adjuntar ventana» without the engine: the text Accessibility shows
+    /// in the window just captured, read within `limits`. The answer is a
+    /// `window_text::WindowTextReply`; its text is never logged.
+    #[serde(rename = "window_text")]
+    WindowText {
+        v: u8,
+        id: String,
+        application_pid: i32,
+        window_id: u32,
+        limits: crate::window_text::WindowTextLimits,
+    },
+    /// A photo no agent reads (an iPhone's HEIC) written as JPEG at
+    /// `destination_path`, a file of the daemon's, before it is uploaded.
+    #[serde(rename = "photo_jpeg")]
+    PhotoJpeg {
+        v: u8,
+        id: String,
+        source_path: String,
+        destination_path: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -376,6 +396,8 @@ impl NativeCommand {
             "assistant_files_list",
             "assistant_files_search",
             "assistant_files_read",
+            "window_text",
+            "photo_jpeg",
         ]
     }
 }

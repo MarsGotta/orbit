@@ -169,6 +169,10 @@ pub(super) enum ComputerResult {
         observation: crate::cua::NativeObservation,
         application: String,
         title: String,
+        /// «Adjuntar ventana»: the window's tree, read after its capture in
+        /// a call of its own (the two together could outgrow one engine
+        /// message), or the cause it could not be.
+        text: Option<std::result::Result<String, String>>,
     },
     GeneralAction {
         operation_id: String,
@@ -775,6 +779,11 @@ impl Runtime {
             ),
             _ => None,
         };
+        let with_text = self
+            .conversation
+            .bridge_request
+            .as_ref()
+            .is_some_and(|ask| ask.for_attachment);
         let mut service = self
             .features
             .computer
@@ -789,24 +798,37 @@ impl Runtime {
             move |ticket| {
                 tokio::spawn(async move {
                     let result = match (pid, window_id, desktop_file) {
-                        (Some(pid), Some(window_id), _) => service
-                            .client_mut()
-                            .call_tool(
-                                "get_window_state",
-                                json!({
-                                    "pid":pid,
-                                    "window_id":window_id,
-                                    "include_accessibility_tree":false,
-                                    "include_screenshot":true,
-                                    "max_dimension":1280
-                                }),
-                            )
-                            .await
-                            .map(|observation| ComputerResult::BridgeScreenshot {
-                                observation,
-                                application,
-                                title,
-                            }),
+                        (Some(pid), Some(window_id), _) => {
+                            let captured = service
+                                .client_mut()
+                                .call_tool(
+                                    "get_window_state",
+                                    json!({
+                                        "pid":pid,
+                                        "window_id":window_id,
+                                        "include_accessibility_tree":false,
+                                        "include_screenshot":true,
+                                        "max_dimension":1280
+                                    }),
+                                )
+                                .await;
+                            match captured {
+                                Ok(observation) => {
+                                    let text = if with_text {
+                                        Some(window_tree(&mut service, pid, window_id).await)
+                                    } else {
+                                        None
+                                    };
+                                    Ok(ComputerResult::BridgeScreenshot {
+                                        observation,
+                                        application,
+                                        title,
+                                        text,
+                                    })
+                                }
+                                Err(error) => Err(error),
+                            }
+                        }
                         (None, None, Some(path)) => desktop_capture(&mut service, path)
                             .await
                             .map(|fitted| ComputerResult::DesktopCapture { fitted }),
@@ -1190,9 +1212,13 @@ impl Runtime {
                 observation,
                 application,
                 title,
+                text,
             }) => {
                 if completion.service.client().is_connected() {
                     self.features.computer.service = Some(completion.service);
+                }
+                if let Some(text) = text {
+                    self.window_read_by_engine(text);
                 }
                 if !self
                     .answer_bridge_from_computer_screenshot(&observation, &application, &title)
@@ -1597,6 +1623,48 @@ impl DesktopCaptureError {
             },
         }
     }
+}
+
+/// «Adjuntar ventana»: the engine's tree of the window it just captured,
+/// without a picture, or the cause it gave none. Its text is the user's and
+/// is never logged; a cause is a fixed code.
+async fn window_tree(
+    service: &mut ActionService,
+    pid: i64,
+    window_id: u64,
+) -> std::result::Result<String, String> {
+    let observation = service
+        .client_mut()
+        .call_tool(
+            "get_window_state",
+            json!({
+                "pid":pid,
+                "window_id":window_id,
+                "include_accessibility_tree":true,
+                "include_screenshot":false
+            }),
+        )
+        .await
+        .map_err(|error| {
+            if error
+                .downcast_ref::<crate::cua::ResponseTooLarge>()
+                .is_some()
+            {
+                "engine_answer_too_large".to_owned()
+            } else {
+                "engine_failed".to_owned()
+            }
+        })?;
+    let structured = observation.structured.unwrap_or_default();
+    // The engine leaves the tree empty on purpose when it cannot tie the
+    // window to its Accessibility element (another Space, for one).
+    if structured["degraded"] == true {
+        return Err("engine_window_unreadable".into());
+    }
+    structured["tree_markdown"]
+        .as_str()
+        .map(str::to_owned)
+        .ok_or_else(|| "engine_tree_absent".into())
 }
 
 /// Asks the engine for the full screen in `path`, then takes the file back:
