@@ -1,6 +1,6 @@
-The Markdown editor of the desktop app is built on CodeMirror 6 and Lezer,
-bundled into its interface. Each of these packages is published under the
-MIT License below, by Marijn Haverbeke and others (copyright years 2016–2024
+The Markdown editor of the desktop app is built on CodeMirror 6 and Lezer;
+these packages are installed with it, and the ones it uses are bundled into
+its interface. Each is published under the MIT License below, by Marijn Haverbeke and others (copyright years 2016–2024
 by package): `@codemirror/autocomplete`, `@codemirror/commands`,
 `@codemirror/lang-css`, `@codemirror/lang-html`, `@codemirror/lang-javascript`,
 `@codemirror/lang-markdown`, `@codemirror/language`, `@codemirror/lint`,

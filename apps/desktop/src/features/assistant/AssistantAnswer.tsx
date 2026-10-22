@@ -139,7 +139,12 @@ export function AssistantAnswer({ busy, listenable, message, retry, send, speaki
       )}
       {editing && (
         <Suspense fallback={<p role="status">{es.chatActions.openingEditor}</p>}>
-          <AnswerEditor markdown={message.text} onClose={() => setEditing(false)} send={send} />
+          <AnswerEditor
+            markdown={message.text}
+            messageId={message.id}
+            onClose={() => setEditing(false)}
+            send={send}
+          />
         </Suspense>
       )}
     </>

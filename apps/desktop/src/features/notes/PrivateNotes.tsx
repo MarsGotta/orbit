@@ -12,7 +12,17 @@ import type { Send } from "./send";
 import styles from "./Note.module.css";
 
 /** «Guardando…», «Guardado en este Mac · solo lo ves tú», or why it was not kept. */
-function SaveStatus({ error, state }: { error: string | null; state: SaveState }) {
+function SaveStatus({
+  error,
+  recovered,
+  state,
+}: {
+  error: string | null;
+  recovered: boolean;
+  state: SaveState;
+}) {
+  // Brought back from an earlier run that closed or fell before saving it.
+  if (recovered && state === "saving") return <>{es.controls.draftRecovered}</>;
   if (state === "saving") {
     return (
       <>
@@ -47,7 +57,7 @@ export function PrivateNotes({
   send: Send;
   writing?: NoteWriting;
 }) {
-  const { draft, flush, state, update } = usePrivateNotesDraft(
+  const { draft, flush, recovered, state, update } = usePrivateNotesDraft(
     note.recording_id,
     note.private_notes,
     send,
@@ -63,7 +73,7 @@ export function PrivateNotes({
         onBlur={flush}
         onChange={update}
         people={writing?.people}
-        status={<SaveStatus error={error} state={state} />}
+        status={<SaveStatus error={error} recovered={recovered} state={state} />}
         value={draft}
       />
     </div>

@@ -123,3 +123,42 @@ describe("the answer in the editor", () => {
     expect(editor.contentDOM.querySelector("a")).toBeNull();
   });
 });
+
+describe("an answer being changed when Orbit quits or falls", () => {
+  const KEY = "orbit.draft.answer.a1";
+
+  it("is kept on this Mac as it is changed, and let go of when the window is closed", async () => {
+    const { dialog, editor } = await openEditor("Hola");
+    focusAt(editor);
+    typeText(editor, " Bruno");
+    expect(JSON.parse(window.localStorage.getItem(KEY) ?? "null")).toEqual({
+      from: "Hola",
+      text: "Hola Bruno",
+    });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cerrar" }));
+    expect(window.localStorage.getItem(KEY)).toBeNull();
+  });
+
+  it("comes back, and says so, when the answer is opened again after Orbit fell", async () => {
+    window.localStorage.setItem(KEY, JSON.stringify({ from: "Hola", text: "Hola, Celia" }));
+    vi.resetModules();
+    const { MessageList: Reopened } = await import("./MessageList");
+    render(<Reopened messages={[answer("Hola")]} send={() => true} />);
+    await userEvent.click(screen.getByRole("button", { name: "Editar y copiar" }));
+    const dialog = await screen.findByRole("dialog", { name: "Editar la respuesta" });
+    expect(within(dialog).getByRole("textbox", { name: "Texto de la respuesta" }).textContent).toBe(
+      "Hola, Celia",
+    );
+    expect(
+      within(dialog).getByText("Recuperado lo que escribiste y no se llegó a guardar."),
+    ).toBeTruthy();
+  });
+
+  it("is let go of once the message was taken", async () => {
+    const { dialog, editor } = await openEditor("Hola", () => Promise.resolve(true));
+    focusAt(editor);
+    typeText(editor, "!");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Mandar a Deimos" }));
+    expect(window.localStorage.getItem(KEY)).toBeNull();
+  });
+});

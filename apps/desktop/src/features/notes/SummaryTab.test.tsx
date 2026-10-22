@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "../../bridge/generated";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import { flushBeforeQuit } from "../../state/quit-flush";
 import { blur, editorNamed, focusAt, typeText } from "../editor/test-editor";
 import { SummaryTab } from "./SummaryTab";
 import { writtenNote } from "./test-notes";
@@ -75,4 +76,78 @@ it("sends at once when the section's text loses the focus", () => {
   expect(edits(send)).toEqual([
     ["La sala abre en noviembre. Con biblioteca.", "1. Pedir las estanterías."],
   ]);
+});
+
+describe("before Orbit quits, and after it fell", () => {
+  const KEY = `orbit.draft.note.${writtenNote().recording_id}.summary`;
+
+  it("an edit typed less than a second before quitting goes at once, and the quit waits for it", async () => {
+    let take: (accepted: boolean) => void = () => undefined;
+    const send = vi.fn(() => new Promise<boolean>((resolve) => (take = resolve)));
+    render(<SummaryTab note={writtenNote()} rewriting={idle} send={send} />);
+    fireEvent.click(screen.getByRole("button", { name: "Editar «Contexto»" }));
+    const editor = editorNamed("Texto de «Contexto»");
+    focusAt(editor);
+    typeText(editor, " Abre a las nueve.");
+    let done = false;
+    const quitting = flushBeforeQuit().then(() => {
+      done = true;
+    });
+    await act(async () => Promise.resolve());
+    expect(edits(send)).toEqual([
+      ["La sala abre en noviembre. Abre a las nueve.", "1. Pedir las estanterías."],
+    ]);
+    expect(done).toBe(false);
+    await act(async () => take(true));
+    await quitting;
+    expect(done).toBe(true);
+  });
+
+  it("keeps the edit on this Mac until the daemon takes it, then lets it go", async () => {
+    let take: (accepted: boolean) => void = () => undefined;
+    const send = vi.fn(() => new Promise<boolean>((resolve) => (take = resolve)));
+    render(<SummaryTab note={writtenNote()} rewriting={idle} send={send} />);
+    fireEvent.click(screen.getByRole("button", { name: "Editar «Contexto»" }));
+    const editor = editorNamed("Texto de «Contexto»");
+    focusAt(editor);
+    typeText(editor, "!");
+    expect(JSON.parse(window.localStorage.getItem(KEY) ?? "null")).toMatchObject({
+      edits: { "0": "La sala abre en noviembre.!" },
+    });
+    blur(editor);
+    await act(async () => take(true));
+    expect(window.localStorage.getItem(KEY)).toBeNull();
+  });
+
+  it("an edit not taken yet is back after Orbit closed or fell, says so, and is sent", async () => {
+    const note = writtenNote();
+    window.localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        version: note.summary?.generated_at_ms,
+        edits: { "1": "1. Pedir las estanterías.\n2. Y dos sillas." },
+      }),
+    );
+    vi.resetModules();
+    const Reopened = (await import("./SummaryTab")).SummaryTab;
+    const send = vi.fn(() => Promise.resolve(true));
+    render(<Reopened note={note} rewriting={idle} send={send} />);
+    expect(screen.getByText("Y dos sillas.")).toBeTruthy();
+    expect(screen.getByText("Recuperado lo que escribiste y no se llegó a guardar.")).toBeTruthy();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(edits(send)).toEqual([
+      ["La sala abre en noviembre.", "1. Pedir las estanterías.\n2. Y dos sillas."],
+    ]);
+  });
+
+  it("an edit of a note the hub has written again since is not brought back", async () => {
+    window.localStorage.setItem(KEY, JSON.stringify({ version: 1, edits: { "0": "vieja" } }));
+    vi.resetModules();
+    const Reopened = (await import("./SummaryTab")).SummaryTab;
+    render(<Reopened note={writtenNote()} rewriting={idle} send={vi.fn()} />);
+    expect(screen.queryByText("vieja")).toBeNull();
+    expect(screen.queryByText(/Recuperado/)).toBeNull();
+  });
 });

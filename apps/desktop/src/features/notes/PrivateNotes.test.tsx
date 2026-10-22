@@ -1,7 +1,8 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "../../bridge/generated";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import { flushBeforeQuit } from "../../state/quit-flush";
 import { blur, editorNamed, focusAt, typeText } from "../editor/test-editor";
 import { PrivateNotes } from "./PrivateNotes";
 import { writtenNote } from "./test-notes";
@@ -123,4 +124,70 @@ it("says how much is left before the note reaches 65.536 characters", () => {
   focusAt(editor);
   typeText(editor, "b");
   expect(screen.getByText("Quedan 6553 de 65.536 caracteres.")).toBeTruthy();
+});
+
+describe("before Orbit quits, and after it fell", () => {
+  it("a note typed less than a second before quitting goes at once, and the quit waits for it", async () => {
+    let keep: (accepted: boolean) => void = () => undefined;
+    const send = vi.fn(() => new Promise<boolean>((resolve) => (keep = resolve)));
+    const { editor } = renderNotes(send);
+    focusAt(editor);
+    typeText(editor, "Sala norte");
+    let done = false;
+    const quitting = flushBeforeQuit().then(() => {
+      done = true;
+    });
+    await act(async () => Promise.resolve());
+    expect(saves(send)).toEqual(["Sala norte"]);
+    expect(done).toBe(false);
+    await act(async () => keep(true));
+    await quitting;
+    expect(done).toBe(true);
+  });
+
+  it("what was typed and not taken yet is back after Orbit closed or fell, says so, and is saved", async () => {
+    // What an earlier run left on this Mac: typed over the note as stored.
+    window.localStorage.setItem(
+      `orbit.draft.note.${writtenNote().recording_id}.private`,
+      JSON.stringify({ from: "", text: "Llamar a Celia antes del jueves" }),
+    );
+    vi.resetModules();
+    const Reopened = (await import("./PrivateNotes")).PrivateNotes;
+    const send = vi.fn(() => Promise.resolve(true));
+    render(<Reopened error={null} note={note()} send={send} />);
+    expect(screen.getByRole("textbox", { name: "Notas privadas" }).textContent).toBe(
+      "Llamar a Celia antes del jueves",
+    );
+    expect(screen.getByText("Recuperado lo que escribiste y no se llegó a guardar.")).toBeTruthy();
+    await wait(1_000);
+    expect(saves(send)).toEqual(["Llamar a Celia antes del jueves"]);
+    expect(screen.getByText("Guardado en este Mac · solo lo ves tú")).toBeTruthy();
+  });
+
+  it("keeps what is typed on this Mac until the daemon takes it, then lets it go", async () => {
+    const key = `orbit.draft.note.${writtenNote().recording_id}.private`;
+    let keep: (accepted: boolean) => void = () => undefined;
+    const send = vi.fn(() => new Promise<boolean>((resolve) => (keep = resolve)));
+    const { editor } = renderNotes(send);
+    focusAt(editor);
+    typeText(editor, "Sala");
+    expect(JSON.parse(window.localStorage.getItem(key) ?? "null")).toEqual({
+      from: "",
+      text: "Sala",
+    });
+    await wait(1_000);
+    await act(async () => keep(true));
+    expect(window.localStorage.getItem(key)).toBeNull();
+  });
+
+  it("a draft written over another text than the one stored now is not brought back", async () => {
+    window.localStorage.setItem(
+      `orbit.draft.note.${writtenNote().recording_id}.private`,
+      JSON.stringify({ from: "otra versión", text: "vieja" }),
+    );
+    vi.resetModules();
+    const Reopened = (await import("./PrivateNotes")).PrivateNotes;
+    render(<Reopened error={null} note={note("la de ahora")} send={vi.fn()} />);
+    expect(screen.getByRole("textbox", { name: "Notas privadas" }).textContent).toBe("la de ahora");
+  });
 });

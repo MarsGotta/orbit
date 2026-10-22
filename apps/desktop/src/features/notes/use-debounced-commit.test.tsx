@@ -20,3 +20,11 @@ it("saves one second after a pause and at most every five seconds", () => {
   unmount();
   expect(commit.mock.calls.at(-1)?.[0]).toBe("last");
 });
+
+it("hands back what the commit returns, so a quit can wait for the save", () => {
+  const saving = Promise.resolve(true);
+  const { result } = renderHook(() => useDebouncedCommit<string>(() => saving));
+  act(() => result.current.schedule("v"));
+  expect(result.current.flush()).toBe(saving);
+  expect(result.current.flush()).toBeUndefined();
+});

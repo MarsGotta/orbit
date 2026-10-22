@@ -1,7 +1,6 @@
-import { type CSSProperties, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import type { Section } from "../../bridge/generated/Section";
 import { Button } from "../../design/Button";
 import { Skeleton } from "../../design/Skeleton";
 import { es } from "../../i18n/es";
@@ -11,7 +10,7 @@ import type { Send } from "./send";
 import type { NoteWriting } from "./note-writing";
 import { SummarySection } from "./SummarySection";
 import { SummaryTools } from "./SummaryTools";
-import { useDebouncedCommit } from "./use-debounced-commit";
+import { useSectionEdits } from "./section-edits";
 import type { Rewriting } from "./use-rewriting";
 import styles from "./Note.module.css";
 
@@ -71,41 +70,6 @@ function Superseded({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
   );
 }
 
-/**
- * The sections as the user sees them: the daemon's copy with their edits laid over
- * it until the daemon's copy brings them. A repaint between two edits never
- * puts back the text of a section whose edit has not been saved yet. A note
- * written again by the hub starts from its new text.
- */
-function useSectionEdits(note: OpenNoteSnapshot, send: Send) {
-  const version = note.summary?.generated_at_ms ?? null;
-  const local = useRef({ version, edits: new Map<number, string>() });
-  if (local.current.version !== version) local.current = { version, edits: new Map() };
-  const edits = local.current.edits;
-  const base = (note.summary?.sections ?? []).map(({ markdown, name }) => ({ markdown, name }));
-  for (const [index, markdown] of edits) {
-    if (base[index]?.markdown === markdown) edits.delete(index);
-  }
-  const merged = (): Section[] =>
-    base.map((section, index) => ({ ...section, markdown: edits.get(index) ?? section.markdown }));
-  const save = useDebouncedCommit<Section[]>((value) => {
-    void send({ command: "note_edit", recording_id: note.recording_id, sections: value });
-  });
-  // An edit repaints the tab, so its section says «Guardando…» until the note carries it.
-  const [, repaint] = useState(0);
-  const change = (index: number, markdown: string) => {
-    edits.set(index, markdown);
-    save.schedule(merged());
-    repaint((count) => count + 1);
-  };
-  return {
-    sections: merged(),
-    change,
-    flush: save.flush,
-    unsaved: (index: number) => edits.has(index),
-  };
-}
-
 /** Before the note is written: what will come, in the shape it will have. */
 function Unwritten({
   library,
@@ -141,7 +105,7 @@ export function SummaryTab({
   writing?: NoteWriting;
 }) {
   const summary = note.summary;
-  const { sections, change, flush, unsaved } = useSectionEdits(note, send);
+  const { sections, change, flush, recovered, unsaved } = useSectionEdits(note, send);
   if (!summary)
     return (
       <>
@@ -152,6 +116,11 @@ export function SummaryTab({
   return (
     <div className={styles.summary}>
       <SummaryTools note={note} rewriting={rewriting} />
+      {recovered && (
+        <p className={styles.quiet} role="status">
+          {es.controls.draftRecovered}
+        </p>
+      )}
       <Superseded note={note} send={send} />
       {summary.sections.map((section, index) => (
         <SummarySection

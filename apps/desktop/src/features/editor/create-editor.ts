@@ -1,5 +1,7 @@
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import { markdownLanguage } from "@codemirror/lang-markdown";
+import { Language } from "@codemirror/language";
+import type { MarkdownParser } from "@lezer/markdown";
 import { Annotation, Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView, keymap, placeholder, type ViewUpdate } from "@codemirror/view";
 import { characterLimit } from "./editing";
@@ -11,6 +13,22 @@ import { editorTheme } from "./theme";
 
 /** A change that comes from outside the editor (a newer text), not typed. */
 export const external = Annotation.define<boolean>();
+
+/**
+ * GitHub's Markdown with Orbit's three marks, as the language of the text.
+ * Made from `markdownLanguage` itself rather than with `markdown()`, which
+ * would also bring the HTML, CSS and JavaScript languages to parse HTML
+ * blocks inside a note: nothing here draws them, and they were most of the
+ * editor's weight. Sharing its language data keeps lang-markdown's ↵ and ⌫
+ * working in it.
+ */
+const notesMarkdown = new Language(
+  markdownLanguage.data,
+  // lang-markdown's own language is made from a Markdown parser.
+  (markdownLanguage.parser as MarkdownParser).configure(orbitMarkdown),
+  [],
+  "markdown",
+);
 
 /** What can change in an editor once it is made. */
 export class EditorParts {
@@ -50,7 +68,8 @@ export function editableOf(readOnly: boolean): Extension {
 /**
  * The editor: GitHub's Markdown with Orbit's three marks, as typed; the
  * formatted view; its keys; and the ceiling of characters when it has one.
- * Pastes go in as the plain text they are.
+ * Pastes go in as the plain text they are; fenced code is not highlighted,
+ * so no code language is loaded.
  */
 export function createEditor(setup: EditorSetup): EditorView {
   const { parts } = setup;
@@ -63,13 +82,7 @@ export function createEditor(setup: EditorSetup): EditorView {
         editingKeys(setup.toggleRaw),
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
-        markdown({
-          base: markdownLanguage,
-          extensions: orbitMarkdown,
-          addKeymap: false,
-          completeHTMLTags: false,
-          pasteURLAsLink: false,
-        }),
+        notesMarkdown,
         EditorView.lineWrapping,
         placeholder(setup.placeholder),
         parts.preview.of(previewOf(false)),

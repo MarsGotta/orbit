@@ -4,11 +4,14 @@ import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { useModalFocus } from "../../design/use-modal-focus";
 import { useSpanish } from "../../i18n/AssistantCopy";
+import { asTextOver, useLocalDraft } from "../../state/local-drafts";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { useCopy, copyStatus } from "./CopyButton";
 import styles from "./AnswerEditor.module.css";
 
 interface AnswerEditorProps {
+  /** The answer's message: its changes are kept on this Mac under it. */
+  messageId: string;
   markdown: string;
   onClose: () => void;
   send: (command: AppCommand) => unknown;
@@ -40,10 +43,13 @@ function EditorHeader({ onClose, titleId }: { onClose: () => void; titleId: stri
  */
 function EditorFooter({
   onClose,
+  onSent,
   send,
   text,
 }: {
   onClose: () => void;
+  /** The message was taken: what was written goes with it. */
+  onSent: () => void;
   send: AnswerEditorProps["send"];
   text: string;
 }) {
@@ -79,7 +85,7 @@ function EditorFooter({
           setSending(true);
           void Promise.resolve(send({ command: "chat", text: message }))
             .then((accepted) => {
-              if (accepted !== false) onClose();
+              if (accepted !== false) onSent();
             })
             .catch(() => undefined)
             .finally(() => setSending(false));
@@ -98,16 +104,38 @@ function EditorFooter({
  * or send it to the agent as a new message. Closing it (×, «Cerrar», Esc
  * or outside) sends nothing.
  */
-export default function AnswerEditor({ markdown, onClose, send }: AnswerEditorProps) {
+/**
+ * The answer as changed, kept on this Mac over the answer it was changed
+ * from, so a quit or a fall with the window open loses nothing; closing the
+ * window, or sending, lets it go.
+ */
+function useKeptAnswer(messageId: string, markdown: string) {
+  const kept = useLocalDraft(`answer.${messageId}`, null, asTextOver);
+  const [opened] = useState(() => (kept.value?.from === markdown ? kept.value.text : markdown));
+  const [recovered] = useState(() => kept.recovered && opened !== markdown);
+  return {
+    opened,
+    recovered,
+    change: (text: string) => kept.set(text === markdown ? null : { from: markdown, text }),
+    drop: () => kept.set(null),
+  };
+}
+
+export default function AnswerEditor({ markdown, messageId, onClose, send }: AnswerEditorProps) {
   const es = useSpanish();
   const panel = useModalFocus(true);
   const titleId = useId();
-  const [text, setText] = useState(markdown);
+  const kept = useKeptAnswer(messageId, markdown);
+  const [text, setText] = useState(kept.opened);
+  const close = () => {
+    kept.drop();
+    onClose();
+  };
   return (
     <div
       className={styles.scrim}
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) close();
       }}
     >
       <section
@@ -118,22 +146,25 @@ export default function AnswerEditor({ markdown, onClose, send }: AnswerEditorPr
         onKeyDown={(event) => {
           if (event.key !== "Escape") return;
           event.stopPropagation();
-          onClose();
+          close();
         }}
         ref={panel}
         role="dialog"
       >
-        <EditorHeader onClose={onClose} titleId={titleId} />
+        <EditorHeader onClose={close} titleId={titleId} />
         <div className={styles.body}>
           <MarkdownEditor
             autoFocus
             label={es.chatActions.editorTextLabel}
-            onChange={setText}
-            status={es.editor.onlyHere}
-            value={markdown}
+            onChange={(next) => {
+              setText(next);
+              kept.change(next);
+            }}
+            status={kept.recovered ? es.controls.draftRecovered : es.editor.onlyHere}
+            value={kept.opened}
           />
         </div>
-        <EditorFooter onClose={onClose} send={send} text={text} />
+        <EditorFooter onClose={close} onSent={close} send={send} text={text} />
       </section>
     </div>
   );
