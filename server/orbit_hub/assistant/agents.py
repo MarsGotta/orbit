@@ -51,7 +51,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from ..errors import HubError
-from . import acp, hermes, openai_settings
+from . import acp_settings, hermes, openai_settings
 from .agent_config import (
     AgentAdmin,
     AgentConfigStore,
@@ -99,6 +99,16 @@ def _openai_speech(settings: Settings, agent: AgentConfiguration) -> SpeechBacke
     return openai.build_speech(settings, agent)
 
 
+# The ACP SDK of Claude Code and Codex takes a quarter of a second or more to
+# import: only a hub that builds an `acp` agent imports it.
+def _acp_backend(
+    settings: Settings, agent: AgentConfiguration, instructions: InstructionSource
+) -> AssistantBackend:
+    from . import acp
+
+    return acp.build_backend(settings, agent, instructions)
+
+
 def _stored_admin(settings: Settings, agent: Any, configs: AgentConfigStore) -> AgentAdmin:
     return StoredAdmin(configs, agent.id)
 
@@ -116,7 +126,7 @@ KINDS: dict[str, AgentKind] = {
         openai_settings.parse_settings, _openai_backend, _openai_speech, _stored_admin
     ),
     # Claude Code and Codex speak no audio over ACP: no dictation, no read-aloud.
-    "acp": AgentKind(acp.parse_settings, acp.build_backend, _no_speech, _stored_admin),
+    "acp": AgentKind(acp_settings.parse_settings, _acp_backend, _no_speech, _stored_admin),
 }
 
 # The id of the one agent a configuration without `[[agents]]` has. Sessions
@@ -349,8 +359,8 @@ class Agents:
             raise HubError(
                 "agent_not_found",
                 f"Este hub no tiene el agente «{agent_id}»; tiene: {', '.join(ids)}",
-                # Comma-joined: the Mac decodes refusal numbers as integers,
-                # strings or booleans only, and an array would refuse the frame.
+                # Comma-joined: a refusal's numbers stay integers, strings or
+                # booleans, and the Mac's reader of a refusal drops an array.
                 numbers={"agent_id": agent_id, "agent_ids": ",".join(ids)},
             )
         return agent

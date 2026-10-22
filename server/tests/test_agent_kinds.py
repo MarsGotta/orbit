@@ -720,10 +720,11 @@ async def test_a_connection_lost_while_resuming_names_the_agent(environment):
 # Startup -----------------------------------------------------------------------
 
 
-def test_loading_the_configuration_imports_no_model_library(tmp_path):
+def test_loading_the_configuration_imports_no_model_or_agent_library(tmp_path):
     """The administrator's commands (`pair-code`, `devices`, `revoke`) load the
     configuration and nothing more. The generic agent's model libraries take
-    more than a second to import: only building its backend imports them."""
+    more than a second to import, and the ACP SDK of Claude Code and Codex a
+    quarter of one: only building that kind's backend imports them."""
     config = tmp_path / "orbit.toml"
     entries = "".join(
         "\n[[agents]]\n" + "".join(f"{key} = {json.dumps(value)}\n" for key, value in entry.items())
@@ -745,7 +746,7 @@ def test_loading_the_configuration_imports_no_model_library(tmp_path):
         "from orbit_hub.config import Settings\n"
         "configured, _ = Settings.load(Path(sys.argv[1])).agent_configurations()\n"
         "print(','.join(agent.kind for agent in configured))\n"
-        "print(','.join(sorted({'pydantic_ai', 'openai', 'anthropic'} & set(sys.modules))))\n"
+        "print(','.join(sorted({'pydantic_ai', 'openai', 'anthropic', 'acp'} & set(sys.modules))))\n"
     )
     loaded = subprocess.run(
         [sys.executable, "-c", script, str(config)],

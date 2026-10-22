@@ -34,15 +34,13 @@ import asyncio
 import base64
 import json
 import os
-import re
 import shlex
 import signal
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from contextlib import suppress
-from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import acp
@@ -68,6 +66,7 @@ from acp.schema import (
 
 from ..errors import HubError
 from ..log import clear_op, report
+from .acp_settings import AcpAgentSettings
 from .agent_config import (
     MAX_INSTRUCTIONS_TEXT_BYTES,
     AgentInstructions,
@@ -101,9 +100,6 @@ if TYPE_CHECKING:
 
 KIND = "acp"
 
-AgentName = Literal["claude-code", "codex"]
-AGENTS: tuple[AgentName, ...] = ("claude-code", "codex")
-
 # A personal hub serves a few Macs and a few conversations at once, and each
 # agent process is a Node adapter plus the agent's own binary (several hundred
 # MB together: estimated from the packages, not measured here). This bounds
@@ -127,12 +123,6 @@ STOP_GRACE_SECONDS = 2
 # The agent's own words in a refusal shown to the user: one line, not a dump.
 MAX_AGENT_REASON_CHARS = 300
 
-VARIABLE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-# What Orbit itself sets in an agent's environment; `env` cannot replace it.
-LOCK_DOWN_VARIABLES = ("CLAUDE_CONFIG_DIR", "CODEX_HOME", "CODEX_CONFIG", "INITIAL_AGENT_MODE")
-# An entry's own keys: `id`, `name` and `kind` belong to every `[[agents]]`
-# entry, and the registry checks them.
-KEYS = {"agent", "command", "env", "orbit_mcp_config"}
 AUTH_REQUIRED = acp.RequestError.auth_required().code
 # JSON-RPC's "method not found", for what the hub does not offer an agent.
 NOT_OFFERED = -32601
@@ -142,56 +132,6 @@ UNFINISHED = {
     "max_turn_requests": "llegó a su máximo de peticiones al modelo en un turno antes de terminar",
     "refusal": "se negó a seguir con el turno",
 }
-
-
-@dataclass(frozen=True)
-class AcpAgentSettings:
-    """An `[[agents]]` entry's own keys for kind `acp`; the agent's `id` is the
-    registry's (`agents.AgentConfiguration`)."""
-
-    agent: AgentName
-    # The adapter to start, absolute path first; the operator installs it.
-    command: tuple[str, ...]
-    # The translator's own TOML, given to orbit-mcp as `ORBIT_MCP_CONFIG`.
-    orbit_mcp_config: Path
-    # Names of variables passed from the hub's environment, such as an API key.
-    env: tuple[str, ...] = ()
-
-
-def parse_settings(raw: Mapping[str, Any]) -> AcpAgentSettings:
-    """An `[[agents]]` entry's own keys for kind `acp` (all but `id`, `name`
-    and `kind`), or a refusal naming the key and why. It reads no file: the
-    command is checked by `build_backend` at startup."""
-    if unknown := sorted(set(raw) - KEYS):
-        raise ValueError(f"unknown keys for kind acp ({len(unknown)}): {', '.join(unknown)}")
-    agent = raw.get("agent")
-    if agent is None:
-        raise ValueError('`agent` is missing; it must be "claude-code" or "codex"')
-    if agent not in AGENTS:
-        raise ValueError(f'`agent` must be "claude-code" or "codex"; got {agent!r}')
-    command = raw.get("command")
-    if not isinstance(command, list) or not command:
-        raise ValueError("`command` must be a list of at least one string, the adapter's path first")  # fmt: skip
-    if any(not isinstance(part, str) or not part for part in command):
-        raise ValueError("`command` has an empty or non-string item")
-    if not os.path.isabs(command[0]):
-        raise ValueError(f"`command` must start with an absolute path; got {command[0]!r}")
-    env = raw.get("env", [])
-    if not isinstance(env, list) or any(not isinstance(name, str) for name in env):
-        raise ValueError("`env` must be a list of variable names")
-    for index, name in enumerate(env):
-        if not VARIABLE_NAME.fullmatch(name):
-            raise ValueError(f"`env` item {name!r} is not a variable name")
-        if name in LOCK_DOWN_VARIABLES:
-            raise ValueError(f"`env` cannot pass {name}; Orbit sets it for the agent")
-        if name in env[:index]:
-            raise ValueError(f"`env` names {name} twice")
-    mcp_config = raw.get("orbit_mcp_config")
-    if mcp_config is None:
-        raise ValueError("`orbit_mcp_config` is missing: the translator's TOML path")
-    if not isinstance(mcp_config, str) or not os.path.isabs(mcp_config):
-        raise ValueError(f"`orbit_mcp_config` must be an absolute path; got {mcp_config!r}")
-    return AcpAgentSettings(agent, tuple(command), Path(mcp_config), tuple(env))
 
 
 def build_backend(
@@ -243,7 +183,10 @@ class AcpBackend:
     capabilities = Capabilities(images=True, resume=True, history=True, voice=False)
 
     def __init__(self, agent: "AgentConfiguration", hub: "Settings", instructions=no_instructions):
-        self.agent_id, self.settings = agent.id, agent.settings
+        self.agent_id = agent.id
+        # The agent as the user knows it, for the texts that name it.
+        self.agent_name = agent.name
+        self.settings: AcpAgentSettings = agent.settings
         self.instructions = instructions
         self.folder = hub.data_dir / "agents" / agent.id
         self.config_dir = self.folder / (
@@ -319,7 +262,7 @@ class AcpBackend:
             if path.is_symlink() or (path.exists() and not path.is_dir()):
                 raise HubError(
                     "agent_folder_invalid",
-                    f"La carpeta del agente «{self.agent_id}» no es un directorio: {path}",
+                    f"La carpeta del agente «{self.agent_name}» no es un directorio: {path}",
                 )
             if not path.exists():
                 path.mkdir(mode=0o700)
@@ -334,7 +277,7 @@ class AcpBackend:
                 if not idle:
                     raise HubError(
                         "agent_process_limit",
-                        f"El agente «{self.agent_id}» tiene {len(self.processes)} "
+                        f"El agente «{self.agent_name}» tiene {len(self.processes)} "
                         f"procesos con un turno en curso; techo {MAX_AGENT_PROCESSES}. "
                         "Espera a que termine uno",
                         numbers={"busy": len(self.processes), "limit": MAX_AGENT_PROCESSES},
@@ -455,7 +398,7 @@ class _AgentProcess:
 
     def __init__(self, backend: AcpBackend, connection: "AcpConnection"):
         self.backend, self.connection = backend, connection
-        self.name = backend.agent_id
+        self.name = backend.agent_name
         self.process: asyncio.subprocess.Process | None = None
         self.transport: _LineTransport | None = None
         self.peer: ClientSideConnection | None = None
@@ -949,7 +892,7 @@ class AcpConnection:
         if process is None:
             raise HubError(
                 "session_runtime_not_found",
-                f"El agente «{self.backend.agent_id}» ya no tiene esa sesión activa; "
+                f"El agente «{self.backend.agent_name}» ya no tiene esa sesión activa; "
                 "el mensaje no se aceptó y puedes volver a enviarlo",
             )
         return process
@@ -969,10 +912,9 @@ class AcpConnection:
     async def respond_clarification(
         self, session_id: str, request_id: str, answer: str, question_id: str | None
     ) -> ClarificationReceipt:
-        name = self.backend.agent_id
         raise HubError(
             "clarification_unsupported",
-            f"El agente «{name}» no pide aclaraciones: ACP v1 no las tiene",
+            f"El agente «{self.backend.agent_name}» no pide aclaraciones: ACP v1 no las tiene",
         )
 
     async def turn_stopped(self, session_id: str) -> bool:

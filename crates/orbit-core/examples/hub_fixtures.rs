@@ -201,7 +201,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 message: "Mensaje fuera de contrato".into(),
                 session_id: None,
                 status: None,
-                numbers: None,
                 refusal: None,
             })),
         ),

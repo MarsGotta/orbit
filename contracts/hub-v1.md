@@ -991,14 +991,15 @@ agent. A session belongs to one agent:
 
 - A `session_id` of another agent's session is refused with
   `error.code:"agent_mismatch"` and
-  `numbers:{"agent_id":"vega","session_agent_id":"atlas"}`.
+  `refusal:{"code":"agent_mismatch","agent_id":"vega","session_agent_id":"atlas","retry":{"kind":"after_fix"}}`.
 - An `agent_id` the hub does not have is refused with
   `error.code:"agent_not_found"` and
-  `numbers:{"agent_id":"orion","agent_ids":"atlas,vega"}`, the ids there are
-  in the hub's order, joined by commas.
+  `refusal:{"code":"agent_not_found","agent_id":"orion","agent_ids":"atlas,vega","retry":{"kind":"after_fix"}}`,
+  the ids there are in the hub's order, joined by commas.
 
-`numbers` values stay integers, strings or booleans: a Mac decodes no array
-there and would refuse the whole frame. Neither refusal runs a turn. The Mac sends `agent_id` on every `chat.send` to
+A refusal's numbers stay integers, strings or booleans, so the ids are joined
+rather than listed: the Mac's reader of a refusal drops an array. Neither
+refusal runs a turn. The Mac sends `agent_id` on every `chat.send` to
 a hub that listed agents: the open conversation's agent, or the default one
 for a conversation opened without one. It refuses locally, before anything
 changes, a new or opened conversation with an agent the last list does not

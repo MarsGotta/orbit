@@ -2,8 +2,8 @@
 use super::*;
 use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
 use orbit_core::wire::hub::{
-    CompletedData, DeltaData, ErrorData, ErrorDetail, HubEvent as WireHubEvent, HubEventKind,
-    ItemData, ReadyData, RequiredData, SessionData,
+    CompletedData, DeltaData, ErrorData, HubEvent as WireHubEvent, HubEventKind, ItemData,
+    ReadyData, RequiredData, SessionData,
 };
 
 /// Bounds names retained only to suppress repeated diagnostics: 128 distinct
@@ -52,7 +52,6 @@ fn safe_decode_error(reason: &str) -> (&'static str, &'static str, &'static str)
         "capability",
         "parameters",
         "code",
-        "numbers",
         "refusal",
         "retry",
         "ms",
@@ -530,20 +529,7 @@ impl Runtime {
         let interrupt_refused = self.interrupt_error(frame_id, data).await?;
         self.interaction_error(frame_id).await?;
         let code = data.code.as_deref().unwrap_or("not_reported");
-        let numbers = data.numbers.as_ref().map(|numbers| {
-            let numeric = numbers
-                .iter()
-                .filter_map(|(key, value)| match value {
-                    ErrorDetail::Number(number) => Some((key.clone(), json!(number))),
-                    ErrorDetail::Text(_) | ErrorDetail::Flag(_) => None,
-                })
-                .collect::<serde_json::Map<String, Value>>();
-            Value::Object(numeric).to_string()
-        });
-        let mut fields = vec![("code", code)];
-        if let Some(numbers) = numbers.as_deref() {
-            fields.push(("numbers", numbers));
-        }
+        let fields = [("code", code)];
         if let Some(request_id) = self
             .state
             .durable

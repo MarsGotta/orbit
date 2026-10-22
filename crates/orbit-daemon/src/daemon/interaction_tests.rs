@@ -1270,7 +1270,7 @@ async fn a_chat_rejection_keeps_its_code_and_op_without_logging_content() -> Res
 }
 
 #[tokio::test]
-async fn hub_rejection_diagnostics_keep_numbers_without_text() -> Result<()> {
+async fn hub_rejection_diagnostics_keep_the_code_without_text() -> Result<()> {
     for (request_id, event) in [
         (Some("rejected-turn"), "chat_rejected"),
         (None, "hub_error"),
@@ -1280,21 +1280,21 @@ async fn hub_rejection_diagnostics_keep_numbers_without_text() -> Result<()> {
         logging(&mut runtime, directory.path());
         runtime.state.durable.active_request = request_id.map(str::to_owned);
         runtime.begin_turn(
-            orbit_core::notice::Op::parse("op-rejection-numbers").context("op")?,
+            orbit_core::notice::Op::parse("op-rejection-code").context("op")?,
             orbit_core::notice::ReportSource::Daemon,
         );
-        runtime.hub_event(HubEvent::Frame(json!({
-            "event": "error", "id": request_id,
-            "data": {"code": "too_large", "message": "PRIVATE HUB MESSAGE",
-                "numbers": {"bytes": 128, "max_bytes": 64, "text": "PRIVATE DETAIL", "flag": true}}
-        }))).await?;
+        runtime
+            .hub_event(HubEvent::Frame(json!({
+                "event": "error", "id": request_id,
+                "data": {"code": "too_large", "message": "PRIVATE HUB MESSAGE",
+                    "refusal": {"code": "too_large", "resource": "chat", "bytes": 128,
+                        "max_bytes": 64, "retry": {"kind": "after_fix"}}}
+            })))
+            .await?;
         let line = last_logged(directory.path(), event)?;
         let entry: Value = serde_json::from_str(&line)?;
         assert_eq!(entry["fields"]["code"], "too_large");
-        assert_eq!(entry["fields"]["op"], "op-rejection-numbers");
-        let numbers: Value =
-            serde_json::from_str(entry["fields"]["numbers"].as_str().context("numbers")?)?;
-        assert_eq!(numbers, json!({"bytes": 128, "max_bytes": 64}));
+        assert_eq!(entry["fields"]["op"], "op-rejection-code");
         assert!(!line.contains("PRIVATE"));
     }
     Ok(())

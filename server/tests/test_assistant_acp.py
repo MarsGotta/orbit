@@ -497,7 +497,8 @@ async def test_a_command_that_does_not_start_is_refused_when_the_session_opens(
     with pytest.raises(HubError) as refused:
         await connection.create_session()
     assert refused.value.code == "agent_start_failed"
-    assert sys.executable in refused.value.message
+    # The agent as the user knows it, its name, not its id.
+    assert refused.value.message.startswith(f"El agente «Ayudante» ({sys.executable}) ")
     assert "código 7" in refused.value.message
     assert connection.live_sessions == set()
 
@@ -633,6 +634,7 @@ async def test_the_process_ceiling_retires_an_idle_session_and_refuses_when_all_
         await connection.close()
     assert refused.value.code == "agent_process_limit"
     assert refused.value.numbers == {"busy": ceiling, "limit": ceiling}
+    assert refused.value.message.startswith("El agente «Ayudante» tiene ")
     assert f"techo {ceiling}" in refused.value.message
 
 
@@ -650,6 +652,7 @@ async def test_an_agent_that_dies_in_a_turn_fails_it_with_its_exit_code(environm
         await connection.close()
     assert isinstance(done, TurnFailed)
     assert (done.code, done.numbers) == ("agent_stopped", {"exit_status": 3})
+    assert done.message.startswith("El agente «Ayudante» ")
     assert "código 3" in done.message
     assert opened.session_id not in connection.live_sessions
     assert stopped is True
@@ -724,6 +727,7 @@ async def test_a_clarification_is_refused_with_its_cause(environment, tmp_path):
         await connection.respond_clarification("sesion", "pregunta", "sí", None)
     await connection.close()
     assert refused.value.code == "clarification_unsupported"
+    assert refused.value.message == "El agente «Ayudante» no pide aclaraciones: ACP v1 no las tiene"
 
 
 @pytest.mark.parametrize(

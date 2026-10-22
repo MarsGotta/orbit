@@ -359,18 +359,9 @@ pub struct ErrorData {
     pub session_id: Option<String>,
     #[serde(default)]
     pub status: Option<String>,
-    #[serde(default)]
-    pub numbers: Option<std::collections::BTreeMap<String, ErrorDetail>>,
     /// Boxed: a refusal's fields would make every hub event as large as it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refusal: Option<Box<RefusalData>>,
-}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum ErrorDetail {
-    Number(i64),
-    Text(String),
-    Flag(bool),
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RefusalData {
@@ -665,17 +656,21 @@ mod tests {
     fn reply_error_is_an_additive_wire_field() -> Result<(), String> {
         let error: ErrorData = serde_json::from_value(serde_json::json!({
             "code":"device_reply_invalid", "message":"respuesta fuera de contrato",
-            "numbers":{"field":"result.windows", "expected":"lista", "device_version":"0.3.13"},
             "refusal":{"code":"device_reply_invalid","field":"result.windows",
                 "expected":"lista","device_version":"0.3.13","retry":{"kind":"check_outcome"}}
         }))
         .map_err(|error| error.to_string())?;
         assert_eq!(error.code.as_deref(), Some("device_reply_invalid"));
-        assert!(
+        assert_eq!(
             error
-                .numbers
+                .refusal
                 .as_ref()
-                .is_some_and(|details| details.contains_key("field"))
+                .map(|refusal| refusal.code.as_deref()),
+            Some(Some("device_reply_invalid"))
+        );
+        assert_eq!(
+            error.refusal.map(|refusal| refusal.retry),
+            Some(RetryDisposition::CheckOutcome)
         );
         Ok(())
     }

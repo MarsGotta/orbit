@@ -6,7 +6,6 @@
     "code": "invalid_request",
     "message": "Mensaje fuera de contrato",
     "session_id": null,
-    "status": null,
-    "numbers": null
+    "status": null
   }
 }
