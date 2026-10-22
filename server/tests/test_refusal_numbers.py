@@ -38,7 +38,7 @@ def assert_quota_numbers(numbers, quota):
 def test_every_quota_refusal_of_the_store_carries_its_numbers(environment):
     settings, store, _ = environment
     owner = device(store)["device_id"]
-    session = store.create_session(owner, "runtime", "stored", "epoch", 1000)
+    session = store.create_session(owner, "default", "runtime", "stored", "epoch", 1000)
     body = wav_fixture()
     digest = hashlib.sha256(body).hexdigest()
     constrained = Store(settings.data_dir, settings.key_file, quota_bytes=1)
@@ -201,7 +201,7 @@ async def test_a_voice_clip_over_its_ceiling_says_its_size(
     )
     configured = replace(settings, hermes_credential_file=_credential(tmp_path))
     with pytest.raises(HubError) as refused:
-        await HermesSpeech(configured).synthesize("frase sintética")
+        await HermesSpeech(configured, configured.profile).synthesize("frase sintética")
     assert refused.value.code == "speech_too_large"
     assert refused.value.numbers["max_bytes"] == maximum
     assert refused.value.numbers["bytes"] > maximum
