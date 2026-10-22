@@ -18,6 +18,7 @@ pub fn assistant_value() -> Value {
         turn: None,
         pending: None,
         voice_active: false,
+        pending_voice: Vec::new(),
         turn_in_flight: false,
         activity: None,
         voice: VoiceAvailability::Unknown {

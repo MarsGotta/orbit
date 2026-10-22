@@ -2,6 +2,7 @@ import { noticeClass } from "../../../bridge/generated/noticeClasses";
 import { assistantFailed } from "./assistantFailed";
 import { capture } from "./capture";
 import { conversationCopy } from "./conversation";
+import { delivery, uploadRefused } from "./delivery";
 import { system } from "./system";
 import type { Entries, WordedCode } from "./types";
 
@@ -15,8 +16,13 @@ const classes = Object.fromEntries(
 
 // Object.fromEntries loses the relation between a code and its class.
 export function noticesForAssistant(assistantName = "Deimos"): Entries {
-  const worded: Entries<WordedCode> = { ...capture, ...conversationCopy(assistantName), ...system };
-  return { ...classes, ...worded, ...assistantFailed(assistantName) } as Entries;
+  const worded: Entries<WordedCode> = {
+    ...capture,
+    ...conversationCopy(assistantName),
+    ...system,
+    ...delivery,
+  };
+  return { ...classes, ...worded, ...assistantFailed(assistantName), ...uploadRefused } as Entries;
 }
 
 export const notices = noticesForAssistant();

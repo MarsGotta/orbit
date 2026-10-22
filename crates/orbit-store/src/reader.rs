@@ -38,11 +38,25 @@ impl ReadOnlyStore {
     ) -> Result<Vec<crate::Job>> {
         self.store.pending_jobs_of_kind(kind, after_id, limit)
     }
+    pub fn pending_chunk_uploads(
+        &self,
+        after_id: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<crate::Job>> {
+        self.store.pending_chunk_uploads(after_id, limit)
+    }
     pub fn list_jobs_after(&self, after_id: Option<&str>, limit: usize) -> Result<Vec<crate::Job>> {
         self.store.list_jobs_after(after_id, limit)
     }
     pub fn finalize_counts(&self, recording: &str) -> Result<(u64, u64)> {
         self.store.finalize_counts(recording)
+    }
+    pub fn refused_chunks(
+        &self,
+        recording: &str,
+        limit: usize,
+    ) -> Result<Vec<crate::ChunkMetadata>> {
+        self.store.refused_chunks(recording, limit)
     }
     pub fn latest_chunk_receipt(
         &self,

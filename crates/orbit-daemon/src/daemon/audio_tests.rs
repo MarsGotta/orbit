@@ -136,6 +136,7 @@ pub(in crate::daemon) fn fixture(
                 retired_call_starts: BTreeMap::new(),
                 retired_stops: BTreeMap::new(),
                 interruption: None,
+                recovery: None,
             },
             features: FeatureRuntime {
                 sources: Default::default(),

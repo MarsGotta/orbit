@@ -16,6 +16,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         session_id: None,
         agent_id: None,
         turn: Vec::new(),
+        pending_voice: None,
         voice_audio: input.local.voice_audio.clone(),
         pending_contract: None,
         voice: VoiceSnapshot {
@@ -64,37 +65,15 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         .turn
         .iter()
         .flat_map(|turn| std::iter::once(&turn.user).chain(turn.answer.as_ref()))
-        .map(|message| ChatMessage {
-            id: message.id.clone(),
-            role: match message.role.as_str() {
-                "user" => ChatRole::User,
-                "assistant" => ChatRole::Assistant,
-                _ => ChatRole::System,
-            },
-            text: message.text.clone(),
-            at_ms: i64::try_from(message.at_ms).unwrap_or(i64::MAX),
-            streaming: value.turn_in_flight && !message.complete,
-            voice: message.voice.as_ref().map(|voice| VoiceNote {
-                duration_ms: voice.duration_ms,
-                transcript: voice.transcript.clone(),
-                failure: voice
-                    .failure
-                    .as_ref()
-                    .map(|failure| crate::VoiceTranscriptionFailure {
-                        code: failure.code.clone(),
-                        provider_status: failure.provider_status,
-                        hub_status: failure.hub_status,
-                        timeout_ms: failure.timeout_ms,
-                        bytes: failure.bytes.map(|bytes| bytes.to_string()),
-                        max_bytes: failure.max_bytes.map(|bytes| bytes.to_string()),
-                        attempts: failure.attempts,
-                    }),
-                audio_available: voice.audio_available,
-            }),
-            receipts: Vec::new(),
-            attachments: message.attachments.clone(),
-        })
+        .map(|message| chat_message(message, value.turn_in_flight && !message.complete))
         .collect();
+    view.pending_voice = (!value.pending_voice.is_empty()).then(|| {
+        value
+            .pending_voice
+            .iter()
+            .map(|message| chat_message(message, false))
+            .collect()
+    });
     view.pending_contract = value.pending.as_ref().map(|pending| {
         if pending.clarification {
             ChatPending::Clarify {
@@ -154,4 +133,37 @@ pub fn apply(view: &View, snapshot: &mut AppSnapshot) {
 #[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
 pub enum AssistantCommand {
     VoiceNoteAudio { message_id: String },
+}
+
+fn chat_message(message: &orbit_core::Message, streaming: bool) -> ChatMessage {
+    ChatMessage {
+        id: message.id.clone(),
+        role: match message.role.as_str() {
+            "user" => ChatRole::User,
+            "assistant" => ChatRole::Assistant,
+            _ => ChatRole::System,
+        },
+        text: message.text.clone(),
+        at_ms: i64::try_from(message.at_ms).unwrap_or(i64::MAX),
+        streaming,
+        voice: message.voice.as_ref().map(|voice| VoiceNote {
+            duration_ms: voice.duration_ms,
+            transcript: voice.transcript.clone(),
+            failure: voice
+                .failure
+                .as_ref()
+                .map(|failure| crate::VoiceTranscriptionFailure {
+                    code: failure.code.clone(),
+                    provider_status: failure.provider_status,
+                    hub_status: failure.hub_status,
+                    timeout_ms: failure.timeout_ms,
+                    bytes: failure.bytes.map(|bytes| bytes.to_string()),
+                    max_bytes: failure.max_bytes.map(|bytes| bytes.to_string()),
+                    attempts: failure.attempts,
+                }),
+            audio_available: voice.audio_available,
+        }),
+        receipts: Vec::new(),
+        attachments: message.attachments.clone(),
+    }
 }

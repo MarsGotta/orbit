@@ -85,6 +85,15 @@ pub enum Event {
     CaptureStarted,
     CaptureFinalized,
     EmptyCaptureClosed,
+    /// A recording a cut left interrupted, with audio, that will not resume
+    /// (the cause was the Mac's sleep, the person's stop, a refused restart,
+    /// or the capture did not come back): it is closed at `ended_at_ms`, the
+    /// end of what was recorded, so the hub writes its note. `cause` is the
+    /// cut's code, said with the closure.
+    CutRecordingClosed {
+        ended_at_ms: i64,
+        cause: String,
+    },
     PauseMeeting,
     ResumeMeeting,
     FinishMeeting,
@@ -143,8 +152,8 @@ pub enum Event {
     /// A failure put the live capture's integrity at risk, or the Mac
     /// stopped it on its own: the recording, call or voice note is cut with
     /// its cause (a code: a helper code or a stop cause's name) and what was
-    /// kept. Orbit keeps working; nothing latches,
-    /// nothing is resumed.
+    /// kept. Orbit keeps working and nothing latches; the daemon resumes or
+    /// closes a cut recording once its audio has settled (`cut_recovery`).
     CaptureCut {
         cause: String,
     },
@@ -325,6 +334,14 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
                 .turn
                 .as_mut()
                 .and_then(|turn| turn.untranscribed_voice_mut(&id))
+                .or_else(|| {
+                    next.durable
+                        .pending_voice
+                        .iter_mut()
+                        .find(|message| message.id == id)
+                        .and_then(|message| message.voice.as_mut())
+                        .filter(|voice| voice.transcript.is_none())
+                })
             {
                 voice.failure = Some(failure);
             }
@@ -360,6 +377,7 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
         | Event::FinishMeeting
         | Event::CaptureFinalized
         | Event::EmptyCaptureClosed
+        | Event::CutRecordingClosed { .. }
         | Event::ChunkSealed
         | Event::CaptureGap) => decide_capture(state, &mut next, &mut effects, event, now_ms)?,
         Event::VoiceStart => decide_voice_start(state, &mut next, &mut effects)?,
@@ -446,13 +464,13 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
 
 fn decide_new_session(next: &mut State) {
     next.durable.session_id = None;
-    next.durable.turn = None;
+    retire_turn(next);
     next.durable.pending_approval = None;
 }
 
 /// The conversation's messages are the hub's; the app reads them.
 fn decide_open_session(next: &mut State, id: String) {
-    next.durable.turn = None;
+    retire_turn(next);
     next.durable.pending_approval = None;
     next.durable.session_id = Some(id);
 }
@@ -519,18 +537,21 @@ fn decide_chat_submit(
         });
     }
     next.views.short_voice_note = None;
-    next.durable.turn = Some(Turn {
-        user: Message {
-            id: id.clone(),
-            role: "user".into(),
-            text: text.clone(),
-            complete: true,
-            at_ms: observed_at_ms(now_ms),
-            voice: None,
-            attachments: attachments.clone(),
+    set_turn(
+        next,
+        Turn {
+            user: Message {
+                id: id.clone(),
+                role: "user".into(),
+                text: text.clone(),
+                complete: true,
+                at_ms: observed_at_ms(now_ms),
+                voice: None,
+                attachments: attachments.clone(),
+            },
+            answer: None,
         },
-        answer: None,
-    });
+    );
     next.durable.active_request = Some(id.clone());
     next.set_notice(NoticeCode::AssistantThinking);
     effects.push(Effect::SendText {
@@ -546,6 +567,9 @@ fn decide_chat_submit(
     Ok(())
 }
 
+/// A voice note sealed on this Mac becomes a message, with the hub or
+/// without it: the WAV is kept, and its transcription can wait. With a turn
+/// still in flight it waits in `pending_voice` instead of replacing it.
 fn decide_voice_stored(
     state: &State,
     next: &mut State,
@@ -554,40 +578,74 @@ fn decide_voice_stored(
     now_ms: i64,
 ) -> Result<(), Refusal> {
     ensure_active(state)?;
-    if state.durable.connection != Connection::Online {
-        return Err(Refusal::HubUnreachable { since_ms: None });
-    }
-    if state.durable.active_request.is_some()
-        || next
-            .durable
-            .turn
-            .as_ref()
-            .is_some_and(|turn| turn.user.id == id)
-    {
+    let known = next
+        .durable
+        .turn
+        .iter()
+        .map(|turn| &turn.user)
+        .chain(next.durable.pending_voice.iter())
+        .any(|message| message.id == id);
+    if known {
         return Err(Refusal::Busy {
             operation: crate::refusal::Operation::Interaction,
             retry_after_ms: None,
         });
     }
-    next.durable.turn = Some(Turn {
-        user: Message {
-            attachments: Vec::new(),
-            id,
-            role: "user".into(),
-            text: String::new(),
-            complete: true,
-            at_ms: observed_at_ms(now_ms),
-            voice: Some(VoiceNote {
-                duration_ms,
-                transcript: None,
-                failure: None,
-                audio_available: true,
-            }),
-        },
-        answer: None,
-    });
+    let busy = state.durable.active_request.is_some();
+    let message = Message {
+        attachments: Vec::new(),
+        id,
+        role: "user".into(),
+        text: String::new(),
+        complete: true,
+        at_ms: observed_at_ms(now_ms),
+        voice: Some(VoiceNote {
+            duration_ms,
+            transcript: None,
+            failure: busy.then(|| VoiceTranscriptionFailure::local(VOICE_WAITING_TURN)),
+            audio_available: true,
+        }),
+    };
+    if busy {
+        keep_pending_voice(next, message);
+    } else {
+        set_turn(
+            next,
+            Turn {
+                user: message,
+                answer: None,
+            },
+        );
+    }
     next.set_notice(NoticeCode::VoiceNoteSaved);
     Ok(())
+}
+
+/// The turn becomes `turn`. A voice note the hub never took that it
+/// replaces stays on the Mac, in `pending_voice`, instead of being dropped.
+fn set_turn(next: &mut State, turn: Turn) {
+    retire_turn(next);
+    next.durable.turn = Some(turn);
+}
+
+/// The turn ends without another (a new or another conversation). Its
+/// voice note the hub never took is kept, as when a turn replaces it.
+fn retire_turn(next: &mut State) {
+    if let Some(message) = next
+        .durable
+        .turn
+        .take()
+        .and_then(|turn| turn.untranscribed_voice_message().cloned())
+    {
+        keep_pending_voice(next, message);
+    }
+}
+
+fn keep_pending_voice(next: &mut State, message: Message) {
+    let pending = &mut next.durable.pending_voice;
+    if pending.iter().all(|kept| kept.id != message.id) {
+        pending.push(message);
+    }
 }
 
 /// A voice note's transcription asked for again: the open turn's note `id`
@@ -613,6 +671,29 @@ fn decide_voice_retry(state: &State, next: &mut State, id: &str) -> Result<(), R
             operation: crate::refusal::Operation::Interaction,
             retry_after_ms: None,
         });
+    }
+    if let Some(at) = next.durable.pending_voice.iter().position(|message| {
+        message.id == id
+            && message
+                .voice
+                .as_ref()
+                .is_some_and(|voice| voice.transcript.is_none())
+    }) {
+        // A note a later turn replaced becomes the turn again, so its
+        // transcript is sent as it would have been.
+        let mut message = next.durable.pending_voice.remove(at);
+        if let Some(voice) = message.voice.as_mut() {
+            voice.failure = None;
+        }
+        set_turn(
+            next,
+            Turn {
+                user: message,
+                answer: None,
+            },
+        );
+        next.set_notice(NoticeCode::VoiceTranscribing);
+        return Ok(());
     }
     let voice = next
         .durable
@@ -842,6 +923,9 @@ fn decide_capture(
             recording.finalizing_since_ms = None;
             next.set_notice(NoticeCode::RecordingEmpty);
             Ok(())
+        }
+        Event::CutRecordingClosed { ended_at_ms, cause } => {
+            decide_cut_recording_closed(next, ended_at_ms, &cause, now_ms)
         }
         Event::ChunkSealed => {
             if let Some(r) = next.durable.recording.as_mut() {
@@ -1092,6 +1176,39 @@ fn decide_capture_finish(
     Ok(())
 }
 
+/// Closes a cut recording that will not resume. Its end is the end of what
+/// was recorded, never before its start nor after now; the closure says the
+/// cut's cause and how many fragments it keeps.
+fn decide_cut_recording_closed(
+    next: &mut State,
+    ended_at_ms: i64,
+    cause: &str,
+    now_ms: i64,
+) -> Result<(), Refusal> {
+    let recording = next
+        .durable
+        .recording
+        .as_mut()
+        .filter(|recording| {
+            recording.phase == CapturePhase::Interrupted && recording.ended_at_ms.is_none()
+        })
+        .ok_or(Refusal::InvalidParameter {
+            parameter: crate::refusal::Parameter::Request,
+            expected: crate::refusal::Expected::CorrectCaptureState,
+        })?;
+    recording.phase = CapturePhase::Idle;
+    recording.ended_at_ms =
+        Some(ended_at_ms.clamp(recording.started_at_ms, now_ms.max(recording.started_at_ms)));
+    recording.finalizing_since_ms = None;
+    let fragments = recording.sealed_chunks;
+    next.set_notice(
+        Notice::new(NoticeCode::RecordingClosedAfterCut)
+            .with_token(NoticeKey::Cause, cause)
+            .with(NoticeKey::Fragments, fragments),
+    );
+    Ok(())
+}
+
 fn decide_capture_finalized(next: &mut State, now_ms: i64) -> Result<(), Refusal> {
     let recording = next
         .durable
@@ -1133,6 +1250,13 @@ fn decide_voice_start(
         return Err(Refusal::Busy {
             operation: crate::refusal::Operation::Interaction,
             retry_after_ms: None,
+        });
+    }
+    if state.durable.pending_voice.len() >= MAX_PENDING_VOICE_NOTES {
+        return Err(Refusal::TooMany {
+            resource: crate::refusal::Resource::Message,
+            count: state.durable.pending_voice.len() as u64,
+            max: MAX_PENDING_VOICE_NOTES as u64,
         });
     }
     next.durable.voice_active = true;
@@ -1355,8 +1479,8 @@ fn decide_tick(state: &State, next: &mut State, effects: &mut Vec<Effect>, now_m
 
 /// Cuts whatever is live: the recording is interrupted with its
 /// fragments counted, a call ends with its turn, a voice note is dropped.
-/// The helper is asked to stop capturing without latching, and nothing is
-/// ever resumed from here. `closing` says Orbit itself is going away, so the
+/// The helper is asked to stop capturing without latching. Nothing is
+/// resumed from here: the daemon decides that once the cut's audio settled. `closing` says Orbit itself is going away, so the
 /// notice does not promise it keeps working.
 fn decide_capture_cut(next: &mut State, effects: &mut Vec<Effect>, cause: &str, closing: bool) {
     // The cause is a code (a helper code or a stop cause's name); anything

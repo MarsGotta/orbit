@@ -23,6 +23,12 @@ agent_id?: string,
  */
 turn: Array<ChatMessage>, 
 /**
+ * Voice notes this Mac keeps for the hub (spoken with it away, or
+ * whose transcription failed) that a later turn replaced, oldest
+ * first: shown, each with «Reintentar transcripción».
+ */
+pending_voice?: Array<ChatMessage>, 
+/**
  * The last voice note the user asked to hear, once its audio arrived.
  */
 voice_audio?: VoiceNoteAudioSnapshot, pending: ChatPending | null, voice: VoiceSnapshot, activity?: AssistantActivity, 

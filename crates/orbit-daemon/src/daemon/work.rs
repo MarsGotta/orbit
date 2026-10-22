@@ -1,7 +1,7 @@
 //! Background work completion and scheduling.
 use super::ticketed::Settlement;
 use super::*;
-use orbit_core::notice::NoticeCode;
+use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
 
 #[cfg(test)]
 #[path = "uploaded_chunk_tests.rs"]
@@ -103,6 +103,7 @@ impl Runtime {
                 ticket,
                 succeeded,
                 error,
+                notice,
                 result,
             }) => {
                 let settlement = self.work.worker.settle(&ticket, self.state.generation());
@@ -111,7 +112,7 @@ impl Runtime {
                     .is_some()
                     && !self.state.privacy_stopped()
                 {
-                    self.on_work_upload_settled(succeeded, error, result)
+                    self.on_work_upload_settled(succeeded, error, notice, result)
                         .await?;
                 }
             }
@@ -304,14 +305,12 @@ impl Runtime {
     /// source. This bound prevents cancellation cleanup from monopolizing actor
     /// time; the other classes receive their turn on the next admission.
     pub(super) async fn schedule_chunk_upload(&mut self) -> Result<bool> {
-        let mut jobs = self.reader.pending_jobs_of_kind(
-            "chunk_upload",
-            self.work.upload_cursor.as_deref(),
-            1,
-        )?;
+        let mut jobs = self
+            .reader
+            .pending_chunk_uploads(self.work.upload_cursor.as_deref(), 1)?;
         if jobs.is_empty() {
             self.work.upload_cursor = None;
-            jobs = self.reader.pending_jobs_of_kind("chunk_upload", None, 1)?;
+            jobs = self.reader.pending_chunk_uploads(None, 1)?;
         }
         let Some(job) = jobs.pop() else {
             return Ok(false);
@@ -384,8 +383,8 @@ impl Runtime {
                         if let Some(epoch) = &receipt.metadata.capture_epoch_id {
                             request = request.header("X-Orbit-Capture-Epoch-Id", epoch);
                         }
-                        let response = request.body(bytes).send().await?;
-                        crate::retry::check_status(response.status())?;
+                        let response =
+                            crate::retry::check_response(request.body(bytes).send().await?).await?;
                         let ack = hub::bounded_json(response).await?;
                         if ack["durable"] != true
                             || ack["sha256"] != receipt.sha256
@@ -464,23 +463,27 @@ impl Runtime {
             .reader
             .get_job(&job_id)?
             .context("Recibo sin trabajo local")?;
+        let failure = result.as_ref().err().map(UploadFailure::of);
+        if let Some(UploadFailure::OutOfSpace(_)) = &failure {
+            self.work
+                .retry_gate
+                .hold(HUB_FULL_RETRY, std::time::Instant::now());
+        }
+        let notice = failure
+            .as_ref()
+            .and_then(|failure| failure.notice(&stored_job.kind));
         if stored_job.kind == "chunk_upload"
             && let Some(recording) = stored_job.payload["metadata"]["recording_id"].as_str()
         {
             self.work.finalize_ready.remove(recording);
         }
-        let next_state = if result.is_ok() {
-            JobState::Succeeded
-        } else {
-            if result
-                .as_ref()
-                .err()
-                .is_some_and(|error| error.downcast_ref::<crate::retry::Refused>().is_some())
-            {
-                JobState::Blocked
-            } else {
-                JobState::RetryWait
-            }
+        let next_state = match &failure {
+            None => JobState::Succeeded,
+            // Kept on the Mac and never sent again: the hub's answer to the
+            // same bytes would not change. A refused chunk no longer holds
+            // its meeting's closure (`finalize_is_ready`).
+            Some(UploadFailure::Refused { .. }) => JobState::Blocked,
+            Some(_) => JobState::RetryWait,
         };
         let chunk_id = (succeeded && stored_job.kind == "chunk_upload")
             .then(|| {
@@ -493,7 +496,7 @@ impl Runtime {
         if stored_job.kind == "chunk_upload"
             && (self.recording_active() || !self.capture.pending_seals.is_empty())
         {
-            let error = result.as_ref().err().map(ToString::to_string);
+            let error = result.as_ref().err().map(|error| format!("{error:#}"));
             let updated_job = job_id.clone();
             let settlement = self.store_actor.begin_run(move |store| {
                 store.update_job(&updated_job, next_state)?;
@@ -526,6 +529,7 @@ impl Runtime {
                                     ticket,
                                     succeeded,
                                     error,
+                                    notice,
                                     result,
                                 }),
                             )
@@ -555,8 +559,8 @@ impl Runtime {
             })
             .await?;
         if let Err(error) = result {
-            self.log("upload_failed", &[("error", &error.to_string())]);
-            self.say(NoticeCode::UploadRetrying);
+            self.log("upload_failed", &[("error", &format!("{error:#}"))]);
+            self.say_upload_failure(notice);
         }
         if succeeded {
             self.schedule_upload().await?;
@@ -568,6 +572,7 @@ impl Runtime {
         &mut self,
         succeeded: bool,
         error: Option<String>,
+        notice: Option<Notice>,
         result: Result<()>,
     ) -> Result<()> {
         result?;
@@ -575,9 +580,21 @@ impl Runtime {
             self.schedule_upload().await?;
         } else if let Some(error) = error {
             self.log("upload_failed", &[("error", &error)]);
-            self.say(NoticeCode::UploadRetrying);
+            self.say_upload_failure(notice);
         }
         Ok(())
+    }
+
+    /// A failed transfer is said once while it lasts: the same refusal on
+    /// every retry would push everything else out of the notices. A
+    /// transient one (network, timeout, the hub's 5xx) stays silent.
+    fn say_upload_failure(&mut self, notice: Option<Notice>) {
+        match notice {
+            Some(notice) => {
+                self.say_once(notice);
+            }
+            None => self.say(NoticeCode::UploadRetrying),
+        }
     }
 
     async fn on_work_sealed(&mut self, recording: String, sequence: u64) -> Result<()> {
@@ -663,5 +680,93 @@ fn prune_uploaded_audio(store: &mut Store, id: &str, root: &std::path::Path) {
                 ("error", &error.to_string()),
             ],
         ),
+    }
+}
+
+/// How long uploads wait after the hub said it has no room (507). Space does
+/// not come back in seconds: someone frees or grows the hub's storage. One
+/// try every five minutes keeps the Mac from sending a one-second chunk every
+/// minute to a full disk all day, and still resumes within five minutes of
+/// space returning. The audio stays on the Mac meanwhile; nothing is dropped.
+const HUB_FULL_RETRY: std::time::Duration = std::time::Duration::from_secs(300);
+
+/// What a failed transfer means for its job and for the person.
+enum UploadFailure {
+    /// The network, a timeout or the hub's 5xx: retried with the gate's
+    /// backoff, silently, as before.
+    Transient,
+    /// The hub refuses until something is fixed on this side: 401 (pair
+    /// this Mac again), 404 (a proxy or a hub mid-deploy without the route).
+    /// Retried with the gate's backoff, and said with its status.
+    UntilFixed { status: u16, code: Option<String> },
+    /// The hub can never take these bytes: 409 (`recording_finalized`,
+    /// `chunk_conflict`: the hub keeps an identical copy idempotently, so a
+    /// 409 is never a lost receipt), 403 (this Mac revoked), 400, 413, 415,
+    /// 422. Kept on the Mac, said, and declared lost in the closure.
+    Refused { status: u16, code: Option<String> },
+    /// The hub has no room (507): said with its numbers, retried slowly.
+    OutOfSpace(crate::retry::OutOfSpace),
+}
+
+impl UploadFailure {
+    fn of(error: &anyhow::Error) -> Self {
+        if let Some(full) = error.downcast_ref::<crate::retry::OutOfSpace>() {
+            return Self::OutOfSpace(full.clone());
+        }
+        let Some(crate::retry::Refused(status)) = error.downcast_ref::<crate::retry::Refused>()
+        else {
+            return Self::Transient;
+        };
+        let code = error
+            .downcast_ref::<crate::retry::HubCode>()
+            .map(|code| code.0.clone());
+        match status {
+            401 | 404 => Self::UntilFixed {
+                status: *status,
+                code,
+            },
+            _ => Self::Refused {
+                status: *status,
+                code,
+            },
+        }
+    }
+
+    /// The notice for a job of `kind` (`chunk_upload`, `recording_finalize`).
+    fn notice(&self, kind: &str) -> Option<Notice> {
+        let step = |notice: Notice| notice.with_token(NoticeKey::Step, kind);
+        let coded = |notice: Notice, status: u16, code: &Option<String>| {
+            let notice = step(notice).with(NoticeKey::Status, status);
+            match code {
+                Some(code) => notice.with_token(NoticeKey::Code, code),
+                None => notice,
+            }
+        };
+        match self {
+            Self::Transient => None,
+            Self::UntilFixed { status, code } => Some(coded(
+                Notice::new(NoticeCode::UploadRefusedRetrying),
+                *status,
+                code,
+            )),
+            Self::Refused { status, code } => {
+                Some(coded(Notice::new(NoticeCode::UploadRefused), *status, code))
+            }
+            Self::OutOfSpace(full) => {
+                let mut notice = step(Notice::new(NoticeCode::HubStorageFull))
+                    .with_token(NoticeKey::Code, &full.code)
+                    .with(NoticeKey::Status, 507_u16);
+                if let Some(used) = full.used_bytes {
+                    notice = notice.with(NoticeKey::Bytes, used);
+                }
+                if let Some(max) = full.max_bytes {
+                    notice = notice.with(NoticeKey::MaxBytes, max);
+                }
+                if let Some(free) = full.free_bytes {
+                    notice = notice.with(NoticeKey::Remaining, free);
+                }
+                Some(notice)
+            }
+        }
     }
 }

@@ -231,3 +231,15 @@ async fn the_app_can_acknowledge_a_privacy_stop_during_startup_recovery()
     assert_eq!(daemon.shutdown().await, Quit::Ended(Ended::Closed));
     Ok(())
 }
+
+/// A daemon that falls after a minute relaunches the app, which resumes the
+/// recording from its snapshot; one that falls in its start does not loop.
+#[test]
+fn a_daemon_that_falls_after_its_start_relaunches_the_app() {
+    assert!(!relaunches_after(Duration::from_secs(5)));
+    assert!(!relaunches_after(
+        DAEMON_RELAUNCH_MIN_UPTIME - Duration::from_millis(1)
+    ));
+    assert!(relaunches_after(DAEMON_RELAUNCH_MIN_UPTIME));
+    assert!(relaunches_after(Duration::from_secs(25 * 60)));
+}

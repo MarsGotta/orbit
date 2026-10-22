@@ -543,6 +543,7 @@ mod call_detection;
 mod call_recovery;
 mod commands;
 mod computer_control;
+mod cut_recovery;
 mod finalize;
 mod hub_account;
 mod hub_events;
@@ -603,6 +604,13 @@ mod hub_backpressure_tests;
 
 #[cfg(test)]
 mod native_bridge_tests;
+
+#[cfg(test)]
+mod chunk_delivery_tests;
+#[cfg(test)]
+mod meeting_continuity_tests;
+#[cfg(test)]
+mod offline_voice_note_tests;
 
 #[cfg(test)]
 mod privacy_capture_tests;
@@ -736,6 +744,8 @@ enum StoreWork {
         ticket: ticketed::WorkTicket,
         succeeded: bool,
         error: Option<String>,
+        /// What to tell the person about a failed upload (`work.rs`).
+        notice: Option<orbit_core::notice::Notice>,
         result: Result<()>,
     },
     Sealed {
@@ -901,6 +911,9 @@ struct CaptureRuntime {
     retired_call_starts: BTreeMap<String, String>,
     retired_stops: BTreeMap<String, audio::RetiredStreamStop>,
     interruption: Option<orbit_core::RecordingInterruption>,
+    /// The cut that left the recording interrupted, while it waits to
+    /// resume or close (`cut_recovery`).
+    recovery: Option<cut_recovery::CutRecovery>,
 }
 
 struct FeatureRuntime {
@@ -1008,6 +1021,11 @@ async fn run_with_helper_inner(
         .as_ref()
         .and_then(|saved| saved.recording.as_ref())
         .is_some_and(|recording| recording.phase.interrupted_on_recovery());
+    let restart_cut = cut_recovery::recovery_after_restart(
+        saved_state
+            .as_ref()
+            .and_then(|saved| saved.recording.as_ref()),
+    );
     let startup_op = orbit_ipc::new_op();
     let reported_sequence = saved_state
         .as_ref()
@@ -1211,6 +1229,7 @@ async fn run_with_helper_inner(
             retired_call_starts: BTreeMap::new(),
             retired_stops: BTreeMap::new(),
             interruption: None,
+            recovery: restart_cut,
         },
         features: FeatureRuntime {
             sources: sources::SourceRuntime::default(),

@@ -44,6 +44,10 @@ struct NativeHotkeyFields<'a> {
 struct NativeGapSource<'a> {
     source: &'a str,
     reason: Option<&'a str>,
+    /// Samples the producer dropped (the helper's count). The daemon's own
+    /// bridge counts dropped events here and states `duration_ns` instead.
+    #[serde(default)]
+    frames: Option<u64>,
     duration_ns: Option<u64>,
 }
 
@@ -919,9 +923,19 @@ impl Runtime {
                     if recording_attributable {
                         self.apply(Event::Degraded(kind)).await?;
                         let gap = NativeGapSource::deserialize(event)?;
+                        // Whoever dropped the audio (a new route, the helper's
+                        // ring, either side of the bridge under backpressure)
+                        // declared it: the tail before the hole is sealed and
+                        // the producer's next sequence is accepted, so the
+                        // hole never becomes contiguous PCM and never cuts the
+                        // meeting. The stream and its clock are still checked.
+                        let rate = self.capture.buffer.track_rate(gap.source);
+                        let segments = self.capture.buffer.restart_source(gap.source)?;
+                        self.seal(segments)?;
+                        if gap.reason != Some("audio_device_changed") {
+                            self.note_declared_gap(&gap, rate);
+                        }
                         if gap.source == "mic_local" && gap.reason == Some("audio_device_changed") {
-                            let segments = self.capture.buffer.restart_source(gap.source)?;
-                            self.seal(segments)?;
                             let mut notice = Notice::new(NoticeCode::AudioRouteRecovered);
                             if let Some(duration_ns) = gap.duration_ns {
                                 self.log(
@@ -960,6 +974,45 @@ impl Runtime {
             }
         }
         Ok(())
+    }
+
+    /// A declared hole is recorded with its duration: the producer's own
+    /// `duration_ns` when it states one, otherwise its dropped samples at the
+    /// track's rate. Unknown stays unknown, never zero.
+    fn note_declared_gap(&mut self, gap: &NativeGapSource<'_>, rate: Option<u32>) {
+        let duration_ms = gap
+            .duration_ns
+            .map(|nanoseconds| nanoseconds / 1_000_000)
+            .or_else(|| match (gap.frames, rate) {
+                (Some(frames), Some(rate)) if rate > 0 && frames > 0 => {
+                    Some(frames.saturating_mul(1_000) / u64::from(rate))
+                }
+                _ => None,
+            });
+        let reason = gap.reason.unwrap_or("unspecified");
+        let mut notice = Notice::new(NoticeCode::AudioGap).with_token(NoticeKey::Cause, reason);
+        match duration_ms {
+            Some(duration_ms) => {
+                self.log(
+                    "audio_gap",
+                    &[
+                        ("source", gap.source),
+                        ("reason", reason),
+                        ("duration_ms", &duration_ms.to_string()),
+                    ],
+                );
+                notice = notice.with(NoticeKey::DurationMs, duration_ms);
+            }
+            None => self.log(
+                "audio_gap",
+                &[
+                    ("source", gap.source),
+                    ("reason", reason),
+                    ("duration_unknown", "true"),
+                ],
+            ),
+        }
+        self.say(notice);
     }
 
     /// Every order the helper answered with an error is recorded,

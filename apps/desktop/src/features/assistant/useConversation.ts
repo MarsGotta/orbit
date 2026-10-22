@@ -5,7 +5,13 @@ import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import type { DaemonPort } from "../../bridge/port";
 import type { AssistantCursor, MessagesPage } from "../../bridge/reads";
 import { es } from "../../i18n/es";
-import { conversationView, turnInFlight, withNewest, withOlder } from "./conversation";
+import {
+  conversationView,
+  turnInFlight,
+  withNewest,
+  withOlder,
+  withPendingVoice,
+} from "./conversation";
 import { useRememberedOpening } from "./first-lines";
 
 type Reader = NonNullable<DaemonPort["readSessionMessages"]>;
@@ -39,8 +45,9 @@ function useNewestReads(inFlight: boolean) {
 
 /**
  * The open conversation, read from the hub a page at a time, with
- * the turn in progress after it. The newest page is read when the
- * conversation opens and again when a turn ends; older ones on demand.
+ * the turn in progress after it and the voice notes still waiting for the
+ * hub. The newest page is read when the conversation opens and again when a
+ * turn ends; older ones on demand.
  */
 export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
   const sessionId = chat.session_id;
@@ -102,7 +109,9 @@ export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
   useRememberedOpening(sessionId, first === "read" && older === null ? messages : null);
 
   return {
-    messages,
+    // The voice notes this Mac keeps for the hub follow the conversation;
+    // they are not part of its opening.
+    messages: withPendingVoice(messages, chat.pending_voice ?? []),
     hasOlder: older !== null,
     loadOlder,
     loading,

@@ -35,10 +35,18 @@ In `apps/desktop/src-tauri/src/daemon_thread.rs` and `src/lib.rs`:
   and exits, and the next launch recovers again.
 - **Signals:** the daemon alone installs SIGTERM/SIGINT handlers. The first
   starts the same bounded shutdown; a second requests immediate exit. Unexpected
-  daemon completion closes the app and logs the cause. There is no relauncher.
+  daemon completion (a panic, or its run ending) after its first minute
+  relaunches the whole app (`DAEMON_RELAUNCH_MIN_UPTIME` in
+  `daemon_thread.rs`); one that falls sooner closes the app and logs the cause.
 - **Crash:** memory-only audio is lost. Next startup marks the recording
   interrupted and reports how many chunks were saved
-  (`RecordingInterruptedByRestart` in `orbit-core/src/model.rs`).
+  (`RecordingInterruptedByRestart` in `orbit-core/src/model.rs`); once the new
+  helper is ready, the same recording resumes in a new segment
+  (`orbit-daemon/src/daemon/cut_recovery.rs`).
+- **Cut:** a recording cut by anything but the person («Terminar», the privacy
+  stop), Orbit closing or the Mac going to sleep resumes by itself when the
+  capture is back; one that cannot is closed at its last audio so the hub
+  writes its note. A declared gap never cuts it.
 - **Window close:** hides the window, preserving recording and the menu bar app.
   Dock activation or Finder reopen shows it again.
 - **Helper exit:** the daemon sends `shutdown`, closes stdin, drains stdout and

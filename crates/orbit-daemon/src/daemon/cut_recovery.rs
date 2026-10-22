@@ -1,0 +1,285 @@
+//! A meeting is not lost to a cut it did not ask for.
+//!
+//! Only the person («Terminar», the privacy stop), Orbit closing and the Mac
+//! going to sleep end a capture. Any other cut (the helper lost or silent, a
+//! stalled daemon, a failed frame, a daemon restart after a crash) leaves the
+//! same recording interrupted, and once its audio has settled and the capture
+//! is back it resumes on its own: a new segment of the same recording, the
+//! missing time said with its duration. A cut recording that cannot resume is
+//! closed at the end of what was recorded, so the hub writes its note, and the
+//! closure is said with its cause. Nothing waits for anyone to press
+//! «Terminar».
+use super::*;
+use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
+use orbit_core::refusal::Refusal;
+use std::time::{Duration, Instant};
+
+/// How long a resumable cut waits for the capture to come back (the helper
+/// relaunched and its permissions observed) before the recording is closed.
+/// The helper supervisor relaunches five times with 31 s of backoff in all,
+/// plus each launch; two minutes covers that with room. Past it the
+/// supervisor has given up and the capture is not coming back by itself. This
+/// is not a limit on the meeting, only on a capture that is gone.
+const CAPTURE_RETURN_WAIT: Duration = Duration::from_secs(120);
+
+/// A resumed capture that runs this long is settled: a later cut is a new
+/// one and starts its own count of automatic resumes. One minute is many
+/// one-second chunks, so a capture that keeps failing right away (a refused
+/// device, a broken helper) is told apart from one that worked for a while.
+const RESUME_SETTLED_AFTER: Duration = Duration::from_secs(60);
+
+/// Automatic resumes in a row, each cut before it settled, after which the
+/// recording is closed instead of resumed again. It protects the meeting's
+/// note from a loop that keeps reopening a capture that keeps failing; three
+/// gives a lost helper and a slow relaunch room. It does not bound how many
+/// unrelated cuts a long meeting may survive.
+const MAX_RESUMES_IN_A_ROW: u32 = 3;
+
+/// What the daemon knows about the cut that left a recording interrupted.
+pub(super) struct CutRecovery {
+    recording_id: String,
+    /// The cut's code: the helper's own, or the cause's name.
+    cause: String,
+    /// The cause lets the recording go on (see
+    /// `StopCause::resumes_cut_recording`).
+    resumable: bool,
+    /// The end of what was recorded before the cut, for a closure.
+    cut_at_ms: i64,
+    /// Since when it has waited for the capture to come back.
+    waiting_since: Instant,
+    /// Automatic resumes in a row that did not settle.
+    resumes: u32,
+    resumed_at: Option<Instant>,
+}
+
+impl CutRecovery {
+    pub(super) fn new(recording_id: &str, cause: &str, resumable: bool, cut_at_ms: i64) -> Self {
+        Self {
+            recording_id: recording_id.to_owned(),
+            cause: cause.to_owned(),
+            resumable,
+            cut_at_ms,
+            waiting_since: Instant::now(),
+            resumes: 0,
+            resumed_at: None,
+        }
+    }
+}
+
+/// The cut a new daemon finds in the recording the last one saved. One that
+/// was live (a crash, or the daemon relaunched: a clean quit leaves it
+/// interrupted) goes on once the new helper is ready; one «Terminar» was
+/// finishing is closed. Anything else was not cut by a restart.
+pub(super) fn recovery_after_restart(saved: Option<&orbit_core::Recording>) -> Option<CutRecovery> {
+    let recording = saved.filter(|recording| recording.phase.interrupted_on_recovery())?;
+    Some(CutRecovery::new(
+        &recording.id,
+        "restart",
+        recording.phase != CapturePhase::Finalizing,
+        last_audio_at_ms(recording),
+    ))
+}
+
+impl Runtime {
+    /// A cut of `cause` (with `code`) is about to interrupt what is live:
+    /// remember whether the recording goes on. A cut while «Terminar» was
+    /// finishing it never resumes: the person asked for the end.
+    pub(super) fn note_cut(&mut self, cause: orbit_core::privacy_stop::StopCause, code: &str) {
+        let Some(recording) = self.state.durable.recording.as_ref().filter(|recording| {
+            matches!(
+                recording.phase,
+                CapturePhase::Recording | CapturePhase::Starting | CapturePhase::Finalizing
+            )
+        }) else {
+            return;
+        };
+        let resumable =
+            recording.phase != CapturePhase::Finalizing && cause.resumes_cut_recording(code);
+        let resumes = self
+            .capture
+            .recovery
+            .as_ref()
+            .filter(|earlier| earlier.recording_id == recording.id)
+            .filter(|earlier| {
+                earlier
+                    .resumed_at
+                    .is_some_and(|resumed| resumed.elapsed() < RESUME_SETTLED_AFTER)
+            })
+            .map_or(0, |earlier| earlier.resumes);
+        let mut recovery = CutRecovery::new(&recording.id, code, resumable, now());
+        recovery.resumes = resumes;
+        self.capture.recovery = Some(recovery);
+    }
+
+    /// The capture's upkeep, once a second: resume a cut recording whose
+    /// capture is back, or close one that cannot go on.
+    pub(super) async fn recover_cut_recording(&mut self) -> Result<()> {
+        let Some(recording) = self.state.durable.recording.clone() else {
+            self.capture.recovery = None;
+            return Ok(());
+        };
+        if recording.phase != CapturePhase::Interrupted || recording.ended_at_ms.is_some() {
+            // A resumed capture that ran long enough is settled; a closed
+            // or replaced recording has nothing left to recover.
+            let settled = self.capture.recovery.as_ref().is_some_and(|recovery| {
+                recovery.recording_id != recording.id
+                    || recording.ended_at_ms.is_some()
+                    || recovery
+                        .resumed_at
+                        .is_some_and(|resumed| resumed.elapsed() >= RESUME_SETTLED_AFTER)
+            });
+            if settled {
+                self.capture.recovery = None;
+            }
+            return Ok(());
+        }
+        if self.closing
+            || self.audio_is_draining()
+            || self.stopped_audio_owed()
+            || !self.capture.pending_seals.is_empty()
+            || self.capture.buffer.has_unsealed_recording_audio()
+            || self.capture.mic_stream.is_some()
+            || self.capture.remote_stream.is_some()
+            || !self.capture.pending_starts.is_empty()
+        {
+            // The cut is still settling its audio; nothing is decided
+            // until what was recorded is sealed.
+            return Ok(());
+        }
+        if recording.sealed_chunks == 0 {
+            // Nothing recorded yet: the empty closure owns it.
+            return Ok(());
+        }
+        let recovery = match self.capture.recovery.take() {
+            Some(recovery) if recovery.recording_id == recording.id => recovery,
+            // A cut nobody attributed here (a «Terminar» whose drain never
+            // came, a refused restart, the ceiling, a clean quit before this
+            // start): it does not resume.
+            _ => CutRecovery::new(
+                &recording.id,
+                &self.unattributed_cut_cause(),
+                false,
+                last_audio_at_ms(&recording),
+            ),
+        };
+        if self.cut_will_resume_with(&recovery) {
+            match self.try_resume(&recovery).await {
+                Resume::Started => {
+                    let mut recovery = recovery;
+                    recovery.resumes = recovery.resumes.saturating_add(1);
+                    recovery.resumed_at = Some(Instant::now());
+                    self.capture.recovery = Some(recovery);
+                    return Ok(());
+                }
+                Resume::Wait if recovery.waiting_since.elapsed() < CAPTURE_RETURN_WAIT => {
+                    self.capture.recovery = Some(recovery);
+                    return Ok(());
+                }
+                Resume::Wait | Resume::Refused => {}
+            }
+        }
+        self.close_cut_recording(recovery).await
+    }
+
+    fn cut_will_resume_with(&self, recovery: &CutRecovery) -> bool {
+        recovery.resumable
+            && recovery.resumes < MAX_RESUMES_IN_A_ROW
+            && !self.state.privacy_stopped()
+            && self.state.durable.call.is_none()
+    }
+
+    async fn try_resume(&mut self, recovery: &CutRecovery) -> Resume {
+        if !self.state.capabilities().native_helper() {
+            return Resume::Wait;
+        }
+        match self.apply(Event::ResumeMeeting).await {
+            Ok(()) => {
+                let missing_ms = now().saturating_sub(recovery.cut_at_ms).max(0);
+                self.log(
+                    "cut_recording_resumed",
+                    &[
+                        ("cause", &recovery.cause),
+                        ("missing_ms", &missing_ms.to_string()),
+                        ("resumes", &(recovery.resumes + 1).to_string()),
+                    ],
+                );
+                self.say(
+                    Notice::new(NoticeCode::RecordingResumedAfterCut)
+                        .with_token(NoticeKey::Cause, &recovery.cause)
+                        .with(NoticeKey::ElapsedMs, missing_ms),
+                );
+                Resume::Started
+            }
+            Err(error) => {
+                let refusal = error.downcast_ref::<Refusal>();
+                let wait = matches!(
+                    refusal,
+                    Some(
+                        Refusal::Busy { .. }
+                            | Refusal::HelperNotRunning
+                            | Refusal::PermissionUnknown { .. }
+                    )
+                );
+                self.log(
+                    "cut_recording_resume_refused",
+                    &[
+                        ("cause", &recovery.cause),
+                        ("wait", if wait { "true" } else { "false" }),
+                        ("refusal", &error.to_string()),
+                    ],
+                );
+                if wait { Resume::Wait } else { Resume::Refused }
+            }
+        }
+    }
+
+    async fn close_cut_recording(&mut self, recovery: CutRecovery) -> Result<()> {
+        self.log(
+            "cut_recording_closed",
+            &[
+                ("cause", &recovery.cause),
+                (
+                    "resumable",
+                    if recovery.resumable { "true" } else { "false" },
+                ),
+                ("resumes", &recovery.resumes.to_string()),
+            ],
+        );
+        self.apply(Event::CutRecordingClosed {
+            ended_at_ms: recovery.cut_at_ms,
+            cause: recovery.cause,
+        })
+        .await
+    }
+
+    /// The code a closure says when no cut was recorded for it: the typed
+    /// interruption the daemon kept, or that the cause is unknown.
+    fn unattributed_cut_cause(&self) -> String {
+        self.capture
+            .interruption
+            .as_ref()
+            .and_then(|interruption| serde_json::to_value(interruption.cause).ok())
+            .and_then(|value| value.as_str().map(str::to_owned))
+            .unwrap_or_else(|| "cause_not_saved".to_owned())
+    }
+}
+
+enum Resume {
+    Started,
+    /// The capture is not back yet (the helper, its permissions, a drain).
+    Wait,
+    /// The recording cannot go on (expired, a permission denied, …).
+    Refused,
+}
+
+/// The end of what was recorded: the last chunk a track sealed, or the start
+/// when no track says.
+fn last_audio_at_ms(recording: &orbit_core::Recording) -> i64 {
+    recording
+        .tracks
+        .iter()
+        .map(|track| track.last_chunk_at_ms)
+        .max()
+        .unwrap_or(recording.started_at_ms)
+        .max(recording.started_at_ms)
+}

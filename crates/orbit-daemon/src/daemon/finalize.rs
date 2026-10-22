@@ -331,6 +331,18 @@ impl Runtime {
             self.settings.hub_url.as_deref().context("Sin hub")?,
             self.development,
         )?;
+        // Chunks the hub refused for good are declared, not waited for.
+        let refused = self
+            .reader
+            .refused_chunks(&recording_id, orbit_store::MAX_PAGE_SIZE)?;
+        let mut manifest = job.payload["manifest"].clone();
+        if !refused.is_empty() {
+            declare_refused_chunks(&mut manifest, &refused)?;
+            self.log(
+                "closure_declares_refused_chunks",
+                &[("chunks", &refused.len().to_string())],
+            );
+        }
         let generation = self.state.generation();
         let events = self.work.work_events.clone();
         let job_id = job.id.clone();
@@ -349,10 +361,10 @@ impl Runtime {
                             Some(&token),
                             ticket.op(),
                         )?
-                        .json(&job.payload["manifest"])
+                        .json(&manifest)
                         .send()
                         .await?;
-                        crate::retry::check_status(response.status())?;
+                        let response = crate::retry::check_response(response).await?;
                         let receipt: Value = crate::hub::bounded_json(response).await?;
                         if receipt["durable"] != true
                             || receipt["finalized"] != true
@@ -407,8 +419,50 @@ impl Runtime {
                     .context("Contador de fragmentos agotado")
             })?;
         let (chunks, uploaded) = self.reader.finalize_counts(recording)?;
-        let ready = chunks == expected && uploaded == expected;
+        // A chunk the hub refused for good is settled too: the closure
+        // declares it lost instead of waiting for it for ever.
+        let refused = self
+            .reader
+            .refused_chunks(recording, orbit_store::MAX_PAGE_SIZE)?
+            .len() as u64;
+        let ready = chunks == expected && uploaded.saturating_add(refused) == expected;
         self.work.finalize_ready.insert(recording.to_owned(), ready);
         Ok(ready)
     }
+}
+
+/// The closure the hub can check against what it holds: each track counts
+/// only the chunks it received, and every refused chunk is one more gap.
+/// The hub accepts a track whose sequences run 0..n without holes, so a
+/// refused chunk at the end of a track is declared away; one in the middle
+/// leaves a closure the hub answers with `manifest_mismatch`, said then.
+pub(super) fn declare_refused_chunks(
+    manifest: &mut Value,
+    refused: &[orbit_store::ChunkMetadata],
+) -> Result<()> {
+    let tracks = manifest["tracks"]
+        .as_array_mut()
+        .context("Cierre sin resumen de pistas")?;
+    for track in tracks.iter_mut() {
+        let name = track["track"].as_str().unwrap_or_default().to_owned();
+        let lost: Vec<&orbit_store::ChunkMetadata> =
+            refused.iter().filter(|chunk| chunk.track == name).collect();
+        if lost.is_empty() {
+            continue;
+        }
+        let count = track["chunk_count"].as_u64().unwrap_or_default();
+        let frames = track["total_frames"].as_u64().unwrap_or_default();
+        let lost_frames = lost.iter().map(|chunk| chunk.frames).sum::<u64>();
+        let mut last = track["last_sequence"].as_u64().unwrap_or_default();
+        while lost.iter().any(|chunk| chunk.sequence == last) && last > 0 {
+            last -= 1;
+        }
+        track["chunk_count"] = json!(count.saturating_sub(lost.len() as u64));
+        track["total_frames"] = json!(frames.saturating_sub(lost_frames));
+        track["last_sequence"] = json!(last);
+    }
+    tracks.retain(|track| track["chunk_count"].as_u64().is_some_and(|count| count > 0));
+    let gaps = manifest["gaps"].as_u64().unwrap_or_default();
+    manifest["gaps"] = json!(gaps.saturating_add(refused.len() as u64));
+    Ok(())
 }

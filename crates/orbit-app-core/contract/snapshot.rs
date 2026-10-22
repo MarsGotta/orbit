@@ -105,6 +105,7 @@ impl Default for AppSnapshot {
                 session_id: None,
                 agent_id: None,
                 turn: Vec::new(),
+                pending_voice: None,
                 voice_audio: None,
                 pending_contract: None,
                 voice: VoiceSnapshot {

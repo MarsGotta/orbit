@@ -40,6 +40,37 @@ impl Store {
         ))
     }
 
+    /// Chunks of a recording whose upload the hub refused for good
+    /// (`blocked`), at most `limit`, by track and sequence. They stay on the
+    /// Mac; the recording's closure declares them lost instead of waiting.
+    pub fn refused_chunks(
+        &self,
+        recording_id: &str,
+        limit: usize,
+    ) -> Result<Vec<crate::ChunkMetadata>> {
+        validate_id(recording_id)?;
+        validate_page(limit)?;
+        let mut statement = self.connection.prepare(
+            "SELECT chunk.id FROM chunks AS chunk
+             JOIN jobs AS job ON job.id = 'upload-' || chunk.id
+             WHERE chunk.recording_id = ?1 AND job.kind = 'chunk_upload'
+               AND job.state = 'blocked'
+             ORDER BY chunk.track, chunk.sequence LIMIT ?2",
+        )?;
+        let ids = statement
+            .query_map(params![recording_id, limit as i64], |row| {
+                row.get::<_, String>(0)
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        let mut chunks = Vec::with_capacity(ids.len());
+        for id in ids {
+            if let Some(receipt) = self.chunk_receipt(&id)? {
+                chunks.push(receipt.metadata);
+            }
+        }
+        Ok(chunks)
+    }
+
     /// Queue count used by the daemon's once-per-tick presentation refresh.
     /// Unlike `diagnostics`, this does not collect SQLite build/runtime facts.
     pub fn pending_job_count(&self) -> Result<u64> {
@@ -148,6 +179,59 @@ impl Store {
             }
             page_bytes += payload.len();
             let job = decode_job(&self.cipher, &id, Some(&state), Some(kind), None, &payload)?;
+            page.push(job);
+        }
+        Ok(page)
+    }
+    /// Cursor page of nonterminal chunk uploads in capture order: the chunk's
+    /// start time (the job's `created_at`), then its numeric sequence, then
+    /// the id. Text order over `{recording}-{track}-{sequence}` would send
+    /// chunk 10 before chunk 2, and the hub closes a transcription group
+    /// after a hole. The cursor is a job id in any state (an upload that just
+    /// succeeded still marks the place); an unknown one yields an empty page,
+    /// which restarts the scan.
+    pub fn pending_chunk_uploads(&self, after_id: Option<&str>, limit: usize) -> Result<Vec<Job>> {
+        if let Some(after_id) = after_id {
+            validate_id(after_id)?;
+        }
+        validate_page(limit)?;
+        let mut statement = self.connection.prepare(
+            "WITH ordered AS (
+                 SELECT jobs.id AS id, jobs.state AS state, jobs.payload AS payload,
+                        jobs.created_at AS created_at, coalesce(chunks.sequence, 0) AS sequence
+                 FROM jobs LEFT JOIN chunks ON jobs.id = 'upload-' || chunks.id
+                 WHERE jobs.kind = 'chunk_upload'
+                 AND jobs.state IN ('queued','retry_wait','running','unknown'))
+             SELECT id, state, payload FROM ordered
+             WHERE ?1 IS NULL OR (created_at, sequence, id) >
+                 (SELECT jobs.created_at, coalesce(chunks.sequence, 0), jobs.id
+                  FROM jobs LEFT JOIN chunks ON jobs.id = 'upload-' || chunks.id
+                  WHERE jobs.id = ?1)
+             ORDER BY created_at, sequence, id LIMIT ?2",
+        )?;
+        let rows = statement.query_map(params![after_id, limit as i64], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                bounded_blob(row, 2, MAX_PAYLOAD_BYTES + OVERHEAD, "El trabajo guardado")?,
+            ))
+        })?;
+        let mut page_bytes = 0;
+        let mut page = Vec::new();
+        for row in rows {
+            let (id, state, payload) = row?;
+            if payload.len() > MAX_PAGE_BYTES - page_bytes {
+                break;
+            }
+            page_bytes += payload.len();
+            let job = decode_job(
+                &self.cipher,
+                &id,
+                Some(&state),
+                Some("chunk_upload"),
+                None,
+                &payload,
+            )?;
             page.push(job);
         }
         Ok(page)

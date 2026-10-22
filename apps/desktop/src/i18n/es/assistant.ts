@@ -47,12 +47,17 @@ function failureNumbers(failure: VoiceFailure): string[] {
  */
 function voiceFailureText(failure: VoiceFailure): string {
   if (failure.code === "voice_transcription_empty") return "No se oyó nada en la nota de voz.";
+  if (failure.code === "voice_hub_unreachable")
+    return "Guardada en el Mac: se enviará sola cuando vuelva la conexión con el hub.";
+  if (failure.code === "voice_waiting_turn")
+    return "Guardada en el Mac: se enviará sola cuando termine la respuesta en curso.";
+  if (failure.code === "voice_hub_pairing_required")
+    return "Guardada en el Mac: empareja Orbit en Ajustes y se enviará sola.";
   if (
-    failure.code === "voice_hub_pairing_required" ||
     failure.code === "transcription_hub_not_configured" ||
     failure.code === "transcription_hub_invalid_url"
   )
-    return "No se pudo transcribir: empareja Orbit en Ajustes y graba otra nota.";
+    return "No se pudo transcribir: empareja Orbit en Ajustes y pulsa «Reintentar transcripción».";
   // wire/stored name kept for compatibility with 0.9.0
   if (failure.code === "voice_transcription_interrupted_by_mars")
     return "Interrumpiste la transcripción.";

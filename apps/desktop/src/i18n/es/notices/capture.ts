@@ -5,8 +5,49 @@ function minutes(data: NoticeData): string {
   return typeof data.minutes === "number" ? `${data.minutes} min` : "su máximo";
 }
 
+/** Why a cut happened, in the person's words; an unknown code is shown as it is. */
+const CUT_CAUSES: Record<string, string> = {
+  helper_lost: "se cerró el ayudante de audio de Orbit",
+  daemon_heartbeat_expired: "el servicio de Orbit dejó de responder",
+  capture_event_failed: "un fragmento de audio llegó mal",
+  capture_maintenance_failed: "falló el guardado del audio",
+  helper_integrity_failure: "el Mac no pudo garantizar el audio",
+  audio_stop_unconfirmed: "el Mac no confirmó una parada del audio",
+  capture_stop_undelivered: "una orden de parada no llegó al Mac",
+  capture_finalize_timed_out: "el Mac no confirmó el final de la grabación",
+  audio_device_changed_voice_note: "cambió el dispositivo de audio durante una nota de voz",
+  voice_processing_state_lost: "el Mac perdió el procesado de voz",
+  session_inactive: "el Mac se durmió o cambió de usuario",
+  privacy_stop: "la parada de privacidad",
+  restart: "Orbit se reinició",
+  cause_not_saved: "una causa que no quedó guardada",
+};
+
+function cutCause(data: NoticeData): string {
+  const code = typeof data.cause === "string" ? data.cause : undefined;
+  if (code === undefined) return "una causa desconocida";
+  return CUT_CAUSES[code] ?? code;
+}
+
+function missing(data: NoticeData): string {
+  if (typeof data.elapsed_ms !== "number") return "";
+  const seconds = Math.round(data.elapsed_ms / 1_000);
+  return seconds < 1 ? "; falta menos de 1 s de audio" : `; faltan ${seconds} s de audio`;
+}
+
 /** Recording, the Mac's audio and the helper. */
 export const capture = {
+  recording_resumed_after_cut: {
+    class: "done",
+    text: (data) => `La grabación se cortó (${cutCause(data)}) y ha seguido sola${missing(data)}.`,
+  },
+  recording_closed_after_cut: {
+    class: "fixable",
+    text: (data) =>
+      data.cause === "capture_finalize_timed_out"
+        ? "La grabación terminó sin que el Mac confirmara su final: se ha cerrado con lo grabado y su nota se escribirá."
+        : `La grabación se cortó (${cutCause(data)}) y no pudo seguir. Se ha cerrado con lo grabado y su nota se escribirá; si la reunión sigue, empieza otra grabación.`,
+  },
   audio_route_recovered: {
     class: "done",
     text: (data) =>

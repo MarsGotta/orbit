@@ -259,8 +259,11 @@ impl Runtime {
             .state
             .durable
             .turn
-            .as_ref()
-            .and_then(|turn| turn.user.voice.as_ref())
+            .iter()
+            .map(|turn| &turn.user)
+            .chain(self.state.durable.pending_voice.iter())
+            .find(|message| message.id == message_id)
+            .and_then(|message| message.voice.as_ref())
             .map_or(0, |voice| voice.duration_ms);
         self.apply(retry).await?;
         let source = VoiceSource {
@@ -271,6 +274,62 @@ impl Runtime {
             duration_ms,
         };
         self.spawn_voice_transcription(source, wav, token).await
+    }
+
+    /// The hub is back and nothing else is in flight: the oldest voice note
+    /// that never reached it (spoken offline, unpaired, or behind another
+    /// turn) is sent, one per tick. A note the hub did try waits for
+    /// «Reintentar transcripción»: sending it again by itself could loop.
+    pub(super) async fn send_waiting_voice_note(&mut self) -> Result<()> {
+        let durable = &self.state.durable;
+        if self.state.privacy_stopped()
+            || self.state.connection() != orbit_core::Connection::Online
+            || self.token.is_none()
+            || durable.active_request.is_some()
+            || durable.voice_active
+            || durable.call.is_some()
+            || durable.pending_approval.is_some()
+            || self.conversation.voice_task.active().is_some()
+            || self.capture.buffer.voice.is_some()
+        {
+            return Ok(());
+        }
+        let waits = |message: &&orbit_core::Message| {
+            message.voice.as_ref().is_some_and(|voice| {
+                voice.transcript.is_none()
+                    && voice
+                        .failure
+                        .as_ref()
+                        .is_some_and(|failure| orbit_core::voice_note_waits_for_hub(&failure.code))
+            })
+        };
+        let Some(message_id) = durable
+            .turn
+            .iter()
+            .map(|turn| &turn.user)
+            .filter(waits)
+            .chain(durable.pending_voice.iter().filter(waits))
+            .map(|message| message.id.clone())
+            .next()
+        else {
+            return Ok(());
+        };
+        self.log("waiting_voice_note_sent", &[]);
+        if let Err(error) = self.retry_voice_transcription(message_id.clone()).await {
+            // Not sent again by itself: its WAV is gone or the hub refused
+            // the retry. It stays listed, with «Reintentar».
+            self.log(
+                "waiting_voice_note_failed",
+                &[("error", &error.to_string())],
+            );
+            self.apply(Event::VoiceFailed {
+                id: message_id,
+                failure: orbit_core::VoiceTranscriptionFailure::local("voice_resend_failed"),
+            })
+            .await?;
+            self.store_actor.snapshot(&self.state).await?;
+        }
+        Ok(())
     }
 
     /// Attribute a safety fact to the actual producer owner, not the UI phase.
@@ -1056,8 +1115,11 @@ impl Runtime {
             }
         }
         if self.capture.audio.voice_end {
-            self.dispatch_voice_transcription().await?;
+            // This drain is over whatever the dispatch says: a note that
+            // could not be sent waits on the Mac, and nothing else waits for
+            // it (`busy/audio_drain` once held every recording until a restart).
             self.capture.audio.voice_end = false;
+            self.dispatch_voice_transcription().await?;
         }
         // Expiry can interrupt a recording while its stream still owes an
         // audio_stop receipt. Only now, after that receipt and the final seal,
@@ -1073,7 +1135,7 @@ impl Runtime {
         Ok(())
     }
 
-    async fn dispatch_voice_transcription(&mut self) -> Result<()> {
+    pub(super) async fn dispatch_voice_transcription(&mut self) -> Result<()> {
         if self.capture.audio.submit_voice {
             self.prepend_joined_call_turn();
         }
@@ -1184,6 +1246,10 @@ impl Runtime {
                 Ok(wav)
             })
             .await?;
+        // The WAV and its receipt are durable: from here they are the note's
+        // copy, and the PCM in memory is never sealed a second time (a later
+        // stop once stored it again, under another id, as cancelled).
+        let voice = self.capture.buffer.voice.take();
         let decision = decide(
             &self.state,
             Event::VoiceStored {
@@ -1194,8 +1260,36 @@ impl Runtime {
         )?;
         self.store_actor.snapshot(&decision.state).await?;
         self.state = decision.state;
-        if let Some(voice) = self.capture.buffer.voice.take() {
+        let in_turn = self
+            .state
+            .durable
+            .turn
+            .as_ref()
+            .is_some_and(|turn| turn.user.id == source.message_id);
+        if !in_turn {
+            // Another turn was in flight: the note waits on the Mac and is
+            // sent when that turn ends (`send_waiting_voice_note`).
+            return Ok(());
+        }
+        if let Some(voice) = voice {
             self.keep_submitted_call_turn(&source.message_id, voice);
+        }
+        if self.state.connection() != orbit_core::Connection::Online && self.token.is_some() {
+            // Spoken with the hub away: kept and shown, sent when it is back.
+            let decision = decide(
+                &self.state,
+                Event::VoiceFailed {
+                    id: source.message_id,
+                    failure: orbit_core::VoiceTranscriptionFailure::local(
+                        orbit_core::VOICE_HUB_UNREACHABLE,
+                    ),
+                },
+                now(),
+            )?;
+            self.store_actor.snapshot(&decision.state).await?;
+            self.work.durable_snapshot = crate::daemon::DurableSnapshot::from(&decision.state);
+            self.state = decision.state;
+            return Ok(());
         }
         let Some(token) = self.token.clone() else {
             let decision = decide(
@@ -1203,7 +1297,7 @@ impl Runtime {
                 Event::VoiceFailed {
                     id: source.message_id,
                     failure: orbit_core::VoiceTranscriptionFailure::local(
-                        "voice_hub_pairing_required",
+                        orbit_core::VOICE_PAIRING_REQUIRED,
                     ),
                 },
                 now(),

@@ -9,8 +9,10 @@
 //!   restart, and only the user's controls can reach it: its argument is a
 //!   [`UserStop`], which has no variant for an automatic cause.
 //! - [`Runtime::cut_capture`] cuts the live recording, call or voice note
-//!   with its cause and what was kept. Orbit keeps working, nothing latches,
-//!   the helper's durable latch is not touched and nothing is resumed.
+//!   with its cause and what was kept. Orbit keeps working, nothing latches
+//!   and the helper's durable latch is not touched. A recording cut by
+//!   anything but the person resumes once the capture is back, or is closed
+//!   (`cut_recovery`).
 //! - [`Runtime::close_for_exit`] is Orbit closing: the capture is cut, the
 //!   network and every vertical are retired, and the next start comes back
 //!   working.
@@ -316,7 +318,7 @@ impl Runtime {
     /// A cause said once: a maintenance that fails every second says it once,
     /// instead of pushing everything else out of the notice log. Returns
     /// whether anything new was said.
-    fn say_once(&mut self, notice: Notice) -> bool {
+    pub(super) fn say_once(&mut self, notice: Notice) -> bool {
         if self
             .state
             .durable
@@ -343,8 +345,8 @@ impl Runtime {
 
     /// Cuts the live capture with its cause. The helper is asked
     /// to stop capturing without its latch; the recording stays interrupted
-    /// with its fragments; Orbit keeps working and nothing reopens the
-    /// microphone. With nothing live, only the cause is said.
+    /// with its fragments until `cut_recovery` resumes or closes it. With
+    /// nothing live, only the cause is said.
     pub(super) async fn cut_capture(&mut self, cause: StopCause, code: &str, text: &str) {
         let voice_cause = if matches!(
             cause,
@@ -380,6 +382,7 @@ impl Runtime {
             self.say_durably(contained(cause, code)).await;
             return;
         };
+        self.note_cut(cause, code);
         self.log("capture_cut", &[("reason", text)]);
         Box::pin(self.halt(decision, CallStopVoice::Cancel(voice_cause))).await;
     }

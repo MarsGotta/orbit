@@ -96,18 +96,26 @@ async fn an_eligible_closure_progresses_amid_unrelated_uploads_with_fair_alterna
 }
 
 #[tokio::test]
-async fn blocked_or_missing_own_receipts_cannot_be_finalized() -> Result<()> {
+async fn a_missing_own_receipt_cannot_be_finalized_and_a_refused_one_is_declared() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
+    runtime.settings.hub_url = Some("http://127.0.0.1:9".into());
+    runtime.token = Some("synthetic-not-a-credential".into());
     runtime
         .fixture_store
         .seal_chunk(&source("old"), b"synthetic")?;
     runtime.queue_capture_finalize("old", 1, 1000, 0).await?;
+    // Its upload has not been confirmed: the closure waits for it.
+    assert!(!runtime.schedule_finalize().await?);
+    assert!(runtime.work.worker.active().is_none());
+    // The hub refused it for good: the closure no longer waits for it, and
+    // goes out declaring it lost.
     runtime
         .fixture_store
         .update_job("upload-old-mic_local-0", JobState::Blocked)?;
-    assert!(!runtime.schedule_finalize().await?);
-    assert!(runtime.work.worker.active().is_none());
+    runtime.work.finalize_ready.clear();
+    assert!(runtime.schedule_finalize().await?);
+    assert!(runtime.work.worker.active().is_some());
     Ok(())
 }
 

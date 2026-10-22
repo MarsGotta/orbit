@@ -95,8 +95,9 @@ Orbit.app/Contents/MacOS/Orbit
 Startup waits up to 15 seconds for daemon readiness; `daemon.lock` prevents two
 daemons over the same data directory. Every quit route sends `Shutdown` once
 and joins the thread for at most 17 seconds. SIGTERM/SIGINT belong to the daemon.
-Unexpected daemon exit closes the app; no relauncher runs. Closing the window
-only hides it and never stops recording.
+Unexpected daemon exit relaunches the app, and a recording that was live
+resumes; a daemon that falls in its first minute closes the app instead.
+Closing the window only hides it and never stops recording.
 
 The engine starts when Accessibility and Screen Recording are granted, the
 helper is connected and privacy is rearmed; no hub or pairing is required.

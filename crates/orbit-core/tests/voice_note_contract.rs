@@ -210,3 +210,152 @@ fn restart_marks_a_pending_voice_note_as_interrupted_instead_of_in_progress() {
         Some("voice_transcription_interrupted_restart")
     );
 }
+
+fn stored(state: &State, id: &str, at_ms: i64) -> State {
+    decide(
+        state,
+        Event::VoiceStored {
+            id: id.into(),
+            duration_ms: 2_000,
+        },
+        at_ms,
+    )
+    .expect("voice note stored")
+    .state
+}
+
+/// A note spoken with the hub away is a message all the same: the WAV is on
+/// the Mac and its transcription waits.
+#[test]
+fn a_voice_note_is_stored_without_the_hub() {
+    let offline = State::default();
+    let state = stored(&offline, "nota-sin-hub", 1);
+    assert_eq!(
+        state
+            .durable
+            .turn
+            .as_ref()
+            .map(|turn| turn.user.id.as_str()),
+        Some("nota-sin-hub")
+    );
+}
+
+/// A later turn does not drop a note the hub never took: it waits in
+/// `pending_voice`, survives a restart, and «Reintentar» makes it the turn.
+#[test]
+fn a_replaced_voice_note_waits_on_the_mac_and_can_be_retried() {
+    let online = decide(
+        &State::default(),
+        Event::Connect(orbit_core::Connection::Online),
+        0,
+    )
+    .unwrap()
+    .state;
+    let noted = stored(&online, "nota-fallida", 1);
+    let failed = decide(
+        &noted,
+        Event::VoiceFailed {
+            id: "nota-fallida".into(),
+            failure: VoiceTranscriptionFailure::local("transcription_http_error"),
+        },
+        2,
+    )
+    .unwrap()
+    .state;
+    let chatted = decide(
+        &failed,
+        Event::Submit {
+            id: "pregunta".into(),
+            text: "Otra pregunta sintética".into(),
+            attachments: Vec::new(),
+        },
+        3,
+    )
+    .unwrap()
+    .state;
+    assert_eq!(
+        chatted
+            .durable
+            .pending_voice
+            .iter()
+            .map(|message| message.id.as_str())
+            .collect::<Vec<_>>(),
+        ["nota-fallida"]
+    );
+    let restarted: State = serde_json::from_value::<orbit_core::DurableState>(
+        serde_json::to_value(&chatted.durable).unwrap(),
+    )
+    .unwrap()
+    .recovered()
+    .into();
+    assert_eq!(
+        restarted.durable.pending_voice.len(),
+        1,
+        "kept across a restart"
+    );
+    let mut answered = chatted.clone();
+    answered.durable.active_request = None;
+    let retried = decide(
+        &answered,
+        Event::VoiceRetry {
+            id: "nota-fallida".into(),
+        },
+        4,
+    )
+    .unwrap()
+    .state;
+    assert!(retried.durable.pending_voice.is_empty());
+    let turn = retried.durable.turn.as_ref().unwrap();
+    assert_eq!(turn.user.id, "nota-fallida");
+    assert_eq!(turn.user.voice.as_ref().unwrap().failure, None);
+}
+
+/// Past the bound a new note is refused with its numbers, never stored
+/// without a name.
+#[test]
+fn a_full_list_of_waiting_voice_notes_refuses_the_next_with_its_count() {
+    let mut state = decide(&State::default(), Event::HelperReady, 0)
+        .unwrap()
+        .state;
+    state = decide(
+        &state,
+        Event::PermissionObserved {
+            microphone: orbit_core::PermissionState::Granted,
+            screen: orbit_core::PermissionState::Unknown,
+            accessibility: orbit_core::PermissionState::Unknown,
+            calendar: orbit_core::calendar::CalendarAuthorization::Unknown,
+        },
+        0,
+    )
+    .unwrap()
+    .state;
+    let waiting = Message {
+        id: "nota".into(),
+        role: "user".into(),
+        text: String::new(),
+        complete: true,
+        at_ms: 1,
+        voice: Some(VoiceNote {
+            duration_ms: 1_000,
+            transcript: None,
+            failure: Some(VoiceTranscriptionFailure::local("voice_hub_unreachable")),
+            audio_available: true,
+        }),
+        attachments: Vec::new(),
+    };
+    state.durable.pending_voice = (0..orbit_core::MAX_PENDING_VOICE_NOTES)
+        .map(|index| Message {
+            id: format!("nota-{index}"),
+            ..waiting.clone()
+        })
+        .collect();
+    let refused = decide(&state, Event::VoiceStart, 2).unwrap_err();
+    assert_eq!(
+        refused,
+        orbit_core::refusal::Refusal::TooMany {
+            resource: orbit_core::refusal::Resource::Message,
+            count: orbit_core::MAX_PENDING_VOICE_NOTES as u64,
+            max: orbit_core::MAX_PENDING_VOICE_NOTES as u64,
+        }
+    );
+}

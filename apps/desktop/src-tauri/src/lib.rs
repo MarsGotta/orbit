@@ -112,17 +112,33 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         log: orbit_ipc::report::ReportLog::app(&paths.root),
         client: transport,
     });
-    // No relauncher: a daemon that ends without anyone asking takes the app
-    // with it, and the log says why. A SIGTERM ends here too, after the
-    // daemon's orderly closure.
+    // A daemon that ends without anyone asking (a panic, or its run ended)
+    // relaunches the whole app: a fresh process starts a fresh daemon and
+    // helper from the saved state, and a recording that was live goes on
+    // (`cut_recovery`). A daemon that falls soon after its start is not
+    // relaunched (`daemon_thread::relaunches_after`): the app ends and the
+    // log says why. A SIGTERM ends here too, after the daemon's closure.
     let watched = daemon.clone();
     let exits = app.handle().clone();
+    let started = std::time::Instant::now();
     tauri::async_runtime::spawn(async move {
         let ended = watched.ended().await;
-        if !watched.quitting() {
+        if watched.quitting() {
+            return;
+        }
+        let uptime = started.elapsed();
+        if daemon_thread::relaunches_after(uptime) {
             eprintln!(
-                "daemon: el servicio {} sin que se pidiera salir; Orbit sale",
-                ended.describe()
+                "daemon: el servicio {} sin que se pidiera salir tras {} s; Orbit se reinicia",
+                ended.describe(),
+                uptime.as_secs()
+            );
+            exits.request_restart();
+        } else {
+            eprintln!(
+                "daemon: el servicio {} sin que se pidiera salir {} s después de arrancar; Orbit sale",
+                ended.describe(),
+                uptime.as_secs()
             );
             exits.exit(ended.exit_code());
         }

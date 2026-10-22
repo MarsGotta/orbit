@@ -933,7 +933,7 @@ async fn unrelated_error_ids_cannot_finish_the_active_request() -> Result<()> {
 }
 
 #[tokio::test]
-async fn upload_refusal_blocks_the_job_and_arms_initial_retry_gate() -> Result<()> {
+async fn upload_refusal_blocks_the_job_says_it_and_arms_initial_retry_gate() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     said::trace(&mut runtime, directory.path());
@@ -976,11 +976,8 @@ async fn upload_refusal_blocks_the_job_and_arms_initial_retry_gate() -> Result<(
             .ready(after + Duration::from_secs(2))
     );
     assert!(runtime.work.worker.active().is_none());
-    // The upload's retry is said; the hub's status is in daemon.log.
-    assert_eq!(
-        runtime.state.notice_code(),
-        Some(NoticeCode::UploadRetrying)
-    );
+    // A refusal for good is said with its status, never as a silent retry.
+    assert_eq!(runtime.state.notice_code(), Some(NoticeCode::UploadRefused));
     assert!(
         said::told(&runtime).contains("403"),
         "{}",

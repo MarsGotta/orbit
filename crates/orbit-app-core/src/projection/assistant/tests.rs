@@ -34,6 +34,7 @@ fn the_turn_and_approval_are_projected_without_assuming_unknown_roles() {
             questions: Vec::new(),
         }),
         voice_active: false,
+        pending_voice: Vec::new(),
         turn_in_flight: true,
         activity: None,
         voice: assistant::VoiceAvailability::Unknown {
@@ -111,6 +112,7 @@ fn the_agents_questions_and_its_work_are_projected_as_they_came() {
             }],
         }),
         voice_active: false,
+        pending_voice: Vec::new(),
         turn_in_flight: true,
         activity: None,
         voice: assistant::VoiceAvailability::Unknown {

@@ -109,6 +109,7 @@ const notices: Record<FailedNoticeCode, string> = {
   store_recovery_lost_files: "recuperar todos los archivos",
   source_failed: "leer una fuente de audio",
   note_change_refused: "guardar el cambio en la nota",
+  upload_refused: "subir el audio al hub; se queda en este Mac",
   unknown: "completar la acción",
 };
 

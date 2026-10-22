@@ -6,19 +6,17 @@ use anyhow::Result;
 use orbit_core::Event;
 use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
 
-/// The system's audio stream stopped and the helper started it again under
-/// the same stream id: the new producer's sequence starts over.
-pub(super) const SYSTEM_AUDIO_RESTARTED: &str = "system_audio_restarted";
 /// One track stopped and is not coming back; the other goes on.
 pub(super) const TRACK_STOPPED: &str = "track_stopped";
 
 impl Runtime {
     pub(super) async fn track_gap(&mut self, source: &str, reason: Option<&str>) -> Result<()> {
         match (source, reason) {
-            ("remote_app", Some(SYSTEM_AUDIO_RESTARTED)) => {
-                let segments = self.capture.buffer.restart_source(source)?;
-                self.seal(segments)?;
-            }
+            // `system_audio_restarted` (the system's audio stream stopped and
+            // the helper started it again under the same stream id): the
+            // producer's sequence starts over.
+            // Every declared gap already sealed the tail and restarted the
+            // source's sequence (`on_native_gap`); nothing more is owed.
             // The helper moved a meeting's microphone to the new device under
             // a voice note: the note, which would join two devices, is
             // cancelled and kept unsent; the meeting goes on.

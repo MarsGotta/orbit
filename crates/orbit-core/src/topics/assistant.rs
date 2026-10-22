@@ -38,6 +38,10 @@ pub struct Value {
     /// The turn in progress, or the last one until another begins. Boxed:
     /// two messages would make every topic frame as large as this one.
     pub turn: Option<Box<Turn>>,
+    /// Voice notes the hub has not taken yet that a later turn replaced,
+    /// kept on this Mac (`DurableState::pending_voice`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pending_voice: Vec<crate::Message>,
     pub pending: Option<Approval>,
     pub voice_active: bool,
     pub turn_in_flight: bool,

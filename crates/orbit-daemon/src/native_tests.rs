@@ -160,7 +160,7 @@ async fn daemon_backpressure_gap_decodes_as_a_native_event() -> Result<()> {
     let (events, mut receive) = mpsc::channel(1);
     let task = tokio::spawn(bridge(BufReader::new(reader), writer, commands, events));
     let gap = json!({"v":1,"event":"gap","source":"mic_local","stream_id":"stream-1",
-        "reason":"daemon_backpressure","frames":7});
+        "reason":"daemon_backpressure","frames":7,"duration_ns":70_000_000u64});
     input.write_all(format!("{gap}\n").as_bytes()).await?;
     let frame = timeout(Duration::from_secs(1), receive.recv())
         .await?
@@ -172,6 +172,7 @@ async fn daemon_backpressure_gap_decodes_as_a_native_event() -> Result<()> {
         NativeEvent::Gap {
             v: 1,
             frames: 7,
+            duration_ns: Some(70_000_000),
             reason,
             ..
         } if reason == "daemon_backpressure"

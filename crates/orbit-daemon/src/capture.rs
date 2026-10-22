@@ -95,6 +95,11 @@ impl CaptureBuffer {
         self.voice.is_some() || self.tracks.values().any(|track| !track.pcm.is_empty())
     }
 
+    /// Recording PCM received and not sealed yet (a voice turn aside).
+    pub fn has_unsealed_recording_audio(&self) -> bool {
+        self.tracks.values().any(|track| !track.pcm.is_empty())
+    }
+
     /// Ownership lasts through native drain, regardless of the UI capture
     /// phase. A mic used only by PTT must not affect a paused/closed recording.
     pub fn recording_owner(&self, source: &str) -> Option<&str> {
@@ -350,10 +355,22 @@ impl CaptureBuffer {
         Ok(IngestedAudio { segments, signal })
     }
 
-    /// The helper drained the old route before announcing the first resumed
-    /// frame. Seal its tail so the missing time never becomes contiguous PCM;
-    /// only the producer sequence restarts, not the meeting or chunk counters.
+    /// The sample rate a recording track was opened with, if any.
+    pub fn track_rate(&self, source: &str) -> Option<u32> {
+        self.tracks.get(source).map(|track| track.rate)
+    }
+
+    /// A producer declared a hole (a new route, or audio it dropped on
+    /// purpose). Seal the tail so the missing time never becomes contiguous
+    /// PCM; only the producer sequence restarts, not the meeting or chunk
+    /// counters, and the stream identity and clock are still checked. A voice
+    /// turn on the same microphone skips the hole the same way.
     pub fn restart_source(&mut self, source: &str) -> Result<Vec<Segment>> {
+        if source == "mic_local"
+            && let Some(voice) = self.voice.as_mut()
+        {
+            voice.native_sequence = None;
+        }
         let mut segments = Vec::new();
         if let (Some(id), Some(track)) = (self.recording_id.as_deref(), self.tracks.get_mut(source))
         {

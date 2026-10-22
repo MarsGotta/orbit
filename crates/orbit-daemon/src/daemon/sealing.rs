@@ -363,6 +363,9 @@ impl Runtime {
                 )
                 .await?;
             }
+            // A cut recording whose audio has settled resumes once the
+            // capture is back, or is closed; never left for «Terminar».
+            Box::pin(self.recover_cut_recording()).await?;
             Box::pin(self.check_call_health()).await?;
             Box::pin(self.finish_call_drain()).await?;
             // A closed recording's manifest is capture durability, not upload
@@ -396,7 +399,25 @@ impl Runtime {
     pub(super) fn maintain_state(&mut self) -> impl std::future::Future<Output = Result<()>> + '_ {
         Box::pin(async move {
             self.state.durable.pending_jobs = self.reader.pending_job_count()?;
-            Box::pin(self.schedule_upload()).await
+            Box::pin(self.schedule_upload()).await?;
+            // A voice note whose seal failed is still only in memory, and
+            // nothing else comes back for it: its seal is retried like a
+            // recording's. A failure is said, never a cut of the meeting.
+            if self.capture.buffer.voice.is_some()
+                && !self.state.durable.voice_active
+                && self.capture.call_runtime.is_none()
+                && !self.audio_is_draining()
+                && !self.stopped_audio_owed()
+                && self
+                    .capture
+                    .seal_retry_at
+                    .is_none_or(|deadline| Instant::now() >= deadline)
+                && let Err(error) = Box::pin(self.dispatch_voice_transcription()).await
+            {
+                self.capture.seal_retry_at = Some(Instant::now() + SEAL_RETRY_DELAY);
+                return Err(error);
+            }
+            Box::pin(self.send_waiting_voice_note()).await
         })
     }
 }

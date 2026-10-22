@@ -1,5 +1,6 @@
 //! The native bridge at the daemon actor: a returning helper restores the
-//! native capability and resumes nothing, and `native_send` carries the 500 ms
+//! native capability and the recording its loss cut goes on, and
+//! `native_send` carries the 500 ms
 //! deadline whose expiry is classified with the core taxonomy:
 //! non-critical commands degrade with Backpressure, and an
 //! undelivered stop cuts or is said, never latches. Synthetic channels only;
@@ -250,16 +251,23 @@ fn stalled_native_channel() -> Result<(mpsc::Sender<Value>, mpsc::Receiver<Value
     Ok((native, stalled))
 }
 
-/// Losing the helper cuts the live recording with
-/// its cause and latches nothing. The relaunched helper's ready restores the
-/// native capability, nothing resumes the cut recording, and the next
-/// recording starts only when the user asks for it.
+/// Losing the helper cuts the live recording with its cause and latches
+/// nothing. The relaunched helper's ready restores the native capability,
+/// and once its status says the microphone is authorized the same recording
+/// goes on by itself: nothing waits for the person to start it again.
 #[tokio::test]
-async fn a_returning_helper_restores_the_capability_and_nothing_resumes_the_cut_recording()
--> Result<()> {
+async fn a_returning_helper_restores_the_capability_and_resumes_the_cut_recording() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
-    start_meeting(&mut runtime, &mut receiver).await?;
+    let stream = start_meeting(&mut runtime, &mut receiver).await?;
+    for sequence in 0..2 {
+        runtime
+            .handle_native_event(super::meeting_continuity_tests::frame(
+                &stream, sequence, 8_000,
+            ))
+            .await;
+    }
+    crate::daemon::audio::tests::settle_seal_receipts(&mut runtime).await?;
     runtime
         .handle_native_event(json!({"event":"helper_disconnected"}))
         .await;
@@ -271,17 +279,18 @@ async fn a_returning_helper_restores_the_capability_and_nothing_resumes_the_cut_
         !runtime.state.privacy_stopped(),
         "a lost helper cuts the recording, it does not latch a stop"
     );
+    let recording = runtime
+        .state
+        .durable
+        .recording
+        .as_ref()
+        .context("recording absent")?;
     assert_eq!(
-        runtime
-            .state
-            .durable
-            .recording
-            .as_ref()
-            .context("recording absent")?
-            .phase,
+        recording.phase,
         CapturePhase::Interrupted,
         "the recording the helper was feeding is cut"
     );
+    assert_eq!(recording.ended_at_ms, None, "the cut recording stays open");
     assert!(
         said::told(&runtime).contains("helper"),
         "the cut says why: {:?}",
@@ -291,6 +300,11 @@ async fn a_returning_helper_restores_the_capability_and_nothing_resumes_the_cut_
         !runtime.audio_is_draining(),
         "with the helper gone nothing is left draining"
     );
+    // Without a helper, the upkeep waits for it and reopens nothing.
+    runtime.run_maintenance().await;
+    while let Ok(command) = receiver.try_recv() {
+        assert_ne!(command["command"], "audio_start", "no helper to open it");
+    }
     // The relaunched helper comes back with its own ready and status.
     runtime
         .native_event(json!({"event":"ready","capabilities":[]}))
@@ -304,15 +318,11 @@ async fn a_returning_helper_restores_the_capability_and_nothing_resumes_the_cut_
             .recv()
             .await
             .context("status command after the ready absent")?;
-        assert_ne!(
-            command["command"], "audio_start",
-            "nothing reopens the microphone on its own"
-        );
         if command["command"] == "status" {
             runtime
-                .native_event(json!({"event":"response","id":command["id"],"ok":true,
-                "result":{"permissions":{"microphone":"authorized","screen":true,
-                    "accessibility":false,"calendars":"not_determined"}}}))
+                .native_event(super::meeting_continuity_tests::granted_status(
+                    &command["id"],
+                ))
                 .await?;
             break;
         }
@@ -321,25 +331,28 @@ async fn a_returning_helper_restores_the_capability_and_nothing_resumes_the_cut_
         runtime.state.capabilities().microphone_state() == orbit_core::PermissionState::Granted,
         "the returning helper's status must re-observe the permissions"
     );
-    assert!(receiver.try_recv().is_err(), "no order follows on its own");
-    // The user's next recording starts when they ask, with no rearm in between.
-    runtime
-        .apply(Event::StartMeeting {
-            id: "after-helper-loss".into(),
-            title: "Synthetic fixture".into(),
-            audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
-        })
-        .await?;
-    loop {
+    runtime.run_maintenance().await;
+    let reopened = loop {
         let command = receiver
-            .recv()
-            .await
-            .context("audio_start of the new recording absent")?;
+            .try_recv()
+            .context("the cut recording was not resumed")?;
         if command["command"] == "audio_start" {
-            break;
+            break command;
         }
-    }
+    };
+    let recording = runtime
+        .state
+        .durable
+        .recording
+        .as_ref()
+        .context("recording absent")?;
+    assert_eq!(recording.id, "native-bridge-meeting", "the same recording");
+    assert_eq!(recording.phase, CapturePhase::Starting);
+    assert_ne!(reopened["stream_id"], json!(stream), "a new segment");
+    assert!(said::has(
+        &runtime.state,
+        NoticeCode::RecordingResumedAfterCut
+    ));
     Ok(())
 }
 

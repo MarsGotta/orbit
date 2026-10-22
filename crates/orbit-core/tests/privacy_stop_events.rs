@@ -62,12 +62,13 @@ fn classify(event: &Event) -> (usize, bool) {
         Event::CaptureCut { .. } => (32, false),
         Event::Close { .. } => (33, false),
         Event::EmptyCaptureClosed => (27, false),
+        Event::CutRecordingClosed { .. } => (49, false),
         Event::VoiceCancel => (46, false),
         Event::VoiceRetry { .. } => (47, false),
         Event::VoiceTooShort(_) => (48, false),
     }
 }
-const VARIANTS: usize = 49;
+const VARIANTS: usize = 50;
 
 #[test]
 fn voice_transcription_retires_with_authority_but_survives_hub_link_changes() {
@@ -222,6 +223,10 @@ fn samples() -> Vec<Event> {
             cause: "Cierre sintético.".into(),
         },
         Event::EmptyCaptureClosed,
+        Event::CutRecordingClosed {
+            ended_at_ms: 3,
+            cause: "helper_lost".into(),
+        },
     ]
 }
 

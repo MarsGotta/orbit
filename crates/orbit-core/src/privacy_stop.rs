@@ -253,6 +253,36 @@ impl StopCause {
         }
     }
 
+    /// Whether a recording this cause cut resumes on its own once the
+    /// capture is back. Only the person («Terminar», the privacy stop),
+    /// Orbit closing and the Mac going to sleep or switching user
+    /// (`session_inactive`) end a capture; anything else the Mac or Orbit
+    /// suffered (a lost or silent helper, a stalled daemon, a failed frame, a
+    /// stop nobody confirmed) leaves the meeting going on. `code` is the
+    /// helper's own code when it gave one, the cause's name otherwise.
+    pub fn resumes_cut_recording(self, code: &str) -> bool {
+        match self {
+            Self::HelperCaptureStop => code != "session_inactive",
+            Self::HelperIntegrityFailure
+            | Self::HelperLost
+            | Self::CaptureEventFailed
+            | Self::CaptureMaintenanceFailed
+            | Self::AudioStopUnconfirmed
+            | Self::CaptureStopUndelivered => true,
+            Self::Order
+            | Self::Hotkey
+            | Self::HelperUserStop
+            | Self::HelperLatch
+            | Self::HelperRefusedStopped
+            | Self::NativeEventFailed
+            | Self::VerticalMaintenanceFailed
+            | Self::PrivacyStopUndelivered
+            | Self::Shutdown
+            | Self::ListenerStopped
+            | Self::AudioInventoryUnverifiable => false,
+        }
+    }
+
     /// A stable name for the diagnostic log.
     pub const fn name(self) -> &'static str {
         match self {

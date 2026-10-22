@@ -138,6 +138,12 @@ notice_codes! {
     /// The Mac did not confirm closing the recording in time.
     RecordingCloseUnconfirmed => Failed,
     RecordingInterruptedByRestart => Failed,
+    /// A cut the person did not ask for (`cause`) and the same recording
+    /// went on by itself; `elapsed_ms` of audio is missing between both.
+    RecordingResumedAfterCut => Done,
+    /// A cut recording could not go on (`cause`): it was closed with the
+    /// `fragments` it has, and its note is written from them.
+    RecordingClosedAfterCut => Fixable,
     AudioGap => Silent,
     /// The audio route recovered; the meeting continues after a measured or unknown gap.
     AudioRouteRecovered => Done,
@@ -318,6 +324,16 @@ notice_codes! {
     /// Deimos's spoken answer could not be played.
     SpeechFailed => Failed,
     UploadRetrying => Silent,
+    /// The hub refuses uploads until something is fixed on this side
+    /// (`status` 401: pair this Mac again; 404: the hub's address or a
+    /// deploy). `step` is the upload, `code` the hub's; retried meanwhile.
+    UploadRefusedRetrying => Fixable,
+    /// The hub refused an upload for good (`status`, `code`): the audio
+    /// stays on the Mac and the meeting closes without it.
+    UploadRefused => Failed,
+    /// The hub has no room for more audio (507, `code`), with what it said:
+    /// `bytes` used, `max_bytes`, `remaining`. Retried every few minutes.
+    HubStorageFull => Fixable,
     /// The local store failed; the cause is in daemon.log.
     StoreProblem => Failed,
     /// Orbit closed with work still in memory: `audio_unsaved` when the store

@@ -190,6 +190,12 @@ app_type! {
         /// The turn in progress, or the last one until another begins:
         /// the user's message and the answer as it arrives.
         pub turn: Vec<ChatMessage>,
+        /// Voice notes this Mac keeps for the hub (spoken with it away, or
+        /// whose transcription failed) that a later turn replaced, oldest
+        /// first: shown, each with «Reintentar transcripción».
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub pending_voice: Option<Vec<ChatMessage>>,
         /// The last voice note the user asked to hear, once its audio arrived.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]

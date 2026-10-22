@@ -2,7 +2,8 @@
 //!
 //! The daemon runs its own runtime on a thread. The app shares its typed
 //! call queue and topic watches; only Orbit Pruebas exposes `orbit.sock`.
-//! If the daemon ends without anyone asking, the app ends and says why.
+//! If the daemon ends without anyone asking, the app relaunches itself, or
+//! ends and says why when the daemon fell right after its start.
 use anyhow::{Context, Result, bail};
 use orbit_core::orbit_bundle::{self, Member};
 use orbit_core::protocol::Command;
@@ -54,6 +55,19 @@ const _: () = assert!(
             + orbit_daemon::native::HELPER_EXIT_GRACE.as_millis()
             + orbit_daemon::error_reports::EXIT_FLUSH.as_millis()
 );
+
+/// How long a daemon must have run for its unexpected end to relaunch the
+/// app. What it protects: a meeting being recorded, which a relaunched daemon
+/// resumes from its snapshot. Why a minute: a daemon that falls within its
+/// first minute fell in its start (a store it cannot open, a lock held), and
+/// a relaunch would only repeat it in a loop; past it the app relaunches at
+/// most once a minute. It is not a limit on recordings or on relaunches.
+pub const DAEMON_RELAUNCH_MIN_UPTIME: Duration = Duration::from_secs(60);
+
+/// Whether a daemon that ended unasked after `uptime` relaunches the app.
+pub fn relaunches_after(uptime: Duration) -> bool {
+    uptime >= DAEMON_RELAUNCH_MIN_UPTIME
+}
 
 /// The daemon's thread, by this name in a crash report and in `ps -T`.
 pub const THREAD_NAME: &str = "orbit-daemon";

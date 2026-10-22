@@ -664,22 +664,27 @@ async fn managed_daemon_seals_audio_and_exits_when_its_parent_disappears() -> Re
     assert!(!path.join("orbit.sock").exists());
 
     let mut recovered = NativeDaemon::start(path).await?;
+    // The lost parent is Orbit closing, one of the things that end a
+    // capture: the restart comes back working and closes the recording at
+    // its last audio, with its fragments kept, so the hub writes its note.
+    // It is not reopened, and not left open waiting for «Terminar».
     let state = wait_state(
         path,
-        "recognise the native helper after restarting",
+        "close the recording the closing cut",
         STATE_BUDGET,
-        |state| state["capabilities"]["native_helper"] == true,
+        |state| {
+            state["capabilities"]["native_helper"] == true && state["recording"]["phase"] == "idle"
+        },
     )
     .await?;
-    // The lost parent cut the recording; the restart comes back
-    // working, with the recording interrupted and its fragments kept.
     assert_eq!(state["privacy_stopped"], false);
     assert_eq!(state["recording"]["id"], recording);
-    assert_eq!(state["recording"]["phase"], "interrupted");
+    assert!(state["recording"]["ended_at_ms"].is_i64());
     assert_eq!(state["recording"]["sealed_chunks"], 22);
     assert!(state["recording_signal"].is_null());
     check_originals(path, &recording, &epoch)?;
     ipc::request_async(path, IpcCommand::Shutdown).await?;
-    recovered.finish().await?;
+    let effects = recovered.finish().await?;
+    assert_eq!(effects.starts, 0, "a closing is not resumed");
     Ok(())
 }

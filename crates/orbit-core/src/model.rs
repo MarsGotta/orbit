@@ -4,6 +4,32 @@ use std::{fmt, ops::Deref};
 
 pub const PROTOCOL_VERSION: u8 = 1;
 pub const MAX_TEXT_BYTES: usize = 32 * 1024;
+
+/// Voice notes this Mac keeps waiting for the hub (spoken offline, or whose
+/// transcription failed) once a later turn took their place. Each one is a
+/// message in the saved state, a few hundred bytes, beside its WAV (a minute
+/// at most) that the Mac keeps anyway for playback; fifty is an afternoon of
+/// dictation with the hub away. Past it a new note is refused with the
+/// count (`too_many`), never stored without a name. Not a limit on how many
+/// notes the hub keeps.
+pub const MAX_PENDING_VOICE_NOTES: usize = 50;
+
+/// The failure of a voice note stored while another turn was in flight.
+pub const VOICE_WAITING_TURN: &str = "voice_waiting_turn";
+/// The failure of a voice note spoken with the hub away.
+pub const VOICE_HUB_UNREACHABLE: &str = "voice_hub_unreachable";
+/// The failure of a voice note spoken with this Mac not paired.
+pub const VOICE_PAIRING_REQUIRED: &str = "voice_hub_pairing_required";
+
+/// Whether a voice note that failed with `code` never reached the hub, so
+/// sending it once the hub is back cannot repeat anything: the daemon sends
+/// those by itself. A note the hub did try is sent again only when asked.
+pub fn voice_note_waits_for_hub(code: &str) -> bool {
+    matches!(
+        code,
+        VOICE_WAITING_TURN | VOICE_HUB_UNREACHABLE | VOICE_PAIRING_REQUIRED
+    )
+}
 /// Legacy spelling kept for tests and external clients; production uses resource names.
 pub const MAX_FRAME_BYTES: usize = crate::limits::MAX_IPC_LINE_BYTES;
 pub const MAX_VOICE_NOTE_BYTES: usize = 8 * 1024 * 1024;
@@ -162,6 +188,17 @@ impl Turn {
         } else {
             self.answer.as_mut().filter(|answer| answer.id == id)
         }
+    }
+
+    /// The user's message, while it is a voice note with no transcript:
+    /// what a later turn must not drop.
+    pub fn untranscribed_voice_message(&self) -> Option<&Message> {
+        Some(&self.user).filter(|message| {
+            message
+                .voice
+                .as_ref()
+                .is_some_and(|voice| voice.transcript.is_none())
+        })
     }
 
     /// The user's voice note `id`, while it has no transcript yet.
@@ -565,6 +602,11 @@ pub struct DurableState {
     /// `messages`; it loads without a turn.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub turn: Option<Turn>,
+    /// Voice notes the hub has not taken yet that a later turn replaced,
+    /// oldest first, at most [`MAX_PENDING_VOICE_NOTES`]: shown, and sent
+    /// again from the WAV this Mac keeps.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pending_voice: Vec<Message>,
     pub recording: Option<Recording>,
     pub voice_active: bool,
     #[serde(default)]
@@ -594,6 +636,7 @@ impl Default for DurableState {
             agent_id: None,
             active_request: None,
             turn: None,
+            pending_voice: Vec::new(),
             recording: None,
             voice_active: false,
             call: None,
@@ -637,9 +680,11 @@ impl DurableState {
     pub fn notice_code(&self) -> Option<crate::notice::NoticeCode> {
         self.notice.as_ref().map(|notice| notice.code)
     }
-    /// A restart never silently restarts physical capture or uncertain
-    /// prompts, and never invents a stop: an update, a crash or the Mac
-    /// booting comes back working unless the user had pressed their stop.
+    /// A restart never restarts physical capture or uncertain prompts by
+    /// itself, and never invents a stop: an update, a crash or the Mac
+    /// booting comes back working unless the user had pressed their stop. A
+    /// recording that was live is left interrupted here; the daemon resumes
+    /// it, and says so, once its helper is ready (`cut_recovery`).
     pub fn recovered(mut self) -> Self {
         use crate::privacy_stop::StopRequester;
         match (self.privacy_stopped, self.privacy_stop_by) {
@@ -662,10 +707,12 @@ impl DurableState {
         self.connection = Connection::Offline;
         self.capabilities = Capabilities::default();
         self.voice_active = false;
-        if let Some(voice) = self
+        for voice in self
             .turn
-            .as_mut()
-            .and_then(|turn| turn.user.voice.as_mut())
+            .iter_mut()
+            .map(|turn| &mut turn.user)
+            .chain(self.pending_voice.iter_mut())
+            .filter_map(|message| message.voice.as_mut())
             .filter(|voice| voice.transcript.is_none() && voice.failure.is_none())
         {
             voice.failure = Some(VoiceTranscriptionFailure::local(

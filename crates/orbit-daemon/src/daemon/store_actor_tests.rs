@@ -819,6 +819,7 @@ async fn upload_settlement_releases_the_worker_slot() -> Result<()> {
             ticket,
             succeeded: false,
             error: None,
+            notice: None,
             result: Ok(()),
         }))
         .await?;

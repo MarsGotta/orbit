@@ -39,3 +39,14 @@ export function withNewest(known: ChatMessage[], newest: ChatMessage[]): ChatMes
   const ids = new Set(newest.map((message) => message.id));
   return [...known.filter((message) => !ids.has(message.id)), ...newest];
 }
+
+/**
+ * The voice notes this Mac keeps for the hub after the conversation, each
+ * once: they were spoken with the hub away or their transcription failed,
+ * and a later turn took their place. Each one shows why and can be retried.
+ */
+export function withPendingVoice(messages: ChatMessage[], pending: ChatMessage[]): ChatMessage[] {
+  if (pending.length === 0) return messages;
+  const ids = new Set(messages.map((message) => message.id));
+  return [...messages, ...pending.filter((message) => !ids.has(message.id))];
+}
