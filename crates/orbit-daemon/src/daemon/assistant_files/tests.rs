@@ -261,7 +261,7 @@ async fn a_link_that_leads_outside_is_refused_with_where_it_leads() -> Result<()
 }
 
 #[tokio::test]
-async fn dot_dot_out_of_a_folder_is_refused_with_where_it_leads() -> Result<()> {
+async fn dot_dot_out_of_a_folder_is_refused_without_saying_where_it_leads() -> Result<()> {
     let (mut mac, id) = mac_with_projects().await?;
     let climbing = "/Users/ejemplo/Proyectos/../Privado/claves.txt";
     mac.request("climb", "files_read", json!({"path":climbing}))
@@ -271,7 +271,8 @@ async fn dot_dot_out_of_a_folder_is_refused_with_where_it_leads() -> Result<()> 
     let reply = mac.reply("climb")?;
     assert_eq!(reply["refusal"]["code"], "outside_folders", "{reply}");
     assert_eq!(reply["refusal"]["path"], climbing);
-    assert_eq!(reply["refusal"]["resolved"], SECRETS);
+    // Written outside the folders: where it leads would say it exists.
+    assert_eq!(reply["refusal"]["resolved"], Value::Null);
     mac.no_helper_command("assistant_files_read")?;
     Ok(())
 }
@@ -592,7 +593,7 @@ async fn a_helper_step_that_never_answers_frees_the_bridge_with_both_numbers() -
     };
     request.started = std::time::Instant::now()
         .checked_sub(Duration::from_millis(
-            orbit_core::assistant_files::HELPER_STEP_TIMEOUT_MS + 1,
+            orbit_core::assistant_files::HELPER_REQUEST_TIMEOUT_MS + 1,
         ))
         .context("the clock cannot go back that far")?;
     mac.runtime.check_files_timeout();
@@ -601,7 +602,7 @@ async fn a_helper_step_that_never_answers_frees_the_bridge_with_both_numbers() -
     assert_eq!(reply["refusal"]["operation"], "files");
     assert_eq!(
         reply["refusal"]["deadline_ms"],
-        orbit_core::assistant_files::HELPER_STEP_TIMEOUT_MS
+        orbit_core::assistant_files::HELPER_REQUEST_TIMEOUT_MS
     );
     assert!(mac.runtime.conversation.bridge_request.is_none());
     Ok(())
@@ -699,3 +700,5 @@ async fn the_shared_request_contract_starts_the_folders_step() -> Result<()> {
     }
     Ok(())
 }
+
+mod lifecycle;

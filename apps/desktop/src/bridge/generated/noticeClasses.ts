@@ -96,6 +96,7 @@ export const noticeClass = {
   bridge_serving: "done",
   bridge_reply_sent: "silent",
   bridge_reply_undelivered: "silent",
+  assistant_folder_not_added: "fixable",
   engine_swept: "silent",
   engine_inspected: "silent",
   engine_failed: "silent",

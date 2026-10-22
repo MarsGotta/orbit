@@ -726,7 +726,8 @@ impl Runtime {
 
     async fn on_native_helper_disconnected(&mut self, event: &Value) -> Result<()> {
         let cause = NativeHelperDisconnect::deserialize(event)?;
-        self.files_helper_restarted();
+        // Gone, and nothing has started again yet.
+        self.files_helper_lost(orbit_core::refusal::Refusal::HelperNotRunning);
         self.end_helper_waits();
         // The line that explains a menu bar icon vanishing without a
         // crash report, which is otherwise invisible after the fact.

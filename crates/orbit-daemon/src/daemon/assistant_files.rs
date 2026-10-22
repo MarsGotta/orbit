@@ -113,8 +113,13 @@ enum Stage {
     /// The bookmarks are being opened and the path resolved.
     Resolving,
     /// The admitted path (none for a search of every folder) is being
-    /// listed, searched or read.
-    Working { admitted: Option<Admitted> },
+    /// listed, searched or read. `open` is every folder the first step
+    /// found open, by id and canonical path: what a search of every folder
+    /// may answer from.
+    Working {
+        admitted: Option<Admitted>,
+        open: Vec<(String, String)>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -124,7 +129,8 @@ struct InFlight {
     ask: FilesAsk,
     stage: Stage,
     started: Instant,
-    /// The folders when the request started: the ones its answer names.
+    /// The folders when the request started, less any removed since: the
+    /// ones its answer names and the only ones it reads.
     saved: Vec<Folder>,
 }
 
@@ -144,7 +150,7 @@ pub(super) struct FilesRuntime {
     request: Option<InFlight>,
 }
 
-const STEP_TIMEOUT: Duration = Duration::from_millis(files::HELPER_STEP_TIMEOUT_MS);
+const REQUEST_TIMEOUT: Duration = Duration::from_millis(files::HELPER_REQUEST_TIMEOUT_MS);
 
 impl Runtime {
     /// Reads the folders at startup. A row that cannot be read is said and
@@ -247,13 +253,18 @@ impl Runtime {
         Ok(())
     }
 
-    /// «Quitar»: forgotten at once, bookmark included.
+    /// «Quitar»: forgotten at once, bookmark included, also by a request
+    /// already under way: its next step neither reads in it nor answers
+    /// with what was read there.
     pub(super) async fn remove_assistant_folder(&mut self, id: &str) -> Result<()> {
         let saved = self.saved_folders()?;
         if let Some(folders) = files::without_folder(&saved, id) {
             self.store_folders(folders).await?;
         }
         self.features.files.access.remove(id);
+        if let Some(request) = self.features.files.request.as_mut() {
+            request.saved.retain(|folder| folder.id != id);
+        }
         Ok(())
     }
 
@@ -285,24 +296,27 @@ impl Runtime {
     }
 
     /// A helper that went away answers nothing it was asked: its folders are
-    /// unknown again and a request it held is refused with that cause.
-    pub(super) fn files_helper_restarted(&mut self) {
+    /// unknown again and a request it held is refused with `cause` — it
+    /// restarted, or it is gone and nothing has started again yet.
+    pub(super) fn files_helper_lost(&mut self, cause: Refusal) {
         self.features.files.access.clear();
         self.features.files.pick = None;
         self.features.files.check = None;
         if let Some(request) = self.features.files.request.take() {
-            self.refuse_files(
-                &request.ask_id,
-                Refusal::ReadInterrupted {
-                    cause: orbit_core::refusal::ReadInterruption::HelperRestarted {
-                        previous_generation: None,
-                        current_generation: None,
-                        previous_instance: None,
-                        current_instance: None,
-                    },
-                },
-            );
+            self.refuse_files(&request.ask_id, cause);
         }
+    }
+
+    /// [`Self::files_helper_lost`] for a helper that started again.
+    pub(super) fn files_helper_restarted(&mut self) {
+        self.files_helper_lost(Refusal::ReadInterrupted {
+            cause: orbit_core::refusal::ReadInterruption::HelperRestarted {
+                previous_generation: None,
+                current_generation: None,
+                previous_instance: None,
+                current_instance: None,
+            },
+        });
     }
 
     /// The first step of a `files_*` request.
@@ -332,15 +346,16 @@ impl Runtime {
         Ok(())
     }
 
-    /// A request whose helper step outlived its bound is refused with both
-    /// numbers, so the bridge's single slot is free before the hub gives up.
+    /// A request the helper has not finished within its bound, both steps
+    /// counted from its start, is refused with both numbers, so the bridge's
+    /// single slot is free before the hub gives up.
     pub(super) fn check_files_timeout(&mut self) {
         let expired = self
             .features
             .files
             .request
             .as_ref()
-            .is_some_and(|request| request.started.elapsed() >= STEP_TIMEOUT);
+            .is_some_and(|request| request.started.elapsed() >= REQUEST_TIMEOUT);
         if !expired {
             return;
         }
@@ -351,7 +366,7 @@ impl Runtime {
                     operation: Operation::Files,
                     waited_ms: u64::try_from(request.started.elapsed().as_millis())
                         .unwrap_or(u64::MAX),
-                    deadline_ms: files::HELPER_STEP_TIMEOUT_MS,
+                    deadline_ms: files::HELPER_REQUEST_TIMEOUT_MS,
                 },
             );
         }
@@ -425,9 +440,11 @@ impl Runtime {
         }
         let outcome = match &request.stage {
             Stage::Resolving => self.on_resolved(&request, &response).await,
-            Stage::Working { admitted } => {
+            Stage::Working { admitted, open } => {
                 let admitted = admitted.clone();
-                self.on_worked(&request, admitted.as_ref(), &response).await
+                let open = open.clone();
+                self.on_worked(&request, admitted.as_ref(), &open, &response)
+                    .await
             }
         };
         if let Err(refusal) = outcome {
@@ -438,14 +455,24 @@ impl Runtime {
 
     async fn on_folder_picked(&mut self, response: &NativeResponseFields) -> Result<()> {
         if !response.ok {
-            let code = response
-                .error
-                .as_ref()
-                .map_or("assistant_folder_pick_failed", |error| error.code.as_str())
-                .to_owned();
-            self.say(
-                Notice::new(NoticeCode::HelperCommandFailed).with_token(NoticeKey::Code, &code),
-            );
+            let error = response.error.as_ref();
+            let code = error.map_or("assistant_folder_pick_failed", |error| error.code.as_str());
+            let detail = error.and_then(|error| error.detail.as_ref());
+            let mut notice =
+                Notice::new(NoticeCode::AssistantFolderNotAdded).with_token(NoticeKey::Code, code);
+            if let Some(kind) = detail
+                .and_then(|detail| detail.pointer("/cause/kind"))
+                .and_then(Value::as_str)
+            {
+                notice = notice.with_token(NoticeKey::Cause, kind);
+            }
+            if let Some(status) = detail
+                .and_then(|detail| detail.get("os_status"))
+                .and_then(Value::as_i64)
+            {
+                notice = notice.with(NoticeKey::Status, status);
+            }
+            self.say(notice);
             return Ok(());
         }
         let picked = response
@@ -462,24 +489,29 @@ impl Runtime {
             }
             return Ok(());
         };
-        let saved = self.saved_folders()?;
         let chosen = Folder {
             id: uuid::Uuid::new_v4().to_string(),
             path,
             bookmark_base64,
         };
-        match files::with_folder(&saved, chosen) {
+        let added = match self.saved_folders() {
+            Ok(saved) => files::with_folder(&saved, chosen),
+            Err(refusal) => Err(refusal),
+        };
+        match added {
             Ok(Some(folders)) => {
-                self.store_folders(folders).await?;
+                if self.store_folders(folders).await.is_err() {
+                    self.log("assistant_folders_unsaved", &[]);
+                    self.say(not_added(&Refusal::StorageFailed {
+                        operation: Operation::Files,
+                        cause: None,
+                    }));
+                    return Ok(());
+                }
                 self.check_assistant_folders();
             }
             Ok(None) => {}
-            Err(refusal) => {
-                self.say(
-                    Notice::new(NoticeCode::HelperCommandFailed)
-                        .with_token(NoticeKey::Code, refusal.code().name()),
-                );
-            }
+            Err(refusal) => self.say(not_added(&refusal)),
         }
         Ok(())
     }
@@ -503,10 +535,19 @@ impl Runtime {
         Ok(reply)
     }
 
-    /// What the helper just said of each folder: kept for Ajustes, and a
-    /// renewed bookmark or a moved folder stored.
+    /// What the helper just said of each folder still kept: shown in
+    /// Ajustes, and a renewed bookmark or a moved folder stored. A report of
+    /// a folder removed meanwhile changes nothing.
     async fn take_reports(&mut self, reports: &[FolderReport]) {
-        for report in reports {
+        let Ok(saved) = self.saved_folders() else {
+            return;
+        };
+        let reports: Vec<FolderReport> = reports
+            .iter()
+            .filter(|report| saved.iter().any(|folder| folder.id == report.id()))
+            .cloned()
+            .collect();
+        for report in &reports {
             let access = match report {
                 FolderReport::Accessible { .. } => FolderAccess::Accessible,
                 FolderReport::Unavailable { cause, .. } => FolderAccess::Unavailable {
@@ -518,11 +559,43 @@ impl Runtime {
                 .access
                 .insert(report.id().to_owned(), access);
         }
-        if let Ok(saved) = self.saved_folders()
-            && let Some(folders) = files::refreshed(&saved, reports)
-            && self.store_folders(folders).await.is_err()
+        if let Some(folders) = files::refreshed(&saved, &reports) {
+            let kept: Vec<String> = folders.iter().map(|folder| folder.id.clone()).collect();
+            if self.store_folders(folders).await.is_err() {
+                self.log("assistant_folders_refresh_unsaved", &[]);
+                return;
+            }
+            self.features.files.access.retain(|id, _| kept.contains(id));
+        }
+    }
+
+    /// A folder the second step could not open is said in Ajustes as the
+    /// first step's report would have said it.
+    fn note_step_folder(&mut self, request: &InFlight, response: &NativeResponseFields) {
+        let Some(error) = response
+            .error
+            .as_ref()
+            .filter(|error| !response.ok && error.code == "assistant_folder_unavailable")
+        else {
+            return;
+        };
+        let detail = error.detail.as_ref();
+        let id = detail
+            .and_then(|detail| detail.get("id"))
+            .and_then(Value::as_str);
+        let cause = detail
+            .and_then(|detail| detail.get("cause"))
+            .cloned()
+            .and_then(|cause| serde_json::from_value::<FolderCause>(cause).ok());
+        if let (Some(id), Some(cause)) = (id, cause)
+            && request.saved.iter().any(|folder| folder.id == id)
         {
-            self.log("assistant_folders_refresh_unsaved", &[]);
+            self.features.files.access.insert(
+                id.to_owned(),
+                FolderAccess::Unavailable {
+                    cause: cause.bounded(),
+                },
+            );
         }
     }
 
@@ -575,11 +648,27 @@ impl Runtime {
         request: &InFlight,
         response: &NativeResponseFields,
     ) -> Result<(), Refusal> {
+        if request.saved.is_empty() {
+            return Err(Refusal::NoFolders);
+        }
         if let Some(refusal) = Self::helper_refusal(request, response) {
+            self.note_step_folder(request, response);
             return Err(refusal);
         }
-        let reply = Self::folders_reply(response)?;
+        let mut reply = Self::folders_reply(response)?;
+        // A folder removed while this step ran is not one of the request's.
+        reply
+            .folders
+            .retain(|report| request.saved.iter().any(|folder| folder.id == report.id()));
         self.take_reports(&reply.folders).await;
+        let open: Vec<(String, String)> = reply
+            .folders
+            .iter()
+            .filter_map(|report| match report {
+                FolderReport::Accessible { id, path, .. } => Some((id.clone(), path.clone())),
+                FolderReport::Unavailable { .. } => None,
+            })
+            .collect();
         let bookmark = |id: &str| {
             request
                 .saved
@@ -600,17 +689,24 @@ impl Runtime {
                 path: None,
                 content,
             } => {
-                let roots: Vec<SearchRoot> = reply
-                    .folders
+                // A folder inside another (or the same one twice) is walked
+                // once, as part of the outer one: the helper walks each root whole.
+                let covered = |index: usize, path: &str| {
+                    open.iter().enumerate().any(|(other_index, (_, other))| {
+                        other_index != index
+                            && files::is_within(path, other)
+                            && (path != other || other_index < index)
+                    })
+                };
+                let roots: Vec<SearchRoot> = open
                     .iter()
-                    .filter_map(|report| match report {
-                        FolderReport::Accessible { id, path, .. } => {
-                            bookmark(id).map(|folder| SearchRoot {
-                                folder,
-                                path: path.clone(),
-                            })
-                        }
-                        FolderReport::Unavailable { .. } => None,
+                    .enumerate()
+                    .filter(|(index, (_, path))| !covered(*index, path))
+                    .filter_map(|(_, (id, path))| {
+                        bookmark(id).map(|folder| SearchRoot {
+                            folder,
+                            path: path.clone(),
+                        })
                     })
                     .collect();
                 if roots.is_empty() {
@@ -656,10 +752,10 @@ impl Runtime {
             }
         };
         let native_id = self.send_files_command(name, fields)?;
+        // `started` stays the request's: its bound counts both steps.
         self.features.files.request = Some(InFlight {
             native_id,
-            stage: Stage::Working { admitted },
-            started: Instant::now(),
+            stage: Stage::Working { admitted, open },
             ..request.clone()
         });
         Ok(())
@@ -669,9 +765,18 @@ impl Runtime {
         &mut self,
         request: &InFlight,
         admitted: Option<&Admitted>,
+        open: &[(String, String)],
         response: &NativeResponseFields,
     ) -> Result<(), Refusal> {
+        let kept = |id: &str| request.saved.iter().any(|folder| folder.id == id);
+        // Removed while the helper read it: what was read there is dropped.
+        if let Some(admitted) = admitted
+            && !kept(&admitted.folder)
+        {
+            return Err(removed_meanwhile(request));
+        }
         if let Some(refusal) = Self::helper_refusal(request, response) {
+            self.note_step_folder(request, response);
             return Err(refusal);
         }
         let result = response
@@ -706,8 +811,18 @@ impl Runtime {
                 path,
                 content,
             } => {
-                let reply: SearchReply = decode_result_body("assistant_files_search", result)
+                let mut reply: SearchReply = decode_result_body("assistant_files_search", result)
                     .map_err(Refusal::helper_reply_invalid)?;
+                // A search of every folder, one of them removed meanwhile.
+                if admitted.is_none() && open.iter().any(|(id, _)| !kept(id)) {
+                    if request.saved.is_empty() {
+                        return Err(Refusal::NoFolders);
+                    }
+                    reply.results.retain(|hit| {
+                        open.iter()
+                            .any(|(id, root)| kept(id) && files::is_within(&hit.path, root))
+                    });
+                }
                 let shown = admitted
                     .map(|admitted| admitted.path.clone())
                     .or_else(|| path.clone());
@@ -841,6 +956,50 @@ impl Runtime {
         );
         Ok(())
     }
+}
+
+/// The answer to a request whose folder was removed while the helper read
+/// it: the path is no longer inside the folders that remain.
+fn removed_meanwhile(request: &InFlight) -> Refusal {
+    if request.saved.is_empty() {
+        return Refusal::NoFolders;
+    }
+    Refusal::OutsideFolders {
+        path: request.ask.path().unwrap_or_default().to_owned(),
+        resolved: None,
+        folders: request
+            .saved
+            .iter()
+            .map(|folder| folder.path.clone())
+            .collect(),
+    }
+}
+
+/// What the screen says when a folder chosen in the panel is not kept: the
+/// refusal's code with its cause and numbers, never the folder's path.
+fn not_added(refusal: &Refusal) -> Notice {
+    let mut notice = Notice::new(NoticeCode::AssistantFolderNotAdded)
+        .with_token(NoticeKey::Code, refusal.code().name());
+    if let Refusal::TooMany { count, max, .. } = refusal {
+        notice = notice
+            .with(NoticeKey::Count, *count)
+            .with(NoticeKey::Max, *max);
+    }
+    if let Refusal::FolderUnavailable { cause, .. } = refusal
+        && let FolderCause::PathTooLong { bytes, max_bytes }
+        | FolderCause::BookmarkTooLarge { bytes, max_bytes } = cause
+    {
+        let kind = if matches!(cause, FolderCause::PathTooLong { .. }) {
+            "path_too_long"
+        } else {
+            "bookmark_too_large"
+        };
+        notice = notice
+            .with_token(NoticeKey::Cause, kind)
+            .with(NoticeKey::Bytes, *bytes)
+            .with(NoticeKey::MaxBytes, *max_bytes);
+    }
+    notice
 }
 
 fn invalid_detail(code: &str) -> Refusal {

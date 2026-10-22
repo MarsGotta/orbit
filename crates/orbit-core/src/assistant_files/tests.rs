@@ -94,15 +94,17 @@ fn dot_dot_out_of_a_folder_is_refused_even_before_it_is_resolved() {
         &saved(),
         &reply(found(SECRETS, EntryKind::File, 12)),
     );
+    // Written outside a folder: «outside», never where it leads, which
+    // would say that it exists and its true name.
     assert_eq!(
         refused,
         Err(Refusal::OutsideFolders {
             path: climbing.into(),
-            resolved: Some(SECRETS.into()),
+            resolved: None,
             folders: both_folders(),
         })
     );
-    // Missing and outside: «outside», never whether it exists.
+    // Missing and outside: the same refusal, never whether it exists.
     let missing = admit(
         Asked::Read,
         climbing,
@@ -450,8 +452,8 @@ fn every_bound_says_what_it_protects_in_its_numbers() {
     // shared constant; the page bytes clear the hub frame with room.
     assert!(MAX_TEXT_PAGE_BYTES as usize <= MAX_PAGE_BYTES);
     const { assert!(MAX_PAGE_BYTES + 32 * 1024 <= crate::limits::MAX_HUB_OUTGOING_FRAME_BYTES) };
-    const { assert!(SEARCH_DEADLINE_MS * 2 <= HELPER_STEP_TIMEOUT_MS) };
-    const { assert!(HELPER_STEP_TIMEOUT_MS < 30_000) };
+    const { assert!(SEARCH_DEADLINE_MS * 2 <= HELPER_REQUEST_TIMEOUT_MS) };
+    const { assert!(HELPER_REQUEST_TIMEOUT_MS < 30_000) };
     const { assert!(MAX_QUERY_BYTES > 255) };
 }
 
@@ -588,3 +590,33 @@ fn the_native_result_fixtures_decode_into_the_replies() -> Result<(), serde_json
     assert_eq!(text.len() as u64, size_bytes);
     Ok(())
 }
+
+#[test]
+fn a_folder_chosen_through_another_path_to_the_same_place_is_kept_once() {
+    let through_link = folder("again", "/tmp/Proyectos");
+    let saved = vec![folder("projects", "/private/tmp/Proyectos"), through_link];
+    let Some(folders) = refreshed(
+        &saved,
+        &[
+            open("projects", "/private/tmp/Proyectos"),
+            open("again", "/private/tmp/Proyectos"),
+        ],
+    ) else {
+        panic!("the second path to the same folder was kept");
+    };
+    assert_eq!(folders, vec![folder("projects", "/private/tmp/Proyectos")]);
+}
+
+#[test]
+fn a_relative_path_from_the_panel_is_an_invalid_reply_not_a_long_one() {
+    assert_eq!(
+        check_folder(&folder("relative", "Proyectos")),
+        Err(Refusal::HelperReplyInvalid {
+            field: "assistant_folder_pick.path".into(),
+            expected: "absolute_path".into(),
+            received_type: "relative_path".into(),
+        })
+    );
+}
+
+mod outside;

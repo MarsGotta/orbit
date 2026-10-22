@@ -266,6 +266,10 @@ notice_codes! {
     BridgeServing => Done,
     BridgeReplySent => Silent,
     BridgeReplyUndelivered => Silent,
+    /// A folder chosen in the panel was not kept, or the panel failed:
+    /// `code` is the refusal's or the helper's, with `cause`, `count`/`max`,
+    /// `bytes`/`max_bytes` or the system's `status` when there are any.
+    AssistantFolderNotAdded => Fixable,
     // The engine that acts on the computer.
     EngineSwept => Silent,
     EngineInspected => Silent,

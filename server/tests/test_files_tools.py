@@ -377,3 +377,32 @@ def test_a_listing_asked_past_its_end_says_so_instead_of_an_impossible_range():
     )
     assert "101–100" not in text, text
     assert "5 entradas" in text and "after_index=100" in text, text
+
+
+async def test_a_folder_request_that_ran_out_of_time_does_not_ask_to_check_a_result(tmp_path):
+    _hub, result = await call(
+        tmp_path,
+        refused(
+            {"code": "timeout", "operation": "files", "waited_ms": 20_004, "deadline_ms": 20_000}
+        ),
+        "orbit_files_read",
+        {"path": f"{PROJECTS}/plan.md"},
+    )
+    body = text_of(result)
+    assert result.is_error
+    assert body.startswith("timeout: "), body
+    assert "consulta su resultado" not in body, body
+    assert "carpetas del asistente" in body and "20000" in body, body
+
+
+async def test_a_helper_restart_during_a_folder_request_is_not_called_a_source_read(tmp_path):
+    _hub, result = await call(
+        tmp_path,
+        refused({"code": "read_interrupted", "cause": {"kind": "helper_restarted"}}),
+        "orbit_files_search",
+        {"query": "plan"},
+    )
+    body = text_of(result)
+    assert result.is_error
+    assert "fuente" not in body, body
+    assert "carpetas del asistente" in body, body

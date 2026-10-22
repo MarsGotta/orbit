@@ -142,12 +142,14 @@ pub const MAX_SNIPPET_CHARS: u32 = 160;
 /// search that stops on time says so with what it found.
 pub const SEARCH_DEADLINE_MS: u64 = 10_000;
 
-/// How long the daemon waits for the helper's answer to one step of a request.
+/// How long the daemon waits for the helper to answer a whole request, both
+/// of its steps together, from when the request reached the Mac.
 ///
 /// Protects: the bridge's single slot, which a lost answer would hold until the
 /// hub gave up. Why 20 s: twice the search deadline, and the 20 s a capture
-/// upload is given, so the refusal still reaches the hub before its 30 s.
-pub const HELPER_STEP_TIMEOUT_MS: u64 = 20_000;
+/// upload is given, so the refusal still reaches the hub before its 30 s. A
+/// bound per step would not: two slow steps would pass the hub's wait.
+pub const HELPER_REQUEST_TIMEOUT_MS: u64 = 20_000;
 
 /// One folder the user chose, as the daemon keeps it in its encrypted store.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -495,6 +497,15 @@ fn holder<'a>(path: &str, reports: &'a [FolderReport]) -> Option<(&'a str, &'a s
         .max_by_key(|(_, root)| root.len())
 }
 
+/// [`is_within`] in any letter case. The folders live on the Mac's own disk,
+/// whose file system (APFS as macOS formats it) ignores case: a path written
+/// in another case names the same place. Only used to say what a path that
+/// did not resolve would have been; admission decides on the exact path the
+/// helper resolved.
+fn is_within_any_case(path: &str, root: &str) -> bool {
+    is_within(&path.to_lowercase(), &root.to_lowercase())
+}
+
 /// An unavailable folder whose last known path holds `path`, so a request
 /// into a folder whose bookmark broke says that, not «outside the folders».
 fn broken_holder<'a>(
@@ -505,7 +516,7 @@ fn broken_holder<'a>(
     saved.iter().find_map(|folder| {
         reports.iter().find_map(|report| match report {
             FolderReport::Unavailable { id, cause }
-                if *id == folder.id && is_within(path, &folder.path) =>
+                if *id == folder.id && is_within_any_case(path, &folder.path) =>
             {
                 Some((folder, cause))
             }
@@ -519,26 +530,31 @@ fn broken_holder<'a>(
 ///
 /// Inside means the resolved path — links and `..` already followed on the
 /// Mac — is a folder or lies within one. A path that leads outside is refused
-/// with the path asked for, where it leads when that differs, and every
-/// folder. A missing path is only called missing when it would have been
-/// inside: outside the folders, Orbit does not say what exists.
+/// with the path asked for and every folder. A missing path is only called
+/// missing when, as written, it lies inside a folder (in any letter case).
+///
+/// Outside the folders, Orbit does not say what exists: a path that, as
+/// written, lies outside every folder gets the same refusal whether it exists
+/// or not, never where it leads (which would tell both that it exists and its
+/// true name). Only a path written inside a folder that leads out — a link
+/// in the folder — is told where it leads.
 pub fn admit(
     asked: Asked,
     requested_path: &str,
     saved: &[Folder],
     reply: &FoldersReply,
 ) -> Result<Admitted, Refusal> {
+    let said = lexical(requested_path);
+    let said_inside = accessible(&reply.folders).any(|(_, root)| is_within_any_case(&said, root))
+        || saved
+            .iter()
+            .any(|folder| is_within_any_case(&said, &folder.path));
     let outside = |resolved: Option<&str>| Refusal::OutsideFolders {
         path: requested_path.to_owned(),
         resolved: resolved
-            .filter(|resolved| *resolved != requested_path)
+            .filter(|resolved| said_inside && *resolved != requested_path)
             .map(str::to_owned),
         folders: folder_paths(saved, &reply.folders),
-    };
-    let said = lexical(requested_path);
-    let lexically_inside = || {
-        holder(&said, &reply.folders).is_some()
-            || saved.iter().any(|folder| is_within(&said, &folder.path))
     };
     let broken = |path: &str| {
         broken_holder(path, saved, &reply.folders).map(|(folder, cause)| {
@@ -560,7 +576,7 @@ pub fn admit(
             if let Some(refusal) = broken(&said) {
                 return Err(refusal);
             }
-            return Err(if lexically_inside() {
+            return Err(if said_inside {
                 Refusal::FileUnavailable {
                     path: requested_path.to_owned(),
                     cause: FileCause::NotFound,
@@ -570,7 +586,7 @@ pub fn admit(
             });
         }
         RequestedPath::Unavailable { cause } => {
-            return Err(if lexically_inside() {
+            return Err(if said_inside {
                 Refusal::FileUnavailable {
                     path: requested_path.to_owned(),
                     cause: cause.clone(),
@@ -661,7 +677,14 @@ pub fn room_for_another(saved: &[Folder]) -> Result<(), Refusal> {
 
 /// A folder the helper described is within the bounds Orbit keeps.
 pub fn check_folder(folder: &Folder) -> Result<(), Refusal> {
-    if !folder.path.starts_with('/') || folder.path.len() > MAX_PATH_BYTES {
+    if !folder.path.starts_with('/') {
+        return Err(Refusal::HelperReplyInvalid {
+            field: "assistant_folder_pick.path".into(),
+            expected: "absolute_path".into(),
+            received_type: "relative_path".into(),
+        });
+    }
+    if folder.path.len() > MAX_PATH_BYTES {
         return Err(Refusal::FolderUnavailable {
             path: folder.path.chars().take(MAX_PATH_BYTES).collect(),
             cause: FolderCause::PathTooLong {
@@ -705,11 +728,14 @@ pub fn without_folder(saved: &[Folder], id: &str) -> Option<Vec<Folder>> {
 }
 
 /// The folders with what the helper just reported: a renewed bookmark
-/// replaces the stale one, and a folder found at a new path keeps it.
-/// `None` when nothing changed.
+/// replaces the stale one, and a folder found at a new path keeps it. A
+/// folder found where an earlier one already is goes: it is that folder,
+/// chosen again through another path (`/tmp/x` is `/private/tmp/x` on
+/// macOS), which the panel's path did not show. `None` when nothing changed.
 pub fn refreshed(saved: &[Folder], reports: &[FolderReport]) -> Option<Vec<Folder>> {
     let mut changed = false;
-    let folders = saved
+    let mut folders: Vec<Folder> = Vec::with_capacity(saved.len());
+    let renewed = saved
         .iter()
         .map(|folder| {
             let mut folder = folder.clone();
@@ -736,7 +762,14 @@ pub fn refreshed(saved: &[Folder], reports: &[FolderReport]) -> Option<Vec<Folde
             }
             folder
         })
-        .collect();
+        .collect::<Vec<_>>();
+    for folder in renewed {
+        if folders.iter().any(|kept| kept.path == folder.path) {
+            changed = true;
+        } else {
+            folders.push(folder);
+        }
+    }
     changed.then_some(folders)
 }
 

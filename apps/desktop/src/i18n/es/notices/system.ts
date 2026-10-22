@@ -1,4 +1,25 @@
-import { openSettings, rearm, worded, type Entries } from "./types";
+import { openSettings, rearm, worded, type Entries, type NoticeData } from "./types";
+
+/** A folder chosen in the panel that Orbit did not keep, with its cause and numbers. */
+function folderNotAdded(data: NoticeData): string {
+  const { code, cause, count, max, bytes, max_bytes: maxBytes, status } = data;
+  if (code === "too_many" && typeof max === "number") {
+    const asked = typeof count === "number" ? ` (sería la ${count}.ª)` : "";
+    return `No se añadió la carpeta: ya hay ${max} carpetas, el máximo${asked}. Quita una para añadir otra.`;
+  }
+  if (cause === "path_too_long" && typeof bytes === "number" && typeof maxBytes === "number")
+    return `No se añadió la carpeta: su ruta ocupa ${bytes} bytes y Orbit admite ${maxBytes}.`;
+  if (cause === "bookmark_too_large" && typeof bytes === "number" && typeof maxBytes === "number")
+    return `No se añadió la carpeta: el marcador que macOS hizo de ella ocupa ${bytes} bytes y Orbit guarda hasta ${maxBytes}.`;
+  if (code === "storage_failed")
+    return "No se añadió la carpeta: Orbit no pudo guardarla en este Mac. Vuelve a añadirla.";
+  if (code === "assistant_folder_panel_busy")
+    return "El panel para elegir una carpeta ya está abierto.";
+  const why = [code, cause, typeof status === "number" ? `error ${status}` : undefined]
+    .filter((part) => part !== undefined)
+    .join(", ");
+  return `No se pudo añadir la carpeta: el panel de macOS no la entregó${why ? ` (${why})` : ""}. Vuelve a intentarlo.`;
+}
 
 /** Privacy, the hub link and pairing, the local store, transcripts and archives. */
 export const system = {
@@ -85,6 +106,7 @@ export const system = {
       return `Ese turno${at} ya no está: la transcripción cambió desde que la abriste${turns}. Ábrela de nuevo.`;
     },
   },
+  assistant_folder_not_added: { class: "fixable", text: folderNotAdded },
   meeting_audio_unreadable: {
     class: "fixable",
     text: (data) =>

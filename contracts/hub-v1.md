@@ -574,8 +574,9 @@ Paths are absolute, at most 1024 bytes (macOS `PATH_MAX`). The Mac resolves the
 path with `realpath` and admits it only when that canonical path is a folder or
 lies inside one, by whole components; a link or `..` that leads out is refused
 like any other path outside. Refusals: `no_folders`; `outside_folders`
-`{path,resolved,folders}` (the path asked, where it led when that differs, and
-every folder); `folder_unavailable {path,cause}` with `cause.kind`
+`{path,resolved,folders}` (the path asked, where it led when the path as
+written lies inside a folder — a link in it — and that differs, and every
+folder); `folder_unavailable {path,cause}` with `cause.kind`
 `bookmark_unresolvable {domain,code}`, `not_a_folder`, `access_denied {errno}`,
 `path_too_long`/`bookmark_too_large {bytes,max_bytes}`;
 `file_unavailable {path,cause}` with `cause.kind` `not_found`, `not_a_file`,
@@ -583,9 +584,14 @@ every folder); `folder_unavailable {path,cause}` with `cause.kind`
 `image_does_not_fit {smallest_png_bytes,max_png_bytes}`, `changed`,
 `read_failed {errno}`, `past_end {after_index,size_bytes}`,
 `not_character_boundary {after_index}`, `past_last_page {after_page,page_count}`;
-and `file_too_large {path,content,bytes,max_bytes}`. A missing path outside the
-folders is `outside_folders`, never `not_found`. A helper step unanswered
-within 20 s is `timeout {operation:"files",waited_ms,deadline_ms}`.
+and `file_too_large {path,content,bytes,max_bytes}`. A path written outside
+every folder gets the same `outside_folders` with `resolved:null` whether it
+exists or not; a missing path written inside a folder, in any letter case, is
+`not_found`. A request the helper has not answered within 20 s, both of its
+steps counted from its arrival, is `timeout {operation:"files",waited_ms,deadline_ms}`;
+a helper that restarts mid-request is `read_interrupted` (`helper_restarted`),
+one that is gone `helper_not_running`. A folder removed meanwhile is not read
+or answered from: the request is decided with the folders that remain.
 
 If encoded `device.reply` exceeds 131072 bytes (128 KiB, the outgoing WebSocket
 JSON frame limit), the device sends a replacement with the same `id`/`request_id`

@@ -179,7 +179,14 @@ ERROR_MESSAGES = {
     "folder_unavailable": "Esa carpeta del asistente no se puede abrir ahora.",
     "file_unavailable": "Ese archivo de las carpetas del asistente no se puede leer como se pidió.",
     "file_too_large": "Ese archivo pesa más de lo que Orbit lee de su tipo.",
+    # A folder request that ended without an answer: nothing to check after
+    # it, and no «source» in it.
+    "files_timeout": "El Mac no terminó a tiempo de leer en las carpetas del asistente y no entregó nada. Vuelve a pedirlo.",
+    "files_helper_restarted": "El helper de Orbit se reinició mientras leía en las carpetas del asistente y no entregó nada. Vuelve a pedirlo.",
 }
+
+# The device capabilities of the assistant's folders (`files.py`).
+FILES_CAPABILITIES = frozenset({"files_list", "files_search", "files_read"})
 
 TYPED_PERMISSION_MESSAGES = {
     ("permission_denied", "calendar"): ERROR_MESSAGES["calendar_permission_required"],
@@ -392,6 +399,10 @@ def error_result(
             reason = refusal["cause"].get("kind")
             if isinstance(reason, str):
                 message = ERROR_MESSAGES.get(reason, message)
+            if reason == "helper_restarted" and detail.get("capability") in FILES_CAPABILITIES:
+                message = ERROR_MESSAGES["files_helper_restarted"]
+        if code == "timeout" and detail.get("capability") in FILES_CAPABILITIES:
+            message = ERROR_MESSAGES["files_timeout"]
         if code == "recovering":
             steps = {
                 "chunks": "fragmentos",
