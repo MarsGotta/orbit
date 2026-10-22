@@ -536,6 +536,29 @@ async def test_unnamed_capture_uses_the_speaking_mac_then_connection_then_config
         assert reason in text_of(result)
 
 
+async def test_orbit_mcp_does_not_name_one_agent_to_every_agent(tmp_path):
+    """orbit-mcp serves every agent of the hub, whatever its name: neither its
+    instructions nor the Mac it chose for the turn in progress say «Deimos»."""
+    hub = FakeHub(
+        devices=[
+            {
+                "id": DEVICES[OTHER_DEVICE],
+                "name": OTHER_DEVICE,
+                "paired_at": 1000.0,
+                "connected": True,
+                "last_seen": 1001.0,
+                "assistant_turn_active": True,
+            },
+        ]
+    )
+    async with serving(tmp_path, hub) as (_client, server):
+        result = await server.call_tool("orbit_screenshot", {})
+    assert not result.is_error, text_of(result)
+    assert "turno" in text_of(result)
+    assert "Deimos" not in text_of(result)
+    assert "Deimos" not in (server.instructions or "")
+
+
 async def test_a_changed_window_tells_deimos_to_request_it_again(tmp_path):
     hub = FakeHub(device_replies=[device_refused("", code="window_identity_changed")])
     async with serving(tmp_path, hub) as (_client, server):

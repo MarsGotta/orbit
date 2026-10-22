@@ -59,10 +59,12 @@ from acp.schema import (
     McpServerStdio,
     PermissionOption,
     RequestPermissionResponse,
+    SessionNotification,
     TextContentBlock,
     ToolCallProgress,
     ToolCallStart,
 )
+from pydantic import ValidationError
 
 from ..errors import HubError
 from ..log import clear_op, report
@@ -353,6 +355,11 @@ class _LineTransport:
     The SDK's own transport reads a line of any length; this one stops at
     `MAX_AGENT_MESSAGE_BYTES` (the stream's limit) and ends the connection,
     recording why.
+
+    It also drops a `session/update` the SDK could not read (a kind newer than
+    its schema): the SDK would log the validation error on the root logger,
+    and that error quotes the update, which is what the agent said. Here it is
+    counted by its code alone.
     """
 
     def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
@@ -384,8 +391,15 @@ class _LineTransport:
             except ValueError:
                 report("acp_message_unreadable", "upstream_protocol", exc_info=False)
                 continue
-            if isinstance(message, dict):
-                return message
+            if not isinstance(message, dict):
+                continue
+            if message.get("method") == "session/update" and "id" not in message:
+                try:
+                    SessionNotification.model_validate(message.get("params"))
+                except ValidationError:
+                    report("acp_update_unreadable", "upstream_protocol", exc_info=False)
+                    continue
+            return message
 
     async def close(self) -> None:
         with suppress(OSError, RuntimeError):

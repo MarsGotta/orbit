@@ -176,7 +176,7 @@ class OrbitMCPServer(MCPServer):
 def build_server(config: Config, hub_client: HubClient, *, clock=time.time) -> MCPServer:
     server = OrbitMCPServer(
         name="orbit",
-        instructions="Herramientas privadas de Orbit para el perfil Deimos.",
+        instructions="Herramientas privadas de Orbit.",
     )
     server.hub_client = hub_client
 

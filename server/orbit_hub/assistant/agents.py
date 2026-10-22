@@ -368,7 +368,16 @@ class Agents:
     def owner(self, session: dict) -> str:
         """The id of the agent a stored session belongs to: the one it names,
         or the default agent for a session stored before agents existed."""
-        return session["agent_id"] or self.default.id
+        return self.known(session["agent_id"])
+
+    def known(self, agent_id: str | None) -> str:
+        """The agent an id stored or remembered before means now. None (before
+        agents existed) and `default` (the implicit agent of a hub without
+        `[[agents]]`, unless an entry keeps that id) are the default agent:
+        the guide lists the old profile's agent first under an id of its own."""
+        if agent_id is None or (agent_id == IMPLICIT_AGENT_ID and agent_id not in self.by_id):
+            return self.default.id
+        return agent_id
 
     def public(self) -> list[dict]:
         return [agent.public() for agent in self.by_id.values()]

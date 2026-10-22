@@ -186,9 +186,11 @@ or one of its key files is missing, empty or not `0600`, or an `acp` agent's
 A conversation belongs to the agent it was opened with and keeps it; it stores
 the agent's `id`, so renaming an agent keeps its conversations and changing an
 `id` leaves them with an agent the hub no longer has, which the Mac is told.
-Conversations stored before agents existed belong to the default agent: keep
-the old profile's agent first, or as `default_agent`, so they resume where
-they were kept.
+Conversations stored before agents existed, and those opened with the single
+agent `default` of a hub without `[[agents]]`, belong to the default agent
+(unless an entry keeps the id `default`): keep the old profile's agent first,
+or as `default_agent`, with the same `profile`, so they resume where they were
+kept.
 
 Dictation and read-aloud use the default agent's voice, because neither audio
 request names a conversation: a `hermes` agent's profile; an `openai` agent's

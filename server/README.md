@@ -103,7 +103,9 @@ those belonging to the device, newest first, with
 `GET /v1/sessions/{id}/messages?before=&limit=` returns an ordered page of messages,
 `{id, role, text, at_ms, kind, duration_ms?, client_id?}`, `next` for earlier
 messages, `total` for the count and the conversation's `agent_id`. A conversation
-stored before agents existed belongs to the default agent. `chat.send` to a
+stored before agents existed, or opened with the implicit agent `default` of a hub
+without `[[agents]]`, belongs to the default agent unless an entry keeps the id
+`default`; `chat.send` naming `default` then means that agent too. `chat.send` to a
 conversation with another `agent_id` is `agent_mismatch` (both ids); an unknown
 `agent_id` is `agent_not_found` (with the ids that exist). It first queries IDs and sizes in SQL and
 only decrypts what it returns: up to 200 messages and 512 KiB of JSON, without

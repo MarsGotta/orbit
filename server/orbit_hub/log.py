@@ -113,6 +113,11 @@ def configure() -> None:
     package.addHandler(handler)
     package.propagate = False
     package.setLevel(logging.INFO)
+    # A library logs on the root logger (the ACP SDK's `logging.exception` on
+    # an update it cannot read), and with no handler there Python's last
+    # resort prints the record whole, exception text included: what an agent
+    # said. Through this formatter it is its level and exception class.
+    logging.getLogger().addHandler(handler)
     _configured = True
 
 

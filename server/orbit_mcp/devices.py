@@ -104,7 +104,7 @@ async def device_selection(
                 device.name,
                 device.id,
                 device,
-                notice=f"Se usó «{device.name}»: tiene el turno de Deimos en curso.",
+                notice=f"Se usó «{device.name}»: tiene un turno del asistente en curso.",
             )
         if len(connected) == 1:
             device = connected[0]

@@ -5,6 +5,7 @@ import json
 import math
 from collections.abc import Callable
 from concurrent.futures import Executor
+from contextlib import asynccontextmanager
 from dataclasses import replace
 from functools import partial
 from uuid import uuid4
@@ -109,7 +110,18 @@ class DeviceRuntime:
         # this device; see `request_key`.
         self.pending: dict[str, tuple[str, str, PermissionRequest | ClarificationRequest]] = {}
         self.listeners: set[asyncio.Queue] = set()
+        # Controls (interrupt, approval, clarification) and each commit of a
+        # turn's state hold `lock`: each runs whole, in arrival order.
         self.lock = asyncio.Lock()
+        # Sends are admitted one at a time, in arrival order, as when `lock`
+        # covered admission: from their checks through opening the agent's
+        # connection, its session or its resume, to the commit. A control waits
+        # for the admission of its own conversation (`admitting`), so it still
+        # applies to the turn sent before it, but never for another
+        # conversation's agent to start, open or resume a session (up to minutes
+        # for an ACP agent), which held the socket's read loop that awaits controls.
+        self.admission = asyncio.Lock()
+        self.admitting: dict[str, list[asyncio.Event]] = {}
         self.revoked = False
         self.closed = False
         self.revision = 0
@@ -613,7 +625,7 @@ class DeviceRuntime:
                 future.set_result(status)
             return True
         if self.resuming_ack:
-            # One resume RPC can be in flight under the device runtime lock.
+            # One resume RPC can be in flight under the device's admission lock.
             self.early_resume_progress = (key, status)
             return True
         return False
@@ -782,6 +794,8 @@ class DeviceRuntime:
             except HubError as error:
                 self.log_chat_rejection(error.code, error.numbers)
                 raise
+        for admitted in tuple(self.admitting.get(params.session_id, ())):
+            await admitted.wait()
         async with self.lock:
             if not self.store.is_active(self.device):
                 raise HubError("revoked", "Dispositivo revocado")
@@ -978,14 +992,16 @@ class DeviceRuntime:
     def _turn_agent(self, params, session: dict | None) -> str:
         """The agent a turn goes to: the one it names, or else its session's,
         or else the default; refused before anything reaches an agent."""
-        if params.agent_id is not None:
-            named = self.agents.get(params.agent_id)
+        # A Mac remembers the id it was told, `default` included.
+        asked = None if params.agent_id is None else self.agents.known(params.agent_id)
+        if asked is not None:
+            named = self.agents.get(asked)
             if session is None:
                 return named.id
         if session is None:
             return self.agents.default.id
         owner = self.agents.owner(session)
-        if params.agent_id is not None and params.agent_id != owner:
+        if asked is not None and asked != owner:
             # A conversation is one agent's: its history lives with that agent.
             owner_name = self.agents.by_id[owner].name if owner in self.agents.by_id else owner
             raise HubError(
@@ -997,12 +1013,29 @@ class DeviceRuntime:
         # A conversation whose agent has left the configuration.
         return self.agents.get(owner).id
 
+    @asynccontextmanager
+    async def _admitting(self, session_id: str | None):
+        """One send's admission, after the sends before it; a control on its
+        conversation that arrives meanwhile waits for it (`handle`)."""
+        admitted = asyncio.Event()
+        waiting = [] if session_id is None else self.admitting.setdefault(session_id, [])
+        waiting.append(admitted)
+        try:
+            async with self.admission:
+                yield
+        finally:
+            waiting.remove(admitted)
+            if session_id is not None and not waiting:
+                self.admitting.pop(session_id, None)
+            admitted.set()
+
     async def _chat_send(self, params, request_id: str) -> tuple[str, dict]:
         """Submit one chat turn on an explicit state machine.
 
-        The runtime lock covers admission and commitment, but not history
-        hydration or prompt.submit. A reservation prevents another send to the
-        same session while hydration is pending; controls can still answer.
+        The admission lock covers admission and, without a history to wait
+        for, commitment; the runtime lock covers commitment; neither covers
+        history hydration or prompt.submit. A reservation prevents another send
+        to the same session while hydration is pending; controls can still answer.
         """
         meeting = await self._meeting_turn(params) if params.meeting is not None else None
         # The files the turn names, refused before anything reaches an agent
@@ -1016,7 +1049,7 @@ class DeviceRuntime:
             if params.attachments
             else []
         )
-        async with self.lock:
+        async with self._admitting(params.session_id):
             if not self.store.is_active(self.device):
                 raise HubError("revoked", "Dispositivo revocado")
             session_id = params.session_id
@@ -1098,9 +1131,10 @@ class DeviceRuntime:
                 )
             else:
                 await self.wait_resume_history(agent_id, binding, connection, hydrating)
-                upstream_text = await self._commit_chat_send(
-                    params, request_id, session_id, agent_id, binding, connection, meeting
-                )
+                async with self.lock:
+                    upstream_text = await self._commit_chat_send(
+                        params, request_id, session_id, agent_id, binding, connection, meeting
+                    )
         if needs_wait:
             try:
                 await self.wait_resume_history(agent_id, binding, connection, hydrating)
