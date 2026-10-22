@@ -9,6 +9,8 @@ import { ViewError } from "../../design/ViewError";
 import { es } from "../../i18n/es";
 import { useSpanish } from "../../i18n/AssistantCopy";
 import { AssistantComposer } from "./AssistantComposer";
+import { ConversationTools } from "./ConversationTools";
+import { turnInFlight } from "./conversation";
 import { UnknownAssistant, useAssistantCall } from "./AssistantAvailability";
 import { MessageList } from "./MessageList";
 import { PendingCard } from "./PendingCard";
@@ -138,7 +140,20 @@ function ConversationThread({
         {history.hasOlder && <Button onClick={history.loadOlder}>{es.assistant.loadOlder}</Button>}
         {history.loading && <p role="status">{es.assistant.loadingOlder}</p>}
         {history.error !== null && <p role="alert">{history.error}</p>}
-        <MessageList messages={history.messages} send={send} voiceAudio={chat.voice_audio} />
+        <ConversationTools
+          inFlight={turnInFlight(chat)}
+          messages={history.messages}
+          read={readMessages}
+          sessionId={chat.session_id}
+          turn={chat.turn}
+        />
+        <MessageList
+          busy={turnInFlight(chat)}
+          messages={history.messages}
+          send={send}
+          speaking={chat.speaking ?? null}
+          voiceAudio={chat.voice_audio}
+        />
         <ActivityLine activity={chat.activity} />
         {chat.pending && <PendingCard pending={chat.pending} send={send} />}
       </div>

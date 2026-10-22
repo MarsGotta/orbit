@@ -113,6 +113,7 @@ impl Default for AppSnapshot {
                     too_short: None,
                 },
                 activity: None,
+                speaking: None,
             },
             call: None,
             calendar: CalendarSnapshot {

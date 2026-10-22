@@ -1,0 +1,45 @@
+import { useEffect, useState } from "react";
+import { copyText } from "../../bridge/clipboard";
+import { Button } from "../../design/Button";
+import { es } from "../../i18n/es";
+
+// «Copiado» stays long enough to be read after the click, then the button
+// says «Copiar» again.
+const COPIED_VISIBLE_MS = 2_000;
+
+type CopyState = { kind: "idle" } | { kind: "copied" } | { kind: "failed"; cause: string };
+
+/** Copies to the clipboard and says how it went: «Copiado», or why not. */
+export function useCopy() {
+  const [state, setState] = useState<CopyState>({ kind: "idle" });
+  useEffect(() => {
+    if (state.kind !== "copied") return;
+    const timer = setTimeout(() => setState({ kind: "idle" }), COPIED_VISIBLE_MS);
+    return () => clearTimeout(timer);
+  }, [state]);
+  const copy = (text: string) =>
+    copyText(text).then(
+      () => setState({ kind: "copied" }),
+      (error: unknown) => setState({ kind: "failed", cause: String(error) }),
+    );
+  return { copy, state, setState };
+}
+
+export function copyStatus(state: CopyState): string | null {
+  if (state.kind === "failed") return es.chatActions.copyFailed(state.cause);
+  return null;
+}
+
+/** A «Copiar» button named for what it copies. */
+export function CopyButton({ label, text }: { label: string; text: () => string }) {
+  const { copy, state } = useCopy();
+  const failure = copyStatus(state);
+  return (
+    <>
+      <Button aria-label={label} onClick={() => void copy(text())} size={26} variant="ghost">
+        {state.kind === "copied" ? es.chatActions.copied : es.chatActions.copy}
+      </Button>
+      {failure !== null && <span role="alert">{failure}</span>}
+    </>
+  );
+}

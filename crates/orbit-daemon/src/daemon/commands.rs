@@ -297,6 +297,8 @@ impl Runtime {
             Command::VoiceRetry { message_id } => {
                 self.retry_voice_transcription(message_id).await?
             }
+            Command::Speak { message_id, text } => self.speak(message_id, text)?,
+            Command::SpeakStop => self.stop_speaking().await?,
             Command::VoiceNoteAudio { .. } => {}
             Command::CallStart { duration_minutes } => {
                 self.apply(Event::CallStart {

@@ -60,6 +60,8 @@ impl Runtime {
                     .speech_task
                     .settle(&ticket, self.state.generation());
                 if self.settled_value("speech", settlement).is_some() {
+                    // The clip never reached the helper: nothing is being read.
+                    self.conversation.read_aloud = None;
                     self.on_work_problem(message).await?;
                 }
             }
@@ -71,6 +73,7 @@ impl Runtime {
                 if self.settled_value("speech", settlement).is_some() {
                     self.conversation.speech_available = Some(available);
                     if !available {
+                        self.conversation.read_aloud = None;
                         self.on_work_problem(
                             crate::speech::SpeechUnavailable {
                                 assistant_name: self.settings.assistant_name().into(),

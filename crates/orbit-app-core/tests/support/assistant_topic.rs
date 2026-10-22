@@ -23,6 +23,7 @@ pub fn assistant_value() -> Value {
         voice: VoiceAvailability::Unknown {
             why: Pending::NotObservedYet,
         },
+        speaking: None,
         call: Knowledge::Unknown {
             why: Pending::NotObservedYet,
         },

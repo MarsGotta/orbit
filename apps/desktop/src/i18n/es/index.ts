@@ -7,6 +7,7 @@ import { recording } from "./recording";
 import { agenda } from "./agenda";
 import { notes } from "./notes";
 import { assistantCopy } from "./assistant";
+import { chatActions } from "./chatActions";
 import { errors } from "./errors";
 
 import { noteScreenCopy } from "./noteScreen";
@@ -27,6 +28,7 @@ export function spanish(assistantName = "Deimos") {
     ...agenda,
     ...notes,
     ...assistantCopy(assistantName),
+    ...chatActions,
     ...errors,
     ...noteScreenCopy(assistantName),
     ...library,

@@ -35,6 +35,8 @@ fn the_turn_and_approval_are_projected_without_assuming_unknown_roles() {
         voice: assistant::VoiceAvailability::Unknown {
             why: Pending::NotObservedYet,
         },
+        // «Escuchar» on the answer: the screen shows «Parar» on it.
+        speaking: Some("2".into()),
         call: Knowledge::Unknown {
             why: Pending::NotObservedYet,
         },
@@ -60,6 +62,7 @@ fn the_turn_and_approval_are_projected_without_assuming_unknown_roles() {
         Some("atlas"),
         "the conversation's agent"
     );
+    assert_eq!(chat.speaking.as_deref(), Some("2"));
     assert!(chat.turn.iter().any(|message| message.streaming));
     assert_eq!(chat.turn[0].role, ChatRole::User);
     assert_eq!(chat.turn[0].at_ms, 0);

@@ -7,7 +7,9 @@ import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { mmss } from "../../time-format";
 import { es } from "../../i18n/es";
-import { MarkdownView } from "../notes/MarkdownView";
+import { AssistantAnswer } from "./AssistantAnswer";
+import { retryText } from "./conversation-markdown";
+import { UserText } from "./UserText";
 import styles from "./AssistantView.module.css";
 
 interface VoiceNoteProps {
@@ -116,12 +118,23 @@ function VoiceNote({ audio, messageId, send, voice }: VoiceNoteProps) {
   );
 }
 
+interface Answering {
+  /** A turn is in flight: «Reintentar» waits for it. */
+  busy?: boolean;
+  /** The answer being read aloud, by its message id. */
+  speaking?: string | null;
+}
+
 function Message({
+  answering,
   message,
+  retry,
   send,
   voiceAudio,
 }: {
+  answering: Answering;
   message: ChatMessage;
+  retry: string | null;
   send: VoiceNoteProps["send"];
   voiceAudio?: VoiceNoteAudioSnapshot;
 }) {
@@ -139,9 +152,15 @@ function Message({
           />
         ) : assistant ? (
           // Deimos answers in Markdown; the user's own text stays as they wrote it.
-          <MarkdownView source={message.text} />
+          <AssistantAnswer
+            busy={answering.busy ?? false}
+            message={message}
+            retry={retry}
+            send={send}
+            speaking={answering.speaking ?? null}
+          />
         ) : (
-          <p>{message.text}</p>
+          <UserText text={message.text} />
         )}
         {message.streaming && <span aria-hidden="true" className={styles.cursor} />}
         {message.receipts.length > 0 && (
@@ -165,13 +184,21 @@ export function MessageList({
   messages,
   send,
   voiceAudio,
+  ...answering
 }: {
   messages: ChatMessage[];
   send: VoiceNoteProps["send"];
   voiceAudio?: VoiceNoteAudioSnapshot;
-}) {
+} & Answering) {
   if (messages.length === 0) return <p className={styles.empty}>{es.chat.empty}</p>;
-  return messages.map((message) => (
-    <Message key={message.id} message={message} send={send} voiceAudio={voiceAudio} />
+  return messages.map((message, index) => (
+    <Message
+      answering={answering}
+      key={message.id}
+      message={message}
+      retry={message.role === "assistant" ? retryText(messages, index) : null}
+      send={send}
+      voiceAudio={voiceAudio}
+    />
   ));
 }

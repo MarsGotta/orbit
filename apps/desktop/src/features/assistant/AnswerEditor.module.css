@@ -1,0 +1,65 @@
+.backdrop {
+  position: fixed;
+  z-index: 75;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--o-overlay);
+  backdrop-filter: blur(10px);
+}
+
+.dialog {
+  display: flex;
+  width: min(760px, 100%);
+  max-height: 100%;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--o-line-strong);
+  border-radius: var(--o-radius-20);
+  background: var(--o-s2);
+  box-shadow: 0 24px 64px var(--o-shadow-strong);
+}
+
+.dialog h2 {
+  margin: 0;
+  font-family: var(--o-font-display);
+  font-size: var(--o-font-19);
+}
+
+.frame {
+  min-height: 0;
+  overflow: auto;
+}
+
+.frame pre {
+  padding: 10px 12px;
+  border-radius: var(--o-radius-10);
+  background: var(--o-bg);
+  font-family: var(--o-font-mono);
+  font-size: var(--o-font-12-5);
+  overflow-x: auto;
+}
+
+.frame table {
+  border-collapse: collapse;
+}
+
+.frame th,
+.frame td {
+  padding: 4px 8px;
+  border: 1px solid var(--o-line);
+}
+
+.frame blockquote {
+  margin: 0 0 8px;
+  padding-left: 12px;
+  border-left: 2px solid var(--o-line-strong);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

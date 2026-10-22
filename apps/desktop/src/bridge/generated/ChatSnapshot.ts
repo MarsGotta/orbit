@@ -24,4 +24,9 @@ turn: Array<ChatMessage>,
 /**
  * The last voice note the user asked to hear, once its audio arrived.
  */
-voice_audio?: VoiceNoteAudioSnapshot, pending: ChatPending | null, voice: VoiceSnapshot, activity?: AssistantActivity, };
+voice_audio?: VoiceNoteAudioSnapshot, pending: ChatPending | null, voice: VoiceSnapshot, activity?: AssistantActivity, 
+/**
+ * The answer being read aloud («Escuchar»), by its message id,
+ * until the Mac's speaker has played it or the user stopped it.
+ */
+speaking?: string, };

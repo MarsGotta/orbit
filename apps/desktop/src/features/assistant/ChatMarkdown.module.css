@@ -1,0 +1,141 @@
+.markdown {
+  font-size: var(--o-font-14-5);
+  line-height: 1.65;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown p,
+.markdown ul,
+.markdown ol,
+.markdown blockquote {
+  margin: 0 0 10px;
+}
+
+.markdown ul,
+.markdown ol {
+  padding-left: 20px;
+}
+
+.markdown li + li {
+  margin-top: 4px;
+}
+
+.markdown li:has(> input[type="checkbox"]) {
+  list-style: none;
+}
+
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  margin: 14px 0 6px;
+  font-size: var(--o-font-14-5);
+  font-weight: 600;
+}
+
+.markdown blockquote {
+  padding-left: 12px;
+  border-left: 2px solid var(--o-line-strong);
+  color: var(--o-muted);
+}
+
+.markdown hr {
+  margin: 14px 0;
+  border: 0;
+  border-top: 1px solid var(--o-line);
+}
+
+.markdown :not(pre) > code {
+  padding: 1px 5px;
+  border-radius: var(--o-radius-5);
+  background: var(--o-s3);
+  font-family: var(--o-font-mono);
+  font-size: 0.88em;
+}
+
+.markdown a {
+  color: var(--o-accent-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown .chip {
+  display: inline-flex;
+  padding: 0 8px;
+  border-radius: var(--o-radius-pill);
+  background: var(--o-accent-soft);
+  text-decoration: none;
+}
+
+.code {
+  margin: 0 0 10px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-10);
+  background: var(--o-bg);
+  overflow: hidden;
+}
+
+.code figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 2px 12px;
+  border-bottom: 1px solid var(--o-line);
+  color: var(--o-subtle);
+  font-family: var(--o-font-mono);
+  font-size: var(--o-font-11);
+}
+
+.code pre {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  font-family: var(--o-font-mono);
+  font-size: var(--o-font-12-5);
+  line-height: 1.55;
+}
+
+/* Shiki gives each piece both themes' colours; the app's theme picks one. */
+.code pre span[style] {
+  color: var(--shiki-dark);
+}
+
+:global(.o-light) .code pre span[style] {
+  color: var(--shiki-light);
+}
+
+.table {
+  margin: 0 0 10px;
+}
+
+.table > [data-scroll="x"] {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.table table {
+  border-collapse: collapse;
+  font-size: var(--o-font-13);
+}
+
+.table th,
+.table td {
+  padding: 5px 10px;
+  border: 1px solid var(--o-line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table th {
+  background: var(--o-s2);
+  font-weight: 600;
+}

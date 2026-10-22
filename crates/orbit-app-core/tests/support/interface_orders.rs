@@ -196,6 +196,11 @@ pub fn cases() -> Vec<(Value, FeatureId)> {
             FeatureId::Assistant,
         ),
         (
+            json!({"command":"speak","message_id":"answer-1","text":"Texto"}),
+            FeatureId::Assistant,
+        ),
+        (json!({"command":"speak_stop"}), FeatureId::Assistant),
+        (
             json!({"command":"voice_note_audio","message_id":"message-1"}),
             FeatureId::Assistant,
         ),

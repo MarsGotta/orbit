@@ -141,6 +141,7 @@ impl Runtime {
                     let decoded: orbit_core::wire::native::NativeEvent =
                         serde_json::from_value(event)?;
                     let orbit_core::wire::native::NativeEvent::PlaybackProgress {
+                        playback_id,
                         state,
                         playback_active,
                         ..
@@ -154,6 +155,9 @@ impl Runtime {
                         "cancelled" => "cancelled",
                         _ => "unrecognized_state",
                     };
+                    if matches!(state, "played" | "cancelled") {
+                        self.playback_ended(&playback_id);
+                    }
                     self.log(
                         "native_playback_progress",
                         &[
@@ -184,6 +188,8 @@ impl Runtime {
             self.capture.retired_stops.clear();
         }
         self.state = decide(&self.state, Event::HelperReady, now())?.state;
+        // A new helper plays nothing the old one was playing.
+        self.conversation.read_aloud = None;
         // A new helper says where its «Oye Deimos» detector is after `ready`,
         // and listens on nothing until asked again.
         self.voice_trigger_unknown();

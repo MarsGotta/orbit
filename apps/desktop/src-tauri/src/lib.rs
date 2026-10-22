@@ -17,6 +17,8 @@ use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 pub fn run() -> anyhow::Result<()> {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        // The chat's «Copiar» writes text only; its capability allows nothing else.
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             None,

@@ -21,6 +21,7 @@ fn assistant_value(active: &str) -> orbit_core::topics::assistant::Value {
         voice: VoiceAvailability::Unknown {
             why: Pending::NotObservedYet,
         },
+        speaking: None,
         call: Knowledge::Unknown {
             why: Pending::NotObservedYet,
         },

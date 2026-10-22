@@ -190,6 +190,16 @@ pub enum Command {
     VoiceRetry {
         message_id: String,
     },
+    /// «Escuchar» on an answer: the hub's voice reads `text`, the answer
+    /// `message_id` as shown, through the Mac's speaker. One at a time: a new
+    /// one replaces what is being read.
+    Speak {
+        message_id: String,
+        text: String,
+    },
+    /// «Parar»: the answer being read aloud stops. Nothing being read is
+    /// not an error.
+    SpeakStop,
     #[cfg_attr(feature = "ts", ts(skip))]
     VoiceNoteAudio {
         message_id: String,
@@ -263,6 +273,8 @@ impl Command {
             | Self::VoiceEnd
             | Self::VoiceCancel
             | Self::VoiceRetry { .. }
+            | Self::Speak { .. }
+            | Self::SpeakStop
             | Self::VoiceNoteAudio { .. }
             | Self::CallStart { .. }
             | Self::CallStop

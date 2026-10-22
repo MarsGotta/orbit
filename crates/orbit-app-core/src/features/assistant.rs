@@ -28,6 +28,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
             too_short: None,
         },
         activity: None,
+        speaking: None,
     };
     let Some(cell) = input.topics.topic(TopicId::Assistant) else {
         return view;
@@ -60,6 +61,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
     });
     view.session_id = value.session_id.clone();
     view.agent_id = value.agent_id.clone();
+    view.speaking = value.speaking.clone();
     view.turn = value
         .turn
         .iter()

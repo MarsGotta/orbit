@@ -37,6 +37,8 @@ commands are available to the app; unknown or repeated fields remain invalid:
 {"command":"session_open","id":"Orbit-session-id"}
 {"command":"transcript_retry","recording_id":"11111111-1111-4111-8111-111111111111"}
 {"command":"voice_note_audio","message_id":"30000000-0000-4000-8000-000000000003"}
+{"command":"speak","message_id":"30000000-0000-4000-8000-000000000004","text":"Texto de la respuesta"}
+{"command":"speak_stop"}
 ```
 
 `pair`/`setup` validate the hub origin and restart only the daemon's hub
@@ -46,6 +48,13 @@ that command as unknown. `session_open` changes the selected conversation withou
 disturbing the engine or its activity. Messages are read later through
 `session_messages` from the hub. `transcript_retry` publishes `requeued` in
 the transcript detail. Retired `activity`/`activity_revert` are unknown commands.
+
+`speak` («Escuchar» on an answer) fetches `text` through `POST /v1/audio/speech`
+and plays it on the Mac; a new one replaces the one being read. The assistant
+topic names the answer as `speaking` until the helper reports that playback
+played or cancelled, or `speak_stop` stops it. It is refused with its cause
+while privacy is stopped, without the helper, unpaired, during a recording or
+a call, or for empty text or text over 32 KiB (`text_length` with both sizes).
 
 `voice_note_audio` is local-only. The daemon finds the encrypted WAV recording
 bound to `message_id` and replies outside `State` with additive envelope fields:

@@ -43,6 +43,10 @@ pub struct Value {
     pub turn_in_flight: bool,
     pub activity: Option<Activity>,
     pub voice: VoiceAvailability,
+    /// The answer being read aloud at the user's request («Escuchar»), by
+    /// its message id, from the order until the helper says it ended.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub speaking: Option<String>,
     #[serde(default = "unknown_call")]
     pub call: Knowledge<Option<crate::voice::CallState>>,
     /// The last voice note not sent for being too short, with its numbers.

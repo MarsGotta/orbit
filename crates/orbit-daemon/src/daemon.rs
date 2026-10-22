@@ -829,6 +829,8 @@ struct ConversationRuntime {
     speech_available: Option<bool>,
     speak_next: bool,
     speech_notice_call_id: Option<String>,
+    /// The answer the user asked to hear («Escuchar»), while it plays.
+    read_aloud: Option<speech::ReadAloud>,
 }
 
 struct CaptureRuntime {
@@ -1130,6 +1132,7 @@ async fn run_with_helper_inner(
             speech_task: ticketed::Ticketed::logical(),
             speech_available: None,
             speak_next: false,
+            read_aloud: None,
             speech_notice_call_id: None,
         },
         capture: CaptureRuntime {

@@ -48,6 +48,8 @@ export const commandFeature = {
   "rearm": "status",
   "recording_keep": "recording",
   "session_open": "assistant",
+  "speak": "assistant",
+  "speak_stop": "assistant",
   "speaker_rename": "note",
   "transcript_retranscribe": "note",
   "transcript_retry": "note",

@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from "react";
+import { useCallback, useRef, useState, type KeyboardEvent } from "react";
 import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
 import type { HubLinkConnection } from "../../bridge/generated/HubLinkConnection";
 import { Button } from "../../design/Button";
@@ -7,6 +7,7 @@ import { TextLink } from "../../design/TextLink";
 import { es } from "../../i18n/es";
 import { mmss } from "../../time-format";
 import { useVoiceNote, type VoiceSend } from "./useVoiceNote";
+import { useComposerInsert } from "./composer-insert";
 import styles from "./AssistantView.module.css";
 
 interface ComposerProps {
@@ -26,6 +27,13 @@ interface ComposerProps {
 
 function useComposer({ chat, daemonReady, hub, paired, send, voiceUnknown }: ComposerProps) {
   const [draft, setDraft] = useState("");
+  const box = useRef<HTMLTextAreaElement>(null);
+  // «Responder a esto» quotes a fragment after what is already written.
+  const insert = useCallback((text: string) => {
+    setDraft((written) => (written.trim() === "" ? text : `${written.trimEnd()}\n\n${text}`));
+    box.current?.focus();
+  }, []);
+  useComposerInsert(insert);
   const disabled = !daemonReady || !paired || hub !== "online";
   const voice = useVoiceNote({
     canStart: !disabled && voiceUnknown !== true,
@@ -45,7 +53,7 @@ function useComposer({ chat, daemonReady, hub, paired, send, voiceUnknown }: Com
       submit();
     }
   };
-  return { disabled, draft, keyDown, setDraft, submit, voice };
+  return { box, disabled, draft, keyDown, setDraft, submit, voice };
 }
 
 type Controls = ReturnType<typeof useComposer>;
@@ -161,6 +169,7 @@ export function AssistantComposer(props: ComposerProps) {
           onChange={(event) => controls.setDraft(event.target.value)}
           onKeyDown={controls.keyDown}
           placeholder={es.assistant.composerPlaceholder}
+          ref={controls.box}
           rows={2}
           value={controls.draft}
         />

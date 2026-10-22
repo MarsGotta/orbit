@@ -114,6 +114,7 @@ pub(in crate::daemon) fn fixture(
                 speech_task: crate::daemon::ticketed::Ticketed::logical(),
                 speech_available: None,
                 speak_next: false,
+                read_aloud: None,
                 speech_notice_call_id: None,
             },
             capture: CaptureRuntime {

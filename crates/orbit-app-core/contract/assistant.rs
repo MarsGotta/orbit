@@ -173,6 +173,11 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub activity: Option<AssistantActivity>,
+        /// The answer being read aloud («Escuchar»), by its message id,
+        /// until the Mac's speaker has played it or the user stopped it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub speaking: Option<String>,
     }
 }
 

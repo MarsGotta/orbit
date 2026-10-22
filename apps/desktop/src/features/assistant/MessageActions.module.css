@@ -1,0 +1,21 @@
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: 8px -6px -6px;
+  color: var(--o-muted);
+}
+
+.actions[data-align="end"] {
+  justify-content: flex-end;
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--o-muted);
+  font-size: var(--o-font-12);
+}

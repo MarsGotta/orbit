@@ -34,6 +34,13 @@ impl ProjectTopic for Projector {
                     why: Pending::NotObservedYet,
                 },
             },
+            speaking: source.runtime.and_then(|runtime| {
+                runtime
+                    .conversation
+                    .read_aloud
+                    .as_ref()
+                    .map(|read| read.message_id.clone())
+            }),
             call: Knowledge::Present {
                 value: state.durable.call.clone(),
                 as_of_ms: None,
