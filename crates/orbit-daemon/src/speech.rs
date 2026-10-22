@@ -12,17 +12,32 @@ use tokio::sync::mpsc;
 
 const MAX_SPEECH_CLIP_BYTES: usize = orbit_core::limits::MAX_SPEECH_CLIP_BYTES;
 
+/// The hub could not give the voice of the agent asked for. True of any
+/// kind of agent: the hub names the cause in its own refusal.
 #[derive(Debug, thiserror::Error)]
-#[error("{assistant_name} no tiene voz configurada en Hermes; contesta por texto")]
+#[error("La voz de {agent_name} no está disponible; contesta por texto")]
 pub struct SpeechUnavailable {
-    pub assistant_name: String,
+    pub agent_name: String,
 }
 
+/// The name the user knows `agent_id` by; no id is the default agent.
+pub fn agent_name(settings: &Settings, agent_id: Option<&str>) -> String {
+    let roster = settings.roster();
+    agent_id
+        .and_then(|id| roster.agent(id))
+        .map_or(roster.default_name(), |agent| agent.name.as_str())
+        .to_owned()
+}
+
+/// Reads `text` in the voice of `agent_id` (hub-v1 `POST /v1/audio/speech`);
+/// `None`, the hub's default agent, for a hub that lists no agents.
+#[allow(clippy::too_many_arguments)]
 pub async fn play(
     settings: Settings,
     token: String,
     development: bool,
     text: String,
+    agent_id: Option<String>,
     playback_id: String,
     native_tx: mpsc::Sender<Value>,
     op: orbit_core::notice::Op,
@@ -40,7 +55,10 @@ pub async fn play(
         Some(&token),
         &op,
     )?
-    .json(&json!({"text":text}))
+    .json(&match &agent_id {
+        Some(agent_id) => json!({"text": text, "agent_id": agent_id}),
+        None => json!({"text": text}),
+    })
     .send()
     .await?;
     if !response.status().is_success() {
@@ -52,12 +70,9 @@ pub async fn play(
         match code.as_deref() {
             Some("speech_unavailable") => {
                 return Err(SpeechUnavailable {
-                    assistant_name: settings.assistant_name().into(),
+                    agent_name: agent_name(&settings, agent_id.as_deref()),
                 }
                 .into());
-            }
-            Some("speech_format") => {
-                bail!("La voz de Hermes no llega en el formato esperado")
             }
             Some(code) => {
                 bail!("Voz no disponible ({status}, {code}); el texto se conserva")

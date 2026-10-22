@@ -362,3 +362,129 @@ async fn a_question_without_a_name_stays_in_the_open_conversation() -> Result<()
     assert_eq!(params["session_id"], SESSION);
     Ok(())
 }
+
+/// What a hub says when its default agent has no voice and the other has one.
+fn a_voice_beside_the_default() -> Value {
+    json!({"event":"ready", "data": {
+        "device_id": DEVICE, "hub_protocol": 1, "assistant_name": "Vega",
+        "agents": [
+            {"id":"vega","name":"Vega","kind":"acp","capabilities":["resume"]},
+            {"id":"atlas","name":"Atlas","kind":"hermes","capabilities":["voice","resume"]}
+        ],
+        "default_agent_id": "vega"
+    }})
+}
+
+/// Arms one read-aloud request against a one-shot hub that refuses it as a
+/// voice that did not arrive, and returns where its request is recorded.
+async fn speech_hub(
+    runtime: &mut Runtime,
+) -> Result<(
+    std::sync::Arc<std::sync::Mutex<Option<super::pairing_session_tests::HttpRequest>>>,
+    mpsc::Receiver<WorkResult>,
+)> {
+    let (base, seen) =
+        super::pairing_session_tests::one_shot_http(super::pairing_session_tests::json_response(
+            "400 Bad Request",
+            r#"{"code":"speech_unavailable"}"#,
+        ))
+        .await?;
+    runtime.settings.hub_url = Some(base.to_string());
+    runtime.token = Some("synthetic-not-a-credential-agents".into());
+    crate::daemon::authority_fixture::set(
+        &mut runtime.state,
+        "capabilities.native_helper",
+        json!(true),
+    );
+    let (work, work_events) = mpsc::channel(16);
+    runtime.work.work_events = work;
+    Ok((seen, work_events))
+}
+
+/// The body of the read-aloud request, once its work has come back and the
+/// runtime has taken it. A stall guard, not a budget.
+async fn speech_request(
+    runtime: &mut Runtime,
+    seen: &std::sync::Arc<std::sync::Mutex<Option<super::pairing_session_tests::HttpRequest>>>,
+    work_events: &mut mpsc::Receiver<WorkResult>,
+) -> Result<Value> {
+    let completed = tokio::time::timeout(std::time::Duration::from_secs(10), work_events.recv())
+        .await?
+        .context("the speech work did not arrive")?;
+    runtime.work_event(completed).await?;
+    let request = super::pairing_session_tests::recorded(seen)?;
+    assert!(
+        request.start_line.starts_with("POST /v1/audio/speech "),
+        "{}",
+        request.start_line
+    );
+    Ok(serde_json::from_str(&request.body)?)
+}
+
+/// «Escuchar» on an answer of a conversation with Atlas is read in Atlas's
+/// voice, though the default agent has none.
+#[tokio::test]
+async fn read_aloud_names_the_agent_of_the_open_conversation() -> Result<()> {
+    let (_directory, mut runtime, _hub, _helper) = with_hub()?;
+    ready(&mut runtime, a_voice_beside_the_default()).await?;
+    runtime
+        .command(Command::SessionOpen {
+            id: SESSION.into(),
+            agent_id: Some("atlas".into()),
+        })
+        .await?;
+    let (seen, mut work_events) = speech_hub(&mut runtime).await?;
+    runtime
+        .command(Command::Speak {
+            message_id: "answer-atlas".into(),
+            text: "Respuesta sintética".into(),
+        })
+        .await?;
+    let body = speech_request(&mut runtime, &seen, &mut work_events).await?;
+    assert_eq!(
+        body,
+        json!({"text": "Respuesta sintética", "agent_id": "atlas"})
+    );
+    Ok(())
+}
+
+/// A spoken reply (a call's, or a turn asked by voice) is read in the voice
+/// of the agent the turn was for.
+#[tokio::test]
+async fn a_spoken_reply_names_the_agent_of_its_turn() -> Result<()> {
+    let (_directory, mut runtime, mut hub_frames, _helper) = with_hub()?;
+    ready(&mut runtime, a_voice_beside_the_default()).await?;
+    runtime
+        .command(Command::NewSession {
+            agent_id: Some("atlas".into()),
+        })
+        .await?;
+    let (seen, mut work_events) = speech_hub(&mut runtime).await?;
+    runtime.conversation.speak_next = true;
+    let params = ask(&mut runtime, &mut hub_frames).await?;
+    assert_eq!(params["agent_id"], "atlas");
+    let body = speech_request(&mut runtime, &seen, &mut work_events).await?;
+    assert_eq!(body, json!({"text": "hecho", "agent_id": "atlas"}));
+    Ok(())
+}
+
+/// A hub that lists no agents (0.9.0) has one voice, and the request names none.
+#[tokio::test]
+async fn read_aloud_to_a_hub_without_agents_names_none() -> Result<()> {
+    let (_directory, mut runtime, _hub, _helper) = with_hub()?;
+    ready(
+        &mut runtime,
+        json!({"event":"ready", "data": {"device_id": DEVICE, "hub_protocol": 1}}),
+    )
+    .await?;
+    let (seen, mut work_events) = speech_hub(&mut runtime).await?;
+    runtime
+        .command(Command::Speak {
+            message_id: "answer-default".into(),
+            text: "Respuesta sintética".into(),
+        })
+        .await?;
+    let body = speech_request(&mut runtime, &seen, &mut work_events).await?;
+    assert_eq!(body, json!({"text": "Respuesta sintética"}));
+    Ok(())
+}

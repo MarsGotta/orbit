@@ -66,6 +66,7 @@ async fn clip_becomes_one_bounded_playback_clip_command() -> Result<()> {
         TOKEN.into(),
         true,
         "respuesta sintética".into(),
+        None,
         "playback-speech".into(),
         native,
         orbit_ipc::new_op(),

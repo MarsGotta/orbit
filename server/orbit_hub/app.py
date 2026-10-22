@@ -129,8 +129,8 @@ def create_app(
     configs = AgentConfigStore(store)
     agents = Agents.from_settings(settings, assistant, speech, configs)
     access = AgentAccess(agents, configs)
-    # Dictation and read-aloud are the default agent's: neither route names a
-    # conversation (contracts/hub-v1.md), so neither can name its agent.
+    # Dictation is the default agent's: it is input for any agent, and the
+    # route names none (contracts/hub-v1.md).
     speech = agents.default.speech
     runtimes: dict[str, DeviceRuntime] = {}
     turn_inputs = TurnInputTracker(now)
@@ -418,7 +418,7 @@ def create_app(
         bounded_body,
         validate_wav,
         settings,
-        agents.default,
+        agents,
         transcriptions,
         turn_inputs,
     )

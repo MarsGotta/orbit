@@ -63,12 +63,14 @@ disturbing the engine or its activity. Messages are read later through
 `session_messages` from the hub. `transcript_retry` publishes `requeued` in
 the transcript detail. Retired `activity`/`activity_revert` are unknown commands.
 
-`speak` («Escuchar» on an answer) fetches `text` through `POST /v1/audio/speech`
-and plays it on the Mac; a new one replaces the one being read. The assistant
-topic names the answer as `speaking` until the helper reports that playback
-played or cancelled, or `speak_stop` stops it. It is refused with its cause
-while privacy is stopped, without the helper, unpaired, during a recording or
-a call, or for empty text or text over 32 KiB (`text_length` with both sizes).
+`speak` («Escuchar» on an answer) fetches `text` through `POST /v1/audio/speech`,
+in the voice of the open conversation's agent (the default agent's when it
+has none of its own), and plays it on the Mac; a new
+one replaces the one being read. The assistant topic names the answer as
+`speaking` until the helper reports that playback played or cancelled, or
+`speak_stop` stops it. It is refused with its cause while privacy is stopped,
+without the helper, unpaired, during a recording or a call, or for empty text
+or text over 32 KiB (`text_length` with both sizes).
 
 `voice_note_audio` is local-only. The daemon finds the encrypted WAV recording
 bound to `message_id` and replies outside `State` with additive envelope fields:
@@ -316,15 +318,23 @@ instead of shipping a capability that refuses every call, as `calendar_read`
 did throughout 0.3.11.
 
 `POST /v1/audio/transcribe` accepts bounded WAV binary, returns `{text}`.
-`POST /v1/audio/speech` accepts `{text}` and returns the complete Hermes clip
+`POST /v1/audio/speech` accepts `{text, agent_id?}` and returns the complete clip
 (at most 4 MiB), retaining `Content-Type` and declaring
 `X-Orbit-Speech-Kind: clip`/`X-Orbit-Speech-Provider`. Failures yield
 `speech_unavailable`; oversize yields `speech_too_large` with `bytes` and
 `max_bytes` (the 4 MiB clip, or Hermes's 6 MiB answer around it). The server profile
-selects voice, format and provider; credentials stay server-side. Both routes
-use the default agent's voice, since neither names a conversation. An agent
-without one (`voice` absent from its `capabilities` in `ready`) yields `503
-speech_not_configured` with `agent_id` among the refusal's numbers.
+selects voice, format and provider; credentials stay server-side. Read-aloud
+uses the voice of the agent `agent_id` names (one of `ready.agents`): the Mac
+sends the open conversation's agent, for «Escuchar» and for spoken replies,
+to a hub that listed its agents. Without the field (a 0.9.0 Mac) it is the
+default agent's voice. An unknown id yields `404 agent_not_found` with
+`agent_id` and `agent_ids`. Dictation (`/v1/audio/transcribe`) stays the
+default agent's: it is the user's input to whichever agent they talk to, not
+an agent's voice, and an agent of kind `acp` has none of its own. An agent
+without a voice of its own (`voice` absent from its `capabilities` in `ready`)
+is read aloud in the default agent's voice. When neither has one, read-aloud
+yields `503 speech_not_configured` naming the agent asked for (`agent_id` among
+the refusal's numbers), and dictation the same for the default agent.
 
 ## Private meetings for the assistant
 

@@ -112,6 +112,8 @@ impl Runtime {
         let native_tx = self.native.clone();
         let events = self.work.work_events.clone();
         let generation = self.state.generation();
+        // The voice of the agent the answer is from: the open conversation's.
+        let agent_id = self.turn_agent_id();
         // A replay request does not erase a known capability. The worker's
         // result may update it; until then the last observed fact still holds.
         self.conversation.speech_task.replace_logical(
@@ -125,6 +127,7 @@ impl Runtime {
                         token,
                         development,
                         text,
+                        agent_id,
                         playback_id,
                         native_tx,
                         ticket.op().clone(),

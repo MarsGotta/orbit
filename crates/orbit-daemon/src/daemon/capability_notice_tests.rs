@@ -9,7 +9,7 @@ use orbit_core::{CallPhase, CallState, Event};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 pub(super) const TOKEN: &str = "synthetic-not-a-credential-voice";
-const SPEECH_NOTICE: &str = "Deimos no tiene voz configurada en Hermes; contesta por texto";
+const SPEECH_NOTICE: &str = "La voz de Deimos no está disponible; contesta por texto";
 
 pub(super) fn frame(stream: &str, frames: usize) -> Value {
     json!({"event":"audio", "source":"mic_local", "stream_id":stream,
@@ -335,6 +335,7 @@ async fn speech_unavailable_is_specific_and_once_per_call() -> Result<()> {
         TOKEN.into(),
         true,
         "respuesta sintética".into(),
+        None,
         "playback-synthetic".into(),
         native,
         orbit_ipc::new_op(),
@@ -470,6 +471,7 @@ async fn speech_unavailable_names_the_configured_assistant() -> Result<()> {
         TOKEN.into(),
         true,
         "Respuesta".into(),
+        None,
         "fixture-playback".into(),
         native,
         orbit_ipc::new_op(),
@@ -478,7 +480,54 @@ async fn speech_unavailable_names_the_configured_assistant() -> Result<()> {
     .unwrap_err();
     assert_eq!(
         error.to_string(),
-        "Atlas no tiene voz configurada en Hermes; contesta por texto"
+        "La voz de Atlas no está disponible; contesta por texto"
+    );
+    Ok(())
+}
+
+/// With several agents, the notice names the one whose voice was asked
+/// for, not the default one.
+#[tokio::test]
+async fn speech_unavailable_names_the_agent_asked_for() -> Result<()> {
+    let base = one_shot_http(json_response(
+        "400 Bad Request",
+        "{\"code\":\"speech_unavailable\"}",
+    ))
+    .await?;
+    let mut settings = crate::config::Settings {
+        hub_url: Some(base.to_string()),
+        ..crate::config::Settings::default()
+    };
+    settings.hub_agents = orbit_core::agents::AgentRoster::admit(
+        vec![
+            orbit_core::agents::Agent {
+                id: "vega".into(),
+                name: "Vega".into(),
+            },
+            orbit_core::agents::Agent {
+                id: "atlas".into(),
+                name: "Atlas".into(),
+            },
+        ],
+        Some("vega".into()),
+    )
+    .ok();
+    let (native, _receiver) = mpsc::channel(2);
+    let error = crate::speech::play(
+        settings,
+        TOKEN.into(),
+        true,
+        "Respuesta".into(),
+        Some("atlas".into()),
+        "fixture-playback".into(),
+        native,
+        orbit_ipc::new_op(),
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "La voz de Atlas no está disponible; contesta por texto"
     );
     Ok(())
 }

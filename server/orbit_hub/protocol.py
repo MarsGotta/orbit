@@ -153,6 +153,10 @@ class ClarifyParams(SessionParams):
 
 class SpeechRequest(StrictModel):
     text: str = Field(min_length=1, max_length=16000)
+    # Whose voice reads it (`ready.agents`): the conversation's agent. Absent,
+    # the default agent's, as a 0.9.0 Mac asks. 80 bounds what
+    # `agent_not_found` echoes back, as in `SendParams`.
+    agent_id: str | None = Field(default=None, min_length=1, max_length=80)
 
 
 class EmptyParams(StrictModel):

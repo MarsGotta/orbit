@@ -221,10 +221,9 @@ def test_the_implicit_agent_keeps_the_voice_of_its_profile(environment):
     assert agents.default.speech.profile == "atlas-profile"
 
 
-def test_the_speech_routes_use_the_default_agent_voice(environment, tmp_path, monkeypatch):
-    """Neither route names a conversation, so both are the default agent's:
-    here Hermes's, with its profile, beside agents that have none of theirs."""
-    settings, store, _ = environment
+def atlas_voice(tmp_path, monkeypatch) -> tuple[list, object]:
+    """Atlas's Hermes voice on a synthetic transport: the requests it gets,
+    and the credential file a Hermes agent needs."""
     requests = []
 
     def reply(request):
@@ -246,6 +245,16 @@ def test_the_speech_routes_use_the_default_agent_voice(environment, tmp_path, mo
     token = tmp_path / "token"
     token.write_text("synthetic-token-only")
     token.chmod(0o600)
+    return requests, token
+
+
+def test_read_aloud_without_an_agent_uses_the_default_agent_voice(
+    environment, tmp_path, monkeypatch
+):
+    """A request that names no agent (a 0.9.0 Mac's) is the default agent's:
+    here Hermes's, with its profile, beside agents that have none of theirs."""
+    settings, store, _ = environment
+    requests, token = atlas_voice(tmp_path, monkeypatch)
     configured = replace(
         settings,
         agents=tuple(reversed(every_kind(tmp_path))),
@@ -259,6 +268,75 @@ def test_the_speech_routes_use_the_default_agent_voice(environment, tmp_path, mo
     assert response.headers["X-Orbit-Speech-Provider"] == "voz-de-atlas"
     assert [request.url.path for request in requests] == ["/api/audio/speak"]
     assert b'"profile":"atlas-profile"' in requests[0].content.replace(b" ", b"")
+
+
+def test_read_aloud_uses_the_voice_of_the_agent_it_names(environment, tmp_path, monkeypatch):
+    """The default agent has no voice; the conversation's agent has one, and
+    its answer is read with it."""
+    settings, store, _ = environment
+    requests, token = atlas_voice(tmp_path, monkeypatch)
+    configured = replace(
+        settings, agents=every_kind(tmp_path), default_agent="vega", hermes_credential_file=token
+    )
+    headers = {"Authorization": "Bearer " + device(store)["token"]}
+    with hub(configured, store) as http:
+        response = http.post(
+            "/v1/audio/speech", headers=headers, json={"text": "frase", "agent_id": "atlas"}
+        )
+    assert response.status_code == 200, response.text
+    assert response.headers["X-Orbit-Speech-Provider"] == "voz-de-atlas"
+    assert b'"profile":"atlas-profile"' in requests[0].content.replace(b" ", b"")
+
+
+def test_read_aloud_for_an_unknown_agent_is_refused_with_its_id(environment, tmp_path):
+    settings, store, _ = environment
+    configured = replace(settings, agents=every_kind(tmp_path), default_agent="atlas")
+    headers = {"Authorization": "Bearer " + device(store)["token"]}
+    with hub(configured, store) as http:
+        response = http.post(
+            "/v1/audio/speech", headers=headers, json={"text": "frase", "agent_id": "orion"}
+        )
+    assert response.status_code == 404
+    body = response.json()
+    assert body["code"] == "agent_not_found"
+    assert body["refusal"]["agent_id"] == "orion"
+    assert body["refusal"]["agent_ids"] == "atlas,lyra,vega"
+
+
+def test_read_aloud_for_an_agent_without_a_voice_is_in_the_default_voice(
+    environment, tmp_path, monkeypatch
+):
+    """The default agent has a voice; the one named has none of its own, and
+    its answer is read with the default agent's."""
+    settings, store, _ = environment
+    requests, token = atlas_voice(tmp_path, monkeypatch)
+    configured = replace(
+        settings, agents=every_kind(tmp_path), default_agent="atlas", hermes_credential_file=token
+    )
+    headers = {"Authorization": "Bearer " + device(store)["token"]}
+    with hub(configured, store) as http:
+        response = http.post(
+            "/v1/audio/speech", headers=headers, json={"text": "frase", "agent_id": "vega"}
+        )
+    assert response.status_code == 200, response.text
+    assert response.headers["X-Orbit-Speech-Provider"] == "voz-de-atlas"
+    assert len(requests) == 1
+
+
+def test_read_aloud_without_any_voice_names_the_agent_asked_for(environment, tmp_path):
+    """Neither the agent named nor the default one has a voice."""
+    settings, store, _ = environment
+    configured = replace(settings, agents=every_kind(tmp_path), default_agent="lyra")
+    headers = {"Authorization": "Bearer " + device(store)["token"]}
+    with hub(configured, store) as http:
+        response = http.post(
+            "/v1/audio/speech", headers=headers, json={"text": "frase", "agent_id": "vega"}
+        )
+    assert response.status_code == 503
+    body = response.json()
+    assert body["code"] == "speech_not_configured"
+    assert body["refusal"]["agent_id"] == "vega"
+    assert "Vega" in body["message"]
 
 
 @pytest.mark.parametrize("route", ["/v1/audio/speech", "/v1/audio/transcribe"])

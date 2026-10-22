@@ -76,7 +76,10 @@ impl Runtime {
                         self.conversation.read_aloud = None;
                         self.on_work_problem(
                             crate::speech::SpeechUnavailable {
-                                assistant_name: self.settings.assistant_name().into(),
+                                agent_name: crate::speech::agent_name(
+                                    &self.settings,
+                                    self.turn_agent_id().as_deref(),
+                                ),
                             }
                             .to_string(),
                         )

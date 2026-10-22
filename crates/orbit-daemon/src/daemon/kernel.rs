@@ -373,10 +373,11 @@ impl Runtime {
         Ok(())
     }
 
-    /// The agent a turn is for: the open conversation's, or the default
-    /// one. Only a hub that listed its agents is told; a 0.9.0 hub refuses
-    /// the field and has one agent anyway.
-    fn turn_agent_id(&self) -> Option<String> {
+    /// The agent a turn is for, and whose voice reads its answer: the open
+    /// conversation's, or the default one. Only a hub that listed its agents
+    /// is told: a 0.9.0 hub refuses the field in `chat.send` and has one
+    /// agent anyway.
+    pub(super) fn turn_agent_id(&self) -> Option<String> {
         let roster = self.settings.hub_agents.as_ref()?;
         Some(
             self.state
