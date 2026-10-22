@@ -14,7 +14,7 @@ import styles from "./BriefingView.module.css";
 interface Props {
   error: string | null;
   onRecord: () => void;
-  send: (command: AppCommand) => Promise<void>;
+  send: (command: AppCommand) => Promise<unknown>;
   snapshot: AppSnapshot;
 }
 

@@ -9,7 +9,7 @@ describe("the glossary", () => {
   it("names the home view «Hoy» and the week by its number", () => {
     expect(es.shell.briefing).toBe("Hoy");
     expect(es.calendar.weekNumber(43)).toBe("semana 43");
-    expect(es.briefing.weekNumber(43)).toBe("semana 43");
+    expect(es.briefing.week(43)).toBe("semana 43");
   });
 
   it("calls the section of meetings «Reuniones», and keeps «nota» for one meeting's note", () => {
@@ -84,9 +84,9 @@ describe("the glossary", () => {
   });
 
   it("calls the meeting's own note a personal reminder, and the open items what was left", () => {
-    expect(es.briefing.personalNote).toBe("Recordatorio personal");
-    expect(es.briefing.personalNoteHelp).toBe("Solo lo ves tú, en este Mac. No va a la nota.");
-    expect(es.briefing.agendaTopics).toBe("Pendiente de la última vez");
+    expect(es.briefing.reminder).toBe("Recordatorio personal");
+    expect(es.briefing.reminderHelp).toBe("Solo lo ves tú, en este Mac. No va a la nota.");
+    expect(es.briefing.pending).toBe("Pendiente de la última vez");
   });
 
   it("quits Orbit by that name, and the first run says what each skip skips", () => {
