@@ -5,6 +5,9 @@ import { Card } from "../../design/Card";
 import { SectionLabel } from "../../design/SectionLabel";
 import { ViewError } from "../../design/ViewError";
 import { es } from "../../i18n/es";
+import { agentsOf } from "../assistant/agents";
+import { AgentSettings } from "./agents/AgentSettings";
+import type { AgentPort } from "./agents/use-agent-config";
 import { AssistantFolders } from "./AssistantFolders";
 import { AutonomySettings } from "./AutonomySettings";
 import { CallPreferenceSection } from "./CallPreferenceSection";
@@ -16,6 +19,8 @@ import { NoteTemplates } from "./templates/NoteTemplates";
 import styles from "./SettingsView.module.css";
 
 export interface SettingsViewProps {
+  /** Ajustes › Agentes' call to the hub; absent where it cannot be made. */
+  agent?: AgentPort;
   error: string | null;
   onReopenOnboarding: (mode?: "pair") => void;
   send: (command: AppCommand) => void | Promise<void>;
@@ -26,7 +31,7 @@ export default function SettingsView(props: SettingsViewProps) {
   return <SettingsPage {...props} />;
 }
 
-function SettingsPage({ error, onReopenOnboarding, send, snapshot }: SettingsViewProps) {
+function SettingsPage({ agent, error, onReopenOnboarding, send, snapshot }: SettingsViewProps) {
   const settings = snapshot.settings;
   return (
     <div className={styles.page}>
@@ -42,6 +47,11 @@ function SettingsPage({ error, onReopenOnboarding, send, snapshot }: SettingsVie
         />
         <CallPreferenceSection preference={snapshot.meeting.call_preference} send={send} />
         <DeimosSettings control={snapshot.computer_control} />
+        <AgentSettings
+          agent={agent}
+          agents={agentsOf(snapshot)}
+          defaultAgentId={snapshot.settings.default_agent_id}
+        />
         <AssistantFolders
           daemonReady={snapshot.connection.daemon === "ready"}
           folders={snapshot.computer_control?.folders}

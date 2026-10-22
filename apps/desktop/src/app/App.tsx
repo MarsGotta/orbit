@@ -19,7 +19,7 @@ import { AppSidebar } from "./AppSidebar";
 import { Main } from "./Main";
 import type { Message } from "./interceptor";
 import { ViewBoundary } from "./ViewBoundary";
-import { reportingReads } from "./report-failure";
+import { reportingAgent, reportingReads } from "./report-failure";
 import type { OnboardingRequest } from "./Onboarding";
 import styles from "./App.module.css";
 import { usePaletteCommands } from "./use-palette-commands";
@@ -44,6 +44,7 @@ export interface AppContentProps {
   snapshot: AppSnapshot;
   readSessionsPage?: DaemonPort["readSessionsPage"];
   readSessionMessages?: DaemonPort["readSessionMessages"];
+  agent?: DaemonPort["agent"];
   theme: string;
   toggleTheme: () => void;
   view: ViewId;
@@ -61,6 +62,11 @@ function useCommandDispatch(send: AppContentProps["send"]): (command: AppCommand
     },
     [send],
   );
+}
+
+/** The hub calls a view makes itself, each reporting what it could not do. */
+function hubCalls({ readSessionMessages, agent }: AppContentProps) {
+  return { readSessionMessages, agent };
 }
 
 function AppContent(props: AppContentProps) {
@@ -91,7 +97,7 @@ function AppContent(props: AppContentProps) {
           onReopenOnboarding={(mode) => setOnboardingRequested(mode ?? "full")}
           send={props.send}
           snapshot={props.snapshot}
-          readSessionMessages={props.readSessionMessages}
+          {...hubCalls(props)}
           view={displayView}
         />
       </div>
@@ -127,6 +133,7 @@ function AppContent(props: AppContentProps) {
 export function App({ port }: { port: DaemonPort }) {
   // What a read could not read is reported; the screen only says so.
   const { readSessionsPage, readSessionMessages } = useMemo(() => reportingReads(port), [port]);
+  const agent = useMemo(() => reportingAgent(port), [port]);
   const { store, snapshot, error, send, messages, dismiss, crash } = useAppStore(port);
   const { theme, view, navigate, toggleTheme } = useUiStore();
   const { errorView, visibleError, onboardingError, recordingError } = useErrorSelection(
@@ -173,6 +180,7 @@ export function App({ port }: { port: DaemonPort }) {
         snapshot={snapshot}
         readSessionsPage={readSessionsPage}
         readSessionMessages={readSessionMessages}
+        agent={agent}
         theme={theme}
         toggleTheme={toggleTheme}
         view={view}

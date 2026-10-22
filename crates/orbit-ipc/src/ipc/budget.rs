@@ -20,6 +20,9 @@ pub(super) fn encode_reply(reply: Reply) -> Result<Vec<u8>> {
             encode_with_limit(&response, MAX_VOICE_NOTE_RESPONSE_FRAME_BYTES)
         }
         Reply::Topics(response) => encode_topic_response(response),
+        // The hub's answer is read whole up to `MAX_HUB_HTTP_BODY_BYTES`;
+        // the reply line keeps the command response's own ceiling.
+        Reply::Agent(response) => encode_with_limit(&response, MAX_COMMAND_RESPONSE_BYTES),
     }
 }
 

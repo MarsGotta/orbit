@@ -95,6 +95,7 @@ use publish::*;
 mod subscription;
 
 mod agenda;
+mod agents;
 mod library;
 mod note_read;
 mod notes;

@@ -43,3 +43,31 @@ export function reportingReads(
     readSessionMessages: reported(port, port.readSessionMessages),
   };
 }
+
+/**
+ * Ajustes › Agentes' one call, reporting what it met: the Mac's refusal or
+ * the hub's code, never the text of a personality or a skill. The screen
+ * says the cause with its numbers.
+ */
+export function reportingAgent(port: DaemonPort): DaemonPort["agent"] {
+  const agent = port.agent;
+  if (!agent) return undefined;
+  return async (call) => {
+    try {
+      const answer = await agent.call(port, call);
+      const { outcome } = answer;
+      if (outcome.outcome === "failed")
+        void port
+          .report(refusalReport(newOp(), refusalOf({ refusal: outcome.refusal })))
+          .catch(() => undefined);
+      else if (outcome.outcome === "refused")
+        void port
+          .report(refusalReport(newOp(), refusalOf({ refusal: { code: outcome.refusal.code } })))
+          .catch(() => undefined);
+      return answer;
+    } catch (error: unknown) {
+      reportRefused(port, error);
+      throw error;
+    }
+  };
+}

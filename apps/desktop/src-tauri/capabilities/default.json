@@ -8,6 +8,7 @@
     "allow-orbit-snapshot",
     "allow-orbit-read-sessions-page",
     "allow-orbit-read-session-messages",
+    "allow-orbit-agent",
     "allow-orbit-send",
     "allow-orbit-report",
     "clipboard-manager:allow-write-text",

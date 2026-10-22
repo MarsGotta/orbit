@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-orbit-agent"
+description = "Enables the orbit_agent command without any pre-configured scope."
+commands.allow = ["orbit_agent"]
+
+[[permission]]
+identifier = "deny-orbit-agent"
+description = "Denies the orbit_agent command without any pre-configured scope."
+commands.deny = ["orbit_agent"]

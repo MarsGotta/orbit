@@ -6,7 +6,7 @@ import { createOrbitStore } from "../state/orbit-store";
 import { stateFailures, watchFailures } from "../state/state-failures";
 import { openPanelLink } from "../features/call-panel/panel-links";
 import { es } from "../i18n/es";
-import { reportingReads } from "./report-failure";
+import { reportingAgent, reportingReads } from "./report-failure";
 
 // A cause taken off the screen still lands in the local report log,
 // with a typed code and closed data, never text. «Ningún fallo silencioso».
@@ -378,6 +378,38 @@ describe("reads and the panel's links report their refusals", () => {
     expect(report.mock.calls.map(([line]) => [line.code, line.source])).toEqual([
       ["hub_unreachable", "app"],
       ["internal", "app"],
+    ]);
+    for (const [line] of report.mock.calls) expectClosed(line);
+  });
+
+  it("an agent's call reports the Mac's refusal or the hub's code, never a skill or a personality", async () => {
+    const outcomes = [
+      { outcome: "failed", refusal: { code: "not_paired" } },
+      {
+        outcome: "refused",
+        refusal: {
+          code: "skill_too_large",
+          status: 413,
+          numbers: { name: "privado", bytes: 40000, max_bytes: 32768 },
+        },
+      },
+      { outcome: "done" },
+    ] as const;
+    let next = 0;
+    const { port, report } = fakePort({
+      agent: (call) => Promise.resolve({ call, outcome: outcomes[next++] ?? { outcome: "done" } }),
+    });
+    const agent = reportingAgent(port);
+    const call = {
+      call: "skill_save",
+      agent_id: "vega",
+      name: "privado",
+      content: "---\nname: privado\n---\nTexto privado",
+    } as const;
+    for (let index = 0; index < outcomes.length; index += 1) await agent?.(call);
+    expect(report.mock.calls.map(([line]) => [line.code, line.source])).toEqual([
+      ["not_paired", "app"],
+      ["skill_too_large", "app"],
     ]);
     for (const [line] of report.mock.calls) expectClosed(line);
   });

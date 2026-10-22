@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { AppBootstrap, AppCommand, CommandReceipt, FeatureId } from "./generated";
+import type { AgentAnswer } from "./generated/AgentAnswer";
+import type { AgentCall } from "./generated/AgentCall";
 import type { DaemonPort, FrameListener, Report, Unsubscribe } from "./port";
 import type { AssistantCursor, MessagesPage, SessionPage } from "./reads";
 
@@ -25,6 +27,10 @@ export class TauriPort implements DaemonPort {
   readSessionMessages(sessionId: string, cursor: AssistantCursor | null): Promise<MessagesPage> {
     return invoke<MessagesPage>("orbit_read_session_messages", { sessionId, cursor });
   }
+  agent(call: AgentCall): Promise<AgentAnswer> {
+    return invoke<AgentAnswer>("orbit_agent", { call });
+  }
+
   snapshot(): Promise<AppBootstrap> {
     return invoke<AppBootstrap>("orbit_snapshot");
   }

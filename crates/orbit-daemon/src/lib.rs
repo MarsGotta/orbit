@@ -10,6 +10,7 @@ pub mod daemon;
 pub mod diagnostics;
 pub mod error_reports;
 pub mod hub;
+pub mod hub_agents;
 pub mod hub_notes;
 pub use orbit_ipc as ipc;
 pub mod native;

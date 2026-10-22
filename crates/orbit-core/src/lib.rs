@@ -1,5 +1,6 @@
 //! Pure decisions and shared contracts. Effects are descriptions, never execution.
 pub mod actions;
+pub mod agent_config;
 pub mod agent_work;
 pub mod agents;
 pub mod assistant_files;

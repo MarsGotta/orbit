@@ -14,6 +14,8 @@ macro_rules! app_type {
     };
 }
 
+mod agents;
+pub use agents::*;
 mod connection;
 pub use connection::*;
 mod permissions;

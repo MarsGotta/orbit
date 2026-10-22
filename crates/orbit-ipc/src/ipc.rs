@@ -5,7 +5,7 @@ use orbit_core::{
     PROTOCOL_VERSION,
     limits::MAX_IPC_LINE_BYTES,
     protocol::{
-        Command, Request, Response, TopicEvent, TopicResponse, VoiceNoteAudio,
+        AgentResponse, Command, Request, Response, TopicEvent, TopicResponse, VoiceNoteAudio,
         VoiceNoteAudioResponse,
     },
     reads::ReadRequest,
@@ -52,6 +52,7 @@ pub enum Reply {
     Command(Response),
     VoiceNoteAudio(VoiceNoteAudioResponse),
     Topics(TopicResponse),
+    Agent(AgentResponse),
 }
 
 impl From<Response> for Reply {
@@ -63,6 +64,12 @@ impl From<Response> for Reply {
 impl From<VoiceNoteAudioResponse> for Reply {
     fn from(response: VoiceNoteAudioResponse) -> Self {
         Self::VoiceNoteAudio(response)
+    }
+}
+
+impl From<AgentResponse> for Reply {
+    fn from(response: AgentResponse) -> Self {
+        Self::Agent(response)
     }
 }
 
@@ -217,7 +224,7 @@ impl LocalClient {
                 }
                 Ok(response)
             }
-            Reply::Topics(_) | Reply::VoiceNoteAudio(_) => {
+            Reply::Topics(_) | Reply::VoiceNoteAudio(_) | Reply::Agent(_) => {
                 bail!("El daemon entregó otra clase de respuesta a una orden")
             }
         }
@@ -240,6 +247,7 @@ impl LocalClient {
                 None => bail!("El daemon entregó una orden en lugar de la lectura"),
             },
             Reply::VoiceNoteAudio(_) => bail!("El daemon entregó audio en lugar de la lectura"),
+            Reply::Agent(_) => bail!("El daemon entregó un agente en lugar de la lectura"),
         }
     }
 
@@ -270,6 +278,28 @@ impl LocalClient {
                 None => bail!("El daemon entregó una orden en lugar del audio"),
             },
             Reply::Topics(_) => bail!("El daemon entregó una lectura en lugar del audio"),
+            Reply::Agent(_) => bail!("El daemon entregó un agente en lugar del audio"),
+        }
+    }
+
+    /// Ajustes › Agentes: one call to the hub through the daemon, and what
+    /// came of it. The daemon answers when the hub does, within the same
+    /// ten-second confirmation as every other call; a later answer is lost
+    /// and the call is not repeated.
+    pub async fn agent(
+        &self,
+        call: orbit_core::agent_config::AgentCall,
+    ) -> Result<orbit_core::agent_config::AgentOutcome> {
+        match self.call(Command::Agent { call }, None).await? {
+            Reply::Agent(response) => Ok(response.outcome),
+            // During recovery the actor answers any call with its refusal.
+            Reply::Command(response) => match response.refusal {
+                Some(refusal) => Err(refusal.into()),
+                None => bail!("El daemon entregó una orden en lugar del agente"),
+            },
+            Reply::Topics(_) | Reply::VoiceNoteAudio(_) => {
+                bail!("El daemon entregó otra clase de respuesta al agente")
+            }
         }
     }
 }

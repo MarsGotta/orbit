@@ -530,6 +530,7 @@ pub(crate) const MAX_PENDING_NATIVE: usize = 64;
 const WORK_EVENTS_CAPACITY: usize = 16;
 
 mod actions;
+mod agent_config;
 mod assistant_files;
 mod audio;
 mod audio_sources;
@@ -570,6 +571,8 @@ mod turn;
 use turn::refusal_notice;
 mod work;
 
+#[cfg(test)]
+mod agent_config_tests;
 #[cfg(test)]
 mod agents_tests;
 #[cfg(test)]
@@ -1295,7 +1298,9 @@ async fn run_with_helper_inner(
                         orbit_core::notice::ReportSource::Daemon,
                     );
                     let command = call.request.body;
-                    let topic_command = matches!(&command, Command::SubscribeTopics { .. } | Command::Read { .. });
+                    // Reads, and Ajustes › Agentes, change nothing of the
+                    // daemon's state; both are answered off the loop.
+                    let topic_command = matches!(&command, Command::SubscribeTopics { .. } | Command::Read { .. } | Command::Agent { .. });
                     if !topic_command {
                         topic_board.state_changed();
                     }
@@ -1318,6 +1323,8 @@ async fn run_with_helper_inner(
                     }
                     if let Command::Read { read } = &command {
                         runtime.serve_read(read.clone(), call.request.id, call.reply, topic_board.revisions());
+                    } else if let Command::Agent { call: agent_call } = &command {
+                        runtime.serve_agent(agent_call.clone(), call.request.id, call.reply);
                     } else if topic_command {
                         record_ipc_reply_loss(call.reply.send(topic_response(call.request.id, topic_board.revisions(), None, None)), &command, runtime.diagnostics.as_ref());
                     } else if let Command::VoiceNoteAudio { message_id } = &command {

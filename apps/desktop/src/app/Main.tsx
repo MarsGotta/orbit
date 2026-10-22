@@ -58,6 +58,7 @@ export interface MainProps {
   send: (command: AppCommand) => Promise<void>;
   snapshot: AppSnapshot;
   readSessionMessages?: DaemonPort["readSessionMessages"];
+  agent?: DaemonPort["agent"];
   view: ViewId;
 }
 
@@ -72,6 +73,7 @@ function View({
   send,
   snapshot,
   readSessionMessages,
+  agent,
   view,
 }: MainProps) {
   if (view === "briefing")
@@ -99,6 +101,7 @@ function View({
   if (view === "settings") {
     return (
       <SettingsView
+        agent={agent}
         error={error}
         onReopenOnboarding={onReopenOnboarding}
         send={send}

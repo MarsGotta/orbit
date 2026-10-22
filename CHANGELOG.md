@@ -46,6 +46,14 @@ is in Spanish; the labels quoted below are the ones it shows.
   with `agent_access_disabled`, the agent and the group. They configure an
   agent's tools and are not a boundary against a hostile local process.
 
+- Ajustes › Agentes: each agent's personality (in the Markdown editor), its
+  skills (switch on or off, view, edit, create, paste or import a folder's
+  `SKILL.md`, delete) and its access groups («Pantalla», «Control del Mac»,
+  «Calendario», «Reuniones y notas», «Archivos»), each switch naming the
+  tools it opens. What an agent's kind does not let Orbit change is shown
+  disabled with its cause; every refusal of the hub says its cause and its
+  numbers. The Mac keeps none of it: it is read from the hub and changed there.
+
 ### Changed
 
 - Developer tooling is in English. The gate's `--instalar` option is now

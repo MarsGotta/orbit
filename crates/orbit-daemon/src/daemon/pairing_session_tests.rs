@@ -19,7 +19,7 @@ const DEVICE_TOKEN: &str = "synthetic-not-a-credential";
 const DEVICE_NAME: &str = "Fixture Mac";
 
 /// A paired runtime online with the one-shot hub at `base`.
-fn online_with_hub(runtime: &mut Runtime, base: &reqwest::Url) {
+pub(super) fn online_with_hub(runtime: &mut Runtime, base: &reqwest::Url) {
     runtime.settings.hub_url = Some(base.to_string());
     runtime.token = Some(DEVICE_TOKEN.into());
     runtime.settings.device_id = Some(DEVICE_ID.into());
@@ -45,13 +45,13 @@ async fn read_messages(
 }
 
 #[derive(Debug, Clone)]
-struct HttpRequest {
-    start_line: String,
-    authorization: Option<String>,
-    body: String,
+pub(super) struct HttpRequest {
+    pub(super) start_line: String,
+    pub(super) authorization: Option<String>,
+    pub(super) body: String,
 }
 
-fn recorded(seen: &Arc<StdMutex<Option<HttpRequest>>>) -> Result<HttpRequest> {
+pub(super) fn recorded(seen: &Arc<StdMutex<Option<HttpRequest>>>) -> Result<HttpRequest> {
     seen.lock()
         .ok()
         .and_then(|mut slot| slot.take())
@@ -61,7 +61,7 @@ fn recorded(seen: &Arc<StdMutex<Option<HttpRequest>>>) -> Result<HttpRequest> {
 /// One loopback HTTP conversation: a single request is read in full, recorded,
 /// and answered with the prepared raw response. Modeled on the transcript
 /// fixtures: hand-written HTTP, closed as soon as the answer is written.
-async fn one_shot_http(
+pub(super) async fn one_shot_http(
     status_and_body: Vec<u8>,
 ) -> Result<(reqwest::Url, Arc<StdMutex<Option<HttpRequest>>>)> {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
@@ -126,7 +126,7 @@ async fn one_shot_http(
     Ok((base, seen))
 }
 
-fn json_response(status: &str, body: &str) -> Vec<u8> {
+pub(super) fn json_response(status: &str, body: &str) -> Vec<u8> {
     format!(
         "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
         body.len()

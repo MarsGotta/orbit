@@ -1,3 +1,4 @@
+import { agents } from "./agents";
 import { dictionary } from "./dictionary";
 import { status } from "./status";
 import { permissions } from "./permissions";
@@ -19,6 +20,7 @@ export { globalShortcuts };
 
 export function spanish(assistantName = "Deimos") {
   return {
+    ...agents,
     ...dictionary,
     ...status,
     ...permissions,

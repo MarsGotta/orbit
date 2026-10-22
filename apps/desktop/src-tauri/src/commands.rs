@@ -35,6 +35,16 @@ pub async fn orbit_read_session_messages(
     client.read_session_messages_page(session_id, cursor).await
 }
 
+/// Ajustes › Agentes: one read or order of an agent's configuration on the
+/// hub, through the daemon, and what came of it.
+#[tauri::command]
+pub async fn orbit_agent(
+    call: orbit_core::agent_config::AgentCall,
+    client: State<'_, DaemonClient>,
+) -> Result<orbit_app_core::AgentAnswer, AppError> {
+    client.agent(call).await
+}
+
 pub use orbit_app_core::PanelOrder;
 
 /// The floating panel's orders: answering a call, asking Deimos, and

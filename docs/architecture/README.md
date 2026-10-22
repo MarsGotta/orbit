@@ -53,7 +53,7 @@ privacy latch. `orbit-mcp` exposes `orbit_devices`, `orbit_windows`,
 
 | Boundary | Transport | Contract |
 |---|---|---|
-| UI ↔ shell | Tauri `orbit_snapshot`, `orbit_read_sessions_page`, `orbit_read_session_messages`, `orbit_send`, `orbit_panel_send`, `orbit_report`; `orbit://feature/<feature>` events | ts-rs types from app-core in `apps/desktop/src/bridge/generated/` |
+| UI ↔ shell | Tauri `orbit_snapshot`, `orbit_read_sessions_page`, `orbit_read_session_messages`, `orbit_agent`, `orbit_send`, `orbit_panel_send`, `orbit_report`; `orbit://feature/<feature>` events | ts-rs types from app-core in `apps/desktop/src/bridge/generated/` |
 | app-core ↔ daemon | In-process `Call`/oneshot and a `watch` per topic | `orbit-core/src/topics/`, `reads.rs`, `protocol.rs`, three-valued `Knowledge` and typed `Refusal` |
 | Daemon ↔ helper | Two private inherited pipes, NDJSON | [Native protocol](../../contracts/native-v1.md) |
 | Daemon ↔ engine | MCP JSON-RPC via `cua-driver mcp --embedded` stdio, proxy to a private socket | [CUA](../../contracts/cua-v1.md), [control policy](../../contracts/control-policy-v1.md) |
@@ -183,6 +183,21 @@ at most 96 KiB. The translator walks continuations and joins fragmented invitees
 Calendar permission is the sole consent; there is no hub calendar copy, activation
 switch or change to the week currently visible in the app. Missing permissions
 are explicit refusals, never an empty calendar.
+
+### Agent configuration
+
+Ajustes › Agentes lists the agents of the status topic. Each read or order of
+an agent's personality, skills or access groups is one `orbit_agent` call:
+app-core passes an `AgentCall` to the daemon (`Command::Agent`), which sends
+it, off its loop, to the hub route `orbit_core::agent_config` names, with the
+device token, and answers with the outcome: the configuration, a `SKILL.md`,
+done, the hub's refusal (code, HTTP status and scalar numbers) or the Mac's
+own refusal (not paired, privacy stop, no link, an answer out of contract).
+Nothing of it is kept on the Mac; the screen reads the configuration again
+after every order the hub takes. An access switch is configuration and is
+sent as it is flipped. Importing a skill reads only the `SKILL.md` at the top
+of a folder chosen in WebKit's own file panel, in the web view, when it fits
+the hub's ceiling.
 
 ### Assistant folders
 

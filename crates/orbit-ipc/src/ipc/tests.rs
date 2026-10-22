@@ -928,3 +928,60 @@ async fn local_actor_end_retains_failure_and_a_lost_owner_is_not_a_clean_quit() 
             .contains("pánico")
     );
 }
+
+/// Ajustes › Agentes: one call to the actor and the outcome it answers,
+/// whole; an answer of another kind is not taken for it.
+#[tokio::test]
+async fn an_agent_call_returns_its_outcome_and_refuses_another_reply() -> Result<()> {
+    use orbit_core::agent_config::{AgentCall, AgentOutcome, AgentRefusal, RefusalNumber};
+    let (calls, mut actor) = mpsc::channel::<Call>(32);
+    let (_ended, end) = watch::channel(None);
+    let client = LocalClient::new(calls, &TopicChannels::new(), end);
+    let refused = AgentOutcome::Refused {
+        refusal: AgentRefusal {
+            code: "too_many_skills".into(),
+            status: 409,
+            numbers: [
+                ("count".to_owned(), RefusalNumber::Integer(64)),
+                ("max".to_owned(), RefusalNumber::Integer(64)),
+            ]
+            .into_iter()
+            .collect(),
+        },
+    };
+    let answered = refused.clone();
+    let actor_task = tokio::spawn(async move {
+        let call = actor.recv().await.unwrap();
+        assert_eq!(
+            call.request.body,
+            Command::Agent {
+                call: AgentCall::Config {
+                    agent_id: "vega".into()
+                }
+            }
+        );
+        call.reply
+            .send(AgentResponse {
+                v: PROTOCOL_VERSION,
+                id: call.request.id,
+                outcome: answered,
+            })
+            .unwrap();
+        let call = actor.recv().await.unwrap();
+        call.reply.send(response()).unwrap();
+    });
+    let config = AgentCall::Config {
+        agent_id: "vega".into(),
+    };
+    assert_eq!(client.agent(config.clone()).await?, refused);
+    assert!(client.agent(config).await.is_err());
+    actor_task.await?;
+    let encoded = budget::encode_reply(Reply::Agent(AgentResponse {
+        v: PROTOCOL_VERSION,
+        id: id(1),
+        outcome: AgentOutcome::Done,
+    }))?;
+    let decoded: serde_json::Value = serde_json::from_slice(&encoded)?;
+    assert_eq!(decoded["outcome"]["outcome"], "done");
+    Ok(())
+}

@@ -1,39 +1,13 @@
-import Link from "@tiptap/extension-link";
-import { TableKit } from "@tiptap/extension-table";
-import TaskItem from "@tiptap/extension-task-item";
-import TaskList from "@tiptap/extension-task-list";
-import { Markdown } from "@tiptap/markdown";
 import { EditorContent, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
 import { useMemo } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import { Button } from "../../design/Button";
 import { useModalFocus } from "../../design/use-modal-focus";
 import { es } from "../../i18n/es";
-import { safeHref } from "../notes/markdown";
 import editorStyles from "../notes/NoteEditor.module.css";
 import { useCopy, copyStatus } from "./CopyButton";
 import styles from "./AnswerEditor.module.css";
-
-/**
- * The notes' editor (Tiptap) with all the Markdown an answer can carry:
- * code blocks, quotes, rules, tables and task lists. Links are only web
- * links, and are not followed from inside the editor.
- */
-function extensions() {
-  return [
-    StarterKit.configure({ link: false, underline: false }),
-    Link.configure({
-      autolink: false,
-      isAllowedUri: (url) => safeHref(url) !== null,
-      openOnClick: false,
-    }),
-    TableKit,
-    TaskList,
-    TaskItem.configure({ nested: true }),
-    Markdown,
-  ];
-}
+import { markdownExtensions } from "./markdown-extensions";
 
 interface AnswerEditorProps {
   markdown: string;
@@ -88,7 +62,7 @@ export default function AnswerEditor({ markdown, onClose, send }: AnswerEditorPr
     () => ({
       content: markdown,
       contentType: "markdown" as const,
-      extensions: extensions(),
+      extensions: markdownExtensions(),
       editorProps: {
         attributes: {
           "aria-label": es.chatActions.editorLabel,

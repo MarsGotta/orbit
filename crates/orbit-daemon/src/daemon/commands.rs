@@ -142,7 +142,8 @@ impl Runtime {
 
     pub(super) async fn command(&mut self, command: Command) -> Result<()> {
         match command {
-            Command::SubscribeTopics { .. } | Command::Read { .. } => {}
+            // Served by the IPC loop, off the actor (`serve_agent`).
+            Command::SubscribeTopics { .. } | Command::Read { .. } | Command::Agent { .. } => {}
             Command::Pair {
                 hub_url,
                 code,

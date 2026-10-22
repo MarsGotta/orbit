@@ -1,4 +1,6 @@
 import type { AppBootstrap, AppCommand, CommandReceipt, FeatureFrame } from "./generated";
+import type { AgentAnswer } from "./generated/AgentAnswer";
+import type { AgentCall } from "./generated/AgentCall";
 import type { NoticeClass } from "./generated/NoticeClass";
 import type { NoticeData } from "../i18n/es/notices";
 import type { AssistantCursor, MessagesPage, SessionPage } from "./reads";
@@ -27,6 +29,8 @@ export interface DaemonPort {
   readSessionsPage?(cursor: AssistantCursor | null): Promise<SessionPage>;
   /** One page of a conversation; without a cursor, the newest. */
   readSessionMessages?(sessionId: string, cursor: AssistantCursor | null): Promise<MessagesPage>;
+  /** Ajustes › Agentes: one read or order of an agent's configuration on the hub. */
+  agent?(call: AgentCall): Promise<AgentAnswer>;
   /** The floating panel opens a link of Deimos's answer. */
   openUrl?(url: string): Promise<CommandReceipt>;
 }

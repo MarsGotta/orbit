@@ -164,6 +164,12 @@ pub enum Command {
     AssistantFolderRemove {
         id: String,
     },
+    /// Ajustes › Agentes: one read or order of an agent's configuration on
+    /// the hub, answered with its outcome (`AgentResponse`), never queued.
+    #[cfg_attr(feature = "ts", ts(skip))]
+    Agent {
+        call: crate::agent_config::AgentCall,
+    },
     /// «Enviar informes de errores anónimos»: the user's choice, kept by the
     /// daemon with its settings. Off until they turn it on.
     ErrorReports {
@@ -300,9 +306,12 @@ impl Command {
             | Self::CallStop
             | Self::Approval { .. }
             | Self::Clarify { .. } => Some(FeatureId::Assistant),
+            // Reaches the daemon only through its own call, which waits
+            // for the hub's answer (`LocalClient::agent`).
             Self::Status
             | Self::SubscribeTopics { .. }
             | Self::Read { .. }
+            | Self::Agent { .. }
             | Self::Report { .. }
             | Self::Shutdown => None,
         }
@@ -418,6 +427,14 @@ pub struct VoiceNoteAudioResponse {
     pub audio: Option<VoiceNoteAudio>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refusal: Option<crate::refusal::Refusal>,
+}
+
+/// The answer to `Command::Agent`: what came of the call on the hub.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentResponse {
+    pub v: u8,
+    pub id: String,
+    pub outcome: crate::agent_config::AgentOutcome,
 }
 
 /// A topic subscription receipt or a keyed read answer.

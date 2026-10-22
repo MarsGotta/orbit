@@ -15,9 +15,11 @@ use std::collections::BTreeMap;
 
 /// The hub's error envelope (`message`, `code` and its typed `refusal`).
 /// Its longest note message names two revisions (under 100 bytes); 4 KiB
-/// leaves room for the refusal object. Past it the code is not read and the
-/// status alone is reported.
-const MAX_ERROR_BYTES: usize = 4 * 1024;
+/// leaves room for the refusal object, also for an agent's refusal
+/// (`hub_agents`), whose numbers are a few scalars: a skill name, a rule, a
+/// Hermes route. Past it the code is not read and the status alone is
+/// reported.
+pub(crate) const MAX_ERROR_BYTES: usize = 4 * 1024;
 
 #[derive(Clone)]
 pub struct NoteHub {
