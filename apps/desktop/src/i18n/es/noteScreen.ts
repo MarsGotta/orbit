@@ -17,14 +17,21 @@ const base = {
 
     // How Orbit writes this note: proposals 8 and 9, nothing rewritten on a
     // mere change.
-    howLabel: (template: string, language: string | null) =>
-      language === null ? `Plantilla: ${template}` : `Plantilla: ${template} · ${language}`,
+    // The harness reads the language as the second part (scripts/e2e-mac/checks.py).
+    howLabel: (template: string, language: string | null, dictionaries: number) =>
+      [
+        `Plantilla: ${template}`,
+        ...(language === null ? [] : [language]),
+        ...(dictionaries === 0
+          ? []
+          : [dictionaries === 1 ? "1 diccionario" : `${dictionaries} diccionarios`]),
+      ].join(" · "),
     howTitle: "Cómo escribe Orbit esta nota",
     template: "Plantilla",
     language: "Idioma de la reunión",
-    dictionary: "Diccionario de palabras",
-    dictionaryFromSeries: "El de la serie",
-    noDictionary: "Ninguno",
+    dictionaries: "Diccionarios de palabras",
+    noDictionaries: "Ninguno: la transcripción no corrige palabras",
+    manageDictionaries: "Gestionar diccionarios en Ajustes",
     useForSeries: "Usar lo mismo en toda la serie",
     rewriteWarning: (language: string | null) =>
       `Orbit volverá a escribir la nota${language === null ? "" : ` y a transcribir la reunión en ${language}`}. Si cambiaste el resumen, tu versión queda guardada.`,
@@ -39,6 +46,9 @@ const base = {
     close: "Cerrar",
     save: "Guardar",
     redoSummary: "Rehacer resumen",
+    redoSummaryTitle: "¿Volver a escribir el resumen?",
+    redoSummaryBody: (template: string) =>
+      `Orbit lo escribe de nuevo con la plantilla ${template} y la transcripción actual. Si lo cambiaste a mano, tu versión queda guardada.`,
 
     // Writing the note.
     preparing: "Orbit está preparando tu nota",

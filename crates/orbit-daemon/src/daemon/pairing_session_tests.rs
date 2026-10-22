@@ -809,6 +809,84 @@ async fn dictionary_orders_preserve_numbers_without_logging_terms() -> Result<()
     Ok(())
 }
 
+/// The hub's answer to a correction into several dictionaries when another
+/// dictionary of the meeting hears the form otherwise: the app is told, by
+/// the order's target, which one the meeting shows (the first wins). The
+/// shape is the one `server/tests/test_meeting_dictionary_lists.py` asserts.
+#[tokio::test]
+async fn a_correction_s_conflicts_reach_the_library_by_its_target() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _helper) = fixture(directory.path())?;
+    let answer = r#"{"dictionaries":[],"conflicts":[{"wrong":"Fondos","correct":"Fondant",
+        "dictionary_id":"dic-dos","other_dictionary_id":"dic-uno","other_name":"Ferretería Albar",
+        "other_correct":"LedgerBox","applied_dictionary_id":"dic-uno"}]}"#;
+    let (base, seen) = one_shot_http(json_response("200 OK", answer)).await?;
+    online_with_hub(&mut runtime, &base);
+    let mut events = runtime.features.notes.test_events();
+    let command: Command = serde_json::from_value(serde_json::json!({
+        "command": "note_library", "request": {"action": "dictionary", "request": {
+            "action": "correct", "recording_id": RECORDING_ID, "dictionary_ids": ["dic-dos"],
+            "wrong": "Fondos", "correct": "Fondant", "name": null
+        }}
+    }))?;
+    runtime.command(command).await?;
+    runtime
+        .note_answer(events.recv().await.context("dictionary answer")?)
+        .await?;
+    recorded(&seen)?;
+    let items = serde_json::to_value(runtime.library_state())?;
+    let warned = items
+        .as_array()
+        .context("library array")?
+        .iter()
+        .find(|item| item["item"] == "dictionary_conflicts")
+        .context("the conflicts of the correction")?;
+    assert_eq!(warned["target"], "dictionaries:dic-dos");
+    assert_eq!(
+        warned["conflicts"],
+        serde_json::json!([{"wrong":"Fondos","correct":"Fondant","dictionary_id":"dic-dos",
+            "other_dictionary_id":"dic-uno","other_name":"Ferretería Albar",
+            "other_correct":"LedgerBox","applied_dictionary_id":"dic-uno"}])
+    );
+    Ok(())
+}
+
+/// A hub up to 0.10.1 answers a correction with the dictionary alone: no
+/// conflicts is what it says, not an unreadable answer.
+#[tokio::test]
+async fn an_older_hub_s_correction_has_no_conflicts_to_show() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _helper) = fixture(directory.path())?;
+    let answer = r#"{"id":"dic-uno","name":"Proyecto","terms":[],"series":[]}"#;
+    let (base, seen) = one_shot_http(json_response("200 OK", answer)).await?;
+    online_with_hub(&mut runtime, &base);
+    let mut events = runtime.features.notes.test_events();
+    let command: Command = serde_json::from_value(serde_json::json!({
+        "command": "note_library", "request": {"action": "dictionary", "request": {
+            "action": "correct", "recording_id": RECORDING_ID, "dictionary_id": "dic-uno",
+            "wrong": "fondos", "correct": "LedgerBox", "name": null
+        }}
+    }))?;
+    runtime.command(command).await?;
+    runtime
+        .note_answer(events.recv().await.context("dictionary answer")?)
+        .await?;
+    recorded(&seen)?;
+    let items = serde_json::to_value(runtime.library_state())?;
+    let items = items.as_array().context("library array")?;
+    assert!(
+        !items
+            .iter()
+            .any(|item| item["item"] == "dictionary_conflicts")
+    );
+    assert!(
+        !items
+            .iter()
+            .any(|item| item["item"] == "dictionary_refused")
+    );
+    Ok(())
+}
+
 #[tokio::test]
 async fn an_offline_dictionary_order_is_refused_without_retaining_terms_to_retry() -> Result<()> {
     let directory = tempfile::tempdir()?;

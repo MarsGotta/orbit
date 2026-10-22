@@ -164,6 +164,27 @@ pub struct DictionaryFailure {
     pub numbers: BTreeMap<String, u64>,
 }
 
+/// What the hub warns of when a correction goes in (`conflicts`): another
+/// dictionary of the meeting, `other_dictionary_id`, hears `wrong` as
+/// `other_correct`. The meeting shows the correction of
+/// `applied_dictionary_id`, the first of its list that corrects the form
+/// (`None` when none does any more).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+)]
+pub struct DictionaryConflict {
+    pub wrong: String,
+    pub correct: String,
+    pub dictionary_id: String,
+    pub other_dictionary_id: String,
+    pub other_name: String,
+    pub other_correct: String,
+    pub applied_dictionary_id: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

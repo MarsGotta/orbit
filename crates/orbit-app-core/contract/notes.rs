@@ -408,5 +408,24 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional, type = "number")]
         pub timeout_ms: Option<u64>,
+        /// How far a running pass got, as the hub measures it; absent while
+        /// queued, before it measured, or from a hub up to 0.10.1.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub progress: Option<NoteFinalPassProgressSnapshot>,
+    }
+}
+
+app_type! {
+    /// `done_ms` of the `total_ms` of audio transcribed again, and the hub's
+    /// estimate of the time left once a window is done.
+    pub struct NoteFinalPassProgressSnapshot {
+        #[ts(type = "number")]
+        pub done_ms: u64,
+        #[ts(type = "number")]
+        pub total_ms: u64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional, type = "number")]
+        pub remaining_ms: Option<u64>,
     }
 }

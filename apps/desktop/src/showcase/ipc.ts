@@ -27,6 +27,17 @@ export async function publish(daemon: Daemon, views: Partial<Views>): Promise<vo
     await emit(`orbit://feature/${frame.feature}`, frame);
 }
 
+// Long enough for the window to draw each state before the next arrives.
+const STEP_MS = 120;
+
+/** Each state after the one before, as the window would see them come. */
+async function inTurn(daemon: Daemon, states: Partial<Views>[]): Promise<void> {
+  for (const state of states) {
+    await publish(daemon, state);
+    await new Promise((done) => window.setTimeout(done, STEP_MS));
+  }
+}
+
 function page<T>(items: T[]) {
   return {
     state: "present" as const,
@@ -93,7 +104,8 @@ function send(
   const refusal = scenario.refuse?.(command) ?? null;
   if (refusal) throw { refusal };
   const next = scenario.react?.(daemon.views, command) ?? reactTo(daemon.views, command);
-  if (next) void publish(daemon, next);
+  if (Array.isArray(next)) void inTurn(daemon, next);
+  else if (next) void publish(daemon, next);
   return { revision: { epoch: 1, counter: daemon.counter }, delivery: { state: "reflected" } };
 }
 

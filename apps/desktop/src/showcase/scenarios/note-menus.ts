@@ -23,7 +23,7 @@ export const noteMenuScenarios: Scenario[] = [
     id: "nota-plantilla",
     state: "Nota · Cómo se escribe",
     description:
-      "Plantilla, idioma, diccionario y «Usar lo mismo en toda la serie», sin reescribir.",
+      "Plantilla, idioma, diccionarios y «Usar lo mismo en toda la serie», sin reescribir.",
     route: `#/notes/${REVIEW_ID}`,
     views: opened,
     ready: menu,
@@ -63,8 +63,8 @@ export const noteMenuScenarios: Scenario[] = [
   }),
   reuniones({
     id: "nota-corregir",
-    state: "Nota · Corregir una palabra",
-    description: "La ventana para corregir una palabra mal oída y guardarla en el diccionario.",
+    state: "Nota · Corregir un texto seleccionado",
+    description: "Con el teclado: el texto seleccionado y «Corregir «…»» abren el mismo menú.",
     route: `#/notes/${speakerNote.recording_id}`,
     views: (base) => withOpenNote(withToday(base, "ready"), speakerNote),
     ready: tab("Transcripción"),

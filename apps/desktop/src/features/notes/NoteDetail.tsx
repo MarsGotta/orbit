@@ -15,6 +15,7 @@ import { PrivateNotes } from "./PrivateNotes";
 import type { Send } from "./send";
 import { SummaryTab } from "./SummaryTab";
 import { TranscriptTab } from "./TranscriptTab";
+import { type Rewriting, useRewriting } from "./use-rewriting";
 import styles from "./Note.module.css";
 
 /** The tab the user chose for this note, or the one the note's state suggests. */
@@ -48,14 +49,40 @@ interface NoteParts {
 }
 
 /** The tab shown: its own part of the note. */
-function NotePart({ error, library, note, send, tab, writing }: NoteParts & { tab: NoteTab }) {
+function NotePart({
+  error,
+  library,
+  note,
+  onRedoSummary,
+  rewriting,
+  send,
+  tab,
+  writing,
+}: NoteParts & { onRedoSummary: () => void; rewriting: Rewriting; tab: NoteTab }) {
   const key = note.recording_id;
   if (tab === "summary") {
-    return <SummaryTab key={key} library={library} note={note} send={send} writing={writing} />;
+    return (
+      <SummaryTab
+        key={key}
+        library={library}
+        note={note}
+        rewriting={rewriting}
+        send={send}
+        writing={writing}
+      />
+    );
   }
   if (tab === "actions") return <ActionsTab key={key} note={note} send={send} />;
   if (tab === "transcript") {
-    return <TranscriptTab key={key} library={library} note={note} send={send} />;
+    return (
+      <TranscriptTab
+        key={key}
+        library={library}
+        note={note}
+        onRedoSummary={onRedoSummary}
+        send={send}
+      />
+    );
   }
   return <PrivateNotes error={error} key={key} note={note} send={send} writing={writing} />;
 }
@@ -69,6 +96,13 @@ export function NoteDetail(
 ) {
   const { error, library, note, row, send } = props;
   const [tab, setTab] = useNoteTab(note);
+  const rewriting = useRewriting(note, send);
+  // «Rehacer resumen» from a band under the transcript: the note is written
+  // again and the Resumen shows how it goes.
+  const redoSummary = () => {
+    rewriting.redo();
+    setTab("summary");
+  };
   const ask = () => {
     void send({ command: "ask_orbit_about", recording_id: note.recording_id });
     window.location.hash = "#/assistant";
@@ -82,7 +116,14 @@ export function NoteDetail(
       </TopBarLeading>
       <article className={styles.read}>
         <ViewError error={error} />
-        <NoteHeader library={library} note={note} onAsk={ask} row={row} send={send} />
+        <NoteHeader
+          library={library}
+          note={note}
+          onAsk={ask}
+          rewriting={rewriting}
+          row={row}
+          send={send}
+        />
         <NoteProgress note={note} send={send} />
         <div className={styles.tabs}>
           <Tabs
@@ -91,7 +132,7 @@ export function NoteDetail(
             selected={tab}
             tabs={tabsOf(note)}
           >
-            <NotePart {...props} tab={tab} />
+            <NotePart {...props} onRedoSummary={redoSummary} rewriting={rewriting} tab={tab} />
           </Tabs>
         </div>
       </article>

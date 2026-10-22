@@ -23,7 +23,8 @@ export interface HubData {
  */
 export type Step =
   | { click: string }
-  | { hover: string }
+  /** With `at`, the mouse rests that many points from its top left: on one word of a text. */
+  | { hover: string; at?: [number, number] }
   | { press: string }
   | { fill: string; text: string }
   /** Scrolls the box that holds it so it sits at the top, or with `end` at the bottom. */
@@ -75,8 +76,12 @@ export interface Scenario {
   stall?: boolean;
   /** The refusal the daemon answers an order with, when it refuses it. */
   refuse?: (command: AppCommand) => Refusal | null;
-  /** What the daemon publishes after an order, beyond the showcase's own reactions. */
-  react?: (views: Views, command: AppCommand) => Partial<Views> | null;
+  /**
+   * What the daemon publishes after an order, beyond the showcase's own
+   * reactions; a list is published in turn, a moment apart, as a hub's work
+   * goes from under way to done.
+   */
+  react?: (views: Views, command: AppCommand) => Partial<Views> | Partial<Views>[] | null;
   /** The orders the daemon never answers, to show them under way. */
   hold?: (command: AppCommand) => boolean;
   /** The browser storage the app reads at start, beyond onboarding done. */

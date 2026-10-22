@@ -5,6 +5,7 @@ import { EditMenu } from "./EditMenu";
 
 const WINDOW_HEIGHT = 900;
 let anchorTop = 40;
+let cardHeight = 420;
 const realHeight = window.innerHeight;
 
 function rect(top: number, height: number, left = 300, width = 30): DOMRect {
@@ -13,11 +14,12 @@ function rect(top: number, height: number, left = 300, width = 30): DOMRect {
 
 beforeEach(() => {
   anchorTop = 40;
+  cardHeight = 420;
   window.innerHeight = WINDOW_HEIGHT;
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
     this: HTMLElement,
   ) {
-    if (this.getAttribute("role") === "dialog") return rect(0, 420, 0, 400);
+    if (this.getAttribute("role") === "dialog") return rect(0, cardHeight, 0, 400);
     if (this.dataset.anchor !== undefined) return rect(anchorTop, 30);
     return rect(0, 0);
   });
@@ -28,7 +30,13 @@ afterEach(() => {
   window.innerHeight = realHeight;
 });
 
-function Rename({ onSave = () => undefined }: { onSave?: (name: string) => void }) {
+function Rename({
+  onSave = () => undefined,
+  above,
+}: {
+  onSave?: (name: string) => void;
+  above?: boolean;
+}) {
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("Phobos");
@@ -48,6 +56,7 @@ function Rename({ onSave = () => undefined }: { onSave?: (name: string) => void 
       </button>
       {open && (
         <EditMenu
+          above={above}
           anchor={anchor}
           canSave={valid}
           error={name === "Deimos" ? "Ya tienes otro asistente que se llama así." : undefined}
@@ -158,4 +167,29 @@ it("opens above its control when there is no room below", () => {
   expect(menu.dataset.placement).toBe("above");
   // Its bottom edge 6 points above the control's top, so it grows upwards.
   expect(menu.style.bottom).toBe(`${WINDOW_HEIGHT - 600 + 6}px`);
+});
+
+it("opens above its control when asked to and it fits there, as a word low in the transcript", () => {
+  // Room on both sides: 435 + 30 + 6 + 420 fits under 900, and 435 - 6 - 420 above 8.
+  anchorTop = 435;
+  render(<Rename />);
+  expect(openMenu().dataset.placement).toBe("below");
+  cleanup();
+  render(<Rename above />);
+  expect(openMenu().dataset.placement).toBe("above");
+});
+
+it("takes the side with more room when it fits on neither, and scrolls inside it", () => {
+  cardHeight = 700;
+  anchorTop = 500;
+  render(<Rename />);
+  let menu = openMenu();
+  expect(menu.dataset.placement).toBe("above");
+  expect(menu.style.maxHeight).toBe(`${500 - 6 - 8}px`);
+  cleanup();
+  anchorTop = 200;
+  render(<Rename />);
+  menu = openMenu();
+  expect(menu.dataset.placement).toBe("below");
+  expect(menu.style.maxHeight).toBe(`${WINDOW_HEIGHT - 8 - (200 + 30 + 6)}px`);
 });

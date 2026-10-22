@@ -2,14 +2,17 @@ import type { ReactNode } from "react";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { Icon } from "../../design/Icon";
+import { MultiSelect } from "../../design/MultiSelect";
 import { Switch } from "../../design/Switch";
 import { es } from "../../i18n/es";
+import { useUiStore } from "../../state/ui";
+import { chosen, dictionaryOptions, meetingDictionaries } from "./dictionary-choice";
 import { languageName } from "./notes-format";
 import { type Choice, LANGUAGES, templateName } from "./note-settings";
 import styles from "./Note.module.css";
 
 // The fields of «Cómo escribe Orbit esta nota»: Plantilla, Idioma de la
-// reunión, Diccionario de palabras and «Usar lo mismo en toda la serie».
+// reunión, Diccionarios de palabras and «Usar lo mismo en toda la serie».
 
 function Select({
   label,
@@ -98,31 +101,26 @@ function LanguageField({ draft, set }: FieldProps) {
   );
 }
 
+/** Several dictionaries at once (annex, change 6); dictionaries are made by correcting words. */
 function DictionaryField({ draft, library, note, set }: FieldProps) {
-  if (note.dictionary === undefined) return null;
-  const dictionaries =
-    library?.dictionaries?.state === "available" ? library.dictionary_items : null;
+  const meeting = meetingDictionaries(note);
+  if (meeting === null) return null;
+  if (library?.dictionaries?.state !== "available")
+    return (
+      <p className={styles.menuHelp} role="status">
+        {es.noteScreen.dictionariesUnread}
+      </p>
+    );
   return (
-    <>
-      <Select
-        disabled={dictionaries === null}
-        label={es.noteScreen.dictionary}
-        onChange={(dictionary) => set({ dictionary })}
-        value={draft.dictionary}
-      >
-        <option value="">{es.noteScreen.dictionaryFromSeries}</option>
-        {(dictionaries ?? []).map(({ dictionary }) => (
-          <option key={dictionary.id} value={dictionary.id}>
-            {dictionary.name}
-          </option>
-        ))}
-      </Select>
-      {dictionaries === null && (
-        <p className={styles.menuHelp} role="status">
-          {es.noteScreen.dictionariesUnread}
-        </p>
-      )}
-    </>
+    <MultiSelect
+      createLabel={es.noteScreen.manageDictionaries}
+      label={es.noteScreen.dictionaries}
+      onChange={(next) => set({ dictionaries: chosen(note, draft.dictionaries, next) })}
+      onCreate={() => useUiStore.getState().openSettings("reuniones")}
+      options={dictionaryOptions(library, meeting)}
+      placeholder={es.noteScreen.noDictionaries}
+      selected={draft.dictionaries}
+    />
   );
 }
 

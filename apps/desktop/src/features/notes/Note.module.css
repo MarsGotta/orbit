@@ -375,12 +375,6 @@
   margin-top: var(--o-space-8);
 }
 
-.toolbarEnd {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--o-space-8);
-}
-
 .toolbarMeta {
   flex: 1;
   color: var(--o-ink3);
@@ -655,9 +649,10 @@
   flex: 1;
 }
 
+/* 1.75 between lines (annex, «Palabra»): a word lit under the pointer never touches the next line. */
 .turnBody > p {
   margin: 2px 0 0;
-  font: 400 14px/1.6 var(--o-font-sans);
+  font: 400 14px/1.75 var(--o-font-sans);
 }
 
 .turnBody mark {
@@ -803,57 +798,6 @@
   font: 600 14px/1.4 var(--o-font-sans);
 }
 
-/* «Corregir una palabra». */
-.correction {
-  display: flex;
-  flex-direction: column;
-  gap: var(--o-space-12);
-}
-
-.correctionPair {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--o-space-10);
-  align-items: start;
-}
-
-.dialogField {
-  display: flex;
-  flex-direction: column;
-  gap: var(--o-space-4);
-}
-
-.dialogInput {
-  height: var(--o-control-lg);
-  padding: 0 var(--o-space-10);
-  border: 1px solid var(--o-line2);
-  border-radius: var(--o-radius-md);
-  background: transparent;
-  color: var(--o-ink);
-  font: var(--o-text-body);
-}
-
-.dialogInput:focus-visible {
-  border-color: var(--o-accText);
-  outline: none;
-}
-
-.heard {
-  display: flex;
-  align-items: center;
-  height: 36px;
-  padding: 0 var(--o-space-10);
-  border-radius: var(--o-radius-md);
-  background: var(--o-raised);
-  color: var(--o-ink2);
-}
-
-.dialogNote {
-  margin: 0;
-  color: var(--o-ink3);
-  font: var(--o-text-meta);
-}
-
 /* Notas privadas: the editor on the page, 720 wide to read (guide 6). */
 .privateNotes {
   max-width: 720px;
@@ -869,8 +813,7 @@
     padding: 20px 16px 40px;
   }
 
-  .twoColumns,
-  .correctionPair {
+  .twoColumns {
     grid-template-columns: minmax(0, 1fr);
   }
 }

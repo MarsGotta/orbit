@@ -7,10 +7,11 @@ import { Icon } from "../../design/Icon";
 import { Spinner } from "../../design/Spinner";
 import { useSpanish } from "../../i18n/AssistantCopy";
 import { es } from "../../i18n/es";
-import { isPreparing, isRecording, templateOf } from "./note-progress";
+import { isRecording } from "./note-progress";
 import { NoteSettingsMenu } from "./NoteSettingsMenu";
 import { formatClock, formatDay, formatLength } from "./notes-format";
-import { sent, type Send } from "./send";
+import type { Send } from "./send";
+import type { Rewriting } from "./use-rewriting";
 import styles from "./Note.module.css";
 
 /**
@@ -79,41 +80,20 @@ function dataLine(note: OpenNoteSnapshot, row?: NoteListItem): string {
   return parts.join(" · ");
 }
 
-/** «Reescribiendo la nota…» from the press until the hub has taken it, then
- * while the hub writes it; «Transcribiendo de nuevo… 1 de 4» while it
- * transcribes the meeting again in another language. */
-function useRewriting(note: OpenNoteSnapshot) {
-  const [asked, setAsked] = useState<{ id: string; template: string } | null>(null);
-  const start = (template: string, work: Promise<unknown>) => {
-    const request = { id: note.recording_id, template };
-    setAsked(request);
-    const done = () => setAsked((value) => (value === request ? null : value));
-    work.then(done, done);
-  };
-  const writing =
-    note.summary !== null &&
-    note.progress.summary.state === "active" &&
-    !isRecording(note.progress);
-  const template =
-    asked?.id === note.recording_id
-      ? asked.template
-      : writing
-        ? (note.summary?.template_name ?? null)
-        : null;
-  return { template, start };
-}
-
 /** Title, short summary, the meeting's data and what can be done with it. */
 export function NoteHeader({
   library,
   note,
   onAsk,
+  rewriting,
   row,
   send,
 }: {
   library?: NoteLibrarySnapshot | null;
   note: OpenNoteSnapshot;
   onAsk: () => void;
+  /** «Rehacer resumen» lives in the Resumen's toolbar (annex, change 7); its status shows here. */
+  rewriting: Rewriting;
   row?: NoteListItem;
   send: Send;
 }) {
@@ -121,19 +101,6 @@ export function NoteHeader({
   // While recording there is no note to write again yet: the control stays
   // in place, disabled, and says why.
   const blocked = isRecording(note.progress) ? es.noteScreen.whileRecording : undefined;
-  const rewriting = useRewriting(note);
-  const redo = () => {
-    const template = templateOf(note);
-    const name = note.summary?.template_name ?? template;
-    rewriting.start(
-      name,
-      sent(send, {
-        command: "note_regenerate",
-        recording_id: note.recording_id,
-        template_id: template,
-      }),
-    );
-  };
   return (
     <header className={styles.head}>
       <NoteTitle key={note.recording_id} note={note} send={send} />
@@ -153,11 +120,6 @@ export function NoteHeader({
           onRewrite={rewriting.start}
           send={send}
         />
-        {!isPreparing(note) && (
-          <Button disabledReason={blocked} onClick={redo} size={36} variant="ghost">
-            {es.noteScreen.redoSummary}
-          </Button>
-        )}
       </div>
       <HeadStatus note={note} template={rewriting.template} />
     </header>

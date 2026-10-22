@@ -25,7 +25,8 @@ export const dictionary = {
       const causes: Record<string, string> = {
         not_paired: "Orbit no está emparejado con el hub",
         privacy_stopped: "Todo está parado",
-        hub_unreachable: detail,
+        // The transport's own cause stays in the log.
+        hub_unreachable: "No se guardó el cambio: no hay conexión con el hub",
 
         dictionary_full: "El diccionario está lleno",
         dictionary_text_too_long: "El término o nombre es demasiado largo",

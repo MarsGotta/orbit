@@ -21,6 +21,8 @@ export interface AnchoredCardProps {
   width: number;
   /** Which edge of the control it lines up with. */
   align?: "start" | "end";
+  /** Above its control whenever it fits there, not only when below does not. */
+  above?: boolean;
   /** The id of its title. */
   labelledBy: string;
   onClose: () => void;
@@ -30,17 +32,36 @@ export interface AnchoredCardProps {
 
 type Placement = { side: "below" | "above"; style: CSSProperties };
 
-/** Below its control when it fits, above it when not; within the window either way. */
-function place(anchor: HTMLElement, card: HTMLElement, align: "start" | "end"): Placement {
+/**
+ * Below its control when it fits, above it when not; within the window either
+ * way. Where it fits on neither side it takes the side with more room and
+ * scrolls inside, so its buttons are always in reach.
+ */
+function place(
+  anchor: HTMLElement,
+  card: HTMLElement,
+  align: "start" | "end",
+  above: boolean,
+): Placement {
   const at = anchor.getBoundingClientRect();
   const size = card.getBoundingClientRect();
-  const fitsBelow = at.bottom + GAP + size.height <= window.innerHeight - MARGIN;
-  const fitsAbove = at.top - GAP - size.height >= MARGIN;
+  // What it holds, even while it scrolls inside a smaller box.
+  const height = Math.max(size.height, card.scrollHeight);
+  const roomBelow = window.innerHeight - MARGIN - (at.bottom + GAP);
+  const roomAbove = at.top - GAP - MARGIN;
+  const fitsBelow = height <= roomBelow;
+  const fitsAbove = height <= roomAbove;
   const wanted = align === "end" ? at.right - size.width : at.left;
   const left = Math.max(MARGIN, Math.min(wanted, window.innerWidth - size.width - MARGIN));
-  if (fitsBelow || !fitsAbove) return { side: "below", style: { top: at.bottom + GAP, left } };
+  const below = above
+    ? !fitsAbove && (fitsBelow || roomBelow >= roomAbove)
+    : fitsBelow || (!fitsAbove && roomBelow >= roomAbove);
+  if (below) return { side: "below", style: { top: at.bottom + GAP, left, maxHeight: roomBelow } };
   // Held by its bottom edge, so a list that opens inside it grows upwards.
-  return { side: "above", style: { bottom: window.innerHeight - at.top + GAP, left } };
+  return {
+    side: "above",
+    style: { bottom: window.innerHeight - at.top + GAP, left, maxHeight: roomAbove },
+  };
 }
 
 /**
@@ -50,7 +71,8 @@ function place(anchor: HTMLElement, card: HTMLElement, align: "start" | "end"): 
  * or a press outside it closes it.
  */
 export function AnchoredCard(props: AnchoredCardProps) {
-  const { anchor, width, align = "start", labelledBy, onClose, onKeyDown, children } = props;
+  const { anchor, width, align = "start", above = false, labelledBy, onClose, onKeyDown } = props;
+  const { children } = props;
   const card = useModalFocus(true, anchor);
   const [placement, setPlacement] = useState<Placement>({ side: "below", style: {} });
   useEffect(() => {
@@ -58,16 +80,22 @@ export function AnchoredCard(props: AnchoredCardProps) {
   }, [card]);
   useLayoutEffect(() => {
     const update = () => {
-      if (anchor && card.current) setPlacement(place(anchor, card.current, align));
+      if (!anchor || !card.current) return;
+      const next = place(anchor, card.current, align, above);
+      setPlacement((now) => (JSON.stringify(now) === JSON.stringify(next) ? now : next));
     };
     update();
+    // A list that opens inside it makes it taller: it is placed again.
+    const grows = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    if (card.current) grows?.observe(card.current);
     window.addEventListener("resize", update);
     window.addEventListener("scroll", update, true);
     return () => {
+      grows?.disconnect();
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
     };
-  }, [anchor, align, card]);
+  }, [anchor, align, above, card]);
   useEffect(() => {
     const outside = (event: MouseEvent) => {
       if (!(event.target instanceof Node)) return;

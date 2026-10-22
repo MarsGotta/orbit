@@ -79,7 +79,7 @@ describe("the transcript is what the hub computed", () => {
     expect(turns.every((turn) => (turn.querySelector("p")?.textContent ?? "") !== "")).toBe(true);
     expect(
       screen.getByText(
-        "Pulsa un nombre para cambiar quién habla. Selecciona una palabra para corregirla.",
+        "Pulsa un nombre para cambiar quién habla. Pasa el ratón por una palabra y púlsala para corregirla: la corrección se guarda en los diccionarios de esta reunión.",
       ),
     ).toBeTruthy();
   });
@@ -368,118 +368,624 @@ it("finds words in the transcript, counts them and marks them", () => {
   expect(screen.getByText("Sin resultados")).toBeTruthy();
 });
 
-it("requests a final pass for old and already separated closed meetings", () => {
-  const separated = voicesNote();
-  Object.assign(separated.transcript, { final_pass: { state: "completed", error: null } });
-  for (const value of [note(), separated]) {
-    const send = vi.fn();
-    const view = render(<TranscriptTab note={value} send={send} />);
-    fireEvent.click(screen.getByRole("button", { name: "Rehacer transcripción" }));
-    expect(send).toHaveBeenCalledExactlyOnceWith({
-      command: "transcript_retranscribe",
-      recording_id: value.recording_id,
-    });
-    view.unmount();
-  }
-});
-
-it("keeps the old transcript with distinct queued and running words, without offering another pass", () => {
-  const value = note();
-  const { rerender } = render(<TranscriptTab note={value} send={vi.fn(send0)} />);
-  for (const [state, words] of [
-    ["queued", "En cola para rehacer la transcripción."],
-    ["running", "Transcribiendo de nuevo…"],
-  ]) {
-    Object.assign(value.transcript, { final_pass: { state, error: null } });
-    rerender(<TranscriptTab note={{ ...value }} send={vi.fn(send0)} />);
-    expect(screen.getByText(words!)).toBeTruthy();
-    expect(screen.getByText("Empezamos.")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Rehacer transcripción" })).toBeNull();
-  }
-});
-
-it("hides retranscription while capture is open or unknown", () => {
-  const value = note();
-  for (const capture of ["open", undefined]) {
-    Object.assign(value, { capture });
-    const view = render(<TranscriptTab note={value} send={vi.fn(send0)} />);
-    expect(screen.queryByRole("button", { name: "Rehacer transcripción" })).toBeNull();
-    view.unmount();
-  }
-});
-
-it.each([
-  [
-    "final_pass_incomplete",
-    undefined,
-    "La transcripción nueva perdía partes de la anterior, así que se conserva la anterior.",
-  ],
-  [
-    "final_pass_timeout",
-    90000,
-    "La transcripción nueva tardó más de los 1,5 minutos que permite el hub; se conserva la anterior.",
-  ],
-  [
-    "final_pass_timeout",
-    undefined,
-    "La transcripción nueva tardó más de lo que permite el hub; se conserva la anterior.",
-  ],
-  [
-    "final_audio_invalid",
-    undefined,
-    "No se pudo completar la nueva transcripción; se conserva la anterior. (final_audio_invalid)",
-  ],
-])(
-  "explains failure %s with budget %s without displaying diagnostic JSON",
-  (error, timeout_ms, text) => {
-    const value = note();
-    Object.assign(value.transcript, {
-      final_pass: { state: "failed", error, timeout_ms },
-      unmatched_speaker_names: 1,
-    });
-    render(<TranscriptTab note={value} send={vi.fn(send0)} />);
-    expect(screen.getByRole("alert").textContent).toBe(text);
-    expect(screen.getByText(/1 nombre.*no.*traslad/)).toBeTruthy();
-    expect(screen.getByText("Empezamos.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Rehacer transcripción" })).toBeTruthy();
-  },
-);
-
-it("corrects selected transcript text and keeps the form until the hub answers", () => {
-  const send = vi.fn();
-  const current = {
-    ...note(),
-    dictionary: { dictionary_id: "vocabulary", source: "requested", series: null },
-  };
-  render(<TranscriptTab note={current} send={send} />);
-  const paragraph = screen.getByText("Empezamos.");
-  const range = document.createRange();
-  range.selectNodeContents(paragraph);
-  window.getSelection()?.removeAllRanges();
-  window.getSelection()?.addRange(range);
-  fireEvent.mouseUp(paragraph);
-  fireEvent.click(screen.getByRole("button", { name: "Corregir «Empezamos.»" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Debe decir" }), {
-    target: { value: "Empecemos." },
+describe("«Rehacer transcripción» (annex, change 7)", () => {
+  it("asks first, saying what it uses and what stays, and then asks the hub", () => {
+    const separated = voicesNote();
+    Object.assign(separated.transcript, { final_pass: { state: "completed", error: null } });
+    for (const value of [note(), separated]) {
+      const send = vi.fn(send0);
+      const view = render(<TranscriptTab note={value} send={send} />);
+      fireEvent.click(screen.getByRole("button", { name: "Rehacer transcripción" }));
+      const question = screen.getByRole("dialog", { name: "¿Volver a transcribir la reunión?" });
+      expect(question.textContent).toContain(
+        "Orbit vuelve a escuchar la grabación (2 min) en español. Puedes seguir con lo tuyo mientras tanto.",
+      );
+      // A hub up to 0.10.1 writes the note again after the pass, and the question says so.
+      expect(question.textContent).toContain("Después, Orbit reescribe la nota.");
+      expect(send).not.toHaveBeenCalled();
+      fireEvent.click(within(question).getByRole("button", { name: "Rehacer transcripción" }));
+      expect(send).toHaveBeenCalledExactlyOnceWith({
+        command: "transcript_retranscribe",
+        recording_id: value.recording_id,
+      });
+      expect(screen.getByText("En cola para volver a transcribir.")).toBeTruthy();
+      view.unmount();
+    }
   });
-  fireEvent.click(screen.getByRole("button", { name: "Guardar corrección" }));
-  expect(send).toHaveBeenCalledWith({
-    command: "note_library",
-    request: {
-      action: "dictionary",
-      request: {
-        action: "correct",
-        recording_id: current.recording_id,
-        dictionary_id: "vocabulary",
-        wrong: "Empezamos.",
-        correct: "Empecemos.",
-        name: null,
+
+  it("names the meeting's dictionaries, and keeps the note, with a hub that takes lists", () => {
+    const value = {
+      ...note(),
+      dictionary: {
+        dictionary_id: "dic-albar",
+        dictionary_ids: ["dic-albar", "dic-lumo"],
+        source: "requested",
+        series: null,
       },
-    },
+    };
+    render(<TranscriptTab library={wordsLibrary()} note={value} send={vi.fn(send0)} />);
+    fireEvent.click(screen.getByRole("button", { name: "Rehacer transcripción" }));
+    const question = screen.getByRole("dialog", { name: "¿Volver a transcribir la reunión?" });
+    expect(question.textContent).toContain("en español con Ferretería Albar y Lumo.");
+    expect(question.textContent).toContain(
+      "Se mantienen los nombres que pusiste a cada persona. El resumen no cambia hasta que lo rehagas.",
+    );
+    fireEvent.click(within(question).getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
-  expect((screen.getByRole("textbox", { name: "Debe decir" }) as HTMLInputElement).value).toBe(
-    "Empecemos.",
+
+  it("keeps the old transcript dimmed while queued and running, with the hub's progress", () => {
+    const value = note();
+    const { container, rerender } = render(<TranscriptTab note={value} send={vi.fn(send0)} />);
+    for (const [final_pass, words] of [
+      [{ state: "queued", error: null }, "En cola para volver a transcribir."],
+      [
+        {
+          state: "running",
+          error: null,
+          progress: { done_ms: 30_000, total_ms: 120_000, remaining_ms: 90_000 },
+        },
+        "Volviendo a transcribir la reunión… · puedes seguir con lo tuyo",
+      ],
+    ] as const) {
+      Object.assign(value.transcript, { final_pass });
+      rerender(<TranscriptTab note={{ ...value }} send={vi.fn(send0)} />);
+      expect(container.textContent).toContain(words);
+      expect(screen.getByText("Empezamos.")).toBeTruthy();
+      expect(container.querySelector("[aria-busy='true'] article")).toBeTruthy();
+      expect(
+        (screen.getByRole("button", { name: "Rehacer transcripción" }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+    }
+    expect(screen.getByText("unos 2 min")).toBeTruthy();
+    expect((container.querySelector("[data-progress]") as HTMLElement | null)?.style.width).toBe(
+      "25%",
+    );
+  });
+
+  it("offers «Rehacer resumen» once the pass it saw is done, and never for an old one", () => {
+    const onRedoSummary = vi.fn();
+    const value = { ...note(), summary: writtenSummary() };
+    Object.assign(value.transcript, { final_pass: { state: "completed", error: null } });
+    const { rerender } = render(
+      <TranscriptTab note={value} onRedoSummary={onRedoSummary} send={vi.fn(send0)} />,
+    );
+    expect(screen.queryByText(/Transcripción rehecha/)).toBeNull();
+    for (const state of ["running", "completed"]) {
+      const next = {
+        ...value,
+        transcript: { ...value.transcript, final_pass: { state, error: null } },
+      };
+      rerender(
+        <TranscriptTab
+          note={next as OpenNoteSnapshot}
+          onRedoSummary={onRedoSummary}
+          send={vi.fn(send0)}
+        />,
+      );
+    }
+    const done = screen.getByRole("status");
+    expect(done.textContent).toBe(
+      "✓Transcripción rehecha. Rehaz el resumen para que la nota la use.Rehacer resumen",
+    );
+    fireEvent.click(within(done).getByRole("button", { name: "Rehacer resumen" }));
+    expect(onRedoSummary).toHaveBeenCalledOnce();
+    expect(
+      (screen.getByRole("button", { name: "Rehacer transcripción" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
+  it("is not offered while capture is open or unknown", () => {
+    const value = note();
+    for (const capture of ["open", undefined]) {
+      Object.assign(value, { capture });
+      const view = render(<TranscriptTab note={value} send={vi.fn(send0)} />);
+      expect(screen.queryByRole("button", { name: "Rehacer transcripción" })).toBeNull();
+      view.unmount();
+    }
+  });
+
+  it.each([
+    [
+      "final_pass_incomplete",
+      undefined,
+      "La transcripción nueva perdía partes de la anterior, así que se conserva la anterior.",
+    ],
+    [
+      "final_pass_timeout",
+      90000,
+      "La transcripción nueva tardó más de los 1,5 minutos que permite el hub; se conserva la anterior.",
+    ],
+    [
+      "final_pass_timeout",
+      undefined,
+      "La transcripción nueva tardó más de lo que permite el hub; se conserva la anterior.",
+    ],
+    [
+      "final_audio_invalid",
+      undefined,
+      "No se pudo completar la nueva transcripción; se conserva la anterior. (final_audio_invalid)",
+    ],
+  ])(
+    "explains failure %s with budget %s in the card, keeping the old transcript",
+    (error, timeout_ms, text) => {
+      const value = note();
+      Object.assign(value.transcript, {
+        final_pass: { state: "failed", error, timeout_ms },
+        unmatched_speaker_names: 1,
+      });
+      render(<TranscriptTab note={value} send={vi.fn(send0)} />);
+      expect(screen.getByText(text)).toBeTruthy();
+      expect(screen.getByText(/1 nombre.*no.*traslad/)).toBeTruthy();
+      expect(screen.getByText("Empezamos.")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Rehacer transcripción" })).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+      expect(screen.queryByText(text)).toBeNull();
+      expect(screen.getByText("Empezamos.")).toBeTruthy();
+    },
   );
+});
+
+function writtenSummary(): NonNullable<OpenNoteSnapshot["summary"]> {
+  return {
+    short_summary: "Se cierra el comité.",
+    sections: [],
+    template_id: "review",
+    template_name: "Revisión",
+    generated_at_ms: 1,
+    model: "hub",
+    superseded_available: false,
+  };
+}
+
+/** A meeting that says «Orvit» three times, from a hub that takes several dictionaries. */
+function wordsNote(dictionary_ids: string[] | null = ["dic-albar", "dic-lumo"]): OpenNoteSnapshot {
+  const value = note();
+  value.transcript.turns = [
+    { index: 0, at_ms: 0, speaker_key: "mic_local", text: "Ya está en Orvit." },
+    { index: 1, at_ms: 12_000, speaker_key: "remote_app", text: "Lo apunto en orvit, ¿vale?" },
+    { index: 2, at_ms: 30_000, speaker_key: "mic_local", text: "Las notas de Orvit salen." },
+  ];
+  value.dictionary =
+    dictionary_ids === null
+      ? { dictionary_id: "dic-albar", source: "requested", series: null }
+      : {
+          dictionary_id: dictionary_ids[0] ?? null,
+          dictionary_ids,
+          source: "requested",
+          series: null,
+        };
+  return value;
+}
+
+function wordsLibrary(terms: Record<string, { correct: string; wrong: string[] }[]> = {}) {
+  return {
+    ...dictionaryLibrary(),
+    dictionary_items: [
+      {
+        id: "dic-albar",
+        name: "Ferretería Albar",
+        series: [{ calendar_item_id: "a", title: "Revisión semanal" }],
+      },
+      { id: "dic-lumo", name: "Lumo", series: [] },
+      { id: "dic-otro", name: "Producto", series: [] },
+    ].map((dictionary) => ({
+      dictionary: {
+        ...dictionary,
+        terms: (terms[dictionary.id] ?? []).map((term, index) => ({ id: `t${index}`, ...term })),
+      },
+      pending: false,
+    })),
+  };
+}
+
+/** A press on the text, where it puts the caret: at `offset` of the turn's paragraph. */
+function press(text: string, offset: number) {
+  const paragraph = screen.getByText(text);
+  const node = paragraph.firstChild;
+  if (!node) throw new Error("no text");
+  window.getSelection()?.collapse(node, offset);
+  fireEvent.mouseUp(paragraph);
+  fireEvent.click(paragraph);
+}
+
+const orbitTerm = { correct: "Orbit", wrong: ["orvit"] };
+
+describe("correcting a word (annex, change 5)", () => {
+  it("opens beside the word pressed, with how many times the meeting says it", () => {
+    render(<TranscriptTab library={wordsLibrary()} note={wordsNote()} send={vi.fn(send0)} />);
+    press("Ya está en Orvit.", 13);
+    const menu = screen.getByRole("dialog", { name: "Corregir «Orvit»" });
+    expect(within(menu).getByText("Sale 3 veces en esta reunión.")).toBeTruthy();
+    const field = within(menu).getByRole("textbox", { name: "Debe decir" }) as HTMLInputElement;
+    expect(field.value).toBe("Orvit");
+    expect(document.activeElement).toBe(field);
+    const every = within(menu).getByRole("checkbox", { name: "Corregir las 3 veces" });
+    expect(every.getAttribute("aria-checked")).toBe("true");
+    // A dictionary corrects every place: this cannot be unticked.
+    expect(every.getAttribute("aria-disabled")).toBe("true");
+    expect(
+      within(menu).getByRole("button", { name: /^Se añade a · puedes elegir varios/ }).textContent,
+    ).toBe("Ferretería AlbarLumo");
+    expect(
+      within(menu).getByText(
+        "Orbit la corregirá en las reuniones que usen Ferretería Albar y Lumo.",
+      ),
+    ).toBeTruthy();
+    // Nothing changed yet: nothing to save.
+    expect(
+      (within(menu).getByRole("button", { name: "Corregir y añadir" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(document.querySelector("[data-picked]")?.textContent).toBe("Orvit");
+    fireEvent.keyDown(field, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("goes into every chosen dictionary at once, then shows the words corrected", () => {
+    const send = vi.fn(send0);
+    const value = { ...wordsNote(), summary: writtenSummary() };
+    const { rerender, container } = render(
+      <TranscriptTab library={wordsLibrary()} note={value} send={send} />,
+    );
+    press("Lo apunto en orvit, ¿vale?", 15);
+    const menu = screen.getByRole("dialog", { name: "Corregir «orvit»" });
+    fireEvent.change(within(menu).getByRole("textbox", { name: "Debe decir" }), {
+      target: { value: "Orbit" },
+    });
+    fireEvent.click(within(menu).getByRole("button", { name: /^Se añade a/ }));
+    fireEvent.click(within(menu).getByRole("checkbox", { name: /^Producto/ }));
+    fireEvent.click(within(menu).getByRole("button", { name: "Corregir y añadir" }));
+    expect(send).toHaveBeenCalledExactlyOnceWith({
+      command: "note_library",
+      request: {
+        action: "dictionary",
+        request: {
+          action: "correct",
+          recording_id: value.recording_id,
+          dictionary_ids: ["dic-albar", "dic-lumo", "dic-otro"],
+          wrong: "orvit",
+          correct: "Orbit",
+          name: null,
+        },
+      },
+    });
+    const pending = {
+      ...wordsLibrary(),
+      dictionary_pending: ["dictionaries:dic-albar,dic-lumo,dic-otro"],
+    };
+    rerender(<TranscriptTab library={pending} note={value} send={send} />);
+    expect(screen.getByRole("button", { name: /Guardando/ }).getAttribute("aria-busy")).toBe(
+      "true",
+    );
+    const saved = wordsLibrary({
+      "dic-albar": [orbitTerm],
+      "dic-lumo": [orbitTerm],
+      "dic-otro": [orbitTerm],
+    });
+    rerender(<TranscriptTab library={saved} note={value} send={send} />);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain(
+      "«orvit» ahora es «Orbit» en 3 sitios y está en Ferretería Albar, Lumo y Producto. La nota usará el cambio cuando rehagas el resumen.",
+    );
+    // The words read corrected at once, and marked, before the hub's read brings them.
+    expect(
+      Array.from(container.querySelectorAll("[data-fixed]")).map((word) => word.textContent),
+    ).toEqual(["Orbit", "Orbit", "Orbit"]);
+    const read = {
+      ...value,
+      transcript: {
+        ...value.transcript,
+        turns: value.transcript.turns.map((turn) => ({
+          ...turn,
+          text: turn.text.replace(/orvit/i, "Orbit"),
+        })),
+      },
+    };
+    rerender(<TranscriptTab library={saved} note={read} send={send} />);
+    expect(container.querySelectorAll("[data-fixed]")).toHaveLength(3);
+    expect(screen.getByText(/Lo apunto en/).textContent).toBe("Lo apunto en Orbit, ¿vale?");
+  });
+
+  it("undoes it in every dictionary with «Deshacer», without asking", () => {
+    const send = vi.fn(send0);
+    const value = wordsNote(["dic-albar"]);
+    const { rerender } = render(
+      <TranscriptTab library={wordsLibrary()} note={value} send={send} />,
+    );
+    press("Ya está en Orvit.", 12);
+    fireEvent.change(screen.getByRole("textbox", { name: "Debe decir" }), {
+      target: { value: "Orbit" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Corregir y añadir" }));
+    const saved = wordsLibrary({ "dic-albar": [orbitTerm] });
+    rerender(<TranscriptTab library={saved} note={value} send={send} />);
+    fireEvent.click(within(screen.getByRole("status")).getByRole("button", { name: "Deshacer" }));
+    expect(send).toHaveBeenLastCalledWith({
+      command: "note_library",
+      request: {
+        action: "dictionary",
+        request: {
+          action: "remove_correction",
+          dictionary_ids: ["dic-albar"],
+          wrong: "Orvit",
+          correct: "Orbit",
+        },
+      },
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    rerender(<TranscriptTab library={wordsLibrary()} note={value} send={send} />);
+    expect(screen.getByRole("status").textContent).toBe(
+      "Corrección deshecha. «Orvit» ya no está en Ferretería Albar.",
+    );
+    expect(document.querySelectorAll("[data-fixed]")).toHaveLength(0);
+  });
+
+  it("says when another dictionary of the meeting hears the word otherwise, and which wins", () => {
+    const send = vi.fn(send0);
+    const value = wordsNote(["dic-albar", "dic-lumo"]);
+    const { rerender, container } = render(
+      <TranscriptTab
+        library={wordsLibrary({ "dic-albar": [{ correct: "Órbita", wrong: ["orvit"] }] })}
+        note={value}
+        send={send}
+      />,
+    );
+    press("Ya está en Orvit.", 12);
+    fireEvent.change(screen.getByRole("textbox", { name: "Debe decir" }), {
+      target: { value: "Orbit" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Se añade a/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /^Ferretería Albar/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Corregir y añadir" }));
+    rerender(
+      <TranscriptTab
+        library={{
+          ...wordsLibrary({
+            "dic-albar": [{ correct: "Órbita", wrong: ["orvit"] }],
+            "dic-lumo": [orbitTerm],
+          }),
+          dictionary_conflicts: [
+            {
+              target: "dictionaries:dic-lumo",
+              conflicts: [
+                {
+                  wrong: "Orvit",
+                  correct: "Orbit",
+                  dictionary_id: "dic-lumo",
+                  other_dictionary_id: "dic-albar",
+                  other_name: "Ferretería Albar",
+                  other_correct: "Órbita",
+                  applied_dictionary_id: "dic-albar",
+                },
+              ],
+            },
+          ],
+        }}
+        note={value}
+        send={send}
+      />,
+    );
+    expect(screen.getByRole("status").textContent).toContain(
+      "Ferretería Albar corrige «Orvit» por «Órbita». Cuando dos diccionarios no coinciden, gana el primero: en esta reunión, Ferretería Albar.",
+    );
+    // The meeting says the word the first dictionary gives.
+    expect(
+      Array.from(container.querySelectorAll("[data-fixed]")).map((word) => word.textContent),
+    ).toEqual(["Órbita", "Órbita", "Órbita"]);
+  });
+
+  it("keeps what was typed when the hub refuses it, with the hub's numbers", () => {
+    const send = vi.fn(send0);
+    const value = wordsNote(["dic-albar"]);
+    const { rerender } = render(
+      <TranscriptTab library={wordsLibrary()} note={value} send={send} />,
+    );
+    press("Ya está en Orvit.", 12);
+    fireEvent.change(screen.getByRole("textbox", { name: "Debe decir" }), {
+      target: { value: "Orbit" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Corregir y añadir" }));
+    rerender(
+      <TranscriptTab
+        library={{
+          ...wordsLibrary(),
+          dictionary_failures: [
+            {
+              target: "dictionaries:dic-albar",
+              code: "dictionary_full",
+              detail: "HTTP 409",
+              numbers: { terms: 128, max_terms: 128 },
+            },
+          ],
+        }}
+        note={value}
+        send={send}
+      />,
+    );
+    const menu = screen.getByRole("dialog", { name: "Corregir «Orvit»" });
+    expect(within(menu).getByRole("alert").textContent).toBe(
+      "El diccionario está lleno (términos: 128, máximo de términos: 128).",
+    );
+    expect(
+      (within(menu).getByRole("textbox", { name: "Debe decir" }) as HTMLInputElement).value,
+    ).toBe("Orbit");
+    expect(
+      (within(menu).getByRole("button", { name: "Corregir y añadir" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+  });
+
+  it("can be pressed again when the daemon refuses the order at once", async () => {
+    const send = vi.fn(async () => false);
+    render(<TranscriptTab library={wordsLibrary()} note={wordsNote()} send={send} />);
+    press("Ya está en Orvit.", 12);
+    const menu = screen.getByRole("dialog", { name: "Corregir «Orvit»" });
+    fireEvent.change(within(menu).getByRole("textbox", { name: "Debe decir" }), {
+      target: { value: "Orbit" },
+    });
+    await act(async () => {
+      fireEvent.click(within(menu).getByRole("button", { name: "Corregir y añadir" }));
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(within(menu).queryByRole("button", { name: /Guardando/ })).toBeNull();
+    expect(
+      (within(menu).getByRole("textbox", { name: "Debe decir" }) as HTMLInputElement).value,
+    ).toBe("Orbit");
+    expect(
+      (within(menu).getByRole("button", { name: "Corregir y añadir" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+  });
+
+  it("names one dictionary to a hub up to 0.10.1, and has no «Deshacer» there", () => {
+    const send = vi.fn(send0);
+    const value = wordsNote(null);
+    const { rerender } = render(
+      <TranscriptTab library={wordsLibrary()} note={value} send={send} />,
+    );
+    press("Ya está en Orvit.", 12);
+    const menu = screen.getByRole("dialog", { name: "Corregir «Orvit»" });
+    fireEvent.change(within(menu).getByRole("textbox", { name: "Debe decir" }), {
+      target: { value: "Orbit" },
+    });
+    // Ticking another replaces the one chosen: that hub takes one.
+    fireEvent.click(within(menu).getByRole("button", { name: /^Se añade a/ }));
+    fireEvent.click(within(menu).getByRole("checkbox", { name: /^Lumo/ }));
+    expect(within(menu).getByRole("button", { name: /^Se añade a/ }).textContent).toBe("Lumo");
+    fireEvent.click(within(menu).getByRole("button", { name: "Corregir y añadir" }));
+    expect(send).toHaveBeenCalledWith({
+      command: "note_library",
+      request: {
+        action: "dictionary",
+        request: {
+          action: "correct",
+          recording_id: value.recording_id,
+          dictionary_id: "dic-lumo",
+          wrong: "Orvit",
+          correct: "Orbit",
+          name: null,
+        },
+      },
+    });
+    rerender(
+      <TranscriptTab
+        library={wordsLibrary({ "dic-lumo": [orbitTerm] })}
+        note={value}
+        send={send}
+      />,
+    );
+    expect(screen.getByRole("status").textContent).toContain("y está en Lumo.");
+    expect(screen.queryByRole("button", { name: "Deshacer" })).toBeNull();
+  });
+
+  it("creates a dictionary with the first correction, proposing the series' title", () => {
+    const send = vi.fn(send0);
+    const value = {
+      ...wordsNote([]),
+      dictionary: {
+        dictionary_id: null,
+        dictionary_ids: [],
+        source: null,
+        series: { calendar_item_id: "daily", title: "Daily del proyecto" },
+      },
+    };
+    render(<TranscriptTab library={dictionaryLibrary()} note={value} send={send} />);
+    press("Ya está en Orvit.", 12);
+    expect(
+      (screen.getByRole("textbox", { name: "Nombre del diccionario" }) as HTMLInputElement).value,
+    ).toBe("Daily del proyecto");
+    fireEvent.change(screen.getByRole("textbox", { name: "Debe decir" }), {
+      target: { value: "Orbit" },
+    });
+    expect(
+      screen.getByText("Orbit la corregirá en las reuniones que usen Daily del proyecto."),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Corregir y añadir" }));
+    expect(send).toHaveBeenCalledWith({
+      command: "note_library",
+      request: {
+        action: "dictionary",
+        request: {
+          action: "correct",
+          recording_id: value.recording_id,
+          dictionary_ids: [expect.any(String)],
+          wrong: "Orvit",
+          correct: "Orbit",
+          name: "Daily del proyecto",
+        },
+      },
+    });
+  });
+
+  it("opens the same menu from a selection, the keyboard's way, under the turn", () => {
+    const send = vi.fn(send0);
+    const current = {
+      ...note(),
+      dictionary: {
+        dictionary_id: "dic-albar",
+        dictionary_ids: ["dic-albar"],
+        source: "requested",
+        series: null,
+      },
+    };
+    render(<TranscriptTab library={wordsLibrary()} note={current} send={send} />);
+    const paragraph = screen.getByText("Empezamos.");
+    const range = document.createRange();
+    range.selectNodeContents(paragraph);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+    fireEvent.mouseUp(paragraph);
+    fireEvent.click(screen.getByRole("button", { name: "Corregir «Empezamos.»" }));
+    const menu = screen.getByRole("dialog", { name: "Corregir «Empezamos.»" });
+    expect(within(menu).getByText("Sale 1 vez en esta reunión.")).toBeTruthy();
+    expect(within(menu).queryByRole("checkbox", { name: /^Corregir las/ })).toBeNull();
+    fireEvent.change(within(menu).getByRole("textbox", { name: "Debe decir" }), {
+      target: { value: "Empecemos." },
+    });
+    fireEvent.keyDown(within(menu).getByRole("textbox", { name: "Debe decir" }), { key: "Enter" });
+    expect(send).toHaveBeenCalledWith({
+      command: "note_library",
+      request: {
+        action: "dictionary",
+        request: {
+          action: "correct",
+          recording_id: current.recording_id,
+          dictionary_ids: ["dic-albar"],
+          wrong: "Empezamos.",
+          correct: "Empecemos.",
+          name: null,
+        },
+      },
+    });
+  });
+
+  it("does not turn an unread dictionary into a known empty one", () => {
+    render(<TranscriptTab library={dictionaryLibrary()} note={wordsNote()} send={vi.fn(send0)} />);
+    press("Ya está en Orvit.", 12);
+    fireEvent.change(screen.getByRole("textbox", { name: "Debe decir" }), {
+      target: { value: "Orbit" },
+    });
+    const menu = screen.getByRole("dialog", { name: "Corregir «Orvit»" });
+    expect(
+      (within(menu).getByRole("button", { name: "Corregir y añadir" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+    cleanup();
+    const unread = { ...note(), transcript: wordsNote().transcript };
+    render(<TranscriptTab library={dictionaryLibrary()} note={unread} send={vi.fn(send0)} />);
+    press("Ya está en Orvit.", 12);
+    fireEvent.change(screen.getByRole("textbox", { name: "Debe decir" }), {
+      target: { value: "Orbit" },
+    });
+    expect(
+      (screen.getByRole("button", { name: "Corregir y añadir" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(screen.getByRole("alert").textContent).toBe(
+      "El diccionario aún no se ha podido leer del hub.",
+    );
+  });
 });
 
 function dictionaryLibrary() {
@@ -505,173 +1011,3 @@ function dictionaryLibrary() {
     },
   };
 }
-
-function selectFirstTurn() {
-  const paragraph = screen.getByText("Empezamos.");
-  const range = document.createRange();
-  range.selectNodeContents(paragraph);
-  window.getSelection()?.removeAllRanges();
-  window.getSelection()?.addRange(range);
-  fireEvent.mouseUp(paragraph);
-  fireEvent.click(screen.getByRole("button", { name: "Corregir «Empezamos.»" }));
-}
-
-it("creates the named dictionary with the first correction, proposing the series title", () => {
-  const send = vi.fn();
-  const current = {
-    ...note(),
-    dictionary: {
-      dictionary_id: null,
-      source: null,
-      series: { calendar_item_id: "daily", title: "Daily del proyecto" },
-    },
-  };
-  render(<TranscriptTab note={current} library={dictionaryLibrary()} send={send} />);
-  selectFirstTurn();
-  expect(
-    (screen.getByRole("textbox", { name: "Nombre del diccionario" }) as HTMLInputElement).value,
-  ).toBe("Daily del proyecto");
-  fireEvent.change(screen.getByRole("textbox", { name: "Debe decir" }), {
-    target: { value: "Empecemos." },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Guardar corrección" }));
-  expect(send).toHaveBeenCalledWith({
-    command: "note_library",
-    request: {
-      action: "dictionary",
-      request: {
-        action: "correct",
-        recording_id: current.recording_id,
-        dictionary_id: expect.any(String),
-        wrong: "Empezamos.",
-        correct: "Empecemos.",
-        name: "Daily del proyecto",
-      },
-    },
-  });
-});
-
-it("keeps the correction while saving or refused, with the cause and numbers visible", () => {
-  const current = {
-    ...note(),
-    dictionary: { dictionary_id: "vocabulary", source: "requested", series: null },
-  };
-  const send = vi.fn();
-  const { rerender } = render(
-    <TranscriptTab note={current} library={dictionaryLibrary()} send={send} />,
-  );
-  selectFirstTurn();
-  fireEvent.change(screen.getByRole("textbox", { name: "Debe decir" }), {
-    target: { value: "Empecemos." },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Guardar corrección" }));
-  rerender(
-    <TranscriptTab
-      note={current}
-      library={{ ...dictionaryLibrary(), dictionary_pending: ["dictionary:vocabulary"] }}
-      send={send}
-    />,
-  );
-  const saving = screen.getByRole("button", { name: "Guardando en el hub…" });
-  expect(saving.getAttribute("aria-busy")).toBe("true");
-  rerender(
-    <TranscriptTab
-      note={current}
-      library={{
-        ...dictionaryLibrary(),
-        dictionary_failures: [
-          {
-            target: "dictionary:vocabulary",
-            code: "dictionary_text_too_long",
-            detail: "HTTP 413",
-            numbers: { characters: 129, max_characters: 128 },
-          },
-        ],
-      }}
-      send={send}
-    />,
-  );
-  expect(screen.getByRole("alert").textContent).toContain("demasiado largo");
-  expect(screen.getByRole("alert").textContent).toContain("129");
-  expect(screen.getByRole("alert").textContent).toContain("128");
-  expect((screen.getByRole("textbox", { name: "Debe decir" }) as HTMLInputElement).value).toBe(
-    "Empecemos.",
-  );
-  rerender(
-    <TranscriptTab
-      note={current}
-      library={{
-        ...dictionaryLibrary(),
-        dictionary_items: [
-          {
-            dictionary: {
-              id: "vocabulary",
-              name: "Proyecto",
-              terms: [{ id: "entry", correct: "Empecemos.", wrong: ["Empezamos."] }],
-              series: [],
-            },
-            pending: false,
-          },
-        ],
-      }}
-      send={send}
-    />,
-  );
-  expect(screen.queryByRole("dialog")).toBeNull();
-  expect(screen.getByRole("status").textContent).toContain(
-    "Corregido «Empezamos.» por «Empecemos.».",
-  );
-});
-
-it("shows the correction window as the design draws it", () => {
-  const current = {
-    ...note(),
-    dictionary: { dictionary_id: "vocabulary", source: "requested", series: null },
-  };
-  const words = {
-    ...dictionaryLibrary(),
-    dictionary_items: [
-      {
-        dictionary: {
-          id: "vocabulary",
-          name: "Proyecto",
-          terms: [],
-          series: [
-            { calendar_item_id: "a", title: "Revisión semanal" },
-            { calendar_item_id: "b", title: "Comité" },
-          ],
-        },
-        pending: false,
-      },
-    ],
-  };
-  render(<TranscriptTab note={current} library={words} send={vi.fn(send0)} />);
-  selectFirstTurn();
-  const dialog = screen.getByRole("dialog", { name: "Corregir una palabra" });
-  expect(
-    within(dialog).getByText(
-      "Orbit la corregirá en todas las reuniones que usan este diccionario.",
-    ),
-  ).toBeTruthy();
-  expect(within(dialog).getByText("Se oyó")).toBeTruthy();
-  expect(
-    within(dialog).getByRole("option", { name: "Proyecto · lo usan Revisión semanal y Comité" }),
-  ).toBeTruthy();
-  expect(within(dialog).getByRole("option", { name: "Crear un diccionario nuevo" })).toBeTruthy();
-  expect(
-    within(dialog).getByText("La nota ya escrita cambiará cuando rehagas el resumen."),
-  ).toBeTruthy();
-  fireEvent.keyDown(dialog, { key: "Escape" });
-  expect(screen.queryByRole("dialog")).toBeNull();
-});
-
-it("does not turn an unread dictionary into a known empty one", () => {
-  render(<TranscriptTab note={note()} library={dictionaryLibrary()} send={vi.fn(send0)} />);
-  selectFirstTurn();
-  expect(
-    (screen.getByRole("button", { name: "Guardar corrección" }) as HTMLButtonElement).disabled,
-  ).toBe(true);
-  expect(
-    screen.getAllByText("El diccionario aún no se ha podido leer del hub.").length,
-  ).toBeGreaterThan(0);
-});

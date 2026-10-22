@@ -1,0 +1,120 @@
+/* Correcting a word of the transcript (annex, change 5). */
+
+/* A word drawn apart. Its padding is taken back by its margin, so the line
+   never moves when a word lights up. */
+.word {
+  position: relative;
+  margin: 0 -2px;
+  padding: 1px 2px;
+  border-radius: 4px;
+  transition: background var(--o-dur-fast) var(--o-ease);
+}
+
+.word[data-hover] {
+  background: var(--o-wordHover);
+  cursor: pointer;
+}
+
+.word[data-fixed] {
+  background: var(--o-okSoft);
+}
+
+.word[data-picked] {
+  background: var(--o-sel);
+}
+
+/* «Pulsa para corregir»: the tooltip's look (Tooltip.module.css), above the word. */
+.wordTip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  z-index: 5;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--o-ink);
+  color: var(--o-bg);
+  font: 500 12px/1.4 var(--o-font-sans);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.every {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--o-ink);
+  font: 400 13px/1.4 var(--o-font-sans);
+}
+
+.everyBox {
+  display: flex;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: var(--o-acc);
+  color: #ffffff;
+}
+
+.where {
+  margin: 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+/* «✓ «Orvit» ahora es «Orbit» en 3 sitios…», with «Deshacer» and «Rehacer resumen». */
+.band {
+  margin-top: var(--o-space-16);
+  padding: var(--o-space-10) var(--o-space-12);
+  border-radius: var(--o-radius-md);
+  background: var(--o-okSoft);
+  color: var(--o-ink);
+  font: 400 13px/1.45 var(--o-font-sans);
+}
+
+.bandRow {
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-10);
+  margin: 0;
+}
+
+.bandMark {
+  color: var(--o-ok);
+}
+
+.bandText {
+  flex: 1;
+}
+
+/* Not drawn: another dictionary hears the word otherwise. */
+.conflict {
+  margin: var(--o-space-8) 0 0;
+  padding: var(--o-space-8) var(--o-space-10);
+  border-radius: var(--o-radius-sm);
+  background: var(--o-warnSoft);
+  color: var(--o-ink);
+}
+
+.refused {
+  margin: var(--o-space-8) 0 0;
+  color: var(--o-recText);
+}
+
+.undone {
+  margin: var(--o-space-16) 0 0;
+  padding: var(--o-space-10) var(--o-space-12);
+  border-radius: var(--o-radius-md);
+  background: var(--o-raised);
+  color: var(--o-ink2);
+  font: 400 13px/1.45 var(--o-font-sans);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .word {
+    transition: none;
+  }
+}

@@ -207,6 +207,32 @@ fn final_pass_state_and_failure_reach_the_open_transcript() {
     assert!(old["transcript"]["final_pass"].is_null());
 }
 
+/// The progress card reads how much audio a running pass has done and the
+/// time the hub says is left; a queued pass and an older hub say nothing.
+#[test]
+fn a_running_final_pass_brings_its_progress_to_the_open_transcript() {
+    let mut raw = serde_json::to_value(hub_document()).unwrap();
+    raw["transcript"]["final_pass"] = serde_json::json!({
+        "state": "running", "error": null,
+        "progress": {"done_ms": 30_000, "total_ms": 120_000, "remaining_ms": 90_000}
+    });
+    let document = serde_json::from_value(raw).unwrap();
+    let projected = serde_json::to_value(project_open_note(document, Ok(vec![]), None)).unwrap();
+    assert_eq!(
+        projected["transcript"]["final_pass"]["progress"],
+        serde_json::json!({"done_ms": 30_000, "total_ms": 120_000, "remaining_ms": 90_000})
+    );
+    let mut raw = serde_json::to_value(hub_document()).unwrap();
+    raw["transcript"]["final_pass"] = serde_json::json!({"state": "queued", "error": null});
+    let document = serde_json::from_value(raw).unwrap();
+    let projected = serde_json::to_value(project_open_note(document, Ok(vec![]), None)).unwrap();
+    assert!(
+        projected["transcript"]["final_pass"]
+            .get("progress")
+            .is_none()
+    );
+}
+
 #[test]
 fn final_pass_timeout_projects_its_budget_without_other_diagnostics() {
     let mut raw = serde_json::to_value(hub_document()).unwrap();

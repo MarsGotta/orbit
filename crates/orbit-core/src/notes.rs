@@ -767,6 +767,12 @@ pub enum LibraryItem {
     DictionaryRefused {
         failure: DictionaryFailure,
     },
+    /// What the hub warned of when it took a correction, by the order's
+    /// target (`DictionaryRequest::target`).
+    DictionaryConflicts {
+        target: String,
+        conflicts: Vec<DictionaryConflict>,
+    },
     Template(Template),
     Link(TemplateLink),
     /// A list the hub could not give, with its cause.

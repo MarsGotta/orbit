@@ -248,6 +248,13 @@ pub(crate) fn project_open_note(
                         .and_then(|cause| cause.details.get("timeout_ms"))
                         .and_then(serde_json::Value::as_u64),
                     error: final_pass.error.map(|cause| cause.code),
+                    progress: final_pass
+                        .progress
+                        .map(|progress| NoteFinalPassProgressSnapshot {
+                            done_ms: progress.done_ms,
+                            total_ms: progress.total_ms,
+                            remaining_ms: progress.remaining_ms,
+                        }),
                 }),
             unmatched_speaker_names: (document.transcript.unmatched_speaker_names > 0)
                 .then_some(document.transcript.unmatched_speaker_names),

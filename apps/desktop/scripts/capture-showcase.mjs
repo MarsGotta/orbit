@@ -99,7 +99,11 @@ async function step(page, action, now) {
       });
   else if ("advance" in action) await page.clock.setFixedTime(now + action.advance);
   else if ("click" in action) await page.locator(action.click).first().click();
-  else if ("hover" in action) await page.locator(action.hover).first().hover();
+  else if ("hover" in action)
+    await page
+      .locator(action.hover)
+      .first()
+      .hover(action.at ? { position: { x: action.at[0], y: action.at[1] } } : undefined);
   else if ("press" in action) await page.keyboard.press(action.press);
   else if ("fill" in action) await page.locator(action.fill).first().fill(action.text);
   else if ("wait" in action) await page.locator(action.wait).first().waitFor();

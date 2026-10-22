@@ -935,7 +935,8 @@ Refusals include `code`, a content-free message and numbers:
 `dictionary_series_full {series,max_series}`. `dictionary_id` names which
 dictionary of an order into several is full.
 `dictionary_series_missing` means the series is unknown, not a zero count.
-The Mac carries numbers to the UI. On order confirmation the daemon invalidates
+The Mac carries numbers to the UI, and a correction's `conflicts` too, by the
+order's target, to show beside it. On order confirmation the daemon invalidates
 all meeting/library reads once, as for templates, rather than one WebSocket event
 per historical meeting. app-core does not reuse closed turns when a dictionary
 exists or that fact is unknown. Unconfirmed orders retain the written correction

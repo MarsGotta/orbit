@@ -108,6 +108,12 @@ app_type! {
         pub dictionary_pending: Vec<String>,
         #[serde(default)]
         pub dictionary_failures: Vec<orbit_core::notes::DictionaryFailure>,
+        /// What the hub warned of when it took the last corrections, by
+        /// their orders' targets: another dictionary of the meeting hears
+        /// the form otherwise. Absent when it warned of nothing.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub dictionary_conflicts: Option<Vec<NoteDictionaryConflictsSnapshot>>,
         pub read: NoteLibraryReadState,
         pub read_detail: Option<String>,
         pub templates: NoteLibraryListSnapshot,
@@ -154,5 +160,14 @@ app_type! {
     pub struct DictionarySnapshot {
         pub dictionary: orbit_core::notes::Dictionary,
         pub pending: bool,
+    }
+}
+
+app_type! {
+    /// The conflicts of one correction, by its order's target
+    /// (`dictionaries:<id>,<id>` or `dictionary:<id>`).
+    pub struct NoteDictionaryConflictsSnapshot {
+        pub target: String,
+        pub conflicts: Vec<orbit_core::notes::DictionaryConflict>,
     }
 }

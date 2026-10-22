@@ -7,7 +7,15 @@ import { Icon } from "../../design/Icon";
 import { Popover } from "../../design/Popover";
 import { es } from "../../i18n/es";
 import { languageName } from "./notes-format";
-import { type Choice, current, howLabel, orders, refusals, templateName } from "./note-settings";
+import {
+  type Choice,
+  current,
+  howLabel,
+  orders,
+  refusals,
+  rewrites,
+  templateName,
+} from "./note-settings";
 import { Fields } from "./NoteSettingsFields";
 import { sent, type Send } from "./send";
 import styles from "./Note.module.css";
@@ -65,8 +73,8 @@ function useNoteSettings(
     setOpen(next);
   }, []);
   const from = current(note);
-  const rewrite = draft.template !== from.template || draft.language !== from.language;
-  const changed = rewrite || draft.dictionary !== from.dictionary || draft.series !== from.series;
+  const rewrite = rewrites(from, draft);
+  const changed = rewrite || draft.series !== from.series;
   const apply = () => {
     const work = Promise.all(orders(note, from, draft).map((command) => sent(send, command)));
     if (rewrite) {
@@ -84,8 +92,9 @@ function useNoteSettings(
 /**
  * «Plantilla: … · Español ⌄»: how Orbit writes this note. Nothing changes on
  * a mere choice (proposals 8 and 9): writing the note again waits for
- * «Reescribir la nota», which says what it does first; the series takes the
- * template and the dictionary together.
+ * «Reescribir la nota», which says what it does first, whether the template,
+ * the language or the dictionaries changed; the series takes the template
+ * and the dictionaries together.
  */
 export function NoteSettingsMenu({
   blocked,

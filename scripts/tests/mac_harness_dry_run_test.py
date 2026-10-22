@@ -153,3 +153,16 @@ def test_a_saved_input_no_longer_connected_does_not_stop_the_next_run(tmp_path):
     assert "«Auriculares de Alina» is no longer connected" in done["restored_input"]
     assert not paths.previous_input.exists()
     assert system.input == "Micrófono del MacBook Pro"
+
+
+def test_the_note_s_language_is_read_before_its_dictionaries():
+    # The note's header button names the template, the language and, since
+    # the annex of the redesign, how many dictionaries it uses
+    # (NoteSettingsMenu.tsx, `es.noteScreen.howLabel`).
+    import checks
+
+    assert checks.language_of("Plantilla: General · Español") == "Español"
+    assert checks.language_of("Plantilla: General · Español · 2 diccionarios") == "Español"
+    assert checks.language_of("Plantilla: General · English · 1 diccionario") == "English"
+    assert checks.language_of("Plantilla: General") is None
+    assert checks.language_of(None) is None

@@ -5,13 +5,14 @@ import type { Section } from "../../bridge/generated/Section";
 import { Button } from "../../design/Button";
 import { Skeleton } from "../../design/Skeleton";
 import { es } from "../../i18n/es";
-import { CopyButton } from "./copy-button";
 import { notRequested, templateOf } from "./note-progress";
-import { shortName, summaryMarkdown } from "./notes-format";
+import { shortName } from "./notes-format";
 import type { Send } from "./send";
 import type { NoteWriting } from "./note-writing";
 import { SummarySection } from "./SummarySection";
+import { SummaryTools } from "./SummaryTools";
 import { useDebouncedCommit } from "./use-debounced-commit";
+import type { Rewriting } from "./use-rewriting";
 import styles from "./Note.module.css";
 
 /** «Quién habló»: one bar, each person's share in their colour. */
@@ -129,22 +130,28 @@ function Unwritten({
 export function SummaryTab({
   library,
   note,
+  rewriting,
   send,
   writing,
 }: {
   library?: NoteLibrarySnapshot | null;
   note: OpenNoteSnapshot;
+  rewriting: Rewriting;
   send: Send;
   writing?: NoteWriting;
 }) {
   const summary = note.summary;
   const { sections, change, flush, unsaved } = useSectionEdits(note, send);
-  if (!summary) return <Unwritten library={library} note={note} />;
+  if (!summary)
+    return (
+      <>
+        <SummaryTools note={note} rewriting={rewriting} />
+        <Unwritten library={library} note={note} />
+      </>
+    );
   return (
     <div className={styles.summary}>
-      <div className={styles.toolbarEnd}>
-        <CopyButton label={es.noteScreen.copySummary} text={() => summaryMarkdown(note)} />
-      </div>
+      <SummaryTools note={note} rewriting={rewriting} />
       <Superseded note={note} send={send} />
       {summary.sections.map((section, index) => (
         <SummarySection

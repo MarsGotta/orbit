@@ -3,6 +3,7 @@
   position: fixed;
   z-index: 70;
   max-width: calc(100vw - 16px);
+  overflow-y: auto;
   padding: var(--o-space-16);
   border: 1px solid var(--o-line2);
   border-radius: var(--o-radius-xl);

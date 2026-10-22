@@ -20,7 +20,7 @@
       - [9] AXRadioButton "Acciones" [actions=[press]]
       - [10] AXRadioButton "Transcripción" [actions=[press]]
     - AXGroup
-      - AXStaticText = "Pulsa un nombre para cambiar quién habla. Selecciona una palabra para corregirla."
+      - AXStaticText = "Pulsa un nombre para cambiar quién habla. Pasa el ratón por una palabra y púlsala para corregirla: la corrección se guarda en los diccionarios de esta reunión."
       - [11] AXButton "Copiar transcripción" [actions=[press]]
       - AXGroup
         - AXStaticText = "00:00"

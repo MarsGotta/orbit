@@ -15,6 +15,8 @@ export interface EditMenuProps {
   /** 400 for an assistant's pencil, 420 for a transcript's word. */
   width: 400 | 420;
   align?: "start" | "end";
+  /** Above what it edits whenever it fits there: a word in the lower half of the transcript. */
+  above?: boolean;
   title: string;
   subtitle?: ReactNode;
   /** Beside the title: the assistant's avatar in the pencil. */
@@ -35,7 +37,8 @@ export interface EditMenuProps {
 
 /** The menu that edits something in place, anchored to what it edits. */
 export function EditMenu(props: EditMenuProps) {
-  const { anchor, width, align, title, subtitle, leading, canSave, feedback, error, extra } = props;
+  const { anchor, width, align, above, title, subtitle, leading, canSave, feedback } = props;
+  const { error, extra } = props;
   const { saveLabel = es.controls.save, onSave, onClose, children } = props;
   const titleId = useId();
   const saving = feedback === "pending";
@@ -48,6 +51,7 @@ export function EditMenu(props: EditMenuProps) {
   };
   return (
     <AnchoredCard
+      above={above}
       align={align}
       anchor={anchor}
       labelledBy={titleId}

@@ -124,3 +124,42 @@ fn dictionary_projection_keeps_terms_series_pending_and_unavailable_separate()
     assert_eq!(projected["templates"]["state"], "available");
     Ok(())
 }
+
+/// What the hub warned of when a correction went in: another dictionary of
+/// the meeting hears the form otherwise, and the first of the list wins.
+#[test]
+fn a_correction_s_conflicts_are_shown_by_the_order_they_answer() {
+    let conflict = orbit_core::notes::DictionaryConflict {
+        wrong: "Fondos".into(),
+        correct: "Fondant".into(),
+        dictionary_id: "dic-dos".into(),
+        other_dictionary_id: "dic-uno".into(),
+        other_name: "Ferretería Albar".into(),
+        other_correct: "LedgerBox".into(),
+        applied_dictionary_id: Some("dic-uno".into()),
+    };
+    let library = project_library(vec![LibraryItem::DictionaryConflicts {
+        target: "dictionaries:dic-dos".into(),
+        conflicts: vec![conflict.clone()],
+    }]);
+    let warned = library.dictionary_conflicts.unwrap_or_default();
+    assert_eq!(warned.len(), 1);
+    assert_eq!(warned[0].target, "dictionaries:dic-dos");
+    assert_eq!(warned[0].conflicts, vec![conflict]);
+    assert_eq!(project_library(Vec::new()).dictionary_conflicts, None);
+}
+
+/// A correction into several dictionaries is on its way under one target,
+/// and «Corregir y añadir» waits for it as it waits for a single one.
+#[test]
+fn a_correction_into_several_dictionaries_shows_as_pending() {
+    let library = project_library(vec![
+        LibraryItem::Pending {
+            target: "dictionaries:dic-uno,dic-dos".into(),
+        },
+        LibraryItem::Pending {
+            target: "template:mia".into(),
+        },
+    ]);
+    assert_eq!(library.dictionary_pending, ["dictionaries:dic-uno,dic-dos"]);
+}

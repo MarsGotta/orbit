@@ -1,0 +1,44 @@
+/* «Rehacer resumen» and «Rehacer transcripción» (annex, change 7). */
+
+/* The Resumen's toolbar: «Copiar resumen» and «Rehacer resumen», on the right. */
+.tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--o-space-4);
+  margin-top: var(--o-space-8);
+}
+
+.aside {
+  color: var(--o-ink3);
+}
+
+.done {
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-10);
+  margin: var(--o-space-12) 0 0;
+  padding: var(--o-space-10) var(--o-space-12);
+  border-radius: var(--o-radius-md);
+  background: var(--o-okSoft);
+  color: var(--o-ink);
+  font: 400 13px/1.45 var(--o-font-sans);
+}
+
+.doneMark {
+  color: var(--o-ok);
+}
+
+.doneText {
+  flex: 1;
+}
+
+.quiet {
+  margin: var(--o-space-12) 0 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+/* The progress card sits between the toolbar and the turns. */
+.card {
+  margin-top: var(--o-space-12);
+}

@@ -2,6 +2,7 @@ import type { AppCommand } from "../../bridge/generated";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { es } from "../../i18n/es";
+import { meetingDictionaries, takesLists } from "./dictionary-choice";
 import { templateOf } from "./note-progress";
 import { languageName } from "./notes-format";
 
@@ -13,8 +14,8 @@ export const LANGUAGES = ["es", "en", "ca", "fr", "pt", "de", "it"];
 export interface Choice {
   template: string;
   language: string | null;
-  /** A dictionary's id, or "" for the series' own. */
-  dictionary: string;
+  /** The meeting's dictionaries, in the hub's order. */
+  dictionaries: string[];
   series: boolean;
 }
 
@@ -29,7 +30,7 @@ export function current(note: OpenNoteSnapshot): Choice {
   return {
     template,
     language: note.transcript.language,
-    dictionary: note.dictionary?.dictionary_id ?? "",
+    dictionaries: meetingDictionaries(note) ?? [],
     series: seriesUses(note, template),
   };
 }
@@ -43,33 +44,51 @@ export function templateName(
   return library?.items.find((item) => item.id === id)?.name ?? id;
 }
 
-/** The trigger's words: «Plantilla: Revisión de diseño · Español». */
+/** The trigger's words: «Plantilla: Revisión de diseño · Español · 2 diccionarios». */
 export function howLabel(note: OpenNoteSnapshot, library?: NoteLibrarySnapshot | null): string {
   const template = note.summary?.template_name ?? templateName(library, templateOf(note), note);
   const language = note.transcript.language;
-  return es.noteScreen.howLabel(template, language === null ? null : languageName(language));
+  return es.noteScreen.howLabel(
+    template,
+    language === null ? null : languageName(language),
+    meetingDictionaries(note)?.length ?? 0,
+  );
+}
+
+const same = (one: string[], other: string[]) => one.join("\n") === other.join("\n");
+
+/** Whether the choice writes the note again: another template, language or dictionaries. */
+export function rewrites(from: Choice, to: Choice): boolean {
+  return (
+    to.template !== from.template ||
+    to.language !== from.language ||
+    !same(to.dictionaries, from.dictionaries)
+  );
 }
 
 /**
  * The orders a choice gives, in the order the hub must take them: the series
- * first (template and dictionary in one transaction), then this meeting's
- * dictionary, then the note written again and the meeting transcribed again.
+ * first (template and dictionaries in one transaction), then this meeting's
+ * dictionaries, then the note written again and the meeting transcribed
+ * again. A hub that takes lists gets the whole list; an older one, the first.
  */
 export function orders(note: OpenNoteSnapshot, from: Choice, to: Choice): AppCommand[] {
   const commands: AppCommand[] = [];
   const recording_id = note.recording_id;
+  const lists = takesLists(note);
+  const dictionariesChanged = !same(to.dictionaries, from.dictionaries);
   const seriesChanged =
     to.series !== from.series ||
-    (to.series && (to.template !== from.template || to.dictionary !== from.dictionary));
+    (to.series && (to.template !== from.template || dictionariesChanged));
   if (note.series && seriesChanged && to.series) {
-    const followed = note.dictionary?.source === "series" ? note.dictionary.dictionary_id : null;
     commands.push({
       command: "note_library",
       request: {
         action: "use_for_series",
         recording_id,
         template_id: to.template,
-        dictionary_id: to.dictionary === "" ? followed : to.dictionary,
+        dictionary_id: lists ? null : (to.dictionaries[0] ?? null),
+        ...(lists ? { dictionary_ids: to.dictionaries } : {}),
       },
     });
   } else if (note.series && seriesChanged) {
@@ -83,7 +102,7 @@ export function orders(note: OpenNoteSnapshot, from: Choice, to: Choice): AppCom
       },
     });
   }
-  if (!to.series && to.dictionary !== from.dictionary) {
+  if (!to.series && dictionariesChanged) {
     commands.push({
       command: "note_library",
       request: {
@@ -91,13 +110,14 @@ export function orders(note: OpenNoteSnapshot, from: Choice, to: Choice): AppCom
         request: {
           action: "select",
           recording_id,
-          dictionary_id: to.dictionary === "" ? null : to.dictionary,
+          dictionary_id: lists ? null : (to.dictionaries[0] ?? null),
+          ...(lists ? { dictionary_ids: to.dictionaries } : {}),
           use_for_series: false,
         },
       },
     });
   }
-  if (to.template !== from.template)
+  if (to.template !== from.template || dictionariesChanged)
     commands.push({ command: "note_regenerate", recording_id, template_id: to.template });
   if (to.language !== null && to.language !== from.language)
     commands.push({ command: "meeting_language", recording_id, language: to.language });

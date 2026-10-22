@@ -44,6 +44,12 @@ const MAX_KEPT_REFUSALS: usize = 8;
 /// Undos («Deshacer») remembered as answered, newest last: the app reads its
 /// own a moment after pressing it. Four cover several in a row.
 const MAX_KEPT_RESTORES: usize = 4;
+/// Conflicts kept from one correction's answer, and corrections whose
+/// conflicts are kept, newest last. The hub lists one per pair of a
+/// dictionary written and another of the meeting that hears the form
+/// otherwise; the band under the transcript names them, and past eight it
+/// would be a list nobody reads. It protects the library read, not the order.
+const MAX_KEPT_CONFLICTS: usize = 8;
 /// After private notes or the profile could not reach the hub they go again
 /// no sooner than this: the hub is down or the network is, and once every
 /// thirty seconds keeps a failing hub from being asked every second while
@@ -88,6 +94,9 @@ impl NoteEvent {
 pub(super) enum Outcome {
     Done {
         requeued: Option<u64>,
+        /// What the hub warned of when it took a correction: another
+        /// dictionary of the meeting hears the form otherwise.
+        conflicts: Vec<core::DictionaryConflict>,
     },
     Refused {
         status: u16,
@@ -103,7 +112,10 @@ pub(super) enum Outcome {
 impl<T> From<Answer<T>> for Outcome {
     fn from(answer: Answer<T>) -> Self {
         match answer {
-            Answer::Value(_) => Self::Done { requeued: None },
+            Answer::Value(_) => Self::Done {
+                requeued: None,
+                conflicts: Vec::new(),
+            },
             Answer::Refused {
                 status,
                 code,
@@ -161,6 +173,8 @@ pub(super) enum NoteOrder {
 pub(super) struct LibraryRuntime {
     in_flight: Ticketed<LibraryRequest>,
     dictionary_failures: VecDeque<core::DictionaryFailure>,
+    /// The conflicts of the last corrections, by their orders' targets.
+    dictionary_conflicts: VecDeque<(String, Vec<core::DictionaryConflict>)>,
     /// Orders not sent yet, one per target, in the order the user gave them: two
     /// orders about the same template never reach the hub out of order.
     waiting: VecDeque<LibraryRequest>,
@@ -639,7 +653,7 @@ impl Runtime {
             NoteOrder::Title { .. } => "title",
         };
         match outcome {
-            Outcome::Done { requeued } => {
+            Outcome::Done { requeued, .. } => {
                 // The hub announces the change (`recording.changed`); the
                 // app reads the note again then.
                 if matches!(order, NoteOrder::RetryTranscript) {
@@ -819,8 +833,21 @@ impl Runtime {
         library
             .dictionary_failures
             .retain(|failure| failure.target != target);
+        library
+            .dictionary_conflicts
+            .retain(|(conflicted, _)| *conflicted != target);
         let failure = match outcome {
-            Outcome::Done { .. } => None,
+            Outcome::Done { conflicts, .. } => {
+                if !conflicts.is_empty() {
+                    library
+                        .dictionary_conflicts
+                        .push_back((target.clone(), conflicts));
+                    while library.dictionary_conflicts.len() > MAX_KEPT_CONFLICTS {
+                        library.dictionary_conflicts.pop_front();
+                    }
+                }
+                None
+            }
             Outcome::Refused {
                 status,
                 code,
@@ -1055,11 +1082,46 @@ impl Runtime {
             .iter()
             .cloned()
             .map(|failure| core::LibraryItem::DictionaryRefused { failure });
+        let dictionary_conflicts =
+            library
+                .dictionary_conflicts
+                .iter()
+                .map(
+                    |(target, conflicts)| core::LibraryItem::DictionaryConflicts {
+                        target: target.clone(),
+                        conflicts: conflicts.clone(),
+                    },
+                );
         pending
             .chain(refused)
             .chain(restored)
             .chain(dictionary_failures)
+            .chain(dictionary_conflicts)
             .collect()
+    }
+}
+
+/// The `conflicts` of a dictionary order's answer. A hub up to 0.10.1 sends
+/// none, and so does an order that is not a correction. One the Mac cannot
+/// read is said in the log, by its shape only, and shows no warning: the
+/// correction itself was saved.
+fn conflicts_of(answer: &serde_json::Value) -> Vec<core::DictionaryConflict> {
+    let Some(listed) = answer.get("conflicts") else {
+        return Vec::new();
+    };
+    match serde_json::from_value::<Vec<core::DictionaryConflict>>(listed.clone()) {
+        Ok(mut conflicts) => {
+            conflicts.truncate(MAX_KEPT_CONFLICTS);
+            conflicts
+        }
+        Err(error) => {
+            eprintln!(
+                "dictionary_conflicts_unreadable line={} column={}",
+                error.line(),
+                error.column()
+            );
+            Vec::new()
+        }
     }
 }
 
@@ -1195,6 +1257,7 @@ async fn send_note_order(hub: &NoteHub, recording: &str, order: &NoteOrder) -> O
         NoteOrder::RetryTranscript => match hub.retry_transcript(recording).await {
             Answer::Value(value) => Outcome::Done {
                 requeued: value.get("requeued").and_then(serde_json::Value::as_u64),
+                conflicts: Vec::new(),
             },
             other @ (Answer::Refused { .. } | Answer::Unreachable(_)) => other.into(),
         },
@@ -1230,7 +1293,13 @@ async fn restore_superseded(hub: &NoteHub, recording: &str) -> Outcome {
 
 async fn send_library_order(hub: &NoteHub, request: &LibraryRequest) -> Outcome {
     match request {
-        LibraryRequest::Dictionary { request } => hub.dictionary_order(request).await.into(),
+        LibraryRequest::Dictionary { request } => match hub.dictionary_order(request).await {
+            Answer::Value(value) => Outcome::Done {
+                requeued: None,
+                conflicts: conflicts_of(&value),
+            },
+            other @ (Answer::Refused { .. } | Answer::Unreachable(_)) => other.into(),
+        },
         LibraryRequest::SaveTemplate { template_id, draft } => {
             hub.save_template(template_id, draft).await.into()
         }

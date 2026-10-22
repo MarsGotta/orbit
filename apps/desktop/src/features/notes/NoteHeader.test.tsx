@@ -1,9 +1,11 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { es } from "../../i18n/es";
 import { NoteHeader } from "./NoteHeader";
+import type { Send } from "./send";
+import { useRewriting } from "./use-rewriting";
 import { summaryMarkdown } from "./notes-format";
 import { library, writtenNote } from "./test-notes";
 
@@ -21,15 +23,48 @@ function title(): HTMLInputElement {
   return screen.getByRole("textbox", { name: es.noteScreen.titleLabel }) as HTMLInputElement;
 }
 
+/** The header as the note shows it: «Reescribiendo…» is the note's, shared with the Resumen. */
+function Header({
+  note,
+  notes,
+  send,
+}: {
+  note: OpenNoteSnapshot;
+  notes: NoteLibrarySnapshot | null;
+  send: Send;
+}) {
+  const rewriting = useRewriting(note, send);
+  return (
+    <NoteHeader
+      library={notes}
+      note={note}
+      onAsk={() => undefined}
+      rewriting={rewriting}
+      send={send}
+    />
+  );
+}
+
 function header(
   note: OpenNoteSnapshot,
   send = vi.fn<(command: unknown) => Promise<void>>(() => Promise.resolve()),
   notes: NoteLibrarySnapshot | null = library(),
 ) {
-  const view = render(
-    <NoteHeader library={notes} note={note} onAsk={() => undefined} send={send} />,
-  );
+  const view = render(<Header note={note} notes={notes} send={send} />);
   return { send, view };
+}
+
+/** A hub that takes several dictionaries: its documents say `dictionary_ids`. */
+function withLists(note: OpenNoteSnapshot, ids: string[]): OpenNoteSnapshot {
+  return {
+    ...note,
+    dictionary: {
+      dictionary_id: ids[0] ?? null,
+      dictionary_ids: ids,
+      source: "requested",
+      series: null,
+    },
+  };
 }
 
 describe("the opened note's title", () => {
@@ -101,8 +136,15 @@ describe("renaming the meeting", () => {
 });
 
 function menu() {
-  fireEvent.click(screen.getByRole("button", { name: "Plantilla: Revisión · Español" }));
+  fireEvent.click(screen.getByRole("button", { name: /^Plantilla: Revisión · Español/ }));
   return screen.getByRole("dialog", { name: "Cómo escribe Orbit esta nota" });
+}
+
+/** Ticks a dictionary in the menu's multi-select. */
+function tick(dialog: HTMLElement, name: string) {
+  const trigger = within(dialog).getByRole("button", { name: /^Diccionarios de palabras/ });
+  if (trigger.getAttribute("aria-expanded") !== "true") fireEvent.click(trigger);
+  fireEvent.click(within(dialog).getByRole("checkbox", { name: new RegExp(`^${name}`) }));
 }
 
 function choose(dialog: HTMLElement, label: string, value: string) {
@@ -112,12 +154,26 @@ function choose(dialog: HTMLElement, label: string, value: string) {
 }
 
 describe("how Orbit writes the note", () => {
-  it("names the template and the language on its button", () => {
-    header(written(), undefined, null);
+  it("names the template, the language and how many dictionaries on its button", () => {
+    const { view } = header(written(), undefined, null);
+    expect(
+      screen.getByRole("button", { name: "Plantilla: Revisión · Español · 1 diccionario" }),
+    ).toBeTruthy();
+    view.rerender(
+      <Header
+        note={withLists(written(), ["dic-biblio", "dic-otro"])}
+        notes={null}
+        send={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Plantilla: Revisión · Español · 2 diccionarios" }),
+    ).toBeTruthy();
+    view.rerender(<Header note={withLists(written(), [])} notes={null} send={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Plantilla: Revisión · Español" })).toBeTruthy();
   });
 
-  it("offers the template, the meeting's language, the dictionary and one switch for the series", () => {
+  it("offers the template, the meeting's language, its dictionaries and one switch for the series", () => {
     header(written());
     const dialog = menu();
     expect(
@@ -136,13 +192,18 @@ describe("how Orbit writes the note", () => {
       "Deutsch",
       "Italiano",
     ]);
+    const dictionaries = within(dialog).getByRole("button", { name: /^Diccionarios de palabras/ });
+    expect(dictionaries.textContent).toBe("Biblioteca");
+    fireEvent.click(dictionaries);
+    const listed = within(dialog).getByRole("group", { name: "Diccionarios de palabras" });
     expect(
-      (
-        within(dialog).getByRole("combobox", {
-          name: "Diccionario de palabras",
-        }) as HTMLSelectElement
-      ).value,
-    ).toBe("dic-biblio");
+      within(listed)
+        .getAllByRole("checkbox")
+        .map((box) => [box.textContent, box.getAttribute("aria-checked")]),
+    ).toEqual([
+      ["Bibliotecaesta reuniónComité y Obras · 0 palabras", "true"],
+      ["OtroNinguna serie · 0 palabras", "false"],
+    ]);
     const series = within(dialog).getByRole("switch", { name: "Usar lo mismo en toda la serie" });
     expect(series.getAttribute("aria-checked")).toBe("true");
     expect(within(dialog).queryByRole("button", { name: "Reescribir la nota" })).toBeNull();
@@ -196,7 +257,7 @@ describe("how Orbit writes the note", () => {
     });
   });
 
-  it("saves the template and the dictionary for the series in one order", () => {
+  it("saves the template and the dictionary for the series in one order, and writes the note again", () => {
     const note = written();
     note.series = {
       calendar_item_id: "serie-comite",
@@ -207,26 +268,63 @@ describe("how Orbit writes the note", () => {
     const series = within(dialog).getByRole("switch", { name: "Usar lo mismo en toda la serie" });
     expect(series.getAttribute("aria-checked")).toBe("false");
     fireEvent.click(series);
-    choose(dialog, "Diccionario de palabras", "dic-otro");
+    // A hub up to 0.10.1 takes one dictionary: ticking another replaces it.
+    tick(dialog, "Otro");
     expect(send).not.toHaveBeenCalled();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Guardar" }));
-    expect(send).toHaveBeenCalledExactlyOnceWith({
-      command: "note_library",
-      request: {
-        action: "use_for_series",
-        recording_id: "meeting-title",
-        template_id: "review",
-        dictionary_id: "dic-otro",
+    fireEvent.click(within(dialog).getByRole("button", { name: "Reescribir la nota" }));
+    expect(send.mock.calls.map(([command]) => command)).toEqual([
+      {
+        command: "note_library",
+        request: {
+          action: "use_for_series",
+          recording_id: "meeting-title",
+          template_id: "review",
+          dictionary_id: "dic-otro",
+        },
       },
-    });
+      { command: "note_regenerate", recording_id: "meeting-title", template_id: "review" },
+    ]);
   });
 
-  it("chooses another dictionary for this meeting alone without writing the note again", () => {
-    const { send } = header(written());
+  it("asks to write the note again when its dictionaries change, as for the template", () => {
+    const { send } = header(withLists(written(), ["dic-biblio"]));
+    const dialog = menu();
+    tick(dialog, "Otro");
+    expect(within(dialog).queryByRole("button", { name: "Guardar" })).toBeNull();
+    expect(send).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Reescribir la nota" }));
+    // The switch is on: the series takes the whole list with the template.
+    expect(send.mock.calls.map(([command]) => command)).toEqual([
+      {
+        command: "note_library",
+        request: {
+          action: "use_for_series",
+          recording_id: "meeting-title",
+          template_id: "review",
+          dictionary_id: null,
+          dictionary_ids: ["dic-biblio", "dic-otro"],
+        },
+      },
+      { command: "note_regenerate", recording_id: "meeting-title", template_id: "review" },
+    ]);
+    expect(screen.getByRole("status").textContent).toBe(
+      "Reescribiendo la nota con «Revisión». Tu versión anterior queda guardada.",
+    );
+  });
+
+  it.each([
+    [
+      "a hub that takes lists",
+      ["dic-biblio"],
+      { dictionary_id: null, dictionary_ids: ["dic-biblio", "dic-otro"] },
+    ],
+    ["a hub up to 0.10.1", null, { dictionary_id: "dic-otro" }],
+  ])("chooses dictionaries for this meeting alone with %s", (_, ids, chosenOnes) => {
+    const { send } = header(ids === null ? written() : withLists(written(), ids));
     const dialog = menu();
     fireEvent.click(within(dialog).getByRole("switch", { name: "Usar lo mismo en toda la serie" }));
-    choose(dialog, "Diccionario de palabras", "dic-otro");
-    fireEvent.click(within(dialog).getByRole("button", { name: "Guardar" }));
+    tick(dialog, "Otro");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Reescribir la nota" }));
     expect(send).toHaveBeenCalledWith({
       command: "note_library",
       request: {
@@ -234,12 +332,16 @@ describe("how Orbit writes the note", () => {
         request: {
           action: "select",
           recording_id: "meeting-title",
-          dictionary_id: "dic-otro",
+          ...chosenOnes,
           use_for_series: false,
         },
       },
     });
-    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ command: "note_regenerate" }));
+    expect(send).toHaveBeenLastCalledWith({
+      command: "note_regenerate",
+      recording_id: "meeting-title",
+      template_id: "review",
+    });
   });
 
   it("says why the series could not take them, in the menu", () => {
@@ -278,24 +380,8 @@ describe("how Orbit writes the note", () => {
 });
 
 describe("«Rehacer resumen»", () => {
-  it("writes the note again with its own template", async () => {
-    const { send } = header(written());
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Rehacer resumen" }));
-    });
-    expect(send).toHaveBeenCalledWith({
-      command: "note_regenerate",
-      recording_id: "meeting-title",
-      template_id: "review",
-    });
-  });
-
-  it("waits for the recording to end, and says so", () => {
-    const note = written();
-    note.progress.upload = { state: "active", cause: { kind: "recording" } };
-    header(note);
-    const button = screen.getByRole("button", { name: "Rehacer resumen" }) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-    expect(screen.getByText("La nota se escribe al terminar la grabación.")).toBeTruthy();
+  it("is no longer in the header: it is in the Resumen's toolbar", () => {
+    header(written());
+    expect(screen.queryByRole("button", { name: "Rehacer resumen" })).toBeNull();
   });
 });

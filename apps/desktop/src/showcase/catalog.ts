@@ -9,6 +9,8 @@ import { firstRunScenarios } from "./scenarios/first-run";
 import { grabarScenarios } from "./scenarios/grabar";
 import { hoyScenarios } from "./scenarios/hoy";
 import { noteMenuScenarios } from "./scenarios/note-menus";
+import { noteRedoScenarios } from "./scenarios/note-redo";
+import { noteWordScenarios } from "./scenarios/note-words";
 import { notesScenarios } from "./scenarios/notes";
 import { panelScenarios } from "./scenarios/panel";
 import { paletteScenarios } from "./scenarios/palette";
@@ -26,6 +28,8 @@ export const scenarios: Scenario[] = [
   ...notesScenarios,
   ...noteMenuScenarios,
   ...editorScenarios,
+  ...noteWordScenarios,
+  ...noteRedoScenarios,
   ...chatScenarios,
   ...chatMediaScenarios,
   ...chatCallScenarios,

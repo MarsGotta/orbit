@@ -27,6 +27,7 @@ pub(crate) fn project_library(items: Vec<LibraryItem>) -> NoteLibrarySnapshot {
         dictionaries: Some(known()),
         dictionary_items: Vec::new(),
         dictionary_failures: Vec::new(),
+        dictionary_conflicts: None,
         dictionary_pending: Vec::new(),
         read: NoteLibraryReadState::Available,
         read_detail: None,
@@ -54,6 +55,10 @@ pub(crate) fn project_library(items: Vec<LibraryItem>) -> NoteLibrarySnapshot {
                 })
             }
             LibraryItem::DictionaryRefused { failure } => library.dictionary_failures.push(failure),
+            LibraryItem::DictionaryConflicts { target, conflicts } => library
+                .dictionary_conflicts
+                .get_or_insert_with(Vec::new)
+                .push(NoteDictionaryConflictsSnapshot { target, conflicts }),
             LibraryItem::Template(template) => library.items.push(NoteTemplateDetailSnapshot {
                 id: template.id,
                 name: template.name,
@@ -112,7 +117,9 @@ pub(crate) fn project_library(items: Vec<LibraryItem>) -> NoteLibrarySnapshot {
     library.dictionary_pending = pending
         .iter()
         .filter(|target| {
-            target.starts_with("dictionary:") || target.starts_with("dictionary_meeting:")
+            target.starts_with("dictionary:")
+                || target.starts_with("dictionaries:")
+                || target.starts_with("dictionary_meeting:")
         })
         .cloned()
         .collect();

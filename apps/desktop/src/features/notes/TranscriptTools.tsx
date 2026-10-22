@@ -1,10 +1,9 @@
+import type { ReactNode } from "react";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { es } from "../../i18n/es";
 import { CopyButton } from "./copy-button";
 import { transcriptText } from "./notes-format";
-import type { Send } from "./send";
 import type { useTranscriptSearch } from "./use-transcript-search";
 import styles from "./Note.module.css";
 
@@ -12,16 +11,13 @@ import styles from "./Note.module.css";
 export function Toolbar({
   note,
   search,
-  send,
+  redo,
 }: {
   note: OpenNoteSnapshot;
   search: ReturnType<typeof useTranscriptSearch>;
-  send: Send;
+  /** «Rehacer transcripción» and its question. */
+  redo: ReactNode;
 }) {
-  const offerAgain =
-    note.capture === "closed" &&
-    note.transcript.final_pass?.state !== "queued" &&
-    note.transcript.final_pass?.state !== "running";
   return (
     <div className={styles.transcriptTools}>
       <div className={styles.searchField} role="search">
@@ -48,47 +44,7 @@ export function Toolbar({
         </span>
       </div>
       <CopyButton label={es.notes.copy} size={36} text={() => transcriptText(note)} />
-      {offerAgain && (
-        <Button
-          onClick={() =>
-            void send({ command: "transcript_retranscribe", recording_id: note.recording_id })
-          }
-          size={36}
-          variant="ghost"
-        >
-          {es.notes.retranscribe}
-        </Button>
-      )}
+      {redo}
     </div>
-  );
-}
-
-/** Where a second pass over the transcript stands. */
-export function FinalPassStatus({ note }: { note: OpenNoteSnapshot }) {
-  const pass = note.transcript.final_pass;
-  const unmatched = note.transcript.unmatched_speaker_names ?? 0;
-  return (
-    <>
-      {pass?.state === "queued" && (
-        <p className={styles.quiet} role="status">
-          {es.notes.finalPassQueued}
-        </p>
-      )}
-      {pass?.state === "running" && (
-        <p className={styles.quiet} role="status">
-          {es.notes.finalPassRunning}
-        </p>
-      )}
-      {pass?.state === "failed" && (
-        <p className={styles.menuRefusal} role="alert">
-          {es.notes.finalPassFailed(pass.error, pass.timeout_ms)}
-        </p>
-      )}
-      {unmatched > 0 && (
-        <p className={styles.quiet} role="status">
-          {es.notes.unmatchedSpeakerNames(unmatched)}
-        </p>
-      )}
-    </>
   );
 }
