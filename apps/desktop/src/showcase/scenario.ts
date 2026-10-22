@@ -33,6 +33,8 @@ export type Step =
   | { mouse: string; at: [number, number] }
   /** Drags it by `by` points with the mouse. */
   | { drag: string; by: [number, number] }
+  /** Presses `at` points from its top left and moves by `by` without letting go: a drag in progress. */
+  | { hold: string; at: [number, number]; by: [number, number] }
   /** Moves the page's clock this many milliseconds on, for a time that counts. */
   | { advance: number };
 

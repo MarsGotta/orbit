@@ -46,6 +46,8 @@ function week(startMs: number, timezone: string) {
 }
 
 const px = (hours: number) => `${hours * HOUR_PX}px`;
+/** The card's place in its column is on the slot around it. */
+const top = (card: HTMLElement) => card.parentElement?.style.top;
 
 function event(id: string, title: string, startMs: number, endMs: number): CalendarEvent {
   return {
@@ -101,7 +103,7 @@ describe("local time in the grid", () => {
     ]);
 
     const button = screen.getByRole("button", { name: /Diez locales/ });
-    expect(button.style.top).toBe(px(10));
+    expect(top(button)).toBe(px(10));
     expect(button.style.height).toBe(`${HOUR_PX - 3}px`);
     expect(button.textContent).toContain("10:00");
   });
@@ -118,7 +120,7 @@ describe("local time in the grid", () => {
 
     const parts = screen.getAllByRole("button", { name: /Guardia nocturna/ });
     expect(parts).toHaveLength(2);
-    expect(parts.map((part) => [part.style.top, part.style.height])).toEqual([
+    expect(parts.map((part) => [top(part), part.style.height])).toEqual([
       // 21:30→24:00 and 00:00→07:30 CET, the week after the change.
       [px(21.5), `${2.5 * HOUR_PX - 3}px`],
       [px(0), `${7.5 * HOUR_PX - 3}px`],
@@ -141,7 +143,7 @@ describe("local time in the grid", () => {
     const columns = screen.getAllByRole("gridcell");
     const button = screen.getByRole("button", { name: /Diez Nueva York/ });
     expect(columns[0]!.contains(button)).toBe(true);
-    expect(button.style.top).toBe(px(10));
+    expect(top(button)).toBe(px(10));
     expect(button.textContent).toContain("10:00");
   });
 
@@ -167,13 +169,13 @@ describe("local time in the grid", () => {
     const columns = screen.getAllByRole("gridcell");
     const ten = screen.getByRole("button", { name: /Diez locales/ });
     expect(columns[0]!.contains(ten)).toBe(true);
-    expect(ten.style.top).toBe(px(10));
+    expect(top(ten)).toBe(px(10));
     expect(ten.textContent).toContain("10:00");
 
     const jump = screen.getByRole("button", { name: /Cruza el salto/ });
     expect(columns[0]!.contains(jump)).toBe(true);
     // 01:30→04:30 wall clock: 90 to 270 minutes of the day.
-    expect(jump.style.top).toBe(px(1.5));
+    expect(top(jump)).toBe(px(1.5));
     expect(jump.style.height).toBe(`${3 * HOUR_PX - 3}px`);
   });
 

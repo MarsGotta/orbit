@@ -1,9 +1,19 @@
 import type { AppView as AppSnapshot } from "../../state/app-view";
+import { Icon } from "../../design/Icon";
+import { Skeleton } from "../../design/Skeleton";
 import { es } from "../../i18n/es";
-import { dayOf, rangeDays, shortDate, startOfDay, timeLabel } from "./date";
-import { type CalendarEvent, eventsByDay, inAllDayLane, paletteOf } from "./eventLook";
+import {
+  civil,
+  dayName,
+  dayOf,
+  rangeDays,
+  shortDate,
+  startOfDay,
+  timeLabel,
+  weekdayName,
+} from "./date";
+import { type CalendarEvent, eventsByDay, inAllDayLane, toneOf, toneStyle } from "./eventLook";
 import type { Range } from "./range";
-import palette from "./CalendarPalette.module.css";
 import styles from "./AgendaList.module.css";
 
 interface AgendaListProps {
@@ -18,9 +28,11 @@ interface AgendaListProps {
   timezone: string;
 }
 
+const LOADING_ROWS = ["60%", "45%"];
+
 /**
- * The agenda: days with events, 31 either side of the day asked
- * for. Empty days are left out, except today.
+ * The agenda: the days with events, 31 either side of the day asked for, in a
+ * list grouped by day. Empty days are left out, except today, marked «HOY».
  */
 export function AgendaList(props: AgendaListProps) {
   const days = rangeDays(props.range, props.timezone);
@@ -28,70 +40,85 @@ export function AgendaList(props: AgendaListProps) {
   const byDay = eventsByDay(props.events, days, props.timezone);
   const shown = days.filter((day) => (byDay.get(day)?.length ?? 0) > 0 || day === today);
   return (
-    <ol aria-label={es.calendar.agenda} className={styles.agenda}>
-      {shown.map((day) => (
-        <AgendaDay
-          {...props}
-          day={day}
-          events={byDay.get(day) ?? []}
-          isToday={day === today}
-          key={day}
-          past={day < today}
-        />
-      ))}
-    </ol>
+    <div className={styles.scroll}>
+      <div className={styles.agenda}>
+        {shown.map((day) => (
+          <AgendaDay
+            {...props}
+            day={day}
+            events={byDay.get(day) ?? []}
+            isToday={day === today}
+            key={day}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
-function AgendaDay(props: AgendaListProps & { day: number; isToday: boolean; past: boolean }) {
-  const date = shortDate(props.day);
+function AgendaDay(props: AgendaListProps & { day: number; isToday: boolean }) {
   return (
-    <li className={[styles.day, props.past ? styles.past : ""].join(" ")}>
+    <section aria-label={dayName(props.day)} className={styles.day}>
       <button
         className={styles.date}
+        data-today={props.isToday ? "true" : undefined}
         onClick={() => props.onOpenDay(startOfDay(props.day, props.timezone))}
         type="button"
       >
-        {props.isToday ? (
-          <span className={styles.todayPill}>{es.calendar.agendaToday}</span>
-        ) : (
-          <>
-            <strong>{date.number}</strong>
-            <span>{date.month}</span>
-          </>
-        )}
+        <span className={styles.number}>{civil(props.day).date}</span>
+        <span className={styles.weekday}>
+          {`${weekdayName(props.day)} · ${shortDate(props.day).month}`}
+        </span>
+        {props.isToday && <span className={styles.today}>{es.calendar.agendaToday}</span>}
       </button>
       <div className={styles.rows}>
-        {props.events.length === 0 && !props.stale && (
-          <p className={styles.free}>{es.calendar.freeToday}</p>
-        )}
+        {props.events.length === 0 &&
+          (props.stale ? (
+            <div className={styles.loading}>
+              <Skeleton height={11} widths={LOADING_ROWS} />
+            </div>
+          ) : (
+            <p className={styles.free}>{es.calendar.freeToday}</p>
+          ))}
         {props.events.map((event) => (
           <AgendaRow {...props} event={event} key={event.id} />
         ))}
       </div>
-    </li>
+    </section>
   );
 }
 
-function AgendaRow(props: AgendaListProps & { event: CalendarEvent }) {
+/** The line under a title, when it needs one: the answer, the place, how long. */
+function secondLine(
+  event: CalendarEvent,
+  day: number,
+  timezone: string,
+): { text: string; warn: boolean } | null {
+  if (event.self_response === "needs_action")
+    return { text: es.calendar.unansweredHere, warn: true };
+  if (event.self_response === "tentative")
+    return { text: es.calendar.selfResponse.tentative, warn: false };
+  if (event.location != null && event.location !== "") return { text: event.location, warn: false };
+  const last = dayOf(event.end_ms - 1, timezone);
+  if (inAllDayLane(event) && day === dayOf(event.start_ms, timezone) && last > day)
+    return { text: es.calendar.untilDay(weekdayName(last)), warn: false };
+  return null;
+}
+
+function AgendaRow(props: AgendaListProps & { day: number; event: CalendarEvent }) {
   const { event } = props;
   const guests = event.attendees?.length ?? 0;
-  const over = event.end_ms <= props.nowMs;
+  const sub = secondLine(event, props.day, props.timezone);
   return (
     <button
-      className={[
-        styles.row,
-        palette[paletteOf(event, props.calendars)] ?? "",
-        over ? styles.over : "",
-      ].join(" ")}
-      data-response={event.self_response ?? undefined}
+      className={styles.row}
+      data-declined={event.self_response === "declined" ? "true" : undefined}
+      data-past={event.end_ms <= props.nowMs ? "true" : undefined}
       onClick={() => props.onOpenEvent(event)}
-      style={{
-        textDecorationLine: event.self_response === "declined" ? "line-through" : undefined,
-      }}
+      style={toneStyle(toneOf(event, props.calendars))}
       type="button"
     >
-      <span aria-hidden="true" className={styles.stripe} />
+      <span aria-hidden="true" className={styles.dot} />
       <span className={styles.hours}>
         {inAllDayLane(event)
           ? es.calendar.allDay
@@ -100,52 +127,25 @@ function AgendaRow(props: AgendaListProps & { event: CalendarEvent }) {
               timeLabel(event.end_ms, props.timezone),
             )}
       </span>
-      <span className={styles.title}>{event.title}</span>
+      <span className={styles.text}>
+        <span className={styles.title}>{event.title}</span>
+        {sub !== null && (
+          <span className={styles.sub} data-warn={sub.warn ? "true" : undefined}>
+            {sub.text}
+          </span>
+        )}
+      </span>
       {guests > 0 && (
         <span aria-label={es.calendar.guests(guests)} className={styles.meta} role="img">
-          <PeopleGlyph />
+          <Icon name="people" size={14} />
           {guests}
         </span>
       )}
       {event.conference_url != null && (
-        <span aria-label={es.calendar.videoCall} className={styles.meta} role="img">
-          <VideoGlyph />
+        <span className={styles.meta}>
+          <Icon name="video" size={14} title={es.calendar.videoCall} />
         </span>
       )}
     </button>
-  );
-}
-
-function PeopleGlyph() {
-  return (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      height="12"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      viewBox="0 0 24 24"
-      width="12"
-    >
-      <circle cx="9" cy="8.5" r="3.5" />
-      <path d="M3 20a6 6 0 0 1 12 0M16 5.2a3.5 3.5 0 0 1 0 6.6M17.5 20a6 6 0 0 0-2-4.5" />
-    </svg>
-  );
-}
-
-export function VideoGlyph() {
-  return (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      height="12"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      viewBox="0 0 24 24"
-      width="12"
-    >
-      <rect height="12" rx="2.5" width="13" x="3" y="6" />
-      <path d="M16 10.5l5-3v9l-5-3z" />
-    </svg>
   );
 }

@@ -23,11 +23,11 @@ describe("the glossary", () => {
 
   it("records a meeting from the window, or from an event", () => {
     expect(es.meeting.meet).toBe("Grabar reunión");
-    expect(es.calendar.meet).toBe("Grabar reunión");
+    expect(es.calendar.joinRecord).toBe("Unirse y grabar");
     expect(es.meeting.recordNow).toBe("Grabar reunión");
     expect(es.meeting.startDialog).toBe("Nueva grabación");
     expect(es.meeting.record).toBe("Empezar a grabar");
-    expect(es.calendar.record).toBe("Solo grabar");
+    expect(es.calendar.recordOnly).toBe("Solo grabar");
   });
 
   it("names the conversation's agent where it answers, is asked or is called", () => {

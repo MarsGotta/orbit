@@ -1,0 +1,112 @@
+/* The month's picked day, on the right. */
+.day {
+  display: flex;
+  width: 300px;
+  min-height: 0;
+  flex: none;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 18px 18px 14px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-xl);
+  background: var(--o-surface);
+}
+
+.over {
+  margin: 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.title {
+  margin: 2px 0 12px;
+  font: 600 17px/1.3 var(--o-font-sans);
+  letter-spacing: var(--o-tracking-h2);
+}
+
+.empty {
+  margin: 0;
+  color: var(--o-ink2);
+  font: 400 13px/1.45 var(--o-font-sans);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  width: calc(100% + 16px);
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 -8px;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--o-radius-md);
+  background: transparent;
+  color: var(--o-ink);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background var(--o-dur-fast);
+}
+
+.row:hover {
+  background: var(--o-hover);
+}
+
+.row[data-past="true"] {
+  color: var(--o-ink3);
+}
+
+.time {
+  width: 42px;
+  flex: none;
+  padding-top: 1px;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--event-color);
+}
+
+.text {
+  min-width: 0;
+  flex: 1;
+  font: 400 13px/1.4 var(--o-font-sans);
+}
+
+.unanswered {
+  display: block;
+  color: var(--o-warn);
+  font: var(--o-text-tiny);
+  font-weight: 400;
+}
+
+.spacer {
+  min-height: 16px;
+  flex: 1;
+}
+
+.open {
+  width: 100%;
+}
+
+.hint {
+  margin: 8px 0 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  text-align: center;
+}

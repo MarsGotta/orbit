@@ -52,7 +52,7 @@ export const library = {
     refused: (code: string) => libraryCodes[code] ?? "El hub no aceptó el cambio.",
     // The event panel and the note header.
     noteTemplate: "Plantilla de la nota",
-    noteTemplateHint: "Se usa en las notas de esta reunión y de su serie.",
+    noteTemplateHint: "Se usa en las notas de esta reunión y de toda la serie.",
     useAlways: "Usar siempre en esta serie",
     seriesUses: (name: string) => `Esta serie usa «${name}»`,
   },

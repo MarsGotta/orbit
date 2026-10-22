@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { AppView as AppSnapshot } from "../../../state/app-view";
 import type { AppCommand } from "../../../bridge/generated";
 import type { CalendarEvent } from "../eventLook";
@@ -138,6 +138,12 @@ export function useCalendarEditing(
   );
   const edits = gestureEdits(editor, writes, calendar.calendars);
   useEditorKeys(editor, writes, edits);
+  // The panel's save, as the agenda head ends it.
+  const save = editor.editing?.saving;
+  const outcome = save?.state === "pending" ? writes.outcomeOf(save.requestId) : undefined;
+  useEffect(() => {
+    if (save !== undefined && outcome !== undefined) editor.settle(save.requestId, outcome);
+  }, [save?.requestId, outcome]);
   return {
     display: (events: CalendarEvent[]) => {
       const shown = writes.shown(events);

@@ -79,6 +79,47 @@ export function shortDate(day: number): { month: string; number: number } {
   return { month, number: civil(day).date };
 }
 
+function format(day: number, options: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat("es-ES", { ...options, timeZone: "UTC" })
+    .format(day * DAY_MS)
+    .replace(".", "");
+}
+
+const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/** «miércoles». */
+export function weekdayName(day: number): string {
+  return format(day, { weekday: "long" });
+}
+
+/** «21 de octubre». */
+export function dayAndMonth(day: number): string {
+  return `${civil(day).date} de ${format(day, { month: "long" })}`;
+}
+
+/** «miércoles 21 de octubre». */
+export function dayName(day: number): string {
+  return `${weekdayName(day)} ${dayAndMonth(day)}`;
+}
+
+/** «Miércoles, 21 de octubre». */
+export function longDay(day: number): string {
+  return `${capitalized(weekdayName(day))}, ${dayAndMonth(day)}`;
+}
+
+/** «Mié 21 oct». */
+export function shortDay(day: number): string {
+  const weekday = capitalized(format(day, { weekday: "short" }));
+  return `${weekday} ${civil(day).date} ${shortDate(day).month}`;
+}
+
+/** «21 – 23 de octubre», or «30 de octubre – 1 de noviembre» across months. */
+export function dayRange(first: number, last: number): string {
+  if (civil(first).month === civil(last).month)
+    return `${civil(first).date} – ${dayAndMonth(last)}`;
+  return `${dayAndMonth(first)} – ${dayAndMonth(last)}`;
+}
+
 export function timezoneCity(timezone: string): string {
   const city = timezone.split("/").at(-1)?.replaceAll("_", " ");
   return city != null && city !== "" ? city : timezone;

@@ -1,38 +1,38 @@
-/* The agenda, day by day; a date column of 80 px and rows of 36. */
-.agenda {
+/* The agenda: the next days in one card, grouped by day. */
+.scroll {
   min-height: 0;
   flex: 1;
   overflow-y: auto;
-  margin: 0;
-  padding: 8px 16px 32px;
-  list-style: none;
+}
+
+.agenda {
+  max-width: var(--o-w-hoyMax);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-xl);
+  background: var(--o-surface);
 }
 
 .day {
   display: grid;
-  grid-template-columns: 80px minmax(0, 1fr);
-  padding: 6px 0;
-  border-bottom: 1px solid var(--o-line);
+  grid-template-columns: 120px minmax(0, 1fr);
 }
 
-.past {
-  opacity: 0.55;
+.day + .day {
+  border-top: 1px solid var(--o-line);
 }
 
 .date {
   display: flex;
-  height: 36px;
-  align-items: baseline;
-  align-self: start;
-  gap: 5px;
-  padding: 0 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 14px 16px;
   border: 0;
-  border-radius: var(--o-radius-8);
   background: transparent;
   color: var(--o-ink);
   cursor: pointer;
   font: inherit;
-  line-height: 36px;
   text-align: left;
 }
 
@@ -40,98 +40,122 @@
   background: var(--o-hover);
 }
 
-.date strong {
-  font-family: var(--o-font-sans);
-  font-size: var(--o-font-16);
-  font-weight: 600;
+.date[data-today="true"] {
+  background: var(--o-accSoft);
 }
 
-.date span {
-  color: var(--o-ink2);
-  font-size: var(--o-font-12);
+.number {
+  font: 600 22px/1.1 var(--o-font-sans);
+  letter-spacing: var(--o-tracking-title);
+  font-variant-numeric: tabular-nums;
 }
 
-.date .todayPill {
-  align-self: center;
-  padding: 3px 8px;
+.weekday {
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.today {
+  margin-top: 6px;
+  padding: 1px 7px;
   border-radius: var(--o-radius-pill);
   background: var(--o-acc);
   color: var(--o-white);
-  font-size: var(--o-font-10);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  line-height: 1.2;
+  font: 700 11px/1.4 var(--o-font-sans);
 }
 
 .rows {
   display: flex;
   min-width: 0;
   flex-direction: column;
-}
-
-.free {
-  margin: 0;
-  color: var(--o-ink2);
-  font-size: var(--o-font-12-5);
-  line-height: 36px;
+  padding: 6px 8px;
 }
 
 .row {
   display: flex;
-  height: 36px;
-  min-width: 0;
+  min-height: 44px;
   align-items: center;
-  gap: 12px;
-  padding: 0 10px 0 6px;
+  gap: 14px;
+  padding: 6px 10px;
   border: 0;
-  border-radius: var(--o-radius-8);
+  border-radius: var(--o-radius-md);
   background: transparent;
   color: var(--o-ink);
   cursor: pointer;
   font: inherit;
   text-align: left;
+  transition: background var(--o-dur-fast);
 }
 
 .row:hover {
   background: var(--o-hover);
 }
 
-.over {
-  color: var(--o-ink2);
+/* What is over: dimmed. */
+.row[data-past="true"] {
+  color: var(--o-ink3);
+  opacity: 0.6;
 }
 
-.stripe {
-  width: 3px;
-  height: 20px;
+.row[data-declined="true"] .title {
+  text-decoration: line-through;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
   flex: none;
-  border-radius: var(--o-radius-pill);
+  border-radius: 50%;
   background: var(--event-color);
 }
 
 .hours {
-  width: 112px;
+  width: 104px;
   flex: none;
   color: var(--o-ink2);
-  font-family: var(--o-font-mono);
-  font-size: var(--o-font-11);
-  white-space: nowrap;
+  font: 400 13px/1.4 var(--o-font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
 }
 
 .title {
-  min-width: 0;
-  flex: 1;
   overflow: hidden;
-  font-size: var(--o-font-13);
-  font-weight: 500;
+  font: 500 14px/1.45 var(--o-font-sans);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sub {
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.sub[data-warn="true"] {
+  color: var(--o-warn);
 }
 
 .meta {
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   color: var(--o-ink3);
-  font-size: var(--o-font-11);
+  font: var(--o-text-meta);
+}
+
+.free {
+  margin: 0;
+  padding: 12px 10px;
+  color: var(--o-ink2);
+  font: 400 13px/1.45 var(--o-font-sans);
+}
+
+.loading {
+  padding: 12px 10px;
 }

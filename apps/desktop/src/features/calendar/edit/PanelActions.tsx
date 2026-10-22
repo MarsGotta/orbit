@@ -1,6 +1,8 @@
+import { useState } from "react";
 import type { CalendarSpan } from "../../../bridge/generated/CalendarSpan";
 import { Button } from "../../../design/Button";
-import { Kbd } from "../../../design/Kbd";
+import { Popover } from "../../../design/Popover";
+import { Spinner } from "../../../design/Spinner";
 import { es } from "../../../i18n/es";
 import { isSeries } from "./commands";
 import { type Editing, isDirty, saveChoices } from "./useEventEditor";
@@ -19,48 +21,104 @@ function saveLabel(editing: Editing, span: CalendarSpan, choices: number): strin
 }
 
 /**
- * The buttons say what they will do. In a series the scope is the
- * button the user presses, not a question afterwards; the first is the one ⌘↵
- * presses. Delete needs no confirmation: it is undone from its notice.
+ * The panel's foot: «Borrar» on the left; on the right «Sin cambios» until
+ * something changes, then the buttons that save it. In a series the scope is
+ * the button the user presses: «Solo este» or «Este y los siguientes» (the
+ * design's main one); ⌘↵ presses the first. A save says «Guardando…» until the calendar
+ * has it, then «✓ Guardado en tu calendario». Deleting is undone, not confirmed.
  */
 export function PanelActions({ editing, onDelete, onSave }: ActionsProps) {
-  const choices = saveChoices(editing);
+  return (
+    <footer className={styles.footer}>
+      {editing.event !== null && <DeleteButton editing={editing} onDelete={onDelete} />}
+      <div className={styles.footerSpacer} />
+      <div aria-live="polite" className={styles.saveArea}>
+        <SaveArea editing={editing} onSave={onSave} />
+      </div>
+    </footer>
+  );
+}
+
+function SaveArea({ editing, onSave }: Omit<ActionsProps, "onDelete">) {
   const draft = editing.event === null;
   const dirty = isDirty(editing);
-  const series = editing.event !== null && isSeries(editing.event);
+  if (editing.saving?.state === "pending")
+    return (
+      <span className={styles.saveState}>
+        <Spinner size={12} />
+        {es.calendar.write.saving}
+      </span>
+    );
+  if (draft)
+    return (
+      <Button
+        aria-keyshortcuts="Meta+Enter"
+        disabledReason={dirty ? undefined : es.calendar.edit.needsTitle}
+        onClick={() => onSave("this")}
+        size={32}
+        variant="accent"
+      >
+        {es.calendar.edit.create}
+      </Button>
+    );
+  if (!dirty)
+    return editing.saving?.state === "saved" ? (
+      <span className={styles.saved}>{es.calendar.edit.saved}</span>
+    ) : (
+      <span className={styles.saveState}>{es.calendar.edit.noChanges}</span>
+    );
+  const choices = saveChoices(editing);
+  const main = choices.length - 1;
   return (
-    <div className={styles.actions}>
-      {(dirty || draft) &&
-        choices.map((span, index) => (
-          <Button
-            disabled={!dirty}
+    <>
+      {choices.map((span, index) => (
+        <Button
+          // ⌘↵ presses the narrower scope, as before the redesign.
+          aria-keyshortcuts={index === 0 ? "Meta+Enter" : undefined}
+          key={span}
+          onClick={() => onSave(span)}
+          size={32}
+          variant={index === main ? "accent" : "outline"}
+        >
+          {saveLabel(editing, span, choices.length)}
+        </Button>
+      ))}
+    </>
+  );
+}
+
+/** «Borrar»; in a series it asks which ones inside its own menu. */
+function DeleteButton({ editing, onDelete }: Omit<ActionsProps, "onSave">) {
+  const [open, setOpen] = useState(false);
+  if (editing.event === null || !isSeries(editing.event))
+    return (
+      <Button className={styles.delete} onClick={() => onDelete("this")} size={32} variant="ghost">
+        {es.calendar.edit.delete}
+      </Button>
+    );
+  return (
+    <Popover
+      label={es.calendar.edit.delete}
+      onOpenChange={setOpen}
+      open={open}
+      trigger={es.calendar.edit.delete}
+      triggerClassName={styles.deleteTrigger}
+    >
+      <div className={styles.deleteMenu}>
+        {(["this", "future"] as const).map((span) => (
+          <button
+            className={styles.deleteChoice}
             key={span}
-            onClick={() => onSave(span)}
-            size={32}
-            title={dirty ? undefined : es.calendar.edit.needsTitle}
-            variant={index === 0 ? "accent" : "outline"}
+            onClick={() => {
+              setOpen(false);
+              onDelete(span);
+            }}
+            type="button"
           >
-            {saveLabel(editing, span, choices.length)}
-            {index === 0 && <Kbd>{es.calendar.edit.saveShortcut}</Kbd>}
-          </Button>
+            {span === "this" ? es.calendar.edit.deleteThis : es.calendar.edit.deleteFuture}
+          </button>
         ))}
-      {draft && !dirty && <span className={styles.hint}>{es.calendar.edit.needsTitle}</span>}
-      {!draft &&
-        (series ? (["this", "future"] as const) : (["this"] as const)).map((span) => (
-          <Button
-            className={styles.delete}
-            key={`delete-${span}`}
-            onClick={() => onDelete(span)}
-            size={32}
-            variant="ghost"
-          >
-            {series
-              ? span === "this"
-                ? es.calendar.edit.deleteThis
-                : es.calendar.edit.deleteFuture
-              : es.calendar.edit.delete}
-          </Button>
-        ))}
-    </div>
+      </div>
+    </Popover>
   );
 }

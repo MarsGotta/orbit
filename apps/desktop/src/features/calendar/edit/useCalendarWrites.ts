@@ -17,7 +17,7 @@ import {
 import { type EventForm, inputOf } from "./form";
 import { blockedNotice, deletedToast, type Notice, undoEntryOf } from "./notices";
 import { type PendingWrite, withPending } from "./pending";
-import { usePendingWrites } from "./usePendingWrites";
+import { usePendingWrites, type WriteSettled } from "./usePendingWrites";
 import { undoPending } from "./undoPending";
 
 type Send = (command: AppCommand) => Promise<unknown>;
@@ -25,6 +25,9 @@ type Draft = Omit<PendingWrite, "requestId" | "sentAtMs">;
 /** ⌘Z reaches this far back in the session: a short stack in the view's
  *  memory; older changes stay as they are. */
 const UNDO_DEPTH = 20;
+/** How many ended writes the view remembers for the panel that sent them:
+ *  only the panel's latest save is ever asked about, so a few are plenty. */
+const SETTLED_KEPT = 20;
 
 export interface DeletedToast {
   requestId: string;
@@ -54,6 +57,8 @@ export function useCalendarWrites(
 ) {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [deleted, setDeleted] = useState<DeletedToast | null>(null);
+  // How each write of this view ended, for the panel that sent it.
+  const [settled, setSettled] = useState<ReadonlyMap<string, WriteSettled>>(new Map());
   const memory = useRef<Memory>({
     consumed: new Set(),
     deletions: new Map(),
@@ -72,6 +77,13 @@ export function useCalendarWrites(
     },
     reread: () => void send({ command: "calendar_refresh" }),
     setNotice,
+    settle: (requestId, outcome) =>
+      setSettled((current) => {
+        const next = new Map(current).set(requestId, outcome);
+        const oldest = next.keys().next().value;
+        if (next.size > SETTLED_KEPT && oldest !== undefined) next.delete(oldest);
+        return next;
+      }),
   });
   const write = useCallback(
     (draft: Draft, command: (id: string) => AppCommand) => {
@@ -96,6 +108,8 @@ export function useCalendarWrites(
     dismissDeleted: () => setDeleted(null),
     dismissNotice: () => setNotice(null),
     notice,
+    /** How the write `requestId` ended; `undefined` while it is on its way. */
+    outcomeOf: (requestId: string) => settled.get(requestId),
     shown: (events: CalendarEvent[]) => withPending(events, pending),
   };
 }
@@ -139,7 +153,7 @@ function writeActions(parts: ActionParts) {
   const { setDeleted, setNotice, timezone, write } = parts;
   return {
     ...undoActions(parts),
-    create: (form: EventForm, shown: CalendarEvent) =>
+    create: (form: EventForm, shown: CalendarEvent): string =>
       write({ event: shown, op: "create", shown, span: "this", undoable: true }, (id) =>
         createCommand(id, inputOf(form, timezone)),
       ),
@@ -157,10 +171,13 @@ function writeActions(parts: ActionParts) {
       changes: CalendarEventChanges,
       span: CalendarSpan,
       shown: CalendarEvent,
-    ) => {
+    ): string | null => {
       const target = targetOf(event);
-      if (target === null) return setNotice(blockedNotice(event, "edit"));
-      write({ changes, event, op: "update", shown, span, undoable: true }, (id) =>
+      if (target === null) {
+        setNotice(blockedNotice(event, "edit"));
+        return null;
+      }
+      return write({ changes, event, op: "update", shown, span, undoable: true }, (id) =>
         updateCommand(id, target, span, changes),
       );
     },

@@ -1,484 +1,328 @@
-.calendarView {
-  position: relative;
+/* The calendar view: the 60 px header, then the period and its side panel. */
+.view {
   display: flex;
   min-width: 0;
-  min-height: 100%;
   height: 100%;
+  min-height: 100%;
   flex-direction: column;
   overflow: hidden;
   background: var(--o-bg);
 }
 
-.toolbar {
+.header {
   display: flex;
-  min-height: 46px;
+  min-height: 60px;
   flex: none;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 12px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--o-line);
+  gap: var(--o-space-10);
+  padding: var(--o-space-8) var(--o-space-24);
 }
 
-.month {
-  font-family: var(--o-font-sans);
-  font-size: var(--o-font-15);
-  font-weight: 600;
+.title {
+  margin: 0;
+  font: var(--o-text-h2);
+  letter-spacing: var(--o-tracking-h2);
   white-space: nowrap;
 }
 
-.weekNumber {
-  color: var(--o-ink2);
-  font-family: var(--o-font-mono);
-  font-size: var(--o-font-12);
-}
-
-.separator {
-  margin: 0 -6px;
+.subtitle {
   color: var(--o-ink3);
+  font: 400 13px/1.4 var(--o-font-sans);
 }
 
-.weekActions {
+.arrows {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-left: 6px;
+  gap: var(--o-space-2);
+  margin-left: var(--o-space-6);
 }
 
-.toolbarSpacer {
-  flex: 1;
-}
-
-.calendarSelector {
-  position: relative;
-  flex: none;
-}
-
-.calendarCount {
-  display: flex;
-  height: 30px;
-  align-items: center;
-  gap: 7px;
-  padding: 0 7px;
-  border: 1px solid transparent;
-  border-radius: var(--o-radius-6);
-  background: transparent;
+.reading {
   color: var(--o-ink2);
-  font-size: var(--o-font-12);
-  cursor: pointer;
+  font: var(--o-text-meta);
 }
 
-.calendarCount:hover,
-.calendarCount[aria-expanded="true"] {
-  border-color: var(--o-line2);
-  color: var(--o-ink);
-}
-
-.calendarCount:focus-visible {
-  outline: 2px solid var(--o-accText);
-  outline-offset: 2px;
-}
-
-.calendarChoices {
-  position: absolute;
-  z-index: 5;
-  top: calc(100% + 8px);
-  right: 0;
-  width: min(300px, calc(100vw - 32px));
-  border: 1px solid var(--o-line2);
-  border-radius: var(--o-radius-9);
-  background: var(--o-side);
-  box-shadow: var(--o-shadow);
-}
-
-.choicesHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--o-line);
-  font-size: var(--o-font-12);
-}
-
-.choicesList {
-  max-height: min(420px, calc(100vh - 150px));
-  overflow-y: auto;
-}
-
-.calendarChoice {
-  display: flex;
-  min-height: 32px;
-  align-items: center;
-  gap: 10px;
-  padding: 5px 12px;
-  cursor: pointer;
-  font-size: var(--o-font-12);
-}
-
-.calendarChoice:hover {
-  background: var(--o-surface);
-}
-
-.calendarChoice > :nth-child(2) {
+.spacer {
   flex: 1;
+}
+
+.body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  gap: var(--o-space-12);
+  padding: 0 var(--o-space-24) var(--o-space-16);
+}
+
+.period {
+  display: flex;
   min-width: 0;
-  overflow-wrap: anywhere;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
 }
 
-.calendarChoice input {
-  accent-color: var(--o-acc);
-}
-
-.dotStack {
+/* A read that failed, above the period. */
+.alert {
   display: flex;
-}
-
-.calendarDot {
-  display: block;
-  width: 10px;
-  height: 10px;
   flex: none;
-  border-radius: var(--o-radius-pill);
-  box-shadow: 0 0 0 1.5px var(--o-bg);
-}
-
-.dotStack .calendarDot + .calendarDot {
-  margin-left: -3px;
-}
-
-/* Calendar colors for the dots of the visibility selector. */
-.accent {
-  background: var(--o-c1);
-}
-
-.blue {
-  background: var(--o-c2);
-}
-
-.orange {
-  background: var(--o-c4);
-}
-
-.green {
-  background: var(--o-c3);
-}
-
-.stale {
-  padding: 4px 16px;
-  background: var(--o-accSoft);
-  color: var(--o-accText);
-  font-size: var(--o-font-11);
-}
-
-.readWarning {
-  padding: 6px 16px;
-  border-bottom: 1px solid var(--o-line);
-  background: var(--o-warnSoft);
-  color: var(--o-warn);
-  font-size: var(--o-font-11);
-}
-
-.calendarError {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 5px 16px;
+  gap: var(--o-space-10);
+  margin: 0 var(--o-space-24) var(--o-space-10);
+  padding: var(--o-space-6) var(--o-space-6) var(--o-space-6) var(--o-space-14);
+  border-radius: var(--o-radius-lg);
   background: var(--o-recSoft);
-  color: var(--o-recText);
-  font-size: var(--o-font-11);
-}
-
-.empty {
-  display: grid;
-  min-height: 100%;
-  place-items: center;
-  padding: 32px;
-  text-align: center;
-}
-
-.empty > div {
-  max-width: 420px;
-  padding: 28px;
-  border: 1px solid var(--o-line);
-  border-radius: var(--o-radius-20);
-  background: var(--o-side);
-}
-
-.empty h1,
-.dialog h2,
-.eventDetails h2 {
-  margin: 0;
-  font-family: var(--o-font-sans);
-  font-size: var(--o-font-19);
-}
-
-.empty p,
-.eventDetails p {
-  color: var(--o-ink2);
-  line-height: 1.5;
-}
-
-.dialog,
-.eventDetails {
-  position: absolute;
-  z-index: 10;
-  top: 58px;
-  right: 16px;
-  width: min(360px, calc(100% - 32px));
-  padding: 16px;
-  border: 1px solid var(--o-line2);
-  border-radius: var(--o-radius-16);
-  background: var(--o-surface);
-  box-shadow: var(--o-shadow);
-}
-
-.dialogHeader,
-.dialogActions {
-  display: flex;
-  align-items: center;
-}
-
-.dialogHeader {
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.dialogHeader p {
-  margin: 4px 0 0;
-}
-
-.dialogActions {
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.eventDetails ul {
-  margin: 8px 0 16px;
-  padding-left: 20px;
-  color: var(--o-ink2);
-}
-
-.eventDetails a {
-  margin-right: auto;
-}
-
-@media (max-width: 900px) {
-  .toolbar {
-    gap: 7px;
-  }
-}
-
-/* The view selector and its options. */
-.viewButton {
-  display: flex;
-  height: 28px;
-  align-items: center;
-  gap: 6px;
-  padding: 0 10px;
-  border: 1px solid var(--o-line);
-  border-radius: var(--o-radius-10);
-  background: transparent;
   color: var(--o-ink);
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--o-font-12);
-  font-weight: 500;
+  font: var(--o-text-meta);
 }
 
-.viewButton:hover,
-.viewButton[aria-expanded="true"] {
-  background: var(--o-hover);
+.alertDot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--o-rec);
 }
 
-.viewButton:focus-visible {
-  outline: 2px solid var(--o-accText);
-  outline-offset: 2px;
+.alertText {
+  min-width: 0;
+  flex: 1;
 }
 
-.caret {
-  width: 6px;
-  height: 6px;
-  margin-top: -3px;
-  border-right: 1.5px solid var(--o-ink2);
-  border-bottom: 1.5px solid var(--o-ink2);
-  transform: rotate(45deg);
-}
-
-.viewList {
-  display: flex;
-  flex-direction: column;
-  padding: 4px;
-  border-bottom: 1px solid var(--o-line);
-}
-
-.viewOption {
-  display: flex;
-  min-height: 30px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: var(--o-radius-6);
-  background: transparent;
-  color: var(--o-ink);
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--o-font-12-5);
-  text-align: left;
-}
-
-.viewOption:hover {
-  background: var(--o-hover);
-}
-
-.viewOption[aria-pressed="true"] {
-  background: var(--o-accSoft);
-  color: var(--o-accText);
-  font-weight: 600;
-}
-
-.viewOptions {
-  display: flex;
-  flex-direction: column;
-  padding: 4px 0;
-  border-bottom: 1px solid var(--o-line);
-}
-
-.weekStart {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  margin: 0;
-  padding: 6px 12px;
-  border: 0;
-  font-size: var(--o-font-12);
-}
-
-.weekStart legend {
-  float: left;
-  margin-right: 4px;
-  padding: 0;
-  color: var(--o-ink2);
-}
-
-.weekStart label {
+/* The view options and the calendars: two anchored menus. */
+.iconTrigger,
+.filterTrigger {
   display: inline-flex;
+  height: var(--o-control-md);
   align-items: center;
-  gap: 5px;
+  gap: var(--o-space-8);
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-lg);
+  background: transparent;
+  color: var(--o-ink2);
   cursor: pointer;
+  font: 400 13px/1 var(--o-font-sans);
+  transition: background var(--o-dur-fast);
 }
 
-.weekStart input {
+.iconTrigger {
+  width: var(--o-control-md);
+  justify-content: center;
+  padding: 0;
+}
+
+.filterTrigger {
+  padding: 0 var(--o-space-10);
+}
+
+.iconTrigger:hover,
+.filterTrigger:hover,
+.iconTrigger[aria-expanded="true"],
+.filterTrigger[aria-expanded="true"] {
+  background: var(--o-hover);
+  color: var(--o-ink);
+}
+
+.dots {
+  display: flex;
+  gap: 3px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--event-color);
+}
+
+.menu {
+  display: flex;
+  min-width: 240px;
+  flex-direction: column;
+  gap: var(--o-space-2);
+}
+
+.menuHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--o-space-12);
+  padding: var(--o-space-6) var(--o-space-8);
+  font: var(--o-text-control);
+}
+
+.menuLink {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--o-accText);
+  cursor: pointer;
+  font: var(--o-text-meta);
+}
+
+.menuRow {
+  display: flex;
+  min-height: var(--o-control-md);
+  align-items: center;
+  gap: var(--o-space-10);
+  padding: 0 var(--o-space-8);
+  border-radius: var(--o-radius-md);
+  color: var(--o-ink);
+  cursor: pointer;
+  font: 400 13px/1.4 var(--o-font-sans);
+}
+
+.menuRow:hover {
+  background: var(--o-hover);
+}
+
+.menuRow > span:first-child:not(.dot),
+.menuLabel {
+  min-width: 0;
+  flex: 1;
+}
+
+.menuRow input {
   accent-color: var(--o-acc);
+}
+
+.menuGroup {
+  margin: var(--o-space-4) 0 0;
+  padding: var(--o-space-6) 0 0;
+  border: 0;
+  border-top: 1px solid var(--o-line);
+}
+
+.menuGroup legend {
+  padding: var(--o-space-6) var(--o-space-8) var(--o-space-2);
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
 }
 
 .zoom {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 4px 12px;
+  gap: var(--o-space-8);
+  margin-top: var(--o-space-4);
+  padding: var(--o-space-6) var(--o-space-8) 0;
+  border-top: 1px solid var(--o-line);
   color: var(--o-ink2);
-  font-size: var(--o-font-12);
+  font: var(--o-text-meta);
+  font-variant-numeric: tabular-nums;
 }
 
-.zoom button {
-  width: 26px;
-  height: 26px;
-  border: 1px solid var(--o-line);
-  border-radius: var(--o-radius-8);
+.zoomButton {
+  display: inline-flex;
+  width: var(--o-control-sm);
+  height: var(--o-control-sm);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-md);
   background: transparent;
   color: var(--o-ink);
   cursor: pointer;
-  font: inherit;
 }
 
-.zoom button:disabled {
+.zoomButton:disabled {
+  background: var(--o-raised);
   color: var(--o-ink3);
-  cursor: default;
+  cursor: not-allowed;
 }
 
-.viewKeys {
-  margin: 0;
-  padding: 8px 12px 10px;
-  color: var(--o-ink3);
-  font-size: var(--o-font-10-5);
-  line-height: 1.5;
-}
-
-/* The detail adds the user's answer and each guest's. */
-.selfResponse {
-  display: inline-flex;
-  margin: 12px 0 0;
-  padding: 3px 9px;
-  border-radius: var(--o-radius-pill);
-  background: var(--o-okSoft);
-  color: var(--o-ok);
-  font-size: var(--o-font-12);
-  font-weight: 600;
-}
-
-.selfResponse[data-response="tentative"],
-.selfResponse[data-response="needs_action"] {
-  background: var(--o-warnSoft);
-  color: var(--o-warn);
-}
-
-.selfResponse[data-response="declined"] {
-  background: var(--o-recSoft);
-  color: var(--o-recText);
-}
-
-.eventDetails .attendees {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 8px 0 16px;
-  padding: 0;
-  list-style: none;
-}
-
-.attendees li {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
+.menuAction {
+  min-height: var(--o-control-md);
+  margin-top: var(--o-space-4);
+  padding: 0 var(--o-space-8);
+  border: 0;
+  border-radius: var(--o-radius-md);
+  background: transparent;
   color: var(--o-ink);
-  font-size: var(--o-font-12-5);
+  cursor: pointer;
+  font: 400 13px/1.4 var(--o-font-sans);
+  text-align: left;
 }
 
-.attendees li span + span {
-  color: var(--o-ink2);
-  font-size: var(--o-font-11-5);
+.menuAction:hover {
+  background: var(--o-hover);
 }
 
-.attendees li[data-response="declined"] span:first-child {
-  color: var(--o-ink2);
-  text-decoration: line-through;
+.menuHint {
+  margin: var(--o-space-4) 0 0;
+  padding: var(--o-space-6) var(--o-space-8) var(--o-space-4);
+  border-top: 1px solid var(--o-line);
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
 }
 
-.dialogActions button svg {
-  margin-right: 6px;
-}
-
-/* The period on screen; dimmed while its read has not arrived. */
-.period {
+/* Instead of the calendar: why, and the action that fixes it. */
+.stateView {
   display: flex;
+  height: 100%;
+  min-height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--o-space-12);
+  padding: var(--o-space-24);
+  background: var(--o-bg);
+}
+
+.stateCard {
+  display: flex;
+  width: min(520px, 100%);
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: var(--o-space-20);
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-xl);
+  background: var(--o-surface);
+}
+
+.stateHint {
+  margin: calc(-1 * var(--o-space-16)) 0 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  text-align: center;
+}
+
+/* The calendar's shape while nothing is known yet. */
+.loadingGrid {
+  display: grid;
   min-height: 0;
   flex: 1;
-  flex-direction: column;
-  transition: opacity 160ms ease;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-xl);
+  background: var(--o-surface);
 }
 
-.period[aria-busy="true"] {
-  opacity: 0.55;
+.loadingColumn {
+  position: relative;
+  padding: var(--o-space-14) var(--o-space-10);
+}
+
+.loadingColumn + .loadingColumn {
+  border-left: 1px solid var(--o-line);
+}
+
+.loadingBlock {
+  position: absolute;
+  right: 6px;
+  left: 6px;
+  height: 52px;
+  border-radius: var(--o-radius-md);
+  background: linear-gradient(90deg, var(--o-skel) 0, var(--o-skel2) 40%, var(--o-skel) 80%);
+  background-size: 600px 100%;
+  animation: orbit-shimmer var(--o-dur-shimmer) linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .period {
-    transition: none;
+  .loadingBlock {
+    animation: none;
   }
 }

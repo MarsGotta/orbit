@@ -1,4 +1,4 @@
-import { agendaScenarios } from "./scenarios/agenda";
+import { calendarScenarios } from "./scenarios/calendar";
 import { chatScenarios } from "./scenarios/chat";
 import { chatMediaScenarios } from "./scenarios/chat-media";
 import { designScenarios } from "./scenarios/design";
@@ -15,7 +15,7 @@ import type { Scenario } from "./scenario";
 export const scenarios: Scenario[] = [
   ...shellScenarios,
   ...hoyScenarios,
-  ...agendaScenarios,
+  ...calendarScenarios,
   ...notesScenarios,
   ...chatScenarios,
   ...chatMediaScenarios,

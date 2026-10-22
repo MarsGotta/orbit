@@ -3,9 +3,8 @@ import { type CSSProperties } from "react";
 import { es } from "../../i18n/es";
 import { dayOf } from "./date";
 import { type LaneEdit, useLaneGestures, withLanePreview } from "./edit/useLaneGestures";
-import { type CalendarEvent, paletteOf } from "./eventLook";
+import { type CalendarEvent, toneOf, toneStyle } from "./eventLook";
 import { type AllDayBar, allDayLayout } from "./layout";
-import palette from "./CalendarPalette.module.css";
 import styles from "./TimeGrid.module.css";
 
 interface AllDayLaneProps {
@@ -17,6 +16,8 @@ interface AllDayLaneProps {
   onOpenEvent: (event: CalendarEvent) => void;
   onToggle: () => void;
   open: boolean;
+  /** The event whose panel is open. */
+  selectedId?: string | null;
   timezone: string;
 }
 
@@ -86,15 +87,21 @@ function Bar(props: AllDayLaneProps & { bar: AllDayBar; event: CalendarEvent }) 
   return (
     <button
       aria-busy={event.ui?.saving === true ? true : undefined}
-      className={[styles.allDayBar, palette[paletteOf(event, props.calendars)] ?? ""].join(" ")}
+      aria-pressed={props.selectedId === event.id}
+      className={styles.allDayBar}
       data-clipped-end={bar.clippedEnd ? "true" : undefined}
       data-clipped-start={bar.clippedStart ? "true" : undefined}
       data-draft={event.ui?.draft === true ? "true" : undefined}
       data-dragging={event.ui?.dragging === true ? "true" : undefined}
       data-event-id={event.id}
       data-saving={event.ui?.saving === true ? "true" : undefined}
+      data-selected={props.selectedId === event.id ? "true" : undefined}
       onClick={() => props.onOpenEvent(event)}
-      style={{ gridColumn: `${bar.column + 1} / span ${bar.span}`, gridRow: bar.row + 1 }}
+      style={{
+        ...toneStyle(toneOf(event, props.calendars)),
+        gridColumn: `${bar.column + 1} / span ${bar.span}`,
+        gridRow: bar.row + 1,
+      }}
       type="button"
     >
       {sides && !bar.clippedStart && (
@@ -105,7 +112,10 @@ function Bar(props: AllDayLaneProps & { bar: AllDayBar; event: CalendarEvent }) 
           title={es.calendar.edit.resizeFirstDay}
         />
       )}
-      {event.ui?.saving === true ? `${event.title} · ${es.calendar.write.saving}` : event.title}
+      <span aria-hidden="true" className={styles.barDot} />
+      <span className={styles.barTitle}>
+        {event.ui?.saving === true ? `${event.title} · ${es.calendar.write.saving}` : event.title}
+      </span>
       {sides && !bar.clippedEnd && (
         <span
           aria-hidden="true"

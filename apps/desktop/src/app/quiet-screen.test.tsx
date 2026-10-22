@@ -236,19 +236,7 @@ describe("an unknown availability paints nothing", () => {
 
 describe("the calendar does not explain what is fine", () => {
   it("with the agenda read there is no «Deimos la lee» block", () => {
-    const calendar = {
-      authorization: "granted",
-      reading: { state: "available", blocker: null },
-      stale: false,
-    } as unknown as AppSnapshot["calendar"];
-    const view = render(
-      <CalendarFeedback
-        calendar={calendar}
-        error={null}
-        onRetry={() => undefined}
-        pending={false}
-      />,
-    );
+    const view = render(<CalendarFeedback error={null} onRetry={() => undefined} />);
     expect(view.container.textContent).toBe("");
   });
 });

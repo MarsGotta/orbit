@@ -7,11 +7,11 @@ import { CalendarToolbar } from "./CalendarToolbar";
 import { allDaySpan } from "./edit/geometry";
 import { useCalendarEditing } from "./edit/useCalendarEditing";
 import { WriteNotices } from "./edit/WriteNotices";
-import { EventDetails } from "./EventDetails";
+import { CalendarSide } from "./CalendarSide";
 import { type CalendarEvent, visibleEvents } from "./eventLook";
 import type { CalendarKeyAction } from "./keyboard";
 import { hourHeight } from "./layout";
-import { MonthView } from "./MonthView";
+import { MonthView, usePickedDay } from "./MonthView";
 import { DEFAULT_PREFERENCES } from "./preferences";
 import { TimeGrid } from "./TimeGrid";
 import { type CalendarRangeControls, useCalendarRange } from "./useCalendarRange";
@@ -20,10 +20,10 @@ import type { useCalendarView } from "./useCalendarView";
 import type { useCalendarVisibility } from "./useCalendarVisibility";
 import styles from "./CalendarView.module.css";
 
-/** Above the weeks of the month: the toolbar, the reading line, the weekdays. */
-const MONTH_CHROME_PX = 120;
+/** Above the weeks of the month: the header, the weekdays and the margins. */
+const MONTH_CHROME_PX = 112;
 
-interface CalendarBodyProps {
+export interface CalendarBodyProps {
   calendar: AppSnapshot["calendar"];
   error: string | null;
   library?: NoteLibrarySnapshot | null;
@@ -54,54 +54,57 @@ export function CalendarBody(props: CalendarBodyProps) {
   const editing = useCalendarEditing(calendar, props.send, props.error, props.timezone, view);
   const controls = useCalendarRange(calendar.range, editing.send, props.timezone);
   useCalendarKeys((action) => applyKey(action, controls));
+  const [pickedDay, pickDay] = usePickedDay(calendar.range, view.nowMs, props.timezone);
   const events = editing.display(
     visibleEvents(calendar.events, {
       hiddenCalendars: visibility.hidden,
       showDeclined: controls.preferences.showDeclined,
     }),
   );
+  // While the read of the range on screen has not arrived, what is shown is
+  // pending, not the period's events.
+  const loading = view.snapshotPending || calendar.stale || calendar.reading.state === "unknown";
   return (
-    <section className={styles.calendarView} ref={controls.attach}>
+    <section className={styles.view} ref={controls.attach}>
       <CalendarToolbar
         calendar={calendar}
         controls={controls}
         hiddenCalendars={visibility.hidden}
+        loading={loading && editing.readError === null}
         nowMs={view.nowMs}
         onShowAll={visibility.showAll}
-        onStartMeeting={() => view.startMeeting()}
         onToggleCalendar={visibility.toggle}
         timezone={props.timezone}
       />
       <CalendarFeedback
-        calendar={calendar}
         error={editing.readError}
         onRetry={() => {
           editing.markRead();
           void view.refresh({ command: "calendar_refresh" });
         }}
-        pending={view.snapshotPending}
       />
       <WriteNotices writes={editing.writes} />
-      {/* While the read of the range on screen has not arrived, what is shown
-          is pending, not the period's events. */}
-      <div aria-busy={calendar.stale} className={styles.period}>
-        <CalendarPeriod {...props} controls={controls} editing={editing} events={events} />
-      </div>
-      {editing.editor.editing !== null && (
-        <EventDetails
-          calendars={calendar.calendars}
-          editing={editing.editor.editing}
-          library={props.library}
-          onChange={editing.editor.setForm}
-          onClose={editing.editor.close}
-          onDelete={editing.editor.remove}
-          onJoin={(url) => void props.send({ command: "open_url", url })}
-          onRecord={() => view.startMeeting(editing.editor.editing?.event ?? undefined)}
-          onSave={editing.editor.save}
-          send={props.send}
-          timezone={props.timezone}
+      <div className={styles.body}>
+        <div aria-busy={loading} className={styles.period}>
+          <CalendarPeriod
+            {...props}
+            controls={controls}
+            editing={editing}
+            events={events}
+            loading={loading}
+            onPickDay={pickDay}
+            pickedDay={pickedDay}
+          />
+        </div>
+        <CalendarSide
+          {...props}
+          controls={controls}
+          editing={editing}
+          events={events}
+          loading={loading}
+          pickedDay={pickedDay}
         />
-      )}
+      </div>
     </section>
   );
 }
@@ -111,6 +114,9 @@ function CalendarPeriod(
     controls: CalendarRangeControls;
     editing: ReturnType<typeof useCalendarEditing>;
     events: CalendarEvent[];
+    loading: boolean;
+    onPickDay: (day: number) => void;
+    pickedDay: number;
   },
 ) {
   const { calendar, controls, editing, view } = props;
@@ -118,6 +124,7 @@ function CalendarPeriod(
   const shared = {
     calendars: calendar.calendars,
     events: props.events,
+    loading: props.loading,
     nowMs: view.nowMs,
     onOpenEvent: editing.openEvent,
     range: calendar.range,
@@ -132,7 +139,8 @@ function CalendarPeriod(
           onDraftDay={(day) =>
             editing.editor.startDraft(allDaySpan(day, day, props.timezone), true)
           }
-          onOpenDay={controls.openDay}
+          onPickDay={props.onPickDay}
+          pickedDay={props.pickedDay}
           showWeekends={preferences.showWeekends}
         />
       );
@@ -149,6 +157,7 @@ function CalendarPeriod(
           hourPx={hourHeight(controls.size.height, preferences.zoom)}
           laneEdit={editing.lane}
           onToggleAllDay={() => controls.update({ allDayOpen: !preferences.allDayOpen })}
+          selectedId={editing.editor.editing?.event?.id ?? null}
           showWeekends={preferences.showWeekends}
         />
       );

@@ -1,11 +1,18 @@
-/* Day, N days and week. 24 hours, a rail of hours on the left, the
-   all-day lane above, Orbit's tokens only. */
+/* Day, three days and week: the design's grid. A card with thin lines, the
+   day row, the «Todo el día» row and 24 hours with the present marked. */
 .grid {
-  --rail: 56px;
+  --rail: 48px;
+  /* The hour lines: thinner than a separator, between the line and the
+     surface in both themes (the prototype's --grid). */
+  --hour-line: color-mix(in srgb, var(--o-line) 60%, var(--o-surface));
   display: flex;
   min-height: 0;
   flex: 1;
   flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-xl);
+  background: var(--o-surface);
 }
 
 .dayHeader,
@@ -16,46 +23,52 @@
 }
 
 .dayHeader {
+  height: 44px;
   flex: none;
   border-bottom: 1px solid var(--o-line);
 }
 
 .timezone {
+  overflow: hidden;
   align-self: center;
-  padding: 0 8px 0 4px;
+  padding: 0 6px 0 4px;
   color: var(--o-ink3);
-  font-size: var(--o-font-10);
+  font: var(--o-text-tiny);
+  font-weight: 400;
   text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dayHeading {
   display: flex;
-  height: 36px;
   min-width: 0;
   align-items: center;
-  gap: 6px;
-  padding: 0 10px;
-  border-left: 1px solid var(--o-line);
-  color: var(--o-ink2);
-  font-size: var(--o-font-12);
+  gap: var(--o-space-6);
+  padding: 0 var(--o-space-10);
+  color: var(--o-ink3);
+  font: var(--o-text-control);
+  font-weight: 400;
   white-space: nowrap;
 }
 
-.weekendHeading {
-  color: var(--o-ink3);
+.dayHeading[aria-current="date"] {
+  color: var(--o-ink);
+  font-weight: 600;
 }
 
 .dayNumber,
 .todayPill {
-  display: grid;
-  min-width: 22px;
-  height: 22px;
-  place-items: center;
-  padding: 0 6px;
+  display: inline-flex;
+  min-width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--o-space-4);
   border-radius: var(--o-radius-pill);
   color: var(--o-ink);
-  font-size: var(--o-font-12);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .todayPill {
@@ -70,22 +83,22 @@
 
 .allDayRail {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-end;
-  padding: 3px 4px 3px 0;
+  padding-right: var(--o-space-6);
 }
 
 .allDayToggle {
   max-width: 100%;
-  padding: 2px 4px;
+  padding: 2px;
   border: 0;
-  border-radius: var(--o-radius-5);
+  border-radius: var(--o-radius-xs);
   background: transparent;
   color: var(--o-ink3);
   cursor: pointer;
-  font: inherit;
-  font-size: var(--o-font-9);
-  line-height: 1.2;
+  font: var(--o-text-tiny);
+  font-weight: 400;
+  line-height: 1.1;
   text-align: right;
 }
 
@@ -98,37 +111,61 @@
   cursor: default;
 }
 
+/* The lane keeps one row even empty, so a drag across it drafts an event. */
 .allDayBars {
   display: grid;
+  min-height: 30px;
+  grid-auto-rows: 22px;
   grid-column: 2 / -1;
-  grid-auto-rows: 24px;
   grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+  align-content: center;
   gap: 2px 0;
-  padding: 3px 0;
+  padding: 4px 0;
+  user-select: none;
 }
 
 .allDayBar {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--o-space-6);
   overflow: hidden;
-  margin: 0 3px;
-  padding: 0 8px;
-  border: 0;
-  border-left: 3px solid var(--event-color);
-  border-radius: var(--o-radius-5);
-  background: var(--event-bg);
+  margin: 0 4px;
+  padding: 0 var(--o-space-8);
+  border: 1px solid transparent;
+  border-radius: var(--o-radius-sm);
+  background: var(--event-tint);
   color: var(--o-ink);
   cursor: pointer;
-  font: inherit;
-  font-size: var(--o-font-11-5);
-  font-weight: 600;
+  font: var(--o-text-meta);
+  font-weight: 500;
   text-align: left;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  transition: filter var(--o-dur-fast);
+}
+
+.allDayBar:hover {
+  filter: brightness(1.12);
+}
+
+.barDot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--event-color);
+}
+
+.barTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Cut by the view: the edge is square, so the bar reads as going on. */
 .allDayBar[data-clipped-start="true"] {
   margin-left: 0;
-  border-left-style: dashed;
   border-bottom-left-radius: 0;
   border-top-left-radius: 0;
 }
@@ -139,119 +176,23 @@
   border-top-right-radius: 0;
 }
 
-.allDayBar:hover {
-  filter: brightness(1.15);
-}
-
-.gridScroll {
-  min-height: 0;
-  flex: 1;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.gridBody {
-  position: relative;
-}
-
-.timeRail {
-  position: relative;
-}
-
-.timeRail span {
-  position: absolute;
-  right: 8px;
-  color: var(--o-ink3);
-  font-family: var(--o-font-mono);
-  font-size: var(--o-font-10);
-}
-
-.timeRail .nowLabel {
-  z-index: 1;
-  padding-left: 4px;
-  background: var(--o-bg);
-  color: var(--o-accText);
-  font-weight: 600;
-}
-
-.dayColumn {
-  position: relative;
-  min-width: 0;
-  border-left: 1px solid var(--o-line);
-}
-
-.weekendColumn {
-  background: var(--o-hover);
-}
-
-.hourLine {
-  position: absolute;
-  right: 0;
-  left: 0;
-  border-top: 1px solid var(--o-line);
-}
-
-.nowLine,
-.nowLineFaint {
-  position: absolute;
-  z-index: 20;
-  right: 0;
-  left: 0;
-  height: 2px;
-  margin-top: -1px;
-  background: var(--o-acc);
-  pointer-events: none;
-}
-
-.nowLine::before {
-  position: absolute;
-  top: -3px;
-  left: 0;
-  width: 2px;
-  height: 8px;
-  border-radius: var(--o-radius-pill);
-  background: var(--o-acc);
-  content: "";
-}
-
-.nowLineFaint {
-  opacity: 0.15;
-}
-
-/* The grid takes gestures. Text is not selected while dragging, and
-   the lane keeps one row even empty, so a drag across it drafts an event. */
-.gridBody {
-  user-select: none;
-}
-
-.gridBody[data-editing="true"] {
-  cursor: grabbing;
-}
-
-.allDayBars {
-  min-height: 30px;
-  user-select: none;
-}
-
-.allDayBar {
-  position: relative;
+.allDayBar[data-selected="true"] {
+  box-shadow: 0 0 0 2px var(--event-color);
 }
 
 .allDayBar[data-draft="true"] {
-  border: 1px dashed var(--event-color, var(--o-acc));
-  border-left-width: 3px;
-  border-left-style: solid;
+  border: 1px dashed var(--event-color);
   background: var(--o-surface);
 }
 
 .allDayBar[data-dragging="true"] {
+  background: var(--o-surface);
   box-shadow: var(--o-shadow);
   cursor: grabbing;
 }
 
 .allDayBar[data-saving="true"] {
   cursor: progress;
-  opacity: 0.8;
 }
 
 .barSide {
@@ -268,4 +209,98 @@
 
 .barSide[data-resize="end"] {
   right: 0;
+}
+
+.gridScroll {
+  min-height: 0;
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* The grid takes gestures: no text is selected while dragging. */
+.gridBody {
+  position: relative;
+  user-select: none;
+}
+
+.gridBody[data-editing="true"] {
+  cursor: grabbing;
+}
+
+.timeRail {
+  position: relative;
+}
+
+.timeRail span {
+  position: absolute;
+  right: 8px;
+  color: var(--o-ink3);
+  font: var(--o-text-tiny);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The present's time, over the hour it hides. */
+.timeRail .nowLabel {
+  z-index: 1;
+  right: 4px;
+  padding: 0 4px;
+  border-radius: var(--o-radius-xs);
+  background: var(--o-surface);
+  color: var(--o-accText);
+  font-weight: 600;
+}
+
+.dayColumn {
+  position: relative;
+  min-width: 0;
+  border-left: 1px solid var(--o-line);
+}
+
+.hourLine {
+  position: absolute;
+  right: 0;
+  left: 0;
+  border-top: 1px solid var(--hour-line);
+}
+
+/* «Ahora»: 1.5 px of the accent, with a dot where it starts. */
+.nowLine {
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  left: -4px;
+  height: 1.5px;
+  margin-top: -0.75px;
+  background: var(--o-accText);
+  pointer-events: none;
+}
+
+.nowLine::before {
+  position: absolute;
+  top: -3.25px;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--o-accText);
+  content: "";
+}
+
+/* Where events will be while the period is read («Se rellena»). */
+.placeholder {
+  position: absolute;
+  right: 4px;
+  left: 4px;
+  border-radius: var(--o-radius-md);
+  background: linear-gradient(90deg, var(--o-skel) 0, var(--o-skel2) 40%, var(--o-skel) 80%);
+  background-size: 600px 100%;
+  animation: orbit-shimmer var(--o-dur-shimmer) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .placeholder {
+    animation: none;
+  }
 }

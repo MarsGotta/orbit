@@ -1,4 +1,6 @@
 import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { CSSProperties } from "react";
+import { es } from "../../i18n/es";
 import { DAY_MS, dayOf } from "./date";
 
 /** What the view adds to an event it draws: a write on its way,
@@ -12,32 +14,23 @@ export interface EventUi {
 export type CalendarEvent = AppSnapshot["calendar"]["events"][number] & { ui?: EventUi };
 
 /**
- * How a card reads at a glance: the user's answer, a
- * meeting that is over, the one icon on the right and a recording in
- * progress. Pure: the event, the instant and the meeting in, a look out.
+ * How a card reads at a glance besides its answer (`responseLabel`):
+ * declined, over, or being recorded. Pure: the event and the instant in.
  */
 export interface EventLook {
+  /** Declined: struck through, at half strength. */
   declined: boolean;
-  /** Over, with guests: drawn as done. The user's own events without guests are not. */
-  done: boolean;
-  icon: "unanswered" | null;
+  /** Over: drawn at half strength. */
+  past: boolean;
   recording: boolean;
-  /** Maybe or not answered yet: a striped card. */
-  striped: boolean;
 }
 
-export function eventLook(event: CalendarEvent, nowMs: number) {
-  const response = event.self_response ?? null;
-  const declined = response === "declined";
-  const unanswered = response === "needs_action";
-  const hasGuests = (event.attendees?.length ?? 0) > 0;
+export function eventLook(event: CalendarEvent, nowMs: number): EventLook {
   return {
-    declined,
-    done: !declined && hasGuests && event.end_ms <= nowMs,
-    icon: unanswered ? "unanswered" : null,
+    declined: event.self_response === "declined",
+    past: event.end_ms <= nowMs,
     recording: event.recording === "recording",
-    striped: unanswered || response === "tentative",
-  } satisfies EventLook;
+  };
 }
 
 /** All-day events, and timed ones a day long or longer, go in the top lane. */
@@ -66,11 +59,51 @@ export function visibleEvents(events: readonly CalendarEvent[], filter: EventFil
   );
 }
 
-export function paletteOf(
+/** One of the four calendar colours of the design (`--o-c1`…`--o-c4`). */
+export type CalendarTone = 1 | 2 | 3 | 4;
+
+const TONE_OF_TOKEN: Record<string, CalendarTone> = { accent: 1, blue: 2, green: 3, orange: 4 };
+
+/**
+ * The design has four calendar colours. A calendar arrives with a palette
+ * token (`accent`, `blue`, `green`, `orange`) or with its own macOS colour
+ * (`#RRGGBB`), which takes the tone nearest in hue: violets and pinks the
+ * first, blues the second, greens the third, reds, oranges and yellows the
+ * fourth. A grey, or anything unreadable, is the first.
+ */
+export function calendarTone(color: string | undefined): CalendarTone {
+  if (color === undefined) return 1;
+  const token = TONE_OF_TOKEN[color];
+  if (token !== undefined) return token;
+  const match = /^#([0-9a-f]{6})$/i.exec(color);
+  if (match === null) return 1;
+  const value = Number.parseInt(match[1] ?? "0", 16);
+  const [red, green, blue] = [(value >> 16) & 255, (value >> 8) & 255, value & 255].map(
+    (channel) => channel / 255,
+  ) as [number, number, number];
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  if (max - min < 0.12) return 1;
+  const delta = max - min;
+  const sector =
+    max === red
+      ? ((green - blue) / delta + 6) % 6
+      : max === green
+        ? (blue - red) / delta + 2
+        : (red - green) / delta + 4;
+  const hue = sector * 60;
+  if (hue >= 75 && hue < 180) return 3;
+  if (hue >= 180 && hue < 235) return 2;
+  if (hue >= 235 && hue < 335) return 1;
+  return 4;
+}
+
+/** The tone of the calendar `event` belongs to. */
+export function toneOf(
   event: CalendarEvent,
   calendars: AppSnapshot["calendar"]["calendars"],
-): string {
-  return calendars.find((item) => item.id === event.calendar_id)?.color ?? "accent";
+): CalendarTone {
+  return calendarTone(calendars.find((item) => item.id === event.calendar_id)?.color);
 }
 
 /**
@@ -96,4 +129,23 @@ export function eventsByDay(
     );
   }
   return byDay;
+}
+
+/** The two colours a card, a bar, a dot or a row of `tone` reads. */
+export function toneStyle(tone: CalendarTone): CSSProperties {
+  return {
+    "--event-color": `var(--o-c${tone})`,
+    "--event-tint": `var(--o-c${tone}s)`,
+  } as CSSProperties;
+}
+
+/** «Quizá» or «Sin responder», the label under a card; none otherwise. */
+export function responseLabel(
+  event: CalendarEvent,
+): { kind: "tentative" | "unanswered"; label: string } | undefined {
+  if (event.self_response === "tentative")
+    return { kind: "tentative", label: es.calendar.selfResponse.tentative };
+  if (event.self_response === "needs_action")
+    return { kind: "unanswered", label: es.calendar.selfResponse.needs_action };
+  return undefined;
 }

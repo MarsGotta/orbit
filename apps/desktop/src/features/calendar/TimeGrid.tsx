@@ -30,10 +30,14 @@ export interface TimeGridProps {
   calendars: AppSnapshot["calendar"]["calendars"];
   events: CalendarEvent[];
   hourPx: number;
+  /** The period's events are on their way: the columns show where they will be. */
+  loading?: boolean;
   nowMs: number;
   onOpenEvent: (event: CalendarEvent) => void;
   onToggleAllDay: () => void;
   range: Range;
+  /** The event whose panel is open. */
+  selectedId?: string | null;
   showWeekends: boolean;
   timezone: string;
 }
@@ -90,7 +94,13 @@ export function TimeGrid(props: TimeGridProps) {
   const today = dayOf(props.nowMs, props.timezone);
   const columns = { "--columns": days.length } as CSSProperties;
   return (
-    <div aria-label={gridLabel(props.range)} className={styles.grid} role="grid" style={columns}>
+    <div
+      aria-busy={props.loading === true ? true : undefined}
+      aria-label={gridLabel(props.range)}
+      className={styles.grid}
+      role="grid"
+      style={columns}
+    >
       <div className={styles.dayHeader} role="row">
         <div className={styles.timezone}>{timezoneCity(props.timezone)}</div>
         {days.map((day) => (
@@ -105,6 +115,7 @@ export function TimeGrid(props: TimeGridProps) {
         onOpenEvent={props.onOpenEvent}
         onToggle={props.onToggleAllDay}
         open={props.allDayOpen}
+        selectedId={props.selectedId}
         timezone={props.timezone}
       />
       <div className={styles.gridScroll} ref={scrollRef}>
@@ -145,12 +156,13 @@ function GridBody(props: TimeGridProps & { days: number[]; today: number }) {
           ghosts={ghosts.get(day) ?? []}
           hourPx={props.hourPx}
           isToday={day === today}
-          isWeekend={isWeekend(day)}
           key={day}
           nowMinutes={nowMinutes}
           nowMs={props.nowMs}
           onOpenEvent={props.onOpenEvent}
+          placeholder={props.loading === true && timed.length === 0}
           segments={segments.get(day) ?? []}
+          selectedId={props.selectedId}
           timezone={props.timezone}
         />
       ))}
@@ -162,7 +174,8 @@ function DayHeading({ day, isToday }: { day: number; isToday: boolean }) {
   const heading = dayHeading(day);
   return (
     <div
-      className={[styles.dayHeading, isWeekend(day) ? styles.weekendHeading : ""].join(" ")}
+      aria-current={isToday ? "date" : undefined}
+      className={styles.dayHeading}
       role="columnheader"
     >
       <span>{heading.name}</span>

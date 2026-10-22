@@ -1,9 +1,13 @@
-/* The month as whole weeks; a row of 22 px per event. */
+/* The month: five or six weeks in a card, each day a button that picks it. */
 .month {
   display: flex;
   min-height: 0;
   flex: 1;
   flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-xl);
+  background: var(--o-surface);
 }
 
 .weekdays,
@@ -13,106 +17,132 @@
 }
 
 .weekdays {
+  height: 34px;
   flex: none;
   border-bottom: 1px solid var(--o-line);
 }
 
 .weekdays > div {
-  padding: 8px 10px;
-  color: var(--o-ink2);
-  font-size: var(--o-font-11);
-  text-transform: capitalize;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--o-space-10);
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
 }
 
-.week {
+.weeks {
+  display: grid;
   min-height: 0;
   flex: 1;
-  border-bottom: 1px solid var(--o-line);
+  grid-template-rows: repeat(var(--weeks), minmax(0, 1fr));
+}
+
+.week + .week {
+  border-top: 1px solid var(--o-line);
+}
+
+.cellWrap {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.cellWrap + .cellWrap {
+  border-left: 1px solid var(--o-line);
 }
 
 .cell {
   display: flex;
+  width: 100%;
   min-width: 0;
-  min-height: 0;
   flex-direction: column;
-  gap: 1px;
+  gap: var(--o-space-2);
   overflow: hidden;
-  padding: 3px 4px 4px;
-  border-left: 1px solid var(--o-line);
-}
-
-.week .cell:first-child {
-  border-left: 0;
-}
-
-.outside {
-  background: var(--o-hover);
-}
-
-.outside .number {
-  color: var(--o-ink3);
-}
-
-.number,
-.todayNumber {
-  display: grid;
-  min-width: 22px;
-  height: 22px;
-  flex: none;
-  place-items: center;
-  align-self: flex-start;
-  margin-bottom: 2px;
-  padding: 0 6px;
+  padding: var(--o-space-6) var(--o-space-6) var(--o-space-4);
   border: 0;
-  border-radius: var(--o-radius-pill);
   background: transparent;
   color: var(--o-ink);
   cursor: pointer;
   font: inherit;
-  font-size: var(--o-font-12);
-  font-weight: 600;
+  text-align: left;
+  transition: background var(--o-dur-fast);
 }
 
-.number:hover {
+.cell:hover {
   background: var(--o-hover);
 }
 
-.todayNumber {
+.cell[aria-pressed="true"] {
+  background: var(--o-accSoft);
+}
+
+.cell:focus-visible {
+  outline: 2px solid var(--o-accText);
+  outline-offset: -2px;
+}
+
+/* Days of another month: there, but quiet. */
+.cell[data-outside="true"] {
+  opacity: 0.45;
+}
+
+.number {
+  display: inline-flex;
+  min-width: 24px;
+  height: 24px;
+  align-self: flex-start;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border-radius: var(--o-radius-pill);
+  font: 600 12px/1 var(--o-font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.number[data-today="true"] {
   background: var(--o-acc);
   color: var(--o-white);
 }
 
-.row,
-.bar {
+.item,
+.chip {
   display: flex;
-  height: 22px;
   min-width: 0;
+  height: 20px;
   flex: none;
   align-items: center;
   gap: 5px;
-  padding: 0 6px 0 5px;
-  border: 0;
-  border-left: 3px solid var(--event-color);
-  border-radius: var(--o-radius-5);
-  background: transparent;
-  color: var(--o-ink);
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--o-font-11-5);
-  text-align: left;
+  padding: 0 5px;
+  border-radius: var(--o-radius-sm);
+  font: var(--o-text-tiny);
+  font-weight: 400;
 }
 
-.row:hover {
-  background: var(--o-hover);
+.chip {
+  background: var(--event-tint);
 }
 
-.bar {
-  background: var(--event-bg);
-  font-weight: 600;
+.item[data-past="true"] {
+  color: var(--o-ink3);
 }
 
-.striped {
-  background-image: repeating-linear-gradient(-45deg, transparent 0 5px, var(--o-line) 5px 9px);
+.item[data-unanswered="true"] {
+  outline: 1px dashed var(--o-warn);
+  outline-offset: -1px;
+}
+
+.dot {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--event-color);
+}
+
+.time {
+  flex: none;
+  color: var(--o-ink3);
+  font-variant-numeric: tabular-nums;
 }
 
 .title {
@@ -123,27 +153,26 @@
   white-space: nowrap;
 }
 
-.row time {
-  flex: none;
-  color: var(--o-ink2);
-  font-family: var(--o-font-mono);
-  font-size: var(--o-font-10);
-}
-
 .more {
-  align-self: flex-start;
-  padding: 2px 6px;
-  border: 0;
-  border-radius: var(--o-radius-5);
-  background: transparent;
+  padding: 0 5px;
   color: var(--o-ink2);
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--o-font-11);
+  font: var(--o-text-tiny);
   font-weight: 600;
 }
 
-.more:hover {
-  background: var(--o-hover);
-  color: var(--o-ink);
+/* A day of a month still being read («Se rellena»). */
+.placeholder {
+  width: 70%;
+  height: 11px;
+  margin: 4px 5px;
+  border-radius: var(--o-radius-sm);
+  background: linear-gradient(90deg, var(--o-skel) 0, var(--o-skel2) 40%, var(--o-skel) 80%);
+  background-size: 600px 100%;
+  animation: orbit-shimmer var(--o-dur-shimmer) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .placeholder {
+    animation: none;
+  }
 }

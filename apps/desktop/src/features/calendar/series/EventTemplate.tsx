@@ -79,27 +79,31 @@ function TemplateSelect({
   // The template chosen stays shown until the library is read again with it.
   const template = useHeldChoice(assigned, send);
   return (
-    <label className={styles.template} title={es.library.noteTemplateHint}>
-      <span>{es.library.noteTemplate}</span>
-      <select
-        onChange={(change) =>
-          template.choose(change.target.value, {
-            command: "note_library",
-            request: {
-              action: "assign",
-              calendar_item_id: calendarItemId,
-              template_id: change.target.value === GENERAL ? null : change.target.value,
-            },
-          })
-        }
-        value={template.shown}
-      >
-        {library.items.map((template) => (
-          <option key={template.id} value={template.id}>
-            {template.name}
-          </option>
-        ))}
-      </select>
-    </label>
+    <>
+      <label className={styles.template}>
+        <span className={styles.label}>{es.library.noteTemplate}</span>
+        <select
+          className={styles.select}
+          onChange={(change) =>
+            template.choose(change.target.value, {
+              command: "note_library",
+              request: {
+                action: "assign",
+                calendar_item_id: calendarItemId,
+                template_id: change.target.value === GENERAL ? null : change.target.value,
+              },
+            })
+          }
+          value={template.shown}
+        >
+          {library.items.map((template) => (
+            <option key={template.id} value={template.id}>
+              {template.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className={styles.help}>{es.library.noteTemplateHint}</p>
+    </>
   );
 }

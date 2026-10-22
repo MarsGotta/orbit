@@ -1,146 +1,79 @@
-.event {
+/* A calendar event placed in the grid. The card itself is the design's
+   calendar event (design/CalendarEvent); this is its slot: where it sits,
+   and how it reads while drafted, dragged, saved or recorded. */
+.slot {
   position: absolute;
-  display: flex;
-  min-width: 0;
-  align-items: flex-start;
-  gap: 4px;
-  overflow: hidden;
-  padding: 3px 6px 3px 7px;
-  border: 0;
-  border-left: 3px solid var(--event-color);
-  border-radius: var(--o-radius-6);
-  background: var(--event-bg);
-  box-shadow: 0 0 0 1px var(--o-bg);
-  color: var(--o-ink);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  transition: filter 120ms ease;
+  box-sizing: border-box;
+  padding-inline: 2px;
 }
 
-.event:hover {
-  filter: brightness(1.15);
+.slot > button {
+  height: 100%;
+  border-radius: var(--o-radius-md);
+  transition: filter var(--o-dur-fast);
 }
 
-.event:focus-visible {
-  outline: 2px solid var(--o-accText);
-  outline-offset: 1px;
+.slot > button:hover {
+  filter: brightness(1.12);
 }
 
-/* Maybe, or not answered yet: 45-degree stripes over the fill. */
-.striped {
-  background-image: repeating-linear-gradient(-45deg, transparent 0 5px, var(--o-line) 5px 9px);
+/* Declined: struck through, at half strength. */
+.slot[data-declined="true"] > button {
+  opacity: 0.5;
+  text-decoration: line-through;
 }
 
-.event[data-done="true"],
-.event[data-declined="true"] {
-  text-decoration-color: var(--o-ink3);
+/* A draft: not in the calendar yet. Dashed, on the surface. */
+.slot[data-draft="true"] > button {
+  border: 1px dashed var(--event-color);
+  background: var(--o-surface);
 }
 
-.copy {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  gap: 1px;
+/* Being moved: it stays where it was, faint, under the card that moves. */
+.slot[data-dragging="true"] {
+  opacity: 0.45;
 }
 
-.copy strong {
-  display: -webkit-box;
-  overflow: hidden;
-  font-size: var(--o-font-11-5);
-  font-weight: 600;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+/* The card that moves floats: it is the one thing here with a shadow. */
+.slot[data-ghost="true"] {
+  pointer-events: none;
 }
 
-.copy time,
-.place {
-  overflow: hidden;
-  color: var(--o-ink2);
-  font-size: var(--o-font-10);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.slot[data-ghost="true"] > button {
+  border: 1px solid var(--event-color);
+  background: var(--o-surface);
+  box-shadow: var(--o-shadow);
+  cursor: grabbing;
 }
 
-.copy time {
-  font-family: var(--o-font-mono);
+/* A write on its way: its time line says «Guardando…». */
+.slot[data-saving="true"] > button {
+  cursor: progress;
 }
 
-.compact {
-  align-items: center;
-  padding-block: 0;
-}
-
-.compact .copy {
-  flex-direction: row;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.compact .copy strong {
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
-}
-
-.recording {
-  box-shadow:
-    0 0 0 1px var(--o-bg),
-    0 0 0 2px var(--o-rec);
-}
-
-.recording .copy time {
-  color: var(--o-recText);
-  font-family: var(--o-font-sans);
+/* Being recorded: a red ring and the dot that beats. */
+.slot[data-recording="true"] > button {
+  box-shadow: 0 0 0 2px var(--o-rec);
 }
 
 .pulse {
   position: absolute;
   top: 6px;
-  right: 6px;
+  right: 8px;
   width: 7px;
   height: 7px;
   border-radius: var(--o-radius-pill);
   background: var(--o-rec);
+  animation: orbit-pulse var(--o-dur-pulse) ease-in-out infinite;
 }
 
-.pulse::after {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: var(--o-rec);
-  animation: o-ring 1.6s ease-out infinite;
-  content: "";
-}
-
-/* Not answered yet: a dot, the card's one icon on the right. */
-.unanswered {
-  width: 7px;
-  height: 7px;
-  flex: none;
-  margin-top: 4px;
-  border-radius: var(--o-radius-pill);
-  background: var(--event-color);
-  box-shadow: 0 0 0 2px var(--event-bg);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pulse::after {
-    animation: none;
-  }
-}
-
-/* The bottom edge stretches the event. A strip, not a target that
-   steals the card: four pixels, the resize cursor and nothing drawn until
-   the pointer is there. */
+/* The bottom edge stretches the event: a strip with the resize cursor,
+   nothing drawn until the pointer is over the card. */
 .resize {
   position: absolute;
-  right: 0;
+  right: 2px;
   bottom: 0;
-  left: 0;
+  left: 2px;
   height: 6px;
   cursor: ns-resize;
 }
@@ -156,57 +89,15 @@
   background: var(--event-color);
   content: "";
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity var(--o-dur-fast);
 }
 
-.event:hover .resize::after {
+.slot:hover .resize::after {
   opacity: 0.8;
 }
 
-/* A draft: not in the calendar yet. */
-.event[data-draft="true"] {
-  border: 1px dashed var(--event-color);
-  border-left-width: 3px;
-  border-left-style: solid;
-  background: var(--o-surface);
-}
-
-/* Being moved: it stays where it was, faint, under the card that moves. */
-.event[data-dragging="true"] {
-  opacity: 0.45 !important;
-}
-
-.event[data-ghost="true"] {
-  box-shadow:
-    0 0 0 1px var(--event-color),
-    var(--o-shadow);
-  cursor: grabbing;
-  pointer-events: none;
-}
-
-/* A write on its way: in its new place, breathing until the calendar says. */
-.event[data-saving="true"] {
-  cursor: progress;
-  animation: o-saving 1.2s ease-in-out infinite;
-}
-
-.event[data-saving="true"] .copy time {
-  color: var(--o-accText);
-  font-family: var(--o-font-sans);
-}
-
-@keyframes o-saving {
-  0%,
-  100% {
-    filter: none;
-  }
-  50% {
-    filter: saturate(0.6) brightness(1.12);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .event[data-saving="true"] {
+  .pulse {
     animation: none;
   }
 }

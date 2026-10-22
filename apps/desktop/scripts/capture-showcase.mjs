@@ -71,19 +71,21 @@ async function readScenarios(browser, url) {
   return read;
 }
 
-/** The mouse, by points from the top left of what `selector` finds. */
-async function mouse(page, selector, [x, y], by = null) {
+/** The mouse, by points from the top left of what `selector` finds; `release`
+ *  false leaves the button down, for a drag in progress. */
+async function mouse(page, selector, [x, y], by = null, release = true) {
   const box = await page.locator(selector).first().boundingBox();
   if (!box) throw new Error(`${selector} no se ve`);
   await page.mouse.move(box.x + x, box.y + y);
   await page.mouse.down();
   if (by) await page.mouse.move(box.x + x + by[0], box.y + y + by[1], { steps: 8 });
-  await page.mouse.up();
+  if (release) await page.mouse.up();
 }
 
 async function step(page, action, now) {
   if ("mouse" in action) await mouse(page, action.mouse, action.at);
   else if ("drag" in action) await mouse(page, action.drag, [20, 12], action.by);
+  else if ("hold" in action) await mouse(page, action.hold, action.at, action.by, false);
   else if ("advance" in action) await page.clock.setFixedTime(now + action.advance);
   else if ("click" in action) await page.locator(action.click).first().click();
   else if ("hover" in action) await page.locator(action.hover).first().hover();

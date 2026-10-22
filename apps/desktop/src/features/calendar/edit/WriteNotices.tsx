@@ -1,4 +1,5 @@
 import { Button } from "../../../design/Button";
+import { Icon } from "../../../design/Icon";
 import { Toast } from "../../../design/Toast";
 import { es } from "../../../i18n/es";
 import type { useCalendarWrites } from "./useCalendarWrites";
@@ -21,14 +22,15 @@ export function WriteNotices({ writes }: { writes: Writes }) {
           data-kind={notice.kind}
           role={notice.kind === "info" ? "status" : "alert"}
         >
-          <span>{notice.text}</span>
+          <span aria-hidden="true" className={styles.noticeDot} />
+          <span className={styles.noticeText}>{notice.text}</span>
           <Button
             aria-label={es.calendar.write.dismiss}
             onClick={writes.dismissNotice}
             size={28}
-            variant="ghost"
+            variant="icon"
           >
-            ×
+            <Icon name="close" size={14} />
           </Button>
         </div>
       )}

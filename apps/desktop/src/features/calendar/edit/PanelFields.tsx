@@ -1,7 +1,8 @@
 import type { AppView as AppSnapshot } from "../../../state/app-view";
-import { TextInput } from "../../../design/TextInput";
+import type { CalendarAvailability } from "../../../bridge/generated/CalendarAvailability";
+import { Segmented } from "../../../design/Segmented";
 import { es } from "../../../i18n/es";
-import palette from "../CalendarPalette.module.css";
+import { calendarTone, toneStyle } from "../eventLook";
 import type { EventForm } from "./form";
 import styles from "./EventPanel.module.css";
 
@@ -18,12 +19,12 @@ interface FieldsProps {
   onChange: (form: EventForm) => void;
 }
 
-/** Place, notes, calendar, reminders and availability. */
+/** Place, notes, calendar, «Avisarme» and «Mostrarme como». */
 export function PanelFields(props: FieldsProps) {
   const { form, onChange } = props;
   return (
     <div className={styles.fields}>
-      <TextInput
+      <input
         aria-label={es.calendar.location}
         className={styles.text}
         onChange={(event) => onChange({ ...form, location: event.target.value })}
@@ -62,10 +63,11 @@ function CalendarField({ calendars, form, onChange }: Omit<FieldsProps, "draft">
   if (writable.length === 0) return null;
   const current = calendars.find((calendar) => calendar.id === form.calendarId);
   return (
-    <label className={styles.row}>
+    <label className={styles.selectField}>
       <span
         aria-hidden="true"
-        className={[styles.swatch, palette[current?.color ?? "accent"] ?? palette.accent].join(" ")}
+        className={styles.swatch}
+        style={toneStyle(calendarTone(current?.color))}
       />
       <select
         aria-label={es.calendar.edit.calendar}
@@ -121,7 +123,9 @@ function Reminders(props: Omit<FieldsProps, "calendars">) {
     });
   return (
     <div aria-label={es.calendar.edit.reminders} className={styles.chips} role="group">
-      <span className={styles.label}>{es.calendar.edit.reminders}</span>
+      <span aria-hidden="true" className={styles.fieldLabel}>
+        {es.calendar.edit.reminders}
+      </span>
       {reminderChoices(chosen).map(([minutes, label]) => (
         <button
           aria-pressed={chosen.includes(minutes)}
@@ -139,23 +143,23 @@ function Reminders(props: Omit<FieldsProps, "calendars">) {
   );
 }
 
-/** Busy or free; a calendar that keeps no availability shows nothing. */
+/** «Ocupada» or «Libre»; a calendar that keeps no availability shows nothing. */
 function Availability({ form, onChange }: Omit<FieldsProps, "calendars" | "draft">) {
   if (form.availability === null || form.availability === "not_supported") return null;
   return (
-    <div aria-label={es.calendar.edit.availability} className={styles.chips} role="group">
-      <span className={styles.label}>{es.calendar.edit.availability}</span>
-      {(["busy", "free"] as const).map((value) => (
-        <button
-          aria-pressed={form.availability === value}
-          className={styles.chip}
-          key={value}
-          onClick={() => onChange({ ...form, availability: value })}
-          type="button"
-        >
-          {es.calendar.edit[value]}
-        </button>
-      ))}
+    <div className={styles.availability}>
+      <span aria-hidden="true" className={styles.fieldLabel}>
+        {es.calendar.edit.availability}
+      </span>
+      <Segmented<CalendarAvailability>
+        label={es.calendar.edit.availability}
+        onChange={(availability) => onChange({ ...form, availability })}
+        options={[
+          { label: es.calendar.edit.busy, value: "busy" },
+          { label: es.calendar.edit.free, value: "free" },
+        ]}
+        value={form.availability}
+      />
     </div>
   );
 }
