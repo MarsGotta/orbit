@@ -14,7 +14,7 @@ describe("the glossary", () => {
 
   it("calls the section of meetings «Reuniones», and keeps «nota» for one meeting's note", () => {
     expect(es.shell.notes).toBe("Reuniones");
-    expect(es.settings.notes).toBe("Reuniones");
+    expect(es.shell.settingsSections.reuniones).toBe("Reuniones");
     expect(es.notes.empty).toBe("Aún no hay reuniones");
     expect(es.notes.emptyBody).toBe("Graba tu primera reunión y Orbit escribirá la nota por ti.");
     expect(es.meeting.openNote).toBe("Abrir nota");
@@ -63,7 +63,7 @@ describe("the glossary", () => {
 
   it("calls skills «Habilidades» and names what an agent may use by what it does", () => {
     expect(es.agents.skills).toBe("Habilidades");
-    expect(es.agents.paste).toBe("Escribir desde cero");
+    expect(es.agents.fromScratch).toBe("Escribir desde cero");
     expect(es.agents.importFolder).toBe("Importar carpeta");
     expect(es.agents.access).toBe("Qué puede usar");
     expect(accessGroups.map(({ label }) => label)).toEqual([
@@ -75,7 +75,7 @@ describe("the glossary", () => {
     ]);
     for (const { description } of accessGroups) expect(description).not.toMatch(/orbit_/);
     expect(es.agents.kind("hermes", "Atlas")).toBe(
-      "Atlas funciona con Hermes: su personalidad y lo que puede usar se cambian en su perfil de Hermes.",
+      "Atlas funciona con Hermes: su personalidad y lo que puede usar se cambian en su perfil de Hermes. Aquí lo ves tal como está.",
     );
     expect(es.agents.kind("acp", "Vega")).toBe(
       "Vega se configura desde aquí. Los cambios se guardan en el hub.",

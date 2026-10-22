@@ -1,7 +1,6 @@
 export const dictionary = {
   dictionary: {
     label: "Diccionario",
-    plural: "Diccionarios de reuniones",
     name: "Nombre del diccionario",
     inherit: "Usar el de la serie",
     create: "Crear un diccionario",
@@ -13,9 +12,13 @@ export const dictionary = {
     selected: (text: string) => `Texto seleccionado: «${text}»`,
     help: "Corrige todas las apariciones de esta forma en las reuniones que usan el diccionario. La nota ya escrita cambiará cuando rehagas el resumen.",
     empty: "Todavía no hay diccionarios. Crea uno al corregir una palabra de una transcripción.",
-    emptyTerms: "Sin términos.",
-    noSeries: "Ninguna serie lo usa siempre.",
-    series: (names: string) => `Series: ${names}`,
+    emptyTerms: "Aún no corrige ninguna palabra.",
+    noSeries: "Ninguna serie lo usa siempre",
+    series: (names: string) => `Lo usan siempre: ${names}`,
+    insteadOf: (wrong: string) => `en lugar de ${wrong}`,
+    rename: "Cambiar nombre",
+    renameLabel: (name: string) => `Cambiar el nombre de ${name}`,
+    addHint: "Para añadir una palabra, selecciónala en una transcripción y pulsa «Corregir».",
     removeEntry: "Quitar",
     remove: (term: string) => `Quitar ${term}`,
     refused: (code: string, detail: string, numbers: Record<string, number>) => {

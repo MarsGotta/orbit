@@ -24,11 +24,7 @@ export const accessGroups: ReadonlyArray<{
     label: "Reuniones y notas",
     description: "Leer tus reuniones, notas y transcripciones",
   },
-  {
-    group: "files",
-    label: "Archivos",
-    description: "Leer los archivos de las carpetas que elijas",
-  },
+  { group: "files", label: "Archivos", description: "Leer las carpetas que elijas aquí abajo" },
 ];
 
 type Numbers = AgentRefusal["numbers"];
@@ -142,7 +138,7 @@ export function agentFailureText(refusal: Record<string, unknown>): string {
 
 export const agents = {
   agents: {
-    section: "Agentes",
+    tabs: "Agentes",
     none: "Todavía no se conocen los agentes del hub: aparecen al conectar con él.",
     unavailable: "Esta ventana no puede leer los agentes.",
     loading: (name: string) => `Leyendo la configuración de ${name}…`,
@@ -150,7 +146,7 @@ export const agents = {
     // How the agent is configured, by its kind (hub-v1 «Agents»).
     kind: (kind: string, name: string) =>
       kind === "hermes"
-        ? `${name} funciona con Hermes: su personalidad y lo que puede usar se cambian en su perfil de Hermes.`
+        ? `${name} funciona con Hermes: su personalidad y lo que puede usar se cambian en su perfil de Hermes. Aquí lo ves tal como está.`
         : kind === "openai" || kind === "acp"
           ? `${name} se configura desde aquí. Los cambios se guardan en el hub.`
           : `${name} es de un tipo que esta versión de Orbit no conoce (${kind}).`,
@@ -160,17 +156,16 @@ export const agents = {
         : "Este tipo de agente no deja cambiarlo desde Orbit.",
     saving: "Guardando en el hub…",
     saved: "✓ Guardado en el hub",
-    bytes: (bytes: number, max: number) => `${figure(bytes)} de ${figure(max)} bytes`,
-    overLimit: (bytes: number, max: number) =>
-      `Ocupa ${figure(bytes)} bytes; el máximo es ${figure(max)}.`,
+    bytes: (count: number, max: number) => `${figure(count)} de ${figure(max)} bytes`,
+    overLimit: (count: number, max: number) =>
+      `Ocupa ${figure(count)} bytes; el máximo es ${figure(max)}.`,
     personality: "Personalidad",
     personalityLabel: (name: string) => `Personalidad de ${name}`,
-    savePersonality: "Guardar personalidad",
+    savePersonality: "Guardar",
     access: "Qué puede usar",
-    accessHelp:
-      "macOS sigue decidiendo sobre este Mac; esto solo limita a este agente. No pregunta en cada uso ni caduca.",
+    accessHelp: "macOS sigue decidiendo sobre este Mac; esto solo limita a este agente.",
     skills: "Habilidades",
-    skillCount: (skills: number, max: number) => `${skills} de ${max}`,
+    skillCount: (count: number, max: number) => `${count} de ${max}`,
     noSkills:
       "Este agente aún no tiene habilidades. Una habilidad le enseña a hacer una tarea concreta, como preparar una reunión.",
     enable: (name: string) => `Activar ${name}`,
@@ -181,20 +176,24 @@ export const agents = {
     delete: (name: string) => `Borrar ${name}`,
     deleteLabel: "Borrar",
     deleteQuestion: (name: string) => `¿Borrar ${name} de este agente? No se puede deshacer.`,
-    confirmDelete: "Confirmar borrado",
+    confirmDelete: "Sí, borrar",
     cancel: "Cancelar",
     newSkill: "Nueva habilidad",
-    paste: "Escribir desde cero",
+    newSkillMenu: "Cómo empezar la habilidad",
+    fromScratch: "Escribir desde cero",
+    fromScratchHelp: "Una plantilla con su nombre y su descripción por rellenar.",
     importFolder: "Importar carpeta",
+    importFolderHelp: "Una carpeta con un SKILL.md: solo se lee y se envía ese archivo.",
     folderInput: "Carpeta con un SKILL.md",
-    importHelp:
-      "Una habilidad es un SKILL.md con name y description en su frontmatter. Al importar una carpeta solo se lee y se envía su SKILL.md.",
     noSkillFile: (folder: string) => `La carpeta «${folder}» no tiene un SKILL.md.`,
-    skillFileTooLarge: (folder: string, bytes: number, max: number) =>
-      `El SKILL.md de «${folder}» ocupa ${figure(bytes)} bytes; el máximo es ${figure(max)}.`,
+    skillFileTooLarge: (folder: string, size: number, max: number) =>
+      `El SKILL.md de «${folder}» ocupa ${figure(size)} bytes; el máximo es ${figure(max)}.`,
     skillFileUnreadable: (folder: string) => `No se pudo leer el SKILL.md de «${folder}».`,
+    editorNew: "Nueva habilidad",
+    editorHelp:
+      "El SKILL.md entero: su nombre y su descripción van arriba, entre las dos líneas de guiones.",
     content: "Contenido del SKILL.md",
-    name: (name: string) => `Nombre: ${name}`,
+    name: (name: string) => `Se llamará ${name}`,
     noName: "Falta el name en el frontmatter del SKILL.md.",
     saveSkill: "Guardar habilidad",
     close: "Cerrar",

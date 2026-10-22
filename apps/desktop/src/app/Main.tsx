@@ -92,7 +92,17 @@ function View({
     );
   if (view === "settings") {
     // SettingsView shows the section the route names (`#/settings/{section}`).
-    const settings = { agent, error, onReopenOnboarding, send, snapshot, section: settingsSection };
+    // SettingsView's index opens a section through the router, so the URL and the index agree.
+    const onSection = (section: SettingsSection) => useUiStore.getState().openSettings(section);
+    const settings = {
+      agent,
+      error,
+      onReopenOnboarding,
+      send,
+      snapshot,
+      section: settingsSection,
+      onSection,
+    };
     return (
       <>
         <TopBarLeading>

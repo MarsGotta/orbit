@@ -1,7 +1,7 @@
 import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
 import type { NoteTemplateDetailSnapshot } from "../../../bridge/generated/NoteTemplateDetailSnapshot";
 import { Button } from "../../../design/Button";
-import { Tag } from "../../../design/Tag";
+import { Icon } from "../../../design/Icon";
 import { es } from "../../../i18n/es";
 import styles from "./Templates.module.css";
 
@@ -34,17 +34,26 @@ export function TemplateList({
               onClick={() => onOpen(template)}
               type="button"
             >
-              <span>{template.name}</span>
-              {template.builtin && <Tag>{es.library.fromOrbit}</Tag>}
-              {template.pending && <small>{es.library.pending}</small>}
+              <span className={styles.rowName}>{template.name}</span>
+              {template.pending ? (
+                <small>{es.library.pending}</small>
+              ) : (
+                template.builtin && <small>{es.library.fromOrbit}</small>
+              )}
             </button>
           </li>
         ))}
       </ul>
-      <Button disabled={full} onClick={onCreate} size={28} variant="outline">
+      <Button
+        className={styles.add}
+        disabledReason={full ? es.library.noRoom : undefined}
+        onClick={onCreate}
+        size={32}
+        variant="ghost"
+      >
+        <Icon name="plus" size={14} />
         {es.library.newTemplate}
       </Button>
-      {full && <p className={styles.hint}>{es.library.noRoom}</p>}
     </div>
   );
 }

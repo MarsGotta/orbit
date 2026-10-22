@@ -3,10 +3,9 @@ import type { AppCommand } from "../../../bridge/generated";
 import type { DaemonConnection } from "../../../bridge/generated/DaemonConnection";
 import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
 import type { NoteTemplateDetailSnapshot } from "../../../bridge/generated/NoteTemplateDetailSnapshot";
-import { Card } from "../../../design/Card";
-import { SectionLabel } from "../../../design/SectionLabel";
 import { Toast } from "../../../design/Toast";
 import { es } from "../../../i18n/es";
+import { Group, SkeletonRows } from "../layout";
 import { LibraryStatus } from "./LibraryStatus";
 import { type Restoring, restoreNotice } from "./restore-notice";
 import {
@@ -148,7 +147,7 @@ interface NoteTemplatesProps {
 }
 
 /**
- * Ajustes → Notas → Plantillas: Orbit's templates first, marked as
+ * Ajustes › Reuniones › Plantillas: Orbit's templates first, marked as
  * such, then the user's own; create, edit, reorder and delete, saved as they type.
  */
 export function NoteTemplates({
@@ -169,34 +168,33 @@ export function NoteTemplates({
     send(saveCommand({ id: template.id, forkedFrom: null }, draftOf(template)));
     open(template);
   };
+  const known = library != null && library.templates.state !== "unknown";
   return (
-    <section aria-label={es.settings.notes} className={styles.page}>
-      <SectionLabel>{es.settings.notes}</SectionLabel>
-      <Card>
-        <h2 className={styles.title}>{es.library.templatesTitle}</h2>
-        <p className={styles.hint}>{es.library.templatesIntro}</p>
-        <LibraryStatus library={library} />
-        <DeleteNotices {...notices} daemon={daemon} error={error} library={library} />
-        {library != null && library.templates.state === "available" && (
-          <div className={styles.columns}>
-            <TemplateList library={library} onCreate={create} onOpen={open} selected={selected} />
-            {editing !== null && (
-              <TemplateEditor
-                key={editing.key}
-                library={library}
-                onCopied={setSelected}
-                onDeleted={(removed) => {
-                  setSelected(null);
-                  setEditing(null);
-                  notices.deletedNow(removed);
-                }}
-                send={send}
-                template={editing.template}
-              />
-            )}
-          </div>
-        )}
-      </Card>
-    </section>
+    <Group label={es.settings.templates}>
+      <LibraryStatus library={library} />
+      <DeleteNotices {...notices} daemon={daemon} error={error} library={library} />
+      {!known && <SkeletonRows rows={3} />}
+      {library != null && library.templates.state === "available" && (
+        <div className={styles.columns}>
+          <TemplateList library={library} onCreate={create} onOpen={open} selected={selected} />
+          {editing !== null ? (
+            <TemplateEditor
+              key={editing.key}
+              library={library}
+              onCopied={setSelected}
+              onDeleted={(removed) => {
+                setSelected(null);
+                setEditing(null);
+                notices.deletedNow(removed);
+              }}
+              send={send}
+              template={editing.template}
+            />
+          ) : (
+            <p className={styles.choose}>{es.library.chooseTemplate}</p>
+          )}
+        </div>
+      )}
+    </Group>
   );
 }

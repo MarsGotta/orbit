@@ -2,6 +2,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { useMemo, useRef } from "react";
 import { markdownExtensions } from "../../assistant/markdown-extensions";
 import editorStyles from "../../notes/NoteEditor.module.css";
+import styles from "./Agents.module.css";
 
 interface PersonalityEditorProps {
   /** Accessible name of the text box. */
@@ -37,7 +38,7 @@ export default function PersonalityEditor({
           "aria-label": label,
           "aria-multiline": "true",
           "aria-readonly": editable ? "false" : "true",
-          class: editorStyles.editor ?? "",
+          class: `${editorStyles.editor ?? ""} ${styles.personalityText ?? ""}`,
           role: "textbox",
         },
       },
@@ -47,5 +48,5 @@ export default function PersonalityEditor({
     [editable, label, markdown],
   );
   const editor = useEditor(options);
-  return <EditorContent className={editorStyles.frame} editor={editor} />;
+  return <EditorContent className={styles.personalityFrame} editor={editor} />;
 }

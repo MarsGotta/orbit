@@ -1,13 +1,16 @@
 import type { AgentConfig } from "../../bridge/generated/AgentConfig";
 import type { SkillDocument } from "../../bridge/generated/SkillDocument";
 
+// The hub's ceilings: a personality of 16 KiB, 128 skills of 64 KiB each
+// (`orbit_hub/assistant/agent_config.py`, `skills.py`).
+
 const deimos: AgentConfig = {
   agent_id: "deimos",
   kind: "hermes",
   personality: {
     text: "Soy Deimos, el asistente de Lucía. Hablo claro y breve, en español, y antes de tocar nada que no se pueda deshacer pregunto.",
     editable: false,
-    max_bytes: 65_536,
+    max_bytes: 16_384,
     cause: "La personalidad es el SOUL.md del perfil de Hermes",
   },
   access: {
@@ -18,8 +21,8 @@ const deimos: AgentConfig = {
   skills: {
     editable: false,
     cause: "Las habilidades de Hermes se cambian en su perfil",
-    max_skills: 32,
-    max_skill_bytes: 16_384,
+    max_skills: 128,
+    max_skill_bytes: 65_536,
     items: [
       {
         name: "preparar-reunion",
@@ -46,7 +49,7 @@ const claudeCode: AgentConfig = {
   personality: {
     text: "Trabajas en el repositorio de reservas de Nubaria. Explica cada cambio antes de hacerlo y ejecuta los tests al terminar.",
     editable: true,
-    max_bytes: 65_536,
+    max_bytes: 16_384,
     cause: null,
   },
   access: {
@@ -57,8 +60,8 @@ const claudeCode: AgentConfig = {
   skills: {
     editable: true,
     cause: null,
-    max_skills: 16,
-    max_skill_bytes: 8_192,
+    max_skills: 128,
+    max_skill_bytes: 65_536,
     items: [
       {
         name: "revisar-pr",

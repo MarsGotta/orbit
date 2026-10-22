@@ -3,73 +3,131 @@ import type { AppCommand } from "../../bridge/generated";
 import type { DictionarySnapshot } from "../../bridge/generated/DictionarySnapshot";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import { Button } from "../../design/Button";
-import { TextInput } from "../../design/TextInput";
-import { Card } from "../../design/Card";
-import { SectionLabel } from "../../design/SectionLabel";
 import { es } from "../../i18n/es";
 import { DictionaryFeedback, sendDictionary } from "../notes/DictionaryPicker";
+import { Group, List, SkeletonRows } from "./layout";
 import styles from "./SettingsView.module.css";
 
 type Send = (command: AppCommand) => void;
-function DictionaryEditor({ item, send }: { item: DictionarySnapshot; send: Send }) {
+
+/** The new name, typed in place: «Guardar», or Esc and «Cancelar» to leave it. */
+function RenameForm({
+  item,
+  name,
+  onName,
+  send,
+}: {
+  item: DictionarySnapshot;
+  name: string;
+  onName: (name: string | null) => void;
+  send: Send;
+}) {
+  const { dictionary } = item;
+  return (
+    <form
+      className={styles.dictionaryHead}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!name.trim()) return;
+        sendDictionary(send, { action: "save", dictionary_id: dictionary.id, name: name.trim() });
+        onName(null);
+      }}
+    >
+      <input
+        aria-label={es.dictionary.name}
+        autoFocus
+        className={styles.inlineInput}
+        onChange={(event) => onName(event.currentTarget.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") onName(null);
+        }}
+        value={name}
+      />
+      <Button
+        disabled={!name.trim() || name === dictionary.name}
+        size={28}
+        type="submit"
+        variant="accent"
+      >
+        {es.notes.save}
+      </Button>
+      <Button onClick={() => onName(null)} size={28} variant="ghost">
+        {es.controls.cancel}
+      </Button>
+    </form>
+  );
+}
+
+/** The dictionary's name and the series that always use it; «Cambiar nombre» renames it. */
+function DictionaryName({ item, send }: { item: DictionarySnapshot; send: Send }) {
   const { dictionary, pending } = item;
-  const [name, setName] = useState(dictionary.name);
+  const [name, setName] = useState<string | null>(null);
+  if (name !== null) return <RenameForm item={item} name={name} onName={setName} send={send} />;
   const series = dictionary.series
     .map((series) => series.title || series.calendar_item_id)
     .join(", ");
   return (
-    <Card>
-      <form
-        className={styles.inlineControl}
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (name.trim())
-            sendDictionary(send, {
-              action: "save",
-              dictionary_id: dictionary.id,
-              name: name.trim(),
-            });
-        }}
-      >
-        <label className={styles.nameField}>
-          <span>{es.dictionary.name}</span>
-          <TextInput value={name} onChange={(event) => setName(event.currentTarget.value)} />
-        </label>
-        <Button type="submit" disabled={pending || !name.trim() || name === dictionary.name}>
-          {es.notes.save}
-        </Button>
-        {pending && <p role="status">{es.dictionary.saving}</p>}
-      </form>
-      <p>{series ? es.dictionary.series(series) : es.dictionary.noSeries}</p>
-      {dictionary.terms.length === 0 ? (
-        <p>{es.dictionary.emptyTerms}</p>
-      ) : (
-        <ul>
-          {dictionary.terms.map((entry) => (
-            <li key={entry.id}>
-              <strong>{entry.correct}</strong> ← {entry.wrong.join(", ")}{" "}
-              <Button
-                aria-label={es.dictionary.remove(entry.correct)}
-                size={28}
-                variant="ghost"
-                disabled={pending}
-                onClick={() =>
-                  sendDictionary(send, {
-                    action: "remove",
-                    dictionary_id: dictionary.id,
-                    entry_id: entry.id,
-                  })
-                }
-              >
-                {es.dictionary.removeEntry}
-              </Button>
-            </li>
-          ))}
-        </ul>
+    <div className={styles.dictionaryHead}>
+      <span className={styles.dictionaryName}>{dictionary.name}</span>
+      <span className={styles.meta}>
+        {series ? es.dictionary.series(series) : es.dictionary.noSeries}
+      </span>
+      {pending && (
+        <span className={styles.meta} role="status">
+          {es.dictionary.saving}
+        </span>
       )}
-    </Card>
+      <Button
+        aria-label={es.dictionary.renameLabel(dictionary.name)}
+        className={styles.push}
+        disabled={pending}
+        onClick={() => setName(dictionary.name)}
+        size={28}
+        variant="ghost"
+      >
+        {es.dictionary.rename}
+      </Button>
+    </div>
   );
 }
+
+function Dictionary({ item, send }: { item: DictionarySnapshot; send: Send }) {
+  const { dictionary, pending } = item;
+  return (
+    <>
+      <DictionaryName item={item} send={send} />
+      {dictionary.terms.length === 0 && <p className={styles.empty}>{es.dictionary.emptyTerms}</p>}
+      {dictionary.terms.map((entry) => (
+        <div className={styles.term} key={entry.id}>
+          <span className={styles.rowTitle}>{entry.correct}</span>
+          <span className={styles.meta}>{es.dictionary.insteadOf(entry.wrong.join(", "))}</span>
+          <Button
+            aria-label={es.dictionary.remove(entry.correct)}
+            className={styles.push}
+            disabled={pending}
+            onClick={() =>
+              sendDictionary(send, {
+                action: "remove",
+                dictionary_id: dictionary.id,
+                entry_id: entry.id,
+              })
+            }
+            size={28}
+            variant="ghost"
+          >
+            {es.dictionary.removeEntry}
+          </Button>
+        </div>
+      ))}
+    </>
+  );
+}
+
+/**
+ * Ajustes › Reuniones › Diccionarios: each term with what it replaces
+ * («en lugar de…») and «Quitar». Terms are added from a transcript;
+ * here they are only renamed and removed.
+ */
 export function MeetingDictionaries({
   library,
   send,
@@ -77,22 +135,28 @@ export function MeetingDictionaries({
   library?: NoteLibrarySnapshot | null;
   send: Send;
 }) {
+  const state = library?.dictionaries?.state;
+  const items = library?.dictionary_items ?? [];
   return (
-    <section className={`${styles.section} ${styles.dictionary}`}>
-      <SectionLabel>{es.dictionary.plural}</SectionLabel>
+    <Group label={es.settings.dictionaries}>
       <DictionaryFeedback library={library} />
-      {library?.dictionaries?.state === "available" &&
-        (library.dictionary_items?.length ? (
-          library.dictionary_items.map((item) => (
-            <DictionaryEditor
-              key={`${item.dictionary.id}:${item.dictionary.name}`}
-              item={item}
-              send={send}
-            />
-          ))
-        ) : (
-          <p>{es.dictionary.empty}</p>
-        ))}
-    </section>
+      {(state === undefined || state === "unknown") && <SkeletonRows rows={3} />}
+      {state === "available" && (
+        <List>
+          {items.length > 0 ? (
+            items.map((item) => (
+              <Dictionary
+                item={item}
+                key={`${item.dictionary.id}:${item.dictionary.name}`}
+                send={send}
+              />
+            ))
+          ) : (
+            <p className={styles.empty}>{es.dictionary.empty}</p>
+          )}
+          <p className={styles.empty}>{es.dictionary.addHint}</p>
+        </List>
+      )}
+    </Group>
   );
 }

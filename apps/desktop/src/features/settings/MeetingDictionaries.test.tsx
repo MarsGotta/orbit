@@ -63,19 +63,27 @@ function snapshot(state = "available"): AppView {
 
 afterEach(cleanup);
 
-it("Settings lists the dictionaries, terms and series and sends rename and remove orders", () => {
+it("Settings lists the dictionaries, each term with what it replaces, and sends rename and remove orders", () => {
   const send = vi.fn();
   render(
     <SettingsView
+      section="reuniones"
       snapshot={snapshot()}
       send={send}
       error={null}
       onReopenOnboarding={() => undefined}
     />,
   );
-  const name = screen.getByRole("textbox", { name: "Nombre del diccionario" });
-  expect(screen.getByText("Series: Daily, Refinamiento")).toBeTruthy();
+  expect(screen.getByText("Lo usan siempre: Daily, Refinamiento")).toBeTruthy();
   expect(screen.getByText("NAV")).toBeTruthy();
+  expect(screen.getByText("en lugar de nab")).toBeTruthy();
+  expect(
+    screen.getByText(
+      "Para añadir una palabra, selecciónala en una transcripción y pulsa «Corregir».",
+    ),
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Cambiar el nombre de Proyecto" }));
+  const name = screen.getByRole("textbox", { name: "Nombre del diccionario" });
   fireEvent.change(name, { target: { value: "Nuevo nombre" } });
   const form = name.closest("form");
   if (!form) throw new Error("dictionary form absent");
@@ -100,6 +108,7 @@ it("Settings lists the dictionaries, terms and series and sends rename and remov
 it("Settings shows an unreachable dictionary list as unavailable, never as empty", () => {
   render(
     <SettingsView
+      section="reuniones"
       snapshot={snapshot("needs_hub")}
       send={vi.fn()}
       error={null}
@@ -107,5 +116,20 @@ it("Settings shows an unreachable dictionary list as unavailable, never as empty
     />,
   );
   expect(screen.getByText("No se pudo conectar con el hub")).toBeTruthy();
+  expect(screen.queryByText(/Todavía no hay diccionarios/)).toBeNull();
+});
+
+it("Settings shows the dictionaries' shape before they are read", () => {
+  render(
+    <SettingsView
+      section="reuniones"
+      snapshot={snapshot("unknown")}
+      send={vi.fn()}
+      error={null}
+      onReopenOnboarding={() => undefined}
+    />,
+  );
+  const dictionaries = screen.getByRole("region", { name: "Diccionarios" });
+  expect(dictionaries.querySelector("[aria-busy='true']")).toBeTruthy();
   expect(screen.queryByText(/Todavía no hay diccionarios/)).toBeNull();
 });

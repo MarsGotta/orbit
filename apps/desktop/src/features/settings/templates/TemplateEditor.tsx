@@ -32,7 +32,6 @@ function EditorNotices({
     <>
       {template.builtin && !own && <p className={styles.hint}>{es.library.builtinHint}</p>}
       {origin != null && own && <p className={styles.hint}>{es.library.copyOf(origin.name)}</p>}
-      {shown?.pending === true && <p className={styles.hint}>{es.library.pending}</p>}
       {refusals.map((refusal, index) => (
         <p className={styles.alert} key={index} role="alert">
           {refusalText(refusal)}
@@ -74,7 +73,6 @@ function TemplateFields({
           rows={3}
           value={draft.context}
         />
-        <small>{es.library.characters(draft.context.length, bounds.max_context_chars)}</small>
       </label>
     </>
   );
@@ -82,8 +80,10 @@ function TemplateFields({
 
 /**
  * One template: name, context and sections, saved a second after the user
- * pauses. One of Orbit's is never changed: the first change saves a copy of
- * the user's own that says where it comes from. Deleting asks nothing.
+ * pauses («Se guarda sola», «Guardando…» while the hub has not taken it).
+ * One of Orbit's is never changed: the first change saves a copy of the
+ * user's own that says where it comes from. Deleting asks nothing: it is
+ * undone from its notice.
  */
 export function TemplateEditor({
   library,
@@ -102,8 +102,33 @@ export function TemplateEditor({
   const { draft, change, discard, flush, targetId } = useTemplateEditor(template, send, onCopied);
   const bounds = library.bounds;
   const own = !template.builtin || targetId() !== template.id;
+  const pending = library.items.find((item) => item.id === targetId())?.pending === true;
   return (
     <section aria-label={draft.name} className={styles.editor}>
+      <div className={styles.editorTop}>
+        <span aria-live="polite" className={styles.hint}>
+          {pending ? es.library.pending : es.library.savesItself}
+        </span>
+        {own && (
+          <Button
+            onClick={() => {
+              // Nothing typed before the delete is saved after it.
+              discard();
+              const id = targetId();
+              const removed = removedTemplate(library, id, draft);
+              send({
+                command: "note_library",
+                request: { action: "delete_template", template_id: id },
+              });
+              onDeleted(removed);
+            }}
+            size={28}
+            variant="dangerSoft"
+          >
+            {es.library.deleteTemplate}
+          </Button>
+        )}
+      </div>
       <EditorNotices library={library} own={own} targetId={targetId()} template={template} />
       <TemplateFields bounds={bounds} change={change} draft={draft} flush={flush} />
       <TemplateSections
@@ -111,25 +136,6 @@ export function TemplateEditor({
         onChange={(sections) => change({ ...draft, sections })}
         sections={draft.sections}
       />
-      {own && (
-        <Button
-          onClick={() => {
-            // Nothing typed before the delete is saved after it.
-            discard();
-            const id = targetId();
-            const removed = removedTemplate(library, id, draft);
-            send({
-              command: "note_library",
-              request: { action: "delete_template", template_id: id },
-            });
-            onDeleted(removed);
-          }}
-          size={28}
-          variant="ghost"
-        >
-          {es.library.deleteTemplate}
-        </Button>
-      )}
     </section>
   );
 }

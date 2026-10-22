@@ -1,56 +1,202 @@
-.picker {
+.tabs {
+  margin-top: var(--o-space-20);
+}
+
+.panel {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 10px;
+  flex-direction: column;
 }
 
-.picker button[aria-pressed="true"] {
-  border-color: var(--o-acc);
-  background: var(--o-accSoft);
-}
-
-.card {
-  display: grid;
-  gap: 10px;
-}
-
-.card h3 {
-  margin: 0;
-  color: var(--o-ink);
-  font-size: var(--o-font-14);
-  font-weight: 600;
+.kind {
+  margin: var(--o-space-10) 0 0;
+  color: var(--o-ink2);
+  font: 400 13px/1.5 var(--o-font-sans);
 }
 
 .hint {
-  margin: 0;
-  color: var(--o-ink2);
-  font-size: var(--o-font-12-5);
+  margin: 0 0 var(--o-space-8);
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
 }
 
 .alert {
-  margin: 0;
+  margin: var(--o-space-8) 0 0;
   color: var(--o-warn);
-  font-size: var(--o-font-12-5);
+  font: var(--o-text-meta);
 }
 
-.row {
+.count {
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.empty {
+  margin: 0;
+  padding: var(--o-space-14) 18px;
+  color: var(--o-ink2);
+  font: 400 13px/1.5 var(--o-font-sans);
+}
+
+/* Personalidad: the editor in a field-like card, its size and «Guardar» below. */
+.personality {
+  margin-top: var(--o-space-8);
+  padding: var(--o-space-12) var(--o-space-14);
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-xl);
+  background: var(--o-surface);
+  transition: border-color var(--o-dur-fast);
+}
+
+.personality:focus-within {
+  border-color: var(--o-accText);
+}
+
+.personality[data-readonly] {
+  color: var(--o-ink2);
+}
+
+.personalityFrame {
+  min-height: 72px;
+  cursor: text;
+}
+
+.personality[data-readonly] .personalityFrame {
+  cursor: default;
+}
+
+.personality .personalityText {
+  min-height: 72px;
+  font: var(--o-text-body);
+}
+
+.footer {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--o-space-10);
+  margin-top: var(--o-space-4);
+}
+
+/* Habilidades. */
+.skill {
+  padding: var(--o-space-12) 18px;
+}
+
+.skillMain {
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-8);
+}
+
+.skillText {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  margin-right: var(--o-space-6);
+}
+
+.skillName {
+  font: 400 13px/1.5 var(--o-font-mono);
+}
+
+.skillHelp {
+  color: var(--o-ink2);
+  font: 400 13px/1.5 var(--o-font-sans);
+}
+
+.confirm {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--o-space-8);
+  margin-top: var(--o-space-10);
+  padding: var(--o-space-10) var(--o-space-12);
+  border-radius: var(--o-radius-lg);
+  background: var(--o-warnSoft);
+  font: 400 13px/1.5 var(--o-font-sans);
+}
+
+/* Outside the card, so its menu is not cut by the card's edge. */
+.add {
+  margin-top: var(--o-space-8);
+}
+
+.trigger {
+  display: inline-flex;
+  height: var(--o-control-md);
+  align-items: center;
+  padding: 0 var(--o-space-10);
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-md);
+  background: transparent;
+  color: var(--o-ink);
+  font: var(--o-text-control);
+  cursor: pointer;
+  transition: background var(--o-dur-fast);
+}
+
+.trigger:hover {
+  background: var(--o-hover);
+}
+
+.menu {
+  display: flex;
+  width: 300px;
+  max-width: 100%;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--o-space-8) var(--o-space-10);
+  border: 0;
+  border-radius: var(--o-radius-md);
+  background: transparent;
+  color: var(--o-ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--o-dur-fast);
+}
+
+.option:hover {
+  background: var(--o-hover);
+}
+
+.optionTitle {
+  font: var(--o-text-control);
+}
+
+.optionHelp {
+  color: var(--o-ink2);
+  font: var(--o-text-meta);
+}
+
+/* The skill editor's window. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--o-space-8);
 }
 
 .content {
   width: 100%;
-  min-height: 220px;
-  padding: 10px 12px;
-  border: 1px solid var(--o-line);
-  border-radius: var(--o-radius-10);
-  background: var(--o-surface);
+  min-height: 240px;
+  padding: var(--o-space-10) var(--o-space-12);
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-lg);
+  background: var(--o-bg);
   color: var(--o-ink);
-  font-family: var(--o-font-mono, ui-monospace, monospace);
-  font-size: var(--o-font-12-5);
-  line-height: 1.5;
+  font: 400 13px/1.55 var(--o-font-mono);
   resize: vertical;
+}
+
+.content:focus {
+  border-color: var(--o-accText);
+  outline: none;
 }

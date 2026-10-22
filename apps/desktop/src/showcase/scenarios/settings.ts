@@ -1,95 +1,163 @@
-import type { Scenario } from "../scenario";
+import type { Scenario, Step, Views } from "../scenario";
+import { privacyStopped } from "./edit";
 
-const section = (name: string) => `section[aria-label="${name}"]`;
+/** Opens a section from Ajustes' index. */
+const open = (label: string): Step => ({
+  click: `role=navigation[name="Secciones de ajustes"] >> role=button[name=/^${label}/]`,
+});
+const region = (name: string) => `role=region[name="${name}"]`;
 
-const settings = (scenario: Omit<Scenario, "view" | "route" | "ready"> & { ready?: string }) => ({
+const settings = (
+  scenario: Omit<Scenario, "view" | "route" | "ready"> & { ready?: string },
+): Scenario => ({
   view: "Ajustes",
   route: "#/settings",
   ready: "role=heading[name='Ajustes']",
   ...scenario,
 });
 
+/** macOS has not given the screen and the system audio. */
+const screenMissing = (base: Views): Views => ({
+  ...base,
+  permissions: { ...base.permissions, screen: "denied" },
+});
+
+/** Orbit busca versiones nuevas al abrirse: nothing searched by hand yet. */
+const updatesIdle = (base: Views): Views => ({
+  ...base,
+  local: { ...base.local, update: { ...base.local.update, state: "idle" } },
+});
+
+/** The library before its first read from the hub. */
+const libraryUnread = (base: Views): Views => {
+  const notes = base.notes;
+  if (notes?.library == null) return base;
+  const unknown = { state: "unknown" as const, detail: null };
+  return {
+    ...base,
+    notes: {
+      ...notes,
+      library: {
+        ...notes.library,
+        templates: unknown,
+        links: unknown,
+        dictionaries: unknown,
+        items: [],
+        dictionary_items: [],
+      },
+    },
+  };
+};
+
 export const settingsScenarios: Scenario[] = [
   settings({
     id: "ajustes",
-    state: "Arriba de la página",
+    state: "Privacidad y permisos, falta uno",
     description:
-      "El principio de Ajustes: el micrófono, qué hacer con las llamadas y lo que Deimos hizo en este Mac.",
+      "Parar todo, los cuatro permisos de macOS con el de pantalla sin dar y su botón, el micrófono siempre listo dentro de su fila y los informes de errores. El índice dice «● Falta 1».",
+    views: screenMissing,
+    steps: [open("Privacidad y permisos")],
   }),
   settings({
-    id: "ajustes-agentes",
-    state: "Agentes · uno de Hermes",
+    id: "ajustes-todo-parado",
+    state: "Privacidad y permisos, todo parado",
+    description: "Tras «Parar todo»: «Todo está parado» con «Reactivar Orbit».",
+    views: (base) => screenMissing(privacyStopped(base)),
+    steps: [open("Privacidad y permisos"), { wait: "text=Todo está parado" }],
+  }),
+  settings({
+    id: "ajustes-general",
+    state: "General",
     description:
-      "Deimos, un agente de Hermes: su personalidad y lo que puede usar se cambian en su perfil de Hermes; sus habilidades, aquí.",
-    steps: [{ wait: "text=/funciona con Hermes/" }, { scroll: section("Agentes") }],
+      "Tu nombre, este Mac y su hub, la bienvenida, el aspecto, abrir al iniciar sesión y las actualizaciones.",
+    views: (base) => updatesIdle(screenMissing(base)),
+  }),
+  settings({
+    id: "ajustes-emparejar-de-nuevo",
+    state: "General · emparejar de nuevo",
+    description: "La pregunta, dentro de la página, antes de emparejar otra vez un Mac emparejado.",
+    views: updatesIdle,
+    steps: [{ click: "role=button[name='Emparejar de nuevo']" }],
+  }),
+  settings({
+    id: "ajustes-grabacion",
+    state: "Grabación y llamadas",
+    description:
+      "Qué hace Orbit al empezar una videollamada, cuánto dura una grabación y los cuatro atajos.",
+    steps: [open("Grabación y llamadas")],
+  }),
+  settings({
+    id: "ajustes-asistente",
+    state: "Asistente · Deimos, de Hermes",
+    description:
+      "Deimos funciona con Hermes: su personalidad, lo que puede usar y sus habilidades se ven tal como están.",
+    steps: [open("Asistente"), { wait: "text=funciona con Hermes" }],
   }),
   settings({
     id: "ajustes-agente-editable",
-    state: "Agentes · uno que se configura",
+    state: "Asistente · uno que se configura",
     description:
-      "Claude Code, un agente ACP: personalidad editable, interruptores de acceso y sus skills.",
+      "Claude Code se configura desde aquí: personalidad con su tamaño, interruptores y habilidades.",
     steps: [
-      { click: "role=button[name='Claude Code']" },
-      { wait: "text=/se configura desde aquí/" },
-      { scroll: section("Agentes") },
+      open("Asistente"),
+      { click: "role=tab[name='Claude Code']" },
+      { wait: "text=se configura desde aquí" },
     ],
   }),
   settings({
-    id: "ajustes-skill",
-    state: "Agentes · editor de una skill",
-    description: "El SKILL.md de una habilidad abierto para editarlo, con su nombre y su tamaño.",
+    id: "ajustes-nueva-habilidad",
+    state: "Asistente · nueva habilidad",
+    description: "«Nueva habilidad»: escribirla desde cero o importar una carpeta con su SKILL.md.",
     steps: [
-      { click: "role=button[name='Claude Code']" },
+      open("Asistente"),
+      { click: "role=tab[name='Claude Code']" },
+      { wait: "text=se configura desde aquí" },
+      { scroll: region("Habilidades") },
+      { click: "role=button[name='Nueva habilidad']" },
+    ],
+  }),
+  settings({
+    id: "ajustes-habilidad",
+    state: "Asistente · editor de una habilidad",
+    description: "El SKILL.md de una habilidad en su ventana, con su nombre y su tamaño.",
+    steps: [
+      open("Asistente"),
+      { click: "role=tab[name='Claude Code']" },
       { click: "role=button[name='Editar revisar-pr']" },
       { wait: "role=textbox[name='Contenido del SKILL.md']" },
-      { scroll: "role=textbox[name='Contenido del SKILL.md']" },
     ],
   }),
   settings({
     id: "ajustes-carpetas",
-    state: "Carpetas que puede leer",
-    description: "Las carpetas que el asistente puede leer; una no se puede abrir y dice por qué.",
-    steps: [{ scroll: section("Carpetas que puede leer") }],
+    state: "Asistente · carpetas, una con error",
+    description:
+      "Las carpetas que pueden leer los asistentes, «3 de 8»; macOS no deja abrir una y la fila dice qué hacer. Debajo, lo que ha hecho Deimos en este Mac.",
+    steps: [
+      open("Asistente"),
+      { wait: "text=funciona con Hermes" },
+      { scroll: region("Carpetas que puede leer") },
+    ],
   }),
   settings({
-    id: "ajustes-plantillas",
-    state: "Plantillas de notas",
+    id: "ajustes-reuniones",
+    state: "Reuniones · plantillas",
     description:
-      "Las plantillas con las que se escriben las notas, con una propia abierta en el editor.",
-    steps: [{ click: "role=button[name='Revisión de diseño']" }, { scroll: section("Reuniones") }],
+      "Las plantillas, una propia abierta en el editor que se guarda sola, con sus secciones «3 de 12».",
+    steps: [open("Reuniones"), { click: "role=button[name='Revisión de diseño']" }],
   }),
   settings({
     id: "ajustes-diccionarios",
-    state: "Diccionarios de reuniones",
+    state: "Reuniones · diccionarios",
     description:
-      "Las palabras que la transcripción corrige, por diccionario, y las series que lo usan.",
-    steps: [{ scroll: "text=Diccionarios de reuniones" }],
+      "Cada palabra que corrige la transcripción, «en lugar de…», con «Quitar», y cómo añadir otra.",
+    steps: [open("Reuniones"), { scroll: region("Diccionarios") }],
   }),
   settings({
-    id: "ajustes-cuenta",
-    state: "Cuenta y emparejamiento",
-    description: "El nombre de la persona, el emparejamiento con el hub, el arranque y el aspecto.",
-    steps: [{ scroll: section("Cuenta") }],
-  }),
-  settings({
-    id: "ajustes-emparejar-de-nuevo",
-    state: "Cuenta · emparejar de nuevo",
-    description: "La advertencia antes de emparejar otra vez un Mac que ya lo está.",
-    steps: [{ click: "role=button[name='Emparejar de nuevo']" }, { scroll: section("Cuenta") }],
-  }),
-  settings({
-    id: "ajustes-actualizaciones",
-    state: "Actualizaciones y privacidad",
+    id: "ajustes-cargando",
+    state: "Reuniones · cargando",
     description:
-      "La versión, buscar una actualización, «Parar todo ahora» y los informes de errores.",
-    steps: [{ scroll: section("Actualizaciones") }],
-  }),
-  settings({
-    id: "ajustes-permisos",
-    state: "Permisos del sistema, falta uno",
-    description:
-      "Los permisos de macOS: tres concedidos y el de grabación de pantalla denegado, con cómo abrirlo.",
-    views: (base) => ({ ...base, permissions: { ...base.permissions, screen: "denied" } }),
-    steps: [{ scroll: section("Permisos del sistema") }],
+      "Antes de leer la biblioteca del hub, las plantillas y los diccionarios se ven con su forma.",
+    views: libraryUnread,
+    steps: [open("Reuniones")],
   }),
 ];

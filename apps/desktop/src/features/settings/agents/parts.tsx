@@ -1,12 +1,10 @@
-import type { ReactNode } from "react";
-import { Card } from "../../../design/Card";
 import { es } from "../../../i18n/es";
 import styles from "./Agents.module.css";
 import type { Feedback, Place, useAgentConfig } from "./use-agent-config";
 
 export const copy = es.agents;
 
-/** What every card that gives orders needs. */
+/** What every part that gives orders needs. */
 export interface OrderProps {
   agentId: string;
   busy: boolean;
@@ -14,16 +12,19 @@ export interface OrderProps {
   order: ReturnType<typeof useAgentConfig>["order"];
 }
 
-export function Panel({ children }: { children: ReactNode }) {
-  return (
-    <Card>
-      <div className={styles.card}>{children}</div>
-    </Card>
-  );
-}
-
-/** The outcome of the last order, where it was given. */
-export function FeedbackLine({ feedback, place }: { feedback: Feedback | null; place: Place }) {
+/**
+ * The outcome of the last order, where it was given. `errorsOnly` where the
+ * button itself says «Guardando…» and «✓ Guardado».
+ */
+export function FeedbackLine({
+  feedback,
+  place,
+  errorsOnly,
+}: {
+  feedback: Feedback | null;
+  place: Place;
+  errorsOnly?: boolean;
+}) {
   if (feedback?.place !== place) return null;
   if (feedback.kind === "error")
     return (
@@ -31,6 +32,7 @@ export function FeedbackLine({ feedback, place }: { feedback: Feedback | null; p
         {feedback.text}
       </p>
     );
+  if (errorsOnly === true) return null;
   return (
     <p className={styles.hint} role="status">
       {feedback.kind === "saving" ? copy.saving : copy.saved}
@@ -47,7 +49,7 @@ export function NotEditable({ editable, cause }: { editable: boolean; cause: str
 export function ByteCount({ bytes, max }: { bytes: number; max: number }) {
   const over = bytes > max;
   return (
-    <span className={over ? styles.alert : styles.hint}>
+    <span aria-live="polite" className={over ? styles.alert : styles.count}>
       {over ? copy.overLimit(bytes, max) : copy.bytes(bytes, max)}
     </span>
   );

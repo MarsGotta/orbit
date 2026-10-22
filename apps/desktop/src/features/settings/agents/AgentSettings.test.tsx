@@ -129,12 +129,15 @@ async function renderVega() {
   await screen.findByText("Vega se configura desde aquí. Los cambios se guardan en el hub.");
 }
 
-describe("Ajustes › Agentes", () => {
-  it("reads the default agent's configuration and shows each group with what it lets the agent do", async () => {
+const ATLAS_KIND =
+  "Atlas funciona con Hermes: su personalidad y lo que puede usar se cambian en su perfil de Hermes. Aquí lo ves tal como está.";
+
+describe("Ajustes › Asistente", () => {
+  it("reads the default agent's configuration and says what each group lets it do", async () => {
     await renderVega();
     expect(calls[0]).toEqual({ call: "config", agent_id: "vega" });
-    const section = screen.getByRole("region", { name: "Agentes" });
-    expect(within(section).getByRole("button", { name: "Vega" }).getAttribute("aria-pressed")).toBe(
+    const tabs = screen.getByRole("tablist", { name: "Agentes" });
+    expect(within(tabs).getByRole("tab", { name: "Vega" }).getAttribute("aria-selected")).toBe(
       "true",
     );
     expect(screen.getByRole("switch", { name: "Pantalla" }).getAttribute("aria-checked")).toBe(
@@ -143,15 +146,19 @@ describe("Ajustes › Agentes", () => {
     expect(screen.getByRole("switch", { name: "Usar el Mac" }).getAttribute("aria-checked")).toBe(
       "false",
     );
-    expect(
-      screen.getByText("Ver tus ventanas, hacer capturas y leer el texto que selecciones"),
-    ).toBeTruthy();
-    expect(screen.getByText("Pulsar, escribir y abrir apps por ti")).toBeTruthy();
-    expect(screen.getByText("Leer tu agenda")).toBeTruthy();
-    expect(screen.getByText("Leer tus reuniones, notas y transcripciones")).toBeTruthy();
-    expect(screen.getByText("Leer los archivos de las carpetas que elijas")).toBeTruthy();
+    const access = screen.getByRole("region", { name: "Qué puede usar" });
+    expect(access.textContent).toContain(
+      "Ver tus ventanas, hacer capturas y leer el texto que selecciones",
+    );
+    expect(access.textContent).toContain("Pulsar, escribir y abrir apps por ti");
+    expect(access.textContent).toContain("Leer tu agenda");
+    expect(access.textContent).toContain("Leer tus reuniones, notas y transcripciones");
+    expect(access.textContent).toContain("Leer las carpetas que elijas aquí abajo");
+    // The tools' internal names are not for the screen.
+    expect(access.textContent).not.toContain("orbit_");
     expect(screen.getByText("resumen-diario")).toBeTruthy();
-    expect(screen.getByText("1 de 8")).toBeTruthy();
+    const skills = screen.getByRole("region", { name: "Habilidades" });
+    expect(within(skills).getByText("1 de 8")).toBeTruthy();
   });
 
   it("a switch is the decision: the order goes at once with the five groups, and the config is read again", async () => {
@@ -165,30 +172,21 @@ describe("Ajustes › Agentes", () => {
     });
     expect(calls[2]).toEqual({ call: "config", agent_id: "vega" });
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(await screen.findByText("✓ Guardado en el hub")).toBeTruthy();
+    expect((await screen.findByRole("status")).textContent).toBe("✓ Guardado en el hub");
   });
 
-  it("shows what the agent's kind does not allow, disabled and with its cause", async () => {
+  it("shows a Hermes agent as it is, everything disabled, and says where it is changed", async () => {
     render(<AgentSettings agents={AGENTS} defaultAgentId="atlas" agent={agent} />);
-    await screen.findByText(
-      "Atlas funciona con Hermes: su personalidad y lo que puede usar se cambian en su perfil de Hermes.",
-    );
+    await screen.findByText(ATLAS_KIND);
     for (const group of ["Pantalla", "Usar el Mac", "Calendario", "Reuniones y notas"]) {
       expect(screen.getByRole("switch", { name: group }).hasAttribute("disabled")).toBe(true);
     }
     expect(
-      screen.getByText("No se puede cambiar desde Orbit: Hermes decide sus herramientas"),
-    ).toBeTruthy();
-    expect(
-      screen.getByText("No se puede cambiar desde Orbit: La personalidad es el SOUL.md del perfil"),
-    ).toBeTruthy();
-    expect(
       (screen.getByRole("textbox", { name: "Personalidad de Atlas" }) as HTMLTextAreaElement)
         .readOnly,
     ).toBe(true);
-    expect(screen.queryByRole("button", { name: "Guardar personalidad" })).toBeNull();
-    // Skills not editable without a cause from the hub: said, not hidden.
-    expect(screen.getByText("Este tipo de agente no deja cambiarlo desde Orbit.")).toBeTruthy();
+    expect(screen.getByText("10 de 65.536 bytes")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Guardar" })).toBeNull();
     expect(screen.getByRole("switch", { name: "Activar agenda" }).hasAttribute("disabled")).toBe(
       true,
     );
@@ -197,18 +195,32 @@ describe("Ajustes › Agentes", () => {
     expect(screen.queryByRole("button", { name: "Nueva habilidad" })).toBeNull();
   });
 
+  it("says why a part of an agent of another kind cannot be changed", async () => {
+    replies.set("config:vega", {
+      outcome: "config",
+      config: {
+        ...vegaConfig(),
+        access: { ...vegaConfig().access, editable: false, cause: "Su servidor decide" },
+        skills: { ...vegaConfig().skills, editable: false, cause: null },
+      },
+    });
+    await renderVega();
+    expect(screen.getByText("No se puede cambiar desde Orbit: Su servidor decide")).toBeTruthy();
+    // Skills not editable without a cause from the hub: said, not hidden.
+    expect(screen.getByText("Este tipo de agente no deja cambiarlo desde Orbit.")).toBeTruthy();
+    expect(screen.getByRole("switch", { name: "Pantalla" }).hasAttribute("disabled")).toBe(true);
+  });
+
   it("changes to another agent and reads its own configuration", async () => {
     await renderVega();
-    fireEvent.click(screen.getByRole("button", { name: "Atlas" }));
-    await screen.findByText(
-      "Atlas funciona con Hermes: su personalidad y lo que puede usar se cambian en su perfil de Hermes.",
-    );
+    fireEvent.click(screen.getByRole("tab", { name: "Atlas" }));
+    await screen.findByText(ATLAS_KIND);
     expect(calls.at(-1)).toEqual({ call: "config", agent_id: "atlas" });
   });
 
-  it("saves the personality as edited", async () => {
+  it("saves the personality as edited and says «✓ Guardado en el hub»", async () => {
     await renderVega();
-    const save = screen.getByRole("button", { name: "Guardar personalidad" });
+    const save = screen.getByRole("button", { name: "Guardar" });
     expect(save.hasAttribute("disabled")).toBe(true);
     fireEvent.change(screen.getByRole("textbox", { name: "Personalidad de Vega" }), {
       target: { value: "# Vega\n\nSé muy breve." },
@@ -222,6 +234,7 @@ describe("Ajustes › Agentes", () => {
         text: "# Vega\n\nSé muy breve.",
       }),
     );
+    expect(await screen.findByText("✓ Guardado en el hub")).toBeTruthy();
   });
 
   it("does not send a personality over the hub's ceiling and says both sizes", async () => {
@@ -230,9 +243,7 @@ describe("Ajustes › Agentes", () => {
       target: { value: "é".repeat(32769) },
     });
     expect(screen.getByText("Ocupa 65.538 bytes; el máximo es 65.536.")).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Guardar personalidad" }).hasAttribute("disabled"),
-    ).toBe(true);
+    expect(screen.getByRole("button", { name: "Guardar" }).hasAttribute("disabled")).toBe(true);
   });
 
   it("switches a skill on or off and deletes one after saying which", async () => {
@@ -247,23 +258,27 @@ describe("Ajustes › Agentes", () => {
       }),
     );
     // The order is answered and the config read again before the next one.
-    await screen.findByText("✓ Guardado en el hub");
+    expect((await screen.findByRole("status")).textContent).toBe("✓ Guardado en el hub");
     expect(calls).toHaveLength(3);
     fireEvent.click(screen.getByRole("button", { name: "Borrar resumen-diario" }));
     expect(calls).toHaveLength(3);
-    fireEvent.click(screen.getByRole("button", { name: "Confirmar borrado" }));
+    expect(screen.getByRole("alert").textContent).toContain(
+      "¿Borrar resumen-diario de este agente? No se puede deshacer.",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Sí, borrar" }));
     await waitFor(() =>
       expect(calls[3]).toEqual({ call: "skill_delete", agent_id: "vega", name: "resumen-diario" }),
     );
   });
 
-  it("opens a skill's SKILL.md and saves it edited", async () => {
+  it("opens a skill's SKILL.md in its window and saves it edited", async () => {
     await renderVega();
     fireEvent.click(screen.getByRole("button", { name: "Editar resumen-diario" }));
     const content = (await screen.findByRole("textbox", {
       name: "Contenido del SKILL.md",
     })) as HTMLTextAreaElement;
     expect(calls[1]).toEqual({ call: "skill", agent_id: "vega", name: "resumen-diario" });
+    expect(screen.getByRole("dialog", { name: "resumen-diario" })).toBeTruthy();
     expect(content.value).toBe(SKILL_TEXT);
     fireEvent.change(content, { target: { value: `${SKILL_TEXT}\nUno más.` } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar habilidad" }));
@@ -275,18 +290,40 @@ describe("Ajustes › Agentes", () => {
         content: `${SKILL_TEXT}\nUno más.`,
       }),
     );
+    // Taken by the hub, the window closes.
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
-  it("creates a skill from a pasted SKILL.md, named by its frontmatter", async () => {
+  it("offers two ways to start a skill, and no «Pegar SKILL.md»", async () => {
     await renderVega();
-    fireEvent.click(screen.getByRole("button", { name: "Escribir desde cero" }));
-    const content = screen.getByRole("textbox", { name: "Contenido del SKILL.md" });
+    expect(screen.queryByRole("button", { name: "Pegar SKILL.md" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Nueva habilidad" }));
+    const menu = screen.getByRole("dialog", { name: "Cómo empezar la habilidad" });
+    expect(
+      within(menu)
+        .getAllByRole("button")
+        .map((option) => option.textContent),
+    ).toEqual([
+      "Escribir desde ceroUna plantilla con su nombre y su descripción por rellenar.",
+      "Importar carpetaUna carpeta con un SKILL.md: solo se lee y se envía ese archivo.",
+    ]);
+  });
+
+  it("writes a skill from scratch, named by its frontmatter", async () => {
+    await renderVega();
+    fireEvent.click(screen.getByRole("button", { name: "Nueva habilidad" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Escribir desde cero/ }));
+    expect(screen.getByRole("dialog", { name: "Nueva habilidad" })).toBeTruthy();
+    const content = screen.getByRole("textbox", {
+      name: "Contenido del SKILL.md",
+    }) as HTMLTextAreaElement;
+    expect(content.value).toBe("---\nname: \ndescription: \n---\n\n");
     const save = screen.getByRole("button", { name: "Guardar habilidad" });
     expect(screen.getByText("Falta el name en el frontmatter del SKILL.md.")).toBeTruthy();
     expect(save.hasAttribute("disabled")).toBe(true);
     const pasted = "---\nname: notas-de-viaje\ndescription: Prepara un viaje.\n---\n\nPasos.";
     fireEvent.change(content, { target: { value: pasted } });
-    expect(screen.getByText("Nombre: notas-de-viaje")).toBeTruthy();
+    expect(screen.getByText("Se llamará notas-de-viaje")).toBeTruthy();
     fireEvent.click(save);
     await waitFor(() =>
       expect(calls[1]).toEqual({
@@ -343,12 +380,14 @@ describe("Ajustes › Agentes", () => {
       refusal: { code: "too_many_skills", status: 409, numbers: { count: 8, max: 8 } },
     });
     await renderVega();
-    fireEvent.click(screen.getByRole("button", { name: "Escribir desde cero" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nueva habilidad" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Escribir desde cero/ }));
     fireEvent.change(screen.getByRole("textbox", { name: "Contenido del SKILL.md" }), {
       target: { value: "---\nname: otra\ndescription: Otra.\n---\n" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Guardar habilidad" }));
-    expect((await screen.findByRole("alert")).textContent).toBe(
+    const window = screen.getByRole("dialog", { name: "Nueva habilidad" });
+    expect((await within(window).findByRole("alert")).textContent).toBe(
       "Este agente ya tiene 8 habilidades; el máximo es 8.",
     );
     // The editor stays open with what was written, to fix and send again.
@@ -366,7 +405,13 @@ describe("Ajustes › Agentes", () => {
     await screen.findByText("Vega se configura desde aquí. Los cambios se guardan en el hub.");
   });
 
-  it("Ajustes shows the agents the status topic lists, from its default one", async () => {
+  it("shows the shape of the configuration while it is read", () => {
+    render(<AgentSettings agents={AGENTS} defaultAgentId="vega" agent={agent} />);
+    expect(screen.getByRole("status").textContent).toBe("Leyendo la configuración de Vega…");
+    expect(document.querySelector("[aria-busy='true']")).toBeTruthy();
+  });
+
+  it("Ajustes › Asistente shows the agents the status topic lists, from its default one", async () => {
     const snapshot = {
       connection: { daemon: "ready" },
       meeting: { call_preference: null },
@@ -386,13 +431,12 @@ describe("Ajustes › Agentes", () => {
         agent={agent}
         error={null}
         onReopenOnboarding={() => undefined}
+        section="asistente"
         send={() => undefined}
         snapshot={snapshot}
       />,
     );
-    await screen.findByText(
-      "Atlas funciona con Hermes: su personalidad y lo que puede usar se cambian en su perfil de Hermes.",
-    );
+    await screen.findByText(ATLAS_KIND);
     expect(calls[0]).toEqual({ call: "config", agent_id: "atlas" });
   });
 
@@ -402,6 +446,17 @@ describe("Ajustes › Agentes", () => {
       screen.getByText("Todavía no se conocen los agentes del hub: aparecen al conectar con él."),
     ).toBeTruthy();
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("reading a configuration that answers something else", () => {
+  it("is a failed read with its cause, never «Leyendo…» for ever", async () => {
+    replies.set("config:vega", { outcome: "done" });
+    render(<AgentSettings agents={AGENTS} defaultAgentId="vega" agent={agent} />);
+    expect(
+      await screen.findByText("La respuesta del hub no cumple el contrato (campo outcome)."),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Leyendo la configuración/)).toBeNull();
   });
 });
 
@@ -417,14 +472,3 @@ function folderFile(path: string, text: string): File {
   });
   return file;
 }
-
-describe("reading a configuration that answers something else", () => {
-  it("is a failed read with its cause, never «Leyendo…» for ever", async () => {
-    replies.set("config:vega", { outcome: "done" });
-    render(<AgentSettings agents={AGENTS} defaultAgentId="vega" agent={agent} />);
-    expect(
-      await screen.findByText("La respuesta del hub no cumple el contrato (campo outcome)."),
-    ).toBeTruthy();
-    expect(screen.queryByText(/Leyendo la configuración/)).toBeNull();
-  });
-});

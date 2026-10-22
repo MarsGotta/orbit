@@ -1,53 +1,52 @@
 import type { AccessConfig } from "../../../bridge/generated/AccessConfig";
 import { Switch } from "../../../design/Switch";
 import { accessGroups } from "../../../i18n/es/agents";
-import settingsStyles from "../SettingsView.module.css";
-import styles from "./Agents.module.css";
-import { copy, FeedbackLine, NotEditable, type OrderProps, Panel } from "./parts";
+import { Group, List, Row } from "../layout";
+import { copy, FeedbackLine, NotEditable, type OrderProps } from "./parts";
 
 /**
- * One switch per group of Orbit's tools, with what it lets the agent do. A switch
- * is configuration: it is sent as it is flipped, with all five groups, and
- * nothing asks again.
+ * «Qué puede usar»: one switch per group of Orbit's tools, each named by
+ * what it lets the agent do. A switch is configuration: it is sent as it is
+ * flipped, with all five groups, and nothing asks again.
  */
 export function AccessCard({
   access,
+  explained,
   agentId,
   busy,
   feedback,
   order,
-}: OrderProps & { access: AccessConfig }) {
+}: OrderProps & { access: AccessConfig; explained: boolean }) {
   return (
-    <Panel>
-      <h3>{copy.access}</h3>
-      <p className={styles.hint}>{copy.accessHelp}</p>
-      <NotEditable editable={access.editable} cause={access.cause} />
-      <div className={settingsStyles.controls}>
+    <Group help={copy.accessHelp} label={copy.access}>
+      {!explained && <NotEditable cause={access.cause} editable={access.editable} />}
+      <List>
         {accessGroups.map(({ group, label, description }) => (
-          <div className={settingsStyles.controlRow} key={group}>
-            <div className={settingsStyles.rowCopy}>
-              <strong>{label}</strong>
-              <span>{description}</span>
-            </div>
-            <Switch
-              checked={access.groups[group]}
-              disabled={!access.editable || busy}
-              label={label}
-              onCheckedChange={(checked) =>
-                void order(
-                  {
-                    call: "access",
-                    agent_id: agentId,
-                    groups: { ...access.groups, [group]: checked },
-                  },
-                  "access",
-                )
-              }
-            />
-          </div>
+          <Row
+            aside={
+              <Switch
+                checked={access.groups[group]}
+                disabled={!access.editable || busy}
+                label={label}
+                onCheckedChange={(checked) =>
+                  void order(
+                    {
+                      call: "access",
+                      agent_id: agentId,
+                      groups: { ...access.groups, [group]: checked },
+                    },
+                    "access",
+                  )
+                }
+              />
+            }
+            help={description}
+            key={group}
+            title={label}
+          />
         ))}
-      </div>
+      </List>
       <FeedbackLine feedback={feedback} place="access" />
-    </Panel>
+    </Group>
   );
 }

@@ -6,7 +6,7 @@ import type { ChatPending } from "../bridge/generated/ChatPending";
 import type { OpenNoteSnapshot } from "../bridge/generated/OpenNoteSnapshot";
 import { PendingCard } from "./assistant/PendingCard";
 import { ActionsTab } from "./notes/ActionsTab";
-import { CallPreferenceSection } from "./settings/CallPreferenceSection";
+import { CallPreferenceList } from "./settings/RecordingSection";
 
 // A control shows what the person chose while its order travels and until
 // the hub confirms it; it does not snap back in between. An answer to Deimos
@@ -16,22 +16,22 @@ const accepted = () => vi.fn<(command: AppCommand) => Promise<boolean>>(async ()
 const refused = () => vi.fn<(command: AppCommand) => Promise<boolean>>(async () => false);
 
 describe("a choice kept until it is confirmed", () => {
-  it("«Al detectar una llamada» stays where the person put it", async () => {
+  it("«Cuando empieces una videollamada» stays where the person put it", async () => {
     const send = accepted();
-    render(<CallPreferenceSection preference="notify" send={send} />);
-    await userEvent.click(screen.getByRole("radio", { name: "Grabar sin preguntar" }));
+    render(<CallPreferenceList preference="notify" send={send} />);
+    await userEvent.click(screen.getByRole("radio", { name: /^Grabar sin preguntar/ }));
     expect(send).toHaveBeenCalledWith({ command: "call_preference", preference: "record" });
-    expect(screen.getByRole("radio", { name: "Grabar sin preguntar" })).toHaveProperty(
+    expect(screen.getByRole("radio", { name: /^Grabar sin preguntar/ })).toHaveProperty(
       "checked",
       true,
     );
   });
 
   it("…and goes back when the order is refused", async () => {
-    render(<CallPreferenceSection preference="notify" send={refused()} />);
-    await userEvent.click(screen.getByRole("radio", { name: "Grabar sin preguntar" }));
+    render(<CallPreferenceList preference="notify" send={refused()} />);
+    await userEvent.click(screen.getByRole("radio", { name: /^Grabar sin preguntar/ }));
     await waitFor(() =>
-      expect(screen.getByRole("radio", { name: "Avisarme (recomendado)" })).toHaveProperty(
+      expect(screen.getByRole("radio", { name: /^Avisarme \(recomendado\)/ })).toHaveProperty(
         "checked",
         true,
       ),
