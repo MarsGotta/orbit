@@ -218,6 +218,26 @@ pub struct Approval {
     pub request_id: String,
     pub description: String,
     pub clarification: bool,
+    /// The answers the agent offers, as the hub names them (`once`,
+    /// `session`, `always`, `deny`; a clarification's suggestions). Empty:
+    /// it named none, so `once` and `deny`, or free text.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub choices: Vec<String>,
+    /// A clarification of several questions, each answered by its id; the
+    /// ones already answered have left.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub questions: Vec<Question>,
+}
+
+/// One of several questions the agent asks at once (hub-v1 `questions`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Question {
+    pub qid: String,
+    pub question: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub choices: Vec<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub multi_select: bool,
 }
 
 /// One conversation as the hub lists it. Its title is its date,

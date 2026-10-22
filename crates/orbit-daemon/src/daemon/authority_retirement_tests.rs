@@ -73,6 +73,8 @@ async fn new_and_open_session_retire_the_same_local_verticals() -> Result<()> {
             request_id: "approval".into(),
             description: "fixture".into(),
             clarification: false,
+            choices: Vec::new(),
+            questions: Vec::new(),
         });
         if open {
             runtime
@@ -490,6 +492,8 @@ async fn interrupt_snapshot_failure_keeps_the_post_predecision_state() -> Result
         request_id: "turn-in-flight".into(),
         description: "Permiso pendiente".into(),
         clarification: false,
+        choices: Vec::new(),
+        questions: Vec::new(),
     });
     runtime.store_actor.snapshot(&runtime.state).await?;
     runtime.work.durable_snapshot = DurableSnapshot::from(&runtime.state);

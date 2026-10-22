@@ -1511,5 +1511,81 @@
     "source": "registry",
     "unit": "characters",
     "value": 48000
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/assistant/activity.py",
+        "name": "MAX_ITEM_LABEL_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "crates/orbit-core/src/agent_work.rs",
+        "name": "MAX_ITEM_LABEL_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_ITEM_LABEL_CHARS",
+    "resource": "chat.item label (one line; Hermes's 500-character reasoning preview)",
+    "source": "python",
+    "unit": "characters",
+    "value": 500
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/assistant/activity.py",
+        "name": "MAX_ITEM_SUBJECT_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "crates/orbit-core/src/agent_work.rs",
+        "name": "MAX_ITEM_SUBJECT_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_ITEM_SUBJECT_CHARS",
+    "resource": "chat.item subject (what a tool step used)",
+    "source": "python",
+    "unit": "characters",
+    "value": 80
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/assistant/activity.py",
+        "name": "MAX_ITEM_CAUSE_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "crates/orbit-core/src/agent_work.rs",
+        "name": "MAX_ITEM_CAUSE_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_ITEM_CAUSE_CHARS",
+    "resource": "chat.item failure cause (one line)",
+    "source": "python",
+    "unit": "characters",
+    "value": 300
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/assistant/activity.py",
+        "name": "MAX_PLAN_STEPS",
+        "unit": "steps"
+      },
+      {
+        "file": "crates/orbit-core/src/agent_work.rs",
+        "name": "MAX_PLAN_STEPS",
+        "unit": "steps"
+      }
+    ],
+    "name": "MAX_PLAN_STEPS",
+    "resource": "chat.item plan steps per update",
+    "source": "python",
+    "unit": "steps",
+    "value": 20
   }
 ]

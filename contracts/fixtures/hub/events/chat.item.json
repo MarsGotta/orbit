@@ -1,0 +1,14 @@
+{
+  "v": 1,
+  "id": "00000000-0000-4000-8000-000000000901",
+  "event": "chat.item",
+  "data": {
+    "session_id": "00000000-0000-4000-8000-000000000902",
+    "item_id": "call-1",
+    "kind": "tool",
+    "phase": "failed",
+    "label": "Leyendo el calendario",
+    "subject": "el calendario",
+    "cause": "Sin permiso de calendario"
+  }
+}

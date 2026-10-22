@@ -153,6 +153,8 @@ function ConversationThread({
           send={send}
           speaking={chat.speaking ?? null}
           voiceAudio={chat.voice_audio}
+          work={chat.work}
+          workInFlight={turnInFlight(chat)}
         />
         <ActivityLine activity={chat.activity} />
         {chat.pending && <PendingCard pending={chat.pending} send={send} />}

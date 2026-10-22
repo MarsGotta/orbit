@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import type { AgentWork } from "../../bridge/generated/AgentWork";
 import type { AppCommand } from "../../bridge/generated/AppCommand";
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import type { VoiceNote as VoiceNoteSnapshot } from "../../bridge/generated/VoiceNote";
@@ -7,6 +8,7 @@ import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { mmss } from "../../time-format";
 import { es } from "../../i18n/es";
+import { AgentWorkView } from "./AgentWork";
 import { AssistantAnswer } from "./AssistantAnswer";
 import { retryText } from "./conversation-markdown";
 import { UserText } from "./UserText";
@@ -184,21 +186,30 @@ export function MessageList({
   messages,
   send,
   voiceAudio,
+  work,
+  workInFlight = false,
   ...answering
 }: {
   messages: ChatMessage[];
   send: VoiceNoteProps["send"];
   voiceAudio?: VoiceNoteAudioSnapshot;
+  /** What the agent did in the last turn; it sits after that turn's question. */
+  work?: AgentWork | null;
+  workInFlight?: boolean;
 } & Answering) {
   if (messages.length === 0) return <p className={styles.empty}>{es.chat.empty}</p>;
   return messages.map((message, index) => (
-    <Message
-      answering={answering}
-      key={message.id}
-      message={message}
-      retry={message.role === "assistant" ? retryText(messages, index) : null}
-      send={send}
-      voiceAudio={voiceAudio}
-    />
+    <Fragment key={message.id}>
+      <Message
+        answering={answering}
+        message={message}
+        retry={message.role === "assistant" ? retryText(messages, index) : null}
+        send={send}
+        voiceAudio={voiceAudio}
+      />
+      {work != null && message.role === "user" && message.id === work.turn_id && (
+        <AgentWorkView inFlight={workInFlight} work={work} />
+      )}
+    </Fragment>
   ));
 }

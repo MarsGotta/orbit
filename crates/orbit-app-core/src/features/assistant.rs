@@ -29,6 +29,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         },
         activity: None,
         speaking: None,
+        work: None,
     };
     let Some(cell) = input.topics.topic(TopicId::Assistant) else {
         return view;
@@ -101,14 +102,27 @@ pub fn project(input: &FeatureInput<'_>) -> View {
             ChatPending::Clarify {
                 id: pending.request_id.clone(),
                 text: pending.description.clone(),
+                choices: pending.choices.clone(),
+                questions: pending
+                    .questions
+                    .iter()
+                    .map(|question| crate::ChatQuestion {
+                        qid: question.qid.clone(),
+                        question: question.question.clone(),
+                        choices: question.choices.clone(),
+                        multi_select: question.multi_select,
+                    })
+                    .collect(),
             }
         } else {
             ChatPending::Approval {
                 id: pending.request_id.clone(),
                 text: pending.description.clone(),
+                choices: pending.choices.clone(),
             }
         }
     });
+    view.work = value.work.as_deref().cloned();
     let (voice_state, voice_availability) = match &value.voice {
         VoiceAvailability::Unknown { why } => (
             VoiceState::Unknown,

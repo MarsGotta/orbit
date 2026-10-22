@@ -95,6 +95,10 @@ pub struct ApprovalParams {
     pub approved: bool,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub turn_id: Option<String>,
+    /// One of the request's `choices`; a 0.9.0 hub ignores it and answers
+    /// `once` or `deny` by `approved`.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub choice: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ClarifyParams {
@@ -236,6 +240,28 @@ pub struct CompletedData {
     pub persisted: Option<bool>,
     #[serde(default)]
     pub warning: Option<String>,
+}
+/// One step of the agent's work in a turn (hub-v1 «What the agent does»).
+/// `kind` and `phase` stay text here: a value a newer hub adds is the
+/// daemon's to skip, not a frame to refuse.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ItemData {
+    pub session_id: String,
+    pub item_id: String,
+    pub kind: String,
+    pub phase: String,
+    pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subject: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub steps: Option<Vec<ItemStep>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cause: Option<String>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ItemStep {
+    pub text: String,
+    pub status: String,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StatusData {
@@ -382,6 +408,8 @@ pub enum HubEventKind {
     ChatCompleted(CompletedData),
     #[serde(rename = "chat.status")]
     ChatStatus(StatusData),
+    #[serde(rename = "chat.item")]
+    ChatItem(ItemData),
     #[serde(rename = "approval.required")]
     ApprovalRequired(RequiredData),
     #[serde(rename = "clarify.required")]
@@ -505,6 +533,7 @@ impl HubEvent {
             "chat.delta" => decode!(DeltaData, ChatDelta),
             "chat.completed" => decode!(CompletedData, ChatCompleted),
             "chat.status" => decode!(StatusData, ChatStatus),
+            "chat.item" => decode!(ItemData, ChatItem),
             "approval.required" => decode!(RequiredData, ApprovalRequired),
             "clarify.required" => decode!(RequiredData, ClarifyRequired),
             "interaction.resolved" => decode!(InteractionData, InteractionResolved),

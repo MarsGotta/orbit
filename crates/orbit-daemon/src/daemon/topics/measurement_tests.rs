@@ -33,6 +33,8 @@ fn worst_case(runtime: &mut Runtime) -> anyhow::Result<()> {
         request_id: "request-measured".into(),
         description: "\"".repeat(16_000),
         clarification: false,
+        choices: Vec::new(),
+        questions: Vec::new(),
     });
     runtime.state.durable.recording = Some(Recording {
         id: "00000000-0000-4000-8000-000000000000".into(),

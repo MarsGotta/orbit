@@ -107,10 +107,33 @@ app_type! {
 }
 
 app_type! {
+    /// What the agent waits for, with the answers it offers: an
+    /// approval's `choices` (`once`, `session`, `always`, `deny`; empty is
+    /// `once` and `deny`), a clarification's suggestions and, when it asks
+    /// several things at once, each question with its id.
     #[serde(tag = "kind", rename_all = "snake_case")]
     pub enum ChatPending {
-        Approval { id: String, text: String },
-        Clarify { id: String, text: String },
+        Approval {
+            id: String,
+            text: String,
+            choices: Vec<String>,
+        },
+        Clarify {
+            id: String,
+            text: String,
+            choices: Vec<String>,
+            questions: Vec<ChatQuestion>,
+        },
+    }
+}
+
+app_type! {
+    /// One of several questions; it is answered by `qid`.
+    pub struct ChatQuestion {
+        pub qid: String,
+        pub question: String,
+        pub choices: Vec<String>,
+        pub multi_select: bool,
     }
 }
 
@@ -178,6 +201,11 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub speaking: Option<String>,
+        /// What the agent did in the turn in progress, or the last one:
+        /// its steps, plan and reasoning, and when it started and ended.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub work: Option<orbit_core::agent_work::AgentWork>,
     }
 }
 

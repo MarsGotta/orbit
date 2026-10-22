@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .errors import HubError  # noqa: F401 - public protocol re-export
+from .errors import HubError  # also re-exported: the public protocol error
 from .identifiers import RecordingId
 
 
@@ -110,6 +110,25 @@ class ApprovalParams(SessionParams):
     request_id: str = Field(min_length=1, max_length=160)
     approved: bool
     turn_id: str | None = Field(default=None, max_length=80)
+    # Which of the request's `choices` (`once`, `session`, `always`, `deny`…);
+    # absent, `once` or `deny` by `approved`, as a 0.9.0 Mac answers. 256 is
+    # the bound of one public choice (`interactions.pending_data`).
+    choice: str | None = Field(default=None, min_length=1, max_length=256)
+
+    @model_validator(mode="after")
+    def choice_agrees(self):
+        # `approved:false` is what routes a refusal through the safety ledger
+        # (ws.py), so a choice may never say the opposite of it.
+        if self.choice is not None and (self.choice == "deny") == self.approved:
+            raise HubError(
+                "approval_choice_mismatch",
+                f"La opción «{self.choice[:64]}» contradice approved="
+                f"{str(self.approved).lower()}; sólo «deny» rechaza",
+            )
+        return self
+
+    def answer(self) -> str:
+        return self.choice or ("once" if self.approved else "deny")
 
 
 class ClarifyParams(SessionParams):

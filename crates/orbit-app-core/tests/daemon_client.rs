@@ -1897,7 +1897,10 @@ async fn real_daemon_publishes_chat_deltas_and_resolves_pending_interactions()
     .await;
     client
         .send(AppCommand::Daemon(Box::new(
-            orbit_core::protocol::Command::Approval { approved: true },
+            orbit_core::protocol::Command::Approval {
+                approved: true,
+                choice: None,
+            },
         )))
         .await?;
     wait_for(&client, |snapshot| snapshot.chat.pending_contract.is_none()).await;
@@ -1922,6 +1925,7 @@ async fn real_daemon_publishes_chat_deltas_and_resolves_pending_interactions()
         .send(AppCommand::Daemon(Box::new(
             orbit_core::protocol::Command::Clarify {
                 answer: "En el calendario de trabajo".into(),
+                question_id: None,
             },
         )))
         .await?;

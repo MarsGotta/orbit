@@ -59,7 +59,9 @@ fn clarification_and_active_recording_are_projected() {
         chat.pending_contract,
         Some(ChatPending::Clarify {
             id: "clarify-1".into(),
-            text: "¿Qué calendario?".into()
+            text: "¿Qué calendario?".into(),
+            choices: Vec::new(),
+            questions: Vec::new(),
         })
     );
 }

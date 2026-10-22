@@ -37,7 +37,8 @@ pub async fn orbit_read_session_messages(
 
 pub use orbit_app_core::PanelOrder;
 
-/// The floating panel's only order: answering a call or asking Deimos.
+/// The floating panel's orders: answering a call, asking Deimos, and
+/// answering what Deimos asks back.
 #[tauri::command]
 pub async fn orbit_panel_send(
     command: PanelOrder,
@@ -90,6 +91,19 @@ pub async fn orbit_panel_send(
         PanelOrder::MeetingQuestionClose { id } => AppCommand::Daemon(Box::new(
             orbit_core::protocol::Command::MeetingQuestionClose { id },
         )),
+        PanelOrder::Approval { approved, choice } => {
+            AppCommand::Daemon(Box::new(orbit_core::protocol::Command::Approval {
+                approved,
+                choice,
+            }))
+        }
+        PanelOrder::Clarify {
+            answer,
+            question_id,
+        } => AppCommand::Daemon(Box::new(orbit_core::protocol::Command::Clarify {
+            answer,
+            question_id,
+        })),
     };
     let sent = command.clone();
     client

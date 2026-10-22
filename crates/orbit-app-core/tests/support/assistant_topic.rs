@@ -28,6 +28,7 @@ pub fn assistant_value() -> Value {
             why: Pending::NotObservedYet,
         },
         short_voice_note: None,
+        work: None,
     }
 }
 

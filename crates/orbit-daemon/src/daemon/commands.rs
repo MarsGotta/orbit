@@ -338,7 +338,7 @@ impl Runtime {
             Command::MeetingPause => self.apply(Event::PauseMeeting).await?,
             Command::MeetingResume => self.apply(Event::ResumeMeeting).await?,
             Command::MeetingFinish => self.apply(Event::FinishMeeting).await?,
-            Command::Approval { approved } => {
+            Command::Approval { approved, choice } => {
                 let approval = self
                     .state
                     .durable
@@ -348,9 +348,35 @@ impl Runtime {
                 if approval.clarification {
                     bail!("Este turno necesita una respuesta escrita");
                 }
-                self.respond_interaction("approval.respond", json!({"session_id":self.state.session_id(),"request_id":approval.request_id,"approved":approved})).await?;
+                let mut params = json!({"session_id":self.state.session_id(),"request_id":approval.request_id,"approved":approved});
+                if let Some(choice) = choice {
+                    // `approved:false` is what reaches the hub's safety
+                    // ledger: a choice never says the opposite of it.
+                    if (choice == "deny") == approved {
+                        bail!(
+                            "La opción «{choice}» contradice approved={approved}; sólo «deny» rechaza"
+                        );
+                    }
+                    let offered = if approval.choices.is_empty() {
+                        vec!["once".to_owned(), "deny".to_owned()]
+                    } else {
+                        approval.choices.clone()
+                    };
+                    if !offered.contains(&choice) {
+                        bail!(
+                            "El agente no ofrece «{choice}»; ofrece {}: {}",
+                            offered.len(),
+                            offered.join(", ")
+                        );
+                    }
+                    params["choice"] = json!(choice);
+                }
+                self.respond_interaction("approval.respond", params).await?;
             }
-            Command::Clarify { answer } => {
+            Command::Clarify {
+                answer,
+                question_id,
+            } => {
                 let approval = self
                     .state
                     .durable
@@ -360,7 +386,21 @@ impl Runtime {
                 if !approval.clarification {
                     bail!("Este turno necesita permitir o rechazar");
                 }
-                self.respond_interaction("clarify.respond", json!({"session_id":self.state.session_id(),"request_id":approval.request_id,"answer":answer})).await?;
+                let mut params = json!({"session_id":self.state.session_id(),"request_id":approval.request_id,"answer":answer});
+                if let Some(question_id) = question_id {
+                    if !approval
+                        .questions
+                        .iter()
+                        .any(|question| question.qid == question_id)
+                    {
+                        bail!(
+                            "La pregunta «{question_id}» no está pendiente; quedan {}",
+                            approval.questions.len()
+                        );
+                    }
+                    params["question_id"] = json!(question_id);
+                }
+                self.respond_interaction("clarify.respond", params).await?;
             }
             Command::Permissions { request } => {
                 if request

@@ -35,7 +35,7 @@ class AgentDouble:
         self.live_sessions: set[str] = set()
         self.connected = False
         self.prompts: list[tuple[str, tuple]] = []
-        self.answers: list[tuple[str, str, bool]] = []
+        self.answers: list[tuple[str, str, str]] = []
         self.finishing: asyncio.Task | None = None
 
     async def open(self):
@@ -62,8 +62,8 @@ class AgentDouble:
             )
         )
 
-    async def respond_permission(self, session_id, request_id, allow):
-        self.answers.append((session_id, request_id, allow))
+    async def respond_permission(self, session_id, request_id, *, choice):
+        self.answers.append((session_id, request_id, choice))
         # The answer is acknowledged first; the agent carries on afterwards.
         self.finishing = asyncio.create_task(self.finish(session_id))
         return PermissionReceipt(applied=True)
@@ -201,7 +201,7 @@ def test_a_turn_with_a_permission_runs_through_any_backend(environment):
             (TextBlock("[Orbit · Portátil de Prueba · texto]\nCrea la nota de la excursión"),),
         )
     ]
-    assert connection.answers == [("live-1", "permission-1", True)]
+    assert connection.answers == [("live-1", "permission-1", "once")]
     assert store.session(paired["device_id"], session)["status"] == "completed"
     assert said(store, paired["device_id"], session) == [
         {"role": "user", "text": "Crea la nota de la excursión"},

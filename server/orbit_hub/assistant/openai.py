@@ -38,13 +38,17 @@ from pydantic_ai import (
     AgentRunResultEvent,
     BinaryContent,
     FunctionToolCallEvent,
+    FunctionToolResultEvent,
     ModelRequest,
     ModelResponse,
     PartDeltaEvent,
     PartStartEvent,
+    RetryPromptPart,
     RunContext,
     TextPart,
     TextPartDelta,
+    ThinkingPart,
+    ThinkingPartDelta,
     ToolDefinition,
     ToolFailed,
     UsageLimitExceeded,
@@ -73,6 +77,7 @@ from ..protocol import HubError
 from ..secret_file import read_secret
 from ..urls import protected_url
 from .backend import (
+    ActivityItem,
     Capabilities,
     ClarificationReceipt,
     ContentBlock,
@@ -620,6 +625,78 @@ class _Session:
         return messages, size
 
 
+class _Work:
+    """One turn's steps as `ActivityItem`s, from pydantic-ai's stream: a tool
+    call from its call to its result, and a thought from its first piece to
+    the start of the next part or the end of the run, with the whole thought."""
+
+    def __init__(self, session_id: str, on_event: EventSink):
+        self.session_id, self.on_event = session_id, on_event
+        # This turn's calls by id: the name and arguments only the call carries.
+        self.calls: dict[str, tuple[str, dict | None]] = {}
+        self.thought: list[str] = []
+        self.thought_id: str | None = None
+
+    async def on(self, event: object) -> None:
+        if isinstance(event, PartStartEvent):
+            await self.end_thought()
+            if isinstance(event.part, ThinkingPart):
+                self.thought_id = f"reasoning-{uuid4()}"
+                self.thought = [event.part.content]
+                await self.on_event(
+                    ActivityItem(self.session_id, self.thought_id, "reasoning", "started")
+                )
+        elif isinstance(event, PartDeltaEvent) and isinstance(event.delta, ThinkingPartDelta):
+            if self.thought_id is not None and event.delta.content_delta:
+                self.thought.append(event.delta.content_delta)
+        elif isinstance(event, FunctionToolCallEvent):
+            await self.end_thought()
+            part = event.part
+            try:
+                arguments: dict | None = part.args_as_dict(raise_if_invalid=True)
+            except (ValueError, AssertionError):
+                # Arguments that are not a JSON object: pydantic-ai answers the
+                # model with a retry, which ends this step as failed.
+                arguments = None
+            self.calls[part.tool_call_id] = (part.tool_name, arguments)
+            await self.on_event(
+                ActivityItem(
+                    self.session_id, part.tool_call_id, "tool", "started", part.tool_name, arguments
+                )
+            )
+        elif isinstance(event, FunctionToolResultEvent):
+            part = event.part
+            name, arguments = self.calls.pop(part.tool_call_id, (part.tool_name or "", None))
+            if isinstance(part, RetryPromptPart):
+                phase, cause = "failed", _retry_cause(part)
+            elif part.outcome != "success":
+                # orbit-mcp's refusals (`ToolFailed`) arrive as a failed return.
+                phase, cause = "failed", part.model_response_str(wrap_if_error=False)
+            else:
+                phase, cause = "completed", None
+            await self.on_event(
+                ActivityItem(
+                    self.session_id, part.tool_call_id, "tool", phase, name, arguments, cause=cause
+                )
+            )
+
+    async def end_thought(self) -> None:
+        if self.thought_id is None:
+            return
+        item_id, text = self.thought_id, "".join(self.thought)
+        self.thought, self.thought_id = [], None
+        await self.on_event(
+            ActivityItem(self.session_id, item_id, "reasoning", "completed", text=text)
+        )
+
+
+def _retry_cause(part: RetryPromptPart) -> str:
+    """Why pydantic-ai asked the model to try again, in its words."""
+    if isinstance(part.content, str):
+        return part.content
+    return "; ".join(str(error.get("msg", "")) for error in part.content)
+
+
 class OpenAIConnection:
     """One device's conversations with the model, with its own orbit-mcp."""
 
@@ -684,6 +761,7 @@ class OpenAIConnection:
         chunks: list[str] = []
         separate = False
         history_chars = 0
+        work = _Work(session_id, self.on_event)
         try:
             history, history_chars = session.history()
             if session.left_out:
@@ -705,6 +783,7 @@ class OpenAIConnection:
             ) as events:
                 async for event in events:
                     piece = ""
+                    await work.on(event)
                     if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
                         piece = event.part.content
                     elif isinstance(event, PartDeltaEvent) and isinstance(
@@ -713,9 +792,6 @@ class OpenAIConnection:
                         piece = event.delta.content_delta
                     elif isinstance(event, FunctionToolCallEvent):
                         separate = bool(chunks)
-                        await self.on_event(
-                            StatusNotice(session_id, "tool", f"Usando {event.part.tool_name}")
-                        )
                     elif isinstance(event, AgentRunResultEvent):
                         output = event.result.output
                     if piece:
@@ -724,12 +800,14 @@ class OpenAIConnection:
                             piece, separate = "\n\n" + piece, False
                         chunks.append(piece)
                         await self.on_event(MessageChunk(session_id, piece))
+            await work.end_thought()
             answer = "".join(chunks) or output
             session.held += [("user", text), ("assistant", answer)]
             await self.on_event(MessageComplete(session_id, answer, "completed"))
         except asyncio.CancelledError:
             if self._closing:
                 raise
+            await work.end_thought()
             answer = "".join(chunks)
             session.held.append(("user", text))
             if answer:
@@ -740,6 +818,7 @@ class OpenAIConnection:
             report(
                 event="assistant_turn_failed", code=failure.code, device=self.device, exc_info=False
             )
+            await work.end_thought()
             session.held.append(("user", text))
             await self.on_event(
                 TurnFailed(session_id, failure.code, failure.message, failure.numbers)
@@ -751,8 +830,11 @@ class OpenAIConnection:
             session.turn.cancel()
 
     async def respond_permission(
-        self, session_id: str, request_id: str, allow: bool
+        self, session_id: str, request_id: str, *, choice: str
     ) -> PermissionReceipt:
+        # It never asks: Orbit's tools carry their own consent (the macOS
+        # permissions), so no request of this agent is ever pending. One that
+        # asked would offer `once` (approve) and `deny` (refuse).
         raise HubError("interaction_not_found", "Este asistente no pide autorizaciones")
 
     async def respond_clarification(

@@ -5,6 +5,8 @@ import { useOrbitConnection } from "../../app/useOrbitConnection";
 import { messageFor } from "../../app/visible-error";
 import { ViewBoundary } from "../../app/ViewBoundary";
 import type { AppCommand } from "../../bridge/generated";
+import type { ChatPending } from "../../bridge/generated/ChatPending";
+import type { MeetingQuestionSnapshot } from "../../bridge/generated/MeetingQuestionSnapshot";
 import { panelFocus } from "../../bridge/panel-port";
 import type { DaemonPort } from "../../bridge/port";
 import { Button } from "../../design/Button";
@@ -14,6 +16,7 @@ import { AskDeimos } from "../../app/meeting-question/AskDeimos";
 import { QuestionCard } from "../../app/meeting-question/QuestionCard";
 import { voiceStatusText } from "../../app/meeting-question/copy";
 import { conversationAgentName } from "../assistant/agents";
+import { PendingCard } from "../assistant/PendingCard";
 import { CallPanel } from "./CallPanel";
 import { openPanelLink } from "./panel-links";
 import styles from "./CallPanel.module.css";
@@ -72,7 +75,12 @@ function PanelContent({ port, store }: { port: DaemonPort; store: OrbitStore }) 
   return (
     <div className={styles.root} data-panel-root>
       {question && !asking && (
-        <QuestionCard openUrl={links.open} question={question} send={dispatch} />
+        <PanelQuestion
+          openUrl={links.open}
+          pending={snapshot?.chat?.pending}
+          question={question}
+          send={dispatch}
+        />
       )}
       {asking && ask && (
         <AskDeimos
@@ -88,18 +96,45 @@ function PanelContent({ port, store }: { port: DaemonPort; store: OrbitStore }) 
         </Button>
       )}
       <CallPanel panel={call} send={dispatch} />
-      {refused !== undefined && (
-        <p className={styles.voice} role="alert">
-          {refused}
-        </p>
-      )}
-      {links.refused !== null && (
-        <p className={styles.voice} role="alert">
-          {links.refused}
-        </p>
-      )}
+      <Refusals texts={[refused, links.refused]} />
       {voice !== null && <p className={styles.voice}>{voice}</p>}
     </div>
+  );
+}
+
+/** What the daemon or Rust refused, each said with its cause. */
+function Refusals({ texts }: { texts: (string | null | undefined)[] }) {
+  return texts.map(
+    (text, index) =>
+      text != null && (
+        <p className={styles.voice} key={index} role="alert">
+          {text}
+        </p>
+      ),
+  );
+}
+
+/**
+ * The meeting question and, while Deimos answers it, what Deimos asks back:
+ * answered here too, with the same choices as in the chat.
+ */
+function PanelQuestion({
+  openUrl,
+  pending,
+  question,
+  send,
+}: {
+  openUrl: (url: string) => void;
+  pending: ChatPending | null | undefined;
+  question: MeetingQuestionSnapshot;
+  send: (command: AppCommand) => void;
+}) {
+  const inFlight = question.stage === "thinking" || question.stage === "responding";
+  return (
+    <>
+      <QuestionCard openUrl={openUrl} question={question} send={send} />
+      {inFlight && pending && <PendingCard pending={pending} send={send} />}
+    </>
   );
 }
 

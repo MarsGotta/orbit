@@ -3,7 +3,7 @@ use super::*;
 use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
 use orbit_core::wire::hub::{
     CompletedData, DeltaData, ErrorData, ErrorDetail, HubEvent as WireHubEvent, HubEventKind,
-    ReadyData, RequiredData, SessionData,
+    ItemData, ReadyData, RequiredData, SessionData,
 };
 
 /// Bounds names retained only to suppress repeated diagnostics: 128 distinct
@@ -64,6 +64,13 @@ fn safe_decode_error(reason: &str) -> (&'static str, &'static str, &'static str)
         "last_seen_ms",
         "waited_ms",
         "deadline_ms",
+        "item_id",
+        "phase",
+        "label",
+        "subject",
+        "steps",
+        "cause",
+        "multi_select",
     ];
     let path = reason.split_once(':').map_or(reason, |(path, _)| path);
     let field_name = reason
@@ -200,6 +207,7 @@ impl Runtime {
             HubEventKind::ApprovalRequired(data) | HubEventKind::ClarifyRequired(data) => {
                 Some(data.session_id.as_str())
             }
+            HubEventKind::ChatItem(data) => Some(data.session_id.as_str()),
             HubEventKind::Ready(_)
             | HubEventKind::Pong(_)
             | HubEventKind::ChatInterrupted(_)
@@ -220,6 +228,7 @@ impl Runtime {
                 | HubEventKind::ChatCompleted(_)
                 | HubEventKind::ApprovalRequired(_)
                 | HubEventKind::ClarifyRequired(_)
+                | HubEventKind::ChatItem(_)
         );
         if is_turn_event
             && (self.state.durable.active_request.is_none()
@@ -258,11 +267,11 @@ impl Runtime {
             HubEventKind::ChatDelta(data) => self.on_hub_chat_delta(data).await?,
             HubEventKind::ChatCompleted(data) => self.on_hub_chat_completed(&data).await?,
             HubEventKind::ApprovalRequired(data) => {
-                self.on_hub_approval_required(&data, false, "approval.required")
+                self.on_hub_approval_required(frame_id, &data, false, "approval.required")
                     .await?
             }
             HubEventKind::ClarifyRequired(data) => {
-                self.on_hub_approval_required(&data, true, "clarify.required")
+                self.on_hub_approval_required(frame_id, &data, true, "clarify.required")
                     .await?
             }
             HubEventKind::DeviceRequest(data) => self.device_request(&data).await?,
@@ -278,6 +287,7 @@ impl Runtime {
                     self.say(NoticeCode::AssistantProgress);
                 }
             }
+            HubEventKind::ChatItem(data) => self.on_hub_chat_item(&data),
             HubEventKind::ChatInterrupted(_) => {
                 // The local interrupt already hid the turn. Its terminal state
                 // is reconciled from state.snapshot, not this request ACK.
@@ -397,8 +407,61 @@ impl Runtime {
         Ok(())
     }
 
+    /// One step of the turn in flight: frames of another turn never reach
+    /// here (`on_hub_decoded_frame`), and a kind or phase this Mac does not
+    /// know is recorded once by name and left out.
+    fn on_hub_chat_item(&mut self, data: &ItemData) {
+        let Some(turn_id) = self.state.durable.active_request.clone() else {
+            return;
+        };
+        let Some(item) = orbit_core::agent_work::WorkItem::from_wire(data) else {
+            // Once per kind and phase, in the same bounded set as unknown events.
+            let name: String = format!("chat.item:{}:{}", data.kind, data.phase)
+                .chars()
+                .take(64)
+                .collect();
+            if self.unrecognized_hub_events.len() < MAX_UNRECOGNIZED_HUB_EVENTS
+                && self.unrecognized_hub_events.insert(name.clone())
+            {
+                self.log("hub_item_unknown", &[("name", &name)]);
+            }
+            return;
+        };
+        self.work_of(&turn_id).record(item);
+    }
+
+    /// The work of turn `turn_id`, begun when its question was sent; another
+    /// turn's is let go.
+    fn work_of(&mut self, turn_id: &str) -> &mut orbit_core::agent_work::AgentWork {
+        let started_at_ms = self
+            .state
+            .durable
+            .turn
+            .as_ref()
+            .filter(|turn| turn.user.id == turn_id)
+            .map_or_else(
+                || u64::try_from(now()).unwrap_or_default(),
+                |turn| turn.user.at_ms,
+            );
+        let work = self
+            .conversation
+            .work
+            .take()
+            .filter(|work| work.turn_id == turn_id)
+            .unwrap_or_else(|| orbit_core::agent_work::AgentWork::new(turn_id, started_at_ms));
+        self.conversation.work.insert(work)
+    }
+
+    /// The turn `request_id` ended now: the chat says how long it worked,
+    /// with or without steps.
+    pub(super) fn end_work(&mut self, request_id: &str) {
+        let at_ms = u64::try_from(now()).unwrap_or_default();
+        self.work_of(request_id).end(at_ms);
+    }
+
     async fn on_hub_chat_completed(&mut self, data: &CompletedData) -> Result<()> {
         if let Some(request_id) = self.state.durable.active_request.clone() {
+            self.end_work(&request_id);
             if data.status.as_deref() == Some("error") {
                 self.conversation.speak_next = false;
                 self.meeting_question_turn_failed();
@@ -415,12 +478,18 @@ impl Runtime {
         Ok(())
     }
 
+    /// A question the agent asks in the turn `turn_id`, the frame's `id`; its
+    /// `request_id` is the request's own and never the turn's (hub-v1).
     async fn on_hub_approval_required(
         &mut self,
+        turn_id: Option<&str>,
         data: &RequiredData,
         clarification: bool,
         event_name: &str,
     ) -> Result<()> {
+        let Some(turn_id) = turn_id else {
+            return Ok(());
+        };
         if self.state.durable.pending_approval.is_some() {
             return Ok(());
         }
@@ -431,11 +500,18 @@ impl Runtime {
             );
             return Ok(());
         };
-        self.apply(Event::Approval(Approval {
-            request_id: data.request_id.clone(),
-            description: description.into(),
-            clarification,
-        }))
+        let (choices, questions) =
+            super::interactions::offered(data.choices.as_ref(), data.questions.as_ref());
+        self.apply(Event::Approval {
+            turn_id: turn_id.into(),
+            approval: Approval {
+                request_id: data.request_id.clone(),
+                description: description.into(),
+                clarification,
+                choices,
+                questions,
+            },
+        })
         .await?;
         Ok(())
     }
@@ -461,9 +537,14 @@ impl Runtime {
         if let Some(numbers) = numbers.as_deref() {
             fields.push(("numbers", numbers));
         }
-        if self.state.durable.active_request.is_some()
-            && frame_id == self.state.durable.active_request.as_deref()
+        if let Some(request_id) = self
+            .state
+            .durable
+            .active_request
+            .clone()
+            .filter(|active| frame_id == Some(active.as_str()))
         {
+            self.end_work(&request_id);
             self.meeting_question_hub_error(data.code.as_deref(), &data.message);
             self.conversation.speak_next = false;
             self.log("chat_rejected", &fields);

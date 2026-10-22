@@ -7,6 +7,7 @@ permission, honours `session/cancel`, and replays a conversation on
 `session/load`. What the prompt says chooses the turn:
 
     nota      file and terminal requests (refused), an orbit-mcp call, a permission
+    trabaja   a thought, two tool calls (one fails), a plan that advances, an answer
     espera    a permission that only a cancellation ends
     inicia    the agent asks to sign in
     muere     the process exits in the middle of the turn
@@ -184,6 +185,59 @@ class InventedAgent:
                 await self.say(session_id, "Hecha.")
             else:
                 await self.say(session_id, "No la creo.")
+            return PromptResponse(stop_reason="end_turn")
+        if "trabaja" in text:
+            await self.client.session_update(
+                session_id, acp.update_agent_thought_text("Miro primero la pantalla, ")
+            )
+            await self.client.session_update(
+                session_id, acp.update_agent_thought_text("luego el calendario.")
+            )
+            look = acp.start_tool_call(
+                "llamada-mirar", "mcp__orbit__orbit_look", kind="read", raw_input={}
+            )
+            # claude-agent-acp names the tool in its own meta field.
+            look.field_meta = {"claudeCode": {"toolName": "mcp__orbit__orbit_look"}}
+            await self.client.session_update(session_id, look)
+            await self.client.session_update(
+                session_id,
+                acp.update_plan(
+                    [
+                        acp.plan_entry("Mirar la pantalla", status="in_progress"),
+                        acp.plan_entry("Leer el calendario"),
+                    ]
+                ),
+            )
+            await self.client.session_update(
+                session_id, acp.update_tool_call("llamada-mirar", status="completed")
+            )
+            await self.client.session_update(
+                session_id,
+                acp.start_tool_call(
+                    "llamada-agenda",
+                    "orbit_calendar",
+                    kind="read",
+                    raw_input={"start_ms": 0, "end_ms": 1},
+                ),
+            )
+            await self.client.session_update(
+                session_id,
+                acp.update_tool_call(
+                    "llamada-agenda",
+                    status="failed",
+                    content=[acp.tool_content(acp.text_block("Sin permiso de calendario"))],
+                ),
+            )
+            await self.client.session_update(
+                session_id,
+                acp.update_plan(
+                    [
+                        acp.plan_entry("Mirar la pantalla", status="completed"),
+                        acp.plan_entry("Leer el calendario", status="completed"),
+                    ]
+                ),
+            )
+            await self.say(session_id, "No pude leer el calendario.")
             return PromptResponse(stop_reason="end_turn")
         if "espera" in text:
             cancelled = self.cancelled.setdefault(session_id, asyncio.Event())

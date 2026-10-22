@@ -229,6 +229,8 @@ fn explicit_conversation_events_clear_the_turn_and_pending_approval()
         request_id: "approval".into(),
         description: "fixture".into(),
         clarification: false,
+        choices: Vec::new(),
+        questions: Vec::new(),
     });
     for (event, expected) in [
         (Event::NewSession { agent_id: None }, None),

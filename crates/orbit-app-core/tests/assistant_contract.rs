@@ -30,10 +30,12 @@ fn projects_pending_call_and_voice_note_from_topic_frames() {
         request_id: "approval-1".into(),
         description: "Actualizar la agenda".into(),
         clarification: false,
+        choices: Vec::new(),
+        questions: Vec::new(),
     });
     assert_eq!(
         projected_json(approval, PermissionState::Unknown)["chat"]["pending"],
-        json!({ "kind": "approval", "id": "approval-1", "text": "Actualizar la agenda" })
+        json!({ "kind": "approval", "id": "approval-1", "text": "Actualizar la agenda", "choices": [] })
     );
 
     let mut call = assistant_topic::assistant_value();

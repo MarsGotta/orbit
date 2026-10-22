@@ -28,7 +28,7 @@ fn classify(event: &Event) -> (usize, bool) {
         Event::DeviceChanged => (36, false),
         Event::Delta { .. } => (5, false),
         Event::Completed { .. } => (6, false),
-        Event::Approval(_) => (7, false),
+        Event::Approval { .. } => (7, false),
         Event::Interrupt => (8, false),
         Event::StartMeeting { .. } => (9, false),
         Event::CaptureStarted => (10, false),
@@ -158,11 +158,16 @@ fn samples() -> Vec<Event> {
             request_id: "a".into(),
             text: Some("x".into()),
         },
-        Event::Approval(Approval {
-            request_id: "a".into(),
-            description: "d".into(),
-            clarification: false,
-        }),
+        Event::Approval {
+            turn_id: "a".into(),
+            approval: Approval {
+                request_id: "a".into(),
+                description: "d".into(),
+                clarification: false,
+                choices: Vec::new(),
+                questions: Vec::new(),
+            },
+        },
         Event::Interrupt,
         Event::StartMeeting {
             id: "m".into(),

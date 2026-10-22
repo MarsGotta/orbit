@@ -38,6 +38,19 @@ app_type! {
         MeetingFinish,
         MeetingAsk { question: String, minutes: u16 },
         MeetingQuestionClose { id: String },
+        /// The agent's question answered from the panel, as from the chat.
+        Approval {
+            approved: bool,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            #[ts(optional)]
+            choice: Option<String>,
+        },
+        Clarify {
+            answer: String,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            #[ts(optional)]
+            question_id: Option<String>,
+        },
     }
 }
 

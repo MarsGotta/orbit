@@ -28,6 +28,7 @@ from ..protocol import HubError
 from ..secret_file import read_secret
 from ..transcription_failure import from_provider
 from .backend import (
+    ActivityItem,
     Capabilities,
     ClarificationReceipt,
     ClarificationRequest,
@@ -42,6 +43,7 @@ from .backend import (
     PermissionReceipt,
     PermissionRequest,
     PermissionRequested,
+    PlanStep,
     RequestExpired,
     ResumedSession,
     StatusNotice,
@@ -73,6 +75,32 @@ def credential(settings: Settings) -> str:
     if not value or len(value) > 4096:
         raise HubError("configuration", "Credencial Hermes ausente o no válida")
     return value
+
+
+# Hermes's subagent outcomes that mean the delegated task did not finish.
+SUBAGENT_FAILED = {"failed", "error", "timeout", "interrupted", "cancelled"}
+PLAN_STATUSES = {"pending", "in_progress", "completed", "cancelled"}
+
+
+def _plan(todos: object) -> tuple[PlanStep, ...] | None:
+    """Hermes's task list (`todo.updated`, the `todo` tool's result) as plan steps."""
+    if not isinstance(todos, list):
+        return None
+    steps = []
+    for todo in todos:
+        if isinstance(todo, dict) and isinstance(content := todo.get("content"), str):
+            status = todo.get("status")
+            steps.append(PlanStep(content, status if status in PLAN_STATUSES else "pending"))
+    return tuple(steps)
+
+
+def _todos_of(result: object) -> object:
+    if isinstance(result, str):
+        try:
+            result = json.loads(result)
+        except ValueError:
+            return None
+    return result.get("todos") if isinstance(result, dict) else None
 
 
 def _choices(payload: dict) -> tuple[str, ...] | None:
@@ -131,6 +159,8 @@ class HermesConnection:
         self._pending: dict[str, asyncio.Future] = {}
         self._ready = asyncio.Event()
         self._closing = False
+        # Sessions whose turn has published a plan: its next update is progress.
+        self._planned: set[str] = set()
 
     @property
     def connected(self) -> bool:
@@ -236,6 +266,7 @@ class HermesConnection:
             if isinstance(text := payload.get("text"), str):
                 await self.on_event(MessageChunk(session_id, text))
         elif kind == "message.complete":
+            self._planned.discard(session_id)
             text = payload.get("text")
             status = str(payload.get("status") or "completed")
             history_error = payload.get("error") or payload.get("text")
@@ -287,6 +318,22 @@ class HermesConnection:
                 )
                 return
             await self.on_event(RequestExpired(session_id, request_id))
+        elif kind in {"tool.start", "tool.complete"}:
+            await self._tool(session_id, kind, payload)
+        elif kind == "todo.updated":
+            await self._plan_update(session_id, _plan(payload.get("todos")))
+        elif kind == "reasoning.available":
+            # The reasoning's summary, when the profile shows reasoning. Its
+            # deltas (`reasoning.delta`) are the thought itself and
+            # `thinking.delta` a spinner's text: neither is shown.
+            if isinstance(text := payload.get("text"), str) and text.strip():
+                await self.on_event(
+                    ActivityItem(
+                        session_id, f"reasoning-{uuid4()}", "reasoning", "completed", text=text
+                    )
+                )
+        elif isinstance(kind, str) and kind.startswith("subagent."):
+            await self._subagent(session_id, kind, payload)
         elif kind == "status.update":
             await self.on_event(
                 StatusNotice(
@@ -295,6 +342,79 @@ class HermesConnection:
                     str(payload.get("text") or ""),
                 )
             )
+
+    async def _tool(self, session_id: str, kind: str, payload: dict) -> None:
+        call_id = payload.get("tool_id") or payload.get("tool_call_id")
+        name = payload.get("name") or payload.get("tool_name")
+        if not isinstance(call_id, str) or not call_id or not isinstance(name, str):
+            report(
+                event="hermes_field_invalid",
+                code=f"{kind}.tool_id:{type(call_id).__name__}",
+                device=self.device,
+                exc_info=False,
+            )
+            return
+        arguments = payload.get("args") if isinstance(payload.get("args"), dict) else None
+        if name == "todo":
+            # Hermes's task list is the turn's plan, not a step of its own
+            # (and «Usó todo» would read as «used everything»).
+            if kind == "tool.complete" and payload.get("is_error") is not True:
+                # A turn that is not a local viewer's gets no `todo.updated`:
+                # the todo tool's own result carries the list.
+                await self._plan_update(session_id, _plan(_todos_of(payload.get("result"))))
+            return
+        if kind == "tool.start":
+            phase, cause = "started", None
+        elif payload.get("is_error") is True:
+            phase, cause = "failed", payload.get("result")
+            cause = cause if isinstance(cause, str) else None
+        else:
+            phase, cause = "completed", None
+        await self.on_event(
+            ActivityItem(session_id, call_id, "tool", phase, name, arguments, cause=cause)
+        )
+
+    async def _plan_update(self, session_id: str, steps: tuple[PlanStep, ...] | None) -> None:
+        if not steps:
+            return
+        if all(step.status in {"completed", "cancelled"} for step in steps):
+            phase = "completed"
+        else:
+            phase = "progress" if session_id in self._planned else "started"
+        self._planned.add(session_id)
+        await self.on_event(ActivityItem(session_id, "plan", "plan", phase, steps=steps))
+
+    async def _subagent(self, session_id: str, kind: str, payload: dict) -> None:
+        phases = {
+            "subagent.spawn_requested": "started",
+            "subagent.start": "started",
+            "subagent.progress": "progress",
+            "subagent.tool": "progress",
+            "subagent.complete": "completed",
+        }
+        if (phase := phases.get(kind)) is None:
+            return
+        identity = payload.get("subagent_id")
+        if not isinstance(identity, str) or not identity:
+            index = payload.get("task_index")
+            identity = f"subagent-{index if type(index) is int else 0}"
+        cause = None
+        status = payload.get("status")
+        if phase == "completed" and status in SUBAGENT_FAILED:
+            phase = "failed"
+            summary = payload.get("summary")
+            cause = summary if isinstance(summary, str) and summary.strip() else status
+        goal = payload.get("goal")
+        await self.on_event(
+            ActivityItem(
+                session_id,
+                identity,
+                "subagent",
+                phase,
+                text=goal if isinstance(goal, str) else "",
+                cause=cause,
+            )
+        )
 
     def _questions(self, event: str, payload: dict) -> tuple[dict, ...] | None:
         questions = payload.get("questions")
@@ -501,15 +621,13 @@ class HermesConnection:
         await self.rpc("session.interrupt", {"session_id": session_id})
 
     async def respond_permission(
-        self, session_id: str, request_id: str, allow: bool
+        self, session_id: str, request_id: str, *, choice: str
     ) -> PermissionReceipt:
+        # Hermes's own vocabulary (`once`, `session`, `always`, `deny`): the
+        # runtime admits only a choice the request offered.
         result = await self.rpc(
             "approval.respond",
-            {
-                "session_id": session_id,
-                "request_id": request_id,
-                "choice": "once" if allow else "deny",
-            },
+            {"session_id": session_id, "request_id": request_id, "choice": choice},
         )
         resolved = result.get("resolved")
         if type(resolved) is not int or resolved not in {0, 1}:

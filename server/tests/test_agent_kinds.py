@@ -322,7 +322,9 @@ class TwoWayConnection:
             await self.on_event(
                 PermissionRequested(
                     session_id,
-                    PermissionRequest("1", f"{self.backend.name} pide permiso", ("once", "deny")),
+                    PermissionRequest(
+                        "1", f"{self.backend.name} pide permiso", ("once", "session", "deny")
+                    ),
                 )
             )
         else:
@@ -331,8 +333,8 @@ class TwoWayConnection:
     async def cancel(self, session_id):
         pass
 
-    async def respond_permission(self, session_id, request_id, allow):
-        self.backend.answers.append((session_id, request_id, allow))
+    async def respond_permission(self, session_id, request_id, *, choice):
+        self.backend.answers.append((session_id, request_id, choice))
         return PermissionReceipt(applied=True)
 
     async def respond_clarification(self, session_id, request_id, answer, question_id):
@@ -393,10 +395,13 @@ async def test_two_agents_asking_with_the_same_request_id_never_collide(environm
     ]
     assert sorted(pending) == sorted([to_atlas, to_vega])
 
-    # Each answer reaches the agent that asked, with that agent's own id.
+    # Each answer reaches the agent that asked, with that agent's own id and
+    # the choice the Mac made among the ones it offered.
     kind, resolved = await runtime.handle(
         "approval.respond",
-        ApprovalParams(session_id=second["session_id"], request_id=to_vega, approved=True),
+        ApprovalParams(
+            session_id=second["session_id"], request_id=to_vega, approved=True, choice="session"
+        ),
         str(uuid4()),
     )
     assert (kind, resolved["request_id"], resolved["status"]) == (
@@ -404,15 +409,15 @@ async def test_two_agents_asking_with_the_same_request_id_never_collide(environm
         to_vega,
         "ok",
     )
-    [(vega_session, vega_request, allowed)] = vega.answers
-    assert (vega_request, allowed) == ("1", True) and vega_session.startswith("vega-live")
+    [(vega_session, vega_request, chosen)] = vega.answers
+    assert (vega_request, chosen) == ("1", "session") and vega_session.startswith("vega-live")
     assert atlas.answers == []
     await runtime.handle(
         "approval.respond",
         ApprovalParams(session_id=first["session_id"], request_id=to_atlas, approved=True),
         str(uuid4()),
     )
-    assert [(request, allowed) for _, request, allowed in atlas.answers] == [("1", True)]
+    assert [(request, chosen) for _, request, chosen in atlas.answers] == [("1", "once")]
     assert not runtime.pending
 
 

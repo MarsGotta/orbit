@@ -26,10 +26,13 @@ from support_orbit_mcp import DEFAULT_DEVICE, FakeHub, write_mcp_config
 
 from orbit_hub.app import create_app
 from orbit_hub.assistant import acp
+from orbit_hub.assistant.activity import public_item
 from orbit_hub.assistant.backend import (
+    ActivityItem,
     MessageChunk,
     MessageComplete,
     PermissionRequested,
+    PlanStep,
     RequestExpired,
     TextBlock,
 )
@@ -172,15 +175,28 @@ def test_a_whole_turn_runs_through_an_acp_agent(environment, tmp_path, monkeypat
                     from_agent.append({"event": frame["event"], "data": frame["data"]})
             assert from_agent == [
                 {
-                    "event": "chat.status",
-                    "data": {"session_id": session, "kind": "tool", "text": "orbit_devices"},
-                },
-                {
-                    "event": "chat.status",
+                    "event": "chat.item",
                     "data": {
                         "session_id": session,
+                        "item_id": "llamada-0",
+                        "kind": "tool",
+                        "phase": "started",
+                        "label": "Mirando los Mac de Orbit",
+                        "subject": "los Mac",
+                    },
+                },
+                {
+                    "event": "chat.item",
+                    "data": {
+                        "session_id": session,
+                        "item_id": "plan",
                         "kind": "plan",
-                        "text": "Mirar los equipos · Crear",
+                        "phase": "started",
+                        "label": "Plan · 0 de 2 pasos",
+                        "steps": [
+                            {"text": "Mirar los equipos", "status": "pending"},
+                            {"text": "Crear", "status": "pending"},
+                        ],
                     },
                 },
                 {
@@ -196,7 +212,7 @@ def test_a_whole_turn_runs_through_an_acp_agent(environment, tmp_path, monkeypat
                         "state": "pending",
                         "expires_at": None,
                         "description": "Crear la nota «Plan de la excursión»",
-                        "choices": ["once", "deny"],
+                        "choices": ["once", "always", "deny"],
                     },
                 },
             ]
@@ -326,7 +342,7 @@ async def test_a_denied_permission_reaches_the_agent_as_its_reject_option(enviro
             await connection.prompt(opened.session_id, [TextBlock("Crea la nota")])
             asked = await events.wait_for(lambda e: isinstance(e, PermissionRequested))
             receipt = await connection.respond_permission(
-                opened.session_id, asked.request.request_id, allow=False
+                opened.session_id, asked.request.request_id, choice="deny"
             )
             done = await events.wait_for(completed)
         finally:
@@ -337,6 +353,77 @@ async def test_a_denied_permission_reaches_the_agent_as_its_reject_option(enviro
     )
     [permission] = records(tmp_path, "permission")
     assert permission["outcome"] == {"outcome": "selected", "optionId": "no"}
+
+
+async def test_an_acp_turn_reports_its_thought_tools_and_plan_as_items(environment, tmp_path):
+    settings, _store, _speech = environment
+    events = Events()
+    connection = backend_for(settings, tmp_path).connection("equipo-1", "Mac", events)
+    await connection.open()
+    try:
+        opened = await connection.create_session()
+        session = opened.session_id
+        await connection.prompt(session, [TextBlock("trabaja en la agenda")])
+        done = await events.wait_for(completed)
+    finally:
+        await connection.close()
+    assert done == MessageComplete(session, "No pude leer el calendario.", "completed")
+    steps = [event for event in events.items if isinstance(event, ActivityItem)]
+    assert [(step.kind, step.phase) for step in steps] == [
+        ("reasoning", "started"),
+        ("reasoning", "completed"),
+        ("tool", "started"),
+        ("plan", "started"),
+        ("tool", "completed"),
+        ("tool", "started"),
+        ("tool", "failed"),
+        ("plan", "completed"),
+    ]
+    thought_started, thought, look, plan, looked, agenda, failed, finished = steps
+    assert thought.item_id == thought_started.item_id
+    assert thought.text == "Miro primero la pantalla, luego el calendario."
+    assert (look.item_id, look.tool) == ("llamada-mirar", "mcp__orbit__orbit_look")
+    assert looked.item_id == "llamada-mirar" and looked.tool == look.tool
+    assert public_item(looked)["label"] == "Mirando la pantalla"
+    assert agenda.arguments == {"start_ms": 0, "end_ms": 1}
+    assert public_item(failed) == {
+        "item_id": "llamada-agenda",
+        "kind": "tool",
+        "phase": "failed",
+        "label": "Leyendo el calendario",
+        "subject": "el calendario",
+        "cause": "Sin permiso de calendario",
+    }
+    assert plan.steps == (
+        PlanStep("Mirar la pantalla", "in_progress"),
+        PlanStep("Leer el calendario", "pending"),
+    )
+    assert public_item(finished)["label"] == "Plan · 2 de 2 pasos"
+
+
+async def test_an_acp_permission_offers_the_agents_options_and_answers_the_chosen_one(
+    environment, tmp_path
+):
+    settings, _store, _speech = environment
+    async with tcp_server(FakeHub().app) as url:
+        write_mcp_config(tmp_path, url)
+        events = Events()
+        connection = backend_for(settings, tmp_path).connection("equipo-1", "Mac", events)
+        await connection.open()
+        try:
+            opened = await connection.create_session()
+            await connection.prompt(opened.session_id, [TextBlock("Crea la nota")])
+            asked = await events.wait_for(lambda e: isinstance(e, PermissionRequested))
+            receipt = await connection.respond_permission(
+                opened.session_id, asked.request.request_id, choice="always"
+            )
+            await events.wait_for(completed)
+        finally:
+            await connection.close()
+    assert asked.request.choices == ("once", "always", "deny")
+    assert receipt.applied is True
+    [permission] = records(tmp_path, "permission")
+    assert permission["outcome"] == {"outcome": "selected", "optionId": "siempre"}
 
 
 async def test_a_cancelled_turn_ends_interrupted_and_retires_its_permission(environment, tmp_path):
@@ -354,7 +441,7 @@ async def test_a_cancelled_turn_ends_interrupted_and_retires_its_permission(envi
         await connection.cancel(session)
         expired = await events.wait_for(lambda e: isinstance(e, RequestExpired))
         done = await events.wait_for(completed)
-        late = await connection.respond_permission(session, asked.request.request_id, allow=True)
+        late = await connection.respond_permission(session, asked.request.request_id, choice="once")
         stopped = await connection.turn_stopped(session)
     finally:
         await connection.close()

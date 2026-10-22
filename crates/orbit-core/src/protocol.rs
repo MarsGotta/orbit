@@ -233,9 +233,17 @@ pub enum Command {
     MeetingFinish,
     Approval {
         approved: bool,
+        /// Which of the request's choices; absent, `once` or `deny`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        choice: Option<String>,
     },
     Clarify {
         answer: String,
+        /// The question answered, when the agent asked several.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        question_id: Option<String>,
     },
     Permissions {
         request: Vec<String>,

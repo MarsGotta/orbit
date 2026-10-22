@@ -46,6 +46,10 @@ impl ProjectTopic for Projector {
                 as_of_ms: None,
             },
             short_voice_note: state.views.short_voice_note.clone(),
+            work: source
+                .runtime
+                .and_then(|runtime| runtime.conversation.work.clone())
+                .map(Box::new),
         };
         let data = TopicData::Assistant(Knowledge::Present {
             value,
@@ -270,6 +274,8 @@ mod tests {
             request_id: "request-topic".into(),
             description: "\"".repeat(16_000),
             clarification: false,
+            choices: Vec::new(),
+            questions: Vec::new(),
         });
         let data = assistant_frame(&state);
         let bytes = serde_json::to_vec(&data).unwrap().len();

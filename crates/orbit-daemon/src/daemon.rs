@@ -832,6 +832,9 @@ struct ConversationRuntime {
     speech_notice_call_id: Option<String>,
     /// The answer the user asked to hear («Escuchar»), while it plays.
     read_aloud: Option<speech::ReadAloud>,
+    /// What the agent did in the turn in progress, or the last one
+    /// (`chat.item`). Live only: a restart starts without it.
+    work: Option<orbit_core::agent_work::AgentWork>,
 }
 
 struct CaptureRuntime {
@@ -1137,6 +1140,7 @@ async fn run_with_helper_inner(
             speak_next: false,
             read_aloud: None,
             speech_notice_call_id: None,
+            work: None,
         },
         capture: CaptureRuntime {
             buffer: CaptureBuffer::default(),

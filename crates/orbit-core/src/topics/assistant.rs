@@ -52,6 +52,9 @@ pub struct Value {
     /// The last voice note not sent for being too short, with its numbers.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub short_voice_note: Option<crate::voice::ShortVoiceNote>,
+    /// What the agent did in the turn in progress, or the last one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub work: Option<Box<crate::agent_work::AgentWork>>,
 }
 
 fn unknown_call() -> Knowledge<Option<crate::voice::CallState>> {

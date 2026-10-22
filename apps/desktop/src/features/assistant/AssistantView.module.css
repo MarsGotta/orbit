@@ -261,6 +261,68 @@
 .pending > button {
   margin-top: 10px;
 }
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.questionCount {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--o-subtle);
+  font-size: var(--o-font-12);
+}
+
+/* What the agent did in a turn (hub-v1 chat.item). */
+.work {
+  max-width: 520px;
+  color: var(--o-muted);
+  font-size: var(--o-font-12);
+}
+.work summary {
+  cursor: pointer;
+}
+.workTime {
+  margin: 0 0 6px;
+}
+.workSteps {
+  margin: 6px 0;
+  padding: 0;
+  list-style: none;
+}
+.workSteps li {
+  overflow: hidden;
+  padding: 3px 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workSteps li[data-phase="failed"] {
+  white-space: normal;
+}
+.workCause {
+  color: var(--o-orange);
+}
+.plan {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+.plan li {
+  padding: 2px 0;
+}
+.plan li[data-status="completed"] > span:first-child,
+.plan li[data-status="cancelled"] > span:first-child {
+  text-decoration: line-through;
+}
+.stepStatus {
+  margin-left: 8px;
+  color: var(--o-subtle);
+}
+.reasoning p {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+}
+
 .composerArea {
   flex: none;
   padding: 14px 24px 22px;

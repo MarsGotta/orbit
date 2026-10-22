@@ -9,8 +9,10 @@ from dataclasses import replace
 from functools import partial
 from uuid import uuid4
 
+from .assistant.activity import public_item
 from .assistant.agents import Agents
 from .assistant.backend import (
+    ActivityItem,
     AssistantConnection,
     AssistantEvent,
     ClarificationRequest,
@@ -558,6 +560,10 @@ class DeviceRuntime:
             await self.publish(
                 emit("chat.status", {**data, "kind": event.kind, "text": event.text}, turn_id)
             )
+        elif isinstance(event, ActivityItem):
+            # Live only: neither stored nor in the snapshot. A Mac that
+            # reconnects mid-turn sees the steps that follow.
+            await self.publish(emit("chat.item", {**data, **public_item(event)}, turn_id))
 
     def require_live(self, session_id: str) -> tuple[dict, AssistantConnection]:
         """The session and its agent's connection, which holds it live."""
@@ -781,10 +787,13 @@ class DeviceRuntime:
                 raise HubError("stale_turn", "La respuesta no pertenece al turno actual")
             if kind == "approval":
                 choices = pending[2].choices
-                if ("once" if params.approved else "deny") not in (
-                    ("once", "deny") if choices is None else choices
-                ):
-                    raise HubError("approval_not_allowed", "Hermes no permite esta respuesta")
+                allowed = ("once", "deny") if choices is None else choices
+                if params.answer() not in allowed:
+                    raise HubError(
+                        "approval_not_allowed",
+                        f"El agente no ofrece «{params.answer()[:64]}» en esta petición; "
+                        f"ofrece {len(allowed)}: {', '.join(choice[:64] for choice in allowed[:8])}",
+                    )
 
             def still_current() -> bool:
                 # An entry's object identity is its generation: every request/partial
@@ -808,7 +817,7 @@ class DeviceRuntime:
             try:
                 if kind == "approval":
                     answered = await connection.respond_permission(
-                        runtime_id, upstream_id, params.approved
+                        runtime_id, upstream_id, choice=params.answer()
                     )
                 else:
                     answered = await connection.respond_clarification(

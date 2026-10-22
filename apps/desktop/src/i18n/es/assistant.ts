@@ -78,6 +78,14 @@ const base = {
     reject: "Rechazar",
     clarifyLabel: "Respuesta",
     clarify: "Responder",
+    // The hub's approval choices (hub-v1 «Choices and questions»).
+    choices: {
+      once: "Permitir una vez",
+      session: "Permitir en esta conversación",
+      always: "Permitir siempre",
+      deny: "Rechazar",
+    },
+    questionOf: (position: number, total: number) => `Pregunta ${position} de ${total}`,
   },
   assistant: {
     ...esAssistant,
@@ -101,6 +109,21 @@ const base = {
     loadingSessions: "Cargando conversaciones…",
     sessionsFailed: "No se pudieron cargar las conversaciones.",
     retrySessions: "Reintentar",
+    // What the agent did in a turn (hub-v1 chat.item).
+    work: {
+      label: "Lo que hizo",
+      working: (duration: string) => `Trabajando ${duration}`,
+      worked: (duration: string) => `Trabajó ${duration}`,
+      used: (subjects: string) => `Usó ${subjects}`,
+      steps: (count: number) => (count === 1 ? "1 paso" : `${count} pasos`),
+      reasoning: "Razonamiento",
+      stepStatus: {
+        pending: "Pendiente",
+        in_progress: "En curso",
+        completed: "Hecho",
+        cancelled: "Cancelado",
+      },
+    },
     loadOlder: "Cargar mensajes anteriores",
     loadingOlder: "Cargando mensajes anteriores…",
     historyFailed: "No se pudieron cargar los mensajes.",

@@ -87,7 +87,8 @@ Mac's id for the message, `voice:{duration_ms}` for a voice note, and
 adds the meeting's last `minutes` of transcript and keeps only the question and
 «[Durante «título» · últimos N min]»; a recording this device does not hold is
 `meeting_not_found`), `chat.interrupt` (`session_id`,`turn_id`), `approval.respond`
-(`session_id`,`request_id`,`approved`,`turn_id`), `clarify.respond`
+(`session_id`,`request_id`,`approved`,`turn_id`, and optionally `choice`: one of
+the request's `choices`; see [Choices](#choices-and-questions)), `clarify.respond`
 (`session_id`,`request_id`,`answer`,`question_id` optional), `ping`.
 `calendar.ask` and the routes of the hub's copy of the agenda are retired;
 since 2026-10-15 the hub no longer keeps a notice for them and refuses
@@ -103,7 +104,8 @@ Events: `ready` (`device_id`, `assistant_name`, `agents`, `default_agent_id`), `
 (`session_id`,`text`), `chat.completed` (`session_id`,`text`,`status`,
 `persisted`,`warning`), `approval.required`
 (`session_id`,`request_id`,`description`), `clarify.required`
-(`session_id`,`request_id`,`question`), `error` (`code`,`message`), `pong`,
+(`session_id`,`request_id`,`question`), `chat.item` (see
+[What the agent does](#what-the-agent-does-chatitem)), `error` (`code`,`message`), `pong`,
 `revoked`. Unknown fields/methods and oversized messages are rejected.
 
 Asynchronous turn events carry the original `chat.send` UUID in `id`. A command
@@ -152,6 +154,79 @@ live snapshot exists. Snapshots include at most 64 sessions and 128 pending item
 per session, approximately 100 KiB combined data; `omitted:true` exposes bounds.
 Unknown expiry stays null. Clarify items use `question`, `choices`, and optionally
 bounded `questions` with qids; answered qids leave the next snapshot.
+
+### What the agent does: `chat.item`
+
+Each step of the agent's work in a turn is an item. It travels as `chat.item`
+with the turn's `chat.send` UUID in `id`; it is live only, neither stored in
+the conversation nor carried by `state.snapshot`, so a Mac that reconnects in
+the middle of a turn sees the steps that follow.
+
+```json
+{"v":1,"id":"original-chat-UUID","event":"chat.item","data":{"session_id":"Orbit-session-id","item_id":"call-1","kind":"tool","phase":"started","label":"Mirando la pantalla","subject":"la pantalla"}}
+```
+
+- `item_id`: stable across one step's phases within the turn (a tool call's
+  id; `plan` for the turn's plan; a reasoning or subagent id).
+- `kind`: `tool`, `reasoning`, `plan` or `subagent`.
+- `phase`: `started`, `progress`, `completed` or `failed`. A `failed` item
+  carries `cause`, the agent's words on one line, at most 300 characters
+  (`sin causa declarada` when it gave none).
+- `label`: one line of at most 500 characters (`activity.MAX_ITEM_LABEL_CHARS`):
+  Hermes's own reasoning preview is 500 characters, and past that it is no
+  longer a line one reads in passing. It protects the frame and the Mac's
+  assistant topic from upstream text of any length; it limits neither what
+  the agent does nor its answer. For Orbit's fifteen orbit-mcp tools it is
+  Spanish («Mirando la pantalla», «Leyendo el calendario», «Pulsando en
+  Notas», «Escribiendo» — never the text typed); any other tool keeps its own
+  name. For reasoning it is the summary, when the agent sends one; for a
+  subagent its goal; for a plan «Plan · N de M pasos».
+- `subject` (tools): what the step used, at most 80 characters («la
+  pantalla», or the tool's own name), for the summary of the turn's work.
+- `steps` (plans): the whole plan on each update, at most 20 steps of
+  `{text,status}`, `status` one of `pending`, `in_progress`, `completed`,
+  `cancelled`; the label counts every step.
+
+Hermes: `tool.start`/`tool.complete` (`is_error` is `failed` with the
+result as its cause), `todo.updated` and the `todo` tool's result,
+`reasoning.available`, `subagent.start`/`progress`/`tool`/`complete`.
+`reasoning.delta` is the thought itself and `thinking.delta` a spinner's
+text: neither is relayed. ACP: `tool_call`, `tool_call_update`, `plan` and
+`agent_thought_chunk` (a streamed thought is one reasoning item, completed with
+its whole text when anything else arrives). The OpenAI-compatible assistant
+(`kind = "openai"`): each tool call is an item from the call to its result
+(`failed` with the cause when the tool refused or the model must retry it),
+and a streamed thought is one reasoning item, completed with its whole text
+when the next part starts or the turn ends; it never asks for approval (if it
+did, it would offer `once` and `deny`). A Mac without `chat.item`
+(0.9.0) decodes it as an unknown event, records its name once and changes
+nothing.
+
+### Choices and questions
+
+`approval.required` and `clarify.required` travel under the turn's `chat.send`
+UUID in `id`; their `request_id` names the request (the backend's own id, or
+one the hub made unique on this device) and is never the turn's. A client
+takes a question as current by the turn in `id`.
+
+`approval.required` carries `choices`, the answers the agent offers, in
+the hub's vocabulary: `once`, `session` (this conversation), `always`,
+`deny`. Hermes offers `once` and `deny` and, when allowed, `session` and
+`always`; an ACP agent's options are `once` (`allow_once`), `always`
+(`allow_always`) and `deny` (`reject_once`, else `reject_always`). `choices`
+absent means `once` and `deny`. The Mac answers with `approval.respond`
+`choice`; `approved` must agree with it (`deny` is the only refusal, since
+`approved:false` is what reaches the safety ledger), else the frame is
+refused with `approval_choice_mismatch` before anything else. A choice the
+request did not offer is `approval_not_allowed`, naming the choice and what
+was offered. Without `choice` the hub answers `once` or `deny` by `approved`,
+as a 0.9.0 Mac does; a 0.9.0 hub ignores `choice` and does the same.
+
+`clarify.required` carries `choices` (suggestions; the answer is free text
+too) and, for several questions at once, `questions` of
+`{qid,question,choices?,multi_select?}`. The Mac answers each with its own
+`clarify.respond` naming `question_id`; `remaining` lists the qids still
+open, which the next snapshot keeps.
 
 `interaction.resolved` or `interaction.expired` replies use the response-command
 UUID, `session_id` and `request_id`. Approval success requires

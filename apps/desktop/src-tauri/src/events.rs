@@ -13,6 +13,11 @@ fn emit_feature_frames<R: tauri::Runtime>(
         {
             eprintln!("Orbit: no se pudo actualizar el menú: {error}");
         }
+        // A long turn that ended, or a question from the agent, while
+        // Orbit is in the background.
+        if let FeatureFrame::Assistant { view, .. } = &frame {
+            crate::notify::follow(app, view);
+        }
         let event = format!("{FEATURE_EVENT_PREFIX}{}", frame.feature().as_str());
         // The recording frame also says whether the floating panel
         // has something to say; it is shown or hidden after the frame went out.

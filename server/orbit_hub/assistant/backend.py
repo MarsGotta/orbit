@@ -12,6 +12,8 @@ writes the next backend:
     cancel                session/cancel
     PermissionRequested   session/request_permission
     MessageChunk          session/update agent_message_chunk
+    ActivityItem          session/update tool_call, tool_call_update, plan,
+                          agent_thought_chunk
     MessageComplete       the session/prompt response (stop reason)
 
 It carries only what the runtime uses today. Everything here is internal to
@@ -228,6 +230,37 @@ class UnreadableUpdate:
 
 
 @dataclass(frozen=True)
+class PlanStep:
+    text: str
+    status: Literal["pending", "in_progress", "completed", "cancelled"]
+
+
+@dataclass(frozen=True)
+class ActivityItem:
+    """One step of the agent's work in a turn: ACP's `tool_call` and
+    `tool_call_update`, `plan` and `agent_thought_chunk`; Hermes's `tool.*`,
+    `todo.updated`, `reasoning.available` and `subagent.*`; pydantic-ai's
+    tool calls, tool results and thinking parts (`openai`). The runtime
+    publishes it as `chat.item`, labelled by `activity`.
+
+    `item_id` is stable across one step's phases within the turn. A tool
+    carries its name as the agent called it and its arguments when known; a
+    plan its whole list of steps; reasoning its summary and a subagent its
+    goal in `text`; a failed step its cause, in the agent's words.
+    """
+
+    session_id: str
+    item_id: str
+    kind: Literal["tool", "reasoning", "plan", "subagent"]
+    phase: Literal["started", "progress", "completed", "failed"]
+    tool: str | None = None
+    arguments: dict | None = None
+    text: str = ""
+    steps: tuple[PlanStep, ...] = ()
+    cause: str | None = None
+
+
+@dataclass(frozen=True)
 class ConnectionLost:
     """The connection ended without being closed: every live session is gone
     and the outcome of what was in flight is unknown."""
@@ -244,6 +277,7 @@ AssistantEvent = (
     | TurnFailed
     | HistoryLoaded
     | UnreadableUpdate
+    | ActivityItem
     | ConnectionLost
 )
 EventSink = Callable[[AssistantEvent], Awaitable[None]]
@@ -285,8 +319,12 @@ class AssistantConnection(Protocol):
     async def cancel(self, session_id: str) -> None: ...
 
     async def respond_permission(
-        self, session_id: str, request_id: str, allow: bool
-    ) -> PermissionReceipt: ...
+        self, session_id: str, request_id: str, *, choice: str
+    ) -> PermissionReceipt:
+        """Answer with one of the request's `choices` (`once` and `deny` when
+        it named none); `deny` is the only refusal. Keyword-only, so a backend
+        still written for the old `allow: bool` fails instead of reading
+        `"deny"` as true."""
 
     async def respond_clarification(
         self, session_id: str, request_id: str, answer: str, question_id: str | None

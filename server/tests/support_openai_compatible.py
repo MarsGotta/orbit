@@ -40,6 +40,15 @@ class ToolCall:
 
 
 @dataclass(frozen=True)
+class Thought:
+    """A streamed thought (`reasoning_content`, as DeepSeek and vLLM send it),
+    one SSE chunk per piece, then the reply `then` in the same response."""
+
+    thinking: tuple[str, ...]
+    then: Text | ToolCall
+
+
+@dataclass(frozen=True)
 class Refusal:
     """An HTTP error before any stream, with an OpenAI-shaped body."""
 
@@ -66,6 +75,11 @@ def _chunk(delta: dict, finish: str | None = None) -> str:
 
 
 def stream(reply) -> list[str]:
+    if isinstance(reply, Thought):
+        thought = [
+            _chunk({"role": "assistant", "reasoning_content": piece}) for piece in reply.thinking
+        ]
+        return thought + stream(reply.then)
     if isinstance(reply, Text):
         events = [_chunk({"role": "assistant", "content": ""})]
         events += [_chunk({"content": piece}) for piece in reply.pieces]

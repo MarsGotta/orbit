@@ -30,6 +30,9 @@ tauri-plugin-autostart = "2"
 # Copy from the chat without WebKit's clipboard prompt (Tauri issue #12007).
 # 2.4.0 and later require Tauri 2.12; the lock holds 2.11.5.
 tauri-plugin-clipboard-manager = "=2.3.3"
+# macOS notifications when a long turn ends or the agent asks, in the background
+# (src/notify.rs). 2.5.0 and later require Tauri 2.12; the lock holds 2.11.5.
+tauri-plugin-notification = "=2.4.0"
 tauri-plugin-opener = "2"
 tokio = { version = "1.48", features = ["macros", "rt", "rt-multi-thread", "sync", "time"] }
 

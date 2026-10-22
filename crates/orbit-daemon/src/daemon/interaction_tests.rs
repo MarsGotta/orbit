@@ -140,13 +140,19 @@ async fn response_is_not_applied_optimistically_and_expired_is_not_success() -> 
     let (sender, mut commands) = tokio::sync::mpsc::channel(4);
     runtime.hub.install(sender);
     runtime
-        .command(orbit_core::protocol::Command::Approval { approved: true })
+        .command(orbit_core::protocol::Command::Approval {
+            approved: true,
+            choice: None,
+        })
         .await?;
     assert!(runtime.state.durable.pending_approval.is_some());
     assert_eq!(runtime.state.notice_code(), Some(NoticeCode::ApprovalSent));
     assert!(
         runtime
-            .command(orbit_core::protocol::Command::Approval { approved: true })
+            .command(orbit_core::protocol::Command::Approval {
+                approved: true,
+                choice: None,
+            })
             .await
             .is_err()
     );
@@ -1289,5 +1295,278 @@ async fn hub_rejection_diagnostics_keep_numbers_without_text() -> Result<()> {
         assert_eq!(numbers, json!({"bytes": 128, "max_bytes": 64}));
         assert!(!line.contains("PRIVATE"));
     }
+    Ok(())
+}
+
+/// The selected conversation with a turn in flight, its question sent at 1 s.
+fn in_turn(runtime: &mut Runtime) {
+    crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", json!("selected"));
+    runtime.state.durable.active_request = Some(TURN.into());
+    runtime.state.durable.turn = Some(orbit_core::Turn {
+        user: orbit_core::Message {
+            id: TURN.into(),
+            role: "user".into(),
+            text: "Pregunta sintética".into(),
+            complete: true,
+            at_ms: 1_000,
+            voice: None,
+        },
+        answer: None,
+    });
+}
+
+fn clarification() -> Value {
+    json!({"request_id":"aclarar","kind":"clarify","state":"pending","expires_at":null,
+        "question":"Dos preguntas","questions":[
+            {"qid":"sala","question":"¿Qué sala?","choices":["Norte","Sur"]},
+            {"qid":"hora","question":"¿A qué hora?","multi_select":true},
+            {"qid":42,"question":"sin identidad legible"}]})
+}
+
+#[tokio::test]
+async fn the_agents_choices_reach_the_pending_question() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _) = fixture(directory.path())?;
+    in_turn(&mut runtime);
+    // What the hub sends for one request: the event, then its snapshot.
+    let required = json!({"request_id":"permiso","kind":"approval","state":"pending",
+        "expires_at":null,"description":"Borrar la carpeta",
+        "choices":["once","deny","session","always"]});
+    let mut event = required.clone();
+    event["session_id"] = json!("selected");
+    runtime
+        .hub_event(HubEvent::Frame(
+            json!({"v":1,"id":TURN,"event":"approval.required","data":event}),
+        ))
+        .await?;
+    runtime
+        .hub_event(HubEvent::Frame(
+            json!({"v":1,"id":null,"event":"state.snapshot",
+            "data":snapshot(1, "selected", json!([required]))}),
+        ))
+        .await?;
+    let pending = runtime
+        .state
+        .durable
+        .pending_approval
+        .clone()
+        .context("missing pending")?;
+    assert_eq!(pending.choices, ["once", "deny", "session", "always"]);
+    assert!(pending.questions.is_empty());
+    Ok(())
+}
+
+/// The hub's real sequence starts with the event: `approval.required` under
+/// the turn's id, naming the request by the backend's own id, which is never
+/// the turn's. The question is pending from that event, before any snapshot.
+#[tokio::test]
+async fn a_live_approval_is_pending_from_its_event_alone() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _) = fixture(directory.path())?;
+    in_turn(&mut runtime);
+    runtime
+        .hub_event(HubEvent::Frame(
+            json!({"v":1,"id":TURN,"event":"approval.required",
+            "data":{"session_id":"selected","request_id":"permiso-del-agente","kind":"approval",
+                "state":"pending","expires_at":null,"description":"Borrar la carpeta",
+                "choices":["once","deny"]}}),
+        ))
+        .await?;
+    let pending = runtime
+        .state
+        .durable
+        .pending_approval
+        .clone()
+        .context("the question is pending from its event")?;
+    assert_eq!(pending.request_id, "permiso-del-agente");
+    assert_eq!(pending.description, "Borrar la carpeta");
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_snapshot_restores_each_readable_question_with_its_choices() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _) = fixture(directory.path())?;
+    in_turn(&mut runtime);
+    runtime
+        .reconcile_snapshot(&snapshot(1, "selected", json!([clarification()])))
+        .await?;
+    let pending = runtime
+        .state
+        .durable
+        .pending_approval
+        .clone()
+        .context("missing pending")?;
+    assert!(pending.clarification);
+    assert_eq!(
+        pending.questions,
+        [
+            orbit_core::Question {
+                qid: "sala".into(),
+                question: "¿Qué sala?".into(),
+                choices: vec!["Norte".into(), "Sur".into()],
+                multi_select: false,
+            },
+            orbit_core::Question {
+                qid: "hora".into(),
+                question: "¿A qué hora?".into(),
+                choices: Vec::new(),
+                multi_select: true,
+            },
+        ],
+        "a question without a readable id is left out"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_chosen_option_travels_by_name_and_one_not_offered_is_refused() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _) = fixture(directory.path())?;
+    in_turn(&mut runtime);
+    let mut offered = question();
+    offered["choices"] = json!(["once", "deny", "session"]);
+    runtime
+        .reconcile_snapshot(&snapshot(1, "selected", json!([offered])))
+        .await?;
+    let (sender, mut commands) = tokio::sync::mpsc::channel(4);
+    runtime.hub.install(sender);
+    for (approved, choice) in [(true, "always"), (true, "deny"), (false, "session")] {
+        let refused = runtime
+            .command(orbit_core::protocol::Command::Approval {
+                approved,
+                choice: Some(choice.into()),
+            })
+            .await;
+        assert!(refused.is_err(), "{choice} with approved={approved}");
+    }
+    assert!(
+        commands.try_recv().is_err(),
+        "nothing refused reached the hub"
+    );
+    runtime
+        .command(orbit_core::protocol::Command::Approval {
+            approved: true,
+            choice: Some("session".into()),
+        })
+        .await?;
+    let command = commands.recv().await.context("missing response command")?;
+    assert_eq!(command["method"], "approval.respond");
+    assert_eq!(command["params"]["approved"], true);
+    assert_eq!(command["params"]["choice"], "session");
+    Ok(())
+}
+
+#[tokio::test]
+async fn answering_one_of_several_questions_names_it_and_keeps_the_rest_open() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _) = fixture(directory.path())?;
+    in_turn(&mut runtime);
+    runtime
+        .reconcile_snapshot(&snapshot(1, "selected", json!([clarification()])))
+        .await?;
+    let (sender, mut commands) = tokio::sync::mpsc::channel(4);
+    runtime.hub.install(sender);
+    assert!(
+        runtime
+            .command(orbit_core::protocol::Command::Clarify {
+                answer: "Norte".into(),
+                question_id: Some("otra".into()),
+            })
+            .await
+            .is_err(),
+        "a question that is not pending is refused"
+    );
+    runtime
+        .command(orbit_core::protocol::Command::Clarify {
+            answer: "Norte".into(),
+            question_id: Some("sala".into()),
+        })
+        .await?;
+    let command = commands.recv().await.context("missing response command")?;
+    assert_eq!(command["method"], "clarify.respond");
+    assert_eq!(command["params"]["question_id"], "sala");
+    assert_eq!(command["params"]["answer"], "Norte");
+    runtime
+        .interaction_result(
+            "interaction.resolved",
+            &json!({"id":command["id"],"data":{"status":"ok","applied":true,"remaining":["hora"],
+                "request_id":"aclarar","session_id":"selected"}}),
+        )
+        .await?;
+    let pending = runtime
+        .state
+        .durable
+        .pending_approval
+        .clone()
+        .context("the other question stays open")?;
+    assert_eq!(
+        pending
+            .questions
+            .iter()
+            .map(|question| question.qid.as_str())
+            .collect::<Vec<_>>(),
+        ["hora"]
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_turns_items_are_its_work_until_it_ends() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _) = fixture(directory.path())?;
+    in_turn(&mut runtime);
+    let item = |turn: &str, phase: &str, kind: &str| {
+        HubEvent::Frame(json!({"v":1,"id":turn,"event":"chat.item","data":{
+            "session_id":"selected","item_id":"llamada-1","kind":kind,"phase":phase,
+            "label":"Leyendo el calendario","subject":"el calendario"}}))
+    };
+    runtime.hub_event(item(TURN, "started", "tool")).await?;
+    runtime.hub_event(item(TURN, "completed", "tool")).await?;
+    // A kind a newer hub adds, and another turn's step, are left out.
+    runtime.hub_event(item(TURN, "started", "future")).await?;
+    runtime
+        .hub_event(item(
+            "20000000-0000-0000-0000-000000000002",
+            "started",
+            "tool",
+        ))
+        .await?;
+    let work = runtime.conversation.work.clone().context("missing work")?;
+    assert_eq!(work.turn_id, TURN);
+    assert_eq!(
+        work.started_at_ms, 1_000,
+        "it started when the question was sent"
+    );
+    assert_eq!(work.items.len(), 1);
+    assert_eq!(work.items[0].label, "Leyendo el calendario");
+    assert_eq!(work.tools, 1);
+    assert_eq!(work.subjects, ["el calendario"]);
+    assert_eq!(work.ended_at_ms, None);
+    runtime
+        .hub_event(HubEvent::Frame(
+            json!({"v":1,"id":TURN,"event":"chat.completed",
+            "data":{"session_id":"selected","text":"Hecho","status":"completed","persisted":true}}),
+        ))
+        .await?;
+    let ended = runtime.conversation.work.clone().context("work stays")?;
+    assert!(ended.ended_at_ms.is_some_and(|ended| ended >= 1_000));
+    let source = crate::daemon::topics::TopicSource {
+        state: &runtime.state,
+        runtime: Some(&runtime),
+        now_ms: 0,
+    };
+    let mut board = crate::daemon::topics::TopicBoard::new("synthetic".into());
+    let channels = board.channels();
+    let _receiver = channels[&orbit_core::topics::TopicId::Assistant].subscribe();
+    board.publish(&source);
+    let data = serde_json::to_value(
+        channels[&orbit_core::topics::TopicId::Assistant]
+            .borrow()
+            .data
+            .clone(),
+    )?;
+    assert_eq!(data["knowledge"]["value"]["work"]["turn_id"], TURN);
+    assert_eq!(data["knowledge"]["value"]["work"]["tools"], 1);
     Ok(())
 }

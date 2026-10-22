@@ -17,6 +17,65 @@ use std::collections::VecDeque;
 /// daemon restart forgets them because only the user's privacy stop is durable.
 const MAX_INTERRUPTED_TURNS: usize = 128;
 
+/// The answers and questions the Mac keeps for one pending request: the
+/// hub's own bounds for what it publishes (`interactions.pending_data`:
+/// 32 choices of 256 characters, 16 questions), applied again because they
+/// come from outside and live in the durable state.
+const MAX_CHOICES: usize = 32;
+const MAX_CHOICE_CHARS: usize = 256;
+const MAX_QUESTIONS: usize = 16;
+/// A question's id, as `request_id` is bounded below and by the hub.
+const MAX_QUESTION_ID_BYTES: usize = 160;
+/// The pending question's own bound, below, applied to each of several.
+const MAX_QUESTION_BYTES: usize = 16_000;
+
+fn choices_of(choices: Option<&Vec<String>>) -> Vec<String> {
+    choices
+        .into_iter()
+        .flatten()
+        .filter(|choice| !choice.is_empty() && choice.chars().count() <= MAX_CHOICE_CHARS)
+        .take(MAX_CHOICES)
+        .cloned()
+        .collect()
+}
+
+/// What the agent offers for a pending request: its choices and, for a
+/// clarification of several questions, each readable question. One the hub
+/// passed on without a readable id is left out: it could not be answered.
+pub(super) fn offered(
+    choices: Option<&Vec<String>>,
+    questions: Option<&Vec<Value>>,
+) -> (Vec<String>, Vec<orbit_core::Question>) {
+    let questions = questions
+        .into_iter()
+        .flatten()
+        .filter_map(|question| {
+            let qid = question.get("qid")?.as_str()?;
+            let text = question.get("question")?.as_str()?;
+            if qid.is_empty()
+                || qid.len() > MAX_QUESTION_ID_BYTES
+                || text.len() > MAX_QUESTION_BYTES
+            {
+                return None;
+            }
+            let choices = question
+                .get("choices")
+                .and_then(|choices| serde_json::from_value::<Vec<String>>(choices.clone()).ok());
+            Some(orbit_core::Question {
+                qid: qid.into(),
+                question: text.into(),
+                choices: choices_of(choices.as_ref()),
+                multi_select: question
+                    .get("multi_select")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
+            })
+        })
+        .take(MAX_QUESTIONS)
+        .collect();
+    (choices_of(choices), questions)
+}
+
 struct InterruptedTurn {
     session_id: String,
     turn_id: String,
@@ -305,14 +364,22 @@ impl Runtime {
             // request ID was reused. Only the current snapshot owns that state.
             self.say(NoticeCode::ApprovalReceiptStale);
         } else if applied || expired {
-            if self
+            let remaining = data.remaining.as_deref().unwrap_or_default();
+            if let Some(approval) = self
                 .state
                 .durable
                 .pending_approval
-                .as_ref()
-                .is_some_and(|approval| approval.request_id == request_id)
+                .as_mut()
+                .filter(|approval| approval.request_id == request_id)
             {
-                self.state.durable.pending_approval = None;
+                // One of several questions answered: the others stay open,
+                // as the hub's next snapshot will also say.
+                approval
+                    .questions
+                    .retain(|question| remaining.contains(&question.qid));
+                if !applied || approval.questions.is_empty() {
+                    self.state.durable.pending_approval = None;
+                }
             }
             self.say(if applied {
                 NoticeCode::ApprovalApplied
@@ -421,10 +488,14 @@ impl Runtime {
                         description.len()
                     );
                 }
+                let (choices, questions) =
+                    offered(question.choices.as_ref(), question.questions.as_ref());
                 next.durable.pending_approval = Some(Approval {
                     request_id: request_id.into(),
                     description: description.into(),
                     clarification: question.kind == "clarify",
+                    choices,
+                    questions,
                 });
                 next.set_notice(
                     self.scoped(

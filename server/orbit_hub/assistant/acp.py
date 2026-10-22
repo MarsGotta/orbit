@@ -10,8 +10,8 @@ spoken to over its stdio:
     session/load         to resume, when the agent declares `loadSession`
     session/prompt       the turn's text; its stop reason ends the turn
     session/cancel       a cancellation; pending permissions answer `cancelled`
-    request_permission   the Mac's approval, answered "allow once" or "reject"
-    session/update       message chunks, tool calls and plans, as typed events
+    request_permission   the Mac's approval, answered with the option it chose
+    session/update       message chunks, tool calls, plans and thoughts, as typed events
 
 Not declaring `fs` and `terminal` does not take Claude Code's or Codex's own
 tools away: both run them inside their process. Each agent is therefore also
@@ -42,6 +42,7 @@ from acp.core import ClientSideConnection
 from acp.schema import (
     AgentMessageChunk,
     AgentPlanUpdate,
+    AgentThoughtChunk,
     AllowedOutcome,
     ClientCapabilities,
     DeniedOutcome,
@@ -52,12 +53,14 @@ from acp.schema import (
     PermissionOption,
     RequestPermissionResponse,
     TextContentBlock,
+    ToolCallProgress,
     ToolCallStart,
 )
 
 from ..errors import HubError
 from ..log import clear_op, report
 from .backend import (
+    ActivityItem,
     Capabilities,
     ClarificationReceipt,
     ContentBlock,
@@ -68,9 +71,9 @@ from .backend import (
     PermissionReceipt,
     PermissionRequest,
     PermissionRequested,
+    PlanStep,
     RequestExpired,
     ResumedSession,
-    StatusNotice,
     UnreadableUpdate,
 )
 
@@ -369,6 +372,13 @@ class _AgentProcess:
         self.session_id: str | None = None
         self.turn: asyncio.Task | None = None
         self.text: list[str] = []
+        # This turn's tool calls, by id: their name and arguments, which only
+        # `tool_call` carries, for the label of each `tool_call_update`.
+        self.tools: dict[str, tuple[str, dict | None]] = {}
+        # The thought being streamed, ended by the next other update.
+        self.thought: list[str] = []
+        self.thought_id: str | None = None
+        self.planned = False
         # Permission requests the agent waits on: request id -> (answer, options).
         self.permissions: dict[str, tuple[asyncio.Future, list[PermissionOption]]] = {}
         self.stopped = False
@@ -514,6 +524,7 @@ class _AgentProcess:
                 "turn_in_progress", f"El agente «{self.name}» ya tiene un turno en curso"
             )
         self.text = []
+        self.tools, self.thought, self.thought_id, self.planned = {}, [], None, False
         self.backend.used(self)
         self.turn = asyncio.create_task(self.run_turn(text))
 
@@ -538,6 +549,7 @@ class _AgentProcess:
             status = {"end_turn": "completed", "cancelled": "interrupted"}.get(
                 answer.stop_reason, answer.stop_reason
             )
+            await self.end_thought(session_id)
             await self.connection.emit(MessageComplete(session_id, "".join(self.text), status))
         finally:
             self.turn = None
@@ -568,18 +580,17 @@ class _AgentProcess:
                 answer.set_result(_cancelled())
                 await self.connection.emit(RequestExpired(self.session_id, request_id))
 
-    def answer_permission(self, request_id: str, allow: bool) -> PermissionReceipt:
+    def answer_permission(self, request_id: str, choice: str) -> PermissionReceipt:
         entry = self.permissions.get(request_id)
         if entry is None or entry[0].done():
             self.permissions.pop(request_id, None)
             return PermissionReceipt(applied=False)
         answer, options = entry
-        option = _option(options, ALLOW if allow else REJECT)
+        option = _option(options, CHOICES.get(choice, ()))
         if option is None:
             raise HubError(
                 "permission_choice_unavailable",
-                f"El agente «{self.name}» no ofrece {'permitir una vez' if allow else 'rechazar'}"
-                " en esta petición",
+                f"El agente «{self.name}» no ofrece «{choice[:64]}» en esta petición",
             )
         del self.permissions[request_id]
         answer.set_result(
@@ -624,6 +635,8 @@ class _AgentProcess:
         # Outside a turn (a load's replay included) an update belongs to no turn.
         if self.turn is None or session_id != self.session_id:
             return
+        if not isinstance(update, AgentThoughtChunk):
+            await self.end_thought(session_id)
         if isinstance(update, AgentMessageChunk):
             if isinstance(update.content, TextContentBlock):
                 self.text.append(update.content.text)
@@ -632,23 +645,75 @@ class _AgentProcess:
                 ignored = "El agente envió contenido que no es texto; se ignoró"
                 await self.connection.emit(UnreadableUpdate(session_id, ignored))
         elif isinstance(update, ToolCallStart):
-            await self.connection.emit(StatusNotice(session_id, "tool", update.title))
+            name = _tool_name(update.title, update.field_meta)
+            arguments = update.raw_input if isinstance(update.raw_input, dict) else None
+            self.tools[update.tool_call_id] = (name, arguments)
+            phase = TOOL_PHASES.get(update.status or "pending", "started")
+            await self.connection.emit(
+                ActivityItem(
+                    session_id,
+                    update.tool_call_id,
+                    "tool",
+                    "started" if phase == "progress" else phase,
+                    name,
+                    arguments,
+                    cause=_tool_cause(update) if phase == "failed" else None,
+                )
+            )
+        elif isinstance(update, ToolCallProgress):
+            name, arguments = self.tools.get(update.tool_call_id, (None, None))
+            if name is None:
+                name = _tool_name(update.title or "", update.field_meta)
+            phase = TOOL_PHASES.get(update.status or "in_progress", "progress")
+            await self.connection.emit(
+                ActivityItem(
+                    session_id,
+                    update.tool_call_id,
+                    "tool",
+                    phase,
+                    name,
+                    arguments,
+                    cause=_tool_cause(update) if phase == "failed" else None,
+                )
+            )
         elif isinstance(update, AgentPlanUpdate):
-            plan = " · ".join(entry.content for entry in update.entries)
-            await self.connection.emit(StatusNotice(session_id, "plan", plan))
+            steps = tuple(PlanStep(entry.content, entry.status) for entry in update.entries)
+            if steps and all(step.status == "completed" for step in steps):
+                phase = "completed"
+            else:
+                phase = "progress" if self.planned else "started"
+            self.planned = True
+            await self.connection.emit(ActivityItem(session_id, "plan", "plan", phase, steps=steps))
+        elif isinstance(update, AgentThoughtChunk) and isinstance(update.content, TextContentBlock):
+            if self.thought_id is None:
+                self.thought_id = f"reasoning-{uuid4()}"
+                await self.connection.emit(
+                    ActivityItem(session_id, self.thought_id, "reasoning", "started")
+                )
+            self.thought.append(update.content.text)
+
+    async def end_thought(self, session_id: str) -> None:
+        """A streamed thought ends when anything else arrives: its whole text
+        is the reasoning item's summary, folded in the chat."""
+        if self.thought_id is None:
+            return
+        item_id, text = self.thought_id, "".join(self.thought)
+        self.thought, self.thought_id = [], None
+        await self.connection.emit(
+            ActivityItem(session_id, item_id, "reasoning", "completed", text=text)
+        )
 
     async def request_permission(
         self, session_id: str, tool_call: Any, options: list[PermissionOption], **_meta: Any
     ) -> RequestPermissionResponse:
         if session_id != self.session_id or self.turn is None:
             return _cancelled()
+        await self.end_thought(session_id)
         request_id = str(uuid4())
         answer = asyncio.get_running_loop().create_future()
         self.permissions[request_id] = (answer, options)
         choices = tuple(
-            choice
-            for choice, kinds in (("once", ALLOW), ("deny", REJECT))
-            if _option(options, kinds) is not None
+            choice for choice, kinds in CHOICES.items() if _option(options, kinds) is not None
         )
         description = tool_call.title or f"El agente «{self.name}» pide permiso"
         await self.connection.emit(
@@ -766,9 +831,9 @@ class AcpConnection:
         await self._live(session_id).cancel()
 
     async def respond_permission(
-        self, session_id: str, request_id: str, allow: bool
+        self, session_id: str, request_id: str, *, choice: str
     ) -> PermissionReceipt:
-        return self._live(session_id).answer_permission(request_id, allow)
+        return self._live(session_id).answer_permission(request_id, choice)
 
     async def respond_clarification(
         self, session_id: str, request_id: str, answer: str, question_id: str | None
@@ -785,9 +850,46 @@ class AcpConnection:
         return process is None or process.turn is None
 
 
-# The Mac answers once or denies (contracts/hub-v1.md); never "always".
-ALLOW = ("allow_once",)
-REJECT = ("reject_once", "reject_always")
+# The Mac's choices (contracts/hub-v1.md) and the ACP option kinds each
+# answers with, the first the agent offers. `always` is the agent's own
+# remembered permission for that tool (Claude Code keeps it in its session);
+# `deny` refuses this once, never for good.
+CHOICES: dict[str, tuple[str, ...]] = {
+    "once": ("allow_once",),
+    "always": ("allow_always",),
+    "deny": ("reject_once", "reject_always"),
+}
+# ACP's tool call status as a `chat.item` phase.
+TOOL_PHASES = {
+    "pending": "started",
+    "in_progress": "progress",
+    "completed": "completed",
+    "failed": "failed",
+}
+
+
+def _tool_name(title: str, meta: dict | None) -> str:
+    """The tool a call runs. claude-agent-acp names it in `_meta.claudeCode.toolName`;
+    otherwise the title, which the adapters set to the tool's name for MCP tools."""
+    claude = meta.get("claudeCode") if isinstance(meta, dict) else None
+    named = claude.get("toolName") if isinstance(claude, dict) else None
+    return named if isinstance(named, str) and named else title
+
+
+def _tool_cause(update: Any) -> str | None:
+    """A failed call's text content, else its raw output, as the agent said it."""
+    texts = [
+        item.content.text
+        for item in update.content or []
+        if getattr(item, "type", None) == "content"
+        and isinstance(getattr(item, "content", None), TextContentBlock)
+    ]
+    if texts:
+        return " ".join(texts)
+    output = update.raw_output
+    if isinstance(output, str):
+        return output
+    return json.dumps(output, ensure_ascii=False) if output is not None else None
 
 
 def _option(options: list[PermissionOption], kinds: tuple[str, ...]) -> PermissionOption | None:

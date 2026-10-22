@@ -114,6 +114,7 @@ impl Default for AppSnapshot {
                 },
                 activity: None,
                 speaking: None,
+                work: None,
             },
             call: None,
             calendar: CalendarSnapshot {

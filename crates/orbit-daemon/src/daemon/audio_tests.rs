@@ -116,6 +116,7 @@ pub(in crate::daemon) fn fixture(
                 speak_next: false,
                 read_aloud: None,
                 speech_notice_call_id: None,
+                work: None,
             },
             capture: CaptureRuntime {
                 buffer: CaptureBuffer::default(),

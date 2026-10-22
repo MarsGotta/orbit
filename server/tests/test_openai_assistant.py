@@ -25,6 +25,7 @@ from support_openai_compatible import (
     Hold,
     Refusal,
     Text,
+    Thought,
     ToolCall,
     closed_port,
     serve,
@@ -43,7 +44,9 @@ from support_synthetic_stt import SyntheticStt
 from orbit_hub.app import create_app
 from orbit_hub.assistant import openai as backend_module
 from orbit_hub.assistant.backend import (
+    ActivityItem,
     MessageComplete,
+    StatusNotice,
     StoredConversation,
     StoredMessage,
     TextBlock,
@@ -154,8 +157,18 @@ def test_a_whole_turn_streams_and_calls_an_orbit_mcp_tool(environment, orbit_hub
     by_event = {}
     for frame in frames:
         by_event.setdefault(frame["event"], []).append(frame["data"])
-    assert by_event["chat.status"] == [
-        {"session_id": session, "kind": "tool", "text": "Usando orbit_devices"}
+    # The tool call is a step of the agent's work, not a status line.
+    assert "chat.status" not in by_event
+    look = {
+        "session_id": session,
+        "item_id": "call-sintetico-1",
+        "kind": "tool",
+        "label": "Mirando los Mac de Orbit",
+        "subject": "los Mac",
+    }
+    assert by_event["chat.item"] == [
+        {**look, "phase": "started"},
+        {**look, "phase": "completed"},
     ]
     assert [delta["text"] for delta in by_event["chat.delta"]] == [
         "Tienes ",
@@ -474,6 +487,109 @@ async def test_a_screenshot_reaches_the_model_only_if_it_reads_images(
     sent = json.dumps(provider.requests[1]["messages"], ensure_ascii=False)
     assert ("data:image/png;base64," in sent) is images
     assert ("este modelo no admite imágenes" in sent) is not images
+
+
+def items(events):
+    return [event for event in events if isinstance(event, ActivityItem)]
+
+
+async def test_a_tool_call_is_one_item_started_then_completed(environment, orbit_hub_for_tools):
+    settings, _, _ = environment
+    _, mcp_config = orbit_hub_for_tools
+    provider = FakeProvider(
+        ToolCall("orbit_screenshot", {"device": DEFAULT_DEVICE, "application": "Xcode"}),
+        Text(("Veo Xcode.",)),
+    )
+    with serve(provider.app) as provider_url:
+        events = await run_turn(configured(entry(provider_url, mcp_config)), settings)
+    assert isinstance(events[-1], MessageComplete), events
+    session = events[-1].session_id
+    arguments = {"device": DEFAULT_DEVICE, "application": "Xcode"}
+    assert items(events) == [
+        ActivityItem(session, "call-sintetico-1", "tool", "started", "orbit_screenshot", arguments),
+        ActivityItem(
+            session, "call-sintetico-1", "tool", "completed", "orbit_screenshot", arguments
+        ),
+    ]
+    assert not [event for event in events if isinstance(event, StatusNotice)]
+
+
+async def test_an_orbit_mcp_refusal_is_a_failed_tool_item_with_its_cause(environment, tmp_path):
+    """orbit-mcp's refusal reaches the model as a failed tool result: the step
+    failed, though the turn goes on."""
+    settings, _, _ = environment
+    hub = FakeHub(device_replies=[device_refused(OBSERVATION_REFUSED_NOTICE)])
+    provider = FakeProvider(
+        ToolCall("orbit_windows", {"device": DEFAULT_DEVICE}),
+        Text(("macOS no deja ver la pantalla.",)),
+    )
+    with serve(hub.app) as hub_url, serve(provider.app) as provider_url:
+        agent = configured(entry(provider_url, write_mcp_config(tmp_path, hub_url)))
+        events = await run_turn(agent, settings)
+    assert isinstance(events[-1], MessageComplete), events
+    started, failed = items(events)
+    assert (started.phase, failed.phase) == ("started", "failed")
+    assert failed.item_id == started.item_id == "call-sintetico-1"
+    assert failed.tool == "orbit_windows"
+    assert "Grabación de pantalla" in failed.cause
+
+
+async def test_a_call_the_model_must_retry_is_a_failed_item_with_the_cause(
+    environment, orbit_hub_for_tools
+):
+    """A tool that does not exist: pydantic-ai asks the model to retry
+    (`RetryPromptPart`), and the step failed with that cause."""
+    settings, _, _ = environment
+    _, mcp_config = orbit_hub_for_tools
+    provider = FakeProvider(ToolCall("orbit_inventada"), Text(("No tengo esa herramienta.",)))
+    with serve(provider.app) as provider_url:
+        events = await run_turn(configured(entry(provider_url, mcp_config)), settings)
+    assert isinstance(events[-1], MessageComplete), events
+    started, failed = items(events)
+    assert (started.phase, failed.phase) == ("started", "failed")
+    assert (failed.item_id, failed.tool) == ("call-sintetico-1", "orbit_inventada")
+    assert "orbit_inventada" in failed.cause
+
+
+async def test_a_thought_is_one_reasoning_item_completed_with_the_whole_thought(
+    environment, orbit_hub_for_tools
+):
+    settings, _, _ = environment
+    _, mcp_config = orbit_hub_for_tools
+    provider = FakeProvider(
+        Thought(("Primero miro ", "los equipos."), ToolCall("orbit_devices")),
+        Thought(("Ya los tengo.",), Text(("Tienes dos.",))),
+    )
+    with serve(provider.app) as provider_url:
+        events = await run_turn(configured(entry(provider_url, mcp_config)), settings)
+    assert events[-1] == MessageComplete(events[-1].session_id, "Tienes dos.", "completed")
+    steps = items(events)
+    assert [(step.kind, step.phase) for step in steps] == [
+        ("reasoning", "started"),
+        ("reasoning", "completed"),
+        ("tool", "started"),
+        ("tool", "completed"),
+        ("reasoning", "started"),
+        ("reasoning", "completed"),
+    ]
+    first, thought, _, _, second, last = steps
+    assert first.item_id == thought.item_id != second.item_id == last.item_id
+    assert (first.text, thought.text) == ("", "Primero miro los equipos.")
+    assert last.text == "Ya los tengo."
+
+
+async def test_this_assistant_never_asks_permission_and_answers_by_choice(environment, mcp_toml):
+    settings, _, _ = environment
+    agent = configured(entry("http://127.0.0.1:9", mcp_toml))
+
+    async def ignore(event):
+        pass
+
+    connection = build_backend(settings, agent).connection("dispositivo", "Mac", ignore)
+    for choice in ("once", "deny"):
+        with pytest.raises(HubError) as refused:
+            await connection.respond_permission("sesion", "peticion", choice=choice)
+        assert refused.value.code == "interaction_not_found"
 
 
 async def test_orbit_mcp_that_cannot_start_refuses_the_connection(environment, mcp_toml):

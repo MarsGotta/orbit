@@ -1,6 +1,7 @@
 mod commands;
 pub mod daemon_thread;
 mod events;
+mod notify;
 mod panel;
 mod tray;
 
@@ -19,6 +20,9 @@ pub fn run() -> anyhow::Result<()> {
         .plugin(tauri_plugin_opener::init())
         // The chat's «Copiar» writes text only; its capability allows nothing else.
         .plugin(tauri_plugin_clipboard_manager::init())
+        // Only Rust posts notifications (notify.rs); the interface has no
+        // permission for the plugin's commands.
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             None,

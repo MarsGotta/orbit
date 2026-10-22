@@ -59,7 +59,13 @@ pub enum Event {
         request_id: String,
         text: Option<String>,
     },
-    Approval(Approval),
+    /// A question the agent asks in the turn `turn_id`, the `chat.send` id
+    /// its frame arrived under. `approval.request_id` names the request (the
+    /// backend's own id, or one the hub made unique) and is never the turn's.
+    Approval {
+        turn_id: String,
+        approval: Approval,
+    },
     Interrupt,
     StartMeeting {
         id: String,
@@ -293,7 +299,9 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
         Event::Completed { request_id, text } => {
             decide_chat_completed(&mut next, request_id, text, now_ms)
         }
-        Event::Approval(approval) => decide_chat_approval(&mut next, approval),
+        Event::Approval { turn_id, approval } => {
+            decide_chat_approval(&mut next, &turn_id, approval)
+        }
         Event::Interrupt => {
             authority_change = Some(AuthorityChange::Interrupt);
             decide_chat_interrupt(&mut next, &mut effects);
@@ -725,8 +733,8 @@ fn answer_at_ms(user: &Message, now_ms: i64) -> u64 {
     observed_at_ms(now_ms).max(user.at_ms.saturating_add(1))
 }
 
-fn decide_chat_approval(next: &mut State, approval: Approval) {
-    if next.durable.active_request.as_deref() == Some(approval.request_id.as_str()) {
+fn decide_chat_approval(next: &mut State, turn_id: &str, approval: Approval) {
+    if next.durable.active_request.as_deref() == Some(turn_id) {
         next.durable.pending_approval = Some(approval);
     } else {
         next.set_notice(NoticeCode::AssistantStaleQuestion);
@@ -1706,11 +1714,16 @@ mod tests {
         let state = decide(&state, Event::Interrupt, 1).unwrap().state;
         let after = decide(
             &state,
-            Event::Approval(Approval {
-                request_id: "a".into(),
-                description: "¿Publico el calendario?".into(),
-                clarification: false,
-            }),
+            Event::Approval {
+                turn_id: "a".into(),
+                approval: Approval {
+                    request_id: "a".into(),
+                    description: "¿Publico el calendario?".into(),
+                    clarification: false,
+                    choices: Vec::new(),
+                    questions: Vec::new(),
+                },
+            },
             2,
         )
         .unwrap();
@@ -1724,8 +1737,12 @@ mod tests {
         assert!(voice.state.durable.voice_active);
     }
 
+    /// Adapted from `approval_matching_active_request_is_stored`, whose
+    /// assumption was the defect: it gave the request the turn's id, which the
+    /// hub never does. The hub names a request by the backend's own id; what
+    /// makes it current is the turn its frame arrived under.
     #[test]
-    fn approval_matching_active_request_is_stored() {
+    fn an_approval_for_the_active_turn_is_stored_under_the_agents_own_id() {
         let state = State {
             durable: crate::DurableState {
                 connection: Connection::Online,
@@ -1744,12 +1761,46 @@ mod tests {
         .unwrap()
         .state;
         let approval = Approval {
-            request_id: "a".into(),
+            request_id: "permiso-del-agente".into(),
             description: "¿Publico el calendario?".into(),
             clarification: false,
+            choices: Vec::new(),
+            questions: Vec::new(),
         };
-        let after = decide(&state, Event::Approval(approval.clone()), 1).unwrap();
-        assert_eq!(after.state.durable.pending_approval, Some(approval));
+        let after = decide(
+            &state,
+            Event::Approval {
+                turn_id: "a".into(),
+                approval: approval.clone(),
+            },
+            1,
+        )
+        .unwrap();
+        assert_eq!(after.state.durable.pending_approval, Some(approval.clone()));
+
+        let other = decide(
+            &state,
+            Event::Approval {
+                turn_id: "b".into(),
+                approval,
+            },
+            1,
+        )
+        .unwrap();
+        assert!(
+            other.state.durable.pending_approval.is_none(),
+            "another turn's question is not this turn's"
+        );
+        assert!(
+            other
+                .state
+                .durable
+                .notice_log
+                .records()
+                .iter()
+                .any(|record| record.code == NoticeCode::AssistantStaleQuestion),
+            "the notice says the question belongs to another turn"
+        );
     }
 
     #[test]
@@ -1783,11 +1834,16 @@ mod tests {
         .state;
         let after = decide(
             &state,
-            Event::Approval(Approval {
-                request_id: "a".into(),
-                description: "¿Publico el calendario?".into(),
-                clarification: false,
-            }),
+            Event::Approval {
+                turn_id: "a".into(),
+                approval: Approval {
+                    request_id: "a".into(),
+                    description: "¿Publico el calendario?".into(),
+                    clarification: false,
+                    choices: Vec::new(),
+                    questions: Vec::new(),
+                },
+            },
             2,
         )
         .unwrap();
@@ -1822,11 +1878,16 @@ mod tests {
         let state = decide(&state, Event::Interrupt, 1).unwrap().state;
         let after = decide(
             &state,
-            Event::Approval(Approval {
-                request_id: "a".into(),
-                description: "¿Qué reunión querías decir?".into(),
-                clarification: true,
-            }),
+            Event::Approval {
+                turn_id: "a".into(),
+                approval: Approval {
+                    request_id: "a".into(),
+                    description: "¿Qué reunión querías decir?".into(),
+                    clarification: true,
+                    choices: Vec::new(),
+                    questions: Vec::new(),
+                },
+            },
             2,
         )
         .unwrap();
@@ -1862,11 +1923,16 @@ mod tests {
         let before = state.durable.notice_log.records().len();
         let after = decide(
             &state,
-            Event::Approval(Approval {
-                request_id: "a".into(),
-                description: "SECRETO-DESCRIPCION".into(),
-                clarification: false,
-            }),
+            Event::Approval {
+                turn_id: "a".into(),
+                approval: Approval {
+                    request_id: "a".into(),
+                    description: "SECRETO-DESCRIPCION".into(),
+                    clarification: false,
+                    choices: Vec::new(),
+                    questions: Vec::new(),
+                },
+            },
             2,
         )
         .unwrap();
