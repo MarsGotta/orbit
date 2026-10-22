@@ -2,13 +2,13 @@
 
 import os
 import tomllib
-import unicodedata
 from pathlib import Path
-from typing import ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
 from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass
 
+from .assistant.agents import AgentConfiguration, configured_agents
 from .error_reports import ErrorReportsConfiguration
 from .meeting_diarization import DiarizationConfiguration
 from .meeting_transcription import MeetingTranscriptionConfiguration
@@ -24,11 +24,12 @@ class Settings:
     hermes_url: str
     hermes_credential_file: Path
     meeting_transcription: MeetingTranscriptionConfiguration
+    # The implicit agent's, when there is no `[[agents]]` (`assistant.agents`).
     profile: str = "default"
     assistant_name: str = "Deimos"
-    # Bound the spoken invocation and UI label to a short name (48 Unicode
-    # scalars, including spaces), independently of prompts and profile IDs.
-    max_assistant_name_chars: ClassVar[int] = 48
+    # `[[agents]]` as TOML read them; each kind reads its own keys.
+    agents: tuple[dict[str, Any], ...] | None = None
+    default_agent: str | None = None
     hermes_ws_auth: Literal["token"] = "token"
     allow_insecure_localhost: bool = False
     allowed_hosts: tuple[str, ...] = ("localhost", "127.0.0.1")
@@ -54,22 +55,16 @@ class Settings:
 
     def __post_init__(self) -> None:
         protected_url(self.hermes_url, allow_insecure_localhost=self.allow_insecure_localhost)
-        count = len(self.assistant_name)
-        if any(unicodedata.category(c) == "Cc" for c in self.assistant_name):
-            cause = "contains control characters"
-        elif not self.assistant_name.strip():
-            cause = "is empty"
-        elif count > self.max_assistant_name_chars:
-            cause = "is too long"
-        else:
-            cause = None
-        if cause is not None:
-            raise ValueError(
-                f"assistant_name {cause}: {count} characters; "
-                f"maximum {self.max_assistant_name_chars}"
-            )
-        if not self.profile or len(self.profile) > 64 or "/" in self.profile:
-            raise ValueError("Invalid server-selected Hermes profile")
+        self.agent_configurations()
+
+    def agent_configurations(self) -> tuple[tuple[AgentConfiguration, ...], str]:
+        """The agents this configuration describes and the default's id."""
+        return configured_agents(
+            self.agents,
+            self.default_agent,
+            assistant_name=self.assistant_name,
+            profile=self.profile,
+        )
 
     @classmethod
     def load(cls, path: Path) -> "Settings":
@@ -80,6 +75,20 @@ class Settings:
         for key in ("data_dir", "key_file", "hermes_credential_file"):
             if key in values:
                 values[key] = Path(values[key]).expanduser()
+        if "agents" in values:
+            # Beside `[[agents]]` these would be read by nothing: refused, not ignored.
+            for key in ("profile", "assistant_name"):
+                if key in values:
+                    raise ValueError(
+                        f"{key} configures the implicit agent; with [[agents]] each entry "
+                        f"has its own: remove {key}"
+                    )
+            for variable in ("ORBIT_HUB_PROFILE", "ORBIT_HUB_ASSISTANT_NAME"):
+                if variable in os.environ:
+                    raise ValueError(
+                        f"{variable} configures the implicit agent; with [[agents]] each "
+                        f"entry has its own: unset {variable}"
+                    )
         if "ORBIT_HUB_PROFILE" in os.environ:
             values["profile"] = os.environ["ORBIT_HUB_PROFILE"]
         if "ORBIT_HUB_ASSISTANT_NAME" in os.environ:

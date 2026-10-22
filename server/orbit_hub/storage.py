@@ -53,9 +53,10 @@ SESSION_MESSAGES_PAGE_BYTES = 512 * 1024
 # brings most conversations whole in one page. The bytes are bounded apart.
 SESSION_MESSAGES_PAGE_LIMIT = 200
 # The bytes of a page around its messages: `{"messages":[`, `],"next":`, a
-# message id, `,"total":` and a count. Measured as 70 with two 19-digit
-# numbers; 80 leaves room.
-_PAGE_ENVELOPE_BYTES = 80
+# message id, `,"total":`, a count and `,"agent_id":` with the session's agent.
+# Measured as 116 with two 19-digit numbers and a 32-character agent id; 128
+# leaves room.
+_PAGE_ENVELOPE_BYTES = 128
 
 
 def initialize(data_dir: Path, key_file: Path) -> None:
@@ -112,7 +113,7 @@ class Store:
             CREATE TABLE IF NOT EXISTS sessions (
                 id TEXT PRIMARY KEY, device_id TEXT NOT NULL REFERENCES devices(id),
                 runtime_id TEXT NOT NULL, stored_id TEXT NOT NULL, epoch TEXT NOT NULL,
-                status TEXT NOT NULL, created REAL NOT NULL);
+                status TEXT NOT NULL, created REAL NOT NULL, agent_id TEXT);
             CREATE TABLE IF NOT EXISTS messages (
                 id INTEGER PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id),
                 role TEXT NOT NULL, body BLOB NOT NULL, created_at_ms INTEGER,
@@ -144,6 +145,12 @@ class Store:
         if "last_seen" not in device_columns:
             self._db.execute("ALTER TABLE devices ADD COLUMN last_seen REAL NOT NULL DEFAULT 0")
             self._db.execute("UPDATE devices SET last_seen=created")
+        # The agent each conversation belongs to. Conversations stored before
+        # agents existed have none and belong to the default agent
+        # (`assistant.agents.Agents.owner`).
+        session_columns = {row["name"] for row in self._db.execute("PRAGMA table_info(sessions)")}
+        if "agent_id" not in session_columns:
+            self._db.execute("ALTER TABLE sessions ADD COLUMN agent_id TEXT")
         manifest_columns = {
             row["name"] for row in self._db.execute("PRAGMA table_info(recording_manifests)")
         }
@@ -371,12 +378,15 @@ class Store:
                 (seen_at, device_id),
             )
 
-    def create_session(self, device: str, runtime: str, stored: str, epoch: str, now: float) -> str:
+    def create_session(
+        self, device: str, agent: str, runtime: str, stored: str, epoch: str, now: float
+    ) -> str:
         session_id = str(uuid4())
         with self.transaction() as db:
             self.ensure_capacity(1024)
             db.execute(
-                "INSERT INTO sessions VALUES (?,?,?,?,?,?,?)",
+                "INSERT INTO sessions(id,device_id,runtime_id,stored_id,epoch,status,created,"
+                "agent_id) VALUES (?,?,?,?,?,?,?,?)",
                 (
                     session_id,
                     device,
@@ -385,6 +395,7 @@ class Store:
                     epoch,
                     "idle",
                     now,
+                    agent,
                 ),
             )
         return session_id
@@ -404,7 +415,8 @@ class Store:
         """One page of the device's conversations, newest first, after `before`.
 
         Each row says when it started, when its last message was written (its
-        start while it has none, or none with a time) and how many it holds.
+        start while it has none, or none with a time), how many it holds and
+        its agent (None: stored before agents existed).
         """
         with self._lock:
             if before is None:
@@ -420,7 +432,7 @@ class Store:
                     )
             # The extra row proves that another page exists. No stored row is cut.
             rows = self._db.execute(
-                "SELECT s.id,s.created,"
+                "SELECT s.id,s.created,s.agent_id,"
                 " (SELECT created_at_ms FROM messages m WHERE m.session_id=s.id"
                 "  ORDER BY m.id DESC LIMIT 1) AS last_ms,"
                 " (SELECT COUNT(*) FROM messages m WHERE m.session_id=s.id) AS count"
@@ -449,6 +461,7 @@ class Store:
                 if row["last_ms"] is not None
                 else round(row["created"] * 1000),
                 "message_count": row["count"],
+                "agent_id": row["agent_id"],
             }
             for row in rows[:limit]
         ]
@@ -506,9 +519,10 @@ class Store:
         Newest messages first fill the page up to `limit` and
         `SESSION_MESSAGES_PAGE_BYTES` of JSON, whole; `next` reads the ones
         before and `total` counts the conversation's. A conversation of
-        another device is `session_not_found`.
+        another device is `session_not_found`. `agent_id` is the session's
+        (None: stored before agents existed).
         """
-        self.session(device, session_id)
+        session = self.session(device, session_id)
         budget = SESSION_MESSAGES_PAGE_BYTES - _PAGE_ENVELOPE_BYTES
         messages: list[dict] = []
         with self._lock:
@@ -560,6 +574,7 @@ class Store:
             "messages": messages,
             "next": messages[0]["id"] if older and messages else None,
             "total": total,
+            "agent_id": session["agent_id"],
         }
 
     def reserve_operation(self, device: str, operation_id: str, payload: dict) -> dict | None:

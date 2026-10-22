@@ -47,8 +47,10 @@ async def test_malformed_hermes_interaction_preserves_live_reader_and_snapshots(
     monkeypatch.setattr(hermes_module, "report", lambda *args, **kwargs: logged.append(kwargs))
     queue = runtime.subscribe()
     assert queue.get_nowait()["event"] == "state.snapshot"
-    await runtime.connection.receive({"type": kind, "session_id": upstream, "payload": payload})
-    assert runtime.connection.live_sessions == {upstream}
+    await runtime.connections["default"].receive(
+        {"type": kind, "session_id": upstream, "payload": payload}
+    )
+    assert runtime.connections["default"].live_sessions == {upstream}
     assert runtime.store.session(runtime.device, session)["status"] == "streaming"
     assert runtime.subscribe().get_nowait()["event"] == "state.snapshot"
     await runtime.changed()

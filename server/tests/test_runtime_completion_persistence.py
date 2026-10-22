@@ -3,7 +3,7 @@
 from uuid import uuid4
 
 import pytest
-from conftest import device, said
+from conftest import device, only, said
 from support_runtime_completion_persistence import (
     drained,
     streaming_turn,
@@ -19,7 +19,7 @@ async def test_quota_failure_completes_turn_without_upstream_loss(isolated):
     queue = runtime.subscribe()
     assert queue.get_nowait()["event"] == "state.snapshot"
     runtime.store._quota = 1  # Admission ceiling: persisting the final message must fail.
-    await runtime.connection.callback(
+    await runtime.connections["default"].callback(
         {
             "type": "message.complete",
             "session_id": upstream,
@@ -34,7 +34,7 @@ async def test_quota_failure_completes_turn_without_upstream_loss(isolated):
     assert completed["data"]["warning"] == "quota_exceeded"
     status = runtime.store.session(runtime.device, session)["status"]
     assert status not in {"streaming", "outcome_unknown"}
-    assert runtime.connection.connected
+    assert runtime.connections["default"].connected
     assert all(frame["data"].get("code") != "outcome_unknown" for frame in frames)
     with pytest.raises(HubError) as error:
         await runtime.handle(
@@ -47,7 +47,7 @@ async def test_quota_failure_completes_turn_without_upstream_loss(isolated):
 async def test_healthy_persistence_reports_persisted_true(environment):
     _, store, adapter = environment
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     queue = runtime.subscribe()
     turn = str(uuid4())
     _, created = await runtime.handle("chat.send", SendParams(text="synthetic"), turn)
@@ -68,7 +68,7 @@ async def test_non_object_payload_warns_and_keeps_connection(isolated, payload):
     queue = runtime.subscribe()
     assert queue.get_nowait()["event"] == "state.snapshot"
     for kind in ("message.delta", "message.complete"):
-        await runtime.connection.callback(
+        await runtime.connections["default"].callback(
             {"type": kind, "session_id": upstream, "payload": payload}
         )
     frames = drained(queue)
@@ -77,6 +77,6 @@ async def test_non_object_payload_warns_and_keeps_connection(isolated, payload):
         or (frame["event"] == "chat.status" and frame["data"].get("kind") == "warning")
         for frame in frames
     )
-    assert runtime.connection.connected
+    assert runtime.connections["default"].connected
     assert runtime.store.session(runtime.device, session)["status"] == "streaming"
     await runtime.close()

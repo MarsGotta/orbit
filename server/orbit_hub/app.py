@@ -18,8 +18,9 @@ from fastapi.responses import JSONResponse, Response
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from . import error_reports
+from .assistant.agents import Agents
 from .assistant.backend import AssistantBackend
-from .assistant.hermes import HermesBackend, HermesSpeech
+from .assistant.hermes import HermesSpeech
 from .assistant.speech import SpeechBackend
 from .bridge_route import BridgeService
 from .bridge_route import mount as mount_device_bridge
@@ -121,8 +122,12 @@ def create_app(
 ) -> FastAPI:
     owned_store = store is None
     store = store or Store(settings.data_dir, settings.key_file, settings.storage_quota_bytes)
-    assistant = assistant or HermesBackend(settings)
-    speech = speech or HermesSpeech(settings)
+    # `assistant`, when given, answers for every configured agent: tests drive
+    # the hub with a double.
+    agents = Agents.from_settings(settings, assistant)
+    # Dictation and read-aloud are the default agent's Hermes profile: every
+    # kind is Hermes today.
+    speech = speech or HermesSpeech(settings, agents.default.settings.profile)
     runtimes: dict[str, DeviceRuntime] = {}
     turn_inputs = TurnInputTracker(now)
     # Questions a remote assistant has put to a Mac, and the callers waiting on
@@ -367,7 +372,7 @@ def create_app(
             DeviceRuntime(
                 device,
                 store,
-                assistant,
+                agents,
                 now,
                 store_executor=store_executor,
                 input_tracker=turn_inputs,
@@ -395,7 +400,7 @@ def create_app(
     from .routes import captures as capture_routes
     from .ws import mount as mount_ws
 
-    session.mount(app, store, identity, bounded_body, now, pair_attempts, store_executor)
+    session.mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_executor)
     health.mount(app, settings)
     audio.mount(
         app,
@@ -435,6 +440,7 @@ def create_app(
     mount_ws(
         app,
         settings,
+        agents,
         identity,
         allowed_transport,
         runtime_for,

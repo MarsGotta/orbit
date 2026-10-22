@@ -1,11 +1,10 @@
 """Isolated Hermes adapter and durable hub session bindings."""
 
 import asyncio
-from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
-from conftest import FakeConnection, device, said
+from conftest import FakeConnection, device, only, said
 
 from orbit_hub.assistant.backend import ConnectionLost, ResumedSession
 from orbit_hub.assistant.hermes import HermesConnection
@@ -95,7 +94,7 @@ class ResumableAdapter:
         self.resume_called = asyncio.Event()
         self.prompt_not_found = False
         self.reuse_runtime_id = None
-        self.settings = SimpleNamespace(profile="deimos")
+        self.profile = "deimos"
 
     def connection(self, device, device_name, callback):
         connection = ResumableConnection(
@@ -116,14 +115,14 @@ async def test_only_inflight_session_becomes_unknown_on_upstream_loss(environmen
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     active = await sent(runtime, "primer turno")
     idle = await sent(runtime, "conversación quieta")
     assert store.session(owner, active)["status"] == "completed"
     assert store.session(owner, idle)["status"] == "completed"
     store.status(active, "streaming")
     queue = runtime.subscribe()
-    await runtime.on_event(ConnectionLost())
+    await runtime.on_event("default", ConnectionLost())
     errors = []
     while not queue.empty():
         frame = queue.get_nowait()
@@ -139,10 +138,10 @@ async def test_lost_hermes_keeps_reconnect_snapshot_for_unknown_turn(environment
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "primer turno")
     store.status(session_id, "streaming")
-    await runtime.on_event(ConnectionLost())
+    await runtime.on_event("default", ConnectionLost())
 
     viewer = runtime.subscribe()
     assert viewer.get_nowait()["data"]["sessions"] == [
@@ -160,13 +159,13 @@ async def test_new_hub_runtime_resumes_existing_hermes_history(environment):
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
-    first = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    first = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(first, "mensaje anterior")
     stored_id = store.session(owner, session_id)["stored_id"]
     assert said(store, owner, session_id)[0]["text"] == "mensaje anterior"
     await first.close()
 
-    restarted = DeviceRuntime(owner, store, adapter, lambda: 1002)
+    restarted = DeviceRuntime(owner, store, only(adapter), lambda: 1002)
     assert await sent(restarted, "mensaje siguiente", session_id) == session_id
     assert store.session(owner, session_id)["stored_id"] == stored_id
     assert store.sessions_after(owner, None)[1] == 1
@@ -188,12 +187,12 @@ async def test_hermes_epoch_change_resumes_stored_session(environment):
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "mensaje anterior")
     old_binding = store.session(owner, session_id)
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_event(ConnectionLost())
+    await runtime.on_event("default", ConnectionLost())
 
     assert await sent(runtime, "mensaje tras reinicio", session_id) == session_id
     binding = store.session(owner, session_id)
@@ -209,7 +208,7 @@ async def test_unknown_turn_is_never_resumed_or_resent(environment):
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "mensaje anterior")
     store.status(session_id, "outcome_unknown")
     adapter.connections[0].connected = False
@@ -228,12 +227,12 @@ async def test_missing_hermes_history_has_a_specific_refusal(environment):
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
-    first = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    first = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(first, "mensaje anterior")
     await first.close()
     adapter.stored_sessions.clear()
 
-    restarted = DeviceRuntime(owner, store, adapter, lambda: 1002)
+    restarted = DeviceRuntime(owner, store, only(adapter), lambda: 1002)
     with pytest.raises(HubError) as error:
         await sent(restarted, "mensaje siguiente", session_id)
     assert error.value.code == "session_resume_not_found"
@@ -257,11 +256,11 @@ async def test_deferred_resume_history_failure_is_reported_and_next_turn_reopens
     adapter.resume_hydrating = False
     adapter.resume_progress = None
     owner = device(store)["device_id"]
-    first = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    first = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(first, "mensaje anterior")
     await first.close()
 
-    restarted = DeviceRuntime(owner, store, adapter, lambda: 1002)
+    restarted = DeviceRuntime(owner, store, only(adapter), lambda: 1002)
     viewer = restarted.subscribe()
     assert await sent(restarted, "mensaje sin historial", session_id) == session_id
     connection = adapter.connections[1]
@@ -317,11 +316,11 @@ async def test_deferred_history_failure_refuses_before_prompt_and_retries_next_s
     adapter = ResumableAdapter()
     adapter.resume_progress = "failed"
     owner = device(store)["device_id"]
-    first = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    first = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(first, "mensaje anterior")
     await first.close()
 
-    restarted = DeviceRuntime(owner, store, adapter, lambda: 1002)
+    restarted = DeviceRuntime(owner, store, only(adapter), lambda: 1002)
     with pytest.raises(HubError) as error:
         await sent(restarted, "mensaje rechazado", session_id)
     assert error.value.code == "session_resume_history_unreadable"
@@ -358,12 +357,12 @@ async def test_late_history_error_does_not_reconcile_completed_turn(environment)
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "turno anterior")
     old_turn_id = runtime.turn_ids[session_id]
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_event(ConnectionLost())
+    await runtime.on_event("default", ConnectionLost())
     adapter.resume_progress = "failed"
     viewer = runtime.subscribe()
     viewer.get_nowait()
@@ -396,12 +395,12 @@ async def test_interrupt_and_new_send_do_not_wait_for_history(environment):
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "turno anterior")
     old_turn_id = runtime.turn_ids[session_id]
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_event(ConnectionLost())
+    await runtime.on_event("default", ConnectionLost())
     adapter.resume_progress = None
     sending = asyncio.create_task(sent(runtime, "mensaje tras reconexión", session_id))
     await adapter.resume_called.wait()
@@ -445,11 +444,11 @@ async def test_other_new_session_can_send_while_history_waits(environment):
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "turno anterior")
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_event(ConnectionLost())
+    await runtime.on_event("default", ConnectionLost())
     adapter.resume_progress = None
     sending = asyncio.create_task(sent(runtime, "mensaje tras reconexión", session_id))
     await adapter.resume_called.wait()
@@ -486,7 +485,7 @@ async def test_live_session_sends_do_not_claim_history_reservation_under_lock_co
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "turno anterior")
     await runtime.lock.acquire()
     first = asyncio.create_task(sent(runtime, "primer envío", session_id))
@@ -512,12 +511,12 @@ async def test_other_disconnected_session_can_resume_without_pending_hydration(
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     first_id = await sent(runtime, "primera conversación")
     second_id = await sent(runtime, "segunda conversación")
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_event(ConnectionLost())
+    await runtime.on_event("default", ConnectionLost())
     adapter.resume_hydrating = hydrating
     adapter.resume_progress = progress
     await runtime.lock.acquire()
@@ -546,12 +545,12 @@ async def test_other_disconnected_session_refusal_names_remaining_history_time(e
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     first_id = await sent(runtime, "primera conversación")
     second_id = await sent(runtime, "segunda conversación")
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_event(ConnectionLost())
+    await runtime.on_event("default", ConnectionLost())
     adapter.resume_progress = None
     sending = asyncio.create_task(sent(runtime, "mensaje uno", first_id))
     await adapter.resume_called.wait()
@@ -582,11 +581,11 @@ async def test_ending_runtime_wakes_history_wait_with_its_cause(environment, end
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "turno anterior")
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_event(ConnectionLost())
+    await runtime.on_event("default", ConnectionLost())
     adapter.resume_progress = None
     sending = asyncio.create_task(sent(runtime, "mensaje tras reconexión", session_id))
     await adapter.resume_called.wait()
@@ -618,12 +617,12 @@ async def test_reused_live_runtime_keeps_early_history_completion(environment, m
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "turno anterior")
     adapter.reuse_runtime_id = store.session(owner, session_id)["runtime_id"]
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
-    await runtime.on_event(ConnectionLost())
+    await runtime.on_event("default", ConnectionLost())
     monkeypatch.setattr(runtime_module, "RESUME_HISTORY_TIMEOUT_SECONDS", 0.001)
     assert await sent(runtime, "mensaje nuevo", session_id) == session_id
     assert [method for method, _ in adapter.connections[1].calls] == [
@@ -638,11 +637,11 @@ async def test_deferred_history_completes_before_prompt(environment):
     adapter = ResumableAdapter()
     adapter.resume_progress = None
     owner = device(store)["device_id"]
-    first = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    first = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(first, "mensaje anterior")
     await first.close()
 
-    restarted = DeviceRuntime(owner, store, adapter, lambda: 1002)
+    restarted = DeviceRuntime(owner, store, only(adapter), lambda: 1002)
     sending = asyncio.create_task(sent(restarted, "mensaje nuevo", session_id))
     await adapter.resume_called.wait()
     connection = adapter.connections[1]
@@ -665,11 +664,11 @@ async def test_deferred_history_error_event_refuses_without_progress(environment
     adapter = ResumableAdapter()
     adapter.resume_progress = None
     owner = device(store)["device_id"]
-    first = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    first = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(first, "mensaje anterior")
     await first.close()
 
-    restarted = DeviceRuntime(owner, store, adapter, lambda: 1002)
+    restarted = DeviceRuntime(owner, store, only(adapter), lambda: 1002)
     sending = asyncio.create_task(sent(restarted, "mensaje rechazado", session_id))
     await adapter.resume_called.wait()
     connection = adapter.connections[1]
@@ -696,11 +695,11 @@ async def test_resume_without_hydration_signal_refuses_before_prompt(environment
     adapter.resume_hydrating = None
     adapter.resume_progress = None
     owner = device(store)["device_id"]
-    first = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    first = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(first, "mensaje anterior")
     await first.close()
 
-    restarted = DeviceRuntime(owner, store, adapter, lambda: 1002)
+    restarted = DeviceRuntime(owner, store, only(adapter), lambda: 1002)
     with pytest.raises(HubError) as error:
         await sent(restarted, "mensaje rechazado", session_id)
     assert error.value.code == "session_resume_progress_unavailable"
@@ -717,12 +716,12 @@ async def test_deferred_history_timeout_refuses_before_prompt(environment, monke
     adapter = ResumableAdapter()
     adapter.resume_progress = None
     owner = device(store)["device_id"]
-    first = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    first = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(first, "mensaje anterior")
     await first.close()
 
     monkeypatch.setattr(runtime_module, "RESUME_HISTORY_TIMEOUT_SECONDS", 0.001, raising=False)
-    restarted = DeviceRuntime(owner, store, adapter, lambda: 1002)
+    restarted = DeviceRuntime(owner, store, only(adapter), lambda: 1002)
     with pytest.raises(HubError) as error:
         await sent(restarted, "mensaje sin fase", session_id)
     assert error.value.code == "session_resume_history_timeout"
@@ -739,12 +738,12 @@ async def test_rejected_prompt_4001_is_not_outcome_unknown(environment):
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
-    first = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    first = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(first, "mensaje anterior")
     await first.close()
 
     adapter.prompt_not_found = True
-    restarted = DeviceRuntime(owner, store, adapter, lambda: 1002)
+    restarted = DeviceRuntime(owner, store, only(adapter), lambda: 1002)
     with pytest.raises(HubError) as error:
         await sent(restarted, "mensaje rechazado", session_id)
     assert error.value.code == "session_runtime_not_found"
@@ -770,10 +769,10 @@ async def test_unknown_resume_message_count_is_not_reported_as_zero(environment)
     adapter.resume_progress = None
     adapter.defer_resume_failure = True
     owner = device(store)["device_id"]
-    first = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    first = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(first, "mensaje anterior")
     await first.close()
-    restarted = DeviceRuntime(owner, store, adapter, lambda: 1002)
+    restarted = DeviceRuntime(owner, store, only(adapter), lambda: 1002)
     await sent(restarted, "mensaje nuevo", session_id)
     viewer = restarted.subscribe()
     viewer.get_nowait()
@@ -803,11 +802,11 @@ async def test_other_agent_init_failure_is_not_called_unreadable_history(environ
     adapter = ResumableAdapter()
     adapter.defer_resume_failure = True
     owner = device(store)["device_id"]
-    first = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    first = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(first, "mensaje anterior")
     await first.close()
 
-    restarted = DeviceRuntime(owner, store, adapter, lambda: 1002)
+    restarted = DeviceRuntime(owner, store, only(adapter), lambda: 1002)
     assert await sent(restarted, "mensaje nuevo", session_id) == session_id
     connection = adapter.connections[1]
     runtime_id = store.session(owner, session_id)["runtime_id"]
@@ -839,13 +838,13 @@ async def test_other_agent_init_failure_is_not_called_unreadable_history(environ
 async def test_agent_init_failure_on_new_session_is_not_resume_history_error(environment):
     _, store, adapter = environment
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "mensaje nuevo")
     binding = store.session(owner, session_id)
     viewer = runtime.subscribe()
     viewer.get_nowait()
     store.status(session_id, "streaming")
-    await runtime.connection.callback(
+    await runtime.connections["default"].callback(
         {
             "type": "message.complete",
             "session_id": binding["runtime_id"],
@@ -864,24 +863,24 @@ async def test_agent_init_failure_on_new_session_is_not_resume_history_error(env
         and frame["data"].get("code") == "session_resume_history_unreadable"
         for frame in frames
     )
-    assert binding["runtime_id"] in runtime.connection.live_sessions
+    assert binding["runtime_id"] in runtime.connections["default"].live_sessions
     await runtime.close()
 
 
 async def test_replaced_resume_connection_has_its_own_cause(environment):
     _, store, adapter = environment
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
-    connection = await runtime.connect()
-    session_id = store.create_session(owner, "old-runtime", "stored", "old-epoch", 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
+    connection = await runtime.connect("default")
+    session_id = store.create_session(owner, "default", "old-runtime", "stored", "old-epoch", 1001)
 
     async def replace_connection(_stored_id):
-        runtime.connection = object()
+        runtime.connections["default"] = object()
         return ResumedSession("new-runtime", "stored", None, None)
 
     connection.resume_session = replace_connection
     with pytest.raises(HubError) as error:
-        await runtime.resume_if_disconnected(session_id, connection)
+        await runtime.resume_if_disconnected(session_id, "default", connection)
     assert error.value.code == "session_resume_connection_replaced"
     assert store.session(owner, session_id)["runtime_id"] == "old-runtime"
     await connection.close()
@@ -890,8 +889,8 @@ async def test_replaced_resume_connection_has_its_own_cause(environment):
 async def test_disconnected_session_names_its_retry(environment):
     _, store, adapter = environment
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
-    session_id = store.create_session(owner, "old-runtime", "stored", "old-epoch", 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
+    session_id = store.create_session(owner, "default", "old-runtime", "stored", "old-epoch", 1001)
     with pytest.raises(HubError) as error:
         runtime.require_live(session_id)
     assert error.value.code == "session_disconnected"
@@ -902,8 +901,8 @@ async def test_foreign_device_does_not_connect_or_resume(environment):
     _, store, adapter = environment
     owner = device(store, "propietaria")["device_id"]
     other = device(store, "otro dispositivo")["device_id"]
-    session_id = store.create_session(owner, "old-runtime", "stored", "old-epoch", 1001)
-    runtime = DeviceRuntime(other, store, adapter, lambda: 1001)
+    session_id = store.create_session(owner, "default", "old-runtime", "stored", "old-epoch", 1001)
+    runtime = DeviceRuntime(other, store, only(adapter), lambda: 1001)
     with pytest.raises(HubError) as error:
         await sent(runtime, "intento ajeno", session_id)
     assert error.value.code == "session_not_found"

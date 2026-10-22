@@ -31,7 +31,7 @@ async def test_f1_terminal_error_without_complete_releases_session(reviewed, mes
     runtime, session, turn, upstream = await runtime_fixture(reviewed)
     queue = runtime.subscribe()
     assert queue.get_nowait()["event"] == "state.snapshot"
-    await runtime.connection.receive(
+    await runtime.connections["default"].receive(
         {"type": "error", "session_id": upstream, "payload": {"message": message}}
     )
     failed = queue.get_nowait()
@@ -41,15 +41,18 @@ async def test_f1_terminal_error_without_complete_releases_session(reviewed, mes
     await runtime.handle(
         "chat.send", SendParams(text="next explicit message", session_id=session), str(uuid4())
     )
-    assert [method for method, _ in runtime.connection.calls] == ["prompt.submit", "prompt.submit"]
+    assert [method for method, _ in runtime.connections["default"].calls] == [
+        "prompt.submit",
+        "prompt.submit",
+    ]
     await runtime.close()
 
 
 @pytest.mark.parametrize("running", [True, False])
 async def test_f1_ambiguous_error_is_reconciled_not_blindly_terminal(reviewed, running):
     runtime, session, _, upstream = await runtime_fixture(reviewed)
-    runtime.connection.running = running
-    await runtime.connection.receive(
+    runtime.connections["default"].running = running
+    await runtime.connections["default"].receive(
         {
             "type": "error",
             "session_id": upstream,
@@ -60,8 +63,8 @@ async def test_f1_ambiguous_error_is_reconciled_not_blindly_terminal(reviewed, r
     assert runtime.store.session(runtime.device, session)["status"] == (
         "streaming" if running else "failed"
     )
-    assert runtime.connection.calls[-1][0] == "session.status"
-    assert all(method != "session.resume" for method, _ in runtime.connection.calls)
+    assert runtime.connections["default"].calls[-1][0] == "session.status"
+    assert all(method != "session.resume" for method, _ in runtime.connections["default"].calls)
     await runtime.close()
 
 
@@ -74,7 +77,7 @@ async def test_f2_reconnect_and_history_restore_pending_without_resurrection(
     old = runtime.subscribe()
     if disconnect_before:
         runtime.listeners.discard(old)
-    await runtime.connection.receive(
+    await runtime.connections["default"].receive(
         {
             "type": kind + ".request",
             "session_id": upstream,
@@ -94,7 +97,7 @@ async def test_f2_reconnect_and_history_restore_pending_without_resurrection(
         next(item for item in runtime.snapshot()["sessions"] if item["session_id"] == session)
         == current
     )
-    await runtime.connection.receive(
+    await runtime.connections["default"].receive(
         {"type": kind + ".expire", "session_id": upstream, "payload": {"request_id": "request"}}
     )
     assert fresh.get_nowait()["event"] == "interaction.expired"
@@ -108,10 +111,10 @@ async def test_f2_reconnect_and_history_restore_pending_without_resurrection(
 @pytest.mark.parametrize("resolved", [0, 1, 2, True, None])
 async def test_f3_approval_ack_requires_exact_individual_resolution(reviewed, resolved):
     runtime, session, turn, upstream = await runtime_fixture(reviewed)
-    await runtime.connection.receive(
+    await runtime.connections["default"].receive(
         {"type": "approval.request", "session_id": upstream, "payload": {"request_id": "request"}}
     )
-    runtime.connection.approval_result = {"resolved": resolved}
+    runtime.connections["default"].approval_result = {"resolved": resolved}
     params = ApprovalParams(session_id=session, request_id="request", approved=True, turn_id=turn)
     if type(resolved) is int and resolved in {0, 1}:
         name, data = await runtime.handle("approval.respond", params, str(uuid4()))
@@ -134,7 +137,7 @@ async def test_f3_approval_ack_requires_exact_individual_resolution(reviewed, re
 )
 async def test_f3_clarify_preserves_its_own_remaining_contract(reviewed, result, expected):
     runtime, session, _, upstream = await runtime_fixture(reviewed)
-    await runtime.connection.receive(
+    await runtime.connections["default"].receive(
         {
             "type": "clarify.request",
             "session_id": upstream,
@@ -147,7 +150,7 @@ async def test_f3_clarify_preserves_its_own_remaining_contract(reviewed, result,
             },
         }
     )
-    runtime.connection.clarify_result = result
+    runtime.connections["default"].clarify_result = result
     name, data = await runtime.handle(
         "clarify.respond",
         ClarifyParams(session_id=session, request_id="request", answer="fixture"),

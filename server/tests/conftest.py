@@ -12,8 +12,9 @@ from support_network_fence import install
 from support_synthetic_stt import start_session_stt, stop_session_stt
 
 from orbit_hub.app import create_app
+from orbit_hub.assistant.agents import Agent, Agents
 from orbit_hub.assistant.backend import OpenedSession
-from orbit_hub.assistant.hermes import HermesConnection
+from orbit_hub.assistant.hermes import HermesAgent, HermesBackend, HermesConnection
 from orbit_hub.assistant.speech import SpeechClip
 from orbit_hub.bridge_route import PATH, PROTOCOL, BridgeConfiguration
 from orbit_hub.config import Settings
@@ -97,6 +98,9 @@ class FakeConnection(HermesConnection):
 
 
 class FakeAdapter:
+    # It stands for Hermes, so it declares what Hermes does.
+    capabilities = HermesBackend.capabilities
+
     def __init__(self):
         self.connections = []
         self.audio = []
@@ -112,6 +116,11 @@ class FakeAdapter:
 
     async def synthesize(self, text):
         return SpeechClip("audio/wav", "synthetic", wav_bytes(b"\x00\x00" * 32, rate=32000))
+
+
+def only(backend, name="Deimos"):
+    """The one implicit agent, on `backend`, for a test that builds a runtime itself."""
+    return Agents([Agent("default", name, "hermes", HermesAgent("deimos"), backend)], "default")
 
 
 @pytest.fixture
@@ -220,8 +229,8 @@ def bridged(environment, tmp_path):
 
 
 async def connect_bridge(app, store, adapter, owner):
-    runtime = DeviceRuntime(owner["device_id"], store, adapter, lambda: BRIDGE_NOW_MS / 1000)
-    await runtime.connect()
+    runtime = DeviceRuntime(owner["device_id"], store, only(adapter), lambda: BRIDGE_NOW_MS / 1000)
+    await runtime.connect("default")
     runtime.subscribe()
     app.state.device_bridge.runtimes[owner["device_id"]] = runtime
     return runtime

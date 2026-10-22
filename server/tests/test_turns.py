@@ -5,7 +5,7 @@ import threading
 from uuid import uuid4
 
 import pytest
-from conftest import FakeConnection, device
+from conftest import FakeConnection, device, only
 from support_app import client
 from support_review_regressions import receive_event
 from support_runtime_completion_persistence import drained
@@ -18,7 +18,7 @@ async def test_an_expired_interrupt_blocks_resend_without_replacing_the_turn(ref
     _, store, adapter = refused_interrupt
     now = [1001.0]
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: now[0])
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: now[0])
     turn = str(uuid4())
     try:
         _, data = await runtime.handle("chat.send", SendParams(text="synthetic"), turn)
@@ -29,7 +29,7 @@ async def test_an_expired_interrupt_blocks_resend_without_replacing_the_turn(ref
             adapter.connections[0].calls.append((method, params))
             return {"status": "interrupted"}
 
-        runtime.connection.rpc = accepted
+        runtime.connections["default"].rpc = accepted
         await runtime.handle(
             "chat.interrupt", InterruptParams(session_id=session, turn_id=turn), str(uuid4())
         )
@@ -48,7 +48,7 @@ async def test_an_expired_interrupt_blocks_resend_without_replacing_the_turn(ref
         assert expired.value.code == "turn_outcome_unknown"
         assert store.session(owner, session)["status"] == "outcome_unknown"
         assert runtime.turn_ids[session] == turn
-        assert [method for method, _ in runtime.connection.calls] == [
+        assert [method for method, _ in runtime.connections["default"].calls] == [
             "prompt.submit",
             "session.interrupt",
         ]
@@ -82,7 +82,7 @@ def unconfirmed(environment, monkeypatch):
 async def test_unconfirmed_submit_marks_outcome_unknown_and_blocks_resend(unconfirmed):
     _, store, adapter = unconfirmed
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     queue = runtime.subscribe()
     turn = str(uuid4())
     with pytest.raises(HubError):
@@ -90,7 +90,7 @@ async def test_unconfirmed_submit_marks_outcome_unknown_and_blocks_resend(unconf
     session = next(frame for frame in drained(queue) if frame["event"] == "chat.session")["data"][
         "session_id"
     ]
-    upstream = next(iter(runtime.bindings))
+    upstream = next(iter(runtime.bindings))[1]
     assert store.session(owner, session)["status"] == "outcome_unknown"
     with pytest.raises(HubError) as error:
         await runtime.handle(
@@ -100,9 +100,9 @@ async def test_unconfirmed_submit_marks_outcome_unknown_and_blocks_resend(unconf
         )
     assert error.value.code == "turn_outcome_unknown"
     assert "session.new" in error.value.message
-    assert [method for method, _ in runtime.connection.calls] == ["prompt.submit"]
+    assert [method for method, _ in runtime.connections["default"].calls] == ["prompt.submit"]
     assert runtime.turn_ids.get(session) == turn  # Never reused or overwritten.
-    await runtime.connection.receive(
+    await runtime.connections["default"].receive(
         {
             "type": "message.delta",
             "session_id": upstream,
@@ -151,7 +151,7 @@ def held(environment, monkeypatch):
 async def test_submitting_interrupt_never_returns_to_streaming(held):
     _, store, adapter = held
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     turn = str(uuid4())
     send = asyncio.create_task(runtime.handle("chat.send", SendParams(text="synthetic"), turn))
     try:

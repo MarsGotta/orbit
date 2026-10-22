@@ -63,7 +63,7 @@ async def test_default_uses_profile_clip_without_opening_stream(
 
     install_http(monkeypatch, reply)
     configured = replace(settings, hermes_credential_file=credential(tmp_path))
-    speech = HermesSpeech(configured)
+    speech = HermesSpeech(configured, configured.profile)
 
     result = await speech.synthesize("frase sintética")
 
@@ -84,7 +84,7 @@ async def test_unavailable_speech_and_oversized_clip_are_typed(environment, tmp_
 
     configured = replace(settings, hermes_credential_file=credential(tmp_path))
     with pytest.raises(HubError) as error:
-        await HermesSpeech(configured).synthesize("frase")
+        await HermesSpeech(configured, configured.profile).synthesize("frase")
     assert error.value.code == "speech_unavailable"
 
     oversized = b"x" * (MAX_SPEECH_CLIP_BYTES + 1)
@@ -106,7 +106,7 @@ async def test_unavailable_speech_and_oversized_clip_are_typed(environment, tmp_
         hermes_credential_file=credential(tmp_path),
     )
     with pytest.raises(HubError) as error:
-        await HermesSpeech(configured).synthesize("frase")
+        await HermesSpeech(configured, configured.profile).synthesize("frase")
     assert error.value.code == "speech_too_large"
 
 

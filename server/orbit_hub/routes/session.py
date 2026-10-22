@@ -27,7 +27,7 @@ PAIR_ATTEMPT_RETENTION_SECONDS = 60
 #   characters as \u00XX), to at most 1,461 bytes (computed 2026-10-21).
 
 
-def mount(app, store, identity, bounded_body, now, pair_attempts, store_executor):
+def mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_executor):
     @app.get("/health")
     async def health():
         return {"ok": True, "protocol": HUB_PROTOCOL}
@@ -91,7 +91,8 @@ def mount(app, store, identity, bounded_body, now, pair_attempts, store_executor
         page, total, next_cursor = store.sessions_after(
             device, before or None, bounded_limit(limit, SESSION_LIST_LIMIT, "sesiones")
         )
-        return {"sessions": page, "total": total, "next": next_cursor}
+        sessions = [{**row, "agent_id": agents.owner(row)} for row in page]
+        return {"sessions": sessions, "total": total, "next": next_cursor}
 
     @app.get("/v1/sessions/{session_id}/messages")
     async def session_messages(
@@ -99,7 +100,7 @@ def mount(app, store, identity, bounded_body, now, pair_attempts, store_executor
     ):
         # The Mac reads a conversation from here, newest page first.
         device = identity(request)
-        return await in_store(
+        page = await in_store(
             store_executor,
             store.session_messages,
             device,
@@ -107,6 +108,7 @@ def mount(app, store, identity, bounded_body, now, pair_attempts, store_executor
             before,
             bounded_limit(limit, SESSION_MESSAGES_PAGE_LIMIT, "mensajes"),
         )
+        return {**page, "agent_id": agents.owner(page)}
 
 
 def bounded_limit(limit: int | None, maximum: int, what: str) -> int:

@@ -43,6 +43,7 @@ _AFTER_FIX = {
     "revoked",
     "rate_limited",
     "device_reply_invalid",
+    "agent_mismatch",
 }
 
 _OPERATIONS = {

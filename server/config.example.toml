@@ -8,6 +8,10 @@ profile = "default"
 allow_insecure_localhost = true
 allowed_hosts = ["localhost", "127.0.0.1", "hub.example"]
 
+# Several agents: this file is one agent, `default`, made of `profile` and
+# `assistant_name`. To offer more, list [[agents]] tables instead of those two
+# keys, as docs/self-hosting.md#several-agents shows.
+
 # Meeting transcription. Required: without this table the hub does not start.
 # Any service compatible with OpenAI's transcription API; plain http only on
 # loopback. Without `language`, Whisper detects the language itself.

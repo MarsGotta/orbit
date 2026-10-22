@@ -9,7 +9,7 @@ synthetic recordings, no network.
 from uuid import uuid4
 
 import pytest
-from conftest import device
+from conftest import device, only
 from support_app import client
 from support_grouping import put
 
@@ -37,7 +37,7 @@ def transcribed_recording(store, owner, lines):
 
 
 def runtime_at(store, adapter, owner, now_ms):
-    return DeviceRuntime(owner, store, adapter, lambda: now_ms / 1000)
+    return DeviceRuntime(owner, store, only(adapter), lambda: now_ms / 1000)
 
 
 async def test_a_meeting_question_keeps_the_question_and_sends_the_window(environment):
@@ -175,7 +175,7 @@ async def test_new_rows_carry_their_time_kind_and_the_macs_id(environment):
 def test_old_rows_read_without_time_and_as_text(environment):
     _, store, _ = environment
     owner = device(store)["device_id"]
-    session = store.create_session(owner, "runtime", "stored", "epoch", 1000.0)
+    session = store.create_session(owner, "default", "runtime", "stored", "epoch", 1000.0)
     with store.transaction() as db:
         db.execute(
             "INSERT INTO messages(session_id,role,body) VALUES (?,?,?)",
@@ -193,7 +193,7 @@ def test_the_messages_page_keeps_limit_bytes_and_next(environment):
     owner = device(store)["device_id"]
     headers = {"Authorization": "Bearer " + store.pair(store.create_code(1000), "P", 1001)["token"]}
     owner = store.devices()[-1]["id"]
-    session = store.create_session(owner, "runtime", "stored", "epoch", 1000.0)
+    session = store.create_session(owner, "default", "runtime", "stored", "epoch", 1000.0)
     # Thirty messages of 30 000 characters weigh ~900 KB: more than one page.
     for index in range(30):
         store.append_message(session, "user", f"{index:02d}" + "x" * 30_000, now_ms=index)
@@ -222,7 +222,9 @@ def test_the_messages_page_keeps_limit_bytes_and_next(environment):
 def test_another_devices_conversation_is_not_found(environment):
     _, store, _ = environment
     stranger = device(store, "Otra Mac")
-    session = store.create_session(stranger["device_id"], "runtime", "stored", "epoch", 1000.0)
+    session = store.create_session(
+        stranger["device_id"], "default", "runtime", "stored", "epoch", 1000.0
+    )
     owner = device(store, "Sample Mac")
     headers = {"Authorization": "Bearer " + owner["token"]}
 
@@ -237,8 +239,8 @@ def test_the_session_list_says_when_each_conversation_started_and_last_spoke(env
     _, store, _ = environment
     owner = device(store, "Sample Mac")
     headers = {"Authorization": "Bearer " + owner["token"]}
-    quiet = store.create_session(owner["device_id"], "r1", "s1", "epoch", 1000.0)
-    busy = store.create_session(owner["device_id"], "r2", "s2", "epoch", 2000.0)
+    quiet = store.create_session(owner["device_id"], "default", "r1", "s1", "epoch", 1000.0)
+    busy = store.create_session(owner["device_id"], "default", "r2", "s2", "epoch", 2000.0)
     store.append_message(busy, "user", "Hola", now_ms=2_500_000)
     store.append_message(busy, "assistant", "Hola, Alina", now_ms=2_600_000)
 
@@ -246,8 +248,20 @@ def test_the_session_list_says_when_each_conversation_started_and_last_spoke(env
         rows = http.get("/v1/sessions?before=", headers=headers).json()["sessions"]
 
     assert rows == [
-        {"id": busy, "created_at_ms": 2_000_000, "last_at_ms": 2_600_000, "message_count": 2},
-        {"id": quiet, "created_at_ms": 1_000_000, "last_at_ms": 1_000_000, "message_count": 0},
+        {
+            "id": busy,
+            "created_at_ms": 2_000_000,
+            "last_at_ms": 2_600_000,
+            "message_count": 2,
+            "agent_id": "default",
+        },
+        {
+            "id": quiet,
+            "created_at_ms": 1_000_000,
+            "last_at_ms": 1_000_000,
+            "message_count": 0,
+            "agent_id": "default",
+        },
     ]
 
 
@@ -353,7 +367,7 @@ def test_websocket_chat_rejections_are_logged_once_before_or_during_dispatch(env
     else:
         other = device(store, "Otro Mac")
         frame["params"]["session_id"] = store.create_session(
-            other["device_id"], "runtime", "stored", "epoch", 1000
+            other["device_id"], "default", "runtime", "stored", "epoch", 1000
         )
     records = []
 

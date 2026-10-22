@@ -26,7 +26,7 @@ def test_pairing_single_use_expiry_and_revocation(environment):
 def test_encrypted_history_ownership_and_restart(environment):
     settings, store, _ = environment
     a, b = device(store), device(store)
-    session = store.create_session(a["device_id"], "runtime", "stored", "epoch", 1000)
+    session = store.create_session(a["device_id"], "default", "runtime", "stored", "epoch", 1000)
     store.append_message(session, "user", "SYNTHETIC-SECRET-CANARY", now_ms=1)
     store.status(session, "streaming")
     with pytest.raises(HubError):

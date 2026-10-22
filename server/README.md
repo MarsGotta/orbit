@@ -1,7 +1,10 @@
 # Orbit Hub
 
-Private bridge between Orbit devices and an existing assistant profile in Hermes.
+Private bridge between Orbit devices and existing assistant profiles in Hermes.
 Importing it does not install another agent, change the profile or start services.
+`orbit.toml` may list several agents (`[[agents]]`, one Hermes profile each);
+without them the hub is one agent, `default`. The kinds of agent and how a new
+kind plugs in are in `orbit_hub/assistant/agents.py`.
 
 The hub keeps no calendar copy. The assistant reads it directly from
 the Mac through the device bridge's `calendar_read` capability; macOS Calendar
@@ -96,10 +99,13 @@ If reconciliation fails, a warning is retained and the user can interrupt.
 
 The hub is the sole source of conversations. `GET /v1/sessions` lists
 those belonging to the device, newest first, with
-`{id, created_at_ms, last_at_ms, message_count}` and `next` for the next page.
+`{id, created_at_ms, last_at_ms, message_count, agent_id}` and `next` for the next page.
 `GET /v1/sessions/{id}/messages?before=&limit=` returns an ordered page of messages,
 `{id, role, text, at_ms, kind, duration_ms?, client_id?}`, `next` for earlier
-messages and `total` for the count. It first queries IDs and sizes in SQL and
+messages, `total` for the count and the conversation's `agent_id`. A conversation
+stored before agents existed belongs to the default agent. `chat.send` to a
+conversation with another `agent_id` is `agent_mismatch` (both ids); an unknown
+`agent_id` is `agent_not_found` (with the ids that exist). It first queries IDs and sizes in SQL and
 only decrypts what it returns: up to 200 messages and 512 KiB of JSON, without
 truncating any message. A message that cannot fit on a page by itself is rejected
 with `session_message_too_large`, its size and the ceiling. A conversation belonging

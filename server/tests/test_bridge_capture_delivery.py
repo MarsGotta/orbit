@@ -16,7 +16,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
-from conftest import device
+from conftest import device, only
 
 from orbit_hub.app import create_app
 from orbit_hub.bridge_route import PATH, PROTOCOL, BridgeConfiguration
@@ -79,8 +79,8 @@ def bridged(environment, tmp_path):
 
 
 async def connect(app, store, adapter, owner, clock):
-    runtime = DeviceRuntime(owner["device_id"], store, adapter, clock)
-    await runtime.connect()
+    runtime = DeviceRuntime(owner["device_id"], store, only(adapter), clock)
+    await runtime.connect("default")
     runtime.subscribe()
     app.state.device_bridge.runtimes[owner["device_id"]] = runtime
     return runtime

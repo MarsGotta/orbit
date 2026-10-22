@@ -51,6 +51,7 @@ def error_event(code, message, request_id, *, status=None, numbers=None):
 def mount(
     app,
     settings,
+    agents,
     identity,
     allowed_transport,
     runtime_for,
@@ -114,7 +115,10 @@ def mount(
                         "device_id": device,
                         "hub_protocol": HUB_PROTOCOL,
                         "hub_version": hub_version(),
-                        "assistant_name": settings.assistant_name,
+                        # The default agent's, for Macs from before agents (0.9.0).
+                        "assistant_name": agents.default.name,
+                        "agents": agents.public(),
+                        "default_agent_id": agents.default.id,
                         "device_version": device_version,
                     },
                 )

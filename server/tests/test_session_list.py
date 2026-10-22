@@ -25,7 +25,8 @@ def _open_conversations(store, device_id: str, count: int, created_step: float =
     with store.transaction() as db:
         store.ensure_capacity(1024 * count)
         db.executemany(
-            "INSERT INTO sessions VALUES (?,?,?,?,?,?,?)",
+            "INSERT INTO sessions(id,device_id,runtime_id,stored_id,epoch,status,created)"
+            " VALUES (?,?,?,?,?,?,?)",
             (
                 (
                     session_id,
@@ -138,7 +139,9 @@ def test_the_page_is_one_a_published_daemon_accepts(environment):
     sessions = body["sessions"]
     assert len(sessions) <= PUBLISHED_DAEMON_MAX_SESSIONS
     for session in sessions:
-        assert set(session) == {"id", "created_at_ms", "last_at_ms", "message_count"}
+        assert set(session) == {"id", "created_at_ms", "last_at_ms", "message_count", "agent_id"}
+        # Stored before agents existed: the default agent's.
+        assert session["agent_id"] == "default"
         assert 0 < len(session["id"].encode()) <= 121
         assert session["last_at_ms"] >= session["created_at_ms"] >= 0
         assert session["message_count"] == 0

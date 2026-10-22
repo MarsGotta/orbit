@@ -1,7 +1,7 @@
 import json
 from uuid import uuid4
 
-from conftest import FakeConnection, device, said
+from conftest import FakeConnection, device, only, said
 from support_app import client
 from support_audio import wav_bytes
 
@@ -16,7 +16,7 @@ def wav_fixture() -> bytes:
 async def test_text_turn_declares_orbit_only_to_hermes(environment):
     _, store, adapter = environment
     owner = device(store, "Sample Mac")["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     published = runtime.subscribe()
 
     _, receipt = await runtime.handle("chat.send", SendParams(text="Hola, Deimos"), str(uuid4()))
@@ -24,7 +24,7 @@ async def test_text_turn_declares_orbit_only_to_hermes(environment):
     method, prompt = adapter.connections[0].calls[-1]
     assert method == "prompt.submit"
     assert prompt == {
-        "session_id": next(iter(runtime.bindings)),
+        "session_id": next(iter(runtime.bindings))[1],
         "text": "[Orbit · Sample Mac · texto]\nHola, Deimos",
     }
     assert said(store, owner, receipt["session_id"]) == [
@@ -41,7 +41,7 @@ async def test_text_turn_declares_orbit_only_to_hermes(environment):
 async def test_active_call_reaches_only_the_hermes_header(environment):
     _, store, adapter = environment
     owner = device(store, "Sample Mac")["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     published = runtime.subscribe()
 
     _, receipt = await runtime.handle(
@@ -154,7 +154,7 @@ async def test_prompt_submit_omits_unproven_source_without_retry_or_log(environm
     monkeypatch.setattr("orbit_hub.runtime.report", record_fallback)
     _, store, adapter = environment
     owner = device(store, "Sample Mac")["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
 
     _, first = await runtime.handle("chat.send", SendParams(text="Contenido privado"), str(uuid4()))
     await runtime.handle(

@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
-from conftest import device
+from conftest import device, only
 from websockets.asyncio.server import serve
 
 from orbit_hub.assistant.backend import MessageChunk, ResumedSession, TextBlock
@@ -127,7 +127,9 @@ async def test_gateway_handshake_rpc_stream_and_resume(environment, tmp_path):
             allow_insecure_localhost=True,
             hermes_credential_file=credential(tmp_path),
         )
-        connection = HermesBackend(configured).connection("fixture-device", "fixture", callback)
+        connection = HermesBackend(configured, configured.profile).connection(
+            "fixture-device", "fixture", callback
+        )
         await connection.open()
         assert connection.epoch == "fixture-epoch"
         assert (await connection.create_session()).stored_id == "stored-fixture"
@@ -285,7 +287,9 @@ async def test_large_resume_keeps_other_hermes_session_connected(environment, tm
             allow_insecure_localhost=True,
             hermes_credential_file=credential(tmp_path),
         )
-        runtime = DeviceRuntime(owner, store, HermesBackend(configured), lambda: 1001)
+        runtime = DeviceRuntime(
+            owner, store, only(HermesBackend(configured, configured.profile)), lambda: 1001
+        )
         try:
             _, first = await runtime.handle(
                 "chat.send", SendParams(text="sesión quieta"), str(uuid4())
@@ -297,14 +301,16 @@ async def test_large_resume_keeps_other_hermes_session_connected(environment, tm
             active = second["session_id"]
             assert store.session(owner, quiet)["status"] == "completed"
             assert store.session(owner, active)["status"] == "streaming"
-            runtime.connection.live_sessions.discard(store.session(owner, quiet)["runtime_id"])
+            runtime.connections["default"].live_sessions.discard(
+                store.session(owner, quiet)["runtime_id"]
+            )
 
             _, resumed = await runtime.handle(
                 "chat.send", SendParams(text="después", session_id=quiet), str(uuid4())
             )
             assert resumed["session_id"] == quiet
             assert store.session(owner, active)["status"] == "streaming"
-            assert runtime.connection.connected
+            assert runtime.connections["default"].connected
             resume = next(item for item in requests if item["method"] == "session.resume")
             assert resume["params"]["defer_history"] is True
             assert resume["params"]["omit_messages"] is False
@@ -355,7 +361,9 @@ async def test_session_create_declares_orbit_and_the_device(environment, tmp_pat
             allow_insecure_localhost=True,
             hermes_credential_file=credential(tmp_path),
         )
-        connection = HermesBackend(configured).connection("fixture-device", "Sample Mac", callback)
+        connection = HermesBackend(configured, configured.profile).connection(
+            "fixture-device", "Sample Mac", callback
+        )
         await connection.open()
         await connection.create_session()
         await connection.close()
@@ -379,7 +387,7 @@ async def test_transcription_contract_is_json_not_multipart(environment, tmp_pat
         "orbit_hub.assistant.hermes.httpx.AsyncClient",
         lambda **kwargs: original(transport=httpx.MockTransport(reply), **kwargs),
     )
-    assert await HermesSpeech(configured).transcribe(b"fixture") == ""
+    assert await HermesSpeech(configured, configured.profile).transcribe(b"fixture") == ""
     assert requests[0].url.path == "/api/audio/transcribe"
     assert requests[0].url.params["profile"] == "deimos"
     assert requests[0].headers["X-Hermes-Session-Token"] == "synthetic-token-only"
@@ -404,7 +412,7 @@ async def test_http_failure_names_provider_status(environment, tmp_path, monkeyp
     )
 
     with pytest.raises(HubError) as failure:
-        await HermesSpeech(configured).transcribe(b"synthetic wav")
+        await HermesSpeech(configured, configured.profile).transcribe(b"synthetic wav")
     assert failure.value.code == "transcription_http_error"
     assert failure.value.numbers == {"provider_status": 503}
     assert "private body" not in str(failure.value)
@@ -423,6 +431,6 @@ async def test_connect_timeout_uses_connection_budget(environment, tmp_path, mon
         lambda **kwargs: original(transport=httpx.MockTransport(expire), **kwargs),
     )
     with pytest.raises(HubError) as failure:
-        await HermesSpeech(configured).transcribe(b"synthetic wav")
+        await HermesSpeech(configured, configured.profile).transcribe(b"synthetic wav")
     assert failure.value.code == "transcription_connection_timeout"
     assert failure.value.numbers == {"timeout_ms": 10_000}

@@ -126,6 +126,44 @@ transcribes your chosen name. Only Deimos has the measured recognition alias
 “Demos”; custom names do not inherit that alias. The wake phrase requires
 macOS 26 and does not change its existing pause or question deadlines.
 
+### Several agents
+
+A hub can offer more than one agent. List them as `[[agents]]` tables after
+the root keys; without any, the hub is the single agent `default` made of
+`assistant_name` and `profile`, exactly as above.
+
+```toml
+default_agent = "lyra"   # optional; without it, the first entry
+
+[[agents]]
+id = "deimos"            # stable: 1 to 32 characters of a-z, 0-9 and -
+name = "Deimos"          # what the Mac shows and what you say: «Oye Deimos»
+kind = "hermes"
+profile = "deimos"       # the Hermes profile that answers
+
+[[agents]]
+id = "lyra"
+name = "Lyra"
+kind = "hermes"
+profile = "lyra"
+```
+
+Every `hermes` agent is a profile of the same Hermes (`hermes_url`,
+`hermes_credential_file`); `orbit-mcp` is configured in each profile as below.
+The hub refuses to start, naming the entry and the cause, when an id or a name
+repeats (names compare ignoring case and accents, because they are spoken),
+an id is not in that form, a `kind` is unknown, a kind's key is missing or
+unknown, `default_agent` names no agent, or `profile`, `assistant_name`,
+`ORBIT_HUB_PROFILE` or `ORBIT_HUB_ASSISTANT_NAME` are set beside `[[agents]]`.
+Names follow the rules of `assistant_name`.
+
+A conversation belongs to the agent it was opened with and keeps it; it stores
+the agent's `id`, so renaming an agent keeps its conversations and changing an
+`id` leaves them with an agent the hub no longer has, which the Mac is told.
+Conversations stored before agents existed belong to the default agent: keep
+the old profile's agent first, or as `default_agent`, so they resume where
+they were kept. Dictation and read-aloud use the default agent's profile.
+
 `allow_insecure_localhost` permits the loopback Hermes URL; it does not permit
 plaintext public access. `allowed_hosts` must include the hostname the Mac uses.
 The hub does not trust forwarded proxy headers. The transcription table is

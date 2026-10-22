@@ -1,8 +1,9 @@
 import time
+from functools import partial
 from uuid import uuid4
 
 import pytest
-from conftest import device, said
+from conftest import device, only, said
 from starlette.websockets import WebSocketDisconnect
 from support_app import (
     client,
@@ -38,7 +39,7 @@ def test_sessions_created_preserves_real_number_and_fraction(environment):
     paired = device(store)
     created = 1789668184.393808
     session_id = store.create_session(
-        paired["device_id"], "runtime-1", "stored-1", "epoch-1", created
+        paired["device_id"], "default", "runtime-1", "stored-1", "epoch-1", created
     )
 
     with client(environment) as http:
@@ -53,6 +54,7 @@ def test_sessions_created_preserves_real_number_and_fraction(environment):
                 "created_at_ms": 1_789_668_184_394,
                 "last_at_ms": 1_789_668_184_394,
                 "message_count": 0,
+                "agent_id": "default",
             }
         ],
         "total": 1,
@@ -110,7 +112,7 @@ def test_websocket_contract_stream_ids_and_idempotency(environment):
 async def test_interaction_cannot_cross_session_or_device(environment):
     _, store, adapter = environment
     owner, other = device(store)["device_id"], device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1000)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1000)
     _, first = await runtime.handle("chat.send", SendParams(text="synthetic"), str(uuid4()))
     _, second = await runtime.handle("chat.send", SendParams(text="synthetic"), str(uuid4()))
     runtime.pending["request"] = (
@@ -138,15 +140,15 @@ async def test_interaction_cannot_cross_session_or_device(environment):
 async def test_failed_completion_is_not_an_authoritative_history_message(environment):
     _, store, adapter = environment
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1000)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1000)
     upstream = str(uuid4())
-    session = store.create_session(owner, upstream, str(uuid4()), "fixture", 1000)
-    runtime.bindings[upstream] = session
+    session = store.create_session(owner, "default", upstream, str(uuid4()), "fixture", 1000)
+    runtime.bindings["default", upstream] = session
     runtime.turn_ids[session] = str(uuid4())
     store.append_message(session, "user", "synthetic failed request", now_ms=1_000_000)
     from conftest import FakeConnection
 
-    await FakeConnection(runtime.on_event).receive(
+    await FakeConnection(partial(runtime.on_event, "default")).receive(
         {
             "type": "message.complete",
             "session_id": upstream,
@@ -196,8 +198,8 @@ def test_revocation_interrupts_upstream_after_client_disconnect(environment, mon
 async def test_revoked_runtime_drops_late_events_and_does_not_interrupt_another_device(environment):
     _, store, adapter = environment
     owner, other = device(store)["device_id"], device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1000)
-    neighbour = DeviceRuntime(other, store, adapter, lambda: 1000)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1000)
+    neighbour = DeviceRuntime(other, store, only(adapter), lambda: 1000)
     _, response = await runtime.handle("chat.send", SendParams(text="fixture owner"), str(uuid4()))
     await neighbour.handle("chat.send", SendParams(text="fixture other"), str(uuid4()))
     queue = runtime.subscribe()
@@ -205,17 +207,17 @@ async def test_revoked_runtime_drops_late_events_and_does_not_interrupt_another_
     store.revoke(owner)
     await runtime.revoke()
     assert queue.get_nowait()["event"] == "revoked"
-    await runtime.connection.receive(
+    await runtime.connections["default"].receive(
         {
             "type": "message.delta",
-            "session_id": next(iter(runtime.bindings)),
+            "session_id": next(iter(runtime.bindings))[1],
             "payload": {"text": "REVOKED_LATE_FRAME"},
         }
     )
     assert queue.empty()
     assert all("REVOKED" not in item["text"] for item in said(store, owner, response["session_id"]))
-    assert neighbour.connection.connected
-    assert [method for method, _ in neighbour.connection.calls] == ["prompt.submit"]
+    assert neighbour.connections["default"].connected
+    assert [method for method, _ in neighbour.connections["default"].calls] == ["prompt.submit"]
     await neighbour.close()
 
 

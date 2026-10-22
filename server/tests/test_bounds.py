@@ -13,7 +13,7 @@ from orbit_hub.storage import SESSION_MESSAGES_PAGE_BYTES, SESSION_MESSAGES_PAGE
 def test_a_messages_page_decrypts_only_what_it_returns(environment, monkeypatch):
     _, store, _ = environment
     owner = device(store)["device_id"]
-    session = store.create_session(owner, "runtime", "stored", "epoch", 1000)
+    session = store.create_session(owner, "default", "runtime", "stored", "epoch", 1000)
     for index in range(205):
         store.append_message(session, "user", str(index), now_ms=index)
     decrypt = store.decrypt
@@ -33,7 +33,7 @@ def test_a_messages_page_decrypts_only_what_it_returns(environment, monkeypatch)
 def test_a_messages_page_bounds_encoded_json_without_truncating_messages(environment):
     _, store, _ = environment
     owner = device(store)["device_id"]
-    session = store.create_session(owner, "runtime", "stored", "epoch", 1000)
+    session = store.create_session(owner, "default", "runtime", "stored", "epoch", 1000)
     text = "\0" * 32000  # JSON escaping is six times larger than its UTF-8 bytes.
     for _ in range(10):
         store.append_message(session, "assistant", text, now_ms=1)
@@ -53,7 +53,7 @@ def test_a_messages_page_bounds_encoded_json_without_truncating_messages(environ
 def test_full_storage_blocks_new_payloads_but_preserves_reads_retries_and_revoke(environment):
     settings, store, _ = environment
     owner = device(store)["device_id"]
-    session = store.create_session(owner, "runtime", "stored", "epoch", 1000)
+    session = store.create_session(owner, "default", "runtime", "stored", "epoch", 1000)
     store.append_message(session, "user", "PRESERVED", now_ms=1)
     operation = str(uuid4())
     store.reserve_operation(owner, operation, {"text": "fixture"})
@@ -70,7 +70,7 @@ def test_full_storage_blocks_new_payloads_but_preserves_reads_retries_and_revoke
         assert constrained.physical_bytes() > 1
         actions = [
             lambda: constrained.create_code(1000),
-            lambda: constrained.create_session(owner, "new", "new", "epoch", 1000),
+            lambda: constrained.create_session(owner, "default", "new", "new", "epoch", 1000),
             lambda: constrained.append_message(session, "assistant", "BLOCKED", now_ms=2),
             lambda: constrained.reserve_operation(owner, str(uuid4()), {}),
             # The quota is enforced at the reservation, before the
@@ -121,7 +121,7 @@ def test_full_storage_blocks_new_payloads_but_preserves_reads_retries_and_revoke
 def test_admission_reserves_growth_not_only_current_file_size(environment):
     settings, store, _ = environment
     owner = device(store)["device_id"]
-    session = store.create_session(owner, "runtime", "stored", "epoch", 1000)
+    session = store.create_session(owner, "default", "runtime", "stored", "epoch", 1000)
     constrained = Store(
         settings.data_dir, settings.key_file, quota_bytes=store.physical_bytes() + 1024
     )

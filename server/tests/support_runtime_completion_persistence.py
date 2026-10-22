@@ -3,7 +3,7 @@
 from uuid import uuid4
 
 import pytest
-from conftest import FakeConnection, device
+from conftest import FakeConnection, device, only
 
 from orbit_hub.protocol import SendParams
 from orbit_hub.runtime import DeviceRuntime
@@ -40,10 +40,10 @@ def isolated(environment, monkeypatch):
 async def streaming_turn(environment):
     _, store, adapter = environment
     owner = device(store)["device_id"]
-    runtime = DeviceRuntime(owner, store, adapter, lambda: 1001)
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     turn = str(uuid4())
     _, created = await runtime.handle("chat.send", SendParams(text="synthetic"), turn)
-    return runtime, created["session_id"], turn, next(iter(runtime.bindings))
+    return runtime, created["session_id"], turn, next(iter(runtime.bindings))[1]
 
 
 def drained(queue):

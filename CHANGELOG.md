@@ -12,6 +12,10 @@ is in Spanish; the labels quoted below are the ones it shows.
 - `CONTRIBUTING.md`, `SECURITY.md` and this changelog.
 - A GitHub Actions workflow that runs the whole Linux gate on every pull
   request and every push to `main`.
+- The hub can offer several agents: `[[agents]]` in `orbit.toml`, each a
+  Hermes profile for now. `ready` lists them, `chat.send` takes an
+  `agent_id`, and each conversation keeps its agent. A 0.9.0 `orbit.toml`
+  is still one agent.
 
 ### Changed
 

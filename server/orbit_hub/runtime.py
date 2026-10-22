@@ -6,9 +6,10 @@ import math
 from collections.abc import Callable
 from concurrent.futures import Executor
 from dataclasses import replace
+from functools import partial
 
+from .assistant.agents import Agents
 from .assistant.backend import (
-    AssistantBackend,
     AssistantConnection,
     AssistantEvent,
     ClarificationRequest,
@@ -40,6 +41,10 @@ TRANSCRIBED_TURN_TTL_SECONDS = 120
 # so this matches its own bound, not a model-turn or transcript-size ceiling.
 RESUME_HISTORY_TIMEOUT_SECONDS = 300.0
 
+# A live session as the runtime knows it: the agent whose connection holds it
+# and its id there. Ids are only unique within one agent's connection.
+LiveKey = tuple[str, str]
+
 
 class TurnInputTracker:
     """Short-lived evidence that a device's next turn came from hub STT."""
@@ -69,21 +74,23 @@ class DeviceRuntime:
         self,
         device: str,
         store: Store,
-        assistant: AssistantBackend,
+        agents: Agents,
         now: Callable[[], float],
         *,
         store_executor: Executor | None = None,
         input_tracker: TurnInputTracker | None = None,
     ):
-        self.device, self.store, self.assistant, self.now = device, store, assistant, now
+        self.device, self.store, self.agents, self.now = device, store, agents, now
         self.device_name = self._device_name()
         self.input_tracker = input_tracker or TurnInputTracker(now)
-        self.connection: AssistantConnection | None = None
-        self.bindings: dict[str, str] = {}
-        self.resumed_message_counts: dict[str, int | None] = {}
+        # One connection per agent this device has talked to, by agent id.
+        self.connections: dict[str, AssistantConnection] = {}
+        # Live sessions to the Orbit sessions they carry.
+        self.bindings: dict[LiveKey, str] = {}
+        self.resumed_message_counts: dict[LiveKey, int | None] = {}
         self.resuming_ack = False
-        self.early_resume_progress: tuple[str, str] | None = None
-        self.resume_waiter: tuple[str, asyncio.Future[str]] | None = None
+        self.early_resume_progress: tuple[LiveKey, str] | None = None
+        self.resume_waiter: tuple[LiveKey, asyncio.Future[str]] | None = None
         self.resume_pending: set[str] = set()
         self.resume_deadline: float | None = None
         self.turn_ids: dict[str, str] = {}
@@ -244,9 +251,11 @@ class DeviceRuntime:
         )
         await self.changed()
 
-    async def reconcile_error(self, runtime_id: str, session_id: str, turn_id: str) -> None:
+    async def reconcile_error(
+        self, connection: AssistantConnection, runtime_id: str, session_id: str, turn_id: str
+    ) -> None:
         try:
-            stopped = await self.connection.turn_stopped(runtime_id)
+            stopped = await connection.turn_stopped(runtime_id)
             if self.turn_ids.get(session_id) != turn_id:
                 return
             status = self.store.session(self.device, session_id)["status"]
@@ -309,19 +318,35 @@ class DeviceRuntime:
                 )
                 queue.put_nowait(None)
 
-    async def connect(self):
-        if self.connection is None or not self.connection.connected:
-            connection = self.assistant.connection(self.device, self.device_name, self.on_event)
-            self.connection = connection
-            await self.connection.open()
-        return self.connection
+    async def connect(self, agent_id: str) -> AssistantConnection:
+        """This device's open connection to the agent, opening it if needed."""
+        connection = self.connections.get(agent_id)
+        if connection is None or not connection.connected:
+            agent = self.agents.get(agent_id)
+            connection = agent.backend.connection(
+                self.device, self.device_name, partial(self.on_event, agent_id)
+            )
+            self.connections[agent_id] = connection
+            await connection.open()
+        return connection
 
-    async def on_event(self, event: AssistantEvent) -> None:
+    async def on_event(self, agent_id: str, event: AssistantEvent) -> None:
+        """One event from this device's connection to the agent `agent_id`."""
         if isinstance(event, ConnectionLost):
-            if self.resume_waiter is not None and not self.resume_waiter[1].done():
+            if (
+                self.resume_waiter is not None
+                and self.resume_waiter[0][0] == agent_id
+                and not self.resume_waiter[1].done()
+            ):
                 self.resume_waiter[1].set_result("lost")
-            self.early_resume_progress = None
-            for session_id in self.bindings.values():
+            if (
+                self.early_resume_progress is not None
+                and self.early_resume_progress[0][0] == agent_id
+            ):
+                self.early_resume_progress = None
+            # Only this agent's sessions lost their connection.
+            lost = {session for (agent, _), session in self.bindings.items() if agent == agent_id}
+            for session_id in lost:
                 if self.turn_state(session_id) not in {
                     TurnState.SUBMITTING,
                     TurnState.STREAMING,
@@ -340,31 +365,43 @@ class DeviceRuntime:
                         self.turn_ids.get(session_id),
                     )
                 )
-            self.pending.clear()
-            self.resumed_message_counts.clear()
-            self.interrupt_deadlines.clear()
+            self.pending = {
+                key: value for key, value in self.pending.items() if value[0] not in lost
+            }
+            self.resumed_message_counts = {
+                key: count
+                for key, count in self.resumed_message_counts.items()
+                if key[0] != agent_id
+            }
+            self.interrupt_deadlines = {
+                session: deadline
+                for session, deadline in self.interrupt_deadlines.items()
+                if session not in lost
+            }
             await self.changed()
             return
         if not self.store.is_active(self.device):
             return
         runtime_id = event.session_id
+        key = (agent_id, runtime_id)
+        connection = self.connections.get(agent_id)
         if isinstance(event, HistoryLoaded):
-            self.record_resume_progress(runtime_id, "complete" if event.loaded else "failed")
+            self.record_resume_progress(key, "complete" if event.loaded else "failed")
             return
         if (
             isinstance(event, TurnError)
             and event.cause == "history_unreadable"
             and (
-                self.record_resume_progress(runtime_id, "failed")
+                self.record_resume_progress(key, "failed")
                 or (
-                    runtime_id in self.bindings
-                    and self.connection is not None
-                    and runtime_id not in self.connection.live_sessions
+                    key in self.bindings
+                    and connection is not None
+                    and runtime_id not in connection.live_sessions
                 )
             )
         ):
             return
-        session_id = self.bindings.get(runtime_id)
+        session_id = self.bindings.get(key)
         if session_id is None:
             return
         if isinstance(event, UnreadableUpdate):
@@ -386,15 +423,15 @@ class DeviceRuntime:
                 await self.fail_turn(session_id, turn_id)
             elif (session_id, turn_id) not in self.reconciliations:
                 self.reconciliations[(session_id, turn_id)] = asyncio.create_task(
-                    self.reconcile_error(runtime_id, session_id, turn_id)
+                    self.reconcile_error(connection, runtime_id, session_id, turn_id)
                 )
             return
         if isinstance(event, MessageChunk):
             await self.publish(emit("chat.delta", {**data, "text": event.text}, turn_id))
         elif isinstance(event, MessageComplete):
             text, status = event.text, event.status
-            is_resumed = runtime_id in self.resumed_message_counts
-            resumed_count = self.resumed_message_counts.pop(runtime_id, None)
+            is_resumed = key in self.resumed_message_counts
+            resumed_count = self.resumed_message_counts.pop(key, None)
             resume_failed = event.history_unreadable and is_resumed
             # Failed output remains a live partial, never an authoritative history message.
             persisted = True
@@ -429,7 +466,7 @@ class DeviceRuntime:
                 completed_data["text"] = ""
             await self.publish(emit("chat.completed", completed_data, turn_id))
             if resume_failed:
-                self.connection.live_sessions.discard(runtime_id)
+                connection.live_sessions.discard(runtime_id)
                 count_text = (
                     f"({resumed_count} mensajes en el último tramo)"
                     if resumed_count is not None
@@ -474,50 +511,55 @@ class DeviceRuntime:
                 emit("chat.status", {**data, "kind": event.kind, "text": event.text}, turn_id)
             )
 
-    def require_live(self, session_id: str) -> dict:
+    def require_live(self, session_id: str) -> tuple[dict, AssistantConnection]:
+        """The session and its agent's connection, which holds it live."""
         binding = self.store.session(self.device, session_id)
+        connection = self.connections.get(self.agents.owner(binding))
         if (
-            self.connection is None
-            or not self.connection.connected
-            or binding["runtime_id"] not in self.connection.live_sessions
+            connection is None
+            or not connection.connected
+            or binding["runtime_id"] not in connection.live_sessions
         ):
             raise HubError(
                 "session_disconnected",
                 "La sesión no está conectada con Hermes; se intentará reanudar la "
                 "conversación al enviar otro mensaje si el turno anterior está cerrado",
             )
-        return binding
+        return binding, connection
 
-    def record_resume_progress(self, runtime_id, status: str) -> bool:
-        if not isinstance(runtime_id, str):
+    def record_resume_progress(self, key: LiveKey, status: str) -> bool:
+        if not isinstance(key[1], str):
             return False
-        if self.resume_waiter is not None and self.resume_waiter[0] == runtime_id:
+        if self.resume_waiter is not None and self.resume_waiter[0] == key:
             future = self.resume_waiter[1]
             if not future.done():
                 future.set_result(status)
             return True
         if self.resuming_ack:
             # One resume RPC can be in flight under the device runtime lock.
-            self.early_resume_progress = (runtime_id, status)
+            self.early_resume_progress = (key, status)
             return True
         return False
 
-    async def wait_resume_history(self, binding: dict, connection, hydrating) -> None:
+    async def wait_resume_history(
+        self, agent_id: str, binding: dict, connection, hydrating
+    ) -> None:
         runtime_id = binding["runtime_id"]
+        key = (agent_id, runtime_id)
         if self.revoked or not self.store.is_active(self.device):
             connection.live_sessions.discard(runtime_id)
-            self.resumed_message_counts.pop(runtime_id, None)
+            self.resumed_message_counts.pop(key, None)
             raise HubError("revoked", "Dispositivo revocado; no se envió el mensaje")
         if self.closed:
             connection.live_sessions.discard(runtime_id)
-            self.resumed_message_counts.pop(runtime_id, None)
+            self.resumed_message_counts.pop(key, None)
             raise HubError(
                 "session_resume_closed", "Se cerró la sesión de Orbit; no se envió el mensaje"
             )
         status = None
         if self.early_resume_progress is not None:
-            early_id, early_status = self.early_resume_progress
-            if early_id == runtime_id:
+            early_key, early_status = self.early_resume_progress
+            if early_key == key:
                 status = early_status
         self.early_resume_progress = None
         if status is None:
@@ -525,18 +567,18 @@ class DeviceRuntime:
                 return
             if hydrating is not True:
                 connection.live_sessions.discard(runtime_id)
-                self.resumed_message_counts.pop(runtime_id, None)
+                self.resumed_message_counts.pop(key, None)
                 raise HubError(
                     "session_resume_progress_unavailable",
                     "Hermes no confirmó si terminó de cargar el historial; no se envió el mensaje",
                 )
             future: asyncio.Future[str] = asyncio.get_running_loop().create_future()
-            self.resume_waiter = (runtime_id, future)
+            self.resume_waiter = (key, future)
             try:
                 status = await asyncio.wait_for(future, RESUME_HISTORY_TIMEOUT_SECONDS)
             except TimeoutError as exc:
                 connection.live_sessions.discard(runtime_id)
-                self.resumed_message_counts.pop(runtime_id, None)
+                self.resumed_message_counts.pop(key, None)
                 milliseconds = int(RESUME_HISTORY_TIMEOUT_SECONDS * 1000)
                 raise HubError(
                     "session_resume_history_timeout",
@@ -547,24 +589,28 @@ class DeviceRuntime:
                 self.resume_waiter = None
         if status == "revoked":
             connection.live_sessions.discard(runtime_id)
-            self.resumed_message_counts.pop(runtime_id, None)
+            self.resumed_message_counts.pop(key, None)
             raise HubError("revoked", "Dispositivo revocado; no se envió el mensaje")
         if status == "closed":
             connection.live_sessions.discard(runtime_id)
-            self.resumed_message_counts.pop(runtime_id, None)
+            self.resumed_message_counts.pop(key, None)
             raise HubError(
                 "session_resume_closed", "Se cerró la sesión de Orbit; no se envió el mensaje"
             )
-        if self.connection is not connection or not connection.connected or status == "lost":
+        if (
+            self.connections.get(agent_id) is not connection
+            or not connection.connected
+            or status == "lost"
+        ):
             connection.live_sessions.discard(runtime_id)
-            self.resumed_message_counts.pop(runtime_id, None)
+            self.resumed_message_counts.pop(key, None)
             raise HubError(
                 "session_resume_connection_lost",
                 "Se perdió Hermes durante la carga del historial; no se envió el mensaje",
             )
         if status == "failed":
             connection.live_sessions.discard(runtime_id)
-            count = self.resumed_message_counts.pop(runtime_id, None)
+            count = self.resumed_message_counts.pop(key, None)
             count_text = f" ({count} mensajes en el último tramo)" if count else ""
             raise HubError(
                 "session_resume_history_unreadable",
@@ -572,7 +618,9 @@ class DeviceRuntime:
                 "no se envió el mensaje. Puedes enviar uno nuevo para volver a reanudar",
             )
 
-    async def resume_if_disconnected(self, session_id: str, connection) -> tuple[dict, bool | None]:
+    async def resume_if_disconnected(
+        self, session_id: str, agent_id: str, connection
+    ) -> tuple[dict, bool | None]:
         binding = self.store.session(self.device, session_id)
         if (
             binding["epoch"] == connection.epoch
@@ -585,7 +633,7 @@ class DeviceRuntime:
             resumed = await connection.resume_session(binding["stored_id"])
         finally:
             self.resuming_ack = False
-        if self.connection is not connection:
+        if self.connections.get(agent_id) is not connection:
             raise HubError(
                 "session_resume_connection_replaced",
                 "La conexión con Hermes cambió durante la reanudación; no se envió el mensaje",
@@ -602,10 +650,10 @@ class DeviceRuntime:
             resumed.stored_id,
             connection.epoch,
         )
-        self.bindings.pop(binding["runtime_id"], None)
-        self.resumed_message_counts.pop(binding["runtime_id"], None)
-        self.bindings[resumed.session_id] = session_id
-        self.resumed_message_counts[resumed.session_id] = resumed.message_count
+        self.bindings.pop((agent_id, binding["runtime_id"]), None)
+        self.resumed_message_counts.pop((agent_id, binding["runtime_id"]), None)
+        self.bindings[agent_id, resumed.session_id] = session_id
+        self.resumed_message_counts[agent_id, resumed.session_id] = resumed.message_count
         return self.store.session(self.device, session_id), resumed.loading_history
 
     def log_chat_rejection(self, code, numbers=None):
@@ -632,11 +680,12 @@ class DeviceRuntime:
         async with self.lock:
             if not self.store.is_active(self.device):
                 raise HubError("revoked", "Dispositivo revocado")
-            binding = self.require_live(params.session_id)
+            binding, connection = self.require_live(params.session_id)
             runtime_id = binding["runtime_id"]
+            agent_id = self.agents.owner(binding)
             if method == "chat.interrupt":
                 self.safety_target(method, params)
-                await self.connection.cancel(runtime_id)
+                await connection.cancel(runtime_id)
                 state = self.turn_state(params.session_id)
                 if state in {TurnState.SUBMITTING, TurnState.STREAMING}:
                     # Only Hermes's acknowledgement of the interruption request
@@ -656,7 +705,7 @@ class DeviceRuntime:
             if pending is None or pending[:2] != (params.session_id, kind):
                 raise HubError("interaction_not_found", "Solicitud ajena, desconocida o caducada")
             turn_id = self.turn_ids.get(params.session_id)
-            connection, epoch = self.connection, self.connection.epoch
+            epoch = connection.epoch
             if (
                 kind == "approval"
                 and params.turn_id is not None
@@ -678,7 +727,7 @@ class DeviceRuntime:
                     self.pending.get(params.request_id) is pending
                     and turn_id is not None
                     and self.turn_ids.get(params.session_id) == turn_id
-                    and self.connection is connection
+                    and self.connections.get(agent_id) is connection
                     and connection.connected
                     and connection.epoch == epoch
                     and runtime_id in connection.live_sessions
@@ -757,6 +806,7 @@ class DeviceRuntime:
         params,
         request_id: str,
         session_id: str,
+        agent_id: str,
         binding: dict,
         connection,
         meeting: MeetingTurn | None,
@@ -769,7 +819,7 @@ class DeviceRuntime:
                 "session_resume_closed", "Se cerró la sesión de Orbit; no se envió el mensaje"
             )
         if (
-            self.connection is not connection
+            self.connections.get(agent_id) is not connection
             or not connection.connected
             or binding["epoch"] != connection.epoch
             or binding["runtime_id"] not in connection.live_sessions
@@ -813,6 +863,28 @@ class DeviceRuntime:
         await self.publish(emit("chat.session", {"session_id": session_id}, request_id))
         return upstream_text
 
+    def _turn_agent(self, params, session: dict | None) -> str:
+        """The agent a turn goes to: the one it names, or else its session's,
+        or else the default; refused before anything reaches an agent."""
+        if params.agent_id is not None:
+            named = self.agents.get(params.agent_id)
+            if session is None:
+                return named.id
+        if session is None:
+            return self.agents.default.id
+        owner = self.agents.owner(session)
+        if params.agent_id is not None and params.agent_id != owner:
+            # A conversation is one agent's: its history lives with that agent.
+            owner_name = self.agents.by_id[owner].name if owner in self.agents.by_id else owner
+            raise HubError(
+                "agent_mismatch",
+                f"Esta conversación es de {owner_name} («{owner}»), no de «{params.agent_id}»; "
+                "abre una conversación nueva para hablar con otro agente",
+                numbers={"session_agent_id": owner, "agent_id": params.agent_id},
+            )
+        # A conversation whose agent has left the configuration.
+        return self.agents.get(owner).id
+
     async def _chat_send(self, params, request_id: str) -> tuple[str, dict]:
         """Submit one chat turn on an explicit state machine.
 
@@ -825,8 +897,9 @@ class DeviceRuntime:
             if not self.store.is_active(self.device):
                 raise HubError("revoked", "Dispositivo revocado")
             session_id = params.session_id
-            if session_id is not None:
-                self.store.session(self.device, session_id)
+            agent_id = self._turn_agent(
+                params, None if session_id is None else self.store.session(self.device, session_id)
+            )
             if session_id in self.resume_pending:
                 remaining = (
                     None
@@ -845,7 +918,7 @@ class DeviceRuntime:
                         f"{RESUME_HISTORY_TIMEOUT_SECONDS:g} s"
                     ),
                 )
-            connection = await self.connect()
+            connection = await self.connect(agent_id)
             if self.resume_deadline is not None and session_id is not None:
                 existing = self.store.session(self.device, session_id)
                 if (
@@ -867,12 +940,13 @@ class DeviceRuntime:
                     raise HubError("revoked", "Dispositivo revocado")
                 session_id = self.store.create_session(
                     self.device,
+                    agent_id,
                     created.session_id,
                     created.stored_id,
                     connection.epoch,
                     self.now(),
                 )
-                self.bindings[created.session_id] = session_id
+                self.bindings[agent_id, created.session_id] = session_id
             self.expire_stale_interrupt(session_id)
             state = self.turn_state(session_id)
             if state is TurnState.OUTCOME_UNKNOWN:
@@ -885,10 +959,10 @@ class DeviceRuntime:
                 )
             if not can_start_turn(state):
                 raise HubError("session_busy", "Espera o interrumpe el turno en curso")
-            binding, hydrating = await self.resume_if_disconnected(session_id, connection)
+            binding, hydrating = await self.resume_if_disconnected(session_id, agent_id, connection)
             early = self.early_resume_progress
             needs_wait = hydrating is True and not (
-                early is not None and early[0] == binding["runtime_id"]
+                early is not None and early[0] == (agent_id, binding["runtime_id"])
             )
             if needs_wait:
                 self.resume_pending.add(session_id)
@@ -896,16 +970,16 @@ class DeviceRuntime:
                     asyncio.get_running_loop().time() + RESUME_HISTORY_TIMEOUT_SECONDS
                 )
             else:
-                await self.wait_resume_history(binding, connection, hydrating)
+                await self.wait_resume_history(agent_id, binding, connection, hydrating)
                 upstream_text = await self._commit_chat_send(
-                    params, request_id, session_id, binding, connection, meeting
+                    params, request_id, session_id, agent_id, binding, connection, meeting
                 )
         if needs_wait:
             try:
-                await self.wait_resume_history(binding, connection, hydrating)
+                await self.wait_resume_history(agent_id, binding, connection, hydrating)
                 async with self.lock:
                     upstream_text = await self._commit_chat_send(
-                        params, request_id, session_id, binding, connection, meeting
+                        params, request_id, session_id, agent_id, binding, connection, meeting
                     )
             finally:
                 self.resume_pending.discard(session_id)
@@ -918,7 +992,7 @@ class DeviceRuntime:
             async with self.lock:
                 if exc.code == "session_runtime_not_found":
                     connection.live_sessions.discard(binding["runtime_id"])
-                    self.resumed_message_counts.pop(binding["runtime_id"], None)
+                    self.resumed_message_counts.pop((agent_id, binding["runtime_id"]), None)
                     self.store.status(session_id, TurnState.FAILED.value)
                     await self.changed()
                 else:
@@ -945,19 +1019,20 @@ class DeviceRuntime:
             self.resume_waiter[1].set_result("revoked")
         self.pending.clear()
         await self.publish(emit("revoked", {}))
-        connection = self.connection
-        if connection and connection.connected:
-            try:
-                async with asyncio.timeout(2):
-                    await asyncio.gather(
-                        *(
-                            connection.cancel(runtime_id)
-                            for runtime_id in tuple(connection.live_sessions)
-                        ),
-                        return_exceptions=True,
-                    )
-            except TimeoutError:
-                pass
+        live = [
+            (connection, runtime_id)
+            for connection in self.connections.values()
+            if connection.connected
+            for runtime_id in tuple(connection.live_sessions)
+        ]
+        try:
+            async with asyncio.timeout(2):
+                await asyncio.gather(
+                    *(connection.cancel(runtime_id) for connection, runtime_id in live),
+                    return_exceptions=True,
+                )
+        except TimeoutError:
+            pass
         await self.close()
 
     async def close(self) -> None:
@@ -967,14 +1042,13 @@ class DeviceRuntime:
         for task in list(self.reconciliations.values()):
             task.cancel()
         await asyncio.gather(*list(self.reconciliations.values()), return_exceptions=True)
-        if self.connection:
+        for connection in list(self.connections.values()):
             try:
                 async with asyncio.timeout(3):
-                    await self.connection.close()
+                    await connection.close()
             except Exception:  # noqa: BLE001 - redact close failure and preserve global revocation
                 report(
                     event="runtime_close_failed",
                     code="close_failed",
                     device=self.device,
                 )
-                return

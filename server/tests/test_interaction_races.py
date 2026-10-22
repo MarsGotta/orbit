@@ -1,6 +1,7 @@
 """Synthetic RPC replies interleaved with real runtime events, never live Hermes."""
 
 import asyncio
+from functools import partial
 from uuid import uuid4
 
 import pytest
@@ -34,7 +35,7 @@ async def race_runtime(race_environment):
 
 
 async def batch(runtime, upstream, *, request="batch", questions=None):
-    await runtime.connection.receive(
+    await runtime.connections["default"].receive(
         {
             "type": "clarify.request",
             "session_id": upstream,
@@ -53,17 +54,17 @@ async def batch(runtime, upstream, *, request="batch", questions=None):
 
 def paused_reply(runtime, monkeypatch, result, *, command="clarify.respond"):
     arrived, release = asyncio.Event(), asyncio.Event()
-    original = runtime.connection.rpc
+    original = runtime.connections["default"].rpc
 
     async def rpc(method, params):
         if method != command:
             return await original(method, params)
-        runtime.connection.calls.append((method, params))
+        runtime.connections["default"].calls.append((method, params))
         arrived.set()
         await release.wait()
         return result
 
-    monkeypatch.setattr(runtime.connection, "rpc", rpc)
+    monkeypatch.setattr(runtime.connections["default"], "rpc", rpc)
     return arrived, release
 
 
@@ -99,7 +100,7 @@ async def test_partial_reply_cannot_restore_terminal_interaction(
         )
         # The reader must progress while the command is waiting for its RPC reply.
         await asyncio.wait_for(
-            runtime.connection.receive(
+            runtime.connections["default"].receive(
                 {
                     "type": terminal,
                     "session_id": upstream,
@@ -124,7 +125,9 @@ async def test_partial_reply_cannot_restore_terminal_interaction(
         assert snapshot["status"] == (
             "completed" if terminal == "message.complete" else "streaming"
         )
-        assert [method for method, _ in runtime.connection.calls].count("clarify.respond") == 1
+        assert [method for method, _ in runtime.connections["default"].calls].count(
+            "clarify.respond"
+        ) == 1
     finally:
         release.set()
         if not task.done():
@@ -191,14 +194,14 @@ async def test_rpc_requires_same_turn_connection_epoch_and_authority_after_await
         if change == "turn":
             runtime.turn_ids[session] = str(uuid4())
         elif change == "connection":
-            replacement = ControlledConnection(runtime.on_event)
+            replacement = ControlledConnection(partial(runtime.on_event, "default"))
             await replacement.open()
             replacement.live_sessions.add(upstream)
-            runtime.connection = replacement
+            runtime.connections["default"] = replacement
         elif change == "epoch":
-            runtime.connection.epoch = "another-synthetic-epoch"
+            runtime.connections["default"].epoch = "another-synthetic-epoch"
         elif change == "disconnected":
-            runtime.connection.connected = False
+            runtime.connections["default"].connected = False
         else:
             runtime.store.revoke(runtime.device)
         release.set()
@@ -252,7 +255,7 @@ async def test_two_responses_serialize_without_blocking_rpc_reader(race_runtime,
         assert list(runtime.pending["batch"][2].questions) == [{"qid": "q2", "question": "second"}]
         return {"status": "ok"}
 
-    monkeypatch.setattr(runtime.connection, "rpc", rpc)
+    monkeypatch.setattr(runtime.connections["default"], "rpc", rpc)
     first = answer(runtime, session)
     tasks = [first]
     try:
@@ -281,7 +284,7 @@ async def test_shared_approval_branch_does_not_consume_replacement(race_runtime,
         "session_id": upstream,
         "payload": {"request_id": "batch"},
     }
-    await runtime.connection.receive(request)
+    await runtime.connections["default"].receive(request)
     arrived, release = paused_reply(
         runtime, monkeypatch, {"resolved": 1}, command="approval.respond"
     )
@@ -294,7 +297,7 @@ async def test_shared_approval_branch_does_not_consume_replacement(race_runtime,
     )
     try:
         await asyncio.wait_for(arrived.wait(), 2)
-        await runtime.connection.receive(request)
+        await runtime.connections["default"].receive(request)
         replacement = runtime.pending["batch"]
         release.set()
         _, receipt = await asyncio.wait_for(task, 2)

@@ -17,6 +17,7 @@ from conftest import answer_bridge_once as answer_once
 from conftest import bridge_body as body
 from conftest import bridge_signed as signed
 from conftest import connect_bridge as connect
+from conftest import only
 
 from orbit_hub.app import create_app
 from orbit_hub.bridge_route import DEVICES_PATH, PATH, BridgeConfiguration
@@ -382,8 +383,8 @@ async def test_an_unknown_device_is_answered_exactly_like_a_disconnected_one(bri
         # the test exists for, and an earlier version of it left the device out
         # of `runtimes` entirely, so both requests took the "unknown" path and
         # the assertion could not have failed.
-        runtime = DeviceRuntime(owner["device_id"], store, adapter, lambda: NOW_MS / 1000)
-        await runtime.connect()
+        runtime = DeviceRuntime(owner["device_id"], store, only(adapter), lambda: NOW_MS / 1000)
+        await runtime.connect("default")
         app.state.device_bridge.runtimes[owner["device_id"]] = runtime
         assert not runtime.listeners
         async with httpx.AsyncClient(
@@ -491,7 +492,9 @@ async def test_device_inventory_marks_only_a_connected_macs_active_assistant_tur
     async with app.router.lifespan_context(app):
         runtime = await connect(app, store, adapter, owner)
         monkeypatch.setattr(
-            runtime.connection, "rpc", DeferredConnection.rpc.__get__(runtime.connection)
+            runtime.connections["default"],
+            "rpc",
+            DeferredConnection.rpc.__get__(runtime.connections["default"]),
         )
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app), base_url="https://localhost"

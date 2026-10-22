@@ -3,7 +3,11 @@
 The chat goes over Hermes's gateway WebSocket (`/api/ws`, JSON-RPC); this
 module turns its methods and events into the typed interface of `backend`.
 Dictation and read-aloud go over the same Hermes's HTTP audio endpoints.
+Each agent of kind `hermes` is one Hermes profile on the hub's one Hermes
+(`hermes_url`, `hermes_credential_file`).
 """
+
+from __future__ import annotations
 
 import asyncio
 import base64
@@ -11,13 +15,14 @@ import json
 import re
 from collections.abc import Sequence
 from contextlib import suppress
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode
 from uuid import uuid4
 
 import httpx
 from websockets.asyncio.client import connect
 
-from ..config import Settings
 from ..log import clear_op, logger, report
 from ..protocol import HubError
 from ..secret_file import read_secret
@@ -46,6 +51,9 @@ from .backend import (
 )
 from .speech import MAX_SPEECH_CLIP_BYTES, SpeechClip
 
+if TYPE_CHECKING:
+    from ..config import Settings
+
 # How Hermes begins the error of a resume whose stored transcript it could not
 # read; the rest of its message is Hermes's detail and is never relayed.
 RESUME_HISTORY_ERROR_PREFIX = "Could not reopen that session (its transcript could not be read)."
@@ -73,11 +81,38 @@ def _choices(payload: dict) -> tuple[str, ...] | None:
     return tuple(choice for choice in choices if isinstance(choice, str))
 
 
+@dataclass(frozen=True)
+class HermesAgent:
+    """What an agent of kind `hermes` configures: the profile that answers."""
+
+    profile: str
+
+
+def parse_agent(keys: dict[str, Any]) -> HermesAgent:
+    """An `[[agents]]` entry's own keys for kind `hermes` (see `agents.KINDS`)."""
+    unknown = sorted(set(keys) - {"profile"})
+    if unknown:
+        raise ValueError(f'kind "hermes" does not take {", ".join(unknown)}')
+    if "profile" not in keys:
+        raise ValueError('kind "hermes" needs profile')
+    profile = keys["profile"]
+    if not isinstance(profile, str) or not 1 <= len(profile) <= 64 or "/" in profile:
+        raise ValueError(
+            f"profile {json.dumps(profile, ensure_ascii=False)} must be 1 to 64 characters "
+            "without /"
+        )
+    return HermesAgent(profile)
+
+
+def agent_backend(settings: Settings, agent: HermesAgent) -> HermesBackend:
+    return HermesBackend(settings, agent.profile)
+
+
 class HermesConnection:
     """One device's gateway WebSocket, and what its events mean to the hub."""
 
     def __init__(
-        self, backend: "HermesBackend | None", on_event: EventSink, device: str, device_name: str
+        self, backend: HermesBackend | None, on_event: EventSink, device: str, device_name: str
     ):
         if not 1 <= len(device_name) <= 80 or any(ord(char) < 32 for char in device_name):
             raise HubError("configuration", "Nombre de dispositivo no válido")
@@ -401,7 +436,7 @@ class HermesConnection:
         result = await self.rpc(
             "session.create",
             {
-                "profile": self.backend.settings.profile,
+                "profile": self.backend.profile,
                 "close_on_disconnect": False,
                 "title": f"Orbit · {self.device_name}",
                 "source": "orbit",
@@ -418,7 +453,7 @@ class HermesConnection:
             result = await self.rpc(
                 "session.resume",
                 {
-                    "profile": self.backend.settings.profile,
+                    "profile": self.backend.profile,
                     "session_id": stored_id,
                     "source": "orbit",
                     "close_on_disconnect": False,
@@ -515,13 +550,13 @@ class HermesConnection:
 
 
 class HermesBackend:
-    """The assistant is the Hermes profile `settings.profile`."""
+    """The assistant is the Hermes profile `profile`."""
 
     # Images: Orbit's turns carry none (see `Capabilities.images`).
     capabilities = Capabilities(images=False, resume=True, history=True, voice=True)
 
-    def __init__(self, settings: Settings):
-        self.settings = settings
+    def __init__(self, settings: Settings, profile: str):
+        self.settings, self.profile = settings, profile
 
     def ws_url(self, path: str) -> str:
         base = self.settings.hermes_url.rstrip("/")
@@ -533,10 +568,10 @@ class HermesBackend:
 
 
 class HermesSpeech:
-    """Dictation and read-aloud by the same Hermes profile."""
+    """Dictation and read-aloud by the Hermes profile `profile`."""
 
-    def __init__(self, settings: Settings):
-        self.settings = settings
+    def __init__(self, settings: Settings, profile: str):
+        self.settings, self.profile = settings, profile
 
     async def transcribe(self, audio: bytes) -> str:
         async with httpx.AsyncClient(
@@ -548,7 +583,7 @@ class HermesSpeech:
             try:
                 response = await client.post(
                     self.settings.hermes_url.rstrip("/") + "/api/audio/transcribe",
-                    params={"profile": self.settings.profile},
+                    params={"profile": self.profile},
                     headers={"X-Hermes-Session-Token": credential(self.settings)},
                     json={
                         "data_url": "data:audio/wav;base64," + base64.b64encode(audio).decode(),
@@ -584,7 +619,7 @@ class HermesSpeech:
                     "POST",
                     self.settings.hermes_url.rstrip("/") + "/api/audio/speak",
                     headers={"X-Hermes-Session-Token": credential(self.settings)},
-                    json={"text": text, "profile": self.settings.profile},
+                    json={"text": text, "profile": self.profile},
                 ) as response,
             ):
                 response.raise_for_status()
