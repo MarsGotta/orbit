@@ -984,3 +984,186 @@ conversation's agent. The wake phrase hears every agent's name
 ([native-v1](native-v1.md)); the question goes to the agent named, in a
 conversation of its own when the open one is another agent's.
 
+
+## Agent configuration
+
+Settings › Agents reads and changes, for each agent of `ready`, its
+**personality** (Markdown the agent is given as its instructions), its
+**skills** (files in the [agentskills.io](https://agentskills.io) `SKILL.md`
+format) and its **access groups** (which of Orbit's tools it may use). The
+routes use the device bearer token, like [Meeting dictionaries](#meeting-dictionaries);
+any paired Mac configures every agent of its hub. All of it is optional: a Mac
+that never calls these routes leaves every agent as it was, and a hub without
+them answers `404` with no `code`.
+
+Where each kind keeps them:
+
+- `openai` and `acp`: the hub's database (personality and skill files
+  encrypted). An `openai` agent is told its personality and the name and
+  description of each enabled skill at every turn, and loads a skill's
+  instructions with the hub's own `orbit_skill` tool when its model asks. An
+  `acp` agent has them written into its folder before each session opens:
+  `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex), and one
+  `.claude/skills/<name>/SKILL.md` or `.codex/skills/<name>/SKILL.md` per
+  enabled skill. A conversation already open keeps what it started with.
+- `hermes`: the profile's own `SOUL.md` and skills, through Hermes's panel
+  (see Hermes refusals below). Nothing of them is stored in the hub.
+- Access groups: the hub's, for every kind.
+
+### Read
+
+`GET /v1/agents/{agent_id}/config` →
+
+```json
+{"agent_id":"lyra","kind":"openai",
+ "personality":{"text":"Eres Lyra. Hablas claro y breve.","editable":true,"max_bytes":16384},
+ "access":{"groups":{"screen":true,"control":false,"calendar":true,"meetings":true,"files":true},
+           "editable":true},
+ "skills":{"editable":true,"max_skills":128,"max_skill_bytes":65536,
+           "items":[{"name":"resumen-semanal","description":"Resume la semana en cinco puntos.",
+                     "enabled":true}]}}
+```
+
+`items` are ordered by name. An agent nobody configured has `text:""`, no
+items and every group `true`. `editable` says whether this kind of agent lets
+Orbit change the field; when it is `false`, the field also carries `cause`, a
+Spanish sentence. Every kind lets Orbit change all three today, so it is
+always `true`; a Mac must still honour `false`.
+
+`GET /v1/agents/{agent_id}/skills/{name}` →
+`{"name","description","enabled","content"}`, `content` being the whole
+`SKILL.md`.
+
+### Write
+
+Each write answers `200` with the agent's whole configuration, exactly as
+`GET …/config`. A refused write changes nothing.
+
+- `PUT /v1/agents/{agent_id}/personality` `{"text":"…"}`. An empty text
+  clears it.
+- `PUT /v1/agents/{agent_id}/access`
+  `{"groups":{"screen":true,"control":false,"calendar":true,"meetings":true,"files":true}}`:
+  the five groups, each a boolean; a missing or extra key is refused.
+- `PUT /v1/agents/{agent_id}/skills/{name}` `{"content":"---\nname: resumen-semanal\ndescription: Resume la semana en cinco puntos.\n---\n1. Lee la agenda…"}`
+  creates the skill, enabled, or replaces its file keeping whether it is
+  enabled.
+- `PUT /v1/agents/{agent_id}/skills/{name}/enabled` `{"enabled":false}`.
+- `DELETE /v1/agents/{agent_id}/skills/{name}`. Deleting a skill that is not
+  there is `skill_not_found`, so a Mac that lost the answer to a delete can
+  read that refusal as already done.
+
+Malformed JSON or a body outside these shapes is `400 invalid_agent_config`
+with the field. A body over its ceiling is `413 too_large`
+(`resource:"hub_request"`): 6 × the text's bound plus 1 KiB, room for a text
+whose every character JSON-escapes to six bytes.
+
+### Skills
+
+A `SKILL.md` starts with a YAML frontmatter between `---` lines; Orbit checks
+the standard's rules on its two required fields, and keeps any other key
+(`license`, `allowed-tools`, `metadata`, an agent's own) as written:
+
+| rule | what it refuses |
+|---|---|
+| `frontmatter_missing` | the file does not start with a `---` line |
+| `frontmatter_unclosed` | no `---` line closes the frontmatter |
+| `frontmatter_yaml` | the frontmatter is not YAML, or not a mapping |
+| `name_missing` | no `name`, or not text |
+| `name_too_long` | more than 64 characters (`characters`, `max_characters`) |
+| `name_characters` | anything but `a-z`, `0-9` and `-` |
+| `name_hyphen_edge` | a name that starts or ends with `-` |
+| `name_consecutive_hyphens` | `--` in the name |
+| `name_mismatch` | the frontmatter's `name` is not the route's `{name}` |
+| `description_missing` | no `description`, or blank |
+| `description_too_long` | more than 1024 characters (`characters`, `max_characters`) |
+
+The route's `{name}` is held to the same name rules. Orbit admits only ASCII
+letters, where the standard admits any lowercase letter: the name is a folder
+in an `acp` agent's directory and a segment of this URL.
+
+### Bounds and refusals
+
+- Personality: 16 KiB of UTF-8. It is sent to an `openai` agent's model on
+  every turn (about 4,000 tokens, an eighth of a 32,000-token window) and
+  read by an `acp` agent at each session.
+- One `SKILL.md`: 64 KiB. The standard asks for under 500 lines; Hermes's
+  longest bundled skill measured 35,175 bytes.
+- Skills per agent: 128. It bounds this read (under 1 MiB even at the
+  standard's maxima) and the list an `openai` agent is told every turn.
+
+Refusals carry `code`, a Spanish `message` without the personality's or
+skill's text, and their numbers in `refusal`, all scalars (a Mac decodes no
+array there):
+
+| status | code | numbers |
+|---|---|---|
+| 404 | `agent_not_found` | `agent_id`, `agent_ids` (comma-joined, in the hub's order) |
+| 403 | `field_not_editable` | `agent_id`, `field` (`personality`, `skills` or `access`), `kind` |
+| 422 | `skill_invalid` | `name`, `rule`, and for the length rules `characters`, `max_characters` |
+| 404 | `skill_not_found` | `name` |
+| 413 | `skill_too_large` | `name`, `bytes`, `max_bytes` |
+| 409 | `too_many_skills` | `count`, `max` |
+| 413 | `personality_too_large` | `bytes`, `max_bytes` |
+
+```json
+{"code":"skill_invalid","message":"La skill «resumen-semanal» no cumple el estándar SKILL.md: la cabecera dice name: otra, y la skill se llama resumen-semanal",
+ "refusal":{"code":"skill_invalid","name":"resumen-semanal","rule":"name_mismatch","retry":{"kind":"after_fix"}},
+ "op":"…"}
+```
+
+### A Hermes agent
+
+The hub reaches the profile's `SOUL.md` and skills through Hermes's panel API
+with the credential it already holds for Hermes (`X-Hermes-Session-Token`):
+`GET`/`PUT /api/profiles/{name}/soul`, `GET /api/skills`,
+`GET /api/skills/content`, `POST /api/skills` (create), `PUT /api/skills/content`
+(replace) and `PUT /api/skills/toggle`. Those routes carry no version, so they
+are checked against the installed Hermes at each release. The panel has no
+route to delete a skill: `DELETE` on a `hermes` agent's skill is `403
+field_not_editable` with `field:"skills"`, `kind:"hermes"`. Orbit's own rules
+and bounds apply before anything is sent to Hermes; creating a skill counts
+the profile's skills against the 128.
+
+| status | code | numbers |
+|---|---|---|
+| 502 | `assistant_admin_refused` | `route` (`"PUT /api/profiles/{name}/soul"`, as written above, never the profile or skill), `status` (Hermes's HTTP status) |
+| 503 | `assistant_admin_unreachable` | `route` |
+| 504 | `assistant_admin_timeout` | `route`, `timeout_ms` |
+| 502 | `assistant_admin_invalid` | `route`: Hermes answered something the hub cannot read |
+| 502 | `assistant_admin_too_large` | `route`, `bytes`, `max_bytes` (1 MiB per answer) |
+
+### Access groups
+
+| group | orbit-mcp tools | bridge |
+|---|---|---|
+| `screen` | `orbit_windows`, `orbit_screenshot`, `orbit_look`, `orbit_selected_text` | `screen_sources`, `screenshot`, `selected_text` |
+| `control` | `orbit_control_tools`, `orbit_perform_action`, `orbit_action_result` | `control_tools`, `perform_action`, `/internal/v1/device/action-result` |
+| `calendar` | `orbit_calendar` | `calendar_read` |
+| `meetings` | `orbit_meetings`, `orbit_transcript`, `orbit_note` | `/internal/v1/meetings/*` |
+| `files` | `orbit_files_list`, `orbit_files_search`, `orbit_files_read` | `files_list`, `files_search`, `files_read` |
+
+`orbit_devices` belongs to none. Every group is on by default. A group off is
+a configuration of the agent's tools: nothing is asked at each use, nothing
+expires, and macOS's permission stays the decision about the Mac.
+
+It is enforced twice. `orbit-mcp` knows its agent from `ORBIT_MCP_AGENT`,
+which the hub sets for `openai` and `acp` agents and a Hermes profile's MCP
+configuration sets for a `hermes` agent; without it, the default agent. It
+asks `POST /internal/v1/agent/access`, signed with the device-bridge key over
+`{"protocol":"orbit_device_bridge_v1","agent_id"?:"lyra"}`, which answers
+`{"protocol":"orbit_device_bridge_result_v1","state":"answered","agent_id":"lyra","groups":{…}}`
+(no `agent_id`: the default agent, named in the answer). `orbit-mcp` then
+lists no tool of a group that is off, and refuses one called anyway with
+`agent_access_disabled`; when the hub cannot say, it offers every tool and
+the hub decides. It reads the groups again after 10 s.
+
+The hub checks each request: the device-bridge request, the action-result
+read and the meeting reads take an optional `agent_id`, which `orbit-mcp`
+sends when it has one (a request without it is the default agent's, as
+before). A request of a group that is off is `403 agent_access_disabled` with
+`agent_id` and `group`; an `agent_id` the hub does not have is `404
+agent_not_found` with `agent_id` and `agent_ids`. Neither reaches the Mac.
+
+Both checks trust the agent id `orbit-mcp` signs with the bridge key: the
+groups configure a cooperative agent's tools, and they are not a boundary
+against a hostile process on the same machine that holds that key.

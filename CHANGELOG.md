@@ -31,6 +31,20 @@ is in Spanish; the labels quoted below are the ones it shows.
   Agent Client Protocol adapters, locked to Orbit's tools and signed in by the
   hub's operator. Dictation and read-aloud are the default agent's; an agent
   without a voice is refused with `speech_not_configured` and its id.
+- Each agent's personality, skills and access groups can be read and changed
+  from Orbit (`/v1/agents/{agent_id}/config`, `…/personality`, `…/access`
+  and `…/skills/{name}`). Skills are agentskills.io `SKILL.md` files,
+  validated by the standard's rules on `name` and `description`, at most
+  64 KiB each and 128 per agent; a personality is at most 16 KiB. An `openai`
+  agent is told them at every turn and loads a skill with `orbit_skill`; an
+  `acp` agent finds them in its folder (`CLAUDE.md`/`AGENTS.md` and
+  `.claude/skills` or `.codex/skills`); a `hermes` agent's are its profile's
+  `SOUL.md` and skills, through Hermes's panel API. The five access groups
+  (screen, control, calendar, meetings, files; all on by default) are
+  enforced by `orbit-mcp`, which no longer lists or runs a tool of a group
+  that is off, and by the hub, which refuses that group's bridge requests
+  with `agent_access_disabled`, the agent and the group. They configure an
+  agent's tools and are not a boundary against a hostile local process.
 
 ### Changed
 

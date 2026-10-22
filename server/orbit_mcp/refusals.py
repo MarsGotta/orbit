@@ -121,6 +121,10 @@ ERROR_MESSAGES = {
     "invalid_parameters": "Los parámetros no son válidos. Corrige sus tipos y límites antes de reintentarlo.",
     "operation_not_found": "No se encontró esa operación en el Mac elegido. Revisa el identificador y el dispositivo.",
     "meetings_not_configured": "Falta la clave privada de reuniones en la configuración de Orbit MCP.",
+    # Settings › Agents: what each agent may use. Not macOS's permission and
+    # not the Mac's refusal; the user changes it in Orbit's settings.
+    "agent_access_disabled": "Este agente tiene desactivado en Ajustes › Agentes el acceso al que pertenece esta herramienta, así que no puede usarla. No es un permiso de macOS ni un fallo del Mac.",
+    "agent_not_found": "El hub no tiene el agente para el que se arrancó este traductor (ORBIT_MCP_AGENT). Revisa la configuración de ese agente.",
     # A recording and its note, read from the hub. Each state of a note
     # that is not there has its own code; none of them means an empty meeting.
     "recording_not_found": "Esa grabación no existe en el hub para ese Mac: ni ha llegado audio suyo ni está cerrada. Revisa el identificador con orbit_meetings.",
@@ -296,6 +300,9 @@ def _refusal_sentence(detail) -> str:
         "sealed_chunks": "fragmentos guardados",
         "gaps": "huecos",
         "expires_at_ms": "caduca en",
+        "agent_id": "agente",
+        "group": "acceso",
+        "agent_ids": "agentes del hub",
     }
     fields = []
     if isinstance(legacy_cause, str):

@@ -22,6 +22,7 @@ from support_orbit_mcp import (
     write_mcp_config,
 )
 
+from orbit_hub.assistant.access import GROUPS
 from orbit_mcp.config import Config
 from orbit_mcp.hub import HubClient, HubClientError
 from orbit_mcp.server import build_server
@@ -72,6 +73,11 @@ class DisconnectedHub:
 
     async def devices(self) -> list[dict]:
         return _disconnected_devices()
+
+    async def agent_access(self):
+        # The hub answers for itself: it is the Mac that is away, and every
+        # group is on, so each tool reaches the Mac's refusal.
+        return "default", dict.fromkeys(GROUPS, True)
 
     async def _unavailable(self, method: str):
         self.calls.append(method)

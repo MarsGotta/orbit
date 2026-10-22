@@ -1,8 +1,10 @@
 """Bounded reads of a paired device's meetings.
 
-Deimos sees the meetings always. The «Reuniones» switch was retired on
+The assistant sees the meetings unless its agent has the `meetings` access
+group off (Settings › Agents, `assistant.access`): a configuration of that
+agent's tools, not a sharing record. The «Reuniones» switch was retired on
 2026-09-25, so nothing here reads a sharing record; the private routes are
-authenticated and the device is the one the request names, and that is all.
+authenticated and the device is the one the request names.
 An existing ``meeting_sharing`` table, written by earlier versions, is left
 where it is and never read; so is ``deimos_meeting_notifications``, from the
 notice Deimos got when a transcript finished, retired on 2026-10-15.
@@ -44,8 +46,13 @@ TRANSCRIPT_GROUP_MS = 20_000
 
 
 class MeetingsBridgeService:
-    def __init__(self, store, configuration, now, *, default_language: str | None = None):
+    def __init__(
+        self, store, configuration, now, *, default_language: str | None = None, access=None
+    ):
         self.store, self.now = store, now
+        # `assistant.access.AgentAccess`: every read here is the `meetings`
+        # group's, refused for an agent that has it off. None checks nothing.
+        self.access = access
         # `[meeting_transcription] language`, for groups stored without one.
         self.default_language = default_language
         self.configuration = (
@@ -90,6 +97,8 @@ class MeetingsBridgeService:
             request = ListRequest.model_validate_json(body)
         except (ValueError, TypeError, UnicodeError, RecursionError):
             raise MeetingsBridgeError(400, "invalid_request") from None
+        if self.access is not None:
+            self.access.require(request.agent_id, "meetings")
         device = request.device_id
         with self.store.read_snapshot() as db:
             try:
@@ -119,6 +128,8 @@ class MeetingsBridgeService:
             request = NoteRequest.model_validate_json(body)
         except (ValueError, TypeError, UnicodeError, RecursionError):
             raise MeetingsBridgeError(400, "invalid_request") from None
+        if self.access is not None:
+            self.access.require(request.agent_id, "meetings")
         device, recording = request.device_id, request.recording_id
         with self.store.read_snapshot() as db:
             is_open = self._recording(db, device, recording) is None
@@ -205,6 +216,8 @@ class MeetingsBridgeService:
             request = TranscriptRequest.model_validate_json(body)
         except (ValueError, TypeError, UnicodeError, RecursionError):
             raise MeetingsBridgeError(400, "invalid_request") from None
+        if self.access is not None:
+            self.access.require(request.agent_id, "meetings")
         device, recording = request.device_id, request.recording_id
         live = None
         with self.store.read_snapshot() as db:

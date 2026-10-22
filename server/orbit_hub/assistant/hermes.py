@@ -133,7 +133,11 @@ def parse_agent(keys: dict[str, Any]) -> HermesAgent:
     return HermesAgent(profile)
 
 
-def agent_backend(settings: Settings, agent: AgentConfiguration) -> HermesBackend:
+def agent_backend(
+    settings: Settings, agent: AgentConfiguration, instructions=None
+) -> HermesBackend:
+    """The profile answers with its own SOUL.md and skills: the hub's
+    `instructions` are not Hermes's (they are edited through its panel)."""
     return HermesBackend(settings, agent.settings.profile)
 
 

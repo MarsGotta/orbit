@@ -7,11 +7,11 @@ agent unless `default_agent` names another. Without `[[agents]]` the hub is
 one implicit agent, `default`, made of `assistant_name` and `profile` as
 before agents existed, so a 0.9.0 `orbit.toml` loads as it did.
 
-Adding a kind is one entry in `KINDS`, an `AgentKind` with three functions:
+Adding a kind is one entry in `KINDS`, an `AgentKind` with four functions:
 
     KINDS = {
-        "hermes": AgentKind(hermes.parse_agent, hermes.agent_backend, hermes.agent_speech),
-        "openai": AgentKind(openai.parse_settings, openai.build_backend, openai.build_speech),
+        "hermes": AgentKind(hermes.parse_agent, hermes.agent_backend, hermes.agent_speech, …),
+        "openai": AgentKind(openai.parse_settings, openai.build_backend, openai.build_speech, …),
     }
 
 - `parse(keys: dict[str, Any]) -> S` receives the entry's own keys (all but
@@ -21,14 +21,21 @@ Adding a kind is one entry in `KINDS`, an `AgentKind` with three functions:
   must refuse keys it does not know: a misspelt key silently ignored would
   configure a different agent than the one written. It runs while the
   configuration loads, so it reads no files and opens nothing.
-- `backend(settings: Settings, agent: AgentConfiguration) -> AssistantBackend`
+- `backend(settings: Settings, agent: AgentConfiguration, instructions) -> AssistantBackend`
   builds the agent's backend from the hub's settings and the configured agent
   (its `id`, `name` and what `parse` returned as `agent.settings`), once at
   startup; every device's connections to that agent come from it. Files the
   kind names (keys, commands) are checked here, refused with `ValueError`.
+  `instructions()` reads the personality and enabled skills the hub keeps for
+  the agent (`agent_config.AgentInstructions`) when the kind takes them from
+  the hub; a kind that keeps its own (Hermes) ignores it.
 - `speech(settings: Settings, agent: AgentConfiguration) -> SpeechBackend | None`
   is the agent's dictation and read-aloud, or None for a kind without a voice;
   its backend's `capabilities.voice` then says False.
+- `admin(settings: Settings, agent, configs: AgentConfigStore) -> AgentAdmin`
+  is where the agent's personality and skills are read and changed from
+  Orbit (`agent_config.AgentAdmin`): the hub's database, or the kind's own
+  store. Access groups are the hub's for every kind.
 
 Everything else (ids, names, the default, the refusals of `chat.send`, the
 `ready` list) is the same for every kind and lives here.
@@ -45,29 +52,54 @@ from typing import TYPE_CHECKING, Any
 
 from ..errors import HubError
 from . import acp, hermes, openai
+from .agent_config import (
+    AgentAdmin,
+    AgentConfigStore,
+    AgentInstructions,
+    StoredAdmin,
+    no_instructions,
+)
 from .backend import AssistantBackend
+from .hermes_panel import HermesPanelAdmin
 from .speech import SpeechBackend
 
 if TYPE_CHECKING:
     from ..config import Settings
 
 
+InstructionSource = Callable[[], AgentInstructions]
+
+
 @dataclass(frozen=True)
 class AgentKind:
     parse: Callable[[dict[str, Any]], Any]
-    backend: Callable[[Settings, AgentConfiguration], AssistantBackend]
+    backend: Callable[[Settings, AgentConfiguration, InstructionSource], AssistantBackend]
     speech: Callable[[Settings, AgentConfiguration], SpeechBackend | None]
+    admin: Callable[[Settings, Any, AgentConfigStore], AgentAdmin]
 
 
 def _no_speech(settings: Settings, agent: AgentConfiguration) -> None:
     return None
 
 
+def _stored_admin(settings: Settings, agent: Any, configs: AgentConfigStore) -> AgentAdmin:
+    return StoredAdmin(configs, agent.id)
+
+
+def _hermes_admin(settings: Settings, agent: Any, configs: AgentConfigStore) -> AgentAdmin:
+    return HermesPanelAdmin(settings, agent.id, agent.settings.profile)
+
+
 KINDS: dict[str, AgentKind] = {
-    "hermes": AgentKind(hermes.parse_agent, hermes.agent_backend, hermes.agent_speech),
-    "openai": AgentKind(openai.parse_settings, openai.build_backend, openai.build_speech),
+    # Hermes keeps its own SOUL.md and skills: its panel is where Orbit edits them.
+    "hermes": AgentKind(
+        hermes.parse_agent, hermes.agent_backend, hermes.agent_speech, _hermes_admin
+    ),
+    "openai": AgentKind(
+        openai.parse_settings, openai.build_backend, openai.build_speech, _stored_admin
+    ),
     # Claude Code and Codex speak no audio over ACP: no dictation, no read-aloud.
-    "acp": AgentKind(acp.parse_settings, acp.build_backend, _no_speech),
+    "acp": AgentKind(acp.parse_settings, acp.build_backend, _no_speech, _stored_admin),
 }
 
 # The id of the one agent a configuration without `[[agents]]` has. Sessions
@@ -256,11 +288,19 @@ class Agents:
         settings: Settings,
         backend: AssistantBackend | None = None,
         speech: SpeechBackend | None = None,
+        configs: AgentConfigStore | None = None,
     ) -> Agents:
         """The configured agents, each on its kind's backend and speech, or all
         on `backend` and `speech` when they are given: tests drive the hub
-        with doubles."""
+        with doubles. `configs` holds what the hub keeps of each agent's
+        personality and skills; without it, an agent has none."""
         configured, default_id = settings.agent_configurations()
+
+        def instructions(agent_id: str) -> InstructionSource:
+            if configs is None:
+                return no_instructions
+            return lambda: configs.instructions(agent_id)
+
         return cls(
             [
                 Agent(
@@ -268,7 +308,9 @@ class Agents:
                     agent.name,
                     agent.kind,
                     agent.settings,
-                    backend if backend is not None else KINDS[agent.kind].backend(settings, agent),
+                    backend
+                    if backend is not None
+                    else KINDS[agent.kind].backend(settings, agent, instructions(agent.id)),
                     speech if speech is not None else KINDS[agent.kind].speech(settings, agent),
                 )
                 for agent in configured

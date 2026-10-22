@@ -9,7 +9,8 @@ from uuid import uuid4
 import httpx
 from pydantic import ValidationError
 
-from orbit_hub.bridge_route import ACTION_RESULT_PATH, DEVICES_PATH
+from orbit_hub.assistant.access import GROUPS
+from orbit_hub.bridge_route import ACCESS_PATH, ACTION_RESULT_PATH, DEVICES_PATH
 from orbit_hub.bridge_route import IN_FLIGHT as IN_FLIGHT_OUTCOME
 from orbit_hub.bridge_route import PATH as BRIDGE_PATH
 from orbit_hub.bridge_route import PROTOCOL as BRIDGE_PROTOCOL
@@ -234,6 +235,34 @@ class HubClient:
         self._devices_cache = (now, cached)
         return [dict(row) for row in cached]
 
+    def _agent(self) -> dict:
+        """The agent field of a request: this translator's agent, or nothing
+        for the default agent, so a request without it stays as it was."""
+        agent_id = self.config.agent_id
+        return {} if agent_id is None else {"agent_id": agent_id}
+
+    async def agent_access(self) -> tuple[str, dict[str, bool]]:
+        """The id of the agent this translator serves and its access groups."""
+        response = await self._post(
+            ACCESS_PATH,
+            canonical({"protocol": BRIDGE_PROTOCOL, **self._agent()}),
+            self.config.device_bridge,
+            BRIDGE_PROTOCOL,
+            ROUTE_TIMEOUT_SECONDS,
+            None,
+        )
+        payload = self._json_payload(response)
+        if response.status_code >= 400:
+            raise _failure(payload, response.status_code)
+        agent_id, groups = payload.get("agent_id"), payload.get("groups")
+        if (
+            not isinstance(agent_id, str)
+            or not isinstance(groups, dict)
+            or any(type(groups.get(group)) is not bool for group in GROUPS)
+        ):
+            raise HubClientError("invalid_response", response.status_code)
+        return agent_id, {group: groups[group] for group in GROUPS}
+
     async def device_request(self, device_id: str, capability: str, parameters: dict) -> dict:
         validate_parameters(capability, parameters)
         body = canonical(
@@ -242,6 +271,7 @@ class HubClient:
                 "device_id": device_id,
                 "capability": capability,
                 "parameters": parameters,
+                **self._agent(),
             }
         )
         response = await self._post(
@@ -326,6 +356,7 @@ class HubClient:
                 "protocol": BRIDGE_PROTOCOL,
                 "device_id": device_id,
                 "operation_id": operation_id,
+                **self._agent(),
             }
         )
         response = await self._post(
@@ -483,7 +514,7 @@ class HubClient:
             raise HubClientError("meetings_not_configured")
         response = await self._post(
             path,
-            canonical(request),
+            canonical({**request, **self._agent()}),
             credentials,
             MEETINGS_PROTOCOL,
             MEETINGS_TIMEOUT_SECONDS,

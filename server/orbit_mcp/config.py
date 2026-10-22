@@ -16,6 +16,11 @@ logger = get_logger("orbit_hub.orbit_mcp.config")
 
 DEFAULT_CONFIG_PATH = "~/.config/orbit/mcp.toml"
 KEY_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+# Which agent this translator serves: the hub or Hermes sets it when it
+# starts orbit-mcp for an agent (`ORBIT_MCP_AGENT`); without it, the default
+# agent. An agent's id as `[[agents]]` fixes it.
+AGENT_VARIABLE = "ORBIT_MCP_AGENT"
+AGENT_ID = re.compile(r"^[a-z0-9-]{1,32}$")
 
 
 class ConfigError(ValueError):
@@ -57,11 +62,18 @@ class Config:
     devices: dict[str, str]
     source_path: Path | None = field(default=None, repr=False, compare=False)
     source_mtime_ns: int | None = field(default=None, repr=False, compare=False)
+    # Not from the TOML: the agent this process serves, or None for the default.
+    agent_id: str | None = None
 
     @classmethod
     def from_env(cls) -> Config:
         configured = os.environ.get("ORBIT_MCP_CONFIG", DEFAULT_CONFIG_PATH)
-        return cls.load(Path(configured).expanduser())
+        agent_id = os.environ.get(AGENT_VARIABLE) or None
+        if agent_id is not None and AGENT_ID.fullmatch(agent_id) is None:
+            raise ConfigError(
+                f"{AGENT_VARIABLE} must be an agent id: 1 to 32 characters of a-z, 0-9 and -"
+            )
+        return replace(cls.load(Path(configured).expanduser()), agent_id=agent_id)
 
     @classmethod
     def load(cls, path: str | Path) -> Config:
@@ -92,7 +104,7 @@ class Config:
             raise ConfigError("Could not read the Orbit MCP configuration again") from None
         if current_mtime_ns == self.source_mtime_ns:
             return self
-        return type(self).load(self.source_path)
+        return replace(type(self).load(self.source_path), agent_id=self.agent_id)
 
     @classmethod
     def _validated(cls, values: dict) -> Config:

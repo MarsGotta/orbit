@@ -10,6 +10,7 @@ from time import monotonic
 from mcp.server.mcpserver import MCPServer
 from mcp.types import CallToolResult, ImageContent, TextContent
 
+from orbit_hub.assistant.access import TOOL_GROUP
 from orbit_hub.identifiers import canonical_uuid
 from orbit_hub.log import bind_op, get_logger
 from orbit_hub.meetings_bridge.page import MAX_ANSWER_CHARS
@@ -23,6 +24,12 @@ from .hub import HubClient, HubClientError, validate_parameters
 from .refusals import error_result, mac_sentence, unexpected_result
 
 logger = get_logger("orbit_hub.orbit_mcp.server")
+
+# How long the agent's access groups are taken as read. What it protects: the
+# hub from one access read per tool call. Why 10 s: as the device list's
+# cache; a change in Settings › Agents reaches this translator within it, and
+# the hub refuses a disabled group's request at once regardless.
+ACCESS_CACHE_SECONDS = 10.0
 
 
 def _text(value: str) -> TextContent:
@@ -84,7 +91,59 @@ def _operation_id(value: str) -> str:
 
 
 class OrbitMCPServer(MCPServer):
+    """orbit-mcp's tools, without those of a group its agent has off."""
+
+    hub_client: HubClient | None = None
+    _access: tuple[float, str, dict[str, bool]] | None = None
+
+    async def agent_access(self) -> tuple[str, dict[str, bool]] | None:
+        """The agent's id and access groups, or None when the hub could not say.
+
+        Unknown is not "off": every tool is offered then, and the hub, which
+        checks each request itself, refuses what is off.
+        """
+        now = monotonic()
+        if self._access is not None and now - self._access[0] < ACCESS_CACHE_SECONDS:
+            return self._access[1], self._access[2]
+        if self.hub_client is None:
+            return None
+        try:
+            agent_id, groups = await self.hub_client.agent_access()
+        except HubClientError as exc:
+            logger.info(
+                "orbit_mcp_access_unknown",
+                extra={"event": "orbit_mcp_access_unknown", "code": exc.code},
+            )
+            return None
+        self._access = (now, agent_id, groups)
+        return agent_id, groups
+
+    async def list_tools(self):
+        tools = await super().list_tools()
+        known = await self.agent_access()
+        if known is None:
+            return tools
+        _agent_id, groups = known
+        return [tool for tool in tools if groups.get(TOOL_GROUP.get(tool.name, ""), True)]
+
     async def call_tool(self, name, arguments, context=None):
+        group = TOOL_GROUP.get(name)
+        if group is not None:
+            known = await self.agent_access()
+            if known is not None and not known[1][group]:
+                return error_result(
+                    HubClientError(
+                        "agent_access_disabled",
+                        403,
+                        {
+                            "refusal": {
+                                "code": "agent_access_disabled",
+                                "agent_id": known[0],
+                                "group": group,
+                            }
+                        },
+                    )
+                )
         if name == "orbit_perform_action":
             try:
                 action = _general_action((arguments or {}).get("action"))
@@ -110,6 +169,7 @@ def build_server(config: Config, hub_client: HubClient, *, clock=time.time) -> M
         name="orbit",
         instructions="Herramientas privadas de Orbit para el perfil Deimos.",
     )
+    server.hub_client = hub_client
 
     def current_config() -> Config:
         nonlocal config

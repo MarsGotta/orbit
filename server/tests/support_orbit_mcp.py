@@ -19,7 +19,14 @@ from fastapi import FastAPI, Request
 from fastapi.responses import Response
 from support_client_e2e import tcp_server
 
-from orbit_hub.bridge_route import DEVICES_PATH, BridgeError, BridgeRequest, failure
+from orbit_hub.bridge_route import (
+    ACCESS_PATH,
+    DEVICES_PATH,
+    AccessRequest,
+    BridgeError,
+    BridgeRequest,
+    failure,
+)
 from orbit_hub.bridge_route import HEADER_PREFIX as BRIDGE_HEADER_PREFIX
 from orbit_hub.bridge_route import PATH as BRIDGE_PATH
 from orbit_hub.bridge_route import PROTOCOL as BRIDGE_PROTOCOL
@@ -153,8 +160,13 @@ class FakeHub:
         self,
         device_replies=None,
         devices=None,
+        access=None,
     ):
         self.app = FastAPI()
+        # agent id (None: the default) -> its access groups; None serves no
+        # access route, as a hub that could not say.
+        self.access = access
+        self.access_requests = []
         self.device_requests = []
         self.device_list_requests = 0
         # The X-Orbit-Op of every request, in arrival order.
@@ -214,6 +226,41 @@ class FakeHub:
             if self.device_replies:
                 return self.device_replies.pop(0)
             return self._default_reply(parsed.capability)
+
+        self.access_auth = Authenticator(
+            BRIDGE_KEY_ID,
+            BRIDGE_KEY,
+            protocol=BRIDGE_PROTOCOL,
+            path=ACCESS_PATH,
+            header_prefix=BRIDGE_HEADER_PREFIX,
+            failure=RouteFailure,
+        )
+
+        @self.app.post(ACCESS_PATH)
+        async def agent_access(request: Request) -> Response:
+            body = await request.body()
+            if self.access is None:
+                return hub_rejected(503, "unavailable")
+            try:
+                self.access_auth.admit(
+                    request.scope["headers"], body, int(time.time() * 1000), monotonic()
+                )
+                parsed = AccessRequest.model_validate_json(body)
+            except RouteFailure as exc:
+                return hub_rejected(exc.status, exc.code)
+            self.access_requests.append(parsed.agent_id)
+            agent_id = parsed.agent_id or "default"
+            return Response(
+                content=canonical(
+                    {
+                        "protocol": BRIDGE_RESULT,
+                        "state": "answered",
+                        "agent_id": agent_id,
+                        "groups": self.access[agent_id],
+                    }
+                ),
+                media_type="application/json",
+            )
 
         @self.app.get(DEVICES_PATH)
         async def device_list(request: Request) -> Response:

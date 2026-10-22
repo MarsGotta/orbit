@@ -26,6 +26,7 @@ from typing import Literal
 
 from pydantic import Field, ValidationError
 
+from .assistant.access import CAPABILITY_GROUP, disabled_message
 from .device_bridge import (
     ACTION_REPLY_TIMEOUT_SECONDS,
     REQUEST_TIMEOUT_SECONDS,
@@ -44,6 +45,10 @@ RESULT_PROTOCOL = "orbit_device_bridge_result_v1"
 PATH = "/internal/v1/device/request"
 ACTION_RESULT_PATH = "/internal/v1/device/action-result"
 DEVICES_PATH = "/internal/v1/devices"
+# What the agent orbit-mcp serves may use: its access groups.
+ACCESS_PATH = "/internal/v1/agent/access"
+# An agent's id as `[[agents]]` fixes it (`assistant.agents.AGENT_ID`).
+AGENT_ID_PATTERN = r"^[a-z0-9-]{1,32}$"
 HEADER_PREFIX = "x-orbit-bridge-"
 # The translator's canonical action plus a measured 235-byte envelope using a
 # 128-character ASCII fixture device id. The field limit counts characters,
@@ -64,12 +69,20 @@ class BridgeRequest(PrivateModel):
     device_id: str = Field(min_length=1, max_length=128)
     capability: str = Field(min_length=1, max_length=64)
     parameters: dict = Field(default_factory=dict)
+    # The agent whose orbit-mcp asks (`ORBIT_MCP_AGENT`); none is the default agent.
+    agent_id: str | None = Field(default=None, pattern=AGENT_ID_PATTERN)
 
 
 class ActionResultRequest(PrivateModel):
     protocol: Literal[PROTOCOL]
     device_id: str = Field(min_length=1, max_length=128)
     operation_id: str = Field(min_length=36, max_length=36)
+    agent_id: str | None = Field(default=None, pattern=AGENT_ID_PATTERN)
+
+
+class AccessRequest(PrivateModel):
+    protocol: Literal[PROTOCOL]
+    agent_id: str | None = Field(default=None, pattern=AGENT_ID_PATTERN)
 
 
 # What an action that has been handed to the Mac and has not finished
@@ -101,7 +114,11 @@ class BridgeService:
         timestamp,
         captures,
         store,
+        access=None,
     ):
+        # `assistant.access.AgentAccess`: refuses a request of a group its
+        # agent has off. None checks nothing.
+        self.access = access
         self.configuration = (
             BridgeConfiguration.model_validate(configuration) if configuration is not None else None
         )
@@ -113,6 +130,7 @@ class BridgeService:
         self.auth = None
         self.action_result_auth = None
         self.devices_auth = None
+        self.access_auth = None
         self._action_tasks: set[asyncio.Task] = set()
         self._active_action_operations: set[str] = set()
         self._closed = False
@@ -138,12 +156,14 @@ class BridgeService:
         self.auth = authenticator(PATH)
         self.action_result_auth = authenticator(ACTION_RESULT_PATH)
         self.devices_auth = authenticator(DEVICES_PATH)
+        self.access_auth = authenticator(ACCESS_PATH)
 
     def close(self):
         self._closed = True
         self.auth = None
         self.action_result_auth = None
         self.devices_auth = None
+        self.access_auth = None
         for task in self._action_tasks:
             task.cancel()
         self._action_tasks.clear()
@@ -197,6 +217,9 @@ class BridgeService:
             raise BridgeError(
                 400, "invalid_request", {"bytes": len(body), "max_bytes": NON_ACTION_REQUEST_BYTES}
             )
+        group = CAPABILITY_GROUP.get(request.capability)
+        if self.access is not None and group is not None:
+            self.access.require(request.agent_id, group)
         runtime = self.runtimes.get(request.device_id)
         # Unknown and disconnected are answered the same on purpose: holding the
         # key does not entitle a caller to enumerate this hub's devices.
@@ -389,6 +412,8 @@ class BridgeService:
             request = ActionResultRequest.model_validate_json(body)
         except (ValueError, TypeError, UnicodeError, RecursionError):
             raise BridgeError(400, "invalid_request") from None
+        if self.access is not None:
+            self.access.require(request.agent_id, "control")
         operation = self.store.operation(request.device_id, request.operation_id)
         if operation is None:
             raise BridgeError(404, "operation_not_found")
@@ -419,6 +444,24 @@ class BridgeService:
             "state": "answered",
             "operation_id": request.operation_id,
             **response,
+        }
+
+    def agent_access(self, headers, body) -> dict:
+        """The groups of the agent orbit-mcp serves, so it lists only theirs."""
+        self.check()
+        self.access_auth.admit(headers, body, int(self.timestamp()), self.monotonic())
+        try:
+            request = AccessRequest.model_validate_json(body)
+        except (ValueError, TypeError, UnicodeError, RecursionError):
+            raise BridgeError(400, "invalid_request") from None
+        if self.access is None:
+            raise BridgeError(503, "unavailable")
+        agent_id, groups = self.access.groups(request.agent_id)
+        return {
+            "protocol": RESULT_PROTOCOL,
+            "state": "answered",
+            "agent_id": agent_id,
+            "groups": groups,
         }
 
 
@@ -471,7 +514,10 @@ def failure(exc):
         "invalid_request": "Solicitud fuera de contrato",
         "no_answer": "El Mac no respondió dentro del plazo",
         "device_unavailable": "El Mac no está conectado",
+        "agent_not_found": "Este hub no tiene ese agente",
     }.get(code, "No se pudo completar la petición")
+    if code == "agent_access_disabled" and numbers is not None:
+        message = disabled_message(str(numbers.get("agent_id")), str(numbers.get("group")))
     if detail is not None:
         message = f"El parámetro {detail['field']} debe ser {detail['expected']}."
     payload = render(
@@ -533,6 +579,7 @@ def mount(app, service, transport_allowed):
         methods=["GET"],
     )
     route(ACTION_RESULT_PATH, action_result, NON_ACTION_REQUEST_BYTES, methods=["POST"])
+    route(ACCESS_PATH, service.agent_access, NON_ACTION_REQUEST_BYTES, methods=["POST"])
 
 
 __all__ = ["BridgeConfiguration", "BridgeError", "BridgeService", "mount"]

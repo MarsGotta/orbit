@@ -197,7 +197,12 @@ hub version.
 Tools: `orbit_devices`, `orbit_windows`, `orbit_screenshot`,
 `orbit_look`, `orbit_selected_text`, `orbit_control_tools`,
 `orbit_perform_action`, `orbit_action_result`, `orbit_calendar`,
-`orbit_meetings`, `orbit_transcript` and `orbit_note`.
+`orbit_meetings`, `orbit_transcript` and `orbit_note`, plus the files tools.
+Each agent's access groups (`orbit_hub/assistant/access.py`) decide which of
+them it lists and runs: the translator knows its agent from `ORBIT_MCP_AGENT`
+and the hub checks the same groups on every private request. Each agent's
+personality and skills are in `orbit_hub/assistant/agent_config.py` (the hub's
+own) and `hermes_panel.py` (a Hermes profile's).
 
 See [Hermes and orbit-mcp setup](../docs/self-hosting.md#hermes-and-orbit-mcp)
 and [hub deployment](../docs/self-hosting.md#install-and-configure-the-hub).

@@ -28,6 +28,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import signal
 import sys
 from collections.abc import Mapping, Sequence
@@ -59,6 +60,7 @@ from acp.schema import (
 
 from ..errors import HubError
 from ..log import clear_op, report
+from .agent_config import AgentInstructions, no_instructions
 from .backend import (
     ActivityItem,
     Capabilities,
@@ -76,6 +78,7 @@ from .backend import (
     ResumedSession,
     UnreadableUpdate,
 )
+from .skills import NAME_CHARACTERS
 
 if TYPE_CHECKING:
     from ..config import Settings
@@ -170,9 +173,12 @@ def parse_settings(raw: Mapping[str, Any]) -> AcpAgentSettings:
     return AcpAgentSettings(agent, tuple(command), Path(mcp_config), tuple(env))
 
 
-def build_backend(hub: "Settings", agent: "AgentConfiguration") -> "AcpBackend":
+def build_backend(
+    hub: "Settings", agent: "AgentConfiguration", instructions=no_instructions
+) -> "AcpBackend":
     """The agent's backend (`agents.KINDS`), refused at startup when its
-    command cannot start."""
+    command cannot start. `instructions` reads the personality and enabled
+    skills written into the agent's folder before each session."""
     path = Path(agent.settings.command[0])
     if not path.exists():
         cause = "does not exist"
@@ -181,7 +187,7 @@ def build_backend(hub: "Settings", agent: "AgentConfiguration") -> "AcpBackend":
     elif not os.access(path, os.X_OK):
         cause = "is not executable"
     else:
-        return AcpBackend(agent, hub)
+        return AcpBackend(agent, hub, instructions)
     raise ValueError(f"agent {agent.id!r}: `command` {path} {cause}")
 
 
@@ -213,8 +219,9 @@ class AcpBackend:
     # Voice: ACP carries no audio.
     capabilities = Capabilities(images=False, resume=True, history=True, voice=False)
 
-    def __init__(self, agent: "AgentConfiguration", hub: "Settings"):
+    def __init__(self, agent: "AgentConfiguration", hub: "Settings", instructions=no_instructions):
         self.agent_id, self.settings = agent.id, agent.settings
+        self.instructions = instructions
         self.folder = hub.data_dir / "agents" / agent.id
         self.config_dir = self.folder / (
             "claude-config" if self.settings.agent == "claude-code" else "codex-home"
@@ -297,6 +304,7 @@ class AcpBackend:
                     )
                 await idle[0].stop()
             self.prepare_folder()
+            write_instructions(self.folder, self.settings.agent, self.instructions())
             process = _AgentProcess(self, connection)
             self.processes.append(process)
         try:
@@ -310,6 +318,93 @@ class AcpBackend:
         if process in self.processes:
             self.processes.remove(process)
             self.processes.append(process)
+
+
+# What each agent reads from its folder, its `cwd`: the instructions file and
+# the skills directory, one `<name>/SKILL.md` per enabled skill.
+INSTRUCTIONS_FILE = {"claude-code": "CLAUDE.md", "codex": "AGENTS.md"}
+SKILLS_DIRECTORY = {"claude-code": (".claude", "skills"), "codex": (".codex", "skills")}
+
+
+def write_instructions(folder: Path, agent: AgentName, current: AgentInstructions) -> None:
+    """Write the agent's personality and enabled skills into its folder.
+
+    Each file is written whole or not at all (a temporary file, synced, then
+    renamed over the old one), and nothing outside `folder` is written: skill
+    names are checked again, and a symbolic link where a directory should be
+    is refused rather than followed. A skill no longer enabled, or a
+    personality now empty, leaves the folder. The folder is the hub's alone.
+
+    The agent's folder is private (`0700`, see `prepare_folder`); inside it,
+    these files are `0644` and their directories `0755`, so an agent run as
+    a separate system user with access to its folder can read what the hub
+    wrote (docs/self-hosting.md).
+    """
+    root = folder.resolve()
+    instructions = folder / INSTRUCTIONS_FILE[agent]
+    if current.personality:
+        _write_whole(root, instructions, current.personality)
+    elif instructions.is_symlink() or instructions.exists():
+        instructions.unlink()
+    directory = folder
+    for part in SKILLS_DIRECTORY[agent]:
+        directory = _readable_directory(root, directory / part)
+    enabled = set()
+    for skill in current.skills:
+        if NAME_CHARACTERS.fullmatch(skill.name) is None:
+            raise HubError(
+                "agent_folder_invalid",
+                f"La skill «{skill.name}» saldría de la carpeta del agente: no se escribe",
+                numbers={"name": skill.name},
+            )
+        enabled.add(skill.name)
+        _write_whole(
+            root, _readable_directory(root, directory / skill.name) / "SKILL.md", skill.content
+        )
+    for entry in directory.iterdir():
+        if entry.name in enabled:
+            continue
+        if entry.is_dir() and not entry.is_symlink():
+            shutil.rmtree(entry)
+        else:
+            entry.unlink()
+
+
+def _inside(root: Path, path: Path) -> None:
+    if not path.resolve().is_relative_to(root):
+        raise HubError(
+            "agent_folder_invalid", f"{path} queda fuera de la carpeta del agente: no se escribe"
+        )
+
+
+def _readable_directory(root: Path, path: Path) -> Path:
+    if path.is_symlink() or (path.exists() and not path.is_dir()):
+        raise HubError("agent_folder_invalid", f"{path} no es un directorio: no se escribe")
+    _inside(root, path)
+    if not path.exists():
+        path.mkdir(mode=0o755)
+        path.chmod(0o755)
+    return path
+
+
+def _write_whole(root: Path, path: Path, text: str) -> None:
+    _inside(root, path.parent)
+    if path.is_symlink():
+        raise HubError("agent_folder_invalid", f"{path} es un enlace: no se escribe")
+    temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            # The umask may have narrowed the mode; the agent's user must read it.
+            os.fchmod(handle.fileno(), 0o644)
+            handle.write(text.encode("utf-8"))
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except BaseException:
+        with suppress(FileNotFoundError):
+            temporary.unlink()
+        raise
 
 
 class _LineTransport:

@@ -15,6 +15,7 @@ from uuid import uuid4
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from . import safety
+from .assistant.agent_config import SCHEMA as AGENT_CONFIG_SCHEMA
 from .group_storage import SCHEMA as GROUP_SCHEMA
 from .group_storage import GroupRepository
 from .log import report
@@ -180,6 +181,8 @@ class Store:
         self._db.executescript(safety.SCHEMA)
         self._db.executescript(MEETINGS_SCHEMA)
         self._db.executescript(DICTIONARIES_SCHEMA)
+        # Each agent's personality, skills and access groups.
+        self._db.executescript(AGENT_CONFIG_SCHEMA)
         self.groups = GroupRepository(self)
 
     def recover_interrupted(self) -> None:

@@ -481,6 +481,70 @@ process running as that user could read them. For example, with an
 - give `orbit-agent` its own `orbit_mcp_config` and copies of the HMAC keys,
   owned by it with mode `0600`, and read access to the hub's installation.
 
+## Personality, skills and access of each agent
+
+In Orbit, Ajustes › Agentes shows each agent's personality, its skills and its
+access groups; the routes are in [the hub protocol](../contracts/hub-v1.md#agent-configuration).
+What Orbit can change depends on the agent's kind:
+
+- **`openai`**: everything, kept in the hub's database. The personality is
+  sent with Orbit's own instructions on every turn; each enabled skill is
+  offered by name and description, and the model loads its instructions with
+  the hub's `orbit_skill` tool when it needs them.
+- **`acp`**: everything, kept in the hub's database and written into the
+  agent's folder before each session opens: `CLAUDE.md` or `AGENTS.md`, and
+  `.claude/skills/<name>/SKILL.md` or `.codex/skills/<name>/SKILL.md` for each
+  enabled skill (files `0644`, directories `0755`, inside the agent's private
+  folder, so an agent run as its own user can read them). Each file is
+  replaced whole; a skill disabled or deleted leaves the folder. A
+  conversation already open keeps what it started with. With the lock-down
+  above, Claude Code is started with `settingSources: []`; check with the
+  installed adapter that it reads `CLAUDE.md` and project skills before
+  relying on them.
+- **`hermes`**: the profile's own `SOUL.md` and skills, through Hermes's
+  panel API at `hermes_url` with the same `hermes_credential_file`
+  (`GET`/`PUT /api/profiles/<profile>/soul`, `/api/skills`,
+  `/api/skills/content`, `/api/skills/toggle`). Hermes gives those routes no
+  version, so check them against your installed Hermes before upgrading
+  either; a route Hermes refuses reaches the Mac as
+  `assistant_admin_refused` with the route and Hermes's HTTP status. Hermes's
+  panel cannot delete a skill: disable it in Orbit or delete it on the
+  server.
+
+Skills follow the [agentskills.io](https://agentskills.io) `SKILL.md` format:
+a frontmatter with `name` (lowercase `a-z`, digits and single hyphens, at
+most 64 characters, the same as the skill's name) and `description` (at most
+1024 characters). A personality is at most 16 KiB, a `SKILL.md` 64 KiB, and
+an agent has at most 128 skills.
+
+**Access groups** — Pantalla (`screen`), Control del Mac (`control`),
+Calendario (`calendar`), Reuniones y notas (`meetings`) and Archivos
+(`files`) — choose which of `orbit-mcp`'s tools each agent has. All are on
+until someone turns one off. `orbit-mcp` knows its agent from
+`ORBIT_MCP_AGENT`: the hub sets it for `openai` and `acp` agents; for a
+`hermes` agent that is not the default, set it in that profile's
+`mcp_servers` entry, beside `ORBIT_MCP_CONFIG`:
+
+```yaml
+mcp_servers:
+  orbit:
+    command: /absolute/path/to/orbit/server/.venv/bin/orbit-mcp
+    env:
+      ORBIT_MCP_CONFIG: /opt/orbit/config/mcp.toml
+      ORBIT_MCP_AGENT: atlas
+```
+
+Without it, `orbit-mcp` speaks for the default agent. A group that is off is
+neither listed nor run by `orbit-mcp`, and the hub refuses its bridge
+requests with `agent_access_disabled`, the agent and the group.
+
+Access groups configure an agent's tools; they are not a security boundary.
+Both checks trust the agent id that `orbit-mcp` signs with the bridge's HMAC
+key, so a process on the same machine that can read that key (or run
+`orbit-mcp` with another `ORBIT_MCP_AGENT`) can use any group. Keep agents
+you do not trust away from those keys, as described for `acp` agents above,
+and rely on macOS's permissions for what the Mac allows at all.
+
 ## Pair and revoke a Mac
 
 With the hub initialized, run these local administrator commands from `server/`:

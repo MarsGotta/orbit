@@ -45,6 +45,18 @@ ENVIRONMENT_SEEN = (
 )
 
 
+def instructions_in(folder):
+    """`CLAUDE.md`, `AGENTS.md` and every `SKILL.md` under `folder`, by relative path."""
+    seen = {}
+    for root, _directories, names in os.walk(folder):
+        for name in names:
+            if name in {"CLAUDE.md", "AGENTS.md", "SKILL.md"}:
+                path = os.path.join(root, name)
+                with open(path, encoding="utf-8") as handle:
+                    seen[os.path.relpath(path, folder)] = handle.read()
+    return seen
+
+
 class InventedAgent:
     def __init__(self, record_path, *, auth_required, load):
         self.record_path = record_path
@@ -72,6 +84,9 @@ class InventedAgent:
             client_info=client_info.model_dump(mode="json") if client_info else None,
             environment={name: os.environ.get(name) for name in ENVIRONMENT_SEEN},
             cwd=os.getcwd(),
+            # What the agent would read from its folder when it starts: the
+            # instructions file and the skills the hub wrote there.
+            instructions=instructions_in(os.getcwd()),
         )
         return acp.InitializeResponse(
             protocol_version=1,

@@ -18,6 +18,8 @@ from fastapi.responses import JSONResponse, Response
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from . import error_reports
+from .assistant.access import AgentAccess
+from .assistant.agent_config import AgentConfigStore
 from .assistant.agents import Agents
 from .assistant.backend import AssistantBackend
 from .assistant.speech import SpeechBackend
@@ -123,7 +125,10 @@ def create_app(
     store = store or Store(settings.data_dir, settings.key_file, settings.storage_quota_bytes)
     # `assistant` and `speech`, when given, serve every configured agent: tests
     # drive the hub with doubles.
-    agents = Agents.from_settings(settings, assistant, speech)
+    # Each agent's personality, skills and access groups (Settings › Agents).
+    configs = AgentConfigStore(store)
+    agents = Agents.from_settings(settings, assistant, speech, configs)
+    access = AgentAccess(agents, configs)
     # Dictation and read-aloud are the default agent's: neither route names a
     # conversation (contracts/hub-v1.md), so neither can name its agent.
     speech = agents.default.speech
@@ -153,6 +158,7 @@ def create_app(
         lambda: now() * 1000,
         captures,
         store,
+        access,
     )
     pair_attempts: dict[str, tuple[float, int]] = {}
     # Durable meetings use hub-owned STT; Hermes remains interactive-only.
@@ -160,7 +166,7 @@ def create_app(
     # What a transcript group stored without a language reads as.
     meeting_language = meeting_transcriber.configuration.language
     meetings_bridge = MeetingsBridgeService(
-        store, settings.meetings_bridge, now, default_language=meeting_language
+        store, settings.meetings_bridge, now, default_language=meeting_language, access=access
     )
 
     def recording_changed(device: str, recording: str) -> None:
@@ -395,12 +401,14 @@ def create_app(
     mount_device_bridge(app, device_bridge, lambda scope: allowed_transport(scope, settings))
     mount_meetings_bridge(app, meetings_bridge, lambda scope: allowed_transport(scope, settings))
 
+    from .routes import agents as agent_routes
     from .routes import audio, health, recordings, session
     from .routes import captures as capture_routes
     from .ws import mount as mount_ws
 
     session.mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_executor)
     health.mount(app, settings)
+    agent_routes.mount(app, settings, agents, configs, identity, bounded_body)
     audio.mount(
         app,
         store,
