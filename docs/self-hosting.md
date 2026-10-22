@@ -3,8 +3,8 @@
 An Orbit installation has a Mac app, an Orbit hub, a Hermes assistant profile,
 and a meeting transcription service. The hub owns conversations, meetings,
 transcripts and notes. Hermes owns the assistant's models, identity and provider
-credentials. `orbit-mcp` is a stdio translator launched by Hermes; it reaches
-the Mac through the hub, never directly.
+credentials. `orbit-mcp` is a stdio translator launched by Hermes or by an ACP
+agent; it reaches the Mac through the hub, never directly.
 
 All hostnames, paths and model names below are examples. Keep your actual
 configuration and secrets outside the repository. The Mac UI is Spanish. The hub selects the assistant name used in the UI and
@@ -340,6 +340,109 @@ stdio, not a second HTTP listener. Its twelve tools are `orbit_devices`,
 Validate discovery with an isolated profile first. Apply profile changes using
 the commands supported by your installed Hermes version; a gateway restart can
 interrupt other profiles and must be coordinated with their users.
+
+## Claude Code and Codex agents
+
+An agent of kind `acp` runs Claude Code or Codex through its official Agent
+Client Protocol adapter, unmodified, with the account its operator signs in
+on the server. Orbit never offers a sign-in, and never stores or sees a token.
+Install Node 22 or later and the pinned adapters outside the repository:
+
+```sh
+mkdir -p /opt/orbit/agents && cd /opt/orbit/agents
+npm install --save-exact @agentclientprotocol/claude-agent-acp@0.94.0 \
+  @agentclientprotocol/codex-acp@2.2.2
+```
+
+Each adapter brings its agent: `claude-agent-acp` the Claude Agent SDK and its
+`claude` binary, `codex-acp` the `@openai/codex` package. Declare each agent in
+the hub TOML, with its own copy of the translator configuration:
+
+```toml
+[[agents]]
+id = "claude"
+name = "Claude"
+kind = "acp"
+agent = "claude-code"
+command = ["/opt/orbit/agents/node_modules/.bin/claude-agent-acp", "--hide-claude-auth"]
+orbit_mcp_config = "/opt/orbit/config/mcp-claude.toml"
+env = ["ANTHROPIC_API_KEY"]
+
+[[agents]]
+id = "codex"
+name = "Codex"
+kind = "acp"
+agent = "codex"
+command = ["/opt/orbit/agents/node_modules/.bin/codex-acp"]
+orbit_mcp_config = "/opt/orbit/config/mcp-codex.toml"
+```
+
+`command` starts with the adapter's absolute path; the hub refuses to start
+when it is missing or not executable, and refuses a session whose process does
+not start, with the path and the cause. `env` names variables passed from the
+hub's environment; besides them the agent receives only `HOME`, `LOGNAME`,
+`PATH`, `SHELL`, `TERM` and `USER`. `--hide-claude-auth` makes the adapter
+refuse any session a claude.ai subscription would pay for: use an API key or a
+Console sign-in until Anthropic confirms in writing that a subscription may be
+used through Orbit.
+
+Every agent has a private folder, `<data_dir>/agents/<id>` (mode `0700`), which
+is its working directory. Claude Code's `CLAUDE_CONFIG_DIR` is its
+`claude-config` subfolder and Codex's `CODEX_HOME` its `codex-home`. The hub
+declares neither file-system nor terminal access over ACP and refuses such
+requests. Because the adapters run their agent's own tools inside their
+process, the hub also locks each agent to Orbit's tools:
+
+- Claude Code: `tools: []`, `strictMcpConfig: true` and `settingSources: []`
+  in each session's `_meta.claudeCode.options`.
+- Codex: `CODEX_CONFIG` with `features.shell_tool = false`,
+  `sandbox_mode = "read-only"`, `approval_policy = "never"` and
+  `web_search = "disabled"`, plus `INITIAL_AGENT_MODE=read-only`. codex-acp
+  sends its mode's sandbox and approval policy with every turn, overriding the
+  configuration, so the read-only mode is what keeps the sandbox read-only.
+  That mode's approval policy is `on-request`, and its requests reach the Mac.
+
+The agent starts `orbit-mcp` itself, with this hub's Python, `ORBIT_MCP_CONFIG`
+set to `orbit_mcp_config` and `ORBIT_MCP_AGENT` to the agent's id. At most four
+processes of one agent run at once; an idle session gives its process up and
+is reloaded with `session/load` on its next turn.
+
+Sign each agent in on the server, as the hub's user, before its first
+conversation. A signed-out agent's refusal names the same command:
+
+```sh
+CLAUDE_CONFIG_DIR=/opt/orbit/data/agents/claude/claude-config \
+  /opt/orbit/agents/node_modules/.bin/claude-agent-acp --hide-claude-auth \
+  --cli auth login --console
+CODEX_HOME=/opt/orbit/data/agents/codex/codex-home \
+  /opt/orbit/agents/node_modules/.bin/codex-acp cli login --device-auth
+```
+
+`--cli` and `cli` run the adapter's bundled `claude` and `codex`. Device-code
+sign-in must first be enabled in your ChatGPT security settings. A Claude API
+key can reach the agent through `env` instead; Codex stores one with
+`printenv OPENAI_API_KEY | CODEX_HOME=… codex-acp cli login --with-api-key`.
+Read the terms that apply to your account before connecting it: Anthropic's
+[legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)
+page for Claude Code and the Agent SDK, and OpenAI's
+[terms and policies](https://openai.com/policies) with the
+[Codex app-server](https://learn.chatgpt.com/docs/app-server) notes.
+
+Run the agents as a separate system user. The hub's storage key, Hermes
+credential and HMAC keys are `0600` files of the hub's user, and an agent
+process running as that user could read them. For example, with an
+`orbit-agent` user:
+
+- wrap the command: `command = ["/usr/bin/sudo", "-n", "-u", "orbit-agent",
+  "--preserve-env=CLAUDE_CONFIG_DIR", "--", "/opt/orbit/agents/…"]` (Codex:
+  `--preserve-env=CODEX_HOME,CODEX_CONFIG,INITIAL_AGENT_MODE`, plus any name
+  in `env`), allowed in sudoers with `NOPASSWD:SETENV:` for exactly that adapter;
+- create `<data_dir>/agents/<id>` and its `claude-config` or `codex-home`
+  beforehand, owned by `orbit-agent`, give the hub's user access to the folder
+  (for instance with an ACL), and let `orbit-agent` traverse `<data_dir>` and
+  `<data_dir>/agents` without listing them (`setfacl -m u:orbit-agent:x`);
+- give `orbit-agent` its own `orbit_mcp_config` and copies of the HMAC keys,
+  owned by it with mode `0600`, and read access to the hub's installation.
 
 ## Pair and revoke a Mac
 
