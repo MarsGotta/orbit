@@ -3,16 +3,19 @@ import { fields } from "./refusalDetails";
 
 const KIB = 1024;
 const MIB = 1024 * KIB;
+const GIB = 1024 * MIB;
 const decimals = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 });
 
 /**
- * A size as the person reads it: «512 B», «1,5 KB», «20 MB». In units of
- * 1024, as the hub's ceilings are set, so a ceiling reads as a round number.
+ * A size as the person reads it: «512 B», «1,5 KB», «20 MB», «82,3 GB». In
+ * units of 1024, as the hub's ceilings are set, so a ceiling reads as a
+ * round number.
  */
 export function fileSize(bytes: number): string {
   if (bytes < KIB) return `${bytes} B`;
   if (bytes < MIB) return `${decimals.format(bytes / KIB)} KB`;
-  return `${decimals.format(bytes / MIB)} MB`;
+  if (bytes < GIB) return `${decimals.format(bytes / MIB)} MB`;
+  return `${decimals.format(bytes / GIB)} GB`;
 }
 
 function size(value: unknown): string {

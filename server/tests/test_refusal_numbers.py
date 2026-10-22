@@ -25,7 +25,14 @@ from orbit_hub.protocol import HubError
 from orbit_hub.storage import Store
 from orbit_mcp.meetings import cause_sentence
 
-QUOTA_FIELDS = {"bytes", "reserved_bytes", "used_bytes", "max_bytes"}
+QUOTA_FIELDS = {
+    "bytes",
+    "reserved_bytes",
+    "used_bytes",
+    "max_bytes",
+    "remaining_bytes",
+    "limit",
+}
 
 
 def assert_quota_numbers(numbers, quota):
@@ -33,6 +40,8 @@ def assert_quota_numbers(numbers, quota):
     assert numbers["max_bytes"] == quota
     assert numbers["reserved_bytes"] == numbers["bytes"] * 3 + 256 * 1024
     assert numbers["used_bytes"] + numbers["reserved_bytes"] > numbers["max_bytes"]
+    assert numbers["remaining_bytes"] == max(0, quota - numbers["used_bytes"])
+    assert numbers["limit"] == "quota"
 
 
 def test_every_quota_refusal_of_the_store_carries_its_numbers(environment):

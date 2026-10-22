@@ -89,6 +89,7 @@ pub(in crate::daemon) fn fixture(
             hub: super::super::hub_link::HubLink::default(),
             hub_protocol_version: None,
             unrecognized_hub_events: Default::default(),
+            hub_storage_nearly_full: None,
             hub_task: None,
             snapshot_revision: None,
             hub_events,

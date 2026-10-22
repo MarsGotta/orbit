@@ -19,7 +19,10 @@
 #
 # Before moving anything it checks that orbit-hub.service really starts from
 # $ORBIT_HUB_BASE/current, otherwise "activated" would be untrue, and that
-# hermes is there to restart the gateway.
+# hermes is there to restart the gateway. Then it takes a consistent copy of
+# the database and its key as the release it leaves has them, in
+# $ORBIT_HUB_BASE/backups/activation; going back to that release puts the copy
+# back if the new one has migrated the database since (hub_guard_database).
 set -euo pipefail
 # shellcheck source=scripts/hub/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -60,6 +63,7 @@ hub_require_unit_runs_from_current
 hub_require_hermes
 
 old=$(hub_link_version current)
+hub_guard_database "$old" "$version"
 if [[ "$old" == "$version" ]]; then
 	hub_say "$version was already the active one; the services are restarted anyway."
 else
@@ -80,5 +84,5 @@ previous=$(hub_link_version previous)
 if [[ -n "$previous" ]]; then
 	hub_say "To go back to $previous: $HUB_SCRIPTS_DIR/activate.sh $previous"
 else
-	hub_say "There is no previous version: to go back to the hub of the development checkout, see \"Storage and upgrades\" in $HUB_DOC."
+	hub_say "There is no previous version: to go back to the hub of the development checkout, see \"Upgrades\" in $HUB_DOC."
 fi

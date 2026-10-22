@@ -40,9 +40,16 @@ from .notes import mount as mount_notes
 from .processing import open_client as open_processing_client
 from .protocol import HubError, emit
 from .runtime import DeviceRuntime, TurnInputTracker
-from .storage import Store
+from .storage import Store, is_storage_full
 from .transcription import TranscriptionWorker
 from .urls import LOOPBACK_HOSTS
+
+# How often the hub looks at its storage to tell the connected Macs when it
+# becomes nearly full, or stops being (`storage.status`). What it protects:
+# the Mac's warning, which `ready` alone would only refresh on a reconnection.
+# Why a minute: a look is three `stat` calls and one `statvfs`, and the last
+# fifth of the limit takes days to fill, not minutes. It limits nothing.
+STORAGE_CHECK_SECONDS = 60.0
 
 
 def hub_version() -> str:
@@ -233,6 +240,18 @@ def create_app(
             await loop.run_in_executor(store_executor, store.attachments.expire, int(now() * 1000))
             await asyncio.sleep(attachments.UNBOUND_SWEEP_SECONDS)
 
+    async def watch_storage():
+        # Said only when the level changes: every `ready` carries it anyway.
+        loop = asyncio.get_running_loop()
+        last = None
+        while True:
+            status = await loop.run_in_executor(None, store.storage_status)
+            if last is not None and status["nearly_full"] != last:
+                for runtime in list(runtimes.values()):
+                    runtime.offer(emit("storage.status", status))
+            last = status["nearly_full"]
+            await asyncio.sleep(STORAGE_CHECK_SECONDS)
+
     async def shutdown(descriptor, loops):
         # This task, including Store.close below, has a single owner and is
         # never cancelled by a lifespan waiter.
@@ -278,6 +297,7 @@ def create_app(
                 asyncio.create_task(supervised("enforce_revocations", enforce_revocations))
             )
             loops.append(asyncio.create_task(supervised("expire_attachments", expire_attachments)))
+            loops.append(asyncio.create_task(supervised("watch_storage", watch_storage)))
             yield
         finally:
             physical = asyncio.create_task(shutdown(descriptor, loops))
@@ -332,9 +352,20 @@ def create_app(
             )
         try:
             response = await call_next(request)
-        except Exception:  # noqa: BLE001 - redact arbitrary adapter/storage exceptions at HTTP boundary
+        except Exception as failure:  # noqa: BLE001 - redact arbitrary adapter/storage exceptions at HTTP boundary
             # The template, never the path: a path holds the ids of one request.
             route = getattr(request.scope.get("route"), "path", None)
+            if is_storage_full(failure):
+                # The disk is full: a cause someone can fix, said with its numbers.
+                full = store.storage_full()
+                report("storage_full", "storage_full", route=route, status=full.http_status)
+                return http_response(
+                    full.code,
+                    full.message,
+                    full.http_status,
+                    payload={"op": op},
+                    numbers=full.numbers,
+                )
             report("internal_error", "internal_error", route=route, status=500)
             return http_response(
                 "internal_error",

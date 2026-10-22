@@ -89,6 +89,7 @@ export const noticeClass = {
   hub_error: "failed",
   hub_device_identity_missing: "failed",
   device_pairing_mismatch: "fixable",
+  hub_storage_nearly_full: "fixable",
   orbit_closing: "working",
   stop_step_failed: "failed",
   pending_work_keep_open: "fixable",

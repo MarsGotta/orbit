@@ -109,6 +109,13 @@ GATEWAY_PROFILE=default
 GATEWAY_NAME="the host's gateway (shared with Deimos)"
 HUB_DOC=docs/self-hosting.md
 HUB_SCRIPTS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# The copy of the database taken before each activation, its key, and any
+# database an activation set aside (server/orbit_hub/backup.py).
+HUB_BACKUPS=$ORBIT_HUB_BASE/backups
+# Standard library only, so the server's python3 (3.11 or newer, for tomllib)
+# runs it whichever release is active, or none.
+HUB_BACKUP_SCRIPT=$HUB_SCRIPTS_DIR/../../server/orbit_hub/backup.py
+ORBIT_HUB_PYTHON=${ORBIT_HUB_PYTHON:-python3}
 
 # systemctl --user needs the user manager's bus. A shell opened from cron or SSH
 # may not have it, and one opened from Claude Code has it set to something that
@@ -306,7 +313,7 @@ hub_way_back() {
 		printf 'The active version is now %s. To go back to %s:\n  %s/activate.sh %s' \
 			"$1" "$previous" "$HUB_SCRIPTS_DIR" "$previous"
 	else
-		printf 'The active version is now %s and there is no earlier one. To go back to the hub of the development checkout, see "Storage and upgrades" in %s.' \
+		printf 'The active version is now %s and there is no earlier one. To go back to the hub of the development checkout, see "Upgrades" in %s.' \
 			"$1" "$HUB_DOC"
 	fi
 }
@@ -604,6 +611,79 @@ hub_restart_gateway() {
 		printf -v joined '%s; ' "${others[@]}"
 		hub_warn "the gateway also has other orbit-mcp processes that are not of $expected: ${joined%; }."
 	fi
+}
+
+# --- The database around an activation -----------------------------------------
+
+# The hub's configuration file, as its unit starts it (`--config <path>`).
+hub_config_path() {
+	local exec_start
+	exec_start=$(hub_unit_property "$HUB_UNIT" ExecStart)
+	if [[ "$exec_start" =~ --config[[:space:]]+([^[:space:];]+) ]]; then
+		printf '%s' "${BASH_REMATCH[1]}"
+	fi
+}
+
+# backup.py with the hub's configuration; its output, and its errors, to stdout.
+hub_backup() {
+	local config=$1
+	shift
+	"$ORBIT_HUB_PYTHON" -I "$HUB_BACKUP_SCRIPT" --config "$config" "$@" 2>&1
+}
+
+# Before the links move, from <old> to <version>. The hub migrates its
+# database when a new release starts, and an older release's code must not
+# run on a database migrated past it. So:
+# - going to the release the last copy was taken from, with a schema that has
+#   changed since: stop the hub and put that copy back; the database it
+#   replaces, with everything written since, is moved aside, never deleted;
+# - the same schema: nothing to do, the database keeps everything;
+# - any other activation: first a consistent copy of the database and its key,
+#   as <old> leaves them, in $HUB_BACKUPS/activation.
+# A failure stops the activation before anything moved.
+hub_guard_database() {
+	local old=$1 version=$2 config plan output
+	[[ "$old" != "$version" ]] || return 0
+	config=$(hub_config_path)
+	[[ -n "$config" ]] ||
+		hub_fail "the ExecStart of $HUB_UNIT names no --config, so the database could not be copied before activating $version. Nothing was touched."
+	[[ -r "$config" ]] ||
+		hub_fail "cannot read the hub's configuration $config, so the database could not be copied before activating $version. Nothing was touched."
+	plan=$(hub_backup "$config" activation-plan "$HUB_BACKUPS" --version "$version") ||
+		hub_fail "could not compare the database with the copy in $HUB_BACKUPS/activation: $plan. Nothing was touched."
+	case $plan in
+	restore)
+		hub_say "The database has another schema than when $version ran: putting back the copy taken when $version was left…"
+		hub_say "Stopping $HUB_UNIT…"
+		output=$(hub_systemctl stop "$HUB_UNIT" 2>&1) ||
+			hub_service_failure "$HUB_UNIT" "could not stop $HUB_UNIT to put the copy back: ${output:-no output}. Nothing was moved." ""
+		if ! output=$(hub_backup "$config" activation-restore "$HUB_BACKUPS"); then
+			printf 'Error: could not put back the copy in %s: %s
+' "$HUB_BACKUPS/activation" "$output" >&2
+			if hub_systemctl start "$HUB_UNIT" >/dev/null 2>&1; then
+				printf 'The database was left as it was and %s started again on %s. Nothing else was touched.
+' "$HUB_UNIT" "${old:-the current version}" >&2
+			else
+				hub_report_unit "$HUB_UNIT"
+				printf 'The database was left as it was, but %s did not start again: start it with systemctl --user start %s.
+' "$HUB_UNIT" "$HUB_UNIT" >&2
+			fi
+			exit 1
+		fi
+		hub_say "$output"
+		;;
+	keep)
+		hub_say "The database has the same schema as when $version ran: it keeps everything written since."
+		;;
+	copy)
+		output=$(hub_backup "$config" activation-copy "$HUB_BACKUPS" --version "${old:-none}") ||
+			hub_fail "could not copy the database before activating $version: $output. Nothing was touched."
+		hub_say "$output"
+		;;
+	*)
+		hub_fail "backup.py answered '$plan' about the database; nothing was touched."
+		;;
+	esac
 }
 
 # Hub first, then the two Hermes that each start their own orbit-mcp, which

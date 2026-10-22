@@ -2,7 +2,7 @@
 
 from fastapi.responses import JSONResponse
 
-_STATUS_CODES = {401: 'unauthorized', 403: 'revoked invalid_pairing', 404: 'session_not_found meeting_not_found recording_not_found note_not_requested note_template_not_found agent_not_found', 409: 'chunk_conflict note_not_ready note_revision_changed stale_revision recording_finalized manifest_conflict manifest_mismatch', 413: 'too_large session_message_too_large', 429: 'rate_limited', 507: 'quota_exceeded'}  # fmt: skip
+_STATUS_CODES = {401: 'unauthorized', 403: 'revoked invalid_pairing', 404: 'session_not_found meeting_not_found recording_not_found note_not_requested note_template_not_found agent_not_found', 409: 'chunk_conflict note_not_ready note_revision_changed stale_revision recording_finalized manifest_conflict manifest_mismatch', 413: 'too_large session_message_too_large', 429: 'rate_limited', 507: 'quota_exceeded storage_full'}  # fmt: skip
 
 
 def _http_status(code: str) -> int:
@@ -53,6 +53,10 @@ _AFTER_FIX = {
     "attachment_unreadable",
     "attachment_refused",
     "invalid_attachment",
+    # The hub's storage: the same write is admitted once someone frees room
+    # or raises `storage_quota_bytes`; the Mac keeps its copy until then.
+    "quota_exceeded",
+    "storage_full",
 }
 
 _OPERATIONS = {

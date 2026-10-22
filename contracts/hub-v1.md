@@ -118,7 +118,7 @@ positive approvals may omit it but still require an exact live pending request.
 
 Server: `{v:1,id:<request uuid or null>,event:<event>,data:{...}}`.
 Events: `ready` (`device_id`, `assistant_name`, `agents`, `default_agent_id`,
-`attachments`), `chat.session` (`session_id`), `chat.delta`
+`attachments`, `storage`), `storage.status`, `chat.session` (`session_id`), `chat.delta`
 (`session_id`,`text`), `chat.completed` (`session_id`,`text`,`status`,
 `persisted`,`warning`), `approval.required`
 (`session_id`,`request_id`,`description`), `clarify.required`
@@ -278,6 +278,12 @@ removed targets cannot pass live turn/request validation. Uncertain targets are
 not reapplied automatically. Physical disk exhaustion remains a deployment
 constraint requiring reserved metadata capacity; revocation is still local.
 
+A `chat.send` id is reserved when the frame is admitted, so a resend after a
+lost receipt never resubmits (`outcome_unknown`). A send the hub refuses before
+it stored the message (a refusal such as `meeting_not_found`, or a full disk)
+gives its id back: sending the same frame again is a new attempt. Once the
+message is stored, the id stays reserved whatever follows.
+
 The hub persists Orbit→Hermes bindings per authenticated device and never allows
 access to a Hermes session ID supplied by the client. Reconnecting does not
 resubmit a prompt automatically. Uncertain completion must remain visible.
@@ -298,9 +304,14 @@ render those fields in Spanish. `code` remains 1–64 characters `[a-z0-9_]` and
 `retry` retains its four values. An HTTP request body over its ceiling is
 `413 too_large` with `resource` (`capture`, `recording`, `audio`, or
 `hub_request` for any other body), the `bytes` received when it was cut and
-`max_bytes`. The storage quota refuses with `507 quota_exceeded` and `bytes`
-(the write), `reserved_bytes` (what admission reserves for it), `used_bytes`
-and `max_bytes`. The hub/translator no longer accept the old
+`max_bytes`. The storage limit refuses with `507 quota_exceeded` and `bytes`
+(the write), `reserved_bytes` (what admission reserves for it), `used_bytes`,
+`max_bytes`, `remaining_bytes` and `limit` (`quota` when `storage_quota_bytes`
+sets it, `disk` when the disk does). A write the disk itself refused is `507
+storage_full` with `used_bytes` and `free_bytes` (the disk's free space).
+Both are `retry:{"kind":"after_fix"}`: the same write is admitted once someone
+frees room or raises the quota; the Mac keeps its copy until then. The
+hub/translator no longer accept the old
 0.6.x `refused` + `code` response; connected Macs must upgrade together.
 Historical journal receipts remain readable.
 
@@ -746,7 +757,9 @@ Device bearer authentication; errors include `code`, numbered `refusal` and `op`
   Repeats groups with text in another language and recognition in flight;
   old text remains while `transcript.retranscribing` reports progress.
   If any repeat and a note exists, regenerate with its template after transcript
-  completion, preserving edits in `superseded_edits`.
+  completion, preserving edits in `superseded_edits`. A later regeneration
+  keeps the sets an earlier one set aside under `superseded_edits.earlier`,
+  newest first; the top-level `title`/`sections` are always the latest.
   Same language: `requeued:0`. Failed textless groups wait for explicit Retry,
   which uses the new language. Retained audio is never deleted; unreadable
   `invalid_group_audio` leaves everything unchanged and yields
@@ -1317,6 +1330,19 @@ agent_not_found` with `agent_id` and `agent_ids`. Neither reaches the Mac.
 Both checks trust the agent id `orbit-mcp` signs with the bridge key: the
 groups configure a cooperative agent's tools, and they are not a boundary
 against a hostile process on the same machine that holds that key.
+
+## Storage
+
+**`ready`** adds `storage`, what the hub's database uses and its limit:
+`{"used_bytes":1810000000,"max_bytes":82000000000,"remaining_bytes":80190000000,
+"limit":"disk","nearly_full":false}`. `limit` is `quota` when
+`storage_quota_bytes` sets it and `disk` when the disk does; `nearly_full`
+is the hub's own reading (from 80 % of the limit). When `nearly_full`
+changes while a Mac is connected the hub sends `storage.status` with the same
+object and `id:null`. A 0.10.1 hub sends neither; a 0.10.1 Mac ignores the
+field and records the event as unrecognized. A Mac that cannot read `storage`
+leaves it out and keeps the `ready`. The Mac says a nearly full hub once,
+with the numbers and the fix, and again only after the hub has had room.
 
 ## Attachments
 

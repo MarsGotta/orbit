@@ -2,10 +2,13 @@
 
 import argparse
 import json
+import sqlite3
 import sys
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
+from .backup import BackupError, nightly, restore_copy
 from .config import Settings
 from .protocol import HubError
 from .storage import Store, initialize
@@ -22,6 +25,14 @@ def main() -> None:
     revoke = commands.add_parser("revoke", help="Revoke a device")
     revoke.add_argument("device_id")
     commands.add_parser("devices", help="List device identities and revocation")
+    backup = commands.add_parser(
+        "backup", help="Copy the database into a directory, keeping 7 daily and 4 weekly copies"
+    )
+    backup.add_argument("destination", type=Path)
+    restore = commands.add_parser(
+        "restore", help="Put a copy into an empty data directory and check it with the key"
+    )
+    restore.add_argument("copy", type=Path)
     serve = commands.add_parser("serve", help="Serve HTTP and WebSocket")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8788)
@@ -34,6 +45,26 @@ def main() -> None:
             initialize(settings.data_dir, settings.key_file)
             Store(settings.data_dir, settings.key_file).close()
             print("Encrypted store initialized. Keep a safe copy of the key.")
+            return
+        if args.command == "backup":
+            # The key stays out of the copy (docs/self-hosting.md, "Backups").
+            today = datetime.now(UTC).astimezone().date()  # the server's own day
+            for line in nightly(settings.data_dir, args.destination, today):
+                print(line)
+            return
+        if args.command == "restore":
+            size = restore_copy(args.copy, settings.data_dir)
+            try:
+                Store(settings.data_dir, settings.key_file).close()
+            except BaseException:
+                # The data directory was empty: leave it so.
+                for suffix in ("", "-wal", "-shm"):
+                    (settings.data_dir / f"hub.sqlite3{suffix}").unlink(missing_ok=True)
+                raise
+            print(
+                f"Restored {args.copy} ({size} bytes) into {settings.data_dir}; "
+                "it opens with the configured key."
+            )
             return
         if args.command == "serve":
             if not args.tls_cert and not (
@@ -75,7 +106,7 @@ def main() -> None:
                 print(json.dumps(store.devices(), indent=2))
         finally:
             store.close()
-    except (OSError, ValueError, HubError) as exc:
+    except (OSError, ValueError, HubError, BackupError, sqlite3.Error) as exc:
         print(f"Orbit Hub: {exc}", file=sys.stderr)
         raise SystemExit(1) from None
 

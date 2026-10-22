@@ -1,0 +1,12 @@
+{
+  "v": 1,
+  "id": null,
+  "event": "storage.status",
+  "data": {
+    "used_bytes": 82000000000,
+    "max_bytes": 100000000000,
+    "remaining_bytes": 18000000000,
+    "limit": "disk",
+    "nearly_full": true
+  }
+}

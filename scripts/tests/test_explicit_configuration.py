@@ -238,6 +238,44 @@ class InfrastructureTests(unittest.TestCase):
         self.assertIn("EnvironmentFile=/opt/sample-config/hub.env\n", result.stdout)
         self.assertNotIn("@ORBIT_", result.stdout)
 
+    def test_the_nightly_copy_needs_its_destination_and_copies_with_the_active_release(self):
+        script = ROOT / "scripts/hub/render-unit.sh"
+        paths = {
+            "PATH": "/usr/bin:/bin",
+            "ORBIT_HUB_BASE": "/opt/sample-hub",
+            "ORBIT_HUB_CONFIG": "/opt/sample-config/hub.toml",
+            "ORBIT_HUB_ENV_FILE": "/opt/sample-config/hub.env",
+        }
+
+        def render(name, **variables):
+            return subprocess.run(
+                ["bash", str(script), name],
+                env={**paths, **variables},
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+
+        missing = render("orbit-hub-backup.service")
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertIn("ORBIT_HUB_BACKUP_DIR is missing", missing.stderr)
+        service = render("orbit-hub-backup.service", ORBIT_HUB_BACKUP_DIR="/mnt/sample-copies")
+        self.assertEqual(service.returncode, 0, service.stderr)
+        self.assertIn(
+            "ExecStart=/opt/sample-hub/current/.venv/bin/orbit-hub --config"
+            " /opt/sample-config/hub.toml backup /mnt/sample-copies\n",
+            service.stdout,
+        )
+        self.assertIn("Type=oneshot\n", service.stdout)
+        self.assertNotIn("@ORBIT_", service.stdout)
+        timer = render("orbit-hub-backup.timer")
+        self.assertEqual(timer.returncode, 0, timer.stderr)
+        self.assertIn("OnCalendar=*-*-* 03:30:00\n", timer.stdout)
+        self.assertIn("Persistent=true\n", timer.stdout)
+        unknown = render("../../../etc/passwd")
+        self.assertEqual(unknown.returncode, 2)
+
     def test_real_harness_passes_the_selected_profile_and_token_to_its_process(self):
         module = self.harness()
         with tempfile.TemporaryDirectory() as directory:

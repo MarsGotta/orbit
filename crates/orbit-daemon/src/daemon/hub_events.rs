@@ -70,6 +70,11 @@ fn safe_decode_error(reason: &str) -> (&'static str, &'static str, &'static str)
         "steps",
         "cause",
         "multi_select",
+        "storage",
+        "used_bytes",
+        "remaining_bytes",
+        "limit",
+        "nearly_full",
     ];
     let path = reason.split_once(':').map_or(reason, |(path, _)| path);
     let field_name = reason
@@ -218,6 +223,7 @@ impl Runtime {
             | HubEventKind::Error(_)
             | HubEventKind::Revoked(_)
             | HubEventKind::RecordingChanged(_)
+            | HubEventKind::StorageStatus(_)
             | HubEventKind::Unrecognized { .. } => None,
         };
         let is_turn_event = matches!(
@@ -260,6 +266,7 @@ impl Runtime {
             HubEventKind::Pong(_) => {}
             HubEventKind::Revoked(_) => self.apply(Event::Connect(Connection::Revoked)).await?,
             HubEventKind::RecordingChanged(data) => self.on_recording_changed(&data.recording_id),
+            HubEventKind::StorageStatus(storage) => self.on_hub_storage(&storage),
             HubEventKind::ChatSession(SessionData { session_id }) => {
                 let agent_id = self.turn_agent_id();
                 self.apply(Event::Session {
@@ -371,8 +378,22 @@ impl Runtime {
             }
             self.notes_hub_ready();
             self.apply(Event::Connect(Connection::Online)).await?;
+            if let Some(storage) = &data.storage {
+                self.on_hub_storage(storage);
+            }
         }
         Ok(())
+    }
+
+    /// What the hub's storage is: said once when the hub becomes nearly full
+    /// (`orbit_core::hub_storage`), with its numbers.
+    fn on_hub_storage(&mut self, storage: &orbit_core::wire::hub::HubStorage) {
+        if let Some(notice) =
+            orbit_core::hub_storage::storage_notice(self.hub_storage_nearly_full, storage)
+        {
+            self.say(notice);
+        }
+        self.hub_storage_nearly_full = Some(storage.nearly_full);
     }
 
     /// The agents this hub has, from its `ready`: none listed is a hub

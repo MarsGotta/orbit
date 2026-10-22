@@ -254,6 +254,12 @@ notice_codes! {
     HubDeviceIdentityMissing => Failed,
     /// The hub confirmed another device, or this Mac has no identity: pair again.
     DevicePairingMismatch => Fixable,
+    /// The hub's storage is nearly full: `bytes` it uses of `max_bytes`,
+    /// `remaining` bytes left, and `cause` what sets the limit, `disk` or
+    /// `quota`. Someone must free room on the server before meetings stop
+    /// reaching it. Nothing is deleted on its own. (Existing keys: every
+    /// new key grows the notices frame, `notices_frame_fits_…`.)
+    HubStorageNearlyFull => Fixable,
     OrbitClosing => Working,
     /// A step of a stop or a close failed (`step`); the error is in daemon.log.
     StopStepFailed => Failed,

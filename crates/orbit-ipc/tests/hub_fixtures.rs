@@ -32,6 +32,7 @@ fn event_name(frame: &HubEventKind) -> Option<&str> {
         HubEventKind::Error(_) => Some("error"),
         HubEventKind::Revoked(_) => Some("revoked"),
         HubEventKind::RecordingChanged(_) => Some("recording.changed"),
+        HubEventKind::StorageStatus(_) => Some("storage.status"),
         HubEventKind::Unrecognized { .. } => None,
     }
 }
@@ -89,6 +90,7 @@ fn every_hub_variant_has_one_consumed_fixture() -> Result<(), Box<dyn Error>> {
         "error",
         "revoked",
         "recording.changed",
+        "storage.status",
     ]
     .into_iter()
     .map(str::to_owned)

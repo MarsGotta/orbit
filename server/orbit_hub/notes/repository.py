@@ -166,6 +166,14 @@ class NoteRepository:
         if edits.get("title") is None and edits.get("sections") is None:
             return None
         kept = {"title": edits.get("title"), "sections": edits.get("sections")}
+        # Corrections an earlier regeneration set aside stay, newest first
+        # under `earlier`: a second regeneration must not drop them. The
+        # latest set stays on top, where the Mac restores it from. Not
+        # bounded: each set is one person's corrections, made by hand.
+        before = self._open("superseded", row, device, recording)
+        if before is not None:
+            earlier = before.pop("earlier", [])
+            kept["earlier"] = [before, *earlier]
         return self._seal("superseded", device, recording, kept)
 
     def _only_done(self, row, device: str, recording: str) -> bytes | None:

@@ -199,6 +199,15 @@ pub struct ReadyData {
     /// attachments.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attachments: Option<crate::attachments::AttachmentLimits>,
+    /// What the hub's storage uses and has left; absent from a 0.10.1 hub.
+    /// One the Mac cannot read is left out rather than refusing the `ready`
+    /// that brings it: the link matters more than the warning.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient_storage"
+    )]
+    pub storage: Option<HubStorage>,
     #[serde(default)]
     pub device_id: Option<String>,
     #[serde(default)]
@@ -208,6 +217,25 @@ pub struct ReadyData {
     #[serde(default)]
     pub device_version: Option<String>,
 }
+/// The hub's storage (`ready.storage`, `storage.status`): what the database
+/// uses, its limit, what is left, what sets the limit (`disk` or `quota`)
+/// and whether the hub counts that as nearly full.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HubStorage {
+    pub used_bytes: u64,
+    pub max_bytes: u64,
+    pub remaining_bytes: u64,
+    pub limit: String,
+    pub nearly_full: bool,
+}
+
+fn lenient_storage<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<HubStorage>, D::Error> {
+    let value = Value::deserialize(deserializer)?;
+    Ok(serde_json::from_value(value).ok())
+}
+
 /// One agent as `ready` lists it. The Mac reads `id`, `name` and whether
 /// `capabilities` has `voice`; `kind` and the rest travel for the contract.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -463,6 +491,9 @@ pub enum HubEventKind {
     Revoked(EmptyData),
     #[serde(rename = "recording.changed")]
     RecordingChanged(RecordingChangedData),
+    /// The hub became nearly full, or stopped being (absent from 0.10.1).
+    #[serde(rename = "storage.status")]
+    StorageStatus(HubStorage),
     #[serde(skip)]
     Unrecognized { name: String },
 }
@@ -578,6 +609,7 @@ impl HubEvent {
             "error" => decode!(ErrorData, Error),
             "revoked" => decode!(EmptyData, Revoked),
             "recording.changed" => decode!(RecordingChangedData, RecordingChanged),
+            "storage.status" => decode!(HubStorage, StorageStatus),
             _ => HubEventKind::Unrecognized { name: name.into() },
         };
         Ok(Self { id, kind })

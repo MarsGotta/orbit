@@ -14,6 +14,7 @@ from .attachments import limits as attachment_limits
 from .errors import HubError, render
 from .log import bind_op, current_op, report
 from .protocol import HUB_PROTOCOL, PARAMETERS, DeviceReplyParams, Frame, emit
+from .storage import is_storage_full
 from .turns import TurnState, can_start_turn
 
 
@@ -124,6 +125,9 @@ def mount(
                         # the Mac offers none to it (contracts/hub-v1.md).
                         "attachments": attachment_limits(),
                         "device_version": device_version,
+                        # Absent from a 0.10.1 hub: what the hub's storage
+                        # uses, its limit and what is left (contracts/hub-v1.md).
+                        "storage": store.storage_status(),
                     },
                 )
             )
@@ -316,6 +320,7 @@ def mount(
                                 response = emit(name, data, request_id)
                             except HubError as exc:
                                 if not safe_control:
+                                    release(frame.method, request_id)
                                     raise
                                 response = error_event(
                                     exc.code,
@@ -326,6 +331,7 @@ def mount(
                                 )
                             except Exception:
                                 if not safe_control:
+                                    release(frame.method, request_id)
                                     raise
                                 report(
                                     event="outcome_unknown",
@@ -348,21 +354,11 @@ def mount(
                                 error_event(exc.code, str(exc), request_id, numbers=exc.numbers)
                             )
                             return
-                        except Exception:  # noqa: BLE001 - never expose secret-bearing exceptions
-                            report(
-                                event="internal_error",
-                                code="internal_error",
-                                device=device,
-                                session=request_id,
-                            )
-                            deliver(
-                                error_event(
-                                    "internal_error",
-                                    "No se pudo completar la operación; no se repetirá",
-                                    request_id,
-                                )
-                            )
+                        except Exception as failure:  # noqa: BLE001 - never expose secret-bearing exceptions
+                            deliver(failed(failure, request_id))
                             return
+                        finally:
+                            runtime.forget_commit(request_id)
                         deliver(response)
                         # `chat.interrupt` is here for its refusals: a rejected or
                         # outcome-unknown interrupt changes no state, so `changed()`
@@ -374,6 +370,23 @@ def mount(
                             "chat.interrupt",
                         }:
                             await runtime.publish(emit("state.snapshot", runtime.snapshot()))
+
+                    def release(method: str, request_id=request_id) -> None:
+                        """A message refused before the hub kept or sent anything
+                        gives its id back, so the Mac can send it again."""
+                        if method != "chat.send" or runtime.committed(request_id):
+                            return
+                        try:
+                            store.release_operation(device, request_id)
+                        except Exception as failure:  # noqa: BLE001 - the refusal still goes out
+                            report(
+                                event="operation_release_failed",
+                                code="storage_full"
+                                if is_storage_full(failure)
+                                else "operation_release_failed",
+                                device=device,
+                                session=request_id,
+                            )
 
                     def deliver(response: dict, request_id=request_id) -> None:
                         try:
@@ -411,22 +424,23 @@ def mount(
                     queue.put_nowait(
                         error_event(exc.code, str(exc), request_id, numbers=exc.numbers)
                     )
-                except Exception:  # noqa: BLE001 - never expose secret-bearing upstream exceptions
+                except Exception as failure:  # noqa: BLE001 - never expose secret-bearing upstream exceptions
+                    response = failed(failure, request_id)
                     if frame is not None and frame.method == "chat.send":
-                        runtime.log_chat_rejection("internal_error")
-                    report(
-                        event="internal_error",
-                        code="internal_error",
-                        device=device,
-                        session=request_id,
-                    )
-                    queue.put_nowait(
-                        error_event(
-                            "internal_error",
-                            "No se pudo completar la operación; no se repetirá",
-                            request_id,
-                        )
-                    )
+                        runtime.log_chat_rejection(response["data"]["code"])
+                    queue.put_nowait(response)
+
+        def failed(failure: Exception, request_id) -> dict:
+            """The error for a failure no refusal named: the full disk with its
+            numbers, or the generic one. Reported either way, never its text."""
+            if is_storage_full(failure):
+                full = store.storage_full()
+                report(event="storage_full", code="storage_full", device=device, session=request_id)
+                return error_event(full.code, full.message, request_id, numbers=full.numbers)
+            report(event="internal_error", code="internal_error", device=device, session=request_id)
+            return error_event(
+                "internal_error", "No se pudo completar la operación; no se repetirá", request_id
+            )
 
         tasks = [asyncio.create_task(fn()) for fn in (incoming, outgoing)]
         try:

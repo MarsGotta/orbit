@@ -3311,3 +3311,95 @@ async fn bridge_tagged_clip_rejection_names_the_cause_and_keeps_the_call() -> Re
     );
     Ok(())
 }
+
+fn ready_with_storage(nearly_full: bool) -> HubEvent {
+    HubEvent::Frame(json!({
+        "event":"ready", "data":{"device_id":"synthetic-device", "storage":{
+            "used_bytes": 82_000_000_000_u64, "max_bytes": 100_000_000_000_u64,
+            "remaining_bytes": 18_000_000_000_u64, "limit": "quota", "nearly_full": nearly_full
+        }}
+    }))
+}
+
+fn storage_notices(runtime: &Runtime) -> usize {
+    runtime
+        .state
+        .durable
+        .notice_log
+        .records()
+        .iter()
+        .filter(|notice| notice.code == NoticeCode::HubStorageNearlyFull)
+        .count()
+}
+
+#[tokio::test]
+async fn a_nearly_full_hub_is_said_once_with_its_numbers_not_at_every_reconnection() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _native) = fixture(directory.path())?;
+    runtime.settings.device_id = Some("synthetic-device".into());
+    runtime.hub_event(HubEvent::Connected).await?;
+    runtime.hub_event(ready_with_storage(true)).await?;
+    assert_eq!(runtime.state.connection(), Connection::Online);
+    assert_eq!(
+        storage_notices(&runtime),
+        1,
+        "{:?}",
+        said::codes(&runtime.state)
+    );
+    let told = said::told(&runtime);
+    for fragment in [
+        "\"bytes\":82000000000",
+        "\"max_bytes\":100000000000",
+        "\"remaining\":18000000000",
+        "\"cause\":\"quota\"",
+    ] {
+        assert!(told.contains(fragment), "{fragment} missing from {told}");
+    }
+    runtime.hub_event(HubEvent::Disconnected).await?;
+    runtime.hub_event(HubEvent::Connected).await?;
+    runtime.hub_event(ready_with_storage(true)).await?;
+    assert_eq!(storage_notices(&runtime), 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_hub_saying_it_became_nearly_full_reaches_the_person() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _native) = fixture(directory.path())?;
+    runtime.settings.device_id = Some("synthetic-device".into());
+    runtime.hub_event(HubEvent::Connected).await?;
+    runtime.hub_event(ready_with_storage(false)).await?;
+    assert_eq!(storage_notices(&runtime), 0);
+    let status = |nearly_full: bool| {
+        HubEvent::Frame(json!({"event":"storage.status", "data":{
+            "used_bytes": 80, "max_bytes": 100, "remaining_bytes": 20,
+            "limit": "disk", "nearly_full": nearly_full
+        }}))
+    };
+    runtime.hub_event(status(true)).await?;
+    assert_eq!(
+        runtime.state.notice_code(),
+        Some(NoticeCode::HubStorageNearlyFull)
+    );
+    // Room freed, then full again: said again.
+    runtime.hub_event(status(false)).await?;
+    runtime.hub_event(status(true)).await?;
+    assert_eq!(storage_notices(&runtime), 2);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_storage_the_mac_cannot_read_does_not_cost_the_link() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _native) = fixture(directory.path())?;
+    runtime.settings.device_id = Some("synthetic-device".into());
+    runtime.hub_event(HubEvent::Connected).await?;
+    runtime
+        .hub_event(HubEvent::Frame(json!({
+            "event":"ready", "data":{"device_id":"synthetic-device", "storage":{"used_bytes":"mucho"}}
+        })))
+        .await?;
+    assert_eq!(runtime.state.connection(), Connection::Online);
+    assert_eq!(storage_notices(&runtime), 0);
+    Ok(())
+}

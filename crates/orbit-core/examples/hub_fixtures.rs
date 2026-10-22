@@ -79,6 +79,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         stale_interaction: None,
         turn_id: None,
     };
+    let storage = HubStorage {
+        used_bytes: 1_810_000_000,
+        max_bytes: 82_000_000_000,
+        remaining_bytes: 80_190_000_000,
+        limit: "disk".into(),
+        nearly_full: false,
+    };
     let frames = [
         (
             "ready",
@@ -105,6 +112,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     max_message_bytes: 32 * 1024 * 1024,
                     max_session_bytes: 256 * 1024 * 1024,
                 }),
+                storage: Some(storage),
                 device_id: Some("device-1".into()),
                 hub_protocol: Some(1),
                 hub_version: Some("0.3.12".into()),
@@ -210,6 +218,19 @@ fn main() -> Result<(), Box<dyn Error>> {
             event(HubEventKind::RecordingChanged(RecordingChangedData {
                 recording_id: "00000000-0000-4000-8000-000000000903".into(),
             })),
+        ),
+        (
+            "storage.status",
+            HubEvent {
+                id: None,
+                kind: HubEventKind::StorageStatus(HubStorage {
+                    used_bytes: 82_000_000_000,
+                    max_bytes: 100_000_000_000,
+                    remaining_bytes: 18_000_000_000,
+                    limit: "disk".into(),
+                    nearly_full: true,
+                }),
+            },
         ),
     ];
     for (name, frame) in frames {

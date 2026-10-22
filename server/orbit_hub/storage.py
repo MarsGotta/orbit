@@ -1,17 +1,21 @@
 """Durable bindings and encrypted payloads. No network or provider dependencies."""
 
+import errno
 import hashlib
 import hmac
 import json
 import os
 import secrets
+import shutil
 import sqlite3
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
 from threading import RLock
 from uuid import uuid4
 
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from . import safety
@@ -63,8 +67,83 @@ SESSION_MESSAGES_PAGE_LIMIT = 200
 _PAGE_ENVELOPE_BYTES = 128
 
 
+# What the hub's database may grow to when no `storage_quota_bytes` is set:
+# half of what it and the disk's free space add up to, once this floor is
+# left free. The other half is room for one whole copy of the database beside
+# it: `scripts/hub/activate.sh` takes a consistent copy on the server before
+# every activation, and a database grown into that room could never be copied
+# again. The floor protects the rest of the server, which keeps writing after
+# the hub stops admitting audio: a full root filesystem stops journald,
+# package updates and logins. Why 5 GiB: journald alone keeps up to 4 GiB by
+# default (`SystemMaxUse`, 10 % of the filesystem capped at 4 GiB), and 1 GiB
+# more covers a package update. What it is not: a retention rule. Nothing is
+# ever deleted to stay under it; the hub refuses new content with its numbers
+# and the Mac keeps its copy.
+STORAGE_FREE_FLOOR_BYTES = 5 * 1024**3
+# From this share of the limit on, the hub tells the Macs that it is nearly
+# full (`ready.storage`, `storage.status`). What it protects: time to act
+# before meetings stop reaching the hub. Why 80 %: Mars's choice (2026-10-22);
+# at the production pace measured that day (the database grew about 0.8 GB in
+# a day) the last fifth of an 80 GB limit is about three weeks.
+STORAGE_WARNING_PERCENT = 80
+
+# The key check: one row the hub encrypts with its key when it first opens a
+# database, so a database never opens with another key (which would leave it
+# with two: old rows unreadable now, new ones unreadable with the old key).
+_KEY_CHECK_PLAINTEXT = b"orbit.storage.key-check.v1"
+_KEY_CHECK_CONTEXT = "storage:key-check"
+_KEY_CHECK_SCHEMA = """
+    CREATE TABLE IF NOT EXISTS storage_key_check (
+        id INTEGER PRIMARY KEY CHECK (id = 1), body BLOB NOT NULL);
+"""
+# Encrypted columns an older database (written before the key check) can be
+# verified against: the first row of whichever exists.
+_LEGACY_KEY_PROBES = (
+    ("devices", "SELECT id, name FROM devices ORDER BY rowid LIMIT 1", "device:{0}"),
+)
+_WRONG_KEY = (
+    "The storage key is not the one this database was written with; opening it "
+    "would leave it with two keys. Put back the key this data directory was "
+    'created with (see docs/self-hosting.md, "Backups")'
+)
+
+
+def is_storage_full(failure: BaseException | None) -> bool:
+    """Whether a failure, or one it was raised from, is the disk being full.
+
+    SQLite says so with `SQLITE_FULL` ("database or disk is full"), which a
+    failure re-raised from Python code may carry only as its text; the file
+    system with ENOSPC or EDQUOT.
+    """
+    seen = 0
+    while failure is not None and seen < 8:
+        if isinstance(failure, sqlite3.Error):
+            code = getattr(failure, "sqlite_errorcode", None)
+            if (code is not None and code & 0xFF == sqlite3.SQLITE_FULL) or (
+                "database or disk is full" in str(failure)
+            ):
+                return True
+        if isinstance(failure, OSError) and failure.errno in (errno.ENOSPC, errno.EDQUOT):
+            return True
+        failure = failure.__cause__ or failure.__context__
+        seen += 1
+    return False
+
+
 def initialize(data_dir: Path, key_file: Path) -> None:
-    """Called only by the explicit admin init command."""
+    """Called only by the explicit admin init command.
+
+    A data directory that already holds a database is refused: its key may
+    be missing or misplaced, and a new key next to it would make the hub
+    start on rows it cannot read and write new ones the old key cannot.
+    """
+    database = data_dir / "hub.sqlite3"
+    if database.exists() or database.is_symlink():
+        raise FileExistsError(
+            f"{data_dir} already holds a store (hub.sqlite3); init would write a new key "
+            "next to a database encrypted with another. Put back its key, or restore a "
+            'backup into an empty data directory (see docs/self-hosting.md, "Backups")'
+        )
     data_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     key_file.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     fd = os.open(key_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
@@ -81,7 +160,17 @@ def initialize(data_dir: Path, key_file: Path) -> None:
 
 
 class Store:
-    def __init__(self, data_dir: Path, key_file: Path, quota_bytes: int = 10 * 1024**3):
+    def __init__(
+        self,
+        data_dir: Path,
+        key_file: Path,
+        quota_bytes: int | None = None,
+        *,
+        free_space: Callable[[], int] | None = None,
+    ):
+        """`quota_bytes` caps the database (`storage_quota_bytes`); without it
+        the disk sets the limit (`STORAGE_FREE_FLOOR_BYTES`). `free_space`
+        measures what the disk has free; tests give their own."""
         key = read_secret(key_file, 32)
         if len(key) != 32:
             raise ValueError("Storage key must contain exactly 32 bytes; run orbit-hub init")
@@ -92,6 +181,7 @@ class Store:
         self._fingerprint_key = hmac.digest(key, b"orbit.operation.fingerprint.v1", "sha256")
         self._lock = RLock()
         self._quota = quota_bytes
+        self._free_space = free_space or (lambda: shutil.disk_usage(data_dir).free)
         # One query per delta flooded the loop with `SELECT revoked` against
         # SQLite. A short TTL absorbs bursts without outliving an explicit revoke.
         self._active_ttl = 1.0
@@ -107,6 +197,13 @@ class Store:
         self._db.execute("PRAGMA journal_mode=WAL")
         self._db.execute("PRAGMA synchronous=FULL")
         self._db.execute("PRAGMA foreign_keys=ON")
+        # Before any migration: a database opened with another key is left
+        # exactly as it was.
+        try:
+            self._verify_key()
+        except BaseException:
+            self._db.close()
+            raise
         self._db.executescript("""
             CREATE TABLE IF NOT EXISTS devices (
                 id TEXT PRIMARY KEY, name BLOB NOT NULL, token_hash TEXT UNIQUE NOT NULL,
@@ -195,8 +292,71 @@ class Store:
         # Each agent's personality, skills and access groups.
         self._db.executescript(AGENT_CONFIG_SCHEMA)
         self._db.executescript(ATTACHMENTS_SCHEMA)
+        self._db.executescript(_KEY_CHECK_SCHEMA)
+        self._db.execute(
+            "INSERT OR IGNORE INTO storage_key_check(id, body) VALUES (1, ?)",
+            (self.encrypt(_KEY_CHECK_PLAINTEXT, _KEY_CHECK_CONTEXT),),
+        )
         self.groups = GroupRepository(self)
         self.attachments = AttachmentRepository(self)
+
+    def _verify_key(self) -> None:
+        """Refuse a key this database was not written with (`_WRONG_KEY`).
+
+        A database with the key check is verified against it; an older one
+        against its first encrypted device name; an empty one takes this key.
+        """
+        tables = {
+            row[0] for row in self._db.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+        try:
+            if "storage_key_check" in tables:
+                row = self._db.execute("SELECT body FROM storage_key_check WHERE id=1").fetchone()
+                if row is not None:
+                    if self.decrypt(row[0], _KEY_CHECK_CONTEXT) != _KEY_CHECK_PLAINTEXT:
+                        raise ValueError(_WRONG_KEY)
+                    return
+            for table, query, context in _LEGACY_KEY_PROBES:
+                if table in tables:
+                    row = self._db.execute(query).fetchone()
+                    if row is not None:
+                        self.decrypt(row[1], context.format(row[0]))
+                        return
+        except InvalidTag:
+            raise ValueError(_WRONG_KEY) from None
+
+    def storage_status(self) -> dict:
+        """What the database uses, its limit and what is left, with whether
+        it is nearly full (`STORAGE_WARNING_PERCENT`) and what sets the limit:
+        `disk` (`STORAGE_FREE_FLOOR_BYTES`) or `quota` (`storage_quota_bytes`)."""
+        used = self.physical_bytes()
+        disk_limit = max(0, (used + self._free_space() - STORAGE_FREE_FLOOR_BYTES) // 2)
+        if self._quota is not None and self._quota <= disk_limit:
+            limit, source = self._quota, "quota"
+        else:
+            limit, source = disk_limit, "disk"
+        return {
+            "used_bytes": used,
+            "max_bytes": limit,
+            "remaining_bytes": max(0, limit - used),
+            "limit": source,
+            "nearly_full": used * 100 >= limit * STORAGE_WARNING_PERCENT,
+        }
+
+    def storage_full(self) -> HubError:
+        """The refusal for a write the disk itself refused, with its numbers."""
+        try:
+            free = self._free_space()
+        except OSError:
+            free = None
+        numbers = {"used_bytes": self.physical_bytes()}
+        if free is not None:
+            numbers["free_bytes"] = free
+        return HubError(
+            "storage_full",
+            "El disco del servidor está lleno y no se guardó nada; libera espacio en el servidor",
+            numbers=numbers,
+        )
 
     def recover_interrupted(self) -> None:
         """Only hub startup calls this; opening the admin CLI must not alter live turns."""
@@ -220,11 +380,14 @@ class Store:
             except HubError:
                 # A refusal rolls back by design and reaches its caller with
                 # its code: it is not a failure to report.
-                self._db.execute("ROLLBACK")
+                self._rollback()
                 raise
-            except BaseException:
-                report(event="storage_transaction_failed", code="transaction_rolled_back")
-                self._db.execute("ROLLBACK")
+            except BaseException as failure:
+                report(
+                    event="storage_transaction_failed",
+                    code="storage_full" if is_storage_full(failure) else "transaction_rolled_back",
+                )
+                self._rollback()
                 raise
             else:
                 self._db.execute("COMMIT")
@@ -233,6 +396,13 @@ class Store:
                 # successful COMMIT. A revocation from the CLI, in another
                 # process, is seen when the cache's TTL runs out.
                 self._active_cache.clear()
+
+    def _rollback(self) -> None:
+        """Roll back what is open. SQLite has already rolled back a
+        transaction it could not grow (`SQLITE_FULL`); a second ROLLBACK would
+        raise "no transaction is active" and hide that cause."""
+        if self._db.in_transaction:
+            self._db.execute("ROLLBACK")
 
     def close(self) -> None:
         with self._lock:
@@ -271,21 +441,32 @@ class Store:
         Reserve three copies plus 256 KiB; a filesystem quota is still required for
         a strict physical ceiling. Revocation and existing-job state changes remain
         available at the admission ceiling; no content is deleted or rotated.
+        The limit is `storage_status`'s: the configured quota, or what the disk
+        leaves (`STORAGE_FREE_FLOOR_BYTES`).
         """
         payload_bytes = max(0, payload_bytes)
         reserve = payload_bytes * 3 + 256 * 1024
-        used = self.physical_bytes()
-        if used + reserve > self._quota:
+        status = self.storage_status()
+        used, limit = status["used_bytes"], status["max_bytes"]
+        if used + reserve > limit:
             # The refusal says the rule that fired: what the write brought, what
-            # admission reserves for it, what the database already uses and the quota.
+            # admission reserves for it, what the database already uses, the
+            # limit, what is left of it and what sets it (`disk` or `quota`).
+            message = (
+                "Cuota del servidor alcanzada; sube storage_quota_bytes o libera espacio. "
+                if status["limit"] == "quota"
+                else "Espacio del servidor agotado; libera espacio en el servidor. "
+            )
             raise HubError(
                 "quota_exceeded",
-                "Cuota del servidor alcanzada; conserva la copia local",
+                message + "El Mac conserva su copia",
                 numbers={
                     "bytes": payload_bytes,
                     "reserved_bytes": reserve,
                     "used_bytes": used,
-                    "max_bytes": self._quota,
+                    "max_bytes": limit,
+                    "remaining_bytes": status["remaining_bytes"],
+                    "limit": status["limit"],
                 },
             )
 
@@ -629,6 +810,16 @@ class Store:
                 (operation_id, device, fingerprint),
             )
         return None
+
+    def release_operation(self, device: str, operation_id: str) -> None:
+        """Give back the id of an operation refused before it kept or sent
+        anything, so the same message can be sent again (`ws.py`). Only a
+        reservation still pending: a receipt is never removed."""
+        with self.transaction() as db:
+            db.execute(
+                "DELETE FROM operations WHERE device_id=? AND id=? AND status='pending'",
+                (device, operation_id),
+            )
 
     def operation_fingerprint(self, payload: dict) -> str:
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))

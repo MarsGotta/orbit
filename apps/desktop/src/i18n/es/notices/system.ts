@@ -1,3 +1,4 @@
+import { fileSize } from "../attachments";
 import { openSettings, rearm, worded, type Entries, type NoticeData } from "./types";
 
 /** A folder chosen in the panel that Orbit did not keep, with its cause and numbers. */
@@ -19,6 +20,27 @@ function folderNotAdded(data: NoticeData): string {
     .filter((part) => part !== undefined)
     .join(", ");
   return `No se pudo añadir la carpeta: el panel de macOS no la entregó${why ? ` (${why})` : ""}. Vuelve a intentarlo.`;
+}
+
+/**
+ * The hub's storage, nearly full or full: how much it uses of its limit,
+ * what is left, what to do (free room, or raise the hub's quota when that
+ * sets the limit) and what happens if nobody does. The hub deletes nothing.
+ */
+function hubStorage(data: NoticeData): string {
+  const { bytes: used, max_bytes: max, remaining: left, cause } = data;
+  const known = typeof used === "number" && typeof max === "number" && typeof left === "number";
+  const state =
+    known && left === 0
+      ? `El hub está lleno: ocupa ${fileSize(used)} de ${fileSize(max)}.`
+      : known
+        ? `El hub está casi lleno: ocupa ${fileSize(used)} de ${fileSize(max)} y quedan ${fileSize(left)}.`
+        : "El hub está casi lleno.";
+  const fix =
+    cause === "quota"
+      ? "Libera espacio en el servidor o sube storage_quota_bytes en la configuración del hub."
+      : "Libera espacio en el disco del servidor.";
+  return `${state} ${fix} Si se llena, las reuniones nuevas se quedan en este Mac sin transcribir hasta que haya sitio. El hub no borra nada por su cuenta.`;
 }
 
 /** Privacy, the hub link and pairing, the local store, transcripts and archives. */
@@ -55,6 +77,7 @@ export const system = {
     "El emparejamiento con el hub no coincide. Vuelve a emparejar en Ajustes.",
     openSettings,
   ),
+  hub_storage_nearly_full: { class: "fixable", text: hubStorage },
   orbit_closing: worded("working", "Cerrando Orbit…"),
   pending_work_keep_open: worded("fixable", "Orbit sigue guardando. No lo cierres todavía."),
   pairing_failed: worded(

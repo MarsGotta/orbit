@@ -104,6 +104,10 @@ class DeviceRuntime:
         self.resume_pending: set[str] = set()
         self.resume_deadline: float | None = None
         self.turn_ids: dict[str, str] = {}
+        # The `chat.send` ids whose message this hub stored, until the socket
+        # that sent them has answered (`ws.py`): a send refused before this
+        # point kept nothing and gives its id back.
+        self._committed: set[str] = set()
         self.interrupt_deadlines: dict[str, float] = {}
         # Approvals and clarifications waiting for the Mac, by the request id
         # the Mac sees: (Orbit session, kind, the backend's request). Unique on
@@ -769,6 +773,13 @@ class DeviceRuntime:
         self.resumed_message_counts[agent_id, resumed.session_id] = resumed.message_count
         return self.store.session(self.device, session_id), resumed.loading_history
 
+    def committed(self, request_id: str) -> bool:
+        """Whether the message of this `chat.send` was stored."""
+        return request_id in self._committed
+
+    def forget_commit(self, request_id: str) -> None:
+        self._committed.discard(request_id)
+
     def log_chat_rejection(self, code, numbers=None):
         # A file's name is the user's words: the refusal carries it to the
         # Mac, never to the log.
@@ -980,6 +991,7 @@ class DeviceRuntime:
             client_id=params.client_id,
             attachments=params.attachments,
         )
+        self._committed.add(request_id)
         if state is not TurnState.IDLE:
             # completed/failed first return to idle; the table has no
             # direct edge back into submitting.

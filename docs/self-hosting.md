@@ -215,9 +215,12 @@ Initialize the encrypted store once, then start the hub explicitly:
   --tls-key /opt/orbit/secrets/tls.key
 ```
 
-`init` creates an AES-256 storage key and private SQLite store and refuses to
-replace an existing key. Back up the key together with a consistent database
-backup. A lost key makes the stored content unreadable.
+`init` creates an AES-256 storage key and private SQLite store. It refuses to
+replace an existing key, and it refuses a data directory that already holds a
+database: a new key beside a database encrypted with another would leave it
+with two. The hub likewise refuses to open a database with a key it was not
+written with. A lost key makes the stored content unreadable; keep a copy of
+it apart from the database copies (see [Backups](#backups)).
 
 For a TLS-terminating proxy, bind the hub to `127.0.0.1` and explicitly allow
 loopback development HTTP; expose only the HTTPS proxy to Macs. Preserve the
@@ -232,6 +235,7 @@ render the unit with your paths before installing it:
 ```sh
 ORBIT_HUB_BASE=/opt/orbit/app \
 ORBIT_HUB_CONFIG=/opt/orbit/config/orbit.toml \
+ORBIT_HUB_ENV_FILE=/opt/orbit/config/orbit-hub.env \
 bash scripts/hub/render-unit.sh > /opt/orbit/config/orbit-hub.service
 ```
 
@@ -590,16 +594,140 @@ transcription and note readiness, then the local privacy stop and explicit local
 rearm. Computer control follows macOS Accessibility and Screen Recording grants;
 there is no second Orbit approval switch.
 
-## Storage and upgrades
+## Storage
 
-The hub keeps encrypted audio, transcripts, messages and notes. There is no
-automatic retention/deletion policy. Its preventive admission limit defaults to
-10 GiB across SQLite, WAL and SHM; it is not a hard filesystem quota. Reserve
-space for safety metadata and monitor free space. Never back up only the main
-SQLite file while its WAL is live.
+The hub keeps encrypted audio, transcripts, messages and notes in one SQLite
+database (`hub.sqlite3` in `data_dir`, with its WAL). Nothing is ever deleted
+on its own: when the hub has no room left it refuses new content with
+`507`, and the Mac keeps its copy of the audio until the hub takes it.
 
-Upgrade the hub before the app and review schema/protocol compatibility before
-rolling back. Keep a database/key backup and the previous executable environment.
+How much the hub admits is a setting. Without `storage_quota_bytes`, the disk
+sets the limit: the database may grow to half of what it and the free space
+on its disk add up to, once 5 GiB are left free. The other half is room for
+one whole copy of the database beside it, which every activation takes (see
+[Upgrades](#upgrades)); the 5 GiB are for the rest of the server, which keeps
+writing logs and updates after the hub stops admitting audio (journald alone
+keeps up to 4 GiB by default). With 168 GB free and a 1.8 GB database that is
+a limit of about 82 GB, some 120 hours of two-track meetings (0.69 GB an
+hour). To cap it lower, set a number of bytes at the TOML root:
+
+```toml
+storage_quota_bytes = 21474836480   # 20 GiB
+```
+
+The disk still applies when it holds less than the quota. Restart the hub
+after changing it. The limit is admission, not a filesystem quota: SQLite's
+own growth is estimated, so leave the disk some room beyond it.
+
+The hub tells each Mac what it uses, its limit and what is left whenever the
+Mac connects, and again when it becomes nearly full (80 % of the limit) or
+stops being. The Mac shows «El hub está casi lleno» with those numbers and
+what to do. A full disk the hub did not foresee is refused as `507
+storage_full` with the free space, never as an internal error.
+
+To see the numbers on the server, read them from a Mac's `ready` or look at
+the files: `du -ch /opt/orbit/data/hub.sqlite3*` and `df -h /opt/orbit/data`.
+
+## Backups
+
+The Mac deletes its audio once the hub confirms it, so without copies the
+hub's disk holds the only one. There are two kinds of copy, both taken with
+SQLite's online backup API (consistent with the WAL while the hub runs):
+
+- **Every night, off the server.** `orbit-hub backup <directory>` writes
+  `daily/hub-YYYY-MM-DD.sqlite3` and the first copy of each ISO week to
+  `weekly/hub-YYYY-Www.sqlite3`, and keeps the last 7 daily and 4 weekly
+  copies. It removes only copies it named, and it refuses a directory that
+  does not exist or that is on the same disk as `data_dir`: that is what a
+  mount point looks like when the other machine's disk is not mounted, and a
+  copy there would not survive the disk it is meant to replace. The
+  destination needs room for eleven copies of the database: the audio is
+  encrypted and does not compress.
+- **Before each activation, on the server.** `scripts/hub/activate.sh` copies
+  the database and its key into `ORBIT_HUB_BASE/backups/activation` before it
+  moves anything (see [Upgrades](#upgrades)).
+
+**The key never travels with the nightly copies.** Whoever reads a copy and
+its key reads everything. Keep the key (`key_file`, 32 bytes) somewhere else
+once, for example in a password manager as base64:
+
+```sh
+base64 < /opt/orbit/secrets/storage.key    # store this line apart from the copies
+```
+
+It never changes while the data directory lives, so one copy of it is enough.
+
+### Install the nightly copy
+
+Choose the destination: a directory on another machine's disk mounted on the
+server (for example over NFS or SSHFS at `/mnt/orbit-copies`), writable by the
+hub's user. Then render and install the service and its timer next to
+`orbit-hub.service`:
+
+```sh
+ORBIT_HUB_BASE=/opt/orbit/app \
+ORBIT_HUB_CONFIG=/opt/orbit/config/orbit.toml \
+ORBIT_HUB_ENV_FILE=/opt/orbit/config/orbit-hub.env \
+ORBIT_HUB_BACKUP_DIR=/mnt/orbit-copies \
+bash scripts/hub/render-unit.sh orbit-hub-backup.service > ~/.config/systemd/user/orbit-hub-backup.service
+bash scripts/hub/render-unit.sh orbit-hub-backup.timer > ~/.config/systemd/user/orbit-hub-backup.timer
+systemctl --user daemon-reload
+systemctl --user enable --now orbit-hub-backup.timer
+```
+
+The timer runs at 03:30 (within 15 minutes), and a night the server was off
+is copied when it is back. The copy runs at low CPU and I/O priority.
+
+### Check it
+
+```sh
+systemctl --user list-timers orbit-hub-backup.timer   # the next and the last run
+systemctl --user status orbit-hub-backup.service      # the last result
+journalctl --user -u orbit-hub-backup.service -n 20   # what it copied and removed
+ls -l /mnt/orbit-copies/daily /mnt/orbit-copies/weekly
+```
+
+A failed night leaves the service `failed` with its cause in the journal
+(the destination missing or on the server's disk, no room there). Run the
+copy by hand to try it: `orbit-hub --config … backup /mnt/orbit-copies`.
+
+### Restore
+
+On the machine that will run the hub, with the hub stopped and an empty (or
+missing) `data_dir`:
+
+1. Put the key back where `key_file` points, from where you kept it apart:
+   `base64 -d > /opt/orbit/secrets/storage.key` (paste the line), then
+   `chmod 600 /opt/orbit/secrets/storage.key`.
+2. Restore a copy:
+   `orbit-hub --config /opt/orbit/config/orbit.toml restore /mnt/orbit-copies/daily/hub-2026-10-22.sqlite3`.
+   It refuses a data directory that already holds a database, and a key the
+   copy was not written with (and then leaves the data directory empty).
+3. Start the hub. The Macs reconnect with their own pairing; meetings
+   recorded after the copy are lost on the hub unless a Mac still holds them.
+
+Do not copy `hub.sqlite3` by hand while the hub runs: without its WAL the
+copy misses the latest writes or is inconsistent.
+
+## Upgrades
+
+Upgrade the hub before the app. A new release migrates the database when it
+first starts, so `activate.sh <version>` first takes a consistent copy of the
+database and its key, as the release it leaves has them, into
+`ORBIT_HUB_BASE/backups/activation` (with a `FROM` file naming that release),
+replacing the copy of the activation before. If it cannot, it stops before
+moving anything. `activate.sh` runs that copy with the server's `python3`
+(3.11 or newer).
+
+Going back to the release that copy was taken from (`activate.sh anterior`,
+or its number) checks whether the database's schema changed since. If it
+did, it stops the hub, moves the database aside to
+`ORBIT_HUB_BASE/backups/set-aside-<time>` and puts the copy back, so the older
+code never runs on a database migrated past it. What was written after the
+copy is in the database set aside, not in the one restored; nothing is
+deleted. If the schema is the same, the database stays as it is and keeps
+everything. Re-activating the active release takes no copy.
+
 The [hub contract](../contracts/hub-v1.md) describes wire compatibility; the
 [release manifest contract](../contracts/release-manifest-v1.md) describes package
 and installer hashes. Hosting updates is optional and independent of running a hub.

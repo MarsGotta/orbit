@@ -34,7 +34,8 @@ uv run orbit-hub --config /path/to/orbit.toml serve --host 0.0.0.0 --tls-cert /p
 ```
 
 `init` creates an AES-256 key with mode 0600 and a private SQLite database.
-It is an explicit one-time operation: it never replaces an existing key.
+It is an explicit one-time operation: it never replaces an existing key, and
+it refuses a data directory that already holds a database.
 The administrator must provision the Hermes backend credential in the mode-0600
 file specified by `hermes_credential_file`; it is not obtained or copied automatically.
 The Mac receives only its revocable device token.
@@ -173,11 +174,16 @@ The `/v1/recordings/{uuid}/context` routes were removed along with their sole
 consumer, a development command; they return 404.
 Contract: `../contracts/hub-v1.md`.
 
-Keep a consistent SQLite backup together with its key. Without the key,
-recordings cannot be read; a new key is not silently generated as recovery.
-Data must stay out of Git. There is no automatic audio/transcript deletion policy yet.
+Keep consistent copies of the database (`orbit-hub backup`, nightly off the
+server) and keep the key apart from them; `orbit-hub restore` pairs them again
+and refuses another key. Without the key, recordings cannot be read; a new key
+is not silently generated as recovery: `init` refuses a data directory that
+already holds a database, and the store refuses a key it was not written with.
+See "Backups" in `docs/self-hosting.md`.
+Data must stay out of Git. There is no automatic audio/transcript deletion policy.
 Before admitting new names, sessions, messages, operations, audio, transcripts or
-manifests, the quota adds the observed sizes of SQLite, WAL and SHM, plus a
+manifests, the limit (`storage_quota_bytes`, or by default what the disk leaves)
+adds the observed sizes of SQLite, WAL and SHM, plus a
 conservative reserve of three times the payload and 256 KiB for growth.
 Existing content and identical retries are not deleted. Revocation and state
 changes to existing jobs remain allowed to stop activity even at the limit.

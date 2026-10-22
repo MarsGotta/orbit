@@ -1,0 +1,13 @@
+[Unit]
+# Install beside orbit-hub-backup.service; see docs/self-hosting.md ("Backups").
+Description=Orbit Hub - a copy of the database every night
+
+[Timer]
+# At night, when no meeting is being uploaded. Persistent: a night the
+# server was off is copied when it is back.
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

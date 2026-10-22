@@ -7,6 +7,10 @@ hermes_ws_auth = "token"
 profile = "default"
 allow_insecure_localhost = true
 allowed_hosts = ["localhost", "127.0.0.1", "hub.example"]
+# How much the hub stores. Without it, the disk sets the limit (half of the
+# database plus free space, after 5 GiB); a number of bytes caps it lower.
+# Nothing is ever deleted to stay under it. docs/self-hosting.md#storage
+# storage_quota_bytes = 21474836480
 
 # Several agents: this file is one agent, `default`, made of `profile` and
 # `assistant_name`. To offer more, list [[agents]] tables instead of those two

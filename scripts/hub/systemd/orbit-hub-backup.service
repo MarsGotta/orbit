@@ -1,0 +1,20 @@
+[Unit]
+# Render with `scripts/hub/render-unit.sh orbit-hub-backup.service`; see
+# docs/self-hosting.md ("Backups"). Started every night by orbit-hub-backup.timer.
+# The copy carries no key: keep the key apart, as the guide says.
+Description=Orbit Hub - nightly copy of the database, off the server
+
+[Service]
+Type=oneshot
+# The same configuration and environment the hub starts with.
+EnvironmentFile=@ORBIT_HUB_ENV_FILE@
+# The destination is usually another machine's disk mounted there; the
+# command refuses a destination that is missing or on the hub's own disk.
+ExecStart=@ORBIT_HUB_BASE@/current/.venv/bin/orbit-hub --config @ORBIT_HUB_CONFIG@ backup @ORBIT_HUB_BACKUP_DIR@
+WorkingDirectory=@ORBIT_HUB_BASE@/current
+UMask=0077
+# A copy reads the whole database: it gives way to the hub and everything else.
+Nice=10
+IOSchedulingClass=idle
+StandardOutput=journal
+StandardError=journal

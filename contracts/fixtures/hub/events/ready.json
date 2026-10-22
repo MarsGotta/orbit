@@ -31,6 +31,13 @@
       "max_message_bytes": 33554432,
       "max_session_bytes": 268435456
     },
+    "storage": {
+      "used_bytes": 1810000000,
+      "max_bytes": 82000000000,
+      "remaining_bytes": 80190000000,
+      "limit": "disk",
+      "nearly_full": false
+    },
     "device_id": "device-1",
     "hub_protocol": 1,
     "hub_version": "0.3.12",

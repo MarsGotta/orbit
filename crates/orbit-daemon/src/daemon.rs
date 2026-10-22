@@ -773,6 +773,10 @@ struct Runtime {
     hub: hub_link::HubLink,
     hub_protocol_version: Option<u64>,
     unrecognized_hub_events: BTreeSet<String>,
+    /// Whether the hub last said it was nearly full (`ready.storage`,
+    /// `storage.status`); `None` before it said anything. Kept in memory
+    /// only, so a restart of Orbit says a nearly full hub once more.
+    hub_storage_nearly_full: Option<bool>,
     hub_task: Option<JoinHandle<Result<()>>>,
     snapshot_revision: Option<u64>,
     hub_events: mpsc::Sender<(u64, HubEvent)>,
@@ -1157,6 +1161,7 @@ async fn run_with_helper_inner(
         hub: hub_link::HubLink::default(),
         hub_protocol_version: None,
         unrecognized_hub_events: BTreeSet::new(),
+        hub_storage_nearly_full: None,
         hub_task: None,
         snapshot_revision: None,
         hub_events,

@@ -245,8 +245,12 @@ See [local storage](storage.md) for encryption, retention and recovery.
 | Hub memory | Screenshots, at most four per device, at most 300 seconds, delivered once |
 | Hermes | Assistant sessions under Hermes retention policy |
 
-The hub has a preventive 10 GiB database/WAL/SHM admission limit, not a physical
-quota or deletion policy. It does not automatically delete audio or history.
+The hub has a preventive database/WAL/SHM admission limit, not a physical
+quota or deletion policy: `storage_quota_bytes`, or by default what its disk
+leaves (half of database plus free space, after 5 GiB; see the
+[self-hosting guide](../self-hosting.md#storage)). It tells each Mac what it
+uses and what is left, and when it is nearly full. It does not automatically
+delete audio or history.
 
 | Secret/boundary | Holder and authority |
 |---|---|

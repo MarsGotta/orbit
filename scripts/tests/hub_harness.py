@@ -20,6 +20,7 @@ import json
 import os
 import re
 import shutil
+import sqlite3
 import stat
 import subprocess
 import sys
@@ -172,6 +173,15 @@ if verb == "restart":
         with open(path, "w", encoding="utf-8") as handle:
             json.dump(units, handle)
     sys.exit(code)
+if verb in ("stop", "start"):
+    # What activation does around putting a copy of the database back.
+    if state.get(f"{verb}_exit"):
+        print(f"fake systemctl: {verb} failed", file=sys.stderr)
+        sys.exit(state[f"{verb}_exit"])
+    state["ActiveState"] = "inactive" if verb == "stop" else "active"
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(units, handle)
+    sys.exit(0)
 if verb == "is-active":
     print(active)
     sys.exit(0 if active == "active" else 3)
@@ -410,6 +420,14 @@ class HubSandbox:
             .replace("@DEIMOS_RESTART_OUTPUT@", repr(DEIMOS_RESTART_OUTPUT))
             .replace("@DEIMOS_STATUS_OUTPUT@", repr(DEIMOS_STATUS_OUTPUT)),
         )
+        # The hub's configuration as its unit names it: only data_dir and
+        # key_file are read (activation copies the database). No database
+        # exists until a test makes one (make_database).
+        self.data_dir = self.root / "data"
+        self.key_file = self.root / "storage.key"
+        (self.root / "hub.toml").write_text(
+            f'data_dir = "{self.data_dir}"\nkey_file = "{self.key_file}"\n', encoding="utf-8"
+        )
         self.write_units(self.default_units())
         self.write_processes(self.default_processes())
         self.write_hermes({})
@@ -474,6 +492,37 @@ class HubSandbox:
         units = json.loads((self.state / "units.json").read_text(encoding="utf-8"))
         units.setdefault(unit, {}).update(properties)
         self.write_units(units)
+
+    # -- the hub's database ------------------------------------------------
+
+    def make_database(self, rows=("Acta de la Cooperativa Brezo",)):
+        """A synthetic hub database and its key: plain SQLite, no hub code."""
+        self.data_dir.mkdir(mode=0o700, exist_ok=True)
+        self.key_file.write_bytes(bytes(range(32)))
+        self.key_file.chmod(0o600)
+        database = sqlite3.connect(self.data_dir / "hub.sqlite3", isolation_level=None)
+        try:
+            database.execute("PRAGMA journal_mode=WAL")
+            database.execute("CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY, body TEXT)")
+            for row in rows:
+                database.execute("INSERT INTO notes(body) VALUES (?)", (row,))
+        finally:
+            database.close()
+
+    def migrate_database(self):
+        """What a newer release's first start does: a schema the older one never had."""
+        database = sqlite3.connect(self.data_dir / "hub.sqlite3", isolation_level=None)
+        try:
+            database.execute("ALTER TABLE notes ADD COLUMN synthetic_future TEXT")
+        finally:
+            database.close()
+
+    def database_rows(self, path=None):
+        database = sqlite3.connect(path or self.data_dir / "hub.sqlite3")
+        try:
+            return [row[0] for row in database.execute("SELECT body FROM notes ORDER BY id")]
+        finally:
+            database.close()
 
     # -- the fake process table and the fake hermes --------------------------
 

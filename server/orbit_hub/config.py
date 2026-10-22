@@ -44,9 +44,12 @@ class Settings:
     # A field rather than a ClassVar because contracts/constants.json reads its
     # default through `__dataclass_fields__`.
     max_frame_bytes: int = 128 * 1024
-    # Preventive DB+WAL+SHM growth admission, not a filesystem quota. 10 GiB
-    # leaves room for durable audio while retaining revocation/state headroom.
-    storage_quota_bytes: ClassVar[int] = 10 * 1024 * 1024 * 1024
+    # A cap, in bytes, on the database (DB+WAL+SHM) the hub admits content
+    # into; absent, the disk sets the limit (`storage.STORAGE_FREE_FLOOR_BYTES`
+    # says how). What it protects: a disk the hub shares with other things the
+    # operator wants to keep room for. It is admission, not retention: nothing
+    # is deleted to stay under it, and the Mac keeps what was refused.
+    storage_quota_bytes: int | None = None
     device_bridge: BridgeConfiguration | None = None
     meetings_bridge: BridgeConfiguration | None = None
     processing: ProcessingConfiguration | None = None
@@ -54,6 +57,11 @@ class Settings:
     diarization: DiarizationConfiguration | None = None
 
     def __post_init__(self) -> None:
+        if self.storage_quota_bytes is not None and self.storage_quota_bytes <= 0:
+            raise ValueError(
+                "storage_quota_bytes must be a positive number of bytes; remove it to let "
+                "the disk set the limit"
+            )
         protected_url(self.hermes_url, allow_insecure_localhost=self.allow_insecure_localhost)
         self.agent_configurations()
 
