@@ -145,3 +145,34 @@ fn projects_real_call_content_and_typed_voice_absence() {
     assert!(call.seeing_screen);
     assert!(call.voice_unavailable);
 }
+
+/// Voice input is the daemon's microphone, not read-aloud: the read-aloud
+/// voice unknown (nothing read yet) or absent (the hub's voice did not
+/// arrive) neither hides that the microphone listens nor makes it unknown.
+#[test]
+fn voice_input_does_not_depend_on_read_aloud() {
+    let read_aloud = [
+        VoiceAvailability::Unknown {
+            why: orbit_core::topics::Pending::NotObservedYet,
+        },
+        VoiceAvailability::Absent {
+            code: VoiceAbsence::SpeechUnavailable,
+        },
+        VoiceAvailability::Present,
+    ];
+    for voice in read_aloud {
+        for listening in [true, false] {
+            let mut value = assistant_topic::assistant_value();
+            value.voice = voice.clone();
+            value.voice_active = listening;
+            let chat = assistant_topic::snapshot(value, PermissionState::Unknown).chat;
+            let projected = serde_json::to_value(&chat.voice).expect("the voice serializes");
+            assert_eq!(
+                projected["state"],
+                if listening { "listening" } else { "idle" },
+                "{voice:?}"
+            );
+            assert_eq!(projected["availability"]["state"], "current", "{voice:?}");
+        }
+    }
+}

@@ -184,7 +184,7 @@ const chat: ChatSnapshot = {
 };
 
 describe("an unknown availability paints nothing", () => {
-  it("an unknown voice note and an unknown call say nothing in the assistant", () => {
+  it("an unknown call says nothing in the assistant", () => {
     const view = render(
       <AssistantComposer
         callActive={false}
@@ -196,7 +196,6 @@ describe("an unknown availability paints nothing", () => {
         onCallToggle={() => undefined}
         paired
         send={() => undefined}
-        voiceUnknown
       />,
     );
     expect(screen.queryByRole("status")).toBeNull();

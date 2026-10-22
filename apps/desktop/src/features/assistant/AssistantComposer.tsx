@@ -24,14 +24,13 @@ interface ComposerProps {
   paired: boolean;
   /** Not known yet: the button waits, quietly. */
   callUnknown?: boolean;
-  voiceUnknown?: boolean;
   statusUnknown?: boolean;
   onCallToggle: () => void;
   send: VoiceSend;
 }
 
 function useComposer(props: ComposerProps) {
-  const { attachmentLimits, chat, daemonReady, hub, paired, send, voiceUnknown } = props;
+  const { attachmentLimits, chat, daemonReady, hub, paired, send } = props;
   const [draft, setDraft] = useState("");
   const box = useRef<HTMLTextAreaElement>(null);
   // «Responder a esto» quotes a fragment after what is already written.
@@ -42,7 +41,7 @@ function useComposer(props: ComposerProps) {
   useComposerInsert(insert);
   const disabled = !daemonReady || !paired || hub !== "online";
   const voice = useVoiceNote({
-    canStart: !disabled && voiceUnknown !== true,
+    canStart: !disabled,
     daemonListening: chat.voice.state === "listening",
     send,
   });
@@ -72,13 +71,7 @@ function useComposer(props: ComposerProps) {
 
 type Controls = ReturnType<typeof useComposer>;
 
-function MicrophoneButton({
-  controls,
-  voiceUnknown,
-}: {
-  controls: Controls;
-  voiceUnknown?: boolean;
-}) {
+function MicrophoneButton({ controls }: { controls: Controls }) {
   const { voice } = controls;
   return (
     <Button
@@ -90,7 +83,7 @@ function MicrophoneButton({
       aria-pressed={voice.recording}
       className={voice.recording ? styles.recordingButton : undefined}
       // A note in progress can always end, whatever happened meanwhile.
-      disabled={!voice.recording && (controls.disabled || voiceUnknown === true)}
+      disabled={!voice.recording && controls.disabled}
       onClick={voice.keyboardClick}
       onPointerCancel={voice.pointerCancel}
       onPointerDown={voice.pointerDown}
@@ -111,14 +104,12 @@ function ComposerActions({
   controls,
   onCallToggle,
   callUnknown,
-  voiceUnknown,
 }: {
   callActive: boolean;
   callPending: boolean;
   controls: Controls;
   onCallToggle: () => void;
   callUnknown?: boolean;
-  voiceUnknown?: boolean;
 }) {
   const recording = controls.voice.recording;
   return (
@@ -138,7 +129,7 @@ function ComposerActions({
       >
         <Icon name="phone" size={14} />
       </Button>
-      <MicrophoneButton controls={controls} voiceUnknown={voiceUnknown} />
+      <MicrophoneButton controls={controls} />
       <Button
         aria-label={recording ? es.assistant.sendVoiceNote : es.chat.send}
         disabled={!recording && !controls.canSend}
@@ -205,7 +196,6 @@ export function AssistantComposer(props: ComposerProps) {
           controls={controls}
           onCallToggle={props.onCallToggle}
           callUnknown={props.callUnknown}
-          voiceUnknown={props.voiceUnknown}
         />
       </div>
     </footer>

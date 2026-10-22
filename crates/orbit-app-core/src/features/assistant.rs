@@ -4,10 +4,7 @@ use crate::topics::TopicFreshness;
 use crate::{
     AssistantActivity, ChatMessage, ChatPending, ChatRole, VoiceNote, VoiceSnapshot, VoiceState,
 };
-use orbit_core::topics::{
-    Knowledge, TopicData, TopicId,
-    assistant::{Activity, VoiceAbsence, VoiceAvailability},
-};
+use orbit_core::topics::{Knowledge, TopicData, TopicId, assistant::Activity};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -124,29 +121,14 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         }
     });
     view.work = value.work.as_deref().cloned();
-    let (voice_state, voice_availability) = match &value.voice {
-        VoiceAvailability::Unknown { why } => (
-            VoiceState::Unknown,
-            FeatureAvailability::unknown_pending(why),
-        ),
-        VoiceAvailability::Absent {
-            code: VoiceAbsence::SpeechUnavailable,
-        } => (
-            VoiceState::Unknown,
-            FeatureAvailability::Absent {
-                cause: "speech_unavailable".into(),
-            },
-        ),
-        VoiceAvailability::Present => (
-            if value.voice_active {
-                VoiceState::Listening
-            } else {
-                VoiceState::Idle
-            },
-            FeatureAvailability::Current,
-        ),
+    // Voice input is the daemon's microphone. Whether the hub's voice can
+    // read an answer aloud (`value.voice`, unknown until something is read)
+    // says nothing about it; the call says that (`voice_unavailable`).
+    view.voice.state = if value.voice_active {
+        VoiceState::Listening
+    } else {
+        VoiceState::Idle
     };
-    view.voice.state = voice_state;
     view.voice.too_short = value
         .short_voice_note
         .as_ref()
@@ -154,7 +136,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
             duration_ms: short.duration_ms,
             minimum_ms: short.minimum_ms,
         });
-    view.voice.availability = Some(voice_availability);
+    view.voice.availability = view.availability.clone();
     view.activity = value.activity.as_ref().map(|activity| match activity {
         Activity::Transcribing => AssistantActivity::Transcribing,
         Activity::Thinking => AssistantActivity::Thinking,

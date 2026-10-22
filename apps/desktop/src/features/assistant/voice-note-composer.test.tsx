@@ -3,7 +3,9 @@ import { act } from "react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "../../bridge/generated";
 import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
+import type { AppView } from "../../state/app-view";
 import { AssistantComposer } from "./AssistantComposer";
+import AssistantView from "./AssistantView";
 
 // The composer's voice note: a click starts it and another sends it, holding
 // the button talks while held, Esc cancels it, and while it records the
@@ -221,5 +223,46 @@ describe("a note too short to send", () => {
     expect(screen.getByRole("status").textContent).toBe(
       "La nota de voz duró 0,09 s y el mínimo es 0,16 s: no se ha enviado.",
     );
+  });
+});
+
+describe("the microphone does not wait for read-aloud", () => {
+  // Dictation is the user's input; whether the hub's voice can read an
+  // answer aloud is another matter, unknown until something is read.
+  function assistant(availability: NonNullable<ChatSnapshot["voice"]["availability"]>) {
+    const send = vi.fn<(command: AppCommand) => unknown>();
+    const snapshot = {
+      connection: { daemon: "ready", hub: "paired" },
+      status_availability: { state: "current" },
+      call_availability: { state: "current" },
+      call: null,
+      settings: { hub: { paired: true, connection: "online" } },
+      chat: {
+        ...chat("idle"),
+        availability: { state: "current" },
+        voice: { level: 0, state: "idle", availability },
+      },
+    } as unknown as AppView;
+    render(
+      <AssistantView
+        error={null}
+        readMessages={() => new Promise(() => undefined)}
+        send={send}
+        snapshot={snapshot}
+      />,
+    );
+    return { microphone: screen.getByRole("button", { name: "Nota de voz" }), send };
+  }
+
+  it("records a note while the read-aloud voice is not known yet", () => {
+    const { microphone, send } = assistant({ state: "unknown", cause: "pending:not_observed_yet" });
+    expect((microphone as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(microphone, { detail: 0 });
+    expect(voiceOrders(send)).toEqual(["voice_start"]);
+  });
+
+  it("records a note when the read-aloud voice did not arrive", () => {
+    const { microphone } = assistant({ state: "absent", cause: "speech_unavailable" });
+    expect((microphone as HTMLButtonElement).disabled).toBe(false);
   });
 });

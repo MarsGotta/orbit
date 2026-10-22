@@ -198,7 +198,6 @@ export default function AssistantView({ error, readMessages, send, snapshot }: A
         onCallToggle={call ? endCall : startCall}
         paired={paired}
         callUnknown={snapshot.call_availability?.state === "unknown"}
-        voiceUnknown={chat.voice.availability?.state === "unknown"}
         statusUnknown={
           snapshot.status_availability?.state === "unknown" ||
           snapshot.status_availability?.state === "absent"
