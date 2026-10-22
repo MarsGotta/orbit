@@ -6,9 +6,10 @@ import { mmss } from "../time-format";
 import { useNow } from "../use-now";
 import styles from "./SidebarCard.module.css";
 
-/** Whole minutes until the call hangs up by itself, rounded up. */
+/** Whole minutes until the call hangs up by itself, rounded down as the
+ *  call view counts them; the last minute reads «queda 1 min». */
 function minutesLeft(expiresAtMs: number, now: number): number {
-  return Math.max(1, Math.ceil((expiresAtMs - now) / 60_000));
+  return Math.max(1, Math.floor((expiresAtMs - now) / 60_000));
 }
 
 /**
