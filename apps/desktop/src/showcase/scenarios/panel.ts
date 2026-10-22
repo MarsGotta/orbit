@@ -109,7 +109,7 @@ export const panelScenarios: Scenario[] = [
     id: "panel-respuesta",
     state: "Respuesta de Deimos",
     description:
-      "La respuesta a una pregunta hecha durante la reunión, con un enlace y «Preguntar otra cosa».",
+      "La respuesta a una pregunta hecha durante la reunión, con un enlace y «Otra pregunta».",
     size: ANSWER,
     meeting: {
       ...recordingMeeting,

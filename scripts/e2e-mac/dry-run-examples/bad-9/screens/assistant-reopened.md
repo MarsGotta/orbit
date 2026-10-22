@@ -4,9 +4,9 @@
       - AXStaticText = "Sin conexión. Comprueba tu red."
       - [9] AXButton "Abrir Ajustes" [actions=[press]]
     - AXGroup (Vistas)
-      - [1] AXButton (Briefing de hoy) [actions=[press]]
+      - [1] AXButton (Hoy) [actions=[press]]
       - [2] AXButton (Calendario) [actions=[press]]
-      - [3] AXButton (Notas) [actions=[press]]
+      - [3] AXButton (Reuniones) [actions=[press]]
       - [4] AXButton (Asistente) [actions=[press]]
       - [5] AXButton (Ajustes) [actions=[press]]
     - AXHeading

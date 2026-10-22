@@ -97,7 +97,7 @@ describe("copying", () => {
       "## Tú\n\n¿Qué sala?\n\n## Deimos\n\nLa **Norte**.\n\n" +
         `## Tú\n\n¿Y el código?\n\n## Deimos\n\n${newest[1]!.text}\n`,
     );
-    expect(await screen.findByText("Conversación copiada")).toBeTruthy();
+    expect(await screen.findByText("✓ Conversación copiada")).toBeTruthy();
   });
 
   it("copies the last code block with ⌘⇧C", async () => {

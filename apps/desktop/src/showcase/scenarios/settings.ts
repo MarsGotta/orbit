@@ -20,8 +20,8 @@ export const settingsScenarios: Scenario[] = [
     id: "ajustes-agentes",
     state: "Agentes · uno de Hermes",
     description:
-      "Deimos, un agente de Hermes: su personalidad, accesos y skills se ven pero se cambian en su perfil.",
-    steps: [{ wait: "text=Tipo: hermes" }, { scroll: section("Agentes") }],
+      "Deimos, un agente de Hermes: su personalidad y lo que puede usar se cambian en su perfil de Hermes; sus habilidades, aquí.",
+    steps: [{ wait: "text=/funciona con Hermes/" }, { scroll: section("Agentes") }],
   }),
   settings({
     id: "ajustes-agente-editable",
@@ -30,14 +30,14 @@ export const settingsScenarios: Scenario[] = [
       "Claude Code, un agente ACP: personalidad editable, interruptores de acceso y sus skills.",
     steps: [
       { click: "role=button[name='Claude Code']" },
-      { wait: "text=Tipo: acp" },
+      { wait: "text=/se configura desde aquí/" },
       { scroll: section("Agentes") },
     ],
   }),
   settings({
     id: "ajustes-skill",
     state: "Agentes · editor de una skill",
-    description: "El SKILL.md de una skill abierto para editarlo, con su nombre y su tamaño.",
+    description: "El SKILL.md de una habilidad abierto para editarlo, con su nombre y su tamaño.",
     steps: [
       { click: "role=button[name='Claude Code']" },
       { click: "role=button[name='Editar revisar-pr']" },
@@ -47,16 +47,16 @@ export const settingsScenarios: Scenario[] = [
   }),
   settings({
     id: "ajustes-carpetas",
-    state: "Carpetas del asistente",
+    state: "Carpetas que puede leer",
     description: "Las carpetas que el asistente puede leer; una no se puede abrir y dice por qué.",
-    steps: [{ scroll: section("Carpetas del asistente") }],
+    steps: [{ scroll: section("Carpetas que puede leer") }],
   }),
   settings({
     id: "ajustes-plantillas",
     state: "Plantillas de notas",
     description:
       "Las plantillas con las que se escriben las notas, con una propia abierta en el editor.",
-    steps: [{ click: "role=button[name='Revisión de diseño']" }, { scroll: section("Notas") }],
+    steps: [{ click: "role=button[name='Revisión de diseño']" }, { scroll: section("Reuniones") }],
   }),
   settings({
     id: "ajustes-diccionarios",

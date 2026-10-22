@@ -146,15 +146,15 @@ it("the turn that disappeared is explained with its minute and the current turns
 it.each([
   [
     { code: "recording_still_open", status: 400 },
-    "No se puede volver a transcribir: la grabación todavía no se ha cerrado.",
+    "No se puede rehacer la transcripción: la grabación todavía no se ha cerrado.",
   ],
   [
     { code: "diarization_not_configured", status: 409 },
-    "No se puede volver a transcribir: el hub no tiene configurada la separación de voces.",
+    "No se puede rehacer la transcripción: el hub no tiene configurada la separación de voces.",
   ],
   [
     { code: "unexpected_refusal", status: 409 },
-    "El hub rechazó la petición de volver a transcribir. (unexpected_refusal)",
+    "El hub rechazó rehacer la transcripción. (unexpected_refusal)",
   ],
 ])("una negativa de transcripción dice qué pasa: %j", async (data, text) => {
   const { store, accept } = await connected();

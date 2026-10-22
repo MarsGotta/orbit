@@ -54,7 +54,7 @@ function interrupted(refusal: Refusal): string {
   if (cause.kind === "generation_changed") {
     reason = `La lectura empezó en la generación ${String(cause.started_generation)} y el Mac está en la ${String(cause.current_generation)}.`;
   } else if (cause.kind === "inventory_dispatch") {
-    reason = `Sólo se enviaron ${String(cause.sent_reads)} de ${String(cause.total_reads)} peticiones del inventario; no hay una lista completa.`;
+    reason = `Solo se enviaron ${String(cause.sent_reads)} de ${String(cause.total_reads)} peticiones del inventario; no hay una lista completa.`;
   } else if (cause.kind === "calendar_changed") {
     reason = `El calendario cambió ${String(cause.changes)} veces; se admiten ${String(cause.max_restarts)} reinicios por lectura.`;
   } else if (cause.kind === "calendar_expired") {
@@ -179,7 +179,7 @@ export const refusalEntries: Record<RefusalCode, RefusalEntry> = {
   },
   privacy_stopped: {
     class: "fixable",
-    text: () => "La privacidad está detenida. Rearma Orbit para continuar.",
+    text: () => "Todo está parado. Reactiva Orbit para continuar.",
     action: () => rearm,
   },
   recovering: {

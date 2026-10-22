@@ -68,19 +68,20 @@ export function MeetingTopics({ meeting }: { meeting: BriefingNextSnapshot }) {
       </ol>
       {saved && (
         <p className={styles.savedContext}>
-          <strong>{es.briefing.localContext}</strong>
+          <strong>{es.briefing.personalNote}</strong>
           {saved}
         </p>
       )}
       <form onSubmit={submit}>
         <TextInput
-          aria-label={es.briefing.addContext}
+          aria-label={es.briefing.personalNote}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder={es.briefing.addContext}
+          placeholder={es.briefing.personalNotePlaceholder}
           value={draft}
           variant="dotted"
         />
       </form>
+      <p className={styles.savedContext}>{es.briefing.personalNoteHelp}</p>
     </div>
   );
 }

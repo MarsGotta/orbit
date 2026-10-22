@@ -29,12 +29,12 @@ export const notesScenarios: Scenario[] = [
   }),
   notes({
     id: "notas-vacia",
-    state: "Sin notas",
-    description: "Notas antes de la primera grabación: qué hacer para empezar.",
+    state: "Sin reuniones",
+    description: "Reuniones antes de la primera grabación: qué hacer para empezar.",
     route: "#/notes",
     views: (base) =>
       listed(base, { list: [], index: { state: "available", more: false, detail: null } }),
-    ready: "text=Aún no hay notas",
+    ready: "text=Aún no hay reuniones",
   }),
   notes({
     id: "notas-cargando",
@@ -43,7 +43,7 @@ export const notesScenarios: Scenario[] = [
     route: "#/notes",
     views: (base) =>
       listed(base, { list: [], index: { state: "loading", more: false, detail: null } }),
-    ready: "text=Cargando notas…",
+    ready: "text=Cargando reuniones…",
   }),
   notes({
     id: "nota-resumen",

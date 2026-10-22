@@ -26,7 +26,7 @@ it.each(sources)("recording with %s sends orbit-core's audio selection", (source
   render(<MeetingStartDialog onClose={close} send={send} snapshot={snapshot} />);
   expect(send).toHaveBeenCalledWith({ command: "audio_sources_refresh" });
   fireEvent.change(screen.getByRole("combobox"), { target: { value: source } });
-  fireEvent.click(screen.getByRole("button", { name: "Grabar" }));
+  fireEvent.click(screen.getByRole("button", { name: "Empezar a grabar" }));
   expect(send).toHaveBeenLastCalledWith({
     command: "meeting_start",
     title: "",

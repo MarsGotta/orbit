@@ -1,22 +1,22 @@
 - AXWindow "Orbit"
   - AXWebArea
     - AXGroup (Vistas)
-      - [1] AXButton (Briefing de hoy) [actions=[press]]
+      - [1] AXButton (Hoy) [actions=[press]]
       - [2] AXButton (Calendario) [actions=[press]]
-      - [3] AXButton (Notas) [actions=[press]]
+      - [3] AXButton (Reuniones) [actions=[press]]
       - [4] AXButton (Asistente) [actions=[press]]
       - [5] AXButton (Ajustes) [actions=[press]]
     - AXHeading
-      - AXStaticText = "Notas"
-    - [6] AXButton "Grabar reunión ahora" [actions=[press]]
-    - AXGroup (Nueva grabación de reunión)
+      - AXStaticText = "Reuniones"
+    - [6] AXButton "Grabar reunión" [actions=[press]]
+    - AXGroup (Nueva grabación)
       - AXHeading
-        - AXStaticText = "Nueva grabación de reunión"
+        - AXStaticText = "Nueva grabación"
       - [7] AXButton "×" (Cerrar) [actions=[press]]
       - [8] AXTextField = "Reunión 16/10/26, 10:00" (Título) [actions=[confirm]]
-      - [9] AXPopUpButton = "Sistema" (Fuente de audio) [actions=[press,showmenu]]
+      - [9] AXPopUpButton = "Audio del sistema" (Qué audio grabar) [actions=[press,showmenu]]
         - AXMenu
-          - [12] AXMenuItem "Sistema" [actions=[press,cancel]]
-          - [13] AXMenuItem "Solo micrófono" [actions=[press,cancel]]
+          - [12] AXMenuItem "Audio del sistema" [actions=[press,cancel]]
+          - [13] AXMenuItem "Solo mi micrófono" [actions=[press,cancel]]
       - [10] AXButton "Cerrar" [actions=[press]]
-      - [11] AXButton "Grabar" [actions=[press]]
+      - [11] AXButton "Empezar a grabar" [actions=[press]]

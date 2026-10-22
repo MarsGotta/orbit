@@ -2,12 +2,11 @@ import type { AccessConfig } from "../../../bridge/generated/AccessConfig";
 import { Switch } from "../../../design/Switch";
 import { accessGroups } from "../../../i18n/es/agents";
 import settingsStyles from "../SettingsView.module.css";
-import { ACCESS_GROUP_TOOLS } from "./access-tools";
 import styles from "./Agents.module.css";
 import { copy, FeedbackLine, NotEditable, type OrderProps, Panel } from "./parts";
 
 /**
- * One switch per group of Orbit's tools, with the tools it opens. A switch
+ * One switch per group of Orbit's tools, with what it lets the agent do. A switch
  * is configuration: it is sent as it is flipped, with all five groups, and
  * nothing asks again.
  */
@@ -24,11 +23,11 @@ export function AccessCard({
       <p className={styles.hint}>{copy.accessHelp}</p>
       <NotEditable editable={access.editable} cause={access.cause} />
       <div className={settingsStyles.controls}>
-        {accessGroups.map(({ group, label }) => (
+        {accessGroups.map(({ group, label, description }) => (
           <div className={settingsStyles.controlRow} key={group}>
             <div className={settingsStyles.rowCopy}>
               <strong>{label}</strong>
-              <span>{ACCESS_GROUP_TOOLS[group].join(", ")}</span>
+              <span>{description}</span>
             </div>
             <Switch
               checked={access.groups[group]}

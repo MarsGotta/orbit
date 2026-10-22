@@ -1447,7 +1447,7 @@
     "unit": "texts",
     "value": [
       "Orbit no responde.",
-      "Privacidad detenida",
+      "Todo está parado",
       "Este Mac no está emparejado",
       "El hub retiró este Mac",
       "Sin conexión. Comprueba tu red.",
@@ -1655,15 +1655,10 @@
         "file": "server/orbit_hub/assistant/access.py",
         "name": "TOOLS",
         "unit": "tools"
-      },
-      {
-        "file": "apps/desktop/src/features/settings/agents/access-tools.ts",
-        "name": "ACCESS_GROUP_TOOLS",
-        "unit": "tools"
       }
     ],
     "name": "AGENT_ACCESS_GROUP_TOOLS",
-    "resource": "the orbit-mcp tools each access group opens: what orbit-mcp filters and the hub refuses by group, and what Settings shows beside each access switch. A new tool of a group is added here",
+    "resource": "the orbit-mcp tools each access group opens: what orbit-mcp filters and the hub refuses by group (Settings says what each group does, not its tools). A new tool of a group is added here",
     "source": "python",
     "unit": "tools",
     "value": {

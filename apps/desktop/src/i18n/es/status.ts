@@ -1,4 +1,4 @@
-export const status = {
+const base = {
   appName: "Orbit",
   loading: "Conectando con Orbit…",
   connectFailed: "No se pudo conectar con Orbit. Ciérralo y vuelve a abrirlo.",
@@ -8,32 +8,29 @@ export const status = {
     breadcrumbsLabel: "Migas",
     contextLabel: "Panel de contexto",
     changeTheme: "Cambiar tema",
-    askOrbit: "Pregunta a Orbit",
     themeTitle: "Tema",
     localUser: "Usuario local",
     loadingView: "Cargando vista…",
     notice: "Aviso de Orbit",
     closeNotice: "Cerrar aviso",
-    briefing: "Briefing",
-    briefingToday: "Briefing de hoy",
+    briefing: "Hoy",
     calendar: "Calendario",
-    notes: "Notas",
+    // Each entry is a meeting; its note is one part of it.
+    notes: "Reuniones",
     assistant: "Asistente",
     settings: "Ajustes",
   },
   design: {
-    askOrbit: "Pregunta a Orbit",
+    askOrbit: "Paleta de órdenes",
     commandInputLabel: "Comando",
     commandPlaceholder: "Pregunta, dicta o llama…",
     escape: "esc",
     undo: "Deshacer",
-    expandCall: "Expandir llamada",
-    collapseCall: "Colapsar llamada",
+    expandCall: "Abrir",
+    collapseCall: "Minimizar",
     hangUp: "Colgar",
-    endCallFromOrb: "Finalizar llamada desde el orbe",
-    inCall: "En llamada con Orbit",
-    callOrbit: "Llamar a Orbit",
-    callSubtitle: "Voz en directo, puede ver tu pantalla",
+    endCallFromOrb: "Colgar desde el orbe",
+    callSubtitle: "Habla en voz alta",
   },
   context: {
     now: "ahora",
@@ -42,7 +39,7 @@ export const status = {
   // says what to do. Nothing here names a server, a device or a count.
   problem: {
     orbitLost: "Orbit no responde. Ciérralo y vuelve a abrirlo.",
-    privacyStopped: "Privacidad detenida",
+    privacyStopped: "Todo está parado",
     unpaired: "Este Mac no está emparejado",
     revoked: "El hub retiró este Mac",
     offline: "Sin conexión. Comprueba tu red.",
@@ -50,6 +47,19 @@ export const status = {
     missingPermissions: "Faltan permisos",
     pair: "Emparejar",
     openSettings: "Abrir Ajustes",
-    rearm: "Rearmar",
+    rearm: "Reactivar",
   },
 } as const;
+
+/** The window's frame, with the conversation's agent where it is asked or called. */
+export function statusCopy(assistantName: string) {
+  return {
+    ...base,
+    shell: { ...base.shell, ask: `Preguntar a ${assistantName}` },
+    design: {
+      ...base.design,
+      inCall: `En llamada con ${assistantName}`,
+      callAssistant: `Llamar a ${assistantName}`,
+    },
+  } as const;
+}

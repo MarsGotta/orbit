@@ -6,6 +6,7 @@ import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { TextLink } from "../../design/TextLink";
 import { es } from "../../i18n/es";
+import { useSpanish } from "../../i18n/AssistantCopy";
 import { mmss } from "../../time-format";
 import { useVoiceNote, type VoiceSend } from "./useVoiceNote";
 import { useComposerInsert } from "./composer-insert";
@@ -163,6 +164,7 @@ function VoiceLine({ chat, controls }: { chat: ChatSnapshot; controls: Controls 
 
 export function AssistantComposer(props: ComposerProps) {
   const controls = useComposer(props);
+  const copy = useSpanish();
   // Only what the user can fix has words here; offline and Orbit's own problems
   // are the status pill's, and an unknown says nothing.
   const unpaired = props.daemonReady && !props.paired && props.statusUnknown !== true;
@@ -170,7 +172,7 @@ export function AssistantComposer(props: ComposerProps) {
     <footer className={styles.composerArea}>
       {unpaired && (
         <p className={styles.availability}>
-          <TextLink href="#/settings">{es.assistant.pairHub}</TextLink>
+          <TextLink href="#/settings">{copy.assistant.pairHub}</TextLink>
         </p>
       )}
       <div className={styles.composer}>

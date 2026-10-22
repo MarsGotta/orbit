@@ -148,10 +148,10 @@ describe("the status pill", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
-  it("with privacy stopped, the pill offers to rearm", async () => {
+  it("with privacy stopped, the pill offers to reactivate Orbit", async () => {
     const { sent } = renderTopBar(snapshot({ privacy_stopped: true }));
-    expect(screen.getByRole("status").textContent).toMatch(/Privacidad detenida/);
-    await userEvent.click(screen.getByRole("button", { name: "Rearmar" }));
+    expect(screen.getByRole("status").textContent).toMatch(/Todo está parado/);
+    await userEvent.click(screen.getByRole("button", { name: "Reactivar" }));
     expect(sent).toEqual([{ command: "rearm" }]);
   });
 

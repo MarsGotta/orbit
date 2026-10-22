@@ -14,8 +14,8 @@ const base = {
     },
     microphoneReady: "Micrófono siempre listo",
     microphoneHelp: `Para notas de voz con ${globalShortcuts.ptt}`,
-    // Ajustes › Notas holds the note templates.
-    notes: "Notas",
+    // Ajustes › Reuniones holds the note templates and dictionaries.
+    notes: "Reuniones",
     account: "Cuenta",
     yourName: "Tu nombre",
     yourNamePlaceholder: "Cómo quieres que te salude Orbit",
@@ -27,10 +27,9 @@ const base = {
     cancelPairAgain: "Cancelar",
     systemPermissions: "Permisos del sistema",
     helperMissing: "Orbit.app no está en marcha. Ábrela para ver los permisos.",
-    restart: "Reiniciar Orbit",
-    request: "Pedir",
-    openSystemSettings: "Abrir Ajustes del sistema",
-    startup: "Arranque",
+    request: "Permitir",
+    openSystemSettings: "Abrir Ajustes del Sistema",
+    startup: "Al encender el Mac",
     openAtLogin: "Abrir Orbit al iniciar sesión",
     appearance: "Aspecto",
     theme: "Tema",
@@ -41,10 +40,10 @@ const base = {
     updatesDisabled:
       "Esta compilación no tiene un origen de actualizaciones configurado (ORBIT_UPDATE_BASE_URL).",
     searchUpdate: "Buscar actualización",
-    checking: "Buscando actualización…",
+    checking: "Buscando una versión nueva…",
     available: (version: string | null) =>
       version === null ? "Hay una actualización" : `Hay una actualización: ${version}`,
-    upToDate: "Orbit está al día.",
+    upToDate: "Orbit está al día",
     installing: "Instalando…",
     updateFailed: "No se pudo actualizar Orbit. Vuelve a intentarlo.",
     lastInstallFailed: "La última actualización no terminó. Vuelve a intentarlo.",
@@ -52,16 +51,16 @@ const base = {
     updateNotice: (version: string) => `Hay una versión nueva de Orbit (${version})`,
     updateAction: "Actualizar",
     privacy: "Privacidad",
-    privacyActive: "Todo está parado hasta que rearmes Orbit.",
-    privacyArmed: "Detiene todo lo que Orbit escucha o mira hasta que lo rearmes.",
+    privacyActive:
+      "Todo está parado. Orbit no graba, no escucha y no sube nada. Sigue así aunque lo cierres.",
     errorReports: "Enviar informes de errores anónimos",
     errorReportsHelp:
-      "Sólo códigos de error, nunca el contenido de tus reuniones ni de tus conversaciones.",
+      "Solo códigos de error. Nunca el contenido de tus reuniones ni de tus conversaciones.",
     stopNow: "Parar todo ahora",
-    rearm: "Rearmar",
+    rearm: "Reactivar Orbit",
     exitSection: "Salir de Orbit",
     exit: "Salir de Orbit",
-    reopenOnboarding: "Reabrir primer arranque",
+    reopenOnboarding: "Volver a ver la bienvenida",
   },
   fullControl: {
     performed: "Hecho",
@@ -70,33 +69,38 @@ const base = {
     unknown: "Resultado incierto",
   },
   onboarding: {
-    welcome: "Bienvenida a Orbit",
-    welcomeBody: "Configura una vez el hub y los permisos del sistema.",
+    welcome: "Te damos la bienvenida a Orbit",
+    welcomeBody:
+      "En un par de minutos lo dejas listo: conectas este Mac con tu hub y eliges qué puede usar Orbit.",
     continue: "Continuar",
     pair: "Emparejar",
-    pairBody: "Conecta este Mac con tu hub de Orbit.",
+    pairTitle: "Conecta este Mac con tu hub",
+    pairBody:
+      "El hub es donde se guardan tus reuniones y notas. Quien lo gestiona te da la dirección y un código.",
     pairing: "Emparejando…",
     paired: "Este Mac ya está emparejado.",
-    hubUrl: "URL del hub",
-    code: "Código",
-    deviceName: "Nombre del dispositivo",
-    permissions: "Permisos",
+    hubUrl: "Dirección del hub",
+    code: "Código de emparejamiento",
+    deviceName: "Nombre de este Mac",
+    permissions: "Elige qué puede usar Orbit",
     permissionsBody: "Puedes concederlos ahora o volver más tarde desde Ajustes.",
     accessibility: macPermissions.accessibility.label,
-    ready: "Listo",
+    ready: "Todo listo",
     readyBody: "Orbit queda preparado. Puedes cambiar cualquier opción desde Ajustes.",
-    skipStep: "Saltar este paso",
+    // The welcome skips the whole first run; a later step, only itself.
+    skipAll: "Configurarlo más tarde",
+    skipStep: "Hacerlo después",
     start: "Empezar a usar Orbit",
   },
   // The assistant's folders: choosing one in the macOS panel is the whole
   // permission; nothing here switches it on or off.
   folders: {
-    section: "Carpetas del asistente",
+    section: "Carpetas que puede leer",
     add: "Añadir carpeta",
     remove: (path: string) => `Quitar ${path}`,
     removeLabel: "Quitar",
     empty: "Todavía no hay carpetas.",
-    accessible: "Accesible",
+    accessible: "Se puede leer",
     unknown: "Sin comprobar todavía",
     unreadable: "No se pudieron leer las carpetas guardadas.",
     full: (max: number) => `${max} carpetas como máximo. Quita una para añadir otra.`,
@@ -107,11 +111,11 @@ const base = {
     bookmarkTooLarge: (bytes: number, max: number) =>
       `Su marcador ocupa ${bytes} bytes; Orbit admite ${max}.`,
   },
-  // «Al detectar una llamada», a preference and not a permission.
+  // «Cuando empieces una videollamada», a preference and not a permission.
   callSettings: {
     section: "Llamadas",
-    preferenceTitle: "Al detectar una llamada",
-    notify: "Avisarme",
+    preferenceTitle: "Cuando empieces una videollamada",
+    notify: "Avisarme (recomendado)",
     recordWithoutAsking: "Grabar sin preguntar",
     nothing: "No hacer nada",
   },
@@ -122,7 +126,8 @@ export function settingsCopy(assistantName: string) {
     ...base,
     settings: {
       ...base.settings,
-      deimos: assistantName,
+      controlHistory: "Lo que ha hecho en este Mac",
+      privacyArmed: `Corta al instante todo lo que Orbit escucha o mira: grabaciones, llamadas, notas de voz y «Oye ${assistantName}». Sigue parado aunque cierres Orbit.`,
       engine: {
         ...base.settings.engine,
         missing: (names: string) =>

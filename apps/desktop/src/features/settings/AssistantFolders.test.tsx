@@ -61,9 +61,9 @@ it("lists each folder with whether it opens and sends add and remove orders", ()
       { id: "c", path: "/Users/ejemplo/Fotos", access: { state: "unknown" } },
     ],
   });
-  const section = screen.getByRole("region", { name: "Carpetas del asistente" });
+  const section = screen.getByRole("region", { name: "Carpetas que puede leer" });
   expect(section.textContent).toContain("/Users/ejemplo/Proyectos");
-  expect(section.textContent).toContain("Accesible");
+  expect(section.textContent).toContain("Se puede leer");
   expect(section.textContent).toContain("No se encuentra");
   expect(section.textContent).toContain("Sin comprobar todavía");
   fireEvent.click(screen.getByRole("button", { name: "Añadir carpeta" }));

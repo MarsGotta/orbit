@@ -165,7 +165,7 @@ it.each([
       "agenda",
     ]);
     expect(store.getState().messages[0]?.text).toBe(
-      "La privacidad está detenida. Rearma Orbit para continuar.",
+      "Todo está parado. Reactiva Orbit para continuar.",
     );
     await store.getState().send({ command: "rearm" });
     expect(store.getState().messages).toEqual([unrelated]);

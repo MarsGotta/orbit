@@ -90,6 +90,37 @@ describe("the agent of a conversation", () => {
     expect(screen.getByText("Atlas está pensando…")).toBeTruthy();
   });
 
+  it("puts the conversation's agent's name above its answer", async () => {
+    const answer: ChatMessage = {
+      id: "answer-atlas",
+      role: "assistant",
+      text: "La sala Sur está libre.",
+      at_ms: 1_700_000_000_000,
+      streaming: false,
+      voice: null,
+      receipts: [],
+    };
+    render(
+      <AssistantCopy name="Atlas">
+        <AssistantView
+          error={null}
+          readMessages={() =>
+            Promise.resolve({
+              state: "present",
+              value: { items: [answer], next: null, total: 1, revision: 1 },
+              as_of_ms: null,
+            })
+          }
+          send={() => undefined}
+          snapshot={snapshot({ session_id: "session-atlas", agent_id: "atlas" })}
+        />
+      </AssistantCopy>,
+    );
+    const article = (await screen.findByText(/sala Sur/)).closest("article") as HTMLElement;
+    expect(within(article).getByText("Atlas")).toBeTruthy();
+    expect(within(article).queryByText("ORBIT")).toBeNull();
+  });
+
   it("names the open conversation's agent, or the default one, or the hub's name", () => {
     expect(conversationAgentName(snapshot({ agent_id: "atlas" }))).toBe("Atlas");
     expect(conversationAgentName(snapshot({}))).toBe("Deimos");

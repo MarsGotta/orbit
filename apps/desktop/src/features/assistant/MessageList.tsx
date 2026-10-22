@@ -4,6 +4,7 @@ import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import type { VoiceNoteAudioSnapshot } from "../../bridge/generated/VoiceNoteAudioSnapshot";
 import { Icon } from "../../design/Icon";
 import { es } from "../../i18n/es";
+import { useSpanish } from "../../i18n/AssistantCopy";
 import { AgentWorkView } from "./AgentWork";
 import { AssistantAnswer } from "./AssistantAnswer";
 import { AttachmentGallery } from "./AttachmentGallery";
@@ -36,10 +37,11 @@ function Message({
   voiceAudio?: VoiceNoteAudioSnapshot;
 }) {
   const assistant = message.role === "assistant";
+  const agentName = useSpanish().chat.roles.assistant;
   return (
     <article className={styles.message} data-role={message.role}>
       <div className={styles.bubble}>
-        {assistant && <strong className={styles.messageLabel}>{es.assistant.orbit}</strong>}
+        {assistant && <strong className={styles.messageLabel}>{agentName}</strong>}
         {message.voice ? (
           <VoiceNote
             audio={voiceAudio?.message_id === message.id ? voiceAudio : undefined}

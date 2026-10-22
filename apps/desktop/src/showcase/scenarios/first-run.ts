@@ -57,9 +57,9 @@ export const firstRunScenarios: Scenario[] = [
     description: "La dirección del hub, el código de emparejamiento y el nombre de este Mac.",
     steps: [
       { click: "role=button[name='Continuar']" },
-      { fill: "role=textbox[name='URL del hub']", text: "https://hub.example" },
-      { fill: "role=textbox[name='Código']", text: "482-913" },
-      { fill: "role=textbox[name='Nombre del dispositivo']", text: "Mac de Lucía" },
+      { fill: "role=textbox[name='Dirección del hub']", text: "https://hub.example" },
+      { fill: "role=textbox[name='Código de emparejamiento']", text: "482-913" },
+      { fill: "role=textbox[name='Nombre de este Mac']", text: "Mac de Lucía" },
     ],
   }),
   firstRun({
@@ -68,7 +68,7 @@ export const firstRunScenarios: Scenario[] = [
     description: "Los permisos que Orbit pide a macOS, cada uno con lo que permite y su botón.",
     steps: [
       { click: "role=button[name='Continuar']" },
-      { click: "role=button[name='Saltar este paso']" },
+      { click: "role=button[name='Hacerlo después']" },
       { wait: "role=button[name='Continuar']" },
     ],
   }),
@@ -78,7 +78,7 @@ export const firstRunScenarios: Scenario[] = [
     description: "El último paso del primer arranque.",
     steps: [
       { click: "role=button[name='Continuar']" },
-      { click: "role=button[name='Saltar este paso']" },
+      { click: "role=button[name='Hacerlo después']" },
       { click: "role=button[name='Continuar']" },
       { wait: "role=button[name='Empezar a usar Orbit']" },
     ],

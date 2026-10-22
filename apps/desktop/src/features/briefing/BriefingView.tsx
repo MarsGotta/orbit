@@ -118,8 +118,7 @@ function BriefingHero({
   return (
     <header className={styles.hero}>
       <div className={styles.date}>
-        {dateLabel} · {es.briefing.weekPrefix}
-        {week}
+        {dateLabel} · {es.briefing.weekNumber(week)}
       </div>
       <h1>
         {greeting}

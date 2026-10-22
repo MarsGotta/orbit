@@ -79,10 +79,10 @@ describe("a turn the agent's provider ended without an answer", () => {
 
   it("names the provider's HTTP status", () => {
     expect(said({ code: "assistant_unauthorized", provider_status: "401" })).toBe(
-      "El proveedor de Lyra rechazó la clave (HTTP 401). Quien administra el hub debe revisar la clave del proveedor (api_key_file).",
+      "El proveedor de Lyra rechazó la clave (HTTP 401). Quien gestiona tu hub debe revisar la clave del proveedor (api_key_file).",
     );
     expect(said({ code: "assistant_http_error", provider_status: "503" })).toBe(
-      "El proveedor de Lyra respondió con un error (HTTP 503). Vuelve a intentarlo; si se repite, avisa a quien administra el hub.",
+      "El proveedor de Lyra respondió con un error (HTTP 503). Vuelve a intentarlo; si se repite, avisa a quien gestiona tu hub.",
     );
   });
 
@@ -118,7 +118,7 @@ describe("a turn the agent's provider ended without an answer", () => {
       "Una herramienta de Orbit no respondió en 60 s y Lyra se detuvo. No se sabe si llegó a hacer lo que pedía: compruébalo antes de repetirlo.",
     );
     expect(said({ code: "assistant_tool_failed" })).toBe(
-      "Lyra no pudo usar una herramienta de Orbit y se detuvo. Vuelve a preguntar; si se repite, avisa a quien administra el hub.",
+      "Lyra no pudo usar una herramienta de Orbit y se detuvo. Vuelve a preguntar; si se repite, avisa a quien gestiona tu hub.",
     );
   });
 
@@ -138,16 +138,16 @@ describe("a turn the agent's provider ended without an answer", () => {
 describe("a turn a Claude Code or Codex agent ended without an answer", () => {
   it("says the agent is signed out on the hub's server", () => {
     expect(said({ code: "agent_auth_required" }, "Vega")).toBe(
-      "Vega no tiene la sesión iniciada en el servidor del hub. Quien administra el hub debe iniciarla allí (Orbit no inicia sesiones).",
+      "Vega no tiene la sesión iniciada en el servidor del hub. Quien gestiona tu hub debe iniciarla allí (Orbit no inicia sesiones).",
     );
   });
 
   it("names the agent's error code, and that it answered what the hub cannot read", () => {
     expect(said({ code: "agent_rejected", acp_code: "-32603" }, "Vega")).toBe(
-      "Vega rechazó el turno (código -32603). Vuelve a intentarlo; si se repite, avisa a quien administra el hub.",
+      "Vega rechazó el turno (código -32603). Vuelve a intentarlo; si se repite, avisa a quien gestiona tu hub.",
     );
     expect(said({ code: "agent_protocol" }, "Vega")).toBe(
-      "Vega respondió algo que el hub no entiende y se detuvo. Vuelve a preguntar; si se repite, avisa a quien administra el hub.",
+      "Vega respondió algo que el hub no entiende y se detuvo. Vuelve a preguntar; si se repite, avisa a quien gestiona tu hub.",
     );
   });
 

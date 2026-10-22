@@ -1,16 +1,16 @@
 - AXWindow "Orbit"
   - AXWebArea
     - AXGroup (Vistas)
-      - [1] AXButton (Briefing de hoy) [actions=[press]]
+      - [1] AXButton (Hoy) [actions=[press]]
       - [2] AXButton (Calendario) [actions=[press]]
-      - [3] AXButton (Notas) [actions=[press]]
+      - [3] AXButton (Reuniones) [actions=[press]]
       - [4] AXButton (Asistente) [actions=[press]]
       - [5] AXButton (Ajustes) [actions=[press]]
     - AXGroup
       - AXStaticText = "Reunión guardada"
       - [6] AXLink "Abrir nota" [actions=[press]]
     - AXHeading
-      - AXStaticText = "Notas"
+      - AXStaticText = "Reuniones"
     - AXHeading
       - AXStaticText = "Hoy"
     - [8] AXButton "S Seguimiento de la biblioteca municipal Se revisó el presupuesto y el calendario de obras 16 oct, 10:00" [actions=[press]]

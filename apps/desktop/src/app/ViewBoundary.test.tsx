@@ -22,6 +22,6 @@ describe("a view that fails to paint", () => {
       </ViewBoundary>,
     );
     expect(crash).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("alert").textContent).toBe(genericFailure(OP));
+    expect(screen.getByRole("alert").textContent).toBe(genericFailure(OP, "mostrar esta vista"));
   });
 });

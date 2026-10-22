@@ -35,7 +35,7 @@ function http(value: Value): string {
   return parsed === undefined ? "" : ` (HTTP ${parsed})`;
 }
 
-const ASK_ADMIN = "Vuelve a intentarlo; si se repite, avisa a quien administra el hub.";
+const ASK_ADMIN = "Vuelve a intentarlo; si se repite, avisa a quien gestiona tu hub.";
 const NARROWER = "Pide algo más concreto o divídelo en pasos.";
 
 /** A turn the hub refused for its files, in the words of the rule that fired. */
@@ -72,7 +72,7 @@ function providerFailure(data: NoticeData, name: string): string | undefined {
     case "assistant_connection_lost":
       return `Se cortó la conexión con el proveedor de ${name} antes de terminar la respuesta. Vuelve a preguntar.`;
     case "assistant_unauthorized":
-      return `${provider} rechazó la clave${http(data.provider_status)}. Quien administra el hub debe revisar la clave del proveedor (api_key_file).`;
+      return `${provider} rechazó la clave${http(data.provider_status)}. Quien gestiona tu hub debe revisar la clave del proveedor (api_key_file).`;
     case "assistant_http_error":
       return `${provider} respondió con un error${http(data.provider_status)}. ${ASK_ADMIN}`;
     case "assistant_rate_limited": {
@@ -90,7 +90,7 @@ function providerFailure(data: NoticeData, name: string): string | undefined {
     case "assistant_tool_failed":
       // Only a tool that never answered carries its deadline; what it did is unknown.
       return amount(data.timeout_ms) === undefined
-        ? `${name} no pudo usar una herramienta de Orbit y se detuvo. Vuelve a preguntar; si se repite, avisa a quien administra el hub.`
+        ? `${name} no pudo usar una herramienta de Orbit y se detuvo. Vuelve a preguntar; si se repite, avisa a quien gestiona tu hub.`
         : `Una herramienta de Orbit no respondió en ${seconds(data.timeout_ms)} y ${name} se detuvo. No se sabe si llegó a hacer lo que pedía: compruébalo antes de repetirlo.`;
     case "assistant_turn_too_long":
       return `${name} hizo ${figure(data.max_requests)} peticiones al modelo sin terminar y se detuvo. ${NARROWER}`;
@@ -124,7 +124,7 @@ function unfinished(stopReason: Value, name: string): string {
 function agentFailure(data: NoticeData, name: string): string | undefined {
   switch (data.code) {
     case "agent_auth_required":
-      return `${name} no tiene la sesión iniciada en el servidor del hub. Quien administra el hub debe iniciarla allí (Orbit no inicia sesiones).`;
+      return `${name} no tiene la sesión iniciada en el servidor del hub. Quien gestiona tu hub debe iniciarla allí (Orbit no inicia sesiones).`;
     case "agent_rejected":
       return `${name} rechazó el turno (código ${code(data.acp_code)}). ${ASK_ADMIN}`;
     case "agent_stopped": {
@@ -136,7 +136,7 @@ function agentFailure(data: NoticeData, name: string): string | undefined {
       return `${name} se detuvo durante el turno. Vuelve a preguntar.`;
     }
     case "agent_protocol":
-      return `${name} respondió algo que el hub no entiende y se detuvo. Vuelve a preguntar; si se repite, avisa a quien administra el hub.`;
+      return `${name} respondió algo que el hub no entiende y se detuvo. Vuelve a preguntar; si se repite, avisa a quien gestiona tu hub.`;
     case "agent_turn_unfinished":
       return unfinished(data.stop_reason, name);
     case "upstream_turn_failed":

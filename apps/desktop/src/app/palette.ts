@@ -1,6 +1,6 @@
 import type { AppCommand } from "../bridge/generated";
 import type { CommandItem } from "../design/CommandPalette";
-import { es } from "../i18n/es";
+import { es as defaultCopy } from "../i18n/es";
 import type { ErrorOrigin } from "../state/orbit-store";
 import type { ViewId } from "../state/ui";
 
@@ -8,12 +8,14 @@ export function paletteCommands(
   navigate: (view: ViewId) => void,
   send: (command: AppCommand, origin?: ErrorOrigin) => void,
   openMeeting: () => void,
+  /** The words, with the conversation agent's name. */
+  es: typeof defaultCopy = defaultCopy,
 ): CommandItem[] {
   return [
     {
       id: "call",
       icon: "phone",
-      label: es.design.callOrbit,
+      label: es.design.callAssistant,
       subtitle: es.design.callSubtitle,
       onSelect: () => {
         navigate("assistant");
@@ -39,7 +41,7 @@ export function paletteCommands(
     {
       id: "record-meeting",
       icon: "mic",
-      label: es.meeting.recordNow,
+      label: es.meeting.paletteRecord,
       subtitle: es.meeting.recordNowSubtitle,
       onSelect: openMeeting,
     },

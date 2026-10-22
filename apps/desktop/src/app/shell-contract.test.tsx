@@ -9,7 +9,7 @@ describe("the views that stay", () => {
     window.location.hash = "";
   });
 
-  it("the rail offers Hoy, Calendario, Notas, Asistente and Ajustes, nothing else", () => {
+  it("the rail offers Hoy, Calendario, Reuniones, Asistente and Ajustes, nothing else", () => {
     const snapshot = {
       chat: { pending: null },
       notes: { list: [] },
@@ -20,7 +20,7 @@ describe("the views that stay", () => {
     const labels = within(rail)
       .getAllByRole("button")
       .map((button) => button.getAttribute("aria-label"));
-    expect(labels).toEqual(["Briefing de hoy", "Calendario", "Notas", "Asistente", "Ajustes"]);
+    expect(labels).toEqual(["Hoy", "Calendario", "Reuniones", "Asistente", "Ajustes"]);
   });
 
   it("opening the app without a route shows Hoy", () => {

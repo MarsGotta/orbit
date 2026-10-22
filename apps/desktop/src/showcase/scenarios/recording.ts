@@ -32,9 +32,9 @@ export const recordingScenarios: Scenario[] = [
   record({
     id: "grabar-lanzador",
     state: "Empezar a grabar",
-    description: "«Meet» abre el lanzador: qué reunión, qué audio y cuánto dura.",
-    ready: "text=A tratar",
-    steps: [{ click: "role=button[name='Meet']" }, { wait: "role=dialog" }],
+    description: "«Grabar reunión» abre «Nueva grabación»: qué reunión, qué audio y cuánto dura.",
+    ready: "text=Pendiente de la última vez",
+    steps: [{ click: "role=button[name='Grabar reunión']" }, { wait: "role=dialog" }],
   }),
   record({
     id: "grabando",

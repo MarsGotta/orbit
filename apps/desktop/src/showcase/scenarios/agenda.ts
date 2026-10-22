@@ -124,7 +124,7 @@ export const agendaScenarios: Scenario[] = [
     state: "Sin permiso todavía",
     description: "La agenda antes de que macOS dé permiso a los calendarios: qué gana y el botón.",
     views: withAgenda({ authorization: "not_determined", events: [], calendars: [] }),
-    ready: "text=Tu semana, en Orbit",
+    ready: "text=Permitir acceso al calendario",
   }),
   agenda({
     id: "agenda-denegada",

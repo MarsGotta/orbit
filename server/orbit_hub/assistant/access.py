@@ -29,9 +29,9 @@ GROUPS = ("screen", "control", "calendar", "meetings", "files")
 # reads the agent's own configuration, nothing of the user's.
 UNGATED = frozenset({"orbit_devices", "orbit_attachment", "orbit_skill"})
 
-# The orbit-mcp tools each group opens. Settings › Agents shows these lists
-# beside each switch: contracts/constants.json registers both copies
-# (AGENT_ACCESS_GROUP_TOOLS) and its guards compare them.
+# The orbit-mcp tools each group opens. Settings › Agents says what each group
+# lets the agent do, not these names; contracts/constants.json registers them
+# (AGENT_ACCESS_GROUP_TOOLS).
 TOOLS = MappingProxyType(
     {
         "screen": ("orbit_windows", "orbit_screenshot", "orbit_look", "orbit_selected_text"),

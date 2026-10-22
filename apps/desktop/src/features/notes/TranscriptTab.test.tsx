@@ -276,7 +276,7 @@ it("requests a final pass for old and already separated closed meetings", () => 
   for (const value of [note(), separated]) {
     const send = vi.fn();
     const view = render(<TranscriptTab note={value} send={send} />);
-    fireEvent.click(screen.getByRole("button", { name: "Volver a transcribir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rehacer transcripción" }));
     expect(send).toHaveBeenCalledExactlyOnceWith({
       command: "transcript_retranscribe",
       recording_id: value.recording_id,
@@ -289,14 +289,14 @@ it("keeps the old transcript with distinct queued and running words, without off
   const value = note();
   const { rerender } = render(<TranscriptTab note={value} send={vi.fn()} />);
   for (const [state, words] of [
-    ["queued", "En cola para volver a transcribir."],
+    ["queued", "En cola para rehacer la transcripción."],
     ["running", "Transcribiendo de nuevo…"],
   ]) {
     Object.assign(value.transcript, { final_pass: { state, error: null } });
     rerender(<TranscriptTab note={{ ...value }} send={vi.fn()} />);
     expect(screen.getByText(words!)).toBeTruthy();
     expect(screen.getByText("Empezamos.")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Volver a transcribir" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Rehacer transcripción" })).toBeNull();
   }
 });
 
@@ -305,7 +305,7 @@ it("hides retranscription while capture is open or unknown", () => {
   for (const capture of ["open", undefined]) {
     Object.assign(value, { capture });
     const view = render(<TranscriptTab note={value} send={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: "Volver a transcribir" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Rehacer transcripción" })).toBeNull();
     view.unmount();
   }
 });
@@ -343,7 +343,7 @@ it.each([
     expect(screen.getByRole("alert").textContent).toBe(text);
     expect(screen.getByText(/1 nombre.*no.*traslad/)).toBeTruthy();
     expect(screen.getByText("Empezamos.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Volver a transcribir" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Rehacer transcripción" })).toBeTruthy();
   },
 );
 

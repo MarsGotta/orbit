@@ -6,7 +6,7 @@ import styles from "./NoteScreen.module.css";
 
 /**
  * Upload → Transcript → Summary, centred above the note while anything is
- * left. Each step says its state; where it stands is its tooltip
+ * left. Each step is named by its state («Audio guardado», «Transcribiendo…»); where it stands is its tooltip
  * and its accessible description.
  */
 export function NoteProgress({ progress }: { progress: NoteProgressSnapshot }) {
@@ -21,7 +21,7 @@ export function NoteProgress({ progress }: { progress: NoteProgressSnapshot }) {
             {index > 0 && <li aria-hidden="true" className={styles.pipelineArrow} />}
             <li className={styles.pipelineStep} data-state={step.state} title={cause}>
               <span aria-hidden="true" className={styles.pipelineDot} />
-              <span>{es.noteScreen.steps[key]}</span>
+              <span>{es.noteScreen.steps[key][step.state]}</span>
               <span className={styles.visuallyHidden}>
                 {`: ${es.noteScreen.stepStates[step.state]}. ${cause}`}
               </span>

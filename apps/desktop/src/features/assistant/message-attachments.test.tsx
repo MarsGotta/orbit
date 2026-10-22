@@ -146,7 +146,7 @@ describe("images", () => {
     });
     show([message("1", [plano])]);
     expect(
-      await screen.findByText("Sin conexión con el hub: inténtalo con “plano.png” cuando vuelva."),
+      await screen.findByText("Sin conexión con el hub: inténtalo con «plano.png» cuando vuelva."),
     ).toBeTruthy();
   });
 });

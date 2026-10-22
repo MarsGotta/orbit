@@ -11,7 +11,7 @@ export const dictionary = {
     saving: "Guardando en el hub…",
     unread: "El diccionario aún no se ha podido leer del hub.",
     selected: (text: string) => `Texto seleccionado: «${text}»`,
-    help: "Corrige todas las apariciones de esta forma en las reuniones que usan el diccionario. La nota ya escrita cambia al volver a escribirla.",
+    help: "Corrige todas las apariciones de esta forma en las reuniones que usan el diccionario. La nota ya escrita cambiará cuando rehagas el resumen.",
     empty: "Todavía no hay diccionarios. Crea uno al corregir una palabra de una transcripción.",
     emptyTerms: "Sin términos.",
     noSeries: "Ninguna serie lo usa siempre.",
@@ -21,7 +21,7 @@ export const dictionary = {
     refused: (code: string, detail: string, numbers: Record<string, number>) => {
       const causes: Record<string, string> = {
         not_paired: "Orbit no está emparejado con el hub",
-        privacy_stopped: "La parada de privacidad está activada",
+        privacy_stopped: "Todo está parado",
         hub_unreachable: detail,
 
         dictionary_full: "El diccionario está lleno",

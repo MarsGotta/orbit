@@ -35,7 +35,7 @@ const helperMessages: Record<HelperCode, string> = {
   invalid_window_dimensions:
     "La ventana tiene dimensiones no válidas para capturar. Vuelve a pedir las ventanas y elige otra.",
   privacy_stopped:
-    "La privacidad está detenida en ese Mac desde sus propios controles: Orbit no ve ni actúa en él hasta que se rearme allí, en el propio Mac. No es un error del Mac ni de la conexión; pregunta de nuevo cuando esté rearmada.",
+    "Todo está parado en ese Mac desde sus propios controles: Orbit no ve ni actúa en él hasta que se reactive allí, en el propio Mac. No es un error del Mac ni de la conexión; pregunta de nuevo cuando esté reactivado.",
   screen_inventory_busy:
     "El helper sigue enumerando las ventanas para otra petición. Espera a que termine antes de pedirlas otra vez.",
   screen_inventory_too_large:

@@ -33,7 +33,7 @@ describe("attachment refusals", () => {
       "El contenido del fichero está dañado o no corresponde a su tipo.",
     );
     expect(text({ kind: "unreadable", name: "plano.pdf", reason: "render_failed" })).toBe(
-      "El hub no pudo convertir en imágenes las páginas de “plano.pdf”.",
+      "El hub no pudo convertir en imágenes las páginas de «plano.pdf».",
     );
   });
 
@@ -43,16 +43,16 @@ describe("attachment refusals", () => {
 
   it("says why a HEIC photo could not be turned into JPEG", () => {
     expect(text({ kind: "unreadable", name: "IMG_0001.HEIC", reason: "photo_unreadable" })).toBe(
-      "macOS no pudo leer la foto “IMG_0001.HEIC” para pasarla a JPEG.",
+      "macOS no pudo leer la foto «IMG_0001.HEIC» para pasarla a JPEG.",
     );
     expect(text({ kind: "unreadable", name: "IMG_0001.HEIC", reason: "photo_jpeg_failed" })).toBe(
-      "macOS no pudo pasar “IMG_0001.HEIC” a JPEG.",
+      "macOS no pudo pasar «IMG_0001.HEIC» a JPEG.",
     );
   });
 
   it("names the type no agent reads and what can be attached", () => {
     expect(text({ kind: "type_unsupported", name: "foto.heic", mime: "image/heic" })).toBe(
-      "“foto.heic” es image/heic: ningún agente lo lee. Se pueden adjuntar imágenes PNG, JPEG, GIF o WebP, PDF y ficheros de texto.",
+      "«foto.heic» es image/heic: ningún agente lo lee. Se pueden adjuntar imágenes PNG, JPEG, GIF o WebP, PDF y ficheros de texto.",
     );
   });
 
@@ -65,7 +65,7 @@ describe("attachment refusals", () => {
         bytes: 25 * 1024 * 1024,
         max_bytes: 20 * 1024 * 1024,
       }),
-    ).toBe("“copia.pdf” ocupa 25 MB y el máximo por fichero es 20 MB.");
+    ).toBe("«copia.pdf» ocupa 25 MB y el máximo por fichero es 20 MB.");
     expect(
       text({
         kind: "too_large",
@@ -93,10 +93,10 @@ describe("attachment refusals", () => {
 
   it("says why a file could not be read", () => {
     expect(text({ kind: "unreadable", name: "ruta.pdf", reason: "pdf_locked" })).toBe(
-      "“ruta.pdf” está protegido con contraseña.",
+      "«ruta.pdf» está protegido con contraseña.",
     );
     expect(text({ kind: "unreadable", name: "acta.txt", reason: "missing" })).toBe(
-      "“acta.txt” ya no está donde estaba.",
+      "«acta.txt» ya no está donde estaba.",
     );
     expect(text({ kind: "unreadable", reason: "permission" })).toBe(
       "Orbit no tiene permiso para leer el fichero.",
@@ -105,7 +105,7 @@ describe("attachment refusals", () => {
 
   it("carries the agent's code when it refused an image", () => {
     expect(text({ kind: "refused", name: "x.png", upstream_code: 4018 })).toBe(
-      "El agente no aceptó la imagen “x.png” (código 4018).",
+      "El agente no aceptó la imagen «x.png» (código 4018).",
     );
   });
 
@@ -119,13 +119,13 @@ describe("attachment refusals", () => {
 describe("the window's text", () => {
   const missing = attachmentsCopy.attachments.windowTextMissing;
   it("says when the capture goes alone, and why", () => {
-    expect(missing("empty")).toBe("La ventana no tiene texto legible; va sólo la captura.");
+    expect(missing("empty")).toBe("La ventana no tiene texto legible; va solo la captura.");
     expect(missing("accessibility_permission_required")).toBe(
-      "Sin el permiso de Accesibilidad, Orbit no lee su texto; va sólo la captura.",
+      "Sin el permiso de Accesibilidad, Orbit no lee su texto; va solo la captura.",
     );
-    expect(missing("timeout")).toBe("Su app no dio el texto a tiempo; va sólo la captura.");
+    expect(missing("timeout")).toBe("Su app no dio el texto a tiempo; va solo la captura.");
     expect(missing("engine_failed")).toBe(
-      "No se pudo leer su texto (causa engine_failed); va sólo la captura.",
+      "No se pudo leer su texto (causa engine_failed); va solo la captura.",
     );
   });
 });

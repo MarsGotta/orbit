@@ -4,6 +4,7 @@ import type { AppCommand } from "../../bridge/generated";
 import { Button } from "../../design/Button";
 import { useModalFocus } from "../../design/use-modal-focus";
 import { es } from "../../i18n/es";
+import { useSpanish } from "../../i18n/AssistantCopy";
 import editorStyles from "../notes/NoteEditor.module.css";
 import { useCopy, copyStatus } from "./CopyButton";
 import styles from "./AnswerEditor.module.css";
@@ -26,6 +27,7 @@ function EditorActions({
 }) {
   const { copy, state } = useCopy();
   const failure = copyStatus(state);
+  const sendBack = useSpanish().chatActions.sendBack;
   return (
     <>
       {failure !== null && <p role="alert">{failure}</p>}
@@ -45,7 +47,7 @@ function EditorActions({
           }}
           variant="accent"
         >
-          {es.chatActions.sendBack}
+          {sendBack}
         </Button>
       </footer>
     </>

@@ -1,7 +1,7 @@
 // Creating, moving, editing and deleting events from the calendar.
 // Kept beside `agenda.ts`, which merges it into `es.calendar`.
 
-const readOnlyCalendar = "Este calendario es de sólo lectura";
+const readOnlyCalendar = "Este calendario es de solo lectura";
 const unnamed = "Orbit no puede cambiar este evento";
 
 export const agendaEdit = {
@@ -62,7 +62,7 @@ export const agendaEdit = {
       yearly: (count: number) => (count === 1 ? "año" : "años"),
     },
     locationPlaceholder: "Añadir ubicación",
-    notes: "Notas",
+    notes: "Notas del evento",
     notesPlaceholder: "Añadir notas",
     notesTooLong: "Las notas son demasiado largas para Orbit: edítalas en Calendario.",
     calendar: "Calendario",
@@ -87,15 +87,15 @@ export const agendaEdit = {
     free: "Libre",
     create: "Crear evento",
     save: "Guardar",
-    saveThis: "Guardar sólo este",
+    saveThis: "Guardar solo este",
     saveFuture: "Guardar este y los siguientes",
     delete: "Borrar evento",
-    deleteThis: "Borrar sólo este",
+    deleteThis: "Borrar solo este",
     deleteFuture: "Borrar este y los siguientes",
     needsTitle: "El evento necesita un título",
     saveShortcut: "⌘↵",
     readOnly: {
-      organizer: "Lo organiza otra persona: sólo quien lo organizó puede cambiarlo.",
+      organizer: "Lo organiza otra persona: solo quien lo organizó puede cambiarlo.",
       read_only: `${readOnlyCalendar}.`,
       unnamed: `${unnamed}.`,
     },

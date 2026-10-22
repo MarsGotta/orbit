@@ -45,7 +45,7 @@ const base = {
   call_expired: worded("fixable", "La llamada llegó a su límite. Empieza otra si quieres seguir."),
   call_preference_unreadable: worded(
     "fixable",
-    "No se pudo leer tu elección «Al detectar una llamada». Elígela de nuevo en Ajustes.",
+    "No se pudo leer tu elección «Cuando empieces una videollamada». Elígela de nuevo en Ajustes.",
     openSettings,
   ),
   call_recording_started_automatically: worded("done", "Grabando la llamada, como elegiste."),

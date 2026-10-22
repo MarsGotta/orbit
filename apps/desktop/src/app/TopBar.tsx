@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { es } from "../i18n/es";
+import { useSpanish } from "../i18n/AssistantCopy";
 import { Button } from "../design/Button";
 import { Icon } from "../design/Icon";
 import { Kbd } from "../design/Kbd";
@@ -21,6 +21,7 @@ export function TopBar({
   status,
   viewTitle,
 }: TopBarProps) {
+  const es = useSpanish();
   const mac = navigator.userAgent.includes("Mac");
   return (
     <header className={`${styles.topBar} ${mac ? styles.mac : ""}`}>
@@ -32,7 +33,7 @@ export function TopBar({
       <div className={styles.actions}>
         <Button onClick={onOpenPalette} size={28} variant="outline">
           <Icon name="search" size={14} />
-          {es.shell.askOrbit}
+          {es.shell.ask}
           <Kbd>⌘⇧␣</Kbd>
         </Button>
         <Button

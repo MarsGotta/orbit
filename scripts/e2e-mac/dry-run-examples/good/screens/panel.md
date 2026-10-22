@@ -7,6 +7,6 @@
 
 - **Presupuesto**: las estanterías salen por encima de lo previsto.
 - **Calendario**: las obras empiezan el 3 de noviembre."
-      - AXStaticText = "También queda en la conversación con Deimos."
+      - AXStaticText = "Queda también en tu conversación con Deimos"
       - [1] AXButton "Cerrar" [actions=[press]]
-    - [2] AXButton "Preguntar otra cosa" [actions=[press]]
+    - [2] AXButton "Otra pregunta" [actions=[press]]

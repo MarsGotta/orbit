@@ -15,7 +15,9 @@ function avatarColor(color: string): AvatarColor {
 
 function clockLabel(atMs: number, timezone: string): string {
   return new Intl.DateTimeFormat("es-ES", {
-    hour: "2-digit",
+    // «9:00»: no leading zero on the hour, as the rest of the interface.
+    hour: "numeric",
+    hourCycle: "h23",
     minute: "2-digit",
     timeZone: timezone,
   }).format(atMs);

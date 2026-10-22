@@ -5,7 +5,7 @@ export const briefing = {
     night: "Buenas noches",
     // Without the Mac's zone the hour of the day is not known.
     hello: "Hola",
-    weekPrefix: "W",
+    weekNumber: (week: number) => `semana ${week}`,
     summaryMeetings: "reuniones",
     summaryMeeting: "reunión",
     zeroMeetings: "0 reuniones",
@@ -16,9 +16,12 @@ export const briefing = {
     minutes: "min",
     recording: "Grabando",
     previousTitle: (title: string) => `Nota anterior: ${title}`,
-    agendaTopics: "A tratar",
-    addContext: "Añade contexto para esta reunión…",
-    localContext: "Tu contexto",
+    // What the previous note of the series left open.
+    agendaTopics: "Pendiente de la última vez",
+    // Kept in this Mac only: it never reaches the hub or the note.
+    personalNote: "Recordatorio personal",
+    personalNotePlaceholder: "Algo que no quieras olvidar…",
+    personalNoteHelp: "Solo lo ves tú, en este Mac. No va a la nota.",
     joinRecord: "Unirse y grabar",
     finish: "Terminar",
     previousNote: "Abrir nota anterior",
@@ -29,7 +32,7 @@ export const briefing = {
     peopleCount: (count: number) =>
       count === 0 ? "solo" : count === 1 ? "1 persona" : `${count} personas`,
     agenda: "Agenda de hoy",
-    week: "Ver semana",
+    week: "Ver la semana",
     noEvents: "Hoy no tienes reuniones",
     noUpcoming: "No quedan reuniones hoy",
   },

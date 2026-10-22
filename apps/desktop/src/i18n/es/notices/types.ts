@@ -44,7 +44,7 @@ export function worded<C extends Worded>(
   return action ? { class: kind, text: () => text, action } : { class: kind, text: () => text };
 }
 
-export const rearm: NoticeAction = { label: "Rearmar", command: { command: "rearm" } };
+export const rearm: NoticeAction = { label: "Reactivar Orbit", command: { command: "rearm" } };
 export const openSettings: NoticeAction = { label: "Abrir Ajustes", view: "settings" };
 
 export function systemPrivacy(pane: string): NoticeAction {

@@ -19,12 +19,12 @@ function size(value: unknown): string {
   return typeof value === "number" ? fileSize(value) : "un tamaño desconocido";
 }
 
-/** The file between Spanish quotes, or «el fichero» when the refusal has no name. */
+/** The file between Spanish quotes «», or «el fichero» when the refusal has no name. */
 function quoted(name: unknown): string {
-  return typeof name === "string" && name !== "" ? `“${name}”` : "el fichero";
+  return typeof name === "string" && name !== "" ? `«${name}»` : "el fichero";
 }
 
-/** «de “plano.pdf”», or «del fichero»: Spanish contracts «de el». */
+/** «de «plano.pdf»», or «del fichero»: Spanish contracts «de el». */
 function ofFile(name: unknown): string {
   const file = quoted(name);
   return file === "el fichero" ? "del fichero" : `de ${file}`;
@@ -74,7 +74,7 @@ function unreadable(cause: Record<string, unknown>): string {
     // A HEIC photo, which the Mac turns into JPEG before uploading it.
     photo_unreadable: `macOS no pudo leer la foto ${file} para pasarla a JPEG.`,
     photo_jpeg_failed: `macOS no pudo pasar ${file} a JPEG.`,
-    helper_restarted: `El ayudante de Orbit se reinició mientras pasaba ${file} a JPEG.`,
+    helper_restarted: `Orbit se interrumpió mientras pasaba ${file} a JPEG. Vuelve a adjuntarla.`,
   };
   return (
     reasons[String(cause.reason)] ?? `No se pudo leer ${file} (causa ${String(cause.reason)}).`
@@ -82,7 +82,7 @@ function unreadable(cause: Record<string, unknown>): string {
 }
 
 function refusedByAgent(cause: Record<string, unknown>): string {
-  const name = typeof cause.name === "string" ? ` “${cause.name}”` : "";
+  const name = typeof cause.name === "string" ? ` «${cause.name}»` : "";
   const code = typeof cause.upstream_code === "number" ? ` (código ${cause.upstream_code})` : "";
   return `El agente no aceptó la imagen${name}${code}.`;
 }
@@ -112,10 +112,10 @@ export function attachmentRefusalText(refusal: Refusal): string {
 
 /** Why «Adjuntar ventana» sent the capture without the window's text. */
 const WINDOW_TEXT_MISSING: Record<string, string> = {
-  empty: "La ventana no tiene texto legible; va sólo la captura.",
+  empty: "La ventana no tiene texto legible; va solo la captura.",
   accessibility_permission_required:
-    "Sin el permiso de Accesibilidad, Orbit no lee su texto; va sólo la captura.",
-  timeout: "Su app no dio el texto a tiempo; va sólo la captura.",
+    "Sin el permiso de Accesibilidad, Orbit no lee su texto; va solo la captura.",
+  timeout: "Su app no dio el texto a tiempo; va solo la captura.",
 };
 
 /** What the composer and the messages say about attachments. */
@@ -129,13 +129,13 @@ export const attachmentsCopy = {
     uploading: "Subiendo…",
     pastedImage: "Imagen pegada.png",
     pastedText: "Texto pegado.txt",
-    failed: (name: string, code: string) => `No se pudo adjuntar “${name}” (${code}).`,
+    failed: (name: string, code: string) => `No se pudo adjuntar «${name}» (${code}).`,
     // Uploading, «Ver» or «Abrir» with the hub stopped or out of reach.
     hubUnreachable: (name: string) =>
-      `Sin conexión con el hub: inténtalo con “${name}” cuando vuelva.`,
+      `Sin conexión con el hub: inténtalo con «${name}» cuando vuelva.`,
     windowTextMissing: (cause: string) =>
       WINDOW_TEXT_MISSING[cause] ??
-      `No se pudo leer su texto (causa ${cause}); va sólo la captura.`,
+      `No se pudo leer su texto (causa ${cause}); va solo la captura.`,
     windowTextRefused: (reason: string) => `Su texto no se adjuntó: ${reason}`,
     pages: (pages: number) => (pages === 1 ? "1 página" : `${pages} páginas`),
     view: "Ver",
@@ -146,7 +146,7 @@ export const attachmentsCopy = {
     previous: "Anterior",
     next: "Siguiente",
     copy: "Copiar",
-    copied: "Copiado",
+    copied: "✓ Copiado",
     close: "Cerrar",
   },
 } as const;

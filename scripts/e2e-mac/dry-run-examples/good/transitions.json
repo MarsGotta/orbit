@@ -1,15 +1,15 @@
 {
  "home": {
-  "click:Saltar este paso": "briefing"
+  "click:Configurarlo más tarde": "briefing"
  },
  "briefing": {
-  "click:Notas": "notes-empty"
+  "click:Reuniones": "notes-empty"
  },
  "notes-empty": {
-  "click:Grabar reunión ahora": "dialog"
+  "click:Grabar reunión": "dialog"
  },
  "dialog": {
-  "click:Sistema Fuente de audio": "dialog-menu"
+  "click:Audio del sistema Qué audio grabar": "dialog-menu"
  },
  "dialog-menu": {
   "press_key:down": "dialog-menu-down"
@@ -18,7 +18,7 @@
   "press_key:return": "dialog-microphone"
  },
  "dialog-microphone": {
-  "click:Grabar": "recording"
+  "click:Empezar a grabar": "recording"
  },
  "recording": {
   "click:Terminar": "saved"
@@ -30,21 +30,21 @@
   "click:Resumen": "note-summary",
   "click:Acciones": "note-actions",
   "click:Transcripción": "note-transcript",
-  "click:Notas": "notes-list",
+  "click:Reuniones": "notes-list",
   "click:Asistente": "assistant"
  },
  "note-actions": {
   "click:Resumen": "note-summary",
   "click:Acciones": "note-actions",
   "click:Transcripción": "note-transcript",
-  "click:Notas": "notes-list",
+  "click:Reuniones": "notes-list",
   "click:Asistente": "assistant"
  },
  "note-transcript": {
   "click:Resumen": "note-summary",
   "click:Acciones": "note-actions",
   "click:Transcripción": "note-transcript",
-  "click:Notas": "notes-list",
+  "click:Reuniones": "notes-list",
   "click:Asistente": "assistant"
  },
  "notes-list": {

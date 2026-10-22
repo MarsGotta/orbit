@@ -170,8 +170,9 @@ def bounds() -> dict[str, tuple[float, str]]:
 # words of the transcript, the summary, the messages, any pill or notice.
 # Measured sizes go to the report.
 READS: dict[str, str | None] = {
-    "home": "Bienvenida a Orbit",
-    # «Transcribiendo…» and «Escribiendo la nota» both contain it.
+    "home": "Te damos la bienvenida a Orbit",
+    # «Transcribiendo…», «Escribiendo la nota» and «Escribiendo el resumen…»
+    # all contain it.
     "note-ready": "ribiendo",
     # The opened note's title is the field «Título de la reunión» in its
     # first-level heading (editable, it renames the meeting); the list beside
@@ -491,29 +492,32 @@ class RealTest:
                         raise
                     time.sleep(0.5)
             home = ui.read(self.main, "home", READS["home"])
-            if any("Bienvenida a Orbit" in n.texts() for n in home):
-                ui.press(self.main, "Saltar este paso", ("AXButton",))
+            if any("Te damos la bienvenida a Orbit" in n.texts() for n in home):
+                # The welcome's skip leaves the whole first run.
+                ui.press(self.main, "Configurarlo más tarde", ("AXButton",))
 
         with self.step("start recording from the interface", (1, 2, 3, 4, 5, 6, 7)):
-            ui.press(self.main, "Notas", ("AXButton",))
-            ui.press(self.main, "Grabar reunión ahora", ("AXButton",))
+            ui.press(self.main, "Reuniones", ("AXButton",))
+            # The empty list and the top bar both offer it; either opens
+            # «Nueva grabación».
+            ui.press(self.main, "Grabar reunión", ("AXButton",), first=True)
             # Microphone only: the script plays into BlackHole, the default
             # input, and with system audio too every line would be recorded
             # twice.
             ui.choose(
                 self.main,
-                "Fuente de audio",
-                "Solo micrófono",
+                "Qué audio grabar",
+                "Solo mi micrófono",
                 # MeetingStartDialog.tsx SourceField: system, then microphone.
-                ("Sistema", "Solo micrófono"),
+                ("Audio del sistema", "Solo mi micrófono"),
             )
-            ui.press(self.main, "Grabar", ("AXButton",))
+            ui.press(self.main, "Empezar a grabar", ("AXButton",))
             recording = self.wait_mac("recording")
             self.ev["recording"] = dict(recording)
             if recording.get("audio") != "microphone_only":
                 raise StepFailed(
                     f"the recording started with audio «{recording.get('audio')}», not "
-                    "«microphone_only»: «Fuente de audio» did not change to «Solo micrófono»"
+                    "«microphone_only»: «Qué audio grabar» did not change to «Solo mi micrófono»"
                 )
 
         with self.step("first half of the script"):
@@ -576,7 +580,14 @@ class RealTest:
                     "note-ready",
                     READS["note-ready"],
                     lambda text: (
-                        not any(t in text for t in ("Transcribiendo", "Escribiendo la nota"))
+                        not any(
+                            t in text
+                            for t in (
+                                "Transcribiendo",
+                                "Escribiendo la nota",
+                                "Escribiendo el resumen",
+                            )
+                        )
                     ),
                     self.bounds["screen"][0],
                 ),
@@ -598,8 +609,8 @@ class RealTest:
             # window says what is there instead.
             ui.read(self.main, "find the notice's note (whole window)", None)
 
-        with self.step("open the note from the list of Notes", (6,), critical=False):
-            ui.press(self.main, "Notas", ("AXButton",))
+        with self.step("open the note from the list of meetings (Reuniones)", (6,), critical=False):
+            ui.press(self.main, "Reuniones", ("AXButton",))
             # The list and the opened note name it by the meeting's title
             # (decided on 2026-10-17).
             title = checks._title(self.ev)

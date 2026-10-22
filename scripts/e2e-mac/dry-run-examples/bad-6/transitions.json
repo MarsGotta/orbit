@@ -6,7 +6,7 @@
   "click:Resumen": "note-summary",
   "click:Acciones": "note-actions",
   "click:Transcripción": "note-transcript",
-  "click:Notas": "notes-list",
+  "click:Reuniones": "notes-list",
   "click:Asistente": "assistant"
  }
 }

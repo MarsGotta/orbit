@@ -28,7 +28,7 @@ function AgentPanel({ agent, target }: { agent: AgentPort; target: Agent }) {
   const props = { agentId: target.id, busy, feedback, order };
   return (
     <div className={styles.card}>
-      <p className={styles.hint}>{copy.kind(config.kind)}</p>
+      <p className={styles.hint}>{copy.kind(config.kind, target.name)}</p>
       <PersonalityCard
         // A new text from the hub replaces the editor; one unchanged keeps
         // what the user is writing.

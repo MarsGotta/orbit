@@ -146,7 +146,8 @@ export function App({ port }: { port: DaemonPort }) {
   } = useScopedSend(send, errorView);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [meetingOpen, setMeetingOpen] = useState(false);
-  const commands = usePaletteCommands(navigate, sendFromView, send, setMeetingOpen);
+  const agentName = snapshot ? conversationAgentName(snapshot) : undefined;
+  const commands = usePaletteCommands(navigate, sendFromView, send, setMeetingOpen, agentName);
 
   useEffect(() => initializeUiStore(), []);
 

@@ -29,15 +29,15 @@ describe("code blocks", () => {
     );
     await userEvent.click(within(block).getByRole("button", { name: "Copiar código" }));
     expect(copied.texts).toEqual(["const total = 3;\nconsole.log(total);"]);
-    expect(await within(block).findByText("Copiado")).toBeTruthy();
+    expect(await within(block).findByText("✓ Copiado")).toBeTruthy();
   });
 
   it("keeps a block's state when the answer is drawn again unchanged", async () => {
     const { rerender } = render(<ChatMarkdown source={CODE} />);
     await userEvent.click(screen.getByRole("button", { name: "Copiar código" }));
-    expect(await screen.findByText("Copiado")).toBeTruthy();
+    expect(await screen.findByText("✓ Copiado")).toBeTruthy();
     rerender(<ChatMarkdown source={CODE} />);
-    expect(screen.getByText("Copiado")).toBeTruthy();
+    expect(screen.getByText("✓ Copiado")).toBeTruthy();
   });
 
   it("colours a block with a known language once the highlighter loads", async () => {

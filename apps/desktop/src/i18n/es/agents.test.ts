@@ -19,27 +19,27 @@ describe("a hub refusal of an agent's configuration", () => {
       // What the hub answers to «Borrar» on a Hermes agent's skill, while the
       // same screen edits, creates and switches that agent's skills.
       refusal("skill_delete_unsupported", 403, { agent_id: "atlas", kind: "hermes" }),
-      "El panel de Hermes no puede borrar skills: desactívala aquí o bórrala en el servidor de Hermes.",
+      "El panel de Hermes no puede borrar habilidades: desactívala aquí o bórrala en el servidor de Hermes.",
     ],
     [
       refusal("skill_invalid", 400, { name: "Resumen", rule: "name_lowercase" }),
-      "La skill «Resumen» no es válida: no cumple la regla «name_lowercase».",
+      "La habilidad «Resumen» no es válida: no cumple la regla «name_lowercase».",
     ],
     [
       refusal("skill_not_found", 404, { name: "resumen-diario" }),
-      "El hub no tiene la skill «resumen-diario».",
+      "El hub no tiene la habilidad «resumen-diario».",
     ],
     [
       refusal("skill_too_large", 413, { name: "resumen-diario", bytes: 40000, max_bytes: 32768 }),
-      "La skill «resumen-diario» ocupa 40000 bytes; el máximo es 32768.",
+      "La habilidad «resumen-diario» ocupa 40.000 bytes; el máximo es 32.768.",
     ],
     [
       refusal("too_many_skills", 409, { count: 64, max: 64 }),
-      "Este agente ya tiene 64 skills; el máximo es 64.",
+      "Este agente ya tiene 64 habilidades; el máximo es 64.",
     ],
     [
       refusal("personality_too_large", 413, { bytes: 70000, max_bytes: 65536 }),
-      "La personalidad ocupa 70000 bytes; el máximo es 65536.",
+      "La personalidad ocupa 70.000 bytes; el máximo es 65.536.",
     ],
     [
       refusal("assistant_admin_refused", 502, { route: "/api/profiles/atlas/soul", status: 403 }),
@@ -67,7 +67,7 @@ describe("a call the Mac could not make", () => {
     [{ code: "not_paired" }, "Este Mac no está emparejado con el hub. Emparéjalo en Ajustes."],
     [
       { code: "privacy_stopped", since_ms: null },
-      "La privacidad está detenida. Rearma Orbit para leer o cambiar los agentes.",
+      "Todo está parado. Reactiva Orbit para leer o cambiar los agentes.",
     ],
     [
       { code: "hub_unreachable", since_ms: null },

@@ -41,14 +41,10 @@ export const system = {
       return `${process} terminó sin que Orbit lo pidiera (${status}). Orbit volverá a iniciarlo. No se repetirá ninguna acción de entrada.`;
     },
   },
-  privacy_stopped: worded("done", "Privacidad detenida.", rearm),
-  privacy_stop_kept: worded("fixable", "Orbit sigue detenido por tu parada de privacidad.", rearm),
-  privacy_stop_active: worded(
-    "fixable",
-    "La privacidad está detenida. Rearma Orbit para continuar.",
-    rearm,
-  ),
-  privacy_rearmed: worded("done", "Orbit rearmado."),
+  privacy_stopped: worded("done", "Todo está parado.", rearm),
+  privacy_stop_kept: worded("fixable", "Todo sigue parado, como lo dejaste.", rearm),
+  privacy_stop_active: worded("fixable", "Todo está parado. Reactiva Orbit para continuar.", rearm),
+  privacy_rearmed: worded("done", "✓ Orbit vuelve a funcionar"),
   device_revoked: worded(
     "fixable",
     "El hub retiró este Mac. Vuelve a emparejarlo en Ajustes.",
@@ -87,10 +83,10 @@ export const system = {
     class: "fixable",
     text: (data) => {
       if (data.code === "recording_still_open")
-        return "No se puede volver a transcribir: la grabación todavía no se ha cerrado.";
+        return "No se puede rehacer la transcripción: la grabación todavía no se ha cerrado.";
       if (data.code === "diarization_not_configured")
-        return "No se puede volver a transcribir: el hub no tiene configurada la separación de voces.";
-      return `El hub rechazó la petición de volver a transcribir.${data.code ? ` (${data.code})` : ""}`;
+        return "No se puede rehacer la transcripción: el hub no tiene configurada la separación de voces.";
+      return `El hub rechazó rehacer la transcripción.${data.code ? ` (${data.code})` : ""}`;
     },
   },
   transcript_retry_requested: worded("done", "Reintentando la transcripción."),
@@ -111,7 +107,7 @@ export const system = {
     class: "fixable",
     text: (data) =>
       typeof data.count === "number" && typeof data.total === "number"
-        ? `No se puede transcribir de nuevo: el audio de ${data.count} de ${data.total} grupos no se puede leer.`
-        : "No se puede transcribir de nuevo: parte del audio no se puede leer.",
+        ? `No se puede rehacer la transcripción: el audio de ${data.count} de ${data.total} grupos no se puede leer.`
+        : "No se puede rehacer la transcripción: parte del audio no se puede leer.",
   },
 } satisfies Partial<Entries>;

@@ -1,6 +1,6 @@
 import { agents } from "./agents";
 import { dictionary } from "./dictionary";
-import { status } from "./status";
+import { statusCopy } from "./status";
 import { controls } from "./controls";
 import { permissions } from "./permissions";
 import { briefing } from "./briefing";
@@ -9,7 +9,7 @@ import { recording } from "./recording";
 import { agenda } from "./agenda";
 import { notes } from "./notes";
 import { assistantCopy } from "./assistant";
-import { chatActions } from "./chatActions";
+import { chatActionsCopy } from "./chatActions";
 import { attachmentsCopy } from "./attachments";
 import { errors } from "./errors";
 
@@ -24,7 +24,7 @@ export function spanish(assistantName = "Deimos") {
   return {
     ...agents,
     ...dictionary,
-    ...status,
+    ...statusCopy(assistantName),
     ...controls,
     ...permissions,
     ...briefing,
@@ -33,7 +33,7 @@ export function spanish(assistantName = "Deimos") {
     ...agenda,
     ...notes,
     ...assistantCopy(assistantName),
-    ...chatActions,
+    ...chatActionsCopy(assistantName),
     ...attachmentsCopy,
     ...errors,
     ...noteScreenCopy(assistantName),

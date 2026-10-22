@@ -90,7 +90,7 @@ describe("the answer in the editor", () => {
     await userEvent.click(screen.getByRole("button", { name: "Abrir en el editor" }));
     const again = await screen.findByRole("dialog", { name: "Editar la respuesta" });
     await within(again).findByText("Hola");
-    await userEvent.click(within(again).getByRole("button", { name: "Enviar al asistente" }));
+    await userEvent.click(within(again).getByRole("button", { name: "Mandar a Deimos" }));
     expect(sent).toEqual([{ command: "chat", text: "Hola" }]);
     expect(screen.queryByRole("dialog")).toBeNull();
   });

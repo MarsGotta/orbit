@@ -26,7 +26,7 @@ export const shellScenarios: Scenario[] = [
     description:
       "El resumen del día: saludo, la próxima reunión con lo pendiente de la anterior y la agenda.",
     route: "#/briefing",
-    ready: "text=A tratar",
+    ready: "text=Pendiente de la última vez",
   },
   {
     id: "hoy-sin-reuniones",
@@ -51,10 +51,10 @@ export const shellScenarios: Scenario[] = [
     view: "Paleta de órdenes",
     state: "Abierta",
     description:
-      "«Pregunta a Orbit» (⌘⇧Espacio): ir a una vista, grabar, preguntar o parar por privacidad.",
+      "«Preguntar a Deimos» (⌘⇧␣): llamar, mandar una nota de voz, preparar la siguiente reunión o grabar.",
     route: "#/briefing",
-    ready: "text=A tratar",
-    steps: [{ click: "role=button[name=/Pregunta a Orbit/]" }, { wait: "role=dialog" }],
+    ready: "text=Pendiente de la última vez",
+    steps: [{ click: "role=button[name=/Preguntar a/]" }, { wait: "role=dialog" }],
   },
   {
     id: "cargando",
@@ -123,10 +123,11 @@ export const shellScenarios: Scenario[] = [
     id: "privacidad-detenida",
     view: "Privacidad",
     state: "Todo parado",
-    description: "Tras «Parar todo»: la píldora ofrece rearmar y la agenda dice por qué no se lee.",
+    description:
+      "Tras «Parar todo»: la píldora ofrece reactivar Orbit y la agenda dice por qué no se lee.",
     route: "#/calendar",
     views: privacyStopped,
-    ready: "text=Privacidad detenida",
+    ready: "text=Todo está parado",
   },
   {
     id: "aviso-actualizacion",

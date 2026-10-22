@@ -184,7 +184,7 @@ describe("attaching from the dialog", () => {
     await userEvent.click(screen.getByRole("button", { name: "Adjuntar ventana" }));
     await waitFor(() =>
       expect(chip("Ventana de Notas.png").textContent).toContain(
-        "La ventana no tiene texto legible; va sólo la captura.",
+        "La ventana no tiene texto legible; va solo la captura.",
       ),
     );
     expect(screen.queryByRole("group", { name: "Ventana de Notas.txt" })).toBeNull();
@@ -294,7 +294,7 @@ describe("refusals", () => {
     const { send } = renderComposer();
     await userEvent.click(screen.getByRole("button", { name: "Adjuntar" }));
     await waitFor(() =>
-      expect(chip("foto.heic").textContent).toContain("“foto.heic” es image/heic"),
+      expect(chip("foto.heic").textContent).toContain("«foto.heic» es image/heic"),
     );
     expect(sendButton()).toHaveProperty("disabled", true);
     await userEvent.click(
@@ -342,7 +342,7 @@ describe("refusals", () => {
     paste(box, { files: [image] });
     await waitFor(() =>
       expect(chip("grande.png").textContent).toContain(
-        "“grande.png” ocupa 4 B y el máximo por fichero es 3 B.",
+        "«grande.png» ocupa 4 B y el máximo por fichero es 3 B.",
       ),
     );
     expect(bridge.addAttachment).toHaveBeenCalledTimes(2);

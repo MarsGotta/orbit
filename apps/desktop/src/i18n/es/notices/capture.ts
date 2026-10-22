@@ -36,7 +36,7 @@ export const capture = {
   ),
   meeting_audio_ambiguous: worded(
     "fixable",
-    "Solo se graba tu micrófono: hay varias apps de videollamada. Elige una en «Fuente de audio».",
+    "Solo se graba tu micrófono: hay varias apps de videollamada. Elige una en «Qué audio grabar».",
   ),
   helper_not_running: worded("fixable", "Orbit.app no está en marcha. Ábrela para continuar."),
   audio_reserve_exhausted: worded(

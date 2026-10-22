@@ -4,18 +4,37 @@ import type { RefusalNumber } from "../../bridge/generated/RefusalNumber";
 
 /**
  * The groups of Orbit's tools an agent may use, in the order Ajustes shows
- * them (hub-v1 «Agents»). The tools each one opens are the hub's list,
- * copied once in `features/settings/agents/access-tools.ts`.
+ * them (hub-v1 «Agents»), each said by what it lets the agent do. The tools
+ * each one opens are the hub's (`TOOLS` in `server/orbit_hub/assistant/access.py`).
  */
-export const accessGroups: ReadonlyArray<{ group: keyof AccessGroups; label: string }> = [
-  { group: "screen", label: "Pantalla" },
-  { group: "control", label: "Control del Mac" },
-  { group: "calendar", label: "Calendario" },
-  { group: "meetings", label: "Reuniones y notas" },
-  { group: "files", label: "Archivos" },
+export const accessGroups: ReadonlyArray<{
+  group: keyof AccessGroups;
+  label: string;
+  description: string;
+}> = [
+  {
+    group: "screen",
+    label: "Pantalla",
+    description: "Ver tus ventanas, hacer capturas y leer el texto que selecciones",
+  },
+  { group: "control", label: "Usar el Mac", description: "Pulsar, escribir y abrir apps por ti" },
+  { group: "calendar", label: "Calendario", description: "Leer tu agenda" },
+  {
+    group: "meetings",
+    label: "Reuniones y notas",
+    description: "Leer tus reuniones, notas y transcripciones",
+  },
+  {
+    group: "files",
+    label: "Archivos",
+    description: "Leer los archivos de las carpetas que elijas",
+  },
 ];
 
 type Numbers = AgentRefusal["numbers"];
+
+/** A count as the person reads it: «16.384». */
+const figure = new Intl.NumberFormat("es-ES").format;
 
 function text(numbers: Numbers, key: string): string | undefined {
   const value = numbers[key];
@@ -45,35 +64,35 @@ const refusals: Record<string, (numbers: Numbers) => string | undefined> = {
     return `El hub no tiene el agente «${agent}»${known ? `; tiene ${known}` : ""}.`;
   },
   skill_delete_unsupported: () =>
-    "El panel de Hermes no puede borrar skills: desactívala aquí o bórrala en el servidor de Hermes.",
+    "El panel de Hermes no puede borrar habilidades: desactívala aquí o bórrala en el servidor de Hermes.",
   skill_invalid: (n) => {
     const name = text(n, "name");
     const rule = text(n, "rule");
     if (name === undefined || rule === undefined) return undefined;
-    return `La skill «${name}» no es válida: no cumple la regla «${rule}».`;
+    return `La habilidad «${name}» no es válida: no cumple la regla «${rule}».`;
   },
   skill_not_found: (n) => {
     const name = text(n, "name");
-    return name === undefined ? undefined : `El hub no tiene la skill «${name}».`;
+    return name === undefined ? undefined : `El hub no tiene la habilidad «${name}».`;
   },
   skill_too_large: (n) => {
     const name = text(n, "name");
     const bytes = count(n, "bytes");
     const max = count(n, "max_bytes");
     if (name === undefined || bytes === undefined || max === undefined) return undefined;
-    return `La skill «${name}» ocupa ${bytes} bytes; el máximo es ${max}.`;
+    return `La habilidad «${name}» ocupa ${figure(bytes)} bytes; el máximo es ${figure(max)}.`;
   },
   too_many_skills: (n) => {
     const skills = count(n, "count");
     const max = count(n, "max");
     if (skills === undefined || max === undefined) return undefined;
-    return `Este agente ya tiene ${skills} skills; el máximo es ${max}.`;
+    return `Este agente ya tiene ${skills} habilidades; el máximo es ${max}.`;
   },
   personality_too_large: (n) => {
     const bytes = count(n, "bytes");
     const max = count(n, "max_bytes");
     if (bytes === undefined || max === undefined) return undefined;
-    return `La personalidad ocupa ${bytes} bytes; el máximo es ${max}.`;
+    return `La personalidad ocupa ${figure(bytes)} bytes; el máximo es ${figure(max)}.`;
   },
   assistant_admin_refused: (n) => {
     const route = text(n, "route");
@@ -103,7 +122,7 @@ export function agentFailureText(refusal: Record<string, unknown>): string {
     case "not_paired":
       return "Este Mac no está emparejado con el hub. Emparéjalo en Ajustes.";
     case "privacy_stopped":
-      return "La privacidad está detenida. Rearma Orbit para leer o cambiar los agentes.";
+      return "Todo está parado. Reactiva Orbit para leer o cambiar los agentes.";
     case "hub_unreachable":
       return "No hay conexión con el hub; los agentes se leen y se cambian en él.";
     case "upstream_failed":
@@ -128,24 +147,32 @@ export const agents = {
     unavailable: "Esta ventana no puede leer los agentes.",
     loading: (name: string) => `Leyendo la configuración de ${name}…`,
     readAgain: "Volver a leer",
-    kind: (kind: string) => `Tipo: ${kind}`,
+    // How the agent is configured, by its kind (hub-v1 «Agents»).
+    kind: (kind: string, name: string) =>
+      kind === "hermes"
+        ? `${name} funciona con Hermes: su personalidad y lo que puede usar se cambian en su perfil de Hermes.`
+        : kind === "openai" || kind === "acp"
+          ? `${name} se configura desde aquí. Los cambios se guardan en el hub.`
+          : `${name} es de un tipo que esta versión de Orbit no conoce (${kind}).`,
     notEditable: (cause: string | null | undefined) =>
       cause
         ? `No se puede cambiar desde Orbit: ${cause}`
         : "Este tipo de agente no deja cambiarlo desde Orbit.",
     saving: "Guardando en el hub…",
-    saved: "Guardado en el hub.",
-    bytes: (bytes: number, max: number) => `${bytes} de ${max} bytes`,
-    overLimit: (bytes: number, max: number) => `Ocupa ${bytes} bytes; el máximo es ${max}.`,
+    saved: "✓ Guardado en el hub",
+    bytes: (bytes: number, max: number) => `${figure(bytes)} de ${figure(max)} bytes`,
+    overLimit: (bytes: number, max: number) =>
+      `Ocupa ${figure(bytes)} bytes; el máximo es ${figure(max)}.`,
     personality: "Personalidad",
     personalityLabel: (name: string) => `Personalidad de ${name}`,
     savePersonality: "Guardar personalidad",
-    access: "Accesos",
+    access: "Qué puede usar",
     accessHelp:
-      "Qué herramientas de Orbit puede usar este agente. Es su configuración: no pregunta en cada uso ni caduca, y los permisos de macOS siguen decidiendo sobre este Mac.",
-    skills: "Skills",
-    skillCount: (skills: number, max: number) => `${skills} de ${max} skills`,
-    noSkills: "Este agente no tiene skills.",
+      "macOS sigue decidiendo sobre este Mac; esto solo limita a este agente. No pregunta en cada uso ni caduca.",
+    skills: "Habilidades",
+    skillCount: (skills: number, max: number) => `${skills} de ${max}`,
+    noSkills:
+      "Este agente aún no tiene habilidades. Una habilidad le enseña a hacer una tarea concreta, como preparar una reunión.",
     enable: (name: string) => `Activar ${name}`,
     view: (name: string) => `Ver ${name}`,
     edit: (name: string) => `Editar ${name}`,
@@ -156,20 +183,20 @@ export const agents = {
     deleteQuestion: (name: string) => `¿Borrar ${name} de este agente? No se puede deshacer.`,
     confirmDelete: "Confirmar borrado",
     cancel: "Cancelar",
-    newSkill: "Nueva skill",
-    paste: "Pegar SKILL.md",
+    newSkill: "Nueva habilidad",
+    paste: "Escribir desde cero",
     importFolder: "Importar carpeta",
     folderInput: "Carpeta con un SKILL.md",
     importHelp:
-      "Una skill es un SKILL.md con name y description en su frontmatter. Al importar una carpeta sólo se lee y se envía su SKILL.md.",
+      "Una habilidad es un SKILL.md con name y description en su frontmatter. Al importar una carpeta solo se lee y se envía su SKILL.md.",
     noSkillFile: (folder: string) => `La carpeta «${folder}» no tiene un SKILL.md.`,
     skillFileTooLarge: (folder: string, bytes: number, max: number) =>
-      `El SKILL.md de «${folder}» ocupa ${bytes} bytes; el máximo es ${max}.`,
+      `El SKILL.md de «${folder}» ocupa ${figure(bytes)} bytes; el máximo es ${figure(max)}.`,
     skillFileUnreadable: (folder: string) => `No se pudo leer el SKILL.md de «${folder}».`,
     content: "Contenido del SKILL.md",
     name: (name: string) => `Nombre: ${name}`,
     noName: "Falta el name en el frontmatter del SKILL.md.",
-    saveSkill: "Guardar skill",
+    saveSkill: "Guardar habilidad",
     close: "Cerrar",
     template: "---\nname: \ndescription: \n---\n\n",
   },

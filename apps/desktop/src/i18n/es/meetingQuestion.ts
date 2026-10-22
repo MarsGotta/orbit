@@ -3,7 +3,7 @@
 // says what to do; its codes and sizes stay in the log.
 const base = {
   meetingQuestion: {
-    askAgain: "Preguntar otra cosa",
+    askAgain: "Otra pregunta",
 
     placeholder: "¿Qué dijo Lucía del presupuesto?",
     windowLabel: "Contexto de la reunión",
@@ -19,7 +19,7 @@ const base = {
     linkWithHost: (label: string, host: string) => `${label} (${host})`,
     linkRefused: "No se pudo abrir el enlace.",
     causes: {
-      privacyStopped: "La privacidad está detenida. Rearma Orbit para preguntar.",
+      privacyStopped: "Todo está parado. Reactiva Orbit para preguntar.",
       noMeeting: "No hay ninguna grabación en curso.",
       hubUnreachable: "Sin conexión con el hub. Pregunta de nuevo cuando vuelva.",
       tryAgain: "Vuelve a preguntar en un momento.",
@@ -35,7 +35,7 @@ const base = {
     },
     voice: {
       why: {
-        privacyStopped: "la privacidad está detenida",
+        privacyStopped: "todo está parado",
         paused: "la grabación está en pausa",
         macosVersion: "necesita macOS 26; usa el botón",
         localeUnsupported: "macOS no ofrece reconocimiento de voz en español; usa el botón",
@@ -59,7 +59,7 @@ export function meetingQuestionCopy(assistantName: string) {
       panelLabel: `${assistantName} en la reunión`,
       thinking: `${assistantName} está pensando…`,
       responding: `${assistantName} está respondiendo…`,
-      alsoInConversation: `También queda en la conversación con ${assistantName}.`,
+      alsoInConversation: `Queda también en tu conversación con ${assistantName}`,
       failed: `${assistantName} no respondió`,
       notSent: `La pregunta no llegó a ${assistantName}`,
       busy: {
@@ -70,7 +70,7 @@ export function meetingQuestionCopy(assistantName: string) {
       },
       voice: {
         ...base.meetingQuestion.voice,
-        listening: `«Oye ${assistantName}» escucha en tu micrófono`,
+        listening: `«Oye ${assistantName}» te escucha`,
         downloading: (percent: number) =>
           `«Oye ${assistantName}» aún no escucha: descargando el reconocimiento de voz (${percent} %)`,
         off: (why: string) => `«Oye ${assistantName}» no escucha: ${why}`,

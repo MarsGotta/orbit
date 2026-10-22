@@ -6,5 +6,5 @@
  * it only works while Orbit's window has the focus.
  */
 export const globalShortcuts = {
-  ptt: "⌃⌥Espacio",
+  ptt: "⌃⌥␣",
 } as const;

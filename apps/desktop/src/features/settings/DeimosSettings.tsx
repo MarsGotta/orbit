@@ -40,14 +40,14 @@ function permissionNames(permissions: {
   return names.join(es.settings.engine.and);
 }
 
-/** Ajustes › Deimos: what is wrong, if anything, and what Deimos did on this Mac. */
+/** «Lo que ha hecho en este Mac»: what is wrong, if anything, and what the agent did here. */
 export function DeimosSettings({ control }: { control?: ComputerControlSnapshot }) {
   const es = useSpanish();
   const problem = engineProblem(control?.engine, es);
   if (problem === null && (control == null || control.engine.state === "unknown")) return null;
   return (
-    <section aria-label={es.settings.deimos} className={styles.section}>
-      <SectionLabel>{es.settings.deimos}</SectionLabel>
+    <section aria-label={es.settings.controlHistory} className={styles.section}>
+      <SectionLabel>{es.settings.controlHistory}</SectionLabel>
       <Card>
         {problem !== null && (
           <p>

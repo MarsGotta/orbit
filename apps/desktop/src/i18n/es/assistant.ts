@@ -95,7 +95,7 @@ const base = {
     voiceFailure: voiceFailureText,
     audioUnavailable: "Audio no disponible",
     voiceProgress: "Progreso de la nota de voz",
-    recordingVoiceNote: (elapsed: string) => `Grabando nota de voz · ${elapsed} · Esc cancela`,
+    recordingVoiceNote: (elapsed: string) => `Grabando nota de voz · ${elapsed} · esc cancela`,
     voiceNoteRecording: (elapsed: string) =>
       `Grabando nota de voz, ${elapsed}. Pulsa para enviarla`,
     sendVoiceNote: "Enviar nota de voz",
@@ -139,6 +139,7 @@ export function assistantCopy(assistantName: string) {
       thinking: `${assistantName} está pensando…`,
       responding: `${assistantName} está respondiendo…`,
       noHermesVoice: `${assistantName} contesta por texto`,
+      pairHub: `Para hablar con ${assistantName}, empareja este Mac con tu hub en Ajustes`,
     },
   } as const;
 }

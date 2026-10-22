@@ -21,11 +21,20 @@ export function Step({
   );
 }
 
-export function Actions({ onContinue, onSkip }: { onContinue: () => void; onSkip: () => void }) {
+export function Actions({
+  onContinue,
+  onSkip,
+  skipLabel = es.onboarding.skipStep,
+}: {
+  onContinue: () => void;
+  onSkip: () => void;
+  /** What the skip leaves: this step (the default), or the whole first run. */
+  skipLabel?: string;
+}) {
   return (
     <div className={styles.actions}>
       <Button onClick={onSkip} variant="ghost">
-        {es.onboarding.skipStep}
+        {skipLabel}
       </Button>
       <Button onClick={onContinue} variant="accent">
         {es.onboarding.continue}
@@ -38,7 +47,7 @@ export function WelcomeStep(props: { onContinue: () => void; onSkip: () => void 
   return (
     <Step title={es.onboarding.welcome}>
       <p>{es.onboarding.welcomeBody}</p>
-      <Actions {...props} />
+      <Actions {...props} skipLabel={es.onboarding.skipAll} />
     </Step>
   );
 }
@@ -63,7 +72,7 @@ export function PairStep(props: PairProps) {
   };
   return (
     <form onSubmit={submit}>
-      <Step title={es.onboarding.pair}>
+      <Step title={es.onboarding.pairTitle}>
         <p>{es.onboarding.pairBody}</p>
         {Boolean(props.error) && (
           <p className={styles.pairError} role="alert">
@@ -92,7 +101,7 @@ export function PairStep(props: PairProps) {
 
 export function SavedPairStep({ onContinue }: { onContinue: () => void }) {
   return (
-    <Step title={es.onboarding.pair}>
+    <Step title={es.onboarding.pairTitle}>
       <p>{es.onboarding.paired}</p>
       <div className={styles.actions}>
         <Button onClick={onContinue} variant="accent">

@@ -26,15 +26,21 @@ export function formatDay(value: number): string {
   }).format(value);
 }
 
+/** «9:00»: no leading zero on the hour. */
 export function formatClock(value: number): string {
-  return new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit" }).format(value);
+  return new Intl.DateTimeFormat("es-ES", {
+    hour: "numeric",
+    hourCycle: "h23",
+    minute: "2-digit",
+  }).format(value);
 }
 
 export function formatDate(value: number): string {
   return new Intl.DateTimeFormat("es-ES", {
     day: "numeric",
     month: "short",
-    hour: "2-digit",
+    hour: "numeric",
+    hourCycle: "h23",
     minute: "2-digit",
   }).format(value);
 }

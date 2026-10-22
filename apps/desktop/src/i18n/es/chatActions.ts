@@ -1,8 +1,8 @@
 /** What the chat says about copying, retrying, listening and editing an answer. */
-export const chatActions = {
+const base = {
   chatActions: {
     copy: "Copiar",
-    copied: "Copiado",
+    copied: "✓ Copiado",
     copyFailed: (cause: string) => `No se pudo copiar: ${cause}`,
     copyAnswer: "Copiar respuesta",
     copyMessage: "Copiar mensaje",
@@ -15,16 +15,21 @@ export const chatActions = {
     openingEditor: "Abriendo el editor…",
     replyToThis: "Responder a esto",
     copyConversation: "Copiar conversación",
-    conversationCopied: "Conversación copiada",
+    conversationCopied: "✓ Conversación copiada",
     conversationPartial: (copied: number, total: number) =>
       `Se copiaron ${copied} de ${total} mensajes: el hub no dio el resto.`,
-    lastCodeCopied: "Último bloque de código copiado",
+    lastCodeCopied: "✓ Último bloque de código copiado",
     noCodeBlock: "No hay ningún bloque de código en la conversación.",
     you: "Tú",
     voiceNoteSuffix: "(nota de voz)",
     editorTitle: "Editar la respuesta",
     editorLabel: "Respuesta",
-    sendBack: "Enviar al asistente",
     close: "Cerrar",
   },
 } as const;
+
+export function chatActionsCopy(assistantName: string) {
+  return {
+    chatActions: { ...base.chatActions, sendBack: `Mandar a ${assistantName}` },
+  } as const;
+}

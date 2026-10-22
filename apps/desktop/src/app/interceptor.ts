@@ -45,9 +45,12 @@ export function newOp(): string {
   return crypto.randomUUID();
 }
 
-/** The message of a failure the person cannot fix: the code of its op. */
-export function genericFailure(op: string): string {
-  return `Algo ha fallado. Contacta con el administrador (código ${op.slice(0, 6).toUpperCase()}).`;
+/**
+ * The message of a failure the person cannot fix: what could not be done,
+ * what to do, and the code of its op to share with whoever runs the hub.
+ */
+export function genericFailure(op: string, what = "completar la acción"): string {
+  return `No se pudo ${what}. Vuelve a intentarlo. Si se repite, comparte el código ${op.slice(0, 6).toUpperCase()} con quien gestiona tu hub.`;
 }
 
 /** Only numbers, booleans and tokens leave for the log; anything else is dropped. */
@@ -72,8 +75,8 @@ interface Presented {
   report: Report | null;
 }
 
-function failure(op: string, report: Report | null): Presented {
-  return { op, class: "failed", text: genericFailure(op), report };
+function failure(op: string, report: Report | null, what?: string): Presented {
+  return { op, class: "failed", text: genericFailure(op, what), report };
 }
 
 function presentNotice(notice: Notice, assistantName?: string): Presented {
@@ -138,7 +141,8 @@ function present(incoming: Incoming, assistantName?: string): Presented {
   if (incoming.kind === "notice") return presentNotice(incoming.notice, assistantName);
   if (incoming.kind === "refusal") return presentRefusal(incoming.op, incoming.refusal);
   const { op, code } = incoming;
-  return failure(op, { op, code, class: "failed", source: "ui", data: {} });
+  const what = code === "ui_render_failed" ? "mostrar esta vista" : undefined;
+  return failure(op, { op, code, class: "failed", source: "ui", data: {} }, what);
 }
 
 /**

@@ -1,5 +1,5 @@
 export const errors = {
   errors: {
-    title: "Algo no se pudo completar",
+    title: "No se pudo completar",
   },
 } as const;

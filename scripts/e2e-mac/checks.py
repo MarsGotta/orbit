@@ -97,6 +97,12 @@ REMOVED = (
     "Esperando que el Mac cierre el audio",
     "Sin vincular",
     "ID del dispositivo",
+    # Renamed by the design's glossary: the old names must not come back.
+    "Privacidad detenida",
+    "Rearmar",
+    "Briefing de hoy",
+    "Pregunta a Orbit",
+    "Algo ha fallado",
 )
 REMOVED_PATTERNS = (
     re.compile(r"\d+/\d+ permisos"),
@@ -110,7 +116,7 @@ REMOVED_PATTERNS = (
 # checks this list and that file against it; a new pill text is added there.
 PILL = (
     "Orbit no responde.",
-    "Privacidad detenida",
+    "Todo está parado",
     "Este Mac no está emparejado",
     "El hub retiró este Mac",
     "Sin conexión. Comprueba tu red.",

@@ -1,12 +1,11 @@
 export const esAssistant = {
   call: "Llamar",
-  orbit: "ORBIT",
   listening: "Escuchando…",
   microphoneLevel: "Nivel del micrófono",
   voiceNote: "Nota de voz",
   playVoiceNote: "Reproducir nota de voz",
   callEnded: "Llamada terminada",
-  sessions: "Sesiones",
+  sessions: "Conversaciones",
   newSession: "Nueva conversación",
   activeSessions: "Activas",
   recentSessions: "Recientes",
@@ -16,11 +15,10 @@ export const esAssistant = {
   /** The agent a new conversation is with, when the hub has several. */
   agentPicker: "Hablar con",
   conversationWith: (name: string) => `Conversación con ${name}`,
-  pairHub: "Empareja Orbit con tu hub en Ajustes",
   composerPlaceholder: "Escribe o usa el micrófono para dictar…",
   clarifyPlaceholder: "Escribe tu respuesta…",
-  paletteVoice: "Mandar nota de voz",
+  paletteVoice: "Mandar una nota de voz",
   paletteVoiceSubtitle: "Abre el chat y graba con el botón del micrófono",
-  paletteBriefing: "Preparar siguiente reunión",
-  paletteBriefingSubtitle: "Abre el briefing de tu próxima reunión",
+  paletteBriefing: "Preparar la siguiente reunión",
+  paletteBriefingSubtitle: "Abre Hoy, con tu próxima reunión",
 } as const;

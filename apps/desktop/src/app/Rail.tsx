@@ -24,7 +24,7 @@ function primaryItems(snapshot: AppSnapshot): RailItem[] {
     {
       icon: "briefing",
       id: "briefing",
-      label: es.shell.briefingToday,
+      label: es.shell.briefing,
     },
     { icon: "calendar", id: "calendar", label: es.shell.calendar },
     { badge: badge(notesPending), icon: "notes", id: "notes", label: es.shell.notes },

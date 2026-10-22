@@ -53,7 +53,7 @@ export function SystemPermissions({ send, settings }: Props) {
         {!settings.helper_connected && (
           <>
             <p>{es.settings.helperMissing}</p>
-            <Button onClick={() => send({ command: "quit" })}>{es.settings.restart}</Button>
+            <Button onClick={() => send({ command: "quit" })}>{es.settings.exit}</Button>
           </>
         )}
       </Card>

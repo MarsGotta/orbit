@@ -33,7 +33,7 @@ function useNoteTab(note: OpenNoteSnapshot): [NoteTab, (tab: NoteTab) => void] {
 
 function NoteTabs({ onSelect, selected }: { onSelect: (tab: NoteTab) => void; selected: NoteTab }) {
   return (
-    <div aria-label={es.shell.notes} className={styles.tabs} role="tablist">
+    <div aria-label={es.noteScreen.partsLabel} className={styles.tabs} role="tablist">
       {tabs.map(([id, label]) => (
         <button
           aria-selected={selected === id}
