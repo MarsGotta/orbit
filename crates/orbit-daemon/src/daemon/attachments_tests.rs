@@ -1243,3 +1243,46 @@ async fn a_turn_refused_for_its_files_keeps_the_numbers() -> Result<()> {
     assert!(runtime.state.durable.active_request.is_none());
     Ok(())
 }
+
+/// The hub stops between its `ready` and an upload, «Ver» or «Abrir»: each
+/// is refused as a hub out of reach, never as an internal failure carrying
+/// the request library's text and the hub's address.
+#[tokio::test]
+async fn a_stopped_hub_is_named_when_uploading_viewing_or_opening() -> Result<()> {
+    let (_directory, mut runtime, _frames, _helper) =
+        connected(Some(limits(10_000_000, 10))).await?;
+    // A port nobody listens on: bind one, then let it go.
+    let closed = std::net::TcpListener::bind("127.0.0.1:0")?.local_addr()?;
+    runtime.settings.hub_url = Some(format!("http://{closed}"));
+    let orders = [
+        Command::AttachmentAdd {
+            source: AttachmentSource::Bytes {
+                name: "Texto pegado.txt".into(),
+                data_base64: base64::engine::general_purpose::STANDARD
+                    .encode(b"Lista de la compra"),
+            },
+        },
+        Command::AttachmentFetch {
+            attachment_id: PICTURE.into(),
+        },
+        Command::AttachmentSave {
+            attachment_id: PICTURE.into(),
+        },
+    ];
+    for (index, order) in orders.into_iter().enumerate() {
+        let answered = runtime
+            .attachment_context()
+            .answer(order, format!("order-{index}"))
+            .await;
+        assert!(!answered.ok);
+        let refusal = answered.refusal.context("no refusal")?;
+        let wire = serde_json::to_string(&refusal)?;
+        assert!(
+            matches!(refusal, Refusal::HubUnreachable { .. }),
+            "order {index}: a stopped hub reads as {wire}"
+        );
+        let said = format!("{wire} {}", answered.error.unwrap_or_default());
+        assert!(!said.contains(&closed.to_string()), "order {index}: {said}");
+    }
+    Ok(())
+}

@@ -86,8 +86,11 @@ macro_rules! topics {
 // time, using the measured payloads. None limits stored data or grants
 // permission; large collections belong in paged reads.
 topics! {
-    // 102-byte measured head; 4 KiB catches accidental growth, not status data.
-    Status => status: 4 * 1024, 0;
+    // 102-byte measured head; 4 KiB catches its accidental growth, not status
+    // data. The hub's agents ride it too: `agents::MAX_AGENTS` at the hub's
+    // bounds take about 7.6 KiB, so 8 KiB more holds them
+    // (`agents_at_their_ceiling_keep_the_status_topic`).
+    Status => status: 12 * 1024, 0;
     // 317-byte measured permissions; 2 KiB catches growth, not a permission gate.
     Permissions => permissions: 2 * 1024, 0;
     // ~1 KiB plus 60 B/app; 16 KiB fits 200 apps, not an app-count limit.
@@ -108,14 +111,16 @@ topics! {
     // the hub. 1 s bounds list rereads, not how often the hub announces.
     Notes => notes: 8 * 1024, 1_000;
     // One turn, never the conversation (the app reads that from the
-    // hub). A turn at its ceilings — a 32 KiB question, a 96 KiB answer
-    // (`MAX_TEXT_BYTES` and three times it) and a 16 KB pending description —
-    // in characters that escape to two bytes (quotes, line breaks) measured
-    // 294,699 bytes, under 288 KiB (294,912; the daemon's test of a turn at
-    // its ceilings). Control characters
-    // escape to six bytes; such a turn is refused with its size. 100 ms
-    // bounds streamed-text redraws, not hub message throughput.
-    Assistant => assistant: 288 * 1024, 100;
+    // hub), and the agent's work in it. A turn at its ceilings — a 32 KiB
+    // question, a 96 KiB answer (`MAX_TEXT_BYTES` and three times it) and a
+    // 16 KB pending description — in characters that escape to two bytes
+    // (quotes, line breaks) measured 294,695 bytes; with its work at its
+    // ceilings (`agent_work`: every step kept, in four-byte characters, and
+    // the one plan) 407,761, under 416 KiB (425,984; the daemon's
+    // `a_turn_and_its_work_at_their_ceilings_fit_the_topic`). Control
+    // characters escape to six bytes; such a turn is refused with its size.
+    // 100 ms bounds streamed-text redraws, not hub message throughput.
+    Assistant => assistant: 416 * 1024, 100;
     // Twenty control rows use 4 KiB, and the assistant's folders at their
     // costliest (eight 1024-byte paths of control characters, six bytes each
     // once escaped, with their causes) about 51 KiB: 80 KiB holds both

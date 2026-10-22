@@ -830,7 +830,12 @@ async fn turn_frames_without_session_id_do_not_change_selected_session() -> Resu
             })
             .await?;
         let _command = commands.recv().await.context("outbound request absent")?;
-        runtime.apply(Event::Session("selected".into())).await?;
+        runtime
+            .apply(Event::Session {
+                id: "selected".into(),
+                agent_id: None,
+            })
+            .await?;
         let before = runtime.state.durable.turn.clone();
         runtime
             .hub_event(HubEvent::Frame(json!({
@@ -863,7 +868,12 @@ async fn unrelated_error_ids_cannot_finish_the_active_request() -> Result<()> {
         })
         .await?;
     let _ = commands.recv().await.context("outbound request absent")?;
-    runtime.apply(Event::Session("session".into())).await?;
+    runtime
+        .apply(Event::Session {
+            id: "session".into(),
+            agent_id: None,
+        })
+        .await?;
     runtime
         .apply(Event::Delta {
             request_id: "active-request".into(),

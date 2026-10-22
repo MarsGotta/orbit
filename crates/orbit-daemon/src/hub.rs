@@ -975,6 +975,28 @@ async fn attachment_refusal(response: reqwest::Response) -> anyhow::Error {
     .into()
 }
 
+/// An attachment request that got no answer from the hub. A hub stopped,
+/// out of reach or gone mid-answer is said as such; one that kept quiet
+/// past `HUB_HTTP_TIMEOUT` names that deadline. Never the request library's
+/// text, which carries the hub's address.
+fn attachment_unanswered(error: &reqwest::Error) -> anyhow::Error {
+    use orbit_core::refusal::{Operation, Refusal};
+    match TransportCause::of(error) {
+        TransportCause::Timeout => {
+            let deadline_ms = u64::try_from(HUB_HTTP_TIMEOUT.as_millis()).unwrap_or(u64::MAX);
+            Refusal::Timeout {
+                operation: Operation::Files,
+                waited_ms: deadline_ms,
+                deadline_ms,
+            }
+        }
+        TransportCause::ConnectionTimeout | TransportCause::Connection | TransportCause::Cut => {
+            Refusal::HubUnreachable { since_ms: None }
+        }
+    }
+    .into()
+}
+
 /// One file for the composer, uploaded whole (`POST /v1/attachments`); the
 /// hub classifies it and answers with what it keeps.
 pub async fn upload_attachment(
@@ -1005,7 +1027,8 @@ pub async fn upload_attachment(
     .header("X-Orbit-Sha256", &sha256)
     .body(bytes)
     .send()
-    .await?;
+    .await
+    .map_err(|error| attachment_unanswered(&error))?;
     if !response.status().is_success() {
         return Err(attachment_refusal(response).await);
     }
@@ -1041,7 +1064,8 @@ pub async fn attachment_from_capture(
     )?
     .json(&json!({"capture_id": capture_id, "request_id": request_id, "name": name}))
     .send()
-    .await?;
+    .await
+    .map_err(|error| attachment_unanswered(&error))?;
     if !response.status().is_success() {
         return Err(attachment_refusal(response).await);
     }
@@ -1070,7 +1094,8 @@ pub async fn fetch_attachment(
         .push(attachment_id);
     let response = request(reqwest::Method::GET, url, Some(token), op)?
         .send()
-        .await?;
+        .await
+        .map_err(|error| attachment_unanswered(&error))?;
     if !response.status().is_success() {
         return Err(attachment_refusal(response).await);
     }
@@ -1090,7 +1115,7 @@ pub async fn fetch_attachment(
         .await
         .map_err(|error| match error {
             BodyError::TooLarge(size) => anyhow::Error::from(size),
-            BodyError::Cut { source, .. } => anyhow::Error::from(source),
+            BodyError::Cut { source, .. } => attachment_unanswered(&source),
         })?;
     Ok(orbit_core::protocol::AttachmentContent { name, mime, bytes })
 }

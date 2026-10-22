@@ -846,7 +846,10 @@ async fn delta_bursts_write_no_snapshot_and_a_completed_turn_writes_one() -> Res
         })
         .await?;
     runtime
-        .apply(Event::Session("delta-burst-session".into()))
+        .apply(Event::Session {
+            id: "delta-burst-session".into(),
+            agent_id: None,
+        })
         .await?;
     let probe = snapshot_probe(&runtime)?;
     // Run flushes every snapshot admitted before it and adds no snapshot.
@@ -891,7 +894,10 @@ async fn sixty_idle_ticks_write_nothing_and_never_wait_on_the_store() -> Result<
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     runtime
-        .apply(Event::Session("idle-ticks-session".into()))
+        .apply(Event::Session {
+            id: "idle-ticks-session".into(),
+            agent_id: None,
+        })
         .await?;
     let probe = snapshot_probe(&runtime)?;
     runtime.store_actor.run(|_| Ok(())).await?;

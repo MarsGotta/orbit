@@ -560,6 +560,109 @@ async fn a_failed_voice_is_not_another_agents() -> Result<()> {
     Ok(())
 }
 
+/// `two_agents`, with the hub naming `default_agent_id` its default.
+fn two_agents_with_default(default_agent_id: &str) -> Value {
+    let mut frame = two_agents();
+    frame["data"]["default_agent_id"] = json!(default_agent_id);
+    frame
+}
+
+/// One turn answered in `session`, with one tool step when `tool`; returns
+/// the turn's id and its `chat.send`.
+async fn turn_in(
+    runtime: &mut Runtime,
+    frames: &mut mpsc::Receiver<Value>,
+    session: &str,
+    tool: bool,
+) -> Result<(String, Value)> {
+    runtime
+        .command(Command::Chat {
+            attachments: Vec::new(),
+            text: "pregunta sintética".into(),
+        })
+        .await?;
+    let params = chat_send(frames).await?;
+    let turn = runtime
+        .state
+        .durable
+        .active_request
+        .clone()
+        .context("no turn")?;
+    let mut frames_in =
+        vec![json!({"event": "chat.session", "id": turn, "data": {"session_id": session}})];
+    if tool {
+        frames_in.push(json!({"event": "chat.item", "id": turn, "data": {
+            "session_id": session, "item_id": "herramienta-1", "kind": "tool",
+            "phase": "completed", "label": "Mirando la pantalla", "subject": "la pantalla"}}));
+    }
+    frames_in.push(json!({"event": "chat.completed", "id": turn,
+        "data": {"session_id": session, "text": "hecho", "status": "completed"}}));
+    for frame in frames_in {
+        runtime.hub_event(HubEvent::Frame(frame)).await?;
+    }
+    Ok((turn, params))
+}
+
+/// A conversation begun without naming an agent is with the hub's default
+/// at that time. When the hub later names another default (its `orbit.toml`
+/// changed and it restarted), that conversation is still the first agent's:
+/// the next turn names it, or the hub refuses it as `agent_mismatch`.
+#[tokio::test]
+async fn a_conversation_keeps_its_agent_when_the_hub_changes_its_default() -> Result<()> {
+    let (_directory, mut runtime, mut frames, _helper) = with_hub()?;
+    ready(&mut runtime, two_agents_with_default("deimos")).await?;
+    runtime
+        .command(Command::NewSession { agent_id: None })
+        .await?;
+    let session = "30000000-0000-4000-8000-0000000000b1";
+    let (_, first) = turn_in(&mut runtime, &mut frames, session, false).await?;
+    assert_eq!(first["agent_id"], "deimos");
+
+    ready(&mut runtime, two_agents_with_default("atlas")).await?;
+    let (_, second) = turn_in(&mut runtime, &mut frames, session, false).await?;
+    assert_eq!(second["session_id"], session);
+    assert_eq!(
+        second["agent_id"], "deimos",
+        "the conversation {session} is Deimos's; naming another agent is agent_mismatch"
+    );
+    assert_eq!(status(&runtime)?["assistant"]["agent_id"], "deimos");
+    Ok(())
+}
+
+/// The work the chat shows is the turn's in flight, never the last one's:
+/// once a new turn is sent, the previous turn's work does not stand for it.
+#[tokio::test]
+async fn a_new_turn_does_not_carry_the_previous_turns_work() -> Result<()> {
+    let (_directory, mut runtime, mut frames, _helper) = with_hub()?;
+    ready(&mut runtime, two_agents()).await?;
+    let session = "30000000-0000-4000-8000-0000000000b2";
+    let (first, _) = turn_in(&mut runtime, &mut frames, session, true).await?;
+    runtime
+        .command(Command::Chat {
+            attachments: Vec::new(),
+            text: "otra pregunta sintética".into(),
+        })
+        .await?;
+    chat_send(&mut frames).await?;
+    let second = runtime
+        .state
+        .durable
+        .active_request
+        .clone()
+        .context("no turn")?;
+    let carried = runtime
+        .conversation
+        .work
+        .as_ref()
+        .map(|work| work.turn_id.clone());
+    assert_ne!(
+        carried.as_deref(),
+        Some(first.as_str()),
+        "turn {second} is in flight and the topic still carries turn {first}'s work"
+    );
+    Ok(())
+}
+
 /// An agent without a voice of its own is read in the default agent's, so
 /// what fails is the default agent's voice: for Nova and Deimos alike, not
 /// for Atlas.
@@ -573,6 +676,109 @@ async fn an_agent_read_in_the_default_voice_shares_its_failure() -> Result<()> {
     assert_eq!(
         voice_with(&mut runtime, Some("atlas")).await?["state"],
         "unknown"
+    );
+    Ok(())
+}
+
+/// An interrupted turn ended: its work says when, as a completed one does.
+#[tokio::test]
+async fn an_interrupted_turns_work_ends() -> Result<()> {
+    let (_directory, mut runtime, mut frames, _helper) = with_hub()?;
+    ready(&mut runtime, two_agents()).await?;
+    let session = "30000000-0000-4000-8000-0000000000b3";
+    runtime
+        .command(Command::Chat {
+            attachments: Vec::new(),
+            text: "pregunta sintética".into(),
+        })
+        .await?;
+    chat_send(&mut frames).await?;
+    let turn = runtime
+        .state
+        .durable
+        .active_request
+        .clone()
+        .context("no turn")?;
+    for frame in [
+        json!({"event": "chat.session", "id": turn, "data": {"session_id": session}}),
+        json!({"event": "chat.item", "id": turn, "data": {
+            "session_id": session, "item_id": "herramienta-1", "kind": "tool",
+            "phase": "started", "label": "Mirando la pantalla", "subject": "la pantalla"}}),
+    ] {
+        runtime.hub_event(HubEvent::Frame(frame)).await?;
+    }
+    runtime.command(Command::Interrupt).await?;
+    assert!(runtime.state.durable.active_request.is_none());
+    let work = runtime.conversation.work.as_ref().context("no work")?;
+    assert!(
+        work.ended_at_ms.is_some(),
+        "the interrupted turn's work never ends: {work:?}"
+    );
+    Ok(())
+}
+
+/// `count` agents at the hub's bounds: a 32-byte id and a 48-character
+/// name in four-byte characters.
+fn many_agents(count: usize) -> Value {
+    let agents: Vec<Value> = (0..count)
+        .map(|index| {
+            json!({"id": format!("agente-{index:025}"),
+                "name": format!("{index:02}{}", "𝔸".repeat(46)),
+                "kind": "openai", "capabilities": []})
+        })
+        .collect();
+    json!({"event":"ready", "data": {
+        "device_id": DEVICE, "hub_protocol": 1, "assistant_name": "𝔸".repeat(48),
+        "agents": agents, "default_agent_id": format!("agente-{:025}", 0)}})
+}
+
+fn status_knowledge(runtime: &Runtime) -> Result<Value> {
+    let source = crate::daemon::topics::TopicSource {
+        state: &runtime.state,
+        runtime: Some(runtime),
+        now_ms: 0,
+    };
+    let mut board = crate::daemon::topics::TopicBoard::new("agents".into());
+    let channels = board.channels();
+    let _status = channels[&TopicId::Status].subscribe();
+    board.publish(&source);
+    let data = serde_json::to_value(&channels[&TopicId::Status].borrow().data)?;
+    Ok(data["knowledge"].clone())
+}
+
+/// The status topic carries the hub's agents: as many as the Mac takes, at
+/// the hub's bounds, keep the whole topic (connection, privacy stop, helper
+/// and account included).
+#[tokio::test]
+async fn agents_at_their_ceiling_keep_the_status_topic() -> Result<()> {
+    let (_directory, mut runtime, _frames, _helper) = with_hub()?;
+    ready(&mut runtime, many_agents(orbit_core::agents::MAX_AGENTS)).await?;
+    assert_eq!(
+        runtime.settings.roster().agents().len(),
+        orbit_core::agents::MAX_AGENTS
+    );
+    let knowledge = status_knowledge(&runtime)?;
+    assert_eq!(
+        knowledge["state"], "present",
+        "refused whole: {}",
+        knowledge["refusal"]
+    );
+    Ok(())
+}
+
+/// Forty agents are more than the Mac takes: the list is refused with its
+/// count, the one the Mac had stays and the status topic with it.
+#[tokio::test]
+async fn forty_agents_keep_the_status_topic_and_the_list_the_mac_had() -> Result<()> {
+    let (_directory, mut runtime, _frames, _helper) = with_hub()?;
+    ready(&mut runtime, two_agents()).await?;
+    ready(&mut runtime, many_agents(40)).await?;
+    assert_eq!(runtime.settings.roster().names(), ["Deimos", "Atlas"]);
+    let knowledge = status_knowledge(&runtime)?;
+    assert_eq!(
+        knowledge["state"], "present",
+        "refused whole: {}",
+        knowledge["refusal"]
     );
     Ok(())
 }

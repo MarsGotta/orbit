@@ -23,6 +23,20 @@ describe("file sizes", () => {
 });
 
 describe("attachment refusals", () => {
+  it("reads as Spanish when the hub names no file", () => {
+    // The hub's `attachment_unreadable` for a turn's PDF pages carries only
+    // its cause, no `name`.
+    expect(text({ kind: "unreadable", reason: "render_failed" })).toBe(
+      "El hub no pudo convertir en imágenes las páginas del fichero.",
+    );
+    expect(text({ kind: "unreadable", reason: "invalid_bytes" })).toBe(
+      "El contenido del fichero está dañado o no corresponde a su tipo.",
+    );
+    expect(text({ kind: "unreadable", name: "plano.pdf", reason: "render_failed" })).toBe(
+      "El hub no pudo convertir en imágenes las páginas de “plano.pdf”.",
+    );
+  });
+
   it("a hub without attachments asks to update it", () => {
     expect(text({ kind: "unsupported" })).toBe("Este hub no admite adjuntos; actualízalo.");
   });

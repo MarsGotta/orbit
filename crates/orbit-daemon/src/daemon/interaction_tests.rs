@@ -1206,7 +1206,10 @@ async fn a_chat_rejection_keeps_its_code_and_op_without_logging_content() -> Res
         let (mut runtime, _helper) = fixture(directory.path())?;
         logging(&mut runtime, directory.path());
         runtime
-            .apply(orbit_core::Event::Session("foreign-session".into()))
+            .apply(orbit_core::Event::Session {
+                id: "foreign-session".into(),
+                agent_id: None,
+            })
             .await?;
         runtime.state.durable.active_request = Some("rejected-turn".into());
         runtime.begin_turn(

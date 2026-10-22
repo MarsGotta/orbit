@@ -85,6 +85,7 @@ export function uploadedRefusal(
 /** Why a file could not be attached or loaded, naming it and its numbers. */
 export function attachmentFailure(failure: Refusal, name: string): string {
   if (failure.code === "attachment") return attachmentRefusalText(failure);
+  if (failure.code === "hub_unreachable") return es.attachments.hubUnreachable(name);
   const entry = Object.hasOwn(refusalEntries, failure.code)
     ? refusalEntries[failure.code]
     : undefined;

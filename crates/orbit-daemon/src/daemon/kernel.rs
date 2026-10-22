@@ -272,6 +272,13 @@ impl Runtime {
         // receipts have happened, but the new turn has not begun.
         let previous_state = self.state.clone();
         self.state = state;
+        // A turn no longer in flight has ended, however it did: interrupted,
+        // lost with the hub's link or stopped. Its work says when.
+        if let Some(turn) = interrupted_request.as_deref()
+            && self.state.durable.active_request.as_deref() != Some(turn)
+        {
+            self.end_work(turn);
+        }
         if self.state.privacy_stopped()
             && !matches!(
                 change,
@@ -404,6 +411,9 @@ impl Runtime {
                 meeting,
                 attachments,
             } => {
+                // The work shown is this turn's from now on: the last
+                // turn's never stands for it.
+                self.conversation.work.take_if(|work| work.turn_id != id);
                 // The turn's id is the Mac's id for the user's message,
                 // kept in the hub's row so the app finds their turn by it.
                 let params = serde_json::to_value(orbit_core::wire::hub::ChatSendParams {

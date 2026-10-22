@@ -128,3 +128,25 @@ fn durations_read_as_the_chat_writes_them() {
     assert_eq!(duration_text(72_000), "1 min 12 s");
     assert_eq!(duration_text(120_000), "2 min");
 }
+
+/// The daemon may still carry the last turn's work when the next one ends
+/// (a turn without tools sends no `chat.item`): a two-second answer after a
+/// one-minute turn with tools must not say «Trabajó 1 min».
+#[test]
+fn a_short_turn_after_a_long_one_is_not_timed_by_the_long_ones_work() {
+    let mut previous = AgentWork::new("turno-0", 1_000);
+    previous.end(61_000);
+    let mut watcher = Watcher::default();
+    let mut asking = chat(Some(AssistantActivity::Thinking));
+    asking.turn[0].at_ms = 100_000;
+    asking.work = Some(previous.clone());
+    assert_eq!(watcher.observe(&asking, true, 100_500), None);
+    let mut answered = chat(None);
+    answered.turn[0].at_ms = 100_000;
+    answered.work = Some(previous);
+    assert_eq!(
+        watcher.observe(&answered, true, 102_000),
+        None,
+        "the turn worked 2 s; the notice is timed by the previous turn's work"
+    );
+}

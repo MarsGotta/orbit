@@ -367,7 +367,10 @@ async fn another_conversation_leaves_the_engine_and_its_catalogue_alone() -> Res
         .await?;
     // Deimos opening one: the hub announces the session it started.
     h.runtime
-        .apply(Event::Session("deimos-session".into()))
+        .apply(Event::Session {
+            id: "deimos-session".into(),
+            agent_id: None,
+        })
         .await?;
     h.runtime.maintain_computer().await?;
 

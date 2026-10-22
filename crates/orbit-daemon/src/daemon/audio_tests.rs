@@ -1455,7 +1455,10 @@ async fn voice_cancellation_cause_is_persisted_by_each_entry_point() -> Result<(
 #[tokio::test]
 async fn session_device_and_revocation_retire_the_pending_voice_note() -> Result<()> {
     for event in [
-        Event::Session("new-session".into()),
+        Event::Session {
+            id: "new-session".into(),
+            agent_id: None,
+        },
         Event::DeviceChanged,
         Event::Connect(Connection::Revoked),
     ] {

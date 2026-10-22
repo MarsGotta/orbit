@@ -139,6 +139,16 @@ describe("images", () => {
     expect(await screen.findByText(/Ese adjunto ya no está en el hub/)).toBeTruthy();
     expect(screen.queryByRole("img", { name: "plano.png" })).toBeNull();
   });
+
+  it("a thumbnail the stopped hub cannot give names the hub, not an internal failure", async () => {
+    bridge.attachmentBytes.mockRejectedValue({
+      refusal: { code: "hub_unreachable", since_ms: null, retry: { kind: "after_fix" } },
+    });
+    show([message("1", [plano])]);
+    expect(
+      await screen.findByText("Sin conexión con el hub: inténtalo con “plano.png” cuando vuelva."),
+    ).toBeTruthy();
+  });
 });
 
 describe("PDFs and other files", () => {

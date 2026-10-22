@@ -532,7 +532,10 @@ async fn pairing_another_device_forgets_the_previous_conversation_durably() -> R
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     runtime
-        .apply(Event::Session("other-macs-session".into()))
+        .apply(Event::Session {
+            id: "other-macs-session".into(),
+            agent_id: None,
+        })
         .await?;
     let (accepted, seen) = one_shot_http(json_response(
         "200 OK",
@@ -566,7 +569,10 @@ async fn pairing_does_not_install_an_identity_if_forgetting_the_session_cannot_b
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     runtime
-        .apply(Event::Session("previous-session".into()))
+        .apply(Event::Session {
+            id: "previous-session".into(),
+            agent_id: None,
+        })
         .await?;
     let database = rusqlite::Connection::open(runtime.paths.store.join("orbit.sqlite3"))?;
     database.execute_batch(

@@ -3,11 +3,10 @@
 //! when the turn started and ended. Pure: the caller passes the times.
 use serde::{Deserialize, Serialize};
 
-/// The steps kept for one turn. The assistant topic (288 KiB) also carries
-/// the turn's answer, up to 96 KiB; sixteen items at the hub's ceilings
-/// (a 500-character label, an 80-character subject, a 300-character cause)
-/// take under 60 KiB even in four-byte characters, and a plan of twenty
-/// steps 40 KiB more. Older steps leave the list but stay counted in
+/// The steps kept for one turn. They ride the assistant topic beside the
+/// turn: sixteen items at the ceilings below take about 70 KiB in four-byte
+/// characters, and the one plan's twenty steps 40 KiB more
+/// (`TopicId::Assistant`). Older steps leave the list but stay counted in
 /// `tools` and `subjects`, which the folded summary uses. It does not limit
 /// what the agent does.
 pub const MAX_WORK_ITEMS: usize = 16;
@@ -22,6 +21,10 @@ pub const MAX_ITEM_LABEL_CHARS: usize = 500;
 pub const MAX_ITEM_SUBJECT_CHARS: usize = 80;
 pub const MAX_ITEM_CAUSE_CHARS: usize = 300;
 pub const MAX_PLAN_STEPS: usize = 20;
+/// A step's id, which the hub passes on from the agent unbounded (an ACP
+/// `toolCallId`). Ids seen are a few dozen characters; 128 keeps one that is
+/// not from filling the topic. Only the Mac's copy is cut.
+pub const MAX_ITEM_ID_CHARS: usize = 128;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -113,16 +116,19 @@ fn cut(text: &str, limit: usize) -> String {
 }
 
 impl WorkItem {
-    /// The step a `chat.item` describes, within the ceilings above; `None`
-    /// for a kind, phase or step status this Mac does not know.
+    /// The step a `chat.item` describes, within the ceilings above, with
+    /// steps only for a plan; `None` for a kind, phase or step status this
+    /// Mac does not know.
     pub fn from_wire(data: &crate::wire::hub::ItemData) -> Option<Self> {
         fn known<T: serde::de::DeserializeOwned>(value: &str) -> Option<T> {
             serde_json::from_value(serde_json::Value::String(value.to_owned())).ok()
         }
+        let kind: WorkKind = known(&data.kind)?;
         let steps = data
             .steps
             .iter()
             .flatten()
+            .filter(|_| kind == WorkKind::Plan)
             .take(MAX_PLAN_STEPS)
             .map(|step| {
                 Some(WorkStep {
@@ -132,8 +138,8 @@ impl WorkItem {
             })
             .collect::<Option<Vec<_>>>()?;
         Some(Self {
-            id: data.item_id.clone(),
-            kind: known(&data.kind)?,
+            id: cut(&data.item_id, MAX_ITEM_ID_CHARS),
+            kind,
             phase: known(&data.phase)?,
             label: cut(&data.label, MAX_ITEM_LABEL_CHARS),
             subject: data
@@ -182,9 +188,12 @@ impl AgentWork {
         }
     }
 
-    /// The step's latest state replaces its earlier one, in place.
+    /// The step's latest state replaces its earlier one, in place. A turn
+    /// has one plan, the latest the agent sent, whatever its id.
     pub fn record(&mut self, item: WorkItem) {
-        let index = self.items.iter().position(|known| known.id == item.id);
+        let index = self.items.iter().position(|known| {
+            known.id == item.id || (item.kind == WorkKind::Plan && known.kind == WorkKind::Plan)
+        });
         let ended_before = index.is_some_and(|index| self.items[index].phase.ended());
         if item.kind == WorkKind::Tool {
             if item.phase.ended() && !ended_before {
@@ -303,6 +312,49 @@ mod tests {
             ..data
         };
         assert_eq!(WorkItem::from_wire(&future), None);
+    }
+
+    /// What the assistant topic's ceiling counts on: a cut id, steps only
+    /// in a plan, and one plan per turn.
+    #[test]
+    fn only_one_plan_has_steps_and_an_id_is_cut() {
+        let step = || crate::wire::hub::ItemStep {
+            text: "Paso".into(),
+            status: "pending".into(),
+        };
+        let data = crate::wire::hub::ItemData {
+            session_id: "s".into(),
+            item_id: "x".repeat(MAX_ITEM_ID_CHARS + 5),
+            kind: "tool".into(),
+            phase: "started".into(),
+            label: "Mirando la pantalla".into(),
+            subject: None,
+            steps: Some(vec![step()]),
+            cause: None,
+        };
+        let tool = WorkItem::from_wire(&data);
+        assert!(tool.as_ref().is_some_and(|tool| {
+            tool.steps.is_empty() && tool.id.chars().count() == MAX_ITEM_ID_CHARS
+        }));
+        let plan = |id: &str| crate::wire::hub::ItemData {
+            item_id: id.into(),
+            kind: "plan".into(),
+            steps: Some(vec![step()]),
+            ..data.clone()
+        };
+        let mut work = AgentWork::new("turno", 0);
+        for id in ["plan-a", "plan-b"] {
+            if let Some(item) = WorkItem::from_wire(&plan(id)) {
+                work.record(item);
+            }
+        }
+        assert_eq!(
+            work.items
+                .iter()
+                .map(|item| item.id.as_str())
+                .collect::<Vec<_>>(),
+            ["plan-b"]
+        );
     }
 
     #[test]

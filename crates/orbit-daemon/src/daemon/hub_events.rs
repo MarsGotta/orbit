@@ -261,7 +261,12 @@ impl Runtime {
             HubEventKind::Revoked(_) => self.apply(Event::Connect(Connection::Revoked)).await?,
             HubEventKind::RecordingChanged(data) => self.on_recording_changed(&data.recording_id),
             HubEventKind::ChatSession(SessionData { session_id }) => {
-                self.apply(Event::Session(session_id)).await?;
+                let agent_id = self.turn_agent_id();
+                self.apply(Event::Session {
+                    id: session_id,
+                    agent_id,
+                })
+                .await?;
             }
             HubEventKind::ChatDelta(data) => self.on_hub_chat_delta(data).await?,
             HubEventKind::ChatCompleted(data) => self.on_hub_chat_completed(&data).await?,

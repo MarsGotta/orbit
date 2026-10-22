@@ -18,7 +18,13 @@ fn a_new_conversation_is_with_the_agent_chosen_and_keeps_it() {
     );
     assert_eq!(state.agent_id(), Some("atlas"));
     // The hub names the conversation after its first turn: same agent.
-    let state = after(&state, Event::Session("session-1".into()));
+    let state = after(
+        &state,
+        Event::Session {
+            id: "session-1".into(),
+            agent_id: None,
+        },
+    );
     assert_eq!(state.session_id().as_deref(), Some("session-1"));
     assert_eq!(state.agent_id(), Some("atlas"));
     // A conversation the hub no longer has starts again with the same agent.
@@ -33,6 +39,45 @@ fn a_new_conversation_is_with_the_agent_chosen_and_keeps_it() {
     assert_eq!(state.agent_id(), Some("atlas"));
     // «Nueva conversación» without a choice is with the default agent.
     let state = after(&state, Event::NewSession { agent_id: None });
+    assert_eq!(state.agent_id(), None);
+}
+
+/// A conversation begun with the hub's default keeps the agent its first
+/// turn went to; one opened from before agents still has none of its own.
+#[test]
+fn a_new_conversation_keeps_the_agent_its_first_turn_went_to() {
+    let state = after(&State::default(), Event::NewSession { agent_id: None });
+    let state = after(
+        &state,
+        Event::Session {
+            id: "session-1".into(),
+            agent_id: Some("deimos".into()),
+        },
+    );
+    assert_eq!(state.agent_id(), Some("deimos"));
+    let state = after(
+        &state,
+        Event::Session {
+            id: "session-1".into(),
+            agent_id: Some("atlas".into()),
+        },
+    );
+    assert_eq!(state.agent_id(), Some("deimos"), "named once, kept");
+
+    let state = after(
+        &state,
+        Event::OpenSession {
+            id: "session-old".into(),
+            agent_id: None,
+        },
+    );
+    let state = after(
+        &state,
+        Event::Session {
+            id: "session-old".into(),
+            agent_id: Some("atlas".into()),
+        },
+    );
     assert_eq!(state.agent_id(), None);
 }
 

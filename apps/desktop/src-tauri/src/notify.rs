@@ -92,20 +92,17 @@ impl Watcher {
         if !ended {
             return None;
         }
-        let started_at_ms = chat
+        // Only the ended turn's own work times it: the daemon may still
+        // carry the last turn's.
+        let question = chat.turn.first();
+        let work = chat
             .work
             .as_ref()
+            .filter(|work| question.is_some_and(|question| question.id == work.turn_id));
+        let started_at_ms = work
             .map(|work| work.started_at_ms)
-            .or_else(|| {
-                chat.turn
-                    .first()
-                    .and_then(|message| u64::try_from(message.at_ms).ok())
-            })?;
-        let ended_at_ms = chat
-            .work
-            .as_ref()
-            .and_then(|work| work.ended_at_ms)
-            .unwrap_or(now_ms);
+            .or_else(|| question.and_then(|message| u64::try_from(message.at_ms).ok()))?;
+        let ended_at_ms = work.and_then(|work| work.ended_at_ms).unwrap_or(now_ms);
         let worked = ended_at_ms.saturating_sub(started_at_ms);
         (worked >= LONG_TURN_MS).then(|| TurnNotice {
             title: "Respuesta lista".into(),

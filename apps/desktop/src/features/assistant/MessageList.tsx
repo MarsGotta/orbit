@@ -109,7 +109,8 @@ export function MessageList({
             voiceAudio={voiceAudio}
           />
           {work != null && message.role === "user" && message.id === work.turn_id && (
-            <AgentWorkView inFlight={workInFlight} work={work} />
+            // An ended turn's work is folded even while the next one runs.
+            <AgentWorkView inFlight={workInFlight && work.ended_at_ms == null} work={work} />
           )}
         </Fragment>
       ))}

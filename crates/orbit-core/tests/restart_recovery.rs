@@ -151,7 +151,10 @@ fn the_user_stop_survives_the_restart_and_only_their_rearm_lifts_it() {
     for event in [
         Event::Connect(Connection::Online),
         Event::Connect(Connection::Connecting),
-        Event::Session("hub-session".into()),
+        Event::Session {
+            id: "hub-session".into(),
+            agent_id: None,
+        },
         Event::Tick,
         Event::HelperReady,
         Event::PermissionObserved {

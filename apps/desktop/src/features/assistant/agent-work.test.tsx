@@ -127,6 +127,32 @@ describe("the agent's work in the chat", () => {
     const worked = screen.getByText("Trabajó 5 s").closest("section");
     expect(said?.compareDocumentPosition(worked as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
+
+  it("an ended turn keeps its folded summary while the next turn is in flight", () => {
+    vi.useFakeTimers({ now: 120_000 });
+    const message = (id: string, role: ChatMessage["role"], text: string, at_ms: number) => ({
+      ...question,
+      id,
+      role,
+      text,
+      at_ms,
+    });
+    render(
+      <MessageList
+        busy
+        messages={[
+          message("turno-1", "user", "Primera pregunta sintética", 1_000),
+          message("turno-1:assistant", "assistant", "Primera respuesta", 6_000),
+          message("turno-2", "user", "Segunda pregunta sintética", 100_000),
+        ]}
+        send={() => undefined}
+        work={work({ ended_at_ms: 6_000 })}
+        workInFlight
+      />,
+    );
+    expect(screen.queryByText(/^Trabajando/)).toBeNull();
+    expect(screen.getByText("Trabajó 5 s")).toBeTruthy();
+  });
 });
 
 describe("questions and approvals with the agent's real choices", () => {

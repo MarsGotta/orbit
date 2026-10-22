@@ -185,9 +185,23 @@ fn link_ready_loss_and_offline_have_distinct_retirements() -> Result<(), Box<dyn
 fn naming_a_first_session_is_not_a_conversation_retirement()
 -> Result<(), Box<dyn std::error::Error>> {
     let state = State::default();
-    let named = decide(&state, Event::Session("first".into()), 1)?;
+    let named = decide(
+        &state,
+        Event::Session {
+            id: "first".into(),
+            agent_id: None,
+        },
+        1,
+    )?;
     assert_eq!(named.authority_change, None);
-    let changed = decide(&named.state, Event::Session("second".into()), 2)?;
+    let changed = decide(
+        &named.state,
+        Event::Session {
+            id: "second".into(),
+            agent_id: None,
+        },
+        2,
+    )?;
     assert_eq!(
         changed.authority_change,
         Some(AuthorityChange::Conversation)
@@ -213,7 +227,15 @@ fn closing_does_not_latch_privacy() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn explicit_conversation_events_clear_the_turn_and_pending_approval()
 -> Result<(), Box<dyn std::error::Error>> {
-    let mut state = decide(&State::default(), Event::Session("before".into()), 0)?.state;
+    let mut state = decide(
+        &State::default(),
+        Event::Session {
+            id: "before".into(),
+            agent_id: None,
+        },
+        0,
+    )?
+    .state;
     state.durable.turn = Some(orbit_core::Turn {
         user: orbit_core::Message {
             attachments: Vec::new(),

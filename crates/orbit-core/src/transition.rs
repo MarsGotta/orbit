@@ -38,7 +38,14 @@ pub enum Event {
     },
     /// A finished voice note was too short to send; the daemon measured it.
     VoiceTooShort(crate::voice::ShortVoiceNote),
-    Session(String),
+    /// The hub named the conversation (`chat.session`). `agent_id` is the
+    /// agent its turn went to (absent: a hub that lists no agents); a new
+    /// conversation keeps it, so a later change of the hub's default does
+    /// not move it to another agent.
+    Session {
+        id: String,
+        agent_id: Option<String>,
+    },
     /// The transport may report ready after connect() already set Connecting.
     /// That still withdraws the previous context request.
     HubTransportReady,
@@ -222,7 +229,7 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
             }
             decide_capabilities(&mut next, &mut effects, Connection::Offline);
         }
-        Event::Session(id) => {
+        Event::Session { id, agent_id } => {
             if state
                 .durable
                 .session_id
@@ -230,6 +237,12 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
                 .is_some_and(|previous| previous != &id)
             {
                 authority_change = Some(AuthorityChange::Conversation);
+            }
+            // Only a conversation the hub names for the first time: one
+            // opened without an agent is from before agents, and the hub
+            // keeps it with whichever agent is its default.
+            if state.durable.session_id.is_none() && next.durable.agent_id.is_none() {
+                next.durable.agent_id = agent_id;
             }
             next.durable.session_id = Some(id);
         }

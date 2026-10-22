@@ -469,4 +469,72 @@ mod tests {
         let data = serde_json::to_value(Projector.project(&source)).unwrap();
         assert_eq!(data["knowledge"]["value"]["voice"]["state"], "present");
     }
+
+    /// The agent's work rides the same topic as the turn: the turn at its
+    /// ceilings (`a_turn_at_its_ceilings_fits_the_topic`) with its work at
+    /// its own — every step the Mac keeps, each at the hub's ceilings in
+    /// four-byte characters with an id of control characters, and the one
+    /// plan with all its steps — still travels whole, its pending question
+    /// included.
+    #[tokio::test]
+    async fn a_turn_and_its_work_at_their_ceilings_fit_the_topic() {
+        use orbit_core::agent_work::{
+            AgentWork, MAX_ITEM_CAUSE_CHARS, MAX_ITEM_ID_CHARS, MAX_ITEM_LABEL_CHARS,
+            MAX_ITEM_SUBJECT_CHARS, MAX_PLAN_STEPS, MAX_WORK_ITEMS, WorkItem, WorkKind, WorkPhase,
+            WorkStep, WorkStepStatus,
+        };
+        let directory = tempfile::tempdir().unwrap();
+        let (mut runtime, _helper) =
+            crate::daemon::audio::tests::fixture(directory.path()).unwrap();
+        runtime.state = turn_state(
+            &"\"".repeat(orbit_core::MAX_TEXT_BYTES),
+            &"\n".repeat(orbit_core::MAX_TEXT_BYTES * 3),
+        );
+        runtime.state.durable.pending_approval = Some(orbit_core::Approval {
+            request_id: "request-topic".into(),
+            description: "\"".repeat(16_000),
+            clarification: false,
+            choices: Vec::new(),
+            questions: Vec::new(),
+        });
+        let wide = |count: usize| "𝔸".repeat(count);
+        let item = |index: usize, kind: WorkKind| WorkItem {
+            id: format!("{index:02}{}", "\u{1}".repeat(MAX_ITEM_ID_CHARS - 2)),
+            kind,
+            phase: WorkPhase::Failed,
+            label: wide(MAX_ITEM_LABEL_CHARS),
+            subject: Some(format!("{index:02}{}", wide(MAX_ITEM_SUBJECT_CHARS - 2))),
+            steps: Vec::new(),
+            cause: Some(wide(MAX_ITEM_CAUSE_CHARS)),
+        };
+        let mut work = AgentWork::new("request-topic", 5);
+        for index in 1..MAX_WORK_ITEMS {
+            work.record(item(index, WorkKind::Tool));
+        }
+        work.record(WorkItem {
+            steps: (0..MAX_PLAN_STEPS)
+                .map(|_| WorkStep {
+                    text: wide(MAX_ITEM_LABEL_CHARS),
+                    status: WorkStepStatus::InProgress,
+                })
+                .collect(),
+            ..item(0, WorkKind::Plan)
+        });
+        assert_eq!(work.items.len(), MAX_WORK_ITEMS);
+        runtime.conversation.work = Some(work);
+        let source = TopicSource {
+            state: &runtime.state,
+            runtime: Some(&runtime),
+            now_ms: 0,
+        };
+        let data = Projector.project(&source);
+        let bytes = serde_json::to_vec(&data).unwrap().len();
+        eprintln!("a turn and its work at their ceilings are {bytes} topic bytes");
+        let data = serde_json::to_value(data).unwrap();
+        assert_eq!(
+            data["knowledge"]["state"], "present",
+            "refused whole: {}",
+            data["knowledge"]["refusal"]
+        );
+    }
 }

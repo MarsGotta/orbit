@@ -24,6 +24,12 @@ function quoted(name: unknown): string {
   return typeof name === "string" && name !== "" ? `“${name}”` : "el fichero";
 }
 
+/** «de “plano.pdf”», or «del fichero»: Spanish contracts «de el». */
+function ofFile(name: unknown): string {
+  const file = quoted(name);
+  return file === "el fichero" ? "del fichero" : `de ${file}`;
+}
+
 function capitalised(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
@@ -61,10 +67,10 @@ function unreadable(cause: Record<string, unknown>): string {
     permission: `Orbit no tiene permiso para leer ${file}.`,
     not_a_file: `${capitalised(file)} no es un fichero: las carpetas no se adjuntan.`,
     io: `macOS no pudo leer ${file}.`,
-    invalid_bytes: `El contenido de ${file} está dañado o no corresponde a su tipo.`,
+    invalid_bytes: `El contenido ${ofFile(cause.name)} está dañado o no corresponde a su tipo.`,
     pdf_locked: `${capitalised(file)} está protegido con contraseña.`,
     pdf_damaged: `${capitalised(file)} está dañado: el hub no pudo leer el PDF.`,
-    render_failed: `El hub no pudo convertir en imágenes las páginas de ${file}.`,
+    render_failed: `El hub no pudo convertir en imágenes las páginas ${ofFile(cause.name)}.`,
     // A HEIC photo, which the Mac turns into JPEG before uploading it.
     photo_unreadable: `macOS no pudo leer la foto ${file} para pasarla a JPEG.`,
     photo_jpeg_failed: `macOS no pudo pasar ${file} a JPEG.`,
@@ -124,6 +130,9 @@ export const attachmentsCopy = {
     pastedImage: "Imagen pegada.png",
     pastedText: "Texto pegado.txt",
     failed: (name: string, code: string) => `No se pudo adjuntar “${name}” (${code}).`,
+    // Uploading, «Ver» or «Abrir» with the hub stopped or out of reach.
+    hubUnreachable: (name: string) =>
+      `Sin conexión con el hub: inténtalo con “${name}” cuando vuelva.`,
     windowTextMissing: (cause: string) =>
       WINDOW_TEXT_MISSING[cause] ??
       `No se pudo leer su texto (causa ${cause}); va sólo la captura.`,

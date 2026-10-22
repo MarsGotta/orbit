@@ -8,6 +8,15 @@ use serde::{Deserialize, Serialize};
 /// implicit agent.
 pub const IMPLICIT_AGENT_ID: &str = "default";
 
+/// The agents the Mac takes from one hub. Every one rides the status topic,
+/// whose frame it protects: 32 at the hub's own bounds (a 32-byte id, a
+/// 48-character name, each character up to four bytes) take about 7.6 KiB
+/// of it (`TopicId::Status`). Sixteen times the two the self-hosting guide
+/// configures; not measured with users. A longer list is refused with its
+/// count, and the Mac keeps the list it had. It does not limit what the hub
+/// itself runs.
+pub const MAX_AGENTS: usize = 32;
+
 /// One agent as the interface shows it: its stable id, the name the user
 /// reads and says aloud, and whether it reads aloud in a voice of its own.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -41,6 +50,10 @@ pub struct AgentRoster {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RosterRefusal {
     Empty,
+    /// More than [`MAX_AGENTS`].
+    TooMany {
+        count: usize,
+    },
     BlankId {
         position: usize,
         count: usize,
@@ -64,6 +77,7 @@ impl RosterRefusal {
     pub fn code(&self) -> &'static str {
         match self {
             Self::Empty => "agents_empty",
+            Self::TooMany { .. } => "agents_too_many",
             Self::BlankId { .. } => "agent_id_blank",
             Self::BlankName { .. } => "agent_name_blank",
             Self::RepeatedId { .. } => "agent_id_repeated",
@@ -75,6 +89,7 @@ impl RosterRefusal {
     pub fn numbers(&self) -> Vec<(&'static str, usize)> {
         match *self {
             Self::Empty => vec![("count", 0)],
+            Self::TooMany { count } => vec![("count", count), ("max", MAX_AGENTS)],
             Self::BlankId { position, count } | Self::BlankName { position, count } => {
                 vec![("position", position), ("count", count)]
             }
@@ -90,10 +105,10 @@ impl RosterRefusal {
 
 impl AgentRoster {
     /// The list a hub sent with `ready`. The Mac relies on a non-empty list
-    /// whose ids are unique and whose default is one of them; a missing
-    /// default is the first agent, as the hub's own rule says. The hub
-    /// refuses an id's syntax and a name's length at its start, so the Mac
-    /// does not repeat those bounds; the hub frame bounds the list's size.
+    /// of at most [`MAX_AGENTS`] whose ids are unique and whose default is
+    /// one of them; a missing default is the first agent, as the hub's own
+    /// rule says. The hub refuses an id's syntax and a name's length at its
+    /// start, so the Mac does not repeat those bounds.
     pub fn admit(
         agents: Vec<Agent>,
         default_agent_id: Option<String>,
@@ -101,6 +116,9 @@ impl AgentRoster {
         let count = agents.len();
         if count == 0 {
             return Err(RosterRefusal::Empty);
+        }
+        if count > MAX_AGENTS {
+            return Err(RosterRefusal::TooMany { count });
         }
         for (index, agent) in agents.iter().enumerate() {
             let position = index + 1;
@@ -264,6 +282,15 @@ mod tests {
                 Some("atlas".to_owned()),
                 RosterRefusal::UnknownDefault { count: 1 },
             ),
+            (
+                (0..=MAX_AGENTS)
+                    .map(|index| agent(&format!("agente-{index}"), "Agente"))
+                    .collect(),
+                None,
+                RosterRefusal::TooMany {
+                    count: MAX_AGENTS + 1,
+                },
+            ),
         ];
         for (agents, default, expected) in cases {
             assert_eq!(AgentRoster::admit(agents, default), Err(expected));
@@ -272,6 +299,14 @@ mod tests {
             RosterRefusal::UnknownDefault { count: 1 }.code(),
             "default_agent_unknown"
         );
+        assert_eq!(
+            RosterRefusal::TooMany { count: 33 }.numbers(),
+            [("count", 33), ("max", MAX_AGENTS)]
+        );
+        let full = (0..MAX_AGENTS)
+            .map(|index| agent(&format!("agente-{index}"), "Agente"))
+            .collect();
+        assert!(AgentRoster::admit(full, None).is_ok());
     }
 
     #[test]
