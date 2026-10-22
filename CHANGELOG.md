@@ -7,6 +7,21 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-22
+
+### Upgrading
+
+- **Upgrade the hub first, then the Macs.** A 0.10.0 Mac works with a 0.9.0
+  hub, and a 0.9.0 Mac with a 0.10.0 hub, as one agent without attachments;
+  the new features need both.
+- **A 0.9.0 `orbit.toml` loads unchanged** as one Hermes agent. Several agents
+  are configured with `[[agents]]` (see the self-hosting guide); with them,
+  `profile` and `assistant_name` move into each entry and are refused at the
+  top level.
+- Claude Code and Codex agents need their Agent Client Protocol adapters
+  installed and signed in on the hub's server; Orbit never handles those
+  credentials.
+
 ### Added
 
 - `CONTRIBUTING.md`, `SECURITY.md` and this changelog.
@@ -127,6 +142,20 @@ is in Spanish; the labels quoted below are the ones it shows.
   the clip's size and its ceiling.
 - On a fresh machine the gate prepares the hub's environment before the guards,
   whose hub publish tests build a release with `uv` offline from its cache.
+### Compatibility
+
+- The 0.10.0 hub adds an `agent_id` column to its conversations and tables for
+  each agent's settings and for attachments. A 0.9.0 hub cannot create
+  conversations in that database («table sessions has 8 columns but 7 values
+  were supplied», measured on a synthetic database). To go back, stop the hub
+  and run `ALTER TABLE sessions DROP COLUMN agent_id` on its database (SQLite
+  3.35 or newer): 0.9.0 then works, every conversation belongs to the default
+  agent, and attachments and agent settings are no longer read.
+- The Mac's saved state only gains optional fields that 0.9.0 ignores; the
+  hub's agent list goes in a new file, `hub-agents.toml`, and `config.toml` is
+  written as 0.9.0 reads it. To go back, quit Orbit and install 0.9.0. It does
+  not show the assistant folders, which 0.10.0 finds again.
+- Downgrading the Mac has not been tested.
 
 ## [0.9.0] - 2026-10-21
 
