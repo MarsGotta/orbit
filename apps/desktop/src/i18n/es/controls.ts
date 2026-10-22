@@ -5,6 +5,8 @@ export const controls = {
     saved: "✓ Guardado",
     waitingForMacos: "Esperando a macOS…",
     cancel: "Cancelar",
+    save: "Guardar",
+    waiting: "Esperando…",
     close: "Cerrar",
     escToClose: "esc para cerrar",
   },

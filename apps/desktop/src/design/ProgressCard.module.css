@@ -1,0 +1,65 @@
+.card {
+  padding: var(--o-space-12) var(--o-space-14);
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-lg);
+  background: var(--o-surface);
+  animation: orbit-in var(--o-dur-in) var(--o-ease);
+}
+
+/* A failure keeps the card, in amber, until it is closed. */
+.card[data-tone="warn"] {
+  border-color: transparent;
+  background: var(--o-warnSoft);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-10);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--o-warn);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  font: var(--o-text-control);
+  font-weight: 400;
+}
+
+.remaining {
+  flex: none;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+/* A bar of 4 under the text. */
+.track {
+  height: 4px;
+  margin-top: var(--o-space-10);
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--o-raised);
+}
+
+.bar {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--o-accText);
+  transition: width var(--o-dur-in) var(--o-ease);
+}
+
+.redone {
+  transition: opacity var(--o-dur-in);
+}
+
+.redone[data-dimmed="true"] {
+  opacity: 0.5;
+}

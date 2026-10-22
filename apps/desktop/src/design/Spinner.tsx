@@ -1,14 +1,15 @@
 import type { CSSProperties, ReactNode } from "react";
 import styles from "./Spinner.module.css";
 
-export type SpinnerSize = 12 | 14 | 16 | 20;
+/** 13 is the progress card's. */
+export type SpinnerSize = 12 | 13 | 14 | 16 | 20;
 
 /** «Gira»: something under way that will end by itself. Never alone on screen: see `Loading`. */
-export function Spinner({ size = 14 }: { size?: SpinnerSize }) {
+export function Spinner({ size = 14, accent = false }: { size?: SpinnerSize; accent?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className={styles.spinner}
+      className={`${styles.spinner} ${accent ? styles.accent : ""}`}
       style={{ "--spinner-size": `${size}px` } as CSSProperties}
     />
   );

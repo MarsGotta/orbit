@@ -1,0 +1,102 @@
+.annex > div > section {
+  flex: 1;
+}
+
+.sample {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.wordHover,
+.selected {
+  margin: 0 -2px;
+  padding: 1px 2px;
+  border-radius: var(--o-radius-xs);
+}
+
+.wordHover {
+  background: var(--o-wordHover);
+}
+
+.selected {
+  background: var(--o-sel);
+}
+
+.below {
+  margin-top: var(--o-space-24);
+}
+
+.icons {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px 16px;
+}
+
+.avatars {
+  gap: var(--o-space-12);
+  margin-bottom: var(--o-space-10);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-6);
+  margin-top: var(--o-space-24);
+  padding: var(--o-space-10) var(--o-space-12);
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-xl);
+}
+
+.headerName {
+  margin: 0 var(--o-space-4);
+  font: var(--o-text-h3);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 64px;
+  padding: var(--o-space-8) var(--o-space-10);
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-md);
+  background: var(--o-bg);
+  color: var(--o-ink);
+  font: var(--o-text-body);
+  resize: none;
+}
+
+.transcript {
+  max-width: 760px;
+  margin-top: 280px;
+}
+
+.answer {
+  max-width: 520px;
+  margin: 0 0 var(--o-space-6);
+}
+
+/* As a transcript draws a word: its ground under the mouse, `--o-sel` while its menu is open. */
+.word {
+  display: inline;
+  margin: 0 -2px;
+  padding: 1px 2px;
+  border: 0;
+  border-radius: var(--o-radius-xs);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.word:hover {
+  background: var(--o-wordHover);
+}
+
+.word[aria-expanded="true"] {
+  background: var(--o-sel);
+}

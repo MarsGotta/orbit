@@ -1,0 +1,29 @@
+.anchor {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+/* 12 / 500, 4 × 8, radius 6, the text's colour as its ground, no arrow; 6 points away. */
+.tip {
+  position: absolute;
+  z-index: 60;
+  left: 50%;
+  translate: -50% 0;
+  padding: var(--o-space-4) var(--o-space-8);
+  border-radius: var(--o-radius-sm);
+  background: var(--o-ink);
+  color: var(--o-bg);
+  font: 500 12px/1.4 var(--o-font-sans);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: orbit-in var(--o-dur-fast) var(--o-ease);
+}
+
+.tip[data-placement="above"] {
+  bottom: calc(100% + var(--o-space-6));
+}
+
+.tip[data-placement="below"] {
+  top: calc(100% + var(--o-space-6));
+}

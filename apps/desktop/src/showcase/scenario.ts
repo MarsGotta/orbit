@@ -51,8 +51,11 @@ export interface Scenario {
   description: string;
   /** The floating call panel instead of the main window. */
   panel?: boolean;
-  /** The design system's sheet instead of the app: its components in their states, no daemon. */
-  sheet?: boolean;
+  /**
+   * The design system's sheet instead of the app: its components in their
+   * states, no daemon. `annex` is the sheet of the annex's components.
+   */
+  sheet?: true | "annex";
   /**
    * The window's size in points, as the app gives it: the main window is
    * 1440 × 900 and the panel 340 points wide, as tall as its card

@@ -1,0 +1,63 @@
+.button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--o-radius-md);
+  background: transparent;
+  color: var(--o-ink2);
+  cursor: pointer;
+  transition:
+    background var(--o-dur-fast),
+    color var(--o-dur-fast);
+}
+
+.button:hover:not(:disabled) {
+  background: var(--o-hover);
+}
+
+/* While the menu it opens is open. */
+.button[aria-expanded="true"] {
+  background: var(--o-raised);
+}
+
+.button:disabled {
+  color: var(--o-ink3);
+  cursor: not-allowed;
+}
+
+.button[data-echo="done"] {
+  color: var(--o-ok);
+}
+
+.button[data-echo="active"] {
+  background: var(--o-accSoft);
+  color: var(--o-accText);
+}
+
+.size28 {
+  width: 28px;
+  height: 28px;
+}
+
+.size30 {
+  width: 30px;
+  height: 30px;
+}
+
+.size34 {
+  width: 34px;
+  height: 34px;
+}
+
+/* «Copiado», read out once; nothing on screen beyond the ✓. */
+.announce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

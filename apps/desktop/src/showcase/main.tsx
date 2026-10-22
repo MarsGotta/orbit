@@ -9,6 +9,7 @@ import { startShowcaseClock } from "./clock";
 import { NOW } from "./data/time";
 import { followTheme } from "../design/theme";
 import { ShowcaseIndex } from "./ShowcaseIndex";
+import { AnnexSheet } from "./sheet/AnnexSheet";
 import { DesignSheet } from "./sheet/DesignSheet";
 import { installDaemon, publish } from "./ipc";
 import type { Scenario } from "./scenario";
@@ -39,8 +40,8 @@ function show(scenario: Scenario, root: HTMLElement): void {
   const params = new URLSearchParams(window.location.search);
   prepareStorage(scenario, params.get("tema"));
   followTheme();
-  if (scenario.sheet === true) {
-    createRoot(root).render(<DesignSheet />);
+  if (scenario.sheet !== undefined) {
+    createRoot(root).render(scenario.sheet === "annex" ? <AnnexSheet /> : <DesignSheet />);
     if (window.__showcase) window.__showcase.settled = true;
     return;
   }

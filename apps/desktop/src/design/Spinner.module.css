@@ -9,6 +9,11 @@
   animation: orbit-spin var(--o-dur-spin) linear infinite;
 }
 
+/* A long piece of work the person started: «Volviendo a transcribir…». */
+.accent {
+  border-top-color: var(--o-accText);
+}
+
 .loading {
   display: inline-flex;
   align-items: center;

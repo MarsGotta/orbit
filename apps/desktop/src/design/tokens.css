@@ -37,6 +37,10 @@
   --o-skel: #222227;
   --o-skel2: #2c2c33;
   --o-mark: rgba(245, 181, 68, 0.28);
+  /* Selected text in the note editor, and a transcript word with its menu open. */
+  --o-sel: rgba(139, 124, 246, 0.35);
+  /* A transcript word under the mouse. */
+  --o-wordHover: rgba(139, 124, 246, 0.2);
   --o-scrim: rgba(0, 0, 0, 0.55);
   --o-shadow: 0 18px 48px -16px rgba(0, 0, 0, 0.7);
   color-scheme: dark;
@@ -77,6 +81,8 @@
     --o-skel: #efeff1;
     --o-skel2: #e4e4e7;
     --o-mark: rgba(245, 181, 68, 0.35);
+    --o-sel: rgba(91, 75, 219, 0.22);
+    --o-wordHover: rgba(91, 75, 219, 0.12);
     --o-scrim: rgba(24, 24, 27, 0.32);
     --o-shadow: 0 18px 48px -20px rgba(24, 24, 27, 0.28);
     color-scheme: light;
@@ -116,6 +122,8 @@
   --o-skel: #efeff1;
   --o-skel2: #e4e4e7;
   --o-mark: rgba(245, 181, 68, 0.35);
+  --o-sel: rgba(91, 75, 219, 0.22);
+  --o-wordHover: rgba(91, 75, 219, 0.12);
   --o-scrim: rgba(24, 24, 27, 0.32);
   --o-shadow: 0 18px 48px -20px rgba(24, 24, 27, 0.28);
   color-scheme: light;

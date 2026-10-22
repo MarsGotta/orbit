@@ -1,0 +1,12 @@
+.text {
+  margin: var(--o-space-4) 0 0;
+  color: var(--o-ink2);
+  font: var(--o-text-control);
+  font-weight: 400;
+}
+
+.note {
+  margin: var(--o-space-8) 0 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}

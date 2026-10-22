@@ -106,7 +106,13 @@ const icons = {
       <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
     </>,
   ],
-  edit: [2, <path d="M4 20h4L19 9l-4-4L4 16z" />],
+  edit: [
+    1.8,
+    <>
+      <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z" />
+      <path d="M13.5 6.5l4 4" />
+    </>,
+  ],
   refresh: [
     1.8,
     <path d="M20 11a8 8 0 0 0-14.3-4.3L4 9M4 4v5h5M4 13a8 8 0 0 0 14.3 4.3L20 15M20 20v-5h-5" />,
@@ -119,6 +125,33 @@ const icons = {
   previous: [2, <path d="M15 6l-6 6 6 6" />],
   next: [2, <path d="M9 6l6 6-6 6" />],
   chevron: [2, <path d="M6 9l6 6 6-6" />],
+  // The annex's icons: an assistant's settings, the actions under an answer and an image's.
+  gear: [
+    1.8,
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+    </>,
+  ],
+  copy: [
+    1.8,
+    <>
+      <rect x="8.5" y="8.5" width="11" height="11" rx="2.5" />
+      <path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2" />
+    </>,
+  ],
+  listen: [
+    1.8,
+    <>
+      <path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" />
+      <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
+    </>,
+  ],
+  // «Parar» while an answer is heard: the prototype's square, not in the annex's files.
+  stop: [null, <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />],
+  download: [1.8, <path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14" />],
+  expand: [1.8, <path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />],
+  conversation: [1.8, <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-5A8 8 0 1 1 21 12z" />],
   themeLight: [
     1.8,
     <>
@@ -147,7 +180,8 @@ const icons = {
 export type IconName = keyof typeof icons;
 /** Every icon, in the order above (the showcase draws them all). */
 export const iconNames = Object.keys(icons) as IconName[];
-export type IconSize = 14 | 16 | 18 | 20;
+/** 15 is the annex's, for the icon buttons of 28 and 30 points. */
+export type IconSize = 14 | 15 | 16 | 18 | 20;
 
 export interface IconProps {
   name: IconName;

@@ -1,0 +1,73 @@
+.avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-family: var(--o-font-sans);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.c1 {
+  background-color: var(--o-c1s);
+  color: var(--o-c1);
+}
+
+.c2 {
+  background-color: var(--o-c2s);
+  color: var(--o-c2);
+}
+
+.c3 {
+  background-color: var(--o-c3s);
+  color: var(--o-c3);
+}
+
+.c4 {
+  background-color: var(--o-c4s);
+  color: var(--o-c4);
+}
+
+/* Each size with the initial's size the prototype gives it. */
+.size18 {
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+}
+
+.size20 {
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+}
+
+.size26 {
+  width: 26px;
+  height: 26px;
+  font-size: 12px;
+}
+
+.size28 {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+
+.size36 {
+  width: 36px;
+  height: 36px;
+  font-size: 15px;
+}
+
+.size40 {
+  width: 40px;
+  height: 40px;
+  font-size: 17px;
+}
+
+.size56 {
+  width: 56px;
+  height: 56px;
+  font-size: 22px;
+}

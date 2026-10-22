@@ -1,4 +1,4 @@
-import { useId, type ButtonHTMLAttributes, type MouseEvent, type ReactNode } from "react";
+import { useId, type ButtonHTMLAttributes, type MouseEvent, type ReactNode, type Ref } from "react";
 import { es } from "../i18n/es";
 import type { Feedback } from "./feedback";
 import { Spinner } from "./Spinner";
@@ -24,6 +24,8 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   feedback?: Feedback;
   pendingLabel?: string;
   doneLabel?: string;
+  /** A confirmation or a menu hangs from it. */
+  ref?: Ref<HTMLButtonElement>;
 }
 
 export function Button({

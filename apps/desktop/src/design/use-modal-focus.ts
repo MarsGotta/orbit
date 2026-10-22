@@ -1,8 +1,14 @@
 import { useEffect, useRef } from "react";
 
-/** Keep keyboard focus in an open modal and return it to its caller on close. */
-export function useModalFocus(open: boolean) {
+/**
+ * Keep keyboard focus in an open modal and return it to its caller on close:
+ * to `returnTo` when given (the control a menu hangs from, which WebKit does
+ * not focus on a press), otherwise to whatever had the focus before.
+ */
+export function useModalFocus(open: boolean, returnTo?: HTMLElement | null) {
   const panel = useRef<HTMLElement>(null);
+  const back = useRef(returnTo);
+  back.current = returnTo;
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement;
@@ -29,7 +35,8 @@ export function useModalFocus(open: boolean) {
     element?.addEventListener("keydown", trap);
     return () => {
       element?.removeEventListener("keydown", trap);
-      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+      const target = back.current?.isConnected ? back.current : previous;
+      if (target instanceof HTMLElement && target.isConnected) target.focus();
     };
   }, [open]);
   return panel;

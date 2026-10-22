@@ -1,0 +1,29 @@
+/* Padding 16, radius 12, the second line as its border, the raised shadow. */
+.card {
+  position: fixed;
+  z-index: 70;
+  max-width: calc(100vw - 16px);
+  padding: var(--o-space-16);
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-xl);
+  background: var(--o-surface);
+  box-shadow: var(--o-shadow);
+  color: var(--o-ink);
+  font: var(--o-text-body);
+  font-size: 13px;
+  text-align: left;
+  animation: orbit-in 150ms var(--o-ease);
+}
+
+.title {
+  margin: 0;
+  font: 600 14px/1.35 var(--o-font-sans);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--o-space-6);
+  margin-top: var(--o-space-14);
+}
