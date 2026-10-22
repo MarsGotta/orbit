@@ -33,7 +33,7 @@ export const recordingScenarios: Scenario[] = [
     id: "grabar-lanzador",
     state: "Empezar a grabar",
     description: "«Grabar reunión» abre «Nueva grabación»: qué reunión, qué audio y cuánto dura.",
-    ready: "text=Pendiente de la última vez",
+    ready: "text=Agenda de hoy",
     steps: [{ click: "role=button[name='Grabar reunión']" }, { wait: "role=dialog" }],
   }),
   record({

@@ -20,40 +20,13 @@ const pill = (
 
 export const shellScenarios: Scenario[] = [
   {
-    id: "hoy",
-    view: "Hoy",
-    state: "Un día normal",
-    description:
-      "El resumen del día: saludo, la próxima reunión con lo pendiente de la anterior y la agenda.",
-    route: "#/briefing",
-    ready: "text=Pendiente de la última vez",
-  },
-  {
-    id: "hoy-sin-reuniones",
-    view: "Hoy",
-    state: "Sin reuniones",
-    description: "Un día sin reuniones en la agenda: el resumen lo dice y ofrece grabar.",
-    route: "#/briefing",
-    views: (base) => ({
-      ...base,
-      briefing: base.briefing && {
-        ...base.briefing,
-        summary: { meetings_today: 0, focus_minutes: 480 },
-        next: null,
-        upcoming: [],
-        agenda: [],
-      },
-    }),
-    ready: "text=Agenda de hoy",
-  },
-  {
     id: "paleta",
     view: "Paleta de órdenes",
     state: "Abierta",
     description:
       "«Preguntar a Deimos» (⌘⇧␣): llamar, mandar una nota de voz, preparar la siguiente reunión o grabar.",
     route: "#/briefing",
-    ready: "text=Pendiente de la última vez",
+    ready: "text=Agenda de hoy",
     steps: [{ click: "role=button[name=/Preguntar a/]" }, { wait: "role=dialog" }],
   },
   {

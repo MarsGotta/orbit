@@ -1,74 +1,63 @@
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { BriefingSnapshot } from "../../bridge/generated/BriefingSnapshot";
+import type { CalendarReadingBlocker } from "../../bridge/generated/CalendarReadingBlocker";
 import { TextLink } from "../../design/TextLink";
 import { es } from "../../i18n/es";
-import { useUiStore } from "../../state/ui";
-import { timeLabel } from "../calendar/date";
+import { AgendaRows } from "./AgendaRows";
+import { DayTimeline } from "./DayTimeline";
 import styles from "./BriefingView.module.css";
 
 interface Props {
   briefing: BriefingSnapshot;
   snapshot: AppSnapshot;
+  /** The present instant; the suite's pinned clock when not given. */
+  nowMs?: number;
 }
 
 /**
- * Whether today's agenda is known. Unknown is never «no meetings» and says
- * nothing; only a missing permission has words: how to grant it.
+ * Whether today's agenda is known. Unknown is never «no meetings»: it is
+ * being read, or a missing permission, a stop or a refusal says why not.
  */
-export type AgendaStatus = { known: true } | { known: false; text: string | null };
-
-const unknown: AgendaStatus = { known: false, text: null };
-
-export function BriefingSections({ briefing, snapshot }: Props) {
-  return <AgendaSection briefing={briefing} snapshot={snapshot} />;
-}
+export type AgendaStatus =
+  | { state: "known" }
+  | { state: "reading" }
+  | { state: "permission"; authorization: "not_determined" | "denied" }
+  | { state: "blocked"; blocker: Exclude<CalendarReadingBlocker, "calendar_permission"> }
+  | { state: "failed"; cause: string };
 
 export function briefingAgendaStatus(snapshot: AppSnapshot): AgendaStatus {
   const source = snapshot.briefing?.sources?.agenda;
-  if (source?.state === "present") return { known: true };
+  if (source?.state === "present") return { state: "known" };
   const calendar = snapshot.calendar;
-  if (calendar.authorization === "denied" || calendar.reading.blocker === "calendar_permission")
-    return { known: false, text: es.briefing.calendarPermission };
-  if (source !== undefined) return unknown;
+  const blocker = calendar.reading.blocker;
+  if (calendar.authorization === "denied") return { state: "permission", authorization: "denied" };
+  if (calendar.authorization === "not_determined" || blocker === "calendar_permission")
+    return { state: "permission", authorization: "not_determined" };
+  if (blocker !== undefined) return { state: "blocked", blocker };
+  if (source?.state === "absent") return { state: "failed", cause: source.cause };
+  if (source !== undefined) return { state: "reading" };
   return calendar.authorization === "granted" &&
     calendar.reading.state === "available" &&
     !calendar.stale
-    ? { known: true }
-    : unknown;
+    ? { state: "known" }
+    : { state: "reading" };
 }
 
-function AgendaSection({ briefing, snapshot }: Pick<Props, "briefing" | "snapshot">) {
-  const status = briefingAgendaStatus(snapshot);
-  const openCalendarEvent = useUiStore((state) => state.openCalendarEvent);
-  const empty = status.known ? es.briefing.noEvents : status.text;
+/** «Agenda de hoy»: the day from 8:00 to 20:00 and its meetings. */
+export function BriefingSections({ briefing, snapshot, nowMs = Date.now() }: Props) {
+  const timezone = snapshot.system_timezone ?? "UTC";
+  const meeting = snapshot.meeting as AppSnapshot["meeting"] | undefined;
+  // While a meeting records, the card above holds the day's moment: the
+  // list is enough (Grabando.dc.html draws no line of the day).
+  const recording = meeting !== undefined && meeting.phase !== "idle";
   return (
-    <section aria-label={es.briefing.agenda} className={`${styles.panel} ${styles.agenda}`}>
-      <header>
-        <h2>{es.briefing.agenda}</h2>
-        <TextLink href="#/calendar">{es.briefing.week}</TextLink>
+    <section aria-labelledby="hoy-agenda" className={`${styles.card} ${styles.agenda}`}>
+      <header className={styles.agendaHeader}>
+        <h2 id="hoy-agenda">{es.briefing.agenda}</h2>
+        <TextLink href="#/calendar">{es.briefing.seeWeek}</TextLink>
       </header>
-      {briefing.agenda.length === 0 ? (
-        empty !== null && <p className={styles.emptyCopy}>{empty}</p>
-      ) : (
-        <ul className={styles.agendaRows}>
-          {briefing.agenda.map((row) => {
-            return (
-              <li aria-label={row.title} key={row.event_id}>
-                <time>{timeLabel(row.start_ms, snapshot.system_timezone)}</time>
-                <span className={styles.eventColor} data-color={row.color} />
-                <button onClick={() => openCalendarEvent(row.event_id)} type="button">
-                  {row.title}
-                </button>
-                <span>
-                  {row.people_count === undefined
-                    ? row.people_label
-                    : es.briefing.peopleCount(row.people_count)}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {!recording && <DayTimeline agenda={briefing.agenda} nowMs={nowMs} timezone={timezone} />}
+      <AgendaRows briefing={briefing} meeting={meeting} nowMs={nowMs} timezone={timezone} />
     </section>
   );
 }

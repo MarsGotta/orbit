@@ -1,3 +1,15 @@
+import { globalShortcuts } from "./shortcuts";
+
+/** «2 h 45 min», «45 min», «2 h»: how Hoy says a length of time. */
+function duration(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest} min`;
+  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
+}
+
+const pendingLabel = "lo pendiente de la última vez";
+
 export const briefing = {
   briefing: {
     morning: "Buenos días",
@@ -5,35 +17,83 @@ export const briefing = {
     night: "Buenas noches",
     // Without the Mac's zone the hour of the day is not known.
     hello: "Hola",
-    weekNumber: (week: number) => `semana ${week}`,
-    summaryMeetings: "reuniones",
-    summaryMeeting: "reunión",
-    zeroMeetings: "0 reuniones",
-    focus: "de foco",
-    startsIn: "Empieza en",
-    inProgress: "En curso",
-    nextPrefix: "Siguiente:",
-    minutes: "min",
-    recording: "Grabando",
+    week: (week: number) => `semana ${week}`,
+    daySentence: (meetings: number, focusMinutes: number) => {
+      if (meetings === 0) return "Hoy no tienes reuniones.";
+      const count = meetings === 1 ? "1 reunión" : `${meetings} reuniones`;
+      return focusMinutes === 0
+        ? `Hoy tienes ${count} y ningún hueco libre para concentrarte.`
+        : `Hoy tienes ${count} y ${duration(focusMinutes)} libres para concentrarte.`;
+    },
+    nextStartsIn: (minutes: number) => `Siguiente · empieza en ${duration(minutes)}`,
+    nextNow: "Ahora · en curso",
+    videoCall: "videollamada",
+    withPeople: (names: string[]) =>
+      `Con ${new Intl.ListFormat("es", { type: "conjunction" }).format(names)}`,
     previousTitle: (title: string) => `Nota anterior: ${title}`,
-    // What the previous note of the series left open.
-    agendaTopics: "Pendiente de la última vez",
-    // Kept in this Mac only: it never reaches the hub or the note.
-    personalNote: "Recordatorio personal",
-    personalNotePlaceholder: "Algo que no quieras olvidar…",
-    personalNoteHelp: "Solo lo ves tú, en este Mac. No va a la nota.",
     joinRecord: "Unirse y grabar",
-    finish: "Terminar",
+    // An event with no video call has nothing to join.
+    onlyRecord: "Solo grabar",
     previousNote: "Abrir nota anterior",
-    // The agenda not read yet says nothing; without the permission
-    // it says how to grant it.
-    calendarPermission: "Concede el permiso de Calendarios para ver tu agenda.",
-    timezoneFailed: "No se pudo leer la zona horaria del Mac.",
-    peopleCount: (count: number) =>
-      count === 0 ? "solo" : count === 1 ? "1 persona" : `${count} personas`,
+    pending: "Pendiente de la última vez",
+    pendingReading: `Leyendo ${pendingLabel}…`,
+    pendingFailed: `No se pudo leer ${pendingLabel}.`,
+    pendingFirst: "Es la primera de esta serie: no hay nada pendiente.",
+    pendingNone: "No quedó nada pendiente.",
+    pendingNoNote: "La última vez no se escribió nota: no se sabe qué quedó pendiente.",
+    pendingWriting: "La nota de la última vez aún se está escribiendo.",
+    pendingNoteFailed: "La nota de la última vez no se pudo escribir.",
+    pendingTask: (owner: string | null, text: string) =>
+      owner === null || owner === "" ? text : `${owner}: ${text}`,
+    reminder: "Recordatorio personal",
+    reminderPlaceholder: "Algo que no quieras olvidar…",
+    reminderHelp: "Solo lo ves tú, en este Mac. No va a la nota.",
+    recordingClock: (clock: string) => `Grabando · ${clock}`,
+    paused: "En pausa",
+    recordingHint:
+      "Mientras grabas, apunta lo que no quieras olvidar. Orbit lo usará para escribir la nota.",
+    recordsUntil: (clock: string) => `Graba hasta las ${clock}`,
+    privateNotes: "Apuntar en mis notas privadas",
+    finish: "Terminar",
+    during: "Durante la reunión",
+    askAloud: "Preguntar en voz alta",
+    heyDeimos: "«Oye Deimos…»",
+    askSilently: "Preguntar sin hablar",
+    pttShortcut: globalShortcuts.ptt,
+    finishAnywhere: "Terminar desde cualquier app",
+    // The helper's `meeting_toggle` (GlobalHotkeys.swift).
+    meetingShortcut: "⌃⌥M",
     agenda: "Agenda de hoy",
-    week: "Ver la semana",
-    noEvents: "Hoy no tienes reuniones",
-    noUpcoming: "No quedan reuniones hoy",
+    seeWeek: "Ver la semana",
+    dayLine: (now: string | null) =>
+      now === null ? "Tu día de 8:00 a 20:00." : `Tu día de 8:00 a 20:00. Ahora son las ${now}.`,
+    noteReady: "Nota lista",
+    recording: "Grabando",
+    peopleCount: (count: number) =>
+      count === 0 ? "Solo tú" : count === 1 ? "1 persona" : `${count} personas`,
+    readingAgenda: "Leyendo tu agenda…",
+    agendaFailed: "No se pudo leer tu agenda.",
+    noMeetingsTitle: "Nada en tu agenda hoy",
+    noneLeftTitle: "No te quedan reuniones hoy",
+    noMeetingsText: "Si surge una, grábala y Orbit escribirá la nota por ti.",
+    record: "Grabar reunión",
+    calendarTitle: "Conecta tu calendario",
+    calendarText:
+      "Orbit usa los calendarios de tu Mac (iCloud, Google, Exchange…) y no guarda una copia.",
+    calendarAllow: "Permitir acceso al calendario",
+    calendarHint: "¿Lo denegaste antes? Actívalo en Ajustes del Sistema.",
+    calendarDenied: "Orbit no tiene acceso a tus calendarios. Actívalo en Ajustes del Sistema.",
+    openSystemSettings: "Abrir Ajustes del Sistema",
+    // What stops the agenda when the permission is there; the top bar's
+    // notice carries the button that fixes it.
+    blocked: {
+      privacy_stopped: "Todo está parado: Orbit no lee tu agenda hasta que lo reactives.",
+      helper_not_running:
+        "Orbit no puede leer tu agenda ahora: la parte que la lee no está en marcha.",
+      not_paired: "Para ver tu agenda, empareja este Mac con tu hub.",
+      mac_disconnected: "Este Mac no está conectado: tu agenda se verá cuando vuelva.",
+    },
+    timezoneFailed:
+      "No se pudo leer la zona horaria del Mac, así que Hoy no puede situar tus reuniones.",
   },
 } as const;

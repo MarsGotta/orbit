@@ -39,9 +39,27 @@ export const nextReview: BriefingNextSnapshot = {
     title: "Revisión del diseño de reservas",
     summary:
       "Se acordó simplificar el paso de pago y probar el calendario semanal con cinco hoteles del piloto.",
-    open_items: [
-      "Marta: prototipo del paso de pago en una sola pantalla",
-      "Javier: medir cuánto tarda la disponibilidad en cargar",
+    open_items: [],
+  },
+  previous_actions: {
+    state: "known",
+    recording_id: "rec-review-14",
+    note_revision: 3,
+    items: [
+      {
+        id: "act-pay",
+        owner: "Marta",
+        text: "prototipo del paso de pago en una sola pantalla",
+        due: null,
+        done: false,
+      },
+      {
+        id: "act-load",
+        owner: "Javier",
+        text: "medir cuánto tarda la disponibilidad en cargar",
+        due: null,
+        done: false,
+      },
     ],
   },
   recording: "none",

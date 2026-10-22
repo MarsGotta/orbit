@@ -38,3 +38,15 @@ export function nextMeeting(briefing: BriefingSnapshot, nowMs: number) {
     (meeting) => meeting.end_ms > nowMs,
   );
 }
+
+/** Minutes since the local midnight of `atMs`, as the Mac's clock reads them. */
+export function localMinutes(atMs: number, timezone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "numeric",
+    hourCycle: "h23",
+    timeZone: timezone,
+  }).formatToParts(atMs);
+  const value = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return value("hour") * 60 + value("minute");
+}

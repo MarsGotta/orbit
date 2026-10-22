@@ -1,282 +1,469 @@
+/* Hoy (prototype Main.dc.html, Grabando.dc.html): one column of 860 px. */
 .page {
   min-height: 100%;
-  padding: 28px 32px 120px;
-  overflow-y: auto;
+  padding: var(--o-space-32) var(--o-space-40) var(--o-space-40);
+  background: var(--o-bg);
+  color: var(--o-ink);
 }
-.content {
-  width: min(100%, 1080px);
+
+.column {
+  display: flex;
+  max-width: var(--o-w-hoyMax);
+  flex-direction: column;
+  gap: var(--o-space-16);
   margin: 0 auto;
+  animation: orbit-in var(--o-dur-in) var(--o-ease) both;
 }
+
 .hero {
-  margin-bottom: 24px;
+  margin-bottom: var(--o-space-8);
 }
-.date,
-.nextHeader strong,
-.panel h2,
-.topics h3 {
-  color: var(--o-ink2);
-  font-size: var(--o-font-11);
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
+
 .date {
   color: var(--o-ink3);
-  letter-spacing: 0.12em;
+  font-size: 13px;
 }
+
 .hero h1 {
-  margin: 8px 0 6px;
-  font-family: var(--o-font-sans);
-  font-size: var(--o-font-30);
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  margin: var(--o-space-4) 0 var(--o-space-2);
+  font: var(--o-text-title);
+  letter-spacing: var(--o-tracking-title);
+  line-height: 1.25;
 }
-.hero p,
-.empty p {
-  max-width: 62ch;
+
+.hero p {
   margin: 0;
   color: var(--o-ink2);
-  font-size: var(--o-font-14);
-  line-height: 1.55;
+  font: var(--o-text-body);
 }
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  align-items: start;
-}
-.nextCard,
-.panel,
-.empty,
-.emptyMeeting {
+
+/* A card: surface, a line, no shadow; parts inside are split by a line. */
+.card {
+  margin: 0;
   border: 1px solid var(--o-line);
-  border-radius: var(--o-radius-20);
-  background: var(--o-side);
+  border-radius: 14px;
+  background: var(--o-surface);
 }
-.nextCard,
-.agenda,
-.emptyMeeting {
-  grid-column: 1 / -1;
+
+/* The next meeting, or the one being recorded. */
+.next {
+  padding: 22px var(--o-space-24);
 }
-.nextCard {
-  overflow: hidden;
-}
+
 .nextHeader {
   display: flex;
-  min-height: 44px;
   align-items: center;
-  gap: 10px;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--o-line);
+  gap: var(--o-space-8);
+  font-size: 13px;
 }
-.nextHeader > :last-child {
+
+.nextHeader strong {
+  color: var(--o-accText);
+  font-weight: 600;
+}
+
+.nextHeader > span:last-child:not(:first-child) {
   margin-left: auto;
   color: var(--o-ink3);
-  font-family: var(--o-font-mono);
-  font-size: var(--o-font-11);
+  font-variant-numeric: tabular-nums;
 }
-.liveDot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--o-radius-pill);
+
+.nextDot,
+.recDot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--o-accText);
+}
+
+.recDot {
+  background: var(--o-rec);
+}
+
+.nextHeader[data-phase="recording"] .recDot {
+  animation: orbit-pulse var(--o-dur-pulse) ease-in-out infinite;
+}
+
+.nextHeader[data-phase] strong {
+  color: var(--o-recText);
+}
+
+.nextHeader[data-phase="paused"] strong {
+  color: var(--o-warn);
+}
+
+.nextHeader[data-phase="paused"] .recDot {
   background: var(--o-warn);
 }
-.nextBody {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+
+.next h2 {
+  margin: var(--o-space-10) 0 var(--o-space-4);
+  font: var(--o-text-h2);
+  letter-spacing: var(--o-tracking-h2);
 }
-.meetingInfo,
-.topics {
-  min-width: 0;
-  padding: 18px;
-}
-.meetingInfo {
-  border-right: 1px solid var(--o-line);
-}
-.meetingInfo > p {
-  margin: 12px 0 0;
+
+.lastTime {
+  margin: 0;
   color: var(--o-ink2);
-  font-size: 13.5px;
-  line-height: 1.6;
 }
-.meetingTitle {
+
+.people {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.meetingTitle > span {
-  width: 3px;
-  height: 22px;
-  border-radius: var(--o-radius-pill);
-  background: var(--o-acc);
-}
-.meetingTitle h2 {
-  margin: 0;
-  font-size: var(--o-font-19);
-  letter-spacing: -0.01em;
-}
-.meetingTitle time {
+  gap: var(--o-space-10);
+  margin-top: var(--o-space-12);
   color: var(--o-ink2);
-  font-family: var(--o-font-mono);
-  font-size: var(--o-font-11);
+  font-size: 13px;
 }
-.attendees,
+
+.faces {
+  display: flex;
+}
+
+.faces > span {
+  display: flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--o-surface);
+  border-radius: 50%;
+  background: var(--o-raised);
+  color: var(--o-ink);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.faces > span + span {
+  margin-left: -6px;
+}
+
 .actions {
   display: flex;
-  gap: 7px;
   flex-wrap: wrap;
-  margin-top: 14px;
+  gap: var(--o-space-8);
+  margin-top: 18px;
 }
-.attendee {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px 4px 4px;
-  border-radius: var(--o-radius-pill);
-  background: var(--o-raised);
-  font-size: var(--o-font-12);
-}
-.topics {
-  background: var(--o-bg);
-}
-.topics h3,
-.panel h2 {
-  margin: 0;
-}
-.topics ol {
+
+.split {
   display: grid;
-  gap: 9px;
-  margin: 10px 0 14px;
-  padding-left: 28px;
-  color: var(--o-accText);
-  font-family: var(--o-font-mono);
-  font-size: var(--o-font-11);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+  margin-top: var(--o-space-20);
+  padding-top: var(--o-space-16);
+  border-top: 1px solid var(--o-line);
 }
-.topics li {
-  padding-left: 3px;
-  color: var(--o-ink);
-  font-family: var(--o-font-sans);
-  font-size: var(--o-font-13);
-  line-height: 1.5;
-}
-.savedContext {
-  display: grid;
-  gap: 3px;
-  margin: 0 0 10px;
+
+.pending h3,
+.during h3,
+.reminder label {
+  margin: 0 0 var(--o-space-6);
   color: var(--o-ink2);
-  font-size: var(--o-font-12-5);
+  font-size: 13px;
+  font-weight: 600;
 }
-.savedContext strong {
-  color: var(--o-accText);
-  font-size: var(--o-font-10-5);
-  text-transform: uppercase;
-}
-.panel {
-  padding: 18px;
-}
-.panel > header {
+
+.tasks {
   display: flex;
-  min-height: 22px;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-.panel a {
-  font-size: var(--o-font-12);
-}
-.agendaRows {
-  margin: 0;
+  flex-direction: column;
+  gap: var(--o-space-10);
+  margin: var(--o-space-8) 0 0;
   padding: 0;
   list-style: none;
 }
-.agendaRows li {
+
+.quiet,
+.notice {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 0;
-  border-top: 1px solid var(--o-line);
-  font-size: var(--o-font-13);
-}
-.agendaRows li > span:not(.eventColor) {
-  color: var(--o-ink3);
-  font-size: var(--o-font-11);
-}
-.agendaRows li {
-  gap: 14px;
-}
-.agendaRows time {
-  width: 52px;
-  flex: none;
+  flex-direction: column;
+  gap: var(--o-space-2);
+  margin: 0;
   color: var(--o-ink2);
-  font-family: var(--o-font-mono);
-  font-size: var(--o-font-12);
-}
-.agendaRows button {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  border: 0;
-  background: transparent;
-  color: var(--o-ink);
-  font: inherit;
-  font-weight: 500;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.eventColor {
-  width: 3px;
-  height: 26px;
-  flex: none;
-  border-radius: var(--o-radius-pill);
-  background: var(--o-c1);
-}
-.eventColor[data-color="blue"] {
-  background: var(--o-c2);
-}
-.eventColor[data-color="orange"] {
-  background: var(--o-c4);
-}
-.eventColor[data-color="green"] {
-  background: var(--o-c3);
-}
-.eventColor[data-color="gray"] {
-  background: var(--o-ink2);
-}
-.empty,
-.emptyMeeting {
-  padding: 28px;
-}
-.empty h1 {
-  margin: 0 0 8px;
-  font-family: var(--o-font-sans);
-}
-.empty p {
-  margin-bottom: 18px;
-}
-.emptyMeeting,
-.emptyCopy {
-  color: var(--o-ink2);
-  font-size: var(--o-font-13);
+  font-size: 13px;
 }
 
-@media (max-width: 780px) {
+.quiet small,
+.notice small {
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.notice {
+  padding: var(--o-space-20) var(--o-space-24);
+}
+
+.reminder input {
+  background: var(--o-bg);
+  font-size: 13px;
+}
+
+.during dl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--o-space-6);
+  margin: var(--o-space-8) 0 0;
+  font-size: 13px;
+}
+
+.during dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--o-space-12);
+}
+
+.during dt {
+  color: var(--o-ink2);
+}
+
+.during dd {
+  margin: 0;
+  color: var(--o-ink);
+}
+
+/* «Agenda de hoy». */
+.agenda {
+  padding: 18px var(--o-space-20) var(--o-space-10);
+}
+
+.agendaHeader {
+  display: flex;
+  align-items: center;
+}
+
+.agendaHeader h2 {
+  margin: 0;
+  font: var(--o-text-h3);
+}
+
+.agendaHeader a {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.timeline {
+  position: relative;
+  height: 30px;
+  margin: var(--o-space-14) var(--o-space-4) var(--o-space-4);
+}
+
+.track,
+.slot {
+  position: absolute;
+  top: 6px;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.track {
+  right: 0;
+  left: 0;
+  background: var(--o-raised);
+}
+
+.slot[data-past="true"] {
+  opacity: 0.4;
+}
+
+.nowMark {
+  position: absolute;
+  top: 1px;
+  width: 2px;
+  height: 16px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--o-ink);
+}
+
+.tick {
+  position: absolute;
+  top: 18px;
+  left: var(--at);
+  transform: translateX(-50%);
+  color: var(--o-ink3);
+  font: var(--o-text-tiny);
+  font-weight: 400;
+}
+
+.tick[data-edge="start"] {
+  transform: none;
+}
+
+.tick[data-edge="end"] {
+  right: 0;
+  left: auto;
+  transform: none;
+}
+
+/* A meeting's colour: the dot in the list and its stretch of the day. */
+.slot,
+.dot {
+  background: var(--o-c1);
+}
+
+[data-color="blue"] > .dot,
+.slot[data-color="blue"] {
+  background: var(--o-c2);
+}
+
+[data-color="green"] > .dot,
+.slot[data-color="green"] {
+  background: var(--o-c3);
+}
+
+[data-color="orange"] > .dot,
+.slot[data-color="orange"] {
+  background: var(--o-c4);
+}
+
+[data-color="gray"] > .dot,
+.slot[data-color="gray"] {
+  background: var(--o-ink3);
+}
+
+.agendaRows {
+  display: flex;
+  flex-direction: column;
+  margin: var(--o-space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agendaRow {
+  display: flex;
+  width: calc(100% + 20px);
+  height: 42px;
+  align-items: center;
+  gap: var(--o-space-14);
+  margin: 0 -10px;
+  padding: 0 var(--o-space-10);
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--o-accText);
+  font: var(--o-text-body);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--o-dur-fast);
+}
+
+.agendaRow:hover {
+  background: var(--o-hover);
+}
+
+.agendaRow time {
+  width: 44px;
+  flex: none;
+  color: var(--o-ink3);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.rowTitle {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowDatum {
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.agendaRow[data-past="true"],
+.agendaRow[data-past="true"] time {
+  color: var(--o-ink3);
+}
+
+.agendaRow[data-past="true"] .dot {
+  opacity: 0.5;
+}
+
+.agendaRow[data-next="true"] time,
+.agendaRow[data-next="true"] .rowTitle {
+  color: var(--o-accText);
+  font-weight: 600;
+}
+
+.agendaRow[data-recording="true"] .dot {
+  background: var(--o-rec);
+  animation: orbit-pulse var(--o-dur-pulse) ease-in-out infinite;
+}
+
+.agendaRow[data-recording="true"] .rowDatum {
+  color: var(--o-recText);
+  font-weight: 500;
+}
+
+.nowLine {
+  display: flex;
+  height: 14px;
+  align-items: center;
+  gap: var(--o-space-10);
+  color: var(--o-ink2);
+  font: var(--o-text-tiny);
+  font-weight: 600;
+}
+
+.nowLine > span:first-child {
+  width: 44px;
+  font-variant-numeric: tabular-nums;
+}
+
+.nowLine > span:last-child {
+  height: 1px;
+  flex: 1;
+  background: var(--o-line2);
+}
+
+/* Without the calendar (Estados.dc.html, tile 09). */
+.access {
+  padding-bottom: var(--o-space-20);
+}
+
+.hint {
+  margin: calc(-1 * var(--o-space-16)) 0 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  text-align: center;
+}
+
+/* While the agenda is read. */
+.loadingBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--o-space-16);
+  color: var(--o-ink2);
+  font-size: 13px;
+}
+
+.skeletonGap {
+  margin-top: var(--o-space-16);
+}
+
+.skeletonRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--o-space-20);
+  margin: var(--o-space-20) 0 var(--o-space-14);
+}
+
+@media (max-width: 720px) {
   .page {
-    padding: 22px 18px 96px;
+    padding-inline: var(--o-space-16);
   }
-  .grid {
-    grid-template-columns: 1fr;
-  }
-  .nextBody {
-    grid-template-columns: 1fr;
-  }
-  .meetingInfo {
-    border-right: 0;
-    border-bottom: 1px solid var(--o-line);
-  }
-  .agendaRows li > span:not(.eventColor) {
-    display: none;
+
+  .split {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

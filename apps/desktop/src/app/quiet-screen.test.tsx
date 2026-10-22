@@ -254,24 +254,21 @@ describe("the calendar does not explain what is fine", () => {
 });
 
 describe("the briefing does not turn the unknown into a no", () => {
-  it("an agenda not read yet says nothing, not even «0 reuniones»", () => {
+  it("an agenda not read yet is being read, never «0 reuniones»", () => {
     const value = {
       ...snapshot(),
       briefing: { sources: { agenda: { state: "unknown", cause: "topic_not_observed" } } },
       calendar: { authorization: "granted", reading: { state: "unknown" }, stale: false },
     } as unknown as AppSnapshot;
-    expect(briefingAgendaStatus(value)).toEqual({ known: false, text: null });
+    expect(briefingAgendaStatus(value)).toEqual({ state: "reading" });
   });
 
-  it("without the Calendarios permission it says how to grant it", () => {
+  it("without the Calendarios permission it offers to grant it", () => {
     const value = {
       ...snapshot(),
       briefing: { sources: { agenda: { state: "absent", cause: "calendar_permission_denied" } } },
       calendar: { authorization: "denied", reading: { state: "unavailable" }, stale: false },
     } as unknown as AppSnapshot;
-    expect(briefingAgendaStatus(value)).toEqual({
-      known: false,
-      text: "Concede el permiso de Calendarios para ver tu agenda.",
-    });
+    expect(briefingAgendaStatus(value)).toEqual({ state: "permission", authorization: "denied" });
   });
 });

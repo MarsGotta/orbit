@@ -47,7 +47,8 @@ it("Hoy and Calendario send the same order for an event that began twenty minute
   render(
     <NextMeetingCard meeting={meeting} send={fromToday} nowMs={now} timezone="Europe/Madrid" />,
   );
-  fireEvent.click(screen.getByRole("button", { name: /Unirse y grabar/ }));
+  // No video call to join: the card only records («Solo grabar»).
+  fireEvent.click(screen.getByRole("button", { name: /Solo grabar/ }));
   act(() => hook.result.current.startMeeting(event));
   const todayOrder = fromToday.mock.calls[0]![0];
   const calendarOrder = fromCalendar.mock.calls[0]![0];
