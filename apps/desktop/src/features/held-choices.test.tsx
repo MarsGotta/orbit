@@ -31,7 +31,7 @@ describe("a choice kept until it is confirmed", () => {
     render(<CallPreferenceSection preference="notify" send={refused()} />);
     await userEvent.click(screen.getByRole("radio", { name: "Grabar sin preguntar" }));
     await waitFor(() =>
-      expect(screen.getByRole("radio", { name: "Avisarme" })).toHaveProperty("checked", true),
+      expect(screen.getByRole("radio", { name: "Avisarme (recomendado)" })).toHaveProperty("checked", true),
     );
   });
 
