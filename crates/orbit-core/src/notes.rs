@@ -308,11 +308,15 @@ pub enum LibraryRequest {
     },
     /// «Usar lo mismo en toda la serie»: the series of this meeting takes
     /// this template and this dictionary (`None`: no dictionary), both or
-    /// neither (`PUT /v1/recordings/{id}/series`).
+    /// neither (`PUT /v1/recordings/{id}/series`). `dictionary_ids`, when
+    /// given, is the whole list instead, for a hub that takes several.
     UseForSeries {
         recording_id: String,
         template_id: String,
         dictionary_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        dictionary_ids: Option<Vec<String>>,
     },
 }
 
@@ -479,6 +483,20 @@ pub struct TranscriptProgress {
 pub struct FinalPass {
     pub state: FinalPassState,
     pub error: Option<HubCause>,
+    /// How far a running pass got. `None`: not running, not measured yet,
+    /// or a hub up to 0.10.1, which does not say.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub progress: Option<FinalPassProgress>,
+}
+
+/// `done_ms` of the `total_ms` of audio transcribed again; `remaining_ms`
+/// is the hub's estimate once a window is done (unknown before).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FinalPassProgress {
+    pub done_ms: u64,
+    pub total_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remaining_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -900,5 +918,30 @@ mod tests {
         );
         assert!(speaker_name(Some(&"x".repeat(MAX_PERSON_NAME_CHARS))).is_ok());
         assert!(speaker_name(Some(&"x".repeat(MAX_PERSON_NAME_CHARS + 1))).is_err());
+    }
+
+    #[test]
+    fn a_running_final_pass_reads_its_progress_and_an_older_hub_none()
+    -> Result<(), serde_json::Error> {
+        let running: FinalPass = serde_json::from_value(serde_json::json!({
+            "state": "running", "error": null,
+            "progress": {"done_ms": 30_000, "total_ms": 60_300, "remaining_ms": 9_000}
+        }))?;
+        assert_eq!(
+            running.progress,
+            Some(FinalPassProgress {
+                done_ms: 30_000,
+                total_ms: 60_300,
+                remaining_ms: Some(9_000),
+            })
+        );
+        let started: FinalPass = serde_json::from_value(serde_json::json!({
+            "state": "running", "error": null, "progress": {"done_ms": 0, "total_ms": 60_000}
+        }))?;
+        assert_eq!(started.progress.and_then(|p| p.remaining_ms), None);
+        let older: FinalPass =
+            serde_json::from_value(serde_json::json!({"state": "running", "error": null}))?;
+        assert_eq!(older.progress, None);
+        Ok(())
     }
 }

@@ -55,10 +55,15 @@ class TitleRequest(Strict):
 
 
 class SeriesRequest(Strict):
-    """«Usar lo mismo en toda la serie»: a null dictionary leaves the series without one."""
+    """«Usar lo mismo en toda la serie»: no dictionary leaves the series without one.
+
+    `dictionary_id` is one, as Macs up to 0.10.1 send it; `dictionary_ids`
+    is the whole list. One of the two (`dictionaries.named_ids`).
+    """
 
     template_id: TemplateId
-    dictionary_id: str | None
+    dictionary_id: str | None = None
+    dictionary_ids: list[str] | None = None
 
 
 class LanguageRequest(Strict):
@@ -197,9 +202,10 @@ def mount(
 
     @app.put("/v1/recordings/{recording_id}/series")
     async def put_series(recording_id: str, request: Request):
-        """The template and the dictionary of the meeting's series, saved together."""
+        """The template and the dictionaries of the meeting's series, saved together."""
         device, recording = identity(request), recording_of(recording_id)
         payload = await body_of(request, SeriesRequest, MAX_SMALL_BODY_BYTES)
+        chosen = dictionaries.named_ids(payload, required=False, code="invalid_parameters")
         saved = await run(
             lambda: series.use_for_series(
                 store,
@@ -207,7 +213,7 @@ def mount(
                 device,
                 recording,
                 payload.template_id,
-                payload.dictionary_id,
+                chosen,
                 now(),
             )
         )
@@ -257,20 +263,13 @@ def mount(
         from ..meeting_final_pass import FinalPassRepository
 
         device, recording = identity(request), recording_of(recording_id)
-        queued = await run(
+        await run(
             lambda: FinalPassRepository(store).request(
                 device, recording, configured=diarization_configured
             )
         )
-        if queued:
-            asked = await read(lambda db: repository_of_notes.inputs(device, recording, db=db))
-            if asked is not None:
-                await run(
-                    lambda: repository_of_notes.request(
-                        device, recording, now(), notes.configured, template_id=asked.template_id
-                    )
-                )
-                notes.signal.set()
+        # The note stays as it is: «Rehacer resumen» is its own order
+        # (`POST …/note`), which keeps the version edited by hand.
         recording_changed(device, recording)
         return JSONResponse({"recording_id": recording, "requested": True})
 

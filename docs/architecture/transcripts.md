@@ -97,8 +97,11 @@ The error exposes track phase, measured counts and every rule threshold. See the
 
 `POST …/final-pass` queues another pass for a completed or failed recording.
 An already queued/running job is not duplicated. Language changes and retries
-keep the prior text until a whole new result is published. Speaker corrections
-refer to actual turn time/key, not list position.
+keep the prior text until a whole new result is published. Transcribing again
+leaves the note as it is; rewriting it is the separate `POST …/note`, which
+keeps the hand-edited version. A running pass reports the audio it has
+transcribed of the total and, after its first window, an estimate of the time
+left. Speaker corrections refer to actual turn time/key, not list position.
 
 ## One turn-rendering rule
 
@@ -116,12 +119,15 @@ note model and meeting-question context.
   60 seconds of the turn's first group merge (`MERGE_WINDOW_MS`).
 - Text renders `[hh:mm:ss] Name: text`. Final-pass turns use measured word endpoints.
 - Meeting dictionaries apply whole-word/phrase corrections on read in one
-  case-insensitive pass, longest phrase first. Originals remain intact;
-  removing an entry reverses its correction. All consumers share this read.
+  case-insensitive pass, longest phrase first. A meeting or series uses
+  several; when two correct a heard form differently, the first in the
+  device's dictionary order wins. Originals remain intact; removing an entry
+  reverses its correction. All consumers share this read.
 
 Dictionary terms also supply a conservative 160-character glossary prompt
 (including `Glosario: `, separators and final period), most recent complete terms
-first. This does not guarantee a token count for arbitrary Unicode.
+first, the first dictionary's counting as the most recent. This does not
+guarantee a token count for arbitrary Unicode.
 
 ## Language
 

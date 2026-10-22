@@ -773,12 +773,15 @@ Device bearer authentication; errors include `code`, numbered `refusal` and `op`
   characters, over 1024 bytes with `bytes,max_bytes`), yields
   `400 invalid_parameters` `{field,…}`. A hub before this route answers 404
   without a code; the Mac reads that as unknown, never as «no earlier meeting».
-- `PUT /v1/recordings/{uuid}/series` `{template_id,dictionary_id:string|null}` →
-  `{recording_id,calendar_item_id,template_id,dictionary_id}`: «Usar lo mismo en
-  toda la serie». The meeting's series takes this template (the link of
-  `PUT /v1/note-template-links`) and this dictionary (`select` with
-  `use_for_series:true`; null leaves the series without one) in one
-  transaction: either both are saved or neither. The meeting's own dictionary
+- `PUT /v1/recordings/{uuid}/series` `{template_id,dictionary_id:string|null}`
+  or `{template_id,dictionary_ids:[string]}` →
+  `{recording_id,calendar_item_id,template_id,dictionary_id,dictionary_ids}`:
+  «Usar lo mismo en toda la serie». The meeting's series takes this template
+  (the link of `PUT /v1/note-template-links`) and these dictionaries (`select`
+  with `use_for_series:true`; null or `[]` leaves the series without one) in one
+  transaction: either both are saved or neither. `dictionary_ids` in the reply
+  is in the device's dictionary order and `dictionary_id` is its first, or null.
+  The body carries one of the two fields, never both. The meeting's own dictionary
   choice is cleared so it follows its series; written notes keep their template
   until written again. Refusals name their cause and numbers, and nothing is
   saved: `404 recording_not_found`, `409 meeting_series_missing` (the meeting
@@ -787,7 +790,9 @@ Device bearer authentication; errors include `code`, numbered `refusal` and `op`
   `404 dictionary_not_found`, `400 invalid_dictionary_id`,
   `409 dictionary_series_full` `{series,max_series}`,
   `413 dictionaries_too_large`/`dictionary_too_large` `{bytes,max_bytes}`,
-  `400 invalid_parameters` `{field}`. The language is not a property of the
+  `400 invalid_parameters` `{field}` (`dictionary_id` when neither field is
+  sent, `dictionary_ids` when both are or the list names over 32, with
+  `{ids,max_ids}`). The language is not a property of the
   series: it stays the recording's (`PUT …/language`). A hub before this route
   answers 404 without a code; the Mac names it `hub_route_missing`.
 - WebSocket `recording.changed {recording_id}` reaches only the owning device's
@@ -814,57 +819,105 @@ Both routes use the device bearer token and access only its dictionaries.
 Names, terms, wrong forms and series titles/keys share an AES-GCM body; neither
 errors nor logs include that content.
 
+A meeting, or a series, uses several dictionaries. Their order is always the
+device's dictionary order, the order of `GET /v1/meeting-dictionaries` (oldest
+first), whatever order a request names them in. When two of a meeting's
+dictionaries correct the same heard form (case-insensitively) to different
+words, the first in that order wins; adding such a word answers with a
+`conflicts` warning. Hubs up to 0.10.1 took one dictionary per meeting and per
+series: their stored choices read as lists of one, and the single-dictionary
+shapes below keep working for Macs up to 0.10.1. A Mac knows a hub takes lists
+when its meeting documents carry `dictionary.dictionary_ids`; with an older hub
+it sends one dictionary.
+
 - `GET /v1/meeting-dictionaries` →
   `{dictionaries:[{id,name,terms:[{id,correct,wrong:[string]}],
-  series:[{calendar_item_id,title}]}]}`.
+  series:[{calendar_item_id,title}]}]}`. A series can appear in several.
 - `POST /v1/meeting-dictionaries/orders` takes one order:
   - `{action:"save",dictionary_id,name}` creates/renames. The client chooses a
     UUID; repetition preserves entries/series.
-  - `{action:"select",recording_id,dictionary_id:string|null,use_for_series:false}`
-    selects for a meeting; null removes its override and inherits the series.
-    With `use_for_series:true` assign the series and clear the meeting override;
-    null releases the series. One dictionary per series; multiple series per dictionary.
-  - `{action:"correct",recording_id,dictionary_id,wrong,correct,name?:string|null}`
-    saves a correction and preserves an existing explicit/inherited selection of
-    that dictionary; otherwise selects it for this meeting. `name` can create
-    the dictionary and first entry in one transaction. Wrong forms for the same
-    correct form share an entry; the corrected entry moves to the most recent end.
+  - `{action:"select",recording_id,dictionary_ids:[string],use_for_series:false}`
+    sets the meeting's own list; `[]` removes it and the meeting inherits its
+    series' list. With `use_for_series:true` the series' list becomes exactly
+    these (`[]` releases the series) and the meeting's own list is cleared.
+    Reply: `{dictionaries:[…]}`, the chosen ones in device order.
+    The single form `{…,dictionary_id:string|null,…}` is a list of one (null:
+    `[]`) and replies as before: the dictionary, or `{dictionary_id:null}`.
+  - `{action:"correct",recording_id,dictionary_ids:[string],wrong,correct,name?:string|null}`
+    saves one correction in every listed dictionary in one transaction: all or
+    nothing. `name` creates, under that name, the listed dictionaries that do
+    not exist yet; without it an unknown one is `404 dictionary_not_found`. The
+    meeting then uses every listed dictionary: those it did not use are added
+    to its own list (an inherited list becomes its own). Reply:
+    `{dictionaries:[…],conflicts:[…]}`.
+    The single form `{…,dictionary_id,…}` behaves as in 0.10.1: it keeps a
+    meeting choice, explicit or inherited, that already has that dictionary,
+    and otherwise makes that dictionary the meeting's only one. It replies with
+    the dictionary and `conflicts`.
+    Wrong forms for the same correct form share an entry; the corrected entry
+    moves to the most recent end; a form moves out of any other entry of the
+    same dictionary.
+  - `{action:"remove_correction",dictionary_ids:[string],wrong,correct}` is
+    «Deshacer» a correction: in each listed dictionary, `wrong` leaves the
+    entry of `correct`, and an entry left without forms goes. It does not give
+    back a mapping the correction replaced. Repetition is harmless; an unknown
+    dictionary is `404 dictionary_not_found` and nothing changes. Reply:
+    `{dictionaries:[…]}`.
   - `{action:"remove",dictionary_id,entry_id}` removes the entry and all wrong
     forms; repetition is harmless.
-  Orders return HTTP 200 with the updated dictionary, or `{dictionary_id:null}`.
+  An order names its dictionaries with `dictionary_ids` or `dictionary_id`,
+  never both: `400 invalid_dictionary_order` `{field:"dictionary_ids"}`; with
+  neither, `{field:"dictionary_id"}`. A list over 32 is refused with
+  `{field:"dictionary_ids",ids,max_ids}`, and `correct` or
+  `remove_correction` with an empty list with `{field:"dictionary_ids"}`.
+  Repeated ids count once.
+
+Each conflict is `{wrong,correct,dictionary_id,other_dictionary_id,other_name,
+other_correct,applied_dictionary_id}`: the correction just saved in
+`dictionary_id`, another dictionary of the meeting that hears `wrong` as
+`other_correct`, and the dictionary whose correction the meeting shows (the
+first in its list). `[]` when there is none.
 
 The series becomes known at finalization. Open drafts have no series hint;
 after closure, retries and final-pass windows can use it. Chunk uploads carry
 no dictionary or series data.
 
 Meeting documents add `dictionary:{dictionary_id:string|null,
-source:"requested"|"series"|null,series:{calendar_item_id,title}|null}`.
-A present null ID means no dictionary; an absent field means unknown, for example
-an older hub or a Mac without the hub read.
+dictionary_ids:[string],source:"requested"|"series"|null,
+series:{calendar_item_id,title}|null}`. `dictionary_ids` is the meeting's list
+in device order (its own, else its series'), `dictionary_id` its first or null.
+An empty list means no dictionary; an absent `dictionary` means unknown, for
+example an older hub or a Mac without the hub read, and an absent
+`dictionary_ids` a hub up to 0.10.1.
 
-`turns.py` replaces whole words/phrases in one case-insensitive pass, longest
+`turns.py` combines the meeting's dictionaries, the first winning each heard
+form, and replaces whole words/phrases in one case-insensitive pass, longest
 phrase first. App, notes, questions and `orbit_transcript` share this read.
 Segment output applies corrections after final-pass words are joined.
 Originals are unchanged; removing an entry reverses the correction.
 Existing notes retain text until regenerated.
 
-The note model receives correct forms in all parts and reductions. Draft groups
-and final windows send complete, most-recent terms in a multipart `prompt`
-bounded to 160 characters including `Glosario: `, separators and final period:
-`Glosario: term, term.`. No terms means no prompt. This conservatively budgets
-for Whisper's last 223 tokens without a tokenizer; it does not guarantee a token
-count for arbitrary Unicode. Repeated recognition rereads the hint.
+The note model receives the correct forms of all the meeting's dictionaries in
+all parts and reductions. Draft groups and final windows send complete,
+most-recent terms in a multipart `prompt` bounded to 160 characters including
+`Glosario: `, separators and final period: `Glosario: term, term.`. The first
+dictionary's terms count as the most recent. No terms means no prompt. This
+conservatively budgets for Whisper's last 223 tokens without a tokenizer; it
+does not guarantee a token count for arbitrary Unicode. Repeated recognition
+rereads the hint.
 
 Hub-only bounds: 32 dictionaries, 128 terms each, eight forms per term,
 128 characters per form, 80 per name, 256 total series; 192 KiB per dictionary
 (one item of the 256 KiB library read), 768 KiB per HTTP list, 16 KiB per order.
 Refusals include `code`, a content-free message and numbers:
-`dictionary_full {terms,max_terms}`,
+`dictionary_full {terms,max_terms,dictionary_id}`,
 `dictionary_text_too_long {field,characters,max_characters}`,
-`dictionary_forms_full {forms,max_forms}`,
+`dictionary_forms_full {forms,max_forms,dictionary_id}`,
 `dictionaries_full {dictionaries,max_dictionaries}`,
-`dictionary_too_large`/`dictionaries_too_large {bytes,max_bytes}`,
-`dictionary_series_full {series,max_series}`.
+`dictionary_too_large {bytes,max_bytes,dictionary_id}`,
+`dictionaries_too_large {bytes,max_bytes}`,
+`dictionary_series_full {series,max_series}`. `dictionary_id` names which
+dictionary of an order into several is full.
 `dictionary_series_missing` means the series is unknown, not a zero count.
 The Mac carries numbers to the UI. On order confirmation the daemon invalidates
 all meeting/library reads once, as for templates, rather than one WebSocket event
@@ -875,25 +928,40 @@ for resending and report the transport cause.
 ## Request transcription again
 
 `POST /v1/recordings/{id}/final-pass` uses the owning device's bearer token.
+The hub runs the pass; the Mac only asks for it and reads its state.
 It creates a pass or requeues a terminal `completed`/`failed` pass.
-An already `queued`/`running` pass is not duplicated and does not request another
-note. Reply: `{recording_id,requested:true}`. It uses the selected meeting language
-or configured fallback, keeps prior text until a complete new publication, and
-reuses voices already separated from the same audio.
+An already `queued`/`running` pass is not duplicated.
+Reply: `{recording_id,requested:true}`. It uses the selected meeting language
+or configured fallback and all the meeting's dictionaries as the pass runs,
+keeps prior text until a complete new publication, and reuses voices already
+separated from the same audio.
 
-Only an already-requested note is requested again with its template; it waits
-for the pass and preserves edits as superseded, as for language changes.
-`recording.changed` announces queue/start/end. The document carries
-`transcript.final_pass:{state,error}` (`queued|running|completed|failed`);
-absence means no registered pass. `transcript.unmatched_speaker_names` lists
-names whose voices no longer exist; they are not assigned to new voices.
+Transcribing again does not rewrite the note, nor ask for one: the note and its
+edits stay as they are. Hubs up to 0.10.1 requested an already-requested note
+again after the pass. Rewriting it is its own order, `POST …/note` («Rehacer
+resumen»), which keeps the version edited by hand as `superseded_edits`.
+
+`recording.changed` announces queue, start, each window transcribed and end.
+The document carries `transcript.final_pass:{state,error,progress?}`
+(`queued|running|completed|failed`); absence means no registered pass. A
+running pass carries `progress:{done_ms,total_ms,remaining_ms?}`: `done_ms` of
+`total_ms` of audio transcribed (the fraction for a progress bar), and, once a
+window is done, `remaining_ms`, the time taken so far scaled to the audio
+left. `total_ms` starts from the closing manifest (each track at most the
+recording's length) and becomes each track's measured length when the pass
+reads it. A queued pass carries no progress: its wait depends on other
+passes. Hubs up to 0.10.1 send no `progress`. `transcript.unmatched_speaker_names`
+lists names whose voices no longer exist; they are not assigned to new voices.
 The microphone track name is retained.
 
 Before queueing, refusals are `400 recording_still_open`,
 `409 meeting_audio_unreadable` (`groups,total` for invalid audio), and
 `409 diarization_not_configured`. Unknown/cross-device IDs remain
 `404 recording_not_found`. Failures retain prior text and carry code, phase and
-the cause's measured numbers.
+the cause's measured numbers: `final_pass_timeout` `{timeout_ms}` (it took
+longer than the hub allows), `final_pass_incomplete` (the new text lost parts
+of the previous one, numbers below), and any other code for a pass that could
+not complete.
 
 ## Final pass and recording voices
 

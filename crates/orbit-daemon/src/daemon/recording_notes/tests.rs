@@ -1087,6 +1087,7 @@ async fn the_series_template_and_dictionary_go_together_and_a_refusal_keeps_its_
             recording_id: RECORDING.into(),
             template_id: "project".into(),
             dictionary_id: Some("0d9a7c3e-2b1f-4e6a-9c8d-7f6e5d4c3b2a".into()),
+            dictionary_ids: None,
         },
     };
 
@@ -1122,7 +1123,29 @@ async fn the_series_template_and_dictionary_go_together_and_a_refusal_keeps_its_
             && refusal.numbers.get("links") == Some(&256)
             && refusal.numbers.get("max_links") == Some(&256))));
 
+    // Several dictionaries go as the whole list, for a hub that takes it.
     lock(&hub).series_refusal = None;
+    runtime
+        .command(Command::NoteLibrary {
+            request: LibraryRequest::UseForSeries {
+                recording_id: RECORDING.into(),
+                template_id: "project".into(),
+                dictionary_id: None,
+                dictionary_ids: Some(vec![
+                    "0d9a7c3e-2b1f-4e6a-9c8d-7f6e5d4c3b2a".into(),
+                    "5e1b2c3d-4a5f-4b6c-8d7e-9f0a1b2c3d4e".into(),
+                ]),
+            },
+        })
+        .await?;
+    answer(&mut runtime, &mut events, START).await?;
+    assert_eq!(
+        received(&hub, "PUT", &format!("/v1/recordings/{RECORDING}/series")).last(),
+        Some(&json!({"template_id": "project", "dictionary_ids": [
+            "0d9a7c3e-2b1f-4e6a-9c8d-7f6e5d4c3b2a",
+            "5e1b2c3d-4a5f-4b6c-8d7e-9f0a1b2c3d4e"]}))
+    );
+
     lock(&hub).without_series_routes = true;
     runtime.command(order()).await?;
     answer(&mut runtime, &mut events, START).await?;

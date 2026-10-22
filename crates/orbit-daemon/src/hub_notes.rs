@@ -333,17 +333,23 @@ impl NoteHub {
     }
 
     /// `PUT /v1/recordings/{id}/series`: the series' template and
-    /// dictionary, saved together.
+    /// dictionary, saved together. With `dictionary_ids` (a hub that takes
+    /// several), the whole list instead of the one dictionary.
     pub async fn use_for_series(
         &self,
         recording: &str,
         template_id: &str,
         dictionary_id: Option<&str>,
+        dictionary_ids: Option<&[String]>,
     ) -> Answer<Value> {
+        let body = match dictionary_ids {
+            Some(ids) => json!({"template_id": template_id, "dictionary_ids": ids}),
+            None => json!({"template_id": template_id, "dictionary_id": dictionary_id}),
+        };
         self.send(
             reqwest::Method::PUT,
             self.recording(recording, &["series"]),
-            Some(json!({"template_id": template_id, "dictionary_id": dictionary_id})),
+            Some(body),
         )
         .await
     }

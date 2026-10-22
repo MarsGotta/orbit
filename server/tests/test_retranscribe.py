@@ -54,7 +54,11 @@ async def test_manual_final_pass_queues_terminal_states_and_keeps_active_passes(
     assert document["note"] is None
 
 
-async def test_manual_final_pass_rewrites_requested_note_once_after_new_text(environment, tmp_path):
+async def test_manual_final_pass_keeps_the_note_and_rewriting_it_keeps_the_edited_version(
+    environment, tmp_path
+):
+    from orbit_hub.notes.models import EditRequest, Section
+
     _, store, _ = environment
     owner = device(store)
     identity = owner["device_id"]
@@ -64,31 +68,44 @@ async def test_manual_final_pass_rewrites_requested_note_once_after_new_text(env
     note_worker.executor = None
     notes.request(identity, recording, 1000, True, template_id="one_on_one")
     await note_worker.generate(notes.claim(1000))
-    before = notes.document(identity, recording)
-    with store.read_snapshot() as db:
-        template = notes.inputs(identity, recording, db=db).template_id
+    written = notes.document(identity, recording)
+    edited_by_hand = (Section(name="Resumen", markdown="Lo que escribí a mano."),)
+    edited = notes.edit(
+        identity,
+        recording,
+        EditRequest(base_revision=written["revision"], sections=edited_by_hand),
+        1000,
+    )
     app = app_for(environment, tmp_path)
     async with routes_only(app) as http:
         path = f"/v1/recordings/{recording}/final-pass"
-        assert (await http.post(path, headers=bearer(owner))).status_code == 200
-        pending = notes.document(identity, recording)
-        assert pending["state"] == "waiting_transcript"
-        assert pending["revision"] == before["revision"] + 1
-        with store.read_snapshot() as db:
-            assert notes.inputs(identity, recording, db=db).template_id == template
-        assert notes.claim(1000) is None
-        assert (await http.post(path, headers=bearer(owner))).status_code == 200
-        assert notes.document(identity, recording)["revision"] == pending["revision"]
+        for _ in range(2):
+            assert (await http.post(path, headers=bearer(owner))).status_code == 200
+            # Transcribing again does not touch the note, nor ask for a new one.
+            assert notes.document(identity, recording) == edited
+            assert notes.claim(1000) is None
     transcriber, _ = fake_whisper()
     assert await final_worker(store, transcriber, fake_separator(tmp_path)).run_once()
+    assert notes.document(identity, recording) == edited
+    assert notes.claim(2000) is None
+
+    # «Rehacer resumen» is its own order; the version edited by hand is kept.
+    async with routes_only(app) as http:
+        rewrite = await http.post(
+            f"/v1/recordings/{recording}/note",
+            headers=bearer(owner),
+            json={"template_id": "one_on_one"},
+        )
+    assert rewrite.status_code == 202, rewrite.text
     job = notes.claim(2000)
     assert job is not None
     note_worker.executor = None
     await note_worker.generate(job)
     after = notes.document(identity, recording)
     assert after["state"] == "ready"
-    assert after["revision"] > pending["revision"]
+    assert after["revision"] > edited["revision"]
     assert after["note"]["template_id"] == "one_on_one"
+    assert after["superseded_edits"]["sections"] == [s.model_dump() for s in edited_by_hand]
     prompt = note_worker.client.calls[-1]["messages"][-1]["content"]
     assert "Uno." in prompt and "Gracias, empezamos." not in prompt
 
@@ -195,3 +212,44 @@ async def test_running_state_is_announced_before_the_final_text_replaces_the_old
     assert [state["state"] for state, _ in announced] == ["running", "failed"]
     assert announced[-1][0]["error"]["code"] == "transcription_words_missing"
     assert all(transcript == old for _, transcript in announced)
+
+
+async def test_a_running_pass_reports_its_progress_and_the_time_it_has_left(environment, tmp_path):
+    from orbit_hub.meeting_final_pass import status
+
+    _, store, _ = environment
+    owner = device(store)["device_id"]
+    recording = meeting(store, owner, texts=TEXTS)
+    repo = FinalPassRepository(store)
+    repo.request(owner, recording)
+    with store.read_snapshot() as db:
+        # Queued: no work done yet, so no fraction and no estimate.
+        assert status(db, owner, recording) == {"state": "queued", "error": None}
+    transcriber, _ = fake_whisper()
+    ticks = iter(range(0, 10_000, 10))
+    worker = final_worker(store, transcriber, fake_separator(tmp_path))
+    worker.clock = lambda: float(next(ticks))
+    announced = []
+
+    def changed(device, identity):
+        with store.read_snapshot() as db:
+            announced.append(status(db, device, identity))
+
+    worker.changed = changed
+    assert await worker.run_once()
+    running = [state for state in announced if state["state"] == "running"]
+    # Started, then after each track's only 30-second window (two tracks).
+    progress = [state.get("progress") for state in running]
+    assert progress[0] == {"done_ms": 0, "total_ms": 60_000}
+    # The microphone's 30 s, then the remote track's 30.3 s (it starts 300 ms
+    # later); each track's estimate becomes its measured length once read.
+    assert [(p["done_ms"], p["total_ms"]) for p in progress[1:]] == [
+        (30_000, 60_000),
+        (60_300, 60_300),
+    ]
+    # The time left is the time taken so far, scaled to what is left.
+    first = progress[1]
+    taken_ms = first["remaining_ms"] * first["done_ms"] / (first["total_ms"] - first["done_ms"])
+    assert taken_ms > 0
+    assert progress[-1]["remaining_ms"] == 0
+    assert announced[-1] == {"state": "completed", "error": None}

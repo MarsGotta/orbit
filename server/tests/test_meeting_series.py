@@ -254,12 +254,14 @@ def test_template_and_dictionary_are_saved_together_for_the_series(bench):
             "calendar_item_id": SERIES,
             "template_id": "project",
             "dictionary_id": chosen,
+            "dictionary_ids": [chosen],
         }
         links, series, meeting_dictionary = state(http, headers, identity)
         assert links == [(SERIES, "project")]
         assert series == {chosen: [SERIES], other: []}
         assert meeting_dictionary == {
             "dictionary_id": chosen,
+            "dictionary_ids": [chosen],
             "source": "series",
             "series": {"calendar_item_id": SERIES, "title": "Revisión de diseño"},
         }

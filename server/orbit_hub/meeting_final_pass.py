@@ -6,6 +6,7 @@ import io
 import json
 import os
 import subprocess
+import time
 import wave
 from contextlib import contextmanager
 
@@ -33,18 +34,27 @@ CPU_SECONDS_PER_AUDIO_SECOND = 382 / 444
 # in October 2026, this retains all 1339 synthetic words (WER 2.2% unchanged), while removing
 # 70 of 79 real-meeting artifacts, over 1 s from speech, median duration 0 ms.
 MAX_WORD_VOICE_GAP_MS = 250
+TRACKS = ("mic_local", "remote_app")
 
 
 def status(db, device, recording):
+    """The pass of a recording, or None when none was registered.
+
+    A running pass carries `progress` once it has measured its audio:
+    `done_ms` of `total_ms` of audio transcribed, and `remaining_ms` once a
+    window is done (the time taken so far, scaled to the audio left). The
+    queue gives no fraction or estimate: its wait depends on other passes.
+    """
     row = db.execute(
-        "SELECT state,error FROM recording_final_passes WHERE device_id=? AND recording=?",
+        "SELECT state,error,progress FROM recording_final_passes WHERE device_id=? AND recording=?",
         (device, recording),
     ).fetchone()
-    return (
-        None
-        if row is None
-        else {"state": row["state"], "error": json.loads(row["error"]) if row["error"] else None}
-    )
+    if row is None:
+        return None
+    found = {"state": row["state"], "error": json.loads(row["error"]) if row["error"] else None}
+    if row["state"] == "running" and row["progress"]:
+        found["progress"] = json.loads(row["progress"])
+    return found
 
 
 def note_ready(store, db, device, recording):
@@ -68,6 +78,24 @@ def note_ready(store, db, device, recording):
         (device, recording),
     ).fetchone()
     return pending is None and active is None
+
+
+def planned_lengths(store, db, device, recording):
+    """Each track's expected audio, from the closing manifest, before it is read.
+
+    A track lasts at most the recording (`prepare_track` keeps wall-clock
+    gaps from its start); its real length replaces this once it is read.
+    """
+    row = db.execute(
+        "SELECT body FROM recording_manifests WHERE device_id=? AND recording=?",
+        (device, recording),
+    ).fetchone()
+    if row is None:
+        return {}
+    manifest = repository._open(store, row["body"], f"manifest:{device}:{recording}")
+    span = max(0, manifest["finalized_at_ms"] - manifest["started_at_ms"])
+    declared = {item["track"] for item in manifest["tracks"]}
+    return {track: span for track in TRACKS if track in declared}
 
 
 class FinalPassRepository:
@@ -127,13 +155,29 @@ class FinalPassRepository:
             ).fetchone()
             if row is None:
                 return None
+            lengths = planned_lengths(self.store, db, row["device_id"], row["recording"])
             db.execute(
-                "UPDATE recording_final_passes SET state='running' "
+                "UPDATE recording_final_passes SET state='running',progress=? "
                 "WHERE device_id=? AND recording=?",
-                tuple(row),
+                (
+                    json.dumps({"done_ms": 0, "total_ms": sum(lengths.values())}),
+                    *tuple(row),
+                ),
             )
             chosen = repository.language(db, row["device_id"], row["recording"])
-            return {**dict(row), "language": chosen[0] if chosen else None}
+            return {
+                **dict(row),
+                "language": chosen[0] if chosen else None,
+                "lengths": lengths,
+            }
+
+    def advance(self, job, progress):
+        with self.store.transaction() as db:
+            db.execute(
+                "UPDATE recording_final_passes SET progress=? "
+                "WHERE device_id=? AND recording=? AND state='running'",
+                (json.dumps(progress), job["device_id"], job["recording"]),
+            )
 
     def complete(self, job, result):
         device, recording = job["device_id"], job["recording"]
@@ -158,7 +202,7 @@ class FinalPassRepository:
                 (device, recording, transcript),
             )
             db.execute(
-                "UPDATE recording_final_passes SET state='completed',error=NULL "
+                "UPDATE recording_final_passes SET state='completed',error=NULL,progress=NULL "
                 "WHERE device_id=? AND recording=?",
                 (device, recording),
             )
@@ -182,7 +226,7 @@ class FinalPassRepository:
     def fail(self, job, error):
         with self.store.transaction() as db:
             db.execute(
-                "UPDATE recording_final_passes SET state='failed',error=? "
+                "UPDATE recording_final_passes SET state='failed',error=?,progress=NULL "
                 "WHERE device_id=? AND recording=? AND state='running'",
                 (json.dumps(error), job["device_id"], job["recording"]),
             )
@@ -429,11 +473,24 @@ def attribute(words, spans, track):
 
 
 class FinalPassWorker:
-    def __init__(self, store, transcriber, configuration, signal, changed, executor):
+    def __init__(
+        self, store, transcriber, configuration, signal, changed, executor, clock=time.monotonic
+    ):
         self.repository = FinalPassRepository(store)
         self.transcriber, self.configuration = transcriber, configuration
         self.signal, self.changed, self.executor = signal, changed, executor
+        # Seconds, for the time a running pass has left; never decides anything.
+        self.clock = clock
         self.task = None
+
+    async def report_progress(self, job, started, done_ms, lengths):
+        total_ms = sum(lengths.values())
+        progress = {"done_ms": done_ms, "total_ms": total_ms}
+        if done_ms:
+            taken_ms = (self.clock() - started) * 1000
+            progress["remaining_ms"] = round(taken_ms * max(0, total_ms - done_ms) / done_ms)
+        await self.run(self.repository.advance, job, progress)
+        self.changed(job["device_id"], job["recording"])
 
     async def run(self, function, *args):
         future = asyncio.get_running_loop().run_in_executor(self.executor, function, *args)
@@ -462,6 +519,8 @@ class FinalPassWorker:
         job = await self.run(self.repository.claim)
         if job is None:
             return False
+        started = self.clock()
+        lengths, done_ms = dict(job["lengths"]), 0
         self.changed(job["device_id"], job["recording"])
         job["language"] = job["language"] or self.transcriber.configuration.language
         phase = "prepare"
@@ -485,14 +544,16 @@ class FinalPassWorker:
             vocabulary = prompt(
                 await self.run(terms_for, self.repository.store, job["device_id"], job["recording"])
             )
-            for track in ("mic_local", "remote_app"):
+            for track in TRACKS:
                 phase = f"audio_{track}"
                 with memory_file() as audio:
                     if not await self.run(prepare_track, self.repository, job, track, audio):
+                        lengths.pop(track, None)
                         continue
                     with wave.open(audio, "rb") as wav:
                         frames = wav.getnframes()
                         duration_ms = frames * 1000 // 16000
+                        lengths[track] = duration_ms
                         if not frames:
                             continue
                         phase = f"windows_{track}"
@@ -556,6 +617,8 @@ class FinalPassWorker:
                                         }
                                     )
                                 offset = end * 1000 // 16000
+                                done_ms += window_ms
+                                await self.report_progress(job, started, done_ms, lengths)
                             groups = await self.run(self.repository.draft, job, track)
                             metrics = integrity.measure(groups, words)
                             if integrity.incomplete(metrics):

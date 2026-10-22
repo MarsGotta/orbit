@@ -6,7 +6,7 @@ none. Two things go by it here:
 
 - the earlier meeting of a series and the tasks of its note, done or not, which
   Hoy shows as «Pendiente de la última vez» for the next meeting of the series;
-- the template and the dictionary of the series, saved together in one
+- the template and the dictionaries of the series, saved together in one
   transaction («Usar lo mismo en toda la serie»).
 
 The meeting's language is not a property of its series: it lives in one place,
@@ -80,17 +80,16 @@ def use_for_series(
     device: str,
     recording: str,
     template_id: str,
-    dictionary_id: str | None,
+    dictionary_ids: list[str],
     now: float,
 ) -> dict:
-    """The series of `recording` takes this template and this dictionary, or none.
+    """The series of `recording` takes this template and these dictionaries (or none).
 
     One transaction: if either half is refused, neither is saved, and the
     refusal names its cause and numbers. The meeting's own dictionary choice is
     cleared so that it follows its series, as `select` with `use_for_series`
     does; the notes already written keep their template until written again.
     """
-    chosen_id = dictionaries.identifier(dictionary_id) if dictionary_id is not None else None
     with store.transaction() as db:
         repository.require(db, device, recording)
         series = dictionaries.series_of(store, db, device, recording)
@@ -103,18 +102,16 @@ def use_for_series(
             )
         templates.link_in(db, device, series["calendar_item_id"], template_id, now)
         listed = dictionaries.listing(store, db, device)
-        chosen = next((d for d in listed if d["id"] == chosen_id), None)
-        if chosen_id is not None and chosen is None:
-            raise HubError("dictionary_not_found", "El diccionario no existe", http_status=404)
+        chosen = dictionaries.existing(listed, dictionary_ids)
         dictionaries.assign_series(listed, chosen, series)
         dictionaries.save_all(store, db, device, listed)
-        db.execute(
-            "DELETE FROM recording_dictionaries WHERE device_id=? AND recording=?",
-            (device, recording),
-        )
+        dictionaries.set_own(db, device, recording, [])
+    ids = [d["id"] for d in chosen]
     return {
         "recording_id": recording,
         "calendar_item_id": series["calendar_item_id"],
         "template_id": template_id,
-        "dictionary_id": chosen_id,
+        # The first, which wins a conflict: what a Mac up to 0.10.1 reads.
+        "dictionary_id": ids[0] if ids else None,
+        "dictionary_ids": ids,
     }

@@ -1249,8 +1249,14 @@ async fn send_library_order(hub: &NoteHub, request: &LibraryRequest) -> Outcome 
             recording_id,
             template_id,
             dictionary_id,
+            dictionary_ids,
         } => hub
-            .use_for_series(recording_id, template_id, dictionary_id.as_deref())
+            .use_for_series(
+                recording_id,
+                template_id,
+                dictionary_id.as_deref(),
+                dictionary_ids.as_deref(),
+            )
             .await
             .into(),
         LibraryRequest::RestoreTemplate {

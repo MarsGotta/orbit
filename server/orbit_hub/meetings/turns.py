@@ -319,8 +319,8 @@ def read(
     )
     in_order = sorted(segments, key=lambda s: (s.at_ms, s.track))
     chosen = repository.language(db, device, recording)
-    dictionary, _ = dictionaries.resolve(store, db, device, recording)
-    terms = dictionary["terms"] if dictionary else []
+    vocabularies, _ = dictionaries.resolve(store, db, device, recording)
+    terms = dictionaries.combined(vocabularies)
     return Transcript(
         started_at_ms=started,
         segments=tuple(in_order),

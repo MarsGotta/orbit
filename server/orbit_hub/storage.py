@@ -22,6 +22,7 @@ from .group_storage import SCHEMA as GROUP_SCHEMA
 from .group_storage import GroupRepository
 from .log import report
 from .meetings.dictionaries import SCHEMA as DICTIONARIES_SCHEMA
+from .meetings.dictionaries import migrate as migrate_dictionaries
 from .meetings.repository import SCHEMA as MEETINGS_SCHEMA
 from .protocol import HubError
 from .secret_file import read_secret
@@ -182,7 +183,15 @@ class Store:
             self._db.execute("ALTER TABLE transcription_groups ADD COLUMN language TEXT")
         self._db.executescript(safety.SCHEMA)
         self._db.executescript(MEETINGS_SCHEMA)
+        # How far a running final pass got (`meeting_final_pass.status`).
+        # Passes stored before it have none until they run again.
+        pass_columns = {
+            row["name"] for row in self._db.execute("PRAGMA table_info(recording_final_passes)")
+        }
+        if "progress" not in pass_columns:
+            self._db.execute("ALTER TABLE recording_final_passes ADD COLUMN progress TEXT")
         self._db.executescript(DICTIONARIES_SCHEMA)
+        migrate_dictionaries(self._db)
         # Each agent's personality, skills and access groups.
         self._db.executescript(AGENT_CONFIG_SCHEMA)
         self._db.executescript(ATTACHMENTS_SCHEMA)
