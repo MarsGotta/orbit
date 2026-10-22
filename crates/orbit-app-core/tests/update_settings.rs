@@ -482,6 +482,7 @@ fn installation_waits_for_recording_call_and_known_state() -> Result<(), Box<dyn
         gaps: 0,
         tracks: vec![],
         finalizing_since_ms: None,
+        ceiling_notice_given: false,
     })?;
     observe(&mut topics, &recording, 2)?;
     assert!(

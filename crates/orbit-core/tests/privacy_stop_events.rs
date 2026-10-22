@@ -178,7 +178,6 @@ fn samples() -> Vec<Event> {
             id: "m".into(),
             title: "Reunión".into(),
             audio: MeetingAudio::MicrophoneOnly,
-            duration_ms: 600_000,
         },
         Event::CaptureStarted,
         Event::CaptureFinalized,
@@ -253,7 +252,6 @@ fn live_recording() -> State {
             id: "live-recording".into(),
             title: "Reunión".into(),
             audio: MeetingAudio::MicrophoneOnly,
-            duration_ms: 600_000,
         },
         0,
     )

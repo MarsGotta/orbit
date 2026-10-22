@@ -133,7 +133,10 @@ notice_codes! {
     RecordingPaused => Silent,
     RecordingFinishing => Silent,
     RecordingFinished => Done,
-    /// The recording reached the ceiling it was started with.
+    /// The recording will reach the safety ceiling soon: said once, with
+    /// the minutes left, those recorded and the ceiling.
+    RecordingCeilingNear => Fixable,
+    /// The recording reached the safety ceiling.
     RecordingCeilingReached => Fixable,
     /// The Mac did not confirm closing the recording in time.
     RecordingCloseUnconfirmed => Failed,

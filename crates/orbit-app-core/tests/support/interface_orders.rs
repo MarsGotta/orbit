@@ -145,7 +145,7 @@ pub fn cases() -> Vec<(Value, FeatureId)> {
             FeatureId::Note,
         ),
         (
-            json!({"command":"meeting_start","title":"Daily","minutes":37,"audio":null}),
+            json!({"command":"meeting_start","title":"Daily","audio":null}),
             FeatureId::Recording,
         ),
         (

@@ -242,7 +242,6 @@ async fn helper_permissions_feed_the_state_and_capture() -> Result<()> {
         id: "permissions-recording".into(),
         title: "Reunión sintética".into(),
         audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-        duration_ms: 60_000,
     };
 
     // Each answer is paired with a status the daemon sent. An id it did not

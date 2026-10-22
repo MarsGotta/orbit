@@ -486,7 +486,6 @@ async fn start_meeting(
             id: "backpressure-meeting".into(),
             title: "Synthetic fixture".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let command = receiver.recv().await.context("start command absent")?;

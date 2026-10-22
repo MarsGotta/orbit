@@ -416,7 +416,7 @@ async fn record_on_an_event_during_a_call_captures_the_call_and_links_the_event(
         .command(Command::MeetingStart {
             title: "Comité de producto".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
-            duration_minutes: 45,
+            duration_minutes: None,
             event: Some(event),
         })
         .await?;
@@ -475,7 +475,7 @@ async fn a_call_during_a_manual_recording_offers_and_starts_nothing() -> Result<
             .command(Command::MeetingStart {
                 title: "Reunión a mano".into(),
                 audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-                duration_minutes: 60,
+                duration_minutes: None,
                 event: None,
             })
             .await?;

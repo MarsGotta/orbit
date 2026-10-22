@@ -24,4 +24,14 @@ attachments?: AttachmentLimits, hub: SettingsHubSnapshot, helper_connected: bool
 /**
  * The error-report switch, when this build offers it.
  */
-error_reports?: boolean, };
+error_reports?: boolean, 
+/**
+ * How long a call from the app lasts at most, in minutes, for
+ * «Cuánto dura cada cosa»: orbit-core's `voice::CALL_MINUTES`.
+ */
+call_minutes: number, 
+/**
+ * How long a call begun with ⌃⌥D lasts at most, in minutes:
+ * `voice::HOTKEY_CALL_MINUTES`.
+ */
+hotkey_call_minutes: number, };

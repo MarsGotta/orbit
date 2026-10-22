@@ -15,7 +15,7 @@ function meeting(change: Partial<MeetingSnapshot> = {}): MeetingSnapshot {
     title: "Revisión del presupuesto",
     started_at_ms: Date.now() - 62_000,
     ends_at_ms: ENDS,
-    limit_minutes: 60,
+    limit_minutes: 240,
     audio: "system",
     tracks: [],
     upload: { pending_chunks: 0, offline: false },

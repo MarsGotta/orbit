@@ -12,7 +12,6 @@ impl Runtime {
         &mut self,
         title: String,
         audio: orbit_core::protocol::MeetingAudio,
-        duration_minutes: u16,
         event: Option<orbit_core::call_detection::LinkedEvent>,
         origin: &'static str,
     ) -> Result<String> {
@@ -54,7 +53,6 @@ impl Runtime {
             id: recording_id.clone(),
             title: title.clone(),
             audio,
-            duration_ms: i64::from(duration_minutes) * 60_000,
         })
         .await?;
         let application_pid = match audio {
@@ -64,7 +62,7 @@ impl Runtime {
             orbit_core::protocol::MeetingAudio::System
             | orbit_core::protocol::MeetingAudio::MicrophoneOnly => None,
         };
-        let mut payload = json!({"recording_id":recording_id,"title":title,"application_pid":application_pid,"duration_minutes":duration_minutes,"origin":origin});
+        let mut payload = json!({"recording_id":recording_id,"title":title,"application_pid":application_pid,"origin":origin});
         if let Some(event) = event {
             payload["event"] = serde_json::to_value(event)?;
         }
@@ -371,7 +369,7 @@ impl Runtime {
             Command::MeetingStart {
                 title,
                 audio,
-                duration_minutes,
+                duration_minutes: _,
                 event,
             } => {
                 // «Grabar» on an event during a call records the
@@ -390,8 +388,7 @@ impl Runtime {
                         }),
                     _ => audio,
                 };
-                self.start_meeting(title, audio, duration_minutes, event, "explicit")
-                    .await?;
+                self.start_meeting(title, audio, event, "explicit").await?;
             }
             Command::MeetingPause => self.apply(Event::PauseMeeting).await?,
             Command::MeetingResume => self.apply(Event::ResumeMeeting).await?,

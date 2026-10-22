@@ -1,7 +1,7 @@
 import type { AppCommand } from "../../bridge/generated";
 import type { MeetingSnapshot } from "../../bridge/generated/MeetingSnapshot";
 import { recordingMeeting } from "../data/recording";
-import { at, MINUTE, NOW } from "../data/time";
+import { MINUTE, NOW } from "../data/time";
 import type { Scenario, Step, Views } from "../scenario";
 import { withMeeting } from "./recording";
 import { windowNoticeScenarios } from "./window-notices";
@@ -14,11 +14,10 @@ const card = "role=region[name='Grabación en curso']";
 const ask = "role=dialog[name='Pregunta sobre esta reunión']";
 const QUESTION = "¿Qué se decidió sobre el paso de pago?";
 
-/** The design review, 18 minutes in, with the system's audio until noon. */
+/** The design review, 18 minutes in, with the system's audio. */
 const reviewing: MeetingSnapshot = {
   ...recordingMeeting,
   audio: "system",
-  ends_at_ms: at(0, 12, 0),
 };
 
 const recordingViews = (meeting: MeetingSnapshot) => (base: Views) => withMeeting(base, meeting);

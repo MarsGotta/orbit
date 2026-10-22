@@ -160,7 +160,6 @@ async fn after_an_offline_voice_note_a_meeting_can_start() -> Result<()> {
             id: "reunion-siguiente".into(),
             title: "Reunión sintética".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60 * 60_000,
         })
         .await;
     assert!(

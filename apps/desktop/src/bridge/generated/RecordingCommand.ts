@@ -2,7 +2,7 @@
 import type { MeetingAudio } from "./MeetingAudio";
 import type { MeetingEventReference } from "./MeetingEventReference";
 
-export type RecordingCommand = { "command": "meeting_start", title?: string, minutes?: number, audio?: MeetingAudio, 
+export type RecordingCommand = { "command": "meeting_start", title?: string, audio?: MeetingAudio, 
 /**
  * Stable identity of the occurrence selected in Hoy or Calendario.
  */

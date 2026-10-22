@@ -5,6 +5,7 @@
 
 use super::*;
 use crate::daemon::audio::tests::fixture;
+use crate::daemon::turn::said;
 use base64::{Engine, engine::general_purpose::STANDARD};
 
 pub(super) fn frame(stream: &str, sequence: u64, frames: usize) -> Value {
@@ -23,7 +24,6 @@ pub(super) async fn start(
             id: "reunion-sintetica".into(),
             title: "Reunión sintética".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60 * 60_000,
         })
         .await?;
     let command = receiver.recv().await.context("start command absent")?;
@@ -267,6 +267,67 @@ async fn a_meeting_cut_by_the_mac_going_to_sleep_is_closed_and_said() -> Result<
         Some(&orbit_core::notice::DataValue::Token(
             orbit_core::notice::Token::new("session_inactive").context("token")?
         ))
+    );
+    Ok(())
+}
+
+/// A recording that reaches the safety ceiling stops for good: the cut
+/// recovery closes it at the end of what was recorded and never reopens it.
+#[tokio::test]
+async fn a_meeting_at_the_safety_ceiling_is_closed_not_resumed() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut receiver) = fixture(directory.path())?;
+    let stream = start(&mut runtime, &mut receiver).await?;
+    runtime.handle_native_event(frame(&stream, 0, 8_000)).await;
+    runtime.handle_native_event(frame(&stream, 1, 8_000)).await;
+    crate::daemon::audio::tests::settle_seal_receipts(&mut runtime).await?;
+    runtime
+        .state
+        .durable
+        .recording
+        .as_mut()
+        .context("recording absent")?
+        .expires_at_ms = now() - 1;
+    runtime.apply(Event::Tick).await?;
+    assert!(said::has(
+        &runtime.state,
+        orbit_core::notice::NoticeCode::RecordingCeilingReached
+    ));
+    for _ in 0..3 {
+        while let Ok(command) = receiver.try_recv() {
+            assert_ne!(
+                command["command"], "audio_start",
+                "a recording at its ceiling is not reopened"
+            );
+            if command["command"] == "audio_stop" {
+                runtime
+                    .handle_native_event(json!({"event":"response","id":command["id"],"ok":true,
+                        "result":{"stream_id":command["stream_id"],"drain_complete":true}}))
+                    .await;
+            }
+        }
+        crate::daemon::audio::tests::settle_seal_receipts(&mut runtime).await?;
+        runtime.run_maintenance().await;
+    }
+    while let Ok(command) = receiver.try_recv() {
+        assert_ne!(command["command"], "audio_start", "not reopened");
+    }
+    let recording = runtime
+        .state
+        .durable
+        .recording
+        .as_ref()
+        .context("recording absent")?;
+    assert!(
+        recording.ended_at_ms.is_some(),
+        "the recording at its ceiling stayed open: {recording:?}"
+    );
+    assert!(
+        runtime
+            .reader
+            .get_job("finalize-reunion-sintetica")?
+            .is_some(),
+        "the closure is not on the Mac"
     );
     Ok(())
 }

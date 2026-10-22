@@ -34,7 +34,6 @@ async fn two_track_meeting(
             id: "two-tracks".into(),
             title: "Reunión de prueba".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
-            duration_ms: 60 * 60_000,
         })
         .await?;
     let mut microphone = None;

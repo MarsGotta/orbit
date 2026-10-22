@@ -127,7 +127,6 @@ async fn a_failed_seal_retry_does_not_skip_the_rest_of_the_turn() -> Result<()> 
             id: "seal-retry".into(),
             title: "Reunión sintética".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let start = receive_helper_command(&mut receiver, "audio_start").await?;
@@ -197,7 +196,6 @@ async fn a_failed_stopped_audio_flush_does_not_skip_the_rest_of_the_turn() -> Re
             id: "flush-retry".into(),
             title: "Reunión sintética".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let start = receive_helper_command(&mut receiver, "audio_start").await?;

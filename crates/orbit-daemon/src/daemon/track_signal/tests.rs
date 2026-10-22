@@ -28,7 +28,6 @@ async fn start(
             } else {
                 orbit_core::protocol::MeetingAudio::MicrophoneOnly
             },
-            duration_ms: 60_000,
         })
         .await?;
     for _ in 0..if remote { 2 } else { 1 } {

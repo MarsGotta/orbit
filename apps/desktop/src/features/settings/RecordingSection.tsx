@@ -60,15 +60,20 @@ export function RecordingSection({ send, snapshot }: { send: Send; snapshot: App
       </Group>
       <Group label={base.settings.durations}>
         <List>
-          {/* The daemon's own ceiling (`RECORDING_MINUTES`), never a copy. */}
-          <Row
-            aside={
-              <span className={styles.value}>
-                {base.settings.byHandLimit(snapshot.meeting.limit_minutes)}
-              </span>
-            }
-            title={base.settings.byHand}
-          />
+          {/* orbit-core's own numbers, from the snapshot, never a copy. */}
+          {(
+            [
+              [base.settings.recordingLasts, snapshot.meeting.limit_minutes],
+              [base.settings.appCallLasts, snapshot.settings.call_minutes],
+              [base.settings.hotkeyCallLasts, snapshot.settings.hotkey_call_minutes],
+            ] as const
+          ).map(([title, minutes]) => (
+            <Row
+              aside={<span className={styles.value}>{base.settings.lastsUpTo(minutes)}</span>}
+              key={title}
+              title={title}
+            />
+          ))}
         </List>
       </Group>
       <Group label={base.settings.shortcuts}>

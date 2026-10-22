@@ -54,7 +54,6 @@ async fn confirmed_audio_leaves_disk_and_chunks_but_closure_and_resume_keep_thei
                     id: "confirmed".into(),
                     title: "Prueba".into(),
                     audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-                    duration_ms: 60_000,
                 },
                 1,
             )?

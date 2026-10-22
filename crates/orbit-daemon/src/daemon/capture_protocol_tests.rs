@@ -33,7 +33,6 @@ async fn retired_system_start(
             id: "old-recording".into(),
             title: "Old synthetic recording".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
-            duration_ms: 60_000,
         })
         .await?;
     let microphone = receive_helper_command(receiver, "audio_start").await?;
@@ -157,7 +156,6 @@ async fn retired_integrity_code_does_not_cut_a_new_recording(code: &str) -> Resu
             id: "next-recording".into(),
             title: "New synthetic recording".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
-            duration_ms: 60_000,
         })
         .await?;
     let new_microphone = loop {
@@ -253,7 +251,6 @@ async fn voice_first_then_system_recording_refused_keeps_voice_source() -> Resul
             id: "system-after-voice".into(),
             title: "Synthetic".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
-            duration_ms: 60_000,
         })
         .await?;
     let remote = receive_helper_command(&mut receiver, "audio_start").await?;
@@ -419,7 +416,6 @@ async fn retired_stop_without_receipt_blocks_nothing() -> Result<()> {
             id: "after-unanswered".into(),
             title: "Synthetic".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
-            duration_ms: 60_000,
         })
         .await?;
     let mut starts = Vec::new();
@@ -465,7 +461,6 @@ async fn live_system_clock_failure_still_contains() -> Result<()> {
             id: "live".into(),
             title: "Synthetic".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
-            duration_ms: 60_000,
         })
         .await?;
     let _microphone = receive_helper_command(&mut receiver, "audio_start").await?;
@@ -495,7 +490,6 @@ async fn privacy_stop_during_starting_names_no_other_track() -> Result<()> {
             id: "privacy-during-start".into(),
             title: "Synthetic".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
-            duration_ms: 60_000,
         })
         .await?;
     let microphone = receive_helper_command(&mut receiver, "audio_start").await?;
@@ -544,7 +538,6 @@ async fn retired_ack_during_full_stop_sends_nothing_more() -> Result<()> {
             id: "ack-during-stop".into(),
             title: "Synthetic".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
-            duration_ms: 60_000,
         })
         .await?;
     let microphone = receive_helper_command(&mut receiver, "audio_start").await?;

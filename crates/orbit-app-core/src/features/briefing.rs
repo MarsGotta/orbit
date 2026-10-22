@@ -952,7 +952,7 @@ mod tests {
             assert!(event.calendar_item_id.is_some());
             let command = super::super::recording::RecordingCommand::MeetingStartSelected {
                 title: String::new(),
-                minutes: 60,
+                minutes: None,
                 audio: None,
                 event: meeting.event.clone(),
                 event_id: Some(meeting.event_id.clone()),

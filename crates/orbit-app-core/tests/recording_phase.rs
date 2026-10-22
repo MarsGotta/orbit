@@ -41,11 +41,10 @@ async fn sending_either_start_command_does_not_write_a_phase_before_the_daemon_a
     let commands = [
         orbit_app_core::features::recording::RecordingCommand::MeetingStart {
             title: "Primera".into(),
-            minutes: 10,
         },
         orbit_app_core::features::recording::RecordingCommand::MeetingStartSelected {
             title: "Segunda".into(),
-            minutes: 10,
+            minutes: Some(10),
             audio: None,
             event: None,
             event_id: None,
@@ -117,7 +116,6 @@ async fn automatic_recording_titles_reach_the_daemon_in_the_clients_local_zone()
             AppCommand::Recording(
                 orbit_app_core::features::recording::RecordingCommand::MeetingStart {
                     title: String::new(),
-                    minutes: 60,
                 },
             ),
             "Reunión 12:20",
@@ -157,7 +155,7 @@ async fn automatic_recording_titles_reach_the_daemon_in_the_clients_local_zone()
         };
         assert!(
             matches!(&call.request.body,
-                Command::MeetingStart { title, duration_minutes: 60, event: None, .. } if title == expected
+                Command::MeetingStart { title, duration_minutes: None, event: None, .. } if title == expected
             ),
             "{:?}",
             call.request.body

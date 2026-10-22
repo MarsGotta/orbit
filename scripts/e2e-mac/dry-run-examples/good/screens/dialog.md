@@ -20,7 +20,7 @@
         - [9] AXRadioButton "Audio del sistema Lo que suena en el Mac y tu micrófono. Para videollamadas." [actions=[press]]
         - [10] AXRadioButton "Solo mi micrófono Para una reunión en persona." [actions=[press]]
         - [11] AXRadioButton "Una app concreta Solo el sonido de la app que elijas." [actions=[press]]
-      - AXStaticText = "Graba hasta 60 min, hasta las 11:00. Si cierras la ventana, sigue grabando."
+      - AXStaticText = "Graba hasta 4 h, hasta las 14:00. Si cierras la ventana, sigue grabando."
       - AXStaticText = "esc para cerrar"
       - [12] AXButton "Cancelar" [actions=[press]]
       - [13] AXButton "Empezar a grabar" [actions=[press]]

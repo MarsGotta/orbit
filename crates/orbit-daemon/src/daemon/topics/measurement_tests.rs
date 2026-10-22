@@ -58,6 +58,7 @@ fn worst_case(runtime: &mut Runtime) -> anyhow::Result<()> {
             2
         ],
         finalizing_since_ms: None,
+        ceiling_notice_given: false,
     });
     runtime.features.meeting.audio_source_observed = true;
     runtime.state.views.audio_sources = (0..200)

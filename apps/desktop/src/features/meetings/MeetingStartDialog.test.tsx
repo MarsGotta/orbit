@@ -25,7 +25,7 @@ function view(change: Record<string, unknown> = {}, meeting: Record<string, unkn
     meeting: {
       phase: "idle",
       recording_id: null,
-      limit_minutes: 60,
+      limit_minutes: 240,
       applications: [
         { name: "Orbit Pruebas", pid: 4242 },
         { name: "Llamadas Norte", pid: 5151 },
@@ -86,7 +86,7 @@ it("an untitled recording is «Reunión HH:MM» and the limit is said before it 
     "Reunión 14:30",
   );
   expect(
-    screen.getByText("Graba hasta 60 min, hasta las 15:30. Si cierras la ventana, sigue grabando."),
+    screen.getByText("Graba hasta 4 h, hasta las 18:30. Si cierras la ventana, sigue grabando."),
   ).toBeTruthy();
 });
 

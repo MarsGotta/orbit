@@ -14,17 +14,15 @@ import type { VoiceStatusSnapshot } from "./VoiceStatusSnapshot";
 
 export type MeetingSnapshot = { phase: MeetingPhase, recording_id: string | null, title: string | null, started_at_ms: number | null, 
 /**
- * Until when the recording in progress records (Unix ms), the
- * daemon's deadline («hasta las 11:40»): its start plus its
- * ceiling. From an event, the ceiling is the minutes left until the
- * event's end, rounded up, plus orbit-core's
- * `EVENT_RECORDING_GRACE_MINUTES`.
+ * The latest the recording in progress records until (Unix ms),
+ * the daemon's deadline («hasta las 15:40»): its start plus the
+ * safety ceiling, whatever started it. No calendar event moves it.
  */
 ends_at_ms: number | null, 
 /**
- * How long a recording started by hand may run, in minutes,
- * before one starts («Graba hasta 60 min»): orbit-core's
- * `RECORDING_MINUTES`, which the interface never copies.
+ * The longest any recording may run, in minutes, said before one
+ * starts («Graba hasta 4 h»): orbit-core's
+ * `RECORDING_CEILING_MINUTES`, which the interface never copies.
  */
 limit_minutes: number, audio: MeetingAudioKind, tracks: Array<MeetingTrackSnapshot>, upload: MeetingUploadSnapshot, 
 /**

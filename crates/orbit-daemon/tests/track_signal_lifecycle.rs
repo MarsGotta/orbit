@@ -203,7 +203,7 @@ async fn start_meeting(path: &Path, title: &str) -> Result<()> {
             audio: MeetingAudio::Application {
                 application_pid: REMOTE_PID,
             },
-            duration_minutes: 1,
+            duration_minutes: None,
             event: None,
         },
     )

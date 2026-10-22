@@ -329,7 +329,6 @@ mod tests {
                 id: "rec-taxonomy".into(),
                 title: "Reunión".into(),
                 audio: crate::protocol::MeetingAudio::MicrophoneOnly,
-                duration_ms: 600_000,
             },
             0,
         )

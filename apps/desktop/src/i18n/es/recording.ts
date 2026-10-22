@@ -1,3 +1,5 @@
+import { duration } from "./duration";
+
 export const recording = {
   meeting: {
     // Opens «Nueva grabación»; the menu bar alone starts at once.
@@ -38,7 +40,7 @@ export const recording = {
     playingNow: "Suenan ahora:",
     wholeApplication: "Se graba la app entera, no una sola pestaña del navegador.",
     limit: (minutes: number, until: string) =>
-      `Graba hasta ${minutes} min, hasta las ${until}. Si cierras la ventana, sigue grabando.`,
+      `Graba hasta ${duration(minutes)}, hasta las ${until}. Si cierras la ventana, sigue grabando.`,
     cancel: "Cancelar",
     record: "Empezar a grabar",
     startPending: "Empezando…",

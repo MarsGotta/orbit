@@ -275,7 +275,6 @@ async fn start_recording(
             id: recording.into(),
             title: "Synthetic recording".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let command = receiver.recv().await.context("start command absent")?;

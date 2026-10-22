@@ -261,7 +261,6 @@ async fn start(runtime: &mut Runtime, receiver: &mut mpsc::Receiver<Value>) -> R
             id: "meeting".into(),
             title: "Synthetic fixture".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let command = receiver.recv().await.context("start command absent")?;
@@ -823,7 +822,6 @@ async fn system_scope_starts_remote_app_without_pid_and_marks_the_epoch() -> Res
             id: "meeting".into(),
             title: "Synthetic fixture".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
-            duration_ms: 60_000,
         })
         .await?;
     let mut remote_start = None;
@@ -919,7 +917,6 @@ async fn tracks_report_sealed_chunks_and_gaps_per_track() -> Result<()> {
             id: "two-tracks".into(),
             title: "Reunión con dos pistas".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
-            duration_ms: 60_000,
         })
         .await?;
     let mut microphone = None;
@@ -1157,7 +1154,6 @@ async fn lost_helper_ends_an_owed_stop_and_seals_received_audio() -> Result<()> 
             id: "after-helper-loss".into(),
             title: "Reunión sintética".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await
         .err()
@@ -1224,7 +1220,6 @@ async fn helper_lost_after_retry_notice_seals_audio_on_next_tick() -> Result<()>
             id: "after-helper-loss".into(),
             title: "Reunión sintética".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await
         .err()
@@ -1706,6 +1701,7 @@ async fn meeting_capture_cut_keeps_a_saved_voice_note_transcription() -> Result<
         gaps: 0,
         tracks: Vec::new(),
         finalizing_since_ms: None,
+        ceiling_notice_given: false,
     });
     assert!(runtime.state.durable.call.is_none());
     runtime
@@ -1811,7 +1807,6 @@ async fn helper_knows_who_uses_a_shared_microphone() -> Result<()> {
             id: "purpose-meeting".into(),
             title: "Reunión sintética".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let meeting = take_helper_command(&mut helper, "audio_start")?;
@@ -1853,7 +1848,6 @@ async fn helper_knows_who_uses_a_shared_microphone() -> Result<()> {
             id: "shared-meeting".into(),
             title: "Reunión sintética".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     runtime.apply(Event::PauseMeeting).await?;

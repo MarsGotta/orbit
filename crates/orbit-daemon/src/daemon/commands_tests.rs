@@ -21,7 +21,7 @@ async fn a_long_title_refusal_names_the_title_its_length_and_the_maximum() -> Re
         .command(Command::MeetingStart {
             title: "á".repeat(characters),
             audio: MeetingAudio::MicrophoneOnly,
-            duration_minutes: 30,
+            duration_minutes: None,
             event: None,
         })
         .await
@@ -60,7 +60,7 @@ async fn a_long_title_refusal_names_the_title_its_length_and_the_maximum() -> Re
         .command(Command::MeetingStart {
             title: "   ".into(),
             audio: MeetingAudio::MicrophoneOnly,
-            duration_minutes: 30,
+            duration_minutes: None,
             event: None,
         })
         .await
@@ -75,7 +75,7 @@ async fn a_long_title_refusal_names_the_title_its_length_and_the_maximum() -> Re
         .command(Command::MeetingStart {
             title: "á".repeat(orbit_core::MAX_MANIFEST_TITLE_CHARACTERS),
             audio: MeetingAudio::MicrophoneOnly,
-            duration_minutes: 1,
+            duration_minutes: None,
             event: None,
         })
         .await?;
@@ -90,6 +90,34 @@ async fn a_long_title_refusal_names_the_title_its_length_and_the_maximum() -> Re
             .chars()
             .count(),
         orbit_core::MAX_MANIFEST_TITLE_CHARACTERS
+    );
+    Ok(())
+}
+
+/// Every recording runs to the one safety ceiling, whatever its sender
+/// asked: a duration from an older sender is accepted and has no effect.
+#[tokio::test]
+async fn every_recording_runs_to_the_one_safety_ceiling() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _receiver) = fixture(directory.path())?;
+    runtime
+        .command(Command::MeetingStart {
+            title: "Revisión trimestral".into(),
+            audio: MeetingAudio::MicrophoneOnly,
+            duration_minutes: Some(30),
+            event: None,
+        })
+        .await?;
+    let recording = runtime
+        .state
+        .durable
+        .recording
+        .as_ref()
+        .context("recording absent")?;
+    assert_eq!(
+        recording.expires_at_ms - recording.started_at_ms,
+        240 * 60_000,
+        "a recording stops only at the safety ceiling"
     );
     Ok(())
 }

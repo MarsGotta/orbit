@@ -7,6 +7,22 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A recording no longer stops at its calendar event's end:** a recording
+  started from Hoy or the calendar stopped fifteen minutes after the event, and
+  one started by hand, from the menu bar or with ⌃⌥M after an hour. Every
+  recording now runs until it is finished, with one safety ceiling of four
+  hours against a forgotten recording, whatever started it.
+- **Ten minutes before that ceiling, Orbit says so once**, with how long the
+  recording has run and what is left. «Nueva grabación», the recording card
+  and Hoy say the same ceiling («Graba hasta 4 h»), and Ajustes › «Cuánto dura
+  cada cosa» says what lasts how long: a recording up to 4 h, a call from the
+  app up to 1 h, one begun with ⌃⌥D up to 15 min.
+- **A hub that stops answering during a recording does not stop it:** the
+  recording goes on, its audio waits on the Mac and reaches the hub once,
+  whole, when the hub answers again (now covered by an end-to-end test).
+
 ## [0.10.1] - 2026-10-22
 
 ### Fixed

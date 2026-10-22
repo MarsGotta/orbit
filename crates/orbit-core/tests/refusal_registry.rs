@@ -312,8 +312,7 @@ fn resource_sizes_keep_the_existing_retry_policy() {
 }
 
 #[test]
-fn decisions_preserve_actual_text_and_both_duration_bounds() {
-    use orbit_core::protocol::MeetingAudio;
+fn decisions_preserve_actual_text_and_the_call_duration_bound() {
     use orbit_core::{Connection, Event, State, decide};
     let online = decide(&State::default(), Event::Connect(Connection::Online), 0)
         .unwrap()
@@ -379,33 +378,6 @@ fn decisions_preserve_actual_text_and_both_duration_bounds() {
     .unwrap()
     .state;
     with_audio.set_voice_processing_supported(true);
-    let meeting = decide(
-        &with_audio,
-        Event::StartMeeting {
-            id: "meeting".into(),
-            title: "Prueba".into(),
-            audio: MeetingAudio::MicrophoneOnly,
-            duration_ms: 14_400_001,
-        },
-        0,
-    )
-    .unwrap_err();
-    assert_eq!(
-        meeting.clone(),
-        Refusal::InvalidParameter {
-            parameter: Parameter::Duration,
-            expected: Expected::DurationRange {
-                actual_ms: 14_400_001,
-                min_ms: 60_000,
-                max_ms: 14_400_000
-            },
-        }
-    );
-    let meeting_wire = serde_json::to_value(meeting).unwrap();
-    assert_eq!(
-        meeting_wire["expected"],
-        json!({"kind":"duration_range","actual_ms":14_400_001,"min_ms":60_000,"max_ms":14_400_000})
-    );
     let call = decide(
         &with_audio,
         Event::CallStart {

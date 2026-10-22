@@ -22,7 +22,7 @@ export const idleMeeting: MeetingSnapshot = {
   title: null,
   started_at_ms: null,
   ends_at_ms: null,
-  limit_minutes: 60,
+  limit_minutes: 240,
   audio: "system",
   tracks: [],
   upload: { pending_chunks: 0, offline: false },
@@ -49,7 +49,7 @@ export const recordingMeeting: MeetingSnapshot = {
   recording_id: "rec-review-21",
   title: "Revisión del diseño de reservas",
   started_at_ms: at(0, 10, 22),
-  ends_at_ms: at(0, 11, 45),
+  ends_at_ms: at(0, 14, 22),
   audio: "application",
   tracks: [
     { name: "mic_local", level: "ok", chunks_uploaded: 18, gaps: 0 },

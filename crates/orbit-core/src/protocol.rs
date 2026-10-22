@@ -269,7 +269,11 @@ pub enum Command {
         title: String,
         #[serde(default)]
         audio: MeetingAudio,
-        duration_minutes: u16,
+        /// Accepted from older senders and ignored: every recording runs
+        /// to the one safety ceiling ([`crate::RECORDING_CEILING_MINUTES`]),
+        /// whatever started it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        duration_minutes: Option<u16>,
         /// The calendar event the recording belongs to, by its stable
         /// reference («Grabar» on an event). Absent: not linked.
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -375,27 +379,6 @@ pub fn recording_title(title: String, now_ms: i64, utc_offset_ms: Option<i64>) -
     let minute = now_ms.saturating_add(offset).rem_euclid(86_400_000) / 60_000;
     format!("Reunión {:02}:{:02}", minute / 60, minute % 60)
 }
-
-/// How long a recording started by hand may run, in minutes: «Grabar
-/// reunión», ⌃⌥M and the menu bar's «Grabar reunión ahora».
-///
-/// Protects: a recording left running after the meeting, with nobody to end
-/// it, filling the Mac and the hub with silence. Why an hour: most meetings
-/// fit in it, the app says it before starting («Graba hasta 60 min, hasta las
-/// 11:40») and when it is reached, and another recording continues one that
-/// goes on. It is not the longest the core admits (four hours,
-/// `decide_capture_start`), nor the length of one started from an event
-/// ([`EVENT_RECORDING_GRACE_MINUTES`]) or by a detected call.
-pub const RECORDING_MINUTES: u16 = 60;
-
-/// A recording started from a calendar event («Grabar», «Unirse y grabar»)
-/// runs until the event's end plus these minutes.
-///
-/// Protects the same as [`RECORDING_MINUTES`] for a meeting with a known
-/// end. Why fifteen: a meeting that overruns its slot by a little is still
-/// recorded whole. It does not shorten a recording the user keeps going by
-/// starting another.
-pub const EVENT_RECORDING_GRACE_MINUTES: u16 = 15;
 
 fn default_call_minutes() -> u16 {
     crate::voice::CALL_MINUTES

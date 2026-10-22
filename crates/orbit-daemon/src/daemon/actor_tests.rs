@@ -1448,7 +1448,6 @@ async fn an_audio_start_integrity_failure_cuts_the_recording_without_latching() 
             id: "meeting".into(),
             title: "Synthetic fixture".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let audio_start = receiver.recv().await.context("start command absent")?;
@@ -1658,7 +1657,6 @@ async fn a_permission_refusal_of_audio_start_interrupts_the_recording_without_la
             id: "meeting".into(),
             title: "Synthetic fixture".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let audio_start = receiver.recv().await.context("start command absent")?;
@@ -1705,7 +1703,6 @@ async fn a_later_privacy_stop_does_not_relabel_a_refused_audio_start() -> Result
             id: "refused-before-stop".into(),
             title: "Synthetic fixture".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let audio_start = receiver.recv().await.context("start command absent")?;

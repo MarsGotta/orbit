@@ -240,7 +240,6 @@ fn recording_command() -> AppCommand {
     AppCommand::Recording(
         orbit_app_core::features::recording::RecordingCommand::MeetingStart {
             title: String::new(),
-            minutes: orbit_core::protocol::RECORDING_MINUTES,
         },
     )
 }
@@ -304,13 +303,12 @@ mod tests {
     #[test]
     fn tray_recording_delegates_its_automatic_title_to_app_core() {
         let AppCommand::Recording(
-            orbit_app_core::features::recording::RecordingCommand::MeetingStart { title, minutes },
+            orbit_app_core::features::recording::RecordingCommand::MeetingStart { title },
         ) = recording_command()
         else {
             panic!("the tray did not start a recording");
         };
         assert!(title.is_empty(), "only app-core reads the local clock");
-        assert_eq!(minutes, 60);
     }
 
     fn labels(state: &TrayState) -> Vec<(String, bool)> {

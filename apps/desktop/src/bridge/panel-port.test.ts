@@ -60,9 +60,7 @@ it("asks Deimos, closes the question and asks for the keyboard through its own o
   ]);
   expect(calls[2]?.payload).toEqual({ command: { command: "panel_focus", focus: true } });
   expect(calls[3]?.payload).toEqual({ command: { command: "panel_focus", focus: false } });
-  await expect(
-    port.send({ command: "meeting_start", title: "x", minutes: 1 }, OP),
-  ).rejects.toThrow();
+  await expect(port.send({ command: "meeting_start", title: "x" }, OP)).rejects.toThrow();
 });
 
 /** An answer's link opens through the panel's own closed order. */

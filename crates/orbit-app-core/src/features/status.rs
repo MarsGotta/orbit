@@ -71,6 +71,12 @@ pub struct StatusSettingsView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub error_reports: Option<bool>,
+    /// How long a call from the app lasts at most, in minutes, for
+    /// «Cuánto dura cada cosa»: orbit-core's `voice::CALL_MINUTES`.
+    pub call_minutes: u16,
+    /// How long a call begun with ⌃⌥D lasts at most, in minutes:
+    /// `voice::HOTKEY_CALL_MINUTES`.
+    pub hotkey_call_minutes: u16,
 }
 
 pub type View = StatusView;
@@ -132,6 +138,8 @@ pub fn project(input: &FeatureInput<'_>) -> View {
             },
             privacy_stopped: false,
             error_reports: None,
+            call_minutes: orbit_core::voice::CALL_MINUTES,
+            hotkey_call_minutes: orbit_core::voice::HOTKEY_CALL_MINUTES,
         },
         stale_since_ms: None,
     };

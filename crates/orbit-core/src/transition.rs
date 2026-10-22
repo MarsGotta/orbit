@@ -76,11 +76,13 @@ pub enum Event {
         approval: Approval,
     },
     Interrupt,
+    /// A recording starts. It runs until finished, stopped or cut, or at
+    /// most [`crate::RECORDING_CEILING_MINUTES`]: nothing that starts it
+    /// sets when it stops.
     StartMeeting {
         id: String,
         title: String,
         audio: MeetingAudio,
-        duration_ms: i64,
     },
     CaptureStarted,
     CaptureFinalized,
@@ -890,12 +892,9 @@ fn decide_capture(
     now_ms: i64,
 ) -> Result<(), Refusal> {
     match event {
-        Event::StartMeeting {
-            id,
-            title,
-            audio,
-            duration_ms,
-        } => decide_capture_start(state, next, effects, id, title, audio, duration_ms, now_ms),
+        Event::StartMeeting { id, title, audio } => {
+            decide_capture_start(state, next, effects, id, title, audio, now_ms)
+        }
         Event::CaptureStarted => decide_capture_started(next),
         Event::PauseMeeting => decide_capture_pause(next, effects),
         Event::ResumeMeeting => decide_capture_resume(state, next, effects, now_ms),
@@ -944,7 +943,6 @@ fn decide_capture(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn decide_capture_start(
     state: &State,
     next: &mut State,
@@ -952,7 +950,6 @@ fn decide_capture_start(
     id: String,
     title: String,
     audio: MeetingAudio,
-    duration_ms: i64,
     now_ms: i64,
 ) -> Result<(), Refusal> {
     if state.durable.call.is_some() {
@@ -971,17 +968,6 @@ fn decide_capture_start(
         return Err(Refusal::Busy {
             operation: crate::refusal::Operation::Recording,
             retry_after_ms: None,
-        });
-    }
-    let allowed_duration_ms = 60_000..=14_400_000;
-    if !allowed_duration_ms.contains(&duration_ms) {
-        return Err(Refusal::InvalidParameter {
-            parameter: crate::refusal::Parameter::Duration,
-            expected: crate::refusal::Expected::DurationRange {
-                actual_ms: duration_ms,
-                min_ms: *allowed_duration_ms.start(),
-                max_ms: *allowed_duration_ms.end(),
-            },
         });
     }
     let application_pid = match audio {
@@ -1009,7 +995,7 @@ fn decide_capture_start(
         title,
         started_at_ms: now_ms,
         ended_at_ms: None,
-        expires_at_ms: now_ms.saturating_add(duration_ms),
+        expires_at_ms: now_ms.saturating_add(i64::from(crate::RECORDING_CEILING_MINUTES) * 60_000),
         application_pid,
         audio,
         phase: CapturePhase::Starting,
@@ -1032,6 +1018,7 @@ fn decide_capture_start(
             ],
         },
         finalizing_since_ms: None,
+        ceiling_notice_given: false,
     });
     effects.push(Effect::StartCapture {
         recording_id: id,
@@ -1432,6 +1419,36 @@ fn decide_tick(state: &State, next: &mut State, effects: &mut Vec<Effect>, now_m
         effects.extend([Effect::StopCall, Effect::StopPlayback, Effect::Interrupt]);
         next.set_notice(NoticeCode::CallExpired);
     }
+    // Said once, before the ceiling, with the minutes left: room to finish
+    // the recording and start another.
+    if let Some(recording) = next.durable.recording.as_mut()
+        && !recording.ceiling_notice_given
+        && matches!(
+            recording.phase,
+            CapturePhase::Recording | CapturePhase::Starting
+        )
+        && now_ms < recording.expires_at_ms
+        && recording.expires_at_ms.saturating_sub(now_ms)
+            <= crate::RECORDING_CEILING_NOTICE_MINUTES * 60_000
+    {
+        recording.ceiling_notice_given = true;
+        let remaining_ms = recording.expires_at_ms.saturating_sub(now_ms);
+        let notice = Notice::new(NoticeCode::RecordingCeilingNear)
+            .with(NoticeKey::Remaining, (remaining_ms + 59_999) / 60_000)
+            .with(
+                NoticeKey::Minutes,
+                now_ms.saturating_sub(recording.started_at_ms).max(0) / 60_000,
+            )
+            .with(
+                NoticeKey::Max,
+                recording
+                    .expires_at_ms
+                    .saturating_sub(recording.started_at_ms)
+                    .max(0)
+                    / 60_000,
+            );
+        next.set_notice(notice);
+    }
     if next.durable.recording.as_ref().is_some_and(|r| {
         r.expires_at_ms <= now_ms
             && matches!(r.phase, CapturePhase::Recording | CapturePhase::Starting)
@@ -1443,8 +1460,8 @@ fn decide_tick(state: &State, next: &mut State, effects: &mut Vec<Effect>, now_m
             .recording
             .as_ref()
             .is_some_and(|recording| recording.sealed_chunks > 0);
-        // The ceiling it was started with (by hand, from the calendar or for
-        // a call), in whole minutes: there is no permission to expire.
+        // The safety ceiling, in whole minutes: there is no permission to
+        // expire.
         let minutes = next.durable.recording.as_ref().map_or(0, |recording| {
             recording
                 .expires_at_ms
@@ -1655,7 +1672,6 @@ mod tests {
                     id: "screen-permission".into(),
                     title: "Fixture sintética".into(),
                     audio: MeetingAudio::System,
-                    duration_ms: 60_000,
                 },
                 0,
             );
@@ -1848,17 +1864,17 @@ mod tests {
                 id: "r".into(),
                 title: "Prueba".into(),
                 audio: MeetingAudio::MicrophoneOnly,
-                duration_ms: 60_000,
             },
             0,
         )
         .unwrap()
         .state;
         let state = decide(&state, Event::CaptureStarted, 0).unwrap().state;
-        let expired = decide(&state, Event::Tick, 60_000).unwrap();
+        let ceiling_ms = i64::from(crate::RECORDING_CEILING_MINUTES) * 60_000;
+        let expired = decide(&state, Event::Tick, ceiling_ms).unwrap();
         assert!(expired.effects.contains(&Effect::StopCapture));
         assert_eq!(
-            decide(&expired.state, Event::ResumeMeeting, 60_001).unwrap_err(),
+            decide(&expired.state, Event::ResumeMeeting, ceiling_ms + 1).unwrap_err(),
             Refusal::Expired {
                 resource: crate::refusal::Resource::Recording,
                 expired_at_ms: None
@@ -2157,6 +2173,7 @@ mod tests {
             gaps: 1,
             tracks: Vec::new(),
             finalizing_since_ms: None,
+            ceiling_notice_given: false,
         }
     }
 
@@ -2220,11 +2237,75 @@ mod tests {
         );
     }
 
+    /// Whatever starts a recording, it stops only at the safety ceiling.
+    #[test]
+    fn a_meeting_runs_to_the_safety_ceiling() {
+        let mut state = state_with_recording(recording_in_phase(CapturePhase::Idle));
+        state.durable.recording = None;
+        state.durable.capabilities.screen_state = PermissionState::Granted;
+        let decision = decide(
+            &state,
+            Event::StartMeeting {
+                id: "planning".into(),
+                title: "Planificación".into(),
+                audio: MeetingAudio::System,
+            },
+            5_000,
+        )
+        .unwrap();
+        let recording = decision.state.durable.recording.unwrap();
+        assert_eq!(
+            recording.expires_at_ms,
+            5_000 + i64::from(crate::RECORDING_CEILING_MINUTES) * 60_000
+        );
+        assert_eq!(crate::RECORDING_CEILING_MINUTES, 240);
+    }
+
+    /// Ten minutes before the ceiling the person is told once how long is
+    /// left, how long it has recorded and the ceiling; the recording goes on.
+    #[test]
+    fn the_ceiling_is_announced_once_ten_minutes_before() {
+        let mut recording = recording_in_phase(CapturePhase::Recording);
+        recording.started_at_ms = 0;
+        recording.expires_at_ms = 240 * 60_000;
+        let state = state_with_recording(recording);
+        let early = decide(&state, Event::Tick, 229 * 60_000).unwrap().state;
+        assert_eq!(early.durable.notice, state.durable.notice);
+        let warned = decide(&early, Event::Tick, 230 * 60_000).unwrap().state;
+        assert_eq!(
+            warned.durable.notice,
+            Some(
+                Notice {
+                    sequence: Some(1),
+                    ..Notice::new(NoticeCode::RecordingCeilingNear)
+                }
+                .with(NoticeKey::Remaining, 10_i64)
+                .with(NoticeKey::Minutes, 230_i64)
+                .with(NoticeKey::Max, 240_i64)
+            )
+        );
+        let recording = warned.durable.recording.as_ref().unwrap();
+        assert_eq!(recording.phase, CapturePhase::Recording);
+        let again = decide(&warned, Event::Tick, 231 * 60_000).unwrap().state;
+        assert_eq!(again.durable.notice, warned.durable.notice, "said once");
+        assert_eq!(
+            again
+                .durable
+                .notice_log
+                .records()
+                .iter()
+                .filter(|notice| notice.code == NoticeCode::RecordingCeilingNear)
+                .count(),
+            1
+        );
+    }
+
     #[test]
     fn tick_past_the_finalizing_deadline_interrupts_with_gap_and_notice() {
         let since = 10_000;
         let state = state_with_recording(Recording {
             finalizing_since_ms: Some(since),
+            ceiling_notice_given: false,
             ..recording_in_phase(CapturePhase::Finalizing)
         });
         let decision = decide(&state, Event::Tick, since + FINALIZING_TIMEOUT_MS + 1).unwrap();
@@ -2243,6 +2324,7 @@ mod tests {
         let since = 10_000;
         let state = state_with_recording(Recording {
             finalizing_since_ms: Some(since),
+            ceiling_notice_given: false,
             ..recording_in_phase(CapturePhase::Finalizing)
         });
         let decision = decide(&state, Event::Tick, since + FINALIZING_TIMEOUT_MS).unwrap();
@@ -2290,7 +2372,6 @@ mod tests {
                 id: "next".into(),
                 title: "Otra sesión".into(),
                 audio: MeetingAudio::MicrophoneOnly,
-                duration_ms: 60_000,
             },
             7_000,
         )
@@ -2367,7 +2448,6 @@ mod tests {
             id: "audio-scope-recording".into(),
             title: "Reunión de sistema".into(),
             audio,
-            duration_ms: 60_000,
         }
     }
 

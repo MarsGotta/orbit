@@ -130,7 +130,6 @@ async fn silent_meeting_drain_cuts_the_recording_and_preserves_audio() -> Result
             id: "meeting-liveness".into(),
             title: "Reunión sintética".into(),
             audio: MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let start = next_command(&mut helper, "audio_start").await?;
@@ -193,7 +192,6 @@ async fn meeting_awaiting_only_its_finish(
             id: "meeting-awaiting-finish".into(),
             title: "Reunión sintética".into(),
             audio: MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let start = next_command(helper, "audio_start").await?;

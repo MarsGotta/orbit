@@ -4,6 +4,9 @@ use orbit_core::{
     CapturePhase, Connection, Event, PermissionState, State, decide, protocol::MeetingAudio,
 };
 
+/// Every recording's safety ceiling, in milliseconds.
+const CEILING_MS: i64 = orbit_core::RECORDING_CEILING_MINUTES as i64 * 60_000;
+
 fn microphone_ready() -> State {
     let online = decide(&State::default(), Event::Connect(Connection::Online), 0)
         .unwrap()
@@ -48,7 +51,6 @@ fn pending_recording_refusal_names_identity_phase_and_numbers() {
             id: "pending-307".into(),
             title: "Reunión pendiente".into(),
             audio: MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         },
         1_000,
     )
@@ -73,7 +75,7 @@ fn pending_recording_refusal_names_identity_phase_and_numbers() {
         encoded,
         serde_json::json!({
             "code":"pending_recording", "id":"pending-307", "title":"Reunión pendiente", "phase":"interrupted",
-            "sealed_chunks":2, "gaps":1, "expires_at_ms":61_000, "retry":{"kind":"after_fix"}
+            "sealed_chunks":2, "gaps":1, "expires_at_ms":1_000 + CEILING_MS, "retry":{"kind":"after_fix"}
         })
     );
 }
@@ -87,7 +89,6 @@ fn empty_capture_closure_keeps_the_capture_cut_cause_in_notice_history() {
             id: "empty-cut".into(),
             title: "Corte de micrófono".into(),
             audio: MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         },
         1_000,
     )
@@ -144,7 +145,6 @@ fn recording_for_tick_copy() -> State {
             id: "tick-copy".into(),
             title: "Tick copy".into(),
             audio: MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         },
         1_000,
     )
@@ -164,7 +164,9 @@ fn expiry_names_saved_fragments_only_when_there_are_any() {
         } else {
             recording.clone()
         };
-        let expired = decide(&recording, Event::Tick, 61_000).unwrap().state;
+        let expired = decide(&recording, Event::Tick, 1_000 + CEILING_MS)
+            .unwrap()
+            .state;
         let notice = expired.durable.notice.clone().unwrap();
         assert_eq!(notice.code, NoticeCode::RecordingCeilingReached);
         assert_eq!(
@@ -173,7 +175,7 @@ fn expiry_names_saved_fragments_only_when_there_are_any() {
             "expiry with has_chunk={has_chunk}: {notice:?}"
         );
         if !has_chunk {
-            let closed = decide(&expired, Event::EmptyCaptureClosed, 61_001)
+            let closed = decide(&expired, Event::EmptyCaptureClosed, 1_001 + CEILING_MS)
                 .unwrap()
                 .state;
             assert_eq!(closed.notice_code(), Some(NoticeCode::RecordingEmpty));
@@ -294,7 +296,6 @@ fn a_cut_recording_that_cannot_go_on_is_closed_at_its_last_audio() {
             id: "reunion-cortada".into(),
             title: "Reunión sintética".into(),
             audio: MeetingAudio::MicrophoneOnly,
-            duration_ms: 3_600_000,
         },
         1_000,
     )

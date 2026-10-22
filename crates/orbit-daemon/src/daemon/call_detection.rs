@@ -19,14 +19,6 @@ use orbit_core::{
     wire::native::NativeEvent,
 };
 
-/// How long a recording a call started may run.
-///
-/// Protects: a recording left open when a call's end is never seen — the
-/// helper gone mid-call, and no signal is never a reason to stop. Why four
-/// hours: the longest recording the core admits (`decide_capture_start`), as
-/// for one started by hand. It is not how long a call lasts: its end stops it.
-const CALL_RECORDING_MINUTES: u16 = 240;
-
 /// The agenda around a call, as the calendar read it.
 pub(super) struct CallEvents {
     pub(super) events: Vec<CalendarOccurrence>,
@@ -287,7 +279,6 @@ impl Runtime {
                 MeetingAudio::Application {
                     application_pid: app.application_pid,
                 },
-                CALL_RECORDING_MINUTES,
                 event.clone(),
                 "call_detection",
             )

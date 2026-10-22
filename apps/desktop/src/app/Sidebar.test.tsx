@@ -12,7 +12,7 @@ const idle = {
   title: null,
   started_at_ms: null,
   ends_at_ms: null,
-  limit_minutes: 60,
+  limit_minutes: 240,
   audio: "system",
   tracks: [],
   recent: [],

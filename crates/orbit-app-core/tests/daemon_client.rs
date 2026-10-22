@@ -860,7 +860,6 @@ async fn daemon_end_leaves_the_last_recording_stale() -> Result<(), Box<dyn Erro
         .send(AppCommand::Recording(
             orbit_app_core::features::recording::RecordingCommand::MeetingStart {
                 title: "Fixture de integración".into(),
-                minutes: 1,
             },
         ))
         .await?;
@@ -999,7 +998,6 @@ async fn a_refused_audio_start_shows_the_cause_and_not_recording() -> Result<(),
             .send(AppCommand::Recording(
                 orbit_app_core::features::recording::RecordingCommand::MeetingStart {
                     title: "Fixture rechazada".into(),
-                    minutes: 1,
                 },
             ))
             .await

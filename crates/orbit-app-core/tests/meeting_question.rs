@@ -43,6 +43,7 @@ fn recording_head(
                     gaps: 0,
                     tracks: Vec::new(),
                     finalizing_since_ms: None,
+                    ceiling_notice_given: false,
                 })),
                 recording_signal: None,
                 pending_jobs: 0,

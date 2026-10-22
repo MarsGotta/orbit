@@ -167,7 +167,6 @@ async fn start_recording(runtime: &mut Runtime, helper: &mut mpsc::Receiver<Valu
             id: "privacy-meeting".into(),
             title: "Reunión sintética".into(),
             audio: MeetingAudio::MicrophoneOnly,
-            duration_ms: 600_000,
         })
         .await
         .unwrap();
@@ -239,7 +238,6 @@ async fn a_restarted_daemon_without_the_users_stop_comes_back_working() {
             id: "after-restart".into(),
             title: "Reunión sintética".into(),
             audio: MeetingAudio::MicrophoneOnly,
-            duration_ms: 600_000,
         })
         .await
         .unwrap();
@@ -392,7 +390,6 @@ async fn an_unverifiable_inventory_is_shown_with_its_numbers_and_stops_nothing()
                 id: format!("after-inventory-{rows}"),
                 title: "Reunión sintética".into(),
                 audio: MeetingAudio::MicrophoneOnly,
-                duration_ms: 600_000,
             })
             .await
             .unwrap();

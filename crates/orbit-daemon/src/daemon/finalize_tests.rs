@@ -159,7 +159,6 @@ async fn start(
             id: id.into(),
             title: "Synthetic recording".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     start_ack(runtime, receiver).await
@@ -339,7 +338,6 @@ async fn helper_loss_closes_empty_recording_and_allows_another() -> Result<()> {
             id: "after-loss".into(),
             title: "After loss".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     assert_eq!(
@@ -404,7 +402,6 @@ async fn permission_refusal_closes_empty_capture_and_admits_call_immediately() -
             id: "permission-refused".into(),
             title: "Permission refused".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let command = receive_helper_command(&mut receiver, "audio_start").await?;
@@ -450,7 +447,6 @@ async fn remote_start_refusal_stops_the_started_microphone_before_closing() -> R
             id: "partial-permission-refusal".into(),
             title: "System audio refused".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
-            duration_ms: 60_000,
         })
         .await?;
     let microphone = receive_helper_command(&mut receiver, "audio_start").await?;
@@ -533,7 +529,6 @@ async fn retired_start_refusal_does_not_touch_the_next_call() -> Result<()> {
             id: "old-system".into(),
             title: "Synthetic system recording".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
-            duration_ms: 60_000,
         })
         .await?;
     let microphone = receive_helper_command(&mut receiver, "audio_start").await?;
@@ -610,7 +605,6 @@ async fn voice_refusal_during_starting_recording_keeps_permission_cause() -> Res
             id: "starting-with-voice".into(),
             title: "Synthetic starting recording".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let start = receive_helper_command(&mut receiver, "audio_start").await?;
@@ -662,7 +656,6 @@ async fn second_refusal_keeps_first_cause_and_wait_notice() -> Result<()> {
             id: "two-refusals".into(),
             title: "Synthetic two-track recording".into(),
             audio: orbit_core::protocol::MeetingAudio::System,
-            duration_ms: 60_000,
         })
         .await?;
     let microphone = receive_helper_command(&mut receiver, "audio_start").await?;
@@ -743,6 +736,7 @@ async fn expiry_closes_empty_capture_and_admits_call() -> Result<()> {
         gaps: 0,
         tracks: Vec::new(),
         finalizing_since_ms: None,
+        ceiling_notice_given: false,
     });
     runtime.run_maintenance().await;
 
@@ -862,6 +856,7 @@ async fn finalize_deadline_closes_empty_capture_and_admits_call() -> Result<()> 
         gaps: 0,
         tracks: Vec::new(),
         finalizing_since_ms: Some(0),
+        ceiling_notice_given: false,
     });
     runtime.run_maintenance().await;
 
@@ -998,6 +993,7 @@ async fn recovery_keeps_an_existing_closure_and_continues() -> Result<()> {
         gaps: 0,
         tracks: Vec::new(),
         finalizing_since_ms: None,
+        ceiling_notice_given: false,
     });
     let existing = Job {
         id: "finalize-already-closed".into(),
@@ -1054,6 +1050,7 @@ async fn later_stop_keeps_the_earlier_empty_interruption_cause() -> Result<()> {
         gaps: 1,
         tracks: Vec::new(),
         finalizing_since_ms: None,
+        ceiling_notice_given: false,
     });
     runtime.capture.interruption = Some(orbit_core::RecordingInterruption {
         cause: orbit_core::RecordingInterruptionCause::HelperLost,
@@ -1092,6 +1089,7 @@ async fn later_cut_closes_an_earlier_empty_interruption_without_relabeling() -> 
         gaps: 0,
         tracks: Vec::new(),
         finalizing_since_ms: None,
+        ceiling_notice_given: false,
     });
     runtime.capture.interruption = Some(orbit_core::RecordingInterruption {
         cause: orbit_core::RecordingInterruptionCause::HelperCaptureStop,
@@ -1177,6 +1175,7 @@ async fn recovery_does_not_call_a_stale_zero_count_no_audio() -> Result<()> {
         gaps: 1,
         tracks: Vec::new(),
         finalizing_since_ms: None,
+        ceiling_notice_given: false,
     });
     runtime.fixture_store.seal_chunk(
         &orbit_store::ChunkMetadata {

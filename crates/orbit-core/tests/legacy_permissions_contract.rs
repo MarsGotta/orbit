@@ -104,6 +104,7 @@ fn sources_and_tracks_are_additive_on_the_golden_contract() {
             last_chunk_at_ms: 1_700_000_000_500,
         }],
         finalizing_since_ms: None,
+        ceiling_notice_given: false,
     });
     let encoded = serde_json::to_value(&state).unwrap();
     let restored: State = serde_json::from_value(encoded).unwrap();

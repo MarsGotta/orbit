@@ -1215,7 +1215,7 @@ async fn obsolete_answers_do_not_consume_a_new_read_or_stop_audio() -> Result<()
         .command(Command::MeetingStart {
             title: "Synthetic manual recording".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_minutes: 15,
+            duration_minutes: None,
             event: None,
         })
         .await?;

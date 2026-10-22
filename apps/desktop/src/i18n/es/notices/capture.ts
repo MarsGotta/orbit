@@ -1,8 +1,21 @@
 import { macPermissions } from "../permissions";
+import { duration as span } from "../duration";
 import { systemPrivacy, worded, type Entries, type NoticeData } from "./types";
 
 function minutes(data: NoticeData): string {
-  return typeof data.minutes === "number" ? `${data.minutes} min` : "su máximo";
+  return typeof data.minutes === "number" ? span(data.minutes) : "su máximo";
+}
+
+function ceilingNear(data: NoticeData): string {
+  const { remaining, minutes: recorded, max } = data;
+  if (typeof remaining !== "number") {
+    return "La grabación se parará pronto: llega a su máximo. Si la reunión sigue, termínala y empieza otra.";
+  }
+  const facts =
+    typeof recorded === "number" && typeof max === "number"
+      ? `: lleva ${span(recorded)}, el máximo es ${span(max)}`
+      : "";
+  return `La grabación se parará en ${span(remaining)}${facts}. Si la reunión sigue, termínala y empieza otra.`;
 }
 
 /** Why a cut happened, in the person's words; an unknown code is shown as it is. */
@@ -67,6 +80,7 @@ export const capture = {
         : "El audio de la otra app dejó de grabarse y no se pudo recuperar; tu micrófono sigue grabando.",
   },
   recording_finished: worded("done", "Grabación guardada."),
+  recording_ceiling_near: { class: "fixable", text: ceilingNear },
   recording_ceiling_reached: {
     class: "fixable",
     text: (data) =>

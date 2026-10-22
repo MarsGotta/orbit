@@ -80,7 +80,7 @@ impl Default for AppSnapshot {
                 title: None,
                 started_at_ms: None,
                 ends_at_ms: None,
-                limit_minutes: orbit_core::protocol::RECORDING_MINUTES,
+                limit_minutes: orbit_core::RECORDING_CEILING_MINUTES,
                 audio: MeetingAudioKind::System,
                 tracks: Vec::new(),
                 upload: MeetingUploadSnapshot {

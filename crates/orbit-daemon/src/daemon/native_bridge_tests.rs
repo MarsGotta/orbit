@@ -226,7 +226,6 @@ async fn start_meeting(
             id: "native-bridge-meeting".into(),
             title: "Synthetic fixture".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let command = receiver.recv().await.context("start command absent")?;
@@ -539,7 +538,6 @@ async fn a_capture_stop_stalled_once_is_retried_and_the_next_meeting_can_start()
             id: "after-transient-stall".into(),
             title: "Synthetic fixture".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     crate::daemon::audio::tests::take_helper_command(&mut recovered, "audio_start")

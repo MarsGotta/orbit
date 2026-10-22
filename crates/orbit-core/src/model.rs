@@ -98,7 +98,29 @@ pub struct Recording {
     /// version that never tracked the wait keeps loading.
     #[serde(default)]
     pub finalizing_since_ms: Option<i64>,
+    /// Whether the person was told the recording is about to reach its
+    /// ceiling: said once. Absent in a snapshot from an older version.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ceiling_notice_given: bool,
 }
+
+/// How long any recording may run, whatever started it: by hand, the menu
+/// bar, ⌃⌥M, an event in Hoy or the calendar, or a detected call.
+///
+/// Protects: a recording somebody forgot, or a call whose end the Mac never
+/// saw, which would otherwise keep recording and uploading for ever. It is
+/// not meant to cut meetings and nothing about a meeting sets it, not even
+/// its calendar event: an event's end once stopped a meeting that ran over.
+/// Why four hours: meetings of two hours must be kept whole, and four leaves
+/// as much again for one that runs over. The app says it before a recording
+/// starts («Graba hasta 4 h») from the snapshot, never from a copy. It does
+/// not bound a voice call with the assistant (`voice::CALL_MINUTES`), the
+/// audio kept on the Mac or what the hub accepts.
+pub const RECORDING_CEILING_MINUTES: u16 = 240;
+
+/// How long before [`RECORDING_CEILING_MINUTES`] the person is told, once,
+/// that the recording will stop: room to finish it and start another.
+pub const RECORDING_CEILING_NOTICE_MINUTES: i64 = 10;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TrackProgress {
@@ -985,6 +1007,7 @@ mod projection_tests {
                     gaps: 0,
                     tracks: Vec::new(),
                     finalizing_since_ms: Some(2_000),
+                    ceiling_notice_given: false,
                 }),
                 ..crate::DurableState::default()
             },

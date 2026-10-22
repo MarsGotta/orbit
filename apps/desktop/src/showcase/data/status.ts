@@ -39,6 +39,8 @@ export const status: Views["status"] = {
     versions: { app: "0.10.0" },
     privacy_stopped: false,
     error_reports: true,
+    call_minutes: 60,
+    hotkey_call_minutes: 15,
   },
   notice_availability: { state: "current" },
   notice_epoch: "showcase",

@@ -448,7 +448,6 @@ async fn the_phrase_follows_the_meeting_even_on_a_voice_notes_stream() -> Result
             id: RECORDING.into(),
             title: "Comité".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60 * MINUTE,
         })
         .await?;
     runtime.maintain_meeting_question().await?;

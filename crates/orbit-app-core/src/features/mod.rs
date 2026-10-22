@@ -290,12 +290,12 @@ mod command_mapping_tests {
     }
 
     #[test]
-    fn recording_preserves_duration_and_selected_application() {
+    fn recording_preserves_the_selected_application() {
         let snapshot = crate::AppSnapshot::default();
         let result = recording::map_command(
             recording::RecordingCommand::MeetingStartSelected {
                 title: "Revisión".into(),
-                minutes: 37,
+                minutes: None,
                 audio: Some(crate::MeetingAudio::Application {
                     application_pid: 4242,
                 }),
@@ -308,7 +308,7 @@ mod command_mapping_tests {
         assert!(matches!(result,
             Ok(Command::MeetingStart {
                 title,
-                duration_minutes: 37,
+                duration_minutes: None,
                 audio: MeetingAudio::Application { application_pid: 4242 },
                 event: None,
             }) if title == "Revisión"

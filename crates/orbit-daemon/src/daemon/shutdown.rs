@@ -440,7 +440,7 @@ mod tests {
         assert!(!shutdown.allows_command(&Command::MeetingStart {
             title: "Reunión".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_minutes: 30,
+            duration_minutes: None,
             event: None,
         }));
         assert!(!shutdown.allows_command(&Command::VoiceStart));

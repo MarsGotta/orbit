@@ -248,7 +248,6 @@ async fn replacing_an_interrupted_meeting_persists_its_closure_with_a_gap() -> R
             id: "replacement".into(),
             title: "Synthetic next".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let closure = runtime
@@ -308,7 +307,6 @@ async fn pending_old_pcm_blocks_replacement_without_overwriting_its_identity() -
                 id: "replacement".into(),
                 title: "Synthetic next".into(),
                 audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-                duration_ms: 60_000
             })
             .await
             .is_err()

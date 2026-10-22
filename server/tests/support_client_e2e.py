@@ -274,6 +274,90 @@ class SyntheticHermes:
             return {"ok": True, "transcript": "Audio sintético de prueba.", "provider": "fixture"}
 
 
+class SilentHub:
+    """A TCP relay in front of the hub that can stop answering and come back.
+
+    While silent, what the Mac sends still reaches the hub, but no answer comes
+    back: a hub that stopped answering, as the Mac sees it. Silenced by the
+    request that starts with a given prefix, that request is stored on the hub
+    while the Mac never hears so. Coming back drops every connection that went
+    silent, as a restarted hub would, and answers again.
+    """
+
+    def __init__(self, upstream: str):
+        self.upstream_port = int(upstream.rsplit(":", 1)[1])
+        self.answering = asyncio.Event()
+        self.answering.set()
+        self.silencing_request: bytes | None = None
+        self.connections: set[tuple[asyncio.StreamWriter, asyncio.StreamWriter]] = set()
+        self.server = None
+
+    async def __aenter__(self) -> str:
+        self.server = await asyncio.start_server(self._serve, "127.0.0.1", 0)
+        port = self.server.sockets[0].getsockname()[1]
+        return f"http://127.0.0.1:{port}"
+
+    async def __aexit__(self, *_exc):
+        self._drop()
+        self.answering.set()
+        self.server.close()
+        await self.server.wait_closed()
+
+    def silence_from(self, request: bytes):
+        """Stop answering from the next request that starts with `request`."""
+        self.silencing_request = request
+
+    def answer_again(self):
+        self._drop()
+        self.answering.set()
+
+    def _drop(self):
+        for pair in list(self.connections):
+            for writer in pair:
+                writer.transport.abort()
+
+    async def _serve(self, reader, writer):
+        try:
+            hub_reader, hub_writer = await asyncio.open_connection("127.0.0.1", self.upstream_port)
+        except OSError:
+            writer.transport.abort()
+            return
+        pair = (writer, hub_writer)
+        self.connections.add(pair)
+        pumps = [
+            asyncio.create_task(self._pump(reader, hub_writer, answer=False)),
+            asyncio.create_task(self._pump(hub_reader, writer, answer=True)),
+        ]
+        try:
+            await asyncio.wait(pumps, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            for pump in pumps:
+                pump.cancel()
+            await asyncio.gather(*pumps, return_exceptions=True)
+            self.connections.discard(pair)
+            for side in pair:
+                side.transport.abort()
+
+    async def _pump(self, source, sink, answer):
+        try:
+            while data := await source.read(65536):
+                if (
+                    not answer
+                    and self.silencing_request is not None
+                    and data.startswith(self.silencing_request)
+                ):
+                    self.silencing_request = None
+                    self.answering.clear()
+                if answer and not self.answering.is_set():
+                    # The answer is never delivered: coming back drops it.
+                    await self.answering.wait()
+                    return
+                sink.write(data)
+                await sink.drain()
+        except (ConnectionError, OSError):
+            return
+
+
 class RustDevice:
     def __init__(self, binary, data):
         cause = stale_binary_cause(binary)

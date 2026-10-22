@@ -62,7 +62,6 @@ async fn engine_capture_returns_to_actor_while_upload_is_held() -> Result<()> {
             id: "engine-capture-recording".into(),
             title: "Fixture".into(),
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
-            duration_ms: 60_000,
         })
         .await?;
     let start = loop {

@@ -112,6 +112,11 @@ Start from a calendar event, `⌃⌥M` or the recording prompt after a call app 
 used the microphone for 3 seconds (`CALL_CONFIRM_MS`). A recording accepted from
 call detection stops after the app releases the microphone and a visible
 countdown expires. A manually started recording does not stop for that reason.
+No recording stops at its calendar event's end; every recording, whatever
+started it, stops at the latest at one safety ceiling of four hours
+(`RECORDING_CEILING_MINUTES`), announced once ten minutes before. While the hub
+does not answer, the recording continues: sealed chunks wait on the Mac and are
+uploaded when the hub answers again.
 
 1. The helper supplies `mic_local` and `remote_app` PCM. The daemon seals an
    encrypted chunk per track per second and its `chunk_upload` job.

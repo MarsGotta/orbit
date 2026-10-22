@@ -214,15 +214,17 @@ pub fn apply(view: &View, snapshot: &mut AppSnapshot) {
 pub enum RecordingCommand {
     #[serde(skip)]
     #[ts(skip)]
-    MeetingStart { title: String, minutes: u16 },
+    MeetingStart { title: String },
     #[serde(rename = "meeting_start")]
     MeetingStartSelected {
         #[serde(default)]
         #[ts(as = "Option<String>", optional)]
         title: String,
-        #[serde(default = "default_minutes")]
-        #[ts(as = "Option<u16>", optional)]
-        minutes: u16,
+        /// Accepted from an older interface and ignored: every recording
+        /// runs to the one safety ceiling (`orbit_core::RECORDING_CEILING_MINUTES`).
+        #[serde(default, skip_serializing)]
+        #[ts(skip)]
+        minutes: Option<u16>,
         #[serde(default)]
         #[ts(optional)]
         audio: Option<crate::MeetingAudio>,
@@ -237,10 +239,6 @@ pub enum RecordingCommand {
     },
 }
 
-fn default_minutes() -> u16 {
-    orbit_core::protocol::RECORDING_MINUTES
-}
-
 pub(crate) fn map_command(
     command: RecordingCommand,
     calendar: &crate::CalendarSnapshot,
@@ -250,15 +248,15 @@ pub(crate) fn map_command(
     let utc_offset_ms = matches!(&clock.timezone_name, Ok(name) if !name.trim().is_empty())
         .then(|| clock.zone.offset_ms_at(clock.now_ms));
     Ok(match command {
-        RecordingCommand::MeetingStart { title, minutes } => DaemonCommand::MeetingStart {
+        RecordingCommand::MeetingStart { title } => DaemonCommand::MeetingStart {
             title: orbit_core::protocol::recording_title(title, clock.now_ms, utc_offset_ms),
             audio: MeetingAudio::System,
-            duration_minutes: minutes,
+            duration_minutes: None,
             event: None,
         },
         RecordingCommand::MeetingStartSelected {
             title,
-            minutes,
+            minutes: _,
             audio,
             event,
             event_id,
@@ -295,15 +293,8 @@ pub(crate) fn map_command(
                     |event| event.title.clone(),
                 ),
                 audio,
-                duration_minutes: event.map_or(minutes, |event| {
-                    // Match the daemon's u16 minutes: at least one minute,
-                    // at most 65,535; a grace after the event ends.
-                    let remaining = event.end_ms.saturating_sub(clock.now_ms);
-                    (remaining.div_euclid(60_000)
-                        + i64::from(remaining.rem_euclid(60_000) != 0)
-                        + i64::from(orbit_core::protocol::EVENT_RECORDING_GRACE_MINUTES))
-                    .clamp(1, i64::from(u16::MAX)) as u16
-                }),
+                // The event's end never stops the recording: meetings run over.
+                duration_minutes: None,
                 event: event.and_then(|event| {
                     Some(orbit_core::call_detection::LinkedEvent {
                         calendar_item_id: event.calendar_item_id.clone()?,
@@ -383,18 +374,51 @@ mod mapping_tests {
     fn microphone_selection_reaches_microphone_only() {
         let result = map_command(RecordingCommand::MeetingStartSelected {
             title: "Daily".into(),
-            minutes: 37,
+            minutes: Some(37),
             audio: Some(crate::MeetingAudio::MicrophoneOnly),
             event: None,
             event_id: None,
         });
         assert!(
-            matches!(result, Ok(Command::MeetingStart { audio: MeetingAudio::MicrophoneOnly, duration_minutes: 37, title, event: None }) if title == "Daily")
+            matches!(result, Ok(Command::MeetingStart { audio: MeetingAudio::MicrophoneOnly, duration_minutes: None, title, event: None }) if title == "Daily")
         );
     }
 
+    /// The calendar never sets when a recording stops: an event that ends
+    /// in twenty minutes gives the daemon no duration at all.
     #[test]
-    fn record_on_an_event_uses_its_reference_guests_title_and_remaining_time()
+    fn a_recording_from_an_event_takes_no_ceiling_from_it() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let mut snapshot = crate::AppSnapshot::default();
+        snapshot
+            .calendar
+            .events
+            .push(serde_json::from_value(serde_json::json!({
+                "id": "event-1", "calendar_item_id": "planning-series",
+                "occurrence_start_ms": 1_790_000_000_000_i64,
+                "title": "Planificación", "start_ms": 1_790_000_000_000_i64,
+                "end_ms": 1_790_003_000_000_i64,
+            }))?);
+        let clock = crate::calendar::LocalClock {
+            now_ms: 1_790_001_800_000,
+            zone: crate::LocalZone::utc(),
+            timezone_name: Ok("UTC".into()),
+        };
+        let command: RecordingCommand = serde_json::from_value(serde_json::json!({
+            "command": "meeting_start", "event_id": "event-1"
+        }))?;
+        let mapped =
+            serde_json::to_value(super::map_command(command, &snapshot.calendar, &clock)?)?;
+        assert_eq!(mapped["title"], "Planificación");
+        assert!(
+            mapped.get("duration_minutes").is_none(),
+            "the event's end must not stop the recording: {mapped}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn record_on_an_event_uses_its_reference_guests_and_title()
     -> Result<(), Box<dyn std::error::Error>> {
         let mut snapshot = crate::AppSnapshot::default();
         let event: crate::CalendarEventSnapshot = serde_json::from_value(serde_json::json!({
@@ -424,7 +448,7 @@ mod mapping_tests {
             panic!("the selected event was not linked");
         };
         assert_eq!(title, "Comité");
-        assert_eq!(duration_minutes, 55);
+        assert_eq!(duration_minutes, None);
         assert_eq!(link.calendar_item_id, "committee-series");
         assert_eq!(link.occurrence_start_ms, 1_790_000_000_000);
         assert_eq!(link.starts_at_ms, 1_790_000_600_000);
@@ -451,45 +475,10 @@ mod mapping_tests {
             super::map_command(command, &snapshot.calendar, &clock)?,
             Command::MeetingStart {
                 event: None,
-                duration_minutes: 55,
+                duration_minutes: None,
                 ..
             }
         ));
-        Ok(())
-    }
-
-    #[test]
-    fn event_duration_rounds_up_and_stays_within_the_daemons_minutes()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let mut snapshot = crate::AppSnapshot::default();
-        let mut event: crate::CalendarEventSnapshot = serde_json::from_value(serde_json::json!({
-            "id": "event-1", "title": "Comité", "start_ms": 0, "end_ms": 1
-        }))?;
-        let clock = crate::calendar::LocalClock {
-            now_ms: 1_790_001_800_000,
-            zone: crate::LocalZone::utc(),
-            timezone_name: Ok("UTC".into()),
-        };
-        for (end_ms, expected) in [
-            (clock.now_ms + 1, 16),
-            (clock.now_ms - 20 * 60_000, 1),
-            (i64::MAX, u16::MAX),
-        ] {
-            event.end_ms = end_ms;
-            snapshot.calendar.events = vec![event.clone()];
-            let command = RecordingCommand::MeetingStartSelected {
-                title: "ignored".into(),
-                minutes: 5,
-                audio: None,
-                event: None,
-                event_id: Some(event.id.clone()),
-            };
-            assert!(
-                matches!(super::map_command(command, &snapshot.calendar, &clock)?,
-                Command::MeetingStart { duration_minutes, title, .. }
-                    if duration_minutes == expected && title == "Comité")
-            );
-        }
         Ok(())
     }
 
@@ -507,7 +496,6 @@ mod mapping_tests {
             for command in [
                 RecordingCommand::MeetingStart {
                     title: String::new(),
-                    minutes: 60,
                 },
                 serde_json::from_value(serde_json::json!({"command":"meeting_start"}))?,
                 serde_json::from_value(
@@ -516,7 +504,7 @@ mod mapping_tests {
             ] {
                 assert!(
                     matches!(super::map_command(command, &snapshot.calendar, &clock)?,
-                    Command::MeetingStart { title, event: None, duration_minutes: 60, .. } if title == expected)
+                    Command::MeetingStart { title, event: None, duration_minutes: None, .. } if title == expected)
                 );
             }
         }
@@ -563,7 +551,7 @@ mod mapping_tests {
             return Err("the selected occurrence was not linked".into());
         };
         assert_eq!(title, "Comité actualizado");
-        assert_eq!(duration_minutes, 55);
+        assert_eq!(duration_minutes, None);
         assert_eq!(link.calendar_item_id, "committee");
         assert_eq!(link.occurrence_start_ms, 1_790_000_000_000);
         // A read id cannot override the stable reference, even if it is reused.
@@ -599,7 +587,6 @@ mod mapping_tests {
                 let mapped = super::map_command(
                     RecordingCommand::MeetingStart {
                         title: title.into(),
-                        minutes: 60,
                     },
                     &snapshot.calendar,
                     &clock,
@@ -735,6 +722,7 @@ mod topic_tests {
             gaps: 0,
             tracks: Vec::new(),
             finalizing_since_ms: None,
+            ceiling_notice_given: false,
         };
         let frame: TopicFrame = serde_json::from_value(serde_json::json!({
             "epoch": "synthetic", "revision": 1,
@@ -901,6 +889,7 @@ mod topic_tests {
             gaps: 0,
             tracks: Vec::new(),
             finalizing_since_ms: None,
+            ceiling_notice_given: false,
         };
         let frame: TopicFrame = serde_json::from_value(serde_json::json!({
             "epoch": "synthetic", "revision": 1,

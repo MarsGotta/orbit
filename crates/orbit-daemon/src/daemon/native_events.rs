@@ -839,7 +839,7 @@ impl Runtime {
                                 utc_offset_ms,
                             ),
                             audio,
-                            duration_minutes: orbit_core::protocol::RECORDING_MINUTES,
+                            duration_minutes: None,
                             event: None,
                         })
                         .await?

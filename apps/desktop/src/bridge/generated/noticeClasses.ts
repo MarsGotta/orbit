@@ -8,6 +8,7 @@ export const noticeClass = {
   recording_paused: "silent",
   recording_finishing: "silent",
   recording_finished: "done",
+  recording_ceiling_near: "fixable",
   recording_ceiling_reached: "fixable",
   recording_close_unconfirmed: "failed",
   recording_interrupted_by_restart: "failed",

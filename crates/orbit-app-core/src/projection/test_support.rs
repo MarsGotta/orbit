@@ -20,6 +20,7 @@ pub(crate) fn recording(phase: CapturePhase) -> Recording {
         gaps: 0,
         tracks: Vec::new(),
         finalizing_since_ms: None,
+        ceiling_notice_given: false,
     }
 }
 
