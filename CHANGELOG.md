@@ -99,6 +99,10 @@ is in Spanish; the labels quoted below are the ones it shows.
   `agent_auth_required`, `agent_rejected` (`acp_code`), `agent_stopped`
   (`exit_status` or `max_bytes`), `agent_protocol`, or `agent_turn_unfinished`
   (`stop_reason`), instead of a completed message with status `error`.
+- A failed turn says why in the chat, naming the conversation's agent and
+  what to do, with its numbers: every `assistant_*` and `agent_*` cause and
+  `upstream_turn_failed`. Before, all but the attachment refusals showed «Algo
+  ha fallado. Contacta con el administrador (código …)».
 - A live approval is pending as soon as it arrives: the Mac compared the
   agent's request id with the turn's, so every approval looked stale until
   the next snapshot of the state.
