@@ -7,6 +7,53 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-22
+
+### Fixed
+
+- **Voice notes in the chat could not be started after opening Orbit:** the
+  microphone waited for read-aloud to be known, which it only is once something
+  has been read aloud. It now depends only on the daemon, the pairing and the
+  hub, and a note started from the shortcut also shows in the composer.
+- **Claude Code, Codex and the generic assistant could not read attachments**
+  with `orbit_attachment`; each agent now reads the files of its own
+  conversations only.
+- **What an agent says never reaches a log**, also when the ACP SDK cannot
+  read an update; and an interrupt, an approval or a clarification no longer
+  waits for another agent to open its session.
+- **Conversations of the implicit agent continue** when the hub moves to
+  `[[agents]]`, and a conversation keeps its agent when the hub changes its
+  default.
+- **Each agent's voice is known on its own**, and «Escuchar» is only offered
+  where a voice can read.
+- **A failed turn's work, or the previous turn's, no longer stands for the
+  next one**, in the chat and in the macOS notification.
+- **Attachments:** a «Ventana» chip removed while uploading no longer comes
+  back with the window's text; a hub drop during «Adjuntar ventana» frees it;
+  a HEIF photo is recognised by its content, also pasted or misnamed; files
+  never sent are deleted after an hour; a stopped hub is named as such.
+- **The assistant's folders:** a removed folder is no longer read by a request
+  under way; a path outside the folders no longer reveals whether it exists; a
+  missing file in another letter case is "missing"; a folder that cannot be
+  kept says why; the 20 s bound counts the whole request; nested folders are
+  searched once.
+- **Texts and refusals that misled:** ACP agents are named as the user knows
+  them, the hub's messages and orbit-mcp no longer say «Deimos» or «Hermes» for
+  any agent, a skill name with «/», deleting a Hermes skill, a PDF past the
+  turn's budget, an image for an agent without vision, «de el fichero».
+- **The status and assistant topics** fit up to 32 agents and a turn at its
+  ceilings with the agent's work.
+
+### Changed
+
+- The hub's administrator commands start in about 0.4 s: the ACP SDK, like
+  the generic assistant's libraries, loads only when such an agent is built.
+
+### Compatibility
+
+- Going back to 0.10.0 works as it is: the hub only adds an index, and the Mac
+  writes nothing 0.10.0 does not read.
+
 ## [0.10.0] - 2026-10-22
 
 ### Upgrading
