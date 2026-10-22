@@ -12,10 +12,6 @@ is in Spanish; the labels quoted below are the ones it shows.
 - `CONTRIBUTING.md`, `SECURITY.md` and this changelog.
 - A GitHub Actions workflow that runs the whole Linux gate on every pull
   request and every push to `main`.
-- The hub can offer several agents: `[[agents]]` in `orbit.toml`, each a
-  Hermes profile for now. `ready` lists them, `chat.send` takes an
-  `agent_id`, and each conversation keeps its agent. A 0.9.0 `orbit.toml`
-  is still one agent.
 - «Carpetas del asistente» in Ajustes: «Añadir carpeta» opens the macOS panel
   (folders only) and the assistant can then list, search and read, never
   change, what those folders hold — text and Markdown, the text of a PDF and
@@ -29,8 +25,33 @@ is in Spanish; the labels quoted below are the ones it shows.
   OpenAI-compatible API or Anthropic's, with Orbit's tools and, with
   `[agents.speech]`, read-aloud; and `acp`, Claude Code or Codex through their
   Agent Client Protocol adapters, locked to Orbit's tools and signed in by the
-  hub's operator. Dictation and read-aloud are the default agent's; an agent
-  without a voice is refused with `speech_not_configured` and its id.
+  hub's operator. Dictation is the default agent's. Read-aloud is in the voice
+  of the conversation's agent (`agent_id` in `POST /v1/audio/speech`), or the
+  default agent's for an agent without one of its own; with no voice at all
+  it is refused with `speech_not_configured` and the agent asked for.
+- With two or more agents the Mac shows a «Hablar con» selector for a new
+  conversation; each conversation keeps and names its agent, and «Oye
+  <nombre>» asks the agent named. The agents a hub lists are kept in
+  `hub-agents.toml`, so `config.toml` stays readable by 0.8.0 and 0.9.0.
+- What the agent does shows in the chat as it happens (`chat.item`): a line
+  per running tool, in Spanish for Orbit's own, the plan's steps, its
+  reasoning folded, and how long it worked. Approvals and clarifications
+  offer the agent's real choices, one question at a time, also from the
+  floating panel, and a macOS notification says when a long answer is ready
+  or the agent needs an answer while Orbit is in the background.
+- Attachments in the chat: «Adjuntar», drag and drop, pasted images,
+  «Adjuntar ventana» (the window behind Orbit) and a long paste as «Texto
+  pegado.txt». The hub keeps each one encrypted and bound to its
+  conversation, within ceilings per file, message and conversation; every
+  refusal names the file and its numbers. Images reach the agents that take
+  them, a PDF goes as its text and page images, and any other file through
+  `orbit-mcp`'s new `orbit_attachment`. The chat shows thumbnails, a viewer
+  for images and PDFs, and «Abrir» or «Mostrar en Finder» for the rest.
+- Answers in full Markdown: code with its language and «Copiar», tables that
+  scroll and copy as Markdown, no raw HTML, images never fetched. Each answer
+  can be copied, retried, read aloud («Escuchar»), opened in a Markdown
+  editor or quoted in part into the composer; the whole conversation copies
+  as Markdown and ⌘⇧C copies the last code block.
 - Each agent's personality, skills and access groups can be read and changed
   from Orbit (`/v1/agents/{agent_id}/config`, `…/personality`, `…/access`
   and `…/skills/{name}`). Skills are agentskills.io `SKILL.md` files,
@@ -48,7 +69,6 @@ is in Spanish; the labels quoted below are the ones it shows.
   that is off, and by the hub, which refuses that group's bridge requests
   with `agent_access_disabled`, the agent and the group. They configure an
   agent's tools and are not a boundary against a hostile local process.
-
 - Ajustes › Agentes: each agent's personality (in the Markdown editor), its
   skills (switch on or off, view, edit, create, paste or import a folder's
   `SKILL.md`, delete) and its access groups («Pantalla», «Control del Mac»,
@@ -66,9 +86,22 @@ is in Spanish; the labels quoted below are the ones it shows.
   with the subcommands `prepare`, `run` and `dry-run`, and Orbit Pruebas is
   built with `scripts/e2e-mac/build-test-app.sh`.
 - The `orbit-update` crate is now a module of `orbit-app-core`.
+- The hub's messages name the conversation's agent («Se perdió la conexión
+  con Vega…»), or «el asistente» when it has left the configuration, instead
+  of «Hermes».
+- The hub's administrator commands (`pair-code`, `devices`, `revoke`) start
+  in about 0.6 s instead of 2.5 s: the generic assistant's libraries load only
+  when an `openai` agent is built.
 
 ### Fixed
 
+- A Claude Code or Codex turn that fails ends with its cause and numbers:
+  `agent_auth_required`, `agent_rejected` (`acp_code`), `agent_stopped`
+  (`exit_status` or `max_bytes`), `agent_protocol`, or `agent_turn_unfinished`
+  (`stop_reason`), instead of a completed message with status `error`.
+- A live approval is pending as soon as it arrives: the Mac compared the
+  agent's request id with the turn's, so every approval looked stale until
+  the next snapshot of the state.
 - Voice notes in the chat: a click on the microphone starts a note and the next
   click, or «Enviar nota de voz», sends it; holding the button still talks while
   held, and releasing it outside the button now counts. Esc cancels the note
