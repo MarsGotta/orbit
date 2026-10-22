@@ -608,8 +608,10 @@ class RealTest:
             ui.read(self.main, "find the notice's note (whole window)", None)
 
         with self.step("open the note from the list of meetings (Reuniones)", (6,), critical=False):
-            # The sidebar names the section «Reuniones», a link (Sidebar.tsx).
-            ui.press(self.main, "Reuniones", ("AXLink",))
+            # The sidebar names the section «Reuniones», a link (Sidebar.tsx). An
+            # open note's breadcrumb in the top bar is a second «Reuniones»
+            # link; the sidebar comes first in the tree.
+            ui.press(self.main, "Reuniones", ("AXLink",), first=True)
             # The list and the opened note name it by the meeting's title
             # (decided on 2026-10-17).
             title = checks._title(self.ev)
