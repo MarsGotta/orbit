@@ -35,6 +35,8 @@ export type Step =
   | { drag: string; by: [number, number] }
   /** Presses `at` points from its top left and moves by `by` without letting go: a drag in progress. */
   | { hold: string; at: [number, number]; by: [number, number] }
+  /** Selects its text, as a person does with the mouse, and lets go. */
+  | { select: string }
   /** Moves the page's clock this many milliseconds on, for a time that counts. */
   | { advance: number };
 

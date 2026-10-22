@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { es } from "../../i18n/es";
@@ -43,14 +43,14 @@ function note(): OpenNoteSnapshot {
         key: "mic_local",
         track: "mic_local",
         name: "Alina",
-        color: "var(--o-blue)",
+        color: "var(--o-c2)",
         share_pct: 67,
       },
       {
         key: "remote_app",
         track: "remote_app",
         name: "Otra persona",
-        color: "var(--o-green)",
+        color: "var(--o-c3)",
         share_pct: 33,
       },
     ],
@@ -59,9 +59,11 @@ function note(): OpenNoteSnapshot {
 
 afterEach(cleanup);
 
+const send0 = () => Promise.resolve();
+
 describe("the transcript is what the hub computed", () => {
-  it("shows times from the start, the speakers' names and the language", () => {
-    const { container } = render(<TranscriptTab note={note()} send={() => undefined} />);
+  it("shows times from the start and the speakers' names, an unnamed one asking for its name", () => {
+    const { container } = render(<TranscriptTab note={note()} send={send0} />);
     const turns = Array.from(container.querySelectorAll("article"));
     expect(turns.map((turn) => turn.querySelector("time")?.textContent)).toEqual([
       "00:00",
@@ -70,41 +72,95 @@ describe("the transcript is what the hub computed", () => {
     ]);
     expect(turns.map((turn) => within(turn).getByRole("button").textContent)).toEqual([
       "Alina",
-      "Otra persona",
+      "Otra persona · ponle nombre",
       "Alina",
     ]);
     expect(screen.queryByText("Hablante sin identificar")).toBeNull();
     expect(turns.every((turn) => (turn.querySelector("p")?.textContent ?? "") !== "")).toBe(true);
     expect(
-      screen.getByText(`${es.notes.transcriptLanguage}: ${es.notes.languages.es}`),
+      screen.getByText(
+        "Pulsa un nombre para cambiar quién habla. Selecciona una palabra para corregirla.",
+      ),
     ).toBeTruthy();
   });
 
-  it("renames any speaker, Alina's microphone too, by the hub's key", () => {
-    const send = vi.fn();
+  it("does not jump to the end when it opens", () => {
+    const scrolled = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrolled;
+    try {
+      render(<TranscriptTab note={note()} send={send0} />);
+      expect(scrolled).not.toHaveBeenCalled();
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+
+  it("renames any speaker, Alina's microphone too, by the hub's key", async () => {
+    const send = vi.fn(send0);
     const { container } = render(<TranscriptTab note={note()} send={send} />);
     const first = container.querySelectorAll("article")[0];
     if (!first) throw new Error("no turn");
     fireEvent.click(within(first).getByRole("button", { name: "Alina" }));
-    fireEvent.change(screen.getByRole("textbox", { name: es.notes.speakerSearch }), {
+    const menu = screen.getByRole("dialog", { name: "¿Quién es Alina?" });
+    fireEvent.change(within(menu).getByRole("textbox", { name: es.notes.speakerSearch }), {
       target: { value: "Ada" },
     });
-    fireEvent.click(screen.getByRole("option", { name: es.notes.addSpeaker }));
-    fireEvent.click(screen.getByRole("button", { name: es.notes.save }));
+    fireEvent.click(within(menu).getByRole("button", { name: "+ Añadir «Ada»" }));
+    expect(within(menu).getByRole("heading", { name: "¿Dónde pongo «Ada»?" })).toBeTruthy();
     expect(
-      (screen.getByRole("radio", { name: es.notes.onlyThisTurn }) as HTMLInputElement).checked,
+      (within(menu).getByRole("radio", { name: "Solo en este turno (00:00)" }) as HTMLInputElement)
+        .checked,
     ).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: es.notes.applySpeaker }));
+    await act(async () => {
+      fireEvent.click(within(menu).getByRole("button", { name: "Aplicar" }));
+    });
     expect(send).toHaveBeenCalledWith({
       command: "speaker_rename",
       speaker_key: "mic_local",
       name: "Ada",
       scope: { kind: "turn", at_ms: 0 },
     });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    // No note written yet: it will be written with the new name.
+    expect(screen.getByRole("status").textContent).toBe("✓Cambiado en 1 turno.");
+  });
+
+  it("says a written note takes the change when its summary is redone", async () => {
+    const send = vi.fn(send0);
+    const written = note();
+    written.summary = {
+      short_summary: "Se cierra el comité.",
+      sections: [],
+      template_id: "review",
+      template_name: "Revisión",
+      generated_at_ms: 1,
+      model: "hub",
+      superseded_available: false,
+    };
+    render(<TranscriptTab note={written} send={send} />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Alina" })[0]!);
+    fireEvent.change(screen.getByRole("textbox", { name: es.notes.speakerSearch }), {
+      target: { value: "Ada" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "+ Añadir «Ada»" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+    });
+    const band = screen.getByRole("status");
+    expect(band.textContent).toContain(
+      "Cambiado en 1 turno. La nota usará el cambio cuando rehagas el resumen.",
+    );
+    fireEvent.click(within(band).getByRole("button", { name: "Rehacer resumen" }));
+    expect(send).toHaveBeenLastCalledWith({
+      command: "note_regenerate",
+      recording_id: "meeting-transcript",
+      template_id: "review",
+    });
   });
 });
 
-it("opens a searchable speaker picker with event guests, excluding the owner", () => {
+it("opens a searchable speaker menu with the meeting's guests, excluding the owner", () => {
   const value = note();
   value.event = {
     title: "Comité",
@@ -117,12 +173,16 @@ it("opens a searchable speaker picker with event guests, excluding the owner", (
       ],
     },
   };
-  render(<TranscriptTab note={value} send={vi.fn()} />);
-  fireEvent.click(screen.getByRole("button", { name: "Otra persona" }));
-  const picker = screen.getByRole("dialog", { name: "Cambiar hablante" });
-  expect(within(picker).getByRole("textbox", { name: "Buscar o añadir un nombre" })).toBeTruthy();
-  expect(within(picker).getByRole("option", { name: "Lucía" })).toBeTruthy();
+  render(<TranscriptTab note={value} send={vi.fn(send0)} />);
+  fireEvent.click(screen.getByRole("button", { name: "Otra persona · ponle nombre" }));
+  const picker = screen.getByRole("dialog", { name: "¿Quién es Otra persona?" });
+  const search = within(picker).getByRole("textbox", { name: "Buscar o añadir un nombre" });
+  expect(search.getAttribute("placeholder")).toBe("¿Quién es Otra persona?");
+  expect(document.activeElement).toBe(search);
+  expect(within(picker).getByText("Invitados de la reunión")).toBeTruthy();
+  expect(within(picker).getByRole("button", { name: "Lucía" })).toBeTruthy();
   expect(within(picker).queryByText("alina@example.invalid")).toBeNull();
+  expect(within(picker).getByRole("button", { name: "+ Añadir a alguien" })).toBeTruthy();
 });
 
 function voicesNote(): OpenNoteSnapshot {
@@ -137,28 +197,35 @@ function voicesNote(): OpenNoteSnapshot {
       key: "voice_1",
       track: "remote_app",
       name: "Persona 1",
-      color: "var(--o-blue)",
+      color: "var(--o-c2)",
       share_pct: 67,
     },
-    { key: "voice_2", track: "remote_app", name: "Lucía", color: "var(--o-green)", share_pct: 33 },
+    { key: "voice_2", track: "remote_app", name: "Lucía", color: "var(--o-c3)", share_pct: 33 },
   ];
   return value;
 }
 
+const unnamed = "Persona 1 · ponle nombre";
+
 it.each([false, true])(
   "sends the selected scope (whole voice: %s) when assigning another voice's name",
-  (wholeVoice) => {
-    const send = vi.fn();
+  async (wholeVoice) => {
+    const send = vi.fn(send0);
     const { rerender, container } = render(<TranscriptTab note={voicesNote()} send={send} />);
-    fireEvent.click(screen.getAllByRole("button", { name: "Persona 1" })[1]!);
-    fireEvent.click(screen.getByRole("option", { name: "Lucía" }));
+    fireEvent.click(screen.getAllByRole("button", { name: unnamed })[1]!);
+    const menu = screen.getByRole("dialog", { name: "¿Quién es Persona 1?" });
+    expect(within(menu).getByText("Ya en esta grabación")).toBeTruthy();
+    fireEvent.click(within(menu).getByRole("button", { name: "Lucía" }));
     expect(send).not.toHaveBeenCalled();
     expect(
-      (screen.getByRole("radio", { name: es.notes.onlyThisTurn }) as HTMLInputElement).checked,
+      (within(menu).getByRole("radio", { name: "Solo en este turno (00:21)" }) as HTMLInputElement)
+        .checked,
     ).toBe(true);
     if (wholeVoice)
-      fireEvent.click(screen.getByRole("radio", { name: "Todos los turnos de Persona 1" }));
-    fireEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+      fireEvent.click(within(menu).getByRole("radio", { name: "En los 2 turnos de Persona 1" }));
+    await act(async () => {
+      fireEvent.click(within(menu).getByRole("button", { name: "Aplicar" }));
+    });
     expect(send).toHaveBeenCalledExactlyOnceWith({
       command: "speaker_rename",
       speaker_key: "voice_1",
@@ -166,7 +233,7 @@ it.each([false, true])(
       scope: wholeVoice ? { kind: "voice" } : { kind: "turn", at_ms: 21000 },
     });
     // Until the hub answers, names remain the hub's facts.
-    expect(screen.getAllByRole("button", { name: "Persona 1" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: unnamed })).toHaveLength(2);
     const updated = voicesNote();
     updated.transcript.turns = updated.transcript.turns.map((turn) =>
       turn.speaker_key === "voice_1" && (wholeVoice || turn.at_ms === 21000)
@@ -180,11 +247,30 @@ it.each([false, true])(
       Array.from(container.querySelectorAll("article")).map(
         (turn) => within(turn).getByRole("button").textContent,
       ),
-    ).toEqual(wholeVoice ? ["Lucía", "Lucía", "Lucía"] : ["Persona 1", "Lucía", "Lucía"]);
+    ).toEqual(wholeVoice ? ["Lucía", "Lucía", "Lucía"] : [unnamed, "Lucía", "Lucía"]);
   },
 );
 
-it("filters by name or email and cancels a selection without sending a rename", () => {
+it("says «Guardando…» on «Aplicar» until the order is taken", async () => {
+  let resolve: () => void = () => undefined;
+  const taken = new Promise<void>((done) => {
+    resolve = done;
+  });
+  render(<TranscriptTab note={voicesNote()} send={() => taken} />);
+  fireEvent.click(screen.getAllByRole("button", { name: unnamed })[0]!);
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Lucía" }));
+  fireEvent.click(screen.getByRole("radio", { name: "En los 2 turnos de Persona 1" }));
+  fireEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+  expect(screen.getByRole("button", { name: /Guardando…/ })).toBeTruthy();
+  await act(async () => {
+    resolve();
+    await taken;
+  });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByRole("status").textContent).toContain("Cambiado en 2 turnos.");
+});
+
+it("filters by name or email and closes without sending a rename", () => {
   const value = voicesNote();
   value.event = {
     title: "Comité",
@@ -192,82 +278,94 @@ it("filters by name or email and cancels a selection without sending a rename", 
     end_ms: 120000,
     attendees: [{ name: "Pedro", email: "pedro@example.invalid", is_self: false }],
   };
-  const send = vi.fn();
+  const send = vi.fn(send0);
   render(<TranscriptTab note={value} send={send} />);
-  fireEvent.click(screen.getAllByRole("button", { name: "Persona 1" })[0]!);
+  const speaker = screen.getAllByRole("button", { name: unnamed })[0]!;
+  fireEvent.click(speaker);
   const search = screen.getByRole("textbox", { name: es.notes.speakerSearch });
   fireEvent.change(search, { target: { value: "PEDRO@" } });
-  expect(screen.getByRole("option", { name: "Pedro" })).toBeTruthy();
-  expect(screen.queryByRole("option", { name: "Lucía" })).toBeNull();
-  fireEvent.click(screen.getByRole("option", { name: "Pedro" }));
-  expect(screen.getByText(es.notes.speakerNoteHelp)).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+  const menu = screen.getByRole("dialog");
+  expect(within(menu).getByRole("button", { name: "Pedro" })).toBeTruthy();
+  expect(within(menu).queryByRole("button", { name: "Lucía" })).toBeNull();
+  fireEvent.click(within(menu).getByRole("button", { name: "Pedro" }));
+  fireEvent.click(screen.getByRole("button", { name: "Atrás" }));
+  expect(screen.getByRole("textbox", { name: es.notes.speakerSearch })).toBeTruthy();
+  fireEvent.keyDown(screen.getByRole("textbox", { name: es.notes.speakerSearch }), {
+    key: "Escape",
+  });
   expect(send).not.toHaveBeenCalled();
   expect(screen.queryByRole("dialog")).toBeNull();
-  // Opening the same turn again starts with a fresh picker.
-  fireEvent.click(screen.getAllByRole("button", { name: "Persona 1" })[0]!);
-  expect(screen.getByRole("textbox", { name: es.notes.speakerSearch })).toBeTruthy();
+  expect(document.activeElement).toBe(speaker);
+  // Opening the same turn again starts with a fresh search.
+  fireEvent.click(screen.getAllByRole("button", { name: unnamed })[0]!);
+  expect(
+    (screen.getByRole("textbox", { name: es.notes.speakerSearch }) as HTMLInputElement).value,
+  ).toBe("");
 });
 
 it("supports choosing an existing voice by keyboard after searching", () => {
-  const send = vi.fn();
+  const send = vi.fn(send0);
   render(<TranscriptTab note={voicesNote()} send={send} />);
-  fireEvent.click(screen.getAllByRole("button", { name: "Persona 1" })[0]!);
+  fireEvent.click(screen.getAllByRole("button", { name: unnamed })[0]!);
   const search = screen.getByRole("textbox", { name: es.notes.speakerSearch });
   fireEvent.change(search, { target: { value: "Lucía" } });
   fireEvent.keyDown(search, { key: "Enter" });
-  expect(screen.getByRole("dialog", { name: "Asignar «Lucía»" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "¿Dónde pongo «Lucía»?" })).toBeTruthy();
   expect(send).not.toHaveBeenCalled();
-  fireEvent.keyDown(screen.getByRole("radio", { name: es.notes.onlyThisTurn }), { key: "Escape" });
+  fireEvent.keyDown(screen.getByRole("radio", { name: "Solo en este turno (00:01)" }), {
+    key: "Escape",
+  });
   expect(screen.queryByRole("dialog")).toBeNull();
 });
 
-it("closes the speaker dialog when navigating to another note", () => {
-  const send = vi.fn();
+it("closes the speaker menu when navigating to another note", () => {
+  const send = vi.fn(send0);
   const first = voicesNote();
-  const { rerender } = render(<NoteDetail note={first} send={send} series="Comité" error={null} />);
-  fireEvent.click(screen.getAllByRole("button", { name: "Persona 1" })[0]!);
-  fireEvent.click(screen.getByRole("option", { name: "Lucía" }));
-  expect(screen.getByRole("dialog", { name: "Asignar «Lucía»" })).toBeTruthy();
+  const { rerender } = render(<NoteDetail note={first} send={send} error={null} />);
+  fireEvent.click(screen.getByRole("tab", { name: "Transcripción" }));
+  fireEvent.click(screen.getAllByRole("button", { name: unnamed })[0]!);
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Lucía" }));
+  expect(screen.getByRole("heading", { name: "¿Dónde pongo «Lucía»?" })).toBeTruthy();
   rerender(
-    <NoteDetail
-      note={{ ...first, recording_id: "another-meeting" }}
-      send={send}
-      series="Comité"
-      error={null}
-    />,
+    <NoteDetail note={{ ...first, recording_id: "another-meeting" }} send={send} error={null} />,
   );
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(send).not.toHaveBeenCalled();
 });
 
-it("keeps focus in the dialog after choosing the second radio and skips disabled buttons", () => {
-  render(<TranscriptTab note={voicesNote()} send={vi.fn()} />);
-  fireEvent.click(screen.getAllByRole("button", { name: "Persona 1" })[0]!);
-  fireEvent.click(screen.getByRole("option", { name: "Lucía" }));
-  const all = screen.getByRole("radio", { name: "Todos los turnos de Persona 1" });
-  fireEvent.click(all);
-  all.focus();
-  fireEvent.keyDown(all, { key: "Tab", shiftKey: true });
-  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Aplicar" }));
-  fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
-  fireEvent.click(screen.getAllByRole("button", { name: "Persona 1" })[0]!);
-  fireEvent.click(screen.getByRole("option", { name: es.notes.addSpeaker }));
-  const cancel = screen.getByRole("button", { name: "Cancelar" });
-  expect((screen.getByRole("button", { name: "Guardar" }) as HTMLButtonElement).disabled).toBe(
-    true,
-  );
-  cancel.focus();
-  fireEvent.keyDown(cancel, { key: "Tab" });
-  expect(document.activeElement).toBe(screen.getByRole("textbox", { name: es.notes.speakerName }));
+it("adds someone only with a name typed", () => {
+  render(<TranscriptTab note={voicesNote()} send={vi.fn(send0)} />);
+  fireEvent.click(screen.getAllByRole("button", { name: unnamed })[0]!);
+  const search = screen.getByRole("textbox", { name: es.notes.speakerSearch });
+  fireEvent.click(screen.getByRole("button", { name: "+ Añadir a alguien" }));
+  expect(document.activeElement).toBe(search);
+  expect(screen.queryByRole("heading", { name: /¿Dónde pongo/ })).toBeNull();
+  fireEvent.change(search, { target: { value: "Ramón" } });
+  fireEvent.click(screen.getByRole("button", { name: "+ Añadir «Ramón»" }));
+  expect(screen.getByRole("heading", { name: "¿Dónde pongo «Ramón»?" })).toBeTruthy();
 });
 
 it("offers a manually assigned name even when it resembles a numbered placeholder", () => {
   const value = voicesNote();
   value.speakers[0]!.name = "Persona 12";
-  render(<TranscriptTab note={value} send={vi.fn()} />);
+  render(<TranscriptTab note={value} send={vi.fn(send0)} />);
   fireEvent.click(screen.getAllByRole("button", { name: "Persona 12" })[0]!);
-  expect(screen.getByRole("option", { name: "Persona 12" })).toBeTruthy();
+  expect(
+    within(screen.getByRole("dialog")).getByRole("button", { name: "Persona 12" }),
+  ).toBeTruthy();
+});
+
+it("finds words in the transcript, counts them and marks them", () => {
+  const { container } = render(<TranscriptTab note={note()} send={send0} />);
+  const search = screen.getByRole("searchbox", { name: "Buscar en la transcripción" });
+  fireEvent.change(search, { target: { value: "amos" } });
+  expect(screen.getByText("2 resultados")).toBeTruthy();
+  expect(Array.from(container.querySelectorAll("mark")).map((mark) => mark.textContent)).toEqual([
+    "amos",
+    "amos",
+  ]);
+  fireEvent.change(search, { target: { value: "nadie" } });
+  expect(screen.getByText("Sin resultados")).toBeTruthy();
 });
 
 it("requests a final pass for old and already separated closed meetings", () => {
@@ -287,13 +385,13 @@ it("requests a final pass for old and already separated closed meetings", () => 
 
 it("keeps the old transcript with distinct queued and running words, without offering another pass", () => {
   const value = note();
-  const { rerender } = render(<TranscriptTab note={value} send={vi.fn()} />);
+  const { rerender } = render(<TranscriptTab note={value} send={vi.fn(send0)} />);
   for (const [state, words] of [
     ["queued", "En cola para rehacer la transcripción."],
     ["running", "Transcribiendo de nuevo…"],
   ]) {
     Object.assign(value.transcript, { final_pass: { state, error: null } });
-    rerender(<TranscriptTab note={{ ...value }} send={vi.fn()} />);
+    rerender(<TranscriptTab note={{ ...value }} send={vi.fn(send0)} />);
     expect(screen.getByText(words!)).toBeTruthy();
     expect(screen.getByText("Empezamos.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Rehacer transcripción" })).toBeNull();
@@ -304,7 +402,7 @@ it("hides retranscription while capture is open or unknown", () => {
   const value = note();
   for (const capture of ["open", undefined]) {
     Object.assign(value, { capture });
-    const view = render(<TranscriptTab note={value} send={vi.fn()} />);
+    const view = render(<TranscriptTab note={value} send={vi.fn(send0)} />);
     expect(screen.queryByRole("button", { name: "Rehacer transcripción" })).toBeNull();
     view.unmount();
   }
@@ -339,7 +437,7 @@ it.each([
       final_pass: { state: "failed", error, timeout_ms },
       unmatched_speaker_names: 1,
     });
-    render(<TranscriptTab note={value} send={vi.fn()} />);
+    render(<TranscriptTab note={value} send={vi.fn(send0)} />);
     expect(screen.getByRole("alert").textContent).toBe(text);
     expect(screen.getByText(/1 nombre.*no.*traslad/)).toBeTruthy();
     expect(screen.getByText("Empezamos.")).toBeTruthy();
@@ -360,8 +458,8 @@ it("corrects selected transcript text and keeps the form until the hub answers",
   window.getSelection()?.removeAllRanges();
   window.getSelection()?.addRange(range);
   fireEvent.mouseUp(paragraph);
-  fireEvent.click(screen.getByRole("button", { name: "Corregir texto" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Forma correcta" }), {
+  fireEvent.click(screen.getByRole("button", { name: "Corregir «Empezamos.»" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Debe decir" }), {
     target: { value: "Empecemos." },
   });
   fireEvent.click(screen.getByRole("button", { name: "Guardar corrección" }));
@@ -379,7 +477,7 @@ it("corrects selected transcript text and keeps the form until the hub answers",
       },
     },
   });
-  expect((screen.getByRole("textbox", { name: "Forma correcta" }) as HTMLInputElement).value).toBe(
+  expect((screen.getByRole("textbox", { name: "Debe decir" }) as HTMLInputElement).value).toBe(
     "Empecemos.",
   );
 });
@@ -415,7 +513,7 @@ function selectFirstTurn() {
   window.getSelection()?.removeAllRanges();
   window.getSelection()?.addRange(range);
   fireEvent.mouseUp(paragraph);
-  fireEvent.click(screen.getByRole("button", { name: "Corregir texto" }));
+  fireEvent.click(screen.getByRole("button", { name: "Corregir «Empezamos.»" }));
 }
 
 it("creates the named dictionary with the first correction, proposing the series title", () => {
@@ -433,7 +531,7 @@ it("creates the named dictionary with the first correction, proposing the series
   expect(
     (screen.getByRole("textbox", { name: "Nombre del diccionario" }) as HTMLInputElement).value,
   ).toBe("Daily del proyecto");
-  fireEvent.change(screen.getByRole("textbox", { name: "Forma correcta" }), {
+  fireEvent.change(screen.getByRole("textbox", { name: "Debe decir" }), {
     target: { value: "Empecemos." },
   });
   fireEvent.click(screen.getByRole("button", { name: "Guardar corrección" }));
@@ -463,7 +561,7 @@ it("keeps the correction while saving or refused, with the cause and numbers vis
     <TranscriptTab note={current} library={dictionaryLibrary()} send={send} />,
   );
   selectFirstTurn();
-  fireEvent.change(screen.getByRole("textbox", { name: "Forma correcta" }), {
+  fireEvent.change(screen.getByRole("textbox", { name: "Debe decir" }), {
     target: { value: "Empecemos." },
   });
   fireEvent.click(screen.getByRole("button", { name: "Guardar corrección" }));
@@ -474,10 +572,8 @@ it("keeps the correction while saving or refused, with the cause and numbers vis
       send={send}
     />,
   );
-  expect(screen.getByText("Guardando en el hub…")).toBeTruthy();
-  expect(
-    (screen.getByRole("button", { name: "Guardar corrección" }) as HTMLButtonElement).disabled,
-  ).toBe(true);
+  const saving = screen.getByRole("button", { name: "Guardando en el hub…" });
+  expect(saving.getAttribute("aria-busy")).toBe("true");
   rerender(
     <TranscriptTab
       note={current}
@@ -498,7 +594,7 @@ it("keeps the correction while saving or refused, with the cause and numbers vis
   expect(screen.getByRole("alert").textContent).toContain("demasiado largo");
   expect(screen.getByRole("alert").textContent).toContain("129");
   expect(screen.getByRole("alert").textContent).toContain("128");
-  expect((screen.getByRole("textbox", { name: "Forma correcta" }) as HTMLInputElement).value).toBe(
+  expect((screen.getByRole("textbox", { name: "Debe decir" }) as HTMLInputElement).value).toBe(
     "Empecemos.",
   );
   rerender(
@@ -522,10 +618,55 @@ it("keeps the correction while saving or refused, with the cause and numbers vis
     />,
   );
   expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByRole("status").textContent).toContain(
+    "Corregido «Empezamos.» por «Empecemos.».",
+  );
+});
+
+it("shows the correction window as the design draws it", () => {
+  const current = {
+    ...note(),
+    dictionary: { dictionary_id: "vocabulary", source: "requested", series: null },
+  };
+  const words = {
+    ...dictionaryLibrary(),
+    dictionary_items: [
+      {
+        dictionary: {
+          id: "vocabulary",
+          name: "Proyecto",
+          terms: [],
+          series: [
+            { calendar_item_id: "a", title: "Revisión semanal" },
+            { calendar_item_id: "b", title: "Comité" },
+          ],
+        },
+        pending: false,
+      },
+    ],
+  };
+  render(<TranscriptTab note={current} library={words} send={vi.fn(send0)} />);
+  selectFirstTurn();
+  const dialog = screen.getByRole("dialog", { name: "Corregir una palabra" });
+  expect(
+    within(dialog).getByText(
+      "Orbit la corregirá en todas las reuniones que usan este diccionario.",
+    ),
+  ).toBeTruthy();
+  expect(within(dialog).getByText("Se oyó")).toBeTruthy();
+  expect(
+    within(dialog).getByRole("option", { name: "Proyecto · lo usan Revisión semanal y Comité" }),
+  ).toBeTruthy();
+  expect(within(dialog).getByRole("option", { name: "Crear un diccionario nuevo" })).toBeTruthy();
+  expect(
+    within(dialog).getByText("La nota ya escrita cambiará cuando rehagas el resumen."),
+  ).toBeTruthy();
+  fireEvent.keyDown(dialog, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).toBeNull();
 });
 
 it("does not turn an unread dictionary into a known empty one", () => {
-  render(<TranscriptTab note={note()} library={dictionaryLibrary()} send={vi.fn()} />);
+  render(<TranscriptTab note={note()} library={dictionaryLibrary()} send={vi.fn(send0)} />);
   selectFirstTurn();
   expect(
     (screen.getByRole("button", { name: "Guardar corrección" }) as HTMLButtonElement).disabled,
@@ -533,65 +674,4 @@ it("does not turn an unread dictionary into a known empty one", () => {
   expect(
     screen.getAllByText("El diccionario aún no se ha podido leer del hub.").length,
   ).toBeGreaterThan(0);
-});
-
-it("selects the meeting dictionary in the header and assigns it to the series", () => {
-  const send = vi.fn();
-  const first = { id: "one", name: "Proyecto", terms: [], series: [] };
-  const second = { id: "two", name: "Otro", terms: [], series: [] };
-  const library = {
-    ...dictionaryLibrary(),
-    dictionary_items: [
-      { dictionary: first, pending: false },
-      { dictionary: second, pending: false },
-    ],
-  };
-  const current = {
-    ...note(),
-    dictionary: {
-      dictionary_id: "one",
-      source: "series",
-      series: { calendar_item_id: "daily", title: "Daily" },
-    },
-  };
-  const { rerender } = render(
-    <NoteDetail note={current} library={library} send={send} error={null} series="Daily" />,
-  );
-  fireEvent.change(screen.getByRole("combobox", { name: "Diccionario" }), {
-    target: { value: "two" },
-  });
-  expect(send).toHaveBeenLastCalledWith({
-    command: "note_library",
-    request: {
-      action: "dictionary",
-      request: {
-        action: "select",
-        recording_id: current.recording_id,
-        dictionary_id: "two",
-        use_for_series: false,
-      },
-    },
-  });
-  rerender(
-    <NoteDetail
-      note={{ ...current, dictionary: { ...current.dictionary, dictionary_id: "two" } }}
-      library={library}
-      send={send}
-      error={null}
-      series="Daily"
-    />,
-  );
-  fireEvent.click(screen.getByRole("button", { name: es.library.useAlways }));
-  expect(send).toHaveBeenLastCalledWith({
-    command: "note_library",
-    request: {
-      action: "dictionary",
-      request: {
-        action: "select",
-        recording_id: current.recording_id,
-        dictionary_id: "two",
-        use_for_series: true,
-      },
-    },
-  });
 });

@@ -1,5 +1,43 @@
+// Reuniones: the list of meetings and the transcript of one. Each meeting
+// has a note; «Notas» names the vault that comes later (decided 2026-10-22).
+const count = (value: number, one: string, many: string) => `${value} ${value === 1 ? one : many}`;
+
+/** «Bruno», «Bruno y Celia», «Bruno, Celia y Dora». */
+export function listOf(items: string[]): string {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
+}
+
 export const notes = {
   notes: {
+    section: "Reuniones",
+    listLabel: "Lista de reuniones",
+    refresh: "Actualizar",
+    loadMore: "Cargar más reuniones",
+    loadingMore: "Cargando…",
+    loadingIndex: "Leyendo tus reuniones del hub…",
+    loadingNote: "Leyendo la nota del hub…",
+    empty: "Aún no hay reuniones",
+    emptyBody: "Graba tu primera reunión y Orbit escribirá la nota por ti.",
+    record: "Grabar reunión",
+    choose: "Elige una reunión",
+    chooseBody: "Su nota, sus acciones y su transcripción se abren aquí.",
+    // A read that failed says so and offers «Reintentar»; its cause
+    // stays in the log.
+    noteReadFailed: "No se pudo abrir la nota",
+    noteReadFailedBody: "Vuelve a intentarlo. Tus reuniones siguen guardadas en el hub.",
+    indexFailed: "No se pudo leer la lista de reuniones. Vuelve a intentarlo.",
+    // The hub out of reach is not a failure; the connection says
+    // itself at the top of the window.
+    needsHub: "Tus reuniones se leen del hub. Aparecerán cuando Orbit se conecte.",
+    retry: "Reintentar",
+    today: "Hoy",
+    yesterday: "Ayer",
+    thisWeek: "Esta semana",
+    last30Days: "Últimos 30 días",
+    before: "Antes",
+
+    // The transcript.
     retranscribe: "Rehacer transcripción",
     finalPassQueued: "En cola para rehacer la transcripción.",
     finalPassRunning: "Transcribiendo de nuevo…",
@@ -15,50 +53,20 @@ export const notes = {
       }
       return `No se pudo completar la nueva transcripción; se conserva la anterior.${code ? ` (${code})` : ""}`;
     },
-    unmatchedSpeakerNames: (count: number) =>
-      `${count} ${count === 1 ? "nombre de una voz que ya no está no se trasladó" : "nombres de voces que ya no están no se trasladaron"} a otras voces.`,
-
-    refresh: "Actualizar",
-    refreshing: "Actualizando reuniones…",
-    loadMore: "Cargar más reuniones",
-    empty: "Aún no hay reuniones",
-    emptyBody: "Graba tu primera reunión y Orbit escribirá la nota por ti.",
-    loadingIndex: "Cargando reuniones…",
-    loadingNote: "Cargando nota…",
-    // A read that failed says so and offers «Reintentar»; its cause
-    // stays in the log.
-    noteReadFailed: "No se pudo abrir la nota.",
-    indexFailed: "No se pudieron cargar las reuniones.",
-    // The hub out of reach is not a failure; the connection
-    // says itself in the status.
-    needsHub: "Las reuniones se leen del hub. Aparecerán cuando Orbit se conecte.",
-    today: "Hoy",
-    yesterday: "Ayer",
-    thisWeek: "Esta semana",
-    last30Days: "Últimos 30 días",
-    before: "Antes",
-    privateTab: "Notas privadas",
-    summaryTab: "Resumen",
-    actionsTab: "Acciones",
-    transcriptTab: "Transcripción",
-    // The daemon keeps them encrypted on this Mac and sends them with
-    // the note request, so the note is written with them.
-    privateHelp: "Solo las ves tú. Orbit las usa para escribir la nota.",
-    privateLabel: "Notas privadas",
-    privatePlaceholder: "Escribe tus notas privadas…",
-    voiceShare: "Reparto de voz",
-    summaryLater: "El resumen aparecerá cuando se escriba la nota.",
-    actionsLater: "Las tareas aparecerán cuando se escriba la nota.",
-    noActions: "No salió ninguna tarea",
-    decisions: "Decisiones",
-    openTopics: "Temas abiertos",
+    unmatchedSpeakerNames: (value: number) =>
+      `${value} ${value === 1 ? "nombre de una voz que ya no está no se trasladó" : "nombres de voces que ya no están no se trasladaron"} a otras voces.`,
+    transcriptHelp:
+      "Pulsa un nombre para cambiar quién habla. Selecciona una palabra para corregirla.",
+    transcriptArriving:
+      "La transcripción va apareciendo. Pulsa un nombre para cambiar quién habla.",
+    moreTranscript: "Llegando más transcripción",
     noTranscript: "La transcripción aún no está lista",
     transcriptFailed: "No se pudo cargar la transcripción.",
-    // The language the transcript is in, chosen (Spanish by
-    // default), not detected; each one is named in its own language.
-    // Distinct from the header's picker («Idioma»): the real test
-    // reads this line (scripts/e2e-mac/checks.py).
-    transcriptLanguage: "Idioma de la transcripción",
+    searchLabel: "Buscar en la transcripción",
+    searchResults: (value: number) =>
+      value === 0 ? "Sin resultados" : count(value, "resultado", "resultados"),
+    copy: "Copiar",
+    copied: "✓ Copiado",
     languages: {
       es: "Español",
       en: "English",
@@ -68,23 +76,41 @@ export const notes = {
       de: "Deutsch",
       it: "Italiano",
     } as Record<string, string>,
-    changeSpeaker: "Cambiar hablante",
+
+    // Who speaks.
+    nameIt: "· ponle nombre",
+    whoIs: (name: string) => `¿Quién es ${name}?`,
     speakerSearch: "Buscar o añadir un nombre",
-    recordingSpeakers: "Ya en esta grabación",
     guests: "Invitados de la reunión",
-    addSpeaker: "Añadir a alguien",
-    assignSpeaker: (name: string) => `Asignar «${name}»`,
-    speakerScope: "¿Cómo quieres aplicar este cambio?",
-    onlyThisTurn: "Solo en este turno",
-    allSpeakerTurns: (name: string) => `Todos los turnos de ${name}`,
+    recordingSpeakers: "Ya en esta grabación",
+    addSomeone: "+ Añadir a alguien",
+    addNamed: (name: string) => `+ Añadir «${name}»`,
+    wherePut: (name: string) => `¿Dónde pongo «${name}»?`,
+    onlyThisTurn: (at: string) => `Solo en este turno (${at})`,
+    allSpeakerTurns: (turns: number, name: string) =>
+      turns === 1 ? `En todos los turnos de ${name}` : `En los ${turns} turnos de ${name}`,
+    back: "Atrás",
     applySpeaker: "Aplicar",
-    speakerNoteHelp:
-      "La nota ya escrita conserva los nombres anteriores hasta que rehagas el resumen.",
-    speakerName: "Nombre del hablante",
+    renamed: (turns: number) => `Cambiado en ${count(turns, "turno", "turnos")}.`,
+    corrected: (wrong: string, right: string) => `Corregido «${wrong}» por «${right}».`,
+    usesOnRewrite: "La nota usará el cambio cuando rehagas el resumen.",
+
+    // Correcting a word.
+    correct: (word: string) => `Corregir «${word}»`,
+    correctTitle: "Corregir una palabra",
+    correctSubtitle: "Orbit la corregirá en todas las reuniones que usan este diccionario.",
+    heard: "Se oyó",
+    shouldSay: "Debe decir",
+    dictionary: "Diccionario",
+    dictionaryUsedBy: (name: string, series: string[]) =>
+      series.length === 0 ? name : `${name} · lo usan ${listOf(series)}`,
+    newDictionary: "Crear un diccionario nuevo",
+    dictionaryName: "Nombre del diccionario",
+    correctLater: "La nota ya escrita cambiará cuando rehagas el resumen.",
+    saveCorrection: "Guardar corrección",
+    savingCorrection: "Guardando en el hub…",
+
     save: "Guardar",
     cancel: "Cancelar",
-    retry: "Reintentar",
-    transcribing: "Transcribiendo…",
-    failedGroups: "Parte de la transcripción falló.",
   },
 } as const;

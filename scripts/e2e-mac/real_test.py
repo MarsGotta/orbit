@@ -615,7 +615,8 @@ class RealTest:
             title = checks._title(self.ev)
             if not title:
                 raise StepFailed("the note has no title to find it by in the list")
-            ui.press(self.main, title, ("AXButton",), contains=True, first=True)
+            # Each meeting of the list is a link (MeetingsColumn.tsx).
+            ui.press(self.main, title, ("AXLink", "AXButton"), contains=True, first=True)
             self.measure(
                 "screen",
                 ui.read_until(
@@ -633,7 +634,14 @@ class RealTest:
                 ("Acciones", "note-actions"),
                 ("Transcripción", "note-transcript"),
             ):
-                ui.press(self.main, tab, ("AXRadioButton", "AXTab", "AXButton"))
+                # «Acciones · 3»: the open tasks are counted in the tab's name.
+                ui.press(
+                    self.main,
+                    tab,
+                    ("AXRadioButton", "AXTab", "AXButton"),
+                    contains=True,
+                    first=True,
+                )
                 ui.read(self.main, label, READS[label])
 
         with self.step("the Assistant", (8,), critical=False):

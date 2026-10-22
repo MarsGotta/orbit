@@ -51,7 +51,8 @@ describe("a choice kept until it is confirmed", () => {
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({ command: "note_action_toggle", action_id: "a1", done: true }),
     );
-    expect(screen.getByRole("checkbox")).toHaveProperty("checked", true);
+    // The design's checkbox (design/Checkbox.tsx) is a button with aria-checked.
+    expect(screen.getByRole("checkbox").getAttribute("aria-checked")).toBe("true");
   });
 });
 

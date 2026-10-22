@@ -13,15 +13,14 @@
     - AXGroup
       - [30] AXButton "Preguntar a Deimos" [actions=[press]]
       - AXGroup
-        - AXStaticText = "Idioma"
-        - [31] AXPopUpButton = "Español" (Idioma) [actions=[press,showmenu]]
+        - [31] AXButton "Plantilla: General · Español" [actions=[press]]
     - AXTabGroup (Partes de la nota)
       - [7] AXRadioButton "Notas privadas" [actions=[press]]
       - [8] AXRadioButton "Resumen" [actions=[press]]
       - [9] AXRadioButton "Acciones" [actions=[press]]
       - [10] AXRadioButton "Transcripción" [actions=[press]]
     - AXGroup
-      - AXStaticText = "Idioma de la transcripción: Español"
+      - AXStaticText = "Pulsa un nombre para cambiar quién habla. Selecciona una palabra para corregirla."
       - [11] AXButton "Copiar transcripción" [actions=[press]]
       - AXGroup
         - AXStaticText = "497801:09:00"

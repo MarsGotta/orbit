@@ -1,0 +1,142 @@
+/* The 272 px list column of Reuniones (Nota.dc.html, «Lista de notas»). */
+
+.refresh {
+  display: flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--o-radius-md);
+  background: transparent;
+  color: var(--o-ink2);
+  cursor: pointer;
+  transition: background var(--o-dur-fast) var(--o-ease);
+}
+
+.refresh:hover {
+  background: var(--o-hover);
+}
+
+.group h3 {
+  margin: 0;
+  padding: 12px 10px 4px;
+  color: var(--o-ink3);
+  font: 500 12px/1.4 var(--o-font-sans);
+}
+
+.group:first-of-type h3 {
+  padding-top: 10px;
+}
+
+.row {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--o-radius-md);
+  color: var(--o-ink);
+  text-decoration: none;
+  transition: background var(--o-dur-fast) var(--o-ease);
+}
+
+.row:hover {
+  background: var(--o-hover);
+}
+
+.row[aria-current="page"] {
+  background: var(--o-raised);
+}
+
+.rowHead {
+  display: flex;
+  gap: var(--o-space-8);
+}
+
+.rowTitle {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font: 500 13px/1.45 var(--o-font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row[aria-current="page"] .rowTitle {
+  font-weight: 600;
+}
+
+.rowHead time {
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.rowLine {
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-6);
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.row[aria-current="page"] .rowLine,
+.rowLine[data-tone="working"] {
+  color: var(--o-ink2);
+}
+
+.row .rowLine[data-tone="failed"],
+.row .rowLine[data-tone="live"] {
+  color: var(--o-recText);
+}
+
+.rowText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--o-rec);
+}
+
+.more {
+  width: calc(100% - 20px);
+  margin: 8px 10px 0;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+
+.loading > span:first-child {
+  margin-bottom: 14px;
+}
+
+.loadingRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--o-line);
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--o-space-10);
+  margin: 0;
+  padding: 10px;
+  color: var(--o-ink2);
+  font: var(--o-text-meta);
+}
+
+.message p {
+  margin: 0;
+}

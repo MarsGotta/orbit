@@ -36,6 +36,7 @@
   --o-c4s: rgba(232, 176, 74, 0.14);
   --o-skel: #222227;
   --o-skel2: #2c2c33;
+  --o-mark: rgba(245, 181, 68, 0.28);
   --o-scrim: rgba(0, 0, 0, 0.55);
   --o-shadow: 0 18px 48px -16px rgba(0, 0, 0, 0.7);
   color-scheme: dark;
@@ -75,6 +76,7 @@
     --o-c4s: rgba(176, 122, 18, 0.1);
     --o-skel: #efeff1;
     --o-skel2: #e4e4e7;
+    --o-mark: rgba(245, 181, 68, 0.35);
     --o-scrim: rgba(24, 24, 27, 0.32);
     --o-shadow: 0 18px 48px -20px rgba(24, 24, 27, 0.28);
     color-scheme: light;
@@ -113,6 +115,7 @@
   --o-c4s: rgba(176, 122, 18, 0.1);
   --o-skel: #efeff1;
   --o-skel2: #e4e4e7;
+  --o-mark: rgba(245, 181, 68, 0.35);
   --o-scrim: rgba(24, 24, 27, 0.32);
   --o-shadow: 0 18px 48px -20px rgba(24, 24, 27, 0.28);
   color-scheme: light;
@@ -212,18 +215,6 @@
   --o-control-compact: 26px;
   --o-control-small: 28px;
   --o-control-large: 34px;
-}
-
-/* A speaker's colour arrives from the daemon as one of these names
-   (`crates/orbit-app-core/src/projection/note.rs`): they stay until the
-   daemon sends the calendar colours' names instead. */
-:root {
-  --o-accent: var(--o-c1);
-  --o-blue: var(--o-c2);
-  --o-green: var(--o-c3);
-  --o-orange: var(--o-c4);
-  --o-red: var(--o-rec);
-  --o-accent-ink: var(--o-accText);
 }
 
 /* The four movements. Nothing else moves. */

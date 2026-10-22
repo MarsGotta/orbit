@@ -188,7 +188,7 @@ mod mapping_tests {
                 },
                 "transcript": {"language": "es", "turns": [], "pending_chunks": 0, "failed_groups": 0},
                 "speakers": [{"key": "mic_local", "track": "mic_local", "name": "Alina",
-                    "color": "var(--o-blue)", "share_pct": 100}]
+                    "color": "var(--o-c2)", "share_pct": 100}]
             }
             }))?),
             ..AppSnapshot::default()

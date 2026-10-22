@@ -160,9 +160,10 @@ def transcript(nodes: list[Node], start: str, end: str) -> tuple[list[str], list
     then the text (TranscriptSegment.tsx), so in the tree a time starts a turn,
     the next text is its speaker and what follows up to the next time is what
     was said. Reading starts after the text that begins with `start` (the
-    toolbar's «Idioma de la transcripción: …») and stops at `end` («Aviso de
-    Orbit», a corner notice: the only thing after the view in the window). Returns the texts up to the first turn, the
-    toolbar's included, and the turns.
+    line under the toolbar, «Pulsa un nombre para cambiar quién habla…») and
+    stops at `end` («Aviso de Orbit», a corner notice: the only thing after
+    the view in the window). Returns the texts up to the first turn, the
+    note's header included, and the turns.
     """
     header: list[str] = []
     segments: list[Segment] = []

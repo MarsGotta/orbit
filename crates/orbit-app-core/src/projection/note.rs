@@ -97,16 +97,11 @@ fn summary_step(note: &NoteDocument) -> NoteStepSnapshot {
     }
 }
 
-/// A colour that stays with a speaker's key across notes.
+/// A colour that stays with a speaker's key across notes: one of the four
+/// calendar colours of `tokens.css`. Red is left out: on the note screen it
+/// means recording and failure.
 pub(crate) fn stable_speaker_color(key: &str) -> String {
-    const COLORS: [&str; 6] = [
-        "var(--o-orange)",
-        "var(--o-blue)",
-        "var(--o-accent)",
-        "var(--o-green)",
-        "var(--o-red)",
-        "var(--o-accent-ink)",
-    ];
+    const COLORS: [&str; 4] = ["var(--o-c1)", "var(--o-c2)", "var(--o-c3)", "var(--o-c4)"];
     let index = key.bytes().fold(0_usize, |hash, byte| {
         hash.wrapping_mul(31).wrapping_add(byte as usize)
     }) % COLORS.len();

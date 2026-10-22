@@ -1,216 +1,203 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import { TranscriptCorrection } from "./TranscriptCorrection";
-import type { AppCommand } from "../../bridge/generated";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { Button } from "../../design/Button";
-import { es } from "../../i18n/es";
-import { languageName, speakerName, transcriptText } from "./notes-format";
-import { SpeakerMenuView } from "./SpeakerMenu";
-import { SpeakerRenameDialog } from "./SpeakerRenameDialog";
 import type { NoteTurnSnapshot } from "../../bridge/generated/NoteTurnSnapshot";
-import { TranscriptSearch } from "./TranscriptSearch";
+import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import type { SpeakerRenameScope } from "../../bridge/generated/SpeakerRenameScope";
+import { Button } from "../../design/Button";
+import { Icon } from "../../design/Icon";
+import { Skeleton } from "../../design/Skeleton";
+import { es } from "../../i18n/es";
+import { CorrectionDialog } from "./CorrectionDialog";
+import { templateOf } from "./note-progress";
+import { sent, type Send } from "./send";
+import { SpeakerControl } from "./SpeakerControl";
 import { TranscriptSegment } from "./TranscriptSegment";
+import { FinalPassStatus, Toolbar } from "./TranscriptTools";
 import { useTranscriptSearch } from "./use-transcript-search";
-import styles from "./NoteScreen.module.css";
+import { useWordSelection } from "./use-word-selection";
+import styles from "./Note.module.css";
 
-type Send = (command: AppCommand) => void;
-
-/**
- * Follows the end of the transcript while new turns arrive, only when the user
- * is already there: reading further up is never interrupted.
- */
-function useFollowEnd(count: number) {
-  const end = useRef<HTMLDivElement>(null);
-  const atEnd = useRef(true);
-  useEffect(() => {
-    const target = end.current;
-    if (!target || typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver((entries) => {
-      atEnd.current = entries.some((entry) => entry.isIntersecting);
-    });
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, []);
-  useEffect(() => {
-    if (atEnd.current) end.current?.scrollIntoView?.({ block: "end" });
-  }, [count]);
-  return end;
+/** More turns are on their way: the transcript is not complete yet. */
+function arriving(note: OpenNoteSnapshot): boolean {
+  return note.transcript.pending_chunks > 0 || note.progress.transcript.state === "active";
 }
 
-function Tools({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
-  // The meeting's language, as the hub's document says it.
-  const language = note.transcript.language;
+/** «✓ Cambiado en 3 turnos. La nota usará el cambio cuando rehagas el resumen. Rehacer resumen». */
+function DoneBand({ note, send, text }: { note: OpenNoteSnapshot; send: Send; text: string }) {
   return (
-    <div className={styles.toolbar}>
-      {language != null && (
-        <span>{`${es.notes.transcriptLanguage}: ${languageName(language)}`}</span>
+    <p className={styles.doneBand} role="status">
+      <span aria-hidden="true" className={styles.doneMark}>
+        ✓
+      </span>
+      <span className={styles.doneText}>{text}</span>
+      {note.summary !== null && (
+        <Button
+          onClick={() =>
+            void send({
+              command: "note_regenerate",
+              recording_id: note.recording_id,
+              template_id: templateOf(note),
+            })
+          }
+          size={28}
+          variant="ghost"
+        >
+          {es.noteScreen.redoSummary}
+        </Button>
       )}
-      {note.capture === "closed" &&
-        note.transcript.final_pass?.state !== "queued" &&
-        note.transcript.final_pass?.state !== "running" && (
-          <Button
-            onClick={() =>
-              send({ command: "transcript_retranscribe", recording_id: note.recording_id })
-            }
-            size={28}
-            variant="ghost"
-          >
-            {es.notes.retranscribe}
-          </Button>
-        )}
-      <Button
-        onClick={() => void navigator.clipboard?.writeText(transcriptText(note))}
-        size={28}
-        variant="ghost"
-      >
-        {es.noteScreen.copyTranscript}
-      </Button>
+    </p>
+  );
+}
+
+/** «Pulsa un nombre…», or «La transcripción va apareciendo…» while it fills. */
+function Hint({ note }: { note: OpenNoteSnapshot }) {
+  return (
+    <p className={styles.quiet}>
+      {arriving(note) ? es.notes.transcriptArriving : es.notes.transcriptHelp}
+    </p>
+  );
+}
+
+function TranscriptState({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
+  if (note.transcript.error != null && note.transcript.error !== "") {
+    return (
+      <div className={styles.inlineFailure} role="alert">
+        <span>{es.notes.transcriptFailed}</span>
+        <Button
+          onClick={() => void send({ command: "notes_open", recording_id: note.recording_id })}
+          size={28}
+        >
+          {es.notes.retry}
+        </Button>
+      </div>
+    );
+  }
+  if (note.transcript.turns.length === 0 && !arriving(note))
+    return <p className={styles.quiet}>{es.notes.noTranscript}</p>;
+  return null;
+}
+
+/** Under a turn with a word selected: «Corregir «Orvit»». */
+function CorrectButton({ text, onCorrect }: { text: string; onCorrect: (text: string) => void }) {
+  return (
+    <Button
+      className={styles.correctButton}
+      onClick={() => onCorrect(text)}
+      size={28}
+      variant="outline"
+    >
+      <Icon name="edit" size={14} />
+      {es.notes.correct(text)}
+    </Button>
+  );
+}
+
+/** The end of a transcript still filling: skeleton lines. */
+function Arriving() {
+  return (
+    <div aria-label={es.notes.moreTranscript} className={styles.arriving} role="img">
+      <Skeleton height={10} widths={["100px", "80%"]} />
     </div>
   );
 }
 
-function FinalPassStatus({ note }: { note: OpenNoteSnapshot }) {
-  return (
-    <>
-      {note.transcript.final_pass?.state === "queued" && (
-        <p role="status">{es.notes.finalPassQueued}</p>
-      )}
-      {note.transcript.final_pass?.state === "running" && (
-        <p role="status">{es.notes.finalPassRunning}</p>
-      )}
-      {note.transcript.final_pass?.state === "failed" && (
-        <p role="alert">
-          {es.notes.finalPassFailed(
-            note.transcript.final_pass.error,
-            note.transcript.final_pass.timeout_ms,
-          )}
-        </p>
-      )}
-      {(note.transcript.unmatched_speaker_names ?? 0) > 0 && (
-        <p role="status">
-          {es.notes.unmatchedSpeakerNames(note.transcript.unmatched_speaker_names ?? 0)}
-        </p>
-      )}
-    </>
-  );
-}
-
-interface SpeakerSelection {
-  turn: NoteTurnSnapshot;
-  stage: "select" | "add" | "scope";
-  name: string;
-}
-
-function SpeakerSelectionView({
-  note,
-  send,
-  selection,
-  setSelection,
-}: {
-  note: OpenNoteSnapshot;
-  send: Send;
-  selection: SpeakerSelection;
-  setSelection: React.Dispatch<React.SetStateAction<SpeakerSelection | null>>;
-}) {
-  const choose = (name: string) => setSelection({ ...selection, stage: "scope", name });
-  if (selection.stage === "select")
-    return (
-      <SpeakerMenuView
-        note={note}
-        speakerKey={selection.turn.speaker_key}
-        onChoose={choose}
-        onAdd={(name) => setSelection({ ...selection, stage: "add", name })}
-        onClose={() => setSelection((current) => (current?.stage === "select" ? null : current))}
-      />
-    );
-  return (
-    <SpeakerRenameDialog
-      key={selection.stage}
-      name={selection.name}
-      speakerName={speakerName(note, selection.turn)}
-      atMs={selection.turn.at_ms}
-      adding={selection.stage === "add"}
-      onChoose={choose}
-      onClose={() => setSelection(null)}
-      onApply={(scope) => {
-        send({
-          command: "speaker_rename",
-          speaker_key: selection.turn.speaker_key,
-          name: selection.name,
-          scope,
-        });
-        setSelection(null);
-      }}
-    />
-  );
-}
-
-function isEmpty(note: OpenNoteSnapshot): boolean {
-  const transcript = note.transcript;
-  return (
-    transcript.turns.length === 0 &&
-    transcript.failed_groups === 0 &&
-    transcript.pending_chunks === 0 &&
-    (transcript.error == null || transcript.error === "")
-  );
-}
-
-/** The transcript as the hub computed it, searchable with ⌘F, with speaker
- * menus. While recording it grows as the hub transcribes. */
 interface TranscriptTabProps {
   note: OpenNoteSnapshot;
   send: Send;
   library?: NoteLibrarySnapshot | null;
 }
 
+/** The speaker menu that is open, the window that corrects a word, and the band after either. */
+function useTranscriptChanges(note: OpenNoteSnapshot, send: Send, clearWords: () => void) {
+  const [menu, setMenu] = useState<number | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const [correcting, setCorrecting] = useState<string | null>(null);
+  useEffect(() => setDone(null), [note.recording_id]);
+  const written = note.summary !== null;
+  const band = useCallback(
+    (first: string) => setDone(written ? `${first} ${es.notes.usesOnRewrite}` : first),
+    [written],
+  );
+  const rename =
+    (turn: NoteTurnSnapshot) => (name: string, scope: SpeakerRenameScope, count: number) =>
+      sent(send, { command: "speaker_rename", speaker_key: turn.speaker_key, name, scope }).then(
+        () => {
+          setMenu(null);
+          band(es.notes.renamed(count));
+        },
+      );
+  const saved = useCallback(
+    (wrong: string, correct: string) => {
+      setCorrecting(null);
+      clearWords();
+      band(es.notes.corrected(wrong, correct));
+    },
+    [band, clearWords],
+  );
+  return { menu, setMenu, done, correcting, setCorrecting, rename, saved };
+}
+
+/**
+ * The transcript as the hub computed it: a search, «Copiar», «Rehacer
+ * transcripción», each turn's speaker opening «¿Quién es…?», and «Corregir»
+ * on a selected word. It opens where it starts, never at its end (proposal 23).
+ */
 export function TranscriptTab({ note, send, library }: TranscriptTabProps) {
-  const [selection, setSelection] = useState<SpeakerSelection | null>(null);
   const turns = note.transcript.turns;
-  const texts = useMemo(() => turns.map((turn) => turn.text), [turns]);
-  const search = useTranscriptSearch(texts);
-  const end = useFollowEnd(turns.length);
+  const search = useTranscriptSearch(useMemo(() => turns.map((turn) => turn.text), [turns]));
+  const container = useRef<HTMLDivElement>(null);
+  const words = useWordSelection(container);
+  const changes = useTranscriptChanges(note, send, words.clear);
+  const { menu, setMenu, done, correcting, setCorrecting, rename, saved } = changes;
   return (
-    <section>
-      {search.open && (
-        <TranscriptSearch
-          current={search.current}
-          onClose={search.close}
-          onMove={search.move}
-          onQuery={search.setQuery}
-          query={search.query}
-          summons={search.summons}
-          total={search.total}
-        />
-      )}
-      <Tools note={note} send={send} />
+    <div className={styles.transcript}>
+      {!arriving(note) && <Toolbar note={note} search={search} send={send} />}
+      <Hint note={note} />
       <FinalPassStatus note={note} />
-      {note.summary && <p className={styles.emptyCopy}>{es.notes.speakerNoteHelp}</p>}
-      {selection && (
-        <SpeakerSelectionView
-          note={note}
-          send={send}
-          selection={selection}
-          setSelection={setSelection}
-        />
-      )}
-      {isEmpty(note) && <p className={styles.emptyCopy}>{es.notes.noTranscript}</p>}
-      <TranscriptCorrection note={note} library={library} send={send}>
-        {turns.map((turn, position) => (
+      {done !== null && <DoneBand note={note} send={send} text={done} />}
+      <TranscriptState note={note} send={send} />
+      <div
+        className={styles.turns}
+        onKeyUp={words.capture}
+        onMouseUp={words.capture}
+        ref={container}
+      >
+        {note.transcript.turns.map((turn, position) => (
           <TranscriptSegment
+            after={
+              words.selected?.turn === turn.index && (
+                <CorrectButton onCorrect={setCorrecting} text={words.selected.text} />
+              )
+            }
             focused={search.focused}
             key={turn.index}
             matches={search.matches.filter((match) => match.segment === position)}
-            note={note}
-            onSpeaker={(turn) => setSelection({ turn, stage: "select", name: "" })}
             ref={search.turnRef(position)}
             turn={turn}
+            who={
+              <SpeakerControl
+                note={note}
+                onApply={rename(turn)}
+                open={menu === turn.index}
+                setOpen={setMenu}
+                speaker={note.speakers.find((speaker) => speaker.key === turn.speaker_key)}
+                turn={turn}
+              />
+            }
           />
         ))}
-      </TranscriptCorrection>
-      <div aria-hidden="true" className={styles.end} ref={end} />
-    </section>
+        {arriving(note) && <Arriving />}
+      </div>
+      {correcting !== null && (
+        <CorrectionDialog
+          library={library}
+          note={note}
+          onClose={() => setCorrecting(null)}
+          onSaved={saved}
+          send={send}
+          wrong={correcting}
+        />
+      )}
+    </div>
   );
 }
-
-export { TranscriptionProgress } from "./TranscriptionProgress";

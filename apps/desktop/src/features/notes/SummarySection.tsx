@@ -4,7 +4,7 @@ import { Button } from "../../design/Button";
 import { es } from "../../i18n/es";
 import { MarkdownView } from "./MarkdownView";
 import { NoteEditor } from "./NoteEditor";
-import styles from "./NoteScreen.module.css";
+import styles from "./Note.module.css";
 
 /**
  * One section of the summary: read as formatted text, edited in place with
@@ -22,11 +22,12 @@ export function SummarySection({
 }) {
   const [editing, setEditing] = useState(false);
   return (
-    <section className={styles.section} data-edited={section.edited}>
+    <section className={styles.section} data-edited={section.edited} data-editing={editing}>
       <header className={styles.sectionHead}>
-        <h2>{section.name}</h2>
+        <h3>{section.name}</h3>
         <Button
           aria-label={editing ? es.noteScreen.done : es.noteScreen.editSection(section.name)}
+          className={styles.sectionEdit}
           onClick={() => {
             if (editing) onDone();
             setEditing(!editing);

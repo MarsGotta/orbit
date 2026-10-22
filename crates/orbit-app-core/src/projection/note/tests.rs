@@ -224,3 +224,38 @@ fn final_pass_timeout_projects_its_budget_without_other_diagnostics() {
         })
     );
 }
+
+/// A speaker's colour is one of the four calendar colours (`--o-c1`…`--o-c4`
+/// in `tokens.css`), the same for a key in every note: red means recording
+/// and failure on the note screen, so no voice wears it.
+#[test]
+fn a_speaker_wears_one_of_the_four_calendar_colours_and_keeps_it() {
+    let calendar = ["var(--o-c1)", "var(--o-c2)", "var(--o-c3)", "var(--o-c4)"];
+    let keys = [
+        "mic_local",
+        "remote_app",
+        "voice_1",
+        "voice_2",
+        "voice_3",
+        "voice_12",
+    ];
+    let colours: Vec<String> = keys.iter().map(|key| stable_speaker_color(key)).collect();
+    for colour in &colours {
+        assert!(
+            calendar.contains(&colour.as_str()),
+            "{colour} is not a calendar colour"
+        );
+    }
+    assert_eq!(
+        colours,
+        keys.iter()
+            .map(|key| stable_speaker_color(key))
+            .collect::<Vec<_>>()
+    );
+    // Four voices in a row get four different colours.
+    let four: std::collections::BTreeSet<String> = ["voice_1", "voice_2", "voice_3", "voice_4"]
+        .iter()
+        .map(|key| stable_speaker_color(key))
+        .collect();
+    assert_eq!(four.len(), 4);
+}

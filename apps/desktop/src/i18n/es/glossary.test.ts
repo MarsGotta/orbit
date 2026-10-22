@@ -18,7 +18,7 @@ describe("the glossary", () => {
     expect(es.notes.empty).toBe("Aún no hay reuniones");
     expect(es.notes.emptyBody).toBe("Graba tu primera reunión y Orbit escribirá la nota por ti.");
     expect(es.meeting.openNote).toBe("Abrir nota");
-    expect(es.notes.privateTab).toBe("Notas privadas");
+    expect(es.noteScreen.privateTab).toBe("Notas privadas");
   });
 
   it("records a meeting from the window, or from an event", () => {
@@ -41,7 +41,7 @@ describe("the glossary", () => {
   });
 
   it("redoes the summary and the transcript, and says the note's steps as they go", () => {
-    expect(es.noteScreen.rewrite).toBe("Rehacer resumen");
+    expect(es.noteScreen.redoSummary).toBe("Rehacer resumen");
     expect(es.notes.retranscribe).toBe("Rehacer transcripción");
     expect(es.noteScreen.steps.upload.done).toBe("Audio guardado");
     expect(es.noteScreen.steps.transcript.active).toBe("Transcribiendo…");

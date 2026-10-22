@@ -7,42 +7,49 @@ import { es } from "../../i18n/es";
 
 const DAY_MS = 86_400_000;
 
-export function formatDuration(durationMs: number): string {
-  const hours = Math.floor(Math.max(0, durationMs) / 3_600_000);
-  return hours > 0 ? `${hours}:${mmss(durationMs % 3_600_000)}` : mmss(durationMs, false);
-}
-
 /** A turn's offset: mm:ss, or h:mm:ss from the first hour. */
 export function formatTimestamp(atMs: number): string {
   const hours = Math.floor(Math.max(0, atMs) / 3_600_000);
   return hours > 0 ? `${hours}:${mmss(atMs % 3_600_000)}` : mmss(atMs);
 }
 
+const weekday = new Intl.DateTimeFormat("es-ES", { weekday: "short" });
+const dayMonth = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
+const clock = new Intl.DateTimeFormat("es-ES", {
+  hour: "numeric",
+  hourCycle: "h23",
+  minute: "2-digit",
+});
+
+/** «14 oct», «17 sept»: Intl's abbreviations without their full stop. */
+export function formatDayMonth(value: number): string {
+  return dayMonth.format(value).replace(".", "");
+}
+
+/** «Mié 14 oct». */
 export function formatDay(value: number): string {
-  return new Intl.DateTimeFormat("es-ES", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  }).format(value);
+  const name = weekday.format(value).replace(".", "");
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)} ${formatDayMonth(value)}`;
 }
 
-/** «9:00»: no leading zero on the hour. */
+/** «9:00», «17:10». */
 export function formatClock(value: number): string {
-  return new Intl.DateTimeFormat("es-ES", {
-    hour: "numeric",
-    hourCycle: "h23",
-    minute: "2-digit",
-  }).format(value);
+  return clock.format(value);
 }
 
-export function formatDate(value: number): string {
-  return new Intl.DateTimeFormat("es-ES", {
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    hourCycle: "h23",
-    minute: "2-digit",
-  }).format(value);
+/** A meeting's length: «47 min», «1 h 52 min». */
+export function formatLength(durationMs: number): string {
+  const minutes = Math.max(0, Math.round(durationMs / 60_000));
+  if (minutes < 60) return es.noteScreen.minutes(minutes);
+  return es.noteScreen.hours(Math.floor(minutes / 60), minutes % 60);
+}
+
+/** Where a meeting is in the list: its hour today and yesterday, its date before. */
+export function rowTime(note: NoteListItem): string {
+  const group = groupFor(note);
+  return group === "today" || group === "yesterday"
+    ? formatClock(note.started_at_ms)
+    : formatDayMonth(note.started_at_ms);
 }
 
 /** The list's day groups, in order, with their names. */
@@ -89,27 +96,28 @@ export function summaryMarkdown(note: OpenNoteSnapshot): string {
   for (const section of summary.sections) parts.push(`## ${section.name}\n\n${section.markdown}`);
   if (note.decisions.length > 0)
     parts.push(
-      `## ${es.notes.decisions}\n\n${note.decisions.map((item) => `- ${item}`).join("\n")}`,
+      `## ${es.noteScreen.decisions}\n\n${note.decisions.map((item) => `- ${item}`).join("\n")}`,
     );
   if (note.open_topics.length > 0)
     parts.push(
-      `## ${es.notes.openTopics}\n\n${note.open_topics.map((item) => `- ${item}`).join("\n")}`,
+      `## ${es.noteScreen.openTopics}\n\n${note.open_topics.map((item) => `- ${item}`).join("\n")}`,
     );
   return parts.filter((part) => part.trim() !== "").join("\n\n");
 }
 
-const SPEAKER_COLORS = [
-  "var(--o-accent)",
-  "var(--o-blue)",
-  "var(--o-green)",
-  "var(--o-orange)",
-  "var(--o-accent-ink)",
-];
+/**
+ * A voice nobody named yet: the hub's «Persona N» for `voice_N`, «Otra persona»
+ * and the local microphone before the Mac said whose it is
+ * (`server/orbit_hub/meetings/turns.py`). It asks for a name.
+ */
+export function isUnnamedSpeaker(speaker: { key: string; name: string } | undefined): boolean {
+  if (!speaker) return true;
+  if (speaker.name === "Otra persona" || speaker.name === "Micrófono local") return true;
+  const voice = /^voice_(\d+)$/.exec(speaker.key);
+  return voice !== null && speaker.name === `Persona ${Number(voice[1])}`;
+}
 
-/** A colour that stays with a name across turns and notes. Red is left out:
- * it means recording and failure on this screen. */
-export function stableColor(name: string): string {
-  let hash = 0;
-  for (const char of name) hash = (hash * 31 + (char.codePointAt(0) ?? 0)) >>> 0;
-  return SPEAKER_COLORS[hash % SPEAKER_COLORS.length] ?? "var(--o-accent)";
+/** How «Quién habló» names a person: the first name, a placeholder whole. */
+export function shortName(speaker: { key: string; name: string }): string {
+  return isUnnamedSpeaker(speaker) ? speaker.name : (speaker.name.split(/\s+/)[0] ?? speaker.name);
 }

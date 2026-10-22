@@ -1,43 +1,41 @@
 import { useEffect, useRef, useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
+import type { NoteListItem } from "../../bridge/generated/NoteListItem";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { Button } from "../../design/Button";
-import { es } from "../../i18n/es";
+import { Icon } from "../../design/Icon";
+import { Spinner } from "../../design/Spinner";
 import { useSpanish } from "../../i18n/AssistantCopy";
-import { formatClock, formatDay, formatDuration } from "./notes-format";
-import { isRecording } from "./note-progress";
-import { DictionaryPicker } from "./DictionaryPicker";
-import { LanguagePicker } from "./LanguagePicker";
-import { SeriesAssign } from "./SeriesAssign";
-import { TemplatePicker } from "./TemplatePicker";
-import styles from "./NoteScreen.module.css";
-
-type Send = (command: AppCommand) => void;
+import { es } from "../../i18n/es";
+import { isPreparing, isRecording, templateOf } from "./note-progress";
+import { NoteSettingsMenu } from "./NoteSettingsMenu";
+import { formatClock, formatDay, formatLength } from "./notes-format";
+import { sent, type Send } from "./send";
+import styles from "./Note.module.css";
 
 /**
- * The meeting's title, the one the list of Notes names it by (decided
- * 2026-10-17): one title in both places, never the one the note was written
- * with. Editing it renames the meeting on the hub, everywhere when
- * the user leaves the field or presses Enter; empty gives it back its own. A
- * recording the hub does not have whole yet cannot be renamed, and says so.
+ * The meeting's title, the one the list names it by (decided 2026-10-17):
+ * one title in both places, never the one the note was written with. Editing
+ * it renames the meeting on the hub, everywhere, when the user leaves the
+ * field or presses Enter; empty gives it back its own. A recording the hub
+ * does not have whole yet cannot be renamed, and says so.
  */
 function NoteTitle({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
   const [title, setTitle] = useState(note.title);
-  const sent = useRef(note.title);
+  const sentTitle = useRef(note.title);
   useEffect(() => {
     // The hub's answer, or another change: what the user sees is the hub's again.
     setTitle(note.title);
-    sent.current = note.title;
+    sentTitle.current = note.title;
   }, [note.title]);
   const notOnHub = note.progress.upload.state !== "done" ? es.noteScreen.titleNotOnHub : undefined;
   const commit = () => {
     const value = title.trim();
     // Empty: the hub gives the meeting back its own title.
     if (value === "") setTitle(note.title);
-    if (value === sent.current.trim()) return;
-    sent.current = value;
-    send({ command: "meeting_rename", recording_id: note.recording_id, title: value });
+    if (value === sentTitle.current.trim()) return;
+    sentTitle.current = value;
+    void send({ command: "meeting_rename", recording_id: note.recording_id, title: value });
   };
   return (
     <>
@@ -61,27 +59,48 @@ function NoteTitle({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
   );
 }
 
-function DataLine({ note }: { note: OpenNoteSnapshot }) {
+/** «Mié 14 oct · 11:00 – 11:47 · 47 min · Bruno, Celia y tú». */
+function dataLine(note: OpenNoteSnapshot, row?: NoteListItem): string {
+  const day =
+    row?.group === "today"
+      ? es.notes.today
+      : row?.group === "yesterday"
+        ? es.notes.yesterday
+        : formatDay(note.started_at_ms);
   const parts = [
-    formatDay(note.started_at_ms),
+    day,
     `${formatClock(note.started_at_ms)} – ${formatClock(note.ended_at_ms)}`,
-    formatDuration(Math.max(0, note.ended_at_ms - note.started_at_ms)),
+    formatLength(note.ended_at_ms - note.started_at_ms),
   ];
-  if (note.event) parts.push(note.event.title);
-  return <p className={styles.dataLine}>{parts.join(" · ")}</p>;
+  const others = (note.event?.attendees ?? [])
+    .filter((guest) => !guest.is_self)
+    .map((guest) => (guest.name || guest.email).split(/\s+/)[0] ?? guest.email);
+  if (others.length > 0) parts.push(es.noteScreen.withPeople(others));
+  return parts.join(" · ");
 }
 
-function rewrite(note: OpenNoteSnapshot, send: Send) {
-  send({
-    command: "note_regenerate",
-    recording_id: note.recording_id,
-    template_id: note.summary?.template_id ?? "general",
-  });
-}
-
-/** The user changed the note the hub wrote: writing it again sets that aside. */
-function editedByUser(note: OpenNoteSnapshot): boolean {
-  return note.summary?.sections.some((section) => section.edited) ?? false;
+/** «Reescribiendo la nota…» from the press until the hub has taken it, then
+ * while the hub writes it; «Transcribiendo de nuevo… 1 de 4» while it
+ * transcribes the meeting again in another language. */
+function useRewriting(note: OpenNoteSnapshot) {
+  const [asked, setAsked] = useState<{ id: string; template: string } | null>(null);
+  const start = (template: string, work: Promise<unknown>) => {
+    const request = { id: note.recording_id, template };
+    setAsked(request);
+    const done = () => setAsked((value) => (value === request ? null : value));
+    work.then(done, done);
+  };
+  const writing =
+    note.summary !== null &&
+    note.progress.summary.state === "active" &&
+    !isRecording(note.progress);
+  const template =
+    asked?.id === note.recording_id
+      ? asked.template
+      : writing
+        ? (note.summary?.template_name ?? null)
+        : null;
+  return { template, start };
 }
 
 /** Title, short summary, the meeting's data and what can be done with it. */
@@ -89,44 +108,79 @@ export function NoteHeader({
   library,
   note,
   onAsk,
+  row,
   send,
 }: {
   library?: NoteLibrarySnapshot | null;
   note: OpenNoteSnapshot;
   onAsk: () => void;
+  row?: NoteListItem;
   send: Send;
 }) {
-  const es = useSpanish();
-  // While recording there is no note to write again yet: the controls stay
-  // in place, disabled, and say why.
+  const copy = useSpanish();
+  // While recording there is no note to write again yet: the control stays
+  // in place, disabled, and says why.
   const blocked = isRecording(note.progress) ? es.noteScreen.whileRecording : undefined;
+  const rewriting = useRewriting(note);
+  const redo = () => {
+    const template = templateOf(note);
+    const name = note.summary?.template_name ?? template;
+    rewriting.start(
+      name,
+      sent(send, {
+        command: "note_regenerate",
+        recording_id: note.recording_id,
+        template_id: template,
+      }),
+    );
+  };
   return (
     <header className={styles.head}>
       <NoteTitle key={note.recording_id} note={note} send={send} />
       {note.summary && <p className={styles.shortSummary}>{note.summary.short_summary}</p>}
-      <DataLine note={note} />
+      <p className={styles.dataLine}>{dataLine(note, row)}</p>
       <div className={styles.headActions}>
-        <Button onClick={onAsk} size={28} variant="accent">
-          {es.noteScreen.askDeimos}
+        <Button onClick={onAsk} size={36} variant="outline">
+          <span className={styles.askIcon}>
+            <Icon name="ask" size={14} />
+          </span>
+          {copy.noteScreen.askDeimos}
         </Button>
-        <TemplatePicker blocked={blocked} library={library} note={note} send={send} />
-        <LanguagePicker note={note} send={send} />
-        <DictionaryPicker library={library} note={note} send={send} />
-        <SeriesAssign library={library} note={note} send={send} />
-        <span title={blocked}>
-          <Button
-            disabled={blocked !== undefined}
-            onClick={() => rewrite(note, send)}
-            size={28}
-            variant="outline"
-          >
-            {es.noteScreen.rewrite}
+        <NoteSettingsMenu
+          blocked={blocked}
+          library={library}
+          note={note}
+          onRewrite={rewriting.start}
+          send={send}
+        />
+        {!isPreparing(note) && (
+          <Button disabledReason={blocked} onClick={redo} size={36} variant="ghost">
+            {es.noteScreen.redoSummary}
           </Button>
-        </span>
-        {blocked === undefined && editedByUser(note) && (
-          <span className={styles.templateState}>{es.noteScreen.rewriteSetsAside}</span>
         )}
       </div>
+      <HeadStatus note={note} template={rewriting.template} />
     </header>
+  );
+}
+
+/** What the hub is doing with the note now: writing it, or transcribing it again. */
+function HeadStatus({ note, template }: { note: OpenNoteSnapshot; template: string | null }) {
+  const again = note.transcript.retranscribing;
+  return (
+    <>
+      {template !== null && (
+        <p className={styles.headStatus} role="status">
+          <Spinner size={14} />
+          {es.noteScreen.rewriting(template)}
+        </p>
+      )}
+      {again && (
+        <p className={styles.headStatus} role="status">
+          <Spinner size={14} />
+          {es.noteScreen.retranscribing(again.done, again.total)}
+        </p>
+      )}
+    </>
   );
 }

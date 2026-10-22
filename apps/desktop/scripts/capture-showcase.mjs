@@ -86,6 +86,17 @@ async function step(page, action, now) {
   if ("mouse" in action) await mouse(page, action.mouse, action.at);
   else if ("drag" in action) await mouse(page, action.drag, [20, 12], action.by);
   else if ("hold" in action) await mouse(page, action.hold, action.at, action.by, false);
+  else if ("select" in action)
+    await page
+      .locator(action.select)
+      .first()
+      .evaluate((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        window.getSelection()?.removeAllRanges();
+        window.getSelection()?.addRange(range);
+        element.dispatchEvent(new window.MouseEvent("mouseup", { bubbles: true }));
+      });
   else if ("advance" in action) await page.clock.setFixedTime(now + action.advance);
   else if ("click" in action) await page.locator(action.click).first().click();
   else if ("hover" in action) await page.locator(action.hover).first().hover();

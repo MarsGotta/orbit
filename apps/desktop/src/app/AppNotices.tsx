@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import type { NoticeAction } from "../i18n/es/notices";
 import type { AppContentProps } from "./App";
 import { ToastStack } from "../design/Toast";
+import { NoteReadyNotice } from "../features/notes/NoteReadyNotice";
 import { UpdateNotice } from "./UpdateNotice";
 import { NoticeBanner } from "./NoticeBanner";
 import { bannerMessages } from "./visible-error";
@@ -24,6 +25,7 @@ export function AppNotices({ dismiss, messages, navigate, retry, send, snapshot 
     <>
       <ToastStack />
       <UpdateNotice update={snapshot.settings.update} send={send} />
+      <NoteReadyNotice ready={snapshot.notes?.ready} send={send} />
       <NoticeBanner
         messages={bannerMessages(messages)}
         onAction={onAction}

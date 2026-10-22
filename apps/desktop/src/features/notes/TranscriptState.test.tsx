@@ -1,8 +1,8 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { es } from "../../i18n/es";
-import { TranscriptTab, TranscriptionProgress } from "./TranscriptTab";
+import { TranscriptTab } from "./TranscriptTab";
 
 function note(transcript: Partial<OpenNoteSnapshot["transcript"]>): OpenNoteSnapshot {
   return {
@@ -35,41 +35,40 @@ function note(transcript: Partial<OpenNoteSnapshot["transcript"]>): OpenNoteSnap
   };
 }
 
-function renderTranscript(value: OpenNoteSnapshot) {
-  render(
-    <>
-      <TranscriptionProgress note={value} send={() => undefined} />
-      <TranscriptTab note={value} send={() => undefined} />
-    </>,
-  );
+function renderTranscript(value: OpenNoteSnapshot, send = vi.fn(() => Promise.resolve())) {
+  render(<TranscriptTab note={value} send={send} />);
+  return send;
 }
 
 afterEach(cleanup);
 
 describe("visible transcript state", () => {
   // Work on the hub is progress, said without its internal counts.
-  it("shows chunks still to transcribe as progress, not as a failure", () => {
+  it("shows chunks still to transcribe as more coming, not as a failure", () => {
     renderTranscript(note({ pending_chunks: 2 }));
-    const status = screen.getByRole("status").textContent;
-    expect(status).toBe(es.notes.transcribing);
-    expect(status).not.toMatch(/\d/);
+    expect(screen.getByLabelText("Llegando más transcripción")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByText(es.notes.noTranscript)).toBeNull();
+    expect(document.body.textContent).not.toMatch(/\b2\b/);
   });
 
   // A failed read says so and offers «Reintentar»; the daemon's
   // cause stays in the log, never on screen.
   it("shows the failure instead of the empty-state copy, without the daemon cause", () => {
-    renderTranscript(note({ error: "El hub no respondió a tiempo" }));
+    const send = renderTranscript(note({ error: "El hub no respondió a tiempo" }));
     const alert = screen.getByRole("alert").textContent;
     expect(alert).toContain(es.notes.transcriptFailed);
     expect(alert).not.toContain("El hub no respondió a tiempo");
     expect(screen.queryByText(es.notes.noTranscript)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    expect(send).toHaveBeenCalledWith({
+      command: "notes_open",
+      recording_id: "meeting-transcript-state",
+    });
   });
 
-  it("offers «Reintentar» when the hub gave up on part of the transcript", () => {
-    renderTranscript(note({ failed_groups: 1 }));
-    expect(screen.getByRole("status").textContent).toContain(es.notes.failedGroups);
-    expect(screen.getByRole("button", { name: es.notes.retry })).toBeTruthy();
+  it("says when there is nothing transcribed yet", () => {
+    renderTranscript(note({}));
+    expect(screen.getByText(es.notes.noTranscript)).toBeTruthy();
   });
 });

@@ -1,87 +1,56 @@
-import type { AppCommand } from "../../bridge/generated";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { Button } from "../../design/Button";
-import type { NoteActionSnapshot } from "../../bridge/generated/NoteActionSnapshot";
+import { Checkbox } from "../../design/Checkbox";
 import { es } from "../../i18n/es";
-import { useHeldChoice } from "../../state/use-held-choice";
 import { actionsMarkdown, groupActions } from "./action-groups";
-import styles from "./NoteScreen.module.css";
+import { CopyButton } from "./copy-button";
+import { sent, type Send } from "./send";
+import styles from "./Note.module.css";
 
-/** The tasks of the note, grouped by who owns them. */
-export function ActionsTab({
-  note,
-  send,
-}: {
-  note: OpenNoteSnapshot;
-  send: (command: AppCommand) => unknown;
-}) {
+/**
+ * The tasks of the note, by person, the user's first. A mark shows at once
+ * with «Guardando…» beside it until the hub has it; it never turns back by itself.
+ */
+export function ActionsTab({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
   if (note.actions.length === 0) {
     return (
-      <section className={styles.emptyTab}>
-        <p>{note.summary === null ? es.notes.actionsLater : es.notes.noActions}</p>
-      </section>
+      <p className={styles.quiet}>
+        {note.summary === null ? es.noteScreen.actionsLater : es.noteScreen.noActions}
+      </p>
     );
   }
   const groups = groupActions(note.actions, note.owner_name);
+  const left = note.actions.filter((action) => !action.done).length;
   return (
-    <section className={styles.actions}>
+    <div className={styles.actions}>
       <div className={styles.toolbar}>
-        <Button
-          onClick={() => void navigator.clipboard?.writeText(actionsMarkdown(groups))}
-          size={28}
-          variant="ghost"
-        >
-          {es.noteScreen.copyActions}
-        </Button>
+        <span className={styles.toolbarMeta}>{es.noteScreen.actionsLeft(left)}</span>
+        <CopyButton label={es.noteScreen.copyActions} text={() => actionsMarkdown(groups)} />
       </div>
       {groups.map((group) => (
-        <section className={styles.actionGroup} data-mine={group.mine} key={group.key}>
-          <h2>{group.label}</h2>
+        <section className={styles.actionGroup} key={group.key}>
+          <h3>{group.label}</h3>
           {group.items.map((action) => (
-            <ActionRow
-              action={action}
-              key={action.id}
-              recordingId={note.recording_id}
-              send={send}
-            />
+            <div className={styles.actionRow} data-done={action.done} key={action.id}>
+              <Checkbox
+                checked={action.done}
+                onCheckedChange={(done) =>
+                  sent(send, {
+                    command: "note_action_toggle",
+                    recording_id: note.recording_id,
+                    action_id: action.id,
+                    done,
+                  })
+                }
+              >
+                <span className={styles.actionText}>{action.text}</span>
+                {action.due != null && action.due !== "" && (
+                  <span className={styles.actionDue}>{es.noteScreen.actionDue(action.due)}</span>
+                )}
+              </Checkbox>
+            </div>
           ))}
         </section>
       ))}
-    </section>
-  );
-}
-
-/** One task, its box kept as ticked until the note is read again with it. */
-function ActionRow({
-  action,
-  recordingId,
-  send,
-}: {
-  action: NoteActionSnapshot;
-  recordingId: string;
-  send: (command: AppCommand) => unknown;
-}) {
-  const done = useHeldChoice(action.done, send);
-  return (
-    <label className={styles.actionRow} data-done={done.shown}>
-      <input
-        checked={done.shown}
-        onChange={(event) =>
-          done.choose(event.target.checked, {
-            command: "note_action_toggle",
-            recording_id: recordingId,
-            action_id: action.id,
-            done: event.target.checked,
-          })
-        }
-        type="checkbox"
-      />
-      <span>
-        <span className={styles.actionText}>{action.text}</span>
-        {action.due != null && action.due !== "" && (
-          <small>{es.noteScreen.actionDue(action.due)}</small>
-        )}
-      </span>
-    </label>
+    </div>
   );
 }

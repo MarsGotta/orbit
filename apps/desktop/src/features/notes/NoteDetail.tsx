@@ -1,28 +1,20 @@
 import { useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
+import type { NoteListItem } from "../../bridge/generated/NoteListItem";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import { Breadcrumbs, TopBarLeading } from "../../app/shell-slots";
+import { Tabs } from "../../design/Tabs";
 import { ViewError } from "../../design/ViewError";
 import { es } from "../../i18n/es";
 import { ActionsTab } from "./ActionsTab";
-import { formatDate } from "./notes-format";
 import { NoteHeader } from "./NoteHeader";
 import { NoteProgress } from "./NoteProgress";
 import { type NoteTab, defaultTab } from "./note-tabs";
 import { PrivateNotes } from "./PrivateNotes";
+import type { Send } from "./send";
 import { SummaryTab } from "./SummaryTab";
-import { TranscriptTab, TranscriptionProgress } from "./TranscriptTab";
-import listStyles from "./NotesView.module.css";
-import styles from "./NoteScreen.module.css";
-
-type Send = (command: AppCommand) => void;
-
-const tabs: Array<[NoteTab, string]> = [
-  ["private", es.notes.privateTab],
-  ["summary", es.notes.summaryTab],
-  ["actions", es.notes.actionsTab],
-  ["transcript", es.notes.transcriptTab],
-];
+import { TranscriptTab } from "./TranscriptTab";
+import styles from "./Note.module.css";
 
 /** The tab the user chose for this note, or the one the note's state suggests. */
 function useNoteTab(note: OpenNoteSnapshot): [NoteTab, (tab: NoteTab) => void] {
@@ -31,89 +23,69 @@ function useNoteTab(note: OpenNoteSnapshot): [NoteTab, (tab: NoteTab) => void] {
   return [tab, (next) => setChosen({ id: note.recording_id, tab: next })];
 }
 
-function NoteTabs({ onSelect, selected }: { onSelect: (tab: NoteTab) => void; selected: NoteTab }) {
-  return (
-    <div aria-label={es.noteScreen.partsLabel} className={styles.tabs} role="tablist">
-      {tabs.map(([id, label]) => (
-        <button
-          aria-selected={selected === id}
-          key={id}
-          onClick={() => onSelect(id)}
-          role="tab"
-          type="button"
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
+/** Resumen · Acciones · N · Transcripción · Notas privadas; the count once the note is written. */
+function tabsOf(note: OpenNoteSnapshot): { id: NoteTab; label: string }[] {
+  const open = note.actions.filter((action) => !action.done).length;
+  return [
+    { id: "summary", label: es.noteScreen.summaryTab },
+    {
+      id: "actions",
+      label: note.summary ? es.noteScreen.actionsTabCount(open) : es.noteScreen.actionsTab,
+    },
+    { id: "transcript", label: es.noteScreen.transcriptTab },
+    { id: "private", label: es.noteScreen.privateTab },
+  ];
 }
 
-function NotePanel({
-  note,
-  send,
-  tab,
-  library,
-}: {
-  note: OpenNoteSnapshot;
-  send: Send;
-  tab: NoteTab;
-  library?: NoteLibrarySnapshot | null;
-}) {
-  return (
-    <div className={styles.tabPanel} role="tabpanel">
-      {tab === "private" && <PrivateNotes key={note.recording_id} note={note} send={send} />}
-      {tab === "summary" && <SummaryTab key={note.recording_id} note={note} send={send} />}
-      {tab === "actions" && <ActionsTab note={note} send={send} />}
-      {tab === "transcript" && (
-        <TranscriptTab key={note.recording_id} note={note} send={send} library={library} />
-      )}
-    </div>
-  );
-}
-
-/** The note's bar: where it is, its progress in the middle, and how old
- * the data on screen is at the end. */
-function NoteBar({ note, series }: { note: OpenNoteSnapshot; series: string }) {
-  return (
-    <header className={listStyles.noteBar}>
-      <span>
-        {series} <span aria-hidden="true">›</span>
-      </span>
-      <time>{formatDate(note.started_at_ms)}</time>
-      <NoteProgress progress={note.progress} />
-    </header>
-  );
-}
-
+/** One meeting: its header, how its note is coming along, and its parts. */
 export function NoteDetail({
   error,
   library,
   note,
+  row,
   send,
-  series,
 }: {
   error: string | null;
   library?: NoteLibrarySnapshot | null;
   note: OpenNoteSnapshot;
+  /** The meeting's row in the list: whether it was today or yesterday. */
+  row?: NoteListItem;
   send: Send;
-  series: string;
 }) {
   const [tab, setTab] = useNoteTab(note);
   const ask = () => {
-    send({ command: "ask_orbit_about", recording_id: note.recording_id });
+    void send({ command: "ask_orbit_about", recording_id: note.recording_id });
     window.location.hash = "#/assistant";
   };
   return (
-    <section className={listStyles.detail}>
-      <ViewError error={error} />
-      <NoteBar note={note} series={series} />
-      <div className={listStyles.noteBody}>
-        <NoteHeader library={library} note={note} onAsk={ask} send={send} />
-        <TranscriptionProgress note={note} send={send} />
-        <NoteTabs onSelect={setTab} selected={tab} />
-        <NotePanel note={note} send={send} tab={tab} library={library} />
-      </div>
-    </section>
+    <div className={styles.page}>
+      <TopBarLeading>
+        <Breadcrumbs
+          trail={[{ label: es.notes.section, href: "#/notes" }, { label: note.title }]}
+        />
+      </TopBarLeading>
+      <article className={styles.read}>
+        <ViewError error={error} />
+        <NoteHeader library={library} note={note} onAsk={ask} row={row} send={send} />
+        <NoteProgress note={note} send={send} />
+        <div className={styles.tabs}>
+          <Tabs
+            label={es.noteScreen.partsLabel}
+            onSelect={setTab}
+            selected={tab}
+            tabs={tabsOf(note)}
+          >
+            {tab === "summary" && (
+              <SummaryTab key={note.recording_id} library={library} note={note} send={send} />
+            )}
+            {tab === "actions" && <ActionsTab key={note.recording_id} note={note} send={send} />}
+            {tab === "transcript" && (
+              <TranscriptTab key={note.recording_id} library={library} note={note} send={send} />
+            )}
+            {tab === "private" && <PrivateNotes key={note.recording_id} note={note} send={send} />}
+          </Tabs>
+        </div>
+      </article>
+    </div>
   );
 }

@@ -90,3 +90,91 @@ export const failedNote: OpenNoteSnapshot = {
   },
   transcript: { language: "es", turns: turns.slice(0, 3), pending_chunks: 0, failed_groups: 2 },
 };
+
+const lucia = speakers[0];
+const marta = speakers[1];
+const javier = speakers[3];
+/** A voice nobody named yet: the hub calls it «Persona 2». */
+const persona2 = {
+  key: "voice_2",
+  track: "remote_app",
+  name: "Persona 2",
+  color: "var(--o-c2)",
+  share_pct: 34,
+};
+const named = [lucia, marta, javier].filter((speaker) => speaker !== undefined);
+
+const SECOND = 1_000;
+const hablante = [
+  [8, "mic_local", "Empezamos. Marta, ¿cómo va el prototipo del pago en una sola pantalla?"],
+  [
+    21,
+    "remote_1",
+    "Ya está. Lo probamos ayer con tres recepcionistas y lo terminaron todas sin ayuda.",
+  ],
+  [47, "voice_2", "¿Y la disponibilidad? La semana pasada tardaba unos dos segundos."],
+  [
+    65,
+    "remote_3",
+    "Con la caché por día baja a unos trescientos milisegundos con los cinco hoteles.",
+  ],
+  [92, "mic_local", "Orvit ya lo tiene apuntado para el lunes."],
+  [110, "voice_2", "Yo preparo la demo con Ribera Aeropuerto si llega la caché."],
+  [130, "voice_2", "Y reviso los textos del paso de pago."],
+] as const;
+
+/** Today's design review just recorded: the audio saved, the transcript filling. */
+export const writingNote: OpenNoteSnapshot = {
+  ...reviewNote,
+  ...unwritten,
+  recording_id: "rec-review-today",
+  started_at_ms: at(0, 11, 0),
+  ended_at_ms: at(0, 11, 47),
+  progress: {
+    upload: { state: "done", cause: null },
+    transcript: { state: "active", cause: { kind: "transcribing", chunks: 5 } },
+    summary: { state: "waiting", cause: { kind: "waiting_transcript" } },
+  },
+  transcript: {
+    language: "es",
+    turns: hablante.slice(0, 4).map(([seconds, speaker_key, text], index) => ({
+      index,
+      at_ms: seconds * SECOND,
+      speaker_key,
+      text,
+    })),
+    pending_chunks: 5,
+    failed_groups: 0,
+  },
+  speakers: [...named, persona2],
+  series: reviewNote.series,
+};
+
+/** The same review once written, with one voice still to name and a word to correct. */
+export const speakerNote: OpenNoteSnapshot = {
+  ...reviewNote,
+  recording_id: "rec-review-today",
+  started_at_ms: at(0, 11, 0),
+  ended_at_ms: at(0, 11, 47),
+  transcript: {
+    ...reviewNote.transcript,
+    turns: hablante.map(([seconds, speaker_key, text], index) => ({
+      index,
+      at_ms: seconds * SECOND,
+      speaker_key,
+      text,
+    })),
+  },
+  speakers: [...named, persona2],
+};
+
+/** Two weeks ago: transcribed, but the hub could not write its note. */
+export const unwrittenNote: OpenNoteSnapshot = {
+  ...failedNote,
+  progress: {
+    upload: { state: "done", cause: null },
+    transcript: { state: "done", cause: null },
+    summary: { state: "failed", cause: { kind: "failed" } },
+  },
+  transcript: { language: "es", turns: turns.slice(0, 6), pending_chunks: 0, failed_groups: 0 },
+};

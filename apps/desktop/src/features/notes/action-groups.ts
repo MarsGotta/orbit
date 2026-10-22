@@ -25,11 +25,7 @@ export function groupActions(actions: NoteActionSnapshot[], ownerName: string): 
       groups.set(key, {
         key,
         label:
-          key === ""
-            ? es.noteScreen.unassigned
-            : key === "\u0000mine"
-              ? es.noteScreen.you(ownerName)
-              : owner,
+          key === "" ? es.noteScreen.unassigned : key === "\u0000mine" ? es.noteScreen.you : owner,
         mine: key === "\u0000mine",
         items: [],
       });

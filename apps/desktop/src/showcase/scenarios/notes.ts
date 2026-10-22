@@ -1,156 +1,144 @@
 import { withOpenNote } from "../base";
 import { REVIEW_ID } from "../data/notes-list";
-import { failedNote, recordingNote, transcribingNote } from "../data/note-variants";
-import { recordingMeeting } from "../data/recording";
-import type { Scenario, Views } from "../scenario";
-import { withMeeting } from "./recording";
+import { writingNote } from "../data/note-variants";
+import { at, MINUTE } from "../data/time";
+import type { Scenario, Step, Views } from "../scenario";
 
-const notes = (scenario: Omit<Scenario, "view">): Scenario => ({
-  view: "Reuniones y notas",
+export const reuniones = (scenario: Omit<Scenario, "view">): Scenario => ({
+  view: "Reuniones",
   ...scenario,
 });
 
-const tab = (name: string) => `role=tab[name='${name}']`;
+export const tab = (name: string) => `role=tab[name^='${name}']`;
 const opened = (views: Views) => withOpenNote(views);
 
-const listed = (base: Views, change: Partial<NonNullable<Views["notes"]>>): Views => ({
+export const listed = (base: Views, change: Partial<NonNullable<Views["notes"]>>): Views => ({
   ...base,
   notes: { ...(base.notes ?? { list: [], open: null }), ...change },
 });
 
+/** Today's review at the top of the list, being written. */
+export const withToday = (base: Views, phase: "transcribing" | "ready"): Views => {
+  const list = base.notes?.list ?? [];
+  const row = {
+    recording_id: writingNote.recording_id,
+    title: writingNote.title,
+    started_at_ms: at(0, 11, 0),
+    duration_ms: 47 * MINUTE,
+    state: phase === "ready" ? ("ready" as const) : ("transcribing" as const),
+    group: "today" as const,
+    headline:
+      phase === "ready"
+        ? { phase: "ready" as const, preview: "Se elige el pago en una sola pantalla" }
+        : { phase: "transcribing" as const },
+  };
+  return listed(base, { list: [row, ...list] });
+};
+
+export const transcriptSteps: Step[] = [{ click: tab("Transcripción") }];
+
 export const notesScenarios: Scenario[] = [
-  notes({
-    id: "notas",
-    state: "Lista de notas",
+  reuniones({
+    id: "reuniones",
+    state: "Lista de reuniones",
     description:
-      "Las reuniones grabadas por días, con su estado: lista, transcribiéndose o con fallo.",
+      "Las reuniones por días, con su línea: el resumen, «Transcribiendo…» o el fallo; ninguna abierta.",
     route: "#/notes",
     ready: "text=Planificación del trimestre",
   }),
-  notes({
-    id: "notas-vacia",
+  reuniones({
+    id: "reuniones-vacia",
     state: "Sin reuniones",
-    description: "Reuniones antes de la primera grabación: qué hacer para empezar.",
+    description: "Antes de la primera grabación: qué hacer para empezar.",
     route: "#/notes",
     views: (base) =>
       listed(base, { list: [], index: { state: "available", more: false, detail: null } }),
     ready: "text=Aún no hay reuniones",
   }),
-  notes({
-    id: "notas-cargando",
-    state: "Cargando del hub",
-    description: "La lista mientras se lee del hub por primera vez.",
+  reuniones({
+    id: "reuniones-cargando",
+    state: "Leyendo del hub",
+    description: "La lista mientras se lee del hub: indicador con texto y filas en esqueleto.",
     route: "#/notes",
     views: (base) =>
       listed(base, { list: [], index: { state: "loading", more: false, detail: null } }),
-    ready: "text=Cargando reuniones…",
+    ready: "text=Leyendo tus reuniones del hub…",
   }),
-  notes({
+  reuniones({
+    id: "nota-cargando",
+    state: "Nota · Leyendo del hub",
+    description: "Una reunión abierta cuya nota aún se lee: su forma en esqueleto.",
+    route: `#/notes/${REVIEW_ID}`,
+    views: (base) => ({
+      ...base,
+      notes: base.notes && {
+        ...base.notes,
+        open: null,
+        open_read: {
+          recording_id: REVIEW_ID,
+          revision: 0,
+          state: "loading",
+          detail: null,
+          read_at_ms: null,
+        },
+      },
+    }),
+    ready: "text=Leyendo la nota del hub…",
+  }),
+  reuniones({
+    id: "nota-escribiendose",
+    state: "Nota escribiéndose",
+    description:
+      "Audio guardado, transcribiendo y el resumen por escribir; la transcripción se va rellenando.",
+    route: `#/notes/${writingNote.recording_id}`,
+    views: (base) => withOpenNote(withToday(base, "transcribing"), writingNote),
+    ready: "text=Orbit está preparando tu nota",
+  }),
+  reuniones({
     id: "nota-resumen",
     state: "Nota · Resumen",
-    description:
-      "Una nota escrita: título, resumen corto, plantilla, idioma, diccionario y sus secciones.",
+    description: "Una nota escrita: cabecera, plantilla, secciones, decisiones y quién habló.",
     route: `#/notes/${REVIEW_ID}`,
     views: opened,
     ready: tab("Resumen"),
   }),
-  notes({
+  reuniones({
     id: "nota-acciones",
     state: "Nota · Acciones",
-    description: "Las tareas de la reunión, agrupadas por persona, las mías primero.",
+    description: "Las tareas por persona, las tuyas primero, con su casilla y su fecha.",
     route: `#/notes/${REVIEW_ID}`,
     views: opened,
     ready: tab("Acciones"),
     steps: [{ click: tab("Acciones") }],
   }),
-  notes({
+  reuniones({
+    id: "nota-transcripcion",
+    state: "Nota · Transcripción",
+    description: "La transcripción por turnos, desde el principio, con su buscador.",
+    route: `#/notes/${REVIEW_ID}`,
+    views: opened,
+    ready: tab("Transcripción"),
+    steps: transcriptSteps,
+  }),
+  reuniones({
+    id: "nota-buscar",
+    state: "Nota · Buscar en la transcripción",
+    description: "La búsqueda con el número de resultados y las coincidencias resaltadas.",
+    route: `#/notes/${REVIEW_ID}`,
+    views: opened,
+    ready: tab("Transcripción"),
+    steps: [
+      ...transcriptSteps,
+      { fill: "role=searchbox[name='Buscar en la transcripción']", text: "caché" },
+    ],
+  }),
+  reuniones({
     id: "nota-privadas",
     state: "Nota · Notas privadas",
-    description:
-      "Las notas propias de la reunión, en un editor con formato, que nunca ve nadie más.",
+    description: "Lo apuntado durante la reunión, que solo ve quien la grabó.",
     route: `#/notes/${REVIEW_ID}`,
     views: opened,
     ready: tab("Notas privadas"),
     steps: [{ click: tab("Notas privadas") }, { wait: "[contenteditable=true]" }],
-  }),
-  notes({
-    id: "nota-transcripcion",
-    state: "Nota · Transcripción",
-    description: "La transcripción por turnos, con quién habla, cuándo y cuánto habló cada voz.",
-    route: `#/notes/${REVIEW_ID}`,
-    views: opened,
-    ready: tab("Transcripción"),
-    steps: [
-      { click: tab("Transcripción") },
-      { wait: "text=/Traigo dos versiones/" },
-      { scroll: "[class*=noteBody]" },
-    ],
-  }),
-  notes({
-    id: "nota-buscar",
-    state: "Nota · Buscar en la transcripción",
-    description:
-      "La búsqueda en la transcripción (⌘F), con las coincidencias marcadas y su cuenta.",
-    route: `#/notes/${REVIEW_ID}`,
-    views: opened,
-    ready: tab("Transcripción"),
-    steps: [
-      { click: tab("Transcripción") },
-      { press: "Control+f" },
-      { fill: "role=textbox[name='Buscar en la transcripción']", text: "caché" },
-      { scroll: "[class*=noteBody]" },
-    ],
-  }),
-  notes({
-    id: "nota-hablante",
-    state: "Nota · Cambiar quién habla",
-    description: "El menú de una voz de la transcripción, para ponerle nombre o cambiarlo.",
-    route: `#/notes/${REVIEW_ID}`,
-    views: opened,
-    ready: tab("Transcripción"),
-    steps: [{ click: tab("Transcripción") }, { click: "role=button[name='Diego Salinas']" }],
-  }),
-  notes({
-    id: "nota-transcribiendo",
-    state: "Nota · Transcribiéndose",
-    description:
-      "Una reunión subida que aún se transcribe: el progreso de cada paso y la nota por escribir.",
-    route: `#/notes/${transcribingNote.recording_id}`,
-    views: (base) => withOpenNote(base, transcribingNote),
-    ready: tab("Transcripción"),
-  }),
-  notes({
-    id: "nota-grabando",
-    state: "Nota · Reunión en curso",
-    description:
-      "La nota de la reunión que se graba ahora: se abre en las notas privadas para apuntar.",
-    route: `#/notes/${recordingNote.recording_id}`,
-    views: (base) => withOpenNote(withMeeting(base, recordingMeeting), recordingNote),
-    ready: "[contenteditable=true]",
-  }),
-  notes({
-    id: "nota-fallo",
-    state: "Nota · Transcripción con fallo",
-    description: "Parte del audio no se pudo transcribir: lo dice y ofrece reintentar.",
-    route: `#/notes/${failedNote.recording_id}`,
-    views: (base) => withOpenNote(base, failedNote),
-    ready: "role=status >> text=Reintentar",
-  }),
-  notes({
-    id: "nota-no-abre",
-    state: "Nota · No se pudo abrir",
-    description: "Una nota que el hub no pudo leer: el aviso y el botón para volver a intentarlo.",
-    route: `#/notes/${REVIEW_ID}`,
-    views: (base) => {
-      const views = withOpenNote(base);
-      const notes = views.notes ?? { list: [], open: null };
-      const read = notes.open_read && {
-        ...notes.open_read,
-        state: "failed" as const,
-        detail: "hub_unreachable",
-      };
-      return { ...views, notes: { ...notes, open_read: read } };
-    },
-    ready: "text=No se pudo abrir la nota.",
   }),
 ];

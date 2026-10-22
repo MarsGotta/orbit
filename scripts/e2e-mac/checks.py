@@ -52,11 +52,12 @@ WORD = re.compile(r"[a-zñ]{5,}")
 MINIMUM_RECALL = 0.8
 
 UNIDENTIFIED = "Hablante sin identificar"
-# Where the tree of the «Transcripción» tab starts: its toolbar's language
-# (TranscriptTab.tsx, `es.notes.transcriptLanguage`). The note's header has a
-# picker labelled «Idioma» above it, so the anchor carries the toolbar's own
-# words, and check 1 reads that text, never the picker.
-TRANSCRIPT_START = "Idioma de la transcripción: "
+# Where the turns of the «Transcripción» tab start: the line under its
+# toolbar (TranscriptTab.tsx, `es.notes.transcriptHelp`).
+TRANSCRIPT_START = "Pulsa un nombre para cambiar quién habla"
+# The meeting's language is said once, on the note's header button
+# «Plantilla: … · Español» (NoteSettingsMenu.tsx, `es.noteScreen.howLabel`).
+HOW_PREFIX = "Plantilla: "
 # The note's title is an editable field (NoteHeader.tsx,
 # `es.noteScreen.titleLabel`): its value is the title, its label this.
 TITLE_FIELD = "Título de la reunión"
@@ -165,12 +166,13 @@ def c1_spanish(ev: dict) -> tuple[bool, str]:
     before, segments = _transcript(ev)
     if not segments:
         return False, "the Transcripción tab shows no entry"
-    # The toolbar's own line: the header's picker says a language too.
-    language = next((t for t in before if t.startswith(TRANSCRIPT_START)), None)
-    if language is None or language.removeprefix(TRANSCRIPT_START) != "Español":
+    # The header's button ends with the meeting's language.
+    how = next((t for t in before if t.startswith(HOW_PREFIX)), None)
+    language = how.rsplit(" · ", 1)[-1] if how and " · " in how else None
+    if language != "Español":
         return (
             False,
-            f"the language the transcript shows is not Spanish: «{language or 'none'}»",
+            f"the language the note shows is not Spanish: «{how or 'none'}»",
         )
     script = " ".join(_fact(ev, "script"))
     said = " ".join(s.text for s in segments)

@@ -6,7 +6,7 @@ import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnap
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { CorrectionDialog } from "./CorrectionDialog";
 
-// «Corregir texto»: from the press the dialog says it is saving, until the
+// «Corregir una palabra»: from the press the dialog says it is saving, until the
 // term is seen saved (it closes) or the order is refused (it can be pressed
 // again). It never sits there as if nothing had been pressed.
 
@@ -17,7 +17,9 @@ const note = {
 } as unknown as OpenNoteSnapshot;
 const library = {
   dictionaries: { state: "available", detail: null },
-  dictionary_items: [{ dictionary: { id: "dic-1", name: "Producto", terms: [] }, pending: false }],
+  dictionary_items: [
+    { dictionary: { id: "dic-1", name: "Producto", terms: [], series: [] }, pending: false },
+  ],
   dictionary_pending: [],
   dictionary_failures: [],
   read: "available",
@@ -31,19 +33,17 @@ describe("saving a correction", () => {
         library={library}
         note={note}
         onClose={() => undefined}
+        onSaved={() => undefined}
         send={send}
         wrong="Orvit"
       />,
     );
-    await userEvent.clear(screen.getByLabelText("Forma correcta"));
-    await userEvent.type(screen.getByLabelText("Forma correcta"), "Orbit");
+    await userEvent.clear(screen.getByLabelText("Debe decir"));
+    await userEvent.type(screen.getByLabelText("Debe decir"), "Orbit");
     await userEvent.click(screen.getByRole("button", { name: "Guardar corrección" }));
     expect(send).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("Guardando en el hub…")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Guardar corrección" })).toHaveProperty(
-      "disabled",
-      true,
-    );
+    const saving = screen.getByRole("button", { name: "Guardando en el hub…" });
+    expect(saving.getAttribute("aria-busy")).toBe("true");
   });
 
   it("can be pressed again when the order is refused", async () => {
@@ -53,12 +53,15 @@ describe("saving a correction", () => {
         library={library}
         note={note}
         onClose={() => undefined}
+        onSaved={() => undefined}
         send={send}
         wrong="Orvit"
       />,
     );
     await userEvent.click(screen.getByRole("button", { name: "Guardar corrección" }));
-    await waitFor(() => expect(screen.queryByText("Guardando en el hub…")).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Guardando en el hub…" })).toBeNull(),
+    );
     expect(screen.getByRole("button", { name: "Guardar corrección" })).toHaveProperty(
       "disabled",
       false,
