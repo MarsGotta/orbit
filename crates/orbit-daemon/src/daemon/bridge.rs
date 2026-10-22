@@ -1775,6 +1775,16 @@ impl Runtime {
                     .map(|entry| entry.operation_id.clone())
             })
             .flatten();
+        // «Adjuntar ventana» is answered to the app, not to the hub (its reply
+        // is diverted in `send_frame`): without the hub it is told why here.
+        if ask.for_attachment && self.state.connection() == Connection::Offline {
+            self.refuse_window(if self.state.privacy_stopped() {
+                orbit_core::refusal::Refusal::PrivacyStopped { since_ms: None }
+            } else {
+                orbit_core::refusal::Refusal::HubUnreachable { since_ms: None }
+            });
+            return;
+        }
         if self.state.privacy_stopped()
             && self.state.connection() == Connection::Offline
             && !self.hub.is_some()

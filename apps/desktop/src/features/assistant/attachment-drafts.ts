@@ -107,7 +107,9 @@ function checked(
 /**
  * The chips once the upload of chip `key` answered: its file, ready or over
  * the message's ceilings, and for a window its text as a chip of its own
- * (keyed by `nextKey`) or, on the capture's chip, why it went alone.
+ * (keyed by `nextKey`) or, on the capture's chip, why it went alone. A chip
+ * the person removed (or a message sent) while it uploaded stays gone, and
+ * so does the window's text.
  */
 export function settled(
   limits: AttachmentLimits | undefined,
@@ -116,6 +118,7 @@ export function settled(
   { attachment, window_text }: AddedAttachment,
   nextKey: () => number,
 ): DraftAttachment[] {
+  if (!drafts.some((each) => each.key === key)) return drafts;
   const others = drafts.filter((each) => each.key !== key);
   const overflow = uploadedRefusal(limits, others, attachment);
   const note = windowTextNote(window_text, attachment.name);

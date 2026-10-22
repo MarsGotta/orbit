@@ -218,11 +218,17 @@ impl Runtime {
         });
         if let Err(refusal) = self.serve_bridge_request(&ask).await {
             self.conversation.bridge_request = None;
-            if let Some(pending) = self.conversation.window_attachment.take() {
-                let _ = pending
-                    .reply
-                    .send(answered(pending.request_id, Err(refusal.into())));
-            }
+            self.refuse_window(refusal);
+        }
+    }
+
+    /// «Adjuntar ventana» ends before its capture with `refusal`, which the
+    /// app is told; the next one may start.
+    pub(super) fn refuse_window(&mut self, refusal: Refusal) {
+        if let Some(pending) = self.conversation.window_attachment.take() {
+            let _ = pending
+                .reply
+                .send(answered(pending.request_id, Err(refusal.into())));
         }
     }
 

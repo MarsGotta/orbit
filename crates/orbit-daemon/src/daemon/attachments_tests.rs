@@ -848,6 +848,93 @@ async fn a_window_the_helper_cannot_take_answers_the_app_with_its_cause() -> Res
     Ok(())
 }
 
+/// The app's «Adjuntar ventana» order, waiting for its answer.
+type WindowOrder = tokio::task::JoinHandle<Result<orbit_core::protocol::AttachmentResponse>>;
+
+/// «Adjuntar ventana» from the app's own client, started up to the helper's
+/// window listing, which is returned: the capture is under way.
+async fn attach_window_started(
+    runtime: &mut Runtime,
+    client: &orbit_ipc::LocalClient,
+    received: &mut mpsc::Receiver<orbit_ipc::Call>,
+    helper: &mut mpsc::Receiver<Value>,
+) -> Result<(WindowOrder, Value)> {
+    let client = client.clone();
+    let asked = tokio::spawn(async move {
+        client
+            .attachment(Command::AttachmentAdd {
+                source: AttachmentSource::Window,
+            })
+            .await
+    });
+    let call = received.recv().await.context("no order")?;
+    runtime.attach_window(call.request.id, call.reply).await;
+    let listing = helper_command(helper, "screen_sources").await?;
+    Ok((asked, listing))
+}
+
+/// The hub link drops while the window is captured: the app's order is
+/// answered with that cause, and nothing is left holding the capture.
+#[tokio::test]
+async fn a_hub_drop_during_attach_window_answers_the_app_and_frees_the_slot() -> Result<()> {
+    let (_directory, mut runtime, _frames, mut helper) =
+        connected(Some(limits(10_000_000, 10))).await?;
+    let (calls, mut received) = mpsc::channel(4);
+    let (_ended, ended) = tokio::sync::watch::channel(None);
+    let client = orbit_ipc::LocalClient::new(calls, &std::collections::BTreeMap::new(), ended);
+    let (asked, _listing) =
+        attach_window_started(&mut runtime, &client, &mut received, &mut helper).await?;
+    assert!(runtime.conversation.bridge_request.is_some());
+
+    runtime.hub_event(HubEvent::Disconnected).await?;
+    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.conversation.window_attachment.is_none());
+    let refused = tokio::time::timeout(std::time::Duration::from_secs(5), asked)
+        .await
+        .context("the app's «Adjuntar ventana» was never answered after the hub dropped")??
+        .err()
+        .context("a window was attached without a hub")?;
+    assert_eq!(
+        refusal_of(&refused),
+        Some(Refusal::HubUnreachable { since_ms: None })
+    );
+    Ok(())
+}
+
+/// Once the hub is back, «Adjuntar ventana» works again without restarting.
+/// The helper's listing for the first one still ends as it always does, by
+/// its answer (or its own deadline); the hub does not wait on it.
+#[tokio::test]
+async fn attach_window_works_again_after_the_hub_comes_back() -> Result<()> {
+    let (_directory, mut runtime, _frames, mut helper) =
+        connected(Some(limits(10_000_000, 10))).await?;
+    let (calls, mut received) = mpsc::channel(4);
+    let (_ended, ended) = tokio::sync::watch::channel(None);
+    let client = orbit_ipc::LocalClient::new(calls, &std::collections::BTreeMap::new(), ended);
+    let (_first, listing) =
+        attach_window_started(&mut runtime, &client, &mut received, &mut helper).await?;
+    runtime.hub_event(HubEvent::Disconnected).await?;
+    runtime
+        .native_event(
+            json!({"event":"response","id":listing["id"],"ok":true,"result":front_to_back()}),
+        )
+        .await?;
+
+    let (hub, _frames) = mpsc::channel(16);
+    runtime.hub.install(hub);
+    runtime.hub_event(HubEvent::Connected).await?;
+    runtime
+        .hub_event(HubEvent::Frame(ready(Some(limits(10_000_000, 10)))))
+        .await?;
+
+    // The second capture starts: the helper is asked for the windows again.
+    let (second, _listing) =
+        attach_window_started(&mut runtime, &client, &mut received, &mut helper).await?;
+    assert!(runtime.conversation.window_attachment.is_some());
+    assert!(!second.is_finished());
+    Ok(())
+}
+
 // HEIF photos ---------------------------------------------------------------
 
 /// An order for a file, answered on the app's real reply channel.
