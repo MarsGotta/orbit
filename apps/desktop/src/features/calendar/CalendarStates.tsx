@@ -35,7 +35,10 @@ export function CalendarEmpty(props: {
  * «Esperando a macOS…» until macOS answers. macOS's own dialog is the only
  * decision; the answer replaces this view, so nothing here times out.
  */
-export function ConnectCalendar(props: { error: string | null; onConnect: () => Promise<unknown> }) {
+export function ConnectCalendar(props: {
+  error: string | null;
+  onConnect: () => Promise<unknown>;
+}) {
   const [asking, setAsking] = useState(false);
   return (
     <CalendarEmpty
