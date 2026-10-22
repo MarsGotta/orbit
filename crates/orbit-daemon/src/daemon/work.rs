@@ -124,6 +124,20 @@ impl Runtime {
             WorkResult::Store(crate::daemon::StoreWork::StoreProblem { message }) => {
                 self.on_work_store_problem(message).await?;
             }
+            WorkResult::PhotoJpeg {
+                source_path,
+                destination_path,
+                asked,
+            } => {
+                // An order a privacy stop already ended asks nothing more.
+                if !asked.is_closed() {
+                    let _ = asked.send(self.ask_helper(
+                        "photo_jpeg",
+                        json!({"source_path": source_path, "destination_path": destination_path}),
+                        orbit_core::refusal::Operation::Files,
+                    ));
+                }
+            }
         }
         Ok(())
     }

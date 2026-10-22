@@ -637,6 +637,19 @@ enum WorkResult {
         capture: bridge::PendingCapture,
         outcome: bridge::CaptureUploadOutcome,
     },
+    /// An attachment order read a HEIF photo: only the loop sends the
+    /// helper its `photo_jpeg`. The wait for its answer, or why it was not
+    /// sent, goes back on `asked`.
+    PhotoJpeg {
+        source_path: std::path::PathBuf,
+        destination_path: std::path::PathBuf,
+        asked: tokio::sync::oneshot::Sender<
+            std::result::Result<
+                tokio::sync::oneshot::Receiver<helper_waits::HelperAnswer>,
+                orbit_core::refusal::Refusal,
+            >,
+        >,
+    },
 }
 
 impl WorkResult {
@@ -656,7 +669,8 @@ impl WorkResult {
             | Self::Problem { ticket, .. }
             | Self::SpeechAvailability { ticket, .. }
             | Self::BridgeCaptureUpload { ticket, .. } => Some(ticket),
-            Self::Store(StoreWork::Sealed { .. } | StoreWork::StoreProblem { .. }) => None,
+            Self::Store(StoreWork::Sealed { .. } | StoreWork::StoreProblem { .. })
+            | Self::PhotoJpeg { .. } => None,
         };
         ticket.map_or_else(orbit_ipc::new_op, |ticket| ticket.op().clone())
     }
@@ -675,6 +689,7 @@ async fn deliver_work(sender: &mpsc::Sender<WorkResult>, result: WorkResult) {
         WorkResult::Problem { .. } => "problem",
         WorkResult::SpeechAvailability { .. } => "speech_availability",
         WorkResult::BridgeCaptureUpload { .. } => "bridge_capture_upload",
+        WorkResult::PhotoJpeg { .. } => "photo_jpeg",
     };
     if sender.send(result).await.is_err() {
         eprintln!("work_result_receiver_closed kind={kind}");

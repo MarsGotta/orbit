@@ -848,9 +848,9 @@ async fn a_window_the_helper_cannot_take_answers_the_app_with_its_cause() -> Res
     Ok(())
 }
 
-// HEIC photos ---------------------------------------------------------------
+// HEIF photos ---------------------------------------------------------------
 
-/// An order for a file by its path, answered on the app's real reply channel.
+/// An order for a file, answered on the app's real reply channel.
 async fn order_through_the_app(
     runtime: &mut Runtime,
     command: Command,
@@ -866,22 +866,34 @@ async fn order_through_the_app(
     Ok(asked)
 }
 
-fn heic_photo(directory: &tempfile::TempDir) -> Result<PathBuf> {
-    let photo = directory.path().join("IMG_0001.HEIC");
-    std::fs::write(&photo, b"\x00\x00\x00\x18ftypheic synthetic photo")?;
+/// A synthetic HEIF photo: an `ftyp` box of an iPhone's brands, then a
+/// box that holds nothing real.
+const HEIF_PHOTO: &[u8] =
+    b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic\x00\x00\x00\x0cmeta0000";
+
+fn heic_photo(directory: &tempfile::TempDir, name: &str) -> Result<PathBuf> {
+    let photo = directory.path().join(name);
+    std::fs::write(&photo, HEIF_PHOTO)?;
     Ok(photo)
 }
 
-/// No agent reads a HEIC photo, so the helper writes it as JPEG in a folder
-/// of the daemon's; that JPEG is uploaded under the photo's name with
-/// `.jpg`, and the folder is gone once it is.
-#[tokio::test]
-async fn a_heic_photo_is_uploaded_as_the_jpeg_the_helper_wrote() -> Result<()> {
-    let (directory, mut runtime, _frames, mut helper) =
-        connected(Some(limits(1_000_000, 10))).await?;
-    let photo = heic_photo(&directory)?;
-    let (url, recorded) = http_hub(|request| {
-        let body = json!({"attachment": {"id": PICTURE, "name": "IMG_0001.jpg",
+fn by_path(path: &std::path::Path) -> Command {
+    Command::AttachmentAdd {
+        source: AttachmentSource::Path {
+            path: path.to_string_lossy().into_owned(),
+        },
+    }
+}
+
+/// A hub that keeps each upload as a JPEG under the name it was sent with.
+async fn photo_hub() -> Result<(String, Recorded)> {
+    http_hub(|request| {
+        let name = request
+            .headers
+            .get("x-orbit-attachment-name")
+            .cloned()
+            .unwrap_or_default();
+        let body = json!({"attachment": {"id": PICTURE, "name": name,
             "kind": "image", "mime": "image/jpeg", "bytes": request.body.len()}});
         (
             200,
@@ -890,18 +902,71 @@ async fn a_heic_photo_is_uploaded_as_the_jpeg_the_helper_wrote() -> Result<()> {
             body.to_string().into_bytes(),
         )
     })
-    .await?;
+    .await
+}
+
+/// A connected runtime whose work queue the test reads, as the loop does.
+async fn photo_runtime() -> Result<(
+    tempfile::TempDir,
+    Runtime,
+    mpsc::Receiver<Value>,
+    mpsc::Receiver<WorkResult>,
+    Recorded,
+)> {
+    let (directory, mut runtime, _frames, helper) = connected(Some(limits(1_000_000, 10))).await?;
+    let (work, work_events) = mpsc::channel(16);
+    runtime.work.work_events = work;
+    let (url, recorded) = photo_hub().await?;
     runtime.settings.hub_url = Some(url);
-    let asked = order_through_the_app(
-        &mut runtime,
-        Command::AttachmentAdd {
-            source: AttachmentSource::Path {
-                path: photo.to_string_lossy().into_owned(),
-            },
-        },
-    )
-    .await?;
-    let convert = helper_command(&mut helper, "photo_jpeg").await?;
+    Ok((directory, runtime, helper, work_events, recorded))
+}
+
+/// The loop's part of a photo: the order read it, found a HEIF photo and
+/// asked for its JPEG; the loop sends the helper `photo_jpeg`.
+async fn photo_jpeg_order(
+    runtime: &mut Runtime,
+    work_events: &mut mpsc::Receiver<WorkResult>,
+    helper: &mut mpsc::Receiver<Value>,
+) -> Result<Value> {
+    let asked = tokio::time::timeout(std::time::Duration::from_secs(10), work_events.recv())
+        .await
+        .ok()
+        .flatten()
+        .context("the order never asked for the photo's JPEG")?;
+    runtime.work_event(asked).await?;
+    helper_command(helper, "photo_jpeg").await
+}
+
+/// The helper's work: the JPEG where it was asked to write it, and its answer.
+async fn helper_writes_the_jpeg(runtime: &mut Runtime, convert: &Value) -> Result<Vec<u8>> {
+    let destination = convert["destination_path"]
+        .as_str()
+        .context("no destination")?;
+    let jpeg = b"\xff\xd8\xff synthetic jpeg".to_vec();
+    std::fs::write(destination, &jpeg)?;
+    runtime
+        .native_event(json!({"event":"response","id":convert["id"],"ok":true,
+            "result":{"width":4032,"height":3024}}))
+        .await?;
+    Ok(jpeg)
+}
+
+fn upload_name(request: &Request) -> Option<&str> {
+    request
+        .headers
+        .get("x-orbit-attachment-name")
+        .map(String::as_str)
+}
+
+/// No agent reads a HEIC photo, so the helper writes it as JPEG in a folder
+/// of the daemon's; that JPEG is uploaded under the photo's name with
+/// `.jpg`, and the folder is gone once it is.
+#[tokio::test]
+async fn a_heic_photo_is_uploaded_as_the_jpeg_the_helper_wrote() -> Result<()> {
+    let (directory, mut runtime, mut helper, mut work_events, recorded) = photo_runtime().await?;
+    let photo = heic_photo(&directory, "IMG_0001.HEIC")?;
+    let asked = order_through_the_app(&mut runtime, by_path(&photo)).await?;
+    let convert = photo_jpeg_order(&mut runtime, &mut work_events, &mut helper).await?;
     assert_eq!(convert["source_path"], photo.to_string_lossy().as_ref());
     let destination = PathBuf::from(
         convert["destination_path"]
@@ -917,13 +982,7 @@ async fn a_heic_photo_is_uploaded_as_the_jpeg_the_helper_wrote() -> Result<()> {
         destination.file_name().and_then(|name| name.to_str()),
         Some("IMG_0001.jpg")
     );
-    // The helper's work: the JPEG where it was asked to write it.
-    let jpeg = b"\xff\xd8\xff synthetic jpeg";
-    std::fs::write(&destination, jpeg)?;
-    runtime
-        .native_event(json!({"event":"response","id":convert["id"],"ok":true,
-            "result":{"width":4032,"height":3024}}))
-        .await?;
+    let jpeg = helper_writes_the_jpeg(&mut runtime, &convert).await?;
     let answered = tokio::time::timeout(std::time::Duration::from_secs(10), asked)
         .await
         .context("no answer")???;
@@ -933,15 +992,110 @@ async fn a_heic_photo_is_uploaded_as_the_jpeg_the_helper_wrote() -> Result<()> {
         bail!("expected one upload, got {requests:?}");
     };
     assert_eq!(upload.body, jpeg);
-    assert_eq!(
-        upload
-            .headers
-            .get("x-orbit-attachment-name")
-            .map(String::as_str),
-        Some("IMG_0001.jpg")
-    );
+    assert_eq!(upload_name(upload), Some("IMG_0001.jpg"));
     let folder = destination.parent().context("no folder")?;
     assert!(!folder.exists(), "{} was left behind", folder.display());
+    Ok(())
+}
+
+/// The photo is known by its content, not its name: a HEIC called `.jpg`
+/// goes as JPEG too.
+#[tokio::test]
+async fn a_heic_photo_named_jpg_is_known_by_its_content() -> Result<()> {
+    let (directory, mut runtime, mut helper, mut work_events, recorded) = photo_runtime().await?;
+    let photo = heic_photo(&directory, "playa.jpg")?;
+    let asked = order_through_the_app(&mut runtime, by_path(&photo)).await?;
+    let convert = photo_jpeg_order(&mut runtime, &mut work_events, &mut helper).await?;
+    assert_eq!(convert["source_path"], photo.to_string_lossy().as_ref());
+    let jpeg = helper_writes_the_jpeg(&mut runtime, &convert).await?;
+    let answered = tokio::time::timeout(std::time::Duration::from_secs(10), asked)
+        .await
+        .context("no answer")???;
+    assert!(answered.ok, "{:?}", answered.refusal);
+    let requests = recorded.lock().map(|seen| seen.clone()).unwrap_or_default();
+    let [upload] = requests.as_slice() else {
+        bail!("expected one upload, got {requests:?}");
+    };
+    assert_eq!(upload.body, jpeg);
+    assert_eq!(upload_name(upload), Some("playa.jpg"));
+    Ok(())
+}
+
+/// A pasted HEIC photo is written in the daemon's private folder for the
+/// helper to read, then uploaded as JPEG under its name with `.jpg`; both
+/// copies go with the folder.
+#[tokio::test]
+async fn a_pasted_heic_photo_is_written_privately_and_uploaded_as_jpeg() -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let (_directory, mut runtime, mut helper, mut work_events, recorded) = photo_runtime().await?;
+    let pasted = Command::AttachmentAdd {
+        source: AttachmentSource::Bytes {
+            name: "Imagen pegada.png".into(),
+            data_base64: base64::engine::general_purpose::STANDARD.encode(HEIF_PHOTO),
+        },
+    };
+    let asked = order_through_the_app(&mut runtime, pasted).await?;
+    let convert = photo_jpeg_order(&mut runtime, &mut work_events, &mut helper).await?;
+    let source = PathBuf::from(convert["source_path"].as_str().context("no source")?);
+    let destination = PathBuf::from(
+        convert["destination_path"]
+            .as_str()
+            .context("no destination")?,
+    );
+    let folder = source.parent().context("no folder")?.to_owned();
+    assert!(
+        folder.starts_with(runtime.paths.root.join("attachments")),
+        "{}",
+        folder.display()
+    );
+    assert_eq!(destination.parent(), Some(folder.as_path()));
+    assert_ne!(source, destination);
+    assert_eq!(std::fs::read(&source)?, HEIF_PHOTO);
+    assert_eq!(
+        std::fs::metadata(&source)?.permissions().mode() & 0o777,
+        0o600
+    );
+    assert_eq!(
+        std::fs::metadata(&folder)?.permissions().mode() & 0o777,
+        0o700
+    );
+    let jpeg = helper_writes_the_jpeg(&mut runtime, &convert).await?;
+    let answered = tokio::time::timeout(std::time::Duration::from_secs(10), asked)
+        .await
+        .context("no answer")???;
+    assert!(answered.ok, "{:?}", answered.refusal);
+    let requests = recorded.lock().map(|seen| seen.clone()).unwrap_or_default();
+    let [upload] = requests.as_slice() else {
+        bail!("expected one upload, got {requests:?}");
+    };
+    assert_eq!(upload.body, jpeg);
+    assert_eq!(upload_name(upload), Some("Imagen%20pegada.jpg"));
+    assert!(!folder.exists(), "{} was left behind", folder.display());
+    Ok(())
+}
+
+/// A file called `.heic` that is not a photo goes as it is: the hub judges
+/// it by its content, and the helper is never asked.
+#[tokio::test]
+async fn a_file_named_heic_that_is_not_a_photo_goes_as_it_is() -> Result<()> {
+    let (directory, mut runtime, mut helper, mut work_events, recorded) = photo_runtime().await?;
+    let notes = directory.path().join("notas.heic");
+    std::fs::write(&notes, "Ideas para el viaje\n")?;
+    let asked = order_through_the_app(&mut runtime, by_path(&notes)).await?;
+    let answered = tokio::time::timeout(std::time::Duration::from_secs(10), asked)
+        .await
+        .context("no answer")???;
+    assert!(answered.ok, "{:?}", answered.refusal);
+    let requests = recorded.lock().map(|seen| seen.clone()).unwrap_or_default();
+    let [upload] = requests.as_slice() else {
+        bail!("expected one upload, got {requests:?}");
+    };
+    assert_eq!(upload.body, b"Ideas para el viaje\n");
+    assert_eq!(upload_name(upload), Some("notas.heic"));
+    assert!(work_events.try_recv().is_err());
+    while let Ok(command) = helper.try_recv() {
+        assert_ne!(command["command"], "photo_jpeg", "{command}");
+    }
     Ok(())
 }
 
@@ -949,22 +1103,10 @@ async fn a_heic_photo_is_uploaded_as_the_jpeg_the_helper_wrote() -> Result<()> {
 /// the helper's cause; nothing is uploaded.
 #[tokio::test]
 async fn a_heic_photo_the_helper_cannot_convert_is_refused_with_its_cause() -> Result<()> {
-    let (directory, mut runtime, _frames, mut helper) =
-        connected(Some(limits(1_000_000, 10))).await?;
-    let photo = heic_photo(&directory)?;
-    let (url, recorded) =
-        http_hub(move |_| (200, "application/json", Vec::new(), hub_attachment("x", 1))).await?;
-    runtime.settings.hub_url = Some(url);
-    let asked = order_through_the_app(
-        &mut runtime,
-        Command::AttachmentAdd {
-            source: AttachmentSource::Path {
-                path: photo.to_string_lossy().into_owned(),
-            },
-        },
-    )
-    .await?;
-    let convert = helper_command(&mut helper, "photo_jpeg").await?;
+    let (directory, mut runtime, mut helper, mut work_events, recorded) = photo_runtime().await?;
+    let photo = heic_photo(&directory, "IMG_0001.HEIC")?;
+    let asked = order_through_the_app(&mut runtime, by_path(&photo)).await?;
+    let convert = photo_jpeg_order(&mut runtime, &mut work_events, &mut helper).await?;
     runtime
         .native_event(json!({"event":"response","id":convert["id"],"ok":false,
             "error":{"code":"photo_unreadable","message":"untrusted text"}}))

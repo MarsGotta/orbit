@@ -36,12 +36,12 @@ pub(super) struct PendingWindow {
     ask_id: String,
     request_id: String,
     reply: orbit_ipc::ReplySender,
-    pub(super) text: WindowTextSource,
+    text: WindowTextSource,
 }
 
 /// Where the window's text comes from, once a capture says which window it
 /// took.
-pub(super) enum WindowTextSource {
+enum WindowTextSource {
     /// No capture has said yet.
     Unknown,
     /// The engine read the window's tree after its capture, or the cause
@@ -125,7 +125,7 @@ fn window_stem(application: &str, title: &str) -> String {
 
 /// The text kept from the engine's tree: without the menu bar, within its
 /// ceiling; `empty` when nothing readable is left.
-pub(super) fn engine_window_text(
+fn engine_window_text(
     read: std::result::Result<String, String>,
 ) -> std::result::Result<String, String> {
     read.and_then(|tree| kept(&without_menu_bar(&tree), false).ok_or_else(|| "empty".into()))

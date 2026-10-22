@@ -117,13 +117,38 @@ pub struct AddedAttachment {
     pub window_text: Option<WindowText>,
 }
 
-/// Whether a file's name says it is a HEIF photo (an iPhone's `.HEIC`).
-/// No agent reads one, so the Mac turns it into JPEG before uploading it.
-pub fn is_heif_photo(name: &str) -> bool {
-    name.rsplit_once('.').is_some_and(|(stem, extension)| {
-        !stem.is_empty()
-            && (extension.eq_ignore_ascii_case("heic") || extension.eq_ignore_ascii_case("heif"))
-    })
+/// The brands of an `ftyp` box that make a file a HEIF image (ISO/IEC
+/// 23008-12): `mif1`, which every image file lists among its compatible
+/// brands, and HEVC's images (`heic`, `heix`) and layered images (`heim`,
+/// `heis`). The image sequences (`msf1`, `hevc`, `hevx`, `hevm`, `hevs`)
+/// and other ISO BMFF files (MP4, QuickTime) are not photos.
+const HEIF_IMAGE_BRANDS: [&[u8; 4]; 5] = [b"mif1", b"heic", b"heix", b"heim", b"heis"];
+
+/// Whether a file's first bytes say it is a HEIF photo (an iPhone's HEIC),
+/// whatever its name: an ISO BMFF `ftyp` box, first, naming an image brand
+/// as its major or a compatible brand. No agent reads one, so the Mac turns
+/// it into JPEG before uploading it.
+pub fn is_heif_photo(head: &[u8]) -> bool {
+    let Some(size) = head
+        .get(0..4)
+        .and_then(|size| <[u8; 4]>::try_from(size).ok())
+        .map(|size| u32::from_be_bytes(size) as usize)
+    else {
+        return false;
+    };
+    let ftyp = &head[..size.min(head.len())];
+    if ftyp.len() < 16 || &ftyp[4..8] != b"ftyp" {
+        return false;
+    }
+    // After its size and type, the box holds the major brand, a minor
+    // version (not a brand), then the compatible brands to its end.
+    let (words, _) = ftyp[8..].as_chunks::<4>();
+    let compatible = words.get(2..).unwrap_or_default();
+    words
+        .first()
+        .into_iter()
+        .chain(compatible)
+        .any(|brand| HEIF_IMAGE_BRANDS.contains(&brand))
 }
 
 /// The name of a photo once it is JPEG: the same name, with `.jpg`.
@@ -306,16 +331,65 @@ mod tests {
         );
     }
 
+    /// An ISO BMFF file that starts with its `ftyp` box: `major`, a zero
+    /// minor version, then `compatible`.
+    fn ftyp(major: &[u8; 4], compatible: &[&[u8; 4]]) -> Vec<u8> {
+        let size = 16 + 4 * compatible.len() as u32;
+        let mut bytes = size.to_be_bytes().to_vec();
+        bytes.extend_from_slice(b"ftyp");
+        bytes.extend_from_slice(major);
+        bytes.extend_from_slice(&[0, 0, 0, 0]);
+        for brand in compatible {
+            bytes.extend_from_slice(*brand);
+        }
+        bytes.extend_from_slice(b"\x00\x00\x00\x08metasynthetic");
+        bytes
+    }
+
     #[test]
-    fn a_heic_photo_is_known_by_its_name_and_becomes_a_jpg() {
-        for name in ["IMG_0001.HEIC", "foto.heic", "playa.Heif"] {
-            assert!(is_heif_photo(name), "{name}");
+    fn a_heif_photo_is_known_by_its_content_whatever_its_name() {
+        let photos = [
+            ftyp(b"heic", &[b"mif1", b"heic"]),
+            ftyp(b"mif1", &[b"mif1", b"heic"]),
+            ftyp(b"heix", &[]),
+            ftyp(b"heim", &[]),
+            ftyp(b"heis", &[]),
+            // An image file names `mif1` among its compatible brands, even
+            // under another major brand (an AVIF photo too).
+            ftyp(b"avif", &[b"avif", b"mif1", b"miaf"]),
+        ];
+        for photo in &photos {
+            assert!(is_heif_photo(photo), "{photo:?}");
         }
-        for name in ["foto.jpg", "heic", ".heic", "notas.heic.txt"] {
-            assert!(!is_heif_photo(name), "{name}");
+        let others = [
+            // Image sequences, not photos.
+            ftyp(b"msf1", &[b"msf1", b"hevc"]),
+            ftyp(b"hevc", &[b"msf1"]),
+            // Video.
+            ftyp(b"isom", &[b"isom", b"iso2", b"avc1", b"mp41"]),
+            ftyp(b"qt  ", &[b"qt  "]),
+            b"\x89PNG\r\n\x1a\nsynthetic".to_vec(),
+            b"\xff\xd8\xff synthetic jpeg".to_vec(),
+            b"heic".to_vec(),
+            Vec::new(),
+        ];
+        for other in &others {
+            assert!(!is_heif_photo(other), "{other:?}");
         }
+        // A brand past the end of the `ftyp` box is not one of its brands.
+        assert!(!is_heif_photo(
+            b"\x00\x00\x00\x10ftypisom\x00\x00\x00\x00mif1heic"
+        ));
+        // A box too short to hold its major brand names none.
+        assert!(!is_heif_photo(b"\x00\x00\x00\x08ftypheic\x00\x00\x00\x00"));
+    }
+
+    #[test]
+    fn a_photo_as_jpeg_keeps_its_name_with_jpg() {
         assert_eq!(jpeg_name("IMG_0001.HEIC"), "IMG_0001.jpg");
         assert_eq!(jpeg_name("vacaciones.2026.heif"), "vacaciones.2026.jpg");
+        assert_eq!(jpeg_name("Imagen pegada.png"), "Imagen pegada.jpg");
+        assert_eq!(jpeg_name("foto.jpg"), "foto.jpg");
     }
 
     #[test]
