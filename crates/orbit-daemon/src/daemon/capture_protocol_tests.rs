@@ -586,6 +586,7 @@ async fn call_start_after_stop_receipt_does_not_touch_next_call() -> Result<()> 
         .apply(Event::CallStart {
             id: "older-call".into(),
             duration_ms: 60_000,
+            origin: orbit_core::CallOrigin::App,
         })
         .await?;
     let start = loop {
@@ -671,6 +672,7 @@ async fn retired_call_start_registry_refuses_a_sixty_fifth_unknown_start() -> Re
         .apply(Event::CallStart {
             id: "over-capacity".into(),
             duration_ms: 60_000,
+            origin: orbit_core::CallOrigin::App,
         })
         .await
     {
@@ -757,6 +759,7 @@ async fn closing_call_with_unanswered_start()
         .apply(Event::CallStart {
             id: "unanswered-call".into(),
             duration_ms: 60_000,
+            origin: orbit_core::CallOrigin::App,
         })
         .await?;
     let start = next_capture_command(&mut receiver)?.context("call audio_start absent")?;
@@ -976,6 +979,7 @@ async fn unanswered_call_start(
         .apply(Event::CallStart {
             id: "unanswered-call".into(),
             duration_ms: 60_000,
+            origin: orbit_core::CallOrigin::App,
         })
         .await?;
     let start = next_capture_command(&mut receiver)?.context("call audio_start absent")?;
@@ -1268,6 +1272,7 @@ async fn seventy_overtaken_hangups_do_not_cut_capture() -> Result<()> {
                 .apply(Event::CallStart {
                     id: format!("round-{round}"),
                     duration_ms: 60_000,
+                    origin: orbit_core::CallOrigin::App,
                 })
                 .await?;
             start = loop {

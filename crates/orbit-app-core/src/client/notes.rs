@@ -11,7 +11,7 @@ const MAX_LIST_PAGES: usize = 20;
 impl DaemonClient {
     /// Reads the list again: as many pages as are shown, at least one.
     pub(super) async fn refresh_notes(&self) -> Result<AppSnapshot, AppError> {
-        let _reading = self.inner.list_io.lock().await;
+        let mut writing = self.inner.list_io.lock().await;
         let wanted = self
             .inner
             .notes_pages
@@ -60,8 +60,20 @@ impl DaemonClient {
             .into_iter()
             .map(|row| crate::projection::notes::project_row(row, now_ms, &zone))
             .collect::<Vec<_>>();
+        let ready = crate::projection::notes::follow_writing(&mut writing, &list)
+            .map(|item| (item.recording_id.clone(), item.title.clone()));
         Ok(self.update_local(|snapshot| {
             if let Some(notes) = snapshot.notes.as_mut() {
+                if let Some((recording_id, title)) = ready {
+                    notes.ready = Some(crate::NoteReadySnapshot {
+                        recording_id,
+                        title,
+                        sequence: notes
+                            .ready
+                            .as_ref()
+                            .map_or(1, |last| last.sequence.saturating_add(1)),
+                    });
+                }
                 notes.projection_clock = Some(Box::new((now_ms, zone.clone())));
                 notes.list = list;
                 notes.index = Some(Box::new(crate::NotesIndexSnapshot {

@@ -3,8 +3,9 @@
 //! A second webview of the same interface, small, borderless, always on top
 //! and never focusable, so it can say «Llamada en Zoom» over the call without
 //! taking the keyboard from it. It is shown only while the recording frame
-//! has something to say (`call_panel`), and a question to Deimos during the
-//! meeting reuses it for the answers. The frames reach it by the same
+//! has something to say (`call_panel`) or a recording is in progress, to ask
+//! Deimos about it; a question to Deimos during the meeting reuses it for
+//! the answers. The frames reach it by the same
 //! `orbit://feature/<id>` events.
 
 use orbit_app_core::features::FeatureFrame;
@@ -37,12 +38,16 @@ pub const PANEL_HEIGHT: f64 = 120.0;
 pub const PANEL_ANSWER_HEIGHT: f64 = 300.0;
 
 /// Whether the panel must be visible after `frame`: only the recording frame
-/// decides it — a call to answer or a question to Deimos.
+/// decides it — a call to answer, a question to Deimos, or a recording in
+/// progress (`ask`, recording or paused), from which to ask Deimos whether
+/// a call started it or the user did.
 pub fn panel_visible(frame: &FeatureFrame) -> Option<bool> {
     match frame {
-        FeatureFrame::Recording { view, .. } => {
-            Some(view.meeting.call_panel.is_some() || view.meeting.question.is_some())
-        }
+        FeatureFrame::Recording { view, .. } => Some(
+            view.meeting.call_panel.is_some()
+                || view.meeting.question.is_some()
+                || view.meeting.ask.is_some(),
+        ),
         _ => None,
     }
 }

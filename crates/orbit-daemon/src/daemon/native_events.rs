@@ -795,7 +795,8 @@ impl Runtime {
                     } else {
                         Event::CallStart {
                             id: id(),
-                            duration_ms: 15 * 60_000,
+                            duration_ms: i64::from(orbit_core::voice::HOTKEY_CALL_MINUTES) * 60_000,
+                            origin: orbit_core::CallOrigin::Hotkey,
                         }
                     })
                     .await?
@@ -834,7 +835,7 @@ impl Runtime {
                                 utc_offset_ms,
                             ),
                             audio,
-                            duration_minutes: 60,
+                            duration_minutes: orbit_core::protocol::RECORDING_MINUTES,
                             event: None,
                         })
                         .await?

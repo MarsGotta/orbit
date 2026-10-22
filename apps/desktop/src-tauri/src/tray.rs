@@ -149,7 +149,7 @@ fn recording_command() -> AppCommand {
     AppCommand::Recording(
         orbit_app_core::features::recording::RecordingCommand::MeetingStart {
             title: String::new(),
-            minutes: 60,
+            minutes: orbit_core::protocol::RECORDING_MINUTES,
         },
     )
 }

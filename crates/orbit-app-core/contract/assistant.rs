@@ -214,6 +214,7 @@ app_type! {
 }
 
 app_type! {
+    /// The call with the assistant, for every view, however it began.
     pub struct CallSnapshot {
         #[ts(type = "number")]
         pub started_at_ms: i64,
@@ -222,5 +223,30 @@ app_type! {
         pub speaking: bool,
         #[serde(default, skip_serializing_if = "is_false")]
         pub voice_unavailable: bool,
+        /// When the call hangs up by itself at its ceiling (Unix ms): the
+        /// interface counts «quedan 55 min» down to it.
+        #[ts(type = "number")]
+        pub expires_at_ms: i64,
+        /// How it began: «Llamar» in the app, or ⌃⌥D from any app.
+        pub origin: CallOrigin,
+        /// The agent it talks to, the open conversation's; absent: the
+        /// default one, as `chat.agent_id`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub agent_id: Option<String>,
+        /// The user's silence that hangs it up by itself («se cuelga sola
+        /// tras 1 minuto sin que hables»), from orbit-core's voice policy.
+        #[ts(type = "number")]
+        pub idle_hangup_ms: i64,
+    }
+}
+
+app_type! {
+    /// How a call began. Each has its own length (orbit-core's
+    /// `CALL_MINUTES` and `HOTKEY_CALL_MINUTES`), already in `expires_at_ms`.
+    #[serde(rename_all = "snake_case")]
+    pub enum CallOrigin {
+        App,
+        Hotkey,
     }
 }

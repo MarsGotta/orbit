@@ -94,7 +94,6 @@ export function MeetingStartDialog({ onClose, send, snapshot }: MeetingStartDial
     send({
       command: "meeting_start",
       title: title.trim(),
-      minutes: 60,
       audio: selectedAudio(source),
     });
     onClose();

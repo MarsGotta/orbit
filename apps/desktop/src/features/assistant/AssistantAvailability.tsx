@@ -43,7 +43,7 @@ export function useAssistantCall({
   const startCall = () => {
     if (!assistantAvailable) return;
     setCallRequested(true);
-    send({ command: "call_start", duration_minutes: 60 });
+    send({ command: "call_start" });
   };
   const endCall = () => {
     setCallRequested(false);

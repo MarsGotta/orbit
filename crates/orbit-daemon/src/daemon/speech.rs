@@ -357,6 +357,7 @@ mod tests {
             started_at_ms: 1,
             expires_at_ms: 60_001,
             turns: 0,
+            origin: orbit_core::CallOrigin::App,
         });
         let error = runtime
             .command(Command::Speak {

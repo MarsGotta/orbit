@@ -194,6 +194,7 @@ async fn admit_call_after_empty_capture(runtime: &mut Runtime, id: &str) -> Resu
         .apply(Event::CallStart {
             id: id.into(),
             duration_ms: 60_000,
+            origin: orbit_core::CallOrigin::App,
         })
         .await?;
     assert_eq!(
@@ -276,6 +277,7 @@ async fn empty_privacy_interruption_closes_before_rearm_and_admits_call() -> Res
         .apply(Event::CallStart {
             id: "next-call".into(),
             duration_ms: 60_000,
+            origin: orbit_core::CallOrigin::App,
         })
         .await?;
     assert_eq!(

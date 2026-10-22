@@ -63,6 +63,7 @@ fn pending_recording_refusal_names_identity_phase_and_numbers() {
         Event::CallStart {
             id: "call".into(),
             duration_ms: 60_000,
+            origin: orbit_core::CallOrigin::App,
         },
         2_000,
     )

@@ -124,6 +124,7 @@ fn projects_real_call_content_and_typed_voice_absence() {
             started_at_ms: 1_700_000_000_000,
             expires_at_ms: 1_700_003_600_000,
             turns: 1,
+            origin: orbit_core::CallOrigin::App,
         }),
         as_of_ms: None,
     };
@@ -175,4 +176,61 @@ fn voice_input_does_not_depend_on_read_aloud() {
             assert_eq!(projected["availability"]["state"], "current", "{voice:?}");
         }
     }
+}
+
+/// A call started with ⌃⌥D is in the app's snapshot as one from the app is:
+/// every view reads when it hangs up by itself, how it began, the agent it
+/// talks to and the silence that ends it, from the daemon's facts and
+/// orbit-core's constants, never from a copy in the interface.
+#[test]
+fn a_hotkey_call_says_when_it_ends_how_it_began_and_with_whom() {
+    let started_at_ms = 1_700_000_000_000;
+    let expires_at_ms = started_at_ms + i64::from(orbit_core::voice::HOTKEY_CALL_MINUTES) * 60_000;
+    let mut value = assistant_topic::assistant_value();
+    value.agent_id = Some("atlas".into());
+    value.call = Knowledge::Present {
+        value: Some(CallState {
+            id: "call-hotkey".into(),
+            phase: CallPhase::Listening,
+            started_at_ms,
+            expires_at_ms,
+            turns: 0,
+            origin: orbit_core::CallOrigin::Hotkey,
+        }),
+        as_of_ms: None,
+    };
+    let call = assistant_topic::snapshot(value, PermissionState::Granted)
+        .call
+        .expect("the hotkey call must be projected");
+    assert_eq!(call.expires_at_ms, started_at_ms + 15 * 60_000);
+    assert_eq!(call.origin, orbit_app_core::CallOrigin::Hotkey);
+    assert_eq!(call.agent_id.as_deref(), Some("atlas"));
+    assert_eq!(
+        call.idle_hangup_ms,
+        orbit_core::voice::VoicePolicy::default().idle_timeout_ms
+    );
+    let wire = serde_json::to_value(&call).expect("the call serializes");
+    assert_eq!(wire["origin"], "hotkey");
+    assert_eq!(wire["expires_at_ms"], expires_at_ms);
+    assert_eq!(wire["idle_hangup_ms"], 60_000);
+
+    // From the app, with the default agent: no agent named, «app».
+    let mut value = assistant_topic::assistant_value();
+    value.call = Knowledge::Present {
+        value: Some(CallState {
+            id: "call-app".into(),
+            phase: CallPhase::Listening,
+            started_at_ms,
+            expires_at_ms: started_at_ms + 3_600_000,
+            turns: 0,
+            origin: orbit_core::CallOrigin::App,
+        }),
+        as_of_ms: None,
+    };
+    let call = assistant_topic::snapshot(value, PermissionState::Granted)
+        .call
+        .expect("the app's call must be projected");
+    let wire = serde_json::to_value(&call).expect("the call serializes");
+    assert_eq!(wire["origin"], "app");
+    assert!(wire.get("agent_id").is_none(), "{wire}");
 }

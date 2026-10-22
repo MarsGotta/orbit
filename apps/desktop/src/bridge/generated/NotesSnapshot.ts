@@ -2,6 +2,7 @@
 import type { NoteLibrarySnapshot } from "./NoteLibrarySnapshot";
 import type { NoteListItem } from "./NoteListItem";
 import type { NoteReadSnapshot } from "./NoteReadSnapshot";
+import type { NoteReadySnapshot } from "./NoteReadySnapshot";
 import type { NotesIndexSnapshot } from "./NotesIndexSnapshot";
 import type { OpenNoteSnapshot } from "./OpenNoteSnapshot";
 
@@ -9,4 +10,11 @@ export type NotesSnapshot = { list: Array<NoteListItem>, index?: NotesIndexSnaps
 /**
  * Templates, assignments and refusals.
  */
-library?: NoteLibrarySnapshot, };
+library?: NoteLibrarySnapshot, 
+/**
+ * The last note this app saw being written and then read ready:
+ * «Tu nota está lista · Abrir», apart from the recording's end.
+ * Absent until one is; a note already written when the app
+ * starts never is.
+ */
+ready?: NoteReadySnapshot, };

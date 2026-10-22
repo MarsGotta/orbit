@@ -12,7 +12,21 @@ import type { MeetingUploadSnapshot } from "./MeetingUploadSnapshot";
 import type { RecentMeetingSnapshot } from "./RecentMeetingSnapshot";
 import type { VoiceStatusSnapshot } from "./VoiceStatusSnapshot";
 
-export type MeetingSnapshot = { phase: MeetingPhase, recording_id: string | null, title: string | null, started_at_ms: number | null, ends_at_ms: number | null, audio: MeetingAudioKind, tracks: Array<MeetingTrackSnapshot>, upload: MeetingUploadSnapshot, 
+export type MeetingSnapshot = { phase: MeetingPhase, recording_id: string | null, title: string | null, started_at_ms: number | null, 
+/**
+ * Until when the recording in progress records (Unix ms), the
+ * daemon's deadline («hasta las 11:40»): its start plus its
+ * ceiling. From an event, the ceiling is the minutes left until the
+ * event's end, rounded up, plus orbit-core's
+ * `EVENT_RECORDING_GRACE_MINUTES`.
+ */
+ends_at_ms: number | null, 
+/**
+ * How long a recording started by hand may run, in minutes,
+ * before one starts («Graba hasta 60 min»): orbit-core's
+ * `RECORDING_MINUTES`, which the interface never copies.
+ */
+limit_minutes: number, audio: MeetingAudioKind, tracks: Array<MeetingTrackSnapshot>, upload: MeetingUploadSnapshot, 
 /**
  * What the floating panel says, if anything.
  */

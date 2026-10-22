@@ -71,6 +71,7 @@ async fn expired_call_tick_does_not_claim_the_user_interrupted_its_voice_note() 
         started_at_ms: 0,
         expires_at_ms: 1,
         turns: 0,
+        origin: orbit_core::CallOrigin::App,
     });
     runtime.apply(Event::Tick).await?;
     let saved = runtime
@@ -116,6 +117,7 @@ async fn helper_cut_does_not_claim_the_user_interrupted_its_voice_note() -> Resu
         started_at_ms: 1,
         expires_at_ms: i64::MAX,
         turns: 0,
+        origin: orbit_core::CallOrigin::App,
     });
     runtime
         .contain(
@@ -168,6 +170,7 @@ async fn assert_automatic_stop_reason(
         started_at_ms: 1,
         expires_at_ms: i64::MAX,
         turns: 0,
+        origin: orbit_core::CallOrigin::App,
     });
     runtime.stop_call_for_reason(reason).await?;
     assert!(
@@ -345,6 +348,7 @@ async fn request_call_for(
         .apply(Event::CallStart {
             id: "synthetic-call".into(),
             duration_ms,
+            origin: orbit_core::CallOrigin::App,
         })
         .await?;
     assert_eq!(
@@ -639,5 +643,45 @@ async fn barge_in_invalidates_stt_operation_without_stopping_original_capture() 
         runtime.capture.buffer.recording_owner("mic_local"),
         Some("synthetic-call")
     );
+    Ok(())
+}
+
+/// ⌃⌥D starts a call of its own length and says it began there; a call
+/// from the app that names no length gets the app's. The app reads both
+/// from the call itself («quedan 12 min», «⌃⌥D cuelga»).
+#[tokio::test]
+async fn a_hotkey_call_and_an_app_call_carry_their_origin_and_length() -> Result<()> {
+    use orbit_core::{
+        CallOrigin,
+        voice::{CALL_MINUTES, HOTKEY_CALL_MINUTES},
+    };
+    for (hotkey, origin, minutes) in [
+        (true, CallOrigin::Hotkey, HOTKEY_CALL_MINUTES),
+        (false, CallOrigin::App, CALL_MINUTES),
+    ] {
+        let directory = tempfile::tempdir()?;
+        let (mut runtime, _helper) = fixture(directory.path())?;
+        crate::daemon::authority_fixture::set(
+            &mut runtime.state,
+            "capabilities.voice_processing_supported",
+            json!(true),
+        );
+        if hotkey {
+            runtime
+                .native_event(json!({"event":"hotkey","action":"call_toggle","phase":"pressed"}))
+                .await?;
+        } else {
+            runtime
+                .command(serde_json::from_value(json!({"command": "call_start"}))?)
+                .await?;
+        }
+        let call = runtime.state.durable.call.as_ref().context("call absent")?;
+        assert_eq!(call.origin, origin, "hotkey: {hotkey}");
+        assert_eq!(
+            call.expires_at_ms - call.started_at_ms,
+            i64::from(minutes) * 60_000,
+            "hotkey: {hotkey}"
+        );
+    }
     Ok(())
 }

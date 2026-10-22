@@ -50,8 +50,10 @@ struct ClientInner {
     /// One note read at a time, and the turns of the last note whose
     /// transcript was complete (`note_read::SettledTurns`).
     note_io: Mutex<Option<note_read::SettledTurns>>,
-    /// One list read at a time, and how many pages of it are shown.
-    list_io: Mutex<()>,
+    /// One list read at a time, holding the notes it saw being written
+    /// (`projection::notes::follow_writing`), and how many pages of it are
+    /// shown.
+    list_io: Mutex<std::collections::BTreeSet<String>>,
     notes_pages: AtomicUsize,
     /// One library read at a time.
     library_io: Mutex<()>,
@@ -161,7 +163,7 @@ impl DaemonClient {
                 calendar,
                 calendar_io,
                 note_io: Mutex::new(None),
-                list_io: Mutex::new(()),
+                list_io: Mutex::new(std::collections::BTreeSet::new()),
                 notes_pages: AtomicUsize::new(1),
                 library_io: Mutex::new(()),
                 note_target: Mutex::new((String::new(), 0)),

@@ -97,6 +97,7 @@ pub enum Event {
     CallStart {
         id: String,
         duration_ms: i64,
+        origin: crate::voice::CallOrigin,
     },
     CallStop,
     CallReady,
@@ -1155,7 +1156,11 @@ fn decide_call(
     now_ms: i64,
 ) -> Result<(), Refusal> {
     match event {
-        Event::CallStart { id, duration_ms } => {
+        Event::CallStart {
+            id,
+            duration_ms,
+            origin,
+        } => {
             ensure_microphone(state)?;
             if state.durable.connection != Connection::Online {
                 return Err(Refusal::HubUnreachable { since_ms: None });
@@ -1203,6 +1208,7 @@ fn decide_call(
                 started_at_ms: now_ms,
                 expires_at_ms: now_ms.saturating_add(duration_ms),
                 turns: 0,
+                origin,
             });
             effects.extend([Effect::StopPlayback, Effect::StartCall]);
             next.set_notice(NoticeCode::CallStarting);

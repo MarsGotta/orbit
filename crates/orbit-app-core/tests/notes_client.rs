@@ -68,6 +68,10 @@ struct HubNow {
     final_pass_completed: AtomicBool,
     dictionary: AtomicBool,
     dictionary_corrected: AtomicBool,
+    /// The list's row: the hub is writing the note's summary.
+    note_writing: AtomicBool,
+    /// The list's row: the note's summary is written.
+    note_ready: AtomicBool,
 }
 
 fn document_now(now: &HubNow) -> Value {
@@ -118,6 +122,18 @@ fn row(id: &str, started_at_ms: i64) -> Value {
         "duration_ms": 60_000, "capture": "closed", "transcript": "ready", "note": null})
 }
 
+/// The first meeting's row as the fake hub lists it now.
+fn row_now(now: &HubNow) -> Value {
+    let mut row = row(RECORDING_ID, 1_790_500_000_000);
+    if now.note_writing.load(Ordering::SeqCst) {
+        row["note"] = json!({"state": "generating"});
+    }
+    if now.note_ready.load(Ordering::SeqCst) {
+        row["note"] = json!({"state": "ready", "short_summary": "Se aprobó el plan."});
+    }
+    row
+}
+
 struct Fixture {
     client: DaemonClient,
     notes_topic: watch::Sender<TopicFrame>,
@@ -155,10 +171,7 @@ fn answer(read: &ReadRequest, now: &HubNow) -> Knowledge<Page<Value>> {
     };
     match read {
         ReadRequest::NotesPage { cursor: None } => page(
-            vec![
-                row(RECORDING_ID, 1_790_500_000_000),
-                row(OTHER_ID, 1_790_400_000_000),
-            ],
+            vec![row_now(now), row(OTHER_ID, 1_790_400_000_000)],
             Some(Cursor::DescendingDateAndId {
                 date_ms: 1_790_400_000_000,
                 id: OTHER_ID.into(),
@@ -193,6 +206,10 @@ fn answer(read: &ReadRequest, now: &HubNow) -> Knowledge<Page<Value>> {
 }
 
 async fn fixture() -> Result<Fixture, Box<dyn Error>> {
+    fixture_with(HubNow::default()).await
+}
+
+async fn fixture_with(hub_now: HubNow) -> Result<Fixture, Box<dyn Error>> {
     let directory = tempfile::Builder::new()
         .prefix("orbit-notes-")
         .tempdir_in("/tmp")?;
@@ -214,7 +231,7 @@ async fn fixture() -> Result<Fixture, Box<dyn Error>> {
     let listener = fake_daemon::channel(calls, topic_channels);
     let detail_reads = Arc::new(AtomicU64::new(0));
     let transcript_reads = Arc::new(AtomicU64::new(0));
-    let hub_now = Arc::new(HubNow::default());
+    let hub_now = Arc::new(hub_now);
     let list_reads = Arc::new(AtomicU64::new(0));
     let (reads_tx, reads_seen) = watch::channel(0_u64);
     let library_reads = Arc::new(AtomicU64::new(0));
@@ -551,6 +568,108 @@ async fn the_list_follows_its_head_and_loads_more() -> Result<(), Box<dyn Error>
     let more = fixture.client.composed_snapshot().notes.unwrap();
     assert_eq!(more.list.len(), 3);
     assert!(!more.index.unwrap().more);
+    Ok(())
+}
+
+/// «Tu nota está lista»: a note seen being written and then read ready
+/// is said once, by its recording and title, apart from the recording's end.
+/// Read again unchanged it is not said again; and an app that starts with
+/// the note already written (a restart) says nothing about it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_note_seen_being_written_says_once_that_it_is_ready() -> Result<(), Box<dyn Error>> {
+    let fixture = fixture().await?;
+    let listed = until(&fixture.client, |snapshot| {
+        snapshot
+            .notes
+            .as_ref()
+            .is_some_and(|notes| notes.list.len() == 2)
+    })
+    .await?;
+    assert_eq!(listed.notes.and_then(|notes| notes.ready), None);
+
+    let mut head = notes::Value::default();
+    fixture.hub_now.note_writing.store(true, Ordering::SeqCst);
+    head.touch_recording(RECORDING_ID);
+    fixture
+        .notes_topic
+        .send_replace(head_frame(2, head.clone()));
+    let writing = until(&fixture.client, |snapshot| {
+        snapshot.notes.as_ref().is_some_and(|notes| {
+            notes.list.first().and_then(|item| item.headline.as_ref())
+                == Some(&orbit_app_core::NoteHeadlineSnapshot::Writing {})
+        })
+    })
+    .await?;
+    assert_eq!(writing.notes.and_then(|notes| notes.ready), None);
+
+    fixture.hub_now.note_writing.store(false, Ordering::SeqCst);
+    fixture.hub_now.note_ready.store(true, Ordering::SeqCst);
+    head.touch_recording(RECORDING_ID);
+    fixture
+        .notes_topic
+        .send_replace(head_frame(3, head.clone()));
+    let ready = until(&fixture.client, |snapshot| {
+        snapshot
+            .notes
+            .as_ref()
+            .is_some_and(|notes| notes.ready.is_some())
+    })
+    .await?;
+    let expected = orbit_app_core::NoteReadySnapshot {
+        recording_id: RECORDING_ID.into(),
+        title: format!("Reunión {RECORDING_ID}"),
+        sequence: 1,
+    };
+    assert_eq!(
+        ready.notes.and_then(|notes| notes.ready),
+        Some(expected.clone())
+    );
+
+    // The list and the library move together: the app reads the list
+    // first, so once the library read arrives the list read was applied.
+    let (lists, libraries) = (
+        fixture.list_reads.load(Ordering::SeqCst),
+        fixture.library_reads.load(Ordering::SeqCst),
+    );
+    head.touch();
+    head.touch_library();
+    fixture.notes_topic.send_replace(head_frame(4, head));
+    reads_until(&fixture, || {
+        fixture.library_reads.load(Ordering::SeqCst) > libraries
+    })
+    .await?;
+    assert!(fixture.list_reads.load(Ordering::SeqCst) > lists);
+    assert_eq!(
+        fixture
+            .client
+            .composed_snapshot()
+            .notes
+            .and_then(|notes| notes.ready),
+        Some(expected),
+        "read again, the same note is not said again"
+    );
+    drop(fixture);
+
+    let restarted = fixture_with(HubNow {
+        note_ready: AtomicBool::new(true),
+        ..HubNow::default()
+    })
+    .await?;
+    let listed = until(&restarted.client, |snapshot| {
+        snapshot.notes.as_ref().is_some_and(|notes| {
+            notes
+                .list
+                .first()
+                .and_then(|item| item.headline.as_ref())
+                .is_some()
+        })
+    })
+    .await?;
+    assert_eq!(
+        listed.notes.and_then(|notes| notes.ready),
+        None,
+        "a note already written when the app starts is not news"
+    );
     Ok(())
 }
 

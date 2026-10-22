@@ -115,6 +115,14 @@ pub fn project(input: &FeatureInput<'_>) -> View {
                             last_line,
                             speaking: call.phase == orbit_core::voice::CallPhase::Responding,
                             voice_unavailable,
+                            expires_at_ms: call.expires_at_ms,
+                            origin: match call.origin {
+                                orbit_core::CallOrigin::App => crate::CallOrigin::App,
+                                orbit_core::CallOrigin::Hotkey => crate::CallOrigin::Hotkey,
+                            },
+                            agent_id: value.agent_id.clone(),
+                            idle_hangup_ms: orbit_core::voice::VoicePolicy::default()
+                                .idle_timeout_ms,
                         }),
                         FeatureAvailability::Current,
                     )
@@ -230,7 +238,7 @@ pub enum RecordingCommand {
 }
 
 fn default_minutes() -> u16 {
-    60
+    orbit_core::protocol::RECORDING_MINUTES
 }
 
 pub(crate) fn map_command(
@@ -289,12 +297,12 @@ pub(crate) fn map_command(
                 audio,
                 duration_minutes: event.map_or(minutes, |event| {
                     // Match the daemon's u16 minutes: at least one minute,
-                    // at most 65,535; fifteen minutes after the event ends.
+                    // at most 65,535; a grace after the event ends.
                     let remaining = event.end_ms.saturating_sub(clock.now_ms);
                     (remaining.div_euclid(60_000)
                         + i64::from(remaining.rem_euclid(60_000) != 0)
-                        + 15)
-                        .clamp(1, i64::from(u16::MAX)) as u16
+                        + i64::from(orbit_core::protocol::EVENT_RECORDING_GRACE_MINUTES))
+                    .clamp(1, i64::from(u16::MAX)) as u16
                 }),
                 event: event.and_then(|event| {
                     Some(orbit_core::call_detection::LinkedEvent {

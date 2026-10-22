@@ -1035,6 +1035,7 @@ async fn silent_call_stop_replaces_the_wait_notice() -> Result<()> {
         .apply(Event::CallStart {
             id: "synthetic-timeout-call".into(),
             duration_ms: 60_000,
+            origin: orbit_core::CallOrigin::App,
         })
         .await?;
     let start = loop {
@@ -1591,6 +1592,7 @@ async fn hub_link_change_cancels_a_call_turn_but_keeps_a_saved_voice_note() -> R
             started_at_ms: 1,
             expires_at_ms: i64::MAX,
             turns: 0,
+            origin: orbit_core::CallOrigin::App,
         });
         runtime.apply(event.clone()).await?;
         assert!(runtime.state.durable.call.is_none(), "{event:?}");

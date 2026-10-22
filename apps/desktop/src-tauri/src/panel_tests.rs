@@ -232,6 +232,39 @@ fn a_question_to_deimos_shows_the_panel_with_room_for_the_answer() {
     assert_eq!(quiet.as_ref().and_then(panel_visible), Some(false));
 }
 
+/// A recording started by hand has no call to answer, and «Preguntar a
+/// Deimos» is offered during it as during a detected call's: the panel
+/// shows while any recording runs or is paused (`ask`), at its call height,
+/// and goes when it ends.
+#[test]
+fn any_recording_shows_the_panel_to_ask_deimos() {
+    let recording = recording(None).map(|frame| match frame {
+        FeatureFrame::Recording {
+            revision,
+            mut view,
+            availability,
+        } => {
+            view.meeting.phase = orbit_app_core::MeetingPhase::Recording;
+            view.meeting.ask = Some(orbit_app_core::MeetingAskSnapshot {
+                windows: vec![orbit_app_core::MeetingWindowSnapshot { minutes: 2 }],
+                default_minutes: 2,
+                max_question_bytes: 1_024,
+            });
+            FeatureFrame::Recording {
+                revision,
+                view,
+                availability,
+            }
+        }
+        other => other,
+    });
+    assert_eq!(recording.as_ref().and_then(panel_visible), Some(true));
+    assert_eq!(
+        recording.as_ref().and_then(panel_height),
+        Some(PANEL_HEIGHT)
+    );
+}
+
 /// The answer's links open through the panel's own closed order, only
 /// for http(s), with the same check as the main window's `open_url`.
 #[test]

@@ -221,6 +221,7 @@ fn real_restart_closes_a_user_stopped_empty_recording_before_ready() -> anyhow::
         Event::CallStart {
             id: "next-call".into(),
             duration_ms: 60_000,
+            origin: orbit_core::CallOrigin::App,
         },
         2_000,
     )?;
@@ -334,6 +335,7 @@ fn real_startup_recovers_a_durable_call_lifecycle_without_restoring_authority() 
         started_at_ms: 10,
         expires_at_ms: 60010,
         turns: 0,
+        origin: orbit_core::CallOrigin::App,
     });
     snapshot.durable.active_request = Some("uncertain-do-not-replay".into());
     store.save_snapshot(&snapshot)?;

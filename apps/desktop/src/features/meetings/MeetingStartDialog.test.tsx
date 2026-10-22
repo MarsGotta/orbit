@@ -30,7 +30,6 @@ it.each(sources)("recording with %s sends orbit-core's audio selection", (source
   expect(send).toHaveBeenLastCalledWith({
     command: "meeting_start",
     title: "",
-    minutes: 60,
     audio,
   });
   expect(close).toHaveBeenCalledOnce();

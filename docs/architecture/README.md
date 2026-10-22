@@ -167,7 +167,9 @@ the helper. Silence of 1.5 seconds or the 30-second question bound closes it.
 The daemon validates privacy, connection, busy state, size and meeting window.
 The hub adds the last requested minutes of transcript (default 2), bounded to
 31 KiB. History retains the question and the Spanish meeting marker rather than
-the expanded context. The floating panel follows the response.
+the expanded context. The floating panel follows the response; it is shown
+during any recording, started by hand or by a detected call, so the question
+can be asked from it.
 
 ### Screen and actions
 

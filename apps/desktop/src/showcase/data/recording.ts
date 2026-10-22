@@ -22,6 +22,7 @@ export const idleMeeting: MeetingSnapshot = {
   title: null,
   started_at_ms: null,
   ends_at_ms: null,
+  limit_minutes: 60,
   audio: "system",
   tracks: [],
   upload: { pending_chunks: 0, offline: false },

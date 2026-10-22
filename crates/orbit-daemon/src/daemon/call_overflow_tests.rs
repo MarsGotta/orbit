@@ -16,6 +16,7 @@ async fn emergency_queue_overflow_marks_the_continuous_original_incomplete() -> 
         .apply(Event::CallStart {
             id: "overflow-call".into(),
             duration_ms: 60_000,
+            origin: orbit_core::CallOrigin::App,
         })
         .await?;
     assert!(runtime.state.durable.recording.is_none());

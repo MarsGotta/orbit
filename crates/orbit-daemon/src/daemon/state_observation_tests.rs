@@ -93,6 +93,7 @@ async fn chat_send_declares_an_active_call() -> Result<()> {
         started_at_ms: 1_000,
         expires_at_ms: 61_000,
         turns: 0,
+        origin: orbit_core::CallOrigin::App,
     });
 
     runtime

@@ -57,21 +57,17 @@ function PanelContent({ port, store }: { port: DaemonPort; store: OrbitStore }) 
   const ask = stopped ? null : (meeting?.ask ?? null);
   // Whether «Oye Deimos» listens, while the panel shows anything at all.
   const voice =
-    stopped || (call === null && question === null)
+    stopped || (call === null && question === null && ask === null)
       ? null
       : voiceStatusText(meeting?.voice_trigger, es);
   const focus = (on: boolean) => {
     setAsking(on);
     void panelFocus(port, on);
   };
-  // «Preguntar a Deimos» from the panel: while a call's recording runs, or
-  // once Deimos has answered; never over a question still in flight.
+  // «Preguntar a Deimos» from the panel: during any recording (`ask`),
+  // started by a call or by hand; never over a question still in flight.
   const offerAsk =
-    ask !== null &&
-    !asking &&
-    question?.stage !== "thinking" &&
-    question?.stage !== "responding" &&
-    (call?.state === "recording" || question !== null);
+    ask !== null && !asking && question?.stage !== "thinking" && question?.stage !== "responding";
   return (
     <div className={styles.root} data-panel-root>
       {question && !asking && (

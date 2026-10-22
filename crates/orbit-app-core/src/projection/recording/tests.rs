@@ -270,3 +270,25 @@ fn an_unreadable_preference_carries_its_cause() {
         None
     );
 }
+
+/// The limits a recording has, ahead of time: before any recording the
+/// app knows how long one started by hand may run («Graba hasta 60 min»),
+/// and during one, until when it records («hasta las 11:40») — the
+/// daemon's deadline, never a copy of the constant.
+#[test]
+fn a_recording_says_its_limit_before_starting_and_its_end_while_it_runs() {
+    let manual = orbit_core::protocol::RECORDING_MINUTES;
+    assert_eq!(crate::AppSnapshot::default().meeting.limit_minutes, manual);
+    let idle = project_meeting_topic(&head(None));
+    assert_eq!(idle.limit_minutes, manual);
+    assert_eq!(idle.ends_at_ms, None);
+    let running = project_meeting_topic(&head(Some(Recording {
+        started_at_ms: 1_000,
+        expires_at_ms: 1_000 + 78 * 60_000,
+        ..recording(CapturePhase::Recording)
+    })));
+    assert_eq!(running.limit_minutes, manual);
+    assert_eq!(running.ends_at_ms, Some(1_000 + 78 * 60_000));
+    let wire = serde_json::to_value(&running).expect("meeting wire");
+    assert_eq!(wire["limit_minutes"], 60);
+}

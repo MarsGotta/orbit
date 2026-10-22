@@ -19,7 +19,40 @@ pub struct CallState {
     pub started_at_ms: i64,
     pub expires_at_ms: i64,
     pub turns: u64,
+    /// How the call began. A state saved before this was said loads as
+    /// [`CallOrigin::App`]; no call survives a restart (`call_recovery`), so
+    /// no live call is ever named by that default.
+    #[serde(default)]
+    pub origin: CallOrigin,
 }
+
+/// How a call began: from the app («Llamar», «Llamar a Orbit») or with
+/// ⌃⌥D from any app. Each has its own length ([`CALL_MINUTES`],
+/// [`HOTKEY_CALL_MINUTES`]), and ⌃⌥D hangs up the call it started.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CallOrigin {
+    #[default]
+    App,
+    Hotkey,
+}
+
+/// How long a call started from the app may last, in minutes.
+///
+/// Protects: a microphone left streaming to Orbit by a call nobody hangs up
+/// (the user's silence ends it sooner: `VoicePolicy::idle_timeout_ms`).
+/// Why an hour: the longest call the core admits (`decide_call`); the app
+/// says what is left («quedan 55 min»), so a longer conversation is a new
+/// call. It does not limit how many calls there are.
+pub const CALL_MINUTES: u16 = 60;
+
+/// How long a call started with ⌃⌥D may last, in minutes.
+///
+/// Protects the same as [`CALL_MINUTES`] for a call begun from another app,
+/// often without Orbit's window in sight: a quick question, so a quarter of
+/// an hour, after which ⌃⌥D starts another. It does not limit a call started
+/// from the app.
+pub const HOTKEY_CALL_MINUTES: u16 = 15;
 
 /// The shortest stretch of speech that can hold a word, a «sí» or a «no».
 /// A call turn needs this much speech to be submitted, and a voice note

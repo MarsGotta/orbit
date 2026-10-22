@@ -47,6 +47,7 @@ fn projects_pending_call_and_voice_note_from_topic_frames() {
             started_at_ms: 1_700_000_000_000,
             expires_at_ms: 1_700_003_600_000,
             turns: 2,
+            origin: orbit_core::CallOrigin::App,
         }),
         as_of_ms: None,
     };
@@ -69,6 +70,9 @@ fn projects_pending_call_and_voice_note_from_topic_frames() {
             "seeing_screen": true,
             "last_line": "Estoy revisando el error de la pantalla.",
             "speaking": true,
+            "expires_at_ms": 1_700_003_600_000_i64,
+            "origin": "app",
+            "idle_hangup_ms": 60_000,
         })
     );
 

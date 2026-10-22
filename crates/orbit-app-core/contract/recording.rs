@@ -330,8 +330,17 @@ app_type! {
         pub title: Option<String>,
         #[ts(type = "number | null")]
         pub started_at_ms: Option<i64>,
+        /// Until when the recording in progress records (Unix ms), the
+        /// daemon's deadline («hasta las 11:40»): its start plus its
+        /// ceiling. From an event, the ceiling is the minutes left until the
+        /// event's end, rounded up, plus orbit-core's
+        /// `EVENT_RECORDING_GRACE_MINUTES`.
         #[ts(type = "number | null")]
         pub ends_at_ms: Option<i64>,
+        /// How long a recording started by hand may run, in minutes,
+        /// before one starts («Graba hasta 60 min»): orbit-core's
+        /// `RECORDING_MINUTES`, which the interface never copies.
+        pub limit_minutes: u16,
         pub audio: MeetingAudioKind,
         pub tracks: Vec<MeetingTrackSnapshot>,
         pub upload: MeetingUploadSnapshot,

@@ -367,6 +367,25 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub library: Option<Box<NoteLibrarySnapshot>>,
+        /// The last note this app saw being written and then read ready:
+        /// «Tu nota está lista · Abrir», apart from the recording's end.
+        /// Absent until one is; a note already written when the app
+        /// starts never is.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub ready: Option<NoteReadySnapshot>,
+    }
+}
+
+app_type! {
+    /// A note whose summary the app saw finish. It stays until another
+    /// one finishes: `sequence` moves with each, so the interface says
+    /// each once, and a view opened later says nothing for the one it
+    /// finds.
+    pub struct NoteReadySnapshot {
+        pub recording_id: String,
+        pub title: String,
+        pub sequence: u32,
     }
 }
 

@@ -37,7 +37,7 @@ pub mod window_text;
 
 pub use model::*;
 pub use transition::{Decision, Effect, Event, decide};
-pub use voice::{CallPhase, CallState};
+pub use voice::{CallOrigin, CallPhase, CallState};
 
 pub mod wire;
 

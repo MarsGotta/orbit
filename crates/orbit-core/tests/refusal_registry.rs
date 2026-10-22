@@ -411,6 +411,7 @@ fn decisions_preserve_actual_text_and_both_duration_bounds() {
         Event::CallStart {
             id: "call".into(),
             duration_ms: 3_600_001,
+            origin: orbit_core::CallOrigin::App,
         },
         0,
     )

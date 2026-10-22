@@ -36,6 +36,7 @@ async fn begin_call_drain(
         .apply(Event::CallStart {
             id: "call-liveness".into(),
             duration_ms: 60_000,
+            origin: orbit_core::CallOrigin::App,
         })
         .await?;
     let _ = next_command(receiver, "audio_start").await?;

@@ -18,6 +18,7 @@ fn the_call_sees_the_screen_with_the_permission() {
                 started_at_ms: 1_000,
                 expires_at_ms: 61_000,
                 turns: 0,
+                origin: orbit_core::CallOrigin::App,
             }),
             as_of_ms: None,
         };

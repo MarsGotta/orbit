@@ -1236,6 +1236,7 @@ async fn a_playback_rejection_during_a_live_call_is_a_notice_not_a_privacy_stop(
         .apply(Event::CallStart {
             id: "synthetic-call".into(),
             duration_ms: 60_000,
+            origin: orbit_core::CallOrigin::App,
         })
         .await?;
     assert_eq!(
@@ -1587,6 +1588,7 @@ async fn a_rejected_clip_during_a_live_call_keeps_the_call_and_records_degradati
         .apply(Event::CallStart {
             id: "synthetic-call".into(),
             duration_ms: 60_000,
+            origin: orbit_core::CallOrigin::App,
         })
         .await?;
     assert_eq!(
@@ -3279,6 +3281,7 @@ async fn bridge_tagged_clip_rejection_names_the_cause_and_keeps_the_call() -> Re
         .apply(Event::CallStart {
             id: "synthetic-call".into(),
             duration_ms: 60_000,
+            origin: orbit_core::CallOrigin::App,
         })
         .await?;
     assert_eq!(

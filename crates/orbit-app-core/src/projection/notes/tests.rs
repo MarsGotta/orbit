@@ -109,3 +109,50 @@ fn notes_are_grouped_by_the_local_day() {
         "22.5 hours ago is still yesterday when it was Tuesday in Madrid"
     );
 }
+
+/// A note is news when it was seen being written and is now read ready;
+/// one read ready the first time (the app just started) is not, nor is a
+/// failure, and a read that does not list a note in progress keeps it.
+#[test]
+fn a_note_seen_being_written_and_then_ready_is_news_once() {
+    let zone = LocalZone::utc();
+    let now = 1_800_000_000_000;
+    let item = |state: NoteState| {
+        let mut row = row(None, TranscriptState::Ready);
+        row.note = Some(NoteHeadline {
+            state,
+            short_summary: Some("Se aprobó el plan.".into()),
+        });
+        project_row(row, now, &zone)
+    };
+    let mut writing = std::collections::BTreeSet::new();
+    assert_eq!(
+        follow_writing(&mut writing, &[item(NoteState::Ready)]),
+        None,
+        "already written when first read"
+    );
+    assert_eq!(
+        follow_writing(&mut writing, &[item(NoteState::Generating)]),
+        None
+    );
+    assert_eq!(follow_writing(&mut writing, &[]), None, "a read without it");
+    let ready = [item(NoteState::Ready)];
+    assert_eq!(
+        follow_writing(&mut writing, &ready).map(|item| item.title.as_str()),
+        Some("Comité de dirección")
+    );
+    assert_eq!(follow_writing(&mut writing, &ready), None, "said once");
+    assert_eq!(
+        follow_writing(&mut writing, &[item(NoteState::Queued)]),
+        None
+    );
+    assert_eq!(
+        follow_writing(&mut writing, &[item(NoteState::Failed)]),
+        None
+    );
+    assert!(
+        writing.is_empty(),
+        "a failed note is no longer being written"
+    );
+    assert_eq!(follow_writing(&mut writing, &ready), None);
+}

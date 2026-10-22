@@ -197,6 +197,7 @@ fn samples() -> Vec<Event> {
         Event::CallStart {
             id: "c".into(),
             duration_ms: 600_000,
+            origin: orbit_core::CallOrigin::App,
         },
         Event::CallStop,
         Event::CallReady,

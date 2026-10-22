@@ -322,6 +322,7 @@ impl Runtime {
                 self.apply(Event::CallStart {
                     id: id(),
                     duration_ms: i64::from(duration_minutes) * 60_000,
+                    origin: orbit_core::CallOrigin::App,
                 })
                 .await?
             }

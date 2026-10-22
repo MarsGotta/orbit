@@ -352,6 +352,7 @@ async fn speech_unavailable_is_specific_and_once_per_call() -> Result<()> {
         started_at_ms: 1,
         expires_at_ms: 60_001,
         turns: 1,
+        origin: orbit_core::CallOrigin::App,
     });
     for _ in 0..2 {
         let generation = runtime.state.generation();

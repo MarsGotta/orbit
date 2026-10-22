@@ -473,6 +473,7 @@ mod projection_tests {
             started_at_ms: 12,
             expires_at_ms: 60_012,
             turns: 0,
+            origin: orbit_core::CallOrigin::App,
         };
         state.durable.call = Some(call.clone());
         let active = serde_json::to_value(project(TopicId::Assistant, &source(&state))).unwrap();
