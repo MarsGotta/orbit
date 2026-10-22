@@ -293,6 +293,10 @@ impl Runtime {
             }
             Command::VoiceStart => self.apply(Event::VoiceStart).await?,
             Command::VoiceEnd => self.apply(Event::VoiceEnd).await?,
+            Command::VoiceCancel => self.apply(Event::VoiceCancel).await?,
+            Command::VoiceRetry { message_id } => {
+                self.retry_voice_transcription(message_id).await?
+            }
             Command::VoiceNoteAudio { .. } => {}
             Command::CallStart { duration_minutes } => {
                 self.apply(Event::CallStart {

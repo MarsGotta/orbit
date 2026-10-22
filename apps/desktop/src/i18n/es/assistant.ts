@@ -61,6 +61,13 @@ function voiceFailureText(failure: VoiceFailure): string {
   return `No se pudo transcribir la nota de voz (${failureNumbers(failure).join(", ")}). Vuelve a grabarla.`;
 }
 
+const secondsFormat = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
+
+/** Milliseconds as seconds, the Spanish way: 90 is «0,09». */
+function seconds(ms: number): string {
+  return secondsFormat.format(ms / 1_000);
+}
+
 const base = {
   chat: {
     empty: "Aún no hay mensajes. Escribe o dicta tu pregunta.",
@@ -80,6 +87,13 @@ const base = {
     voiceFailure: voiceFailureText,
     audioUnavailable: "Audio no disponible",
     voiceProgress: "Progreso de la nota de voz",
+    recordingVoiceNote: (elapsed: string) => `Grabando nota de voz · ${elapsed} · Esc cancela`,
+    voiceNoteRecording: (elapsed: string) =>
+      `Grabando nota de voz, ${elapsed}. Pulsa para enviarla`,
+    sendVoiceNote: "Enviar nota de voz",
+    voiceNoteTooShort: (durationMs: number, minimumMs: number) =>
+      `La nota de voz duró ${seconds(durationMs)} s y el mínimo es ${seconds(minimumMs)} s: no se ha enviado.`,
+    retryTranscription: "Reintentar transcripción",
     // Said while macOS grants Screen Recording and privacy is armed.
     watchingScreen: "Puede ver tu pantalla",
 

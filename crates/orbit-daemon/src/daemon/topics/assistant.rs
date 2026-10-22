@@ -38,6 +38,7 @@ impl ProjectTopic for Projector {
                 value: state.durable.call.clone(),
                 as_of_ms: None,
             },
+            short_voice_note: state.views.short_voice_note.clone(),
         };
         let data = TopicData::Assistant(Knowledge::Present {
             value,

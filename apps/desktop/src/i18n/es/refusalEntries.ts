@@ -11,7 +11,7 @@ import { openSettings, rearm, systemPrivacy, type NoticeAction } from "./notices
  * The words say what to do; the refusal's numbers stay in the log.
  */
 export type RefusalEntry =
-  | { class: "failed"; text?: (refusal: Refusal) => string }
+  | { class: "failed"; text?: (refusal: Refusal) => string | undefined }
   | {
       class: "fixable" | "working";
       text: (refusal: Refusal) => string;
@@ -147,7 +147,14 @@ export const refusalEntries: Record<RefusalCode, RefusalEntry> = {
   invalid_parameter: failed,
   legacy: failed,
   mac_disconnected: failed,
-  not_found: failed,
+  // «Reintentar transcripción» on a note whose audio this Mac no longer has.
+  not_found: {
+    class: "failed",
+    text: (refusal) =>
+      refusal.resource === "audio"
+        ? "El audio de esa nota de voz ya no está en este Mac: no se puede volver a transcribir. Grábala otra vez."
+        : undefined,
+  },
   not_paired: {
     class: "fixable",
     text: () => "Este Mac no está emparejado con el hub. Emparéjalo en Ajustes.",

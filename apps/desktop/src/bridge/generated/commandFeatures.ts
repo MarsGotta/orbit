@@ -53,7 +53,9 @@ export const commandFeature = {
   "transcript_retry": "note",
   "update_check": "local",
   "update_install": "local",
+  "voice_cancel": "assistant",
   "voice_end": "assistant",
   "voice_note_audio": "assistant",
+  "voice_retry": "assistant",
   "voice_start": "assistant"
 } as const satisfies Record<AppCommand["command"], FeatureId>;

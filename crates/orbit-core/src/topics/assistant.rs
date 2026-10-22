@@ -45,6 +45,9 @@ pub struct Value {
     pub voice: VoiceAvailability,
     #[serde(default = "unknown_call")]
     pub call: Knowledge<Option<crate::voice::CallState>>,
+    /// The last voice note not sent for being too short, with its numbers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub short_voice_note: Option<crate::voice::ShortVoiceNote>,
 }
 
 fn unknown_call() -> Knowledge<Option<crate::voice::CallState>> {

@@ -110,6 +110,7 @@ impl Default for AppSnapshot {
                     state: VoiceState::Unknown,
                     level: 0,
                     availability: None,
+                    too_short: None,
                 },
                 activity: None,
             },

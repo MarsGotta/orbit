@@ -38,6 +38,7 @@ fn the_turn_and_approval_are_projected_without_assuming_unknown_roles() {
         call: Knowledge::Unknown {
             why: Pending::NotObservedYet,
         },
+        short_voice_note: None,
     };
     let mut topics = TopicCache::default();
     topics.observe_at(

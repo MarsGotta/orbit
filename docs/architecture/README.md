@@ -126,11 +126,18 @@ tools and note generation, use `server/orbit_hub/meetings/turns.py`.
 
 ### Voice note and call
 
-Holding `⌃⌥Space` captures a voice note. On release the daemon stores its encrypted
+Holding `⌃⌥Space` captures a voice note. In the chat, the composer's microphone
+button starts one with a click and sends it with the next; holding it talks
+while held, and Esc cancels the note without sending it. When the note ends the
+daemon stores its encrypted
 WAV locally with `upload_allowed:false`, sends it for interactive dictation to
 `POST /v1/audio/transcribe`, then sends `chat.send` with `client_id` and duration.
+A note shorter than `MINIMUM_SPEECH_MS` (160 ms, the speech a call turn needs)
+is neither stored nor sent; the composer says its length and that minimum.
 The hub asks Hermes; text events return to the Mac. `POST /v1/audio/speech` gets
-the spoken response for native playback. During a meeting, dictation becomes
+the spoken response for native playback. When the transcription fails, «Reintentar
+transcripción» sends the stored WAV again; if this Mac no longer holds it, the
+refusal says the audio is missing. During a meeting, dictation becomes
 a question about that meeting; it does not play the response aloud.
 
 `⌃⌥D` authorizes a 1–60 minute call. The helper starts VoiceProcessing; the daemon

@@ -25,6 +25,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
             state: VoiceState::Unknown,
             level: 0,
             availability: Some(FeatureAvailability::missing(input.topics)),
+            too_short: None,
         },
         activity: None,
     };
@@ -129,6 +130,13 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         ),
     };
     view.voice.state = voice_state;
+    view.voice.too_short = value
+        .short_voice_note
+        .as_ref()
+        .map(|short| crate::ShortVoiceNote {
+            duration_ms: short.duration_ms,
+            minimum_ms: short.minimum_ms,
+        });
     view.voice.availability = Some(voice_availability);
     view.activity = value.activity.as_ref().map(|activity| match activity {
         Activity::Transcribing => AssistantActivity::Transcribing,

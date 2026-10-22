@@ -199,12 +199,24 @@ impl Runtime {
     /// A voice note of any conversation, by its message's id, which
     /// is its recording's; the conversation itself is read from the hub.
     pub(super) fn voice_note_audio(&self, message_id: &str) -> Result<VoiceNoteAudio> {
-        let chunks = self
-            .reader
-            .list_chunks(message_id, None, 2)
-            .map_err(|_| anyhow::anyhow!("voice_note_missing"))?;
-        let Some(chunk) = voice_note_chunk(chunks) else {
+        let Some((_, wav)) = self.stored_voice_note(message_id)? else {
             bail!("voice_note_missing");
+        };
+        Ok(VoiceNoteAudio {
+            message_id: message_id.to_owned(),
+            format: "wav".into(),
+            bytes_base64: STANDARD.encode(wav),
+        })
+    }
+
+    /// The chunk id and WAV of the voice note `message_id`, while this Mac
+    /// still holds them; what playback and «Reintentar transcripción» read.
+    fn stored_voice_note(&self, message_id: &str) -> Result<Option<(String, Vec<u8>)>> {
+        let Ok(chunks) = self.reader.list_chunks(message_id, None, 2) else {
+            return Ok(None);
+        };
+        let Some(chunk) = voice_note_chunk(chunks) else {
+            return Ok(None);
         };
         if chunk.bytes > MAX_VOICE_NOTE_BYTES as u64 {
             bail!("voice_note_too_large");
@@ -213,11 +225,52 @@ impl Runtime {
         if wav.len() > MAX_VOICE_NOTE_BYTES {
             bail!("voice_note_too_large");
         }
-        Ok(VoiceNoteAudio {
-            message_id: message_id.to_owned(),
-            format: "wav".into(),
-            bytes_base64: STANDARD.encode(wav),
-        })
+        Ok(Some((chunk.metadata.id, wav)))
+    }
+
+    /// «Reintentar transcripción»: the open turn's voice note whose
+    /// transcription failed goes again to the hub, from the WAV this Mac
+    /// kept. Without that WAV there is nothing to send, and the refusal
+    /// says it is the audio that is missing.
+    pub(super) async fn retry_voice_transcription(&mut self, message_id: String) -> Result<()> {
+        if self.conversation.voice_task.active().is_some() || self.capture.buffer.voice.is_some() {
+            return Err(orbit_core::refusal::Refusal::Busy {
+                operation: orbit_core::refusal::Operation::Interaction,
+                retry_after_ms: None,
+            }
+            .into());
+        }
+        let retry = Event::VoiceRetry {
+            id: message_id.clone(),
+        };
+        // The pure decision first, so a note that cannot be retried is
+        // refused for that before its audio is looked for.
+        decide(&self.state, retry.clone(), now())?;
+        let Some(token) = self.token.clone() else {
+            return Err(orbit_core::refusal::Refusal::NotPaired.into());
+        };
+        let Some((chunk_id, wav)) = self.stored_voice_note(&message_id)? else {
+            return Err(orbit_core::refusal::Refusal::NotFound {
+                resource: orbit_core::refusal::Resource::Audio,
+            }
+            .into());
+        };
+        let duration_ms = self
+            .state
+            .durable
+            .turn
+            .as_ref()
+            .and_then(|turn| turn.user.voice.as_ref())
+            .map_or(0, |voice| voice.duration_ms);
+        self.apply(retry).await?;
+        let source = VoiceSource {
+            recording_id: message_id.clone(),
+            chunk_id,
+            session_id: self.state.session_id().clone(),
+            message_id,
+            duration_ms,
+        };
+        self.spawn_voice_transcription(source, wav, token).await
     }
 
     /// Attribute a safety fact to the actual producer owner, not the UI phase.
@@ -595,6 +648,13 @@ impl Runtime {
             self.request_stream_stop("mic_local", stream).await?;
         }
         self.complete_audio_drain().await
+    }
+
+    /// Esc: the note finishes as any other and is kept on this Mac like a
+    /// cancelled turn, but it is never transcribed or sent.
+    pub(super) async fn cancel_voice_audio(&mut self) -> Result<()> {
+        self.capture.audio.submit_voice = false;
+        self.finish_voice_audio().await
     }
 
     async fn request_stream_stop(&mut self, source: &'static str, stream: String) -> Result<()> {
@@ -1026,6 +1086,22 @@ impl Runtime {
             return Ok(());
         }
         let cancelled = self.state.privacy_stopped() || !self.capture.audio.submit_voice;
+        let duration_ms = (voice.pcm.len() as u64)
+            .saturating_div(u64::from(voice.channels).saturating_mul(2))
+            .saturating_mul(1_000)
+            .saturating_div(u64::from(voice.sample_rate));
+        // A call's turns have their own detector, which already asks for
+        // this much speech.
+        if !cancelled
+            && self.state.durable.call.is_none()
+            && let Some(short) = orbit_core::voice::short_voice_note(duration_ms)
+        {
+            self.capture.buffer.voice = None;
+            let decision = decide(&self.state, Event::VoiceTooShort(short), now())?;
+            self.store_actor.snapshot(&decision.state).await?;
+            self.state = decision.state;
+            return Ok(());
+        }
         let wav = native::wav(&voice.pcm, voice.sample_rate, voice.channels)?;
         let message_id = id();
         let recording_id = message_id.clone();
@@ -1034,10 +1110,7 @@ impl Runtime {
             recording_id,
             session_id: self.state.session_id().clone(),
             message_id,
-            duration_ms: (voice.pcm.len() as u64)
-                .saturating_div(u64::from(voice.channels).saturating_mul(2))
-                .saturating_mul(1_000)
-                .saturating_div(u64::from(voice.sample_rate)),
+            duration_ms,
         };
         let metadata = ChunkMetadata {
             capture_epoch_id: voice.capture_epoch_id.clone(),
@@ -1140,6 +1213,17 @@ impl Runtime {
             self.state = decision.state;
             return Err(orbit_core::refusal::Refusal::NotPaired.into());
         };
+        self.spawn_voice_transcription(source, wav, token).await
+    }
+
+    /// Sends one voice note's WAV to the hub on the single voice worker; its
+    /// result returns as a work event for that note.
+    async fn spawn_voice_transcription(
+        &mut self,
+        source: VoiceSource,
+        wav: Vec<u8>,
+        token: String,
+    ) -> Result<()> {
         let settings = self.settings.clone();
         let development = self.development;
         let generation = self.state.generation();

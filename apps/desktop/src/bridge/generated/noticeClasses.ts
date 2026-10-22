@@ -39,6 +39,7 @@ export const noticeClass = {
   shortcut_refused: "failed",
   voice_note_refused: "failed",
   voice_note_empty: "fixable",
+  voice_note_too_short: "silent",
   voice_note_saved: "silent",
   voice_transcribing: "working",
   voice_turn_cancelled: "silent",

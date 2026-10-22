@@ -26,6 +26,7 @@ pub fn assistant_value() -> Value {
         call: Knowledge::Unknown {
             why: Pending::NotObservedYet,
         },
+        short_voice_note: None,
     }
 }
 

@@ -181,6 +181,10 @@ notice_codes! {
     // Voice notes and the assistant.
     VoiceNoteRefused => Failed,
     VoiceNoteEmpty => Fixable,
+    /// A voice note shorter than the speech minimum was not sent
+    /// (`duration_ms`, `minimum_ms`). The composer says it, from the
+    /// assistant topic, where the note was recorded.
+    VoiceNoteTooShort => Silent,
     VoiceNoteSaved => Silent,
     VoiceTranscribing => Working,
     VoiceTurnCancelled => Silent,
@@ -459,6 +463,8 @@ notice_keys! {
     SilentMs,
     AtMs,
     Turns,
+    DurationMs,
+    MinimumMs,
 }
 
 /// A short machine value: a code a component already speaks (`privacy_stopped`,

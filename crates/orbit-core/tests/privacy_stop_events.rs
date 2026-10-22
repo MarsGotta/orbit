@@ -62,9 +62,12 @@ fn classify(event: &Event) -> (usize, bool) {
         Event::CaptureCut { .. } => (32, false),
         Event::Close { .. } => (33, false),
         Event::EmptyCaptureClosed => (27, false),
+        Event::VoiceCancel => (46, false),
+        Event::VoiceRetry { .. } => (47, false),
+        Event::VoiceTooShort(_) => (48, false),
     }
 }
-const VARIANTS: usize = 46;
+const VARIANTS: usize = 49;
 
 #[test]
 fn voice_transcription_retires_with_authority_but_survives_hub_link_changes() {
@@ -176,6 +179,12 @@ fn samples() -> Vec<Event> {
         Event::CaptureGap,
         Event::VoiceStart,
         Event::VoiceEnd,
+        Event::VoiceCancel,
+        Event::VoiceRetry { id: "v".into() },
+        Event::VoiceTooShort(orbit_core::voice::ShortVoiceNote {
+            duration_ms: 90,
+            minimum_ms: 160,
+        }),
         Event::CallStart {
             id: "c".into(),
             duration_ms: 600_000,

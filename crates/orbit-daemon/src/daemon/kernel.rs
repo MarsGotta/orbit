@@ -432,6 +432,7 @@ impl Runtime {
             }
             Effect::StartVoice => self.start_voice_audio().await?,
             Effect::FinishVoice => self.finish_voice_audio().await?,
+            Effect::CancelVoice => self.cancel_voice_audio().await?,
             Effect::StopPlayback => {
                 self.conversation.speech_task.cancel();
                 self.conversation.speak_next = false;

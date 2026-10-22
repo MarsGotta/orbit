@@ -267,6 +267,10 @@ async fn start(runtime: &mut Runtime, receiver: &mut mpsc::Receiver<Value>) -> R
         .to_owned())
 }
 
+/// 200 ms at the 8 kHz of `frame`: a voice note long enough to send, above
+/// `orbit_core::voice::MINIMUM_SPEECH_MS`.
+const VOICE_NOTE_FRAMES: usize = 1_600;
+
 fn frame(stream: &str, sequence: u64, frames: usize) -> Value {
     json!({"event":"audio", "source":"mic_local", "stream_id":stream,
         "sample_rate":8000, "channels":1, "frames":frames, "sequence":sequence,
@@ -482,7 +486,7 @@ async fn voice_source_is_durable_before_credentials_or_provider_are_needed() -> 
     runtime
         .capture
         .buffer
-        .ingest(&frame("voice", 5, 100), 1234)?;
+        .ingest(&frame("voice", 5, VOICE_NOTE_FRAMES), 1234)?;
     let Err(refusal) = runtime.dispatch_voice_transcription().await else {
         anyhow::bail!("voice dispatch unexpectedly succeeded without pairing")
     };
@@ -517,14 +521,17 @@ async fn voice_source_is_durable_before_credentials_or_provider_are_needed() -> 
         .context("recording absent")?;
     let chunks = runtime.fixture_store.list_chunks(recording, None, 10)?;
     assert_eq!(chunks.len(), 1);
-    assert_eq!(chunks[0].metadata.frames, 100);
+    assert_eq!(chunks[0].metadata.frames, VOICE_NOTE_FRAMES as u64);
     assert_eq!(chunks[0].metadata.started_at_ms, 1234);
     assert_eq!(chunks[0].metadata.monotonic_ns, 50_000);
     let chunk = chunks[0].metadata.id.clone();
     let store_path = runtime.paths.store.clone();
     drop(runtime);
     let reopened = crate::daemon::test_store::open(store_path, [0x42; 32])?;
-    assert_eq!(reopened.read_chunk(&chunk)?.len(), 244);
+    assert_eq!(
+        reopened.read_chunk(&chunk)?.len(),
+        44 + 2 * VOICE_NOTE_FRAMES
+    );
     Ok(())
 }
 
@@ -540,7 +547,7 @@ async fn a_voice_note_is_not_uploaded_as_a_recording() -> Result<()> {
     runtime
         .capture
         .buffer
-        .ingest(&frame("voice", 5, 100), 1234)?;
+        .ingest(&frame("voice", 5, VOICE_NOTE_FRAMES), 1234)?;
     let _unpaired = runtime.dispatch_voice_transcription().await;
     let jobs = runtime.fixture_store.list_jobs(10)?;
     let manifest = jobs
@@ -558,7 +565,10 @@ async fn a_voice_note_is_not_uploaded_as_a_recording() -> Result<()> {
         .context("upload job absent")?;
     assert_eq!(upload.state, JobState::Cancelled);
     // Kept on the Mac for playback.
-    assert_eq!(runtime.fixture_store.read_chunk(chunk)?.len(), 244);
+    assert_eq!(
+        runtime.fixture_store.read_chunk(chunk)?.len(),
+        44 + 2 * VOICE_NOTE_FRAMES
+    );
     Ok(())
 }
 
@@ -572,7 +582,7 @@ async fn occupied_voice_worker_returns_typed_capacity_with_numbers() -> Result<(
     runtime
         .capture
         .buffer
-        .ingest(&frame("voice", 5, 100), 1234)?;
+        .ingest(&frame("voice", 5, VOICE_NOTE_FRAMES), 1234)?;
     pending_work(
         &mut runtime.conversation.voice_task,
         runtime.state.generation(),

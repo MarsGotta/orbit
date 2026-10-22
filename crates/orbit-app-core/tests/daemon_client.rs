@@ -352,11 +352,13 @@ impl TestDaemon {
                 "stream_id": stream_id,
                 "sample_rate": 8_000,
                 "channels": 1,
-                "frames": 4,
+                // 225 ms at 8 kHz: above the daemon's speech minimum
+                // (`orbit_core::voice::MINIMUM_SPEECH_MS`), so it is sent.
+                "frames": 1_800,
                 "sequence": 0,
                 "monotonic_ns": 0,
                 "clock_domain": "mach_absolute_time",
-                "pcm_s16le_base64": "AQEBAQEBAQE=",
+                "pcm_s16le_base64": "AQEB".repeat(1_200),
                 "levels": {"rms_dbfs": -12.0, "peak_dbfs": -9.0,
                     "clipped_frames": 0},
                 "processing": "unprocessed"

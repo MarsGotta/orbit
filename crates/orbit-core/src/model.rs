@@ -698,6 +698,10 @@ pub struct Views {
     pub audio_sources_unavailable: Option<crate::refusal::Refusal>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recording_signal: Option<crate::audio_signal::RecordingSignalView>,
+    /// The last voice note the daemon did not send for being too short,
+    /// until the next note or message. Presentation only: a restart forgets it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub short_voice_note: Option<crate::voice::ShortVoiceNote>,
 }
 
 /// Durable authority is read-only outside orbit-core; see [`DurableState`].

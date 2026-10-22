@@ -181,6 +181,15 @@ pub enum Command {
     Rearm,
     VoiceStart,
     VoiceEnd,
+    /// Esc in the composer: the voice note in progress ends without being
+    /// sent.
+    VoiceCancel,
+    /// «Reintentar transcripción»: the open turn's voice note whose
+    /// transcription failed is transcribed again from the audio this Mac
+    /// keeps.
+    VoiceRetry {
+        message_id: String,
+    },
     #[cfg_attr(feature = "ts", ts(skip))]
     VoiceNoteAudio {
         message_id: String,
@@ -252,6 +261,8 @@ impl Command {
             | Self::Interrupt
             | Self::VoiceStart
             | Self::VoiceEnd
+            | Self::VoiceCancel
+            | Self::VoiceRetry { .. }
             | Self::VoiceNoteAudio { .. }
             | Self::CallStart { .. }
             | Self::CallStop

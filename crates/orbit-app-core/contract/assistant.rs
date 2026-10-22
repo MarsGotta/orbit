@@ -131,6 +131,20 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub availability: Option<crate::features::FeatureAvailability>,
+        /// The last voice note the daemon did not send for being shorter
+        /// than its speech minimum: the composer says both numbers.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub too_short: Option<ShortVoiceNote>,
+    }
+}
+
+app_type! {
+    pub struct ShortVoiceNote {
+        #[ts(type = "number")]
+        pub duration_ms: u64,
+        #[ts(type = "number")]
+        pub minimum_ms: u64,
     }
 }
 

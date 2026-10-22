@@ -29,6 +29,13 @@ pub enum Event {
         id: String,
         failure: VoiceTranscriptionFailure,
     },
+    /// The user asked again for the transcription of the open turn's voice
+    /// note `id`, which failed («Reintentar transcripción»).
+    VoiceRetry {
+        id: String,
+    },
+    /// A finished voice note was too short to send; the daemon measured it.
+    VoiceTooShort(crate::voice::ShortVoiceNote),
     Session(String),
     /// The transport may report ready after connect() already set Connecting.
     /// That still withdraws the previous context request.
@@ -70,6 +77,8 @@ pub enum Event {
     CaptureGap,
     VoiceStart,
     VoiceEnd,
+    /// Esc in the composer: the note in progress ends and is not sent.
+    VoiceCancel,
     CallStart {
         id: String,
         duration_ms: i64,
@@ -148,6 +157,8 @@ pub enum Effect {
     CutCapture,
     StartVoice,
     FinishVoice,
+    /// Finish the voice note in progress without sending it.
+    CancelVoice,
     StopPlayback,
     CancelNetwork,
     StartCall,
@@ -259,6 +270,15 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
         Event::VoiceStored { id, duration_ms } => {
             decide_voice_stored(state, &mut next, id, duration_ms, now_ms)?
         }
+        Event::VoiceRetry { id } => decide_voice_retry(state, &mut next, &id)?,
+        Event::VoiceTooShort(short) => {
+            next.set_notice(
+                Notice::new(NoticeCode::VoiceNoteTooShort)
+                    .with(NoticeKey::DurationMs, short.duration_ms)
+                    .with(NoticeKey::MinimumMs, short.minimum_ms),
+            );
+            next.views.short_voice_note = Some(short);
+        }
         Event::VoiceFailed { id, failure } => {
             if let Some(voice) = next
                 .durable
@@ -301,6 +321,12 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
         | Event::CaptureGap) => decide_capture(state, &mut next, &mut effects, event, now_ms)?,
         Event::VoiceStart => decide_voice_start(state, &mut next, &mut effects)?,
         Event::VoiceEnd => decide_voice_end(state, &mut next, &mut effects),
+        Event::VoiceCancel => {
+            if state.durable.voice_active {
+                next.durable.voice_active = false;
+                effects.push(Effect::CancelVoice);
+            }
+        }
         event @ (Event::CallStart { .. }
         | Event::CallStop
         | Event::CallReady
@@ -447,6 +473,7 @@ fn decide_chat_submit(
             },
         });
     }
+    next.views.short_voice_note = None;
     next.durable.turn = Some(Turn {
         user: Message {
             id: id.clone(),
@@ -509,6 +536,44 @@ fn decide_voice_stored(
         answer: None,
     });
     next.set_notice(NoticeCode::VoiceNoteSaved);
+    Ok(())
+}
+
+/// A voice note's transcription asked for again: the open turn's note `id`
+/// that failed, while nothing else uses the microphone or the turn. Its
+/// failure is cleared so the note reads as being transcribed; the daemon has
+/// already checked that this Mac still holds its audio.
+fn decide_voice_retry(state: &State, next: &mut State, id: &str) -> Result<(), Refusal> {
+    ensure_active(state)?;
+    if state.durable.connection != Connection::Online {
+        return Err(Refusal::HubUnreachable { since_ms: None });
+    }
+    if state.durable.call.is_some() {
+        return Err(Refusal::Busy {
+            operation: crate::refusal::Operation::AudioSession,
+            retry_after_ms: None,
+        });
+    }
+    if state.durable.voice_active
+        || state.durable.active_request.is_some()
+        || state.durable.pending_approval.is_some()
+    {
+        return Err(Refusal::Busy {
+            operation: crate::refusal::Operation::Interaction,
+            retry_after_ms: None,
+        });
+    }
+    let voice = next
+        .durable
+        .turn
+        .as_mut()
+        .and_then(|turn| turn.untranscribed_voice_mut(id))
+        .filter(|voice| voice.failure.is_some())
+        .ok_or(Refusal::NotFound {
+            resource: crate::refusal::Resource::Message,
+        })?;
+    voice.failure = None;
+    next.set_notice(NoticeCode::VoiceTranscribing);
     Ok(())
 }
 
@@ -1016,6 +1081,7 @@ fn decide_voice_start(
         });
     }
     next.durable.voice_active = true;
+    next.views.short_voice_note = None;
     effects.extend([Effect::StopPlayback, Effect::StartVoice]);
     Ok(())
 }

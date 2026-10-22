@@ -190,6 +190,11 @@ pub fn cases() -> Vec<(Value, FeatureId)> {
         ),
         (json!({"command":"voice_start"}), FeatureId::Assistant),
         (json!({"command":"voice_end"}), FeatureId::Assistant),
+        (json!({"command":"voice_cancel"}), FeatureId::Assistant),
+        (
+            json!({"command":"voice_retry","message_id":"message-1"}),
+            FeatureId::Assistant,
+        ),
         (
             json!({"command":"voice_note_audio","message_id":"message-1"}),
             FeatureId::Assistant,

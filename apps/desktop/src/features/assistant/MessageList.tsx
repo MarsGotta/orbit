@@ -3,6 +3,7 @@ import type { AppCommand } from "../../bridge/generated/AppCommand";
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import type { VoiceNote as VoiceNoteSnapshot } from "../../bridge/generated/VoiceNote";
 import type { VoiceNoteAudioSnapshot } from "../../bridge/generated/VoiceNoteAudioSnapshot";
+import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { mmss } from "../../time-format";
 import { es } from "../../i18n/es";
@@ -25,6 +26,29 @@ function voiceTranscript(voice: VoiceNoteSnapshot): string {
   return (
     voice.transcript ??
     (voice.failure ? es.assistant.voiceFailure(voice.failure) : es.assistant.transcribing)
+  );
+}
+
+/**
+ * The note's transcript, or why there is none. A failed transcription can be
+ * asked for again from the audio this Mac keeps; without that audio there is
+ * nothing to send again.
+ */
+function VoiceTranscript({ messageId, send, voice }: Omit<VoiceNoteProps, "audio">) {
+  const retry = voice.failure != null && voice.transcript == null && voice.audio_available;
+  return (
+    <>
+      <p className={styles.voiceTranscript}>{voiceTranscript(voice)}</p>
+      {retry === true && (
+        <Button
+          onClick={() => send({ command: "voice_retry", message_id: messageId })}
+          size={26}
+          variant="ghost"
+        >
+          {es.assistant.retryTranscription}
+        </Button>
+      )}
+    </>
   );
 }
 
@@ -87,7 +111,7 @@ function VoiceNote({ audio, messageId, send, voice }: VoiceNoteProps) {
         ref={audioRef}
         src={source ?? undefined}
       />
-      <p className={styles.voiceTranscript}>{voiceTranscript(voice)}</p>
+      <VoiceTranscript messageId={messageId} send={send} voice={voice} />
     </div>
   );
 }

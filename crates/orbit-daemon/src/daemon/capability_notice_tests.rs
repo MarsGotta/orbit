@@ -8,16 +8,16 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use orbit_core::{CallPhase, CallState, Event};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-const TOKEN: &str = "synthetic-not-a-credential-voice";
+pub(super) const TOKEN: &str = "synthetic-not-a-credential-voice";
 const SPEECH_NOTICE: &str = "Deimos no tiene voz configurada en Hermes; contesta por texto";
 
-fn frame(stream: &str, frames: usize) -> Value {
+pub(super) fn frame(stream: &str, frames: usize) -> Value {
     json!({"event":"audio", "source":"mic_local", "stream_id":stream,
         "sample_rate":8000, "channels":1, "frames":frames, "sequence":0,
         "monotonic_ns":0, "pcm_s16le_base64":STANDARD.encode(vec![1; frames * 2])})
 }
 
-fn json_response(status: &str, body: &str) -> Vec<u8> {
+pub(super) fn json_response(status: &str, body: &str) -> Vec<u8> {
     format!(
         "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
         body.len()
@@ -25,7 +25,7 @@ fn json_response(status: &str, body: &str) -> Vec<u8> {
     .into_bytes()
 }
 
-async fn one_shot_http(response: Vec<u8>) -> Result<reqwest::Url> {
+pub(super) async fn one_shot_http(response: Vec<u8>) -> Result<reqwest::Url> {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let base = reqwest::Url::parse(&format!("http://{}", listener.local_addr()?))?;
     tokio::spawn(async move {

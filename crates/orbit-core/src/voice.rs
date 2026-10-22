@@ -21,6 +21,31 @@ pub struct CallState {
     pub turns: u64,
 }
 
+/// The shortest stretch of speech that can hold a word, a «sí» or a «no».
+/// A call turn needs this much speech to be submitted, and a voice note
+/// shorter than this is not sent: the transcriber would get the click of a
+/// press, from which it can invent text that would reach the assistant as
+/// if the user had said it. It limits neither how long a note can be nor the
+/// silence inside one.
+pub const MINIMUM_SPEECH_MS: u64 = 160;
+
+/// A voice note the daemon did not send because it lasted less than
+/// [`MINIMUM_SPEECH_MS`]: its length and that minimum, which the composer
+/// says, both.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShortVoiceNote {
+    pub duration_ms: u64,
+    pub minimum_ms: u64,
+}
+
+/// `Some` when a note of `duration_ms` is too short to send.
+pub fn short_voice_note(duration_ms: u64) -> Option<ShortVoiceNote> {
+    (duration_ms < MINIMUM_SPEECH_MS).then_some(ShortVoiceNote {
+        duration_ms,
+        minimum_ms: MINIMUM_SPEECH_MS,
+    })
+}
+
 /// Fixed conservative defaults for the initial measurable detector. These are
 /// not a learned speech classifier, and must be evaluated on real microphones.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,7 +73,7 @@ impl Default for VoicePolicy {
             onset_ms: 120,
             barge_in_ms: 200,
             release_ms: 700,
-            minimum_speech_ms: 160,
+            minimum_speech_ms: MINIMUM_SPEECH_MS,
             maximum_turn_ms: 20_000,
             idle_timeout_ms: 60_000,
             rms_threshold: 500,

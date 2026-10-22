@@ -4,4 +4,4 @@
  * The names the data of a notice can have: a closed set, so a key
  * cannot smuggle text either.
  */
-export type NoticeKey = "cause" | "count" | "minutes" | "fragments" | "recording" | "call" | "voice_note" | "closing" | "origin" | "attributed" | "code" | "step" | "recovered" | "invalid" | "missing" | "incomplete" | "interrupted" | "stage" | "attempt" | "max" | "remaining" | "stored" | "total" | "pages" | "bytes" | "status" | "retry_at_ms" | "failed" | "omitted" | "omitted_count" | "returned" | "max_bytes" | "audio_unsaved" | "reserve_exhausted" | "elapsed_ms" | "silent_ms" | "at_ms" | "turns";
+export type NoticeKey = "cause" | "count" | "minutes" | "fragments" | "recording" | "call" | "voice_note" | "closing" | "origin" | "attributed" | "code" | "step" | "recovered" | "invalid" | "missing" | "incomplete" | "interrupted" | "stage" | "attempt" | "max" | "remaining" | "stored" | "total" | "pages" | "bytes" | "status" | "retry_at_ms" | "failed" | "omitted" | "omitted_count" | "returned" | "max_bytes" | "audio_unsaved" | "reserve_exhausted" | "elapsed_ms" | "silent_ms" | "at_ms" | "turns" | "duration_ms" | "minimum_ms";

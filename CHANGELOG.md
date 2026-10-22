@@ -29,6 +29,13 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ### Fixed
 
+- Voice notes in the chat: a click on the microphone starts a note and the next
+  click, or «Enviar nota de voz», sends it; holding the button still talks while
+  held, and releasing it outside the button now counts. Esc cancels the note
+  without sending it. While it records, the composer says «Grabando nota de voz»
+  with its time. A note shorter than 160 ms is not sent, and the composer says
+  its length and that minimum. A note whose transcription failed shows
+  «Reintentar transcripción», which sends the audio this Mac kept again.
 - When a meeting note is queued for a retry, the refusal the assistant gets
   now says how long until that retry, instead of a fixed 45 seconds.
 - Three hub refusals now carry their numbers (fields added, codes unchanged):

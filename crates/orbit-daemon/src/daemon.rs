@@ -581,6 +581,8 @@ mod helper_liveness_tests;
 mod pairing_session_tests;
 #[cfg(test)]
 mod state_observation_tests;
+#[cfg(test)]
+mod voice_note_tests;
 
 #[cfg(test)]
 mod hub_backpressure_tests;

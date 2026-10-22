@@ -120,7 +120,7 @@ function presentRefusal(op: string, refusal: Refusal): Presented {
   if (!entry) return failure(op, report);
   if (entry.class === "failed") {
     const result = failure(op, report);
-    return entry.text ? { ...result, text: entry.text(refusal) } : result;
+    return { ...result, text: entry.text?.(refusal) ?? result.text };
   }
   return {
     op,

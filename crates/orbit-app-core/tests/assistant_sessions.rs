@@ -24,6 +24,7 @@ fn assistant_value(active: &str) -> orbit_core::topics::assistant::Value {
         call: Knowledge::Unknown {
             why: Pending::NotObservedYet,
         },
+        short_voice_note: None,
     }
 }
 
