@@ -144,6 +144,13 @@ export function useCalendarEditing(
   useEffect(() => {
     if (save !== undefined && outcome !== undefined) editor.settle(save.requestId, outcome);
   }, [save?.requestId, outcome]);
+  // A new event the calendar refused comes back to the panel.
+  const created = editor.created;
+  const createdOutcome = created === null ? undefined : writes.outcomeOf(created.requestId);
+  useEffect(() => {
+    if (created !== null && createdOutcome !== undefined)
+      editor.settleCreated(created.requestId, createdOutcome);
+  }, [created?.requestId, createdOutcome]);
   return {
     display: (events: CalendarEvent[]) => {
       const shown = writes.shown(events);

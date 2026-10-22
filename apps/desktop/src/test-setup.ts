@@ -20,6 +20,17 @@ configure({ asyncUtilTimeout: QUERY_BUDGET_MS });
 // `ReferenceError: window is not defined` with all 51 files reported passing.
 afterEach(cleanup);
 
+// Unsent drafts are kept in the webview's local storage (`state/local-drafts.ts`):
+// one a test left must not appear in the next test's composer or panel.
+afterEach(() => {
+  try {
+    for (const key of Object.keys(window.localStorage))
+      if (key.startsWith("orbit.draft.")) window.localStorage.removeItem(key);
+  } catch {
+    // A test replaced the storage with one that refuses; it restores its own.
+  }
+});
+
 // The unit suite reads a clock that does not move.
 //
 // Only the *reading* of the present instant is pinned: `setTimeout` and

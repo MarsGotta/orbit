@@ -1,6 +1,7 @@
 import { noticeClass } from "../../../bridge/generated/noticeClasses";
 import { assistantFailed } from "./assistantFailed";
 import { capture } from "./capture";
+import { captureFailed } from "./captureFailed";
 import { conversationCopy } from "./conversation";
 import { delivery, uploadRefused } from "./delivery";
 import { system } from "./system";
@@ -22,7 +23,13 @@ export function noticesForAssistant(assistantName = "Deimos"): Entries {
     ...system,
     ...delivery,
   };
-  return { ...classes, ...worded, ...assistantFailed(assistantName), ...uploadRefused } as Entries;
+  return {
+    ...classes,
+    ...worded,
+    ...captureFailed,
+    ...assistantFailed(assistantName),
+    ...uploadRefused,
+  } as Entries;
 }
 
 export const notices = noticesForAssistant();

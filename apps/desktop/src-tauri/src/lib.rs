@@ -1,6 +1,7 @@
 mod commands;
 pub mod daemon_thread;
 mod events;
+mod interface_flush;
 mod notify;
 mod panel;
 mod tray;
@@ -39,8 +40,10 @@ pub fn run() -> anyhow::Result<()> {
             commands::orbit_report,
             commands::orbit_attachment_add,
             commands::orbit_attachment_content,
-            commands::orbit_attachment_open
+            commands::orbit_attachment_open,
+            interface_flush::orbit_interface_flushed
         ])
+        .manage(interface_flush::InterfaceFlush::default())
         .setup(setup)
         .on_window_event(hide_on_close)
         .build(tauri::generate_context!())

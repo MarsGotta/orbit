@@ -208,6 +208,8 @@ export function assistantCopy(assistantName: string) {
       // The composer.
       composerLabel: `Mensaje para ${assistantName}`,
       composerPlaceholder: `Escribe a ${assistantName}…`,
+      // What was written before Orbit closed or fell, back in the box.
+      draftRecovered: "Recuperado el borrador que no llegaste a enviar.",
       blocked: blockedCopy(assistantName),
       recordingNote: "Grabando nota de voz",
       escCancels: "· esc cancela",

@@ -55,6 +55,11 @@ export function EventDetails(props: EventDetailsProps) {
     <aside aria-label={es.calendar.eventDetails} className={styles.panel} data-event-panel="true">
       <PanelHead calendar={calendar} onClose={props.onClose} />
       <div className={styles.body}>
+        {editing.recovered === true && (
+          <p className={styles.line} role="status">
+            {es.controls.draftRecovered}
+          </p>
+        )}
         {event !== null && locked !== null ? (
           <LockedHeading event={event} locked={locked} timezone={props.timezone} />
         ) : (

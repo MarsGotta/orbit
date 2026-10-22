@@ -460,10 +460,21 @@ fn failed_install_snapshot(
     snapshot
 }
 
-fn quit(app: AppHandle, daemon: EmbeddedDaemon) {
+/// Every quit Orbit orders itself: the window hands over what it still
+/// holds (`interface_flush.rs`), then the daemon closes in order, then the
+/// process ends.
+pub(crate) fn quit(app: AppHandle, daemon: EmbeddedDaemon) {
     tauri::async_runtime::spawn(async move {
-        daemon.shutdown().await;
-        app.exit(0);
+        let exit = app.clone();
+        crate::interface_flush::flush_then(
+            &app,
+            crate::interface_flush::INTERFACE_FLUSH_BOUND,
+            async move {
+                daemon.shutdown().await;
+                exit.exit(0);
+            },
+        )
+        .await;
     });
 }
 

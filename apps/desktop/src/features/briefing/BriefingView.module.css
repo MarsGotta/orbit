@@ -198,6 +198,12 @@
   font-size: 13px;
 }
 
+.reminderNotKept {
+  margin: var(--o-space-6) 0 0;
+  color: var(--o-warn);
+  font-size: 12px;
+}
+
 .during dl {
   display: flex;
   flex-direction: column;

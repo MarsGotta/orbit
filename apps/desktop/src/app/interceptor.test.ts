@@ -33,9 +33,9 @@ describe("the interceptor shows each class as the table says", () => {
   });
 
   it("a failure the person cannot fix is the generic message with the op's code", () => {
-    const { messages, report } = receive([], { kind: "notice", notice: notice("capture_cut") });
+    const { messages, report } = receive([], { kind: "notice", notice: notice("helper_error") });
     expect(only(messages)?.text).toBe(
-      "No se pudo seguir grabando. Vuelve a intentarlo. Si se repite, comparte el código 7F3A2C con quien gestiona tu hub.",
+      "No se pudo terminar una tarea en el Mac. Vuelve a intentarlo. Si se repite, comparte el código 7F3A2C con quien gestiona tu hub.",
     );
     expect(only(messages)?.class).toBe("failed");
     expect(report).toBeNull();

@@ -70,7 +70,10 @@ export function NextMeetingCard({ meeting, send, nowMs, timezone }: Props) {
         ) : (
           <span />
         )}
-        <PersonalReminder seriesKey={meeting.series_key} />
+        <PersonalReminder
+          calendarItemId={meeting.event?.calendar_item_id ?? null}
+          seriesKey={meeting.series_key}
+        />
       </div>
     </section>
   );

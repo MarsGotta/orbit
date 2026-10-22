@@ -123,6 +123,11 @@ export function AssistantComposer(props: ComposerProps) {
           </p>
         )}
         <TooShort chat={props.chat} />
+        {controls.recovered && (
+          <p className={styles.blocked} role="status">
+            {es.assistant.draftRecovered}
+          </p>
+        )}
         <div className={styles.composer} data-recording={recording || undefined}>
           <div className={styles.writing} hidden={recording}>
             <AttachmentChips

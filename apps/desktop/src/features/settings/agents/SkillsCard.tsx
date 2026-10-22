@@ -33,6 +33,12 @@ function useSkillWindow(feedback: Feedback | null, read: Config["skill"], skills
   return { open, setOpen, refusal, openSkill };
 }
 
+/** Where a skill's unsaved text is kept on this Mac; none for one that only opens to read. */
+function skillDraftKey(agentId: string, open: OpenSkill): string | null {
+  if (open.mode === "new") return `agent.${agentId}.skill.new`;
+  return open.readOnly ? null : `agent.${agentId}.skill.${open.name}`;
+}
+
 /**
  * «Habilidades · N de 128»: each one switched, opened or deleted, and new
  * ones written from scratch or imported, in the editor's window.
@@ -50,9 +56,11 @@ export function SkillsCard({
   say: Config["say"];
 }) {
   const { open, setOpen, refusal, openSkill } = useSkillWindow(props.feedback, read, skills);
-  async function save(name: string, content: string) {
+  async function save(name: string, content: string): Promise<boolean> {
     const call = { call: "skill_save", agent_id: props.agentId, name, content } as const;
-    if (await props.order(call, "skills")) setOpen(null);
+    const taken = await props.order(call, "skills");
+    if (taken) setOpen(null);
+    return taken;
   }
   return (
     <Group count={copy.skillCount(skills.items.length, skills.max_skills)} label={copy.skills}>
@@ -85,7 +93,8 @@ export function SkillsCard({
           key={open.mode === "existing" ? `skill:${open.name}` : `new:${open.content}`}
           maxBytes={skills.max_skill_bytes}
           onClose={() => setOpen(null)}
-          onSave={(name, content) => void save(name, content)}
+          draftKey={skillDraftKey(props.agentId, open)}
+          onSave={save}
           refusal={refusal}
           skill={open}
         />

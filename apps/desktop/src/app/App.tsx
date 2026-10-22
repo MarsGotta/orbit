@@ -24,6 +24,7 @@ import { usePaletteCommands, type PaletteContent } from "./use-palette-commands"
 import { FailureActionsProvider } from "./FailureActions";
 import { useScopedSend } from "./use-scoped-send";
 import { OrbitStoreProvider } from "../state/use-in-flight";
+import { flushBeforeQuit } from "../state/quit-flush";
 
 export interface AppContentProps {
   palette: PaletteContent;
@@ -107,6 +108,25 @@ function AppContent(props: AppContentProps) {
   );
 }
 
+/** The main window answers Orbit.app's ask before it quits, for as long as it is open. */
+function useQuitFlush(port: DaemonPort) {
+  useEffect(() => {
+    let active = true;
+    let stop: () => void = () => undefined;
+    void port.onFlushBeforeQuit?.(flushBeforeQuit).then(
+      (unsubscribe) => {
+        if (active) stop = unsubscribe;
+        else unsubscribe();
+      },
+      () => undefined,
+    );
+    return () => {
+      active = false;
+      stop();
+    };
+  }, [port]);
+}
+
 export function App({ port }: { port: DaemonPort }) {
   const { store, snapshot, error, send, messages, dismiss, retry, crash } = useAppStore(port);
   // What a read could not read is reported; the screen only says so. Each
@@ -129,6 +149,7 @@ export function App({ port }: { port: DaemonPort }) {
   const quit = () => void send({ command: "quit" });
 
   useEffect(() => initializeUiStore(), []);
+  useQuitFlush(port);
 
   if (!snapshot && error) return <NotResponding onClose={quit} />;
   if (!snapshot)

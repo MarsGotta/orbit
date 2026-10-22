@@ -39,9 +39,9 @@ describe("the generic failure says what could not be done", () => {
   });
 
   it("a failure of the daemon is named by its code", () => {
-    const { messages } = receive([], { kind: "notice", notice: { code: "capture_cut", op: OP } });
+    const { messages } = receive([], { kind: "notice", notice: { code: "helper_error", op: OP } });
     expect(messages[0]?.text).toBe(
-      "No se pudo seguir grabando. Vuelve a intentarlo. Si se repite, comparte el código 7F3A2C con quien gestiona tu hub.",
+      "No se pudo terminar una tarea en el Mac. Vuelve a intentarlo. Si se repite, comparte el código 7F3A2C con quien gestiona tu hub.",
     );
   });
 

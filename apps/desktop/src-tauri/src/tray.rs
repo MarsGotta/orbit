@@ -293,12 +293,8 @@ fn stop_privacy(app: &tauri::AppHandle) {
 }
 
 fn quit(app: &tauri::AppHandle) {
-    let handle = app.clone();
     let daemon = app.state::<EmbeddedDaemon>().inner().clone();
-    tauri::async_runtime::spawn(async move {
-        daemon.shutdown().await;
-        handle.exit(0);
-    });
+    crate::commands::quit(app.clone(), daemon);
 }
 
 #[cfg(test)]

@@ -48,6 +48,10 @@ export const briefing = {
     reminder: "Recordatorio personal",
     reminderPlaceholder: "Algo que no quieras olvidar…",
     reminderHelp: "Solo lo ves tú, en este Mac. No va a la nota.",
+    reminderNotKept: (cause: "quota" | "unavailable") =>
+      cause === "quota"
+        ? "No se guardó: no queda espacio en este Mac para los datos locales de Orbit. Lo que escribiste sigue aquí."
+        : "No se guardó: este Mac no deja a Orbit guardar datos locales ahora. Lo que escribiste sigue aquí.",
     recordingClock: (clock: string) => `Grabando · ${clock}`,
     paused: "En pausa",
     recordingHint:

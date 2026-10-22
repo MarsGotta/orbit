@@ -31,6 +31,8 @@ export interface DaemonPort {
   readSessionMessages?(sessionId: string, cursor: AssistantCursor | null): Promise<MessagesPage>;
   /** Ajustes › Agentes: one read or order of an agent's configuration on the hub. */
   agent?(call: AgentCall): Promise<AgentAnswer>;
+  /** The main window hands over what it holds before Orbit quits (`state/quit-flush.ts`). */
+  onFlushBeforeQuit?(flush: () => Promise<void>): Promise<Unsubscribe>;
   /** The floating panel opens a link of Deimos's answer. */
   openUrl?(url: string): Promise<CommandReceipt>;
 }

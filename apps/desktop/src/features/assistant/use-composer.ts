@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type KeyboardEvent } from "react";
+import { asText, useLocalDraft } from "../../state/local-drafts";
 import type { AttachmentLimits } from "../../bridge/generated/AttachmentLimits";
 import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
 import type { HubLinkConnection } from "../../bridge/generated/HubLinkConnection";
@@ -72,13 +73,19 @@ function sendKeeping(
 
 export function useComposer(props: ComposerProps, es: Copy) {
   const { attachmentLimits, chat, daemonReady, hub, paired, send } = props;
-  const [draft, setDraft] = useState("");
+  // Kept on this Mac until the daemon takes it: leaving the view, a quit or a
+  // fall does not take it (attached files are not kept, only the text).
+  const kept = useLocalDraft("chat", "", asText);
+  const { value: draft, set: setDraft } = kept;
   const box = useRef<HTMLTextAreaElement>(null);
   // «Responder a esto» quotes a fragment after what is already written.
-  const insert = useCallback((text: string) => {
-    setDraft((written) => (written.trim() === "" ? text : `${written.trimEnd()}\n\n${text}`));
-    box.current?.focus();
-  }, []);
+  const insert = useCallback(
+    (text: string) => {
+      setDraft((written) => (written.trim() === "" ? text : `${written.trimEnd()}\n\n${text}`));
+      box.current?.focus();
+    },
+    [setDraft],
+  );
   useComposerInsert(insert);
   const unavailable = !daemonReady || !paired || hub !== "online";
   const attachments = useAttachmentDrafts(attachmentLimits);
@@ -122,6 +129,7 @@ export function useComposer(props: ComposerProps, es: Copy) {
     draft,
     keyDown,
     reason,
+    recovered: kept.recovered,
     setDraft,
     submit,
     unavailable,

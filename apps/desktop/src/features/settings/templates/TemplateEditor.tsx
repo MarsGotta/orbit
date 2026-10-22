@@ -99,7 +99,7 @@ export function TemplateEditor({
   onCopied: (id: string) => void;
   /** What «Deshacer» brings back. */
   onDeleted: (removed: RemovedTemplate) => void;
-  send: (command: AppCommand) => void;
+  send: (command: AppCommand) => unknown;
   template: NoteTemplateDetailSnapshot;
 }) {
   const { draft, change, discard, flush, targetId } = useTemplateEditor(template, send, onCopied);

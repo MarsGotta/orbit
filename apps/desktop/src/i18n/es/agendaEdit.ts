@@ -25,6 +25,10 @@ export const agendaEdit = {
     // What the user can do about it; the cause stays in the log.
     unknown: "No se sabe si el cambio se guardó. Compruébalo en el calendario.",
     refused: "El calendario no aplicó el cambio. No se cambió nada.",
+    // The same, for a write that ended while the calendar view was closed.
+    unseenRefused: "Un cambio del calendario no se guardó",
+    unseenUnknown: "No se sabe si un cambio del calendario se guardó",
+    openCalendar: "Abrir el calendario",
     dismiss: "Cerrar aviso",
     blocked: {
       organizer: {

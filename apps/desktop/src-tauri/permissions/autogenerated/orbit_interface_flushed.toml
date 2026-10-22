@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-orbit-interface-flushed"
+description = "Enables the orbit_interface_flushed command without any pre-configured scope."
+commands.allow = ["orbit_interface_flushed"]
+
+[[permission]]
+identifier = "deny-orbit-interface-flushed"
+description = "Denies the orbit_interface_flushed command without any pre-configured scope."
+commands.deny = ["orbit_interface_flushed"]

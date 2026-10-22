@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import type { AppView as AppSnapshot } from "../../../state/app-view";
 import type { CalendarSpan } from "../../../bridge/generated/CalendarSpan";
 import { es } from "../../../i18n/es";
@@ -7,6 +7,7 @@ import { isSeries, updatedTarget } from "./commands";
 import { changesOf, changesRepeat, type EventForm, formOf, hasChanges } from "./form";
 import type { Span } from "./geometry";
 import { lockedReason } from "./notices";
+import { useCreated, usePanelKept } from "./panel-kept";
 import type { useCalendarWrites } from "./useCalendarWrites";
 import type { WriteSettled } from "./usePendingWrites";
 
@@ -20,6 +21,8 @@ export interface Editing {
   form: EventForm;
   /** The panel's last save: on its way, or confirmed for a moment. */
   saving?: PanelSave;
+  /** Brought back from this Mac after Orbit closed or fell, not yet saved. */
+  recovered?: boolean;
 }
 
 export interface PanelSave {
@@ -101,7 +104,7 @@ function settled(now: Editing, outcome: WriteSettled): Editing {
   return { ...now, event, saving: { ...save, state: "saved" } };
 }
 
-type Current = { current: Editing | null };
+export type Current = { current: Editing | null };
 
 /** «✓ Guardado en tu calendario» for `SAVED_SHOWN_MS`, then «Sin cambios». */
 function useSavedShown(
@@ -161,18 +164,14 @@ export function useEventEditor(
   calendars: Calendars,
   writes: Writes,
 ) {
-  const [editing, setEditing] = useState<Editing | null>(null);
-  const current = useRef(editing);
-  current.current = editing;
+  const { current, editing, replace, setEditing } = usePanelKept();
   useEffect(() => {
     if (selected !== null && current.current?.event?.id !== selected.id)
       setEditing({ base: formOf(selected), event: selected, form: formOf(selected) });
   }, [selected]);
-  const commit = (span?: CalendarSpan) => commitEdits(current.current, writes, calendars, span);
-  const replace = (next: Editing | null) => {
-    current.current = next;
-    setEditing(next);
-  };
+  const { commit, ...given } = useCreated(current, replace, (span) =>
+    commitEdits(current.current, writes, calendars, span),
+  );
   useSavedShown(editing, current, replace);
   const close = () => {
     replace(null);
@@ -183,6 +182,7 @@ export function useEventEditor(
     close();
   };
   return {
+    ...given,
     close: () => leave(),
     /** Leaves without saving: a draft that is let go of on purpose. */
     discard: close,
@@ -199,8 +199,7 @@ export function useEventEditor(
       setSelected(event);
     },
     remove: (span: CalendarSpan) => {
-      const now = current.current;
-      if (now?.event) writes.remove(now.event, span);
+      if (current.current?.event) writes.remove(current.current.event, span);
       close();
     },
     ...saveActions(current, commit, leave, replace),

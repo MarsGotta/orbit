@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AppCommand } from "../../../bridge/generated";
+import { useFlushOnQuit } from "../../../state/quit-flush";
 import type { NoteTemplateDetailSnapshot } from "../../../bridge/generated/NoteTemplateDetailSnapshot";
 import {
   type EditTarget,
@@ -14,21 +15,21 @@ import {
 export const SAVE_AFTER_MS = 1_000;
 export const SAVE_AT_LEAST_EVERY_MS = 5_000;
 
-function useAutosave(commit: () => void) {
+function useAutosave(commit: () => unknown) {
   const pause = useRef<number | null>(null);
   const ceiling = useRef<number | null>(null);
   const owed = useRef(false);
   const commitRef = useRef(commit);
   commitRef.current = commit;
-  const flush = useCallback(() => {
+  // What the save returns (the order's promise), for the quit to wait on.
+  const flush = useCallback((): unknown => {
     for (const timer of [pause, ceiling]) {
       if (timer.current !== null) window.clearTimeout(timer.current);
       timer.current = null;
     }
-    if (owed.current) {
-      owed.current = false;
-      commitRef.current();
-    }
+    if (!owed.current) return undefined;
+    owed.current = false;
+    return commitRef.current();
   }, []);
   const schedule = useCallback(() => {
     owed.current = true;
@@ -40,7 +41,9 @@ function useAutosave(commit: () => void) {
     owed.current = false;
     flush();
   }, [flush]);
-  useEffect(() => flush, [flush]);
+  useEffect(() => () => void flush(), [flush]);
+  // Quitting or installing an update hands over the edit still waiting.
+  useFlushOnQuit(flush);
   return { schedule, flush, discard };
 }
 
@@ -51,7 +54,7 @@ function useAutosave(commit: () => void) {
  */
 export function useTemplateEditor(
   template: NoteTemplateDetailSnapshot,
-  send: (command: AppCommand) => void,
+  send: (command: AppCommand) => unknown,
   onCopied: (id: string) => void,
 ) {
   const [draft, setDraft] = useState<TemplateDraft>(() => draftOf(template));
