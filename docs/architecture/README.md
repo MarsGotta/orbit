@@ -38,7 +38,8 @@ privacy latch. `orbit-mcp` exposes `orbit_devices`, `orbit_windows`,
 `orbit_screenshot`, `orbit_look`, `orbit_selected_text`, `orbit_control_tools`,
 `orbit_perform_action`, `orbit_action_result`, `orbit_calendar`,
 `orbit_meetings`, `orbit_transcript`, `orbit_note`, `orbit_files_list`,
-`orbit_files_search`, `orbit_files_read` and `orbit_attachment`.
+`orbit_files_search`, `orbit_files_read`, `orbit_attachment` and, for an
+`openai` or `acp` agent, `orbit_skill`.
 
 | Crate | Responsibility |
 |---|---|

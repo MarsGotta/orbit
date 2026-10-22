@@ -27,6 +27,7 @@ from typing import Literal
 from pydantic import Field, ValidationError
 
 from .assistant.access import CAPABILITY_GROUP, disabled_message
+from .assistant.skills import MAX_NAME_CHARS
 from .device_bridge import (
     ACTION_REPLY_TIMEOUT_SECONDS,
     REQUEST_TIMEOUT_SECONDS,
@@ -47,6 +48,8 @@ ACTION_RESULT_PATH = "/internal/v1/device/action-result"
 DEVICES_PATH = "/internal/v1/devices"
 # What the agent orbit-mcp serves may use: its access groups.
 ACCESS_PATH = "/internal/v1/agent/access"
+# One enabled skill of that agent, for orbit-mcp's `orbit_skill`.
+SKILL_PATH = "/internal/v1/agent/skill"
 # An agent's id as `[[agents]]` fixes it (`assistant.agents.AGENT_ID`).
 AGENT_ID_PATTERN = r"^[a-z0-9-]{1,32}$"
 HEADER_PREFIX = "x-orbit-bridge-"
@@ -83,6 +86,13 @@ class ActionResultRequest(PrivateModel):
 class AccessRequest(PrivateModel):
     protocol: Literal[PROTOCOL]
     agent_id: str | None = Field(default=None, pattern=AGENT_ID_PATTERN)
+
+
+class SkillRequest(PrivateModel):
+    protocol: Literal[PROTOCOL]
+    agent_id: str | None = Field(default=None, pattern=AGENT_ID_PATTERN)
+    # The standard's bound on a name; any other text is simply not enabled.
+    name: str = Field(min_length=1, max_length=MAX_NAME_CHARS)
 
 
 # What an action that has been handed to the Mac and has not finished
@@ -131,6 +141,7 @@ class BridgeService:
         self.action_result_auth = None
         self.devices_auth = None
         self.access_auth = None
+        self.skill_auth = None
         self._action_tasks: set[asyncio.Task] = set()
         self._active_action_operations: set[str] = set()
         self._closed = False
@@ -157,6 +168,7 @@ class BridgeService:
         self.action_result_auth = authenticator(ACTION_RESULT_PATH)
         self.devices_auth = authenticator(DEVICES_PATH)
         self.access_auth = authenticator(ACCESS_PATH)
+        self.skill_auth = authenticator(SKILL_PATH)
 
     def close(self):
         self._closed = True
@@ -164,6 +176,7 @@ class BridgeService:
         self.action_result_auth = None
         self.devices_auth = None
         self.access_auth = None
+        self.skill_auth = None
         for task in self._action_tasks:
             task.cancel()
         self._action_tasks.clear()
@@ -456,12 +469,34 @@ class BridgeService:
             raise BridgeError(400, "invalid_request") from None
         if self.access is None:
             raise BridgeError(503, "unavailable")
-        agent_id, groups = self.access.groups(request.agent_id)
+        agent = self.access.agent(request.agent_id)
+        _agent_id, groups = self.access.groups(agent.id)
+        return {
+            "protocol": RESULT_PROTOCOL,
+            "state": "answered",
+            "agent_id": agent.id,
+            "groups": groups,
+            # False for a Hermes agent: orbit-mcp then offers no `orbit_skill`.
+            "skills_in_hub": agent.skills_in_hub,
+        }
+
+    def agent_skill(self, headers, body) -> dict:
+        """One enabled skill's instructions for the agent orbit-mcp serves."""
+        self.check()
+        self.skill_auth.admit(headers, body, int(self.timestamp()), self.monotonic())
+        try:
+            request = SkillRequest.model_validate_json(body)
+        except (ValueError, TypeError, UnicodeError, RecursionError):
+            raise BridgeError(400, "invalid_request") from None
+        if self.access is None:
+            raise BridgeError(503, "unavailable")
+        agent_id, skill = self.access.skill(request.agent_id, request.name)
         return {
             "protocol": RESULT_PROTOCOL,
             "state": "answered",
             "agent_id": agent_id,
-            "groups": groups,
+            "name": skill.name,
+            "instructions": skill.body,
         }
 
 
@@ -518,6 +553,17 @@ def failure(exc):
     }.get(code, "No se pudo completar la petición")
     if code == "agent_access_disabled" and numbers is not None:
         message = disabled_message(str(numbers.get("agent_id")), str(numbers.get("group")))
+    if code == "skill_not_enabled" and numbers is not None:
+        enabled = str(numbers.get("enabled")).replace(",", ", ") or "ninguna"
+        message = (
+            f"El agente «{numbers.get('agent_id')}» no tiene activada ninguna skill llamada "
+            f"«{numbers.get('name')}»; las activadas son: {enabled}"
+        )
+    if code == "skills_not_in_hub" and numbers is not None:
+        message = (
+            f"El agente «{numbers.get('agent_id')}» es de tipo {numbers.get('kind')}: sus skills "
+            "son las de su perfil de Hermes, no las guarda Orbit"
+        )
     if detail is not None:
         message = f"El parámetro {detail['field']} debe ser {detail['expected']}."
     payload = render(
@@ -580,6 +626,7 @@ def mount(app, service, transport_allowed):
     )
     route(ACTION_RESULT_PATH, action_result, NON_ACTION_REQUEST_BYTES, methods=["POST"])
     route(ACCESS_PATH, service.agent_access, NON_ACTION_REQUEST_BYTES, methods=["POST"])
+    route(SKILL_PATH, service.agent_skill, NON_ACTION_REQUEST_BYTES, methods=["POST"])
 
 
 __all__ = ["BridgeConfiguration", "BridgeError", "BridgeService", "mount"]

@@ -27,6 +27,19 @@ fn registry_matches_rust() {
                         .iter()
                         .all(|text| text.as_str().is_some_and(|text| !text.is_empty()))
             })
+        } else if entry["unit"] == "tools" {
+            // Tools by group: every group names at least one.
+            entry["value"].as_object().is_some_and(|groups| {
+                !groups.is_empty()
+                    && groups.values().all(|tools| {
+                        tools.as_array().is_some_and(|tools| {
+                            !tools.is_empty()
+                                && tools
+                                    .iter()
+                                    .all(|tool| tool.as_str().is_some_and(|tool| !tool.is_empty()))
+                        })
+                    })
+            })
         } else {
             entry["value"].as_u64().is_some_and(|value| value > 0)
         };

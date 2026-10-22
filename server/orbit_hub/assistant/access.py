@@ -18,16 +18,20 @@ from __future__ import annotations
 from types import MappingProxyType
 
 from ..errors import PrivateError
+from .skills import Skill
 
 # In the order Settings shows them.
 GROUPS = ("screen", "control", "calendar", "meetings", "files")
 
 # The orbit-mcp tools no group gates: `orbit_devices` names the Macs, which
-# every tool needs to choose one, and `orbit_attachment` reads a file the user
-# attached to a message of this agent's own conversation.
-UNGATED = frozenset({"orbit_devices", "orbit_attachment"})
+# every tool needs to choose one; `orbit_attachment` reads a file the user
+# attached to a message of this agent's own conversation; and `orbit_skill`
+# reads the agent's own configuration, nothing of the user's.
+UNGATED = frozenset({"orbit_devices", "orbit_attachment", "orbit_skill"})
 
-# The orbit-mcp tools each group opens.
+# The orbit-mcp tools each group opens. Settings › Agents shows these lists
+# beside each switch: contracts/constants.json registers both copies
+# (AGENT_ACCESS_GROUP_TOOLS) and its guards compare them.
 TOOLS = MappingProxyType(
     {
         "screen": ("orbit_windows", "orbit_screenshot", "orbit_look", "orbit_selected_text"),
@@ -71,14 +75,15 @@ def disabled_message(agent_id: str, group: str) -> str:
 
 
 class AgentAccess:
-    """The hub's side of the check: which agent a bridge request is for, and
-    whether its group is on. `agents` is the registry, `configs` the store."""
+    """The hub's side of the check: which agent a bridge request is for,
+    whether its group is on, and which skills it has enabled (`orbit_skill`).
+    `agents` is the registry, `configs` the store."""
 
     def __init__(self, agents, configs):
         self.agents, self.configs = agents, configs
 
-    def groups(self, agent_id: str | None) -> tuple[str, dict[str, bool]]:
-        """The agent's id and groups; no id is the default agent, as an
+    def agent(self, agent_id: str | None):
+        """The agent orbit-mcp speaks for; no id is the default agent, as an
         orbit-mcp started without `ORBIT_MCP_AGENT` is."""
         agent = self.agents.default if agent_id is None else self.agents.by_id.get(agent_id)
         if agent is None:
@@ -88,7 +93,31 @@ class AgentAccess:
                 # Comma-joined: refusal numbers are scalars.
                 {"agent_id": agent_id, "agent_ids": ",".join(self.agents.by_id)},
             )
+        return agent
+
+    def groups(self, agent_id: str | None) -> tuple[str, dict[str, bool]]:
+        """The agent's id and groups."""
+        agent = self.agent(agent_id)
         return agent.id, self.configs.access(agent.id)
+
+    def skill(self, agent_id: str | None, name: str) -> tuple[str, Skill]:
+        """The agent's id and its enabled skill `name`, for orbit-mcp's
+        `orbit_skill`. It belongs to no group: it reads the agent's own
+        configuration. A Hermes agent's skills are its profile's, never the
+        hub's rows; a name not enabled is refused with every enabled one."""
+        agent = self.agent(agent_id)
+        if not agent.skills_in_hub:
+            raise PrivateError(409, "skills_not_in_hub", {"agent_id": agent.id, "kind": agent.kind})
+        enabled = {skill.name: skill for skill, on in self.configs.skills(agent.id) if on}
+        skill = enabled.get(name)
+        if skill is None:
+            raise PrivateError(
+                404,
+                "skill_not_enabled",
+                # Comma-joined, in name order: refusal numbers are scalars.
+                {"agent_id": agent.id, "name": name, "enabled": ",".join(enabled)},
+            )
+        return agent.id, skill
 
     def require(self, agent_id: str | None, group: str) -> None:
         resolved, groups = self.groups(agent_id)

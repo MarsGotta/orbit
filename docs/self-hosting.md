@@ -366,12 +366,13 @@ mcp_servers:
 ```
 
 Use the executable from the hub version you actually run. The translator uses
-stdio, not a second HTTP listener. Its sixteen tools are `orbit_devices`,
+stdio, not a second HTTP listener. Its seventeen tools are `orbit_devices`,
 `orbit_windows`, `orbit_screenshot`, `orbit_look`, `orbit_selected_text`,
 `orbit_control_tools`, `orbit_perform_action`, `orbit_action_result`,
 `orbit_calendar`, `orbit_meetings`, `orbit_transcript`, `orbit_note`,
-`orbit_files_list`, `orbit_files_search`, `orbit_files_read` and
-`orbit_attachment`.
+`orbit_files_list`, `orbit_files_search`, `orbit_files_read`,
+`orbit_attachment` and `orbit_skill`; `orbit_skill` loads an `openai` or
+`acp` agent's skills and is not offered to a Hermes agent.
 Validate discovery with an isolated profile first. Apply profile changes using
 the commands supported by your installed Hermes version; a gateway restart can
 interrupt other profiles and must be coordinated with their users.
@@ -503,17 +504,19 @@ What Orbit can change depends on the agent's kind:
 - **`openai`**: everything, kept in the hub's database. The personality is
   sent with Orbit's own instructions on every turn; each enabled skill is
   offered by name and description, and the model loads its instructions with
-  the hub's `orbit_skill` tool when it needs them.
-- **`acp`**: everything, kept in the hub's database and written into the
-  agent's folder before each session opens: `CLAUDE.md` or `AGENTS.md`, and
-  `.claude/skills/<name>/SKILL.md` or `.codex/skills/<name>/SKILL.md` for each
-  enabled skill (files `0644`, directories `0755`, inside the agent's private
-  folder, so an agent run as its own user can read them). Each file is
-  replaced whole; a skill disabled or deleted leaves the folder. A
-  conversation already open keeps what it started with. With the lock-down
-  above, Claude Code is started with `settingSources: []`; check with the
-  installed adapter that it reads `CLAUDE.md` and project skills before
-  relying on them.
+  `orbit-mcp`'s `orbit_skill` tool when it needs them.
+- **`acp`**: everything, kept in the hub's database. The agent is told the
+  same text as an `openai` agent where its lock-down still reads it, and
+  loads a skill with the same `orbit_skill`. Claude Code is told in each
+  session's `_meta.systemPrompt.append`, after its own system prompt
+  (`settingSources: []` loads no `CLAUDE.md` or `.claude/skills`, and
+  `tools: []` leaves no tool to open them). Codex is told in the `AGENTS.md`
+  of its folder (`0644`, inside the agent's private folder, so an agent run
+  as its own user can read it, replaced whole before each session opens),
+  and `CODEX_CONFIG` sets `project_doc_max_bytes` so it reads all of it; no
+  skills folder is written, because Codex opens a listed skill with its
+  shell, which the lock-down removes. A conversation already open keeps what
+  it started with.
 - **`hermes`**: the profile's own `SOUL.md` and skills, through Hermes's
   panel API at `hermes_url` with the same `hermes_credential_file`
   (`GET`/`PUT /api/profiles/<profile>/soul`, `/api/skills`,
@@ -550,6 +553,7 @@ mcp_servers:
 Without it, `orbit-mcp` speaks for the default agent. A group that is off is
 neither listed nor run by `orbit-mcp`, and the hub refuses its bridge
 requests with `agent_access_disabled`, the agent and the group.
+`orbit_skill` belongs to no group: it reads the agent's own skills.
 
 Access groups configure an agent's tools; they are not a security boundary.
 Both checks trust the agent id that `orbit-mcp` signs with the bridge's HMAC

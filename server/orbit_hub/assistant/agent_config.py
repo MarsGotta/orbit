@@ -19,15 +19,15 @@ from typing import TYPE_CHECKING, Protocol
 
 from ..protocol import HubError
 from . import access
-from .skills import MAX_SKILLS, Skill, SkillEntry
+from .skills import MAX_DESCRIPTION_CHARS, MAX_NAME_CHARS, MAX_SKILLS, Skill, SkillEntry
 
 if TYPE_CHECKING:
     from ..storage import Store
 
 # One personality. What it protects: the model's context, which an `openai`
 # agent is sent on every turn beside the conversation (16 KiB is about 4,000
-# tokens, an eighth of a 32,000-token window), and the instructions file an
-# `acp` agent reads at each session. Why 16 KiB: pages of Markdown, far more
+# tokens, an eighth of a 32,000-token window), and what an `acp` agent is
+# told at each session. Why 16 KiB: pages of Markdown, far more
 # than a character and its manners take; procedures belong in skills, which
 # have their own bound. It does not bound skills or the conversation.
 MAX_PERSONALITY_BYTES = 16 * 1024
@@ -57,6 +57,45 @@ NO_INSTRUCTIONS = AgentInstructions("", ())
 
 def no_instructions() -> AgentInstructions:
     return NO_INSTRUCTIONS
+
+
+# orbit-mcp's tool that hands an agent one of its enabled skills'
+# instructions, for every kind whose skills the hub keeps (`openai`, `acp`).
+SKILL_TOOL = "orbit_skill"
+SKILLS_INSTRUCTIONS = (
+    "Your skills (agentskills.io). Each line is a skill's name and when to use it. "
+    f"When a request matches one, call {SKILL_TOOL} with its name to load its "
+    "instructions, and follow them:"
+)
+# The longest `instructions_text` can be: the personality at its bound, the
+# preface, and `MAX_SKILLS` lines of `- name: description` at the standard's
+# maxima, four bytes a character. What it protects: Codex reads only
+# `project_doc_max_bytes` of its AGENTS.md (32 KiB by default in Codex
+# 0.160.1) and drops the rest without a word, so the hub tells it to read
+# this much. It does not bound what an `openai` or Claude Code agent is told;
+# the personality's and the skills' own bounds do.
+MAX_INSTRUCTIONS_TEXT_BYTES = (
+    MAX_PERSONALITY_BYTES
+    + len("\n\n")
+    + len(SKILLS_INSTRUCTIONS.encode("utf-8"))
+    + MAX_SKILLS * len("\n- : ")
+    + MAX_SKILLS * (MAX_NAME_CHARS + 4 * MAX_DESCRIPTION_CHARS)
+)
+
+
+def instructions_text(current: AgentInstructions) -> str | None:
+    """What an agent is told of its personality and skills, or None when it
+    has neither: the personality, then each enabled skill by name and
+    description, to be loaded with `SKILL_TOOL`. Every kind the hub keeps
+    them for is told this same text: an `openai` agent at every turn, Claude
+    Code in its session's system prompt, Codex in its AGENTS.md."""
+    parts = []
+    if current.personality.strip():
+        parts.append(current.personality)
+    if current.skills:
+        listing = "\n".join(f"- {skill.name}: {skill.description}" for skill in current.skills)
+        parts.append(f"{SKILLS_INSTRUCTIONS}\n{listing}")
+    return "\n\n".join(parts) or None
 
 
 def personality_refusal(text: str) -> HubError | None:

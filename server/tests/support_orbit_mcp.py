@@ -22,9 +22,11 @@ from support_client_e2e import tcp_server
 from orbit_hub.bridge_route import (
     ACCESS_PATH,
     DEVICES_PATH,
+    SKILL_PATH,
     AccessRequest,
     BridgeError,
     BridgeRequest,
+    SkillRequest,
     failure,
 )
 from orbit_hub.bridge_route import HEADER_PREFIX as BRIDGE_HEADER_PREFIX
@@ -98,6 +100,8 @@ TOOL_NAMES = (
     "orbit_files_read",
     # A file the user attached to a message.
     "orbit_attachment",
+    # The agent's own enabled skills, kept by the hub.
+    "orbit_skill",
 )
 
 CONFIG_TEMPLATE = """\
@@ -163,11 +167,17 @@ class FakeHub:
         device_replies=None,
         devices=None,
         access=None,
+        skills=None,
     ):
         self.app = FastAPI()
         # agent id (None: the default) -> its access groups; None serves no
         # access route, as a hub that could not say.
         self.access = access
+        # agent id -> {enabled skill's name: its instructions}, for the agents
+        # whose skills the hub keeps; an agent missing here is a Hermes one.
+        # None: every agent's skills are the hub's, and none is enabled.
+        self.skills = skills
+        self.skill_requests = []
         self.access_requests = []
         self.device_requests = []
         self.device_list_requests = 0
@@ -259,6 +269,50 @@ class FakeHub:
                         "state": "answered",
                         "agent_id": agent_id,
                         "groups": self.access[agent_id],
+                        "skills_in_hub": self.skills is None or agent_id in self.skills,
+                    }
+                ),
+                media_type="application/json",
+            )
+
+        self.skill_auth = Authenticator(
+            BRIDGE_KEY_ID,
+            BRIDGE_KEY,
+            protocol=BRIDGE_PROTOCOL,
+            path=SKILL_PATH,
+            header_prefix=BRIDGE_HEADER_PREFIX,
+            failure=RouteFailure,
+        )
+
+        @self.app.post(SKILL_PATH)
+        async def agent_skill(request: Request) -> Response:
+            body = await request.body()
+            try:
+                self.skill_auth.admit(
+                    request.scope["headers"], body, int(time.time() * 1000), monotonic()
+                )
+                parsed = SkillRequest.model_validate_json(body)
+            except RouteFailure as exc:
+                return hub_rejected(exc.status, exc.code)
+            agent_id = parsed.agent_id or "default"
+            self.skill_requests.append((agent_id, parsed.name))
+            skills = {} if self.skills is None else self.skills
+            if self.skills is not None and agent_id not in skills:
+                return failure(
+                    BridgeError(409, "skills_not_in_hub", {"agent_id": agent_id, "kind": "hermes"})
+                )
+            enabled = skills.get(agent_id, {})
+            if parsed.name not in enabled:
+                numbers = {"agent_id": agent_id, "name": parsed.name, "enabled": ",".join(enabled)}
+                return failure(BridgeError(404, "skill_not_enabled", numbers))
+            return Response(
+                content=canonical(
+                    {
+                        "protocol": BRIDGE_RESULT,
+                        "state": "answered",
+                        "agent_id": agent_id,
+                        "name": parsed.name,
+                        "instructions": enabled[parsed.name],
                     }
                 ),
                 media_type="application/json",

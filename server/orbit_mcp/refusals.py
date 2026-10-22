@@ -126,6 +126,9 @@ ERROR_MESSAGES = {
     # not the Mac's refusal; the user changes it in Orbit's settings.
     "agent_access_disabled": "Este agente tiene desactivado en Ajustes › Agentes el acceso al que pertenece esta herramienta, así que no puede usarla. No es un permiso de macOS ni un fallo del Mac.",
     "agent_not_found": "El hub no tiene el agente para el que se arrancó este traductor (ORBIT_MCP_AGENT). Revisa la configuración de ese agente.",
+    # orbit_skill: the agent's own skills, which the hub keeps.
+    "skill_not_enabled": "Este agente no tiene activada en Orbit ninguna skill con ese nombre. Usa uno de los de tu lista de skills.",
+    "skills_not_in_hub": "Orbit no guarda las skills de este agente: son las de su perfil de Hermes, que se cargan con sus propias herramientas.",
     # A recording and its note, read from the hub. Each state of a note
     # that is not there has its own code; none of them means an empty meeting.
     "recording_not_found": "Esa grabación no existe en el hub para ese Mac: ni ha llegado audio suyo ni está cerrada. Revisa el identificador con orbit_meetings.",
@@ -400,6 +403,15 @@ def error_result(
             }
             step = steps.get(refusal.get("step"), "desconocido")
             message = f"El almacén se está recuperando: paso {step}; la orden no se aplicó. Espera a que termine la recuperación."
+        if code == "skill_not_enabled" and isinstance(refusal.get("name"), str):
+            enabled = refusal.get("enabled")
+            listed = (
+                enabled.replace(",", ", ") if isinstance(enabled, str) and enabled else "ninguna"
+            )
+            message = (
+                f"Este agente no tiene activada en Orbit ninguna skill llamada «{refusal['name']}». "
+                f"Las activadas son: {listed}."
+            )
         if code == "busy" and refusal.get("operation") == "chat":
             message = "No se puede cambiar de conversación: hay un turno en curso; interrúmpelo o espera a que termine."
         if code == "busy" and refusal.get("operation") == "audio":

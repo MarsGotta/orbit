@@ -241,6 +241,13 @@ class Agent:
     # Its dictation and read-aloud; None for a kind without a voice.
     speech: SpeechBackend | None = None
 
+    @property
+    def skills_in_hub(self) -> bool:
+        """Whether the hub keeps this agent's skills (`StoredAdmin`) and hands
+        them out through orbit-mcp's `orbit_skill`; a Hermes agent's are its
+        profile's."""
+        return KINDS[self.kind].admin is _stored_admin
+
     def voice(self) -> SpeechBackend:
         """The agent's speech, or the refusal that names the agent and why it has none."""
         if self.speech is None:

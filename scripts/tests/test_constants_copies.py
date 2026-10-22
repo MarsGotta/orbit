@@ -45,6 +45,11 @@ def read_constant(source, name):
             return node.value
         if isinstance(node, (ast.Tuple, ast.List)):
             return [evaluate(element, resolving) for element in node.elts]
+        if isinstance(node, ast.Dict) and None not in node.keys:
+            return {
+                evaluate(key, resolving): evaluate(value, resolving)
+                for key, value in zip(node.keys, node.values, strict=True)
+            }
         if isinstance(node, ast.Name):
             return number(node.id, resolving)
         if isinstance(node, ast.BinOp) and type(node.op) in OPERATIONS:
@@ -59,6 +64,12 @@ def read_constant(source, name):
     )
     if bracketed is not None:
         return evaluate(ast.parse(bracketed.group(1), mode="eval").body, (name,))
+    # A TypeScript object of literals, `export const NAME = {` to the `}` that
+    # starts a line; its bare keys are quoted to read it as a Python dict.
+    exported = re.search(rf"(?ms)^export const {re.escape(name)} = (\{{.*?^\}})", source)
+    if exported is not None:
+        literal = re.sub(r"(?m)^(\s*)([A-Za-z_]\w*):", r'\1"\2":', exported.group(1))
+        return evaluate(ast.parse(literal, mode="eval").body, (name,))
     return number(name, ())
 
 

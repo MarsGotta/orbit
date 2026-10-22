@@ -28,6 +28,7 @@ from support_orbit_mcp import DEFAULT_DEVICE, FakeHub, write_mcp_config
 from orbit_hub.app import create_app
 from orbit_hub.assistant import acp
 from orbit_hub.assistant.activity import public_item
+from orbit_hub.assistant.agent_config import MAX_INSTRUCTIONS_TEXT_BYTES
 from orbit_hub.assistant.backend import (
     ActivityItem,
     ImageBlock,
@@ -318,7 +319,11 @@ async def test_each_agent_is_locked_in_its_own_tools_and_folder(environment, tmp
     else:
         assert environment_seen["CLAUDE_CONFIG_DIR"] is None
         assert environment_seen["CODEX_HOME"] == str(folder / "codex-home")
-        assert json.loads(environment_seen["CODEX_CONFIG"]) == CODEX_LOCK_DOWN
+        # The lock-down, and room for the whole AGENTS.md the hub writes.
+        assert json.loads(environment_seen["CODEX_CONFIG"]) == {
+            **CODEX_LOCK_DOWN,
+            "project_doc_max_bytes": MAX_INSTRUCTIONS_TEXT_BYTES,
+        }
         # codex-acp sends its mode's sandbox and approval policy with every
         # turn, over the config; only this mode keeps the sandbox read-only.
         assert environment_seen["INITIAL_AGENT_MODE"] == "read-only"

@@ -192,7 +192,7 @@ the middle of a turn sees the steps that follow.
   Hermes's own reasoning preview is 500 characters, and past that it is no
   longer a line one reads in passing. It protects the frame and the Mac's
   assistant topic from upstream text of any length; it limits neither what
-  the agent does nor its answer. For Orbit's fifteen orbit-mcp tools it is
+  the agent does nor its answer. For Orbit's seventeen orbit-mcp tools it is
   Spanish («Mirando la pantalla», «Leyendo el calendario», «Pulsando en
   Notas», «Escribiendo» — never the text typed); any other tool keeps its own
   name. For reasoning it is the summary, when the agent sends one; for a
@@ -1015,13 +1015,13 @@ them answers `404` with no `code`.
 Where each kind keeps them:
 
 - `openai` and `acp`: the hub's database (personality and skill files
-  encrypted). An `openai` agent is told its personality and the name and
-  description of each enabled skill at every turn, and loads a skill's
-  instructions with the hub's own `orbit_skill` tool when its model asks. An
-  `acp` agent has them written into its folder before each session opens:
-  `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex), and one
-  `.claude/skills/<name>/SKILL.md` or `.codex/skills/<name>/SKILL.md` per
-  enabled skill. A conversation already open keeps what it started with.
+  encrypted). The agent is told its personality and the name and
+  description of each enabled skill, and loads a skill's instructions with
+  `orbit-mcp`'s `orbit_skill` (see [Access groups](#access-groups)) when it
+  needs them. An `openai` agent is told at every turn; Claude Code in each
+  session's `_meta.systemPrompt.append` (`session/new` and `session/load`);
+  Codex in the `AGENTS.md` of its folder, written before each session opens.
+  A conversation already open keeps what it started with.
 - `hermes`: the profile's own `SOUL.md` and skills, through Hermes's panel
   (see Hermes refusals below). Nothing of them is stored in the hub.
 - Access groups: the hub's, for every kind.
@@ -1158,7 +1158,8 @@ the profile's skills against the 128.
 | `meetings` | `orbit_meetings`, `orbit_transcript`, `orbit_note` | `/internal/v1/meetings/*` |
 | `files` | `orbit_files_list`, `orbit_files_search`, `orbit_files_read` | `files_list`, `files_search`, `files_read` |
 
-`orbit_devices` belongs to none. Every group is on by default. A group off is
+`orbit_devices` and `orbit_skill` belong to none: the first names the Macs,
+the second reads the agent's own skills. Every group is on by default. A group off is
 a configuration of the agent's tools: nothing is asked at each use, nothing
 expires, and macOS's permission stays the decision about the Mac.
 
@@ -1167,11 +1168,13 @@ which the hub sets for `openai` and `acp` agents and a Hermes profile's MCP
 configuration sets for a `hermes` agent; without it, the default agent. It
 asks `POST /internal/v1/agent/access`, signed with the device-bridge key over
 `{"protocol":"orbit_device_bridge_v1","agent_id"?:"lyra"}`, which answers
-`{"protocol":"orbit_device_bridge_result_v1","state":"answered","agent_id":"lyra","groups":{…}}`
+`{"protocol":"orbit_device_bridge_result_v1","state":"answered","agent_id":"lyra","groups":{…},"skills_in_hub":true}`
 (no `agent_id`: the default agent, named in the answer). `orbit-mcp` then
 lists no tool of a group that is off, and refuses one called anyway with
-`agent_access_disabled`; when the hub cannot say, it offers every tool and
-the hub decides. It reads the groups again after 10 s.
+`agent_access_disabled`; it lists `orbit_skill` only when `skills_in_hub`
+is true (`openai` and `acp` agents; a `hermes` agent's skills are its
+profile's). When the hub cannot say, it offers every tool and the hub
+decides. It reads the answer again after 10 s.
 
 The hub checks each request: the device-bridge request, the action-result
 read and the meeting reads take an optional `agent_id`, which `orbit-mcp`
@@ -1265,3 +1268,14 @@ page by page, up to 48,000 characters per turn, and its pages with fewer than
 image whole (`data_base64`), the text of a PDF or a text file in pages of
 48,000 characters with `after_index`, `next_after_index` and `total_chars`.
 
+`orbit_skill(name)` asks `POST /internal/v1/agent/skill`, signed the same way
+over `{"protocol":"orbit_device_bridge_v1","agent_id"?:"lyra","name":"resumen-semanal"}`
+(`name` 1–64 characters), which answers
+`{"protocol":"orbit_device_bridge_result_v1","state":"answered","agent_id":"lyra","name":"resumen-semanal","instructions":"…"}`
+with the `SKILL.md` body after its frontmatter. Nothing reaches a Mac.
+
+| status | code | numbers |
+|---|---|---|
+| 404 | `skill_not_enabled` | `agent_id`, `name`, `enabled` (the agent's enabled skills, comma-joined in name order; empty when none) |
+| 409 | `skills_not_in_hub` | `agent_id`, `kind` (`hermes`: its skills are its profile's) |
+| 404 | `agent_not_found` | `agent_id`, `agent_ids` |

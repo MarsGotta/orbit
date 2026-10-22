@@ -23,7 +23,7 @@ MAX_ITEM_CAUSE_CHARS = 300
 # this bounds every frame of it; the label still counts every step.
 MAX_PLAN_STEPS = 20
 
-# orbit-mcp's sixteen tools, by the name the agent calls (an MCP client may
+# orbit-mcp's seventeen tools, by the name the agent calls (an MCP client may
 # prefix it with the server's name: `mcp__orbit__orbit_look`, `mcp_orbit_orbit_look`).
 ORBIT_TOOLS = (
     "orbit_devices",
@@ -42,6 +42,7 @@ ORBIT_TOOLS = (
     "orbit_files_search",
     "orbit_files_read",
     "orbit_attachment",
+    "orbit_skill",
 )
 
 _FIXED = {
@@ -61,6 +62,8 @@ _FIXED = {
     "orbit_files_read": ("Leyendo un archivo del Mac", "las carpetas"),
     # Never the file's name: it is the user's words.
     "orbit_attachment": ("Leyendo un adjunto del mensaje", "los adjuntos"),
+    # The agent's own configuration, nothing of the user's.
+    "orbit_skill": ("Cargando una de sus skills", "sus skills"),
 }
 
 

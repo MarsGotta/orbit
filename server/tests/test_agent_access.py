@@ -3,6 +3,8 @@
 orbit-mcp neither lists nor runs a tool of a group its agent has off; the
 hub refuses a bridge request of such a group, naming the agent and the
 group. The agent is the one `ORBIT_MCP_AGENT` names, or the default one.
+The same signed identity reads the agent's own enabled skills (`orbit_skill`),
+which belongs to no group.
 """
 
 import json
@@ -19,7 +21,8 @@ from support_orbit_mcp import TOOL_NAMES, FakeHub, serving, text_of
 from orbit_hub.app import create_app
 from orbit_hub.assistant import access
 from orbit_hub.assistant.agent_config import AgentConfigStore
-from orbit_hub.bridge_route import ACCESS_PATH, ACTION_RESULT_PATH, PATH, PROTOCOL
+from orbit_hub.assistant.skills import parse
+from orbit_hub.bridge_route import ACCESS_PATH, ACTION_RESULT_PATH, PATH, PROTOCOL, SKILL_PATH
 from orbit_hub.meetings_bridge import LIST_PATH
 from orbit_hub.meetings_bridge import PROTOCOL as MEETINGS_PROTOCOL
 from orbit_hub.private_auth import sign_request
@@ -80,6 +83,42 @@ async def test_orbit_mcp_speaks_for_the_agent_it_was_started_for(tmp_path):
     assert hub.device_requests[0]["agent_id"] == "lyra"
 
 
+async def test_orbit_mcp_offers_orbit_skill_only_when_the_hub_keeps_the_agents_skills(tmp_path):
+    """A Hermes agent's skills are its profile's: a tool that could only
+    refuse is not offered. Unknown is not "no": the tool stays."""
+    listed = {}
+    for agent_id, skills in (("lyra", {"lyra": {}}), ("atlas", {})):
+        hub = FakeHub(access={agent_id: EVERY_GROUP}, skills=skills)
+        async with serving(tmp_path, hub) as (client, server):
+            client.config = replace(client.config, agent_id=agent_id)
+            listed[agent_id] = {tool.name for tool in await server.list_tools()}
+    assert "orbit_skill" in listed["lyra"]
+    assert "orbit_skill" not in listed["atlas"]
+    async with serving(tmp_path, FakeHub()) as (_client, server):
+        assert "orbit_skill" in {tool.name for tool in await server.list_tools()}
+
+
+async def test_orbit_skill_hands_the_agent_one_of_its_enabled_skills(tmp_path):
+    hub = FakeHub(
+        access={"lyra": EVERY_GROUP},
+        skills={"lyra": {"resumen-semanal": "1. Lee.\n2. Resume.\n", "viaje": "Mira el tren.\n"}},
+    )
+    async with serving(tmp_path, hub) as (client, server):
+        client.config = replace(client.config, agent_id="lyra")
+        found = await server.call_tool("orbit_skill", {"name": "resumen-semanal"})
+        missing = await server.call_tool("orbit_skill", {"name": "presupuesto"})
+    assert not found.is_error
+    assert text_of(found) == "1. Lee.\n2. Resume.\n"
+    assert missing.is_error
+    text = text_of(missing)
+    assert text.startswith("skill_not_enabled: ")
+    # The refusal names the skill asked for and every enabled one.
+    assert "«presupuesto»" in text and "resumen-semanal, viaje" in text
+    assert hub.skill_requests == [("lyra", "resumen-semanal"), ("lyra", "presupuesto")]
+    # Nothing of it reached a Mac.
+    assert hub.device_requests == []
+
+
 def test_orbit_mcp_takes_its_agent_from_the_environment(tmp_path, monkeypatch):
     from support_orbit_mcp import write_mcp_config
 
@@ -96,9 +135,8 @@ def test_orbit_mcp_takes_its_agent_from_the_environment(tmp_path, monkeypatch):
 # The hub ------------------------------------------------------------------------
 
 
-@pytest.fixture
-def bridged_agents(environment, tmp_path):
-    """The hub with two agents, its device and meetings bridges configured."""
+def bridged_hub(environment, tmp_path, agents):
+    """The hub with `agents`, its device and meetings bridges configured."""
     settings, store, adapter = environment
     bridge_key = tmp_path / "bridge-key"
     bridge_key.write_bytes(BRIDGE_KEY)
@@ -110,15 +148,47 @@ def bridged_agents(environment, tmp_path):
         settings,
         device_bridge={"key_id": BRIDGE_KEY_ID, "credential_file": str(bridge_key)},
         meetings_bridge={"key_id": MEETINGS_KEY_ID, "credential_file": str(meetings_key)},
-        agents=(
-            {"id": "atlas", "name": "Atlas", "kind": "hermes", "profile": "atlas-perfil"},
-            {"id": "vega", "name": "Vega", "kind": "hermes", "profile": "vega-perfil"},
-        ),
+        agents=agents,
     )
     app = create_app(
         settings, store=store, assistant=adapter, speech=adapter, now=lambda: BRIDGE_NOW_MS / 1000
     )
     return app, store
+
+
+@pytest.fixture
+def bridged_agents(environment, tmp_path):
+    """The hub with two agents, its device and meetings bridges configured."""
+    return bridged_hub(
+        environment,
+        tmp_path,
+        (
+            {"id": "atlas", "name": "Atlas", "kind": "hermes", "profile": "atlas-perfil"},
+            {"id": "vega", "name": "Vega", "kind": "hermes", "profile": "vega-perfil"},
+        ),
+    )
+
+
+@pytest.fixture
+def skilled_agents(environment, tmp_path):
+    """A Hermes agent, whose skills are its profile's, and a Claude Code one,
+    whose skills the hub keeps."""
+    return bridged_hub(
+        environment,
+        tmp_path,
+        (
+            {"id": "atlas", "name": "Atlas", "kind": "hermes", "profile": "atlas-perfil"},
+            {
+                "id": "lyra",
+                "name": "Lyra",
+                "kind": "acp",
+                "agent": "claude-code",
+                # Never started: `assistant` serves every agent in these tests.
+                "command": [str(tmp_path / "claude-agent-acp")],
+                "orbit_mcp_config": str(tmp_path / "mcp.toml"),
+            },
+        ),
+    )
 
 
 def envelope(agent_id=None, **fields):
@@ -242,6 +312,85 @@ async def test_the_access_route_tells_orbit_mcp_its_agents_groups(bridged_agents
         "state": "answered",
         "agent_id": "vega",
         "groups": {**EVERY_GROUP, "files": False},
+        # A Hermes agent's skills are its profile's: orbit-mcp offers no `orbit_skill`.
+        "skills_in_hub": False,
     }
     assert by_default.json()["agent_id"] == "atlas"
     assert by_default.json()["groups"] == EVERY_GROUP
+
+
+# The agent's own skills --------------------------------------------------------
+
+SUMMARY = parse(
+    "resumen-semanal",
+    "---\nname: resumen-semanal\ndescription: Resume la semana.\n---\n1. Lee.\n2. Resume.\n",
+)
+TRIP = parse("viaje", "---\nname: viaje\ndescription: Prepara un viaje.\n---\nMira el tren.\n")
+
+
+def skill_request(name, agent_id=None):
+    payload = {"protocol": PROTOCOL, "name": name}
+    if agent_id is not None:
+        payload["agent_id"] = agent_id
+    body = json.dumps(payload, separators=(",", ":")).encode()
+    return SKILL_PATH, body, signed(body, path=SKILL_PATH)
+
+
+async def test_the_skill_route_hands_orbit_mcp_an_enabled_skill_of_its_agent(skilled_agents):
+    app, store = skilled_agents
+    configs = AgentConfigStore(store)
+    configs.put_skill("lyra", SUMMARY)
+    configs.put_skill("lyra", TRIP)
+    response = await post(app, skill_request("resumen-semanal", "lyra"))
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "protocol": "orbit_device_bridge_result_v1",
+        "state": "answered",
+        "agent_id": "lyra",
+        "name": "resumen-semanal",
+        # The instructions, as a model reads them: without the frontmatter.
+        "instructions": SUMMARY.body,
+    }
+
+
+async def test_a_skill_not_enabled_for_the_agent_is_refused_listing_the_enabled_ones(
+    skilled_agents,
+):
+    app, store = skilled_agents
+    configs = AgentConfigStore(store)
+    configs.put_skill("lyra", SUMMARY)
+    configs.put_skill("lyra", TRIP)
+    configs.set_skill_enabled("lyra", "viaje", False)
+    disabled, unknown = await post(
+        app, skill_request("viaje", "lyra"), skill_request("presupuesto", "lyra")
+    )
+    numbers, message = refusal_of(disabled, 404, "skill_not_enabled")
+    assert numbers == {"agent_id": "lyra", "name": "viaje", "enabled": "resumen-semanal"}
+    assert "«viaje»" in message and "resumen-semanal" in message
+    numbers, _ = refusal_of(unknown, 404, "skill_not_enabled")
+    assert numbers == {"agent_id": "lyra", "name": "presupuesto", "enabled": "resumen-semanal"}
+
+
+async def test_a_hermes_agents_skills_are_not_the_hubs_to_hand_out(skilled_agents):
+    app, store = skilled_agents
+    # Even a row the hub might hold for it is not what Hermes uses.
+    AgentConfigStore(store).put_skill("atlas", SUMMARY)
+    numbers, message = refusal_of(
+        await post(app, skill_request("resumen-semanal")), 409, "skills_not_in_hub"
+    )
+    # No agent id is the default agent's, named in the refusal.
+    assert numbers == {"agent_id": "atlas", "kind": "hermes"}
+    assert "Hermes" in message or "hermes" in message
+
+
+async def test_the_access_route_says_whether_the_hub_keeps_the_agents_skills(skilled_agents):
+    app, _store = skilled_agents
+    answers = []
+    for agent_id in ("lyra", "atlas"):
+        body = json.dumps(
+            {"protocol": PROTOCOL, "agent_id": agent_id}, separators=(",", ":")
+        ).encode()
+        answers.append((ACCESS_PATH, body, signed(body, path=ACCESS_PATH)))
+    lyra, atlas = await post(app, *answers)
+    assert lyra.json()["skills_in_hub"] is True
+    assert atlas.json()["skills_in_hub"] is False

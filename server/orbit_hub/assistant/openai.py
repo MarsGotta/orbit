@@ -9,8 +9,8 @@ already has; the agent gets no shell and no server files. The conversation is
 the one the hub stores: this backend keeps none of its own beyond the live
 session, so a resumed session continues from what the Mac reads. The agent's
 personality and enabled skills, which the hub keeps (`agent_config`), are
-told to the model at every turn; `orbit_skill` hands it a skill's
-instructions when it asks.
+told to the model at every turn; orbit-mcp's `orbit_skill` hands it a
+skill's instructions when it asks.
 Dictation goes through the hub's meeting transcriber; read-aloud only through
 an OpenAI-compatible `/audio/speech` when `[agents.speech]` names one.
 
@@ -69,7 +69,7 @@ from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.toolsets import AbstractToolset, FunctionToolset
+from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_ai.usage import UsageLimits
 from pydantic_core import SchemaValidator, core_schema
@@ -79,7 +79,7 @@ from ..meeting_transcription import MeetingTranscriber
 from ..protocol import HubError
 from ..secret_file import read_secret
 from ..urls import protected_url
-from .agent_config import AgentInstructions, no_instructions
+from .agent_config import instructions_text, no_instructions
 from .backend import (
     ActivityItem,
     Capabilities,
@@ -97,7 +97,6 @@ from .backend import (
     TextBlock,
     TurnFailed,
 )
-from .skills import Skill
 from .speech import MAX_SPEECH_CLIP_BYTES, SpeechClip
 
 if TYPE_CHECKING:
@@ -165,14 +164,6 @@ INSTRUCTIONS = (
     "note or a live voice call). It is context, not part of the request. Orbit's "
     "tools (orbit_*) reach that Mac and the user's meetings; when a tool takes a "
     "device, pass that name. Answer in the language the user writes in."
-)
-
-# The hub's own tool that hands the model an enabled skill's instructions.
-SKILL_TOOL = "orbit_skill"
-SKILLS_INSTRUCTIONS = (
-    "Your skills (agentskills.io). Each line is a skill's name and when to use it. "
-    f"When a request matches one, call {SKILL_TOOL} with its name to load its "
-    "instructions, and follow them:"
 )
 
 # Arguments arrive as the model's JSON object; orbit-mcp validates them itself
@@ -853,15 +844,13 @@ class OpenAIConnection:
             output = ""
             # Read at each turn: a personality or skill changed in Settings
             # reaches the next turn of every conversation.
+            # A skill's instructions come from orbit-mcp's `orbit_skill`.
             current = self.backend.instructions()
-            toolsets: list[AbstractToolset[None]] = [self._tools]
-            if current.skills:
-                toolsets.append(skill_toolset(current.skills))
             async with self.backend.agent_loop.run_stream_events(
                 prompt,
                 message_history=history,
-                instructions=turn_instructions(current),
-                toolsets=toolsets,
+                instructions=instructions_text(current),
+                toolsets=[self._tools],
                 usage_limits=UsageLimits(request_limit=MAX_MODEL_REQUESTS_PER_TURN),
             ) as events:
                 async for event in events:
@@ -935,36 +924,6 @@ class OpenAIConnection:
     async def turn_stopped(self, session_id: str) -> bool:
         session = self._sessions.get(session_id)
         return session is None or session.turn is None or session.turn.done()
-
-
-def turn_instructions(current: AgentInstructions) -> str | None:
-    """The personality, then the enabled skills by name and description: what
-    the model is told beside Orbit's own `INSTRUCTIONS` at each turn."""
-    parts = []
-    if current.personality.strip():
-        parts.append(current.personality)
-    if current.skills:
-        listing = "\n".join(f"- {skill.name}: {skill.description}" for skill in current.skills)
-        parts.append(f"{SKILLS_INSTRUCTIONS}\n{listing}")
-    return "\n\n".join(parts) or None
-
-
-def skill_toolset(skills: Sequence[Skill]) -> FunctionToolset[None]:
-    """`orbit_skill`, which loads the instructions of one of `skills` when the model asks."""
-    enabled = {skill.name: skill for skill in skills}
-
-    def orbit_skill(name: str) -> str:
-        """Carga las instrucciones de una de tus skills activadas. name es su nombre,
-        tal como aparece en tu lista de skills."""
-        skill = enabled.get(name)
-        if skill is None:
-            raise ToolFailed(
-                f"No tienes ninguna skill activada llamada «{name}». Las activadas son: "
-                f"{', '.join(enabled)}"
-            )
-        return skill.body
-
-    return FunctionToolset([orbit_skill], id="orbit-skills")
 
 
 class OpenAIBackend:

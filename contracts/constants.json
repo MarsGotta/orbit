@@ -1648,5 +1648,49 @@
     "source": "python",
     "unit": "steps",
     "value": 20
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/assistant/access.py",
+        "name": "TOOLS",
+        "unit": "tools"
+      },
+      {
+        "file": "apps/desktop/src/features/settings/agents/access-tools.ts",
+        "name": "ACCESS_GROUP_TOOLS",
+        "unit": "tools"
+      }
+    ],
+    "name": "AGENT_ACCESS_GROUP_TOOLS",
+    "resource": "the orbit-mcp tools each access group opens: what orbit-mcp filters and the hub refuses by group, and what Settings shows beside each access switch. A new tool of a group is added here",
+    "source": "python",
+    "unit": "tools",
+    "value": {
+      "calendar": [
+        "orbit_calendar"
+      ],
+      "control": [
+        "orbit_control_tools",
+        "orbit_perform_action",
+        "orbit_action_result"
+      ],
+      "files": [
+        "orbit_files_list",
+        "orbit_files_search",
+        "orbit_files_read"
+      ],
+      "meetings": [
+        "orbit_meetings",
+        "orbit_transcript",
+        "orbit_note"
+      ],
+      "screen": [
+        "orbit_windows",
+        "orbit_screenshot",
+        "orbit_look",
+        "orbit_selected_text"
+      ]
+    }
   }
 ]

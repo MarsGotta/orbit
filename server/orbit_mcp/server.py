@@ -11,6 +11,8 @@ from mcp.server.mcpserver import MCPServer
 from mcp.types import CallToolResult, ImageContent, TextContent
 
 from orbit_hub.assistant.access import TOOL_GROUP
+from orbit_hub.assistant.agent_config import SKILL_TOOL
+from orbit_hub.assistant.skills import MAX_NAME_CHARS
 from orbit_hub.identifiers import canonical_uuid
 from orbit_hub.log import bind_op, get_logger
 from orbit_hub.meetings_bridge.page import MAX_ANSWER_CHARS
@@ -94,37 +96,44 @@ class OrbitMCPServer(MCPServer):
     """orbit-mcp's tools, without those of a group its agent has off."""
 
     hub_client: HubClient | None = None
-    _access: tuple[float, str, dict[str, bool]] | None = None
+    _access: tuple[float, tuple[str, dict[str, bool], bool]] | None = None
 
-    async def agent_access(self) -> tuple[str, dict[str, bool]] | None:
-        """The agent's id and access groups, or None when the hub could not say.
+    async def agent_access(self) -> tuple[str, dict[str, bool], bool] | None:
+        """The agent's id, its access groups and whether the hub keeps its
+        skills, or None when the hub could not say.
 
         Unknown is not "off": every tool is offered then, and the hub, which
         checks each request itself, refuses what is off.
         """
         now = monotonic()
         if self._access is not None and now - self._access[0] < ACCESS_CACHE_SECONDS:
-            return self._access[1], self._access[2]
+            return self._access[1]
         if self.hub_client is None:
             return None
         try:
-            agent_id, groups = await self.hub_client.agent_access()
+            known = await self.hub_client.agent_access()
         except HubClientError as exc:
             logger.info(
                 "orbit_mcp_access_unknown",
                 extra={"event": "orbit_mcp_access_unknown", "code": exc.code},
             )
             return None
-        self._access = (now, agent_id, groups)
-        return agent_id, groups
+        self._access = (now, known)
+        return known
 
     async def list_tools(self):
         tools = await super().list_tools()
         known = await self.agent_access()
         if known is None:
             return tools
-        _agent_id, groups = known
-        return [tool for tool in tools if groups.get(TOOL_GROUP.get(tool.name, ""), True)]
+        _agent_id, groups, skills_in_hub = known
+        return [
+            tool
+            for tool in tools
+            if groups.get(TOOL_GROUP.get(tool.name, ""), True)
+            # A Hermes agent's skills are its profile's: this tool could only refuse.
+            and (skills_in_hub or tool.name != SKILL_TOOL)
+        ]
 
     async def call_tool(self, name, arguments, context=None):
         group = TOOL_GROUP.get(name)
@@ -694,6 +703,33 @@ def build_server(config: Config, hub_client: HubClient, *, clock=time.time) -> M
             return _ok(_text(f"Adjunto {head}, {where}.\n{payload['text']}"))
 
         return await invoke(operation, device)
+    # In no access group: it reads the agent's own configuration in the hub,
+    # nothing of the user's Mac or meetings.
+    @server.tool(
+        name=SKILL_TOOL,
+        description=(
+            "Carga las instrucciones de una de tus skills activadas en Orbit, para seguirlas. "
+            "name es su nombre, tal como aparece en tu lista de skills. No lee nada del Mac."
+        ),
+        structured_output=False,
+    )
+    async def orbit_skill(name: str) -> CallToolResult:
+        async def operation(select):
+            if len(name) > MAX_NAME_CHARS:
+                raise HubClientError(
+                    "invalid_parameters",
+                    detail={
+                        "refusal": {
+                            "code": "invalid_parameters",
+                            "parameter": "name",
+                            "chars": len(name),
+                            "max_chars": MAX_NAME_CHARS,
+                        }
+                    },
+                )
+            return _ok(_text(await hub_client.skill(name)))
+
+        return await invoke(operation)
 
     return server
 

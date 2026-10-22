@@ -2,6 +2,7 @@ import type { AccessConfig } from "../../../bridge/generated/AccessConfig";
 import { Toggle } from "../../../design/Toggle";
 import { accessGroups } from "../../../i18n/es/agents";
 import settingsStyles from "../SettingsView.module.css";
+import { ACCESS_GROUP_TOOLS } from "./access-tools";
 import styles from "./Agents.module.css";
 import { copy, FeedbackLine, NotEditable, type OrderProps, Panel } from "./parts";
 
@@ -23,11 +24,11 @@ export function AccessCard({
       <p className={styles.hint}>{copy.accessHelp}</p>
       <NotEditable editable={access.editable} cause={access.cause} />
       <div className={settingsStyles.controls}>
-        {accessGroups.map(({ group, label, tools }) => (
+        {accessGroups.map(({ group, label }) => (
           <div className={settingsStyles.controlRow} key={group}>
             <div className={settingsStyles.rowCopy}>
               <strong>{label}</strong>
-              <span>{tools.join(", ")}</span>
+              <span>{ACCESS_GROUP_TOOLS[group].join(", ")}</span>
             </div>
             <Toggle
               checked={access.groups[group]}

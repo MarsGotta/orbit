@@ -4,35 +4,15 @@ import type { RefusalNumber } from "../../bridge/generated/RefusalNumber";
 
 /**
  * The groups of Orbit's tools an agent may use, in the order Ajustes shows
- * them, and the tools each one opens (hub-v1 «Agents»). A copy of the
- * hub's list for the screen: the hub decides what each group opens.
+ * them (hub-v1 «Agents»). The tools each one opens are the hub's list,
+ * copied once in `features/settings/agents/access-tools.ts`.
  */
-export const accessGroups: ReadonlyArray<{
-  group: keyof AccessGroups;
-  label: string;
-  tools: readonly string[];
-}> = [
-  {
-    group: "screen",
-    label: "Pantalla",
-    tools: ["orbit_windows", "orbit_screenshot", "orbit_look", "orbit_selected_text"],
-  },
-  {
-    group: "control",
-    label: "Control del Mac",
-    tools: ["orbit_control_tools", "orbit_perform_action", "orbit_action_result"],
-  },
-  { group: "calendar", label: "Calendario", tools: ["orbit_calendar"] },
-  {
-    group: "meetings",
-    label: "Reuniones y notas",
-    tools: ["orbit_meetings", "orbit_transcript", "orbit_note"],
-  },
-  {
-    group: "files",
-    label: "Archivos",
-    tools: ["orbit_files_list", "orbit_files_search", "orbit_files_read"],
-  },
+export const accessGroups: ReadonlyArray<{ group: keyof AccessGroups; label: string }> = [
+  { group: "screen", label: "Pantalla" },
+  { group: "control", label: "Control del Mac" },
+  { group: "calendar", label: "Calendario" },
+  { group: "meetings", label: "Reuniones y notas" },
+  { group: "files", label: "Archivos" },
 ];
 
 const fieldNames: Record<string, string> = {

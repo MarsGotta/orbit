@@ -10,7 +10,7 @@ import httpx
 from pydantic import ValidationError
 
 from orbit_hub.assistant.access import GROUPS
-from orbit_hub.bridge_route import ACCESS_PATH, ACTION_RESULT_PATH, DEVICES_PATH
+from orbit_hub.bridge_route import ACCESS_PATH, ACTION_RESULT_PATH, DEVICES_PATH, SKILL_PATH
 from orbit_hub.bridge_route import IN_FLIGHT as IN_FLIGHT_OUTCOME
 from orbit_hub.bridge_route import PATH as BRIDGE_PATH
 from orbit_hub.bridge_route import PROTOCOL as BRIDGE_PROTOCOL
@@ -241,8 +241,9 @@ class HubClient:
         agent_id = self.config.agent_id
         return {} if agent_id is None else {"agent_id": agent_id}
 
-    async def agent_access(self) -> tuple[str, dict[str, bool]]:
-        """The id of the agent this translator serves and its access groups."""
+    async def agent_access(self) -> tuple[str, dict[str, bool], bool]:
+        """The id of the agent this translator serves, its access groups, and
+        whether the hub keeps its skills (`orbit_skill`)."""
         response = await self._post(
             ACCESS_PATH,
             canonical({"protocol": BRIDGE_PROTOCOL, **self._agent()}),
@@ -255,13 +256,33 @@ class HubClient:
         if response.status_code >= 400:
             raise _failure(payload, response.status_code)
         agent_id, groups = payload.get("agent_id"), payload.get("groups")
+        skills_in_hub = payload.get("skills_in_hub")
         if (
             not isinstance(agent_id, str)
             or not isinstance(groups, dict)
             or any(type(groups.get(group)) is not bool for group in GROUPS)
+            or type(skills_in_hub) is not bool
         ):
             raise HubClientError("invalid_response", response.status_code)
-        return agent_id, {group: groups[group] for group in GROUPS}
+        return agent_id, {group: groups[group] for group in GROUPS}, skills_in_hub
+
+    async def skill(self, name: str) -> str:
+        """The instructions of this translator's agent's enabled skill `name`."""
+        response = await self._post(
+            SKILL_PATH,
+            canonical({"protocol": BRIDGE_PROTOCOL, **self._agent(), "name": name}),
+            self.config.device_bridge,
+            BRIDGE_PROTOCOL,
+            ROUTE_TIMEOUT_SECONDS,
+            None,
+        )
+        payload = self._json_payload(response)
+        if response.status_code >= 400:
+            raise _failure(payload, response.status_code)
+        instructions = payload.get("instructions")
+        if not isinstance(instructions, str):
+            raise HubClientError("invalid_response", response.status_code)
+        return instructions
 
     async def device_request(self, device_id: str, capability: str, parameters: dict) -> dict:
         validate_parameters(capability, parameters)

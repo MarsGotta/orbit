@@ -18,6 +18,13 @@ tools away: both run them inside their process. Each agent is therefore also
 locked down with its own options (`claude_lock_down`, `codex_lock_down`), and
 its files live in a folder of its own under the hub's data directory.
 
+The personality and enabled skills the hub keeps (`agent_config`) reach each
+agent as the same text, `instructions_text`, where its lock-down still reads
+it: Claude Code in each session's `_meta.systemPrompt.append` (with
+`settingSources: []` it loads no `CLAUDE.md` or skills folder, and with
+`tools: []` it could not open one), Codex in the `AGENTS.md` of its folder.
+A skill's instructions come from orbit-mcp's `orbit_skill`.
+
 The account is the operator's: Orbit never offers a sign-in and never sees a
 token. An agent that asks to authenticate is refused with the command to run
 on the server.
@@ -29,7 +36,6 @@ import json
 import os
 import re
 import shlex
-import shutil
 import signal
 import sys
 from collections.abc import Mapping, Sequence
@@ -62,7 +68,12 @@ from acp.schema import (
 
 from ..errors import HubError
 from ..log import clear_op, report
-from .agent_config import AgentInstructions, no_instructions
+from .agent_config import (
+    MAX_INSTRUCTIONS_TEXT_BYTES,
+    AgentInstructions,
+    instructions_text,
+    no_instructions,
+)
 from .backend import (
     ActivityItem,
     Capabilities,
@@ -82,7 +93,6 @@ from .backend import (
     TextBlock,
     UnreadableUpdate,
 )
-from .skills import NAME_CHARACTERS
 
 if TYPE_CHECKING:
     from ..config import Settings
@@ -182,7 +192,7 @@ def build_backend(
 ) -> "AcpBackend":
     """The agent's backend (`agents.KINDS`), refused at startup when its
     command cannot start. `instructions` reads the personality and enabled
-    skills written into the agent's folder before each session."""
+    skills the agent is told as each session opens."""
     path = Path(agent.settings.command[0])
     if not path.exists():
         cause = "does not exist"
@@ -259,7 +269,11 @@ class AcpBackend:
             environment["CLAUDE_CONFIG_DIR"] = str(self.config_dir)
         else:
             environment["CODEX_HOME"] = str(self.config_dir)
-            environment["CODEX_CONFIG"] = json.dumps(codex_lock_down())
+            # And the whole AGENTS.md the hub writes, which past its default
+            # 32 KiB Codex would cut without a word.
+            environment["CODEX_CONFIG"] = json.dumps(
+                {**codex_lock_down(), "project_doc_max_bytes": MAX_INSTRUCTIONS_TEXT_BYTES}
+            )
             # codex-acp sends its mode's sandbox and approval policy with every
             # turn, over `sandbox_mode` and `approval_policy`; this is the mode
             # whose sandbox is read-only. Its approval policy is `on-request`.
@@ -281,7 +295,17 @@ class AcpBackend:
         ]
 
     def session_meta(self) -> dict:
-        return claude_lock_down() if self.settings.agent == "claude-code" else {}
+        """What `session/new` and `session/load` carry in `_meta`: for Claude
+        Code, its lock-down and what it is told. claude-agent-acp 0.94.0 makes
+        `_meta.systemPrompt` the Agent SDK's `{type: "preset", preset:
+        "claude_code", ...}`, so `append` follows Claude Code's own prompt."""
+        if self.settings.agent != "claude-code":
+            return {}
+        meta = claude_lock_down()
+        told = instructions_text(self.instructions())
+        if told is not None:
+            meta["systemPrompt"] = {"append": told}
+        return meta
 
     def prepare_folder(self) -> None:
         for path in (self.folder.parent, self.folder, self.config_dir):
@@ -310,7 +334,8 @@ class AcpBackend:
                     )
                 await idle[0].stop()
             self.prepare_folder()
-            write_instructions(self.folder, self.settings.agent, self.instructions())
+            if self.settings.agent == "codex":
+                write_instructions(self.folder, self.instructions())
             process = _AgentProcess(self, connection)
             self.processes.append(process)
         try:
@@ -326,75 +351,34 @@ class AcpBackend:
             self.processes.append(process)
 
 
-# What each agent reads from its folder, its `cwd`: the instructions file and
-# the skills directory, one `<name>/SKILL.md` per enabled skill.
-INSTRUCTIONS_FILE = {"claude-code": "CLAUDE.md", "codex": "AGENTS.md"}
-SKILLS_DIRECTORY = {"claude-code": (".claude", "skills"), "codex": (".codex", "skills")}
+# What Codex reads from its folder, its `cwd`: every AGENTS.md from the
+# project root down to it, concatenated (Codex 0.160.1, `agents_md.rs`).
+INSTRUCTIONS_FILE = "AGENTS.md"
 
 
-def write_instructions(folder: Path, agent: AgentName, current: AgentInstructions) -> None:
-    """Write the agent's personality and enabled skills into its folder.
+def write_instructions(folder: Path, current: AgentInstructions) -> None:
+    """Write what Codex is told into its folder's AGENTS.md, or remove it.
 
-    Each file is written whole or not at all (a temporary file, synced, then
-    renamed over the old one), and nothing outside `folder` is written: skill
-    names are checked again, and a symbolic link where a directory should be
-    is refused rather than followed. A skill no longer enabled, or a
-    personality now empty, leaves the folder. The folder is the hub's alone.
+    No skills folder is written: Codex lists a folder's skills by path and
+    opens them with its shell, which the lock-down removes, so each skill
+    reaches it through `orbit_skill` instead. The file is written whole or
+    not at all (a temporary file, synced, then renamed over the old one), and
+    a symbolic link in its place is refused rather than followed. The folder
+    is the hub's alone.
 
-    The agent's folder is private (`0700`, see `prepare_folder`); inside it,
-    these files are `0644` and their directories `0755`, so an agent run as
-    a separate system user with access to its folder can read what the hub
-    wrote (docs/self-hosting.md).
+    The agent's folder is private (`0700`, see `prepare_folder`); the file
+    is `0644`, so an agent run as a separate system user with access to its
+    folder can read it (docs/self-hosting.md).
     """
-    root = folder.resolve()
-    instructions = folder / INSTRUCTIONS_FILE[agent]
-    if current.personality:
-        _write_whole(root, instructions, current.personality)
-    elif instructions.is_symlink() or instructions.exists():
-        instructions.unlink()
-    directory = folder
-    for part in SKILLS_DIRECTORY[agent]:
-        directory = _readable_directory(root, directory / part)
-    enabled = set()
-    for skill in current.skills:
-        if NAME_CHARACTERS.fullmatch(skill.name) is None:
-            raise HubError(
-                "agent_folder_invalid",
-                f"La skill «{skill.name}» saldría de la carpeta del agente: no se escribe",
-                numbers={"name": skill.name},
-            )
-        enabled.add(skill.name)
-        _write_whole(
-            root, _readable_directory(root, directory / skill.name) / "SKILL.md", skill.content
-        )
-    for entry in directory.iterdir():
-        if entry.name in enabled:
-            continue
-        if entry.is_dir() and not entry.is_symlink():
-            shutil.rmtree(entry)
-        else:
-            entry.unlink()
+    path = folder / INSTRUCTIONS_FILE
+    told = instructions_text(current)
+    if told is not None:
+        _write_whole(path, told)
+    elif path.is_symlink() or path.exists():
+        path.unlink()
 
 
-def _inside(root: Path, path: Path) -> None:
-    if not path.resolve().is_relative_to(root):
-        raise HubError(
-            "agent_folder_invalid", f"{path} queda fuera de la carpeta del agente: no se escribe"
-        )
-
-
-def _readable_directory(root: Path, path: Path) -> Path:
-    if path.is_symlink() or (path.exists() and not path.is_dir()):
-        raise HubError("agent_folder_invalid", f"{path} no es un directorio: no se escribe")
-    _inside(root, path)
-    if not path.exists():
-        path.mkdir(mode=0o755)
-        path.chmod(0o755)
-    return path
-
-
-def _write_whole(root: Path, path: Path, text: str) -> None:
-    _inside(root, path.parent)
+def _write_whole(path: Path, text: str) -> None:
     if path.is_symlink():
         raise HubError("agent_folder_invalid", f"{path} es un enlace: no se escribe")
     temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")

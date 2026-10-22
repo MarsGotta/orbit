@@ -36,10 +36,13 @@ is in Spanish; the labels quoted below are the ones it shows.
   and `…/skills/{name}`). Skills are agentskills.io `SKILL.md` files,
   validated by the standard's rules on `name` and `description`, at most
   64 KiB each and 128 per agent; a personality is at most 16 KiB. An `openai`
-  agent is told them at every turn and loads a skill with `orbit_skill`; an
-  `acp` agent finds them in its folder (`CLAUDE.md`/`AGENTS.md` and
-  `.claude/skills` or `.codex/skills`); a `hermes` agent's are its profile's
-  `SOUL.md` and skills, through Hermes's panel API. The five access groups
+  or `acp` agent is told its personality and each enabled skill's name and
+  description (an `openai` agent at every turn, Claude Code in its session's
+  system prompt, Codex in its folder's `AGENTS.md`) and loads a skill's
+  instructions with `orbit-mcp`'s new `orbit_skill`, which belongs to no
+  access group and refuses a skill not enabled with the enabled ones; a
+  `hermes` agent's are its profile's `SOUL.md` and skills, through Hermes's
+  panel API, and it is not offered `orbit_skill`. The five access groups
   (screen, control, calendar, meetings, files; all on by default) are
   enforced by `orbit-mcp`, which no longer lists or runs a tool of a group
   that is off, and by the hub, which refuses that group's bridge requests

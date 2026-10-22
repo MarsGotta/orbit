@@ -76,8 +76,9 @@ class DisconnectedHub:
 
     async def agent_access(self):
         # The hub answers for itself: it is the Mac that is away, and every
-        # group is on, so each tool reaches the Mac's refusal.
-        return "default", dict.fromkeys(GROUPS, True)
+        # group is on, so each tool reaches the Mac's refusal. The agent's
+        # skills are the hub's (`orbit_skill` addresses no Mac).
+        return "default", dict.fromkeys(GROUPS, True), True
 
     async def _unavailable(self, method: str):
         self.calls.append(method)
