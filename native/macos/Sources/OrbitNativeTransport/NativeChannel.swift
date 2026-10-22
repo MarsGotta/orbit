@@ -28,6 +28,7 @@ public final class NativeChannel: Sendable {
         var started = false
         var failed = false
         var pendingBytes = 0
+        var pendingAudioBytes = 0
         var pendingCommands = 0
         var droppedAudioFrames = [AudioTrack: Int]()
         var gapWriteScheduled = false
@@ -46,11 +47,23 @@ public final class NativeChannel: Sendable {
         case finished
     }
 
-    private static let maximumBufferedAudioSeconds = 10
-    // Ten seconds * two tracks * 48 kHz * 16-bit PCM * base64 expansion,
-    // plus a bounded allowance for the versioned JSON envelopes.
-    private static let maximumPendingBytes = maximumBufferedAudioSeconds * 2
+    /// Audio the daemon has not read yet waits here, in memory and in order,
+    /// and reaches it when it reads again. It protects a recording or a voice
+    /// note from a daemon that stops reading for a while: on 2026-10-22 an
+    /// 11 s stall of the daemon cut a meeting, and the owner's rule is that
+    /// capture goes on and the audio is delivered afterwards. Five minutes of
+    /// both tracks at 48 kHz, 16-bit mono PCM, base64 in JSON: 300 s * 2 *
+    /// 128,000 B/s, about 77 MB, plus room for the envelopes. Audio that does
+    /// not fit is counted in one `gap` (`daemon_backpressure`) and capture
+    /// goes on. It limits neither a recording's length nor how long the daemon
+    /// may be away: a daemon that closes the pipe ends the helper anyway.
+    static let maximumBufferedAudioSeconds = 300
+    static let maximumPendingAudioBytes = maximumBufferedAudioSeconds * 2
         * (48_000 * 2 * 4 / 3) + 65_536
+    /// Every other event (responses, state, errors) has its own bound: the
+    /// 2.5 MiB all events shared before audio got its own room (ten seconds
+    /// of two-track audio). Neither kind can take the other's room.
+    private static let maximumPendingBytes = 10 * 2 * (48_000 * 2 * 4 / 3) + 65_536
     private static let maximumPendingCommands = 64
     private let state = Mutex(State())
     private let input: FileHandle
@@ -109,10 +122,17 @@ public final class NativeChannel: Sendable {
         let audio = Self.audioTrackAndFrames(event)
         let admission = state.withLock { current -> Admission in
             guard !current.failed else { return .closed }
-            let available = Self.maximumPendingBytes - current.pendingBytes
+            guard let (track, frames) = audio else {
+                guard frame.count <= Self.maximumPendingBytes - current.pendingBytes else {
+                    return .overloaded
+                }
+                current.pendingBytes += frame.count
+                writer.async { self.writeFrame(frame, audio: false) }
+                return .accepted
+            }
+            let available = Self.maximumPendingAudioBytes - current.pendingAudioBytes
             let gapBytes = Self.pendingGapBytes(current.droppedAudioFrames)
             guard gapBytes <= available, frame.count <= available - gapBytes else {
-                guard let (track, frames) = audio else { return .overloaded }
                 let previous = current.droppedAudioFrames[track, default: 0]
                 current.droppedAudioFrames[track] = previous > Int.max - frames
                     ? Int.max : previous + frames
@@ -122,10 +142,10 @@ public final class NativeChannel: Sendable {
                 }
                 return .discardedAudio
             }
-            current.pendingBytes += frame.count
+            current.pendingAudioBytes += frame.count
             // Admission AND enqueue are one ordered transition with flush.
             // The closure takes the mutex only after this short section exits.
-            writer.async { self.writeFrame(frame) }
+            writer.async { self.writeFrame(frame, audio: true) }
             return .accepted
         }
         switch admission {
@@ -149,7 +169,7 @@ public final class NativeChannel: Sendable {
         var total = 0
         for (track, frames) in dropped {
             guard let frame = gapFrame(track: track, frames: frames) else { continue }
-            guard frame.count <= maximumPendingBytes - total else { return maximumPendingBytes }
+            guard frame.count <= maximumPendingAudioBytes - total else { return maximumPendingAudioBytes }
             total += frame.count
         }
         return total
@@ -183,16 +203,16 @@ public final class NativeChannel: Sendable {
                     current.droppedAudioFrames.removeValue(forKey: track)
                     return .skip
                 }
-                guard frame.count <= Self.maximumPendingBytes - current.pendingBytes else {
+                guard frame.count <= Self.maximumPendingAudioBytes - current.pendingAudioBytes else {
                     return .retry
                 }
                 current.droppedAudioFrames.removeValue(forKey: track)
-                current.pendingBytes += frame.count
+                current.pendingAudioBytes += frame.count
                 return .frame(frame)
             }
             switch action {
             case .frame(let frame):
-                writeFrame(frame)
+                writeFrame(frame, audio: true)
             case .retry:
                 writer.async { self.writePendingAudioGaps() }
                 return
@@ -312,8 +332,14 @@ public final class NativeChannel: Sendable {
         callback?(command)
     }
 
-    private func writeFrame(_ frame: Data) {
-        defer { state.withLock { $0.pendingBytes -= frame.count } }
+    /// `audio` names the budget the frame was admitted under: audio frames
+    /// and their gaps, or every other event.
+    private func writeFrame(_ frame: Data, audio: Bool) {
+        defer {
+            state.withLock {
+                if audio { $0.pendingAudioBytes -= frame.count } else { $0.pendingBytes -= frame.count }
+            }
+        }
         guard !state.withLock({ $0.failed }) else { return }
         do {
             try writeOutput(frame)

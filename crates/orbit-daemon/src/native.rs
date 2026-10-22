@@ -25,15 +25,15 @@ use std::{
 use tokio::{
     io::{AsyncBufRead, AsyncWrite, AsyncWriteExt, BufReader},
     process::{Child, Command},
-    sync::{Mutex, mpsc, watch},
-    task::JoinHandle,
+    sync::{Mutex, mpsc, oneshot, watch},
     time::Instant,
 };
 
 /// Ten seconds of two-track input fits with margin: the tap produces
 /// ≈47 ev/s × 2 pistas and the bridge needs room to keep emitting while a
-/// slow consumer drains. Sized so a stalled consumer never forces an audio
-/// frame to be dropped in normal operation.
+/// slow consumer drains. When it is full the bridge waits and stops reading
+/// the helper's pipe: the backlog then waits in the helper, which keeps up to
+/// five minutes of audio in order. This bounds memory here, never audio.
 pub const NATIVE_EVENTS_CAPACITY: usize = 1000;
 
 /// How long the daemon gives its helper to leave by itself once it has been
@@ -104,11 +104,6 @@ impl std::fmt::Display for MalformedAudio {
 }
 
 impl std::error::Error for MalformedAudio {}
-
-/// Non-audio frames are not discardable. If the consumer does not free a
-/// slot for ten seconds the bridge is genuinely dead (the helper is the
-/// only path to bring it back) and the supervisor must decide what to do.
-const NON_AUDIO_BACKPRESSURE_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// One command written to the helper, heartbeat included. A helper whose pipe
 /// is full for this long is not reading, and the bridge is declared down.
@@ -185,10 +180,22 @@ impl HelperEnd {
     }
 }
 
-/// The helper's supervision as the daemon holds it: the task and the one
+/// The thread the helper's supervision runs on, by this name in a crash
+/// report and in `ps -T`.
+pub const SUPERVISOR_THREAD_NAME: &str = "orbit-helper-bridge";
+
+/// The helper's supervision as the daemon holds it: how it ended and the one
 /// signal that ends it in order.
+///
+/// It runs on a thread of its own, with its own runtime, not on the daemon's.
+/// The heartbeat is what tells the helper the daemon is alive. On the
+/// daemon's runtime, work that held all of its threads (a blocking call, a
+/// slow disk flush) would hold the beat as well, and the helper would read a
+/// busy daemon as a dead one; on 2026-10-22 the helper missed the beat for
+/// over 6 s and cut a meeting. Pipe reads and writes, the beat and relaunches
+/// now depend only on this thread.
 pub struct Supervisor {
-    task: JoinHandle<HelperEnd>,
+    end: oneshot::Receiver<HelperEnd>,
     stop: watch::Sender<bool>,
 }
 
@@ -199,26 +206,37 @@ impl Supervisor {
         events: mpsc::Sender<Value>,
     ) -> Self {
         let (stop, stopped) = watch::channel(false);
-        let task = tokio::spawn(async move {
-            let stopping = stopped.clone();
-            match run(path, commands, events.clone(), stopped).await {
-                Ok(end) => end,
-                Err(_) => {
-                    // The daemon latches the capture on this; a supervision
-                    // that ends because it was asked to has nothing to report.
-                    if !*stopping.borrow()
-                        && events
-                            .send(json!({"event":"helper_disconnected"}))
-                            .await
+        let (ended, end) = oneshot::channel();
+        let announce = events.clone();
+        let launched = std::thread::Builder::new()
+            .name(SUPERVISOR_THREAD_NAME.into())
+            .spawn(move || {
+                let end = match tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                {
+                    Ok(runtime) => runtime.block_on(supervise(path, commands, events, stopped)),
+                    Err(_) => {
+                        if events
+                            .blocking_send(json!({"event":"helper_disconnected"}))
                             .is_err()
-                    {
-                        eprintln!("helper_disconnected_receiver_closed");
+                        {
+                            eprintln!("helper_disconnected_receiver_closed");
+                        }
+                        HelperEnd::GaveUp
                     }
-                    HelperEnd::GaveUp
-                }
-            }
-        });
-        Self { task, stop }
+                };
+                // Nobody waits for it when the daemon did not ask to stop.
+                let _ = ended.send(end);
+            });
+        if launched.is_err()
+            && announce
+                .try_send(json!({"event":"helper_disconnected"}))
+                .is_err()
+        {
+            eprintln!("helper_disconnected_not_announced");
+        }
+        Self { end, stop }
     }
 
     /// Ends the supervision in order: the helper is sent `shutdown`, its input
@@ -227,19 +245,46 @@ impl Supervisor {
     /// a full channel cannot hold the helper's last frames — or this stop.
     pub async fn stop(self, events: &mut mpsc::Receiver<Value>) -> HelperEnd {
         self.stop.send_replace(true);
-        let mut task = self.task;
+        let mut end = self.end;
         let bound = tokio::time::sleep(HELPER_EXIT_GRACE + HELPER_KILL_ROOM);
         tokio::pin!(bound);
         let mut draining = true;
         loop {
             tokio::select! {
-                end = &mut task => return end.unwrap_or(HelperEnd::Lost),
+                ended = &mut end => return ended.unwrap_or(HelperEnd::Lost),
                 event = events.recv(), if draining => draining = event.is_some(),
-                () = &mut bound => {
-                    task.abort();
-                    return HelperEnd::Lost;
-                }
+                // A thread cannot be aborted: the supervision ends on its own
+                // within its bounded closure, and its child goes with the
+                // process at the latest.
+                () = &mut bound => return HelperEnd::Lost,
             }
+        }
+    }
+}
+
+/// The supervision's whole life on its own thread: `run`, and the fall it
+/// announces when the relaunches run out.
+async fn supervise(
+    path: Option<PathBuf>,
+    commands: mpsc::Receiver<Value>,
+    events: mpsc::Sender<Value>,
+    stopped: watch::Receiver<bool>,
+) -> HelperEnd {
+    let stopping = stopped.clone();
+    match run(path, commands, events.clone(), stopped).await {
+        Ok(end) => end,
+        Err(_) => {
+            // The daemon latches the capture on this; a supervision
+            // that ends because it was asked to has nothing to report.
+            if !*stopping.borrow()
+                && events
+                    .send(json!({"event":"helper_disconnected"}))
+                    .await
+                    .is_err()
+            {
+                eprintln!("helper_disconnected_receiver_closed");
+            }
+            HelperEnd::GaveUp
         }
     }
 }
@@ -593,7 +638,6 @@ where
     // Read and write loops are independent. Cancelling read_frame on every
     // heartbeat would discard a partial JSON frame already consumed from stdin.
     let mut consecutive_malformed: u32 = 0;
-    let mut dropped_per_track: BTreeMap<(String, String), u64> = BTreeMap::new();
     let mut reported_native_events = BTreeSet::new();
     let mut reported_unpaired_responses = BTreeSet::new();
     // The bridge sends hello and heartbeat itself. Keep the same bounded
@@ -701,15 +745,8 @@ where
                             "reason": cause.clone(),
                             "frames": 1,
                         });
-                        match tokio::time::timeout(NON_AUDIO_BACKPRESSURE_TIMEOUT, events.send(gap))
-                            .await
-                        {
-                            Ok(Ok(())) => {}
-                            Ok(Err(_)) => anyhow::bail!("Canal de eventos cerrado"),
-                            Err(_) => anyhow::bail!(
-                                "El puente no entregó un gap de audio malformado en {} segundos: {cause}",
-                                NON_AUDIO_BACKPRESSURE_TIMEOUT.as_secs()
-                            ),
+                        if events.send(gap).await.is_err() {
+                            anyhow::bail!("Canal de eventos cerrado");
                         }
                         consecutive_malformed = consecutive_malformed.saturating_add(1);
                         if consecutive_malformed >= MAX_MALFORMED_BEFORE_BRIDGE_DOWN {
@@ -746,45 +783,14 @@ where
                 }
             }
 
-            let (source, stream_id, is_audio) =
-                if let NativeEvent::Audio {
-                    source, stream_id, ..
-                } = &typed
-                {
-                    (source.clone(), stream_id.clone(), true)
-                } else {
-                    (String::new(), String::new(), false)
-                };
-
-            // Pending gap events always precede the frame that recovered the
-            // channel, so the daemon attributes the hole to the right track
-            // before any new PCM lands. The key is (source, stream_id) so the
-            // synthetic gap survives `Runtime::accepts_audio`, which requires
-            // the stream_id to match the active track.
-            emit_pending_gaps(&events, &mut dropped_per_track).await?;
-
-            if is_audio {
-                match events.try_send(value) {
-                    Ok(()) => {}
-                    Err(mpsc::error::TrySendError::Full(_)) => {
-                        // Audio is discardable by design; the count is the
-                        // single number the synthetic gap will report.
-                        *dropped_per_track.entry((source, stream_id)).or_insert(0) += 1;
-                    }
-                    Err(mpsc::error::TrySendError::Closed(_)) => {
-                        anyhow::bail!("Canal de eventos cerrado");
-                    }
-                }
-            } else {
-                match tokio::time::timeout(NON_AUDIO_BACKPRESSURE_TIMEOUT, events.send(value)).await
-                {
-                    Ok(Ok(())) => {}
-                    Ok(Err(_closed)) => anyhow::bail!("Canal de eventos cerrado"),
-                    Err(_elapsed) => anyhow::bail!(
-                        "El puente no entregó un evento no-audio en {} segundos",
-                        NON_AUDIO_BACKPRESSURE_TIMEOUT.as_secs()
-                    ),
-                }
+            // Every frame waits for the consumer, audio included. A daemon
+            // that stops reading for a while (an 11 s stall cut a meeting on
+            // 2026-10-22) is not a dead link: while this waits it stops
+            // reading the pipe, the helper keeps the backlog in order and
+            // counts in a `gap` only what does not fit in its own room. The
+            // backlog then arrives whole, never as a gap or a lost helper.
+            if events.send(value).await.is_err() {
+                anyhow::bail!("Canal de eventos cerrado");
             }
         }
     };
@@ -849,47 +855,6 @@ fn retain_pending_command(pending: &mut BTreeMap<String, String>, id: String, co
         }
     }
     pending.insert(id, command);
-}
-
-/// Drains the per-track drop counters into `gap` events on the same channel.
-///
-/// `try_send` keeps the bridge off the slow path: when the consumer is still
-/// behind, the gap stays queued behind the drops for the next attempt and
-/// the audio frame that just arrived is dropped instead. A closed channel
-/// surfaces as a bridge failure so the supervisor can decide what to do.
-/// The gap carries the `stream_id` of the audio it covers so
-/// `Runtime::accepts_audio` can attribute it to the recording before any new
-/// PCM lands.
-async fn emit_pending_gaps(
-    events: &mpsc::Sender<Value>,
-    dropped: &mut BTreeMap<(String, String), u64>,
-) -> Result<()> {
-    if dropped.is_empty() {
-        return Ok(());
-    }
-    let tracks: Vec<(String, String)> = dropped.keys().cloned().collect();
-    for track in tracks {
-        let count = dropped.remove(&track).unwrap_or(0);
-        let (source, stream_id) = track;
-        let gap = json!({
-            "v": orbit_core::wire::native::NATIVE_PROTOCOL,
-            "event": "gap",
-            "source": source,
-            "stream_id": stream_id,
-            "reason": "daemon_backpressure",
-            "frames": count,
-        });
-        match events.try_send(gap) {
-            Ok(()) => {}
-            Err(mpsc::error::TrySendError::Full(_)) => {
-                dropped.insert((source, stream_id), count);
-            }
-            Err(mpsc::error::TrySendError::Closed(_)) => {
-                anyhow::bail!("Canal de eventos cerrado");
-            }
-        }
-    }
-    Ok(())
 }
 
 async fn write<W: AsyncWrite + Unpin>(writer: &mut W, value: Value) -> Result<()> {

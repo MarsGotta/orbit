@@ -14,6 +14,17 @@ export const capture = {
         ? `Se perdió el audio ${data.elapsed_ms < 1_000 ? "menos de 1 s" : `${Math.round(data.elapsed_ms / 1_000)} s`} al cambiar la ruta de audio; la grabación sigue.`
         : "Se perdió el audio al cambiar la ruta de audio; no se pudo medir la duración del hueco. La grabación sigue.",
   },
+  voice_note_cancelled_by_audio_route: worded(
+    "fixable",
+    "Cambió el dispositivo de audio mientras dictabas: la nota de voz se canceló y queda guardada sin enviar. La reunión sigue grabándose.",
+  ),
+  track_stopped: {
+    class: "fixable",
+    text: (data) =>
+      data.origin === "mic_local"
+        ? "Tu micrófono dejó de grabarse y no se pudo recuperar; el audio de la reunión sigue grabándose."
+        : "El audio de la otra app dejó de grabarse y no se pudo recuperar; tu micrófono sigue grabando.",
+  },
   recording_finished: worded("done", "Grabación guardada."),
   recording_ceiling_reached: {
     class: "fixable",

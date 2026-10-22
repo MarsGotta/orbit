@@ -1862,3 +1862,49 @@ async fn helper_knows_who_uses_a_shared_microphone() -> Result<()> {
     }
     Ok(())
 }
+
+/// After a stall, the helper delivers what it kept in one burst, long after
+/// it was captured. The daemon takes the backlog as the recording it is:
+/// every second is sealed, the samples follow each other on the capture
+/// clock, and no gap is counted.
+#[tokio::test]
+async fn a_backlog_delivered_after_a_stall_is_sealed_whole_without_a_gap() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut receiver) = fixture(directory.path())?;
+    let stream = start(&mut runtime, &mut receiver).await?;
+    let backlog_seconds = 4u64;
+    for sequence in 0..backlog_seconds {
+        runtime.native_event(frame(&stream, sequence, 8000)).await?;
+    }
+    settle_seal_receipts(&mut runtime).await?;
+    let track = track_progress(&runtime, "mic_local")?;
+    assert_eq!(
+        track.sealed_chunks, backlog_seconds,
+        "every second is sealed"
+    );
+    assert_eq!(track.gaps, 0, "a backlog is audio, not a gap");
+    let recording = runtime
+        .state
+        .durable
+        .recording
+        .as_ref()
+        .context("the recording goes on")?
+        .id
+        .clone();
+    let mut sealed = runtime.fixture_store.list_chunks(&recording, None, 64)?;
+    sealed.sort_by_key(|chunk| chunk.metadata.sequence);
+    assert_eq!(sealed.len(), usize::try_from(backlog_seconds)?);
+    for pair in sealed.windows(2) {
+        let (before, after) = (&pair[0].metadata, &pair[1].metadata);
+        assert_eq!(
+            after.first_sample,
+            before.first_sample + before.frames,
+            "the samples follow each other without a hole"
+        );
+        assert!(
+            after.monotonic_ns > before.monotonic_ns,
+            "the capture clock orders the chunks"
+        );
+    }
+    Ok(())
+}

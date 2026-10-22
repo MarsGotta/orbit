@@ -946,6 +946,7 @@ impl Runtime {
                                 self.say(notice);
                             }
                         }
+                        self.track_gap(gap.source, gap.reason).await?;
                         self.note_bound_track_gap(gap.source)?;
                     } else if !self.state.privacy_stopped() {
                         bail!(

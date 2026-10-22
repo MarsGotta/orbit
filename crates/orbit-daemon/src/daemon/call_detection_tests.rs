@@ -505,3 +505,58 @@ async fn a_call_during_a_manual_recording_offers_and_starts_nothing() -> Result<
     }
     Ok(())
 }
+
+/// The call's application quits and the helper, which no longer cuts the
+/// microphone with it, declares the application's track stopped. The call
+/// recording still ends as «Terminar» with what was recorded.
+#[tokio::test]
+async fn the_call_app_closing_with_its_track_declared_stopped_ends_the_recording() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut helper) = fixture(directory.path())?;
+    runtime.recover_call_preference();
+    runtime
+        .command(Command::CallPreference {
+            preference: CallPreference::Record,
+        })
+        .await?;
+    runtime.features.call.clock_ms = Some(NOW);
+    runtime.native_event(zoom_holding(true)).await?;
+    at(&mut runtime, NOW + 3_000).await?;
+    let starts = ack_starts(&mut runtime, &mut helper).await?;
+    let remote = starts
+        .iter()
+        .find(|start| start["source"] == "remote_app")
+        .and_then(|start| start["stream_id"].as_str())
+        .context("the call records the application's audio")?
+        .to_owned();
+    let recording = runtime
+        .state
+        .durable
+        .recording
+        .clone()
+        .context("not started")?;
+    runtime.features.call.clock_ms = Some(NOW + MINUTE);
+    runtime.native_event(zoom_holding(false)).await?;
+    at(&mut runtime, NOW + MINUTE + 4_000).await?;
+    runtime
+        .native_event(
+            json!({"event":"gap","source":"remote_app","stream_id":remote,
+            "reason":"track_stopped","frames":0,"duration_unknown":true}),
+        )
+        .await?;
+    let closed = runtime
+        .state
+        .durable
+        .recording
+        .clone()
+        .context("recording gone")?;
+    assert_eq!(closed.id, recording.id);
+    // The microphone was never cut: the recording finishes as «Terminar»
+    // does, draining what the Mac still holds, never interrupted.
+    assert_eq!(closed.phase, CapturePhase::Finalizing);
+    assert!(crate::daemon::turn::said::mentions(
+        &runtime.state,
+        "call_app_closed"
+    ));
+    Ok(())
+}

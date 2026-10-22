@@ -550,6 +550,7 @@ mod hub_link;
 mod interactions;
 mod kernel;
 mod links;
+mod loop_lag;
 mod meeting_question;
 mod meeting_runtime;
 mod native_events;
@@ -569,6 +570,7 @@ mod stops;
 mod store_actor;
 pub(crate) mod ticketed;
 mod topics;
+mod track_gaps;
 mod track_signal;
 mod turn;
 mod window_attachment;
@@ -591,6 +593,8 @@ mod helper_liveness_tests;
 mod pairing_session_tests;
 #[cfg(test)]
 mod state_observation_tests;
+#[cfg(test)]
+mod track_failure_tests;
 #[cfg(test)]
 mod voice_note_tests;
 
@@ -1278,6 +1282,7 @@ async fn run_with_helper_inner(
     }
     let mut tick = tokio::time::interval(Duration::from_secs(1));
     let mut last_tick = Duration::ZERO;
+    let mut loop_lag = loop_lag::LoopLag::default();
     let mut closing = shutdown::Shutdown::default();
     let outcome: Result<()> = async {
         loop {
@@ -1452,6 +1457,18 @@ async fn run_with_helper_inner(
                     loop_turns[7] += 1;
                     let tick_started = std::time::Instant::now();
                     runtime.begin_fresh_turn(orbit_core::notice::ReportSource::Daemon);
+                    if let Some(late) = loop_lag.observe(tick_started, tick.period()) {
+                        // Codes and numbers only: how long, and how much the
+                        // helper had sent meanwhile that is still unread.
+                        runtime.log(
+                            "daemon_loop_stalled",
+                            &[
+                                ("stalled_ms", &late.as_millis().to_string()),
+                                ("queued_native_events", &native_events.len().to_string()),
+                                ("recording", if runtime.state.durable.recording.is_some() { "true" } else { "false" }),
+                            ],
+                        );
+                    }
                     // The call's health is judged with what the loop has not
                     // read yet: after a held loop, frames waiting here are
                     // audio that arrived, not silence.

@@ -3,6 +3,9 @@ import OrbitNativeProtocol
 public enum AudioRouteChangeAction: Equatable, Sendable {
     case none(reason: String)
     case restartMicrophone
+    /// A voice note was dictated over a live meeting: the meeting's microphone
+    /// restarts on the new route and only the voice note ends.
+    case restartMicrophoneCancellingVoiceNote
     case cancelPlayback
     case stop(reason: String)
 }
@@ -13,7 +16,8 @@ public enum AudioRouteChangePolicy {
     public static func decide(stopped: Bool, closing: Bool, microphone: CaptureSlot,
                               processing: AudioProcessingMode, playback: Bool,
                               failure: String? = nil, recovering: Bool = false,
-                              routeChanged: Bool?, purpose: NativeMicrophonePurpose?) -> AudioRouteChangeAction {
+                              routeChanged: Bool?, purpose: NativeMicrophonePurpose?,
+                              meetingUnderneath: Bool = false) -> AudioRouteChangeAction {
         guard !stopped else { return .none(reason: "privacy_stopped") }
         guard !closing else { return .none(reason: "closing_or_draining") }
         if let failure { return .stop(reason: failure) }
@@ -25,7 +29,11 @@ public enum AudioRouteChangePolicy {
             }
             switch purpose {
             case .meeting: return .restartMicrophone
-            case .voiceNote: return .stop(reason: "audio_device_changed_voice_note")
+            // A voice note alone stops once. Over a meeting, stopping it took
+            // the whole meeting with it (both tracks): the meeting goes on.
+            case .voiceNote:
+                return meetingUnderneath
+                    ? .restartMicrophoneCancellingVoiceNote : .stop(reason: "audio_device_changed_voice_note")
             case nil: return .stop(reason: "audio_device_changed_purpose_unknown")
             }
         }

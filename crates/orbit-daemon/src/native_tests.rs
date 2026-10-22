@@ -149,14 +149,23 @@ fn unsupported_native_command_reports_its_name_instead_of_making_a_frame() {
     );
 }
 
+/// The gap the helper writes when its own room for audio the daemon has
+/// not read is full crosses the bridge and decodes as a native event.
 #[tokio::test]
 async fn daemon_backpressure_gap_decodes_as_a_native_event() -> Result<()> {
     use orbit_core::wire::native::NativeEvent;
 
-    let (send, mut receive) = mpsc::channel(1);
-    let mut dropped = BTreeMap::from([(("mic_local".into(), "stream-1".into()), 7)]);
-    emit_pending_gaps(&send, &mut dropped).await?;
-    let frame = receive.try_recv()?;
+    let (mut input, _output, reader, writer) = pipes()?;
+    let (_send, commands) = mpsc::channel(1);
+    let (events, mut receive) = mpsc::channel(1);
+    let task = tokio::spawn(bridge(BufReader::new(reader), writer, commands, events));
+    let gap = json!({"v":1,"event":"gap","source":"mic_local","stream_id":"stream-1",
+        "reason":"daemon_backpressure","frames":7});
+    input.write_all(format!("{gap}\n").as_bytes()).await?;
+    let frame = timeout(Duration::from_secs(1), receive.recv())
+        .await?
+        .context("the helper's gap must cross the bridge")?;
+    task.abort();
     let event: NativeEvent = serde_json::from_value(frame)?;
     assert!(matches!(
         event,
@@ -167,7 +176,6 @@ async fn daemon_backpressure_gap_decodes_as_a_native_event() -> Result<()> {
             ..
         } if reason == "daemon_backpressure"
     ));
-    assert!(dropped.is_empty());
     Ok(())
 }
 
@@ -534,13 +542,16 @@ fn fixture_ready_line() -> Result<String> {
     Ok(ready.to_string())
 }
 
-/// A consumer that stops draining must cost buffered audio frames,
-/// never the helper's life. The discarded episode is reported on recovery as
-/// one synthetic gap event with the motive and the count, and audio keeps
-/// flowing afterwards. The two-slot channel models the stall compressed; the
-/// daemon sizes the real channel for ten seconds of two-track audio.
-#[tokio::test]
-async fn a_stalled_consumer_gets_one_counted_gap_and_never_kills_the_bridge() -> Result<()> {
+/// A daemon that stops reading for longer than the bridge ever allowed (ten
+/// seconds for a non-audio event) keeps its helper and its audio: the bridge
+/// waits for the consumer instead of discarding frames or declaring the link
+/// dead, and every frame arrives in order, without a gap, once it reads again.
+/// While it waits it stops reading the pipe, so the backlog stays in the
+/// helper, which keeps up to five minutes and counts what does not fit.
+/// The two-slot channel models the stall compressed.
+#[tokio::test(start_paused = true)]
+async fn a_stalled_consumer_receives_the_whole_backlog_in_order_and_keeps_the_helper() -> Result<()>
+{
     let (mut input, _output, reader, writer) = pipes()?;
     let (send, commands) = mpsc::channel(1);
     let (events, mut received) = mpsc::channel(2);
@@ -550,56 +561,33 @@ async fn a_stalled_consumer_gets_one_counted_gap_and_never_kills_the_bridge() ->
             .write_all(stalled_audio_line(sequence)?.as_bytes())
             .await?;
     }
-    timeout(Duration::from_secs(2), async {
-        while received.len() < 2 {
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-    })
-    .await
-    .context("the buffered audio must fill the event channel")?;
-    // Let the reader account for every remaining frame before draining, so
-    // the discarded count is exactly the eight frames beyond the capacity.
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    input
+        .write_all(format!("{}\n", json!({"v":1,"event":"error","code":"fixture"})).as_bytes())
+        .await?;
+    // Thirty seconds without reading: three times the old non-audio bound.
+    tokio::time::sleep(Duration::from_secs(30)).await;
     assert!(
         !task.is_finished(),
-        "a full event channel must not end the bridge or the helper"
+        "a consumer that stops reading must not end the bridge or the helper"
     );
-    for buffered in 0..2 {
+    for sequence in 0..10u64 {
         let event = timeout(Duration::from_secs(1), received.recv())
             .await?
-            .with_context(|| format!("buffered event {buffered} absent"))?;
+            .with_context(|| format!("audio frame {sequence} absent"))?;
         assert_eq!(
             event["event"], "audio",
-            "the events buffered before the stall are audio"
+            "the backlog is audio, never a gap: {event}"
         );
+        assert_eq!(event["sequence"], sequence, "the backlog arrives in order");
     }
-    // Recovery: the gap for the discarded episode must precede the audio that
-    // follows it, so the daemon can attribute the hole before new PCM.
-    input.write_all(stalled_audio_line(10)?.as_bytes()).await?;
-    let gap = timeout(Duration::from_secs(1), received.recv())
+    let control = timeout(Duration::from_secs(1), received.recv())
         .await?
-        .context("the synthetic gap must arrive after the channel recovers")?;
-    assert_eq!(gap["event"], "gap", "the recovery event must be a gap");
-    assert_eq!(
-        gap["source"], "mic_local",
-        "the gap must name the source it covers"
-    );
-    assert_eq!(
-        gap["stream_id"], "stalled",
-        "the gap must carry the audio stream so the daemon can attribute it"
-    );
-    assert_eq!(
-        gap["reason"], "daemon_backpressure",
-        "the gap must name the daemon backpressure as its motive"
-    );
-    assert_eq!(
-        gap["frames"], 8,
-        "the gap must report the ten frames sent minus the two buffered"
-    );
-    assert_eq!(gap["v"], 1, "the gap must carry the native-v1 version");
+        .context("the event behind the audio must arrive after it")?;
+    assert_eq!(control["event"], "error");
+    input.write_all(stalled_audio_line(10)?.as_bytes()).await?;
     let resumed = timeout(Duration::from_secs(1), received.recv())
         .await?
-        .context("audio after the gap must be delivered")?;
+        .context("audio after the backlog must be delivered")?;
     assert_eq!(resumed["event"], "audio");
     assert_eq!(resumed["sequence"], 10);
     assert!(
@@ -864,6 +852,55 @@ async fn a_helper_that_does_not_leave_is_killed_after_its_grace() -> Result<()> 
     assert!(
         took >= HELPER_EXIT_GRACE,
         "killed after {took:?}, before its {HELPER_EXIT_GRACE:?} grace"
+    );
+    Ok(())
+}
+
+/// The helper's heartbeat does not run on the daemon's runtime. With every
+/// thread of that runtime held (here the test's only one, as a blocking call
+/// would hold it), beats keep reaching the helper, which would otherwise
+/// read the daemon as silent.
+#[tokio::test]
+async fn heartbeats_reach_the_helper_while_the_daemon_runtime_is_held() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let received = directory.path().join("received");
+    let script = helper_script(
+        directory.path(),
+        &format!(
+            "printf '%s\\n' '{}'\n/bin/cat > '{}'\nexit 0",
+            fixture_ready_line()?,
+            received.display()
+        ),
+    )?;
+    let (_send, commands) = mpsc::channel(1);
+    let (events, mut observed) = mpsc::channel(8);
+    let helper = Supervisor::spawn(Some(script), commands, events);
+    helper_ready(&mut observed).await?;
+    let beats = || {
+        std::fs::read_to_string(&received)
+            .map(|text| {
+                text.lines()
+                    .filter(|line| line.contains("\"heartbeat\""))
+                    .count()
+            })
+            .unwrap_or(0)
+    };
+    let before = beats();
+    // Two and a half beat periods with the daemon's runtime held.
+    std::thread::sleep(Duration::from_secs(5));
+    let during = beats().saturating_sub(before);
+    let end = helper.stop(&mut observed).await;
+    assert!(
+        during >= 1,
+        "no heartbeat reached the helper in 5 s with the daemon's runtime held"
+    );
+    assert_eq!(
+        end,
+        HelperEnd::Exited {
+            code: Some(0),
+            signal: None,
+            asked: true
+        }
     );
     Ok(())
 }

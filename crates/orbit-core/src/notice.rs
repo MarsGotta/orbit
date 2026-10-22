@@ -141,6 +141,12 @@ notice_codes! {
     AudioGap => Silent,
     /// The audio route recovered; the meeting continues after a measured or unknown gap.
     AudioRouteRecovered => Done,
+    /// A device change ended the voice note spoken over a meeting; the
+    /// meeting goes on with the new device and the note is kept, unsent.
+    VoiceNoteCancelledByAudioRoute => Fixable,
+    /// One track of a recording stopped (`origin`: `mic_local` or
+    /// `remote_app`) and could not come back; the other track goes on.
+    TrackStopped => Fixable,
     /// A recording closed with no audio; what interrupted it was said before.
     RecordingEmpty => Silent,
     MicrophonePermissionMissing => Fixable,

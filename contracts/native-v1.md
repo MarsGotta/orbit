@@ -30,10 +30,17 @@ most 128 bytes; `v` must be 1. Response shape:
 `ok:false` and `error:{"code":"privacy_stopped","message":"…"}`.
 Spontaneous events include `v`/`event` without `id`.
 
-The daemon sends `hello` on connection and `heartbeat` every 2 seconds.
-After 6 seconds without heartbeat the helper stops capture/playback with
-`capture_stopped`, without latching. A later heartbeat restores channel health,
-never resumes activity.
+The daemon sends `hello` on connection and `heartbeat` every 2 seconds, from
+a thread of its own. Silence is counted only while the helper runs: a watchdog
+tick more than 2 seconds after the previous one restarts it, so beats queued
+behind a held main thread are read before anything is decided. After 6 seconds
+without heartbeat the channel is unhealthy. With nothing being captured the
+helper stops playback with `capture_stopped`, without latching. A recording or
+a voice note in progress keeps capturing: up to five minutes of two-track audio
+wait in the helper, in order, and what does not fit is one `gap`
+(`daemon_backpressure`). Only the person, end of input, the privacy stop and
+sleep stop a capture. Any later command from the daemon, a heartbeat or any
+other, restores channel health; it never resumes a stopped activity.
 
 **Only explicit user privacy stop writes the durable latch.** Latching reasons
 are `local_hotkey` (`⌃⌥Esc`) and `daemon_requested` (the daemon relays its stop).
@@ -52,7 +59,7 @@ Full shapes: [commands](fixtures/native/commands/) and
 [results](fixtures/native/results/). Swift decodes a typed variant once; channel,
 router, host and calendar bridge receive that value. Refusals keep request ID.
 
-- `hello`/`heartbeat` renew channel health; `status` reads without TCC.
+- `hello`/`heartbeat` renew channel health, as any command does; `status` reads without TCC.
 - `permissions` asks only the system permission explicitly requested by the app.
 - `audio_start` opens microphone/system audio; app capture includes its PID.
 - `audio_stop` drains that source. `audio_wake_phrase` follows the live meeting
@@ -491,8 +498,25 @@ Every configuration notification is logged by the helper as
 IDs (or `unknown`), the action, its cause and the purpose, never device names.
 With the same IDs nothing restarts or stops. An unknown route never authorizes
 resuming. Only an unprocessed meeting goes on when a device changes (detailed
-below). A voice note stops once with `audio_device_changed_voice_note`; an
-unknown purpose stops with `audio_device_changed_purpose_unknown`. The privacy
+below). A voice note alone stops once with `audio_device_changed_voice_note`;
+a voice note dictated over a meeting (the microphone was opened or marked
+`meeting`, or the system's audio records) restarts the meeting's microphone,
+and the daemon cancels only the note on the route `gap` and says so
+(`voice_note_cancelled_by_audio_route`). An unknown purpose stops with
+`audio_device_changed_purpose_unknown`.
+
+One track's failure never stops the other. When the system's audio stream
+stops (`system_audio_stream_stopped`) while the microphone records, the helper
+starts it again once under the same `stream_id`, within 10 seconds, after a
+`gap` with `reason:"system_audio_restarted"` that tells the daemon the
+sequence starts over. If it does not come back, or the microphone fails while
+the system's audio records, that track drains and ends with a `gap`
+`reason:"track_stopped"`, after an `error` naming the cause; the daemon keeps the
+recording and says which track stopped (`track_stopped`). A later
+`audio_stop` for that stream answers `drain_complete`. With nothing else
+live, the whole capture stops with `capture_stopped` as before. While a
+capture is in progress the helper holds a
+`userInitiatedAllowingIdleSystemSleep` activity so macOS does not nap it. The privacy
 stop and a close or drain in progress never authorize a restart.
 
 `audio_start` reports effective format/scope. `application` uses SCK app filtering,

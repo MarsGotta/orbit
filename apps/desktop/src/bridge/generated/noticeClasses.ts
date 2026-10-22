@@ -13,6 +13,8 @@ export const noticeClass = {
   recording_interrupted_by_restart: "failed",
   audio_gap: "silent",
   audio_route_recovered: "done",
+  voice_note_cancelled_by_audio_route: "fixable",
+  track_stopped: "fixable",
   recording_empty: "silent",
   microphone_permission_missing: "fixable",
   screen_permission_missing: "fixable",

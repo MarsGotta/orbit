@@ -12,6 +12,9 @@
   <key>CFBundleVersion</key><string>2</string>
   <key>LSMinimumSystemVersion</key><string>15.0</string>
   <key>NSHighResolutionCapable</key><true/>
+  <!-- The daemon runs in this process: macOS must never nap it, since it
+       records, uploads and keeps the helper's heartbeat in the background. -->
+  <key>NSAppSleepDisabled</key><true/>
   <key>NSMicrophoneUsageDescription</key><string>Orbit usa el micrófono solo cuando activas una conversación o autorizas una grabación.</string>
   <key>NSAudioCaptureUsageDescription</key><string>Orbit captura el audio de la aplicación que autorizas para conservar tu reunión.</string>
   <key>NSScreenCaptureUsageDescription</key><string>Orbit ve la pantalla solo durante una llamada activa o cuando se lo pides.</string>

@@ -72,6 +72,22 @@ final class AudioRouteChangePolicyTests: XCTestCase {
         }
     }
 
+    func testAVoiceNoteOverAMeetingRestartsTheMeetingAndCancelsOnlyTheNote() {
+        let action = AudioRouteChangePolicy.decide(stopped: false, closing: false,
+            microphone: .active, processing: .unprocessed, playback: false,
+            routeChanged: true, purpose: .voiceNote, meetingUnderneath: true)
+        XCTAssertEqual(action, .restartMicrophoneCancellingVoiceNote)
+        // The recovery after the drain keeps going for the meeting.
+        let recovered = AudioRouteChangePolicy.decide(stopped: false, closing: false,
+            microphone: .idle, processing: .unprocessed, playback: false, recovering: true,
+            routeChanged: true, purpose: .voiceNote, meetingUnderneath: true)
+        XCTAssertEqual(recovered, .restartMicrophoneCancellingVoiceNote)
+        // The privacy stop and a closing still win.
+        XCTAssertEqual(AudioRouteChangePolicy.decide(stopped: true, closing: false,
+            microphone: .active, processing: .unprocessed, playback: false,
+            routeChanged: true, purpose: .voiceNote, meetingUnderneath: true), .none(reason: "privacy_stopped"))
+    }
+
     func testVoiceNoteCutsOnceAndNeverRestartsAfterTheCut() {
         XCTAssertEqual(decision(purpose: .voiceNote), .stop(reason: "audio_device_changed_voice_note"))
         for slot in [CaptureSlot.draining, .idle, .unconfirmed(reason: "audio_drain_incomplete")] {

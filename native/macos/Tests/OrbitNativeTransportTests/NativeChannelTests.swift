@@ -130,9 +130,12 @@ final class NativeChannelTests: XCTestCase {
         let disconnections = Mutex<[String]>([])
         channel.disconnected = { reason in disconnections.withLock { $0.append(reason) } }
 
-        let framesPerEvent = 48_000
+        // Six seconds per event keeps each line under the 1 MiB event bound;
+        // twenty events beyond the audio budget's two tracks saturate it.
+        let secondsPerEvent = 6
+        let framesPerEvent = secondsPerEvent * 48_000
         let pcm = Data(repeating: 0, count: framesPerEvent * 2).base64EncodedString()
-        let submittedCount = 40
+        let submittedCount = NativeChannel.maximumBufferedAudioSeconds * 2 / secondsPerEvent + 20
         var admissions = [channel.send(try audioEvent(
             sequence: 0, streamID: "saturated-stream", frames: framesPerEvent, pcm: pcm
         ))]
@@ -209,6 +212,54 @@ final class NativeChannelTests: XCTestCase {
         XCTAssertTrue(flushed)
         XCTAssertEqual(messages.filter { $0["event"] as? String == "audio" }.count, 20)
         XCTAssertFalse(messages.contains { $0["event"] as? String == "gap" })
+        XCTAssertEqual(disconnections.withLock { $0 }, [])
+    }
+
+    func testOutputBudgetKeepsFiveMinutesOfTwoTrackAudioForAStalledDaemon() async throws {
+        // The daemon stops reading (the first write never returns until
+        // released): five minutes of both tracks wait in order, without a gap,
+        // and reach it when it reads again.
+        XCTAssertEqual(NativeChannel.maximumBufferedAudioSeconds, 300)
+        let probe = RecoveringOutputProbe()
+        defer { probe.release.signal() }
+        let channel = NativeChannel(
+            input: Pipe().fileHandleForReading,
+            writeOutput: { try probe.write($0) }
+        )
+        let disconnections = Mutex<[String]>([])
+        channel.disconnected = { reason in disconnections.withLock { $0.append(reason) } }
+
+        let secondsPerEvent = 6
+        let framesPerEvent = secondsPerEvent * 48_000
+        let pcm = Data(repeating: 0, count: framesPerEvent * 2).base64EncodedString()
+        let eventsPerTrack = NativeChannel.maximumBufferedAudioSeconds / secondsPerEvent
+        var admissions = [channel.send(try audioEvent(
+            sequence: 0, streamID: "track-0", frames: framesPerEvent, pcm: pcm
+        ))]
+        XCTAssertEqual(probe.entered.wait(timeout: .now() + 2), .success)
+        for sequence in 0..<eventsPerTrack {
+            for track in 0..<2 where !(sequence == 0 && track == 0) {
+                admissions.append(channel.send(try audioEvent(
+                    sequence: sequence, streamID: "track-\(track)",
+                    frames: framesPerEvent, pcm: pcm
+                )))
+            }
+        }
+
+        probe.release.signal()
+        let flushed = await channel.flush()
+        let messages = try decodedChunks(probe)
+        let audio = messages.filter { $0["event"] as? String == "audio" }
+
+        XCTAssertTrue(admissions.allSatisfy { $0 })
+        XCTAssertTrue(flushed)
+        XCTAssertEqual(audio.count, eventsPerTrack * 2)
+        XCTAssertFalse(messages.contains { $0["event"] as? String == "gap" })
+        for track in 0..<2 {
+            let sequences = audio.filter { $0["stream_id"] as? String == "track-\(track)" }
+                .compactMap { $0["sequence"] as? Int }
+            XCTAssertEqual(sequences, Array(0..<eventsPerTrack), "track-\(track) arrives in order")
+        }
         XCTAssertEqual(disconnections.withLock { $0 }, [])
     }
 

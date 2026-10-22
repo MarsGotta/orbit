@@ -39,6 +39,26 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     private var privacyEpoch: UInt64 = 0
     private var playbackEpoch: UInt64 = 0
     private var microphonePurpose: NativeMicrophonePurpose?
+    /// The microphone feeds a meeting: it was opened for one or told it is
+    /// one. A voice note dictated over it does not end the meeting.
+    private var microphoneMeeting = false
+    /// How the system's audio was opened, to open it again after a failure.
+    private var systemAudioScope: (captureScope: String, applicationPID: Int32?)?
+    /// The system audio stream already restarted once; a second failure ends it.
+    private var systemAudioRestartedStreamID: String?
+    /// The restart in progress, owned by whichever ends it first.
+    private var systemAudioRestart: (attempt: UUID, streamID: String)?
+    /// A track that failed alone and was declared stopped. Its stream no
+    /// longer exists here; the daemon's `audio_stop` for it is answered as
+    /// drained, since its loss was already declared with a gap.
+    private var endedMicrophoneStreamID: String?
+    private var endedSystemAudioStreamID: String?
+    private lazy var captureActivity = CaptureActivity(
+        begin: {
+            ProcessInfo.processInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep,
+                                                  reason: "Recording a meeting or a voice note")
+        },
+        end: { ProcessInfo.processInfo.endActivity($0) })
     private var audioRouteEpoch: UInt64 = 0
     private var audioRouteRecoveringStreamID: String?
     private var audioRouteRecoveryInFlight: Bool { audioRouteRecoveringStreamID != nil }
@@ -63,7 +83,16 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        channel.receive = { [weak self] command in self?.receive(command) }
+        channel.receive = { [weak self] command in
+            // Every command read from the pipe is the daemon answering, not
+            // only a beat, and it revives a channel the watchdog gave up on
+            // (a beat used to only refresh the timestamp, so one late beat
+            // disabled rearming and every permission prompt for the rest of
+            // the run). A capture kept through the daemon's silence must take
+            // the `audio_stop` that ends it even before the next beat.
+            self?.channelHealth.observedBeat(at: ProcessInfo.processInfo.systemUptime)
+            self?.receive(command)
+        }
         channel.disconnected = { [weak self] reason in
             self?.daemonDisconnected(reason: reason)
         }
@@ -73,8 +102,8 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         playback.becameIdle = { [weak self] in
             self?.audioSession.stopIfIdle()
         }
-        microphone.failed = { [weak self] reason in self?.stop(reason: reason) }
-        systemAudio.failed = { [weak self] reason in self?.stop(reason: reason) }
+        microphone.failed = { [weak self] reason in self?.trackFailed(.microphone, reason: reason) }
+        systemAudio.failed = { [weak self] reason in self?.trackFailed(.systemAudio, reason: reason) }
         if !launchOptions.isIsolatedFixture {
             hotkeys.onEvent = { [weak self] action, phase in self?.hotkey(action: action, phase: phase) }
             do { try hotkeys.register() }
@@ -89,7 +118,13 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         let watchdog = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             guard let self else { return }
             if self.channelHealth.tick(now: ProcessInfo.processInfo.systemUptime) {
-                self.stop(reason: "daemon_heartbeat_expired")
+                self.daemonFellSilent()
+            }
+            if let gap = self.channelHealth.lateTickGap {
+                // This process was held: the next incident says whose stall it was.
+                self.diagnostics.recordOffMain("helper_watchdog_late", [
+                    "tick_gap_ms": String(Int(gap * 1000))
+                ])
             }
             for rejection in self.commandRouter.watchdog(at: ProcessInfo.processInfo.systemUptime) {
                 self.channel.reject(rejection.command, code: rejection.code,
@@ -120,6 +155,22 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             "privacy_stopped": latch.stopped ? "true" : "false"
         ])
         publishState()
+    }
+
+    /// The daemon stopped beating while this helper was awake. A recording or
+    /// a voice note in progress keeps capturing: the channel keeps on this Mac
+    /// what the daemon does not read and delivers it in order when it reads
+    /// again (2026-10-22: a stalled daemon cut a meeting 25 minutes in).
+    private func daemonFellSilent() {
+        guard DaemonChannelHealth.silenceStopsCapture(microphone: microphone.slot,
+                                                      systemAudio: systemAudio.slot) else {
+            diagnostics.recordOffMain("daemon_silent_capture_kept", [
+                "microphone": microphone.slot.isActive ? "true" : "false",
+                "system_audio": systemAudio.slot.isActive ? "true" : "false"
+            ])
+            return
+        }
+        stop(reason: "daemon_heartbeat_expired")
     }
 
     private func daemonDisconnected(reason: String) {
@@ -165,6 +216,9 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     }
 
     private func publishState() {
+        if captureActivity.update(capturing: microphone.slot.isActive || systemAudio.slot.isActive) {
+            diagnostics.recordOffMain(captureActivity.held ? "helper_activity_held" : "helper_activity_released")
+        }
         let calendar = MainActor.assumeIsolated {
             calendars?.status() ?? CalendarStatus(authorization: calendarAuthorization())
         }
@@ -199,10 +253,6 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         }
         switch command {
         case .hello, .heartbeat:
-            // A beat also revives a channel the watchdog gave up on. It used to
-            // only refresh the timestamp, so one late beat disabled rearming and
-            // every permission prompt for the rest of the run.
-            channelHealth.observedBeat(at: ProcessInfo.processInfo.systemUptime)
             channel.respond(command, result: state())
         case .status:
             channel.respond(command, result: state().merging(["permissions": permissions()]) { _, rhs in rhs })
@@ -423,6 +473,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
                     playbackActive: playback.playing) else { throw NativeFailure("audio_session_busy") }
                 let result = try microphone.start(streamID: id, processing: requested)
                 microphonePurpose = fields.purpose
+                microphoneMeeting = fields.purpose == .meeting
                 return result
             case .remoteApp:
                 guard fields.processing == nil || fields.processing == .unprocessed else {
@@ -446,9 +497,11 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
                 // one `microphone_activity` reported; no identity receipt
                 // travels with the start (the meeting rules that sent one were
                 // retired).
-                return try await systemAudio.start(streamID: id, captureScope: captureScope.rawValue,
+                let result = try await systemAudio.start(streamID: id, captureScope: captureScope.rawValue,
                     applicationPID: applicationPID,
                     allowStart: { [weak self] in self?.latch.stopped == false && self?.connected == true })
+                systemAudioScope = (captureScope: captureScope.rawValue, applicationPID: applicationPID)
+                return result
             }
         case .audioPurpose(let wire):
             guard microphone.streamID == wire.fields.stream_id
@@ -456,6 +509,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
                 throw NativeFailure("stream_not_found")
             }
             microphonePurpose = wire.fields.purpose
+            if wire.fields.purpose == .meeting { microphoneMeeting = true }
             return ["stream_id": wire.fields.stream_id, "purpose": wire.fields.purpose.rawValue]
         case .audioWakePhrase(let wire):
             // «Oye Deimos» goes with the meeting recording, on the
@@ -480,9 +534,13 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             return ["stream_id": id, "enabled": wire.fields.enabled]
         case .audioStop(let wire):
             let id = wire.fields.stream_id
+            // The person's stop wins over a restart of the system's audio.
+            let wasRestarting = systemAudioRestart?.streamID == id
+            if wasRestarting { systemAudioRestart = nil }
             if microphone.streamID == id || audioRouteRecoveringStreamID == id {
                 audioRouteEpoch &+= 1
                 microphonePurpose = nil
+                microphoneMeeting = false
                 assistantTrigger.stop()
                 microphone.disableImmediately()
                 audioSession.stopIfIdle()
@@ -491,6 +549,10 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             else if systemAudio.streamID == id {
                 guard await systemAudio.stop() else { throw NativeFailure("audio_drain_incomplete") }
             }
+            // Between the old stream and the new one of a restart.
+            else if wasRestarting { _ = await systemAudio.stop() }
+            else if endedMicrophoneStreamID == id { endedMicrophoneStreamID = nil }
+            else if endedSystemAudioStreamID == id { endedSystemAudioStreamID = nil }
             else { throw NativeFailure("stream_not_found") }
             return ["stream_id": id, "drain_complete": true]
         case .playback(let wire):
@@ -539,10 +601,14 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     }
 
     private func audioRouteChanged(previous: AudioRouteDevices?, current: AudioRouteDevices) {
+        // A silent daemon is not a closing: a meeting kept through its silence
+        // follows the new device too. A pipe that is gone has already stopped
+        // the capture, and that stop's cleanup or epoch is what closes here.
         let decision = AudioRouteChangePolicy.decide(stopped: latch.stopped,
-            closing: !connected || quitRequested || privacyCleanupInFlight > 0,
+            closing: quitRequested || privacyCleanupInFlight > 0,
             microphone: microphone.slot, processing: audioSession.mode, playback: playback.playing,
-            routeChanged: current.changed(from: previous), purpose: microphonePurpose)
+            routeChanged: current.changed(from: previous), purpose: microphonePurpose,
+            meetingUnderneath: microphoneMeeting || systemAudio.slot.isActive)
         let action: String
         let reason: String
         switch decision {
@@ -550,6 +616,8 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         case .stop(let cause): action = "stop"; reason = cause
         case .cancelPlayback: action = "cancel_playback"; reason = "audio_device_changed"
         case .restartMicrophone: action = "restart_microphone"; reason = "audio_device_changed_meeting"
+        case .restartMicrophoneCancellingVoiceNote:
+            action = "restart_microphone_cancel_voice_note"; reason = "audio_device_changed_voice_note_over_meeting"
         }
         diagnostics.recordOffMain("audio_configuration_changed", [
             "previous_input": previous.flatMap { $0.input }.map { String($0) } ?? "unknown",
@@ -569,7 +637,10 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             cancelPlayback()
             audioSession.stopIfIdle()
             publishState()
-        case .restartMicrophone:
+        case .restartMicrophone, .restartMicrophoneCancellingVoiceNote:
+            // The voice note ends with the route gap the new stream opens
+            // with (the daemon cancels it and says so); the meeting goes on.
+            if decision == .restartMicrophoneCancellingVoiceNote { microphonePurpose = .meeting }
             guard let streamID = microphone.streamID, let sampleRate = microphone.sampleRate else {
                 stop(reason: "audio_route_stream_identity_missing")
                 return
@@ -594,11 +665,12 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
                 }
                 let stopped = await self.microphone.stopForRouteChange()
                 let action = AudioRouteChangePolicy.decide(stopped: self.latch.stopped,
-                    closing: !self.connected || self.quitRequested || self.privacyEpoch != epoch
+                    closing: self.quitRequested || self.privacyEpoch != epoch
                         || self.audioRouteEpoch != routeEpoch,
                     microphone: self.microphone.slot, processing: .unprocessed, playback: false,
                     failure: stopped.drained ? nil : "audio_route_drain_incomplete", recovering: true,
-                    routeChanged: true, purpose: self.microphonePurpose)
+                    routeChanged: true, purpose: self.microphonePurpose,
+                    meetingUnderneath: self.microphoneMeeting || self.systemAudio.slot.isActive)
                 switch action {
                 case .none:
                     return
@@ -606,7 +678,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
                     self.stop(reason: reason)
                 case .cancelPlayback:
                     self.cancelPlayback()
-                case .restartMicrophone:
+                case .restartMicrophone, .restartMicrophoneCancellingVoiceNote:
                     do {
                         _ = try self.microphone.start(streamID: streamID, processing: .unprocessed,
                             outputRate: sampleRate, routeResume: stopped.resume)
@@ -618,7 +690,10 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
                             try self.microphone.setFrameSink(sink, streamID: streamID)
                         }
                     } catch {
-                        self.stop(reason: reportAudioRouteFailure(error, channel: self.channel))
+                        // The microphone did not come back: with the system's
+                        // audio still recording, only the microphone ends.
+                        self.trackFailed(.microphone, streamID: streamID,
+                                         reason: reportAudioRouteFailure(error, channel: self.channel))
                     }
                 }
             }
@@ -790,6 +865,121 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         channel.send(.makeHotkey(action: action, phase: phase, applications: applications))
     }
 
+    private func trackFailed(_ track: CaptureTrack, reason: String) {
+        let current = track == .microphone ? microphone.streamID : systemAudio.streamID
+        guard let streamID = current else { stop(reason: reason); return }
+        trackFailed(track, streamID: streamID, reason: reason)
+    }
+
+    /// One track failed. It used to stop both (`stop(reason:)`); now only
+    /// that track ends, or the system's audio is started again once, while
+    /// the other keeps recording. With nothing else live it stops as before.
+    private func trackFailed(_ track: CaptureTrack, streamID: String, reason: String) {
+        let other = track == .microphone ? systemAudio.slot : microphone.slot
+        let action = TrackFailurePolicy.decide(track: track, otherTrack: other,
+            closing: latch.stopped || quitRequested,
+            restartAttempted: systemAudioRestartedStreamID == streamID)
+        let name: String
+        switch action {
+        case .stopCapture: name = "stop_capture"
+        case .restartSystemAudio: name = "restart_system_audio"
+        case .endTrack: name = "end_track"
+        }
+        diagnostics.recordOffMain("capture_track_failed", [
+            "track": track.rawValue, "reason": reason, "action": name
+        ])
+        switch action {
+        case .stopCapture:
+            stop(reason: reason)
+        case .endTrack:
+            endTrack(track, streamID: streamID, cause: reason)
+        case .restartSystemAudio:
+            restartSystemAudio(streamID: streamID, cause: reason)
+        }
+    }
+
+    /// Ends one track: whatever it captured is drained, then an error names
+    /// the cause and a `gap` says the track stopped (`track_stopped`). The daemon
+    /// keeps the recording with the other track and says which one stopped.
+    private func endTrack(_ track: CaptureTrack, streamID: String, cause: String) {
+        switch track {
+        case .microphone:
+            endedMicrophoneStreamID = streamID
+            audioRouteEpoch &+= 1
+            microphonePurpose = nil
+            microphoneMeeting = false
+            assistantTrigger.stop()
+            microphone.disableImmediately()
+            audioSession.stopIfIdle()
+        case .systemAudio:
+            endedSystemAudioStreamID = streamID
+            systemAudioScope = nil
+            systemAudio.disableImmediately()
+        }
+        Task { @MainActor in
+            switch track {
+            case .microphone: _ = await self.microphone.stop()
+            case .systemAudio: _ = await self.systemAudio.stop()
+            }
+            // The cause first: the daemon's words about the stopped track,
+            // said on the gap, are then what the person reads last.
+            self.channel.send(.makeError(code: cause))
+            self.channel.send(.makeGap(source: track.rawValue, streamID: streamID, reason: "track_stopped",
+                                       frames: 0, durationUnknown: true))
+            self.publishState()
+        }
+    }
+
+    /// The system's audio stream stopped (the app that holds it, a display
+    /// change): it is started again, once, under the same stream id, within
+    /// `TrackFailurePolicy.systemAudioRestartBound`. The daemon hears the
+    /// restart before the new stream's first frame, whose sequence starts
+    /// over. If it does not come back, the track ends with its cause.
+    private func restartSystemAudio(streamID: String, cause: String) {
+        guard let scope = systemAudioScope else {
+            endTrack(.systemAudio, streamID: streamID, cause: cause)
+            return
+        }
+        let attempt = UUID()
+        let epoch = privacyEpoch
+        systemAudioRestartedStreamID = streamID
+        systemAudioRestart = (attempt: attempt, streamID: streamID)
+        systemAudio.disableImmediately()
+        Task { @MainActor in
+            _ = await self.systemAudio.stop()
+            guard self.systemAudioRestart?.attempt == attempt else { return }
+            self.channel.send(.makeGap(source: CaptureTrack.systemAudio.rawValue, streamID: streamID,
+                                       reason: "system_audio_restarted", frames: 0, durationUnknown: true))
+            let bound = UInt64(TrackFailurePolicy.systemAudioRestartBound * 1_000_000_000)
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: bound)
+                guard self.systemAudioRestart?.attempt == attempt else { return }
+                self.systemAudioRestart = nil
+                self.endTrack(.systemAudio, streamID: streamID, cause: "system_audio_restart_timed_out")
+            }
+            do {
+                _ = try await self.systemAudio.start(streamID: streamID, captureScope: scope.captureScope,
+                    applicationPID: scope.applicationPID,
+                    allowStart: { [weak self] in
+                        self?.latch.stopped == false && self?.privacyEpoch == epoch
+                            && self?.systemAudioRestart?.attempt == attempt
+                    })
+                guard self.systemAudioRestart?.attempt == attempt else { return }
+                self.systemAudioRestart = nil
+                self.systemAudioScope = scope
+                self.diagnostics.recordOffMain("system_audio_restarted", ["cause": cause])
+            } catch {
+                guard self.systemAudioRestart?.attempt == attempt else { return }
+                self.systemAudioRestart = nil
+                self.diagnostics.recordOffMain("system_audio_restart_failed", [
+                    "cause": cause, "code": (error as? NativeFailure)?.code ?? "system_audio_restart_failed"
+                ])
+                self.endTrack(.systemAudio, streamID: streamID, cause: cause)
+            }
+            self.publishState()
+        }
+    }
+
     private func stopWork(latches: Bool) -> PrivacyStopWork {
         PrivacyStopWork(
             latchAlreadyStopped: latch.stopped,
@@ -830,6 +1020,8 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         }
         privacyEpoch &+= 1
         microphonePurpose = nil
+        microphoneMeeting = false
+        systemAudioRestart = nil
         if latches { latch.beginStop() }
         invalidateCalendars(latches ? .privacyStopped : .invalidated)
         systemAudio.disableImmediately()
