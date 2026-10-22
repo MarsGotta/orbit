@@ -9,19 +9,16 @@
       - AXLink "Ajustes"
     - AXHeading
       - AXStaticText = "Asistente"
-    - AXStaticText = "Conversación nueva"
+    - AXStaticText = "Deimos"
     - AXGroup
-      - AXStaticText = "Aún no hay mensajes. Escribe o dicta tu pregunta."
-    - [6] AXTextArea = "Escribe o usa el micrófono para dictar…" (Mensaje) [actions=[confirm]]
-    - [7] AXButton (Nota de voz) [actions=[press]]
+      - AXStaticText = "Pregúntale a Deimos"
+    - [6] AXTextArea = "Escribe a Deimos…" (Mensaje para Deimos) [actions=[confirm]]
+    - [7] AXButton (Grabar nota de voz) [actions=[press]]
     - [8] AXButton (Enviar) [actions=[press]]
-    - AXGroup (Panel de contexto)
-      - AXStaticText = "Sesiones"
-      - AXHeading
-        - AXStaticText = "Activas"
-      - [30] AXButton "C Conversación nueva › ahora" [actions=[press]]
-      - [31] AXButton "Nueva conversación Nueva conversación" [actions=[press]]
+    - AXGroup (Conversaciones)
+      - AXStaticText = "Conversaciones"
+      - [31] AXButton (Nueva conversación) [actions=[press]]
       - AXHeading
         - AXStaticText = "Recientes"
-      - [32] AXButton "1 16 de octubre de 2025, 10:01 › 16 de octubre de 2025, 10:01 16 oct" [actions=[press]]
-      - [33] AXButton "1 15 de octubre de 2025, 03:46 › 15 de octubre de 2025, 03:46 15 oct" [actions=[press]]
+      - [32] AXButton "16 oct 2025, 10:01 4 mensajes" [actions=[press]]
+      - [33] AXButton "15 oct 2025, 03:46 2 mensajes" [actions=[press]]

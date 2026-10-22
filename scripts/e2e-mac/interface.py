@@ -254,8 +254,8 @@ class Interface:
                 return time.monotonic() - start
             time.sleep(1)
 
-    def type_into(self, window: Window, field: str, text: str) -> None:
-        node = self._one(window, field, ("AXTextArea", "AXTextField"), False)
+    def type_into(self, window: Window, field: str, text: str, contains: bool = False) -> None:
+        node = self._one(window, field, ("AXTextArea", "AXTextField"), contains)
         # In the foreground, as a person types: a background insert into web
         # content is never confirmed by the engine (cua-driver type_text).
         self.bridge.action(

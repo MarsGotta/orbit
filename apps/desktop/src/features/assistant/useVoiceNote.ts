@@ -126,6 +126,7 @@ export function useVoiceNote({ canStart, daemonListening, send }: VoiceNoteInput
   };
   return {
     elapsedMs: useElapsed(recording),
+    cancel,
     finish,
     recording,
     pointerDown,

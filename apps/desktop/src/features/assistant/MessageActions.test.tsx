@@ -84,6 +84,7 @@ describe("copying", () => {
     const question = (await screen.findByText("¿Y el código?")).closest("article") as HTMLElement;
     await userEvent.click(within(question).getByRole("button", { name: "Copiar mensaje" }));
     expect(copied.texts).toEqual([newest[1]!.text, "¿Y el código?"]);
+    expect(within(last).getByText("✓ Copiado")).toBeTruthy();
   });
 
   it("copies the whole conversation from the hub, older pages too", async () => {
@@ -97,7 +98,7 @@ describe("copying", () => {
       "## Tú\n\n¿Qué sala?\n\n## Deimos\n\nLa **Norte**.\n\n" +
         `## Tú\n\n¿Y el código?\n\n## Deimos\n\n${newest[1]!.text}\n`,
     );
-    expect(await screen.findByText("✓ Conversación copiada")).toBeTruthy();
+    expect(await screen.findByText("✓ Copiada")).toBeTruthy();
   });
 
   it("copies the last code block with ⌘⇧C", async () => {
@@ -113,14 +114,14 @@ describe("retrying and listening", () => {
   it("retries an answer by sending the user's message again as a new turn", async () => {
     const { sent } = show();
     const last = await answer("Sur");
-    await userEvent.click(within(last).getByRole("button", { name: "Reintentar" }));
+    await userEvent.click(within(last).getByRole("button", { name: "Volver a preguntar" }));
     expect(sent).toEqual([{ command: "chat", text: "¿Y el código?" }]);
   });
 
-  it("offers no retry while a turn is in flight", async () => {
+  it("offers no asking again while a turn is in flight", async () => {
     show({ activity: "thinking" });
     const last = await answer("Sur");
-    expect(within(last).getByRole("button", { name: "Reintentar" })).toHaveProperty(
+    expect(within(last).getByRole("button", { name: "Volver a preguntar" })).toHaveProperty(
       "disabled",
       true,
     );
@@ -140,7 +141,9 @@ describe("what is being read aloud", () => {
   it("shows «Parar» on the answer being read, and stops it", async () => {
     const { sent } = show({ speaking: "4" } as Partial<AppSnapshot["chat"]>);
     const last = await answer("Sur");
-    await userEvent.click(within(last).getByRole("button", { name: "Parar" }));
+    const stop = within(last).getByRole("button", { name: "Parar" });
+    expect(stop.getAttribute("aria-pressed")).toBe("true");
+    await userEvent.click(stop);
     expect(sent).toEqual([{ command: "speak_stop" }]);
     expect(within(last).queryByRole("button", { name: "Escuchar" })).toBeNull();
   });
@@ -158,7 +161,9 @@ describe("replying to a fragment", () => {
     selection?.addRange(range);
     fireEvent.mouseUp(bold);
     await userEvent.click(await within(last).findByRole("button", { name: "Responder a esto" }));
-    const composer = screen.getByRole("textbox", { name: "Mensaje" }) as HTMLTextAreaElement;
+    const composer = screen.getByRole("textbox", {
+      name: "Mensaje para Deimos",
+    }) as HTMLTextAreaElement;
     expect(composer.value).toBe("> La Sur tiene 12 plazas.\n\n");
     expect(sent).toEqual([]);
   });

@@ -1,3 +1,4 @@
+/* The files of the next message: chips with their size and «×». */
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -8,15 +9,14 @@
 }
 
 .chip {
-  display: flex;
   max-width: 100%;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 6px 5px 10px;
+  padding: 4px 4px 4px 10px;
   border: 1px solid var(--o-line);
-  border-radius: var(--o-radius-10);
-  background: var(--o-surface);
-  font-size: var(--o-font-12);
+  border-radius: var(--o-radius-md);
+  font: var(--o-text-meta);
 }
 
 .chip[data-state="failed"] {
@@ -26,13 +26,12 @@
 
 .chipName {
   overflow: hidden;
-  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .chipDetail {
-  color: var(--o-ink2);
+  color: var(--o-ink3);
 }
 
 .chip[data-state="failed"] .chipDetail {
@@ -40,14 +39,14 @@
 }
 
 .chipRemove {
-  display: grid;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   flex: none;
+  display: grid;
   place-items: center;
   padding: 0;
   border: 0;
-  border-radius: var(--o-radius-6);
+  border-radius: var(--o-radius-sm);
   background: transparent;
   color: var(--o-ink2);
   cursor: pointer;
@@ -57,27 +56,37 @@
   background: var(--o-hover);
 }
 
+.attachWindow.attachWindow {
+  padding: 0 8px;
+  font: var(--o-text-meta);
+}
+
+/* What a sent message carried, above its words. */
 .attachments {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
+  align-items: flex-end;
+  gap: 6px;
 }
 
 .thumbnails {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-lg);
 }
 
 .thumbnail {
-  width: 120px;
-  height: 90px;
+  width: 72px;
+  height: 52px;
   padding: 0;
   overflow: hidden;
-  border: 1px solid var(--o-line);
-  border-radius: var(--o-radius-10);
-  background: var(--o-surface);
+  border: 0;
+  border-radius: var(--o-radius-md);
+  background: var(--o-raised);
   cursor: zoom-in;
 }
 
@@ -87,86 +96,60 @@
   object-fit: cover;
 }
 
+.fileChip,
 .file {
-  display: flex;
+  max-width: 100%;
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 10px;
-  padding: 8px 10px;
+  gap: 4px 8px;
+  padding: 6px 10px;
   border: 1px solid var(--o-line);
-  border-radius: var(--o-radius-10);
-  background: var(--o-side);
-  font-size: var(--o-font-12-5);
+  border-radius: var(--o-radius-lg);
+  background: transparent;
+  color: var(--o-ink);
+  font: var(--o-text-meta);
+}
+
+.fileChip {
+  cursor: pointer;
+  transition: background var(--o-dur-fast);
+}
+
+.fileChip:hover {
+  background: var(--o-hover);
 }
 
 .fileName {
-  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fileFacts {
-  color: var(--o-ink2);
+  color: var(--o-ink3);
 }
 
 .fileActions {
-  display: flex;
-  gap: 4px;
-  margin-left: auto;
+  display: inline-flex;
+  gap: 2px;
+}
+
+.fileActions button {
+  height: 24px;
+  padding: 0 6px;
+  font: var(--o-text-meta);
 }
 
 .failure {
+  margin: 0;
   color: var(--o-recText);
-  font-size: var(--o-font-12);
+  font: var(--o-text-meta);
 }
 
-.backdrop {
-  position: fixed;
-  z-index: 75;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: var(--o-scrim);
-  backdrop-filter: blur(10px);
-}
-
-.viewer {
-  display: flex;
-  width: min(1100px, 100%);
-  height: 100%;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--o-line2);
-  border-radius: var(--o-radius-20);
-  background: var(--o-surface);
-  box-shadow: var(--o-shadow);
-}
-
-.viewerHeader,
-.viewerNav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.viewerStage {
-  display: grid;
-  min-height: 0;
-  flex: 1;
-  place-items: center;
-}
-
-.viewerImage {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.viewerPdf {
-  width: 100%;
-  height: 100%;
-  border: 0;
-  border-radius: var(--o-radius-10);
-  background: var(--o-white);
+.thumbnail:focus-visible,
+.fileChip:focus-visible,
+.chipRemove:focus-visible {
+  outline: 2px solid var(--o-accText);
+  outline-offset: 2px;
 }

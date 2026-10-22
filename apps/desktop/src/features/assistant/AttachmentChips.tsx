@@ -14,7 +14,7 @@ function detail(draft: DraftAttachment): string {
   return attachmentFailure(draft.refusal, draft.name);
 }
 
-/** The files of the next message, before sending: each can be removed. */
+/** The files of the next message, before sending: name, size and «×». */
 export function AttachmentChips({
   drafts,
   onRemove,
@@ -77,17 +77,17 @@ export function AttachButtons({
         title={reason}
         variant="icon"
       >
-        <Icon name="attach" size={14} />
+        <Icon name="attach" size={16} />
       </Button>
       <Button
-        aria-label={es.attachments.attachWindow}
+        className={styles.attachWindow}
         disabled={disabled || !supported}
         onClick={onAttachWindow}
         size={32}
         title={reason}
-        variant="icon"
+        variant="ghost"
       >
-        <Icon name="screen" size={14} />
+        {es.attachments.attachWindow}
       </Button>
     </>
   );

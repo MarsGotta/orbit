@@ -6,6 +6,7 @@ import type { DaemonPort } from "../../bridge/port";
 import type { AssistantCursor, MessagesPage } from "../../bridge/reads";
 import { es } from "../../i18n/es";
 import { conversationView, turnInFlight, withNewest, withOlder } from "./conversation";
+import { useRememberedOpening } from "./first-lines";
 
 type Reader = NonNullable<DaemonPort["readSessionMessages"]>;
 
@@ -95,8 +96,13 @@ export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
       .finally(() => setLoading(false));
   }, [loading, older, read, sessionId]);
 
+  const messages = conversationView(stored, chat.turn, inFlight);
+  const first = firstPage(read !== undefined && sessionId !== null, sessionId, answered);
+  // With no older page, the thread holds the conversation's start.
+  useRememberedOpening(sessionId, first === "read" && older === null ? messages : null);
+
   return {
-    messages: conversationView(stored, chat.turn, inFlight),
+    messages,
     hasOlder: older !== null,
     loadOlder,
     loading,
@@ -105,7 +111,7 @@ export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
      * read failed (the error says so), or read. A new conversation, with
      * nothing to read, is read.
      */
-    firstPage: firstPage(read !== undefined && sessionId !== null, sessionId, answered),
+    firstPage: first,
     error,
     /** Reads the newest page again, after a failed read. */
     retry: readNewestAgain,

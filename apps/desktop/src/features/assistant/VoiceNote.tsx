@@ -16,6 +16,9 @@ export interface VoiceNoteProps {
   audio?: VoiceNoteAudioSnapshot;
 }
 
+// The drawn wave of a note, as the design draws it: not its audio's levels.
+const WAVE = [6, 12, 16, 9, 14, 7, 12, 5, 10, 6];
+
 function play(media: HTMLMediaElement | null): void {
   if (media) void media.play().catch(() => undefined);
 }
@@ -36,7 +39,9 @@ function VoiceTranscript({ messageId, send, voice }: Omit<VoiceNoteProps, "audio
   const retry = voice.failure != null && voice.transcript == null && voice.audio_available;
   return (
     <>
-      <p className={styles.voiceTranscript}>{voiceTranscript(voice)}</p>
+      <p className={styles.voiceTranscript} data-failed={voice.failure != null || undefined}>
+        {voiceTranscript(voice)}
+      </p>
       {retry === true && (
         <Button
           onClick={() => send({ command: "voice_retry", message_id: messageId })}
@@ -91,7 +96,7 @@ export function VoiceNote({ audio, messageId, send, voice }: VoiceNoteProps) {
   };
   const seconds = Math.max(0, voice.duration_ms / 1_000);
   return (
-    <div>
+    <div className={styles.voice}>
       <div className={styles.voiceNote}>
         <button
           aria-label={available ? es.assistant.playVoiceNote : es.assistant.audioUnavailable}
@@ -102,18 +107,18 @@ export function VoiceNote({ audio, messageId, send, voice }: VoiceNoteProps) {
           <Icon name="play" size={14} />
         </button>
         <span aria-hidden="true" className={styles.waveform}>
-          {Array.from({ length: 8 }, (_, index) => (
-            <i key={index} />
+          {WAVE.map((height, index) => (
+            <i key={index} style={{ height }} />
           ))}
         </span>
         <time>{mmss(voice.duration_ms, false)}</time>
+        <progress
+          aria-label={es.assistant.voiceProgress}
+          className={styles.voiceProgress}
+          max={seconds}
+          value={progress}
+        />
       </div>
-      <progress
-        aria-label={es.assistant.voiceProgress}
-        className={styles.voiceProgress}
-        max={seconds}
-        value={progress}
-      />
       <audio
         data-testid={`voice-audio-${messageId}`}
         hidden

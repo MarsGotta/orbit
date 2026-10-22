@@ -1,181 +1,166 @@
+import { useEffect, useState } from "react";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AppCommand } from "../../bridge/generated";
 import type { DaemonPort } from "../../bridge/port";
 import { currentHubConnection, hasSavedPairing } from "../../bridge/hub-state";
-import { Button } from "../../design/Button";
-import { Orb } from "../../design/Orb";
+import { Icon } from "../../design/Icon";
 import { Toast } from "../../design/Toast";
 import { ViewError } from "../../design/ViewError";
-import { es } from "../../i18n/es";
 import { useSpanish } from "../../i18n/AssistantCopy";
 import { AssistantComposer } from "./AssistantComposer";
-import { ConversationTools } from "./ConversationTools";
-import { turnInFlight } from "./conversation";
 import { UnknownAssistant, useAssistantCall } from "./AssistantAvailability";
-import { MessageList } from "./MessageList";
-import { PendingCard } from "./PendingCard";
-import { readsAloud } from "./agents";
-import { ConversationAgent } from "./ConversationAgent";
-import { useConversation } from "./useConversation";
+import { CallView, MinimisedCall } from "./CallView";
+import { Conversation, currentTurn, type Decision } from "./OpenConversation";
+import { ConversationHeader } from "./ConversationHeader";
+import { turnQuestion } from "./ThreadParts";
 import styles from "./AssistantView.module.css";
 
 interface AssistantViewProps {
   error: string | null;
-  send: (command: AppCommand) => void;
+  send: (command: AppCommand) => unknown;
   snapshot: AppSnapshot;
   readMessages?: DaemonPort["readSessionMessages"];
 }
 
-function AssistantHeader({
-  snapshot,
-  send,
-}: {
-  snapshot: AppSnapshot;
-  send: AssistantViewProps["send"];
-}) {
-  const { chat } = snapshot;
-  // The list names a conversation by its date; here it is the open one.
-  const title =
-    chat.session_id === null ? es.assistant.emptySessionTitle : es.assistant.openSessionTitle;
-  const streaming = chat.turn.some((message) => message.streaming);
-  return (
-    <header className={styles.header}>
-      <strong>{title}</strong>
-      <ConversationAgent send={send} snapshot={snapshot} />
-      {streaming && (
-        <Button onClick={() => send({ command: "interrupt" })} size={28}>
-          {es.chat.interrupt}
-        </Button>
-      )}
-    </header>
-  );
-}
-
-function ActivityLine({ activity }: { activity: AppSnapshot["chat"]["activity"] }) {
+/** A Mac without its hub: how to talk to the agent, and the way to pair. */
+function Unpaired() {
   const es = useSpanish();
-  if (!activity) return null;
-  const labels = {
-    transcribing: es.assistant.transcribingVoice,
-    thinking: es.assistant.thinking,
-    responding: es.assistant.responding,
-  };
   return (
-    <div className={styles.activity} role="status">
-      <span aria-hidden="true" className={styles.activityOrb}>
-        <i />
-        <i />
-        <i />
+    <div className={styles.unpaired}>
+      <span className={styles.unpairedIcon}>
+        <Icon name="assistant" size={20} />
       </span>
-      {labels[activity]}
+      <p>{es.assistant.unpaired}</p>
+      <a className={styles.pairLink} href="#/settings">
+        {es.assistant.pairMac}
+      </a>
     </div>
   );
 }
 
-function CallOrb({ call, onEnd }: { call: AppSnapshot["call"]; onEnd: () => void }) {
-  return (
-    <Orb
-      endLabel={es.design.endCallFromOrb}
-      lastLine={call?.last_line}
-      onEnd={onEnd}
-      seeingScreen={call?.seeing_screen}
-      startedAtMs={call?.started_at_ms}
-      voiceUnavailable={call?.voice_unavailable}
-    />
-  );
+/** What the user last said in the call: the turn's question, typed or spoken. */
+function lastQuestion(chat: AppSnapshot["chat"]): string | null {
+  const question = turnQuestion(chat);
+  const said = question?.voice ? (question.voice.transcript ?? "") : (question?.text ?? "");
+  return said === "" ? null : said;
 }
 
-function ConversationThread({
+type Calls = ReturnType<typeof useAssistantCall>;
+
+/** The conversation, or how to pair this Mac; the composer under it; the call minimised. */
+function ConversationArea({
+  calling,
+  calls,
+  error,
+  onOpenCall,
   readMessages,
   send,
   snapshot,
-}: {
-  readMessages?: DaemonPort["readSessionMessages"];
-  send: AssistantViewProps["send"];
-  snapshot: AppSnapshot;
-}) {
-  const { chat } = snapshot;
-  const history = useConversation(chat, readMessages);
+}: AssistantViewProps & { calling: boolean; calls: Calls; onOpenCall: () => void }) {
+  const { call, chat } = snapshot;
+  const [decision, setDecision] = useState<Decision | null>(null);
+  const paired = hasSavedPairing(snapshot);
+  const statusKnown =
+    snapshot.status_availability?.state !== "unknown" &&
+    snapshot.status_availability?.state !== "absent";
+  const unpaired = snapshot.connection.daemon === "ready" && !paired && statusKnown;
   return (
-    <div
-      className={styles.conversation}
-      data-testid="assistant-conversation"
-      onScroll={(event) => {
-        if (event.currentTarget.scrollTop <= 16) history.loadOlder();
-      }}
-    >
-      <div className={styles.thread}>
-        {history.hasOlder && <Button onClick={history.loadOlder}>{es.assistant.loadOlder}</Button>}
-        {history.loading && <p role="status">{es.assistant.loadingOlder}</p>}
-        {history.error !== null && <p role="alert">{history.error}</p>}
-        {history.error !== null && history.firstPage === "failed" && (
-          <Button onClick={history.retry}>{es.retry}</Button>
-        )}
-        <ConversationTools
-          inFlight={turnInFlight(chat)}
-          messages={history.messages}
-          read={readMessages}
-          sessionId={chat.session_id}
-          turn={chat.turn}
-        />
-        <MessageList
-          firstPage={history.firstPage}
-          busy={turnInFlight(chat)}
-          listenable={readsAloud(snapshot, chat.agent_id)}
-          messages={history.messages}
+    <>
+      {unpaired ? (
+        <>
+          <ConversationHeader
+            began={null}
+            calling={false}
+            canCall={false}
+            onCall={calls.startCall}
+            send={send}
+            snapshot={snapshot}
+          />
+          <Unpaired />
+        </>
+      ) : (
+        <Conversation
+          calling={calling}
+          canCall={calls.available && !calls.callRequested}
+          decision={decision}
+          key={chat.session_id ?? "no-session"}
+          onCall={calling ? onOpenCall : calls.startCall}
+          onDecided={(choice) => {
+            const turn = currentTurn(chat);
+            if (turn !== null) setDecision({ turn, choice });
+          }}
+          readMessages={readMessages}
           send={send}
-          speaking={chat.speaking ?? null}
-          voiceAudio={chat.voice_audio}
-          work={chat.work}
-          workInFlight={turnInFlight(chat)}
+          snapshot={snapshot}
         />
-        <ActivityLine activity={chat.activity} />
-        {chat.pending && <PendingCard pending={chat.pending} send={send} />}
-      </div>
-    </div>
+      )}
+      <ViewError error={error} />
+      <AssistantComposer
+        attachmentLimits={snapshot.settings.attachments}
+        chat={chat}
+        daemonReady={snapshot.connection.daemon === "ready"}
+        hub={currentHubConnection(snapshot)}
+        paired={paired}
+        send={send}
+      />
+      {calling && <MinimisedCall call={call} onHangUp={calls.endCall} onOpen={onOpenCall} />}
+    </>
   );
 }
 
-export default function AssistantView({ error, readMessages, send, snapshot }: AssistantViewProps) {
+/** The Assistant once it is known: the call in its own view, or the conversation. */
+function AssistantScreen(props: AssistantViewProps) {
+  const es = useSpanish();
+  const { error, send, snapshot } = props;
   const { call, chat } = snapshot;
-  const hubConnection = currentHubConnection(snapshot);
-  const paired = hasSavedPairing(snapshot);
-  const { callRequested, toast, setToast, startCall, endCall } = useAssistantCall({
+  const calls = useAssistantCall({
     error,
     send,
     snapshot,
-    paired,
-    hubConnection,
+    paired: hasSavedPairing(snapshot),
+    hubConnection: currentHubConnection(snapshot),
   });
-  if (chat.availability?.state === "unknown") return <UnknownAssistant snapshot={snapshot} />;
+  const [minimised, setMinimised] = useState(false);
+  const calling = calls.callRequested || call !== null;
+  useEffect(() => {
+    if (!calling) setMinimised(false);
+  }, [calling]);
   return (
-    <section className={styles.view} data-call-screen={call?.seeing_screen ?? false}>
+    <section
+      className={styles.view}
+      data-call-screen={call?.seeing_screen ?? false}
+      data-minimised-call={(calling && minimised) || undefined}
+    >
       <h1 className={styles.visuallyHidden}>{es.shell.assistant}</h1>
-      <AssistantHeader send={send} snapshot={snapshot} />
-      <ViewError error={error} />
-      <ConversationThread
-        key={chat.session_id ?? "no-session"}
-        readMessages={readMessages}
-        send={send}
-        snapshot={snapshot}
-      />
-      <AssistantComposer
-        attachmentLimits={snapshot.settings.attachments}
-        callActive={Boolean(call)}
-        callPending={callRequested}
-        chat={chat}
-        daemonReady={snapshot.connection.daemon === "ready"}
-        hub={hubConnection}
-        onCallToggle={call ? endCall : startCall}
-        paired={paired}
-        callUnknown={snapshot.call_availability?.state === "unknown"}
-        statusUnknown={
-          snapshot.status_availability?.state === "unknown" ||
-          snapshot.status_availability?.state === "absent"
-        }
-        send={send}
-      />
-      {(callRequested || call) && <CallOrb call={call} onEnd={endCall} />}
-      {toast !== null && toast !== "" && <Toast message={toast} onClose={() => setToast(null)} />}
+      {calling && !minimised ? (
+        <CallView
+          call={call}
+          lastQuestion={lastQuestion(chat)}
+          onHangUp={calls.endCall}
+          onMinimise={() => setMinimised(true)}
+        />
+      ) : (
+        <ConversationArea
+          {...props}
+          calling={calling}
+          calls={calls}
+          onOpenCall={() => setMinimised(false)}
+        />
+      )}
+      {calls.toast !== null && calls.toast !== "" && (
+        <Toast message={calls.toast} onClose={() => calls.setToast(null)} />
+      )}
     </section>
   );
+}
+
+/**
+ * The Assistant: the open conversation with its agent, the composer fixed
+ * under it, and the call with the agent, in its own calm view or minimised
+ * to a card over the conversation. Not known yet, it shows that it reads.
+ */
+export default function AssistantView(props: AssistantViewProps) {
+  if (props.snapshot.chat.availability?.state === "unknown")
+    return <UnknownAssistant snapshot={props.snapshot} />;
+  return <AssistantScreen {...props} />;
 }

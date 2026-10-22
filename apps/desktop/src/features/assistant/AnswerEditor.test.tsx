@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "../../bridge/generated";
@@ -13,9 +13,9 @@ vi.mock("../../bridge/clipboard", () => ({
   },
 }));
 
-// An answer opens in the Markdown editor; what comes out of it is Markdown
-// again, with its code and its table. Copying or sending it back is the
-// user's click; closing it sends nothing.
+// An answer opens in the editor: its Markdown on the left, how it will look
+// on the right as it changes. Copying or sending it back is the user's
+// click; closing it sends nothing.
 
 const ANSWER = [
   "## Plan",
@@ -34,18 +34,6 @@ const ANSWER = [
   "| Norte | 8 |",
 ].join("\n");
 
-/** Markdown with table padding and runs of blank lines evened out. */
-function sameMarkdown(markdown: string): string {
-  return markdown
-    .trim()
-    .replace(/\n{3,}/g, "\n\n")
-    .split("\n")
-    .map((line) =>
-      line.startsWith("|") ? line.replace(/ +\|/g, " |").replace(/-{3,}/g, "---") : line,
-    )
-    .join("\n");
-}
-
 function answer(text: string): ChatMessage {
   return {
     id: "a1",
@@ -60,47 +48,58 @@ function answer(text: string): ChatMessage {
 
 async function openEditor(text: string, sent: AppCommand[] = []) {
   render(<MessageList messages={[answer(text)]} send={(command) => sent.push(command)} />);
-  await userEvent.click(screen.getByRole("button", { name: "Abrir en el editor" }));
+  await userEvent.click(screen.getByRole("button", { name: "Editar y copiar" }));
   const dialog = await screen.findByRole("dialog", { name: "Editar la respuesta" });
-  const box = await within(dialog).findByRole("textbox", { name: "Respuesta" });
-  return { box, dialog };
+  const box = within(dialog).getByRole("textbox", { name: "Texto de la respuesta" });
+  const preview = within(dialog).getByRole("region", { name: "Así se verá" });
+  return { box: box as HTMLTextAreaElement, dialog, preview };
 }
 
 describe("the answer in the editor", () => {
-  it("shows it formatted and copies the same Markdown back", async () => {
+  it("shows its Markdown beside how it will look, and copies what is written", async () => {
     copied.texts = [];
-    const { box, dialog } = await openEditor(ANSWER);
-    await waitFor(() => expect(box.querySelector("h2")?.textContent).toBe("Plan"));
-    expect(box.querySelector("pre code")?.textContent).toBe("const plazas = 8;");
-    expect(box.querySelector("table")).not.toBeNull();
+    const { box, dialog, preview } = await openEditor(ANSWER);
+    expect(box.value).toBe(ANSWER);
+    expect(preview.querySelector("h4")?.textContent).toBe("Plan");
+    expect(preview.querySelector("pre code")?.textContent).toBe("const plazas = 8;");
+    expect(preview.querySelector("table")).not.toBeNull();
+    expect(within(dialog).getByText(`${ANSWER.length} caracteres`)).toBeTruthy();
     await userEvent.click(within(dialog).getByRole("button", { name: "Copiar" }));
-    expect(copied.texts).toHaveLength(1);
-    // The editor pads table cells to align them and leaves a blank line
-    // more before a table: the same Markdown, written its way.
-    expect(sameMarkdown(copied.texts[0] ?? "")).toBe(sameMarkdown(ANSWER));
+    expect(copied.texts).toEqual([ANSWER]);
+    expect(await within(dialog).findByText("✓ Copiado")).toBeTruthy();
+  });
+
+  it("previews each change at once", async () => {
+    const { box, preview } = await openEditor("Hola");
+    await userEvent.type(box, " **mundo**");
+    expect(preview.querySelector("strong")?.textContent).toBe("mundo");
   });
 
   it("sends the edited text back only when asked, and closing sends nothing", async () => {
     const sent: AppCommand[] = [];
-    const { box, dialog } = await openEditor("Hola", sent);
-    await waitFor(() => expect(box.textContent).toBe("Hola"));
+    const { dialog } = await openEditor("Hola", sent);
     await userEvent.click(within(dialog).getByRole("button", { name: "Cerrar" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(sent).toEqual([]);
-    await userEvent.click(screen.getByRole("button", { name: "Abrir en el editor" }));
+    await userEvent.click(screen.getByRole("button", { name: "Editar y copiar" }));
     const again = await screen.findByRole("dialog", { name: "Editar la respuesta" });
-    await within(again).findByText("Hola");
     await userEvent.click(within(again).getByRole("button", { name: "Mandar a Deimos" }));
     expect(sent).toEqual([{ command: "chat", text: "Hola" }]);
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("keeps hostile Markdown from becoming elements or links", async () => {
-    const { box } = await openEditor(
+  it("closes with Esc", async () => {
+    const { dialog } = await openEditor("Hola");
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("keeps hostile Markdown from becoming elements or links in the preview", async () => {
+    const { preview } = await openEditor(
       '<script>alert(1)</script> [x](javascript:alert(1)) <img src=x onerror="alert(1)">',
     );
-    await waitFor(() => expect(box.textContent).not.toBe(""));
-    expect(box.querySelector("script, img")).toBeNull();
-    expect(box.querySelector("a")).toBeNull();
+    expect(preview.textContent).not.toBe("");
+    expect(preview.querySelector("script, img")).toBeNull();
+    expect(preview.querySelector("a")).toBeNull();
   });
 });

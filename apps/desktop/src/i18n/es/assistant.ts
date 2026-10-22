@@ -70,20 +70,17 @@ function seconds(ms: number): string {
 
 const base = {
   chat: {
-    empty: "Aún no hay mensajes. Escribe o dicta tu pregunta.",
     inputLabel: "Mensaje",
     send: "Enviar",
     interrupt: "Interrumpir",
-    approve: "Aprobar",
-    reject: "Rechazar",
     clarifyLabel: "Respuesta",
     clarify: "Responder",
     // The hub's approval choices (hub-v1 «Choices and questions»).
     choices: {
       once: "Permitir una vez",
-      session: "Permitir en esta conversación",
-      always: "Permitir siempre",
-      deny: "Rechazar",
+      session: "En esta conversación",
+      always: "Siempre",
+      deny: "No permitir",
     },
     questionOf: (position: number, total: number) => `Pregunta ${position} de ${total}`,
   },
@@ -95,15 +92,12 @@ const base = {
     voiceFailure: voiceFailureText,
     audioUnavailable: "Audio no disponible",
     voiceProgress: "Progreso de la nota de voz",
-    recordingVoiceNote: (elapsed: string) => `Grabando nota de voz · ${elapsed} · esc cancela`,
     voiceNoteRecording: (elapsed: string) =>
       `Grabando nota de voz, ${elapsed}. Pulsa para enviarla`,
     sendVoiceNote: "Enviar nota de voz",
     voiceNoteTooShort: (durationMs: number, minimumMs: number) =>
       `La nota de voz duró ${seconds(durationMs)} s y el mínimo es ${seconds(minimumMs)} s: no se ha enviado.`,
     retryTranscription: "Reintentar transcripción",
-    // Said while macOS grants Screen Recording and privacy is armed.
-    watchingScreen: "Puede ver tu pantalla",
 
     loadMoreSessions: "Cargar más conversaciones",
     loadingSessions: "Cargando conversaciones…",
@@ -112,7 +106,7 @@ const base = {
     // What the agent did in a turn (hub-v1 chat.item).
     work: {
       label: "Lo que hizo",
-      working: (duration: string) => `Trabajando ${duration}`,
+      working: (duration: string) => `Trabajando · ${duration}`,
       worked: (duration: string) => `Trabajó ${duration}`,
       used: (subjects: string) => `Usó ${subjects}`,
       steps: (count: number) => (count === 1 ? "1 paso" : `${count} pasos`),
@@ -130,6 +124,52 @@ const base = {
   },
 } as const;
 
+/** «1 minuto», «1 min 30 s», «2 minutos»: the silence that hangs a call up. */
+function silenceText(ms: number): string {
+  const seconds = Math.max(1, Math.round(ms / 1_000));
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  if (minutes === 0) return `${rest} s`;
+  if (rest !== 0) return `${minutes} min ${rest} s`;
+  return minutes === 1 ? "1 minuto" : `${minutes} minutos`;
+}
+
+/** What the composer says while it cannot send: why, and that the text stays. */
+function keptWhile(reason: string): string {
+  return `${reason} Lo que escribas se queda aquí hasta que puedas enviarlo.`;
+}
+
+/** Why the composer cannot send now; what is written stays. */
+function blockedCopy(assistantName: string) {
+  return {
+    permission: keptWhile(`${assistantName} espera tu permiso.`),
+    question: keptWhile(`${assistantName} espera tu respuesta.`),
+    answering: keptWhile(`${assistantName} está respondiendo.`),
+    transcribing: keptWhile("Se está transcribiendo tu nota de voz."),
+    uploading: "Se está subiendo un adjunto; podrás enviar en cuanto termine.",
+    offline: keptWhile("Sin conexión con tu hub."),
+    starting: keptWhile("Orbit aún está conectando."),
+    sending: "Enviando tu mensaje…",
+  };
+}
+
+/** What the call says, in the agent's name. */
+function callCopy(assistantName: string) {
+  return {
+    title: `Llamada con ${assistantName}`,
+    speaking: `${assistantName} está hablando`,
+    listening: "Te escucha",
+    connecting: `Llamando a ${assistantName}…`,
+    you: (question: string) => `Tú: ${question}`,
+    seesScreen: "Puede ver tu pantalla",
+    interrupt: "Interrúmpele hablando cuando quieras",
+    seeConversation: "Ver la conversación",
+    minimised: "Llamada minimizada",
+    limits: (minutesLeft: number, silenceMs: number) =>
+      `${minutesLeft < 1 ? "Queda menos de 1 min" : `Quedan ${minutesLeft} min`} · se cuelga sola tras ${silenceText(silenceMs)} sin que hables · ⌃⌥D cuelga desde cualquier app`,
+  } as const;
+}
+
 export function assistantCopy(assistantName: string) {
   return {
     ...base,
@@ -139,7 +179,52 @@ export function assistantCopy(assistantName: string) {
       thinking: `${assistantName} está pensando…`,
       responding: `${assistantName} está respondiendo…`,
       noHermesVoice: `${assistantName} contesta por texto`,
-      pairHub: `Para hablar con ${assistantName}, empareja este Mac con tu hub en Ajustes`,
+      // The list of conversations.
+      conversations: "Conversaciones",
+      newShort: "Nueva",
+      now: "Ahora",
+      messageCount: (count: number) =>
+        count === 0 ? "Sin mensajes" : count === 1 ? "1 mensaje" : `${count} mensajes`,
+      // The header of the open conversation.
+      waitsPermission: "espera tu permiso",
+      asksSomething: "te hace una pregunta",
+      working: "trabajando…",
+      newConversationState: "conversación nueva",
+      // The thread.
+      emptyTitle: `Pregúntale a ${assistantName}`,
+      emptyText: "Escribe abajo o graba una nota de voz con el micrófono.",
+      thread: "Conversación",
+      loadingAssistant: "Leyendo tus conversaciones del hub…",
+      answerLabel: `Respuesta de ${assistantName}`,
+      workingLabel: `${assistantName} trabajando`,
+      yourMessage: "Tu mensaje",
+      turnFailed: `${assistantName} no pudo responder. Vuelve a preguntar.`,
+      askAgain: "Volver a preguntar",
+      // The composer.
+      composerLabel: `Mensaje para ${assistantName}`,
+      composerPlaceholder: `Escribe a ${assistantName}…`,
+      blocked: blockedCopy(assistantName),
+      recordingNote: "Grabando nota de voz",
+      escCancels: "· esc cancela",
+      cancel: "Cancelar",
+      voiceNoteButton: "Grabar nota de voz",
+      // What the agent waits for.
+      approvalTitle: `${assistantName} necesita tu permiso`,
+      clarifyTitle: `${assistantName} te pregunta`,
+      decided: {
+        once: "Lo permitiste una vez.",
+        session: "Lo permitiste en esta conversación.",
+        always: "Lo permitiste siempre.",
+        deny: "No lo permitiste.",
+      } as Record<string, string>,
+      stepWaits: "espera tu permiso",
+      stepDenied: "no lo permitiste",
+      // A Mac without its hub.
+      unpaired: `Para hablar con ${assistantName}, empareja este Mac con tu hub.`,
+      pairMac: "Emparejar este Mac",
+      // «Editar y copiar».
+      editorSubtitle: `Cámbiala y cópiala, o mándala a ${assistantName} como un mensaje nuevo.`,
     },
+    call: callCopy(assistantName),
   } as const;
 }

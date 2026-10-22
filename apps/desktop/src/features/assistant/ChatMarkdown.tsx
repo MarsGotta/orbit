@@ -102,6 +102,31 @@ function Table({ children, node }: ComponentProps<"table"> & ExtraProps) {
   );
 }
 
+/**
+ * A table cell that says only a state is coloured by it, as the design's
+ * tables are: ready in green, waiting in amber, stopped in red. Any other
+ * cell is plain text: «Hecha» in a column of dates is not a state.
+ */
+const STATES: Record<string, "ok" | "warn" | "rec"> = {
+  listo: "ok",
+  lista: "ok",
+  pendiente: "warn",
+  "en curso": "warn",
+  bloqueado: "rec",
+  bloqueada: "rec",
+  fallido: "rec",
+  fallida: "rec",
+};
+
+function Cell({ children, node, ...props }: ComponentProps<"td"> & ExtraProps) {
+  const state = node === undefined ? undefined : STATES[textOf(node).trim().toLowerCase()];
+  return (
+    <td {...props} data-state={state}>
+      {children}
+    </td>
+  );
+}
+
 const COMPONENTS: Components = {
   a: ({ children, href }) => {
     const view = href === undefined ? null : orbitView(href);
@@ -127,6 +152,7 @@ const COMPONENTS: Components = {
   h5: "h6",
   pre: Pre,
   table: Table,
+  td: Cell,
 };
 
 /**

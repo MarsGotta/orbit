@@ -5,13 +5,19 @@ import type { AppCommand } from "../../bridge/generated";
 import type { Agent } from "../../bridge/generated/Agent";
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import type { ChatSessionSummary } from "../../bridge/generated/ChatSessionSummary";
-import { contextForView } from "../../app/ContextPanel";
 import { AssistantCopy } from "../../i18n/AssistantCopy";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { FeatureFrame } from "../../bridge/generated";
 import { applyFrame } from "../../state/feature-frame";
 import AssistantView from "./AssistantView";
+import { ShellSlots, useShellSlots } from "../../app/shell-slots";
+import { AssistantSessions } from "./AssistantSessions";
 import { conversationAgentName } from "./agents";
+
+/** The window's list column, where the conversations are drawn. */
+function ColumnHost() {
+  return <div ref={useShellSlots()?.setColumn} />;
+}
 
 // Several agents on one hub: a new conversation picks one, an open one says
 // whose it is, and every text names the open conversation's agent.
@@ -66,27 +72,25 @@ function view(snap: AppSnapshot, sent: AppCommand[] = []) {
 describe("the agent of a conversation", () => {
   it("offers no choice with one agent, as before", () => {
     view(snapshot({}, [{ id: "default", name: "Vega" }], "default"));
-    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(screen.queryByRole("radiogroup")).toBeNull();
     expect(screen.queryByText(/Conversación con/)).toBeNull();
   });
 
   it("lets a new conversation pick its agent, the default one first", async () => {
     const sent: AppCommand[] = [];
     view(snapshot({}), sent);
-    const picker = screen.getByRole("combobox", { name: "Hablar con" });
-    expect((picker as HTMLSelectElement).value).toBe("deimos");
-    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
-      "Deimos",
-      "Atlas",
-    ]);
-    await userEvent.selectOptions(picker, "atlas");
+    const picker = screen.getByRole("radiogroup", { name: "Hablar con" });
+    const options = within(picker).getAllByRole("radio");
+    expect(options.map((option) => option.textContent)).toEqual(["Deimos", "Atlas"]);
+    expect(options[0]?.getAttribute("aria-checked")).toBe("true");
+    await userEvent.click(within(picker).getByRole("radio", { name: "Atlas" }));
     expect(sent).toEqual([{ command: "new_session", agent_id: "atlas" }]);
   });
 
   it("says whose an open conversation is and does not change its agent", () => {
     view(snapshot({ session_id: "session-atlas", agent_id: "atlas", activity: "thinking" }));
-    expect(screen.queryByRole("combobox")).toBeNull();
-    expect(screen.getByText("Conversación con Atlas")).toBeTruthy();
+    expect(screen.queryByRole("radiogroup")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Atlas" })).toBeTruthy();
     expect(screen.getByText("Atlas está pensando…")).toBeTruthy();
   });
 
@@ -142,34 +146,53 @@ describe("the list of conversations", () => {
     },
     { id: "c", created_at_ms: 1_787_000_000_000, last_at_ms: 1_787_000_000_000, message_count: 1 },
   ];
+  const read = () =>
+    Promise.resolve({
+      state: "present" as const,
+      value: { items: sessions, next: null, total: sessions.length, revision: 1 },
+      as_of_ms: null,
+    });
 
-  it("says each conversation's agent and opens it with that agent", () => {
+  it("says each conversation's agent and opens it with that agent", async () => {
     const sent: AppCommand[] = [];
-    const data = contextForView(
-      "assistant",
-      snapshot({ session_id: "a" }),
-      (command) => sent.push(command),
-      sessions,
+    render(
+      <ShellSlots>
+        <ColumnHost />
+        <AssistantSessions
+          read={read}
+          send={(command) => sent.push(command)}
+          snapshot={snapshot({ session_id: "a" })}
+        />
+      </ShellSlots>,
     );
-    const recent = data?.groups.find((group) => group.label === "Recientes")?.rows ?? [];
-    expect(recent.map((row) => row.subtitle)).toEqual(["Atlas", "Deimos"]);
-    recent[0]?.onSelect?.();
-    recent[1]?.onSelect?.();
+    const recent = within(await screen.findByRole("list", { name: "Recientes" })).getAllByRole(
+      "button",
+    );
+    expect(recent.map((row) => row.textContent)).toEqual([
+      expect.stringContaining("Atlas"),
+      expect.stringContaining("Deimos"),
+    ]);
+    await userEvent.click(recent[0] as HTMLElement);
+    await userEvent.click(recent[1] as HTMLElement);
     expect(sent).toEqual([
       { command: "session_open", id: "b", agent_id: "atlas" },
       { command: "session_open", id: "c" },
     ]);
   });
 
-  it("names no agent when the hub has one", () => {
-    const data = contextForView(
-      "assistant",
-      snapshot({ session_id: "a" }, [{ id: "default", name: "Vega" }], "default"),
-      () => undefined,
-      sessions,
+  it("names no agent when the hub has one", async () => {
+    render(
+      <ShellSlots>
+        <ColumnHost />
+        <AssistantSessions
+          read={read}
+          send={() => undefined}
+          snapshot={snapshot({ session_id: "a" }, [{ id: "default", name: "Vega" }], "default")}
+        />
+      </ShellSlots>,
     );
-    const recent = data?.groups.find((group) => group.label === "Recientes")?.rows ?? [];
-    expect(recent.map((row) => row.subtitle)).not.toContain("Vega");
+    const recent = await screen.findByRole("list", { name: "Recientes" });
+    expect(recent.textContent).not.toContain("Vega");
   });
 });
 

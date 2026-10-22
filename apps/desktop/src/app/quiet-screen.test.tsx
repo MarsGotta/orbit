@@ -199,33 +199,26 @@ const chat: ChatSnapshot = {
 };
 
 describe("an unknown availability paints nothing", () => {
-  it("an unknown call says nothing in the assistant", () => {
+  it("with everything fine the composer says nothing", () => {
     const view = render(
-      <AssistantComposer
-        callActive={false}
-        callPending={false}
-        callUnknown
-        chat={chat}
-        daemonReady
-        hub="online"
-        onCallToggle={() => undefined}
-        paired
-        send={() => undefined}
-      />,
+      <AssistantComposer chat={chat} daemonReady hub="online" paired send={() => undefined} />,
     );
     expect(screen.queryByRole("status")).toBeNull();
     expectQuiet(view.container.textContent);
     expect(view.container.textContent).not.toMatch(/Nota de voz:|Contexto:/);
   });
 
-  it("an unknown assistant is an empty view", () => {
+  it("an unknown assistant waits, saying what it reads, never as a failure", () => {
+    // «Nada en blanco»: what is not known yet shows it is being read.
     const value = {
       ...snapshot(),
       chat: { ...chat, availability: { state: "unknown", cause: "pending:not_observed_yet" } },
       call_availability: { state: "unknown", cause: "pending:not_observed_yet" },
     } as unknown as AppSnapshot;
     const view = render(<UnknownAssistant snapshot={value} />);
-    expect(view.container.textContent).toBe("");
+    expect(view.container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(screen.getByRole("status").textContent).toBe("Leyendo tus conversaciones del hub…");
+    expectQuiet(view.container.textContent);
   });
 
   // «Grabar reunión» is always offered: the new recording window says what

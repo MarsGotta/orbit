@@ -37,20 +37,11 @@ function renderComposer(initial: ChatSnapshot = chat("idle")) {
       : undefined,
   );
   const view = (snapshot: ChatSnapshot) => (
-    <AssistantComposer
-      callActive={false}
-      callPending={false}
-      chat={snapshot}
-      daemonReady
-      hub="online"
-      onCallToggle={() => undefined}
-      paired
-      send={send}
-    />
+    <AssistantComposer chat={snapshot} daemonReady hub="online" paired send={send} />
   );
   const rendered = render(view(initial));
   return {
-    microphone: () => screen.getByRole("button", { name: /^(Nota de voz|Grabando)/ }),
+    microphone: () => screen.getByRole("button", { name: /^(Grabar nota de voz|Grabando)/ }),
     send,
     /** The daemon's state reaches the screen, then its answer to the order. */
     daemon: async (state: VoiceState) => {
@@ -170,7 +161,9 @@ describe("while it records, the composer says so", () => {
     const { microphone } = renderComposer();
     fireEvent.pointerDown(microphone(), { button: 0, pointerId: 1 });
     fireEvent.pointerUp(microphone(), { button: 0, pointerId: 1 });
-    expect(screen.getByRole("status").textContent).toContain("Grabando nota de voz · 0:00");
+    expect(screen.getByRole("status").textContent).toContain("Grabando nota de voz");
+    expect(screen.getByRole("status").textContent).toContain("0:00");
+    expect(screen.getByRole("status").textContent).toContain("esc cancela");
     act(() => vi.advanceTimersByTime(65_000));
     expect(screen.getByRole("status").textContent).toContain("1:05");
     expect(microphone().getAttribute("aria-label")).toContain("1:05");
@@ -251,7 +244,7 @@ describe("the microphone does not wait for read-aloud", () => {
         snapshot={snapshot}
       />,
     );
-    return { microphone: screen.getByRole("button", { name: "Nota de voz" }), send };
+    return { microphone: screen.getByRole("button", { name: "Grabar nota de voz" }), send };
   }
 
   it("records a note while the read-aloud voice is not known yet", () => {

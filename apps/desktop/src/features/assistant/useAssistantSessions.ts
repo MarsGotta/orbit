@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatSessionSummary } from "../../bridge/generated/ChatSessionSummary";
 import type { DaemonPort } from "../../bridge/port";
 import type { AssistantCursor, SessionPage } from "../../bridge/reads";
@@ -9,6 +9,8 @@ export type SessionsState = {
   total: number | null;
   next: AssistantCursor | null;
   loading: boolean;
+  /** The first page has arrived: until then the list shows its shape. */
+  loaded: boolean;
   error: string | null;
 };
 
@@ -33,7 +35,14 @@ function fromAnswer(answer: SessionPage, previous: SessionsState, first: boolean
     if (!seen.has(session.id)) items.push(session);
     seen.add(session.id);
   }
-  return { items, total: answer.value.total, next: answer.value.next, loading: false, error: null };
+  return {
+    items,
+    total: answer.value.total,
+    next: answer.value.next,
+    loading: false,
+    loaded: true,
+    error: null,
+  };
 }
 
 /**
@@ -51,11 +60,15 @@ export function useAssistantSessions(
     total: null,
     next: null,
     loading: false,
+    loaded: read === undefined,
     error: null,
   });
   const [retryToken, setRetryToken] = useState(0);
+  // The first page is read whatever happens; then again once a turn has ended.
+  const loaded = useRef(false);
+  loaded.current = state.loaded;
   useEffect(() => {
-    if (streaming) return;
+    if (streaming && loaded.current) return;
     let current = true;
     setState((previous) => ({ ...previous, loading: Boolean(read), error: null }));
     if (read) {

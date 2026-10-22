@@ -77,6 +77,22 @@ describe("tables", () => {
   });
 });
 
+describe("states in a table", () => {
+  it("colours a cell that says only a state, and nothing else", () => {
+    render(
+      <ChatMarkdown
+        source={
+          "| Hotel | Formación | Estado |\n| --- | --- | --- |\n| Norte | Hecha | Listo |\n| Sur | Martes | Pendiente |\n| Este | Sin fecha | Bloqueado |"
+        }
+      />,
+    );
+    const state = (text: string) => screen.getByText(text).closest("td")?.dataset.state;
+    expect([state("Listo"), state("Pendiente"), state("Bloqueado")]).toEqual(["ok", "warn", "rec"]);
+    expect(state("Hecha")).toBeUndefined();
+    expect(state("Norte")).toBeUndefined();
+  });
+});
+
 describe("nothing the model writes becomes HTML", () => {
   it("shows raw HTML as the text it is", () => {
     const { container } = render(

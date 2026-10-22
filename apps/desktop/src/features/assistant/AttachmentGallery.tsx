@@ -19,7 +19,7 @@ import { AttachmentViewer } from "./AttachmentViewer";
 interface Gallery {
   /** An attachment's bytes, asked of the daemon once per conversation shown. */
   bytes: (attachmentId: string) => Promise<ArrayBuffer>;
-  /** Opens the viewer on an image (among the conversation's) or a PDF. */
+  /** Opens the viewer on an image or a PDF, among the conversation's. */
   view: (attachment: Attachment) => void;
 }
 
@@ -65,7 +65,7 @@ export function useGallery(): Gallery {
 
 /**
  * The attachments of the messages shown: their bytes, loaded once, and the
- * viewer, which moves between the images of those messages.
+ * viewer, which moves between the images and PDFs of those messages.
  */
 export function AttachmentGallery({
   children,
@@ -76,9 +76,11 @@ export function AttachmentGallery({
 }) {
   const cache = useRef(new Map<string, Promise<ArrayBuffer>>());
   const [open, setOpen] = useState<{ items: Attachment[]; index: number } | null>(null);
-  const images = useMemo(
+  const viewable = useMemo(
     () =>
-      messages.flatMap((message) => message.attachments ?? []).filter((a) => a.kind === "image"),
+      messages
+        .flatMap((message) => message.attachments ?? [])
+        .filter((a) => a.kind === "image" || a.kind === "pdf"),
     [messages],
   );
   const track = useTrack();
@@ -103,11 +105,11 @@ export function AttachmentGallery({
     () => ({
       bytes,
       view: (attachment) => {
-        const index = images.findIndex((image) => image.id === attachment.id);
-        setOpen(index >= 0 ? { items: images, index } : { items: [attachment], index: 0 });
+        const index = viewable.findIndex((each) => each.id === attachment.id);
+        setOpen(index >= 0 ? { items: viewable, index } : { items: [attachment], index: 0 });
       },
     }),
-    [bytes, images],
+    [bytes, viewable],
   );
   return (
     <GalleryContext.Provider value={gallery}>

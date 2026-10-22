@@ -108,7 +108,7 @@ describe("the glossary", () => {
 
   it("writes a done copy with its check and a shortcut with macOS's symbols", () => {
     expect(es.chatActions.copied).toBe("✓ Copiado");
-    expect(es.attachments.copied).toBe("✓ Copiado");
+    expect(es.attachments.copiedImage).toBe("✓ Copiada");
     expect(globalShortcuts.ptt).toBe("⌃⌥␣");
   });
 });

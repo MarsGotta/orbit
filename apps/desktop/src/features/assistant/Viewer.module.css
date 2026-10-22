@@ -1,0 +1,170 @@
+/* The attachment viewer: full screen over the Assistant, on an almost opaque ground. */
+.viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--o-bg) 97%, transparent);
+  color: var(--o-ink);
+  animation: viewer-in var(--o-dur-in, 180ms) var(--o-ease, ease) both;
+}
+
+.header {
+  height: 60px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px 0 28px;
+}
+
+.title {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.title h2 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title span {
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.openButtons {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.actions button:disabled {
+  background: transparent;
+}
+
+.close.close {
+  color: var(--o-ink);
+}
+
+.hint {
+  color: var(--o-ink3);
+  font: var(--o-text-tiny);
+}
+
+.failure {
+  max-width: 360px;
+  color: var(--o-recText);
+  font: var(--o-text-meta);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px 24px;
+}
+
+.stage {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--o-radius-lg);
+  box-shadow: var(--o-shadow);
+  object-fit: contain;
+}
+
+.pdf {
+  width: min(100%, 900px);
+  height: 100%;
+  border: 0;
+  border-radius: var(--o-radius-lg);
+  background: var(--o-surface);
+}
+
+.arrow {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--o-line2);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--o-ink);
+  cursor: pointer;
+  transition: background var(--o-dur-fast);
+}
+
+.arrow:hover:not(:disabled) {
+  background: var(--o-hover);
+}
+
+.arrow:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.dots {
+  height: 40px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-bottom: 16px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--o-line2);
+  cursor: pointer;
+}
+
+.dot[aria-current="true"] {
+  background: var(--o-ink);
+}
+
+.viewer :focus-visible {
+  outline: 2px solid var(--o-accText);
+  outline-offset: 2px;
+}
+
+@keyframes viewer-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewer {
+    animation: none;
+  }
+}

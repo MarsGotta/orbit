@@ -1,11 +1,13 @@
+/* The Assistant: a fixed header, the thread that scrolls, the composer fixed below. */
 .view {
-  min-height: 100%;
+  position: relative;
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-}
-
-.view > div:has(> [role="dialog"]) {
-  transform: translate(-280px, calc(-100% - 24px));
+  overflow: hidden;
+  background: var(--o-bg);
+  color: var(--o-ink);
 }
 
 .visuallyHidden {
@@ -17,413 +19,730 @@
   white-space: nowrap;
 }
 
+.spacer {
+  flex: 1;
+}
+
+.waiting {
+  width: min(760px, 100%);
+  margin: 48px auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 0 32px;
+  color: var(--o-ink2);
+}
+
+/* ── The header ─────────────────────────────────────────── */
+
 .header {
-  height: 46px;
+  height: 52px;
   flex: none;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 16px;
+  padding: 0 20px 0 32px;
   border-bottom: 1px solid var(--o-line);
 }
 
-.header strong {
-  font-size: var(--o-font-13);
+.header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
 }
-.header span {
-  flex: 1;
+
+.headerState {
   color: var(--o-ink3);
-  font-size: var(--o-font-11-5);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
-.agentPicker {
+
+.status {
+  max-width: 320px;
+  color: var(--o-ink2);
+  font: var(--o-text-meta);
+}
+
+.copyAll.copyAll {
+  color: var(--o-ink2);
+}
+
+.copied.copied {
+  color: var(--o-ok);
+}
+
+/* ── The thread ─────────────────────────────────────────── */
+
+/* It hangs from the bottom: a new message is in view without scrolling. */
+.scroller {
   flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.agentPicker span {
-  flex: none;
-}
-.agentPicker select {
-  height: 28px;
-  padding: 0 8px;
-  border: 1px solid var(--o-line);
-  border-radius: var(--o-radius-9);
-  background: var(--o-surface);
-  color: var(--o-ink);
-  font: inherit;
-  font-size: var(--o-font-12);
-}
-.conversation {
   min-height: 0;
-  flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  display: flex;
+  flex-direction: column-reverse;
 }
+
+.scroller[data-empty] {
+  flex-direction: column;
+  justify-content: center;
+}
+
 .thread {
-  max-width: 760px;
+  width: 100%;
+  max-width: var(--o-w-readMax);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
+  padding: 24px 32px 16px;
 }
+
+/* The minimised call floats at the bottom right: the last message stays above it. */
+.view[data-minimised-call] .thread {
+  padding-bottom: 96px;
+}
+
+.older {
+  align-self: center;
+}
+
+.historyError {
+  margin: 0;
+  color: var(--o-recText);
+  font: var(--o-text-meta);
+}
+
+.threadSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.skeletonBubble {
+  align-self: flex-end;
+  width: 46%;
+  padding: 12px 14px;
+  border-radius: var(--o-radius-14);
+  background: var(--o-raised);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.agentChoice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--o-ink2);
+  font: var(--o-text-control);
+}
+
 .activity {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin: 0;
   color: var(--o-ink2);
-  font-size: var(--o-font-12);
+  font-size: 13px;
 }
-.activityOrb {
-  width: 24px;
-  height: 24px;
+
+.dots {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  border-radius: var(--o-radius-pill);
-  background: var(--o-accSoft);
-  color: var(--o-accText);
+  gap: 3px;
 }
-.activityOrb i {
-  width: 2px;
-  height: 9px;
-  border-radius: var(--o-radius-pill);
-  background: currentColor;
-  animation: activity 0.8s ease-in-out infinite alternate;
+
+.dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--o-ink2);
+  animation: dots 1.2s infinite;
 }
-.activityOrb i:nth-child(2) {
-  height: 13px;
-  animation-delay: 140ms;
+
+.dots i:nth-child(2) {
+  animation-delay: 0.2s;
 }
-.activityOrb i:nth-child(3) {
-  animation-delay: 280ms;
+
+.dots i:nth-child(3) {
+  animation-delay: 0.4s;
 }
-.empty {
-  margin: auto;
-  color: var(--o-ink3);
-  text-align: center;
-}
-.message {
+
+/* Your messages: on the right, in a raised bubble, their files above. */
+.user {
+  align-self: flex-end;
+  max-width: 520px;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-}
-.message[data-role="user"] {
   align-items: flex-end;
+  gap: 6px;
 }
 
 .bubble {
-  max-width: 100%;
-  padding: 13px 16px;
-  border: 1px solid var(--o-line);
-  border-radius: var(--o-radius-16);
-  background: var(--o-side);
-  font-size: var(--o-font-14);
-  line-height: 1.65;
-}
-
-.message[data-role="user"] .bubble {
-  max-width: 72%;
-  border-color: transparent;
-  border-bottom-right-radius: var(--o-radius-6);
-  background: var(--o-accSoft);
-}
-
-.bubble p {
   margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--o-radius-14);
+  background: var(--o-raised);
   white-space: pre-wrap;
-  text-wrap: pretty;
+  overflow-wrap: anywhere;
 }
-.messageLabel {
-  display: block;
-  margin-bottom: 8px;
+
+/* «Copiar» of your message shows when the pointer or the focus is on it. */
+.userActions {
+  margin: -4px -8px 0 0;
+  opacity: 0;
+  transition: opacity var(--o-dur-fast);
+}
+
+.user:hover .userActions,
+.userActions:focus-within {
+  opacity: 1;
+}
+
+.userActions button {
+  height: 24px;
   color: var(--o-ink3);
-  font-size: var(--o-font-10);
-  letter-spacing: 0.1em;
+  font: var(--o-text-meta);
 }
-.cursor {
-  width: 2px;
-  height: 1em;
-  display: inline-block;
-  margin-left: 3px;
-  vertical-align: -2px;
-  background: var(--o-accText);
-  animation: cursor 0.9s steps(1) infinite;
+
+/* The agent's answers: no bubble, at reading width. */
+.answer {
+  min-width: 0;
 }
-.receipts {
-  margin: 12px 0 0;
-  padding: 10px 0 0;
-  border-top: 1px solid var(--o-line);
-  list-style: none;
-}
-.receipts li {
+
+.answerHead {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 5px 0;
-  color: var(--o-ink2);
-  font-size: var(--o-font-12);
-}
-.receipts code {
-  overflow: hidden;
+  gap: 8px;
+  margin-bottom: 6px;
   color: var(--o-ink3);
-  font-family: var(--o-font-mono);
-  font-size: var(--o-font-10-5);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font: var(--o-text-meta);
 }
-.receiptCheck {
-  width: 16px;
-  height: 16px;
+
+.answerHead strong {
+  color: var(--o-ink2);
+  font-weight: 600;
+}
+
+.workToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  cursor: pointer;
+}
+
+.workToggle svg {
+  transform: rotate(-90deg);
+  transition: transform var(--o-dur-fast);
+}
+
+.workToggle[aria-expanded="true"] svg {
+  transform: none;
+}
+
+.workToggle:hover {
+  color: var(--o-ink2);
+}
+
+.workDetail {
+  margin: 0 0 10px;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--o-ink2);
+}
+
+.steps li[data-current] {
+  color: var(--o-ink);
+  font-weight: 500;
+}
+
+.stepMark {
+  width: 14px;
   flex: none;
   display: grid;
   place-items: center;
-  border-radius: var(--o-radius-5);
-  background: var(--o-okSoft);
+}
+
+.stepDone {
+  display: flex;
   color: var(--o-ok);
 }
-.voiceNote {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.voiceNote button {
-  width: 26px;
-  height: 26px;
-  display: grid;
-  padding: 0;
-  place-items: center;
-  border: 0;
-  border-radius: var(--o-radius-pill);
-  background: var(--o-acc);
-  color: var(--o-white);
-  cursor: pointer;
-}
-.voiceNote button:disabled {
-  background: var(--o-raised);
+
+.stepNo {
   color: var(--o-ink3);
-  cursor: not-allowed;
 }
-.voiceNote time {
-  color: var(--o-ink3);
-  font-family: var(--o-font-mono);
-  font-size: var(--o-font-11);
-}
-.waveform {
-  height: 20px;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-.waveform i {
-  width: 3px;
-  height: 16px;
-  border-radius: var(--o-radius-pill);
+
+.stepWaiting {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
   background: var(--o-accText);
-  opacity: 0.8;
-}
-.waveform i:nth-child(2n) {
-  height: 8px;
-}
-.waveform i:nth-child(3n) {
-  height: 19px;
-}
-.voiceProgress {
-  width: 100%;
-  height: 3px;
-  display: block;
-  margin-top: 8px;
-  accent-color: var(--o-acc);
-}
-.voiceTranscript {
-  margin-top: 8px !important;
-  color: var(--o-ink2);
-  font-size: var(--o-font-12);
 }
 
-.pending {
-  max-width: 520px;
-  padding: 16px;
-  border: 1px solid var(--o-line2);
-  border-radius: var(--o-radius-16);
-  background: var(--o-surface);
-}
-
-.pending p {
-  margin: 0 0 12px;
-  font-size: var(--o-font-14);
-}
-.pending > div {
-  display: flex;
-  gap: 8px;
-}
-.pending > button {
-  margin-top: 10px;
-}
-.choices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.questionCount {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--o-ink3);
-  font-size: var(--o-font-12);
-}
-
-/* What the agent did in a turn (hub-v1 chat.item). */
-.work {
-  max-width: 520px;
-  color: var(--o-ink2);
-  font-size: var(--o-font-12);
-}
-.work summary {
-  cursor: pointer;
-}
-.workTime {
-  margin: 0 0 6px;
-}
-.workSteps {
-  margin: 6px 0;
-  padding: 0;
-  list-style: none;
-}
-.workSteps li {
-  overflow: hidden;
-  padding: 3px 0;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.workSteps li[data-phase="failed"] {
-  white-space: normal;
-}
 .workCause {
-  color: var(--o-warn);
+  color: var(--o-recText);
 }
+
 .plan {
-  margin: 6px 0;
-  padding-left: 18px;
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--o-ink2);
+  font-size: 13px;
 }
-.plan li {
-  padding: 2px 0;
-}
+
 .plan li[data-status="completed"] > span:first-child,
 .plan li[data-status="cancelled"] > span:first-child {
+  color: var(--o-ink3);
   text-decoration: line-through;
 }
+
 .stepStatus {
   margin-left: 8px;
   color: var(--o-ink3);
-}
-.reasoning p {
-  margin: 6px 0 0;
-  white-space: pre-wrap;
+  font: var(--o-text-meta);
 }
 
-.composerArea {
-  flex: none;
-  padding: 14px 24px 22px;
+.reasoning {
+  margin-top: 8px;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
 }
-.availability {
-  max-width: 760px;
-  margin: 0 auto 8px;
-  color: var(--o-warn);
-  font-size: var(--o-font-12);
+
+.reasoning summary {
+  cursor: pointer;
+}
+
+.reasoning p {
+  margin: 6px 0 0;
+}
+
+.cursor {
+  display: inline-block;
+  width: 7px;
+  height: 15px;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--o-ink2);
+  animation: blink 1s steps(2) infinite;
+}
+
+.receipts {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.receipts li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.receiptCheck {
+  display: flex;
+  color: var(--o-ok);
+}
+
+/* A voice note: ▶, its wave and length in the bubble; what it said under it. */
+.voice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.voiceNote {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--o-radius-14);
+  background: var(--o-raised);
+}
+
+.voiceNote button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--o-line2);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--o-ink);
+  cursor: pointer;
+}
+
+.voiceNote button:disabled {
+  color: var(--o-ink3);
+  cursor: not-allowed;
+}
+
+.voiceNote time {
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.waveform {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 20px;
+}
+
+.waveform i {
+  width: 2px;
+  border-radius: 1px;
+  background: var(--o-ink3);
+}
+
+.voiceProgress {
+  position: absolute;
+  right: 14px;
+  bottom: 4px;
+  left: 14px;
+  height: 2px;
+  appearance: none;
+  border: 0;
+  background: transparent;
+}
+
+.voiceProgress::-webkit-progress-bar {
+  background: transparent;
+}
+
+.voiceProgress::-webkit-progress-value {
+  background: var(--o-accText);
+}
+
+.voiceTranscript {
+  margin: 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  text-align: right;
+}
+
+.voiceTranscript[data-failed] {
+  color: var(--o-recText);
+}
+
+/* What the agent waits for: a card in the thread. */
+.pending {
+  padding: 16px 18px;
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-xl);
+  background: var(--o-surface);
+}
+
+.pending h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.approvalText {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--o-radius-md);
+  background: var(--o-bg);
+  color: var(--o-ink2);
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pendingText {
+  margin: 8px 0 0;
+}
+
+.questionCount {
+  display: block;
+  margin-top: 4px;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.deny.deny {
+  margin-left: auto;
+  color: var(--o-recText);
+}
+
+.reply {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.reply input {
+  min-width: 0;
+  flex: 1;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-md);
+  background: var(--o-surface);
+  color: var(--o-ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.reply input:focus {
+  border-color: var(--o-accText);
+  outline: none;
+}
+
+.reply input::placeholder {
+  color: var(--o-ink3);
+}
+
+.decision {
+  margin: -16px 0 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+/* A turn that ended without its answer: why, and asking again. */
+.failure {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px;
+  border-left: 2px solid var(--o-rec);
+  border-radius: 0 var(--o-radius-md) var(--o-radius-md) 0;
+  background: var(--o-recSoft);
+}
+
+.failure p {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* ── A Mac without its hub ─────────────────────────────── */
+
+.unpaired {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 32px;
   text-align: center;
 }
 
-.composer {
-  max-width: 760px;
+.unpairedIcon {
+  display: flex;
+  color: var(--o-ink3);
+}
+
+.unpaired p {
+  margin: 10px 0 0;
+  color: var(--o-ink2);
+  font-size: 13px;
+}
+
+.pairLink {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 12px;
+  padding: 0 14px;
+  border-radius: var(--o-radius-lg);
+  background: var(--o-acc);
+  color: var(--o-white);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pairLink:hover {
+  filter: brightness(1.08);
+}
+
+.pairLink:focus-visible {
+  outline: 2px solid var(--o-accText);
+  outline-offset: 2px;
+}
+
+/* ── The composer, fixed under the thread ──────────────── */
+
+.composerArea {
+  flex: none;
+  padding: 0 32px 20px;
+}
+
+.composerColumn {
+  max-width: 696px;
   margin: 0 auto;
-  padding: 12px 14px;
-  border: 1px solid var(--o-line);
-  border-radius: var(--o-radius-18);
-  background: var(--o-side);
-  box-shadow: var(--o-shadow);
+}
+
+.blocked,
+.voiceRefused {
+  margin: 0 0 6px 2px;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.composer {
+  padding: 10px 10px 8px 14px;
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-14);
+  background: var(--o-surface);
+  transition: border-color var(--o-dur-fast);
+}
+
+.composer:focus-within {
+  border-color: var(--o-accText);
+}
+
+.composer[data-recording] {
+  padding: 10px 10px 10px 8px;
 }
 
 .composer textarea {
   width: 100%;
-  min-height: 38px;
-  resize: none;
-  padding: 4px 2px 10px;
+  padding: 0;
   border: 0;
-  outline: 0;
   background: transparent;
   color: var(--o-ink);
-  font: inherit;
-  font-size: var(--o-font-14);
+  font: var(--o-text-body);
+  resize: none;
 }
+
+.composer textarea:focus {
+  outline: none;
+}
+
 .composer textarea::placeholder {
   color: var(--o-ink3);
 }
-.composerActions {
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.composer[data-recording] .toolbar {
+  gap: 6px;
+  margin-top: 0;
+}
+
+/* Recording, the microphone becomes the red dot that begins the strip. */
+.composer[data-recording] .mic,
+.composer[data-recording] .micRecording {
+  order: -2;
+}
+
+.composer[data-recording] .recordingLine {
+  order: -1;
+}
+
+.recordingLine {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin: 0;
+  font-size: 13px;
 }
-.composerActions > span {
-  flex: 1;
+
+.recordingLine time {
+  color: var(--o-ink2);
+  font-variant-numeric: tabular-nums;
+}
+
+.escHint {
   color: var(--o-ink3);
-  font-size: var(--o-font-11-5);
+  font: var(--o-text-meta);
 }
-.listening {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 2px 10px;
-  color: var(--o-ok);
-  font-size: var(--o-font-12);
-}
+
 .recordingDot {
   width: 8px;
   height: 8px;
-  border-radius: var(--o-radius-pill);
+  border-radius: 50%;
   background: var(--o-rec);
-  animation: cursor 1s steps(1) infinite;
-}
-.recordingButton {
-  background: var(--o-rec);
-  color: var(--o-white);
-}
-.voiceRefused {
-  padding: 4px 2px 10px;
-  color: var(--o-warn);
-  font-size: var(--o-font-12);
+  animation: pulse var(--o-dur-pulse, 1.6s) ease-in-out infinite;
 }
 
-@keyframes cursor {
-  50% {
-    opacity: 0;
+/* A quiet control that cannot act stays quiet: grey, without a raised ground. */
+.toolbar button:disabled:not(.send),
+.header button:disabled {
+  background: transparent;
+}
+
+.send.send:disabled {
+  background: var(--o-raised);
+  color: var(--o-ink3);
+}
+
+@keyframes dots {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
   }
 }
 
-@keyframes activity {
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes blink {
   to {
-    transform: scaleY(0.45);
+    visibility: hidden;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .activityOrb i {
+  .dots i,
+  .recordingDot,
+  .cursor {
     animation: none;
   }
-}
 
-@media (max-width: 860px) {
-  .conversation {
-    padding: 16px;
-  }
-  .composerArea {
-    padding: 10px 16px 16px;
-  }
-  .composerActions > span {
-    display: none;
-  }
-  .message[data-role="user"] .bubble {
-    max-width: 88%;
+  .userActions,
+  .workToggle svg {
+    transition: none;
   }
 }

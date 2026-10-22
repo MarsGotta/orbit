@@ -15,7 +15,7 @@ const AnswerEditor = lazy(() => import("./AnswerEditor"));
 
 interface AnswerProps {
   message: ChatMessage;
-  send: (command: AppCommand) => void;
+  send: (command: AppCommand) => unknown;
   /** The user's message «Reintentar» sends again; null when there is none. */
   retry: string | null;
   /** A turn is in flight: retrying waits for it to end. */
@@ -48,6 +48,7 @@ function useFragment(content: RefObject<HTMLDivElement | null>) {
   return { fragment, observe: () => setFragment(fragmentIn(content.current)), setFragment };
 }
 
+/** «Escuchar», and while the answer sounds, its bars moving and «Parar». */
 function ListenButton({
   id,
   speaking,
@@ -59,19 +60,27 @@ function ListenButton({
   text: () => string;
   send: AnswerProps["send"];
 }) {
-  if (speaking === id)
-    return (
-      <Button onClick={() => send({ command: "speak_stop" })} size={28} variant="ghost">
-        {es.chatActions.stopListening}
-      </Button>
-    );
+  const playing = speaking === id;
   return (
     <Button
-      onClick={() => send({ command: "speak", message_id: id, text: text() })}
+      aria-pressed={playing}
+      className={playing ? styles.playing : undefined}
+      onClick={() =>
+        send(
+          playing ? { command: "speak_stop" } : { command: "speak", message_id: id, text: text() },
+        )
+      }
       size={28}
       variant="ghost"
     >
-      {es.chatActions.listen}
+      {playing && (
+        <span aria-hidden="true" className={styles.sound}>
+          <i />
+          <i />
+          <i />
+        </span>
+      )}
+      {playing ? es.chatActions.stopListening : es.chatActions.listen}
     </Button>
   );
 }
@@ -93,14 +102,6 @@ export function AssistantAnswer({ busy, listenable, message, retry, send, speaki
       {!message.streaming && (
         <div className={styles.actions}>
           <CopyButton label={es.chatActions.copyAnswer} text={() => message.text} />
-          <Button
-            disabled={busy || retry === null}
-            onClick={() => retry !== null && send({ command: "chat", text: retry })}
-            size={28}
-            variant="ghost"
-          >
-            {es.chatActions.retry}
-          </Button>
           {listenable && (
             <ListenButton
               id={message.id}
@@ -109,6 +110,14 @@ export function AssistantAnswer({ busy, listenable, message, retry, send, speaki
               text={() => (content.current === null ? message.text : spokenText(content.current))}
             />
           )}
+          <Button
+            disabled={busy || retry === null}
+            onClick={() => retry !== null && send({ command: "chat", text: retry })}
+            size={28}
+            variant="ghost"
+          >
+            {es.assistant.askAgain}
+          </Button>
           <Button onClick={() => setEditing(true)} size={28} variant="ghost">
             {es.chatActions.openEditor}
           </Button>

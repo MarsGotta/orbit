@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { copyText } from "../../bridge/clipboard";
 import { Button } from "../../design/Button";
 import { es } from "../../i18n/es";
+import styles from "./CopyButton.module.css";
 
-// «Copiado» stays long enough to be read after the click, then the button
-// says «Copiar» again.
-const COPIED_VISIBLE_MS = 2_000;
+// «✓ Copiado» stays long enough to be read after the click, then the button
+// says «Copiar» again: the 1.8 s every confirming button keeps (guide 1).
+const COPIED_VISIBLE_MS = 1_800;
 
 type CopyState = { kind: "idle" } | { kind: "copied" } | { kind: "failed"; cause: string };
 
@@ -30,16 +31,27 @@ export function copyStatus(state: CopyState): string | null {
   return null;
 }
 
-/** A «Copiar» button named for what it copies. */
+/** A «Copiar» button named for what it copies, that confirms «✓ Copiado». */
 export function CopyButton({ label, text }: { label: string; text: () => string }) {
   const { copy, state } = useCopy();
   const failure = copyStatus(state);
+  const copied = state.kind === "copied";
   return (
     <>
-      <Button aria-label={label} onClick={() => void copy(text())} size={28} variant="ghost">
-        {state.kind === "copied" ? es.chatActions.copied : es.chatActions.copy}
+      <Button
+        aria-label={label}
+        className={copied ? styles.copied : undefined}
+        onClick={() => void copy(text())}
+        size={28}
+        variant="ghost"
+      >
+        <span aria-live="polite">{copied ? es.chatActions.copied : es.chatActions.copy}</span>
       </Button>
-      {failure !== null && <span role="alert">{failure}</span>}
+      {failure !== null && (
+        <span className={styles.failure} role="alert">
+          {failure}
+        </span>
+      )}
     </>
   );
 }

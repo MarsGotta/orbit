@@ -43,15 +43,15 @@
   "click:Asistente": "assistant"
  },
  "assistant": {
-  "type_text:Escribe o usa el micrófono para dictar… Mensaje": "assistant-typed"
+  "type_text:Escribe a Deimos… Mensaje para Deimos": "assistant-typed"
  },
  "assistant-typed": {
   "click:Enviar": "assistant-answered"
  },
  "assistant-answered": {
-  "click:Nueva conversación Nueva conversación": "assistant-new"
+  "click:Nueva conversación": "assistant-new"
  },
  "assistant-new": {
-  "click:1 16 de octubre de 2025, 10:01 › 16 de octubre de 2025, 10:01 16 oct": "assistant-reopened"
+  "click:16 oct 2025, 10:01 4 mensajes": "assistant-reopened"
  }
 }

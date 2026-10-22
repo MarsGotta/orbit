@@ -1,6 +1,6 @@
 .markdown {
-  font-size: var(--o-font-14-5);
-  line-height: 1.65;
+  font-size: 14px;
+  line-height: 1.55;
   text-wrap: pretty;
   overflow-wrap: anywhere;
 }
@@ -34,11 +34,16 @@
 }
 
 .markdown h3,
-.markdown h4,
+.markdown h4 {
+  margin: 14px 0 4px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
 .markdown h5,
 .markdown h6 {
-  margin: 14px 0 6px;
-  font-size: var(--o-font-14-5);
+  margin: 14px 0 4px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -119,29 +124,54 @@
   }
 }
 
+/* Tables: a thin border around, a line between rows, states in colour. */
 .table {
-  margin: 0 0 10px;
+  margin: 12px 0 10px;
 }
 
 .table > [data-scroll="x"] {
   max-width: 100%;
   overflow-x: auto;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-lg);
 }
 
 .table table {
+  width: 100%;
   border-collapse: collapse;
-  font-size: var(--o-font-13);
+  font-size: 13px;
 }
 
 .table th,
 .table td {
-  padding: 5px 10px;
-  border: 1px solid var(--o-line);
+  padding: 8px 12px;
   text-align: left;
   white-space: nowrap;
 }
 
 .table th {
-  background: var(--o-surface);
-  font-weight: 600;
+  color: var(--o-ink3);
+  font-weight: 500;
+}
+
+.table tr + tr,
+.table tbody tr {
+  border-top: 1px solid var(--o-line);
+}
+
+.table td[style*="right"],
+.table th[style*="right"] {
+  font-variant-numeric: tabular-nums;
+}
+
+.table td[data-state="ok"] {
+  color: var(--o-ok);
+}
+
+.table td[data-state="warn"] {
+  color: var(--o-warn);
+}
+
+.table td[data-state="rec"] {
+  color: var(--o-recText);
 }

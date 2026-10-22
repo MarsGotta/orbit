@@ -112,9 +112,12 @@ function handler(daemon: Daemon, scenario: Scenario, connected: () => void) {
     },
     orbit_send: (args) => send(daemon, scenario, args.command as AppCommand),
     orbit_panel_send: (args) => send(daemon, scenario, args.command as AppCommand),
-    orbit_read_sessions_page: (): SessionPage => page(daemon.hub.sessions),
-    orbit_read_session_messages: (args): MessagesPage =>
-      page(daemon.hub.messages[String(args.sessionId)] ?? []),
+    orbit_read_sessions_page: (): SessionPage | Promise<SessionPage> =>
+      scenario.stall === true ? new Promise(() => undefined) : page(daemon.hub.sessions),
+    orbit_read_session_messages: (args): MessagesPage | Promise<MessagesPage> =>
+      scenario.stall === true
+        ? new Promise(() => undefined)
+        : page(daemon.hub.messages[String(args.sessionId)] ?? []),
     orbit_agent: (args) => agentAnswer(daemon.hub, args.call as AgentCall),
     orbit_attachment_content: (args) => attachmentBytes(String(args.attachmentId)),
     orbit_attachment_add: (args) => added(args.source as AttachmentSource, (uploads += 1)),

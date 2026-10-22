@@ -22,19 +22,8 @@ const chat: ChatSnapshot = {
 
 function renderComposer() {
   const send = vi.fn<(command: AppCommand) => void>();
-  render(
-    <AssistantComposer
-      callActive={false}
-      callPending={false}
-      chat={chat}
-      daemonReady
-      hub="online"
-      onCallToggle={() => undefined}
-      paired
-      send={send}
-    />,
-  );
-  return { input: screen.getByLabelText("Mensaje"), send };
+  render(<AssistantComposer chat={chat} daemonReady hub="online" paired send={send} />);
+  return { input: screen.getByLabelText("Mensaje para Deimos"), send };
 }
 
 function voiceCalls(send: ReturnType<typeof renderComposer>["send"]) {

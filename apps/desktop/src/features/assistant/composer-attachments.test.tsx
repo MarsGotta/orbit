@@ -69,17 +69,14 @@ function renderComposer(limits: AttachmentLimits | null = LIMITS) {
   render(
     <AssistantComposer
       attachmentLimits={limits ?? undefined}
-      callActive={false}
-      callPending={false}
       chat={chat}
       daemonReady
       hub="online"
-      onCallToggle={() => undefined}
       paired
       send={send}
     />,
   );
-  return { send, box: screen.getByRole("textbox", { name: "Mensaje" }) };
+  return { send, box: screen.getByRole("textbox", { name: "Mensaje para Deimos" }) };
 }
 
 const sendButton = () => screen.getByRole("button", { name: "Enviar" });
@@ -114,7 +111,7 @@ describe("attaching from the dialog", () => {
       from: "path",
       path: "/Users/usuaria/presupuesto.pdf",
     });
-    await userEvent.type(screen.getByRole("textbox", { name: "Mensaje" }), "Míralos");
+    await userEvent.type(screen.getByRole("textbox", { name: "Mensaje para Deimos" }), "Míralos");
     await userEvent.click(sendButton());
     expect(sent).toEqual([
       {

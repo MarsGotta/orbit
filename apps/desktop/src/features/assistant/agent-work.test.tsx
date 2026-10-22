@@ -71,16 +71,17 @@ describe("the agent's work in the chat", () => {
         })}
       />,
     );
-    expect(screen.getByText("Trabajando 40 s")).toBeTruthy();
-    expect(screen.getByText("Leyendo el calendario")).toBeTruthy();
-    expect(screen.queryByText("Mirando la pantalla")).toBeNull();
+    expect(screen.getByText("Trabajando · 40 s")).toBeTruthy();
+    // The steps done have their tick; the one running, its spinner.
+    expect(screen.getByText("Mirando la pantalla").closest("li")?.dataset.phase).toBe("completed");
+    expect(screen.getByText("Leyendo el calendario").closest("li")?.dataset.phase).toBe("started");
     const plan = screen.getByRole("list", { name: "Plan · 1 de 2 pasos" });
     expect(plan.textContent).toContain("Mirar la pantalla");
     expect(screen.getByText("Hecho")).toBeTruthy();
     expect(screen.getByText("En curso")).toBeTruthy();
   });
 
-  it("folds into one summary when the turn ends, with the reasoning folded too", () => {
+  it("folds into one summary when the turn ends, with the reasoning folded too", async () => {
     const ended = work({
       ended_at_ms: 73_000,
       items: [
@@ -95,14 +96,15 @@ describe("the agent's work in the chat", () => {
       tools: 3,
       subjects: ["la pantalla", "el calendario"],
     });
-    expect(workSummary(ended)).toBe(
-      "Usó la pantalla y el calendario · 3 pasos · Trabajó 1 min 12 s",
-    );
+    expect(workSummary(ended)).toBe("Usó la pantalla y el calendario · 3 pasos · 1 min 12 s");
     const { container } = render(<AgentWorkView inFlight={false} work={ended} />);
-    const summary = screen.getByText(
-      "Usó la pantalla y el calendario · 3 pasos · Trabajó 1 min 12 s",
-    );
-    expect(summary.closest("details")?.open).toBe(false);
+    const summary = screen.getByRole("button", {
+      name: "Usó la pantalla y el calendario · 3 pasos · 1 min 12 s",
+    });
+    expect(summary.getAttribute("aria-expanded")).toBe("false");
+    expect(container.textContent).not.toContain("Sin permiso de calendario");
+    await userEvent.click(summary);
+    expect(summary.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText("Razonamiento").closest("details")?.open).toBe(false);
     expect(container.textContent).toContain("Sin permiso de calendario");
   });
@@ -110,7 +112,7 @@ describe("the agent's work in the chat", () => {
   it("says only how long a turn without steps worked", () => {
     expect(workSummary(work({ ended_at_ms: 6_000 }))).toBe("Trabajó 5 s");
     expect(workSummary(work({ ended_at_ms: 121_000, tools: 1, subjects: ["web_search"] }))).toBe(
-      "Usó web_search · 1 paso · Trabajó 2 min",
+      "Usó web_search · 1 paso · 2 min",
     );
   });
 
@@ -124,7 +126,7 @@ describe("the agent's work in the chat", () => {
       />,
     );
     const said = screen.getByText("¿Qué tengo mañana?").closest("article");
-    const worked = screen.getByText("Trabajó 5 s").closest("section");
+    const worked = screen.getByText("Trabajó 5 s").closest("article");
     expect(said?.compareDocumentPosition(worked as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
@@ -167,17 +169,14 @@ describe("questions and approvals with the agent's real choices", () => {
     const send = vi.fn<(command: AppCommand) => void>();
     render(<PendingCard pending={approval} send={send} />);
     const buttons = screen.getAllByRole("button").map((button) => button.textContent);
-    expect(buttons).toEqual([
-      "Permitir una vez",
-      "Rechazar",
-      "Permitir en esta conversación",
-      "Permitir siempre",
-    ]);
-    await userEvent.click(screen.getByRole("button", { name: "Permitir en esta conversación" }));
+    // In the design's order, whatever order the agent sent them in; refusing last.
+    expect(buttons).toEqual(["Permitir una vez", "En esta conversación", "Siempre", "No permitir"]);
+    await userEvent.click(screen.getByRole("button", { name: "En esta conversación" }));
     // One answer per request: the card then waits for the hub.
+    expect(screen.getByRole("button", { name: "No permitir" })).toHaveProperty("disabled", true);
     cleanup();
     render(<PendingCard pending={approval} send={send} />);
-    await userEvent.click(screen.getByRole("button", { name: "Rechazar" }));
+    await userEvent.click(screen.getByRole("button", { name: "No permitir" }));
     expect(send.mock.calls).toEqual([
       [{ command: "approval", approved: true, choice: "session" }],
       [{ command: "approval", approved: false, choice: "deny" }],

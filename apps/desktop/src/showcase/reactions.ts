@@ -1,5 +1,6 @@
 import type { AppCommand } from "../bridge/generated";
 import { withOpenNote } from "./base";
+import { approvalAnswered } from "./data/chat-approval";
 import { reviewNote } from "./data/note-open";
 import type { Views } from "./scenario";
 
@@ -36,6 +37,18 @@ export function reactTo(views: Views, command: AppCommand): Partial<Views> | nul
           pending: null,
         },
       };
+    case "approval": {
+      const { work, answer } = approvalAnswered(command.approved);
+      return {
+        assistant: {
+          ...views.assistant,
+          pending: null,
+          activity: undefined,
+          work,
+          turn: [...views.assistant.turn, answer],
+        },
+      };
+    }
     default:
       return null;
   }

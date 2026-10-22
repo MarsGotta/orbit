@@ -1,6 +1,10 @@
+import { useState, type ReactNode } from "react";
 import type { AgentWork } from "../../bridge/generated/AgentWork";
 import type { WorkItem } from "../../bridge/generated/WorkItem";
 import type { WorkStepStatus } from "../../bridge/generated/WorkStepStatus";
+import { Icon } from "../../design/Icon";
+import { Spinner } from "../../design/Spinner";
+import { useSpanish } from "../../i18n/AssistantCopy";
 import { es } from "../../i18n/es";
 import { useNow } from "../../use-now";
 import styles from "./AssistantView.module.css";
@@ -22,21 +26,71 @@ function listText(subjects: string[]): string {
   return `${subjects.slice(0, -1).join(", ")} y ${subjects[subjects.length - 1]}`;
 }
 
-/** The folded line of an ended turn: what its tools used, how many, how long. */
+/**
+ * The folded line of an ended turn: what its tools used, how many and how
+ * long («Usó Mail · 3 pasos · 46 s»); without tools, only how long it worked.
+ */
 export function workSummary(work: AgentWork): string {
+  const took =
+    work.ended_at_ms == null ? null : durationText(work.ended_at_ms - work.started_at_ms);
+  if (work.tools === 0) return took === null ? "" : copy.worked(took);
   const parts: string[] = [];
-  if (work.tools > 0) {
-    if (work.subjects.length > 0) parts.push(copy.used(listText(work.subjects)));
-    parts.push(copy.steps(work.tools));
-  }
-  if (work.ended_at_ms != null)
-    parts.push(copy.worked(durationText(work.ended_at_ms - work.started_at_ms)));
+  if (work.subjects.length > 0) parts.push(copy.used(listText(work.subjects)));
+  parts.push(copy.steps(work.tools));
+  if (took !== null) parts.push(took);
   return parts.join(" · ");
 }
 
-const running = (item: WorkItem) =>
-  (item.kind === "tool" || item.kind === "subagent") &&
-  (item.phase === "started" || item.phase === "progress");
+const isStep = (item: WorkItem) => item.kind === "tool" || item.kind === "subagent";
+const isRunning = (item: WorkItem) => item.phase === "started" || item.phase === "progress";
+
+/** How the turn's wait for the user shows on its running step. */
+export type StepWait = "approval" | "denied" | null;
+
+function StepMark({ item, wait }: { item: WorkItem; wait: StepWait }) {
+  if (item.phase === "completed")
+    return (
+      <span className={styles.stepDone}>
+        <Icon name="check" size={14} />
+      </span>
+    );
+  if (item.phase === "failed" || wait === "denied") return <span className={styles.stepNo}>×</span>;
+  if (wait === "approval") return <span className={styles.stepWaiting} />;
+  return <Spinner size={12} />;
+}
+
+/** Each step with its mark: ✓ done, the running one turning, × failed or refused. */
+function Steps({ items, wait }: { items: WorkItem[]; wait: StepWait }) {
+  const es = useSpanish();
+  const steps = items.filter(isStep);
+  if (steps.length === 0) return null;
+  return (
+    <ol aria-label={es.assistant.work.label} className={styles.steps}>
+      {steps.map((item) => {
+        const waits = isRunning(item) ? wait : null;
+        return (
+          <li
+            data-current={waits === "approval" || undefined}
+            data-phase={item.phase}
+            key={item.id}
+          >
+            <span aria-hidden="true" className={styles.stepMark}>
+              <StepMark item={item} wait={waits} />
+            </span>
+            <span>
+              {item.label}
+              {waits === "approval" && ` · ${es.assistant.stepWaits}`}
+              {waits === "denied" && ` · ${es.assistant.stepDenied}`}
+              {item.phase === "failed" && item.cause != null && (
+                <span className={styles.workCause}> · {item.cause}</span>
+              )}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 function Plan({ plan }: { plan: WorkItem }) {
   const status: Record<WorkStepStatus, string> = copy.stepStatus;
@@ -65,66 +119,75 @@ function Reasoning({ items }: { items: WorkItem[] }) {
   );
 }
 
-function Steps({ items }: { items: WorkItem[] }) {
-  const steps = items.filter((item) => item.kind === "tool" || item.kind === "subagent");
-  if (steps.length === 0) return null;
+/** The line above an answer: the agent's name and, after it, its work. */
+export function AnswerHead({ children }: { children?: ReactNode }) {
+  const es = useSpanish();
   return (
-    <ul className={styles.workSteps}>
-      {steps.map((item) => (
-        <li data-phase={item.phase} key={item.id}>
-          {item.label}
-          {item.phase === "failed" && item.cause != null && (
-            <span className={styles.workCause}> · {item.cause}</span>
-          )}
-        </li>
-      ))}
-    </ul>
+    <div className={styles.answerHead}>
+      <strong>{es.chat.roles.assistant}</strong>
+      {children !== undefined && children !== null && (
+        <>
+          <span aria-hidden="true">·</span>
+          {children}
+        </>
+      )}
+    </div>
   );
 }
 
 /**
- * What the agent did in a turn: while it works, a line per running tool,
- * its plan with each step's state and the time so far; once it ends, one
- * folded line that opens to every step. The reasoning, only its summary,
- * is folded in both.
+ * What the agent did in a turn, on the line above its answer. While it works:
+ * «Trabajando · 42 s», then each step with ✓ or the one running, its plan
+ * and its reasoning, folded. Once it ends: one line, «Usó Mail · 3 pasos ·
+ * 46 s», that unfolds every step.
  */
-export function AgentWorkView({ work, inFlight }: { work: AgentWork; inFlight: boolean }) {
+export function AgentWorkView({
+  work,
+  inFlight,
+  wait = null,
+}: {
+  work: AgentWork;
+  inFlight: boolean;
+  wait?: StepWait;
+}) {
   const now = useNow(inFlight ? 1_000 : null);
+  const [open, setOpen] = useState(false);
   const plan = [...work.items].reverse().find((item) => item.kind === "plan");
   if (inFlight) {
     return (
-      <section aria-label={copy.label} className={styles.work}>
-        <p className={styles.workTime} role="status">
-          {copy.working(durationText(now - work.started_at_ms))}
-        </p>
-        <ul className={styles.workSteps}>
-          {work.items.filter(running).map((item) => (
-            <li data-phase={item.phase} key={item.id}>
-              {item.label}
-            </li>
-          ))}
-        </ul>
+      <>
+        <AnswerHead>
+          <span role="status">{copy.working(durationText(now - work.started_at_ms))}</span>
+        </AnswerHead>
+        <Steps items={work.items} wait={wait} />
         {plan && <Plan plan={plan} />}
         <Reasoning items={work.items} />
-      </section>
+      </>
     );
   }
   const summary = workSummary(work);
-  if (work.items.length === 0) {
-    return summary === "" ? null : (
-      <section aria-label={copy.label} className={styles.work}>
-        <p className={styles.workTime}>{summary}</p>
-      </section>
-    );
-  }
+  if (work.items.length === 0)
+    return <AnswerHead>{summary === "" ? null : <span>{summary}</span>}</AnswerHead>;
   return (
-    <section aria-label={copy.label} className={styles.work}>
-      <details>
-        <summary>{summary === "" ? copy.label : summary}</summary>
-        <Steps items={work.items} />
-        {plan && <Plan plan={plan} />}
-        <Reasoning items={work.items} />
-      </details>
-    </section>
+    <>
+      <AnswerHead>
+        <button
+          aria-expanded={open}
+          className={styles.workToggle}
+          onClick={() => setOpen(!open)}
+          type="button"
+        >
+          {summary === "" ? copy.label : summary}
+          <Icon name="chevron" size={14} />
+        </button>
+      </AnswerHead>
+      {open && (
+        <div className={styles.workDetail}>
+          <Steps items={work.items} wait={wait} />
+          {plan && <Plan plan={plan} />}
+          <Reasoning items={work.items} />
+        </div>
+      )}
+    </>
   );
 }

@@ -68,6 +68,8 @@ export interface Scenario {
   hub?: (base: HubData) => HubData;
   /** The daemon never answers the first snapshot, or refuses it: the app before its first frames. */
   connect?: "hang" | "fail";
+  /** The hub never answers the reads of the conversations: the window as it waits for them. */
+  stall?: boolean;
   /** The refusal the daemon answers an order with, when it refuses it. */
   refuse?: (command: AppCommand) => Refusal | null;
   /** What the daemon publishes after an order, beyond the showcase's own reactions. */

@@ -651,7 +651,8 @@ class RealTest:
             )
             self.ev["chat"] = {"message": message}
             ui.press(self.main, "Asistente", ("AXLink",))
-            ui.type_into(self.main, "Mensaje", message)
+            # «Mensaje para Deimos»: the field names the conversation's agent.
+            ui.type_into(self.main, "Mensaje para", message, contains=True)
             ui.press(self.main, "Enviar", ("AXButton",))
             done = self.wait_mac("chat", message)
             self.ev["chat"].update(done)

@@ -1,0 +1,225 @@
+/* The call view: calm, centred, one red button. */
+.view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  height: 52px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 20px 0 32px;
+  border-bottom: 1px solid var(--o-line);
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 40px 40px;
+  text-align: center;
+}
+
+.circle {
+  width: 128px;
+  height: 128px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--o-line2);
+  border-radius: 50%;
+  background: var(--o-accSoft);
+}
+
+.bars {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+}
+
+.bars i {
+  width: 6px;
+  height: 44px;
+  border-radius: 3px;
+  background: var(--o-accText);
+  transform: scaleY(0.25);
+  transition: transform 0.3s;
+}
+
+.bars[data-speaking="true"] i {
+  animation: bar 1.1s ease-in-out infinite;
+}
+
+.bars[data-speaking="true"] i:nth-child(2) {
+  animation-duration: 1.3s;
+  animation-delay: -0.5s;
+}
+
+.bars[data-speaking="true"] i:nth-child(3) {
+  animation-duration: 1s;
+  animation-delay: -0.3s;
+}
+
+.bars[data-speaking="true"] i:nth-child(4) {
+  animation-duration: 1.4s;
+  animation-delay: -0.7s;
+}
+
+.bars[data-speaking="true"] i:nth-child(5) {
+  animation-duration: 1.2s;
+  animation-delay: -0.2s;
+}
+
+.who {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--o-ink2);
+  font-size: 13px;
+}
+
+.clock {
+  color: var(--o-ink);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.last {
+  width: min(600px, 100%);
+  margin-top: 20px;
+  padding: 14px 18px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-xl);
+  background: var(--o-surface);
+  text-align: left;
+}
+
+.asked {
+  margin: 0;
+  color: var(--o-ink3);
+  font-size: 13px;
+}
+
+.answer {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 18px;
+  margin: 14px 0 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.limits {
+  margin: 22px 0 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+/* Minimised: a small card over the conversation, at the bottom right. */
+.mini {
+  position: absolute;
+  right: 24px;
+  /* Above the composer, never over «Enviar». */
+  bottom: 136px;
+  z-index: 5;
+  width: 300px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-xl);
+  background: var(--o-surface);
+  box-shadow: var(--o-shadow);
+  animation: appear var(--o-dur-in, 180ms) var(--o-ease, ease) both;
+}
+
+.mini .bars {
+  gap: 2px;
+  height: 20px;
+}
+
+.mini .bars i {
+  width: 3px;
+  height: 20px;
+  border-radius: 2px;
+}
+
+.miniText {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.miniText strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.miniText span {
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes bar {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bars[data-speaking="true"] i,
+  .mini {
+    animation: none;
+  }
+
+  /* Still, but tall while the agent speaks. */
+  .bars[data-speaking="true"] i {
+    transform: scaleY(0.8);
+  }
+}

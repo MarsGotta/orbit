@@ -36,6 +36,7 @@ Runs with the Mac's python3, so it stays within Python 3.9.
 
 from __future__ import annotations
 
+import datetime
 import json
 import os
 import plistlib
@@ -163,21 +164,22 @@ COMMANDS = {
 # microphone as it opened and what it heard. Only numbers; daemon.log's
 # other lines may name paths on the Mac and stay there.
 CALL_EVENTS = ("call_audio_opened", "call_audio_heard")
-# The months as the app writes a conversation's title (es-ES, long month;
-# session-title.ts): in code, so the Mac's locale cannot change them.
+# The months as the app's list of conversations writes them (es-ES, short
+# month, as ICU does: «sept»; session-title.ts): in code, so the Mac's
+# locale cannot change them.
 MONTHS = (
-    "enero",
-    "febrero",
-    "marzo",
-    "abril",
-    "mayo",
-    "junio",
-    "julio",
-    "agosto",
-    "septiembre",
-    "octubre",
-    "noviembre",
-    "diciembre",
+    "ene",
+    "feb",
+    "mar",
+    "abr",
+    "may",
+    "jun",
+    "jul",
+    "ago",
+    "sept",
+    "oct",
+    "nov",
+    "dic",
 )
 
 
@@ -588,13 +590,19 @@ WAITS = {
 }
 
 
-def session_title(moment: time.struct_time) -> str:
-    """A conversation's title as the app writes it from its start
-    (session-title.ts): «17 de octubre de 2026, 09:53»."""
-    return (
-        f"{moment.tm_mday} de {MONTHS[moment.tm_mon - 1]} de {moment.tm_year}, "
-        f"{moment.tm_hour:02d}:{moment.tm_min:02d}"
-    )
+def session_title(moment: time.struct_time, today: time.struct_time) -> str:
+    """When a conversation began, as the app's list writes it from its start
+    (session-title.ts `sessionWhen`), on the Mac's clock: «Hoy, 09:53»,
+    «Ayer, 16:00», «18 oct, 18:02», «15 oct 2025, 03:46»."""
+    clock = f"{moment.tm_hour:02d}:{moment.tm_min:02d}"
+    day = datetime.date(moment.tm_year, moment.tm_mon, moment.tm_mday)
+    now = datetime.date(today.tm_year, today.tm_mon, today.tm_mday)
+    if day == now:
+        return f"Hoy, {clock}"
+    if day == now - datetime.timedelta(days=1):
+        return f"Ayer, {clock}"
+    year = "" if day.year == now.year else f" {day.year}"
+    return f"{day.day} {MONTHS[day.month - 1]}{year}, {clock}"
 
 
 def owner_name(full: str | None) -> str:
@@ -813,7 +821,9 @@ class Mac:
             for row in found["items"]:
                 start = row.get("created_at_ms")
                 if isinstance(start, int):
-                    row["app_title"] = session_title(self.system.local_time(start / 1000))
+                    row["app_title"] = session_title(
+                        self.system.local_time(start / 1000), self.system.local_time(time.time())
+                    )
         return found
 
     def say(self, part: str) -> dict:

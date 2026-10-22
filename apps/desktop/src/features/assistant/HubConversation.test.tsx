@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "../../bridge/generated";
@@ -6,18 +6,33 @@ import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import type { ChatSessionSummary } from "../../bridge/generated/ChatSessionSummary";
 import type { MeetingQuestionSnapshot } from "../../bridge/generated/MeetingQuestionSnapshot";
 import type { MessagesPage } from "../../bridge/reads";
-import { contextForView } from "../../app/ContextPanel";
 import { QuestionCard } from "../../app/meeting-question/QuestionCard";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import AssistantView from "./AssistantView";
 import { conversationView } from "./conversation";
 import { MessageList } from "./MessageList";
-import { sessionTitle } from "./session-title";
+import { ShellSlots, useShellSlots } from "../../app/shell-slots";
+import { AssistantSessions } from "./AssistantSessions";
+import { sessionWhen } from "./session-title";
+
+/** The window's list column, where the conversations are drawn. */
+function ColumnHost() {
+  return <div ref={useShellSlots()?.setColumn} />;
+}
 
 // The conversations are the hub's. The screen paints the pages it
 // reads and, after them, the turn in progress; Deimos's Markdown is drawn.
 
 afterEach(cleanup);
+
+/** The open conversation's row: marked current, not a button to press again. */
+async function openRow(): Promise<HTMLElement> {
+  return waitFor(() => {
+    const row = document.querySelector<HTMLElement>('[aria-current="page"]');
+    expect(row).not.toBeNull();
+    return row as HTMLElement;
+  });
+}
 
 function message(id: string, role: ChatMessage["role"], text: string): ChatMessage {
   return { id, role, text, at_ms: 1_700_000_000_000, streaming: false, voice: null, receipts: [] };
@@ -133,10 +148,7 @@ describe("Deimos's Markdown is painted", () => {
 });
 
 describe("the list and the voice notes", () => {
-  it("names each conversation by its date, as the list did", () => {
-    expect(sessionTitle(Date.UTC(2026, 9, 17, 7, 53), "Europe/Madrid")).toBe(
-      "17 de octubre de 2026, 09:53",
-    );
+  it("names each conversation by when it began and opens the one chosen", async () => {
     const sessions: ChatSessionSummary[] = [
       {
         id: "a",
@@ -152,16 +164,27 @@ describe("the list and the voice notes", () => {
       },
     ];
     const sent: AppCommand[] = [];
-    const data = contextForView(
-      "assistant",
-      snapshot({ session_id: "a" }),
-      (command) => sent.push(command),
-      sessions,
+    render(
+      <ShellSlots>
+        <ColumnHost />
+        <AssistantSessions
+          read={() =>
+            Promise.resolve({
+              state: "present",
+              value: { items: sessions, next: null, total: 2, revision: 1 },
+              as_of_ms: null,
+            })
+          }
+          send={(command) => sent.push(command)}
+          snapshot={snapshot({ session_id: "a" })}
+        />
+      </ShellSlots>,
     );
-    const rows = data?.groups.flatMap((group) => group.rows) ?? [];
-    expect(rows[0]?.title).toBe(sessionTitle(1_789_000_000_000));
-    expect(rows.at(-1)?.title).toBe(sessionTitle(1_788_000_000_000));
-    rows.at(-1)?.onSelect?.();
+    const open = await openRow();
+    expect(open.textContent).toContain(sessionWhen(1_789_000_000_000, Date.now()));
+    const [older] = within(screen.getByRole("list", { name: "Recientes" })).getAllByRole("button");
+    expect(older?.textContent).toContain(sessionWhen(1_788_000_000_000, Date.now()));
+    await userEvent.click(older as HTMLElement);
     expect(sent).toEqual([{ command: "session_open", id: "b" }]);
   });
 

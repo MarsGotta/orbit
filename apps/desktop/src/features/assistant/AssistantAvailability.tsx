@@ -1,14 +1,28 @@
 import { useEffect, useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { HubLinkConnection } from "../../bridge/generated/HubLinkConnection";
+import { Skeleton } from "../../design/Skeleton";
+import { Loading } from "../../design/Spinner";
+import { useSpanish } from "../../i18n/AssistantCopy";
 import { es } from "../../i18n/es";
 import type { AppView } from "../../state/app-view";
 import styles from "./AssistantView.module.css";
 
-/** An assistant not known yet is an empty view: an unknown is not a failure. */
+/**
+ * An assistant not known yet waits with the shape of a conversation and
+ * says what it reads: an unknown is neither empty nor a failure.
+ */
 export function UnknownAssistant({ snapshot }: { snapshot: AppView }) {
+  const copy = useSpanish();
   if (snapshot.chat.availability?.state !== "unknown") return null;
-  return <section className={styles.view} />;
+  return (
+    <section aria-busy="true" className={styles.view}>
+      <div className={styles.waiting}>
+        <Loading>{copy.assistant.loadingAssistant}</Loading>
+        <Skeleton widths={["40%", "90%", "84%", "60%"]} />
+      </div>
+    </section>
+  );
 }
 
 export function useAssistantCall({
@@ -19,7 +33,7 @@ export function useAssistantCall({
   hubConnection,
 }: {
   error: string | null;
-  send: (command: AppCommand) => void;
+  send: (command: AppCommand) => unknown;
   snapshot: AppView;
   paired: boolean;
   hubConnection: HubLinkConnection;
@@ -27,7 +41,7 @@ export function useAssistantCall({
   const [callRequested, setCallRequested] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const { call, chat } = snapshot;
-  const assistantAvailable =
+  const available =
     snapshot.connection.daemon === "ready" &&
     paired &&
     hubConnection === "online" &&
@@ -41,7 +55,7 @@ export function useAssistantCall({
     if (callRequested) setCallRequested(false);
   }, [call, callRequested, error]);
   const startCall = () => {
-    if (!assistantAvailable) return;
+    if (!available) return;
     setCallRequested(true);
     send({ command: "call_start" });
   };
@@ -50,5 +64,5 @@ export function useAssistantCall({
     send({ command: "call_stop" });
     setToast(es.assistant.callEnded);
   };
-  return { callRequested, toast, setToast, startCall, endCall };
+  return { available, callRequested, toast, setToast, startCall, endCall };
 }

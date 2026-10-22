@@ -67,17 +67,23 @@ describe("an answer to Deimos on its way", () => {
   it("is not given twice: the card waits for the hub", async () => {
     const send = accepted();
     render(<PendingCard pending={approval} send={send} />);
-    await userEvent.click(screen.getByRole("button", { name: "Aprobar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Permitir una vez" }));
     expect(send).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: "Aprobar" })).toHaveProperty("disabled", true);
-    expect(screen.getByRole("button", { name: "Rechazar" })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: "Permitir una vez" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    expect(screen.getByRole("button", { name: "No permitir" })).toHaveProperty("disabled", true);
   });
 
   it("can be given again when the answer was refused", async () => {
     render(<PendingCard pending={approval} send={refused()} />);
-    await userEvent.click(screen.getByRole("button", { name: "Aprobar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Permitir una vez" }));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Aprobar" })).toHaveProperty("disabled", false),
+      expect(screen.getByRole("button", { name: "Permitir una vez" })).toHaveProperty(
+        "disabled",
+        false,
+      ),
     );
   });
 

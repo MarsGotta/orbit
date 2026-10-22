@@ -100,7 +100,7 @@ it("uses the configured name in chat, notes, permissions and notices, preserving
     copy.shell.ask,
     copy.design.callAssistant,
     copy.design.inCall,
-    copy.assistant.pairHub,
+    copy.assistant.unpaired,
     copy.chatActions.sendBack,
     copy.settings.privacyArmed,
     copy.settings.engine.missing("Accesibilidad"),

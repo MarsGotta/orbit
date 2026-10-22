@@ -32,9 +32,31 @@ function Thumbnail({ attachment }: { attachment: Attachment }) {
   );
 }
 
-/** A PDF or any other file: its facts, and «Ver» (PDF), «Abrir», «Mostrar en Finder». */
-function FileChip({ attachment }: { attachment: Attachment }) {
+/** «2 páginas · 1,5 MB»: what the chip and the viewer say of a file. */
+export function fileFacts(attachment: Attachment): string {
+  const facts = [fileSize(attachment.bytes)];
+  if (attachment.pages !== undefined) facts.unshift(es.attachments.pages(attachment.pages));
+  return facts.join(" · ");
+}
+
+/** A PDF, as a chip that opens it in the viewer. */
+function PdfChip({ attachment }: { attachment: Attachment }) {
   const { view } = useGallery();
+  return (
+    <button
+      aria-label={es.attachments.viewImage(attachment.name)}
+      className={styles.fileChip}
+      onClick={() => view(attachment)}
+      type="button"
+    >
+      <span className={styles.fileName}>{attachment.name}</span>
+      <span className={styles.fileFacts}>· {fileFacts(attachment)}</span>
+    </button>
+  );
+}
+
+/** Any other file: its facts, «Abrir» and «Mostrar en Finder». */
+function FileChip({ attachment }: { attachment: Attachment }) {
   const track = useTrack();
   const [failure, setFailure] = useState<string | null>(null);
   const open = (reveal: boolean) => {
@@ -46,18 +68,11 @@ function FileChip({ attachment }: { attachment: Attachment }) {
       "assistant",
     ).catch((error: unknown) => setFailure(attachmentFailure(refusalOf(error), attachment.name)));
   };
-  const facts = [fileSize(attachment.bytes)];
-  if (attachment.pages !== undefined) facts.unshift(es.attachments.pages(attachment.pages));
   return (
     <div aria-label={attachment.name} className={styles.file} role="group">
       <span className={styles.fileName}>{attachment.name}</span>
-      <span className={styles.fileFacts}>{facts.join(" · ")}</span>
+      <span className={styles.fileFacts}>{fileFacts(attachment)}</span>
       <span className={styles.fileActions}>
-        {attachment.kind === "pdf" && (
-          <Button onClick={() => view(attachment)} size={28} variant="ghost">
-            {es.attachments.view}
-          </Button>
-        )}
         <Button onClick={() => open(false)} size={28} variant="ghost">
           {es.attachments.open}
         </Button>
@@ -74,10 +89,13 @@ function FileChip({ attachment }: { attachment: Attachment }) {
   );
 }
 
-/** What a message of the user carried: images first, then the other files. */
+/** What a message of the user carried, above its words: images, PDFs, other files. */
 export function MessageAttachments({ attachments }: { attachments: Attachment[] }) {
   const images = attachments.filter((attachment) => attachment.kind === "image");
-  const files = attachments.filter((attachment) => attachment.kind !== "image");
+  const pdfs = attachments.filter((attachment) => attachment.kind === "pdf");
+  const files = attachments.filter(
+    (attachment) => attachment.kind !== "image" && attachment.kind !== "pdf",
+  );
   return (
     <div className={styles.attachments}>
       {images.length > 0 && (
@@ -87,6 +105,9 @@ export function MessageAttachments({ attachments }: { attachments: Attachment[] 
           ))}
         </div>
       )}
+      {pdfs.map((attachment) => (
+        <PdfChip attachment={attachment} key={attachment.id} />
+      ))}
       {files.map((attachment) => (
         <FileChip attachment={attachment} key={attachment.id} />
       ))}

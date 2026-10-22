@@ -1,90 +1,32 @@
-import { useCallback, useRef, useState, type KeyboardEvent } from "react";
-import type { AttachmentLimits } from "../../bridge/generated/AttachmentLimits";
+import { useId } from "react";
 import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
-import type { HubLinkConnection } from "../../bridge/generated/HubLinkConnection";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
-import { TextLink } from "../../design/TextLink";
-import { es } from "../../i18n/es";
 import { useSpanish } from "../../i18n/AssistantCopy";
 import { mmss } from "../../time-format";
-import { useVoiceNote, type VoiceSend } from "./useVoiceNote";
-import { useComposerInsert } from "./composer-insert";
 import { AttachButtons, AttachmentChips } from "./AttachmentChips";
-import { useAttachmentDrafts } from "./useAttachmentDrafts";
+import { useComposer, type ComposerProps, type Controls } from "./use-composer";
 import styles from "./AssistantView.module.css";
 
-interface ComposerProps {
-  /** The hub's attachment ceilings; absent, the hub has no attachments. */
-  attachmentLimits?: AttachmentLimits;
-  callActive: boolean;
-  callPending: boolean;
-  chat: ChatSnapshot;
-  daemonReady: boolean;
-  hub: HubLinkConnection;
-  paired: boolean;
-  /** Not known yet: the button waits, quietly. */
-  callUnknown?: boolean;
-  statusUnknown?: boolean;
-  onCallToggle: () => void;
-  send: VoiceSend;
-}
-
-function useComposer(props: ComposerProps) {
-  const { attachmentLimits, chat, daemonReady, hub, paired, send } = props;
-  const [draft, setDraft] = useState("");
-  const box = useRef<HTMLTextAreaElement>(null);
-  // «Responder a esto» quotes a fragment after what is already written.
-  const insert = useCallback((text: string) => {
-    setDraft((written) => (written.trim() === "" ? text : `${written.trimEnd()}\n\n${text}`));
-    box.current?.focus();
-  }, []);
-  useComposerInsert(insert);
-  const disabled = !daemonReady || !paired || hub !== "online";
-  const voice = useVoiceNote({
-    canStart: !disabled,
-    daemonListening: chat.voice.state === "listening",
-    send,
-  });
-
-  const attachments = useAttachmentDrafts(attachmentLimits);
-  // Text, or files without text; never while a file is still uploading.
-  const canSend =
-    !disabled && !attachments.uploading && (draft.trim() !== "" || attachments.ready.length > 0);
-  const submit = () => {
-    if (!canSend) return;
-    const files = attachments.ready;
-    const text = draft.trim();
-    send(
-      files.length > 0 ? { command: "chat", text, attachments: files } : { command: "chat", text },
-    );
-    setDraft("");
-    attachments.clear();
-  };
-  const keyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      submit();
-    }
-  };
-  return { attachments, box, canSend, disabled, draft, keyDown, setDraft, submit, voice };
-}
-
-type Controls = ReturnType<typeof useComposer>;
-
+/**
+ * The microphone: a click starts a note and another sends it; held, it
+ * talks while held. While the note records it stays, as the red dot that
+ * begins the recording strip, so the release of a held press still reaches it.
+ */
 function MicrophoneButton({ controls }: { controls: Controls }) {
+  const es = useSpanish();
   const { voice } = controls;
   return (
     <Button
       aria-label={
         voice.recording
           ? es.assistant.voiceNoteRecording(mmss(voice.elapsedMs, false))
-          : es.assistant.voiceNote
+          : es.assistant.voiceNoteButton
       }
       aria-pressed={voice.recording}
-      className={voice.recording ? styles.recordingButton : undefined}
+      className={voice.recording ? styles.micRecording : styles.mic}
       // A note in progress can always end, whatever happened meanwhile.
-      disabled={!voice.recording && controls.disabled}
+      disabled={!voice.recording && (controls.unavailable || controls.busy)}
       onClick={voice.keyboardClick}
       onPointerCancel={voice.pointerCancel}
       onPointerDown={voice.pointerDown}
@@ -92,67 +34,18 @@ function MicrophoneButton({ controls }: { controls: Controls }) {
       size={32}
       variant="icon"
     >
-      <Icon name="mic" size={14} />
+      {voice.recording ? (
+        <span aria-hidden="true" className={styles.recordingDot} />
+      ) : (
+        <Icon name="mic" size={16} />
+      )}
     </Button>
   );
 }
 
-// There is no «Compartir pantalla» button. What lets Deimos see the
-// screen is the Screen Recording permission the user grants in macOS.
-function ComposerActions({
-  callActive,
-  callPending,
-  controls,
-  onCallToggle,
-  callUnknown,
-}: {
-  callActive: boolean;
-  callPending: boolean;
-  controls: Controls;
-  onCallToggle: () => void;
-  callUnknown?: boolean;
-}) {
-  const recording = controls.voice.recording;
-  return (
-    <div className={styles.composerActions}>
-      <AttachButtons
-        disabled={controls.disabled}
-        onAttach={controls.attachments.choose}
-        onAttachWindow={controls.attachments.addWindow}
-        supported={controls.attachments.supported}
-      />
-      <Button
-        aria-label={callActive ? es.design.hangUp : es.assistant.call}
-        disabled={!callActive && (controls.disabled || callPending || callUnknown === true)}
-        onClick={onCallToggle}
-        size={32}
-        variant="icon"
-      >
-        <Icon name="phone" size={14} />
-      </Button>
-      <MicrophoneButton controls={controls} />
-      <Button
-        aria-label={recording ? es.assistant.sendVoiceNote : es.chat.send}
-        disabled={!recording && !controls.canSend}
-        onClick={recording ? controls.voice.finish : controls.submit}
-        size={32}
-        variant="accent"
-      >
-        <Icon name="send" size={14} />
-      </Button>
-    </div>
-  );
-}
-
-/** What the composer says about the voice note: recording, or not sent. */
-function VoiceLine({ chat, controls }: { chat: ChatSnapshot; controls: Controls }) {
-  if (controls.voice.recording)
-    return (
-      <p className={styles.listening} role="status">
-        <span aria-hidden="true" className={styles.recordingDot} />
-        {es.assistant.recordingVoiceNote(mmss(controls.voice.elapsedMs, false))}
-      </p>
-    );
+/** A note too short to send says its length and the minimum, here where it was recorded. */
+function TooShort({ chat }: { chat: ChatSnapshot }) {
+  const es = useSpanish();
   const short = chat.voice.too_short;
   if (!short) return null;
   return (
@@ -162,43 +55,93 @@ function VoiceLine({ chat, controls }: { chat: ChatSnapshot; controls: Controls 
   );
 }
 
+/** «Adjuntar», «Adjuntar ventana», the microphone and «Enviar»; while a note records, its strip. */
+function Toolbar({ controls, reasonId }: { controls: Controls; reasonId: string }) {
+  const es = useSpanish();
+  const recording = controls.voice.recording;
+  return (
+    <div className={styles.toolbar}>
+      {!recording && (
+        <AttachButtons
+          disabled={controls.unavailable}
+          onAttach={controls.attachments.choose}
+          onAttachWindow={controls.attachments.addWindow}
+          supported={controls.attachments.supported}
+        />
+      )}
+      <span className={styles.spacer} />
+      <MicrophoneButton controls={controls} />
+      {recording ? (
+        <>
+          <p className={styles.recordingLine} role="status">
+            <span>{es.assistant.recordingNote}</span>
+            <time>{mmss(controls.voice.elapsedMs, false)}</time>
+            <span className={styles.escHint}>{es.assistant.escCancels}</span>
+          </p>
+          <Button onClick={controls.voice.cancel} size={32} variant="ghost">
+            {es.assistant.cancel}
+          </Button>
+          <Button onClick={controls.voice.finish} size={32} variant="accent">
+            {es.assistant.sendVoiceNote}
+          </Button>
+        </>
+      ) : (
+        <Button
+          aria-describedby={controls.reason !== null ? reasonId : undefined}
+          aria-label={es.chat.send}
+          className={styles.send}
+          disabled={!controls.canSend}
+          onClick={controls.submit}
+          size={32}
+          variant="accent"
+        >
+          <Icon name="send" size={16} />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The composer, fixed under the thread: the files of the next message, the
+ * text, «Adjuntar», «Adjuntar ventana», the microphone and «Enviar». While
+ * the agent answers or waits, sending waits too and says why; the text stays.
+ * While a voice note records, the box becomes its strip: the time, «Cancelar»
+ * and «Enviar nota de voz».
+ */
 export function AssistantComposer(props: ComposerProps) {
-  const controls = useComposer(props);
-  const copy = useSpanish();
-  // Only what the user can fix has words here; offline and Orbit's own problems
-  // are the status pill's, and an unknown says nothing.
-  const unpaired = props.daemonReady && !props.paired && props.statusUnknown !== true;
+  const es = useSpanish();
+  const controls = useComposer(props, es);
+  const reasonId = useId();
+  const recording = controls.voice.recording;
   return (
     <footer className={styles.composerArea}>
-      {unpaired && (
-        <p className={styles.availability}>
-          <TextLink href="#/settings">{copy.assistant.pairHub}</TextLink>
-        </p>
-      )}
-      <div className={styles.composer}>
-        <AttachmentChips
-          drafts={controls.attachments.drafts}
-          onRemove={controls.attachments.remove}
-        />
-        <textarea
-          aria-label={es.chat.inputLabel}
-          disabled={controls.disabled}
-          onChange={(event) => controls.setDraft(event.target.value)}
-          onKeyDown={controls.keyDown}
-          onPaste={controls.attachments.paste}
-          placeholder={es.assistant.composerPlaceholder}
-          ref={controls.box}
-          rows={2}
-          value={controls.draft}
-        />
-        <VoiceLine chat={props.chat} controls={controls} />
-        <ComposerActions
-          callActive={props.callActive}
-          callPending={props.callPending}
-          controls={controls}
-          onCallToggle={props.onCallToggle}
-          callUnknown={props.callUnknown}
-        />
+      <div className={styles.composerColumn}>
+        {controls.reason !== null && (
+          <p aria-live="polite" className={styles.blocked} id={reasonId}>
+            {controls.reason}
+          </p>
+        )}
+        <TooShort chat={props.chat} />
+        <div className={styles.composer} data-recording={recording || undefined}>
+          <div className={styles.writing} hidden={recording}>
+            <AttachmentChips
+              drafts={controls.attachments.drafts}
+              onRemove={controls.attachments.remove}
+            />
+            <textarea
+              aria-label={es.assistant.composerLabel}
+              onChange={(event) => controls.setDraft(event.target.value)}
+              onKeyDown={controls.keyDown}
+              onPaste={controls.attachments.paste}
+              placeholder={es.assistant.composerPlaceholder}
+              ref={controls.box}
+              rows={2}
+              value={controls.draft}
+            />
+          </div>
+          <Toolbar controls={controls} reasonId={reasonId} />
+        </div>
       </div>
     </footer>
   );

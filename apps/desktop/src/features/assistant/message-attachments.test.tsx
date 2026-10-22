@@ -1,13 +1,14 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Attachment } from "../../bridge/generated/Attachment";
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import { MessageList } from "./MessageList";
 
-// A message shows what it carried: images as thumbnails that open in a
-// viewer, a PDF in WebKit's own viewer, any other file with «Abrir» and
-// «Mostrar en Finder». A file that cannot be loaded says why.
+// A message shows what it carried: images as thumbnails and a PDF as a chip,
+// both opening in the full-screen viewer (the PDF in WebKit's own viewer),
+// any other file with «Abrir» and «Mostrar en Finder». A file that cannot be
+// loaded says why.
 
 const bridge = vi.hoisted(() => ({
   addAttachment: vi.fn(),
@@ -107,6 +108,7 @@ describe("images", () => {
     show([message("1", [plano]), message("2", [notas, fachada])]);
     await userEvent.click(await screen.findByRole("button", { name: "Ver plano.png" }));
     const viewer = await screen.findByRole("dialog", { name: "plano.png" });
+    expect(viewer.textContent).toContain("Imagen · 2 KB · 1 de 2");
     expect(within(viewer).getByRole("button", { name: "Anterior" })).toHaveProperty(
       "disabled",
       true,
@@ -115,16 +117,42 @@ describe("images", () => {
     await screen.findByRole("dialog", { name: "fachada.jpg" });
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "ArrowLeft" });
     await screen.findByRole("dialog", { name: "plano.png" });
-    fireEvent.keyDown(screen.getByRole("dialog"), { key: "ArrowRight" });
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "fachada.jpg" }),
+    );
     const second = await screen.findByRole("dialog", { name: "fachada.jpg" });
-    await userEvent.click(await within(second).findByRole("button", { name: "Copiar" }));
+    expect(within(second).getByRole("button", { name: "Siguiente" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    await userEvent.click(await within(second).findByRole("button", { name: "Copiar imagen" }));
     expect(bridge.copyImage).toHaveBeenCalledWith(
       new TextEncoder().encode("a-fachada").buffer,
       "image/jpeg",
     );
+    expect(await within(second).findByText("✓ Copiada")).toBeTruthy();
     fireEvent.keyDown(second, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(bridge.attachmentBytes).toHaveBeenCalledTimes(2);
+  });
+
+  it("says «Abriendo…» while macOS opens the file, and closes with «Cerrar»", async () => {
+    let opened: () => void = () => undefined;
+    bridge.openAttachment.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          opened = resolve;
+        }),
+    );
+    show([message("1", [plano])]);
+    await userEvent.click(await screen.findByRole("button", { name: "Ver plano.png" }));
+    const viewer = await screen.findByRole("dialog", { name: "plano.png" });
+    await userEvent.click(within(viewer).getByRole("button", { name: "Abrir" }));
+    expect(within(viewer).getByText("Abriendo…")).toBeTruthy();
+    expect(bridge.openAttachment).toHaveBeenCalledWith("a-plano", false);
+    await act(async () => opened());
+    await userEvent.click(within(viewer).getByRole("button", { name: "Cerrar" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("a thumbnail that cannot be loaded says why instead of a broken image", async () => {
@@ -152,13 +180,14 @@ describe("images", () => {
 });
 
 describe("PDFs and other files", () => {
-  it("shows a PDF's pages and size, and opens it in WebKit's own viewer", async () => {
+  it("shows a PDF's pages and size, and opens it in the viewer, in WebKit's own", async () => {
     show([message("1", [informe])]);
-    const pdf = screen.getByRole("group", { name: "informe.pdf" });
+    const pdf = screen.getByRole("button", { name: "Ver informe.pdf" });
     expect(pdf.textContent).toContain("12 páginas");
     expect(pdf.textContent).toContain("3 MB");
-    await userEvent.click(within(pdf).getByRole("button", { name: "Ver" }));
+    await userEvent.click(pdf);
     const viewer = await screen.findByRole("dialog", { name: "informe.pdf" });
+    expect(viewer.textContent).toContain("PDF · 12 páginas · 3 MB · 1 de 1");
     const frame = await waitFor(() => {
       const element = viewer.querySelector("iframe");
       expect(element).not.toBeNull();
@@ -167,20 +196,20 @@ describe("PDFs and other files", () => {
     expect(frame.getAttribute("title")).toBe("informe.pdf");
     expect(frame.getAttribute("src")).toBe(`blob:orbit/${blobs.length}`);
     expect(blobs.at(-1)?.type).toBe("application/pdf");
+    expect(within(viewer).queryByRole("button", { name: "Copiar imagen" })).toBeNull();
+    await userEvent.click(within(viewer).getByRole("button", { name: "Mostrar en Finder" }));
+    expect(bridge.openAttachment).toHaveBeenCalledWith("a-informe", true);
   });
 
   it("opens a file with the Mac's app or shows it in Finder", async () => {
-    show([message("1", [informe, notas])]);
+    show([message("1", [notas])]);
     const text = screen.getByRole("group", { name: "notas.txt" });
     expect(text.textContent).toContain("512 B");
     await userEvent.click(within(text).getByRole("button", { name: "Abrir" }));
     await userEvent.click(within(text).getByRole("button", { name: "Mostrar en Finder" }));
-    const pdf = screen.getByRole("group", { name: "informe.pdf" });
-    await userEvent.click(within(pdf).getByRole("button", { name: "Mostrar en Finder" }));
     expect(bridge.openAttachment.mock.calls).toEqual([
       ["a-notas", false],
       ["a-notas", true],
-      ["a-informe", true],
     ]);
   });
 });

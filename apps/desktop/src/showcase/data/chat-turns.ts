@@ -73,7 +73,7 @@ export const streamingAnswer = message({
 export const approval: ChatPending = {
   kind: "approval",
   id: "ap-1",
-  text: "Deimos quiere enviar desde Mail el correo «Arranque del piloto el lunes 26» a pablo@hotelesribera.example.",
+  text: "Enviar desde Mail\nPara: pablo@hotelesribera.example\nAsunto: Arranque del piloto el lunes 26\n\nHola, Pablo: te confirmo que empezamos el lunes 26 con los cinco hoteles. Nos queda la formación de Ribera Playa, que proponemos para el martes 27 a las 10:00…",
   choices: ["once", "session", "always", "deny"],
 };
 
@@ -81,7 +81,7 @@ export const approvalQuestion = message({
   id: "m7",
   role: "user",
   text: "Está bien así. Envíaselo a Pablo.",
-  at_ms: NOW - 20_000,
+  at_ms: NOW - 42_000,
 });
 
 export const clarify: ChatPending = {
@@ -157,6 +157,15 @@ export const attachmentsMessages: ChatMessage[] = [
     at_ms: NOW - 7 * 60_000,
   }),
 ];
+
+/** A voice note just sent, still being transcribed. */
+export const transcribingNote = message({
+  id: "v4",
+  role: "user",
+  text: "",
+  at_ms: NOW - 5_000,
+  voice: { duration_ms: 3_000, audio_available: true },
+});
 
 export const voiceMessages: ChatMessage[] = [
   message({
