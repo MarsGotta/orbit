@@ -12,7 +12,7 @@ from support_network_fence import install
 from support_synthetic_stt import start_session_stt, stop_session_stt
 
 from orbit_hub.app import create_app
-from orbit_hub.assistant.agents import Agent, Agents
+from orbit_hub.assistant.agents import Agent, AgentConfiguration, Agents, configured_agents
 from orbit_hub.assistant.backend import OpenedSession
 from orbit_hub.assistant.hermes import HermesAgent, HermesBackend, HermesConnection
 from orbit_hub.assistant.speech import SpeechClip
@@ -98,7 +98,8 @@ class FakeConnection(HermesConnection):
 
 
 class FakeAdapter:
-    # It stands for Hermes, so it declares what Hermes does.
+    # It stands for Hermes, so it declares what Hermes does: it keeps each
+    # conversation and reloads it itself.
     capabilities = HermesBackend.capabilities
 
     def __init__(self):
@@ -121,6 +122,13 @@ class FakeAdapter:
 def only(backend, name="Deimos"):
     """The one implicit agent, on `backend`, for a test that builds a runtime itself."""
     return Agents([Agent("default", name, "hermes", HermesAgent("deimos"), backend)], "default")
+
+
+def configured(entry) -> AgentConfiguration:
+    """One `[[agents]]` table as the registry reads it: its kind's `parse` gets
+    the keys but `id`, `name` and `kind`, and refusals name the entry."""
+    [agent], _ = configured_agents([entry], None, assistant_name="Deimos", profile="deimos")
+    return agent
 
 
 @pytest.fixture

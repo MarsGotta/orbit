@@ -7,6 +7,7 @@ from collections.abc import Callable
 from concurrent.futures import Executor
 from dataclasses import replace
 from functools import partial
+from uuid import uuid4
 
 from .assistant.agents import Agents
 from .assistant.backend import (
@@ -22,17 +23,21 @@ from .assistant.backend import (
     PermissionRequested,
     RequestExpired,
     StatusNotice,
+    StoredConversation,
+    StoredMessage,
     TextBlock,
     TurnError,
+    TurnFailed,
     UnreadableReceipt,
     UnreadableUpdate,
 )
+from .errors import render
 from .interactions import pending_data, public_receipt
 from .log import current_op, in_store, logger, report
 from .meeting_context import MeetingTurn, meeting_context, read_meeting
 from .protocol import HubError, emit
 from .safety import target_key
-from .storage import Store
+from .storage import SESSION_MESSAGES_PAGE_LIMIT, Store
 from .turns import INTERRUPT_DEADLINE_SECONDS, TurnState, advance, can_start_turn
 
 TRANSCRIBED_TURN_TTL_SECONDS = 120
@@ -95,6 +100,9 @@ class DeviceRuntime:
         self.resume_deadline: float | None = None
         self.turn_ids: dict[str, str] = {}
         self.interrupt_deadlines: dict[str, float] = {}
+        # Approvals and clarifications waiting for the Mac, by the request id
+        # the Mac sees: (Orbit session, kind, the backend's request). Unique on
+        # this device; see `request_key`.
         self.pending: dict[str, tuple[str, str, PermissionRequest | ClarificationRequest]] = {}
         self.listeners: set[asyncio.Queue] = set()
         self.lock = asyncio.Lock()
@@ -153,13 +161,13 @@ class DeviceRuntime:
         for session_id, turn_id in list(self.turn_ids.items())[-64:]:
             binding = self.store.session(self.device, session_id)
             pending = []
-            for owner, kind, request in self.pending.values():
+            for request_id, (owner, kind, request) in self.pending.items():
                 if owner != session_id:
                     continue
                 if len(pending) == 128:
                     omitted = True
                     continue
-                value = pending_data(kind, request)
+                value = pending_data(kind, request, request_id)
                 pending.append(value)
                 if len(json.dumps([sessions, pending]).encode()) > 100 * 1024:
                     pending.pop()
@@ -178,6 +186,28 @@ class DeviceRuntime:
             "omitted": omitted,
         }
         return self._snapshot_cache
+
+    def request_key(self, session_id: str, request_id: str) -> str | None:
+        """The id the Mac knows a backend's request by, if it is pending.
+
+        A session is one agent's, so the session and the backend's id name
+        the request: two agents may both number theirs from 1."""
+        for key, (owner, _kind, request) in self.pending.items():
+            if owner == session_id and request.request_id == request_id:
+                return key
+        return None
+
+    def new_request_key(self, session_id: str, request_id: str) -> str:
+        """The id the Mac will know a new request by: the one it already has
+        when the backend asks again, else the backend's own while no other
+        pending request uses it, else one the hub makes. The Mac answers with
+        the session and this id, which `pending` maps back to the backend's."""
+        known = self.request_key(session_id, request_id)
+        if known is not None:
+            return known
+        if request_id not in self.pending:
+            return request_id
+        return str(uuid4())
 
     async def changed(self) -> None:
         self.revision, self._snapshot_cache = self.revision + 1, None
@@ -230,7 +260,11 @@ class DeviceRuntime:
             method, params.session_id, turn_id, getattr(params, "request_id", "")
         ), turn_id
 
-    async def fail_turn(self, session_id: str, turn_id: str) -> None:
+    async def fail_turn(
+        self, session_id: str, turn_id: str, failure: TurnFailed | None = None
+    ) -> None:
+        """End the turn as failed: for the cause the backend named in
+        `failure`, or, without one, Hermes's terminal error."""
         if self.turn_ids.get(session_id) != turn_id:
             return
         # A terminal upstream event is an observed fact, not a decision: it
@@ -238,17 +272,20 @@ class DeviceRuntime:
         self.store.status(session_id, "failed")
         self.interrupt_deadlines.pop(session_id, None)
         self.pending = {key: value for key, value in self.pending.items() if value[0] != session_id}
-        await self.publish(
-            emit(
-                "error",
-                {
-                    "session_id": session_id,
-                    "code": "upstream_turn_failed",
-                    "message": "Hermes terminó el turno sin una respuesta final; no se repetirá",
-                },
-                turn_id,
+        if failure is None:
+            data = {
+                "session_id": session_id,
+                "code": "upstream_turn_failed",
+                "message": "Hermes terminó el turno sin una respuesta final; no se repetirá",
+            }
+        else:
+            data = render(
+                failure.code,
+                failure.message,
+                payload={"session_id": session_id},
+                numbers=failure.numbers,
             )
-        )
+        await self.publish(emit("error", data, turn_id))
         await self.changed()
 
     async def reconcile_error(
@@ -418,6 +455,9 @@ class DeviceRuntime:
         turn_id = self.turn_ids.get(session_id)
         if turn_id is None:
             return
+        if isinstance(event, TurnFailed):
+            await self.fail_turn(session_id, turn_id, event)
+            return
         if isinstance(event, TurnError):
             if event.cause == "terminal":
                 await self.fail_turn(session_id, turn_id)
@@ -493,15 +533,23 @@ class DeviceRuntime:
                 else ("clarify", "clarify.required")
             )
             request = event.request
-            self.pending[request.request_id] = (session_id, kind, request)
-            await self.publish(emit(name, {**data, **pending_data(kind, request)}, turn_id))
+            request_id = self.new_request_key(session_id, request.request_id)
+            self.pending[request_id] = (session_id, kind, request)
+            await self.publish(
+                emit(name, {**data, **pending_data(kind, request, request_id)}, turn_id)
+            )
             await self.changed()
         elif isinstance(event, RequestExpired):
-            self.pending.pop(event.request_id, None)
+            request_id = self.request_key(session_id, event.request_id)
+            if request_id is None:
+                # Not pending here: told as the backend named it, as before.
+                request_id = event.request_id
+            else:
+                self.pending.pop(request_id, None)
             await self.publish(
                 emit(
                     "interaction.expired",
-                    {**data, "request_id": event.request_id},
+                    {**data, "request_id": request_id},
                     turn_id,
                 )
             )
@@ -522,7 +570,7 @@ class DeviceRuntime:
         ):
             raise HubError(
                 "session_disconnected",
-                "La sesión no está conectada con Hermes; se intentará reanudar la "
+                "La sesión no está conectada con el asistente; se intentará reanudar la "
                 "conversación al enviar otro mensaje si el turno anterior está cerrado",
             )
         return binding, connection
@@ -628,9 +676,28 @@ class DeviceRuntime:
         ):
             return binding, False
         self.early_resume_progress = None
+        history = None
+        if not self.agents.get(agent_id).backend.capabilities.history:
+            # A backend that keeps no conversation continues the one the hub
+            # stores: its newest page, as the Mac reads it, read before this
+            # turn's own message is written.
+            page = await self._run_store(
+                lambda: self.store.session_messages(
+                    self.device, session_id, None, SESSION_MESSAGES_PAGE_LIMIT
+                )
+            )
+            history = StoredConversation(
+                tuple(
+                    StoredMessage(message["role"], message["text"]) for message in page["messages"]
+                ),
+                page["total"],
+            )
         self.resuming_ack = True
         try:
-            resumed = await connection.resume_session(binding["stored_id"])
+            if history is None:
+                resumed = await connection.resume_session(binding["stored_id"])
+            else:
+                resumed = await connection.resume_session(binding["stored_id"], history)
         finally:
             self.resuming_ack = False
         if self.connections.get(agent_id) is not connection:
@@ -736,14 +803,16 @@ class DeviceRuntime:
                     and self.store.session(self.device, params.session_id)["status"] == "streaming"
                 )
 
+            # The backend knows the request by its own id.
+            upstream_id = pending[2].request_id
             try:
                 if kind == "approval":
                     answered = await connection.respond_permission(
-                        runtime_id, params.request_id, params.approved
+                        runtime_id, upstream_id, params.approved
                     )
                 else:
                     answered = await connection.respond_clarification(
-                        runtime_id, params.request_id, params.answer, params.question_id
+                        runtime_id, upstream_id, params.answer, params.question_id
                     )
             except UnreadableReceipt:
                 if still_current():

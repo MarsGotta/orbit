@@ -7,7 +7,7 @@ import pytest
 from conftest import FakeConnection, device, only, said
 
 from orbit_hub.assistant.backend import ConnectionLost, ResumedSession
-from orbit_hub.assistant.hermes import HermesConnection
+from orbit_hub.assistant.hermes import HermesBackend, HermesConnection
 from orbit_hub.protocol import HubError, InterruptParams, SendParams
 from orbit_hub.runtime import DeviceRuntime
 
@@ -84,6 +84,9 @@ class ResumableConnection(FakeConnection):
 
 
 class ResumableAdapter:
+    # Hermes's: it keeps each conversation and reloads it itself.
+    capabilities = HermesBackend.capabilities
+
     def __init__(self):
         self.connections = []
         self.stored_sessions = {}

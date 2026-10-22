@@ -35,8 +35,11 @@ class Capabilities:
     images: bool
     # A stored session reopens by its stored id after its live id is gone.
     resume: bool
-    # The backend keeps each conversation and reloads it itself on resume,
-    # announcing the end of that load with `HistoryLoaded`.
+    # The backend keeps each conversation and reloads it itself on resume
+    # (Hermes's `session.resume`, ACP's `session/load`); a load still under way
+    # says so in `ResumedSession.loading_history` and ends with `HistoryLoaded`.
+    # False: it keeps none, and the hub hands it the conversation it stores
+    # when it resumes.
     history: bool
     # The backend has a `SpeechBackend` of its own for dictation and read-aloud.
     voice: bool
@@ -58,6 +61,25 @@ class OpenedSession:
     session_id: str
     # Durable: what `resume_session` takes after the live id is gone.
     stored_id: str
+
+
+@dataclass(frozen=True)
+class StoredMessage:
+    role: Literal["user", "assistant"]
+    text: str
+
+
+@dataclass(frozen=True)
+class StoredConversation:
+    """What the hub stores of a conversation, for a backend that keeps none.
+
+    `messages` are the newest the hub reads in one page, oldest first, as the
+    Mac shows them; `total` counts every message the conversation holds, so
+    `total - len(messages)` were left out before the backend trims anything.
+    """
+
+    messages: tuple[StoredMessage, ...]
+    total: int
 
 
 @dataclass(frozen=True)
@@ -174,6 +196,21 @@ class TurnError:
 
 
 @dataclass(frozen=True)
+class TurnFailed:
+    """The turn ended without an answer, for a cause the backend names.
+
+    Unlike `TurnError`, the backend knows the turn is over and why: `code`,
+    a Spanish `message` and the cause's `numbers` reach the Mac as the turn's
+    `error` event. Nothing is resent.
+    """
+
+    session_id: str
+    code: str
+    message: str
+    numbers: dict[str, int] | None = None
+
+
+@dataclass(frozen=True)
 class HistoryLoaded:
     """A resumed session finished loading its history, or failed to."""
 
@@ -204,6 +241,7 @@ AssistantEvent = (
     | RequestExpired
     | StatusNotice
     | TurnError
+    | TurnFailed
     | HistoryLoaded
     | UnreadableUpdate
     | ConnectionLost
@@ -234,7 +272,11 @@ class AssistantConnection(Protocol):
 
     async def create_session(self) -> OpenedSession: ...
 
-    async def resume_session(self, stored_id: str) -> ResumedSession: ...
+    async def resume_session(
+        self, stored_id: str, history: StoredConversation | None = None
+    ) -> ResumedSession:
+        """`history` is passed only to a backend that keeps no conversation
+        (`capabilities.history` False): what the hub stores of this one."""
 
     async def prompt(self, session_id: str, blocks: Sequence[ContentBlock]) -> None:
         """Start a turn. It returns once the backend accepted it; the answer

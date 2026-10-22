@@ -112,6 +112,19 @@ its text as an authoritative assistant history message. Terminal Hermes errors
 without completion become `error.code:upstream_turn_failed` on the same turn;
 ambiguous errors remain warnings unless read-only reconciliation proves no agent
 is running. Neither path resubmits a prompt.
+An assistant run inside the hub (`kind = "openai"`) names why its turn ended
+without an answer: `error` on the same turn with `session_id`, a Spanish
+`message` and a `refusal` carrying the numbers. Codes: `assistant_unreachable`
+(`connect_timeout_ms`; the message names the provider URL without secrets),
+`assistant_connect_timeout` and `assistant_timeout` (`connect_timeout_ms` or
+`timeout_ms`), `assistant_connection_lost`, `assistant_unauthorized` and
+`assistant_http_error` (`provider_status`), `assistant_rate_limited`
+(`provider_status`, and `retry_after_ms` when the provider said),
+`assistant_context_exceeded` (`history_chars`, `max_history_chars`, and
+`max_tokens`/`tokens` when the provider gave them), `assistant_tool_failed`
+(`timeout_ms` when an Orbit tool never answered; its outcome is unknown),
+`assistant_turn_too_long` (`max_requests`), `assistant_provider_error` and
+`assistant_failed`.
 
 When persisting the assistant's final reply fails inside `message.complete`
 (`append_message`, session status update or quota), the turn still ends with
@@ -210,7 +223,10 @@ did throughout 0.3.11.
 `X-Orbit-Speech-Kind: clip`/`X-Orbit-Speech-Provider`. Failures yield
 `speech_unavailable`; oversize yields `speech_too_large` with `bytes` and
 `max_bytes` (the 4 MiB clip, or Hermes's 6 MiB answer around it). The server profile
-selects voice, format and provider; credentials stay server-side.
+selects voice, format and provider; credentials stay server-side. Both routes
+use the default agent's voice, since neither names a conversation. An agent
+without one (`voice` absent from its `capabilities` in `ready`) yields `503
+speech_not_configured` with `agent_id` among the refusal's numbers.
 
 ## Private meetings for the assistant
 
@@ -813,15 +829,17 @@ can advertise them; see the [self-hosting guide](../docs/self-hosting.md).
 
 ## Agents
 
-A hub can offer several agents, each an assistant with its own backend (today
-a Hermes profile per agent). The addition is optional on both sides: a 0.9.0
-Mac keeps working against a hub with agents, and a Mac with agents keeps
-working against a 0.9.0 hub.
+A hub can offer several agents, each an assistant with its own backend: a
+Hermes profile, a model the hub runs against an OpenAI-compatible or Anthropic
+API, or Claude Code or Codex over the Agent Client Protocol. The addition is
+optional on both sides: a 0.9.0 Mac keeps working against a hub with agents,
+and a Mac with agents keeps working against a 0.9.0 hub.
 
 **`ready`** adds `agents`, the hub's agents in its order, and
 `default_agent_id`. Each agent is `{id, name, kind, capabilities}`: `id` is
 stable, `[a-z0-9-]`, 1 to 32 characters; `name` is what the app shows and what
-the wake phrase hears («Oye Atlas»); `kind` is `hermes` today;
+the wake phrase hears («Oye Atlas»); `kind` is `hermes`, `openai` or `acp`,
+and a Mac must accept any other text there;
 `capabilities` lists what the agent accepts today, out of `images`, `voice`
 and `resume`. `assistant_name` stays, with the default agent's name, for Macs
 that do not read `agents`.

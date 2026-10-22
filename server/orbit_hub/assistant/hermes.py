@@ -53,6 +53,7 @@ from .speech import MAX_SPEECH_CLIP_BYTES, SpeechClip
 
 if TYPE_CHECKING:
     from ..config import Settings
+    from .agents import AgentConfiguration
 
 # How Hermes begins the error of a resume whose stored transcript it could not
 # read; the rest of its message is Hermes's detail and is never relayed.
@@ -104,8 +105,13 @@ def parse_agent(keys: dict[str, Any]) -> HermesAgent:
     return HermesAgent(profile)
 
 
-def agent_backend(settings: Settings, agent: HermesAgent) -> HermesBackend:
-    return HermesBackend(settings, agent.profile)
+def agent_backend(settings: Settings, agent: AgentConfiguration) -> HermesBackend:
+    return HermesBackend(settings, agent.settings.profile)
+
+
+def agent_speech(settings: Settings, agent: AgentConfiguration) -> HermesSpeech:
+    """Dictation and read-aloud by the agent's own profile."""
+    return HermesSpeech(settings, agent.settings.profile)
 
 
 class HermesConnection:

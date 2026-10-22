@@ -7,11 +7,11 @@ agent unless `default_agent` names another. Without `[[agents]]` the hub is
 one implicit agent, `default`, made of `assistant_name` and `profile` as
 before agents existed, so a 0.9.0 `orbit.toml` loads as it did.
 
-Adding a kind is one entry in `KINDS`, an `AgentKind` with two functions:
+Adding a kind is one entry in `KINDS`, an `AgentKind` with three functions:
 
     KINDS = {
-        "hermes": AgentKind(parse=hermes.parse_agent, backend=hermes.agent_backend),
-        "openai": AgentKind(parse=openai.parse_agent, backend=openai.agent_backend),
+        "hermes": AgentKind(hermes.parse_agent, hermes.agent_backend, hermes.agent_speech),
+        "openai": AgentKind(openai.parse_settings, openai.build_backend, openai.build_speech),
     }
 
 - `parse(keys: dict[str, Any]) -> S` receives the entry's own keys (all but
@@ -21,9 +21,14 @@ Adding a kind is one entry in `KINDS`, an `AgentKind` with two functions:
   must refuse keys it does not know: a misspelt key silently ignored would
   configure a different agent than the one written. It runs while the
   configuration loads, so it reads no files and opens nothing.
-- `backend(settings: Settings, agent: S) -> AssistantBackend` builds the
-  agent's backend from the hub's settings and what `parse` returned, once at
-  startup; every device's connections to that agent come from it.
+- `backend(settings: Settings, agent: AgentConfiguration) -> AssistantBackend`
+  builds the agent's backend from the hub's settings and the configured agent
+  (its `id`, `name` and what `parse` returned as `agent.settings`), once at
+  startup; every device's connections to that agent come from it. Files the
+  kind names (keys, commands) are checked here, refused with `ValueError`.
+- `speech(settings: Settings, agent: AgentConfiguration) -> SpeechBackend | None`
+  is the agent's dictation and read-aloud, or None for a kind without a voice;
+  its backend's `capabilities.voice` then says False.
 
 Everything else (ids, names, the default, the refusals of `chat.send`, the
 `ready` list) is the same for every kind and lives here.
@@ -39,8 +44,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from ..errors import HubError
-from . import hermes
+from . import acp, hermes, openai
 from .backend import AssistantBackend
+from .speech import SpeechBackend
 
 if TYPE_CHECKING:
     from ..config import Settings
@@ -49,11 +55,19 @@ if TYPE_CHECKING:
 @dataclass(frozen=True)
 class AgentKind:
     parse: Callable[[dict[str, Any]], Any]
-    backend: Callable[[Settings, Any], AssistantBackend]
+    backend: Callable[[Settings, AgentConfiguration], AssistantBackend]
+    speech: Callable[[Settings, AgentConfiguration], SpeechBackend | None]
+
+
+def _no_speech(settings: Settings, agent: AgentConfiguration) -> None:
+    return None
 
 
 KINDS: dict[str, AgentKind] = {
-    "hermes": AgentKind(parse=hermes.parse_agent, backend=hermes.agent_backend),
+    "hermes": AgentKind(hermes.parse_agent, hermes.agent_backend, hermes.agent_speech),
+    "openai": AgentKind(openai.parse_settings, openai.build_backend, openai.build_speech),
+    # Claude Code and Codex speak no audio over ACP: no dictation, no read-aloud.
+    "acp": AgentKind(acp.parse_settings, acp.build_backend, _no_speech),
 }
 
 # The id of the one agent a configuration without `[[agents]]` has. Sessions
@@ -192,6 +206,20 @@ class Agent:
     kind: str
     settings: Any
     backend: AssistantBackend
+    # Its dictation and read-aloud; None for a kind without a voice.
+    speech: SpeechBackend | None = None
+
+    def voice(self) -> SpeechBackend:
+        """The agent's speech, or the refusal that names the agent and why it has none."""
+        if self.speech is None:
+            raise HubError(
+                "speech_not_configured",
+                f"{self.name} («{self.id}») no tiene voz: los agentes de tipo {self.kind} "
+                "no dictan ni leen en voz alta",
+                http_status=503,
+                numbers={"agent_id": self.id},
+            )
+        return self.speech
 
     def public(self) -> dict:
         """The agent as `ready` lists it to the Mac."""
@@ -223,9 +251,15 @@ class Agents:
         self.default = self.by_id[default_id]
 
     @classmethod
-    def from_settings(cls, settings: Settings, backend: AssistantBackend | None = None) -> Agents:
-        """The configured agents, each on its kind's backend, or all on `backend`
-        when one is given: tests drive the hub with a double."""
+    def from_settings(
+        cls,
+        settings: Settings,
+        backend: AssistantBackend | None = None,
+        speech: SpeechBackend | None = None,
+    ) -> Agents:
+        """The configured agents, each on its kind's backend and speech, or all
+        on `backend` and `speech` when they are given: tests drive the hub
+        with doubles."""
         configured, default_id = settings.agent_configurations()
         return cls(
             [
@@ -234,9 +268,8 @@ class Agents:
                     agent.name,
                     agent.kind,
                     agent.settings,
-                    backend
-                    if backend is not None
-                    else KINDS[agent.kind].backend(settings, agent.settings),
+                    backend if backend is not None else KINDS[agent.kind].backend(settings, agent),
+                    speech if speech is not None else KINDS[agent.kind].speech(settings, agent),
                 )
                 for agent in configured
             ],

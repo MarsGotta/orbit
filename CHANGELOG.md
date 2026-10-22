@@ -22,6 +22,15 @@ is in Spanish; the labels quoted below are the ones it shows.
   images — through the new `orbit_files_list`, `orbit_files_search` and
   `orbit_files_read` tools. Nothing outside them is read, also through links
   or `..`; a refusal names the path and the folders.
+- The hub can offer several agents: `[[agents]]` in `orbit.toml`. `ready`
+  lists them, `chat.send` takes an `agent_id`, and each conversation keeps its
+  agent. A 0.9.0 `orbit.toml` is still one agent. Three kinds: `hermes` (a
+  Hermes profile); `openai`, a model the hub runs itself against any
+  OpenAI-compatible API or Anthropic's, with Orbit's tools and, with
+  `[agents.speech]`, read-aloud; and `acp`, Claude Code or Codex through their
+  Agent Client Protocol adapters, locked to Orbit's tools and signed in by the
+  hub's operator. Dictation and read-aloud are the default agent's; an agent
+  without a voice is refused with `speech_not_configured` and its id.
 
 ### Changed
 

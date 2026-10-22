@@ -19,7 +19,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from conftest import device, said
+from conftest import configured, device, said
 from fastapi.testclient import TestClient
 from support_client_e2e import DAEMON_E2E_TIMEOUT_SECONDS, tcp_server
 from support_orbit_mcp import DEFAULT_DEVICE, FakeHub, write_mcp_config
@@ -61,7 +61,7 @@ def raw_settings(tmp_path, *flags, agent="claude-code", agent_id="claude-prueba"
 
 
 def backend_for(settings, tmp_path, *flags, **extra):
-    return acp.build_backend(acp.parse_settings(raw_settings(tmp_path, *flags, **extra)), settings)
+    return acp.build_backend(settings, configured(raw_settings(tmp_path, *flags, **extra)))
 
 
 def records(tmp_path, kind=None):
@@ -371,9 +371,7 @@ def test_a_command_that_does_not_exist_is_refused_at_startup_with_its_path(envir
     settings, _store, _speech = environment
     missing = tmp_path / "agents" / "node_modules" / ".bin" / "claude-agent-acp"
     with pytest.raises(ValueError) as refused:
-        acp.build_backend(
-            acp.parse_settings(raw_settings(tmp_path, command=[str(missing)])), settings
-        )
+        acp.build_backend(settings, configured(raw_settings(tmp_path, command=[str(missing)])))
     assert str(missing) in str(refused.value)
     assert "does not exist" in str(refused.value)
 
@@ -382,7 +380,7 @@ def test_a_command_that_does_not_exist_is_refused_at_startup_with_its_path(envir
     not_executable.chmod(0o600)
     with pytest.raises(ValueError) as refused:
         acp.build_backend(
-            acp.parse_settings(raw_settings(tmp_path, command=[str(not_executable)])), settings
+            settings, configured(raw_settings(tmp_path, command=[str(not_executable)]))
         )
     assert str(not_executable) in str(refused.value)
     assert "is not executable" in str(refused.value)
@@ -407,7 +405,7 @@ async def test_a_command_that_does_not_start_is_refused_when_the_session_opens(
     script.write_text(f"#!/bin/sh\nexec {shlex.quote(sys.executable)} {AGENT}\n")
     script.chmod(0o700)
     connection = acp.build_backend(
-        acp.parse_settings(raw_settings(tmp_path, command=[str(script)])), settings
+        settings, configured(raw_settings(tmp_path, command=[str(script)]))
     ).connection("equipo-1", "Mac", Events())
     await connection.open()
     script.unlink()
@@ -434,7 +432,7 @@ async def test_an_agent_asking_to_sign_in_is_refused_with_the_command_to_run_on_
     home = shlex.quote(str(folder / ("claude-config" if agent == "claude-code" else "codex-home")))
     raw = raw_settings(tmp_path, "--auth-required", agent=agent)
     expected = login.format(home=home, command=shlex.join(raw["command"]))
-    connection = acp.build_backend(acp.parse_settings(raw), settings).connection(
+    connection = acp.build_backend(settings, configured(raw)).connection(
         "equipo-1", "Mac", Events()
     )
     await connection.open()
@@ -449,9 +447,7 @@ async def test_an_agent_asking_to_sign_in_is_refused_with_the_command_to_run_on_
     raw = raw_settings(tmp_path, agent=agent)
     expected = login.format(home=home, command=shlex.join(raw["command"]))
     events = Events()
-    connection = acp.build_backend(acp.parse_settings(raw), settings).connection(
-        "equipo-1", "Mac", events
-    )
+    connection = acp.build_backend(settings, configured(raw)).connection("equipo-1", "Mac", events)
     await connection.open()
     try:
         opened = await connection.create_session()
@@ -598,7 +594,7 @@ async def test_a_clarification_is_refused_with_its_cause(environment, tmp_path):
         ({"env": ["OPENAI_API_KEY", "OPENAI_API_KEY"]}, ["`env`", "OPENAI_API_KEY", "twice"]),
         ({"orbit_mcp_config": None}, ["`orbit_mcp_config`", "missing"]),
         ({"orbit_mcp_config": "mcp.toml"}, ["`orbit_mcp_config`", "absolute"]),
-        ({"id": "Claude Principal"}, ["`id`", "a-z"]),
+        ({"id": "Claude Principal"}, ["id", "a-z"]),
         ({"profile": "deimos"}, ["unknown", "profile"]),
     ],
 )
@@ -610,16 +606,17 @@ def test_settings_refusals_name_the_key_and_the_cause(tmp_path, change, fragment
         else:
             raw[key] = value
     with pytest.raises(ValueError) as refused:
-        acp.parse_settings(raw)
+        configured(raw)
     for fragment in fragments:
         assert fragment in str(refused.value)
     assert "claude-prueba" in str(refused.value) or "id" in change
 
 
 def test_settings_keep_what_the_agent_needs(tmp_path):
-    parsed = acp.parse_settings(raw_settings(tmp_path, agent="codex"))
+    agent = configured(raw_settings(tmp_path, agent="codex"))
+    parsed = agent.settings
+    assert (agent.id, agent.kind) == ("claude-prueba", "acp")
     assert parsed == acp.AcpAgentSettings(
-        agent_id="claude-prueba",
         agent="codex",
         command=(sys.executable, str(AGENT), "--record", str(tmp_path / "record.jsonl")),
         orbit_mcp_config=tmp_path / "mcp.toml",

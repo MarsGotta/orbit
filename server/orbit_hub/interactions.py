@@ -10,9 +10,13 @@ from .assistant.backend import (
 )
 
 
-def pending_data(kind: str, request: PermissionRequest | ClarificationRequest) -> dict:
+def pending_data(
+    kind: str, request: PermissionRequest | ClarificationRequest, request_id: str
+) -> dict:
+    """The request as the Mac sees it, under `request_id`, the id the hub gave
+    it on this device (`DeviceRuntime.pending`), not necessarily the backend's."""
     result = {
-        "request_id": request.request_id,
+        "request_id": request_id,
         "kind": kind,
         "state": "pending",
         "expires_at": None,

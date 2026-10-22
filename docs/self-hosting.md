@@ -130,39 +130,72 @@ macOS 26 and does not change its existing pause or question deadlines.
 
 A hub can offer more than one agent. List them as `[[agents]]` tables after
 the root keys; without any, the hub is the single agent `default` made of
-`assistant_name` and `profile`, exactly as above.
+`assistant_name` and `profile`, exactly as above. Each agent has an `id`, a
+`name` and a `kind`, plus that kind's own keys. One file with an agent of each
+kind:
 
 ```toml
-default_agent = "lyra"   # optional; without it, the first entry
+default_agent = "deimos"   # optional; without it, the first entry
 
 [[agents]]
-id = "deimos"            # stable: 1 to 32 characters of a-z, 0-9 and -
-name = "Deimos"          # what the Mac shows and what you say: «Oye Deimos»
+id = "deimos"              # stable: 1 to 32 characters of a-z, 0-9 and -
+name = "Deimos"            # what the Mac shows and what you say: «Oye Deimos»
 kind = "hermes"
-profile = "deimos"       # the Hermes profile that answers
+profile = "deimos"         # required: the Hermes profile that answers
 
 [[agents]]
 id = "lyra"
 name = "Lyra"
-kind = "hermes"
-profile = "lyra"
+kind = "openai"                                   # see "An assistant without Hermes"
+base_url = "http://127.0.0.1:11434/v1"            # required unless provider = "anthropic"
+model = "example-model"                           # required
+orbit_mcp_config = "/opt/orbit/config/mcp.toml"   # required: orbit-mcp's TOML, absolute
+# api_key_file = "/opt/orbit/secrets/lyra.key"    # 0600; required with provider = "anthropic"
+# provider = "anthropic"                          # "openai" (the default) or "anthropic"
+# images = true                                   # the model reads screenshots as images
+# [agents.speech]                                 # read-aloud; without it, no voice
+# base_url = "https://speech.example/v1"          # required in the table: POST {base_url}/audio/speech
+# model = "example-tts"                           # required in the table
+# voice = "example-voice"                         # required in the table
+# api_key_file = "/opt/orbit/secrets/speech.key"  # 0600, optional
+
+[[agents]]
+id = "claude"
+name = "Claude"
+kind = "acp"                                      # see "Claude Code and Codex agents"
+agent = "claude-code"                             # required: "claude-code" or "codex"
+command = ["/opt/orbit/agents/node_modules/.bin/claude-agent-acp", "--hide-claude-auth"]
+orbit_mcp_config = "/opt/orbit/config/mcp-claude.toml"  # required, absolute
+# env = ["ANTHROPIC_API_KEY"]                     # variables passed from the hub's environment
 ```
 
 Every `hermes` agent is a profile of the same Hermes (`hermes_url`,
 `hermes_credential_file`); `orbit-mcp` is configured in each profile as below.
-The hub refuses to start, naming the entry and the cause, when an id or a name
-repeats (names compare ignoring case and accents, because they are spoken),
-an id is not in that form, a `kind` is unknown, a kind's key is missing or
-unknown, `default_agent` names no agent, or `profile`, `assistant_name`,
-`ORBIT_HUB_PROFILE` or `ORBIT_HUB_ASSISTANT_NAME` are set beside `[[agents]]`.
-Names follow the rules of `assistant_name`.
+The hub refuses to load the configuration, naming the entry and the cause, when
+an id or a name repeats (names compare ignoring case and accents, because they
+are spoken), an id is not in that form, a `kind` is unknown, a kind's key is
+missing, unknown or invalid (a key of another kind is unknown), `default_agent`
+names no agent, or `profile`, `assistant_name`, `ORBIT_HUB_PROFILE` or
+`ORBIT_HUB_ASSISTANT_NAME` are set beside `[[agents]]`. Names follow the rules
+of `assistant_name`. Loading reads none of the files an entry names; the hub
+checks them when it starts and refuses to start, naming the agent, the key, the
+path and the cause, when an `openai` agent's `orbit_mcp_config` is not a file
+or one of its key files is missing, empty or not `0600`, or an `acp` agent's
+`command` does not exist or is not executable.
 
 A conversation belongs to the agent it was opened with and keeps it; it stores
 the agent's `id`, so renaming an agent keeps its conversations and changing an
 `id` leaves them with an agent the hub no longer has, which the Mac is told.
 Conversations stored before agents existed belong to the default agent: keep
 the old profile's agent first, or as `default_agent`, so they resume where
-they were kept. Dictation and read-aloud use the default agent's profile.
+they were kept.
+
+Dictation and read-aloud use the default agent's voice, because neither audio
+request names a conversation: a `hermes` agent's profile; an `openai` agent's
+`[meeting_transcription]` for dictation and its `[agents.speech]` for
+read-aloud; an `acp` agent has no voice. Without one, the hub refuses the
+request with `speech_not_configured`, naming the agent and why, and `ready`
+does not list `voice` among that agent's capabilities.
 
 `allow_insecure_localhost` permits the loopback Hermes URL; it does not permit
 plaintext public access. `allowed_hosts` must include the hostname the Mac uses.
@@ -342,6 +375,26 @@ Validate discovery with an isolated profile first. Apply profile changes using
 the commands supported by your installed Hermes version; a gateway restart can
 interrupt other profiles and must be coordinated with their users.
 
+## An assistant without Hermes (`kind = "openai"`)
+
+An `[[agents]]` entry of `kind = "openai"` runs the assistant inside the hub
+against any OpenAI-compatible Chat Completions API (OpenAI, OpenRouter, LiteLLM,
+Ollama, vLLM…) or, with `provider = "anthropic"`, Anthropic's own API. Its keys
+are in the example under [Several agents](#several-agents). `base_url` is the
+API root, as the OpenAI SDK takes it, and must be HTTPS, or HTTP on loopback;
+with `provider = "anthropic"` it is optional and `api_key_file` is required.
+Keys live only in 0600 files owned by the hub's user; a server that needs no
+key (a local Ollama or vLLM) gets a placeholder bearer.
+
+The hub launches `orbit-mcp` from its own environment for each Mac connection,
+with `ORBIT_MCP_CONFIG` set to `orbit_mcp_config` and `ORBIT_MCP_AGENT` to the
+agent's id; the agent gets Orbit's tools and no shell or server files. The
+conversation is the one the hub stores: the model receives its newest messages
+up to 65 536 characters, and is told how many older ones were left out.
+Dictation uses `[meeting_transcription]`; read-aloud needs `[agents.speech]`.
+The hub does not retry provider requests; a failure reaches the Mac with its
+cause.
+
 ## Claude Code and Codex agents
 
 An agent of kind `acp` runs Claude Code or Codex through its official Agent
@@ -357,26 +410,9 @@ npm install --save-exact @agentclientprotocol/claude-agent-acp@0.94.0 \
 
 Each adapter brings its agent: `claude-agent-acp` the Claude Agent SDK and its
 `claude` binary, `codex-acp` the `@openai/codex` package. Declare each agent in
-the hub TOML, with its own copy of the translator configuration:
-
-```toml
-[[agents]]
-id = "claude"
-name = "Claude"
-kind = "acp"
-agent = "claude-code"
-command = ["/opt/orbit/agents/node_modules/.bin/claude-agent-acp", "--hide-claude-auth"]
-orbit_mcp_config = "/opt/orbit/config/mcp-claude.toml"
-env = ["ANTHROPIC_API_KEY"]
-
-[[agents]]
-id = "codex"
-name = "Codex"
-kind = "acp"
-agent = "codex"
-command = ["/opt/orbit/agents/node_modules/.bin/codex-acp"]
-orbit_mcp_config = "/opt/orbit/config/mcp-codex.toml"
-```
+the hub TOML as in the example under [Several agents](#several-agents), each
+with its own copy of the translator configuration. A Codex agent has
+`agent = "codex"` and `command = ["/opt/orbit/agents/node_modules/.bin/codex-acp"]`.
 
 `command` starts with the adapter's absolute path; the hub refuses to start
 when it is missing or not executable, and refuses a session whose process does
