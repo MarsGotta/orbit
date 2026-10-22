@@ -22,8 +22,12 @@ from ..errors import PrivateError
 # In the order Settings shows them.
 GROUPS = ("screen", "control", "calendar", "meetings", "files")
 
-# The orbit-mcp tools each group opens. `orbit_devices` belongs to none: it
-# names the Macs, which every tool needs to choose one.
+# The orbit-mcp tools no group gates: `orbit_devices` names the Macs, which
+# every tool needs to choose one, and `orbit_attachment` reads a file the user
+# attached to a message of this agent's own conversation.
+UNGATED = frozenset({"orbit_devices", "orbit_attachment"})
+
+# The orbit-mcp tools each group opens.
 TOOLS = MappingProxyType(
     {
         "screen": ("orbit_windows", "orbit_screenshot", "orbit_look", "orbit_selected_text"),

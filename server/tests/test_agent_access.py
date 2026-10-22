@@ -33,7 +33,7 @@ MEETINGS_KEY_ID = "meetings-bridge-test-key"
 
 def test_every_tool_and_capability_belongs_to_one_group():
     grouped = [tool for tools in access.TOOLS.values() for tool in tools]
-    assert sorted(grouped) == sorted(set(TOOL_NAMES) - {"orbit_devices"})
+    assert sorted(grouped) == sorted(set(TOOL_NAMES) - access.UNGATED)
     # A capability without a group would pass the hub's check unguarded.
     assert set(access.CAPABILITY_GROUP) == set(PARAMETER_MODELS)
 

@@ -252,7 +252,10 @@ impl LocalClient {
                 }
                 Ok(response)
             }
-            Reply::Topics(_) | Reply::VoiceNoteAudio(_) | Reply::Agent(_) | Reply::Attachment(_) => {
+            Reply::Topics(_)
+            | Reply::VoiceNoteAudio(_)
+            | Reply::Agent(_)
+            | Reply::Attachment(_) => {
                 bail!("El daemon entregó otra clase de respuesta a una orden")
             }
         }
