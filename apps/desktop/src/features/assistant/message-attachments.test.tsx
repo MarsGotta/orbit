@@ -117,7 +117,7 @@ describe("images", () => {
     await screen.findByRole("dialog", { name: "plano.png" });
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "ArrowRight" });
     const second = await screen.findByRole("dialog", { name: "fachada.jpg" });
-    await userEvent.click(within(second).getByRole("button", { name: "Copiar" }));
+    await userEvent.click(await within(second).findByRole("button", { name: "Copiar" }));
     expect(bridge.copyImage).toHaveBeenCalledWith(
       new TextEncoder().encode("a-fachada").buffer,
       "image/jpeg",
