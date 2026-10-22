@@ -8,9 +8,14 @@ fn emit_feature_frames<R: tauri::Runtime>(
     frames: impl IntoIterator<Item = FeatureFrame>,
 ) {
     for frame in frames {
-        if let FeatureFrame::Local { view, .. } = &frame
-            && let Err(error) = crate::tray::refresh_update(app, &view.update)
-        {
+        let menu = match &frame {
+            FeatureFrame::Local { view, .. } => crate::tray::refresh_update(app, &view.update),
+            FeatureFrame::Recording { view, .. } => {
+                crate::tray::refresh_recording(app, &view.meeting.phase)
+            }
+            _ => Ok(()),
+        };
+        if let Err(error) = menu {
             eprintln!("Orbit: no se pudo actualizar el menú: {error}");
         }
         // A long turn that ended, or a question from the agent, while

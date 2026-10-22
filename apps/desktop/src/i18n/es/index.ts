@@ -1,6 +1,7 @@
 import { agents } from "./agents";
 import { dictionary } from "./dictionary";
 import { statusCopy } from "./status";
+import { shellCopy } from "./shell";
 import { controls } from "./controls";
 import { permissions } from "./permissions";
 import { briefing } from "./briefing";
@@ -26,6 +27,7 @@ export function spanish(assistantName = "Deimos") {
     ...agents,
     ...dictionary,
     ...statusCopy(assistantName),
+    ...shellCopy(assistantName),
     ...controls,
     ...permissions,
     ...briefing,

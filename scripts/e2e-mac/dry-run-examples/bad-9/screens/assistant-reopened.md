@@ -1,14 +1,15 @@
 - AXWindow "Orbit"
   - AXWebArea
     - AXGroup
-      - AXStaticText = "Sin conexión. Comprueba tu red."
+      - AXStaticText = "Sin conexión con el hub"
       - [9] AXButton "Abrir Ajustes" [actions=[press]]
-    - AXGroup (Vistas)
-      - [1] AXButton (Hoy) [actions=[press]]
-      - [2] AXButton (Calendario) [actions=[press]]
-      - [3] AXButton (Reuniones) [actions=[press]]
-      - [4] AXButton (Asistente) [actions=[press]]
-      - [5] AXButton (Ajustes) [actions=[press]]
+    - AXGroup (Principal)
+      - [1] AXButton "Grabar reunión" [actions=[press]]
+      - AXLink "Hoy"
+      - AXLink "Calendario"
+      - [3] AXLink "Reuniones" [actions=[press]]
+      - [4] AXLink "Asistente" [actions=[press]]
+      - AXLink "Ajustes"
     - AXHeading
       - AXStaticText = "Asistente"
     - AXStaticText = "Conversación"

@@ -1,0 +1,104 @@
+.sidebar {
+  width: var(--o-w-sidebar);
+  height: 100%;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  padding: 0 var(--o-space-10) var(--o-space-12);
+  /* Visible: the «Preguntar a Deimos» window opens beside it, over the view. */
+  overflow: visible;
+  border-right: 1px solid var(--o-line);
+  background: var(--o-side);
+}
+
+/* Room for the Mac's window buttons, which sit over the sidebar. */
+.windowButtons {
+  height: 46px;
+  flex: none;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 var(--o-space-10) 18px;
+  color: var(--o-accText);
+}
+
+.logo span {
+  color: var(--o-ink);
+  font: 600 15px/1.4 var(--o-font-sans);
+  letter-spacing: -0.01em;
+}
+
+.record {
+  width: 100%;
+  height: var(--o-control-xl);
+  flex: none;
+  justify-content: flex-start;
+  gap: var(--o-space-10);
+  margin-bottom: var(--o-space-16);
+  padding: 0 var(--o-space-12);
+  background: var(--o-surface);
+  font-weight: 600;
+}
+
+.record kbd {
+  margin-left: auto;
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.items a,
+.sidebar > a {
+  color: var(--o-ink2);
+  font-weight: 500;
+}
+
+.items a[aria-current="page"],
+.sidebar > a[aria-current="page"] {
+  color: var(--o-ink);
+  font-weight: 600;
+}
+
+.sidebar > a {
+  margin-bottom: var(--o-space-6);
+}
+
+.spacer {
+  flex: 1;
+  min-height: var(--o-space-16);
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-10);
+  padding: var(--o-space-10) var(--o-space-10) 0;
+  border-top: 1px solid var(--o-line);
+}
+
+.initial {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--o-raised);
+  color: var(--o-ink2);
+  font: 600 12px/1 var(--o-font-sans);
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  font: 500 13px/1.4 var(--o-font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

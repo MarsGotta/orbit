@@ -1,69 +1,187 @@
 .topBar {
   position: relative;
   z-index: 20;
-  height: 44px;
+  height: var(--o-w-topbar);
   display: flex;
   flex: none;
   align-items: center;
-  gap: 14px;
-  padding: 0 14px;
+  gap: var(--o-space-10);
+  padding: 0 var(--o-space-20) 0 var(--o-space-32);
   border-bottom: 1px solid var(--o-line);
-  background: var(--o-side);
+  background: var(--o-bg);
 }
 
-.mac {
-  padding-left: 78px;
-}
-
-.breadcrumbs {
+.leading {
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--o-space-10);
+}
+
+.leading:empty {
+  display: none;
+}
+
+.search {
+  width: 340px;
   min-width: 0;
-}
-
-.breadcrumbs strong {
-  font-family: var(--o-font-sans);
-  font-size: var(--o-font-13);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.breadcrumbs span:first-of-type {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 var(--o-space-10);
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-lg);
+  background: var(--o-surface);
   color: var(--o-ink3);
+  font: 400 13px/1.4 var(--o-font-sans);
+  cursor: pointer;
+  transition: background var(--o-dur-fast);
 }
 
-.breadcrumbs span:last-of-type {
+.search:hover {
+  background: var(--o-hover);
+}
+
+.searchText {
+  min-width: 0;
   overflow: hidden;
-  color: var(--o-ink2);
-  font-size: var(--o-font-13);
-  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.actions {
+.shortcut {
+  margin-left: auto;
+  font: var(--o-text-tiny);
+  font-weight: 400;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.theme {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--o-radius-lg);
+  background: transparent;
+  color: var(--o-ink2);
+  cursor: pointer;
+  transition: background var(--o-dur-fast);
+}
+
+.theme:hover {
+  background: var(--o-hover);
+}
+
+/* The notice of the moment: a dot or a spinner, its words and its fix. */
+.notices {
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-left: auto;
+  gap: var(--o-space-6);
 }
 
-@media (max-width: 760px) {
-  .actions > :first-child {
-    display: none;
-  }
+.notice {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-10);
+  color: var(--o-ink);
+  font: 400 13px/1.4 var(--o-font-sans);
 }
 
-/* The one thing to do about the problem the status pill names. */
-.pillAction {
-  margin-left: 4px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  font-weight: 600;
-  text-decoration: underline;
+.dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  margin: 0 3px;
+  border-radius: 50%;
+  background: var(--o-warn);
+}
+
+.noticeText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.noticeDetail {
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  white-space: nowrap;
+}
+
+.fix {
+  height: var(--o-control-sm);
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  padding: 0 var(--o-space-10);
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-md);
+  background: transparent;
+  color: var(--o-ink);
+  font: 500 12px/1.4 var(--o-font-sans);
+  text-decoration: none;
   cursor: pointer;
+  transition: background var(--o-dur-fast);
+}
+
+.fix:hover {
+  background: var(--o-hover);
+}
+
+.working {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--o-space-6);
+  color: var(--o-ink2);
+  font: var(--o-text-meta);
+}
+
+.more {
+  height: 24px;
+  padding: 0 var(--o-space-8);
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-pill);
+  background: transparent;
+  color: var(--o-ink2);
+  font: var(--o-text-tiny);
+  cursor: pointer;
+}
+
+.more:hover {
+  background: var(--o-hover);
+}
+
+.rest {
+  min-width: 300px;
+  margin: 0;
+  padding: var(--o-space-4) var(--o-space-10);
+  list-style: none;
+}
+
+.rest li {
+  padding: var(--o-space-10) 0;
+}
+
+.rest li + li {
+  border-top: 1px solid var(--o-line);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }

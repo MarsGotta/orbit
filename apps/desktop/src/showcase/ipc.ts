@@ -87,7 +87,7 @@ function added(source: AttachmentSource, index: number): AddedAttachment {
 function send(daemon: Daemon, scenario: Scenario, command: AppCommand): CommandReceipt {
   const refusal = scenario.refuse?.(command) ?? null;
   if (refusal) throw { refusal };
-  const next = reactTo(daemon.views, command);
+  const next = scenario.react?.(daemon.views, command) ?? reactTo(daemon.views, command);
   if (next) void publish(daemon, next);
   return { revision: { epoch: 1, counter: daemon.counter }, delivery: { state: "reflected" } };
 }

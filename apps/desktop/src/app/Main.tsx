@@ -3,8 +3,9 @@ import { lazy as reactLazy, Suspense, useEffect } from "react";
 import type { AppCommand } from "../bridge/generated";
 import type { DaemonPort } from "../bridge/port";
 import { es } from "../i18n/es";
-import { useUiStore, type ViewId } from "../state/ui";
+import { routeFor, useUiStore, type SettingsSection, type ViewId } from "../state/ui";
 import styles from "./Main.module.css";
+import { Breadcrumbs, TopBarLeading } from "./shell-slots";
 import { ViewBoundary } from "./ViewBoundary";
 
 import BriefingView from "../features/briefing/BriefingView";
@@ -38,17 +39,6 @@ export async function loadLazyViews(): Promise<void> {
   await Promise.all(lazyViewLoaders.map((load) => load()));
 }
 
-export function titleForView(view: ViewId): string {
-  const titles: Record<ViewId, string> = {
-    briefing: es.shell.briefing,
-    calendar: es.shell.calendar,
-    notes: es.shell.notes,
-    assistant: es.shell.assistant,
-    settings: es.shell.settings,
-  };
-  return titles[view];
-}
-
 export interface MainProps {
   /** A view that failed to paint: reported, and its words returned. */
   crash: () => string;
@@ -60,6 +50,7 @@ export interface MainProps {
   readSessionMessages?: DaemonPort["readSessionMessages"];
   agent?: DaemonPort["agent"];
   view: ViewId;
+  settingsSection: SettingsSection;
 }
 
 function LoadingView() {
@@ -75,6 +66,7 @@ function View({
   readSessionMessages,
   agent,
   view,
+  settingsSection,
 }: MainProps) {
   if (view === "briefing")
     return <BriefingView error={error} onRecord={onRecord} send={send} snapshot={snapshot} />;
@@ -99,14 +91,20 @@ function View({
       />
     );
   if (view === "settings") {
+    // SettingsView shows the section the route names (`#/settings/{section}`).
+    const settings = { agent, error, onReopenOnboarding, send, snapshot, section: settingsSection };
     return (
-      <SettingsView
-        agent={agent}
-        error={error}
-        onReopenOnboarding={onReopenOnboarding}
-        send={send}
-        snapshot={snapshot}
-      />
+      <>
+        <TopBarLeading>
+          <Breadcrumbs
+            trail={[
+              { label: es.shell.settings, href: routeFor("settings") },
+              { label: es.shell.settingsSections[settingsSection] },
+            ]}
+          />
+        </TopBarLeading>
+        <SettingsView {...settings} />
+      </>
     );
   }
   return <BriefingView error={error} onRecord={onRecord} send={send} snapshot={snapshot} />;

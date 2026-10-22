@@ -1,28 +1,25 @@
 import type { AppView as AppSnapshot } from "../state/app-view";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AppCommand } from "../bridge/generated";
 import type { DaemonPort } from "../bridge/port";
 import { CommandPalette, type CommandItem } from "../design/CommandPalette";
-import { toggleTheme } from "../design/theme";
-import { es } from "../i18n/es";
 import { AssistantCopy } from "../i18n/AssistantCopy";
 import { conversationAgentName } from "../features/assistant/agents";
-import { MeetingOverlays } from "../features/meetings/MeetingOverlays";
+import { AssistantSessions } from "../features/assistant/AssistantSessions";
 import { onboardingWasCompleted } from "../features/onboarding/OnboardingView";
-import { initializeUiStore, useUiStore, type ViewId } from "../state/ui";
-import { messageFor } from "./visible-error";
-import { AppNotices } from "./AppNotices";
-import { AppOnboarding } from "./AppOnboarding";
+import { initializeUiStore, useUiStore, type SettingsSection, type ViewId } from "../state/ui";
+import { NotResponding, Starting } from "./AppStates";
 import { useAppStore } from "./use-app-store";
-import { AppTopBar } from "./AppTopBar";
 import { useErrorSelection } from "./error-selection";
-import { AppSidebar } from "./AppSidebar";
 import { Main } from "./Main";
 import type { Message } from "./interceptor";
-import { ViewBoundary } from "./ViewBoundary";
 import { reportingAgent, reportingReads } from "./report-failure";
 import type { OnboardingRequest } from "./Onboarding";
-import styles from "./App.module.css";
+import { Overlays, useCommandDispatch } from "./AppOverlays";
+import { ShellSlots, useShellSlots } from "./shell-slots";
+import { Sidebar } from "./Sidebar";
+import { TopBar } from "./TopBar";
+import styles from "./Shell.module.css";
 import { usePaletteCommands } from "./use-palette-commands";
 import { useScopedSend } from "./use-scoped-send";
 import { OrbitStoreProvider } from "../state/use-in-flight";
@@ -48,85 +45,60 @@ export interface AppContentProps {
   readSessionMessages?: DaemonPort["readSessionMessages"];
   agent?: DaemonPort["agent"];
   view: ViewId;
+  settingsSection: SettingsSection;
 }
 
-function useCommandDispatch(send: AppContentProps["send"]): (command: AppCommand) => void {
-  return useCallback(
-    (command: AppCommand) => {
-      if (command.command === "notes_open") {
-        const [recordingId] = command.recording_id.split("?", 1);
-        if (recordingId) void send({ ...command, recording_id: recordingId });
-        return;
-      }
-      void send(command);
-    },
-    [send],
-  );
-}
-
-/** The hub calls a view makes itself, each reporting what it could not do. */
-function hubCalls({ readSessionMessages, agent }: AppContentProps) {
-  return { readSessionMessages, agent };
+/** Where a view's list goes: the column beside the sidebar. */
+function ColumnHost() {
+  return <div className={styles.columnHost} ref={useShellSlots()?.setColumn} />;
 }
 
 function AppContent(props: AppContentProps) {
-  const [onboardingDone, setOnboardingDone] = useState(onboardingWasCompleted);
-  const [onboardingRequested, setOnboardingRequested] = useState<OnboardingRequest>(null);
-  const recordingMessage = messageFor("recording", props.messages);
+  const [done, setDone] = useState(onboardingWasCompleted);
+  const [requested, setRequested] = useState<OnboardingRequest>(null);
   const dispatch = useCommandDispatch(props.send);
   const recordingDispatch = useCommandDispatch(props.sendRecording);
-  const displayView = window.location.hash.startsWith("#/notes/") ? "notes" : props.view;
+  const onRecord = () => props.setMeetingOpen(true);
   return (
-    <div className={styles.app}>
-      <AppTopBar
-        dispatch={recordingDispatch}
-        onOpenPalette={() => props.setPaletteOpen(true)}
-        onRecord={() => props.setMeetingOpen(true)}
-        navigate={props.navigate}
-        onToggleTheme={toggleTheme}
-        snapshot={props.snapshot}
-        view={displayView}
-      />
-      <AppNotices {...props} />
-      <div className={styles.body} data-app-content>
-        <AppSidebar dispatch={dispatch} props={props} view={displayView} />
-        <Main
-          crash={props.crash}
-          error={props.error}
-          onRecord={() => props.setMeetingOpen(true)}
-          onReopenOnboarding={(mode) => setOnboardingRequested(mode ?? "full")}
-          send={props.send}
-          snapshot={props.snapshot}
-          {...hubCalls(props)}
-          view={displayView}
-        />
-      </div>
-      <ViewBoundary onCrash={props.crash}>
-        <MeetingOverlays
-          error={props.recordingError}
-          errorKind={recordingMessage?.class}
-          onErrorDismiss={() => recordingMessage && props.dismiss(recordingMessage.op)}
-          launcherOpen={props.meetingOpen}
-          onLauncherClose={() => props.setMeetingOpen(false)}
+    <ShellSlots>
+      <div className={styles.app} data-app-content>
+        <Sidebar
+          onRecord={onRecord}
           send={recordingDispatch}
           snapshot={props.snapshot}
+          view={props.view}
         />
-      </ViewBoundary>
-      <CommandPalette
-        commands={props.commands}
-        onOpenChange={props.setPaletteOpen}
-        open={props.paletteOpen}
-      />
-      <ViewBoundary onCrash={props.crash}>
-        <AppOnboarding
-          done={onboardingDone}
-          props={{ ...props, send: props.sendOnboarding, error: props.onboardingError }}
-          requested={onboardingRequested}
-          setDone={setOnboardingDone}
-          setRequested={setOnboardingRequested}
-        />
-      </ViewBoundary>
-    </div>
+        <ColumnHost />
+        <div className={styles.mainColumn}>
+          <TopBar
+            onOpenPalette={() => props.setPaletteOpen(true)}
+            onPair={() => setRequested("pair")}
+            send={props.send}
+            snapshot={props.snapshot}
+          />
+          <Main
+            agent={props.agent}
+            crash={props.crash}
+            error={props.error}
+            onRecord={onRecord}
+            onReopenOnboarding={(mode) => setRequested(mode ?? "full")}
+            readSessionMessages={props.readSessionMessages}
+            send={props.send}
+            settingsSection={props.settingsSection}
+            snapshot={props.snapshot}
+            view={props.view}
+          />
+        </div>
+        {props.view === "assistant" && (
+          <AssistantSessions
+            read={props.readSessionsPage}
+            send={dispatch}
+            snapshot={props.snapshot}
+          />
+        )}
+      </div>
+      <Overlays {...props} onboarding={{ done, setDone, requested, setRequested }} />
+    </ShellSlots>
   );
 }
 
@@ -139,54 +111,54 @@ export function App({ port }: { port: DaemonPort }) {
     [port, store],
   );
   const agent = useMemo(() => reportingAgent(port, store.getState().track), [port, store]);
-  const { view, navigate } = useUiStore();
+  const { view, navigate, settingsSection } = useUiStore();
   const { errorView, visibleError, onboardingError, recordingError } = useErrorSelection(
     store,
     view,
   );
-  const {
-    fromView: sendFromView,
-    fromOnboarding: sendOnboarding,
-    fromRecording: sendRecording,
-  } = useScopedSend(send, errorView);
+  const { fromView, fromOnboarding, fromRecording } = useScopedSend(send, errorView);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [meetingOpen, setMeetingOpen] = useState(false);
   const agentName = snapshot ? conversationAgentName(snapshot) : undefined;
-  const commands = usePaletteCommands(navigate, sendFromView, send, setMeetingOpen, agentName);
+  const commands = usePaletteCommands(navigate, fromView, send, setMeetingOpen, agentName);
+  // Closing Orbit is Orbit.app's own order: it works while the daemon does not answer.
+  const quit = () => void send({ command: "quit" });
 
   useEffect(() => initializeUiStore(), []);
 
-  if (!snapshot) {
+  if (!snapshot && error) return <NotResponding onClose={quit} />;
+  if (!snapshot)
     return (
       <>
-        <main className={styles.loading}>{error ?? es.loading}</main>
+        <Starting onClose={quit} />
         <CommandPalette commands={commands} onOpenChange={setPaletteOpen} open={paletteOpen} />
       </>
     );
-  }
+  if (snapshot.connection.daemon === "lost") return <NotResponding onClose={quit} />;
   return (
     <OrbitStoreProvider store={store}>
       <AssistantCopy name={conversationAgentName(snapshot)}>
         <AppContent
+          agent={agent}
           commands={commands}
           crash={crash}
           dismiss={dismiss}
           error={visibleError ?? error}
-          messages={messages}
-          onboardingError={onboardingError ?? error}
-          recordingError={recordingError}
           meetingOpen={meetingOpen}
+          messages={messages}
           navigate={navigate}
+          onboardingError={onboardingError ?? error}
           paletteOpen={paletteOpen}
-          send={sendFromView}
-          sendOnboarding={sendOnboarding}
-          sendRecording={sendRecording}
+          readSessionMessages={readSessionMessages}
+          readSessionsPage={readSessionsPage}
+          recordingError={recordingError}
+          send={fromView}
+          sendOnboarding={fromOnboarding}
+          sendRecording={fromRecording}
           setMeetingOpen={setMeetingOpen}
           setPaletteOpen={setPaletteOpen}
+          settingsSection={settingsSection}
           snapshot={snapshot}
-          readSessionsPage={readSessionsPage}
-          readSessionMessages={readSessionMessages}
-          agent={agent}
           view={view}
         />
       </AssistantCopy>

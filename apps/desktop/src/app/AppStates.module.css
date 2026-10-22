@@ -1,0 +1,35 @@
+/* What the whole window says before Orbit answers, or when it stops answering
+   (prototype Estados, tiles 01 and 02). */
+.screen {
+  height: 100vh;
+  min-height: 640px;
+  display: grid;
+  place-items: center;
+  padding: var(--o-space-32);
+  background: var(--o-bg);
+  color: var(--o-ink);
+}
+
+.box {
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.box h1 {
+  margin: var(--o-space-14) 0 0;
+  font: var(--o-text-h3);
+}
+
+.box p {
+  margin: var(--o-space-2) 0 var(--o-space-14);
+  color: var(--o-ink2);
+  font: 400 13px/1.5 var(--o-font-sans);
+}
+
+.warn {
+  display: flex;
+  color: var(--o-warn);
+}

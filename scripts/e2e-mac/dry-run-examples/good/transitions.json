@@ -3,9 +3,6 @@
   "click:Configurarlo más tarde": "briefing"
  },
  "briefing": {
-  "click:Reuniones": "notes-empty"
- },
- "notes-empty": {
   "click:Grabar reunión": "dialog"
  },
  "dialog": {

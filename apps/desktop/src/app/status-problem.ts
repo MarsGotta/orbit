@@ -1,40 +1,67 @@
 import { permissionRows } from "../i18n/es/permissions";
+import type { AppCommand } from "../bridge/generated";
 import type { HubLinkConnection } from "../bridge/generated/HubLinkConnection";
 import { hasSavedPairing } from "../bridge/hub-state";
-import type { StatusKind } from "../design/StatusPill";
 import { es } from "../i18n/es";
-import type { NoticeAction } from "../i18n/es/notices";
 import type { AppView as AppSnapshot } from "../state/app-view";
+import { settingsRoute } from "../state/ui";
 
-/** What the status pill says, when it says anything: a problem and what to do. */
-export interface Problem {
-  tone: StatusKind;
+/** What fixes a notice: a section of Ajustes, an order, or pairing again. */
+export type NoticeFix =
+  | { kind: "route"; label: string; route: string }
+  | { kind: "command"; label: string; command: AppCommand; pending: string }
+  | { kind: "pair"; label: string };
+
+/**
+ * One notice of the top bar. `working` is something under way that ends by
+ * itself (a spinner and its words); `warn`, something the person can fix.
+ */
+export interface TopBarNotice {
+  id: string;
+  tone: "warn" | "working";
   text: string;
-  action?: NoticeAction;
+  detail?: string;
+  fix?: NoticeFix;
 }
 
-const settings: NoticeAction = { label: es.problem.openSettings, view: "settings" };
-const pair: NoticeAction = { label: es.problem.pair, view: "settings" };
+const pair: NoticeFix = { kind: "pair", label: es.problem.pair };
 
-function daemonProblem(connection: AppSnapshot["connection"]): Problem | null {
-  if (connection.daemon === "ready") return null;
-  // Connecting is Orbit on its way: nothing to say yet.
-  if (connection.daemon === "lost") return { tone: "warning", text: es.problem.orbitLost };
-  return null;
+function privacyNotice(snapshot: AppSnapshot): TopBarNotice | null {
+  if (!snapshot.privacy_stopped) return null;
+  return {
+    id: "privacy",
+    tone: "warn",
+    text: es.problem.privacyStopped,
+    fix: {
+      kind: "command",
+      label: es.problem.rearm,
+      command: { command: "rearm" },
+      pending: es.problem.rearming,
+    },
+  };
 }
 
-function hubProblem(snapshot: AppSnapshot, settled: HubLinkConnection | null): Problem | null {
+function hubNotice(snapshot: AppSnapshot, settled: HubLinkConnection | null): TopBarNotice | null {
   const known = snapshot.status_availability?.state;
   if (known === "unknown" || known === "absent") return null;
   if (!hasSavedPairing(snapshot))
-    return { tone: "warning", text: es.problem.unpaired, action: pair };
-  if (settled === "revoked") return { tone: "warning", text: es.problem.revoked, action: pair };
-  if (settled === "offline") return { tone: "warning", text: es.problem.offline };
+    return { id: "unpaired", tone: "warn", text: es.problem.unpaired, fix: pair };
+  if (settled === "revoked")
+    return { id: "revoked", tone: "warn", text: es.problem.revoked, fix: pair };
+  if (settled === "offline")
+    return {
+      id: "offline",
+      tone: "working",
+      text: es.problem.offline,
+      detail: es.problem.retrying,
+    };
+  // Connecting for the first time: on its way, never a failure.
+  if (settled === null) return { id: "hub", tone: "working", text: es.problem.connectingHub };
   return null;
 }
 
 /** A permission macOS has not granted. «unknown» is not missing: it says nothing. */
-function permissionProblem(permissions: AppSnapshot["permissions"]): Problem | null {
+function permissionNotice(permissions: AppSnapshot["permissions"]): TopBarNotice | null {
   const known = permissions.availability?.state;
   if (known === "unknown" || known === "absent") return null;
   const missing = permissionRows.filter(([key]) => {
@@ -47,32 +74,37 @@ function permissionProblem(permissions: AppSnapshot["permissions"]): Problem | n
     missing.length === 1 && only
       ? es.problem.missingPermission(only[1].name)
       : es.problem.missingPermissions;
-  return { tone: "warning", text, action: settings };
+  return {
+    id: "permission",
+    tone: "warn",
+    text,
+    fix: { kind: "route", label: es.problem.fix, route: settingsRoute("privacidad") },
+  };
 }
 
 /**
- * The one problem the top bar names, or nothing when all is well.
- * Orbit itself first, then the privacy stop, the hub and the permissions.
- * `settled` is the hub link's last state other than «connecting», so a
- * retry does not make the pill blink.
+ * The notices of the top bar, the most important first: everything
+ * stopped, the hub (unpaired, removed, offline, connecting), a missing
+ * permission. While Orbit gets ready after opening, only that. Empty when
+ * all is well. Orbit not answering at all is the whole window's, not the
+ * bar's. `settled` is the hub link's last state other than «connecting», so
+ * a retry does not make the notice blink.
  */
-export function statusProblem(
+export function topBarNotices(
   snapshot: AppSnapshot,
   settled: HubLinkConnection | null,
-): Problem | null {
-  const daemon = daemonProblem(snapshot.connection);
-  if (daemon) return daemon;
-  if (snapshot.privacy_stopped) {
-    return {
-      tone: "warning",
-      text: es.problem.privacyStopped,
-      action: { label: es.problem.rearm, command: { command: "rearm" } },
-    };
-  }
-  return hubProblem(snapshot, settled) ?? permissionProblem(snapshot.permissions);
+): TopBarNotice[] {
+  if (snapshot.connection.daemon === "connecting")
+    return [{ id: "daemon", tone: "working", text: es.problem.preparing }];
+  if (snapshot.connection.daemon === "lost") return [];
+  return [
+    privacyNotice(snapshot),
+    hubNotice(snapshot, settled),
+    permissionNotice(snapshot.permissions),
+  ].filter((notice): notice is TopBarNotice => notice !== null);
 }
 
-/** The hub link as the pill reads it: «connecting» keeps the state before it. */
+/** The hub link as the bar reads it: «connecting» keeps the state before it. */
 export function settleHub(
   previous: HubLinkConnection | null,
   connection: HubLinkConnection,

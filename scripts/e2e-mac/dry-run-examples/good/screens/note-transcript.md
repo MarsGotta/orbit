@@ -1,11 +1,12 @@
 - AXWindow "Orbit"
   - AXWebArea
-    - AXGroup (Vistas)
-      - [1] AXButton (Hoy) [actions=[press]]
-      - [2] AXButton (Calendario) [actions=[press]]
-      - [3] AXButton (Reuniones) [actions=[press]]
-      - [4] AXButton (Asistente) [actions=[press]]
-      - [5] AXButton (Ajustes) [actions=[press]]
+    - AXGroup (Principal)
+      - [1] AXButton "Grabar reunión" [actions=[press]]
+      - AXLink "Hoy"
+      - AXLink "Calendario"
+      - [3] AXLink "Reuniones" [actions=[press]]
+      - [4] AXLink "Asistente" [actions=[press]]
+      - AXLink "Ajustes"
     - AXHeading
       - [6] AXTextField = "Reunión 16/10/26, 10:00" (Título de la reunión) [actions=[confirm]]
     - AXStaticText = "Se revisó el presupuesto y el calendario de obras."
@@ -52,5 +53,5 @@
         - [17] AXButton "Alina Pérez" [actions=[press]]
         - AXGroup
           - AXStaticText = "Y la próxima reunión la hacemos el martes que viene a las diez. Perfecto. Resumen: Laura llama al proveedor, Pedro escribe al ayuntamiento y los planos salen el lunes. Gracias a todos. Hasta el martes."
-    - AXGroup (Panel de contexto)
+    - AXGroup (Aviso de Orbit)
       - [40] AXButton "R Reunión 16/10/26, 10:00 › Se revisó el presupuesto y el calendario de obras 16 oct" [actions=[press]]

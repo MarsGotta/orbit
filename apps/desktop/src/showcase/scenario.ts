@@ -68,6 +68,8 @@ export interface Scenario {
   connect?: "hang" | "fail";
   /** The refusal the daemon answers an order with, when it refuses it. */
   refuse?: (command: AppCommand) => Refusal | null;
+  /** What the daemon publishes after an order, beyond the showcase's own reactions. */
+  react?: (views: Views, command: AppCommand) => Partial<Views> | null;
   /** The browser storage the app reads at start, beyond onboarding done. */
   storage?: Record<string, string>;
   /** Whether the first-run guide was completed on this Mac (true by default). */

@@ -83,7 +83,13 @@ function body(question: MeetingQuestionSnapshot, openUrl: QuestionCardProps["ope
  * The answer, in the Markdown Deimos writes, with its web links,
  * bare ones too, as links that open outside Orbit through the panel.
  */
-function AnswerText({ openUrl, text }: { openUrl: QuestionCardProps["openUrl"]; text: string }) {
+export function AnswerText({
+  openUrl,
+  text,
+}: {
+  openUrl: QuestionCardProps["openUrl"];
+  text: string;
+}) {
   // Its web links become Markdown links; any other bracket stays literal, so
   // a link to anything but the web is shown as written, never as a link.
   const source = answerPieces(text)

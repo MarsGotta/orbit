@@ -1,5 +1,5 @@
-/* The question to Deimos and its answer, in the floating panel and
-   under the recording pill. Orbit's tokens only. */
+/* The question to Deimos and its answer, in the floating panel.
+   Orbit's tokens only. */
 .card,
 .ask {
   background: var(--o-side);
@@ -100,15 +100,4 @@
 .window[aria-checked="true"] {
   background: var(--o-surface);
   color: var(--o-ink);
-}
-
-/* «Preguntar a Deimos» under the recording pill. */
-.popover {
-  font-weight: 400;
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  white-space: normal;
-  width: 320px;
-  z-index: 20;
 }

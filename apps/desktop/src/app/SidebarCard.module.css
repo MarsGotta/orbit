@@ -1,0 +1,113 @@
+/* The cards «Grabando» and «En llamada» at the top of the sidebar
+   (prototypes Grabando and Llamada). */
+.card {
+  position: relative;
+  margin-bottom: var(--o-space-16);
+  padding: var(--o-space-12);
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-lg);
+  background: var(--o-surface);
+}
+
+.card + .card {
+  margin-top: calc(-1 * var(--o-space-8));
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-8);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--o-rec);
+  animation: orbit-pulse var(--o-dur-pulse) ease-in-out infinite;
+}
+
+.dot[data-phase="paused"] {
+  background: var(--o-warn);
+  animation: none;
+}
+
+.state {
+  min-width: 0;
+  color: var(--o-recText);
+  font: 600 12px/1.4 var(--o-font-sans);
+}
+
+.state[data-phase="paused"] {
+  color: var(--o-warn);
+}
+
+.state[data-phase="starting"],
+.state[data-phase="finishing"] {
+  color: var(--o-ink2);
+}
+
+.state[data-phase="call"] {
+  color: var(--o-accText);
+}
+
+.clock {
+  margin-left: auto;
+  font: 600 14px/1.4 var(--o-font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.title {
+  margin-top: var(--o-space-6);
+  overflow-wrap: anywhere;
+  font: 500 13px/1.35 var(--o-font-sans);
+}
+
+.meta,
+.warn {
+  margin-top: var(--o-space-2);
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.meta + .meta {
+  margin-top: 0;
+}
+
+.warn {
+  color: var(--o-warn);
+}
+
+.warn a {
+  color: var(--o-accText);
+  text-decoration: none;
+}
+
+.ending {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--o-space-6);
+  margin-top: var(--o-space-8);
+  color: var(--o-ink2);
+  font: var(--o-text-meta);
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: var(--o-space-6);
+  margin-top: var(--o-space-6);
+}
+
+.controls > *,
+.wide {
+  width: 100%;
+  padding: 0 var(--o-space-8);
+  border-radius: var(--o-radius-md);
+}
+
+.wide {
+  margin-top: var(--o-space-10);
+}

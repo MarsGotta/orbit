@@ -1,0 +1,191 @@
+/* «Preguntar a Deimos» on the recording card, and the window anchored to it,
+   beside the sidebar (prototype Grabando, 380 px). */
+.anchor {
+  display: flex;
+  margin-top: var(--o-space-10);
+}
+
+/* The window lines up with the card it belongs to, not with the button. */
+.anchor > span {
+  position: static;
+  display: flex;
+  flex: 1;
+}
+
+.trigger {
+  width: 100%;
+  height: var(--o-control-md);
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-md);
+  background: transparent;
+  color: var(--o-ink);
+  font: var(--o-text-control);
+  cursor: pointer;
+  transition: background var(--o-dur-fast);
+}
+
+.trigger:hover {
+  background: var(--o-hover);
+}
+
+/* The anchored window opens to the right of the sidebar, level with the card. */
+.anchor [role="dialog"] {
+  top: 0;
+  left: calc(100% + 24px);
+  width: 380px;
+  max-width: 380px;
+  padding: var(--o-space-16);
+}
+
+.menu {
+  position: relative;
+}
+
+.title {
+  margin: 0;
+  padding-right: var(--o-space-32);
+  font: 600 14px/1.4 var(--o-font-sans);
+}
+
+.close {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--o-radius-md);
+  background: transparent;
+  color: var(--o-ink2);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--o-hover);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+}
+
+.field {
+  height: 38px;
+  margin-top: var(--o-space-10);
+  padding: 0 var(--o-space-10);
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-lg);
+  background: var(--o-bg);
+  color: var(--o-ink);
+  font: 400 13px/1.4 var(--o-font-sans);
+  outline: none;
+  transition: border-color var(--o-dur-fast);
+}
+
+.field::placeholder {
+  color: var(--o-ink3);
+}
+
+.field:focus {
+  border-color: var(--o-accText);
+}
+
+.windows {
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-6);
+  margin-top: var(--o-space-10);
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.windows > span {
+  margin-right: var(--o-space-2);
+}
+
+.window {
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-pill);
+  background: transparent;
+  color: var(--o-ink2);
+  font: 500 12px/1 var(--o-font-sans);
+  cursor: pointer;
+}
+
+.window[aria-checked="true"] {
+  border-color: var(--o-accText);
+  background: var(--o-accSoft);
+  color: var(--o-accText);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--o-space-8);
+  margin-top: var(--o-space-14);
+}
+
+.hint {
+  flex: 1;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.answer {
+  display: flex;
+  flex-direction: column;
+}
+
+.asked {
+  margin: var(--o-space-10) 0 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-8);
+  margin: var(--o-space-10) 0 0;
+  color: var(--o-ink2);
+  font: 400 13px/1.4 var(--o-font-sans);
+}
+
+.text {
+  max-height: 320px;
+  margin-top: var(--o-space-6);
+  overflow-y: auto;
+  font: 400 14px/1.55 var(--o-font-sans);
+  user-select: text;
+}
+
+.text p {
+  margin: 0 0 var(--o-space-6);
+}
+
+.cause {
+  margin: var(--o-space-6) 0 0;
+  color: var(--o-recText);
+  font: var(--o-text-meta);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* The field's own border is its focus ring. */
+.field:focus-visible {
+  outline: none;
+}

@@ -1,7 +1,7 @@
 import { es } from "../i18n/es";
 
 // The countdown of a recording a call started, once the call ended.
-// Shared by the floating panel and the main window's pill.
+// Shared by the floating panel and the recording card of the sidebar.
 
 /** Whole seconds until `endsAtMs`, rounded up and never below zero. */
 export function secondsLeft(endsAtMs: number, nowMs: number): number {

@@ -1,14 +1,19 @@
 - AXWindow "Orbit"
   - AXWebArea
-    - AXGroup (Vistas)
-      - [1] AXButton (Hoy) [actions=[press]]
-      - [2] AXButton (Calendario) [actions=[press]]
-      - [3] AXButton (Reuniones) [actions=[press]]
-      - [4] AXButton (Asistente) [actions=[press]]
-      - [5] AXButton (Ajustes) [actions=[press]]
-    - [6] AXGroup (Grabando · Reunión 16/10/26, 10:00 · 01:02) [actions=[scrolltovisible,showmenu]]
-      - AXStaticText = "Grabando · Reunión 16/10/26, 10:00 · 01:02"
-      - AXStaticText = "«Oye Deimos» escucha"
+    - AXGroup (Principal)
+      - AXGroup (Grabación en curso)
+        - AXStaticText = "Grabando"
+        - AXStaticText = "01:02"
+        - AXStaticText = "Reunión 16/10/26, 10:00"
+        - AXStaticText = "Solo tu micrófono · hasta las 11:02"
+        - AXStaticText = "«Oye Deimos» te escucha"
+        - [20] AXButton "Pausar" [actions=[press]]
+        - [21] AXButton "Terminar" [actions=[press]]
+      - AXLink "Hoy"
+      - AXLink "Calendario"
+      - [3] AXLink "Reuniones" [actions=[press]]
+      - [4] AXLink "Asistente" [actions=[press]]
+      - AXLink "Ajustes"
     - AXHeading
       - AXStaticText = "Reuniones"
     - [7] AXButton "R Reunión 16/10/26, 10:00 Grabando 16 oct, 10:00" [actions=[press]]

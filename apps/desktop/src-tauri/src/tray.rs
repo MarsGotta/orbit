@@ -1,9 +1,10 @@
 use crate::daemon_thread::EmbeddedDaemon;
-use orbit_app_core::{AppCommand, DaemonClient};
+use orbit_app_core::{AppCommand, DaemonClient, MeetingPhase};
+use std::sync::Mutex;
 use tauri::{
     Manager,
-    menu::{Menu, MenuItem},
-    tray::TrayIconBuilder,
+    menu::{Menu, MenuItem, PredefinedMenuItem},
+    tray::{TrayIcon, TrayIconBuilder},
 };
 
 const OPEN: &str = "open";
@@ -13,32 +14,130 @@ const STOP: &str = "stop";
 const QUIT: &str = "quit";
 const UPDATE: &str = "update";
 
-struct UpdateMenu<R: tauri::Runtime>(Menu<R>);
+/// What the menu bar's menu depends on, from the latest frames.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct TrayState {
+    /// A recording that «Terminar grabación» can finish.
+    recording: bool,
+    update: Option<UpdateOffer>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct UpdateOffer {
+    version: String,
+    /// False while something stops the install (a recording, a call):
+    /// the item stays, disabled, as Ajustes says why.
+    installable: bool,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum Entry {
+    Item {
+        id: &'static str,
+        label: String,
+        enabled: bool,
+    },
+    Separator,
+}
+
+fn item(id: &'static str, label: impl Into<String>, enabled: bool) -> Entry {
+    Entry::Item {
+        id,
+        label: label.into(),
+        enabled,
+    }
+}
+
+/// The menu, grouped as the window is: open Orbit; record or finish, only
+/// the one that can be done now enabled; stop everything and the update on
+/// offer; quit. Recording here starts at once, as ⌃⌥M does («Grabar
+/// reunión» in the window opens «Nueva grabación» instead).
+fn entries(state: &TrayState) -> Vec<Entry> {
+    let mut entries = vec![
+        item(OPEN, "Abrir Orbit", true),
+        Entry::Separator,
+        item(RECORD, "Grabar reunión ahora", !state.recording),
+        item(FINISH_RECORDING, "Terminar grabación", state.recording),
+        Entry::Separator,
+        item(STOP, "Parar todo", true),
+    ];
+    if let Some(offer) = &state.update {
+        entries.push(item(
+            UPDATE,
+            format!("Actualizar a la {}", offer.version),
+            offer.installable,
+        ));
+    }
+    entries.extend([Entry::Separator, item(QUIT, "Salir de Orbit", true)]);
+    entries
+}
+
+/// Whether «Terminar grabación» has a recording to finish: also while it
+/// starts or is paused, not while it is already being saved.
+fn finishable(phase: &MeetingPhase) -> bool {
+    matches!(
+        phase,
+        MeetingPhase::Starting | MeetingPhase::Recording | MeetingPhase::Paused
+    )
+}
+
+fn menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>, entries: &[Entry]) -> tauri::Result<Menu<R>> {
+    let menu = Menu::new(app)?;
+    for entry in entries {
+        match entry {
+            Entry::Item { id, label, enabled } => {
+                menu.append(&MenuItem::with_id(app, *id, label, *enabled, None::<&str>)?)?
+            }
+            Entry::Separator => menu.append(&PredefinedMenuItem::separator(app)?)?,
+        }
+    }
+    Ok(menu)
+}
+
+struct Tray<R: tauri::Runtime> {
+    icon: TrayIcon<R>,
+    state: Mutex<TrayState>,
+}
+
+/// Applies `change` to what the menu shows and redraws it when it changed.
+fn refresh<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    change: impl FnOnce(&mut TrayState),
+) -> tauri::Result<()> {
+    let Some(tray) = app.try_state::<Tray<R>>() else {
+        return Ok(());
+    };
+    let mut state = match tray.state.lock() {
+        Ok(state) => state,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let before = state.clone();
+    change(&mut state);
+    if *state == before {
+        return Ok(());
+    }
+    tray.icon.set_menu(Some(menu(app, &entries(&state))?))
+}
 
 pub(crate) fn refresh_update<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     update: &orbit_app_core::UpdateSnapshot,
 ) -> tauri::Result<()> {
-    let Some(menu) = app.try_state::<UpdateMenu<R>>() else {
-        return Ok(());
+    let offer = match (&update.state, &update.version) {
+        (orbit_app_core::SettingsUpdateState::Available, Some(version)) => Some(UpdateOffer {
+            version: version.clone(),
+            installable: update.install_blocked.is_none(),
+        }),
+        _ => None,
     };
-    let existing = menu.0.get(UPDATE);
-    if update.state == orbit_app_core::SettingsUpdateState::Available
-        && let Some(version) = &update.version
-    {
-        let label = format!("Actualizar a la {version}");
-        let enabled = update.install_blocked.is_none();
-        if let Some(item) = existing.as_ref().and_then(|item| item.as_menuitem()) {
-            item.set_text(label)?;
-            item.set_enabled(enabled)?;
-        } else {
-            let item = MenuItem::with_id(app, UPDATE, label, enabled, None::<&str>)?;
-            menu.0.insert(&item, 4)?;
-        }
-    } else if let Some(item) = existing {
-        menu.0.remove(&item)?;
-    }
-    Ok(())
+    refresh(app, |state| state.update = offer)
+}
+
+pub(crate) fn refresh_recording<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    phase: &MeetingPhase,
+) -> tauri::Result<()> {
+    refresh(app, |state| state.recording = finishable(phase))
 }
 
 /// The menu bar mark, in pixels: 18 points at the Mac's 2× density, the
@@ -52,19 +151,8 @@ const MARK_BAR_GAP: f32 = 3.0;
 const MARK_SAMPLES: u32 = 4;
 
 pub fn install(app: &tauri::AppHandle) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, OPEN, "Abrir Orbit", true, None::<&str>)?;
-    let record = MenuItem::with_id(app, RECORD, "Grabar reunión ahora", true, None::<&str>)?;
-    let finish_recording = MenuItem::with_id(
-        app,
-        FINISH_RECORDING,
-        "Terminar grabación",
-        true,
-        None::<&str>,
-    )?;
-    let stop = MenuItem::with_id(app, STOP, "Parar todo", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, QUIT, "Salir de Orbit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &record, &finish_recording, &stop, &quit])?;
-    TrayIconBuilder::new()
+    let state = TrayState::default();
+    let icon = TrayIconBuilder::new()
         .icon(tauri::image::Image::new_owned(
             mark_rgba(),
             MARK_PIXELS,
@@ -72,10 +160,13 @@ pub fn install(app: &tauri::AppHandle) -> tauri::Result<()> {
         ))
         .icon_as_template(true)
         .tooltip("Orbit")
-        .menu(&menu)
+        .menu(&menu(app, &entries(&state))?)
         .on_menu_event(handle_menu)
         .build(app)?;
-    app.manage(UpdateMenu(menu));
+    app.manage(Tray {
+        icon,
+        state: Mutex::new(state),
+    });
     Ok(())
 }
 
@@ -224,6 +315,73 @@ mod tests {
         };
         assert!(title.is_empty(), "only app-core reads the local clock");
         assert_eq!(minutes, 60);
+    }
+
+    fn labels(state: &TrayState) -> Vec<(String, bool)> {
+        entries(state)
+            .into_iter()
+            .map(|entry| match entry {
+                Entry::Item { label, enabled, .. } => (label, enabled),
+                Entry::Separator => ("—".to_owned(), false),
+            })
+            .collect()
+    }
+
+    fn owned(rows: &[(&str, bool)]) -> Vec<(String, bool)> {
+        rows.iter()
+            .map(|(label, on)| ((*label).to_owned(), *on))
+            .collect()
+    }
+
+    /// The menu bar's menu, grouped as the window is: open it; record or
+    /// finish, only the one that can be done now; stop everything; quit.
+    #[test]
+    fn the_menu_offers_only_what_can_be_done_now() {
+        assert_eq!(
+            labels(&TrayState::default()),
+            owned(&[
+                ("Abrir Orbit", true),
+                ("—", false),
+                ("Grabar reunión ahora", true),
+                ("Terminar grabación", false),
+                ("—", false),
+                ("Parar todo", true),
+                ("—", false),
+                ("Salir de Orbit", true),
+            ])
+        );
+        let recording = TrayState {
+            recording: true,
+            update: None,
+        };
+        let rows = labels(&recording);
+        assert_eq!(rows[2], ("Grabar reunión ahora".to_owned(), false));
+        assert_eq!(rows[3], ("Terminar grabación".to_owned(), true));
+    }
+
+    #[test]
+    fn a_new_version_sits_beside_parar_todo_and_says_when_it_cannot_install() {
+        let offered = TrayState {
+            recording: true,
+            update: Some(UpdateOffer {
+                version: "0.10.2".to_owned(),
+                installable: false,
+            }),
+        };
+        let rows = labels(&offered);
+        assert_eq!(rows[5], ("Parar todo".to_owned(), true));
+        assert_eq!(rows[6], ("Actualizar a la 0.10.2".to_owned(), false));
+        assert_eq!(rows.last(), Some(&("Salir de Orbit".to_owned(), true)));
+    }
+
+    #[test]
+    fn a_recording_can_be_finished_while_it_starts_or_is_paused_but_not_while_it_saves() {
+        use orbit_app_core::MeetingPhase;
+        assert!(finishable(&MeetingPhase::Starting));
+        assert!(finishable(&MeetingPhase::Recording));
+        assert!(finishable(&MeetingPhase::Paused));
+        assert!(!finishable(&MeetingPhase::Finishing));
+        assert!(!finishable(&MeetingPhase::Idle));
     }
 
     fn alpha(rgba: &[u8], x: u32, y: u32) -> u8 {

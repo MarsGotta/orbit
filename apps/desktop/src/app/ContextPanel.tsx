@@ -5,18 +5,14 @@ import type { AppCommand } from "../bridge/generated";
 import type { ChatSessionSummary } from "../bridge/generated/ChatSessionSummary";
 import { agentFor, agentsOf } from "../features/assistant/agents";
 import { sessionTitle } from "../features/assistant/session-title";
-import type { RowTone } from "../features/notes/note-row";
-import { notesData } from "./notes-context";
 import type { ViewId } from "../state/ui";
+import { ListColumn } from "./shell-slots";
 import styles from "./ContextPanel.module.css";
 
 interface ContextRow {
   active?: boolean;
-  initial: string;
   meta: string;
   subtitle: string;
-  /** How the subtitle reads: a note recording or failed shows it. */
-  tone?: RowTone;
   title: string;
   turnActive?: boolean;
   onSelect?: () => void;
@@ -40,7 +36,6 @@ export function contextForView(
   send?: Send,
   sessions: ChatSessionSummary[] = [],
 ): ContextPanelData | null {
-  if (view === "notes") return notesData(snapshot, send);
   if (view === "assistant") return assistantData(snapshot, send, sessions);
   return null;
 }
@@ -60,7 +55,6 @@ function assistantData(
     const title = open ? sessionTitle(open.created_at_ms) : es.assistant.emptySessionTitle;
     activeRows.push({
       active: true,
-      initial: title.slice(0, 1) || "O",
       meta: es.context.now,
       subtitle: open ? formatSessionDate(open.last_at_ms) : "",
       title,
@@ -68,7 +62,6 @@ function assistantData(
     });
   }
   activeRows.push({
-    initial: "+",
     meta: "",
     subtitle: es.assistant.newSession,
     title: es.assistant.newSession,
@@ -84,7 +77,6 @@ function assistantData(
         const title = sessionTitle(session.created_at_ms);
         const agent = named ? agentFor(snapshot, session.agent_id) : undefined;
         return {
-          initial: title.slice(0, 1) || "O",
           meta: formatSessionDate(session.last_at_ms),
           subtitle: agent?.name ?? title,
           title,
@@ -105,53 +97,36 @@ function assistantData(
   };
 }
 
-export function ContextPanel({
-  data,
-  footer,
-  narrow = false,
-}: {
-  data: ContextPanelData;
-  footer?: ReactNode;
-  /** The notes list is 244 px wide, so the note keeps its reading width. */
-  narrow?: boolean;
-}) {
+/** The conversations, in the list column beside the sidebar. */
+export function ContextPanel({ data, footer }: { data: ContextPanelData; footer?: ReactNode }) {
   return (
-    <aside
-      aria-label={es.shell.contextLabel}
-      className={styles.panel}
-      data-narrow={narrow || undefined}
+    <ListColumn
+      actions={<span className={styles.count}>{data.count}</span>}
+      label={data.title}
+      title={data.title}
     >
-      <header className={styles.header}>
-        <strong>{data.title}</strong>
-        <span>{data.count}</span>
-      </header>
-      <div className={styles.groups}>
-        {data.groups.map((group) => (
-          <section className={styles.group} key={group.label}>
-            <h2>{group.label}</h2>
-            {group.rows.map((item, index) => (
-              <button
-                className={styles.row}
-                data-active={item.active || undefined}
-                data-turn-active={item.turnActive || undefined}
-                key={`${group.label}-${index}-${item.title}`}
-                onClick={item.onSelect}
-                type="button"
-              >
-                <span className={styles.initial}>{item.initial}</span>
-                <span className={styles.copy}>
-                  <strong>
-                    {item.title} <span aria-hidden="true">›</span>
-                  </strong>
-                  <small data-tone={item.tone}>{item.subtitle}</small>
-                </span>
+      {data.groups.map((group) => (
+        <section className={styles.group} key={group.label}>
+          <h3>{group.label}</h3>
+          {group.rows.map((item, index) => (
+            <button
+              className={styles.row}
+              data-active={item.active || undefined}
+              data-turn-active={item.turnActive || undefined}
+              key={`${group.label}-${index}-${item.title}`}
+              onClick={item.onSelect}
+              type="button"
+            >
+              <span className={styles.line}>
+                <strong>{item.title}</strong>
                 <span className={styles.meta}>{item.meta}</span>
-              </button>
-            ))}
-          </section>
-        ))}
-      </div>
+              </span>
+              <small>{item.subtitle}</small>
+            </button>
+          ))}
+        </section>
+      ))}
       {footer}
-    </aside>
+    </ListColumn>
   );
 }

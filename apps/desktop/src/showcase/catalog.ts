@@ -7,20 +7,20 @@ import { grabarScenarios } from "./scenarios/grabar";
 import { hoyScenarios } from "./scenarios/hoy";
 import { notesScenarios } from "./scenarios/notes";
 import { panelScenarios } from "./scenarios/panel";
-import { recordingScenarios } from "./scenarios/recording";
 import { settingsScenarios } from "./scenarios/settings";
 import { shellScenarios } from "./scenarios/shell";
+import { windowScenarios } from "./scenarios/window";
 import type { Scenario } from "./scenario";
 
 /** Every scenario of the showcase, in the order the brief shows them. */
 export const scenarios: Scenario[] = [
   ...shellScenarios,
+  ...windowScenarios,
   ...hoyScenarios,
   ...calendarScenarios,
   ...notesScenarios,
   ...chatScenarios,
   ...chatMediaScenarios,
-  ...recordingScenarios,
   ...grabarScenarios,
   ...panelScenarios,
   ...settingsScenarios,

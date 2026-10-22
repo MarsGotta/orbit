@@ -497,9 +497,8 @@ class RealTest:
                 ui.press(self.main, "Configurarlo más tarde", ("AXButton",))
 
         with self.step("start recording from the interface", (1, 2, 3, 4, 5, 6, 7)):
-            ui.press(self.main, "Reuniones", ("AXButton",))
-            # The empty list and the top bar both offer it; either opens
-            # «Nueva grabación».
+            # «Grabar reunión» of the sidebar, in every view (Sidebar.tsx); the
+            # sidebar comes first in the tree, before any view's own button.
             ui.press(self.main, "Grabar reunión", ("AXButton",), first=True)
             # Microphone only: the script plays into BlackHole, the default
             # input, and with system audio too every line would be recorded
@@ -545,10 +544,10 @@ class RealTest:
             self.mac.say("part2")
 
         with self.step("end the recording from the interface", (1, 2, 3, 4, 5, 6)):
-            # «Terminar» is always in the page (MeetingPill.tsx, since run 14
-            # found it reachable only under a mouse hover): pressed by
-            # accessibility, as the keyboard would.
-            ui.press(self.main, "Terminar", ("AXButton",))
+            # «Terminar» is always in sight on the sidebar's recording card
+            # (RecordingCard.tsx; run 14 found the old pill's only under a mouse
+            # hover): pressed by accessibility, as the keyboard would.
+            ui.press(self.main, "Terminar", ("AXButton",), first=True)
 
         with self.step("the saved recording", (1, 2, 3, 4, 5, 6)):
             saved = self.wait_mac("saved", self.ev["recording"]["id"])
@@ -609,7 +608,8 @@ class RealTest:
             ui.read(self.main, "find the notice's note (whole window)", None)
 
         with self.step("open the note from the list of meetings (Reuniones)", (6,), critical=False):
-            ui.press(self.main, "Reuniones", ("AXButton",))
+            # The sidebar names the section «Reuniones», a link (Sidebar.tsx).
+            ui.press(self.main, "Reuniones", ("AXLink",))
             # The list and the opened note name it by the meeting's title
             # (decided on 2026-10-17).
             title = checks._title(self.ev)
@@ -642,7 +642,7 @@ class RealTest:
                 f"Prueba de Orbit {uuid.uuid4().hex[:6]}: contesta sólo con la palabra recibido."
             )
             self.ev["chat"] = {"message": message}
-            ui.press(self.main, "Asistente", ("AXButton",))
+            ui.press(self.main, "Asistente", ("AXLink",))
             ui.type_into(self.main, "Mensaje", message)
             ui.press(self.main, "Enviar", ("AXButton",))
             done = self.wait_mac("chat", message)

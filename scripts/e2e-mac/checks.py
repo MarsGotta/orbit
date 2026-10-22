@@ -25,7 +25,7 @@ NAMES = {
     6: "«Abrir», from «Tu nota está lista», and the list of Notes open that note",
     7: "«Oye Deimos» asks a question and the answer appears in the panel",
     8: "The Assistant answers and reopens an earlier conversation with its messages",
-    9: "No status pill and none of the texts the interface removed",
+    9: "No problem notice in the top bar and none of the texts the interface removed",
     10: "No unexpected failure in the logs",
     11: "A voice note is transcribed and Deimos answers",
     12: "The call opens and listens",
@@ -60,6 +60,9 @@ TRANSCRIPT_START = "Idioma de la transcripción: "
 # The note's title is an editable field (NoteHeader.tsx,
 # `es.noteScreen.titleLabel`): its value is the title, its label this.
 TITLE_FIELD = "Título de la reunión"
+# What follows the view in the window's tree, when anything does: a corner
+# notice (Toast.tsx, `es.shell.notice`). The transcript is read up to it.
+NOTICE_LABEL = "Aviso de Orbit"
 # The texts earlier interface revisions removed from the screen. None may
 # appear anywhere, ever.
 REMOVED = (
@@ -110,16 +113,16 @@ REMOVED_PATTERNS = (
     re.compile(r"HTTP \d{3}"),
     re.compile(r"\d+ ms\b"),
 )
-# The status pill's texts (apps/desktop/src/i18n/es/status.ts, `problem`), each
+# The top bar's notices (apps/desktop/src/i18n/es/shell.ts, `problem`), each
 # up to its first variable part: with everything in order none of them shows.
 # contracts/constants.json registers them (STATUS_PILL_TEXTS) and its guard
-# checks this list and that file against it; a new pill text is added there.
+# checks this list and that file against it; a new problem notice is added there.
 PILL = (
-    "Orbit no responde.",
+    "Orbit no responde",
     "Todo está parado",
     "Este Mac no está emparejado",
     "El hub retiró este Mac",
-    "Sin conexión. Comprueba tu red.",
+    "Sin conexión con el hub",
     "Falta el permiso de",
     "Faltan permisos",
 )
@@ -153,7 +156,7 @@ def _fact(ev: dict, key: str):
 
 def _transcript(ev: dict) -> tuple[list[str], list[ax_tree.Segment]]:
     before, segments = ax_tree.transcript(
-        _tree(ev, "note-transcript"), TRANSCRIPT_START, "Panel de contexto"
+        _tree(ev, "note-transcript"), TRANSCRIPT_START, NOTICE_LABEL
     )
     return before, segments
 
@@ -398,7 +401,7 @@ def c9_no_noise(ev: dict) -> tuple[bool, str]:
                 seen.append(f"«{found.group(0)}» in {label}")
     if seen:
         return False, "; ".join(seen[:8])
-    return True, f"{len(trees)} screens read with no pill and no removed text"
+    return True, f"{len(trees)} screens read with no problem notice and no removed text"
 
 
 def c11_voice_note(ev: dict) -> tuple[bool, str]:

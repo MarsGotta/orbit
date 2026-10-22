@@ -1441,7 +1441,7 @@
   {
     "copies": [
       {
-        "file": "apps/desktop/src/i18n/es/status.ts",
+        "file": "apps/desktop/src/i18n/es/shell.ts",
         "name": "problem",
         "unit": "texts"
       },
@@ -1452,15 +1452,15 @@
       }
     ],
     "name": "STATUS_PILL_TEXTS",
-    "resource": "the status pill's texts, each up to its first variable part; the real test fails a screen that shows one. A new pill text is added here",
+    "resource": "the top bar's notices of a problem, each up to its first variable part; the real test fails a screen that shows one. A new notice of a problem is added here",
     "source": "registry",
     "unit": "texts",
     "value": [
-      "Orbit no responde.",
+      "Orbit no responde",
       "Todo está parado",
       "Este Mac no está emparejado",
       "El hub retiró este Mac",
-      "Sin conexión. Comprueba tu red.",
+      "Sin conexión con el hub",
       "Falta el permiso de",
       "Faltan permisos"
     ]

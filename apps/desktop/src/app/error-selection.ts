@@ -6,7 +6,8 @@ import { messageFor } from "./visible-error";
 /** The refusals shown inside the view, onboarding and launcher that sent them. */
 export function useErrorSelection(store: OrbitStore, view: ViewId) {
   const messages = useStore(store, (state) => state.messages);
-  const errorView = window.location.hash.startsWith("#/notes/") ? "notes" : view;
+  // The route names the view, a note's own route (`#/notes/<id>`) included.
+  const errorView = view;
   return {
     errorView,
     visibleError: messageFor(errorView, messages)?.text ?? null,

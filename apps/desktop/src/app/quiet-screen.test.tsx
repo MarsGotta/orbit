@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AppCommand } from "../bridge/generated";
@@ -7,14 +7,13 @@ import { AssistantComposer } from "../features/assistant/AssistantComposer";
 import { UnknownAssistant } from "../features/assistant/AssistantAvailability";
 import { briefingAgendaStatus } from "../features/briefing/BriefingSections";
 import { CalendarFeedback } from "../features/calendar/CalendarFeedback";
-import { MeetingEntryPoints } from "../features/meetings/MeetingEntryPoints";
 import type { AppView as AppSnapshot } from "../state/app-view";
-import type { ViewId } from "../state/ui";
-import { AppTopBar } from "./AppTopBar";
 import { NoticeBanner } from "./NoticeBanner";
+import { Sidebar } from "./Sidebar";
+import { TopBar } from "./TopBar";
 
 // When everything is fine the screen says nothing; a problem says
-// what to do; an unknown is not a failure and is not painted.
+// what to do; an unknown is not a failure and is not painted as one.
 
 type Overrides = {
   connection?: Partial<AppSnapshot["connection"]>;
@@ -51,24 +50,25 @@ function snapshot(overrides: Overrides = {}): AppSnapshot {
       permissions,
     },
     meeting: { phase: "idle", recent: [], tracks: [] },
+    call: null,
+    chat: { pending: null },
   } as unknown as AppSnapshot;
 }
 
-function renderTopBar(value: AppSnapshot, view: ViewId = "briefing") {
+function renderTopBar(value: AppSnapshot) {
   const sent: AppCommand[] = [];
-  const opened: ViewId[] = [];
+  let paired = 0;
   const view_ = render(
-    <AppTopBar
-      dispatch={(command) => sent.push(command)}
-      navigate={(target) => opened.push(target)}
+    <TopBar
       onOpenPalette={() => undefined}
-      onRecord={() => undefined}
-      onToggleTheme={() => undefined}
+      onPair={() => (paired += 1)}
+      send={async (command) => {
+        sent.push(command);
+      }}
       snapshot={value}
-      view={view}
     />,
   );
-  return { sent, opened, view: view_ };
+  return { sent, paired: () => paired, view: view_ };
 }
 
 const NOISE = [
@@ -91,56 +91,55 @@ function expectQuiet(text: string | null) {
 
 afterEach(cleanup);
 
-describe("the status pill", () => {
-  it("with everything fine there is no pill", () => {
+describe("the notice of the top bar", () => {
+  it("with everything fine there is no notice", () => {
     const { view } = renderTopBar(snapshot());
     expect(screen.queryByRole("status")).toBeNull();
     expectQuiet(view.container.textContent);
   });
 
-  it("offline, the pill says what to do", () => {
+  it("offline, the notice says so and that Orbit keeps trying", () => {
     const { view } = renderTopBar(
       snapshot({ connection: { hub: "offline" }, hub: { connection: "offline" } }),
     );
-    const pill = screen.getByRole("status");
-    expect(pill.textContent).toMatch(/Sin conexión/);
-    expect(pill.textContent).toMatch(/Comprueba/);
+    const notice = screen.getByRole("status");
+    expect(notice.textContent).toMatch(/Sin conexión con el hub/);
+    expect(notice.textContent).toMatch(/Reintentando…/);
     expectQuiet(view.container.textContent);
   });
 
-  it("a reconnection does not make the pill flicker: connecting still says offline", () => {
+  it("a reconnection does not make the notice flicker: connecting still says offline", () => {
     const offline = snapshot({ connection: { hub: "offline" }, hub: { connection: "offline" } });
     const { view } = renderTopBar(offline);
     view.rerender(
-      <AppTopBar
-        dispatch={() => undefined}
-        navigate={() => undefined}
+      <TopBar
         onOpenPalette={() => undefined}
-        onRecord={() => undefined}
-        onToggleTheme={() => undefined}
+        onPair={() => undefined}
+        send={async () => undefined}
         snapshot={snapshot({
           connection: { hub: "connecting" },
           hub: { connection: "connecting" },
         })}
-        view="briefing"
       />,
     );
-    expect(screen.getByRole("status").textContent).toMatch(/Sin conexión/);
+    expect(screen.getByRole("status").textContent).toMatch(/Sin conexión con el hub/);
   });
 
-  it("at startup, while it connects for the first time, it says nothing", () => {
+  // «Nada en blanco»: the first connection is shown as on its way,
+  // never as a failure.
+  it("at startup, while it connects for the first time, it says it connects", () => {
     renderTopBar(
       snapshot({ connection: { hub: "connecting" }, hub: { connection: "connecting" } }),
     );
-    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("status").textContent).toBe("Conectando con tu hub…");
   });
 
-  it("when a permission is missing, the pill says so and leads to Ajustes", async () => {
-    const { opened } = renderTopBar(snapshot({ permissions: { microphone: "denied" } }));
-    const pill = screen.getByRole("status");
-    expect(pill.textContent).toMatch(/Falta el permiso de micrófono/);
-    await userEvent.click(screen.getByRole("button", { name: "Abrir Ajustes" }));
-    expect(opened).toEqual(["settings"]);
+  it("when a permission is missing, the notice says so and leads to its section", () => {
+    renderTopBar(snapshot({ permissions: { microphone: "denied" } }));
+    expect(screen.getByRole("status").textContent).toMatch(/Falta el permiso de micrófono/);
+    expect(screen.getByRole("link", { name: "Arreglar" }).getAttribute("href")).toBe(
+      "#/settings/privacidad",
+    );
   });
 
   it("an unknown permission is not a missing permission", () => {
@@ -148,20 +147,36 @@ describe("the status pill", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
-  it("with privacy stopped, the pill offers to reactivate Orbit", async () => {
-    const { sent } = renderTopBar(snapshot({ privacy_stopped: true }));
+  it("with everything stopped, the notice reactivates Orbit and says so until Orbit answers", async () => {
+    const sent: AppCommand[] = [];
+    let answer = () => undefined as void;
+    render(
+      <TopBar
+        onOpenPalette={() => undefined}
+        onPair={() => undefined}
+        send={(command) => {
+          sent.push(command);
+          return new Promise<void>((resolve) => (answer = resolve));
+        }}
+        snapshot={snapshot({ privacy_stopped: true })}
+      />,
+    );
     expect(screen.getByRole("status").textContent).toMatch(/Todo está parado/);
     await userEvent.click(screen.getByRole("button", { name: "Reactivar" }));
     expect(sent).toEqual([{ command: "rearm" }]);
+    expect(screen.getByRole("status").textContent).toMatch(/Reactivando…/);
+    expect(screen.queryByRole("button", { name: "Reactivar" })).toBeNull();
+    await act(async () => answer());
+    expect(screen.getByRole("button", { name: "Reactivar" })).toBeTruthy();
   });
 
-  it("unpaired, the pill leads to pairing", async () => {
-    const { opened } = renderTopBar(
+  it("unpaired, the notice leads to pairing", async () => {
+    const { paired } = renderTopBar(
       snapshot({ connection: { hub: "unpaired" }, hub: { paired: false, connection: "offline" } }),
     );
     expect(screen.getByRole("status").textContent).toMatch(/no está emparejado/);
     await userEvent.click(screen.getByRole("button", { name: "Emparejar" }));
-    expect(opened).toEqual(["settings"]);
+    expect(paired()).toBe(1);
   });
 
   it("an unknown state paints nothing", () => {
@@ -213,17 +228,28 @@ describe("an unknown availability paints nothing", () => {
     expect(view.container.textContent).toBe("");
   });
 
-  it("an unknown recording paints nothing beside the bar", () => {
-    const view = render(
-      <MeetingEntryPoints
+  // «Grabar reunión» is always offered: the new recording window says what
+  // is missing, if anything. An unknown recording shows no card and no state.
+  it("an unknown recording paints no state beside «Grabar reunión»", () => {
+    render(
+      <Sidebar
         onRecord={() => undefined}
-        snapshot={snapshot({
-          recording_availability: { state: "unknown", cause: "pending:helper_starting" },
-        })}
+        send={() => undefined}
+        snapshot={
+          {
+            ...snapshot({
+              recording_availability: { state: "unknown", cause: "pending:helper_starting" },
+            }),
+            notes: { list: [] },
+            settings: { profile: null },
+          } as unknown as AppSnapshot
+        }
         view="briefing"
       />,
     );
-    expect(view.container.textContent).toBe("");
+    expect(screen.getByRole("button", { name: "Grabar reunión" })).toBeTruthy();
+    expect(screen.queryByRole("region")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("without notices, the notice strip paints nothing", () => {

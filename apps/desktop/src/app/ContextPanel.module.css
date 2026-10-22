@@ -1,69 +1,29 @@
-.panel {
-  width: 288px;
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  min-height: 0;
-  border-right: 1px solid var(--o-line);
-  background: var(--o-side);
-}
-
-.panel[data-narrow="true"] {
-  width: 244px;
-}
-
-.header {
-  height: 46px;
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 14px;
-  border-bottom: 1px solid var(--o-line);
-  font-size: var(--o-font-13);
-}
-
-.header span,
-.meta {
+/* The conversations in the list column (Asistente fills it in its own part). */
+.count {
   color: var(--o-ink3);
-  font-family: var(--o-font-mono);
-  font-size: var(--o-font-10);
+  font: var(--o-text-meta);
+  font-variant-numeric: tabular-nums;
+  padding-right: var(--o-space-8);
 }
 
-.groups {
-  flex: 1;
-  padding: 8px;
-  overflow-y: auto;
-}
-
-.group {
-  margin: 0 0 10px;
-  padding: 0;
-}
-
-.group h2 {
+.group h3 {
   margin: 0;
-  padding: 6px 8px;
+  padding: var(--o-space-10) var(--o-space-10) var(--o-space-4);
   color: var(--o-ink3);
-  font-size: var(--o-font-10);
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font: 500 12px/1.4 var(--o-font-sans);
 }
 
 .row {
   width: 100%;
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 2px;
-  padding: 8px;
+  display: block;
+  padding: var(--o-space-8) var(--o-space-10);
   border: 0;
-  border-radius: var(--o-radius-10);
+  border-radius: var(--o-radius-md);
   background: transparent;
   color: var(--o-ink);
   text-align: left;
   cursor: pointer;
+  transition: background var(--o-dur-fast);
 }
 
 .row:hover {
@@ -71,95 +31,50 @@
 }
 
 .row[data-active="true"] {
-  background: var(--o-accSoft);
+  background: var(--o-raised);
 }
 
-.initial {
-  width: 20px;
-  height: 20px;
-  display: grid;
-  flex: none;
-  margin-top: 1px;
-  place-items: center;
-  border-radius: var(--o-radius-6);
-  background: var(--o-accSoft);
-  color: var(--o-accText);
-  font-size: var(--o-font-10);
-  font-weight: 700;
-  position: relative;
+.line {
+  display: flex;
+  gap: var(--o-space-8);
 }
 
-.row[data-turn-active="true"] .initial::after {
-  position: absolute;
-  right: -3px;
-  bottom: -3px;
-  width: 7px;
-  height: 7px;
-  border: 2px solid var(--o-side);
-  border-radius: var(--o-radius-pill);
-  background: var(--o-warn);
-  content: "";
-  animation: session-pulse 1.4s ease-out infinite;
-}
-
-.copy {
+.line strong {
   min-width: 0;
-  display: grid;
   flex: 1;
-}
-
-.copy strong,
-.copy small {
   overflow: hidden;
+  font: 500 13px/1.4 var(--o-font-sans);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.copy strong {
-  font-size: var(--o-font-12-5);
-  font-weight: 500;
-}
-
-.copy small {
-  margin-top: 1px;
-  color: var(--o-ink3);
-  font-size: var(--o-font-11-5);
+.row[data-active="true"] strong {
+  font-weight: 600;
 }
 
 .meta {
-  margin-top: 2px;
+  flex: none;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
 }
 
-@keyframes session-pulse {
-  50% {
-    box-shadow: 0 0 0 5px var(--o-warnSoft);
-  }
+.row small {
+  display: block;
+  margin-top: 1px;
+  overflow: hidden;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .row[data-turn-active="true"] .initial::after {
-    animation: none;
-  }
-}
-
-/* A note's line says it is recording, being worked on or failed. */
-.copy small[data-tone="live"],
-.copy small[data-tone="failed"] {
-  color: var(--o-recText);
-}
-
-.copy small[data-tone="working"] {
-  color: var(--o-ink2);
-  font-style: italic;
-}
-
-.copy small[data-tone="live"]::before {
-  width: 6px;
-  height: 6px;
-  display: inline-block;
-  margin-right: 6px;
-  border-radius: var(--o-radius-pill);
-  background: var(--o-rec);
+/* A turn under way in that conversation. */
+.row[data-turn-active="true"] .line::after {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  align-self: center;
+  border-radius: 50%;
+  background: var(--o-warn);
   content: "";
-  vertical-align: 1px;
 }
