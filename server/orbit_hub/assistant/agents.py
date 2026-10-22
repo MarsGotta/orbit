@@ -53,6 +53,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from ..errors import HubError
+from ..log import report
 from . import acp_settings, hermes, openai_settings
 from .agent_config import (
     AgentAdmin,
@@ -682,7 +683,16 @@ class Agents:
         if account == current:
             return
         if self.roster is not None:
-            self.roster.save_account(agent_id, account)
+            try:
+                self.roster.save_account(agent_id, account)
+            except Exception as failure:  # noqa: BLE001 - a fact learned mid-turn must not end the turn
+                # It is learned from an agent's turn or sign-in: a write the
+                # disk refuses must not end that turn. The Macs still learn
+                # it; the hub reads it again from the agent after a restart.
+                from ..storage import is_storage_full
+
+                code = "storage_full" if is_storage_full(failure) else "agent_account_not_saved"
+                report("agent_account_not_saved", code, exc_info=False)
         self.accounts[agent_id] = account
         self.changed()
 

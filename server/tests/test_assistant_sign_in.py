@@ -357,3 +357,25 @@ def test_what_the_hub_learns_of_an_account_is_published(environment, tmp_path):
         "window": "seven_day",
         "resets_at_ms": 9000,
     }
+
+
+def test_an_account_fact_the_disk_refuses_still_reaches_the_macs(environment, tmp_path):
+    """A turn learns that its agent's session expired while the disk is full:
+    the write fails, the turn is not ended by it, and the Macs are told."""
+    import sqlite3
+
+    settings, store, adapter = environment
+    settings = replace(settings, acp_adapters=adapters(tmp_path))
+    roster = Roster(store)
+    agents = Agents.from_settings(settings, adapter, adapter, None, roster)
+    added = agents.add("codex", Profile("Phobos", "", "c2"), 1).id
+    published = []
+    agents.changed = lambda: published.append(agents.account(added).state)
+
+    def full(*_):
+        raise sqlite3.OperationalError("database or disk is full")
+
+    roster.save_account = full
+    agents.observe(added, "signed_in")
+    agents.observe(added, "auth_required")
+    assert published == ["signed_in", "expired"]
