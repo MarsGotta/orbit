@@ -54,9 +54,13 @@ impl ReadOnlyStore {
     pub fn refused_chunks(
         &self,
         recording: &str,
+        after: Option<&str>,
         limit: usize,
     ) -> Result<Vec<crate::ChunkMetadata>> {
-        self.store.refused_chunks(recording, limit)
+        self.store.refused_chunks(recording, after, limit)
+    }
+    pub fn refused_chunk_count(&self, recording: &str) -> Result<u64> {
+        self.store.refused_chunk_count(recording)
     }
     pub fn latest_chunk_receipt(
         &self,

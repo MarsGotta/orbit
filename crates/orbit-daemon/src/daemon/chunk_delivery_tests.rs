@@ -273,23 +273,27 @@ async fn a_hub_out_of_space_is_said_with_its_numbers_and_waits() -> Result<()> {
     Ok(())
 }
 
-/// The closure counts only what the hub received: a refused chunk at the
-/// end of a track is declared away and counted as a gap.
+/// The closure counts only what the hub received and declares every chunk
+/// it refused for good, wherever it is in its track, as a missing sequence
+/// and a gap. A track that lost every chunk is left out.
 #[test]
 fn a_closure_declares_the_chunks_the_hub_refused() -> Result<()> {
     let mut manifest = json!({"tracks":[
-        {"track":"mic_local","chunk_count":3,"last_sequence":2,"total_frames":3},
+        {"track":"mic_local","chunk_count":4,"last_sequence":3,"total_frames":4},
         {"track":"remote_app","chunk_count":1,"last_sequence":0,"total_frames":1}],
         "gaps":1,"started_at_ms":1,"finalized_at_ms":2});
-    let mut lost = chunk("reunion-retenida", 2);
-    lost.frames = 1;
+    let mut middle = chunk("reunion-retenida", 1);
+    middle.frames = 1;
+    let mut last = chunk("reunion-retenida", 3);
+    last.frames = 1;
     let mut remote = chunk("reunion-retenida", 0);
     remote.track = "remote_app".into();
-    crate::daemon::finalize::declare_refused_chunks(&mut manifest, &[lost, remote])?;
+    crate::daemon::finalize::declare_refused_chunks(&mut manifest, &[last, middle, remote])?;
     assert_eq!(
         manifest["tracks"],
-        json!([{"track":"mic_local","chunk_count":2,"last_sequence":1,"total_frames":2}])
+        json!([{"track":"mic_local","chunk_count":2,"last_sequence":3,"total_frames":2,
+            "missing_sequences":[1, 3]}])
     );
-    assert_eq!(manifest["gaps"], 3);
+    assert_eq!(manifest["gaps"], 4);
     Ok(())
 }

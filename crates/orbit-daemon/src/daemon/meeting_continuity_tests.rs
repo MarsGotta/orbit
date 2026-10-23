@@ -347,7 +347,7 @@ async fn a_meeting_live_when_the_daemon_died_goes_on_after_the_restart() -> Resu
     // nothing of the old process's capture.
     let saved = runtime.state.durable.clone();
     runtime.capture.recovery =
-        crate::daemon::cut_recovery::recovery_after_restart(saved.recording.as_ref());
+        crate::daemon::cut_recovery::recovery_after_restart(saved.recording.as_ref(), true);
     runtime.state.durable = saved.recovered();
     runtime.capture.buffer = crate::capture::CaptureBuffer::default();
     runtime.capture.mic_stream = None;
@@ -396,6 +396,136 @@ async fn a_meeting_live_when_the_daemon_died_goes_on_after_the_restart() -> Resu
             .chunk_receipt("reunion-sintetica-mic_local-2")?
             .is_some(),
         "the resumed audio continues the recording's chunks"
+    );
+    Ok(())
+}
+
+/// The helper comes back after a loss: its `ready`, then the answer to the
+/// `status` it is asked for. Returns the orders that followed, after one
+/// maintenance turn.
+async fn helper_returns(runtime: &mut Runtime, receiver: &mut mpsc::Receiver<Value>) -> Vec<Value> {
+    runtime
+        .handle_native_event(json!({"event":"ready","capabilities":[]}))
+        .await;
+    let mut orders = Vec::new();
+    for _ in 0..2 {
+        runtime.run_maintenance().await;
+        while let Ok(command) = receiver.try_recv() {
+            if command["command"] == "status" {
+                runtime
+                    .handle_native_event(granted_status(&command["id"]))
+                    .await;
+            }
+            orders.push(command);
+        }
+    }
+    orders
+}
+
+/// A cut before the first chunk was sealed (the helper lost in the first
+/// second) is a cut like any other: the same recording goes on once the
+/// helper is back, instead of being closed empty.
+#[tokio::test]
+async fn a_cut_before_the_first_chunk_resumes_the_recording() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut receiver) = fixture(directory.path())?;
+    start(&mut runtime, &mut receiver).await?;
+    runtime
+        .handle_native_event(json!({"event":"helper_disconnected"}))
+        .await;
+    let recording = runtime
+        .state
+        .durable
+        .recording
+        .as_ref()
+        .context("recording absent")?;
+    assert_eq!(recording.sealed_chunks, 0);
+    assert_eq!(
+        recording.ended_at_ms, None,
+        "an empty recording a resumable cut stopped is not closed yet"
+    );
+    let orders = helper_returns(&mut runtime, &mut receiver).await;
+    assert!(
+        orders.iter().any(|order| order["command"] == "audio_start"),
+        "the empty recording did not go on: {orders:?}"
+    );
+    assert_eq!(
+        runtime
+            .state
+            .durable
+            .recording
+            .as_ref()
+            .map(|recording| recording.id.as_str()),
+        Some("reunion-sintetica")
+    );
+    assert!(
+        runtime
+            .reader
+            .get_job("finalize-reunion-sintetica")?
+            .is_none(),
+        "not closed"
+    );
+    Ok(())
+}
+
+/// A recording that keeps failing at its very start does not loop: it is
+/// resumed three times, and the next cut closes it empty and says why.
+#[tokio::test]
+async fn a_recording_that_keeps_failing_at_its_start_closes_empty_after_three_tries() -> Result<()>
+{
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut receiver) = fixture(directory.path())?;
+    start(&mut runtime, &mut receiver).await?;
+    let mut resumes = 0;
+    for _ in 0..6 {
+        runtime
+            .handle_native_event(json!({"event":"helper_disconnected"}))
+            .await;
+        let orders = helper_returns(&mut runtime, &mut receiver).await;
+        let Some(start) = orders
+            .iter()
+            .find(|order| order["command"] == "audio_start")
+        else {
+            break;
+        };
+        resumes += 1;
+        runtime
+            .handle_native_event(json!({"event":"response","id":start["id"],"ok":true,
+                "result":{"stream_id":start["stream_id"]}}))
+            .await;
+    }
+    assert_eq!(resumes, 3, "resumed {resumes} times");
+    let recording = runtime
+        .state
+        .durable
+        .recording
+        .as_ref()
+        .context("recording absent")?;
+    assert!(
+        recording.ended_at_ms.is_some(),
+        "the failing recording was left open"
+    );
+    let closure = runtime
+        .reader
+        .get_job("finalize-reunion-sintetica")?
+        .context("the empty recording has no closure")?;
+    assert_eq!(closure.payload["interruption"]["cause"], "helper_lost");
+    let closed = runtime
+        .state
+        .durable
+        .notice_log
+        .records()
+        .iter()
+        .find(|notice| notice.code == orbit_core::notice::NoticeCode::RecordingClosedAfterCut)
+        .cloned()
+        .context("the closure is not said")?;
+    assert_eq!(
+        closed.data.get(&orbit_core::notice::NoticeKey::Fragments),
+        Some(&orbit_core::notice::DataValue::Int(0))
+    );
+    assert_eq!(
+        closed.data.get(&orbit_core::notice::NoticeKey::Attempt),
+        Some(&orbit_core::notice::DataValue::Int(3))
     );
     Ok(())
 }

@@ -272,6 +272,18 @@ pub(crate) fn project_open_note(
             pending_chunks: document.transcript.pending_chunks,
             failed_groups: document.transcript.failed_groups.len() as u64,
             error,
+            missing_audio: (!document.transcript.missing_audio.is_empty()).then(|| {
+                document
+                    .transcript
+                    .missing_audio
+                    .iter()
+                    .map(|hole| crate::NoteMissingAudioSnapshot {
+                        track: hole.track.clone(),
+                        at_ms: hole.at_ms,
+                        duration_ms: hole.duration_ms,
+                    })
+                    .collect()
+            }),
             retranscribing: document.transcript.retranscribing.map(|repeating| {
                 NoteRetranscribingSnapshot {
                     language: repeating.language,

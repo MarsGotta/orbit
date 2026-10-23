@@ -352,6 +352,17 @@ def document(store, notes, db, device: str, recording: str, *, default_language)
     )
     if unmatched:
         progress["unmatched_speaker_names"] = unmatched
+    if transcript.missing:
+        # Audio the hub will never get, where and how long (null: unknown).
+        progress["missing_audio"] = [
+            {
+                "track": hole.track,
+                "at_ms": hole.at_ms,
+                "duration_ms": hole.duration_ms,
+                "chunks": hole.last_sequence - hole.first_sequence + 1,
+            }
+            for hole in transcript.missing
+        ]
     repeating = retranscribing(db, device, recording)
     if repeating is not None:
         progress["retranscribing"] = repeating

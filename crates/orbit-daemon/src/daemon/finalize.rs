@@ -158,6 +158,11 @@ impl Runtime {
         }) else {
             return Ok(());
         };
+        if self.cut_owns(&recording.id) {
+            // A cut that goes on: the recording resumes, or is closed
+            // with its tries (`cut_recovery`).
+            return Ok(());
+        }
         if self.audio_is_draining()
             || self.capture.mic_stream.is_some()
             || self.capture.remote_stream.is_some()
@@ -332,9 +337,20 @@ impl Runtime {
             self.development,
         )?;
         // Chunks the hub refused for good are declared, not waited for.
-        let refused = self
-            .reader
-            .refused_chunks(&recording_id, orbit_store::MAX_PAGE_SIZE)?;
+        let mut refused = Vec::new();
+        loop {
+            let page = self.reader.refused_chunks(
+                &recording_id,
+                refused
+                    .last()
+                    .map(|chunk: &orbit_store::ChunkMetadata| chunk.id.as_str()),
+                orbit_store::MAX_PAGE_SIZE,
+            )?;
+            if page.is_empty() {
+                break;
+            }
+            refused.extend(page);
+        }
         let mut manifest = job.payload["manifest"].clone();
         if !refused.is_empty() {
             declare_refused_chunks(&mut manifest, &refused)?;
@@ -421,10 +437,7 @@ impl Runtime {
         let (chunks, uploaded) = self.reader.finalize_counts(recording)?;
         // A chunk the hub refused for good is settled too: the closure
         // declares it lost instead of waiting for it for ever.
-        let refused = self
-            .reader
-            .refused_chunks(recording, orbit_store::MAX_PAGE_SIZE)?
-            .len() as u64;
+        let refused = self.reader.refused_chunk_count(recording)?;
         let ready = chunks == expected && uploaded.saturating_add(refused) == expected;
         self.work.finalize_ready.insert(recording.to_owned(), ready);
         Ok(ready)
@@ -432,10 +445,12 @@ impl Runtime {
 }
 
 /// The closure the hub can check against what it holds: each track counts
-/// only the chunks it received, and every refused chunk is one more gap.
-/// The hub accepts a track whose sequences run 0..n without holes, so a
-/// refused chunk at the end of a track is declared away; one in the middle
-/// leaves a closure the hub answers with `manifest_mismatch`, said then.
+/// only the chunks it received and names, in `missing_sequences`, every chunk
+/// the hub refused for good, wherever it is; each is one more gap. The hub
+/// then holds every other sequence up to the track's last one
+/// (`contracts/hub-v1.md`), transcribes around the holes and says them. A
+/// track that lost every chunk is left out. More holes than the hub admits
+/// per track are refused by it as `invalid_manifest`, which is said.
 pub(super) fn declare_refused_chunks(
     manifest: &mut Value,
     refused: &[orbit_store::ChunkMetadata],
@@ -445,21 +460,26 @@ pub(super) fn declare_refused_chunks(
         .context("Cierre sin resumen de pistas")?;
     for track in tracks.iter_mut() {
         let name = track["track"].as_str().unwrap_or_default().to_owned();
-        let lost: Vec<&orbit_store::ChunkMetadata> =
-            refused.iter().filter(|chunk| chunk.track == name).collect();
-        if lost.is_empty() {
+        let mut missing: Vec<u64> = refused
+            .iter()
+            .filter(|chunk| chunk.track == name)
+            .map(|chunk| chunk.sequence)
+            .collect();
+        if missing.is_empty() {
             continue;
         }
+        missing.sort_unstable();
+        missing.dedup();
+        let lost_frames = refused
+            .iter()
+            .filter(|chunk| chunk.track == name)
+            .map(|chunk| chunk.frames)
+            .sum::<u64>();
         let count = track["chunk_count"].as_u64().unwrap_or_default();
         let frames = track["total_frames"].as_u64().unwrap_or_default();
-        let lost_frames = lost.iter().map(|chunk| chunk.frames).sum::<u64>();
-        let mut last = track["last_sequence"].as_u64().unwrap_or_default();
-        while lost.iter().any(|chunk| chunk.sequence == last) && last > 0 {
-            last -= 1;
-        }
-        track["chunk_count"] = json!(count.saturating_sub(lost.len() as u64));
+        track["chunk_count"] = json!(count.saturating_sub(missing.len() as u64));
         track["total_frames"] = json!(frames.saturating_sub(lost_frames));
-        track["last_sequence"] = json!(last);
+        track["missing_sequences"] = json!(missing);
     }
     tracks.retain(|track| track["chunk_count"].as_u64().is_some_and(|count| count > 0));
     let gaps = manifest["gaps"].as_u64().unwrap_or_default();

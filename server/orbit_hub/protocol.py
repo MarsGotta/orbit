@@ -1,6 +1,7 @@
 """Validated public protocol; upstream JSON-RPC is deliberately not exposed."""
 
 import re
+from itertools import pairwise
 from typing import Any, Literal
 from uuid import UUID
 
@@ -212,11 +213,37 @@ class DeviceReplyParams(StrictModel):
         return self
 
 
+# Sequences one track may declare missing in its closing manifest: chunks the
+# Mac kept but the hub refused for good (`chunk_conflict`, a revoked device…).
+# It bounds what the hub checks and stores in one closure: 1 024 is about 17
+# minutes of one-second chunks, a few KB of JSON inside the 512 KiB manifest.
+# A track that lost more cannot be declared: its closure is refused as
+# `invalid_manifest`, which the Mac says with its code.
+MAX_DECLARED_MISSING_CHUNKS = 1024
+
+
 class TrackManifest(StrictModel):
     track: Literal["mic_local", "remote_app"]
+    # The chunks the hub holds for this track, and their frames.
     chunk_count: int = Field(ge=1, le=1000000)
+    # The last sequence the capture produced, held or declared missing.
     last_sequence: int = Field(ge=0, le=1000000)
     total_frames: int = Field(ge=1, le=2**63 - 1)
+    # Sequences the hub will never get, in increasing order: the hub holds
+    # every other one from 0 to `last_sequence`. Absent (a Mac up to 0.10.1):
+    # none, and the track must run 0..chunk_count-1 as before.
+    missing_sequences: list[int] = Field(
+        default_factory=list, max_length=MAX_DECLARED_MISSING_CHUNKS
+    )
+
+    @model_validator(mode="after")
+    def _missing_in_order(self):
+        missing = self.missing_sequences
+        if any(sequence < 0 or sequence > self.last_sequence for sequence in missing) or any(
+            later <= earlier for earlier, later in pairwise(missing)
+        ):
+            raise ValueError("missing_sequences must increase within 0..last_sequence")
+        return self
 
 
 class RecordingManifest(StrictModel):

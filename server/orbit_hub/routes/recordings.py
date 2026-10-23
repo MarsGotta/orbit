@@ -49,6 +49,11 @@ def mount(
         except (ValidationError, ValueError) as exc:
             raise HubError("invalid_manifest", "Manifiesto de cierre no válido") from exc
         stored = manifest.model_dump(mode="json")
+        # A track with nothing missing is stored as a 0.10.1 Mac wrote it, so
+        # its retried closure matches the closure already kept.
+        for track in stored["tracks"]:
+            if not track.get("missing_sequences"):
+                track.pop("missing_sequences", None)
         outcome = await in_store(
             store_executor,
             lambda: store.finalize_recording(

@@ -1026,11 +1026,20 @@ class Store:
                 for name, declared in tracks.items():
                     actual = [row for row in rows if row["track"] == name]
                     count = declared["chunk_count"]
-                    if (
-                        len(actual) != count
-                        or declared["last_sequence"] != count - 1
-                        or any(row["sequence"] != index for index, row in enumerate(actual))
-                    ):
+                    # The hub holds every sequence from 0 to the last one,
+                    # except those the Mac declared it will never get.
+                    missing = set(declared.get("missing_sequences") or ())
+                    if declared["last_sequence"] + 1 - len(missing) != count:
+                        raise HubError(
+                            "manifest_mismatch",
+                            "Recuento o secuencias no coinciden; faltan fragmentos confirmados",
+                        )
+                    expected = [
+                        sequence
+                        for sequence in range(declared["last_sequence"] + 1)
+                        if sequence not in missing
+                    ]
+                    if len(actual) != count or [row["sequence"] for row in actual] != expected:
                         raise HubError(
                             "manifest_mismatch",
                             "Recuento o secuencias no coinciden; faltan fragmentos confirmados",

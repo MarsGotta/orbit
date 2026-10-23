@@ -368,6 +368,7 @@ async fn detail(
                     state: TranscriptState::None,
                     pending_chunks: 0,
                     failed_groups: Vec::new(),
+                    missing_audio: Vec::new(),
                     retranscribing: None,
                 },
                 note: None,

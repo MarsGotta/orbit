@@ -18,7 +18,7 @@ import {
 } from "./TranscriptParts";
 import { RedoStatus, RedoTranscriptButton, useRetranscribe } from "./TranscriptRedo";
 import { TranscriptSegment } from "./TranscriptSegment";
-import { Toolbar } from "./TranscriptTools";
+import { MissingAudio, Toolbar } from "./TranscriptTools";
 import { TurnText } from "./TurnText";
 import { same, useTranscriptChanges } from "./use-transcript-changes";
 import { useTranscriptSearch } from "./use-transcript-search";
@@ -171,6 +171,7 @@ export function TranscriptTab({ note, send, library, onRedoSummary }: Transcript
     <div className={styles.transcript}>
       {!arriving(note) && <Toolbar note={note} redo={button} search={search} />}
       <RedoStatus note={note} onClose={redo.close} onRedoSummary={redoSummary} phase={redo.phase} />
+      <MissingAudio note={note} />
       {renamed !== null && <DoneBand note={note} onRedoSummary={redoSummary} text={renamed} />}
       <CorrectionBands
         changes={changes}

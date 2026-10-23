@@ -231,6 +231,23 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub retranscribing: Option<NoteRetranscribingSnapshot>,
+        /// Stretches of audio the hub never got (chunks it refused): the
+        /// transcript says each one, with its time when known.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub missing_audio: Option<Vec<NoteMissingAudioSnapshot>>,
+    }
+}
+
+app_type! {
+    /// One hole of a track: from `at_ms` of the meeting, for `duration_ms`;
+    /// either is `null` when the hub could not tell.
+    pub struct NoteMissingAudioSnapshot {
+        pub track: String,
+        #[ts(type = "number | null")]
+        pub at_ms: Option<u64>,
+        #[ts(type = "number | null")]
+        pub duration_ms: Option<u64>,
     }
 }
 

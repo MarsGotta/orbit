@@ -82,8 +82,8 @@ fn privacy_stop_survives_real_daemon_restart_without_network() {
 }
 
 /// With the real binary: a crash or an update that nobody asked to
-/// stop comes back working, and the recording it cut stays interrupted with
-/// its fragments, not resumed.
+/// stop comes back working, and the recording it cut keeps its fragments;
+/// with no helper to resume it, it is closed and said.
 #[test]
 fn a_restart_nobody_stopped_comes_back_working() -> anyhow::Result<()> {
     use base64::{Engine, engine::general_purpose::STANDARD};
@@ -126,10 +126,29 @@ fn a_restart_nobody_stopped_comes_back_working() -> anyhow::Result<()> {
     drop(store);
 
     let _second = start(path);
-    let state = status(path);
+    // This development daemon has no helper to capture with, so nothing
+    // could resume the recording: once a second its upkeep closes it at its
+    // last audio, with its fragments, and says why. It is not reopened.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let state = loop {
+        let state = status(path);
+        if state["recording"]["phase"] == "idle" || std::time::Instant::now() >= deadline {
+            break state;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    };
     assert_eq!(state["privacy_stopped"], false, "{state}");
-    assert_eq!(state["recording"]["phase"], "interrupted", "{state}");
+    assert_eq!(state["recording"]["phase"], "idle", "{state}");
+    assert!(state["recording"]["ended_at_ms"].is_i64(), "{state}");
     assert_eq!(state["recording"]["sealed_chunks"], 3, "{state}");
+    assert!(
+        state["notice_log"]["records"]
+            .as_array()
+            .is_some_and(|records| records
+                .iter()
+                .any(|notice| notice["code"] == "recording_closed_after_cut")),
+        "{state}"
+    );
     assert!(
         !state["notice"]
             .as_str()

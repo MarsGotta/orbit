@@ -40,9 +40,11 @@ async fn retired_system_start(
     assert_eq!(microphone["source"], "mic_local");
     assert_eq!(remote["source"], "remote_app");
     runtime
+        // A cut that ends the capture (the Mac going to sleep): the empty
+        // recording closes at once and the call that follows is admitted.
         .cut_capture(
             orbit_core::privacy_stop::StopCause::HelperCaptureStop,
-            "helper_capture_stop",
+            "session_inactive",
             "Corte sintético anterior",
         )
         .await;

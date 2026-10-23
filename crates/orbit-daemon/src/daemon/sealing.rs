@@ -383,6 +383,8 @@ impl Runtime {
             }
             tick_result?;
             if let Some(cause) = tick_cause {
+                // The ceiling or a «Terminar» never confirmed: neither goes on.
+                self.capture.recovery = None;
                 Box::pin(
                     self.close_empty_interrupted(orbit_core::RecordingInterruption {
                         cause,

@@ -41,24 +41,29 @@ impl Store {
     }
 
     /// Chunks of a recording whose upload the hub refused for good
-    /// (`blocked`), at most `limit`, by track and sequence. They stay on the
-    /// Mac; the recording's closure declares them lost instead of waiting.
+    /// (`blocked`), a page of at most `limit` after the chunk id `after`, in
+    /// id order. They stay on the Mac; the recording's closure declares them
+    /// missing instead of waiting.
     pub fn refused_chunks(
         &self,
         recording_id: &str,
+        after: Option<&str>,
         limit: usize,
     ) -> Result<Vec<crate::ChunkMetadata>> {
         validate_id(recording_id)?;
+        if let Some(after) = after {
+            validate_id(after)?;
+        }
         validate_page(limit)?;
         let mut statement = self.connection.prepare(
             "SELECT chunk.id FROM chunks AS chunk
              JOIN jobs AS job ON job.id = 'upload-' || chunk.id
              WHERE chunk.recording_id = ?1 AND job.kind = 'chunk_upload'
-               AND job.state = 'blocked'
-             ORDER BY chunk.track, chunk.sequence LIMIT ?2",
+               AND job.state = 'blocked' AND (?2 IS NULL OR chunk.id > ?2)
+             ORDER BY chunk.id LIMIT ?3",
         )?;
         let ids = statement
-            .query_map(params![recording_id, limit as i64], |row| {
+            .query_map(params![recording_id, after, limit as i64], |row| {
                 row.get::<_, String>(0)
             })?
             .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -69,6 +74,20 @@ impl Store {
             }
         }
         Ok(chunks)
+    }
+
+    /// How many chunks of a recording the hub refused for good.
+    pub fn refused_chunk_count(&self, recording_id: &str) -> Result<u64> {
+        validate_id(recording_id)?;
+        let count: i64 = self.connection.query_row(
+            "SELECT COUNT(*) FROM chunks AS chunk
+             JOIN jobs AS job ON job.id = 'upload-' || chunk.id
+             WHERE chunk.recording_id = ?1 AND job.kind = 'chunk_upload'
+               AND job.state = 'blocked'",
+            [recording_id],
+            |row| row.get(0),
+        )?;
+        u64::try_from(count).map_err(|_| Error::Invalid("database count"))
     }
 
     /// Queue count used by the daemon's once-per-tick presentation refresh.

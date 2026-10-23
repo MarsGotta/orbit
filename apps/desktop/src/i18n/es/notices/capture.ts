@@ -56,10 +56,18 @@ export const capture = {
   },
   recording_closed_after_cut: {
     class: "fixable",
-    text: (data) =>
-      data.cause === "capture_finalize_timed_out"
-        ? "La grabación terminó sin que el Mac confirmara su final: se ha cerrado con lo grabado y su nota se escribirá."
-        : `La grabación se cortó (${cutCause(data)}) y no pudo seguir. Se ha cerrado con lo grabado y su nota se escribirá; si la reunión sigue, empieza otra grabación.`,
+    text: (data) => {
+      if (data.cause === "capture_finalize_timed_out")
+        return "La grabación terminó sin que el Mac confirmara su final: se ha cerrado con lo grabado y su nota se escribirá.";
+      if (data.fragments === 0) {
+        const tries =
+          typeof data.attempt === "number" && data.attempt > 0
+            ? ` tras ${data.attempt} ${data.attempt === 1 ? "intento" : "intentos"}`
+            : "";
+        return `La grabación se cortó al empezar (${cutCause(data)}) y no pudo seguir${tries}: no llegó a grabar nada. Si la reunión sigue, empieza otra grabación.`;
+      }
+      return `La grabación se cortó (${cutCause(data)}) y no pudo seguir. Se ha cerrado con lo grabado y su nota se escribirá; si la reunión sigue, empieza otra grabación.`;
+    },
   },
   audio_route_recovered: {
     class: "done",

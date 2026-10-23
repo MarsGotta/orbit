@@ -292,7 +292,8 @@ async fn empty_privacy_interruption_closes_before_rearm_and_admits_call() -> Res
 }
 
 #[tokio::test]
-async fn helper_loss_closes_empty_recording_and_allows_another() -> Result<()> {
+async fn helper_loss_keeps_an_empty_recording_and_closes_it_when_the_helper_never_returns()
+-> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     start(&mut runtime, &mut receiver, "lost-helper").await?;
@@ -300,6 +301,20 @@ async fn helper_loss_closes_empty_recording_and_allows_another() -> Result<()> {
         .native_event(json!({"event":"helper_disconnected"}))
         .await?;
     settle_seal_receipts(&mut runtime).await?;
+    // The meeting goes on once the helper is back: nothing closes it yet.
+    assert_eq!(
+        runtime
+            .state
+            .durable
+            .recording
+            .as_ref()
+            .and_then(|recording| recording.ended_at_ms),
+        None
+    );
+    // The helper never came back within the wait: the empty recording is
+    // closed and the closure says why.
+    runtime.expire_capture_wait();
+    runtime.run_maintenance().await;
     let recording = runtime
         .state
         .durable
@@ -316,6 +331,10 @@ async fn helper_loss_closes_empty_recording_and_allows_another() -> Result<()> {
     assert!(said::mentions(&runtime.state, "helper_lost"));
     assert!(said::has(&runtime.state, NoticeCode::CaptureCut));
     assert!(said::has(&runtime.state, NoticeCode::RecordingEmpty));
+    assert!(said::has(
+        &runtime.state,
+        NoticeCode::RecordingClosedAfterCut
+    ));
     assert!(!runtime.state.privacy_stopped());
     {
         let fixture_value = serde_json::json!(true);
@@ -363,15 +382,20 @@ async fn empty_capture_cut_preserves_its_cause_without_claiming_saved_audio() ->
             "cause":"native_audio_invalid event=audio field=sample_rate type=string"}))
         .await?;
     settle_seal_receipts(&mut runtime).await?;
+    // The helper does not come back: the empty recording is closed.
+    runtime.expire_capture_wait();
+    runtime.run_maintenance().await;
 
-    // The cut is said with its code and the empty close after it;
-    // the helper's detailed cause is in daemon.log, not in the notice.
+    // The cut is said with its code, then the empty close and why it could
+    // not go on; the helper's detailed cause is in daemon.log, not in the
+    // notice.
     let notice = &runtime.state.durable.notice;
     assert!(said::mentions(&runtime.state, "helper_lost"), "{notice:?}");
-    assert_eq!(
-        runtime.state.notice_code(),
-        Some(NoticeCode::RecordingEmpty)
-    );
+    assert!(said::has(&runtime.state, NoticeCode::RecordingEmpty));
+    assert!(said::has(
+        &runtime.state,
+        NoticeCode::RecordingClosedAfterCut
+    ));
     assert!(
         !said::has(&runtime.state, NoticeCode::CaptureCutConfirmed),
         "an empty cut claims no saved audio: {:?}",
@@ -535,10 +559,12 @@ async fn retired_start_refusal_does_not_touch_the_next_call() -> Result<()> {
     let remote = receive_helper_command(&mut receiver, "audio_start").await?;
     assert_eq!(microphone["source"], "mic_local");
     assert_eq!(remote["source"], "remote_app");
+    // A cut that ends the capture (the Mac going to sleep): the empty
+    // recording closes at once and the call that follows is admitted.
     runtime
         .cut_capture(
             orbit_core::privacy_stop::StopCause::HelperCaptureStop,
-            "helper_capture_stop",
+            "session_inactive",
             "Corte sintético anterior",
         )
         .await;
@@ -1147,6 +1173,14 @@ async fn live_cut_keeps_the_first_typed_interruption() -> Result<()> {
             "result":{"drain_complete":true}}))
         .await?;
     settle_seal_receipts(&mut runtime).await?;
+    // The lost helper does not come back: the empty recording is closed.
+    crate::daemon::authority_fixture::set(
+        &mut runtime.state,
+        "capabilities.native_helper",
+        serde_json::json!(false),
+    );
+    runtime.expire_capture_wait();
+    runtime.run_maintenance().await;
     let closure = runtime
         .fixture_store
         .get_job("finalize-typed-before-live-cut")?

@@ -476,6 +476,24 @@ pub struct TranscriptProgress {
     /// A change of language is repeating the meeting.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retranscribing: Option<Retranscribing>,
+    /// Audio the hub will never get (chunks it refused, declared at the
+    /// closure): where and how long each hole is. Empty from a hub up to
+    /// 0.10.1, which does not say.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub missing_audio: Vec<MissingAudio>,
+}
+
+/// One hole of a track: `at_ms` from the meeting's start and `duration_ms`
+/// are unknown (`None`) when the chunks around it do not tell.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MissingAudio {
+    pub track: String,
+    #[serde(default)]
+    pub at_ms: Option<u64>,
+    #[serde(default)]
+    pub duration_ms: Option<u64>,
+    #[serde(default)]
+    pub chunks: u64,
 }
 
 /// The hub's durable final pass, separate from draft group progress.

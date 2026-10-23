@@ -1036,11 +1036,9 @@ async fn run_with_helper_inner(
         .as_ref()
         .and_then(|saved| saved.recording.as_ref())
         .is_some_and(|recording| recording.phase.interrupted_on_recovery());
-    let restart_cut = cut_recovery::recovery_after_restart(
-        saved_state
-            .as_ref()
-            .and_then(|saved| saved.recording.as_ref()),
-    );
+    let restart_recording = saved_state
+        .as_ref()
+        .and_then(|saved| saved.recording.clone());
     let startup_op = orbit_ipc::new_op();
     let reported_sequence = saved_state
         .as_ref()
@@ -1250,7 +1248,10 @@ async fn run_with_helper_inner(
             retired_call_starts: BTreeMap::new(),
             retired_stops: BTreeMap::new(),
             interruption: None,
-            recovery: restart_cut,
+            recovery: cut_recovery::recovery_after_restart(
+                restart_recording.as_ref(),
+                native_available,
+            ),
         },
         features: FeatureRuntime {
             sources: sources::SourceRuntime::default(),

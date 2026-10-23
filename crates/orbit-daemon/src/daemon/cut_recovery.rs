@@ -69,13 +69,18 @@ impl CutRecovery {
 /// The cut a new daemon finds in the recording the last one saved. One that
 /// was live (a crash, or the daemon relaunched: a clean quit leaves it
 /// interrupted) goes on once the new helper is ready; one «Terminar» was
-/// finishing is closed. Anything else was not cut by a restart.
-pub(super) fn recovery_after_restart(saved: Option<&orbit_core::Recording>) -> Option<CutRecovery> {
+/// finishing is closed, and so is any when this daemon has no helper to
+/// capture with (a development daemon): nothing would bring it back.
+/// Anything else was not cut by a restart.
+pub(super) fn recovery_after_restart(
+    saved: Option<&orbit_core::Recording>,
+    helper: bool,
+) -> Option<CutRecovery> {
     let recording = saved.filter(|recording| recording.phase.interrupted_on_recovery())?;
     Some(CutRecovery::new(
         &recording.id,
         "restart",
-        recording.phase != CapturePhase::Finalizing,
+        helper && recording.phase != CapturePhase::Finalizing,
         last_audio_at_ms(recording),
     ))
 }
@@ -146,8 +151,9 @@ impl Runtime {
             // until what was recorded is sealed.
             return Ok(());
         }
-        if recording.sealed_chunks == 0 {
-            // Nothing recorded yet: the empty closure owns it.
+        if recording.sealed_chunks == 0 && !self.cut_owns(&recording.id) {
+            // Nothing recorded and no cut that goes on: the empty closure,
+            // with its typed cause, owns it.
             return Ok(());
         }
         let recovery = match self.capture.recovery.take() {
@@ -178,7 +184,76 @@ impl Runtime {
                 Resume::Wait | Resume::Refused => {}
             }
         }
+        if recording.sealed_chunks == 0 {
+            return self.close_empty_cut_recording(recovery).await;
+        }
         self.close_cut_recording(recovery).await
+    }
+
+    /// Whether a cut that may go on owns this recording: an empty closure
+    /// waits for it, since the meeting resumes or is closed here, with the
+    /// count of its tries. A privacy stop or Orbit closing never waits.
+    pub(super) fn cut_owns(&self, recording_id: &str) -> bool {
+        !self.state.privacy_stopped()
+            && !self.closing
+            && self
+                .capture
+                .recovery
+                .as_ref()
+                .is_some_and(|recovery| recovery.recording_id == recording_id && recovery.resumable)
+    }
+
+    /// A recording that never sealed a chunk and cannot go on (it kept
+    /// failing at its start, or its capture did not come back) is closed
+    /// empty with its typed cause, and the closure says why and after how
+    /// many tries.
+    async fn close_empty_cut_recording(&mut self, recovery: CutRecovery) -> Result<()> {
+        self.log(
+            "cut_recording_closed_empty",
+            &[
+                ("cause", &recovery.cause),
+                ("resumes", &recovery.resumes.to_string()),
+            ],
+        );
+        let interruption =
+            self.capture
+                .interruption
+                .clone()
+                .unwrap_or(orbit_core::RecordingInterruption {
+                    cause: orbit_core::RecordingInterruptionCause::CauseNotSaved,
+                    detail: None,
+                    audio_available: false,
+                });
+        Box::pin(self.close_empty_interrupted(interruption)).await?;
+        let closed = self
+            .state
+            .durable
+            .recording
+            .as_ref()
+            .is_some_and(|recording| recording.ended_at_ms.is_some());
+        if closed {
+            self.say(
+                Notice::new(NoticeCode::RecordingClosedAfterCut)
+                    .with_token(NoticeKey::Cause, &recovery.cause)
+                    .with(NoticeKey::Fragments, 0_u64)
+                    .with(NoticeKey::Attempt, recovery.resumes),
+            );
+        } else {
+            // Something still holds it (a late seal, a drain): decided again
+            // on the next turn.
+            self.capture.recovery = Some(recovery);
+        }
+        Ok(())
+    }
+
+    /// As if the capture had stayed away for the whole wait.
+    #[cfg(test)]
+    pub(super) fn expire_capture_wait(&mut self) {
+        if let Some(recovery) = self.capture.recovery.as_mut() {
+            recovery.waiting_since = Instant::now()
+                .checked_sub(CAPTURE_RETURN_WAIT)
+                .unwrap_or(recovery.waiting_since);
+        }
     }
 
     fn cut_will_resume_with(&self, recovery: &CutRecovery) -> bool {

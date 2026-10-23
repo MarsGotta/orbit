@@ -48,3 +48,17 @@ export function Toolbar({
     </div>
   );
 }
+
+/** The parts of the meeting whose audio never reached the hub: said with when
+ *  and for how long, since the transcript has nothing there. */
+export function MissingAudio({ note }: { note: OpenNoteSnapshot }) {
+  return (
+    <>
+      {(note.transcript.missing_audio ?? []).map((hole) => (
+        <p className={styles.quiet} key={`${hole.track}-${hole.at_ms ?? "unknown"}`} role="status">
+          {es.notes.missingAudio(hole.track, hole.at_ms, hole.duration_ms)}
+        </p>
+      ))}
+    </>
+  );
+}

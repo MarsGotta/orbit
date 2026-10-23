@@ -140,6 +140,115 @@ def render(lines: list[Line]) -> str:
     return "\n".join(f"[{clock(line.at_ms)}] {line.speaker}: {line.text}" for line in lines)
 
 
+# Who says, in the transcript's lines, that a stretch of audio is missing:
+# not a voice of the meeting.
+MISSING_AUDIO_SPEAKER = "Orbit"
+TRACK_WORDS = {"mic_local": "del micrófono", "remote_app": "de la reunión"}
+
+
+@dataclass(frozen=True)
+class MissingAudio:
+    """Chunks of one track the hub will never get, as the Mac declared them.
+
+    `at_ms` is where the hole starts from the meeting's start and
+    `duration_ms` how long it is; each is None when the chunks around it do
+    not say (unknown, never zero).
+    """
+
+    track: str
+    first_sequence: int
+    last_sequence: int
+    at_ms: int | None
+    duration_ms: int | None
+
+    def line(self, fallback_ms: int) -> Line:
+        span = (
+            f" ({max(1, round(self.duration_ms / 1000))} s)" if self.duration_ms is not None else ""
+        )
+        return Line(
+            self.at_ms if self.at_ms is not None else fallback_ms,
+            MISSING_AUDIO_SPEAKER,
+            " ".join(
+                f"Falta el audio {TRACK_WORDS.get(self.track, '')} de este tramo{span}: "
+                "no llegó al hub.".split()
+            ),
+        )
+
+
+def _runs(sequences: list[int]) -> list[tuple[int, int]]:
+    runs: list[tuple[int, int]] = []
+    for sequence in sorted(sequences):
+        if runs and runs[-1][1] == sequence - 1:
+            runs[-1] = (runs[-1][0], sequence)
+        else:
+            runs.append((sequence, sequence))
+    return runs
+
+
+def missing_audio(store, db, device: str, recording: str, started: int | None):
+    """The holes the closing manifest declared, with their span when known.
+
+    A hole starts where the chunk before it ends and ends where the chunk
+    after it starts; one at a track's start begins with the meeting, one at
+    its end lasts until the closure.
+    """
+    row = db.execute(
+        "SELECT body FROM recording_manifests WHERE device_id=? AND recording=?",
+        (device, recording),
+    ).fetchone()
+    if row is None:
+        return ()
+    manifest = json.loads(store.decrypt(row["body"], f"manifest:{device}:{recording}"))
+
+    def chunk_metadata(track: str, sequence: int) -> dict | None:
+        found = db.execute(
+            """SELECT c.id, j.metadata FROM chunks c
+            LEFT JOIN transcription_jobs j ON j.device_id=c.device_id AND j.chunk_id=c.id
+            WHERE c.device_id=? AND c.recording=? AND c.track=? AND c.sequence=?""",
+            (device, recording, track, sequence),
+        ).fetchone()
+        if found is None or found["metadata"] is None:
+            return None
+        return json.loads(store.decrypt(found["metadata"], f"metadata:{device}:{found['id']}"))
+
+    def wall(metadata: dict | None, *, end: bool) -> int | None:
+        if metadata is None or type(metadata.get("started_at_ms")) is not int:
+            return None
+        if not end:
+            return metadata["started_at_ms"]
+        frames, rate = metadata.get("frames"), metadata.get("sample_rate")
+        if type(frames) is not int or type(rate) is not int or rate <= 0:
+            return None
+        return metadata["started_at_ms"] + frames * 1000 // rate
+
+    holes = []
+    for track in manifest.get("tracks", ()):
+        for first, last in _runs(list(track.get("missing_sequences") or ())):
+            begins = (
+                manifest.get("started_at_ms")
+                if first == 0
+                else wall(chunk_metadata(track["track"], first - 1), end=True)
+            )
+            ends = (
+                manifest.get("finalized_at_ms")
+                if last == track["last_sequence"]
+                else wall(chunk_metadata(track["track"], last + 1), end=False)
+            )
+            known = type(begins) is int and type(started) is int
+            holes.append(
+                MissingAudio(
+                    track=track["track"],
+                    first_sequence=first,
+                    last_sequence=last,
+                    at_ms=max(0, begins - started) if known else None,
+                    duration_ms=max(0, ends - begins)
+                    if type(begins) is int and type(ends) is int
+                    else None,
+                )
+            )
+    return tuple(holes)
+
+
 @dataclass(frozen=True)
 class Transcript:
     started_at_ms: int | None
@@ -160,6 +269,8 @@ class Transcript:
     local_name: str
     final: bool = False
     dictionary_terms: tuple[dict, ...] = ()
+    # Stretches of audio the hub never got, declared by the Mac at closure.
+    missing: tuple[MissingAudio, ...] = ()
 
     def correct(self, text: str) -> str:
         return dictionaries.substitute(text, self.dictionary_terms)
@@ -171,7 +282,10 @@ class Transcript:
         return UNKNOWN_SPEAKER
 
     def lines(self) -> list[Line]:
-        return [Line(turn.at_ms, self.name(turn.speaker_key), turn.text) for turn in self.turns]
+        """The turns, and where audio is missing a line that says so."""
+        spoken = [Line(turn.at_ms, self.name(turn.speaker_key), turn.text) for turn in self.turns]
+        holes = [hole.line(self.audio_ms) for hole in self.missing]
+        return sorted(spoken + holes, key=lambda line: line.at_ms)
 
 
 def started_at(store, db, device: str, recording: str) -> int | None:
@@ -336,4 +450,5 @@ def read(
         audio_ms=end,
         local_name=speaker_name("mic_local", "mic_local", renames, owner),
         final=final is not None,
+        missing=missing_audio(store, db, device, recording, started),
     )

@@ -16,6 +16,9 @@ describe("a cut recording", () => {
     expect(entry.text({ cause: "session_inactive", fragments: 12 })).toBe(
       "La grabación se cortó (el Mac se durmió o cambió de usuario) y no pudo seguir. Se ha cerrado con lo grabado y su nota se escribirá; si la reunión sigue, empieza otra grabación.",
     );
+    expect(entry.text({ cause: "helper_lost", fragments: 0, attempt: 3 })).toBe(
+      "La grabación se cortó al empezar (se cerró el ayudante de audio de Orbit) y no pudo seguir tras 3 intentos: no llegó a grabar nada. Si la reunión sigue, empieza otra grabación.",
+    );
     expect(entry.text({ cause: "capture_finalize_timed_out" })).toContain(
       "sin que el Mac confirmara su final",
     );

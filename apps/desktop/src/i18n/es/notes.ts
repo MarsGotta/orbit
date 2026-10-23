@@ -1,3 +1,5 @@
+import { mmss } from "../../time-format";
+
 // Reuniones: the list of meetings and the transcript of one. Each meeting
 // has a note; «Notas» names the vault that comes later (decided 2026-10-22).
 const count = (value: number, one: string, many: string) => `${value} ${value === 1 ? one : many}`;
@@ -71,6 +73,14 @@ export const notes = {
         return `La transcripción nueva tardó más de ${budget}; se conserva la anterior.`;
       }
       return `No se pudo completar la nueva transcripción; se conserva la anterior.${code ? ` (${code})` : ""}`;
+    },
+    // A stretch the hub never got (a chunk it refused), said where it is.
+    missingAudio: (track: string, atMs: number | null, durationMs: number | null) => {
+      const source = track === "mic_local" ? "del micrófono" : "de la reunión";
+      const from = atMs === null ? "" : ` desde ${mmss(atMs)}`;
+      const length =
+        durationMs === null ? "" : ` durante ${Math.max(1, Math.round(durationMs / 1_000))} s`;
+      return `Falta el audio ${source}${from}${length}: no llegó al hub y esa parte no está en la transcripción.`;
     },
     unmatchedSpeakerNames: (value: number) =>
       `${value} ${value === 1 ? "nombre de una voz que ya no está no se trasladó" : "nombres de voces que ya no están no se trasladaron"} a otras voces.`,

@@ -652,6 +652,19 @@ note's `event` (`{title,starts_at_ms,ends_at_ms,attendees,calendar_item_id}`).
 The body is bounded to 512 KiB, the largest valid event escaped.
 It verifies durable chunk counts, contiguous sequences and sample totals. The
 same manifest is idempotent; a different one or new chunks after it conflict.
+
+A track may add `missing_sequences`: chunks the device kept but the hub refused
+for good, in increasing order within `0..last_sequence`, at most 1 024 per track
+(`MAX_DECLARED_MISSING_CHUNKS`). Then `chunk_count` and `total_frames` count the
+chunks the hub holds, `last_sequence` is the last one the capture produced, and
+the hub must hold every other sequence up to it; anything else is
+`manifest_mismatch`, and an unordered or oversized list `invalid_manifest`. The
+hub transcribes around each hole. `GET /v1/recordings/{uuid}` then says, in
+`transcript.missing_audio`, each hole's `track`, `at_ms` from the meeting's
+start, `duration_ms` (each `null` when the chunks around it do not tell) and its
+`chunks`; the note's transcript carries a line at that time saying the audio is
+missing. The field is additive: a manifest without it (a 0.10.1 device) is
+checked and stored exactly as before, so its retried closure still matches.
 Finalizing a `meeting` asks for its note at once, with the manifest's title and
 event and the series' template; a `voice_call` gets no note and is not listed.
 
