@@ -60,14 +60,14 @@ fn failure_code(runtime: &Runtime) -> Option<String> {
 async fn esc_cancels_the_note_without_transcribing_or_sending_it() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    runtime.token = Some(TOKEN.into());
+    runtime.link.token = Some(TOKEN.into());
     record(&mut runtime, &mut helper, 8_000, Command::VoiceCancel).await?;
     assert!(!runtime.state.durable.voice.voice_active);
     assert!(
         runtime.state.durable.assistant.turn.is_none(),
         "no message was made"
     );
-    assert!(runtime.conversation.voice_task.active().is_none());
+    assert!(runtime.assistant.voice_task.active().is_none());
     assert!(said::has(&runtime.state, NoticeCode::VoiceTurnCancelled));
     assert!(!said::has(&runtime.state, NoticeCode::VoiceTranscribing));
     Ok(())
@@ -77,7 +77,7 @@ async fn esc_cancels_the_note_without_transcribing_or_sending_it() -> Result<()>
 async fn a_note_under_the_minimum_is_not_sent_and_keeps_its_numbers() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    runtime.token = Some(TOKEN.into());
+    runtime.link.token = Some(TOKEN.into());
     // 720 samples at 8 kHz: 90 ms, a click.
     record(&mut runtime, &mut helper, 720, Command::VoiceEnd).await?;
     assert_eq!(
@@ -95,7 +95,7 @@ async fn a_note_under_the_minimum_is_not_sent_and_keeps_its_numbers() -> Result<
         runtime.state.durable.assistant.turn.is_none(),
         "no message was made"
     );
-    assert!(runtime.conversation.voice_task.active().is_none());
+    assert!(runtime.assistant.voice_task.active().is_none());
     assert!(!said::has(&runtime.state, NoticeCode::VoiceTranscribing));
     assert!(
         runtime
@@ -113,9 +113,9 @@ async fn retry_sends_the_stored_audio_again_and_completes_the_note() -> Result<(
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     let (hub, _hub_rx) = mpsc::channel(4);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     let (work, mut work_events) = mpsc::channel(16);
-    runtime.work.work_events = work;
+    runtime.work_events = work;
     // Unpaired when the note is recorded: its transcription fails, its WAV stays.
     let unpaired = record(&mut runtime, &mut helper, 8_000, Command::VoiceEnd).await;
     assert!(unpaired.is_err());
@@ -134,7 +134,7 @@ async fn retry_sends_the_stored_audio_again_and_completes_the_note() -> Result<(
         .id
         .clone();
 
-    runtime.token = Some(TOKEN.into());
+    runtime.link.token = Some(TOKEN.into());
     runtime.settings.hub_url = Some(
         one_shot_http(json_response("200 OK", "{\"text\":\"nota repetida\"}"))
             .await?
@@ -179,7 +179,7 @@ async fn retry_sends_the_stored_audio_again_and_completes_the_note() -> Result<(
 async fn retry_without_the_audio_says_the_audio_is_gone() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
-    runtime.token = Some(TOKEN.into());
+    runtime.link.token = Some(TOKEN.into());
     runtime
         .apply(Event::VoiceStored {
             id: "voice-without-audio".into(),
@@ -209,6 +209,6 @@ async fn retry_without_the_audio_says_the_audio_is_gone() -> Result<()> {
         Some("transcription_upstream_failed"),
         "the note keeps saying why it failed"
     );
-    assert!(runtime.conversation.voice_task.active().is_none());
+    assert!(runtime.assistant.voice_task.active().is_none());
     Ok(())
 }

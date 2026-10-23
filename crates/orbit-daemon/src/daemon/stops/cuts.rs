@@ -65,7 +65,7 @@ impl Runtime {
             ],
         );
         if self.state.privacy_stopped() {
-            if self.full_stop_send_owed()
+            if self.audio.full_stop_send_owed()
                 && let Err(error) = self.retry_full_stop_send().await
             {
                 self.say_step_failure("helper_stop_send", &error);

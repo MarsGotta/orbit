@@ -18,6 +18,17 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[path = "call_receipts.rs"]
+mod receipts;
+use health::stop_cause;
+use receipts::processing_pipeline;
+
+#[path = "call_frames.rs"]
+mod frames;
+
+#[path = "call_health.rs"]
+mod health;
+
 const MICROPHONE_SOURCE: &str = "mic_local";
 
 /// How long a call goes without any microphone frame before the daemon stops
@@ -122,43 +133,106 @@ impl CallRuntime {
     }
 }
 
-#[derive(Deserialize)]
-struct CallStartReceipt {
-    stream_id: String,
-    processing: String,
-    processing_enabled: bool,
-    processing_bypassed: bool,
-    agc_enabled: bool,
-    playback_reference: String,
-    pipeline_id: String,
-}
+impl crate::daemon::audio::AudioHandle {
+    pub(super) fn note_call_gap(&mut self, recording_id: &str) {
+        if let Some(call) = self
+            .call
+            .as_mut()
+            .filter(|call| call.authorization.id == recording_id)
+        {
+            call.gaps = call.gaps.saturating_add(1);
+        }
+    }
 
-#[derive(Deserialize)]
-struct VoiceCapabilities {
-    #[serde(default)]
-    supported_audio_processing: Option<Vec<String>>,
-    #[serde(default)]
-    voice_processing_available: Option<bool>,
-    #[serde(default)]
-    playback_reference_available: Option<bool>,
-}
+    pub(super) fn mark_call_stopping(&mut self) {
+        if let Some(call) = self.call.as_mut() {
+            call.closing_at_ms.get_or_insert_with(now);
+            call.preroll.clear();
+            call.preroll_ns = 0;
+            if self
+                .pending_starts
+                .iter()
+                .any(|id| id == &call.start_request)
+                && let Some(stream) = self.mic_stream.as_ref()
+            {
+                self.retired_call_starts
+                    .insert(call.start_request.clone(), stream.clone());
+            }
+            self.pending_starts.retain(|id| id != &call.start_request);
+        }
+    }
 
-#[derive(Deserialize)]
-struct CallFrameFacts {
-    frames: u32,
-    sample_rate: u32,
-    monotonic_ns: u64,
-    playback_active: bool,
-}
+    pub(super) fn closing_call_owns_stream(&self, stream: &str) -> bool {
+        self.call.as_ref().is_some_and(|call| {
+            call.closing_at_ms.is_some() && self.mic_stream.as_deref() == Some(stream)
+        })
+    }
 
-#[derive(Deserialize)]
-struct ProcessingEvidence<'a> {
-    processing: &'a str,
-    processing_enabled: bool,
-    processing_bypassed: bool,
-    agc_enabled: bool,
-    playback_reference: &'a str,
-    pipeline_id: &'a str,
+    pub(super) fn closing_call_start_owns_stream(&self, command_id: &str, stream: &str) -> bool {
+        self.call_start_request_pending(command_id) && self.closing_call_owns_stream(stream)
+    }
+
+    pub(super) fn call_start_request_pending(&self, command_id: &str) -> bool {
+        self.call
+            .as_ref()
+            .is_some_and(|call| call.start_request == command_id)
+    }
+
+    /// One call frame through the turn detector: the call's counters, the
+    /// detector's action, and for a turn that begins, the preroll it starts
+    /// with and the detector as that frame left it.
+    fn observe_call_audio(
+        &mut self,
+        frame: &Value,
+        received_at_ms: i64,
+        observation: VoiceObservation,
+        pcm: &[u8],
+        playback_active: bool,
+    ) -> Result<ObservedFrame> {
+        let policy = VoicePolicy::default();
+        let duration_ns = observation.duration_ns;
+        let call = self.call.as_mut().context("Llamada ausente")?;
+        call.last_audio = Instant::now();
+        call.playback_active = playback_active;
+        call.frames_heard = call.frames_heard.saturating_add(1);
+        call.loudest_rms = call.loudest_rms.max(orbit_core::voice::rms(pcm));
+        if observation.voiced {
+            call.voiced_frames = call.voiced_frames.saturating_add(1);
+            call.voiced_run_ns = call.voiced_run_ns.saturating_add(duration_ns);
+            call.longest_voiced_run_ns = call.longest_voiced_run_ns.max(call.voiced_run_ns);
+        } else {
+            call.voiced_run_ns = 0;
+        }
+        let (detector, action) = call.detector.observe(policy, observation);
+        call.detector = detector;
+        let began = matches!(action, TurnAction::Begin { .. }).then(|| call.detector.clone());
+        let preroll: Vec<_> = if matches!(action, TurnAction::Begin { .. }) {
+            call.preroll
+                .iter()
+                .map(|(frame, time, _)| (frame.clone(), *time))
+                .collect()
+        } else {
+            Vec::new()
+        };
+        call.preroll
+            .push_back((frame.clone(), received_at_ms, duration_ns));
+        call.preroll_ns = call.preroll_ns.saturating_add(duration_ns);
+        while call.preroll_ns > policy.preroll_ms * 1_000_000 {
+            let Some((_, _, duration)) = call.preroll.pop_front() else {
+                break;
+            };
+            call.preroll_ns = call.preroll_ns.saturating_sub(duration);
+        }
+        Ok((action, preroll, began))
+    }
+
+    /// The main loop's facts at the start of a tick, before maintenance runs.
+    pub(super) fn note_loop_tick(&mut self, queued_native_events: usize, last_tick: Duration) {
+        if let Some(call) = self.call.as_mut() {
+            call.queued_native_events = queued_native_events;
+            call.last_tick = last_tick;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -170,20 +244,9 @@ mod turns;
 pub(super) use turns::{CallTurnAudio, OverAnswerTurn, call_turn_audio};
 
 impl Runtime {
-    pub(super) fn note_call_gap(&mut self, recording_id: &str) {
-        if let Some(call) = self
-            .capture
-            .call_runtime
-            .as_mut()
-            .filter(|call| call.authorization.id == recording_id)
-        {
-            call.gaps = call.gaps.saturating_add(1);
-        }
-    }
-
     pub(super) async fn start_call_audio(&mut self) -> Result<()> {
-        if self.capture.retired_call_starts.len() >= MAX_RETIRED_CALL_STARTS {
-            let pending = self.capture.retired_call_starts.len();
+        if self.audio.retired_call_starts.len() >= MAX_RETIRED_CALL_STARTS {
+            let pending = self.audio.retired_call_starts.len();
             let cause = format!(
                 "retired_call_start_capacity_exhausted: {pending} arranques de llamada sin respuesta; máximo {MAX_RETIRED_CALL_STARTS}."
             );
@@ -196,11 +259,11 @@ impl Runtime {
         }
         let authorization = self.state.durable.voice.call.clone();
         let authorization = authorization.context("Llamada sin autorización local")?;
-        if self.capture.call_runtime.is_some()
-            || self.capture.mic_stream.is_some()
-            || self.capture.remote_stream.is_some()
+        if self.audio.call.is_some()
+            || self.audio.mic_stream.is_some()
+            || self.audio.remote_stream.is_some()
             || self.capture.buffer.voice.is_some()
-            || self.conversation.voice_task.active().is_some()
+            || self.assistant.voice_task.active().is_some()
         {
             bail!(
                 "La ruta de audio anterior aún está activa; finalízala antes de iniciar una llamada"
@@ -246,59 +309,21 @@ impl Runtime {
             "stream_id":stream,"processing":"voice_processing"}),
         )?;
         let request = NativeCommandHeader::from_value(&command)?.id.to_owned();
-        self.capture.call_runtime = Some(CallRuntime::new(
+        self.audio.call = Some(CallRuntime::new(
             self.state.generation(),
             authorization,
             request.clone(),
         ));
-        self.capture.pending_starts.push(request);
-        self.capture.mic_stream = Some(stream);
-        self.record_pending_native(&command);
-        tokio::time::timeout(Duration::from_millis(500), self.native.send(command)).await??;
+        self.audio.pending_starts.push(request);
+        self.audio.mic_stream = Some(stream);
+        self.helper.record_pending(&command);
+        tokio::time::timeout(Duration::from_millis(500), self.helper.sender.send(command))
+            .await??;
         Ok(())
     }
 
-    pub(super) fn mark_call_stopping(&mut self) {
-        if let Some(call) = self.capture.call_runtime.as_mut() {
-            call.closing_at_ms.get_or_insert_with(now);
-            call.preroll.clear();
-            call.preroll_ns = 0;
-            if self
-                .capture
-                .pending_starts
-                .iter()
-                .any(|id| id == &call.start_request)
-                && let Some(stream) = self.capture.mic_stream.as_ref()
-            {
-                self.capture
-                    .retired_call_starts
-                    .insert(call.start_request.clone(), stream.clone());
-            }
-            self.capture
-                .pending_starts
-                .retain(|id| id != &call.start_request);
-        }
-    }
-
-    pub(super) fn closing_call_owns_stream(&self, stream: &str) -> bool {
-        self.capture.call_runtime.as_ref().is_some_and(|call| {
-            call.closing_at_ms.is_some() && self.capture.mic_stream.as_deref() == Some(stream)
-        })
-    }
-
-    pub(super) fn closing_call_start_owns_stream(&self, command_id: &str, stream: &str) -> bool {
-        self.call_start_request_pending(command_id) && self.closing_call_owns_stream(stream)
-    }
-
-    pub(super) fn call_start_request_pending(&self, command_id: &str) -> bool {
-        self.capture
-            .call_runtime
-            .as_ref()
-            .is_some_and(|call| call.start_request == command_id)
-    }
-
     pub(super) async fn stop_call_audio(&mut self, voice: CallStopVoice) -> Result<()> {
-        if let Some(call) = self.capture.call_runtime.as_ref() {
+        if let Some(call) = self.audio.call.as_ref() {
             let threshold = VoicePolicy::default().rms_threshold.to_string();
             self.log(
                 "call_audio_heard",
@@ -315,7 +340,7 @@ impl Runtime {
                 ],
             );
         }
-        self.mark_call_stopping();
+        self.audio.mark_call_stopping();
         if let CallStopVoice::Cancel(cause) = voice {
             self.cancel_voice_transcription(cause).await?;
         }
@@ -341,7 +366,7 @@ impl Runtime {
     }
 
     pub(super) async fn finish_call_drain(&mut self) -> Result<()> {
-        let Some(call) = self.capture.call_runtime.as_ref() else {
+        let Some(call) = self.audio.call.as_ref() else {
             return Ok(());
         };
         let Some(ended_at_ms) = call.closing_at_ms else {
@@ -354,7 +379,7 @@ impl Runtime {
             .pending_seals
             .iter()
             .any(|segment| segment.metadata.recording_id == call.authorization.id);
-        if self.capture.mic_stream.is_some() || self.audio_is_draining() || sealing {
+        if self.audio.mic_stream.is_some() || self.audio.audio_is_draining() || sealing {
             return Ok(());
         }
         let recording = call.authorization.id.clone();
@@ -367,426 +392,7 @@ impl Runtime {
             gaps,
         )
         .await?;
-        self.capture.call_runtime = None;
-        Ok(())
-    }
-
-    pub(super) async fn call_start_response(
-        &mut self,
-        command_id: &str,
-        result: &Value,
-    ) -> Result<bool> {
-        let Some(call) = self.capture.call_runtime.as_ref() else {
-            return Ok(false);
-        };
-        if call.start_request != command_id {
-            return Ok(false);
-        }
-        if call.closing_at_ms.is_some() || self.state.durable.voice.call.is_none() {
-            // The start can open after a stop overtook it. Let the retired
-            // start path close the stream identified by this late receipt.
-            return Ok(false);
-        }
-        let readback: CallStartReceipt = decode_result_body("audio_start", result)?;
-        if Some(readback.stream_id.as_str()) != self.capture.mic_stream.as_deref() {
-            bail!("La confirmación de llamada corresponde a otro stream");
-        }
-        if readback.processing != "voice_processing"
-            || !readback.processing_enabled
-            || readback.processing_bypassed
-            || readback.agc_enabled
-            || readback.playback_reference != "shared_engine"
-            || readback.pipeline_id.is_empty()
-            || readback.pipeline_id.len() > 128
-        {
-            bail!("El Mac no acreditó la ruta VoiceProcessing y su referencia compartida");
-        }
-        let pipeline = readback.pipeline_id;
-        // What the microphone gives under voice processing: its channels and
-        // rate, before the helper mixes them to the call's mono stream.
-        self.log(
-            "call_audio_opened",
-            &[
-                ("input_channels", &result["input_channels"].to_string()),
-                ("sample_rate", &result["sample_rate"].to_string()),
-            ],
-        );
-        let recording = call.authorization.id.clone();
-        let job = Job {
-            id: format!("call-processing-{recording}"),
-            kind: orbit_store::QueueKind::AudioProcessingReceipt.into(),
-            state: JobState::Succeeded,
-            created_at: now(),
-            payload: json!({"recording_id":recording,
-                "observed":result,"aec_hardware_validated":false,"origin":"native_start_readback"}),
-        };
-        self.store_actor
-            .run(move |store| Ok(store.enqueue_job(&job)?))
-            .await?;
-        let call = self
-            .capture
-            .call_runtime
-            .as_mut()
-            .context("Llamada perdida")?;
-        call.pipeline_id = Some(pipeline);
-        call.last_audio = Instant::now();
-        self.capture
-            .pending_starts
-            .retain(|pending| pending != command_id);
-        self.state.set_voice_processing_available(true);
-        self.state.set_playback_reference_available(true);
-        self.apply(Event::CallReady).await?;
-        Ok(true)
-    }
-
-    /// Supported modes permit only a user-requested attempt. Availability flags
-    /// are kept separate from per-stream processing proof and hardware efficacy.
-    pub(super) fn observe_voice_capabilities(&mut self, value: &Value) -> Result<()> {
-        let previous = self.state.capabilities().clone();
-        let observed: VoiceCapabilities = decode_result_body("voice_capabilities", value)?;
-        if let Some(modes) = observed.supported_audio_processing {
-            self.state.set_voice_processing_supported(
-                modes.iter().any(|mode| mode == "voice_processing"),
-            );
-        }
-        if let Some(available) = observed.voice_processing_available {
-            self.state.set_voice_processing_available(available);
-        }
-        if let Some(available) = observed.playback_reference_available {
-            self.state.set_playback_reference_available(available);
-        }
-        if previous != *self.state.capabilities() {
-            self.store_actor.defer_snapshot(&self.state)?;
-        }
-        Ok(())
-    }
-
-    pub(super) fn interrupt_call_turn(&mut self) {
-        if let Some(call) = self
-            .capture
-            .call_runtime
-            .as_mut()
-            .filter(|call| call.closing_at_ms.is_none())
-        {
-            // Cutting the voice is all this does. The request, the tool and the
-            // turn behind it continue, and the answer still arrives as text.
-            call.detector = call.detector.cancelled_turn();
-            call.preroll.clear();
-            call.preroll_ns = 0;
-            call.joined = None;
-            call.carried = None;
-            call.capturing_over_answer = false;
-            self.capture.buffer.voice = None;
-            if let Some(state) = self.state.durable.voice.call.as_mut() {
-                state.phase = CallPhase::Listening;
-            }
-        }
-    }
-
-    pub(super) async fn prepare_call_frame(
-        &mut self,
-        frame: &Value,
-        received_at_ms: i64,
-    ) -> Result<TurnAction> {
-        let Some(call) = self.capture.call_runtime.as_ref() else {
-            return Ok(TurnAction::None);
-        };
-        if call.closing_at_ms.is_some() || self.state.durable.voice.call.is_none() {
-            return Ok(TurnAction::None);
-        }
-        let Some(expected_pipeline) = call.pipeline_id.as_deref() else {
-            return Ok(TurnAction::None);
-        };
-        let facts = CallFrameFacts::deserialize(frame);
-        if processing_pipeline(frame) != Some(expected_pipeline) || facts.is_err() {
-            if let Some(call) = self.capture.call_runtime.as_mut() {
-                call.gaps = call.gaps.saturating_add(1);
-            }
-            bail!(
-                "Cambió o se perdió la evidencia de procesamiento/referencia de la llamada; requiere reinicio explícito"
-            );
-        }
-        let facts = facts?;
-        let pcm = crate::capture::frame_pcm(frame)?;
-        let frames = u64::from(facts.frames);
-        let rate = u64::from(facts.sample_rate);
-        let duration_ns = frames * 1_000_000_000 / rate;
-        let policy = VoicePolicy::default();
-        let responding = facts.playback_active || self.conversation.speech_task.active().is_some();
-        let waiting = self.conversation.voice_task.active().is_some()
-            || self.state.durable.assistant.active_request.is_some();
-        let response_active = responding || waiting;
-        let observation = VoiceObservation {
-            generation: self.state.generation(),
-            authorized: !self.state.privacy_stopped() && self.state.durable.voice.call.is_some(),
-            processing_observed: true,
-            monotonic_ns: facts.monotonic_ns,
-            duration_ns,
-            received_at_ms,
-            voiced: energy_exceeds(&pcm, policy.rms_threshold),
-            response_active,
-            muted: self.microphone_muted(),
-        };
-        let (action, preroll, began) = self.observe_call_audio(
-            frame,
-            received_at_ms,
-            observation,
-            &pcm,
-            facts.playback_active,
-        )?;
-        match action {
-            TurnAction::Begin { interrupt } => {
-                self.begin_call_turn(interrupt, responding, began, preroll)
-                    .await?;
-            }
-            TurnAction::Stop(reason) => {
-                if reason == StopReason::Idle {
-                    self.log_call_idle_stop(reason, received_at_ms);
-                }
-                self.stop_call_for_reason(reason).await?;
-            }
-            TurnAction::None
-                if !self
-                    .capture
-                    .call_runtime
-                    .as_ref()
-                    .is_some_and(|call| call.detector.is_capturing()) =>
-            {
-                self.update_call_phase(responding, waiting).await?;
-            }
-            TurnAction::None | TurnAction::Finish { .. } => {}
-        }
-        Ok(action)
-    }
-
-    /// One call frame through the turn detector: the call's counters, the
-    /// detector's action, and for a turn that begins, the preroll it starts
-    /// with and the detector as that frame left it.
-    fn observe_call_audio(
-        &mut self,
-        frame: &Value,
-        received_at_ms: i64,
-        observation: VoiceObservation,
-        pcm: &[u8],
-        playback_active: bool,
-    ) -> Result<ObservedFrame> {
-        let policy = VoicePolicy::default();
-        let duration_ns = observation.duration_ns;
-        let call = self
-            .capture
-            .call_runtime
-            .as_mut()
-            .context("Llamada ausente")?;
-        call.last_audio = Instant::now();
-        call.playback_active = playback_active;
-        call.frames_heard = call.frames_heard.saturating_add(1);
-        call.loudest_rms = call.loudest_rms.max(orbit_core::voice::rms(pcm));
-        if observation.voiced {
-            call.voiced_frames = call.voiced_frames.saturating_add(1);
-            call.voiced_run_ns = call.voiced_run_ns.saturating_add(duration_ns);
-            call.longest_voiced_run_ns = call.longest_voiced_run_ns.max(call.voiced_run_ns);
-        } else {
-            call.voiced_run_ns = 0;
-        }
-        let (detector, action) = call.detector.observe(policy, observation);
-        call.detector = detector;
-        let began = matches!(action, TurnAction::Begin { .. }).then(|| call.detector.clone());
-        let preroll: Vec<_> = if matches!(action, TurnAction::Begin { .. }) {
-            call.preroll
-                .iter()
-                .map(|(frame, time, _)| (frame.clone(), *time))
-                .collect()
-        } else {
-            Vec::new()
-        };
-        call.preroll
-            .push_back((frame.clone(), received_at_ms, duration_ns));
-        call.preroll_ns = call.preroll_ns.saturating_add(duration_ns);
-        while call.preroll_ns > policy.preroll_ms * 1_000_000 {
-            let Some((_, _, duration)) = call.preroll.pop_front() else {
-                break;
-            };
-            call.preroll_ns = call.preroll_ns.saturating_sub(duration);
-        }
-        Ok((action, preroll, began))
-    }
-
-    /// The call's phase while no turn is being captured.
-    async fn update_call_phase(&mut self, responding: bool, waiting: bool) -> Result<()> {
-        let phase = if responding {
-            CallPhase::Responding
-        } else if waiting {
-            CallPhase::Waiting
-        } else {
-            CallPhase::Listening
-        };
-        if self
-            .state
-            .durable
-            .voice
-            .call
-            .as_ref()
-            .is_some_and(|call| call.phase != phase)
-        {
-            self.apply(Event::CallPhase(phase)).await?;
-        }
-        Ok(())
-    }
-
-    /// Runs after the current frame has reached both original and derived buffers.
-    pub(super) async fn finish_call_frame(&mut self, action: TurnAction) -> Result<()> {
-        if let TurnAction::Finish { submit } = action {
-            self.finish_call_voice(submit).await?;
-            if let Some(call) = self.state.durable.voice.call.as_mut() {
-                call.phase = if submit {
-                    CallPhase::Waiting
-                } else {
-                    CallPhase::Listening
-                };
-            }
-            self.store_actor.snapshot(&self.state).await?;
-        }
-        Ok(())
-    }
-
-    /// The main loop's facts at the start of a tick, before maintenance runs.
-    pub(super) fn note_loop_tick(&mut self, queued_native_events: usize, last_tick: Duration) {
-        if let Some(call) = self.capture.call_runtime.as_mut() {
-            call.queued_native_events = queued_native_events;
-            call.last_tick = last_tick;
-        }
-    }
-
-    pub(super) async fn check_call_health(&mut self) -> Result<()> {
-        let Some(call) = self
-            .capture
-            .call_runtime
-            .as_ref()
-            .filter(|call| call.closing_at_ms.is_none())
-        else {
-            return Ok(());
-        };
-        let authorized = Duration::from_millis(
-            call.authorization
-                .expires_at_ms
-                .saturating_sub(call.authorization.started_at_ms) as u64,
-        );
-        // A frame still in the loop's queue was sent; absence is judged only
-        // once nothing is waiting.
-        let no_audio =
-            call.last_audio.elapsed() > CALL_AUDIO_SILENCE_LIMIT && call.queued_native_events == 0;
-        let reason = if no_audio {
-            StopReason::NoAudio
-        } else if call.started.elapsed() >= authorized {
-            StopReason::Expired
-        } else {
-            return Ok(());
-        };
-        if no_audio {
-            self.log_call_idle_stop(reason, now());
-        }
-        self.stop_call_for_reason(reason).await
-    }
-
-    /// Why a call stopped for lack of audio or of conversation, with the
-    /// numbers that tell one from the other and a held loop from both.
-    fn log_call_idle_stop(&self, reason: StopReason, now_ms: i64) {
-        let Some(call) = self.capture.call_runtime.as_ref() else {
-            return;
-        };
-        let deimos_speaking =
-            call.playback_active || self.conversation.speech_task.active().is_some();
-        let limit_ms = if reason == StopReason::NoAudio {
-            CALL_AUDIO_SILENCE_LIMIT.as_millis().to_string()
-        } else {
-            VoicePolicy::default().idle_timeout_ms.to_string()
-        };
-        self.log(
-            "call_stopped_idle",
-            &[
-                ("cause", stop_cause(reason)),
-                (
-                    "last_frame_age_ms",
-                    &call.last_audio.elapsed().as_millis().to_string(),
-                ),
-                (
-                    "user_silent_ms",
-                    &now_ms
-                        .saturating_sub(call.detector.last_activity_ms())
-                        .to_string(),
-                ),
-                ("limit_ms", &limit_ms),
-                (
-                    "queued_native_events",
-                    &call.queued_native_events.to_string(),
-                ),
-                (
-                    "deimos_speaking",
-                    if deimos_speaking { "true" } else { "false" },
-                ),
-                ("last_tick_ms", &call.last_tick.as_millis().to_string()),
-                ("frames", &call.frames_heard.to_string()),
-            ],
-        );
-    }
-}
-
-/// The cause token a stop is said with: one word per cause.
-fn stop_cause(reason: StopReason) -> &'static str {
-    match reason {
-        StopReason::Unauthorized => "unauthorized",
-        StopReason::GenerationChanged => "generation_changed",
-        StopReason::ProcessingLost => "processing_lost",
-        StopReason::Discontinuity => "discontinuity",
-        StopReason::Expired => "expired",
-        StopReason::Idle => "idle",
-        StopReason::NoAudio => "no_audio",
-    }
-}
-
-fn processing_pipeline(value: &Value) -> Option<&str> {
-    let evidence = ProcessingEvidence::deserialize(value).ok()?;
-    if evidence.processing != "voice_processing"
-        || !evidence.processing_enabled
-        || evidence.processing_bypassed
-        || evidence.agc_enabled
-        || evidence.playback_reference != "shared_engine"
-    {
-        return None;
-    }
-    Some(evidence.pipeline_id).filter(|id| !id.is_empty() && id.len() <= 128)
-}
-
-#[cfg(test)]
-mod result_fixture_tests {
-    use super::*;
-
-    #[test]
-    fn call_start_and_ready_fixtures_use_the_call_readers() -> Result<()> {
-        let start: Value = serde_json::from_str(include_str!(
-            "../../../../contracts/fixtures/native/results/audio_start-mic.json"
-        ))?;
-        let receipt: CallStartReceipt = decode_result_body("audio_start", &start)?;
-        assert_eq!(receipt.stream_id, "stream-1");
-        assert_eq!(receipt.processing, "voice_processing");
-        assert!(receipt.processing_enabled);
-        assert!(!receipt.processing_bypassed);
-        assert!(!receipt.agc_enabled);
-        assert_eq!(receipt.playback_reference, "shared_engine");
-        assert_eq!(receipt.pipeline_id, "fixture");
-        let ready: Value = serde_json::from_str(include_str!(
-            "../../../../contracts/fixtures/native/events/ready.json"
-        ))?;
-        let facts: VoiceCapabilities = decode_result_body("voice_capabilities", &ready)?;
-        assert_eq!(facts.voice_processing_available, Some(false));
-        assert_eq!(facts.playback_reference_available, Some(false));
-        assert!(
-            facts
-                .supported_audio_processing
-                .context("processing modes")?
-                .iter()
-                .any(|mode| mode == "voice_processing")
-        );
+        self.audio.call = None;
         Ok(())
     }
 }

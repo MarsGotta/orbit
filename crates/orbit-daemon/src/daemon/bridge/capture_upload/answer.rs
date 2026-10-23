@@ -20,7 +20,7 @@ impl Runtime {
         if !self.capture_upload_is_current(&ticket, &request_id, &capture) {
             return Ok(());
         }
-        let Some(ask) = self.conversation.bridge_request.clone() else {
+        let Some(ask) = self.assistant.bridge_request.clone() else {
             return Ok(());
         };
         let from_engine = matches!(&capture, PendingCapture::Engine { .. });
@@ -35,7 +35,7 @@ impl Runtime {
         let Some(screenshot) = self.uploaded_screenshot(&ask, capture, outcome).await? else {
             return Ok(());
         };
-        self.features.sources.bridge_upload.take();
+        self.sources.bridge_upload.take();
         let subject = if from_engine {
             format!(
                 "the engine observation: {} · {}",
@@ -53,7 +53,7 @@ impl Runtime {
             result_payload(&ask.id, BridgeResult::Screenshot(screenshot)),
         ));
         self.note_bridge_send(&sent, &subject);
-        self.conversation.bridge_request = None;
+        self.assistant.bridge_request = None;
         Ok(())
     }
 
@@ -67,7 +67,7 @@ impl Runtime {
         capture: &PendingCapture,
     ) -> bool {
         let generation = self.state.generation();
-        let Some(upload) = self.features.sources.bridge_upload.as_mut() else {
+        let Some(upload) = self.sources.bridge_upload.as_mut() else {
             return false;
         };
         match upload.work.settle(ticket, generation) {
@@ -97,13 +97,12 @@ impl Runtime {
         } else {
             Capability::Screenshot
         };
-        let stale_cause = match self.conversation.bridge_request.as_ref() {
+        let stale_cause = match self.assistant.bridge_request.as_ref() {
             None => Some("request_released"),
             Some(ask) if ask.id != request_id => Some("request_replaced"),
             Some(ask) if ask.capability != wanted => Some("capability_changed"),
             Some(_)
                 if self
-                    .features
                     .sources
                     .bridge_upload
                     .as_ref()
@@ -141,14 +140,14 @@ impl Runtime {
             capture_id.clone_into(id);
             sha256.clone_into(digest);
         }
-        self.features.sources.bridge_upload.take();
+        self.sources.bridge_upload.take();
         let sent = self.send_frame(hub::command(
             &ask.id,
             "device.reply",
             result_payload(&ask.id, BridgeResult::FilesRead(result)),
         ));
         self.note_bridge_send(&sent, "the folder image");
-        self.conversation.bridge_request = None;
+        self.assistant.bridge_request = None;
     }
 
     /// The screenshot an upload's outcome answers with; `None` when the
@@ -185,13 +184,12 @@ impl Runtime {
                 // This full screen is what Deimos now sees, so its
                 // scale is the one its desktop actions are mapped with.
                 let desktop = self
-                    .features
                     .computer
                     .pending_desktop
                     .take_if(|(pending, _)| *pending == capture_id)
                     .map(|(_, scale)| scale);
                 if let Some(scale) = desktop {
-                    self.features.computer.desktop_scale = Some(scale);
+                    self.computer.desktop_scale = Some(scale);
                 }
                 ScreenshotResult {
                     capture_id,
@@ -207,7 +205,6 @@ impl Runtime {
             (PendingCapture::File { .. }, CaptureUploadOutcome::Uploaded(_)) => return Ok(None),
             (PendingCapture::Helper { source_id }, CaptureUploadOutcome::Uploaded(sha256)) => {
                 let Some(screenshot) = self
-                    .features
                     .sources
                     .bridge_upload
                     .as_ref()
@@ -233,7 +230,7 @@ impl Runtime {
         ask: &BridgeAsk,
         error: Option<&anyhow::Error>,
     ) -> Result<()> {
-        if let Some(mut upload) = self.features.sources.bridge_upload.take() {
+        if let Some(mut upload) = self.sources.bridge_upload.take() {
             upload.work.cancel();
         }
         let refusal = error
@@ -241,7 +238,7 @@ impl Runtime {
             .cloned()
             .unwrap_or_else(|| Self::bridge_refusal_code("capture_upload_failed"));
         self.say(bridge_refused(&refusal));
-        self.conversation.bridge_request = None;
+        self.assistant.bridge_request = None;
         self.send(hub::command(
             &ask.id,
             "device.reply",

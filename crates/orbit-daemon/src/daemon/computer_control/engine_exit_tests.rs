@@ -68,24 +68,23 @@ async fn idle_exit_is_said_once_with_status_and_releases_the_session() -> Result
     ] {
         let mut h = Mac::new(false).await?;
         let (service, pid) = exiting_service(tail, h._directory.path()).await?;
-        h.runtime.features.computer.service = Some(service);
+        h.runtime.computer.service = Some(service);
         exited(pid).await?;
         h.runtime.maintain_engine().await;
         assert_exit_notice(&h.runtime, code, status)?;
-        assert!(h.runtime.features.computer.service.is_none());
+        assert!(h.runtime.computer.service.is_none());
         assert_eq!(
-            h.runtime.features.computer.engine_failure_kind,
+            h.runtime.computer.engine_failure_kind,
             Some(orbit_core::refusal::EngineCause::Unhealthy)
         );
         let records = h.runtime.state.durable.notice_log.records().len();
         h.runtime.maintain_engine().await;
         assert_eq!(h.runtime.state.durable.notice_log.records().len(), records);
         // Recovery goes through the ordinary start, without a real driver.
-        h.runtime.features.computer.engine_retry_at = Some(Instant::now());
+        h.runtime.computer.engine_retry_at = Some(Instant::now());
         h.runtime.maintain_engine().await;
         assert!(
             h.runtime
-                .features
                 .computer
                 .engine_failure
                 .as_deref()
@@ -104,7 +103,7 @@ async fn exit_during_input_keeps_one_uncertain_receipt_and_never_replays() -> Re
         &marker,
     )
     .await?;
-    h.runtime.features.computer.service = Some(service);
+    h.runtime.computer.service = Some(service);
     h.runtime.call_engine_tool(
         ToolCall {
             tool: "launch_app".into(),
@@ -119,7 +118,7 @@ async fn exit_during_input_keeps_one_uncertain_receipt_and_never_replays() -> Re
     assert_eq!(history[0].outcome, ControlOutcome::Unknown);
     h.runtime.maintain_engine().await;
     assert_eq!(std::fs::read_to_string(marker)?, "input\n");
-    assert!(h.runtime.features.computer.service.is_none());
+    assert!(h.runtime.computer.service.is_none());
     Ok(())
 }
 
@@ -127,10 +126,10 @@ async fn exit_during_input_keeps_one_uncertain_receipt_and_never_replays() -> Re
 async fn an_ordered_close_does_not_report_an_unexpected_exit() -> Result<()> {
     let mut h = Mac::new(false).await?;
     let (service, _) = exiting_service("read -r line", h._directory.path()).await?;
-    h.runtime.features.computer.service = Some(service);
+    h.runtime.computer.service = Some(service);
     h.runtime.closing = true;
     h.runtime.maintain_engine().await;
-    assert!(h.runtime.features.computer.service.is_none());
+    assert!(h.runtime.computer.service.is_none());
     assert!(
         !h.runtime
             .state

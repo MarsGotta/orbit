@@ -28,7 +28,7 @@ async fn mac() -> Result<Mac> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, helper) = fixture(directory.path())?;
     let (hub, frames) = mpsc::channel(64);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     Ok(Mac {
         directory,
         runtime,
@@ -364,9 +364,9 @@ async fn an_image_travels_as_a_capture_and_its_reply_names_it() -> Result<()> {
     let (address, mut puts, release) =
         crate::daemon::audio::tests::actor::capture_hub(false).await?;
     mac.runtime.settings.hub_url = Some(format!("http://{address}"));
-    mac.runtime.token = Some("synthetic device credential".to_owned());
+    mac.runtime.link.token = Some("synthetic device credential".to_owned());
     let (completions_tx, mut completions) = mpsc::channel::<WorkResult>(16);
-    mac.runtime.work.work_events = completions_tx;
+    mac.runtime.work_events = completions_tx;
     let photo = "/Users/ejemplo/Proyectos/foto.heic";
     mac.request("image", "files_read", json!({"path":photo}))
         .await?;
@@ -588,7 +588,7 @@ async fn a_helper_step_that_never_answers_frees_the_bridge_with_both_numbers() -
     )
     .await?;
     mac.helper_command("assistant_folders")?;
-    let Some(request) = mac.runtime.features.files.request.as_mut() else {
+    let Some(request) = mac.runtime.files.request.as_mut() else {
         bail!("no request in flight");
     };
     request.started = std::time::Instant::now()
@@ -604,7 +604,7 @@ async fn a_helper_step_that_never_answers_frees_the_bridge_with_both_numbers() -
         reply["refusal"]["deadline_ms"],
         orbit_core::assistant_files::HELPER_REQUEST_TIMEOUT_MS
     );
-    assert!(mac.runtime.conversation.bridge_request.is_none());
+    assert!(mac.runtime.assistant.bridge_request.is_none());
     Ok(())
 }
 

@@ -41,7 +41,7 @@ impl Runtime {
     /// of its recording and its track, and the notice says so.
     fn declare_reserve_overflow(&mut self, overflow: &[crate::capture::Segment]) {
         for segment in overflow {
-            self.note_call_gap(&segment.metadata.recording_id);
+            self.audio.note_call_gap(&segment.metadata.recording_id);
             if let Some(recording) = self.state.durable.capture.recording.as_mut()
                 && recording.id == segment.metadata.recording_id
             {
@@ -57,7 +57,7 @@ impl Runtime {
         }
         self.capture.reserve_exhausted = true;
         self.say(NoticeCode::AudioReserveExhausted);
-        self.work.durable_snapshot = super::DurableSnapshot::from(&self.state);
+        self.persisted.durable = super::DurableSnapshot::from(&self.state);
         let _ = self.store_actor.defer_snapshot(&self.state);
     }
 
@@ -96,7 +96,7 @@ impl Runtime {
                 && self.capture.pending_seals.is_empty()
                 && !self.capture.buffer.has_pending_audio()
                 && !self.recording_active()
-                && self.capture.call_runtime.is_none()
+                && self.audio.call.is_none()
             {
                 self.capture.reserve_exhausted = false;
             }
@@ -160,7 +160,7 @@ impl Runtime {
                 track.last_chunk_at_ms = track.last_chunk_at_ms.max(receipt.started_at_ms);
             }
         }
-        self.work.finalize_ready.remove(&receipt.recording);
+        self.transfers.finalize_ready.remove(&receipt.recording);
     }
 
     /// Admit the coalesced projection snapshot without waiting for its disk
@@ -169,7 +169,7 @@ impl Runtime {
     /// following Tick from synchronously writing the same projection again.
     pub(super) fn defer_sealed_snapshot(&mut self) -> Result<()> {
         self.store_actor.defer_snapshot(&self.state)?;
-        self.work.durable_snapshot = super::DurableSnapshot::from(&self.state);
+        self.persisted.durable = super::DurableSnapshot::from(&self.state);
         Ok(())
     }
 
@@ -229,104 +229,15 @@ impl Runtime {
         Box::pin(async move {
             Box::pin(self.retry_full_stop_send()).await?;
             self.retry_retired_stream_stops().await;
-            // A failed stopped-audio flush is still the
-            // capture's own failure and still reaches the containment
-            // table, but only after this turn's whole upkeep has run — the
-            // same rule as the seal retry below. Before, the early return
-            // here skipped the deferred drain, the core `Tick` (the
-            // finalize deadline), the call checks and the queued finalize,
-            // so a disk that kept refusing the local flush also froze them,
-            // and a notice delivered late could re-show «No cierres Orbit»
-            // for audio the Tick had already moved on from.
-            let flush_stopped = if self.stopped_audio_owed()
-                && !self.audio_is_draining()
-                && self.capture.buffer.voice.is_some()
-                && self
-                    .capture
-                    .seal_retry_at
-                    .is_none_or(|deadline| Instant::now() >= deadline)
-                && let Err(error) = self.flush_stopped_audio().await
-            {
-                self.capture.seal_retry_at = Some(Instant::now() + SEAL_RETRY_DELAY);
-                Some(error)
-            } else {
-                None
-            };
-            // A failed sealing retry is still the capture's own
-            // failure and still reaches the containment table, but only
-            // after this turn's whole upkeep has run. Before, the `?` here
-            // returned before the deferred drain, the core `Tick` (the
-            // finalize deadline), the call checks and the queued finalize,
-            // so a disk that kept refusing seals also froze them.
-            let seal_retry = if !self.capture.pending_seals.is_empty()
-                && self
-                    .capture
-                    .seal_retry_at
-                    .is_none_or(|deadline| Instant::now() >= deadline)
-            {
-                self.retry_seals().err()
-            } else {
-                None
-            };
+            let flush_stopped = self.flush_owed_stopped_audio().await;
+            let seal_retry = self.retry_due_seals();
             // Before the tick, never after. `Event::Tick` is what
             // interrupts a recording that has been finalizing too long, so a
             // finish that is ready to happen has to happen first — otherwise
             // the deadline reaches a recording the daemon already had
             // everything it needed to close.
             Box::pin(self.resume_deferred_drain()).await?;
-            // Permission/call expiry sends capture commands, so Tick belongs
-            // to capture maintenance. It runs after a ready deferred finish,
-            // preserving the ordering established above.
-            let before_tick = self
-                .state
-                .durable
-                .capture
-                .recording
-                .as_ref()
-                .map(|recording| (recording.id.clone(), recording.phase.clone()));
-            let tick_result = Box::pin(self.apply(orbit_core::Event::Tick)).await;
-            let tick_cause = before_tick.and_then(|(id, phase)| {
-                let recording = self.state.durable.capture.recording.as_ref()?;
-                if recording.id != id
-                    || recording.phase != orbit_core::CapturePhase::Interrupted
-                    || recording.ended_at_ms.is_some()
-                {
-                    return None;
-                }
-                match phase {
-                    orbit_core::CapturePhase::Starting | orbit_core::CapturePhase::Recording => {
-                        Some(orbit_core::RecordingInterruptionCause::RecordingExpired)
-                    }
-                    orbit_core::CapturePhase::Finalizing => {
-                        Some(orbit_core::RecordingInterruptionCause::CaptureFinalizeTimedOut)
-                    }
-                    orbit_core::CapturePhase::Idle
-                    | orbit_core::CapturePhase::Paused
-                    | orbit_core::CapturePhase::Interrupted => None,
-                }
-            });
-            if let Some(cause) = tick_cause {
-                self.capture
-                    .interruption
-                    .get_or_insert(orbit_core::RecordingInterruption {
-                        cause,
-                        detail: None,
-                        audio_available: false,
-                    });
-            }
-            tick_result?;
-            if let Some(cause) = tick_cause {
-                // The ceiling or a «Terminar» never confirmed: neither goes on.
-                self.capture.recovery = None;
-                Box::pin(
-                    self.close_empty_interrupted(orbit_core::RecordingInterruption {
-                        cause,
-                        detail: None,
-                        audio_available: false,
-                    }),
-                )
-                .await?;
-            }
+            Box::pin(self.tick_capture()).await?;
             // A cut recording whose audio has settled resumes once the
             // capture is back, or is closed; never left for «Terminar».
             Box::pin(self.recover_cut_recording()).await?;
@@ -337,24 +248,91 @@ impl Runtime {
             // capture maintenance; `schedule_upload` may observe it again
             // idempotently when admitting network work.
             let tail = Box::pin(self.queue_finalize()).await;
-            // A failed flush parks its retry behind `SEAL_RETRY_DELAY`, so
-            // it excludes the seal-retry branch below on the same turn;
-            // both are folded anyway so neither can silently win.
-            let capture_failure = match (flush_stopped, seal_retry) {
-                (None, retry) => retry,
-                (Some(error), None) => Some(error),
-                (Some(flush), Some(retry)) => Some(flush.context(format!(
-                    "y el reintento de sellado también falló: {retry:#}"
-                ))),
-            };
-            match (capture_failure, tail) {
-                (None, outcome) => outcome,
-                (Some(error), Ok(())) => Err(error),
-                (Some(error), Err(tail)) => {
-                    Err(error.context(format!("y el cierre en cola también falló: {tail:#}")))
-                }
-            }
+            fold_capture_failures(flush_stopped, seal_retry, tail)
         })
+    }
+
+    /// A failed stopped-audio flush is still the capture's own failure and
+    /// still reaches the containment table, but only after this turn's whole
+    /// upkeep has run — the same rule as the seal retry. Before, the early
+    /// return here skipped the deferred drain, the core `Tick` (the finalize
+    /// deadline), the call checks and the queued finalize, so a disk that
+    /// kept refusing the local flush also froze them, and a notice delivered
+    /// late could re-show «No cierres Orbit» for audio the Tick had already
+    /// moved on from.
+    async fn flush_owed_stopped_audio(&mut self) -> Option<anyhow::Error> {
+        if self.stopped_audio_owed()
+            && !self.audio.audio_is_draining()
+            && self.capture.buffer.voice.is_some()
+            && self
+                .capture
+                .seal_retry_at
+                .is_none_or(|deadline| Instant::now() >= deadline)
+            && let Err(error) = self.flush_stopped_audio().await
+        {
+            self.capture.seal_retry_at = Some(Instant::now() + SEAL_RETRY_DELAY);
+            Some(error)
+        } else {
+            None
+        }
+    }
+
+    /// A failed sealing retry is still the capture's own failure and still
+    /// reaches the containment table, but only after this turn's whole
+    /// upkeep has run. Before, the `?` here returned before the deferred
+    /// drain, the core `Tick` (the finalize deadline), the call checks and
+    /// the queued finalize, so a disk that kept refusing seals also froze
+    /// them.
+    fn retry_due_seals(&mut self) -> Option<anyhow::Error> {
+        if !self.capture.pending_seals.is_empty()
+            && self
+                .capture
+                .seal_retry_at
+                .is_none_or(|deadline| Instant::now() >= deadline)
+        {
+            self.retry_seals().err()
+        } else {
+            None
+        }
+    }
+
+    /// Permission/call expiry sends capture commands, so Tick belongs to
+    /// capture maintenance. It runs after a ready deferred finish. A
+    /// recording the Tick interrupted keeps why, and is closed: the ceiling
+    /// or a «Terminar» never confirmed, neither goes on.
+    async fn tick_capture(&mut self) -> Result<()> {
+        let before_tick = self
+            .state
+            .durable
+            .capture
+            .recording
+            .as_ref()
+            .map(|recording| (recording.id.clone(), recording.phase.clone()));
+        let tick_result = Box::pin(self.apply(orbit_core::Event::Tick)).await;
+        let tick_cause =
+            before_tick.and_then(|(id, phase)| tick_interruption(&self.state, &id, phase));
+        if let Some(cause) = tick_cause {
+            self.capture
+                .interruption
+                .get_or_insert(orbit_core::RecordingInterruption {
+                    cause,
+                    detail: None,
+                    audio_available: false,
+                });
+        }
+        tick_result?;
+        if let Some(cause) = tick_cause {
+            self.capture.recovery = None;
+            Box::pin(
+                self.close_empty_interrupted(orbit_core::RecordingInterruption {
+                    cause,
+                    detail: None,
+                    audio_available: false,
+                }),
+            )
+            .await?;
+        }
+        Ok(())
     }
 
     /// The pending-job count and upload queue. Their failures are the state's
@@ -369,8 +347,8 @@ impl Runtime {
             // recording's. A failure is said, never a cut of the meeting.
             if self.capture.buffer.voice.is_some()
                 && !self.state.durable.voice.voice_active
-                && self.capture.call_runtime.is_none()
-                && !self.audio_is_draining()
+                && self.audio.call.is_none()
+                && !self.audio.audio_is_draining()
                 && !self.stopped_audio_owed()
                 && self
                     .capture
@@ -383,6 +361,57 @@ impl Runtime {
             }
             Box::pin(self.send_waiting_voice_note()).await
         })
+    }
+}
+
+/// Why the Tick interrupted recording `id`, which was in `phase` before it:
+/// past its ceiling while live, or a finish never confirmed.
+fn tick_interruption(
+    state: &orbit_core::State,
+    id: &str,
+    phase: orbit_core::CapturePhase,
+) -> Option<orbit_core::RecordingInterruptionCause> {
+    let recording = state.durable.capture.recording.as_ref()?;
+    if recording.id != id
+        || recording.phase != orbit_core::CapturePhase::Interrupted
+        || recording.ended_at_ms.is_some()
+    {
+        return None;
+    }
+    match phase {
+        orbit_core::CapturePhase::Starting | orbit_core::CapturePhase::Recording => {
+            Some(orbit_core::RecordingInterruptionCause::RecordingExpired)
+        }
+        orbit_core::CapturePhase::Finalizing => {
+            Some(orbit_core::RecordingInterruptionCause::CaptureFinalizeTimedOut)
+        }
+        orbit_core::CapturePhase::Idle
+        | orbit_core::CapturePhase::Paused
+        | orbit_core::CapturePhase::Interrupted => None,
+    }
+}
+
+/// A failed flush parks its retry behind `SEAL_RETRY_DELAY`, so it excludes
+/// the seal retry on the same turn; both are folded anyway so neither can
+/// silently win, and the queued closure's failure is said with them.
+fn fold_capture_failures(
+    flush_stopped: Option<anyhow::Error>,
+    seal_retry: Option<anyhow::Error>,
+    tail: Result<()>,
+) -> Result<()> {
+    let capture_failure = match (flush_stopped, seal_retry) {
+        (None, retry) => retry,
+        (Some(error), None) => Some(error),
+        (Some(flush), Some(retry)) => Some(flush.context(format!(
+            "y el reintento de sellado también falló: {retry:#}"
+        ))),
+    };
+    match (capture_failure, tail) {
+        (None, outcome) => outcome,
+        (Some(error), Ok(())) => Err(error),
+        (Some(error), Err(tail)) => {
+            Err(error.context(format!("y el cierre en cola también falló: {tail:#}")))
+        }
     }
 }
 

@@ -70,7 +70,7 @@ async fn live_helper_gets_fifteen_seconds_and_call_timeout_keeps_privacy_armed()
             .await?;
         runtime.handle_audio_timeout().await;
         assert!(!runtime.state.privacy_stopped(), "failed at {elapsed} s");
-        assert!(runtime.audio_is_draining());
+        assert!(runtime.audio.audio_is_draining());
     }
 
     tokio::time::advance(Duration::from_secs(1)).await;
@@ -84,7 +84,7 @@ async fn live_helper_gets_fifteen_seconds_and_call_timeout_keeps_privacy_armed()
         runtime.state.notice_code(),
         Some(orbit_core::notice::NoticeCode::CallDrainUnconfirmed)
     );
-    assert!(!runtime.audio_is_draining());
+    assert!(!runtime.audio.audio_is_draining());
     assert_eq!(runtime.state.views.draining_since_ms, None);
     Ok(())
 }

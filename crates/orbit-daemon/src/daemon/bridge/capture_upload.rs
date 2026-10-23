@@ -165,13 +165,13 @@ impl Runtime {
         capture_id: String,
         capture: PendingCapture,
     ) -> Result<Option<String>> {
-        let (Some(hub_url), Some(token)) = (self.settings.hub_url.clone(), self.token.clone())
+        let (Some(hub_url), Some(token)) = (self.settings.hub_url.clone(), self.link.token.clone())
         else {
             return self.refuse_capture_upload(ask, None).await.map(|()| None);
         };
         // A second capture replaces the first: its upload is aborted here, not
         // left running to be discarded later as `upload_replaced`.
-        if let Some(mut previous) = self.features.sources.bridge_upload.take() {
+        if let Some(mut previous) = self.sources.bridge_upload.take() {
             previous.work.cancel();
         }
         let started = capture_id.clone();
@@ -188,7 +188,7 @@ impl Runtime {
     /// The helper's screenshot of the window Deimos named starts up as soon
     /// as its bytes arrive; its answer is staged next to the upload.
     pub(in crate::daemon) fn prepare_bridge_capture_upload(&mut self, event: &Value) {
-        let Some(ask) = self.conversation.bridge_request.as_ref() else {
+        let Some(ask) = self.assistant.bridge_request.as_ref() else {
             return;
         };
         let Ok(response) = NativeResponseView::from_value(event) else {
@@ -197,7 +197,7 @@ impl Runtime {
         if ask.capability != Capability::Screenshot
             || ask.source_id.is_none()
             || !response.ok
-            || self.features.sources.bridge_upload.is_some()
+            || self.sources.bridge_upload.is_some()
         {
             return;
         }
@@ -215,7 +215,7 @@ impl Runtime {
         let Some(hub_url) = self.settings.hub_url.clone() else {
             return;
         };
-        let Some(token) = self.token.clone() else {
+        let Some(token) = self.link.token.clone() else {
             return;
         };
         let capture_id = ask.source_id.clone().unwrap_or_default();
@@ -248,7 +248,7 @@ impl Runtime {
         let upload_id = capture_id.clone();
         let generation = self.state.generation();
         let development = self.development;
-        let work = self.work.work_events.clone();
+        let work = self.work_events.clone();
         let mut upload_work = Ticketed::logical();
         upload_work.replace_logical(generation, self.turn.op.clone(), (), move |ticket| {
             tokio::spawn(async move {
@@ -274,7 +274,7 @@ impl Runtime {
                 .await;
             })
         });
-        self.features.sources.bridge_upload = Some(crate::daemon::sources::BridgeUpload {
+        self.sources.bridge_upload = Some(crate::daemon::sources::BridgeUpload {
             capture_id: upload_id,
             screenshot: None,
             work: upload_work,

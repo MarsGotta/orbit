@@ -22,82 +22,6 @@ pub(super) struct Recovered<'a> {
     pub(super) restart_recording: Option<&'a orbit_core::Recording>,
 }
 
-impl WorkRuntime {
-    fn new(work_events: mpsc::Sender<WorkResult>, durable_snapshot: DurableSnapshot) -> Self {
-        Self {
-            worker: ticketed::Ticketed::logical(),
-            retry_gate: upload_outcome::SharedGate::default(),
-            finalize_cursor: None,
-            work_events,
-            durable_snapshot,
-            force_snapshot_once: false,
-            finalize_ready: BTreeMap::new(),
-        }
-    }
-}
-
-impl ConversationRuntime {
-    fn new() -> Self {
-        Self {
-            bridge_request: None,
-            interaction_response: None,
-            interrupted_turns: Default::default(),
-            voice_task: ticketed::Ticketed::logical(),
-            voice_operation: None,
-            dropped_voice_turns: 0,
-            speech_task: ticketed::Ticketed::logical(),
-            speech_voices: BTreeMap::new(),
-            speak_next: false,
-            read_aloud: None,
-            hub_attachments: None,
-            handover_from: None,
-            window_attachment: None,
-            speech_notice_call_id: None,
-            work: None,
-        }
-    }
-}
-
-impl CaptureRuntime {
-    pub(super) fn new(recovery: Option<cut_recovery::CutRecovery>) -> Self {
-        let lane = capture_lane::CaptureLane::default();
-        Self {
-            buffer: capture_lane::SplitBuffer::new(lane.clone()),
-            pending_seals: capture_lane::SealQueue::new(lane.clone()),
-            lane,
-            served_control: 0,
-            seal_cause: None,
-            reserve_exhausted: false,
-            seal_retry_at: None,
-            audio: audio::AudioLifecycle::default(),
-            call_runtime: None,
-            mic_stream: None,
-            remote_stream: None,
-            pending_starts: Vec::new(),
-            retired_call_starts: BTreeMap::new(),
-            retired_stops: BTreeMap::new(),
-            interruption: None,
-            recovery,
-        }
-    }
-}
-
-impl FeatureRuntime {
-    fn new(notes_events: mpsc::Sender<recording_notes::NoteEvent>) -> Self {
-        Self {
-            sources: sources::SourceRuntime::default(),
-            calendar: calendar::CalendarRuntime::default(),
-            computer: computer_control::ComputerRuntime::default(),
-            meeting: meeting_runtime::MeetingRuntime::default(),
-            call: call_detection::CallRuntime::default(),
-            question: meeting_question::QuestionRuntime::default(),
-            native_host: native_host::NativeHost::default(),
-            notes: recording_notes::NotesRuntime::new(notes_events),
-            files: assistant_files::FilesRuntime::default(),
-        }
-    }
-}
-
 /// The runtime, the loop's channels and the helper to launch.
 pub(super) fn build_runtime(
     boot: Boot,
@@ -148,7 +72,9 @@ pub(super) fn build_runtime(
         paths,
         settings,
         development,
-        work: WorkRuntime::new(work_events, DurableSnapshot::from(&state)),
+        work_events,
+        persisted: kernel::Persisted::new(&state),
+        transfers: transfers::TransfersHandle::default(),
         state,
         reader,
         turn_watch,
@@ -161,20 +87,18 @@ pub(super) fn build_runtime(
         report_log: Some(report_log),
         error_reports,
         turn: turn::Turn::fresh(orbit_core::notice::ReportSource::Daemon),
-        native: ends.native,
-        hub: hub_link::HubLink::default(),
-        hub_protocol_version: None,
-        unrecognized_hub_events: BTreeSet::new(),
-        hub_storage_nearly_full: None,
-        hub_task: None,
-        snapshot_revision: None,
-        hub_events: ends.hub_events,
-        pending_native: BTreeMap::new(),
-        helper_waits: BTreeMap::new(),
-        token,
-        conversation: ConversationRuntime::new(),
-        capture: CaptureRuntime::new(recovery),
-        features: FeatureRuntime::new(ends.notes_events),
+        helper: helper::HelperHandle::new(ends.native),
+        link: hub_link::LinkHandle::new(ends.hub_events, token),
+        assistant: assistant::AssistantHandle::new(),
+        capture: capture_handle::CaptureHandle::new(recovery),
+        audio: audio::AudioHandle::default(),
+        sources: sources::SourcesHandle::default(),
+        calendar: calendar::CalendarHandle::default(),
+        computer: computer_control::ComputerHandle::default(),
+        notes: recording_notes::NotesHandle::new(ends.notes_events),
+        calls: call_detection::CallDetectionHandle::default(),
+        question: meeting_question::QuestionHandle::default(),
+        files: assistant_files::FilesHandle::default(),
         reads: InFlightReads::default(),
     };
     Ok((runtime, channels, helper_path))

@@ -121,7 +121,7 @@ async fn reconnect_restores_only_the_selected_sessions_unanswered_questions() ->
     );
     assert!(runtime.state.durable.assistant.pending_approval.is_none());
     assert!(
-        runtime.hub.is_none(),
+        runtime.link.outbound.is_none(),
         "reconciliation does not invoke or resume Hermes"
     );
     Ok(())
@@ -140,7 +140,7 @@ async fn response_is_not_applied_optimistically_and_expired_is_not_success() -> 
         .reconcile_snapshot(&snapshot(1, "selected", json!([question()])))
         .await?;
     let (sender, mut commands) = tokio::sync::mpsc::channel(4);
-    runtime.hub.install(sender);
+    runtime.link.outbound.install(sender);
     runtime
         .command(orbit_core::protocol::Command::Approval {
             approved: true,
@@ -185,7 +185,7 @@ async fn malformed_or_misbound_receipts_cannot_claim_an_approval_was_applied() -
         runtime
             .reconcile_snapshot(&snapshot(1, "selected", json!([question()])))
             .await?;
-        runtime.conversation.interaction_response = Some(PendingResponse {
+        runtime.assistant.interaction_response = Some(PendingResponse {
             command_id: "response".into(),
             request_id: "question-one".into(),
             session_id: "selected".into(),
@@ -246,7 +246,7 @@ async fn historical_receipt_cannot_clear_a_new_snapshot_question_with_the_same_i
         runtime
             .reconcile_snapshot(&snapshot(1, "selected", json!([question()])))
             .await?;
-        runtime.conversation.interaction_response = Some(pending_response(clarification));
+        runtime.assistant.interaction_response = Some(pending_response(clarification));
 
         let mut replacement = question();
         replacement["description"] = json!("New decision, reused request ID");
@@ -258,7 +258,7 @@ async fn historical_receipt_cannot_clear_a_new_snapshot_question_with_the_same_i
             .interaction_result("interaction.resolved", &historical_receipt(true))
             .await?;
 
-        assert!(runtime.conversation.interaction_response.is_none());
+        assert!(runtime.assistant.interaction_response.is_none());
         let pending = runtime
             .state
             .durable
@@ -281,8 +281,8 @@ async fn historical_receipt_cannot_clear_a_new_snapshot_question_with_the_same_i
             durable.durable.assistant.pending_approval,
             runtime.state.durable.assistant.pending_approval
         );
-        assert_eq!(runtime.snapshot_revision, Some(2));
-        assert!(runtime.hub.is_none());
+        assert_eq!(runtime.assistant.snapshot_revision, Some(2));
+        assert!(runtime.link.outbound.is_none());
         assert!(native.try_recv().is_err());
     }
     Ok(())
@@ -297,14 +297,14 @@ async fn historical_expiration_does_not_expire_a_replacement_question() -> Resul
         let fixture_value = serde_json::json!(fixture_source);
         crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
     }
-    runtime.conversation.interaction_response = Some(pending_response(false));
+    runtime.assistant.interaction_response = Some(pending_response(false));
     runtime
         .reconcile_snapshot(&snapshot(2, "selected", json!([question()])))
         .await?;
     runtime
         .interaction_result("interaction.expired", &historical_receipt(false))
         .await?;
-    assert!(runtime.conversation.interaction_response.is_none());
+    assert!(runtime.assistant.interaction_response.is_none());
     assert!(runtime.state.durable.assistant.pending_approval.is_some());
     assert_eq!(
         runtime.state.notice_code(),
@@ -325,22 +325,22 @@ async fn historical_receipt_does_not_resurrect_a_terminal_snapshot() -> Result<(
     runtime
         .reconcile_snapshot(&snapshot(1, "selected", json!([question()])))
         .await?;
-    runtime.conversation.interaction_response = Some(pending_response(true));
+    runtime.assistant.interaction_response = Some(pending_response(true));
     let mut terminal = snapshot(2, "selected", json!([]));
     terminal["sessions"][0]["status"] = json!("completed");
     runtime.reconcile_snapshot(&terminal).await?;
     runtime
         .interaction_result("interaction.resolved", &historical_receipt(true))
         .await?;
-    assert!(runtime.conversation.interaction_response.is_none());
+    assert!(runtime.assistant.interaction_response.is_none());
     assert!(runtime.state.durable.assistant.pending_approval.is_none());
     assert!(runtime.state.durable.assistant.active_request.is_none());
-    assert_eq!(runtime.snapshot_revision, Some(2));
+    assert_eq!(runtime.assistant.snapshot_revision, Some(2));
     assert_eq!(
         runtime.state.notice_code(),
         Some(NoticeCode::ApprovalReceiptStale)
     );
-    assert!(runtime.hub.is_none());
+    assert!(runtime.link.outbound.is_none());
     assert!(native.try_recv().is_err());
     Ok(())
 }
@@ -358,7 +358,7 @@ async fn current_receipt_still_resolves_approval_and_clarification() -> Result<(
         runtime
             .reconcile_snapshot(&snapshot(1, "selected", json!([question()])))
             .await?;
-        runtime.conversation.interaction_response = Some(pending_response(clarification));
+        runtime.assistant.interaction_response = Some(pending_response(clarification));
         let mut receipt = historical_receipt(true);
         receipt["data"]
             .as_object_mut()
@@ -367,7 +367,7 @@ async fn current_receipt_still_resolves_approval_and_clarification() -> Result<(
         runtime
             .interaction_result("interaction.resolved", &receipt)
             .await?;
-        assert!(runtime.conversation.interaction_response.is_none());
+        assert!(runtime.assistant.interaction_response.is_none());
         assert!(runtime.state.durable.assistant.pending_approval.is_none());
         assert_eq!(
             runtime.state.notice_code(),
@@ -385,7 +385,7 @@ async fn submitting_snapshot_keeps_new_turn_and_discards_interrupted_reply() -> 
     let directory = tempfile::tempdir()?;
     let (mut runtime, _native) = fixture(directory.path())?;
     let (hub, mut hub_frames) = tokio::sync::mpsc::channel(16);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
 
     runtime
         .command(Command::Chat {
@@ -521,8 +521,8 @@ async fn stop_writes_interrupt_to_the_hub_socket_before_retiring_it() -> Result<
     });
     let (hub, commands) = tokio::sync::mpsc::channel(4);
     let (events, mut received_events) = tokio::sync::mpsc::channel(4);
-    runtime.hub.install(hub);
-    runtime.hub_task = Some(tokio::spawn(crate::hub::run(
+    runtime.link.outbound.install(hub);
+    runtime.link.task = Some(tokio::spawn(crate::hub::run(
         runtime.settings.clone(),
         "synthetic-token".into(),
         true,
@@ -573,8 +573,8 @@ async fn an_old_privacy_latch_cannot_send_a_new_interrupt() -> Result<()> {
     });
     let (hub, commands) = tokio::sync::mpsc::channel(4);
     let (events, mut received_events) = tokio::sync::mpsc::channel(4);
-    runtime.hub.install(hub);
-    runtime.hub_task = Some(tokio::spawn(crate::hub::run(
+    runtime.link.outbound.install(hub);
+    runtime.link.task = Some(tokio::spawn(crate::hub::run(
         runtime.settings.clone(),
         "synthetic-token".into(),
         true,
@@ -605,9 +605,10 @@ async fn an_old_privacy_latch_cannot_send_a_new_interrupt() -> Result<()> {
         "an old latch authorized a new network order"
     );
     runtime
-        .hub
+        .link
+        .outbound
         .retire(crate::daemon::hub_link::Retirement::NetworkCancelled);
-    if let Some(task) = runtime.hub_task.take() {
+    if let Some(task) = runtime.link.task.take() {
         task.await??;
     }
     assert!(
@@ -654,8 +655,8 @@ async fn rearmed_maintenance_keeps_the_new_hub_socket() -> Result<()> {
     });
     let (hub, commands) = tokio::sync::mpsc::channel(4);
     let (events, mut received_events) = tokio::sync::mpsc::channel(4);
-    runtime.hub.install(hub);
-    runtime.hub_task = Some(tokio::spawn(crate::hub::run(
+    runtime.link.outbound.install(hub);
+    runtime.link.task = Some(tokio::spawn(crate::hub::run(
         runtime.settings.clone(),
         "synthetic-token".into(),
         true,
@@ -689,8 +690,8 @@ async fn a_hub_socket_that_cannot_open_is_reported_as_an_unconfirmed_interrupt()
     drop(unused);
     let (hub, commands) = tokio::sync::mpsc::channel(4);
     let (events, _received_events) = tokio::sync::mpsc::channel(4);
-    runtime.hub.install(hub);
-    runtime.hub_task = Some(tokio::spawn(crate::hub::run(
+    runtime.link.outbound.install(hub);
+    runtime.link.task = Some(tokio::spawn(crate::hub::run(
         runtime.settings.clone(),
         "synthetic-token".into(),
         true,
@@ -718,7 +719,7 @@ async fn a_hub_socket_that_cannot_open_is_reported_as_an_unconfirmed_interrupt()
     );
     assert!(
         !runtime
-            .conversation
+            .assistant
             .interrupted_turns
             .contains("selected", TURN),
         "an unconfirmed socket write hid the turn on rearm"
@@ -736,8 +737,8 @@ async fn failed_hub_drain_reports_both_unsent_frames() -> Result<()> {
     drop(unused);
     let (hub, commands) = tokio::sync::mpsc::channel(4);
     let (events, _received_events) = tokio::sync::mpsc::channel(4);
-    runtime.hub.install(hub.clone());
-    runtime.hub_task = Some(tokio::spawn(crate::hub::run(
+    runtime.link.outbound.install(hub.clone());
+    runtime.link.task = Some(tokio::spawn(crate::hub::run(
         runtime.settings.clone(),
         "synthetic-token".into(),
         true,
@@ -791,8 +792,8 @@ async fn privacy_stop_interrupts_the_live_turn_and_keeps_it_hidden() -> Result<(
     });
     let (hub, commands) = tokio::sync::mpsc::channel(4);
     let (events, mut received_events) = tokio::sync::mpsc::channel(4);
-    runtime.hub.install(hub);
-    runtime.hub_task = Some(tokio::spawn(crate::hub::run(
+    runtime.link.outbound.install(hub);
+    runtime.link.task = Some(tokio::spawn(crate::hub::run(
         runtime.settings.clone(),
         "synthetic-token".into(),
         true,
@@ -822,7 +823,7 @@ async fn privacy_stop_interrupts_the_live_turn_and_keeps_it_hidden() -> Result<(
     assert_eq!(interruption["params"]["turn_id"], TURN);
     assert!(
         runtime
-            .conversation
+            .assistant
             .interrupted_turns
             .contains("selected", TURN)
     );
@@ -847,7 +848,7 @@ async fn assert_interrupted_snapshot_stays_out(status: &str) -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _native) = fixture(directory.path())?;
     let (hub, mut hub_frames) = tokio::sync::mpsc::channel(4);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     {
         let fixture_source: Option<String> = Some("selected".into());
         let fixture_value = serde_json::json!(fixture_source);
@@ -871,7 +872,7 @@ async fn assert_interrupted_snapshot_stays_out(status: &str) -> Result<()> {
         );
         assert!(
             runtime
-                .conversation
+                .assistant
                 .interrupted_turns
                 .contains("selected", TURN),
             "a live snapshot ({live}) retired the interrupted identity"
@@ -889,7 +890,7 @@ async fn assert_interrupted_snapshot_stays_out(status: &str) -> Result<()> {
         .await?;
     assert!(
         !runtime
-            .conversation
+            .assistant
             .interrupted_turns
             .contains("selected", TURN),
         "a non-live snapshot did not retire the interrupted identity"
@@ -943,7 +944,7 @@ async fn undelivered_interrupt_keeps_the_turn_visible_to_interrupt_again() -> Re
     let (mut runtime, _native) = fixture(directory.path())?;
     logging(&mut runtime, directory.path());
     let (hub, hub_frames) = tokio::sync::mpsc::channel(4);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     // Dropping the receiver makes `try_send` fail without the request ever
     // leaving Orbit.
     drop(hub_frames);
@@ -958,7 +959,7 @@ async fn undelivered_interrupt_keeps_the_turn_visible_to_interrupt_again() -> Re
     assert!(runtime.state.durable.assistant.active_request.is_none());
     assert!(
         !runtime
-            .conversation
+            .assistant
             .interrupted_turns
             .contains("selected", TURN),
         "a turn whose interrupt never left Orbit stayed hidden"
@@ -994,7 +995,7 @@ async fn hub_rejected_interrupt_returns_the_turn_and_unrelated_errors_do_not() -
     let (mut runtime, _native) = fixture(directory.path())?;
     logging(&mut runtime, directory.path());
     let (hub, mut hub_frames) = tokio::sync::mpsc::channel(4);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     {
         let fixture_source: Option<String> = Some("selected".into());
         let fixture_value = serde_json::json!(fixture_source);
@@ -1006,7 +1007,7 @@ async fn hub_rejected_interrupt_returns_the_turn_and_unrelated_errors_do_not() -
     let interruption = hub_frames.recv().await.context("chat.interrupt absent")?;
     assert!(
         runtime
-            .conversation
+            .assistant
             .interrupted_turns
             .contains("selected", TURN)
     );
@@ -1019,7 +1020,7 @@ async fn hub_rejected_interrupt_returns_the_turn_and_unrelated_errors_do_not() -
         .await?;
     assert!(
         runtime
-            .conversation
+            .assistant
             .interrupted_turns
             .contains("selected", TURN),
         "an unrelated error retired the interrupted identity"
@@ -1033,7 +1034,7 @@ async fn hub_rejected_interrupt_returns_the_turn_and_unrelated_errors_do_not() -
         .await?;
     assert!(
         !runtime
-            .conversation
+            .assistant
             .interrupted_turns
             .contains("selected", TURN),
         "the hub's refusal did not retire the interrupted identity"
@@ -1071,7 +1072,7 @@ async fn reconnect_forgets_the_interrupt_ack_that_can_no_longer_arrive() -> Resu
     let directory = tempfile::tempdir()?;
     let (mut runtime, _native) = fixture(directory.path())?;
     let (hub, mut hub_frames) = tokio::sync::mpsc::channel(4);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     {
         let fixture_source: Option<String> = Some("selected".into());
         let fixture_value = serde_json::json!(fixture_source);
@@ -1083,18 +1084,18 @@ async fn reconnect_forgets_the_interrupt_ack_that_can_no_longer_arrive() -> Resu
     let interruption = hub_frames.recv().await.context("chat.interrupt absent")?;
     assert_eq!(interruption["method"], "chat.interrupt");
     assert!(
-        runtime.conversation.interrupted_turns.pending_ack.is_some(),
+        runtime.assistant.interrupted_turns.pending_ack.is_some(),
         "the fixture did not leave an interrupt answer pending"
     );
 
     runtime.hub_event(HubEvent::Connected).await?;
     assert!(
-        runtime.conversation.interrupted_turns.pending_ack.is_none(),
+        runtime.assistant.interrupted_turns.pending_ack.is_none(),
         "a reconnect kept an interrupt ack that can no longer be answered"
     );
     assert!(
         runtime
-            .conversation
+            .assistant
             .interrupted_turns
             .contains("selected", TURN),
         "the reconnect also forgot the interrupted turn itself"
@@ -1195,7 +1196,7 @@ async fn unknown_snapshot_state_is_named_and_changes_nothing() -> Result<()> {
         Some(TURN)
     );
     assert_eq!(
-        runtime.snapshot_revision, None,
+        runtime.assistant.snapshot_revision, None,
         "an unknown state was applied"
     );
     assert_eq!(
@@ -1227,7 +1228,7 @@ async fn a_chat_rejection_keeps_its_code_and_op_without_logging_content() -> Res
             orbit_core::notice::Op::parse("op-chat-rejected").context("op")?,
             orbit_core::notice::ReportSource::Daemon,
         );
-        let mut frames = runtime.hub.open(4);
+        let mut frames = runtime.link.outbound.open(4);
         runtime
             .hub_event(HubEvent::Frame(
                 json!({"event":"error","id":"rejected-turn",
@@ -1494,7 +1495,7 @@ async fn a_command_that_deletes_is_pending_with_what_it_deletes() -> Result<()> 
         );
     }
     let (sender, mut commands) = tokio::sync::mpsc::channel(4);
-    runtime.hub.install(sender);
+    runtime.link.outbound.install(sender);
     for choice in ["session", "always"] {
         let refused = runtime
             .command(orbit_core::protocol::Command::Approval {
@@ -1587,7 +1588,7 @@ async fn the_chosen_option_travels_by_name_and_one_not_offered_is_refused() -> R
         .reconcile_snapshot(&snapshot(1, "selected", json!([offered])))
         .await?;
     let (sender, mut commands) = tokio::sync::mpsc::channel(4);
-    runtime.hub.install(sender);
+    runtime.link.outbound.install(sender);
     for (approved, choice) in [(true, "always"), (true, "deny"), (false, "session")] {
         let refused = runtime
             .command(orbit_core::protocol::Command::Approval {
@@ -1623,7 +1624,7 @@ async fn answering_one_of_several_questions_names_it_and_keeps_the_rest_open() -
         .reconcile_snapshot(&snapshot(1, "selected", json!([clarification()])))
         .await?;
     let (sender, mut commands) = tokio::sync::mpsc::channel(4);
-    runtime.hub.install(sender);
+    runtime.link.outbound.install(sender);
     assert!(
         runtime
             .command(orbit_core::protocol::Command::Clarify {
@@ -1690,7 +1691,7 @@ async fn the_turns_items_are_its_work_until_it_ends() -> Result<()> {
             "tool",
         ))
         .await?;
-    let work = runtime.conversation.work.clone().context("missing work")?;
+    let work = runtime.assistant.work.clone().context("missing work")?;
     assert_eq!(work.turn_id, TURN);
     assert_eq!(
         work.started_at_ms, 1_000,
@@ -1707,7 +1708,7 @@ async fn the_turns_items_are_its_work_until_it_ends() -> Result<()> {
             "data":{"session_id":"selected","text":"Hecho","status":"completed","persisted":true}}),
         ))
         .await?;
-    let ended = runtime.conversation.work.clone().context("work stays")?;
+    let ended = runtime.assistant.work.clone().context("work stays")?;
     assert!(ended.ended_at_ms.is_some_and(|ended| ended >= 1_000));
     let source = crate::daemon::topics::TopicSource {
         state: &runtime.state,
@@ -1733,19 +1734,19 @@ async fn the_turns_items_are_its_work_until_it_ends() -> Result<()> {
 async fn an_answer_the_hub_never_confirms_is_let_go_after_its_deadline() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
-    runtime.conversation.interaction_response = Some(pending_response(false));
+    runtime.assistant.interaction_response = Some(pending_response(false));
     runtime.expire_interaction_response().await?;
     assert!(
-        runtime.conversation.interaction_response.is_some(),
+        runtime.assistant.interaction_response.is_some(),
         "an answer just sent is still the hub's to confirm"
     );
     let mut stale = pending_response(false);
     stale.sent_at = std::time::Instant::now()
         .checked_sub(INTERACTION_RESPONSE_DEADLINE + std::time::Duration::from_secs(1))
         .context("the test clock cannot go back that far")?;
-    runtime.conversation.interaction_response = Some(stale);
+    runtime.assistant.interaction_response = Some(stale);
     runtime.expire_interaction_response().await?;
-    assert!(runtime.conversation.interaction_response.is_none());
+    assert!(runtime.assistant.interaction_response.is_none());
     assert!(said::has(
         &runtime.state,
         NoticeCode::ApprovalOutcomeUnknown

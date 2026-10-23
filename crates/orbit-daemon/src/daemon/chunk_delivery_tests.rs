@@ -27,10 +27,10 @@ fn chunk(recording: &str, sequence: u64) -> ChunkMetadata {
 
 async fn upload_outcome(runtime: &mut Runtime, id: &str, result: Result<()>) -> Result<()> {
     let (events, mut outcomes) = mpsc::channel(8);
-    runtime.work.work_events = events;
+    runtime.work_events = events;
     let generation = runtime.state.generation();
     let ticket =
-        crate::daemon::audio::tests::pending_work(&mut runtime.work.worker, generation, ())?;
+        crate::daemon::audio::tests::pending_work(&mut runtime.transfers.worker, generation, ())?;
     runtime
         .work_event(WorkResult::Store(crate::daemon::StoreWork::Uploaded {
             ticket,
@@ -38,7 +38,7 @@ async fn upload_outcome(runtime: &mut Runtime, id: &str, result: Result<()>) -> 
             result,
         }))
         .await?;
-    while runtime.work.worker.active().is_some() {
+    while runtime.transfers.worker.active().is_some() {
         runtime
             .work_event(outcomes.recv().await.context("settlement absent")?)
             .await?;
@@ -128,7 +128,7 @@ async fn a_refused_chunk_does_not_hold_the_meeting_closure_for_ever() -> Result<
         "connection",
         json!(orbit_core::Connection::Online),
     );
-    runtime.token = Some(TOKEN.into());
+    runtime.link.token = Some(TOKEN.into());
     runtime.settings.hub_url = Some(
         one_shot_http(json_response(
             "200 OK",
@@ -259,14 +259,14 @@ async fn a_hub_out_of_space_is_said_with_its_numbers_and_waits() -> Result<()> {
     let now = std::time::Instant::now();
     assert!(
         !runtime
-            .work
+            .transfers
             .retry_gate
             .ready(now + std::time::Duration::from_secs(61)),
         "a full hub is not asked again every minute"
     );
     assert!(
         runtime
-            .work
+            .transfers
             .retry_gate
             .ready(now + std::time::Duration::from_secs(301))
     );

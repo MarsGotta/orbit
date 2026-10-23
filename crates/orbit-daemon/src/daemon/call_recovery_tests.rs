@@ -40,10 +40,8 @@ async fn restart_closes_the_original_without_recapture_or_prompt_replay() -> Res
     let (mut recovered, mut native) = reopen(directory.path()).await?;
     // The restart invents no stop; nothing recaptures either.
     assert!(!recovered.state.privacy_stopped());
-    assert!(
-        recovered.state.durable.voice.call.is_none() && recovered.capture.call_runtime.is_none()
-    );
-    assert!(recovered.capture.mic_stream.is_none() && recovered.capture.buffer.voice.is_none());
+    assert!(recovered.state.durable.voice.call.is_none() && recovered.audio.call.is_none());
+    assert!(recovered.audio.mic_stream.is_none() && recovered.capture.buffer.voice.is_none());
     // Review (c): the notice says what is true after a restart nobody stopped.
     assert!(
         crate::daemon::turn::said::has(
@@ -63,7 +61,7 @@ async fn restart_closes_the_original_without_recapture_or_prompt_replay() -> Res
     );
     assert!(
         recovered.state.durable.assistant.active_request.is_none()
-            && recovered.conversation.voice_task.active().is_none()
+            && recovered.assistant.voice_task.active().is_none()
     );
     assert!(
         native.try_recv().is_err(),
@@ -86,7 +84,7 @@ async fn restart_closes_the_original_without_recapture_or_prompt_replay() -> Res
     recovered.apply(Event::CallStop).await?;
     recovered.run_maintenance().await;
     assert!(
-        recovered.work.worker.active().is_none(),
+        recovered.transfers.worker.active().is_none(),
         "privacy must still gate uploads"
     );
     recovered.apply(Event::LocalRearm).await?;
@@ -107,21 +105,21 @@ async fn restart_closes_the_original_without_recapture_or_prompt_replay() -> Res
         JobState::Succeeded,
     )?;
     recovered.settings.hub_url = Some("http://127.0.0.1:9".into());
-    recovered.token = Some("synthetic-not-a-credential".into());
+    recovered.link.token = Some("synthetic-not-a-credential".into());
     assert!(recovered.schedule_finalize().await?);
     let ticket = recovered
-        .work
+        .transfers
         .worker
         .ticket()
         .cloned()
         .context("finalize ticket")?;
     recovered
-        .work
+        .transfers
         .worker
         .task_handle()
         .context("finalize not eligible")?
         .abort();
-    let before = recovered.features.notes.head.changed_at("synthetic-call");
+    let before = recovered.notes.head.changed_at("synthetic-call");
     recovered
         .work_event(crate::daemon::WorkResult::Store(
             crate::daemon::StoreWork::Uploaded {
@@ -140,7 +138,7 @@ async fn restart_closes_the_original_without_recapture_or_prompt_replay() -> Res
         JobState::Succeeded
     );
     assert!(
-        recovered.features.notes.head.changed_at("synthetic-call") > before,
+        recovered.notes.head.changed_at("synthetic-call") > before,
         "the uploaded closure did not tell the app to read its note again"
     );
     assert!(
@@ -174,7 +172,7 @@ async fn call_stop_snapshot_cannot_orphan_original_before_drain_after_restart() 
             .call
             .is_none()
     );
-    assert!(runtime.audio_is_draining());
+    assert!(runtime.audio.audio_is_draining());
     assert!(
         runtime
             .fixture_store
@@ -183,7 +181,7 @@ async fn call_stop_snapshot_cannot_orphan_original_before_drain_after_restart() 
     );
     drop(runtime); // No native drain ACK; only the already durable chunk survives.
     let (runtime, mut native) = reopen(directory.path()).await?;
-    assert!(!runtime.state.privacy_stopped() && runtime.capture.call_runtime.is_none());
+    assert!(!runtime.state.privacy_stopped() && runtime.audio.call.is_none());
     assert!(
         runtime
             .fixture_store
@@ -315,15 +313,12 @@ async fn recovery_rejects_live_capture_and_conflicting_authenticated_lifecycle()
         "a helper is already connected: recovery belongs to startup, before it"
     );
     runtime.state = runtime.state.recovered();
-    runtime.capture.mic_stream = Some("not-authority".into());
+    runtime.audio.mic_stream = Some("not-authority".into());
     assert!(runtime.recover_call_closures(30).await.is_err());
-    runtime.capture.mic_stream = None;
-    runtime
-        .capture
-        .pending_starts
-        .push("uncertain-start".into());
+    runtime.audio.mic_stream = None;
+    runtime.audio.pending_starts.push("uncertain-start".into());
     assert!(runtime.recover_call_closures(30).await.is_err());
-    runtime.capture.pending_starts.clear();
+    runtime.audio.pending_starts.clear();
     runtime
         .capture
         .buffer

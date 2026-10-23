@@ -6,11 +6,33 @@ use super::upload_outcome::{HUB_FULL_RETRY, Settlement, prune_uploaded_audio, se
 use super::*;
 use orbit_core::notice::{Notice, NoticeCode};
 
+/// The transfers' handle: the one durable transfer worker and what decides
+/// when the next closure may go.
+pub(super) struct TransfersHandle {
+    /// The one durable transfer worker (upload or finalize). A second job
+    /// waits for its turn; this is not a queue limit.
+    pub(super) worker: ticketed::Ticketed<()>,
+    pub(super) retry_gate: upload_outcome::SharedGate,
+    pub(super) finalize_cursor: Option<String>,
+    pub(super) finalize_ready: BTreeMap<String, bool>,
+}
+
+impl Default for TransfersHandle {
+    fn default() -> Self {
+        Self {
+            worker: ticketed::Ticketed::logical(),
+            retry_gate: upload_outcome::SharedGate::default(),
+            finalize_cursor: None,
+            finalize_ready: BTreeMap::new(),
+        }
+    }
+}
+
 impl Runtime {
     pub(super) async fn schedule_upload(&mut self) -> Result<()> {
         if !self.state.privacy_stopped()
             && self.state.connection() != Connection::Online
-            && self.work.worker.active().is_none()
+            && self.transfers.worker.active().is_none()
         {
             self.schedule_chunk_cleanup()?;
         }
@@ -23,8 +45,8 @@ impl Runtime {
         self.queue_finalize().await?;
         if self.state.privacy_stopped()
             || self.state.connection() != Connection::Online
-            || self.work.worker.active().is_some()
-            || !self.work.retry_gate.ready(std::time::Instant::now())
+            || self.transfers.worker.active().is_some()
+            || !self.transfers.retry_gate.ready(std::time::Instant::now())
         {
             return Ok(());
         }
@@ -43,8 +65,8 @@ impl Runtime {
             prune_uploaded_audio(store, &id, &root);
             Ok(())
         })?;
-        let events = self.work.work_events.clone();
-        self.work
+        let events = self.work_events.clone();
+        self.transfers
             .worker
             .start_logical(
                 self.state.generation(),
@@ -73,7 +95,10 @@ impl Runtime {
         use crate::daemon::StoreWork;
         match work {
             StoreWork::ChunkPruned { ticket, result } => {
-                let settlement = self.work.worker.settle(&ticket, self.state.generation());
+                let settlement = self
+                    .transfers
+                    .worker
+                    .settle(&ticket, self.state.generation());
                 if self.settled_value("chunk_cleanup", settlement).is_some()
                     && let Err(error) = result
                 {
@@ -88,7 +113,10 @@ impl Runtime {
                 job_id,
                 result,
             } => {
-                let settlement = self.work.worker.settle(&ticket, self.state.generation());
+                let settlement = self
+                    .transfers
+                    .worker
+                    .settle(&ticket, self.state.generation());
                 if self.settled_value("upload", settlement).is_some()
                     && !self.state.privacy_stopped()
                 {
@@ -102,7 +130,10 @@ impl Runtime {
                 notice,
                 result,
             } => {
-                let settlement = self.work.worker.settle(&ticket, self.state.generation());
+                let settlement = self
+                    .transfers
+                    .worker
+                    .settle(&ticket, self.state.generation());
                 if self
                     .settled_value("upload_settlement", settlement)
                     .is_some()
@@ -126,17 +157,17 @@ impl Runtime {
         // eligible for idempotent PUT/finalize reconciliation; no prompt is
         // replayed here.
         let now = std::time::Instant::now();
-        self.work.retry_gate.finish(result.is_ok(), now);
+        self.transfers.retry_gate.finish(result.is_ok(), now);
         let stored_job = self
             .reader
             .get_job(&job_id)?
             .context("Recibo sin trabajo local")?;
         let settlement = settle(&stored_job, &result);
         if settlement.out_of_space {
-            self.work.retry_gate.hold(HUB_FULL_RETRY, now);
+            self.transfers.retry_gate.hold(HUB_FULL_RETRY, now);
         }
         if let Some(recording) = &settlement.chunk_recording {
-            self.work.finalize_ready.remove(recording);
+            self.transfers.finalize_ready.remove(recording);
         }
         if stored_job.kind == "chunk_upload"
             && (self.recording_active() || !self.capture.pending_seals.is_empty())
@@ -149,7 +180,7 @@ impl Runtime {
                 .context("Cierre sin identidad")?;
             // The hub has it whole and asks for its note itself;
             // the list reads it from there.
-            self.recording_uploaded(recording);
+            self.notes.recording_uploaded(recording);
         }
         let root = self.paths.root.clone();
         let (next_state, prune) = (settlement.next_state, settlement.prune.clone());
@@ -195,9 +226,9 @@ impl Runtime {
                 &root,
             )
         })?;
-        let events = self.work.work_events.clone();
+        let events = self.work_events.clone();
         let (succeeded, notice) = (settlement.succeeded, settlement.notice);
-        self.work
+        self.transfers
             .worker
             .start_logical(
                 self.state.generation(),

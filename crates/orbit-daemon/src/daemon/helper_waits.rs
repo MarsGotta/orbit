@@ -5,7 +5,6 @@
 //! wait, which then says so. Nothing here logs what an answer carries.
 use super::Runtime;
 use orbit_core::refusal::{Operation, Refusal};
-use orbit_core::wire::native::NativeResponseFields;
 use serde_json::Value;
 use std::time::Duration;
 use tokio::sync::oneshot;
@@ -32,45 +31,28 @@ impl Runtime {
         let command = crate::native::command(name, fields).map_err(|_| Refusal::Internal {
             cause: orbit_core::refusal::InternalCause::NativeCommand,
         })?;
-        self.native
+        self.helper
+            .sender
             .try_send(command.clone())
             .map_err(|_| Refusal::Busy {
                 operation,
                 retry_after_ms: None,
             })?;
-        self.record_pending_native(&command);
+        self.helper.record_pending(&command);
         let (sender, receiver) = oneshot::channel();
         // A wait that gave up leaves its sender here; it is dropped now.
-        self.helper_waits.retain(|_, waiting| !waiting.is_closed());
-        self.helper_waits.insert(id, sender);
+        self.helper.waits.retain(|_, waiting| !waiting.is_closed());
+        self.helper.waits.insert(id, sender);
         Ok(receiver)
-    }
-
-    /// Hands a helper reply to the task waiting for it; `false` when no task
-    /// waits for this id.
-    pub(super) fn answer_helper_wait(&mut self, response: &NativeResponseFields) -> bool {
-        let Some(waiting) = self.helper_waits.remove(&response.id) else {
-            return false;
-        };
-        let answer = if response.ok {
-            Ok(response.result.clone().unwrap_or(Value::Null))
-        } else {
-            Err(response.error.as_ref().map_or_else(
-                || "native_operation_failed".to_owned(),
-                |error| error.code.clone(),
-            ))
-        };
-        let _ = waiting.send(answer);
-        true
     }
 
     /// The helper went away or started again: what it was asked has no
     /// answer, and each wait ends with `helper_restarted`.
     pub(super) fn end_helper_waits(&mut self) {
-        self.helper_waits.clear();
+        self.helper.waits.clear();
         // «Silenciar» asked of the helper that went: never answered, and
         // the microphone stays as it was shown.
-        self.forget_mute_orders();
+        self.audio.forget_mute_orders();
     }
 }
 

@@ -12,9 +12,8 @@ const NOW: i64 = 1_800_000_000_000;
 async fn a_deletion_whose_worker_panics_is_owed_again_and_retried() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
-    let mut answers = runtime.features.notes.test_events();
+    let mut answers = runtime.notes.test_events();
     runtime
-        .features
         .notes
         .deletions
         .owed
@@ -22,14 +21,14 @@ async fn a_deletion_whose_worker_panics_is_owed_again_and_retried() -> Result<()
     runtime.supervision.inject(Actor::NoteDeletion, 1);
     runtime.start_due_purge(NOW);
     assert_eq!(
-        runtime.features.notes.deletions.purging.as_deref(),
+        runtime.notes.deletions.purging.as_deref(),
         Some(THROWN_AWAY)
     );
     let answer = tokio::time::timeout(Duration::from_secs(30), answers.recv())
         .await?
         .ok_or_else(|| anyhow::anyhow!("the panicked deletion never answered"))?;
     runtime.note_answer_at(answer, NOW).await?;
-    let deletions = &runtime.features.notes.deletions;
+    let deletions = &runtime.notes.deletions;
     assert_eq!(deletions.purging, None, "the deletion slot stayed taken");
     assert_eq!(deletions.owed.get(THROWN_AWAY), Some(&DeletionScope::Audio));
     assert!(deletions.retry_at_ms.contains_key(THROWN_AWAY));
@@ -43,7 +42,7 @@ async fn a_deletion_whose_worker_panics_is_owed_again_and_retried() -> Result<()
     runtime
         .note_answer_at(answer, NOW + orbit_core::note_outbox::FIRST_RETRY_MS)
         .await?;
-    let deletions = &runtime.features.notes.deletions;
+    let deletions = &runtime.notes.deletions;
     assert!(
         deletions.owed.is_empty(),
         "the retried deletion is still owed"

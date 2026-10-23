@@ -31,7 +31,7 @@ impl Runtime {
             bail!("Evento assistant_question incoherente");
         };
         // A question came: no phrase is left abandoned.
-        self.features.question.abandoned = None;
+        self.question.abandoned = None;
         // The agent whose name was heard; a helper that knows one name heard
         // the primary's. A name no longer listed (renamed or removed while it
         // was said) was nobody's: neither the primary nor the open
@@ -44,7 +44,7 @@ impl Runtime {
         let recording = self.state.durable.capture.recording.as_ref();
         let ignored = if self.state.privacy_stopped() {
             Some("privacy_stopped")
-        } else if self.capture.mic_stream.as_deref() != Some(stream_id.as_str()) {
+        } else if self.audio.mic_stream.as_deref() != Some(stream_id.as_str()) {
             Some("other_stream")
         } else if !recording.is_some_and(|recording| {
             recording.phase == CapturePhase::Recording && recording.ended_at_ms.is_none()
@@ -64,6 +64,7 @@ impl Runtime {
         // Never the text: only that a question was heard, and how long it took.
         let spoken_ms = ended_ms.saturating_sub(started_ms).max(0).to_string();
         let latency_ms = self
+            .question
             .question_now()
             .saturating_sub(ended_ms)
             .max(0)
@@ -130,37 +131,11 @@ impl Runtime {
             },
         };
         let said = wake_phrase_notice(&trigger);
-        if self
-            .features
-            .question
-            .voice_trigger
-            .as_ref()
-            .map(wake_phrase_notice)
-            != Some(said.clone())
-        {
+        if self.question.voice_trigger.as_ref().map(wake_phrase_notice) != Some(said.clone()) {
             self.record(said);
         }
-        self.features.question.voice_trigger = Some(trigger);
+        self.question.voice_trigger = Some(trigger);
         Ok(())
-    }
-
-    /// Whether `id` is an `audio_wake_phrase` order still waiting for its answer.
-    pub(in crate::daemon) fn wake_order_pending(&self, id: &str) -> bool {
-        self.features.question.wake_orders.contains_key(id)
-    }
-
-    /// The helper came or went: what its detector said no longer holds, and
-    /// it listens on nothing.
-    pub(in crate::daemon) fn voice_trigger_unknown(&mut self) {
-        let question = &mut self.features.question;
-        question.voice_trigger = None;
-        question.wake_stream = None;
-        question.wake_orders.clear();
-    }
-
-    /// The helper bundled with the daemon accepts the wake-phrase order.
-    pub(in crate::daemon) fn wake_helper_ready(&mut self) {
-        self.features.question.helper_listens = true;
     }
 
     /// The microphone stream «Oye Deimos» should listen on now: the meeting
@@ -182,7 +157,7 @@ impl Runtime {
                     )
             });
         (live && !self.state.privacy_stopped() && self.state.helper_connected())
-            .then(|| self.capture.mic_stream.clone())
+            .then(|| self.audio.mic_stream.clone())
             .flatten()
     }
 
@@ -191,32 +166,32 @@ impl Runtime {
     /// themselves; the daemon then only forgets it.
     pub(in crate::daemon) async fn sync_wake_phrase(&mut self) -> Result<()> {
         if self.state.privacy_stopped() || !self.state.helper_connected() {
-            self.features.question.wake_stream = None;
+            self.question.wake_stream = None;
             return Ok(());
         }
-        if !self.features.question.helper_listens {
+        if !self.question.helper_listens {
             return Ok(());
         }
         let target = self.wake_target();
-        if target == self.features.question.wake_stream {
+        if target == self.question.wake_stream {
             return Ok(());
         }
         // A phrase abandoned on another stream, or before a pause, is not
         // this one's.
-        self.features.question.abandoned = None;
-        if let Some(previous) = self.features.question.wake_stream.take() {
+        self.question.abandoned = None;
+        if let Some(previous) = self.question.wake_stream.take() {
             self.send_wake_order(previous, false).await;
         }
         if let Some(stream) = target {
             // A fresh request: an old failure or idle no longer describes it,
             // while a Mac that can never listen keeps saying so.
             if !matches!(
-                self.features.question.voice_trigger,
+                self.question.voice_trigger,
                 Some(VoiceTrigger::Unavailable { .. })
             ) {
-                self.features.question.voice_trigger = None;
+                self.question.voice_trigger = None;
             }
-            self.features.question.wake_stream = Some(stream.clone());
+            self.question.wake_stream = Some(stream.clone());
             self.send_wake_order(stream, true).await;
         }
         Ok(())
@@ -232,7 +207,7 @@ impl Runtime {
                 &[("enabled", if enabled { "true" } else { "false" })],
             );
             if enabled {
-                self.features.question.voice_trigger = Some(VoiceTrigger::Failed {
+                self.question.voice_trigger = Some(VoiceTrigger::Failed {
                     cause: "wake_order_not_sent".into(),
                     detail: Some(bounded(&error.to_string(), MAX_VOICE_TRIGGER_DETAIL_BYTES)),
                 });
@@ -250,7 +225,7 @@ impl Runtime {
         )?;
         let header = orbit_core::wire::native::NativeCommandHeader::from_value(&command)?;
         let order_id = header.id.to_owned();
-        let question = &mut self.features.question;
+        let question = &mut self.question;
         // Bounded: two orders per meeting phase change; the oldest answer is
         // the least useful one to wait for.
         if question.wake_orders.len() >= MAX_WAKE_ORDERS
@@ -269,8 +244,7 @@ impl Runtime {
         &mut self,
         response: &orbit_core::wire::native::NativeResponseFields,
     ) -> bool {
-        let Some((stream, enabled)) = self.features.question.wake_orders.remove(&response.id)
-        else {
+        let Some((stream, enabled)) = self.question.wake_orders.remove(&response.id) else {
             return false;
         };
         let code = response
@@ -284,9 +258,8 @@ impl Runtime {
                 ("code", code),
             ],
         );
-        if enabled && !response.ok && self.features.question.wake_stream.as_deref() == Some(&stream)
-        {
-            self.features.question.voice_trigger = Some(VoiceTrigger::Failed {
+        if enabled && !response.ok && self.question.wake_stream.as_deref() == Some(&stream) {
+            self.question.voice_trigger = Some(VoiceTrigger::Failed {
                 cause: bounded(code, MAX_VOICE_TRIGGER_DETAIL_BYTES),
                 detail: None,
             });
@@ -309,18 +282,11 @@ impl Runtime {
                 .map(|recording| recording.phase.clone()),
             privacy_stopped: self.state.privacy_stopped(),
             helper_connected: self.state.helper_connected(),
-            helper_listens: self.features.question.helper_listens,
-            requested: self.features.question.wake_stream.is_some(),
-            report: self.features.question.voice_trigger.as_ref(),
-            abandoned: self.abandoned_phrase(),
+            helper_listens: self.question.helper_listens,
+            requested: self.question.wake_stream.is_some(),
+            report: self.question.voice_trigger.as_ref(),
+            abandoned: self.question.abandoned_phrase(),
         })
-    }
-
-    /// The phrase abandoned last, while the panel still says so: as long as
-    /// a failure stays there.
-    fn abandoned_phrase(&self) -> Option<WakePhraseAbandonmentCause> {
-        let (cause, at_ms) = self.features.question.abandoned.as_ref()?;
-        (self.question_now().saturating_sub(*at_ms) < FAILURE_SHOWN_MS).then(|| cause.clone())
     }
 
     /// A step the helper reports that answers no order. A code this
@@ -336,7 +302,7 @@ impl Runtime {
         };
         match code.as_str() {
             "wake_phrase_heard" => {
-                self.features.question.abandoned = None;
+                self.question.abandoned = None;
                 self.record(NoticeCode::WakePhraseHeard);
             }
             "wake_phrase_abandoned" => {
@@ -346,8 +312,8 @@ impl Runtime {
                         .with_token(NoticeKey::Cause, abandonment.cause.as_str())
                         .with(NoticeKey::ElapsedMs, abandonment.elapsed_ms)
                         .with(NoticeKey::SilentMs, abandonment.silent_ms);
-                    self.features.question.abandoned =
-                        Some((abandonment.cause, self.question_now()));
+                    self.question.abandoned =
+                        Some((abandonment.cause, self.question.question_now()));
                 }
                 self.record(notice);
             }
@@ -374,5 +340,32 @@ fn wake_phrase_notice(trigger: &VoiceTrigger) -> Notice {
         VoiceTrigger::Failed { cause, .. } => {
             Notice::new(NoticeCode::WakePhraseFailed).with_token(NoticeKey::Cause, cause)
         }
+    }
+}
+
+impl crate::daemon::meeting_question::QuestionHandle {
+    /// Whether `id` is an `audio_wake_phrase` order still waiting for its answer.
+    pub(in crate::daemon) fn wake_order_pending(&self, id: &str) -> bool {
+        self.wake_orders.contains_key(id)
+    }
+
+    /// The helper came or went: what its detector said no longer holds, and
+    /// it listens on nothing.
+    pub(in crate::daemon) fn voice_trigger_unknown(&mut self) {
+        self.voice_trigger = None;
+        self.wake_stream = None;
+        self.wake_orders.clear();
+    }
+
+    /// The helper bundled with the daemon accepts the wake-phrase order.
+    pub(in crate::daemon) fn wake_helper_ready(&mut self) {
+        self.helper_listens = true;
+    }
+
+    /// The phrase abandoned last, while the panel still says so: as long as
+    /// a failure stays there.
+    fn abandoned_phrase(&self) -> Option<WakePhraseAbandonmentCause> {
+        let (cause, at_ms) = self.abandoned.as_ref()?;
+        (self.question_now().saturating_sub(*at_ms) < FAILURE_SHOWN_MS).then(|| cause.clone())
     }
 }

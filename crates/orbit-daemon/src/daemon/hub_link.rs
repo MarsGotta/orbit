@@ -58,6 +58,41 @@ impl SendResult {
     }
 }
 
+/// The hub link's handle: the outbound frames, the connection task, the
+/// device's credential and what the connected hub said about itself.
+pub(super) struct LinkHandle {
+    /// The bounded outbound link to Deimos.
+    pub(super) outbound: HubLink,
+    pub(super) task: Option<tokio::task::JoinHandle<anyhow::Result<()>>>,
+    /// Where the connection task sends what the hub says.
+    pub(super) events: mpsc::Sender<(u64, crate::hub::HubEvent)>,
+    /// The device's credential with the hub; `None` before pairing.
+    pub(super) token: Option<String>,
+    pub(super) protocol_version: Option<u64>,
+    pub(super) unrecognized_events: std::collections::BTreeSet<String>,
+    /// Whether the hub last said it was nearly full (`ready.storage`,
+    /// `storage.status`); `None` before it said anything. Kept in memory
+    /// only, so a restart of Orbit says a nearly full hub once more.
+    pub(super) storage_nearly_full: Option<bool>,
+}
+
+impl LinkHandle {
+    pub(super) fn new(
+        events: mpsc::Sender<(u64, crate::hub::HubEvent)>,
+        token: Option<String>,
+    ) -> Self {
+        Self {
+            outbound: HubLink::default(),
+            task: None,
+            events,
+            token,
+            protocol_version: None,
+            unrecognized_events: std::collections::BTreeSet::new(),
+            storage_nearly_full: None,
+        }
+    }
+}
+
 #[derive(Default)]
 pub(super) struct HubLink {
     state: LinkState,

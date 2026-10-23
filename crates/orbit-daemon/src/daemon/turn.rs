@@ -45,6 +45,19 @@ impl Runtime {
         self.begin_turn(orbit_ipc::new_op(), source);
     }
 
+    /// Records one diagnostic event. Never fails and never carries conversation
+    /// content: the log module truncates every field it is given.
+    pub(super) fn log(&self, event: &str, fields: &[(&str, &str)]) {
+        if let Some(diagnostics) = &self.diagnostics {
+            // Every line names the turn's op, which joins it to the report
+            // log, the notice and the hub's own logs.
+            let mut with_op = Vec::with_capacity(fields.len() + 1);
+            with_op.push(("op", self.turn.op.as_str()));
+            with_op.extend_from_slice(fields);
+            diagnostics.record(event, &with_op);
+        }
+    }
+
     pub(super) fn op(&self) -> &Op {
         &self.turn.op
     }
@@ -104,32 +117,6 @@ impl Runtime {
         self.say(notice);
     }
 
-    /// The op a hub event belongs to: the one the frame names, or the op of
-    /// the request it answers (by id), so a notice built from the hub's
-    /// error keeps the op of the request. Anything else is new.
-    pub(super) fn hub_event_op(&self, event: &crate::hub::HubEvent) -> Op {
-        use crate::hub::HubEvent;
-        let named = match event {
-            HubEvent::Frame(frame) => frame
-                .get("op")
-                .and_then(Value::as_str)
-                .and_then(Op::parse)
-                .or_else(|| {
-                    frame
-                        .get("id")
-                        .and_then(Value::as_str)
-                        .and_then(|id| self.hub.op_for(id))
-                }),
-            HubEvent::Decoded(frame) => frame.id.as_deref().and_then(|id| self.hub.op_for(id)),
-            HubEvent::Connected
-            | HubEvent::Disconnected
-            | HubEvent::InvalidFrame { .. }
-            | HubEvent::Problem(_)
-            | HubEvent::Revoked => None,
-        };
-        named.unwrap_or_else(orbit_ipc::new_op)
-    }
-
     /// Sends one frame to the hub under this turn's op.
     pub(super) fn send_frame(&mut self, frame: anyhow::Result<Value>) -> hub_link::SendResult {
         // «Adjuntar ventana»'s capture answers the app, never the hub.
@@ -138,7 +125,7 @@ impl Runtime {
         {
             return hub_link::SendResult::Queued;
         }
-        self.hub.send_or_report(frame, &self.turn.op)
+        self.link.outbound.send_or_report(frame, &self.turn.op)
     }
 
     /// Reports new records without changing anything already published.
@@ -196,6 +183,34 @@ pub(super) fn refusal_notice(error: &anyhow::Error, otherwise: NoticeCode) -> No
             },
         ) => Notice::new(NoticeCode::ScreenPermissionMissing),
         _ => Notice::new(otherwise),
+    }
+}
+
+impl crate::daemon::hub_link::LinkHandle {
+    /// The op a hub event belongs to: the one the frame names, or the op of
+    /// the request it answers (by id), so a notice built from the hub's
+    /// error keeps the op of the request. Anything else is new.
+    pub(super) fn hub_event_op(&self, event: &crate::hub::HubEvent) -> Op {
+        use crate::hub::HubEvent;
+        let named = match event {
+            HubEvent::Frame(frame) => frame
+                .get("op")
+                .and_then(Value::as_str)
+                .and_then(Op::parse)
+                .or_else(|| {
+                    frame
+                        .get("id")
+                        .and_then(Value::as_str)
+                        .and_then(|id| self.outbound.op_for(id))
+                }),
+            HubEvent::Decoded(frame) => frame.id.as_deref().and_then(|id| self.outbound.op_for(id)),
+            HubEvent::Connected
+            | HubEvent::Disconnected
+            | HubEvent::InvalidFrame { .. }
+            | HubEvent::Problem(_)
+            | HubEvent::Revoked => None,
+        };
+        named.unwrap_or_else(orbit_ipc::new_op)
     }
 }
 
@@ -283,7 +298,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let (mut runtime, _helper) =
             crate::daemon::audio::tests::fixture(directory.path()).unwrap();
-        let mut frames = runtime.hub.open(4);
+        let mut frames = runtime.link.outbound.open(4);
         let op = Op::parse("0123abcd-request").unwrap();
         runtime.begin_turn(op.clone(), ReportSource::Daemon);
         let sent = runtime.send_frame(crate::hub::command("request-7", "ping", json!({})));
@@ -292,7 +307,7 @@ mod tests {
 
         let error = HubEvent::Frame(json!({"v":1,"event":"error","id":"request-7",
             "data":{"message":"el hub no pudo","code":"bad_request"}}));
-        let answered = runtime.hub_event_op(&error);
+        let answered = runtime.link.hub_event_op(&error);
         assert_eq!(answered, op);
         runtime.begin_turn(answered, ReportSource::Hub);
         runtime.hub_event(error).await.unwrap();
@@ -302,10 +317,10 @@ mod tests {
 
         let named = HubEvent::Frame(json!({"v":1,"event":"error","op":"fedcba98-named",
             "data":{"message":"x"}}));
-        assert_eq!(runtime.hub_event_op(&named).as_str(), "fedcba98-named");
+        assert_eq!(runtime.link.hub_event_op(&named).as_str(), "fedcba98-named");
         let unrelated = HubEvent::Frame(json!({"v":1,"event":"error","id":"never-sent"}));
         assert_ne!(
-            runtime.hub_event_op(&unrelated).as_str(),
+            runtime.link.hub_event_op(&unrelated).as_str(),
             "0123abcd-request"
         );
     }

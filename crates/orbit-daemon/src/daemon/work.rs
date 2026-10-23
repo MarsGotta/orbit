@@ -26,12 +26,12 @@ impl Runtime {
             WorkResult::Capture(capture) => Box::pin(self.capture_work(capture)).await?,
             WorkResult::Problem { ticket, message } => {
                 let settlement = self
-                    .conversation
+                    .assistant
                     .speech_task
                     .settle(&ticket, self.state.generation());
                 if self.settled_value("speech", settlement).is_some() {
                     // The clip never reached the helper: nothing is being read.
-                    self.conversation.read_aloud = None;
+                    self.assistant.read_aloud = None;
                     self.on_work_problem(message).await?;
                 }
             }
@@ -94,15 +94,15 @@ impl Runtime {
         available: bool,
     ) -> Result<()> {
         let settlement = self
-            .conversation
+            .assistant
             .speech_task
             .settle(&ticket, self.state.generation());
         if self.settled_value("speech", settlement).is_some() {
             // The voice that did not arrive is the one that was reading.
             let agent_name = crate::speech::agent_name(&self.settings, Some(&voice));
-            self.conversation.speech_voices.insert(voice, available);
+            self.assistant.speech_voices.insert(voice, available);
             if !available {
-                self.conversation.read_aloud = None;
+                self.assistant.read_aloud = None;
                 self.on_work_problem(crate::speech::SpeechUnavailable { agent_name }.to_string())
                     .await?;
             }
@@ -131,13 +131,13 @@ impl Runtime {
         work: &str,
     ) -> Result<bool> {
         let cause = match self
-            .conversation
+            .assistant
             .voice_task
             .settle(ticket, self.state.generation())
         {
             Settlement::Current(())
                 if !self.state.privacy_stopped()
-                    && self.conversation.voice_operation.as_deref() == Some(operation_id) =>
+                    && self.assistant.voice_operation.as_deref() == Some(operation_id) =>
             {
                 return Ok(true);
             }
@@ -191,19 +191,19 @@ impl Runtime {
         source: audio::VoiceSource,
         text: String,
     ) -> Result<()> {
-        self.conversation.voice_operation = None;
-        self.conversation.speak_next = !self.recording_active();
-        let over_answer = self.take_over_answer_turn(&source.message_id);
+        self.assistant.voice_operation = None;
+        self.assistant.speak_next = !self.recording_active();
+        let over_answer = self.audio.take_over_answer_turn(&source.message_id);
         if text.trim().is_empty() {
             // Nothing was heard: noise, silence, or a person who had not
             // finished. Never a failure: the turn leaves no note, and in a
             // call its audio waits for what the user says next.
-            let in_call = self.capture.call_runtime.is_some();
+            let in_call = self.audio.call.is_some();
             if let Some(turn) = over_answer {
                 self.carry_into_next_turn(call::call_turn_audio(turn.operation_id, turn.voice));
                 self.note_dropped_voice("no_words");
             } else {
-                if let Some(audio) = self.take_submitted_call_turn(&source.message_id) {
+                if let Some(audio) = self.audio.take_submitted_call_turn(&source.message_id) {
                     self.carry_into_next_turn(audio);
                 }
                 self.drop_unheard_voice_note(&source.message_id, "no_words")
@@ -245,10 +245,9 @@ impl Runtime {
             .call
             .as_ref()
             .map(|call| call.id.clone());
-        if call_id.is_none() || self.conversation.speech_notice_call_id.as_ref() != call_id.as_ref()
-        {
+        if call_id.is_none() || self.assistant.speech_notice_call_id.as_ref() != call_id.as_ref() {
             self.say_failure(NoticeCode::SpeechFailed, &message);
-            self.conversation.speech_notice_call_id = call_id;
+            self.assistant.speech_notice_call_id = call_id;
         }
         Ok(())
     }
@@ -282,13 +281,13 @@ impl Runtime {
         operation_id: String,
         failure: orbit_core::VoiceTranscriptionFailure,
     ) -> Result<()> {
-        let current = self.conversation.voice_operation.as_deref() == Some(operation_id.as_str());
+        let current = self.assistant.voice_operation.as_deref() == Some(operation_id.as_str());
         if current {
-            self.conversation.voice_operation = None;
+            self.assistant.voice_operation = None;
         }
         // A turn spoken over Deimos's answer that could not be heard does
         // not stop him; it is kept as a note that says why.
-        if let Some(turn) = self.take_over_answer_turn(&operation_id) {
+        if let Some(turn) = self.audio.take_over_answer_turn(&operation_id) {
             self.accept_over_answer(turn, Some(failure)).await?;
             if current {
                 self.say(NoticeCode::VoiceTranscriptionFailed);

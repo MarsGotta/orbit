@@ -76,15 +76,15 @@ async fn voice_wav_is_readable_by_message_id_and_transcript_is_optional() -> Res
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     let (hub, _hub_rx) = mpsc::channel(4);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     let (work, mut work_events) = mpsc::channel(16);
-    runtime.work.work_events = work;
+    runtime.work_events = work;
     runtime.settings.hub_url = Some(
         one_shot_http(json_response("200 OK", "{\"text\":\"nota sintética\"}"))
             .await?
             .to_string(),
     );
-    runtime.token = Some(TOKEN.into());
+    runtime.link.token = Some(TOKEN.into());
 
     runtime.apply(Event::VoiceStart).await?;
     assert_eq!(
@@ -178,9 +178,9 @@ async fn failed_hub_transcription_replaces_pending_note_with_cause() -> Result<(
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     let (hub, _hub_rx) = mpsc::channel(4);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     let (work, mut work_events) = mpsc::channel(16);
-    runtime.work.work_events = work;
+    runtime.work_events = work;
     runtime.settings.hub_url = Some(
         one_shot_http(json_response(
             "502 Bad Gateway",
@@ -189,7 +189,7 @@ async fn failed_hub_transcription_replaces_pending_note_with_cause() -> Result<(
         .await?
         .to_string(),
     );
-    runtime.token = Some(TOKEN.into());
+    runtime.link.token = Some(TOKEN.into());
 
     runtime.apply(Event::VoiceStart).await?;
     helper.recv().await.context("playback_stop ausente")?;
@@ -362,7 +362,7 @@ async fn speech_unavailable_is_specific_and_once_per_call() -> Result<()> {
     for _ in 0..2 {
         let generation = runtime.state.generation();
         let ticket = crate::daemon::audio::tests::pending_work(
-            &mut runtime.conversation.speech_task,
+            &mut runtime.assistant.speech_task,
             generation,
             (),
         )?;
@@ -373,7 +373,7 @@ async fn speech_unavailable_is_specific_and_once_per_call() -> Result<()> {
             })
             .await?;
         assert!(!runtime.state.privacy_stopped());
-        assert!(!runtime.audio_is_draining());
+        assert!(!runtime.audio.audio_is_draining());
         assert_eq!(runtime.state.views.draining_since_ms, None);
     }
     let notices = runtime
@@ -393,7 +393,7 @@ async fn speech_refusal_reaches_the_assistant_topic_as_a_code() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     let (work, mut work_events) = mpsc::channel(16);
-    runtime.work.work_events = work;
+    runtime.work_events = work;
     runtime.settings.hub_url = Some(
         one_shot_http(json_response(
             "400 Bad Request",
@@ -402,8 +402,8 @@ async fn speech_refusal_reaches_the_assistant_topic_as_a_code() -> Result<()> {
         .await?
         .to_string(),
     );
-    runtime.token = Some(TOKEN.into());
-    runtime.conversation.speak_next = true;
+    runtime.link.token = Some(TOKEN.into());
+    runtime.assistant.speak_next = true;
     {
         let fixture_value = serde_json::json!(true);
         crate::daemon::authority_fixture::set(

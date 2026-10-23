@@ -18,6 +18,7 @@ async fn a_tool_orbit_does_not_know_still_reaches_the_engine() -> Result<()> {
     let mut h = Mac::new(false).await?;
     let names: Vec<String> = h
         .runtime
+        .computer
         .engine_tools()
         .iter()
         .map(|tool| tool.name.clone())
@@ -47,7 +48,7 @@ async fn without_an_engine_a_remote_action_answers_the_cause() -> Result<()> {
             cause: orbit_core::refusal::ReadInterruption::ComputerRevoked,
         })
         .await;
-    assert!(!h.runtime.engine_is_ready());
+    assert!(!h.runtime.computer.engine_is_ready());
     let error = h
         .runtime
         .call_engine_tool(launch(), "local")
@@ -68,8 +69,8 @@ async fn the_privacy_stop_still_cuts_an_engine_action() -> Result<()> {
     h.runtime.call_engine_tool(launch(), "local")?;
     tokio::task::yield_now().await;
     h.runtime.command(Command::PrivacyStop).await?;
-    assert!(h.runtime.features.computer.work.active().is_none());
-    assert!(!h.runtime.engine_is_ready());
+    assert!(h.runtime.computer.work.active().is_none());
+    assert!(!h.runtime.computer.engine_is_ready());
     let history = h.runtime.control_history()?;
     assert_eq!(
         history.first().map(|entry| entry.outcome),
@@ -95,7 +96,7 @@ async fn withdrawing_accessibility_marks_inflight_work_unknown_and_records_it() 
         );
     }
     h.runtime.maintain_computer().await?;
-    assert!(h.runtime.features.computer.work.active().is_none());
+    assert!(h.runtime.computer.work.active().is_none());
     assert!(
         serde_json::from_str::<Value>(&permission_reason(&h.runtime))?["permission"]
             == "accessibility",

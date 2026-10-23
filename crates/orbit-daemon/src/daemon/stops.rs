@@ -34,6 +34,7 @@ mod authority;
 mod cuts;
 mod events;
 mod maintenance;
+mod user_stop;
 
 /// Orders whose answers are the capture's own: the capture commands of the
 /// failure taxonomy and the user's stop.
@@ -146,9 +147,9 @@ impl Runtime {
     /// still holds a stream or a start the daemon asked for.
     pub(super) fn capture_live(&self) -> bool {
         orbit_core::privacy_stop::capture_live(&self.state)
-            || self.capture.mic_stream.is_some()
-            || self.capture.remote_stream.is_some()
-            || !self.capture.pending_starts.is_empty()
+            || self.audio.mic_stream.is_some()
+            || self.audio.remote_stream.is_some()
+            || !self.audio.pending_starts.is_empty()
     }
 
     /// A cause said once: a maintenance that fails every second says it once,
@@ -176,211 +177,6 @@ impl Runtime {
             && let Err(error) = self.store_actor.snapshot(&self.state).await
         {
             self.log("durable_notice_failed", &[("error", &error.to_string())]);
-        }
-    }
-
-    /// The user's stop, and the only function that latches one.
-    /// Every caller names the control they used; nothing automatic can be
-    /// written as a [`UserStop`].
-    pub(super) async fn privacy_stop(&mut self, origin: UserStop) {
-        let message = origin.notice();
-        let plan = retire(AuthorityChange::UserStop);
-        // Logged at the single point every one of the user's stops passes through;
-        // the cause is Orbit's own name for the control, never content.
-        self.log("privacy_stopped", &[("cause", origin.cause().name())]);
-        // The retirement is idempotent and runs first so a route added later
-        // cannot bypass it; on re-entry it also catches anything reopened
-        // after the first call. The flag is captured up front because only the
-        // core decision below latches it.
-        let privacy_already_stopped = self.state.privacy_stopped();
-        let before_closure = self.state.clone();
-        let interrupted_request = self.state.durable.assistant.active_request.clone();
-        if !privacy_already_stopped {
-            if self.capture.interruption.is_none() {
-                let earlier =
-                    self.state
-                        .durable
-                        .capture
-                        .recording
-                        .as_ref()
-                        .is_some_and(|recording| {
-                            recording.phase == CapturePhase::Interrupted
-                                && recording.ended_at_ms.is_none()
-                        });
-                self.capture.interruption = Some(if earlier {
-                    unsaved_interruption_cause()
-                } else {
-                    orbit_core::RecordingInterruption {
-                        cause: orbit_core::RecordingInterruptionCause::PrivacyStop,
-                        detail: None,
-                        audio_available: false,
-                    }
-                });
-            }
-            let event = match origin {
-                UserStop::HelperLatch { .. } => Event::HelperLatched,
-                UserStop::Order | UserStop::Hotkey | UserStop::Helper { .. } => Event::PrivacyStop,
-            };
-            let Ok(mut decision) = decide(&self.state, event, now()) else {
-                return;
-            };
-            decision.state.set_notice(self.scoped(message.clone()));
-            // The latch and the helper order precede every store write in
-            // retirement and halt. A stuck writer must not keep the Mac's
-            // microphone open or let a late frame restart this generation.
-            self.state = decision.state.clone();
-            if let Err(error) = self
-                .execute_retire_plan(
-                    plan,
-                    AuthorityChange::UserStop,
-                    RetirePhase::ReadEpoch,
-                    None,
-                )
-                .await
-            {
-                self.log("retire_read_epoch_failed", &[("error", &error.to_string())]);
-            }
-            if let Err(error) = self.stop_recording_audio().await {
-                self.log("stop_effect_failed", &[("error", &error.to_string())]);
-                self.say_step_failure("audio_stop", &error);
-            }
-            self.interrupt_turn(interrupted_request.as_deref(), true)
-                .await;
-            // Native playback and the call's live voice link are retired
-            // before a store receipt can wait on a blocked writer.
-            for effect in [Effect::StopPlayback, Effect::StopCall] {
-                let result = if matches!(effect, Effect::StopCall) {
-                    self.stop_call_audio(CallStopVoice::Cancel(VoiceCancellationCause::Authority(
-                        AuthorityChange::UserStop,
-                    )))
-                    .await
-                } else {
-                    self.effect(effect).await
-                };
-                if let Err(error) = result {
-                    self.say_step_failure("playback_or_call_stop", &error);
-                }
-            }
-            // These core effects were performed above. Retirement below owns
-            // CancelNetwork's volatile half before its first durable await.
-            decision.effects.retain(|effect| {
-                !matches!(
-                    effect,
-                    Effect::StopCapture
-                        | Effect::StopPlayback
-                        | Effect::StopCall
-                        | Effect::Interrupt
-                        | Effect::CancelNetwork
-                )
-            });
-            self.retire_authority_volatile(plan, AuthorityChange::UserStop)
-                .await;
-            if let Err(error) = self
-                .execute_retire_plan(
-                    plan,
-                    AuthorityChange::UserStop,
-                    RetirePhase::Link,
-                    interrupted_request.as_deref(),
-                )
-                .await
-            {
-                self.log("retire_link_failed", &[("error", &error.to_string())]);
-            }
-            if let Err(error) = self.store_actor.defer_snapshot(&self.state) {
-                self.say_step_failure("stop_snapshot", &error);
-            }
-            // The existing ten-second closure budget covers two five-second
-            // seal retries under a failing store. Here it bounds only the
-            // later durable work; it is not a microphone deadline or proof
-            // that the snapshot landed. The helper was ordered above.
-            let durable_tail = async {
-                Box::pin(self.retire_authority_durable(plan, AuthorityChange::UserStop)).await;
-                decision.state = self.state.clone();
-                Box::pin(self.halt(
-                    decision,
-                    CallStopVoice::Cancel(VoiceCancellationCause::Authority(
-                        AuthorityChange::UserStop,
-                    )),
-                ))
-                .await;
-            };
-            if tokio::time::timeout(shutdown::SHUTDOWN_BUDGET, durable_tail)
-                .await
-                .is_err()
-            {
-                self.privacy_retirement_owed = true;
-                self.report_pending_stop_work();
-                if let Err(error) = self.store_actor.defer_snapshot(&self.state) {
-                    self.log(
-                        "stop_snapshot_defer_failed",
-                        &[("error", &error.to_string())],
-                    );
-                }
-            } else {
-                self.privacy_retirement_owed = false;
-            }
-            return;
-        }
-        if self.full_stop_send_owed()
-            && let Err(error) = self.retry_full_stop_send().await
-        {
-            self.say_step_failure("helper_stop_send", &error);
-        }
-        // The attribution is the control the user pressed, independent of whether
-        // the writer subsequently responds within the retirement budget.
-        let event = match origin {
-            UserStop::HelperLatch { .. } => Event::HelperLatched,
-            UserStop::Order | UserStop::Hotkey | UserStop::Helper { .. } => Event::PrivacyStop,
-        };
-        match decide(&self.state, event, now()) {
-            Ok(decision) => self.state = decision.state,
-            Err(error) => {
-                self.log(
-                    "privacy_stop_attribution_failed",
-                    &[("error", &error.to_string())],
-                );
-            }
-        }
-        self.retire_authority_volatile(plan, AuthorityChange::UserStop)
-            .await;
-        if let Err(error) = self
-            .execute_retire_plan(plan, AuthorityChange::UserStop, RetirePhase::Link, None)
-            .await
-        {
-            self.log("retire_link_failed", &[("error", &error.to_string())]);
-        }
-        if tokio::time::timeout(
-            shutdown::SHUTDOWN_BUDGET,
-            self.retire_authority_durable(plan, AuthorityChange::UserStop),
-        )
-        .await
-        .is_err()
-        {
-            self.privacy_retirement_owed = true;
-            self.report_pending_stop_work();
-            if let Err(error) = self.store_actor.defer_snapshot(&self.state) {
-                self.log(
-                    "stop_snapshot_defer_failed",
-                    &[("error", &error.to_string())],
-                );
-            }
-            return;
-        }
-        self.privacy_retirement_owed = false;
-        // Re-entry: the helper already heard the user's stop. Asking again would be a
-        // duplicate; the new control is appended so the first stays visible,
-        // and the snapshot is rewritten only if the retirement changed it.
-        if privacy_already_stopped {
-            // Pressed on top of a stop the user did not ask for (a revocation),
-            // it becomes theirs, so it survives the next restart as theirs. A latch
-            // found on disk makes a revocation's stop one nobody can attribute,
-            // which is kept too.
-            if self.state != before_closure
-                && let Err(error) = self.store_actor.snapshot(&self.state).await
-            {
-                self.log("stop_snapshot_failed", &[("error", &error.to_string())]);
-            }
-            self.say(message);
         }
     }
 
@@ -445,7 +241,7 @@ impl Runtime {
                 // channel. Keep its exact ID and drain ownership so the next
                 // maintenance turn can resend it; abandoning here was what
                 // left the microphone open indefinitely after a brief stall.
-                if !self.full_stop_send_owed()
+                if !self.audio.full_stop_send_owed()
                     && let Err(abandon_error) = self.abandon_audio_drain().await
                 {
                     self.log(

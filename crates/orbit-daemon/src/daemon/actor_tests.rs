@@ -25,7 +25,9 @@ async fn the_calendar_authorization_reported_by_the_helper_is_kept() -> Result<(
     assert_eq!(runtime.state.capabilities().calendar(), None);
     // The answer is paired with a status the daemon sent. An id it did not
     // send is unpaired and is not read as permissions.
-    runtime.record_pending_native(&json!({"id": "status", "command": "status"}));
+    runtime
+        .helper
+        .record_pending(&json!({"id": "status", "command": "status"}));
     runtime
         .native_event(status_with_calendar(json!("full_access")))
         .await?;
@@ -36,7 +38,9 @@ async fn the_calendar_authorization_reported_by_the_helper_is_kept() -> Result<(
         Some(orbit_core::calendar::CalendarAuthorization::FullAccess)
     );
     // An unreadable value must not erase a real observation.
-    runtime.record_pending_native(&json!({"id": "status", "command": "status"}));
+    runtime
+        .helper
+        .record_pending(&json!({"id": "status", "command": "status"}));
     let problem = runtime
         .native_event(status_with_calendar(json!(12345)))
         .await
@@ -64,7 +68,7 @@ async fn bridge_fixture(
 )> {
     let (mut runtime, native) = fixture(directory)?;
     let (hub, hub_rx) = mpsc::channel(16);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     Ok((runtime, hub_rx, native))
 }
 
@@ -136,6 +140,7 @@ async fn malformed_screenshot_filter_cannot_select_an_unfiltered_window() -> Res
         }]}});
         assert!(
             runtime
+                .assistant
                 .bridge_screenshot_target(&arbitrary_window)
                 .is_none(),
             "the invalid filter chose an unrelated window"
@@ -159,7 +164,7 @@ async fn malformed_screenshot_filter_cannot_select_an_unfiltered_window() -> Res
             helper.try_recv().is_err(),
             "a capture was asked for without a filter"
         );
-        assert!(runtime.conversation.bridge_request.is_none());
+        assert!(runtime.assistant.bridge_request.is_none());
     }
     Ok(())
 }
@@ -279,7 +284,7 @@ async fn malformed_legacy_snapshot_questions_do_not_disconnect() -> Result<()> {
         })))
         .await?;
     assert_eq!(runtime.state.connection(), Connection::Online);
-    assert_eq!(runtime.snapshot_revision, Some(1));
+    assert_eq!(runtime.assistant.snapshot_revision, Some(1));
     Ok(())
 }
 
@@ -294,7 +299,7 @@ async fn unknown_event_names_have_a_memory_ceiling() -> Result<()> {
             })))
             .await?;
     }
-    assert_eq!(runtime.unrecognized_hub_events.len(), 128);
+    assert_eq!(runtime.link.unrecognized_events.len(), 128);
     Ok(())
 }
 
@@ -393,7 +398,7 @@ async fn remote_look_and_action_name_the_missing_permission_before_touching_the_
         // its reply (the refusal is silent on the Mac's screen).
         assert!(said::has(&runtime.state, NoticeCode::BridgeRefused));
         assert!(said::mentions(&runtime.state, "permission_denied"));
-        assert!(runtime.conversation.bridge_request.is_none());
+        assert!(runtime.assistant.bridge_request.is_none());
     }
     Ok(())
 }
@@ -425,7 +430,7 @@ async fn a_latched_privacy_stop_says_nothing_at_all_to_the_hub() -> Result<()> {
         "a Mac with privacy stopped looked at something"
     );
     // And nothing was accepted for service either.
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
     Ok(())
 }
 
@@ -447,7 +452,7 @@ async fn an_admitted_request_tells_the_person_what_was_asked_for() -> Result<()>
     );
     assert_eq!(
         runtime
-            .conversation
+            .assistant
             .bridge_request
             .as_ref()
             .map(|ask| ask.id.as_str()),
@@ -474,7 +479,7 @@ async fn a_request_without_an_identity_is_dropped_rather_than_answered() -> Resu
         })))
         .await?;
     assert!(hub.try_recv().is_err());
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
     Ok(())
 }
 
@@ -556,7 +561,7 @@ async fn the_helpers_window_list_comes_back_as_the_answer_to_the_request() -> Re
     assert!(windows[0].get("window_id").is_none());
     assert!(windows[0].get("application_pid").is_none());
     // The slot is free again, so the next request is not told "ocupado".
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
     runtime
         .hub_event(HubEvent::Frame(json!({
             "event": "device.request",
@@ -589,7 +594,7 @@ async fn a_privacy_stop_releases_the_in_flight_request_and_answers_the_hub() -> 
     ask(&mut runtime, "screen_sources").await?;
     assert_eq!(
         runtime
-            .conversation
+            .assistant
             .bridge_request
             .as_ref()
             .map(|ask| ask.id.as_str()),
@@ -604,9 +609,9 @@ async fn a_privacy_stop_releases_the_in_flight_request_and_answers_the_hub() -> 
 
     assert!(runtime.state.privacy_stopped());
     assert!(
-        runtime.conversation.bridge_request.is_none(),
+        runtime.assistant.bridge_request.is_none(),
         "the stop left the bridge busy: {:?}",
-        runtime.conversation.bridge_request
+        runtime.assistant.bridge_request
     );
     let reply = hub
         .recv()
@@ -638,9 +643,9 @@ async fn a_hub_disconnect_releases_the_in_flight_request_without_answering() -> 
     runtime.hub_event(HubEvent::Disconnected).await?;
 
     assert!(
-        runtime.conversation.bridge_request.is_none(),
+        runtime.assistant.bridge_request.is_none(),
         "the disconnect left the bridge busy: {:?}",
-        runtime.conversation.bridge_request
+        runtime.assistant.bridge_request
     );
     let sent_anyway = hub.try_recv();
     assert!(
@@ -667,9 +672,9 @@ async fn a_helper_restart_releases_the_in_flight_request_with_its_cause() -> Res
     runtime.native_event(json!({"event":"ready"})).await?;
 
     assert!(
-        runtime.conversation.bridge_request.is_none(),
+        runtime.assistant.bridge_request.is_none(),
         "the cancellation left the bridge busy: {:?}",
-        runtime.conversation.bridge_request
+        runtime.assistant.bridge_request
     );
     let reply = hub
         .recv()
@@ -718,12 +723,12 @@ async fn another_device_ready_latches_privacy_and_cancels_live_work() -> Result<
     let worker = tokio::spawn(std::future::pending::<()>());
     let worker_abort = worker.abort_handle();
     let generation = runtime.state.generation();
-    runtime.work.worker.attach_test(generation, (), worker);
+    runtime.transfers.worker.attach_test(generation, (), worker);
     let voice = tokio::spawn(std::future::pending::<()>());
     let voice_abort = voice.abort_handle();
     let generation = runtime.state.generation();
     runtime
-        .conversation
+        .assistant
         .voice_task
         .attach_test(generation, (), voice);
     let generation = runtime.state.generation();
@@ -822,7 +827,7 @@ async fn turn_frames_without_session_id_do_not_change_selected_session() -> Resu
         let directory = tempfile::tempdir()?;
         let (mut runtime, _native) = fixture(directory.path())?;
         let (hub, mut commands) = mpsc::channel(8);
-        runtime.hub.install(hub);
+        runtime.link.outbound.install(hub);
         runtime
             .apply(Event::Submit {
                 attachments: Vec::new(),
@@ -860,7 +865,7 @@ async fn unrelated_error_ids_cannot_finish_the_active_request() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let (hub, mut commands) = mpsc::channel(8);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     runtime
         .apply(Event::Submit {
             attachments: Vec::new(),
@@ -881,7 +886,7 @@ async fn unrelated_error_ids_cannot_finish_the_active_request() -> Result<()> {
             text: "SYNTHETIC PARTIAL".into(),
         })
         .await?;
-    runtime.conversation.speak_next = true;
+    runtime.assistant.speak_next = true;
     for stale_id in [
         json!("another-request"),
         json!("completed-request"),
@@ -895,7 +900,7 @@ async fn unrelated_error_ids_cannot_finish_the_active_request() -> Result<()> {
             runtime.state.durable.assistant.active_request.as_deref(),
             Some("active-request")
         );
-        assert!(runtime.conversation.speak_next);
+        assert!(runtime.assistant.speak_next);
         assert!(
             !runtime
                 .state
@@ -915,7 +920,7 @@ async fn unrelated_error_ids_cannot_finish_the_active_request() -> Result<()> {
         ))
         .await?;
     assert!(runtime.state.durable.assistant.active_request.is_none());
-    assert!(!runtime.conversation.speak_next);
+    assert!(!runtime.assistant.speak_next);
     // The hub's message is free text: logged, never said.
     assert_eq!(
         runtime.state.notice_code(),
@@ -948,7 +953,7 @@ async fn upload_refusal_blocks_the_job_says_it_and_arms_initial_retry_gate() -> 
         payload: json!({}),
     })?;
     let generation = runtime.state.generation();
-    let ticket = super::pending_work(&mut runtime.work.worker, generation, ())?;
+    let ticket = super::pending_work(&mut runtime.transfers.worker, generation, ())?;
     let before = Instant::now();
     runtime
         .work_event(WorkResult::Store(crate::daemon::StoreWork::Uploaded {
@@ -968,17 +973,17 @@ async fn upload_refusal_blocks_the_job_says_it_and_arms_initial_retry_gate() -> 
     );
     assert!(
         !runtime
-            .work
+            .transfers
             .retry_gate
             .ready(before + Duration::from_millis(1999))
     );
     assert!(
         runtime
-            .work
+            .transfers
             .retry_gate
             .ready(after + Duration::from_secs(2))
     );
-    assert!(runtime.work.worker.active().is_none());
+    assert!(runtime.transfers.worker.active().is_none());
     // A refusal for good is said with its status, never as a silent retry.
     assert_eq!(runtime.state.notice_code(), Some(NoticeCode::UploadRefused));
     assert!(
@@ -1001,7 +1006,7 @@ async fn transient_upload_error_remains_retryable() -> Result<()> {
         payload: json!({}),
     })?;
     let generation = runtime.state.generation();
-    let ticket = super::pending_work(&mut runtime.work.worker, generation, ())?;
+    let ticket = super::pending_work(&mut runtime.transfers.worker, generation, ())?;
     runtime
         .work_event(WorkResult::Store(crate::daemon::StoreWork::Uploaded {
             ticket,
@@ -1017,8 +1022,8 @@ async fn transient_upload_error_remains_retryable() -> Result<()> {
             .state,
         JobState::RetryWait
     );
-    assert!(!runtime.work.retry_gate.ready(Instant::now()));
-    assert!(runtime.work.worker.active().is_none());
+    assert!(!runtime.transfers.retry_gate.ready(Instant::now()));
+    assert!(runtime.transfers.worker.active().is_none());
     Ok(())
 }
 
@@ -1031,7 +1036,7 @@ async fn successful_upload_schedules_the_next_chunk_without_a_timer_tick() -> Re
     let (mut runtime, _) = fixture(directory.path())?;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     runtime.settings.hub_url = Some(format!("http://{}", listener.local_addr()?));
-    runtime.token = Some("SYNTHETIC-TOKEN".into());
+    runtime.link.token = Some("SYNTHETIC-TOKEN".into());
     let mut receipts = Vec::new();
     for (sequence, chunk_id) in ["a", "b"].into_iter().enumerate() {
         receipts.push(runtime.fixture_store.seal_chunk(
@@ -1055,12 +1060,12 @@ async fn successful_upload_schedules_the_next_chunk_without_a_timer_tick() -> Re
         test_support::spawn_task_ticking(&runtime, Duration::from_secs(3600))?;
     let (mut first, _) = test_support::accept_put(&listener).await?;
     // A failure before held the gate; the success lifts it.
-    runtime.work.retry_gate.finish(false, Instant::now());
+    runtime.transfers.retry_gate.finish(false, Instant::now());
     test_support::acknowledge(&mut first, "a", &receipts[0].sha256).await?;
     let (mut second, request) = test_support::accept_put(&listener).await?;
     assert!(String::from_utf8_lossy(&request).starts_with("PUT /v1/chunks/b "));
     test_support::job_reaches(&runtime, "upload-a", JobState::Succeeded).await?;
-    assert!(runtime.work.retry_gate.ready(Instant::now()));
+    assert!(runtime.transfers.retry_gate.ready(Instant::now()));
     test_support::acknowledge(&mut second, "b", &receipts[1].sha256).await?;
     test_support::job_reaches(&runtime, "upload-b", JobState::Succeeded).await?;
     task.stop();
@@ -1155,9 +1160,9 @@ async fn a_discontinuity_after_a_stop_does_not_ask_for_yet_another_stop() -> Res
         crate::daemon::authority_fixture::set(&mut runtime.state, "privacy_stopped", fixture_value);
     }
     // Draining: tail frames are still accepted until the stop is confirmed.
-    runtime.capture.audio.full_stop =
+    runtime.audio.lifecycle.full_stop =
         Some(("privacy-1".into(), crate::daemon::audio::FullStop::Privacy));
-    runtime.capture.mic_stream = Some("stream-1".into());
+    runtime.audio.mic_stream = Some("stream-1".into());
 
     let result = runtime
         .native_event(json!({"event":"gap","source":"mic_local","stream_id":"stream-1"}))
@@ -1301,7 +1306,7 @@ async fn a_backpressured_permissions_answer_during_a_recording_is_a_notice_not_a
         "a rejected permissions order must not brake privacy"
     );
     assert_eq!(
-        runtime.capture.mic_stream.as_deref(),
+        runtime.audio.mic_stream.as_deref(),
         Some(stream.as_str()),
         "the recording's stream must survive"
     );
@@ -1528,7 +1533,7 @@ async fn a_helper_gap_in_a_live_recording_is_declared_and_the_recording_continue
     assert_eq!(recording.phase, CapturePhase::Recording);
     assert_eq!(recording.gaps, 1, "the gap must be declared exactly once");
     assert_eq!(
-        runtime.capture.mic_stream.as_deref(),
+        runtime.audio.mic_stream.as_deref(),
         Some(stream.as_str()),
         "the capture stream must survive the declared gap"
     );
@@ -2184,7 +2189,7 @@ async fn hub_reply(hub: &mut mpsc::Receiver<serde_json::Value>) -> Result<serde_
 
 fn capture_work_receiver(runtime: &mut crate::daemon::Runtime) -> mpsc::Receiver<WorkResult> {
     let (sender, receiver) = mpsc::channel(16);
-    runtime.work.work_events = sender;
+    runtime.work_events = sender;
     receiver
 }
 
@@ -2222,7 +2227,7 @@ async fn bridge_picks_the_foreground_window_a_title_substring_or_refuses_by_name
     let mut completions = capture_work_receiver(&mut runtime);
     let (address, mut puts, release) = capture_hub(false).await?;
     runtime.settings.hub_url = Some(format!("http://{address}"));
-    runtime.token = Some("synthetic device credential".to_owned());
+    runtime.link.token = Some("synthetic device credential".to_owned());
 
     remote_request(&mut runtime, "bridge-1", "screenshot", json!({})).await?;
     let list = helper_command(&mut helper, "screen_sources").await?;
@@ -2245,7 +2250,7 @@ async fn bridge_picks_the_foreground_window_a_title_substring_or_refuses_by_name
     let reply = hub_reply(&mut hub).await?;
     assert_eq!(reply["params"]["result"]["application"], "Safari");
     assert_eq!(reply["params"]["result"]["title"], "Correo");
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
 
     remote_request(
         &mut runtime,
@@ -2276,7 +2281,7 @@ async fn bridge_picks_the_foreground_window_a_title_substring_or_refuses_by_name
     finish_capture_upload(&mut runtime, &mut completions).await?;
     let reply = hub_reply(&mut hub).await?;
     assert_eq!(reply["params"]["result"]["application"], "TextEdit");
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
 
     remote_request(
         &mut runtime,
@@ -2305,7 +2310,7 @@ async fn bridge_picks_the_foreground_window_a_title_substring_or_refuses_by_name
         helper.try_recv().is_err(),
         "a capture was asked for without matching any window"
     );
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
     Ok(())
 }
 
@@ -2371,7 +2376,7 @@ async fn bridge_serves_the_selected_text_of_a_named_application() -> Result<()> 
         !said.contains(SELECTED_TEXT),
         "the notice shows the content of the selection: {said}"
     );
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
     Ok(())
 }
 
@@ -2424,10 +2429,11 @@ async fn screen_read_reports_full_and_retired_hub_without_content() -> Result<()
         grant(&mut runtime, true, true)?;
         let (sender, mut frames) = mpsc::channel(1);
         sender.try_send(json!({"fixture":"occupied"}))?;
-        runtime.hub.install(sender);
+        runtime.link.outbound.install(sender);
         if retired {
             runtime
-                .hub
+                .link
+                .outbound
                 .retire(crate::daemon::hub_link::Retirement::PrivacyStop);
         }
         remote_request(
@@ -2481,7 +2487,7 @@ async fn bridge_uploads_a_maximal_capture_by_http_before_replying_by_websocket()
     let (address, mut puts, release) = capture_hub(false).await?;
     let token = "synthetic device credential";
     runtime.settings.hub_url = Some(format!("http://{address}"));
-    runtime.token = Some(token.to_owned());
+    runtime.link.token = Some(token.to_owned());
 
     remote_request(
         &mut runtime,
@@ -2616,7 +2622,7 @@ async fn bridge_uploads_a_maximal_capture_by_http_before_replying_by_websocket()
         runtime.state.notice_code(),
         Some(NoticeCode::BridgeReplySent)
     );
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
     Ok(())
 }
 
@@ -2628,10 +2634,10 @@ async fn helper_capture_returns_to_actor_while_upload_is_held() -> Result<()> {
     let stream = start(&mut runtime, &mut helper).await?;
     let idle_status = measure_status_rounds(&mut runtime).await?;
     let (work, mut completions) = mpsc::channel(16);
-    runtime.work.work_events = work;
+    runtime.work_events = work;
     let (address, mut puts, release) = capture_hub(false).await?;
     runtime.settings.hub_url = Some(format!("http://{address}"));
-    runtime.token = Some("synthetic device credential".into());
+    runtime.link.token = Some("synthetic device credential".into());
     remote_request(&mut runtime, "held-upload-capture", "screenshot", json!({})).await?;
     let list = helper_command(&mut helper, "screen_sources").await?;
     runtime
@@ -2694,7 +2700,7 @@ async fn helper_capture_returns_to_actor_while_upload_is_held() -> Result<()> {
     let reply = hub_reply(&mut hub).await?;
     assert_eq!(reply["params"]["request_id"], "held-upload-capture");
     assert!(reply["params"]["result"]["capture_id"].is_string());
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
     Ok(())
 }
 
@@ -2713,7 +2719,7 @@ fn attach_pending_upload(
         |_| tokio::spawn(std::future::pending::<()>()),
     );
     let abort = work.task_handle().context("upload worker")?.abort_handle();
-    runtime.features.sources.bridge_upload = Some(crate::daemon::sources::BridgeUpload {
+    runtime.sources.bridge_upload = Some(crate::daemon::sources::BridgeUpload {
         capture_id: capture_id.into(),
         screenshot: None,
         work,
@@ -2739,7 +2745,7 @@ async fn computer_revocation_keeps_an_unrelated_capture_and_its_upload() -> Resu
         hub.try_recv().is_err(),
         "computer retirement answered a capture"
     );
-    assert!(runtime.conversation.bridge_request.is_some());
+    assert!(runtime.assistant.bridge_request.is_some());
     assert!(
         !abort.is_finished(),
         "computer retirement aborted the capture upload"
@@ -2763,7 +2769,7 @@ async fn computer_revocation_keeps_an_unrelated_capture_and_its_upload() -> Resu
     let reply = hub_reply(&mut hub).await?;
     assert_eq!(reply["params"]["request_id"], "unrelated-capture");
     assert_eq!(reply["params"]["result"]["capture_id"], "unrelated-source");
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
     Ok(())
 }
 
@@ -2835,7 +2841,7 @@ async fn upload_timeout_names_wait_and_deadline_and_late_result_is_ignored() -> 
     assert_eq!(reply["params"]["refusal"]["deadline_ms"], 20_000);
     // The numbers are in the reply Deimos reads; the Mac records the code.
     assert!(said::mentions(&runtime.state, "capture_upload_timeout"));
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
     runtime
         .work_event(WorkResult::BridgeCaptureUpload {
             ticket,
@@ -2901,7 +2907,7 @@ async fn old_generation_upload_cannot_answer_the_current_request() -> Result<()>
         hub.try_recv().is_err(),
         "a replaced upload answered the hub"
     );
-    assert!(runtime.conversation.bridge_request.is_some());
+    assert!(runtime.assistant.bridge_request.is_some());
     runtime.release_bridge_request(crate::daemon::BridgeReleaseReason::Cancelled);
     let reply = hub_reply(&mut hub).await?;
     assert_eq!(
@@ -2925,7 +2931,7 @@ async fn bridge_refuses_by_name_when_the_capture_upload_fails() -> Result<()> {
     let png = maximal_png()?;
     let (address, mut puts, _release) = capture_hub(true).await?;
     runtime.settings.hub_url = Some(format!("http://{address}"));
-    runtime.token = Some("synthetic device credential".to_owned());
+    runtime.link.token = Some("synthetic device credential".to_owned());
 
     remote_request(
         &mut runtime,
@@ -2972,7 +2978,7 @@ async fn bridge_refuses_by_name_when_the_capture_upload_fails() -> Result<()> {
         "the refusal leaked a capture_id: {reply}"
     );
     assert!(
-        runtime.conversation.bridge_request.is_none(),
+        runtime.assistant.bridge_request.is_none(),
         "the upload failure left the slot occupied"
     );
     Ok(())
@@ -2987,7 +2993,7 @@ async fn helper_capture_capacity_reaches_device_reply_with_its_counts() -> Resul
     let png = maximal_png()?;
     let (address, mut puts) = capture_hub_at_capacity().await?;
     runtime.settings.hub_url = Some(format!("http://{address}"));
-    runtime.token = Some("synthetic device credential".to_owned());
+    runtime.link.token = Some("synthetic device credential".to_owned());
 
     remote_request(
         &mut runtime,
@@ -3021,8 +3027,8 @@ async fn helper_capture_capacity_reaches_device_reply_with_its_counts() -> Resul
     assert_eq!(reply["params"]["refusal"]["resource"], "capture");
     assert_eq!(reply["params"]["refusal"]["count"], 5);
     assert_eq!(reply["params"]["refusal"]["max"], 4);
-    assert!(runtime.features.sources.bridge_upload.is_none());
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.sources.bridge_upload.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
     Ok(())
 }
 
@@ -3060,7 +3066,6 @@ async fn bridge_answers_a_helper_capture_failure_with_the_helpers_code() -> Resu
             .await?;
 
         let failure = runtime
-            .features
             .sources
             .last_failure
             .as_ref()
@@ -3090,7 +3095,7 @@ async fn bridge_answers_a_helper_capture_failure_with_the_helpers_code() -> Resu
         }
         assert_ne!(reply["params"]["refusal"]["text"], "native_refused");
         assert!(
-            runtime.conversation.bridge_request.is_none(),
+            runtime.assistant.bridge_request.is_none(),
             "the helper failure left the slot occupied"
         );
         assert!(
@@ -3220,7 +3225,7 @@ async fn audio_drain_incomplete_without_bridge_command_cuts_capture() -> Result<
     // The generic index evicted the stop (without this the name came from
     // `pending_native` and the test proved nothing, as a review found): only
     // the capture registry can name it now.
-    runtime.pending_native.clear();
+    runtime.helper.pending.clear();
 
     deliver(
         &mut runtime,

@@ -20,7 +20,7 @@ impl Call {
     async fn open() -> Result<Self> {
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut helper) = fixture(directory.path())?;
-        runtime.token = Some("synthetic-token".into());
+        runtime.link.token = Some("synthetic-token".into());
         let stream = start_call_for(&mut runtime, &mut helper, 600_000).await?;
         Ok(Self {
             runtime,
@@ -66,7 +66,7 @@ impl Call {
         let operation = self.operation().context("no transcription in course")?;
         let ticket = self
             .runtime
-            .conversation
+            .assistant
             .voice_task
             .ticket()
             .cloned()
@@ -94,13 +94,13 @@ impl Call {
     }
 
     fn operation(&self) -> Option<String> {
-        self.runtime.conversation.voice_operation.clone()
+        self.runtime.assistant.voice_operation.clone()
     }
 
     fn capturing(&self) -> bool {
         self.runtime
-            .capture
-            .call_runtime
+            .audio
+            .call
             .as_ref()
             .is_some_and(|call| call.detector.is_capturing())
     }
@@ -109,8 +109,8 @@ impl Call {
         self.runtime.state.durable.voice.call.is_some()
             && self
                 .runtime
-                .capture
-                .call_runtime
+                .audio
+                .call
                 .as_ref()
                 .is_some_and(|call| call.closing_at_ms.is_none())
     }
@@ -133,7 +133,7 @@ async fn speaking_while_a_turn_is_transcribed_keeps_the_call_and_both_turns() ->
     let mut call = Call::open().await?;
     call.turn().await?;
     let first = call.operation().context("the first turn was not sent")?;
-    assert!(call.runtime.conversation.voice_task.active().is_some());
+    assert!(call.runtime.assistant.voice_task.active().is_some());
     let first_pcm = call.voice_pcm(&first)?;
 
     // The user speaks again while it is transcribed: 200 ms of voice begin a turn.
@@ -262,7 +262,7 @@ async fn noise_over_deimos_answer_stops_nothing_and_leaves_nothing() -> Result<(
 #[tokio::test]
 async fn words_over_deimos_answer_stop_him_and_are_sent() -> Result<()> {
     let mut call = Call::open().await?;
-    let _hub_commands = call.runtime.hub.open(16);
+    let _hub_commands = call.runtime.link.outbound.open(16);
     call.helper_orders();
     call.frames_over_answer(4, true).await?;
     call.frames_over_answer(8, false).await?;
@@ -354,8 +354,8 @@ async fn closing_a_call_whose_audio_is_still_sealing_waits_instead_of_failing() 
     call.turn().await?;
     call.runtime.apply(Event::CallStop).await?;
     // The helper's drain is confirmed and every real chunk is in.
-    call.runtime.capture.audio.stops.clear();
-    call.runtime.capture.mic_stream = None;
+    call.runtime.audio.lifecycle.stops.clear();
+    call.runtime.audio.mic_stream = None;
     let segments = call.runtime.capture.buffer.pause_source("mic_local")?;
     call.runtime.seal(segments)?;
     crate::daemon::audio::tests::await_seal_receipts(&mut call.runtime)?;
@@ -382,14 +382,14 @@ async fn closing_a_call_whose_audio_is_still_sealing_waits_instead_of_failing() 
     let before = call.runtime.state.durable.notice_log.records().len();
     call.runtime.finish_call_drain().await?;
     assert!(
-        call.runtime.capture.call_runtime.is_some(),
+        call.runtime.audio.call.is_some(),
         "closed with a chunk unwritten"
     );
     assert!(failed_since(&call.runtime, before).is_empty());
     // The chunk lands; the next maintenance closes the call.
     call.runtime.capture.pending_seals.remove(0);
     call.runtime.finish_call_drain().await?;
-    assert!(call.runtime.capture.call_runtime.is_none());
+    assert!(call.runtime.audio.call.is_none());
     assert!(
         call.runtime
             .fixture_store
@@ -541,14 +541,14 @@ async fn a_call_transcription_always_closes_even_after_another_operations_notice
     use orbit_core::notice::{NoticeCode, Op, ReportSource};
     for succeeded in [true, false] {
         let mut call = Call::open().await?;
-        let _hub_commands = call.runtime.hub.open(16);
+        let _hub_commands = call.runtime.link.outbound.open(16);
         let op = Op::parse("call-transcription-result").context("valid op")?;
         call.runtime.begin_turn(op.clone(), ReportSource::Daemon);
         call.turn().await?;
         let operation = call.operation().context("transcription operation")?;
         let ticket = call
             .runtime
-            .conversation
+            .assistant
             .voice_task
             .ticket()
             .cloned()

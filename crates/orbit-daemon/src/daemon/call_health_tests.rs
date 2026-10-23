@@ -23,16 +23,16 @@ fn last_logged(directory: &std::path::Path, event: &str) -> Result<Value> {
 fn call_alive(runtime: &Runtime) -> bool {
     runtime.state.durable.voice.call.is_some()
         && runtime
-            .capture
-            .call_runtime
+            .audio
+            .call
             .as_ref()
             .is_some_and(|call| call.closing_at_ms.is_none())
 }
 
 fn last_audio_at(runtime: &mut Runtime, at: Instant) -> Result<()> {
     runtime
-        .capture
-        .call_runtime
+        .audio
+        .call
         .as_mut()
         .context("call runtime absent")?
         .last_audio = at;
@@ -54,7 +54,9 @@ async fn a_held_loop_does_not_cut_a_call_whose_frames_are_waiting() -> Result<()
     }
     // The last frame the loop processed is four seconds old.
     last_audio_at(&mut runtime, Instant::now() - Duration::from_secs(4))?;
-    runtime.note_loop_tick(unread.len(), Duration::from_secs(4));
+    runtime
+        .audio
+        .note_loop_tick(unread.len(), Duration::from_secs(4));
     runtime.check_call_health().await?;
     assert!(
         call_alive(&runtime),
@@ -64,13 +66,15 @@ async fn a_held_loop_does_not_cut_a_call_whose_frames_are_waiting() -> Result<()
     while let Ok(frame) = unread.try_recv() {
         runtime.native_event(frame).await?;
     }
-    runtime.note_loop_tick(unread.len(), Duration::from_millis(3));
+    runtime
+        .audio
+        .note_loop_tick(unread.len(), Duration::from_millis(3));
     runtime.check_call_health().await?;
     assert!(call_alive(&runtime));
     assert_eq!(
         runtime
-            .capture
-            .call_runtime
+            .audio
+            .call
             .as_ref()
             .context("call runtime absent")?
             .frames_heard,
@@ -89,7 +93,9 @@ async fn a_call_with_no_audio_stops_and_says_its_numbers() -> Result<()> {
     let stream = start_call(&mut runtime, &mut helper).await?;
     runtime.native_event(call_frame(&stream, 0, false)).await?;
     last_audio_at(&mut runtime, Instant::now() - Duration::from_secs(4))?;
-    runtime.note_loop_tick(0, Duration::from_millis(1_200));
+    runtime
+        .audio
+        .note_loop_tick(0, Duration::from_millis(1_200));
     runtime.check_call_health().await?;
     assert!(!call_alive(&runtime), "a call with no audio kept going");
     assert_eq!(

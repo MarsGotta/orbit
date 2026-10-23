@@ -17,9 +17,7 @@ impl ProjectTopic for Projector {
 }
 
 fn project(source: &TopicSource<'_>) -> TopicData {
-    let view = source
-        .runtime
-        .map(|runtime| &runtime.features.calendar.view);
+    let view = source.runtime.map(|runtime| &runtime.calendar.view);
     let authorization = view
         .map(|view| view.authorization)
         .or(source.state.capabilities().calendar())
@@ -33,25 +31,25 @@ fn project(source: &TopicSource<'_>) -> TopicData {
             let value = Value {
                 invalidation: source
                     .runtime
-                    .map_or(0, |runtime| runtime.features.calendar.topic_invalidation()),
+                    .map_or(0, |runtime| runtime.calendar.topic_invalidation()),
                 calendars: view
                     .filter(|_| {
                         source
                             .runtime
-                            .is_none_or(|runtime| runtime.features.calendar.inventory_valid)
+                            .is_none_or(|runtime| runtime.calendar.inventory_valid)
                     })
                     .and_then(|view| view.calendars.as_ref())
                     .and_then(|calendars| u32::try_from(calendars.len()).ok()),
                 read_window: source
                     .runtime
-                    .and_then(|runtime| runtime.features.calendar.topic_window()),
+                    .and_then(|runtime| runtime.calendar.topic_window()),
                 read_id: source
                     .runtime
-                    .and_then(|runtime| runtime.features.calendar.complete.as_ref())
+                    .and_then(|runtime| runtime.calendar.complete.as_ref())
                     .map(|snapshot| snapshot.snapshot_id.clone()),
                 timezone: source
                     .runtime
-                    .and_then(|runtime| runtime.features.calendar.complete.as_ref())
+                    .and_then(|runtime| runtime.calendar.complete.as_ref())
                     .map(|snapshot| snapshot.system_timezone.clone()),
                 writes: Vec::new(),
             };
@@ -126,7 +124,7 @@ mod tests {
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut helper) = crate::daemon::audio::tests::fixture(directory.path())?;
         crate::daemon::calendar::tests::seed(&mut runtime, &mut helper).await?;
-        runtime.features.calendar.view.authorization = CalendarAuthorization::FullAccess;
+        runtime.calendar.view.authorization = CalendarAuthorization::FullAccess;
         let project = |runtime: &crate::daemon::Runtime| {
             Projector.project(&TopicSource {
                 state: &runtime.state,

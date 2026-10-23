@@ -50,6 +50,17 @@ privacy latch. `orbit-mcp` exposes `orbit_devices`, `orbit_windows`,
 | `orbit-app-core` | App client, projections and updater, without Tauri |
 | `orbit-desktop` | Tauri shell linking the daemon into the app |
 
+Inside the daemon one actor owns the runtime (`daemon/runtime.rs`): a
+coordinator over one handle per domain (the helper, the hub link, transfers,
+the assistant, the capture, the audio of meetings, voice notes and calls,
+screen sources, the calendar, control of the Mac, notes, call detection, the
+meeting question and the assistant's folders). A handle owns its domain's
+runtime state and the methods that touch only that state. What crosses
+domains stays on the coordinator, including every core decision:
+`daemon/kernel.rs` adopts the decision and hands each effect to the domain
+that executes it, and `daemon/native_events/` routes each helper event and
+answer the same way.
+
 ## Boundaries and contracts
 
 | Boundary | Transport | Contract |

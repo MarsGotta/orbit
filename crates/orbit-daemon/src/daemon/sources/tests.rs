@@ -101,7 +101,7 @@ async fn exact_capture_is_local_immutable_and_never_an_audio_upload() -> Result<
     );
     assert_eq!(runtime.fixture_store.diagnostics()?.chunk_count, 0);
     assert_eq!(runtime.fixture_store.diagnostics()?.pending_jobs, 0);
-    assert!(runtime.hub.is_none());
+    assert!(runtime.link.outbound.is_none());
     runtime.native_event(response).await?;
     assert!(
         runtime
@@ -204,7 +204,6 @@ async fn privacy_generation_session_and_deadline_retire_in_flight_capture() -> R
             }
             _ => {
                 runtime
-                    .features
                     .sources
                     .operation
                     .as_mut()
@@ -226,7 +225,6 @@ async fn privacy_generation_session_and_deadline_retire_in_flight_capture() -> R
         );
         assert_eq!(
             runtime
-                .features
                 .sources
                 .last_failure
                 .as_ref()
@@ -278,7 +276,6 @@ async fn stale_source_reply_records_its_actual_cause() -> Result<()> {
             }
             "deadline" => {
                 runtime
-                    .features
                     .sources
                     .operation
                     .as_mut()
@@ -289,12 +286,7 @@ async fn stale_source_reply_records_its_actual_cause() -> Result<()> {
             _ => unreachable!(),
         }
         runtime.native_event(screenshot(&command)?).await?;
-        let stored = runtime
-            .features
-            .sources
-            .last_failure
-            .as_ref()
-            .context("failure")?;
+        let stored = runtime.sources.last_failure.as_ref().context("failure")?;
         assert_eq!(stored.operation_id, source_id);
         let refusal = serde_json::to_value(&stored.refusal)?;
         match reason {
@@ -350,12 +342,7 @@ async fn conversation_and_helper_restart_close_their_own_source_cause() -> Resul
         } else {
             runtime.native_event(json!({"event":"ready"})).await?;
         }
-        let stored = runtime
-            .features
-            .sources
-            .last_failure
-            .as_ref()
-            .context("failure")?;
+        let stored = runtime.sources.last_failure.as_ref().context("failure")?;
         assert_eq!(stored.operation_id, source_id);
         let refusal = serde_json::to_value(&stored.refusal)?;
         assert_eq!(refusal["code"], "read_interrupted");
@@ -409,12 +396,7 @@ async fn privacy_stop_names_the_source_cause_before_a_late_reply() -> Result<()>
     }
     runtime.cancel_sources().await?;
     runtime.native_event(screenshot(&command)?).await?;
-    let stored = runtime
-        .features
-        .sources
-        .last_failure
-        .as_ref()
-        .context("failure")?;
+    let stored = runtime.sources.last_failure.as_ref().context("failure")?;
     assert_eq!(stored.operation_id, source_id);
     assert_eq!(
         stored.refusal,
@@ -440,7 +422,8 @@ async fn full_queue_fails_before_capture_and_old_inventory_never_rearms() -> Res
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     list(&mut runtime, &mut receiver).await?;
     while runtime
-        .native
+        .helper
+        .sender
         .try_send(json!({"command":"fixture"}))
         .is_ok()
     {}
@@ -475,7 +458,7 @@ async fn expiring_an_inventory_retires_the_available_ui_state() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     list(&mut runtime, &mut receiver).await?;
-    runtime.features.sources.inventory_deadline = Some(Instant::now() - Duration::from_secs(1));
+    runtime.sources.inventory_deadline = Some(Instant::now() - Duration::from_secs(1));
     runtime.check_source_timeout().await?;
     assert!(runtime.state.views.source_inventory.is_none());
     assert_eq!(
@@ -508,7 +491,7 @@ async fn a_helper_timeout_releases_the_remote_request_and_answers_the_hub() -> R
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let (hub, mut hub_rx) = mpsc::channel(16);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     // What lets the bridge list windows is Screen Recording.
     {
         let fixture_value = serde_json::json!(orbit_core::PermissionState::Granted);
@@ -528,7 +511,6 @@ async fn a_helper_timeout_releases_the_remote_request_and_answers_the_hub() -> R
     assert_eq!(sent["command"], "screen_sources");
 
     runtime
-        .features
         .sources
         .operation
         .as_mut()
@@ -537,9 +519,9 @@ async fn a_helper_timeout_releases_the_remote_request_and_answers_the_hub() -> R
     runtime.check_source_timeout().await?;
 
     assert!(
-        runtime.conversation.bridge_request.is_none(),
+        runtime.assistant.bridge_request.is_none(),
         "the expiry left the bridge busy: {:?}",
-        runtime.conversation.bridge_request
+        runtime.assistant.bridge_request
     );
     let reply = hub_rx.recv().await.context("the request got no answer")?;
     assert_eq!(reply["method"], "device.reply");
@@ -581,7 +563,7 @@ async fn a_remote_read_refusal_reaches_deimos_without_a_user_failure_notice() ->
             json!(orbit_core::PermissionState::Granted),
         );
         let (hub, mut frames) = mpsc::channel(16);
-        runtime.hub.install(hub);
+        runtime.link.outbound.install(hub);
         runtime
             .hub_event(HubEvent::Frame(json!({"event":"device.request",
             "data":{"request_id":"remote-read","capability":capability}})))
@@ -619,7 +601,7 @@ async fn a_remote_read_refusal_reaches_deimos_without_a_user_failure_notice() ->
         };
         assert_eq!(reply["params"]["refusal"], expected);
         assert!(!reply.to_string().contains("PRIVATE WINDOW TITLE"));
-        assert!(runtime.conversation.bridge_request.is_none());
+        assert!(runtime.assistant.bridge_request.is_none());
         assert!(receiver.try_recv().is_err(), "the read must not be retried");
         let failures: Vec<_> = runtime
             .state

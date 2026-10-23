@@ -172,7 +172,7 @@ impl Runtime {
             // three values — a permission the Mac has not reported yet is
             // neither granted nor refused.
             calendar: orbit_core::device_bridge::CalendarPermission::from_authorization(
-                self.features.calendar.view.authorization,
+                self.calendar.view.authorization,
             ),
         }
     }
@@ -211,7 +211,7 @@ impl Runtime {
                 return Ok(());
             }
         };
-        if self.conversation.bridge_request.is_some() {
+        if self.assistant.bridge_request.is_some() {
             let refusal = Refusal::Busy {
                 operation: orbit_core::refusal::Operation::Interaction,
                 retry_after_ms: None,
@@ -232,7 +232,7 @@ impl Runtime {
             calendar_cursor: fields.calendar_cursor,
             files,
         };
-        self.conversation.bridge_request = Some(ask.clone());
+        self.assistant.bridge_request = Some(ask.clone());
         self.start_bridge_request(&ask).await
     }
 
@@ -254,7 +254,7 @@ impl Runtime {
                 );
             }
             Err(failure) => {
-                self.conversation.bridge_request = None;
+                self.assistant.bridge_request = None;
                 self.log("bridge_start_failed", &[("code", failure.code().name())]);
                 self.say(
                     Notice::new(NoticeCode::BridgeRefused)

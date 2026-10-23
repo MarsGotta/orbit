@@ -31,7 +31,7 @@ use causes::{bounded, origin_label, submit_refusal_cause};
 const MAX_WAKE_ORDERS: usize = 8;
 
 #[derive(Default)]
-pub(super) struct QuestionRuntime {
+pub(super) struct QuestionHandle {
     /// The last question and where its turn is; what the panel shows.
     pub(super) current: Option<MeetingQuestion>,
     /// «Oye Deimos» heard and its question abandoned: the helper's cause and
@@ -62,14 +62,6 @@ struct Meeting {
 }
 
 impl Runtime {
-    pub(super) fn question_now(&self) -> i64 {
-        #[cfg(test)]
-        if let Some(now_ms) = self.features.question.clock_ms {
-            return now_ms;
-        }
-        now()
-    }
-
     /// The recording in progress (recording or paused): what the user can ask
     /// about. A recording starting or closing has nothing to ask yet.
     fn meeting_in_progress(&self) -> Option<Meeting> {
@@ -103,7 +95,7 @@ impl Runtime {
             && (self.state.durable.voice.voice_active || self.capture.buffer.voice.is_some())
         {
             Some(BusyTurn::VoiceNote)
-        } else if !dictated && self.conversation.voice_task.active().is_some() {
+        } else if !dictated && self.assistant.voice_task.active().is_some() {
             Some(BusyTurn::VoiceTranscription)
         } else if self.state.durable.voice.call.is_some() {
             Some(BusyTurn::Call)
@@ -134,7 +126,7 @@ impl Runtime {
         origin: QuestionOrigin,
         agent: Option<String>,
     ) -> Result<()> {
-        let now_ms = self.question_now();
+        let now_ms = self.question.question_now();
         let meeting = self.meeting_in_progress();
         let facts = self.ask_facts(meeting.as_ref(), false);
         let request_id = id();
@@ -211,7 +203,7 @@ impl Runtime {
         let Some(meeting) = self.meeting_in_progress() else {
             return Ok(false);
         };
-        let now_ms = self.question_now();
+        let now_ms = self.question.question_now();
         let facts = self.ask_facts(Some(&meeting), true);
         let question = clean_question(&text).to_owned();
         let window = DEFAULT_WINDOW_MINUTES;
@@ -282,9 +274,9 @@ impl Runtime {
             }
         }
         // No speech during a meeting: the call would hear it.
-        self.conversation.speak_next = false;
-        self.features.question.failure = None;
-        self.features.question.current = Some(MeetingQuestion::thinking(
+        self.assistant.speak_next = false;
+        self.question.failure = None;
+        self.question.current = Some(MeetingQuestion::thinking(
             request_id,
             meeting.recording_id.clone(),
             question,
@@ -301,7 +293,7 @@ impl Runtime {
         );
         if let Err(error) = self.execute_decision(decision).await {
             // The turn could not leave: it never reached Deimos.
-            if let Some(question) = self.features.question.current.as_mut() {
+            if let Some(question) = self.question.current.as_mut() {
                 question.stage = QuestionStage::Failed;
                 question.cause = Some(QuestionCause::HubRefused {
                     code: "send_failed".into(),
@@ -320,7 +312,7 @@ impl Runtime {
         if !self.question_turn_in_flight() {
             return;
         }
-        self.features.question.failure = Some(match code {
+        self.question.failure = Some(match code {
             Some("upstream_unavailable" | "upstream_rejected" | "upstream_protocol") => {
                 QuestionCause::DeimosUnavailable {
                     code: code.unwrap_or_default().into(),
@@ -340,34 +332,30 @@ impl Runtime {
     /// Deimos ended the question's turn with an error.
     pub(super) fn meeting_question_turn_failed(&mut self) {
         if self.question_turn_in_flight() {
-            self.features.question.failure = Some(QuestionCause::TurnFailed);
+            self.question.failure = Some(QuestionCause::TurnFailed);
         }
     }
 
     /// The user interrupted the turn in flight.
     pub(super) fn meeting_question_interrupted(&mut self) {
         if self.question_turn_in_flight() {
-            self.features.question.failure = Some(QuestionCause::Interrupted);
+            self.question.failure = Some(QuestionCause::Interrupted);
         }
     }
 
     fn question_turn_in_flight(&self) -> bool {
-        self.features
-            .question
-            .current
-            .as_ref()
-            .is_some_and(|question| {
-                question.stage == QuestionStage::Thinking
-                    && self.state.durable.assistant.active_request.as_deref()
-                        == Some(question.id.as_str())
-            })
+        self.question.current.as_ref().is_some_and(|question| {
+            question.stage == QuestionStage::Thinking
+                && self.state.durable.assistant.active_request.as_deref()
+                    == Some(question.id.as_str())
+        })
     }
 
     /// Follows the question's turn in the conversation: its answer, or the
     /// cause it ended with.
     pub(super) fn follow_meeting_question(&mut self) {
-        let now_ms = self.question_now();
-        let Some(question) = self.features.question.current.as_ref() else {
+        let now_ms = self.question.question_now();
+        let Some(question) = self.question.current.as_ref() else {
             return;
         };
         if question.stage != QuestionStage::Thinking {
@@ -397,8 +385,8 @@ impl Runtime {
                 }
             }
         };
-        let failure = self.features.question.failure.clone().or(derived);
-        let Some(question) = self.features.question.current.as_mut() else {
+        let failure = self.question.failure.clone().or(derived);
+        let Some(question) = self.question.current.as_mut() else {
             return;
         };
         if question.follow(
@@ -409,7 +397,7 @@ impl Runtime {
             },
             now_ms,
         ) {
-            self.features.question.failure = None;
+            self.question.failure = None;
         }
     }
 
@@ -418,36 +406,43 @@ impl Runtime {
     pub(super) async fn maintain_meeting_question(&mut self) -> Result<()> {
         self.sync_wake_phrase().await?;
         self.follow_meeting_question();
-        let now_ms = self.question_now();
+        let now_ms = self.question.question_now();
         if self
-            .features
             .question
             .current
             .as_ref()
             .is_some_and(|question| question.expired(now_ms))
         {
-            self.features.question.current = None;
+            self.question.current = None;
         }
         Ok(())
-    }
-
-    /// The user closed the question in the panel.
-    pub(super) fn close_meeting_question(&mut self, id: &str) {
-        if self
-            .features
-            .question
-            .current
-            .as_ref()
-            .is_some_and(|question| question.id == id)
-        {
-            self.features.question.current = None;
-            self.features.question.failure = None;
-        }
     }
 }
 
 #[path = "meeting_question_hold.rs"]
 mod hold;
+
+impl QuestionHandle {
+    pub(super) fn question_now(&self) -> i64 {
+        #[cfg(test)]
+        if let Some(now_ms) = self.clock_ms {
+            return now_ms;
+        }
+        now()
+    }
+
+    /// The user closed the question in the panel.
+    pub(super) fn close_meeting_question(&mut self, id: &str) {
+        if self
+            .current
+            .as_ref()
+            .is_some_and(|question| question.id == id)
+        {
+            self.current = None;
+            self.failure = None;
+        }
+    }
+}
 
 #[cfg(test)]
 #[path = "meeting_question_tests.rs"]

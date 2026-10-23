@@ -78,9 +78,9 @@ async fn mac(
     let mut h = Mac::with_engine(engine).await?;
     let (address, puts, release) = capture_hub(false).await?;
     h.runtime.settings.hub_url = Some(format!("http://{address}"));
-    h.runtime.token = Some("synthetic device credential".to_owned());
+    h.runtime.link.token = Some("synthetic device credential".to_owned());
     let (hub, frames) = mpsc::channel(16);
-    h.runtime.hub.install(hub);
+    h.runtime.link.outbound.install(hub);
     Ok((h, record, frames, puts, release))
 }
 
@@ -157,16 +157,16 @@ async fn a_retina_full_screen_answer_is_refused_by_its_size_without_failing_the_
     );
     assert!(failed_notices(&h).is_empty(), "{:?}", failed_notices(&h));
     assert!(
-        h.runtime.engine_is_ready(),
+        h.runtime.computer.engine_is_ready(),
         "a large answer left the engine disconnected"
     );
-    assert!(h.runtime.features.computer.engine_failure.is_none());
+    assert!(h.runtime.computer.engine_failure.is_none());
     assert!(
         h.runtime.state.views.source_request.is_none(),
         "the helper was asked for a window instead of the screen"
     );
     assert_eq!(record.calls_of("get_desktop_state").len(), 1);
-    assert!(h.runtime.conversation.bridge_request.is_none());
+    assert!(h.runtime.assistant.bridge_request.is_none());
     Ok(())
 }
 
@@ -231,7 +231,7 @@ async fn the_sequence_of_a_real_call_leaves_no_failed_notice() -> Result<()> {
 
     assert!(failed_notices(&h).is_empty(), "{:?}", failed_notices(&h));
     assert_eq!(engine_failures(&h), 0);
-    assert!(h.runtime.engine_is_ready());
+    assert!(h.runtime.computer.engine_is_ready());
     Ok(())
 }
 
@@ -244,12 +244,11 @@ async fn an_engine_that_connects_while_the_helper_captures_fails_nothing() -> Re
     let mut h = Mac::new(false).await?;
     let service = h
         .runtime
-        .features
         .computer
         .service
         .take()
         .context("fixture service")?;
-    h.runtime.conversation.bridge_request = Some(crate::daemon::BridgeAsk {
+    h.runtime.assistant.bridge_request = Some(crate::daemon::BridgeAsk {
         for_attachment: false,
         id: "full-screen-1".into(),
         capability: orbit_core::device_bridge::Capability::Screenshot,
@@ -264,7 +263,7 @@ async fn an_engine_that_connects_while_the_helper_captures_fails_nothing() -> Re
         files: None,
     });
     h.runtime.source_windows().await?;
-    assert!(h.runtime.source_operation_pending());
+    assert!(h.runtime.sources.source_operation_pending());
 
     let generation = h.runtime.state.generation();
     let ticket = h.runtime.begin_computer(
@@ -279,10 +278,10 @@ async fn an_engine_that_connects_while_the_helper_captures_fails_nothing() -> Re
         .await?;
 
     assert!(
-        h.runtime.source_operation_pending(),
+        h.runtime.sources.source_operation_pending(),
         "the engine's connection touched the capture the helper had in progress"
     );
-    assert!(h.runtime.engine_is_ready());
+    assert!(h.runtime.computer.engine_is_ready());
     assert!(failed_notices(&h).is_empty(), "{:?}", failed_notices(&h));
     Ok(())
 }
@@ -309,8 +308,9 @@ async fn the_front_window_is_not_the_cursor_overlay() -> Result<()> {
         calendar_cursor: None,
         files: None,
     };
-    runtime.conversation.bridge_request = Some(ask(None));
+    runtime.assistant.bridge_request = Some(ask(None));
     let front = runtime
+        .assistant
         .bridge_screenshot_target(&listing)
         .context("no window chosen")?;
     assert_eq!(
@@ -318,8 +318,9 @@ async fn the_front_window_is_not_the_cursor_overlay() -> Result<()> {
         (11, 22, "Safari"),
         "{front:?}"
     );
-    runtime.conversation.bridge_request = Some(ask(Some("Reproductor")));
+    runtime.assistant.bridge_request = Some(ask(Some("Reproductor")));
     let only = runtime
+        .assistant
         .bridge_screenshot_target(&listing)
         .context("no window chosen")?;
     assert_eq!((only.0, only.1), (12, 31), "{only:?}");
@@ -366,9 +367,9 @@ fn helper_row(
 #[tokio::test]
 async fn the_helper_does_not_capture_the_cursor_overlay_either() -> Result<()> {
     let mut h = Mac::new(false).await?;
-    drop(h.runtime.features.computer.service.take());
+    drop(h.runtime.computer.service.take());
     let (hub, _frames) = mpsc::channel(16);
-    h.runtime.hub.install(hub);
+    h.runtime.link.outbound.install(hub);
     h.runtime
         .device_request_raw(&json!({"request_id": "window-1", "capability": "screenshot"}))
         .await?;
@@ -470,9 +471,9 @@ async fn desktop_mac(
     let mut h = Mac::with_engine(engine).await?;
     let (address, puts, release) = capture_hub(false).await?;
     h.runtime.settings.hub_url = Some(format!("http://{address}"));
-    h.runtime.token = Some("synthetic device credential".to_owned());
+    h.runtime.link.token = Some("synthetic device credential".to_owned());
     let (hub, frames) = mpsc::channel(16);
-    h.runtime.hub.install(hub);
+    h.runtime.link.outbound.install(hub);
     Ok((h, record, frames, puts, release))
 }
 
@@ -667,9 +668,9 @@ async fn listed_window_is_selected_by_same_application_and_title() -> Result<()>
     ] {
         for capability in ["screenshot", "selected_text"] {
             let mut h = Mac::new(false).await?;
-            drop(h.runtime.features.computer.service.take());
+            drop(h.runtime.computer.service.take());
             let (hub, mut frames) = mpsc::channel(16);
-            h.runtime.hub.install(hub);
+            h.runtime.link.outbound.install(hub);
             h.runtime
                 .device_request_raw(&json!({"request_id":"list","capability":"screen_sources"}))
                 .await?;
@@ -711,9 +712,9 @@ async fn listed_window_is_selected_by_same_application_and_title() -> Result<()>
 #[tokio::test]
 async fn missing_window_names_filters_and_inventory_counts() -> Result<()> {
     let mut h = Mac::new(false).await?;
-    drop(h.runtime.features.computer.service.take());
+    drop(h.runtime.computer.service.take());
     let (hub, mut frames) = mpsc::channel(16);
-    h.runtime.hub.install(hub);
+    h.runtime.link.outbound.install(hub);
     h.runtime
         .device_request_raw(&json!({"request_id":"missing","capability":"screenshot",
         "parameters":{"application":"Dia","title":"Lighthouse Project in DEV"}}))
@@ -743,9 +744,9 @@ async fn missing_window_names_filters_and_inventory_counts() -> Result<()> {
 #[tokio::test]
 async fn matching_unselectable_window_is_not_reported_as_missing() -> Result<()> {
     let mut h = Mac::new(false).await?;
-    drop(h.runtime.features.computer.service.take());
+    drop(h.runtime.computer.service.take());
     let (hub, mut frames) = mpsc::channel(16);
-    h.runtime.hub.install(hub);
+    h.runtime.link.outbound.install(hub);
     h.runtime
         .device_request_raw(
             &json!({"request_id":"unselectable","capability":"selected_text",
@@ -778,9 +779,9 @@ async fn matching_unselectable_window_is_not_reported_as_missing() -> Result<()>
 #[tokio::test]
 async fn long_selection_filters_still_deliver_a_numbered_refusal() -> Result<()> {
     let mut h = Mac::new(false).await?;
-    drop(h.runtime.features.computer.service.take());
+    drop(h.runtime.computer.service.take());
     let (hub, mut frames) = mpsc::channel(16);
-    h.runtime.hub.install(hub);
+    h.runtime.link.outbound.install(hub);
     let title = "x".repeat(MAX_OUTGOING_FRAME_BYTES - 180);
     let request = json!({"request_id":"long-filter", "capability":"screenshot", "parameters":{"title": title}});
     assert!(serde_json::to_vec(&request)?.len() < MAX_OUTGOING_FRAME_BYTES);

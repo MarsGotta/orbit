@@ -16,13 +16,13 @@ fn offer_a_call(runtime: &mut Runtime) {
         bundle_id: "us.zoom.xos".into(),
         name: "zoom.us".into(),
     };
-    runtime.features.call.detector.apply(
+    runtime.calls.detector.apply(
         CallInput::Microphone {
             applications: vec![zoom],
         },
         &facts,
     );
-    runtime.features.call.detector.apply(
+    runtime.calls.detector.apply(
         CallInput::Tick,
         &CallFacts {
             now_ms: 3_000,
@@ -34,7 +34,7 @@ fn offer_a_call(runtime: &mut Runtime) {
 
 fn call_offered(runtime: &Runtime) -> bool {
     matches!(
-        runtime.features.call.detector.panel(3_000),
+        runtime.calls.detector.panel(3_000),
         Some(orbit_core::call_detection::CallPanel::Offer { .. })
     )
 }
@@ -113,7 +113,7 @@ async fn each_session_blocker_names_its_cause() -> Result<()> {
                 "turn" => runtime.state.durable.assistant.active_request = Some("turn".into()),
                 "buffer" => runtime.capture.buffer.begin_voice()?,
                 "transcription" => {
-                    runtime.conversation.voice_task.attach_test(
+                    runtime.assistant.voice_task.attach_test(
                         runtime.state.generation(),
                         (),
                         tokio::spawn(std::future::pending()),
@@ -177,7 +177,7 @@ async fn revocation_stops_capture_without_a_source_retirement_write() -> Result<
         native.try_recv().context("source listing")?["command"],
         "screen_sources"
     );
-    runtime.capture.mic_stream = Some("synthetic-open-mic".into());
+    runtime.audio.mic_stream = Some("synthetic-open-mic".into());
     let database = rusqlite::Connection::open(runtime.paths.store.join("orbit.sqlite3"))?;
     database.execute_batch(
         "CREATE TABLE review_snapshot_writes(n INTEGER NOT NULL);
@@ -225,7 +225,7 @@ async fn returning_online_keeps_the_bridge_and_the_detection() -> Result<()> {
         crate::daemon::authority_fixture::set(&mut runtime.state, "connection", fixture_value);
     }
     offer_a_call(&mut runtime);
-    runtime.conversation.bridge_request = Some(BridgeAsk {
+    runtime.assistant.bridge_request = Some(BridgeAsk {
         for_attachment: false,
         id: "still-pending".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -240,7 +240,7 @@ async fn returning_online_keeps_the_bridge_and_the_detection() -> Result<()> {
         files: None,
     });
     runtime.apply(Event::Connect(Connection::Online)).await?;
-    assert!(runtime.conversation.bridge_request.is_some());
+    assert!(runtime.assistant.bridge_request.is_some());
     assert!(call_offered(&runtime), "Online retired the call on offer");
     Ok(())
 }
@@ -250,7 +250,7 @@ async fn a_lost_hub_still_retires_the_bridge_and_keeps_the_call() -> Result<()> 
     let directory = tempfile::tempdir()?;
     let (mut runtime, _native) = fixture(directory.path())?;
     offer_a_call(&mut runtime);
-    runtime.conversation.bridge_request = Some(BridgeAsk {
+    runtime.assistant.bridge_request = Some(BridgeAsk {
         for_attachment: false,
         id: "lost-link".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -265,7 +265,7 @@ async fn a_lost_hub_still_retires_the_bridge_and_keeps_the_call() -> Result<()> 
         files: None,
     });
     runtime.hub_event(HubEvent::Disconnected).await?;
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
     // A call on this Mac does not depend on the hub.
     assert!(
         call_offered(&runtime),
@@ -286,7 +286,7 @@ async fn review_rearm_with_a_latch_closes_generation_bound_work() -> Result<()> 
         let fixture_value = serde_json::json!(true);
         crate::daemon::authority_fixture::set(&mut runtime.state, "privacy_stopped", fixture_value);
     }
-    runtime.conversation.bridge_request = Some(BridgeAsk {
+    runtime.assistant.bridge_request = Some(BridgeAsk {
         for_attachment: false,
         id: "old".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -303,7 +303,7 @@ async fn review_rearm_with_a_latch_closes_generation_bound_work() -> Result<()> 
 
     runtime.apply(Event::LocalRearm).await?;
     assert_eq!(runtime.state.generation(), 1);
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
     Ok(())
 }
 
@@ -338,7 +338,7 @@ async fn assert_failed_decision_snapshot_keeps_decision_pending(command: Command
         runtime.state.durable.assistant.active_request = Some("turn".into());
     }
     runtime.store_actor.snapshot(&runtime.state).await?;
-    runtime.work.durable_snapshot = DurableSnapshot::from(&runtime.state);
+    runtime.persisted.durable = DurableSnapshot::from(&runtime.state);
     let mut previous = runtime.state.clone();
     if interrupt {
         previous
@@ -349,7 +349,7 @@ async fn assert_failed_decision_snapshot_keeps_decision_pending(command: Command
             .context("call missing")?
             .phase = orbit_core::CallPhase::Listening;
     }
-    let mut frames = runtime.hub.open(4);
+    let mut frames = runtime.link.outbound.open(4);
     let database = rusqlite::Connection::open(runtime.paths.store.join("orbit.sqlite3"))?;
     database.execute_batch(
         "CREATE TRIGGER review_fail_decision_snapshot BEFORE UPDATE ON settings
@@ -508,9 +508,9 @@ async fn interrupt_snapshot_failure_keeps_the_post_predecision_state() -> Result
         deletes: None,
     });
     runtime.store_actor.snapshot(&runtime.state).await?;
-    runtime.work.durable_snapshot = DurableSnapshot::from(&runtime.state);
+    runtime.persisted.durable = DurableSnapshot::from(&runtime.state);
     let previous = runtime.state.clone();
-    let mut frames = runtime.hub.open(4);
+    let mut frames = runtime.link.outbound.open(4);
     let database = rusqlite::Connection::open(runtime.paths.store.join("orbit.sqlite3"))?;
     database.execute_batch(
         "CREATE TABLE review_interrupt_snapshot_calls(n INTEGER NOT NULL);

@@ -1,10 +1,10 @@
 //! The notes' workers under supervision. A worker that ended in a panic can
 //! deliver nothing: the device profile is owed again and the outbox's lanes
 //! send again what the store still has waiting, as after a failed request.
-use super::NotesRuntime;
+use super::NotesHandle;
 use crate::supervision::Actor;
 
-impl NotesRuntime {
+impl NotesHandle {
     /// The notes' workers that fell since the last look, one entry each.
     pub(in crate::daemon) fn reap_panicked(&mut self) -> Vec<Actor> {
         let mut fell = Vec::new();
@@ -27,7 +27,7 @@ mod tests {
     #[allow(clippy::panic, reason = "the request panics on purpose")]
     async fn a_profile_whose_request_panics_is_owed_again() -> anyhow::Result<()> {
         let (events, _received) = tokio::sync::mpsc::channel(super::super::NOTE_EVENTS);
-        let mut notes = NotesRuntime::for_tests(events);
+        let mut notes = NotesHandle::for_tests(events);
         notes.profile.attach_test(
             0,
             (),

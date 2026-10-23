@@ -68,7 +68,7 @@ impl Runtime {
     /// The live holder of the microphone: the call while it lasts, otherwise
     /// a recording not yet ended.
     fn mute_holder(&self) -> Option<Holder> {
-        if self.capture.call_runtime.is_some() {
+        if self.audio.call.is_some() {
             return self
                 .state
                 .durable
@@ -88,7 +88,7 @@ impl Runtime {
 
     /// The call's microphone is muted, as the helper confirmed it.
     pub(in crate::daemon) fn call_microphone_muted(&self) -> bool {
-        let muted = self.capture.audio.mute.call.as_deref();
+        let muted = self.audio.lifecycle.mute.call.as_deref();
         muted.is_some()
             && muted
                 == self
@@ -147,7 +147,7 @@ impl Runtime {
         if matches!(holder, Holder::Meeting(_)) && self.state.durable.voice.voice_active {
             anyhow::bail!("Termina la nota de voz antes de silenciar el micrófono");
         }
-        if self.capture.audio.mute.order.is_some() {
+        if self.audio.lifecycle.mute.order.is_some() {
             return Err(Refusal::Busy {
                 operation: Operation::Audio,
                 retry_after_ms: None,
@@ -167,16 +167,16 @@ impl Runtime {
             return Err(Refusal::HelperNotRunning.into());
         }
         let stream = self
-            .capture
+            .audio
             .mic_stream
             .clone()
             .context("El micrófono no tiene ningún flujo abierto")?;
         let command =
             crate::native::command("audio_mute", json!({"stream_id": stream, "muted": muted}))?;
         let id = NativeCommandHeader::from_value(&command)?.id.to_owned();
-        self.record_pending_native(&command);
+        self.helper.record_pending(&command);
         self.native_send_command(command).await?;
-        self.capture.audio.mute.order = Some(MuteOrder {
+        self.audio.lifecycle.mute.order = Some(MuteOrder {
             id,
             muted,
             stream,
@@ -189,10 +189,10 @@ impl Runtime {
     /// one. Only an answer that names the stream and the state asked for
     /// changes anything; any other is said with its code.
     pub(in crate::daemon) fn mute_response(&mut self, response: &NativeResponseFields) -> bool {
-        let order = match self.capture.audio.mute.order.take() {
+        let order = match self.audio.lifecycle.mute.order.take() {
             Some(order) if order.id == response.id => order,
             other => {
-                self.capture.audio.mute.order = other;
+                self.audio.lifecycle.mute.order = other;
                 return false;
             }
         };
@@ -227,17 +227,10 @@ impl Runtime {
         true
     }
 
-    /// The helper went away or started again: what it was asked about the
-    /// mute has no answer, and a new order may be sent.
-    pub(in crate::daemon) fn forget_mute_orders(&mut self) {
-        self.capture.audio.mute.order = None;
-        self.capture.audio.mute.start = None;
-    }
-
     /// The muted state the helper confirmed, kept where its holder keeps it.
     fn set_mute(&mut self, holder: &Holder, muted: bool) {
         match holder {
-            Holder::Call(id) => self.capture.audio.mute.call = muted.then(|| id.clone()),
+            Holder::Call(id) => self.audio.lifecycle.mute.call = muted.then(|| id.clone()),
             Holder::Meeting(_) => {
                 let Some(recording) = self.state.durable.capture.recording.as_mut() else {
                     return;
@@ -293,22 +286,17 @@ impl Runtime {
     /// Whether a meeting's microphone starting now starts muted: the
     /// recording was muted when it paused or was cut.
     pub(in crate::daemon) fn microphone_starts_muted(&self) -> bool {
-        self.capture.call_runtime.is_none() && self.meeting_microphone_muted()
-    }
-
-    /// A muted start was sent under `id`; its receipt must say `muted:true`.
-    pub(in crate::daemon) fn await_muted_start(&mut self, id: &str) {
-        self.capture.audio.mute.start = Some(id.to_owned());
+        self.audio.call.is_none() && self.meeting_microphone_muted()
     }
 
     /// The receipt of a muted microphone start. A helper that started it
     /// without saying `muted:true` sends her voice: the recording is shown
     /// unmuted from now on, and she is told why.
     pub(in crate::daemon) fn muted_start_receipt(&mut self, response: &NativeResponseFields) {
-        if self.capture.audio.mute.start.as_deref() != Some(response.id.as_str()) {
+        if self.audio.lifecycle.mute.start.as_deref() != Some(response.id.as_str()) {
             return;
         }
-        self.capture.audio.mute.start = None;
+        self.audio.lifecycle.mute.start = None;
         let Some(result) = response.result.as_ref().filter(|_| response.ok) else {
             return;
         };
@@ -331,6 +319,20 @@ impl Runtime {
 
 fn flag(value: bool) -> &'static str {
     if value { "true" } else { "false" }
+}
+
+impl crate::daemon::audio::AudioHandle {
+    /// The helper went away or started again: what it was asked about the
+    /// mute has no answer, and a new order may be sent.
+    pub(in crate::daemon) fn forget_mute_orders(&mut self) {
+        self.lifecycle.mute.order = None;
+        self.lifecycle.mute.start = None;
+    }
+
+    /// A muted start was sent under `id`; its receipt must say `muted:true`.
+    pub(in crate::daemon) fn await_muted_start(&mut self, id: &str) {
+        self.lifecycle.mute.start = Some(id.to_owned());
+    }
 }
 
 #[cfg(test)]

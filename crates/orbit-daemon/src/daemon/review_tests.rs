@@ -41,8 +41,8 @@ fn cancelled_source(runtime: &Runtime, frames: u64) -> Result<String> {
         JobState::Cancelled
     );
     assert!(
-        runtime.conversation.voice_task.active().is_none()
-            && runtime.conversation.voice_operation.is_none()
+        runtime.assistant.voice_task.active().is_none()
+            && runtime.assistant.voice_operation.is_none()
     );
     assert!(runtime.state.durable.assistant.turn.is_none());
     Ok(chunks[0].metadata.id.clone())
@@ -81,7 +81,7 @@ async fn privacy_keeps_ptt_tail_until_a_confirmed_barrier_and_quarantines_source
         150
     );
     assert!(runtime.capture.buffer.voice.is_none());
-    assert!(!runtime.audio_is_draining());
+    assert!(!runtime.audio.audio_is_draining());
     Ok(())
 }
 
@@ -100,7 +100,7 @@ async fn helper_loss_preserves_the_voice_prefix_without_provider_submission() ->
     cancelled_source(&runtime, 100)?;
     assert!(!runtime.state.privacy_stopped());
     assert!(!runtime.state.durable.voice.voice_active);
-    assert!(runtime.capture.mic_stream.is_none());
+    assert!(runtime.audio.mic_stream.is_none());
     Ok(())
 }
 
@@ -145,7 +145,7 @@ async fn failed_source_write_retains_pcm_and_policy_until_a_receipt() -> Result<
             .payload["upload_allowed"],
         false
     );
-    assert!(runtime.conversation.voice_task.active().is_none());
+    assert!(runtime.assistant.voice_task.active().is_none());
     std::fs::remove_file(&chunks)?;
     std::fs::rename(&backup, &chunks)?;
     runtime.retry_seals()?;
@@ -174,8 +174,8 @@ async fn a_stop_ack_without_drain_proof_does_not_consume_stream_identity() -> Re
             .await
             .is_err()
     );
-    assert!(runtime.audio_is_draining());
-    assert_eq!(runtime.capture.mic_stream.as_deref(), Some(stream.as_str()));
+    assert!(runtime.audio.audio_is_draining());
+    assert_eq!(runtime.audio.mic_stream.as_deref(), Some(stream.as_str()));
     assert_eq!(runtime.fixture_store.diagnostics()?.chunk_count, 0);
     runtime.native_event(frame(&stream, 1, 100)).await?;
     runtime
@@ -201,15 +201,15 @@ async fn expected_ptt_busy_refusal_is_local_and_does_not_stop_a_meeting() -> Res
     let abort = task.abort_handle();
     let generation = runtime.state.generation();
     runtime
-        .conversation
+        .assistant
         .voice_task
         .attach_test(generation, (), task);
-    runtime.conversation.voice_operation = Some("pending-stt".into());
+    runtime.assistant.voice_operation = Some("pending-stt".into());
     runtime
         .native_event(json!({"event":"hotkey","action":"ptt","phase":"pressed"}))
         .await?;
     assert!(!runtime.state.privacy_stopped());
-    assert_eq!(runtime.capture.mic_stream.as_deref(), Some(stream.as_str()));
+    assert_eq!(runtime.audio.mic_stream.as_deref(), Some(stream.as_str()));
     assert!(runtime.recording_active());
     assert!(runtime.capture.buffer.voice.is_none());
     assert!(!abort.is_finished());
@@ -237,7 +237,7 @@ async fn ptt_refuses_an_active_assistant_turn_before_starting_capture() -> Resul
     );
     assert_eq!(runtime.state.generation(), before);
     assert!(!runtime.state.durable.voice.voice_active && !runtime.state.privacy_stopped());
-    assert!(runtime.capture.buffer.voice.is_none() && runtime.capture.mic_stream.is_none());
+    assert!(runtime.capture.buffer.voice.is_none() && runtime.audio.mic_stream.is_none());
     assert!(receiver.try_recv().is_err());
     Ok(())
 }
@@ -289,7 +289,7 @@ async fn replacing_an_interrupted_meeting_persists_its_closure_with_a_gap() -> R
             .id,
         "replacement"
     );
-    assert!(runtime.work.worker.active().is_none());
+    assert!(runtime.transfers.worker.active().is_none());
     Ok(())
 }
 
@@ -381,7 +381,7 @@ async fn manifest_write_failure_keeps_voice_owned_and_shutdown_cannot_discard_it
             .is_err()
     );
     assert!(runtime.capture.buffer.voice.is_some());
-    assert!(runtime.conversation.voice_task.active().is_none());
+    assert!(runtime.assistant.voice_task.active().is_none());
     fault.execute_batch("DROP TRIGGER synthetic_manifest_fault;")?;
     runtime.capture.seal_retry_at = None;
     runtime.maintain_capture().await?;
@@ -488,7 +488,7 @@ async fn abandoning_an_unconfirmed_stop_declares_missing_tail_before_finalizatio
         .await;
     runtime.abandon_audio_drain().await?;
     settle_seal_receipts(&mut runtime).await?;
-    assert!(!runtime.audio_is_draining());
+    assert!(!runtime.audio.audio_is_draining());
     assert!(
         runtime
             .state

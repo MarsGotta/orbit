@@ -20,6 +20,27 @@ use tokio::sync::mpsc;
 mod answers;
 mod commands;
 mod deletion;
+
+impl NotesHandle {
+    pub(super) fn notes_now(&self) -> i64 {
+        self.pinned_now.unwrap_or_else(now)
+    }
+
+    /// The hub connected: the owner name goes to it, what is owed goes now,
+    /// and the list may have changed while it was away.
+    pub(super) fn notes_hub_ready(&mut self) {
+        self.profile_owed = true;
+        self.profile_due_ms = i64::MIN;
+        self.head.touch();
+        self.outbox_hub_ready();
+    }
+
+    /// A recording's closure reached the hub: the list reads it from there.
+    pub(super) fn recording_uploaded(&mut self, recording_id: &str) {
+        self.head.touch_recording(recording_id);
+    }
+}
+
 #[cfg(test)]
 mod deletion_tests;
 mod delivery;
@@ -137,7 +158,7 @@ async fn deliver(events: &mpsc::Sender<NoteEvent>, event: NoteEvent) {
     }
 }
 
-pub(super) struct NotesRuntime {
+pub(super) struct NotesHandle {
     events: mpsc::Sender<NoteEvent>,
     /// What the Notes topic says changed.
     pub(super) head: orbit_core::topics::notes::Value,
@@ -154,7 +175,7 @@ pub(super) struct NotesRuntime {
     pub(super) pinned_now: Option<i64>,
 }
 
-impl NotesRuntime {
+impl NotesHandle {
     pub(super) fn new(events: mpsc::Sender<NoteEvent>) -> Self {
         Self {
             events,
@@ -196,10 +217,6 @@ fn check_recording(recording_id: &str) -> Result<()> {
 }
 
 impl Runtime {
-    pub(super) fn notes_now(&self) -> i64 {
-        self.features.notes.pinned_now.unwrap_or_else(now)
-    }
-
     pub(super) fn active_recording_id(&self) -> Option<&str> {
         self.state
             .durable
@@ -236,42 +253,27 @@ impl Runtime {
         self.recover_outbox()
     }
 
-    /// The hub connected: the owner name goes to it, what is owed goes now,
-    /// and the list may have changed while it was away.
-    pub(super) fn notes_hub_ready(&mut self) {
-        let notes = &mut self.features.notes;
-        notes.profile_owed = true;
-        notes.profile_due_ms = i64::MIN;
-        notes.head.touch();
-        self.outbox_hub_ready();
-    }
-
     /// `recording.changed`: the app reads that recording again.
     pub(super) fn on_recording_changed(&mut self, recording_id: &str) {
         if orbit_core::wire::canonical_uuid(recording_id) {
-            self.features.notes.head.touch_recording(recording_id);
+            self.notes.head.touch_recording(recording_id);
         } else {
             self.log("recording_changed_invalid", &[]);
         }
-    }
-
-    /// A recording's closure reached the hub: the list reads it from there.
-    pub(super) fn recording_uploaded(&mut self, recording_id: &str) {
-        self.features.notes.head.touch_recording(recording_id);
     }
 
     /// A privacy stop, a revocation, the close or a new device: every request
     /// to the hub is aborted now. What the user wrote stays in the store and
     /// goes after the rearm (`outbox::retire_outbox`).
     pub(super) fn retire_recording_notes(&mut self) {
-        let notes = &mut self.features.notes;
+        let notes = &mut self.notes;
         notes.profile.cancel();
         notes.profile_owed = true;
         self.retire_outbox();
     }
 
     pub(super) fn maintain_recording_notes(&mut self) -> usize {
-        let now_ms = self.notes_now();
+        let now_ms = self.notes.notes_now();
         self.maintain_recording_notes_at(now_ms)
     }
 
@@ -287,7 +289,7 @@ impl Runtime {
     }
 
     pub(super) async fn note_answer(&mut self, event: NoteEvent) -> Result<()> {
-        let now_ms = self.notes_now();
+        let now_ms = self.notes.notes_now();
         self.note_answer_at(event, now_ms).await
     }
 
@@ -297,10 +299,10 @@ impl Runtime {
         let current = self.state.generation();
         match event {
             NoteEvent::Owner { name } => {
-                self.features.notes.owner_name = Some(name);
+                self.notes.owner_name = Some(name);
             }
             NoteEvent::Profile { ticket, outcome } => {
-                let settlement = self.features.notes.profile.settle(&ticket, current);
+                let settlement = self.notes.profile.settle(&ticket, current);
                 if self.settled_value("note_profile", settlement).is_some() {
                     self.profile_answer(&outcome, now_ms);
                 }

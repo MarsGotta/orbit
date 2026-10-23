@@ -34,7 +34,7 @@ fn hub_with(documents: &[&str]) -> fake_hub::Shared {
 async fn pair(runtime: &mut Runtime, url: &str) {
     runtime.settings.hub_url = Some(url.into());
     runtime.settings.device_id = Some(DEVICE.into());
-    runtime.token = Some("synthetic-not-a-credential".into());
+    runtime.link.token = Some("synthetic-not-a-credential".into());
 }
 
 fn connection(runtime: &mut Runtime, value: &str) {
@@ -48,7 +48,7 @@ async fn turn(
     events: &mut tokio::sync::mpsc::Receiver<super::NoteEvent>,
     now_ms: i64,
 ) -> Result<usize> {
-    runtime.features.notes.pinned_now = Some(now_ms);
+    runtime.notes.pinned_now = Some(now_ms);
     let started = runtime.maintain_recording_notes_at(now_ms);
     for _ in 0..started {
         answer(runtime, events, now_ms).await?;
@@ -126,7 +126,7 @@ async fn a_correction_and_a_private_note_written_with_the_hub_down_survive_a_res
         runtime.store_actor.run(|_| Ok(())).await?;
     }
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     pair(&mut runtime, &url).await;
     runtime.recover_recording_notes()?;
     connection(&mut runtime, "offline");
@@ -157,7 +157,7 @@ async fn a_correction_and_a_private_note_written_with_the_hub_down_survive_a_res
     assert!(shown.pending_changes.contains(&"sections".to_owned()));
     assert!(shown.private_notes.pending);
 
-    runtime.notes_hub_ready();
+    runtime.notes.notes_hub_ready();
     for step in 0..3 {
         turn(&mut runtime, &mut events, START + 1_000 + step).await?;
     }
@@ -192,7 +192,7 @@ async fn a_meeting_whose_order_the_hub_refuses_does_not_hold_the_others() -> Res
     lock(&hub).silent.insert(SILENT.into());
     let url = fake_hub::start(hub.clone()).await?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     pair(&mut runtime, &url).await;
     connection(&mut runtime, "offline");
     for recording in [REFUSED, SILENT, TODAY] {
@@ -208,8 +208,8 @@ async fn a_meeting_whose_order_the_hub_refuses_does_not_hold_the_others() -> Res
             .context("the title was refused with the hub down")?;
     }
     connection(&mut runtime, "online");
-    runtime.notes_hub_ready();
-    runtime.features.notes.pinned_now = Some(START);
+    runtime.notes.notes_hub_ready();
+    runtime.notes.pinned_now = Some(START);
     let started = runtime.maintain_recording_notes_at(START);
     // The silent meeting's two lanes never answer; every other one does.
     for _ in 0..started.saturating_sub(2) {
@@ -258,7 +258,7 @@ async fn two_quick_clicks_deliver_the_newest() -> Result<()> {
     let hub = hub_with(&[TODAY]);
     let url = fake_hub::start(hub.clone()).await?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     pair(&mut runtime, &url).await;
 
     connection(&mut runtime, "offline");
@@ -269,7 +269,7 @@ async fn two_quick_clicks_deliver_the_newest() -> Result<()> {
             .context("the click was refused with the hub down")?;
     }
     connection(&mut runtime, "online");
-    runtime.notes_hub_ready();
+    runtime.notes.notes_hub_ready();
     turn(&mut runtime, &mut events, START).await?;
     let sent = received(&hub, "PUT", "/note/edits");
     assert_eq!(sent.len(), 1, "the superseded click was sent: {sent:?}");
@@ -334,21 +334,21 @@ async fn a_template_edited_with_the_hub_down_is_still_owed_after_a_restart() -> 
                 })
                 .await?;
         }
-        assert!(runtime.library_state().contains(&pending));
+        assert!(runtime.notes.library_state().contains(&pending));
         runtime.store_actor.run(|_| Ok(())).await?;
     }
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     pair(&mut runtime, &url).await;
     runtime.recover_recording_notes()?;
-    assert!(runtime.library_state().contains(&pending));
+    assert!(runtime.notes.library_state().contains(&pending));
     connection(&mut runtime, "online");
-    runtime.notes_hub_ready();
+    runtime.notes.notes_hub_ready();
     turn(&mut runtime, &mut events, START).await?;
     let saved = received(&hub, "PUT", "/v1/note-templates/plantilla-sintetica");
     assert_eq!(saved.len(), 1, "{saved:?}");
     assert_eq!(saved[0].1["name"], "Segunda versión");
-    assert!(!runtime.library_state().contains(&pending));
+    assert!(!runtime.notes.library_state().contains(&pending));
     Ok(())
 }
 
@@ -361,14 +361,14 @@ async fn private_notes_typed_while_the_last_ones_are_on_their_way_still_go() -> 
     let hub = hub_with(&[TODAY]);
     let url = fake_hub::start(hub.clone()).await?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     pair(&mut runtime, &url).await;
-    runtime.notes_hub_ready();
+    runtime.notes.notes_hub_ready();
     turn(&mut runtime, &mut events, START).await?;
     let hold = Arc::new(tokio::sync::Notify::new());
     lock(&hub).hold = Some(hold.clone());
     runtime.command(private(TODAY, "- primera")).await?;
-    runtime.features.notes.pinned_now = Some(START + 1);
+    runtime.notes.pinned_now = Some(START + 1);
     assert_eq!(runtime.maintain_recording_notes_at(START + 1), 1);
     runtime
         .command(private(TODAY, "- primera y segunda"))

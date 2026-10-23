@@ -58,7 +58,7 @@ async fn retired_system_start(
     let remote_id = remote["id"].as_str().context("old remote id absent")?;
     assert!(
         !runtime
-            .capture
+            .audio
             .pending_starts
             .iter()
             .any(|id| id == remote_id)
@@ -109,13 +109,13 @@ async fn retired_success_stops_only_its_stream_and_waits_for_receipt() -> Result
         .context("retired stop id absent")?;
     assert_eq!(
         runtime
-            .capture
+            .audio
             .retired_stops
             .get(stop_id)
             .map(|stop| (stop.stream.as_str(), stop.sent)),
         Some((old_stream, true))
     );
-    assert_eq!(runtime.capture.mic_stream.as_deref(), Some(call_stream));
+    assert_eq!(runtime.audio.mic_stream.as_deref(), Some(call_stream));
     assert_eq!(
         runtime
             .state
@@ -130,9 +130,9 @@ async fn retired_success_stops_only_its_stream_and_waits_for_receipt() -> Result
         .native_event(json!({"event":"response","id":retired_stop["id"],"ok":true,
             "result":{"stream_id":old_stream,"drain_complete":true}}))
         .await?;
-    assert!(!runtime.capture.retired_stops.contains_key(stop_id));
+    assert!(!runtime.audio.retired_stops.contains_key(stop_id));
 
-    assert_eq!(runtime.capture.mic_stream.as_deref(), Some(call_stream));
+    assert_eq!(runtime.audio.mic_stream.as_deref(), Some(call_stream));
     assert_eq!(
         runtime
             .state
@@ -183,12 +183,12 @@ async fn retired_integrity_code_does_not_cut_a_new_recording(code: &str) -> Resu
                 "error":{"code":code,"message":"Fallo sintético anterior"}}))
         .await?;
     assert_eq!(
-        runtime.capture.mic_stream.as_deref(),
+        runtime.audio.mic_stream.as_deref(),
         Some(new_mic_stream),
         "{code}"
     );
     assert_eq!(
-        runtime.capture.remote_stream.as_deref(),
+        runtime.audio.remote_stream.as_deref(),
         Some(new_remote_stream),
         "{code}"
     );
@@ -353,9 +353,9 @@ async fn retired_stop_with_call(
     let stop_id = retired_stop["id"].as_str().context("id")?.to_owned();
     let event = receipt(&stop_id, &call_stream);
     runtime.native_event(event).await?;
-    assert!(!runtime.capture.retired_stops.contains_key(&stop_id));
+    assert!(!runtime.audio.retired_stops.contains_key(&stop_id));
     assert_eq!(
-        runtime.capture.mic_stream.as_deref(),
+        runtime.audio.mic_stream.as_deref(),
         Some(call_stream.as_str())
     );
     assert_eq!(
@@ -371,7 +371,7 @@ async fn retired_stop_with_call(
     let call_start_id = call_start["id"].as_str().context("call start id absent")?;
     assert!(
         runtime
-            .capture
+            .audio
             .pending_starts
             .iter()
             .any(|id| id == call_start_id)
@@ -420,7 +420,7 @@ async fn retired_stop_without_receipt_blocks_nothing() -> Result<()> {
         }
     };
     assert_eq!(retired_stop["command"], "audio_stop");
-    assert!(!runtime.audio_is_draining());
+    assert!(!runtime.audio.audio_is_draining());
     runtime
         .apply(Event::StartMeeting {
             id: "after-unanswered".into(),
@@ -623,7 +623,7 @@ async fn call_start_after_stop_receipt_does_not_touch_next_call() -> Result<()> 
         }
     };
     // The generic command-name index is diagnostic and may evict this id.
-    runtime.pending_native.clear();
+    runtime.helper.pending.clear();
     runtime
         .native_event(json!({"event":"response","id":start["id"],"ok":true,
             "result":{"stream_id":start["stream_id"],"processing":"voice_processing",
@@ -635,7 +635,7 @@ async fn call_start_after_stop_receipt_does_not_touch_next_call() -> Result<()> 
     assert_eq!(late_stop["command"], "audio_stop");
     assert_eq!(late_stop["stream_id"], start["stream_id"]);
     assert_eq!(
-        runtime.capture.mic_stream.as_deref(),
+        runtime.audio.mic_stream.as_deref(),
         newer["stream_id"].as_str()
     );
     assert_eq!(
@@ -668,7 +668,7 @@ async fn retired_call_start_registry_refuses_a_sixty_fifth_unknown_start() -> Re
         );
     }
     for index in 0..64 {
-        runtime.capture.retired_call_starts.insert(
+        runtime.audio.retired_call_starts.insert(
             format!("retired-call-request-{index}"),
             format!("retired-call-stream-{index}"),
         );
@@ -702,10 +702,10 @@ async fn helper_restart_retires_old_stop_and_start_debts() -> Result<()> {
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
     runtime
-        .capture
+        .audio
         .retired_call_starts
         .insert("old-call-start".into(), "old-call-stream".into());
-    runtime.capture.retired_stops.insert(
+    runtime.audio.retired_stops.insert(
         "old-stop".into(),
         crate::daemon::audio::RetiredStreamStop {
             stream: "old-stream".into(),
@@ -714,8 +714,8 @@ async fn helper_restart_retires_old_stop_and_start_debts() -> Result<()> {
         },
     );
     runtime.native_event(json!({"event":"ready"})).await?;
-    assert!(runtime.capture.retired_call_starts.is_empty());
-    assert!(runtime.capture.retired_stops.is_empty());
+    assert!(runtime.audio.retired_call_starts.is_empty());
+    assert!(runtime.audio.retired_stops.is_empty());
 
     Ok(())
 }
@@ -726,7 +726,7 @@ async fn helper_loss_retires_old_call_start_debts() -> Result<()> {
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
     runtime
-        .capture
+        .audio
         .retired_call_starts
         .insert("old-call-start".into(), "old-call-stream".into());
     {
@@ -738,7 +738,7 @@ async fn helper_loss_retires_old_call_start_debts() -> Result<()> {
         );
     }
     runtime.retry_retired_stream_stops().await;
-    assert!(runtime.capture.retired_call_starts.is_empty());
+    assert!(runtime.audio.retired_call_starts.is_empty());
 
     Ok(())
 }
@@ -796,7 +796,7 @@ async fn unreadable_late_call_start_stops_its_commanded_stream() -> Result<()> {
             .native_event(json!({"event":"response","id":late_stop["id"],"ok":true,
                 "result":{"stream_id":start["stream_id"],"drain_complete":true}}))
             .await?;
-        assert!(runtime.capture.mic_stream.is_none());
+        assert!(runtime.audio.mic_stream.is_none());
     }
     Ok(())
 }
@@ -863,7 +863,7 @@ async fn invalid_retired_start_streams_leave_the_current_capture_alone() -> Resu
         .await?;
     assert!(next_capture_command(&mut receiver)?.is_none());
     assert_eq!(
-        runtime.capture.mic_stream.as_deref(),
+        runtime.audio.mic_stream.as_deref(),
         call_start["stream_id"].as_str()
     );
 
@@ -924,7 +924,7 @@ async fn retired_stop_capacity_cuts_instead_of_forgetting_an_order() -> Result<(
         }
     };
     for index in 0..64 {
-        runtime.capture.retired_stops.insert(
+        runtime.audio.retired_stops.insert(
             format!("synthetic-stop-{index}"),
             crate::daemon::audio::RetiredStreamStop {
                 stream: format!("synthetic-stream-{index}"),
@@ -949,7 +949,7 @@ async fn retired_stop_capacity_cuts_instead_of_forgetting_an_order() -> Result<(
         }
     };
     assert_eq!(stop["command"], "capture_stop");
-    assert_eq!(runtime.capture.retired_stops.len(), 64);
+    assert_eq!(runtime.audio.retired_stops.len(), 64);
     assert!(said::mentions(
         &runtime.state,
         "retired_stop_capacity_exhausted"
@@ -959,7 +959,7 @@ async fn retired_stop_capacity_cuts_instead_of_forgetting_an_order() -> Result<(
         .native_event(json!({"event":"response","id":stop["id"],"ok":true,
             "result":{"drain_complete":true}}))
         .await?;
-    assert!(runtime.capture.retired_stops.is_empty());
+    assert!(runtime.audio.retired_stops.is_empty());
     Ok(())
 }
 
@@ -1016,9 +1016,9 @@ async fn failed_retired_call_start_finishes_the_hangup() -> Result<()> {
             "error":{"code":"audio_session_busy","message":"synthetic start failed"}}))
         .await?;
     settle_seal_receipts(&mut runtime).await?;
-    assert!(runtime.capture.mic_stream.is_none(), "mic_stream kept");
-    assert!(!runtime.audio_is_draining(), "call still draining");
-    assert!(runtime.capture.call_runtime.is_none(), "call still closing");
+    assert!(runtime.audio.mic_stream.is_none(), "mic_stream kept");
+    assert!(!runtime.audio.audio_is_draining(), "call still draining");
+    assert!(runtime.audio.call.is_none(), "call still closing");
     assert!(not_current(&runtime, NoticeCode::RetiredStopUnconfirmed));
     assert!(not_current(&runtime, NoticeCode::AudioStopUnconfirmed));
     Ok(())
@@ -1035,14 +1035,14 @@ async fn failed_start_then_late_stop_is_read_as_retired() -> Result<()> {
         "error":{"code":"audio_session_busy","message":"synthetic"}}))
         .await?;
     settle_seal_receipts(&mut runtime).await?;
-    assert!(runtime.capture.call_runtime.is_none());
+    assert!(runtime.audio.call.is_none());
     runtime
         .native_event(json!({"event":"response","id":stop["id"],"ok":false,
         "error":{"code":"stream_not_found","message":"synthetic"}}))
         .await?;
     let stop_id = stop["id"].as_str().context("stop id")?;
-    assert!(!runtime.capture.retired_stops.contains_key(stop_id));
-    assert!(!runtime.audio_is_draining());
+    assert!(!runtime.audio.retired_stops.contains_key(stop_id));
+    assert!(!runtime.audio.audio_is_draining());
 
     assert!(
         not_current(&runtime, NoticeCode::MacCommandDegraded),
@@ -1076,10 +1076,10 @@ async fn late_success_then_first_stop_receipt_is_read_as_retired() -> Result<()>
         .await?;
     settle_seal_receipts(&mut runtime).await?;
     let first_stop_id = first_stop["id"].as_str().context("first stop id")?;
-    assert!(!runtime.capture.retired_stops.contains_key(first_stop_id));
-    assert!(!runtime.audio_is_draining());
+    assert!(!runtime.audio.retired_stops.contains_key(first_stop_id));
+    assert!(!runtime.audio.audio_is_draining());
 
-    assert!(runtime.capture.call_runtime.is_none());
+    assert!(runtime.audio.call.is_none());
     assert!(
         not_current(&runtime, NoticeCode::MacCommandDegraded),
         "{:?}",
@@ -1101,12 +1101,9 @@ async fn late_start_closes_only_after_the_late_stop_receipt() -> Result<()> {
         .native_event(json!({"event":"response","id":first_stop["id"],"ok":true,
             "result":{"stream_id":start["stream_id"],"drain_complete":true}}))
         .await?;
-    assert!(
-        runtime.capture.call_runtime.is_some(),
-        "first stop closed call early"
-    );
+    assert!(runtime.audio.call.is_some(), "first stop closed call early");
     assert_eq!(
-        runtime.capture.mic_stream.as_deref(),
+        runtime.audio.mic_stream.as_deref(),
         start["stream_id"].as_str()
     );
     runtime
@@ -1115,9 +1112,9 @@ async fn late_start_closes_only_after_the_late_stop_receipt() -> Result<()> {
         .await?;
     settle_seal_receipts(&mut runtime).await?;
     let id = first_stop["id"].as_str().context("first stop id")?;
-    assert!(!runtime.capture.retired_stops.contains_key(id));
-    assert!(runtime.capture.call_runtime.is_none());
-    assert!(runtime.capture.mic_stream.is_none());
+    assert!(!runtime.audio.retired_stops.contains_key(id));
+    assert!(runtime.audio.call.is_none());
+    assert!(runtime.audio.mic_stream.is_none());
 
     assert!(!said::mentions(&runtime.state, "playback"));
     assert!(not_current(&runtime, NoticeCode::AudioDrainWaiting));
@@ -1233,7 +1230,7 @@ async fn confirmed_call_drain_replaces_wait_notice() -> Result<()> {
         "result":{"drain_complete":true}}))
         .await?;
     settle_seal_receipts(&mut runtime).await?;
-    assert!(runtime.capture.call_runtime.is_none());
+    assert!(runtime.audio.call.is_none());
     assert!(not_current(&runtime, NoticeCode::AudioDrainWaiting));
     assert_eq!(
         runtime.state.notice_code(),
@@ -1259,9 +1256,9 @@ async fn answered_stop_then_start_failure_leaves_no_debt() -> Result<()> {
         "error":{"code":"audio_session_busy","message":"synthetic"}}))
         .await?;
     settle_seal_receipts(&mut runtime).await?;
-    assert!(runtime.capture.call_runtime.is_none());
+    assert!(runtime.audio.call.is_none());
     assert!(
-        runtime.capture.retired_stops.is_empty(),
+        runtime.audio.retired_stops.is_empty(),
         "answered stop left as debt"
     );
     Ok(())
@@ -1314,14 +1311,11 @@ async fn seventy_overtaken_hangups_do_not_cut_capture() -> Result<()> {
             .await?;
         settle_seal_receipts(&mut runtime).await?;
         assert!(receiver.try_recv().is_err());
-        assert!(runtime.capture.mic_stream.is_none());
-        assert!(!runtime.audio_is_draining());
+        assert!(runtime.audio.mic_stream.is_none());
+        assert!(!runtime.audio.audio_is_draining());
+        assert!(runtime.audio.call.is_none(), "call open at round {round}");
         assert!(
-            runtime.capture.call_runtime.is_none(),
-            "call open at round {round}"
-        );
-        assert!(
-            runtime.capture.retired_stops.is_empty(),
+            runtime.audio.retired_stops.is_empty(),
             "ledger leaked at round {round}"
         );
         assert!(
@@ -1386,7 +1380,7 @@ async fn cut_cause_survives_retired_start_failure() -> Result<()> {
             "CAUSA SINTETICA DEL CORTE",
         )
         .await;
-    if !runtime.state.privacy_stopped() && runtime.capture.audio.full_stop.is_none() {
+    if !runtime.state.privacy_stopped() && runtime.audio.lifecycle.full_stop.is_none() {
         runtime
             .request_full_audio_stop(crate::daemon::audio::FullStop::Cut)
             .await?;
@@ -1430,9 +1424,9 @@ async fn an_old_stop_error_does_not_reopen_the_closed_call() -> Result<()> {
         .await?;
     settle_seal_receipts(&mut runtime).await?;
     let id = first_stop["id"].as_str().context("first stop id")?;
-    assert!(!runtime.capture.retired_stops.contains_key(id));
+    assert!(!runtime.audio.retired_stops.contains_key(id));
 
-    assert!(runtime.capture.call_runtime.is_none());
+    assert!(runtime.audio.call.is_none());
     assert!(
         not_current(&runtime, NoticeCode::RetiredStopUnconfirmed),
         "{:?}",
@@ -1448,7 +1442,7 @@ async fn retired_pending_stop_obeys_capacity() -> Result<()> {
     runtime.apply(Event::CallStop).await?;
     let first_stop = next_capture_command(&mut receiver)?.context("first stop absent")?;
     for index in 0..64 {
-        runtime.capture.retired_stops.insert(
+        runtime.audio.retired_stops.insert(
             format!("synthetic-stop-{index}"),
             crate::daemon::audio::RetiredStreamStop {
                 stream: format!("synthetic-stream-{index}"),
@@ -1458,7 +1452,7 @@ async fn retired_pending_stop_obeys_capacity() -> Result<()> {
         );
     }
     runtime.native_event(call_start_success(&start)).await?;
-    assert_eq!(runtime.capture.retired_stops.len(), 64);
+    assert_eq!(runtime.audio.retired_stops.len(), 64);
     assert!(
         said::mentions(&runtime.state, "retired_stop_capacity_exhausted"),
         "{:?}",
@@ -1473,7 +1467,7 @@ async fn retired_pending_stop_obeys_capacity() -> Result<()> {
     assert!(cut.is_some(), "capacity must request a full stop");
     assert!(
         !runtime
-            .capture
+            .audio
             .retired_stops
             .contains_key(first_stop["id"].as_str().context("first stop id")?)
     );
@@ -1490,7 +1484,7 @@ async fn overtaken_stop_is_not_a_playback_rejection() -> Result<()> {
         .native_event(json!({"event":"response","id":stop["id"],"ok":false,
             "error":{"code":"stream_not_found","message":"synthetic stop overtook start"}}))
         .await?;
-    assert!(runtime.audio_is_draining());
+    assert!(runtime.audio.audio_is_draining());
     assert!(!said::mentions(&runtime.state, "playback"));
 
     Ok(())
@@ -1595,9 +1589,9 @@ async fn start_then_hangup_receipts_finish_call_in_both_orders() -> Result<()> {
             }
         }
         settle_seal_receipts(&mut runtime).await?;
-        assert!(runtime.capture.mic_stream.is_none());
-        assert!(!runtime.audio_is_draining());
-        assert!(runtime.capture.call_runtime.is_none());
+        assert!(runtime.audio.mic_stream.is_none());
+        assert!(!runtime.audio.audio_is_draining());
+        assert!(runtime.audio.call.is_none());
         assert!(not_current(&runtime, NoticeCode::RetiredStopUnconfirmed));
     }
     Ok(())

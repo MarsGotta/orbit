@@ -36,7 +36,7 @@ fn hub_with(documents: &[&str]) -> fake_hub::Shared {
 fn pair(runtime: &mut Runtime, url: &str) {
     runtime.settings.hub_url = Some(url.into());
     runtime.settings.device_id = Some(DEVICE.into());
-    runtime.token = Some("synthetic-not-a-credential".into());
+    runtime.link.token = Some("synthetic-not-a-credential".into());
 }
 
 fn connection(runtime: &mut Runtime, value: &str) {
@@ -84,10 +84,10 @@ async fn settle(
     events: &mut mpsc::Receiver<super::NoteEvent>,
     now_ms: i64,
 ) -> Result<()> {
-    runtime.features.notes.pinned_now = Some(now_ms);
+    runtime.notes.pinned_now = Some(now_ms);
     for _ in 0..40 {
         runtime.maintain_recording_notes_at(now_ms);
-        let notes = &runtime.features.notes;
+        let notes = &runtime.notes;
         if notes.outbox.in_flight() == 0 && notes.deletions.purging.is_none() {
             return Ok(());
         }
@@ -170,7 +170,7 @@ async fn a_deleted_meeting_leaves_the_list_this_mac_and_the_hub_and_the_other_st
     let hub = hub_with(&[TODAY, OTHER]);
     let url = fake_hub::start(hub.clone()).await?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     pair(&mut runtime, &url);
     connection(&mut runtime, "offline");
     written(&mut runtime).await?;
@@ -189,7 +189,7 @@ async fn a_deleted_meeting_leaves_the_list_this_mac_and_the_hub_and_the_other_st
     assert!(!lock(&hub).documents.contains_key(TODAY));
     assert!(runtime.reader.private_notes(TODAY)?.is_none());
     assert!(runtime.reader.note_orders()?.is_empty());
-    assert!(runtime.features.notes.outbox.deleting().is_empty());
+    assert!(runtime.notes.outbox.deleting().is_empty());
     // The other meeting's order reached the hub, and it is still listed.
     assert_eq!(received(&hub, "PUT", OTHER).len(), 1);
     assert_eq!(listed(&runtime).await?, vec![OTHER.to_owned()]);
@@ -211,14 +211,14 @@ async fn a_hub_that_cannot_delete_leaves_everything_here_and_says_to_update_it()
     lock(&hub).without_recording_delete = true;
     let url = fake_hub::start(hub.clone()).await?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     pair(&mut runtime, &url);
     connection(&mut runtime, "offline");
     written(&mut runtime).await?;
     runtime.command(delete(TODAY)).await?;
     // The hub's `ready` was not seen: whether it deletes is not known.
     connection(&mut runtime, "online");
-    runtime.notes_hub_ready();
+    runtime.notes.notes_hub_ready();
     settle(&mut runtime, &mut events, START).await?;
 
     assert_eq!(received(&hub, "DELETE", TODAY).len(), 1);
@@ -250,7 +250,7 @@ async fn a_meeting_still_closing_is_deleted_once_it_closed() -> Result<()> {
     let hub = hub_with(&[TODAY]);
     let url = fake_hub::start(hub.clone()).await?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     pair(&mut runtime, &url);
     let closure = orbit_store::Job {
         id: format!("finalize-{TODAY}"),
@@ -365,7 +365,7 @@ async fn ending_without_saving_leaves_no_chunk_here_or_on_the_hub_and_no_note() 
     let hub = hub_with(&[]);
     let url = fake_hub::start(hub.clone()).await?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     pair(&mut runtime, &url);
     ready(&mut runtime, true).await?;
     thrown_away(&mut runtime, &mut helper).await?;
@@ -389,7 +389,7 @@ async fn ending_without_saving_with_the_hub_away_completes_after_a_restart() -> 
     let url = fake_hub::start(hub.clone()).await?;
     {
         let (mut runtime, mut helper) = fixture(directory.path())?;
-        let mut events = runtime.features.notes.test_events();
+        let mut events = runtime.notes.test_events();
         pair(&mut runtime, &url);
         connection(&mut runtime, "offline");
         thrown_away(&mut runtime, &mut helper).await?;
@@ -400,12 +400,11 @@ async fn ending_without_saving_with_the_hub_away_completes_after_a_restart() -> 
         runtime.store_actor.run(|_| Ok(())).await?;
     }
     let (mut runtime, _helper) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     pair(&mut runtime, &url);
     runtime.recover_recording_notes()?;
     assert_eq!(
         runtime
-            .features
             .notes
             .outbox
             .discarded()
@@ -493,7 +492,7 @@ async fn no_chunk_of_a_thrown_away_recording_goes_up() -> Result<()> {
     let (mut runtime, _) = fixture(directory.path())?;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     runtime.settings.hub_url = Some(format!("http://{}", listener.local_addr()?));
-    runtime.token = Some("synthetic-not-a-credential".into());
+    runtime.link.token = Some("synthetic-not-a-credential".into());
     runtime
         .keep_order(orbit_core::note_outbox::QueuedOrder::Meeting {
             recording_id: LIVE.into(),

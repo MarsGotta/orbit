@@ -37,6 +37,16 @@ impl RecordingAudio {
 }
 
 impl Runtime {
+    /// A recording starts: whatever interrupted the last one is behind it.
+    pub(in crate::daemon) async fn start_capture(
+        &mut self,
+        recording_id: String,
+        audio: MeetingAudio,
+    ) -> Result<()> {
+        self.capture.interruption = None;
+        self.start_recording_audio(recording_id, audio).await
+    }
+
     pub(in crate::daemon) async fn start_recording_audio(
         &mut self,
         recording_id: String,
@@ -64,9 +74,9 @@ impl Runtime {
         if !matches!(audio, MeetingAudio::MicrophoneOnly) {
             let stream = id();
             self.start_track("remote_app", &stream, Some(audio)).await?;
-            self.capture.remote_stream = Some(stream);
+            self.audio.remote_stream = Some(stream);
         }
-        self.begin_recording_signal(recording_id, epoch);
+        self.audio.begin_recording_signal(recording_id, epoch);
         self.capture_started_if_ready().await?;
         // «Oye Deimos» goes with the meeting, on its microphone
         // stream, whoever opened it.
@@ -92,7 +102,7 @@ impl Runtime {
         };
         let mut payload = json!({"recording_id":recording_id,
             "capture_epoch_id":epoch,"expected_tracks":expected_tracks,"clock_domain":"mach_absolute_time",
-            "origin":self.capture_origin(recording_id)});
+            "origin":self.calls.capture_origin(recording_id)});
         if let Some(fields) = payload.as_object_mut() {
             if let Some(scope) = capture_scope {
                 fields.insert("capture_scope".into(), json!(scope));
@@ -135,15 +145,15 @@ impl Runtime {
             .recording
             .as_ref()
             .is_none_or(|recording| recording.phase != CapturePhase::Paused);
-        self.capture.audio.meeting.recording_end = Some(end);
-        if let Some(stream) = self.capture.remote_stream.clone() {
+        self.audio.lifecycle.meeting.recording_end = Some(end);
+        if let Some(stream) = self.audio.remote_stream.clone() {
             self.request_stream_stop("remote_app", stream).await?;
         } else {
             let segments = self.capture.buffer.pause_source("remote_app")?;
             self.seal(segments)?;
         }
         let kept = self.release_microphone(Holder::Meeting).await?;
-        if kept || self.capture.mic_stream.is_none() {
+        if kept || self.audio.mic_stream.is_none() {
             // The native microphone stays live for the voice note (or there
             // is none). Recording stops at this explicit local boundary and
             // must not resume from later PCM.
@@ -154,7 +164,7 @@ impl Runtime {
     }
 
     pub(in crate::daemon) async fn capture_started_if_ready(&mut self) -> Result<()> {
-        if self.capture.pending_starts.is_empty()
+        if self.audio.pending_starts.is_empty()
             && self
                 .state
                 .durable
@@ -197,8 +207,8 @@ impl Runtime {
     /// once a second, because the condition — a finish is waiting and no seal
     /// is left — is cheap to read and does not depend on which path noticed.
     pub(in crate::daemon) async fn resume_deferred_drain(&mut self) -> Result<()> {
-        if self.capture.audio.meeting.finish_owed()
-            && !self.capture.audio.pending()
+        if self.audio.lifecycle.meeting.finish_owed()
+            && !self.audio.lifecycle.pending()
             && self.capture.pending_seals.is_empty()
         {
             self.complete_audio_drain().await?;
@@ -210,7 +220,7 @@ impl Runtime {
     /// once finished, finalized. False while one of its seals is still in
     /// flight; `resume_deferred_drain` comes back to it.
     pub(super) async fn close_drained_recording(&mut self) -> Result<bool> {
-        let Some(end) = self.capture.audio.meeting.recording_end else {
+        let Some(end) = self.audio.lifecycle.meeting.recording_end else {
             return Ok(true);
         };
         let segments = self.capture.buffer.flush(end);
@@ -221,7 +231,7 @@ impl Runtime {
         if !self.capture.pending_seals.is_empty() {
             return Ok(false);
         }
-        self.capture.audio.meeting.recording_end = None;
+        self.audio.lifecycle.meeting.recording_end = None;
         if end
             && self
                 .state
@@ -251,7 +261,7 @@ impl Runtime {
         else {
             return Ok(());
         };
-        self.note_call_gap(&owner);
+        self.audio.note_call_gap(&owner);
         if let Some(recording) = self
             .state
             .durable

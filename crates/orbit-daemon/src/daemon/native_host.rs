@@ -2,7 +2,6 @@
 //!
 //! Only the daemon's native event path supplies these facts. IPC input, stored
 //! history and Cua page contents cannot establish a native process identity.
-use super::Runtime;
 use orbit_core::wire::native::NativeEventHeader;
 use serde::Deserialize;
 use serde_json::Value;
@@ -67,7 +66,7 @@ impl NativeHost {
         self.calendar_backend_available
     }
 
-    fn observe(&mut self, event: &Value) -> HostUpdate {
+    pub(super) fn observe(&mut self, event: &Value) -> HostUpdate {
         let Ok(header) = NativeEventHeader::from_value(event) else {
             return HostUpdate::default();
         };
@@ -155,13 +154,6 @@ impl NativeHost {
             privacy_stopped: stopped,
             capture_cut: false,
         }
-    }
-}
-
-impl Runtime {
-    /// Reduce once before dispatching revocation to independent consumers.
-    pub(super) fn observe_native_host(&mut self, event: &Value) -> HostUpdate {
-        self.features.native_host.observe(event)
     }
 }
 

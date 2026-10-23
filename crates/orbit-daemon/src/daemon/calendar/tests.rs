@@ -20,7 +20,7 @@ async fn stop_and_revocation_clear_the_active_calendar_view() -> Result<()> {
     for revoked in [false, true] {
         let directory = tempfile::tempdir()?;
         let (mut runtime, _native) = fixture(directory.path())?;
-        runtime.features.calendar.screen = Some(ScreenRead::new(CalendarWindow {
+        runtime.calendar.screen = Some(ScreenRead::new(CalendarWindow {
             start_unix_ms: OCTOBER_MS,
             end_unix_ms: OCTOBER_MS + DAY_MS,
         }));
@@ -33,10 +33,7 @@ async fn stop_and_revocation_clear_the_active_calendar_view() -> Result<()> {
                 .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
                 .await;
         }
-        assert!(
-            runtime.features.calendar.screen.is_none(),
-            "revoked={revoked}"
-        );
+        assert!(runtime.calendar.screen.is_none(), "revoked={revoked}");
         let detail = read_failure(&mut runtime, agenda_request(week()))?;
         assert!(
             serde_json::from_str::<Value>(&detail)?["code"] == "privacy_stopped",
@@ -67,7 +64,10 @@ async fn full_helper_channel_records_calendar_disconnect_once() -> Result<()> {
     seed(&mut runtime, &mut native).await?;
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
     for _ in 0..64 {
-        runtime.native.try_send(json!({"fixture":"occupied"}))?;
+        runtime
+            .helper
+            .sender
+            .try_send(json!({"fixture":"occupied"}))?;
     }
     runtime.retire_native_calendar();
     let log = std::fs::read_to_string(directory.path().join("logs/daemon.log")).unwrap_or_default();
@@ -123,7 +123,7 @@ async fn changed_generation_calendar_reply_is_not_reported_as_eventkit_timeout()
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut native) = fixture(directory.path())?;
     seed(&mut runtime, &mut native).await?;
-    runtime.features.calendar.wanted_inventory = true;
+    runtime.calendar.wanted_inventory = true;
     runtime.pump_calendar();
     let command = native.try_recv().context("inventory request")?;
     let started = runtime.state.generation();
@@ -136,7 +136,7 @@ async fn changed_generation_calendar_reply_is_not_reported_as_eventkit_timeout()
         "ok":false,"error":{"code":"fixture","message":"fixture"}}))
     );
     assert_eq!(
-        runtime.features.calendar.inventory_failure,
+        runtime.calendar.inventory_failure,
         Some(orbit_core::refusal::Refusal::ReadInterrupted {
             cause: orbit_core::refusal::ReadInterruption::GenerationChanged {
                 started_generation: started,
@@ -161,7 +161,7 @@ async fn restarted_helper_names_the_calendar_instance_and_generation_it_replaced
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut native) = fixture(directory.path())?;
     seed(&mut runtime, &mut native).await?;
-    runtime.features.calendar.wanted_inventory = true;
+    runtime.calendar.wanted_inventory = true;
     runtime.pump_calendar();
     let _command = native.try_recv().context("inventory request")?;
 
@@ -171,7 +171,6 @@ async fn restarted_helper_names_the_calendar_instance_and_generation_it_replaced
 
     let failure = serde_json::to_value(
         runtime
-            .features
             .calendar
             .inventory_failure
             .as_ref()
@@ -204,7 +203,7 @@ async fn calendar_read_pages_the_known_listing_by_id() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut native) = fixture(directory.path())?;
     seed(&mut runtime, &mut native).await?;
-    runtime.features.calendar.view.calendars = None;
+    runtime.calendar.view.calendars = None;
     assert!(matches!(
         super::super::reads::dispatch(
             &mut runtime,
@@ -219,7 +218,7 @@ async fn calendar_read_pages_the_known_listing_by_id() -> Result<()> {
     for calendar in &mut calendars {
         calendar.title.push_str(&"x".repeat(56));
     }
-    runtime.features.calendar.view.calendars = Some(calendars);
+    runtime.calendar.view.calendars = Some(calendars);
     for invalid_id in [
         String::new(),
         "\n".into(),
@@ -279,7 +278,6 @@ async fn calendar_read_pages_the_known_listing_by_id() -> Result<()> {
         }
     ));
     runtime
-        .features
         .calendar
         .view
         .calendars
@@ -312,7 +310,7 @@ fn unread_listing_and_failed_helper_are_distinct() -> Result<()> {
         super::super::reads::dispatch(&mut runtime, read(), 1),
         Knowledge::Unknown { .. }
     ));
-    runtime.features.calendar.view.authorization = CalendarAuthorization::Unavailable;
+    runtime.calendar.view.authorization = CalendarAuthorization::Unavailable;
     assert!(matches!(
         super::super::reads::dispatch(&mut runtime, read(), 1),
         Knowledge::Absent {
@@ -347,7 +345,7 @@ async fn cursor_walks_large_listing_without_repeating_or_cutting_rows() -> Resul
     for calendar in &mut calendars {
         calendar.title.push_str(&"x".repeat(56));
     }
-    runtime.features.calendar.view.calendars = Some(calendars);
+    runtime.calendar.view.calendars = Some(calendars);
     let full_page = super::super::reads::dispatch(
         &mut runtime,
         ReadRequest::AgendaCalendars { cursor: None },
@@ -633,7 +631,6 @@ async fn the_week_on_screen_is_read_with_nothing_chosen() -> Result<()> {
         orbit_core::topics::Knowledge::Present { .. }
     ));
     let snapshot = runtime
-        .features
         .calendar
         .complete
         .as_ref()
@@ -649,17 +646,11 @@ async fn the_week_on_screen_is_read_with_nothing_chosen() -> Result<()> {
     // known: the count and the names are there without anyone asking.
     assert_eq!(runtime.state.capabilities().calendars, Some(3));
     assert_eq!(
-        runtime
-            .features
-            .calendar
-            .view
-            .calendars
-            .as_ref()
-            .map(Vec::len),
+        runtime.calendar.view.calendars.as_ref().map(Vec::len),
         Some(3)
     );
     // RAM only: nothing of the agenda is saved or sent to the hub.
-    assert!(runtime.hub.is_none());
+    assert!(runtime.link.outbound.is_none());
     runtime.fixture_store.save_snapshot(&runtime.state)?;
     let saved = runtime
         .fixture_store
@@ -746,7 +737,6 @@ async fn a_month_of_435_events_arrives_in_bounded_keyset_pages() -> Result<()> {
     }
     assert_eq!(
         runtime
-            .features
             .calendar
             .complete
             .as_ref()
@@ -826,7 +816,6 @@ async fn a_month_of_435_events_arrives_in_bounded_keyset_pages() -> Result<()> {
     let slack = ceiling - first_bytes;
     assert!(first_page.items.len() > 2 && slack < 500);
     let event = runtime
-        .features
         .calendar
         .complete
         .as_deref_mut()
@@ -916,7 +905,7 @@ async fn a_range_wider_than_one_window_is_read_in_windows_and_served_whole() -> 
         ],
         "consecutive windows of at most 31 days, covering the range exactly"
     );
-    assert_eq!(runtime.features.calendar.topic_window(), Some(range));
+    assert_eq!(runtime.calendar.topic_window(), Some(range));
     let answer = crate::daemon::reads::dispatch(
         &mut runtime,
         ReadRequest::AgendaRange {
@@ -979,7 +968,7 @@ async fn a_store_change_between_pages_reads_the_window_again() -> Result<()> {
         again["calendar_query"]["after_index"], 0,
         "from its first page"
     );
-    assert!(runtime.features.calendar.complete.is_none());
+    assert!(runtime.calendar.complete.is_none());
     Ok(())
 }
 
@@ -1020,7 +1009,7 @@ async fn privacy_stop_does_not_retire_permission_requests() -> Result<()> {
         let fixture_value = serde_json::json!(true);
         crate::daemon::authority_fixture::set(&mut runtime.state, "privacy_stopped", fixture_value);
     }
-    runtime.features.calendar.wanted_permission = true;
+    runtime.calendar.wanted_permission = true;
     runtime.pump_calendar();
     let command = receiver.try_recv().context("calendar request")?;
     assert_eq!(command["command"], "permissions");
@@ -1028,7 +1017,7 @@ async fn privacy_stop_does_not_retire_permission_requests() -> Result<()> {
     runtime.maintain_calendar();
 
     assert!(
-        runtime.features.calendar.pending.is_some(),
+        runtime.calendar.pending.is_some(),
         "{} was retired by privacy stop",
         command["command"]
     );
@@ -1057,7 +1046,6 @@ async fn a_lost_window_reply_is_read_again_in_halves() -> Result<()> {
     };
     assert_eq!(span(&first), 7 * DAY_MS);
     runtime
-        .features
         .calendar
         .pending
         .as_mut()
@@ -1100,12 +1088,12 @@ async fn withdrawing_the_permission_removes_the_agenda_on_screen() -> Result<()>
         ),
     )
     .await?;
-    assert!(runtime.features.calendar.complete.is_some());
+    assert!(runtime.calendar.complete.is_some());
     runtime
         .native_event(host_state(2, false, status("denied")))
         .await?;
-    let view = runtime.features.calendar.view.clone();
-    assert!(runtime.features.calendar.complete.is_none());
+    let view = runtime.calendar.view.clone();
+    assert!(runtime.calendar.complete.is_none());
     assert_eq!(view.authorization, CalendarAuthorization::Denied);
     // And a new read is not even sent: the permission is known to be missing.
     while receiver.try_recv().is_ok() {}
@@ -1159,7 +1147,7 @@ async fn an_unknown_permission_is_not_treated_as_denied() -> Result<()> {
     assert_eq!(listing["command"], "calendar_sources");
     ack(&mut runtime, &listing, calendars_page(2)).await?;
     assert_eq!(
-        runtime.features.calendar.view.authorization,
+        runtime.calendar.view.authorization,
         CalendarAuthorization::Unknown
     );
     read_week(&mut runtime).await?;
@@ -1248,12 +1236,7 @@ async fn obsolete_answers_do_not_consume_a_new_read_or_stop_audio() -> Result<()
             .await?;
     }
     assert_eq!(
-        runtime
-            .features
-            .calendar
-            .pending
-            .as_ref()
-            .map(|p| p.id.as_str()),
+        runtime.calendar.pending.as_ref().map(|p| p.id.as_str()),
         current["id"].as_str()
     );
     assert!(!runtime.state.privacy_stopped());
@@ -1277,11 +1260,10 @@ async fn a_lost_answer_ends_on_the_tick_and_its_late_arrival_is_ignored() -> Res
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     seed(&mut runtime, &mut receiver).await?;
-    runtime.features.calendar.screen_range = Some(week());
+    runtime.calendar.screen_range = Some(week());
     read_week(&mut runtime).await?;
     let read = next_command(&mut receiver).await?;
     runtime
-        .features
         .calendar
         .pending
         .as_mut()
@@ -1300,7 +1282,7 @@ async fn a_lost_answer_ends_on_the_tick_and_its_late_arrival_is_ignored() -> Res
         ),
     )
     .await?;
-    assert!(runtime.features.calendar.complete.is_none());
+    assert!(runtime.calendar.complete.is_none());
     Ok(())
 }
 
@@ -1324,14 +1306,14 @@ async fn a_capture_cut_retires_the_agenda_without_calling_it_a_privacy_stop() ->
         ),
     )
     .await?;
-    assert!(runtime.features.calendar.complete.is_some());
+    assert!(runtime.calendar.complete.is_some());
     runtime
         .native_event(
             json!({"event":"capture_stopped","reason":"session_inactive",
             "privacy_stopped":false,"drain_complete":false}),
         )
         .await?;
-    assert!(runtime.features.calendar.complete.is_none());
+    assert!(runtime.calendar.complete.is_none());
     let detail = read_failure(&mut runtime, agenda_request(week()))?;
     assert!(
         serde_json::from_str::<Value>(&detail)?["cause"]["kind"] == "capture_stopped",
@@ -1364,11 +1346,11 @@ async fn privacy_stop_retires_the_read_and_the_agenda_on_screen() -> Result<()> 
         ),
     )
     .await?;
-    assert!(runtime.features.calendar.complete.is_some());
+    assert!(runtime.calendar.complete.is_some());
     runtime
         .native_event(host_state(2, true, status("full_access")))
         .await?;
-    assert!(runtime.features.calendar.complete.is_none());
+    assert!(runtime.calendar.complete.is_none());
     Ok(())
 }
 
@@ -1460,7 +1442,6 @@ async fn agenda_read_preserves_a_lost_reply_deadline_and_elapsed_time() -> Resul
         .await?;
     let _read = next_command(&mut receiver).await?;
     runtime
-        .features
         .calendar
         .pending
         .as_mut()
@@ -1581,7 +1562,7 @@ async fn a_permission_grant_does_not_keep_the_revocation_as_the_agenda_answer() 
         .native_event(host_state(2, false, status("full_access")))
         .await?;
     assert_eq!(
-        runtime.features.calendar.view.authorization,
+        runtime.calendar.view.authorization,
         CalendarAuthorization::FullAccess
     );
     let after = read_agenda(&mut runtime, week());

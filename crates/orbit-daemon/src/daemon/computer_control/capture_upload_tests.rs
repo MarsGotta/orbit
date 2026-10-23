@@ -33,9 +33,9 @@ async fn mac_capturing(
     let mut h = Mac::with_engine(FakeEngine::with_png(&png)).await?;
     let (address, puts, release) = capture_hub(reject_upload).await?;
     h.runtime.settings.hub_url = Some(format!("http://{address}"));
-    h.runtime.token = Some("synthetic device credential".to_owned());
+    h.runtime.link.token = Some("synthetic device credential".to_owned());
     let (hub, frames) = mpsc::channel(16);
-    h.runtime.hub.install(hub);
+    h.runtime.link.outbound.install(hub);
     Ok((h, frames, puts, release))
 }
 
@@ -144,7 +144,7 @@ async fn engine_capture_returns_to_actor_while_upload_is_held() -> Result<()> {
         .context("the upload's reply did not arrive")?;
     assert_eq!(reply["params"]["request_id"], "engine-capture");
     assert!(reply["params"]["result"]["capture_id"].is_string());
-    assert!(h.runtime.conversation.bridge_request.is_none());
+    assert!(h.runtime.assistant.bridge_request.is_none());
     h.runtime
         .revoke_computer(&orbit_core::refusal::Refusal::ReadInterrupted {
             cause: orbit_core::refusal::ReadInterruption::ComputerRevoked,
@@ -159,10 +159,11 @@ async fn engine_observation_reports_full_and_retired_hub_after_upload() -> Resul
         let (mut h, _old_frames, mut puts, release) = mac_capturing(maximal_png()?, false).await?;
         let (sender, mut frames) = mpsc::channel(1);
         sender.try_send(json!({"fixture":"occupied"}))?;
-        h.runtime.hub.install(sender);
+        h.runtime.link.outbound.install(sender);
         if retired {
             h.runtime
-                .hub
+                .link
+                .outbound
                 .retire(crate::daemon::hub_link::Retirement::AuthorityRetired);
         }
         release.notify_one();
@@ -293,7 +294,7 @@ async fn a_capture_that_never_fitted_now_arrives_by_the_upload() -> Result<()> {
     );
     assert_eq!(record.body, png, "the exact bytes were not uploaded");
 
-    assert!(h.runtime.conversation.bridge_request.is_none());
+    assert!(h.runtime.assistant.bridge_request.is_none());
     h.runtime
         .revoke_computer(&orbit_core::refusal::Refusal::ReadInterrupted {
             cause: orbit_core::refusal::ReadInterruption::ComputerRevoked,
@@ -336,7 +337,7 @@ async fn an_upload_that_fails_is_refused_by_name_and_not_by_silence() -> Result<
     assert_eq!(frame["params"]["refusal"]["code"], "upstream_failed");
     assert_eq!(frame["params"]["refusal"]["service"], "hub");
     assert!(frame["params"]["result"].is_null());
-    assert!(h.runtime.conversation.bridge_request.is_none());
+    assert!(h.runtime.assistant.bridge_request.is_none());
     h.runtime
         .revoke_computer(&orbit_core::refusal::Refusal::ReadInterrupted {
             cause: orbit_core::refusal::ReadInterruption::ComputerRevoked,
@@ -350,9 +351,9 @@ async fn engine_capture_capacity_reaches_device_reply_and_clears_pending_upload(
     let mut h = Mac::with_engine(FakeEngine::with_png(&maximal_png()?)).await?;
     let (address, mut puts) = capture_hub_at_capacity().await?;
     h.runtime.settings.hub_url = Some(format!("http://{address}"));
-    h.runtime.token = Some("synthetic device credential".to_owned());
+    h.runtime.link.token = Some("synthetic device credential".to_owned());
     let (hub, mut frames) = mpsc::channel(16);
-    h.runtime.hub.install(hub);
+    h.runtime.link.outbound.install(hub);
 
     h.runtime
         .device_request_raw(&json!({
@@ -364,7 +365,7 @@ async fn engine_capture_capacity_reaches_device_reply_and_clears_pending_upload(
     h.finish().await?;
     h.finish().await?;
     assert!(
-        h.runtime.features.sources.bridge_upload.is_some(),
+        h.runtime.sources.bridge_upload.is_some(),
         "the real upload did not stay pending until the hub's answer was known"
     );
 
@@ -382,8 +383,8 @@ async fn engine_capture_capacity_reaches_device_reply_and_clears_pending_upload(
     assert_eq!(frame["params"]["refusal"]["resource"], "capture");
     assert_eq!(frame["params"]["refusal"]["count"], 5);
     assert_eq!(frame["params"]["refusal"]["max"], 4);
-    assert!(h.runtime.features.sources.bridge_upload.is_none());
-    assert!(h.runtime.conversation.bridge_request.is_none());
+    assert!(h.runtime.sources.bridge_upload.is_none());
+    assert!(h.runtime.assistant.bridge_request.is_none());
     h.runtime
         .revoke_computer(&orbit_core::refusal::Refusal::ReadInterrupted {
             cause: orbit_core::refusal::ReadInterruption::ComputerRevoked,
@@ -409,7 +410,7 @@ async fn a_png_above_the_ceiling_is_still_refused_and_never_uploaded() -> Result
         .await?
         .context("the refused PNG did not ask the helper for the fallback")?;
     assert_eq!(fallback["command"], "screen_sources");
-    assert!(h.runtime.features.sources.bridge_upload.is_none());
+    assert!(h.runtime.sources.bridge_upload.is_none());
     assert!(puts.try_recv().is_err(), "the refused PNG got uploaded");
     h.runtime
         .revoke_computer(&orbit_core::refusal::Refusal::ReadInterrupted {

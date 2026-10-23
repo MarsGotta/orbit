@@ -8,7 +8,7 @@ use super::*;
 const HUB_BRIDGE_WAIT_MS: u64 = 30_000;
 
 fn back_by(mac: &mut Mac, millis: u64) -> Result<()> {
-    let Some(request) = mac.runtime.features.files.request.as_mut() else {
+    let Some(request) = mac.runtime.files.request.as_mut() else {
         bail!("no request in flight");
     };
     request.started = request
@@ -257,7 +257,7 @@ async fn what_ajustes_knows_follows_the_folders_kept_and_the_second_step() -> Re
             "requested":found(plan,"file",10)}),
     )
     .await?;
-    assert!(!mac.runtime.features.files.access.contains_key(&notes_id));
+    assert!(!mac.runtime.files.access.contains_key(&notes_id));
     let read = mac.helper_command("assistant_files_read")?;
     mac.refuse(
         &read,

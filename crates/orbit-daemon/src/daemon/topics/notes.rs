@@ -10,7 +10,7 @@ impl ProjectTopic for Projector {
         let Some(runtime) = source.runtime else {
             return TopicData::not_observed(TopicId::Notes);
         };
-        let mut value = runtime.features.notes.head.clone();
+        let mut value = runtime.notes.head.clone();
         value.recording = runtime.active_recording_id().map(str::to_owned);
         TopicData::Notes(Knowledge::Present {
             value,

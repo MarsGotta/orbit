@@ -42,15 +42,15 @@ impl Runtime {
             && self.recording_active()
             && !self.state.privacy_stopped()
             && self.state.durable.voice.call.is_none()
-            && self.capture.call_runtime.is_none()
+            && self.audio.call.is_none()
             && !self.state.durable.voice.voice_active
             && self.capture.buffer.voice.is_none()
-            && !self.audio_is_draining()
+            && !self.audio.audio_is_draining()
             && !self.stopped_audio_owed()
-            && !self.full_stop_send_owed()
+            && !self.audio.full_stop_send_owed()
             && !self.capture.reserve_exhausted
             && self.capture.seal_retry_at.is_none()
-            && self.capture.mic_stream.is_some()
+            && self.audio.mic_stream.is_some()
     }
 
     /// Before a decision takes effect: one that changes what the arming
@@ -79,10 +79,10 @@ impl Runtime {
             online: self.state.connection() == Connection::Online,
             privacy_stopped: self.state.privacy_stopped(),
             generation: self.state.generation(),
-            token: self.token.clone(),
+            token: self.link.token.clone(),
             hub_url: self.settings.hub_url.clone(),
             development: self.development,
-            discarded: self.features.notes.outbox.discarded(),
+            discarded: self.notes.outbox.discarded(),
         }
     }
 
@@ -95,7 +95,7 @@ impl Runtime {
             match report {
                 capture_lane::UploadReport::Settled { recording, failure } => {
                     if let Some(recording) = recording {
-                        self.work.finalize_ready.remove(&recording);
+                        self.transfers.finalize_ready.remove(&recording);
                     }
                     match failure {
                         Some((error, notice)) => {
@@ -151,8 +151,8 @@ impl Runtime {
             if steady && core.forwarded.is_empty() {
                 core.gate = Gate {
                     armed: true,
-                    microphone: self.capture.mic_stream.clone(),
-                    remote: self.capture.remote_stream.clone(),
+                    microphone: self.audio.mic_stream.clone(),
+                    remote: self.audio.remote_stream.clone(),
                 };
             } else {
                 core.gate.armed = false;
@@ -161,33 +161,11 @@ impl Runtime {
         self.capture.lane.wake_task();
     }
 
-    /// Helper events the loop has not served yet: those in its channel plus
-    /// those the task handed over or still has to read.
-    pub(super) fn unserved_native_events(&self, in_channel: usize) -> usize {
-        let core = self.capture.lane.lock();
-        in_channel
-            .saturating_add(core.forwarded.len())
-            .saturating_add(core.backlog)
-    }
-
-    /// The oldest item the task handed over, if it may be served now and
-    /// comes before the helper event at `before`.
-    fn take_forwarded(&mut self, before: Option<u64>) -> Option<capture_lane::Forwarded> {
-        let mut core = self.capture.lane.lock();
-        let front = core.forwarded.front()?;
-        if front.after_control > self.capture.served_control
-            || before.is_some_and(|before| front.seq >= before)
-        {
-            return None;
-        }
-        core.forwarded.pop_front()
-    }
-
     /// Serves, in order, what the task handed over and may be served now.
     /// Returns how many items it served.
     pub(super) async fn serve_forwarded(&mut self, before: Option<u64>) -> usize {
         let mut served = 0;
-        while let Some(forwarded) = self.take_forwarded(before) {
+        while let Some(forwarded) = self.capture.take_forwarded(before) {
             self.capture.lane.wake_task();
             Box::pin(self.serve_forwarded_item(forwarded.item)).await;
             served += 1;
@@ -264,5 +242,29 @@ impl Runtime {
                 () = tokio::time::sleep(Duration::from_millis(5)) => {}
             }
         }
+    }
+}
+
+impl crate::daemon::capture_handle::CaptureHandle {
+    /// Helper events the loop has not served yet: those in its channel plus
+    /// those the task handed over or still has to read.
+    pub(super) fn unserved_native_events(&self, in_channel: usize) -> usize {
+        let core = self.lane.lock();
+        in_channel
+            .saturating_add(core.forwarded.len())
+            .saturating_add(core.backlog)
+    }
+
+    /// The oldest item the task handed over, if it may be served now and
+    /// comes before the helper event at `before`.
+    fn take_forwarded(&mut self, before: Option<u64>) -> Option<capture_lane::Forwarded> {
+        let mut core = self.lane.lock();
+        let front = core.forwarded.front()?;
+        if front.after_control > self.served_control
+            || before.is_some_and(|before| front.seq >= before)
+        {
+            return None;
+        }
+        core.forwarded.pop_front()
     }
 }

@@ -106,7 +106,7 @@ impl Runtime {
             }
             .into());
         }
-        self.refuse_without_hub_delete()?;
+        self.notes.refuse_without_hub_delete()?;
         self.queue_order(QueuedOrder::Meeting {
             recording_id,
             order: NoteOrder::Delete { discarded: false },
@@ -126,7 +126,7 @@ impl Runtime {
         };
         // What the core refuses is refused before anything is written.
         orbit_core::decide(&self.state, event.clone(), crate::daemon::now())?;
-        self.refuse_without_hub_delete()?;
+        self.notes.refuse_without_hub_delete()?;
         let lane = self
             .keep_order(QueuedOrder::Meeting {
                 recording_id: recording_id.clone(),
@@ -142,7 +142,7 @@ impl Runtime {
         }
         if let Err(error) = self.apply(event).await {
             // It goes on recording: nothing of it may be deleted.
-            let kept = self.features.notes.outbox.meeting_delete(&recording_id);
+            let kept = self.notes.outbox.meeting_delete(&recording_id);
             if let Some(kept) = kept {
                 self.forget_order(lane, kept).await?;
             }
@@ -155,14 +155,6 @@ impl Runtime {
             return Err(error);
         }
         self.maintain_recording_notes();
-        Ok(())
-    }
-
-    /// A hub known not to delete takes no delete: nothing changes here.
-    pub(in crate::daemon) fn refuse_without_hub_delete(&self) -> Result<()> {
-        if self.features.notes.deletions.hub_deletes == Some(false) {
-            bail!("Actualiza el hub para borrar reuniones");
-        }
         Ok(())
     }
 
@@ -218,8 +210,8 @@ impl Runtime {
                     "meeting_deleted_on_hub",
                     &[("discarded", &discarded.to_string())],
                 );
-                self.features.notes.outbox.succeeded(&key);
-                self.owe_purge(&recording, DeletionScope::Everything);
+                self.notes.outbox.succeeded(&key);
+                self.notes.owe_purge(&recording, DeletionScope::Everything);
                 self.start_due_purge(now_ms);
                 Ok(())
             }
@@ -228,8 +220,8 @@ impl Runtime {
                     "meeting_delete_needs_hub_update",
                     &[("status", &status.to_string())],
                 );
-                self.features.notes.deletions.hub_deletes = Some(false);
-                let outbox = &mut self.features.notes.outbox;
+                self.notes.deletions.hub_deletes = Some(false);
+                let outbox = &mut self.notes.outbox;
                 if discarded {
                     // Its audio is gone already: the order waits for a hub
                     // that can take it, said once.
@@ -250,7 +242,7 @@ impl Runtime {
                 let order = sent.order.clone();
                 self.forget_order(lane, sent).await?;
                 if discarded {
-                    self.owe_purge(&recording, DeletionScope::Everything);
+                    self.notes.owe_purge(&recording, DeletionScope::Everything);
                 }
                 if let QueuedOrder::Meeting { order, .. } = order {
                     self.order_answer(&order, refused);
@@ -258,7 +250,7 @@ impl Runtime {
                 Ok(())
             }
             Outcome::Unreachable { .. } => {
-                self.features.notes.outbox.failed(&key, now_ms);
+                self.notes.outbox.failed(&key, now_ms);
                 Ok(())
             }
         }
@@ -271,38 +263,24 @@ impl Runtime {
         self.store_actor
             .run(move |store| Ok(store.remove_note_order(&lane_key, &target, sequence)?))
             .await?;
-        let outbox = &mut self.features.notes.outbox;
+        let outbox = &mut self.notes.outbox;
         outbox.succeeded(&Lane::Orders(lane.clone()));
         outbox.forget(&lane, &sent);
         match &lane {
-            OrderLane::Meeting(recording) => self.features.notes.head.touch_recording(recording),
-            OrderLane::Library => self.features.notes.head.touch(),
+            OrderLane::Meeting(recording) => self.notes.head.touch_recording(recording),
+            OrderLane::Library => self.notes.head.touch(),
         }
         Ok(())
-    }
-
-    fn owe_purge(&mut self, recording: &str, scope: DeletionScope) {
-        let deletions = &mut self.features.notes.deletions;
-        let owed = deletions.owed.entry(recording.to_owned()).or_insert(scope);
-        if scope == DeletionScope::Everything {
-            *owed = scope;
-        }
-        deletions.retry_at_ms.remove(recording);
     }
 
     /// Starts the next deletion this Mac owes, one at a time. A recording
     /// thrown away owes its audio once its capture is over; nothing is
     /// deleted under a capture still draining.
     pub(super) fn start_due_purge(&mut self, now_ms: i64) {
-        for recording in self.features.notes.outbox.discarded() {
-            let done = self
-                .features
-                .notes
-                .deletions
-                .purged
-                .contains_key(&recording);
+        for recording in self.notes.outbox.discarded() {
+            let done = self.notes.deletions.purged.contains_key(&recording);
             if !done {
-                self.owe_purge(&recording, DeletionScope::Audio);
+                self.notes.owe_purge(&recording, DeletionScope::Audio);
             }
         }
         // Never under a capture: the recording being drained, or any other
@@ -314,7 +292,7 @@ impl Runtime {
             .recording
             .as_ref()
             .map(|recording| recording.id.clone());
-        let deletions = &self.features.notes.deletions;
+        let deletions = &self.notes.deletions;
         if deletions.purging.is_some() {
             return;
         }
@@ -332,10 +310,10 @@ impl Runtime {
         else {
             return;
         };
-        self.features.notes.deletions.owed.remove(&recording);
-        self.features.notes.deletions.purging = Some(recording.clone());
+        self.notes.deletions.owed.remove(&recording);
+        self.notes.deletions.purging = Some(recording.clone());
         let port = self.store_actor.capture_port();
-        let events = self.features.notes.events.clone();
+        let events = self.notes.events.clone();
         let supervision = self.supervision.clone();
         let deleting = recording.clone();
         tokio::spawn(async move {
@@ -363,7 +341,7 @@ impl Runtime {
         outcome: std::result::Result<Deleted, String>,
         now_ms: i64,
     ) {
-        self.features.notes.deletions.purging = None;
+        self.notes.deletions.purging = None;
         match outcome {
             Ok(deleted) => {
                 self.log(
@@ -379,18 +357,18 @@ impl Runtime {
                         ("orders", &deleted.orders.to_string()),
                     ],
                 );
-                let deletions = &mut self.features.notes.deletions;
+                let deletions = &mut self.notes.deletions;
                 let purged = deletions.purged.entry(recording.clone()).or_insert(scope);
                 if scope == DeletionScope::Everything {
                     *purged = scope;
-                    self.features.notes.outbox.forget_meeting(&recording);
+                    self.notes.outbox.forget_meeting(&recording);
                 }
-                self.features.notes.head.touch_recording(&recording);
+                self.notes.head.touch_recording(&recording);
             }
             Err(error) => {
                 // Said in the log with its cause; tried again, never dropped.
                 self.log("meeting_delete_on_mac_failed", &[("error", &error)]);
-                let deletions = &mut self.features.notes.deletions;
+                let deletions = &mut self.notes.deletions;
                 deletions.owed.entry(recording.clone()).or_insert(scope);
                 deletions.retry_at_ms.insert(
                     recording,
@@ -410,7 +388,7 @@ impl Runtime {
         let Some((recording, discarded)) = waiting.order.deletes() else {
             return true;
         };
-        let deletions = &self.features.notes.deletions;
+        let deletions = &self.notes.deletions;
         if deletions.purging.as_deref() == Some(recording)
             || deletions.owed.get(recording) == Some(&DeletionScope::Everything)
         {
@@ -448,6 +426,25 @@ async fn purge_steps(
             }
             Err(error) => return Err(format!("{error:#}")),
         }
+    }
+}
+
+impl crate::daemon::recording_notes::NotesHandle {
+    /// A hub known not to delete takes no delete: nothing changes here.
+    pub(in crate::daemon) fn refuse_without_hub_delete(&self) -> Result<()> {
+        if self.deletions.hub_deletes == Some(false) {
+            bail!("Actualiza el hub para borrar reuniones");
+        }
+        Ok(())
+    }
+
+    fn owe_purge(&mut self, recording: &str, scope: DeletionScope) {
+        let deletions = &mut self.deletions;
+        let owed = deletions.owed.entry(recording.to_owned()).or_insert(scope);
+        if scope == DeletionScope::Everything {
+            *owed = scope;
+        }
+        deletions.retry_at_ms.remove(recording);
     }
 }
 

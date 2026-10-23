@@ -17,19 +17,19 @@ const VOICE_PANIC_CAUSE: &str = "voice_worker_panicked";
 impl Runtime {
     pub(in crate::daemon) async fn supervise_workers(&mut self) {
         self.relaunch_hub().await;
-        if self.work.worker.panicked().is_some() {
+        if self.transfers.worker.panicked().is_some() {
             // Which transfer it was is in the store: the next schedule lists
             // the closure or the cleanup again, `running` ones included.
-            self.work.worker.cancel();
+            self.transfers.worker.cancel();
             self.supervision.panicked(Actor::TransferWorker);
         }
         self.reap_voice_turn().await;
-        if self.conversation.speech_task.panicked().is_some() {
+        if self.assistant.speech_task.panicked().is_some() {
             // Nothing waits on a reading but the slot itself.
-            self.conversation.speech_task.cancel();
+            self.assistant.speech_task.cancel();
             self.supervision.panicked(Actor::Playback);
         }
-        if let Some(ticket) = self.features.computer.work.panicked() {
+        if let Some(ticket) = self.computer.work.panicked() {
             self.supervision.panicked(Actor::ComputerControl);
             let failure = anyhow::anyhow!(
                 "El trabajo del motor de control del Mac falló; se puede volver a pedir"
@@ -38,7 +38,7 @@ impl Runtime {
                 self.say_failure(orbit_core::notice::NoticeCode::WorkFailed, &error);
             }
         }
-        for actor in self.features.notes.reap_panicked() {
+        for actor in self.notes.reap_panicked() {
             self.supervision.panicked(actor);
         }
     }
@@ -51,13 +51,14 @@ impl Runtime {
         }
         // Another path may have connected it again already.
         if self
-            .hub_task
+            .link
+            .task
             .as_ref()
             .is_some_and(|task| !task.is_finished())
         {
             return;
         }
-        self.hub_task = None;
+        self.link.task = None;
         if let Err(error) = self.apply(Event::HubDisconnected).await {
             self.say_failure(orbit_core::notice::NoticeCode::HubEventFailed, &error);
         }
@@ -67,12 +68,12 @@ impl Runtime {
     /// A voice turn lost to a panic fails as a turn the hub could not
     /// transcribe: its note says why and its audio stays on this Mac.
     async fn reap_voice_turn(&mut self) {
-        let Some(ticket) = self.conversation.voice_task.panicked() else {
+        let Some(ticket) = self.assistant.voice_task.panicked() else {
             return;
         };
         self.supervision.panicked(Actor::VoiceTurn);
-        let Some(operation_id) = self.conversation.voice_operation.clone() else {
-            self.conversation.voice_task.cancel();
+        let Some(operation_id) = self.assistant.voice_operation.clone() else {
+            self.assistant.voice_task.cancel();
             return;
         };
         let event = WorkResult::Capture(CaptureWork::VoiceProblem {

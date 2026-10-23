@@ -95,7 +95,7 @@ async fn interlude(
         }
         Interlude::VoiceNoteSent | Interlude::VoiceNoteUnpaired | Interlude::VoiceNoteCancelled => {
             if matches!(what, Interlude::VoiceNoteSent) {
-                runtime.token = Some("token-sintetico".into());
+                runtime.link.token = Some("token-sintetico".into());
             }
             runtime.apply(Event::VoiceStart).await?;
             take_helper_command(helper, "playback_stop")?;
@@ -117,7 +117,7 @@ async fn interlude(
         Interlude::QuestionSent | Interlude::QuestionNotSent | Interlude::QuestionAbandoned => {
             let (hub, _frames) = mpsc::channel(16);
             if matches!(what, Interlude::QuestionSent) {
-                runtime.hub.install(hub);
+                runtime.link.outbound.install(hub);
             }
             frames(runtime, stream, STRETCH).await?;
             let heard = if matches!(what, Interlude::QuestionAbandoned) {

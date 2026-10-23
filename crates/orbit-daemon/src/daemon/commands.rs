@@ -2,6 +2,13 @@
 use super::*;
 use orbit_core::MAX_MANIFEST_TITLE_CHARACTERS;
 
+#[path = "commands_assistant.rs"]
+mod assistant;
+#[path = "commands_audio.rs"]
+mod audio;
+#[path = "commands_device.rs"]
+mod device;
+
 impl Runtime {
     /// Starts a recording: by hand, from «Grabar» on an event, or for a call
     /// detected by the Mac. `event` links it to its calendar event by stable reference;
@@ -107,7 +114,7 @@ impl Runtime {
             Some(Operation::Chat)
         } else if self.capture.buffer.voice.is_some() {
             Some(Operation::Audio)
-        } else if self.conversation.voice_task.active().is_some() {
+        } else if self.assistant.voice_task.active().is_some() {
             Some(Operation::VoiceTranscription)
         } else {
             None
@@ -137,19 +144,94 @@ impl Runtime {
         Ok(())
     }
 
+    /// Routes one order from the app to the domain that serves it, one arm
+    /// per order. Orders served off the loop (topics, reads, agents,
+    /// attachments, reminders, voice-note audio) never reach here.
     pub(super) async fn command(&mut self, command: Command) -> Result<()> {
+        use orbit_core::call_detection::CallInput;
         match command {
-            // Served by the IPC loop, off the actor (`serve_agent`).
             Command::SubscribeTopics { .. } | Command::Read { .. } | Command::Agent { .. } => {}
+            Command::AttachmentAdd { .. }
+            | Command::AttachmentFetch { .. }
+            | Command::AttachmentSave { .. }
+            | Command::ReminderWrite { .. }
+            | Command::VoiceNoteAudio { .. } => {}
             Command::Pair {
                 hub_url,
                 code,
                 device_name,
-            } => {
-                self.retire_device_request_reads().await?;
-                self.pair_device(hub_url, code, device_name).await?;
+            } => self.pair_command(hub_url, code, device_name).await?,
+            Command::Status => self.status_command()?,
+            Command::ErrorReports { enabled } => self.set_error_reports(enabled)?,
+            // Already in the app's report log: it only goes to the client.
+            Command::Report { report } => self
+                .error_reports
+                .report(&report, std::time::Instant::now()),
+            Command::PrivacyStop => {
+                self.privacy_stop(orbit_core::privacy_stop::UserStop::Order)
+                    .await
             }
+            Command::Shutdown => self.shutdown_command().await?,
+            Command::Rearm => self.rearm_command().await?,
+            Command::Permissions { request } => self.permissions_command(request).await?,
             Command::SessionOpen { id, agent_id } => self.open_session(id, agent_id).await?,
+            Command::Chat {
+                text,
+                attachments,
+                primary,
+            } => self.chat_command(text, attachments, primary).await?,
+            Command::NewSession { agent_id } => self.new_session_command(agent_id).await?,
+            Command::Handover {
+                session_id,
+                agent_id,
+                text,
+            } => self.handover_command(session_id, agent_id, text).await?,
+            Command::Interrupt => {
+                self.meeting_question_interrupted();
+                self.apply(Event::Interrupt).await?;
+            }
+            Command::Approval { approved, choice } => {
+                self.approval_command(approved, choice).await?
+            }
+            Command::Clarify {
+                answer,
+                question_id,
+            } => self.clarify_command(answer, question_id).await?,
+            Command::Speak { message_id, text } => self.speak(message_id, text)?,
+            Command::SpeakStop => self.stop_speaking().await?,
+            Command::MeetingAsk { question, minutes } => {
+                self.meeting_ask_command(question, minutes).await?
+            }
+            Command::MeetingQuestionClose { id } => self.question.close_meeting_question(&id),
+            Command::MeetingQuestionHold { id, held } => {
+                self.question.hold_meeting_question(&id, held)
+            }
+            Command::AssistantFolderAdd => self.add_assistant_folder()?,
+            Command::AssistantFolderRemove { id } => self.remove_assistant_folder(&id).await?,
+            Command::VoiceStart => self.apply(Event::VoiceStart).await?,
+            Command::VoiceEnd => self.apply(Event::VoiceEnd).await?,
+            Command::VoiceCancel => self.apply(Event::VoiceCancel).await?,
+            Command::VoiceRetry { message_id } => {
+                self.retry_voice_transcription(message_id).await?
+            }
+            Command::VoiceDiscard { message_id } => self.discard_voice_note(message_id).await?,
+            Command::CallStart { duration_minutes } => {
+                self.call_start_command(duration_minutes).await?
+            }
+            Command::CallStop => self.apply(Event::CallStop).await?,
+            Command::MeetingStart {
+                title,
+                audio,
+                duration_minutes: _,
+                event,
+            } => self.meeting_start_command(title, audio, event).await?,
+            Command::MeetingPause => self.apply(Event::PauseMeeting).await?,
+            Command::MeetingResume => self.apply(Event::ResumeMeeting).await?,
+            Command::MeetingFinish => self.apply(Event::FinishMeeting).await?,
+            Command::MeetingDiscard { recording_id } => self.discard_meeting(recording_id).await?,
+            Command::MeetingDelete { recording_id } => self.delete_meeting(recording_id).await?,
+            Command::MicrophoneMute { muted } => self.mute_microphone(muted).await?,
+            Command::AudioSourcesRefresh => self.refresh_audio_sources()?,
             Command::NotePrivateSave {
                 recording_id,
                 markdown,
@@ -167,306 +249,17 @@ impl Runtime {
             | Command::SpeakerRename { .. }
             | Command::MeetingLanguage { .. }
             | Command::MeetingRename { .. }) => self.note_command(command).await?,
-            Command::Status => {
-                // Apply receipts that already exist, but never wait here for a
-                // future disk receipt: this command runs inside the select loop
-                // that owes the IPC response. The projection still reports only
-                // durable seals; a later Status observes later receipts.
-                self.collect_ready_seals(sealing::OPPORTUNISTIC_RECEIPT_WAIT, false)?;
-            }
             Command::Calendar { request } => self.calendar_command(request)?,
-            Command::AudioSourcesRefresh => self.refresh_audio_sources()?,
             Command::CallRecord { call_id } => {
-                self.apply_call(orbit_core::call_detection::CallInput::Record { call_id })
-                    .await?
+                self.apply_call(CallInput::Record { call_id }).await?
             }
             Command::CallDismiss { call_id } => {
-                self.apply_call(orbit_core::call_detection::CallInput::Dismiss { call_id })
-                    .await?
+                self.apply_call(CallInput::Dismiss { call_id }).await?
             }
             Command::RecordingKeep { recording_id } => {
-                self.apply_call(orbit_core::call_detection::CallInput::Keep { recording_id })
-                    .await?
+                self.apply_call(CallInput::Keep { recording_id }).await?
             }
             Command::CallPreference { preference } => self.set_call_preference(preference).await?,
-            Command::ErrorReports { enabled } => self.set_error_reports(enabled)?,
-            Command::AssistantFolderAdd => self.add_assistant_folder()?,
-            Command::AssistantFolderRemove { id } => self.remove_assistant_folder(&id).await?,
-            // Already in the app's report log: it only goes to the client.
-            Command::Report { report } => self
-                .error_reports
-                .report(&report, std::time::Instant::now()),
-            // The panel's «Preguntar a {principal}» names nobody: the primary answers.
-            Command::MeetingAsk { question, minutes } => {
-                let primary = self.settings.roster().default_agent_id().to_owned();
-                self.ask_meeting(
-                    question,
-                    minutes,
-                    orbit_core::meeting_question::QuestionOrigin::Typed,
-                    Some(primary),
-                )
-                .await?
-            }
-            Command::MeetingQuestionClose { id } => self.close_meeting_question(&id),
-            Command::MeetingQuestionHold { id, held } => self.hold_meeting_question(&id, held),
-            Command::Chat {
-                text,
-                attachments,
-                primary,
-            } => {
-                if self.capture.buffer.voice.is_some()
-                    || self.conversation.voice_task.active().is_some()
-                {
-                    bail!("Termina o interrumpe el turno actual antes de enviar otro mensaje");
-                }
-                // The message's files against the hub's ceilings, before any
-                // frame leaves; a 0.9.0 hub takes none.
-                orbit_core::attachments::admit_message(
-                    self.conversation.hub_attachments.as_ref(),
-                    &attachments,
-                )?;
-                // Nobody named: the primary answers, in a conversation of its
-                // own when the open one is another agent's.
-                let default = self.settings.roster().default_agent_id().to_owned();
-                if primary && default != self.conversation_agent_id() {
-                    self.ensure_conversation_can_change()?;
-                    self.apply(Event::NewSession {
-                        agent_id: Some(default),
-                    })
-                    .await?;
-                }
-                self.apply(Event::Submit {
-                    id: id(),
-                    text,
-                    attachments,
-                })
-                .await?;
-            }
-            // Served off the loop by `serve_attachment` and
-            // `serve_reminder_write`, never here.
-            Command::AttachmentAdd { .. }
-            | Command::AttachmentFetch { .. }
-            | Command::AttachmentSave { .. }
-            | Command::ReminderWrite { .. } => {}
-            Command::NewSession { agent_id } => {
-                self.ensure_known_agent(agent_id.as_deref())?;
-                self.ensure_conversation_can_change()?;
-                self.apply(Event::NewSession { agent_id }).await?;
-            }
-            Command::Handover {
-                session_id,
-                agent_id,
-                text,
-            } => {
-                if self
-                    .settings
-                    .hub_agents
-                    .as_ref()
-                    .and_then(|roster| roster.addable())
-                    .is_none()
-                {
-                    bail!(
-                        "Este hub no pasa conversaciones a otro asistente: actualízalo para seguir con otro"
-                    );
-                }
-                if self.capture.buffer.voice.is_some()
-                    || self.conversation.voice_task.active().is_some()
-                {
-                    bail!(
-                        "Termina o interrumpe el turno actual antes de seguir con otro asistente"
-                    );
-                }
-                self.ensure_known_agent(Some(&agent_id))?;
-                self.ensure_conversation_can_change()?;
-                self.apply(Event::NewSession {
-                    agent_id: Some(agent_id),
-                })
-                .await?;
-                self.conversation.handover_from = Some(session_id);
-                let submitted = self
-                    .apply(Event::Submit {
-                        id: id(),
-                        text,
-                        attachments: Vec::new(),
-                    })
-                    .await;
-                // Only the first turn carries it, sent or not.
-                self.conversation.handover_from = None;
-                submitted?;
-            }
-            Command::Interrupt => {
-                self.meeting_question_interrupted();
-                self.apply(Event::Interrupt).await?;
-            }
-            Command::PrivacyStop => {
-                self.privacy_stop(orbit_core::privacy_stop::UserStop::Order)
-                    .await
-            }
-            Command::Shutdown => {
-                self.close_for_exit(
-                    orbit_core::privacy_stop::StopCause::Shutdown,
-                    "Orbit se está cerrando a petición del servicio.",
-                )
-                .await;
-                self.retry_seals()?;
-                // The single pending list is the only gate; every vertical
-                // that still holds work is named through `has_any_pending`.
-                let pending = self.has_any_pending();
-                if !pending.is_empty() {
-                    bail!(
-                        "Orbit no sale todavía: queda pendiente de guardar {}; la captura ya está cortada y lo recibido se conserva",
-                        pending.join(", ")
-                    );
-                }
-            }
-            Command::Rearm => {
-                if self.state.capabilities().native_helper() {
-                    // Hand it to the helper rather than refusing: this command
-                    // arrived on this user's own 0600 socket on this Mac, which
-                    // is the presence the latch actually requires, and the menu
-                    // bar is only one way to supply it. The helper owns the
-                    // durable latch, so it answers with a `local_rearm` event
-                    // and that single path rearms the daemon. Remote traffic
-                    // still cannot reach this socket.
-                    self.native_send("rearm", json!({})).await?;
-                    return Ok(());
-                }
-                self.apply(Event::LocalRearm).await?;
-                self.connect();
-            }
-            Command::VoiceStart => self.apply(Event::VoiceStart).await?,
-            Command::VoiceEnd => self.apply(Event::VoiceEnd).await?,
-            Command::VoiceCancel => self.apply(Event::VoiceCancel).await?,
-            Command::VoiceRetry { message_id } => {
-                self.retry_voice_transcription(message_id).await?
-            }
-            Command::VoiceDiscard { message_id } => self.discard_voice_note(message_id).await?,
-            Command::Speak { message_id, text } => self.speak(message_id, text)?,
-            Command::SpeakStop => self.stop_speaking().await?,
-            Command::VoiceNoteAudio { .. } => {}
-            Command::CallStart { duration_minutes } => {
-                self.apply(Event::CallStart {
-                    id: id(),
-                    duration_ms: i64::from(duration_minutes) * 60_000,
-                    origin: orbit_core::CallOrigin::App,
-                })
-                .await?
-            }
-            Command::CallStop => self.apply(Event::CallStop).await?,
-            Command::MeetingStart {
-                title,
-                audio,
-                duration_minutes: _,
-                event,
-            } => {
-                // «Grabar» on an event during a call records the
-                // call's application when the helper says which one holds the
-                // microphone; otherwise the system, as before.
-                let audio = match (&event, audio) {
-                    (Some(_), orbit_core::protocol::MeetingAudio::System) => self
-                        .features
-                        .call
-                        .detector
-                        .holding_call()
-                        .map_or(audio, |app| {
-                            orbit_core::protocol::MeetingAudio::Application {
-                                application_pid: app.application_pid,
-                            }
-                        }),
-                    _ => audio,
-                };
-                self.start_meeting(title, audio, event, "explicit").await?;
-            }
-            Command::MeetingPause => self.apply(Event::PauseMeeting).await?,
-            Command::MeetingResume => self.apply(Event::ResumeMeeting).await?,
-            Command::MeetingFinish => self.apply(Event::FinishMeeting).await?,
-            Command::MeetingDiscard { recording_id } => self.discard_meeting(recording_id).await?,
-            Command::MeetingDelete { recording_id } => self.delete_meeting(recording_id).await?,
-            Command::MicrophoneMute { muted } => self.mute_microphone(muted).await?,
-            Command::Approval { approved, choice } => {
-                let approval = self
-                    .state
-                    .durable
-                    .assistant
-                    .pending_approval
-                    .as_ref()
-                    .context("No hay ninguna aprobación pendiente")?;
-                if approval.clarification {
-                    bail!("Este turno necesita una respuesta escrita");
-                }
-                let mut params = json!({"session_id":self.state.session_id(),"request_id":approval.request_id,"approved":approved});
-                if let Some(choice) = choice {
-                    // `approved:false` is what reaches the hub's safety
-                    // ledger: a choice never says the opposite of it.
-                    if (choice == "deny") == approved {
-                        bail!(
-                            "La opción «{choice}» contradice approved={approved}; sólo «deny» rechaza"
-                        );
-                    }
-                    let offered = if approval.choices.is_empty() {
-                        vec!["once".to_owned(), "deny".to_owned()]
-                    } else {
-                        approval.choices.clone()
-                    };
-                    if !offered.contains(&choice) {
-                        bail!(
-                            "El agente no ofrece «{choice}»; ofrece {}: {}",
-                            offered.len(),
-                            offered.join(", ")
-                        );
-                    }
-                    params["choice"] = json!(choice);
-                }
-                self.respond_interaction("approval.respond", params).await?;
-            }
-            Command::Clarify {
-                answer,
-                question_id,
-            } => {
-                let approval = self
-                    .state
-                    .durable
-                    .assistant
-                    .pending_approval
-                    .as_ref()
-                    .context("No hay ninguna aclaración pendiente")?;
-                if !approval.clarification {
-                    bail!("Este turno necesita permitir o rechazar");
-                }
-                let mut params = json!({"session_id":self.state.session_id(),"request_id":approval.request_id,"answer":answer});
-                if let Some(question_id) = question_id {
-                    if !approval
-                        .questions
-                        .iter()
-                        .any(|question| question.qid == question_id)
-                    {
-                        bail!(
-                            "La pregunta «{question_id}» no está pendiente; quedan {}",
-                            approval.questions.len()
-                        );
-                    }
-                    params["question_id"] = json!(question_id);
-                }
-                self.respond_interaction("clarify.respond", params).await?;
-            }
-            Command::Permissions { request } => {
-                if request
-                    .iter()
-                    .any(|permission| permission == crate::permissions::CALENDARS)
-                {
-                    if request != [crate::permissions::CALENDARS] {
-                        bail!(
-                            "Solicita el permiso de calendario por separado de los demás permisos"
-                        );
-                    }
-                    self.calendar_command(
-                        orbit_core::calendar_control::CalendarCommand::RequestPermission,
-                    )?;
-                    return Ok(());
-                }
-                self.native_send("permissions", json!({"request":request}))
-                    .await?
-            }
         }
         Ok(())
     }

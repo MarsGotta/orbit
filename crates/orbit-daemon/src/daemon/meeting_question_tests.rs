@@ -30,8 +30,8 @@ fn recording(runtime: &mut Runtime, phase: &str) {
             "ended_at_ms": null, "expires_at_ms": START + 3_600_000, "application_pid": null,
             "audio": "system", "phase": phase, "sealed_chunks": 0, "gaps": 0}),
     );
-    runtime.capture.mic_stream = Some(MIC.into());
-    runtime.capture.remote_stream = Some(REMOTE.into());
+    runtime.audio.mic_stream = Some(MIC.into());
+    runtime.audio.remote_stream = Some(REMOTE.into());
 }
 
 /// The runtime, its hub frames and the helper's commands (kept open: a
@@ -47,8 +47,8 @@ async fn meeting_with_hub() -> Result<Meeting> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, helper) = fixture(directory.path())?;
     let (hub, hub_frames) = mpsc::channel(16);
-    runtime.hub.install(hub);
-    runtime.features.question.clock_ms = Some(NOW);
+    runtime.link.outbound.install(hub);
+    runtime.question.clock_ms = Some(NOW);
     recording(&mut runtime, "recording");
     Ok((directory, runtime, hub_frames, helper))
 }
@@ -70,7 +70,6 @@ fn heard(stream: &str, text: &str) -> Value {
 
 fn question(runtime: &Runtime) -> Result<orbit_core::meeting_question::MeetingQuestion> {
     runtime
-        .features
         .question
         .current
         .clone()
@@ -105,7 +104,7 @@ async fn the_phrase_on_the_calls_track_starts_nothing() -> Result<()> {
             .await?;
     }
     assert!(hub_frames.try_recv().is_err(), "nothing went to Deimos");
-    assert!(runtime.features.question.current.is_none());
+    assert!(runtime.question.current.is_none());
     assert!(runtime.state.durable.assistant.active_request.is_none());
 
     // Paused: the microphone is not the meeting's any more.
@@ -117,7 +116,7 @@ async fn the_phrase_on_the_calls_track_starts_nothing() -> Result<()> {
     crate::daemon::authority_fixture::set(&mut runtime.state, "privacy_stopped", json!(true));
     runtime.native_event(heard(MIC, "¿Y ahora?")).await?;
     assert!(hub_frames.try_recv().is_err());
-    assert!(runtime.features.question.current.is_none());
+    assert!(runtime.question.current.is_none());
     Ok(())
 }
 
@@ -392,11 +391,11 @@ async fn each_failure_of_the_turn_reaches_the_panel_with_its_cause() -> Result<(
             id: "another".into(),
         })
         .await?;
-    assert!(runtime.features.question.current.is_some());
+    assert!(runtime.question.current.is_some());
     runtime
         .command(Command::MeetingQuestionClose { id: shown })
         .await?;
-    assert!(runtime.features.question.current.is_none());
+    assert!(runtime.question.current.is_none());
     Ok(())
 }
 
@@ -433,7 +432,7 @@ fn wake_orders(commands: &[Value]) -> Vec<(String, bool)> {
 async fn the_phrase_follows_the_meeting_even_on_a_voice_notes_stream() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    runtime.features.question.helper_listens = true;
+    runtime.question.helper_listens = true;
     runtime.apply(Event::VoiceStart).await?;
     let start = helper_commands(&mut helper)
         .into_iter()
@@ -498,7 +497,7 @@ async fn the_phrase_follows_the_meeting_even_on_a_voice_notes_stream() -> Result
 async fn user_stop_gets_no_order_and_the_bundled_helper_needs_no_negotiation() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    runtime.features.question.helper_listens = true;
+    runtime.question.helper_listens = true;
     recording(&mut runtime, "recording");
     runtime.maintain_meeting_question().await?;
     assert_eq!(
@@ -508,17 +507,17 @@ async fn user_stop_gets_no_order_and_the_bundled_helper_needs_no_negotiation() -
     crate::daemon::authority_fixture::set(&mut runtime.state, "privacy_stopped", json!(true));
     runtime.maintain_meeting_question().await?;
     assert!(wake_orders(&helper_commands(&mut helper)).is_empty());
-    assert_eq!(runtime.features.question.wake_stream, None);
+    assert_eq!(runtime.question.wake_stream, None);
 
     crate::daemon::authority_fixture::set(&mut runtime.state, "privacy_stopped", json!(false));
-    runtime.features.question.helper_listens = false;
+    runtime.question.helper_listens = false;
     runtime
         .native_event(json!({"v": 1, "event": "ready", "protocol": 1,
         "platform": "macos", "selected_text_available": false,
         "supported_audio_processing": ["unprocessed"], "voice_processing_available": false,
         "playback_reference_available": false, "launch_mode": "managed_stdio"}))
         .await?;
-    assert!(runtime.features.question.helper_listens);
+    assert!(runtime.question.helper_listens);
     Ok(())
 }
 
@@ -527,7 +526,7 @@ async fn user_stop_gets_no_order_and_the_bundled_helper_needs_no_negotiation() -
 async fn a_refused_order_says_its_code_in_the_status() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    runtime.features.question.helper_listens = true;
+    runtime.question.helper_listens = true;
     recording(&mut runtime, "recording");
     runtime.maintain_meeting_question().await?;
     let order = helper_commands(&mut helper)
@@ -550,7 +549,7 @@ async fn a_refused_order_says_its_code_in_the_status() -> Result<()> {
 #[tokio::test]
 async fn the_detectors_state_and_its_causes_reach_the_topic() -> Result<()> {
     let (_directory, mut runtime, _hub_frames, _helper) = meeting_with_hub().await?;
-    runtime.features.question.helper_listens = true;
+    runtime.question.helper_listens = true;
     runtime.maintain_meeting_question().await?;
     assert_eq!(
         recording_topic(&runtime)?["voice_trigger"]["state"],
@@ -570,7 +569,7 @@ async fn the_detectors_state_and_its_causes_reach_the_topic() -> Result<()> {
         assert_eq!(recording_topic(&runtime)?["voice_trigger"]["state"], state);
     }
     assert_eq!(
-        runtime.features.question.voice_trigger,
+        runtime.question.voice_trigger,
         Some(VoiceTrigger::Listening)
     );
     runtime
@@ -640,20 +639,19 @@ async fn the_largest_question_fits_the_recording_topic() -> Result<()> {
             "ended_at_ms": null, "expires_at_ms": START + 3_600_000, "application_pid": null,
             "audio": "system", "phase": "recording", "sealed_chunks": 0, "gaps": 0}),
     );
-    runtime.features.question.current =
-        Some(orbit_core::meeting_question::MeetingQuestion::refused(
-            "00000000-0000-4000-8000-000000000001".into(),
-            Some(RECORDING.into()),
-            "\"".repeat(1_024),
-            10,
-            QuestionOrigin::Typed,
-            QuestionCause::HubRefused {
-                code: "x".repeat(64),
-                message: "ñ".repeat(128),
-            },
-            NOW,
-        ));
-    runtime.features.question.voice_trigger = Some(VoiceTrigger::Failed {
+    runtime.question.current = Some(orbit_core::meeting_question::MeetingQuestion::refused(
+        "00000000-0000-4000-8000-000000000001".into(),
+        Some(RECORDING.into()),
+        "\"".repeat(1_024),
+        10,
+        QuestionOrigin::Typed,
+        QuestionCause::HubRefused {
+            code: "x".repeat(64),
+            message: "ñ".repeat(128),
+        },
+        NOW,
+    ));
+    runtime.question.voice_trigger = Some(VoiceTrigger::Failed {
         cause: "c".repeat(256),
         detail: Some("d".repeat(256)),
     });
@@ -757,7 +755,7 @@ async fn the_same_spoken_question_heard_again_while_it_is_answered_says_nothing(
 async fn hub_name_reaches_status_and_live_wake_orders_and_survives_restart() -> Result<()> {
     let (directory, mut runtime, _hub, mut helper) = meeting_with_hub().await?;
     runtime.settings.device_id = Some("device-assistant-name".into());
-    runtime.features.question.helper_listens = true;
+    runtime.question.helper_listens = true;
     runtime.sync_wake_phrase().await?;
     let first = helper_commands(&mut helper);
     let wake = first
@@ -831,7 +829,7 @@ fn abandoned(cause: &str) -> Value {
 #[tokio::test]
 async fn an_abandoned_phrase_is_said_in_the_panel_with_its_cause() -> Result<()> {
     let (_directory, mut runtime, _hub_frames, _helper) = meeting_with_hub().await?;
-    runtime.features.question.helper_listens = true;
+    runtime.question.helper_listens = true;
     runtime.maintain_meeting_question().await?;
     runtime
         .native_event(json!({"v": 1, "event": "voice_trigger", "state": "listening"}))
@@ -847,19 +845,19 @@ async fn an_abandoned_phrase_is_said_in_the_panel_with_its_cause() -> Result<()>
             json!({"state": "abandoned", "cause": cause})
         );
     }
-    runtime.features.question.clock_ms = Some(NOW + FAILURE_SHOWN_MS - 1);
+    runtime.question.clock_ms = Some(NOW + FAILURE_SHOWN_MS - 1);
     assert_eq!(
         recording_topic(&runtime)?["voice_trigger"]["state"],
         "abandoned"
     );
-    runtime.features.question.clock_ms = Some(NOW + FAILURE_SHOWN_MS);
+    runtime.question.clock_ms = Some(NOW + FAILURE_SHOWN_MS);
     assert_eq!(
         recording_topic(&runtime)?["voice_trigger"]["state"],
         "listening",
         "gone once a failure would be"
     );
 
-    runtime.features.question.clock_ms = Some(NOW);
+    runtime.question.clock_ms = Some(NOW);
     runtime.native_event(abandoned("phrase_revised")).await?;
     runtime
         .native_event(json!({"v": 1, "event": "notice", "code": "wake_phrase_heard"}))

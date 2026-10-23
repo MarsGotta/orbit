@@ -175,13 +175,13 @@ impl Runtime {
             })
         } else if let Err(refusal) = crate::hub::access(
             &self.settings,
-            self.token.as_deref(),
+            self.link.token.as_deref(),
             self.state.privacy_stopped() || self.closing,
             self.state.connection(),
         ) {
             Err(refusal)
-        } else if self.conversation.bridge_request.is_some()
-            || self.conversation.window_attachment.is_some()
+        } else if self.assistant.bridge_request.is_some()
+            || self.assistant.window_attachment.is_some()
         {
             // One capture at a time: the assistant's own, or another window.
             Err(Refusal::Busy {
@@ -209,33 +209,23 @@ impl Runtime {
             files: None,
             for_attachment: true,
         };
-        self.conversation.bridge_request = Some(ask.clone());
-        self.conversation.window_attachment = Some(PendingWindow {
+        self.assistant.bridge_request = Some(ask.clone());
+        self.assistant.window_attachment = Some(PendingWindow {
             ask_id: ask.id.clone(),
             request_id,
             reply,
             text: WindowTextSource::Unknown,
         });
         if let Err(refusal) = self.serve_bridge_request(&ask).await {
-            self.conversation.bridge_request = None;
-            self.refuse_window(refusal);
-        }
-    }
-
-    /// «Adjuntar ventana» ends before its capture with `refusal`, which the
-    /// app is told; the next one may start.
-    pub(super) fn refuse_window(&mut self, refusal: Refusal) {
-        if let Some(pending) = self.conversation.window_attachment.take() {
-            let _ = pending
-                .reply
-                .send(answered(pending.request_id, Err(refusal.into())));
+            self.assistant.bridge_request = None;
+            self.assistant.refuse_window(refusal);
         }
     }
 
     /// The bridge's answer to «Adjuntar ventana», taken before it reaches
     /// the hub. True when `frame` was that answer: it is not to be sent.
     pub(super) fn divert_window_reply(&mut self, frame: &Value) -> bool {
-        let Some(pending) = self.conversation.window_attachment.as_ref() else {
+        let Some(pending) = self.assistant.window_attachment.as_ref() else {
             return false;
         };
         if frame["method"] != "device.reply"
@@ -243,21 +233,15 @@ impl Runtime {
         {
             return false;
         }
-        let Some(pending) = self.conversation.window_attachment.take() else {
+        let Some(pending) = self.assistant.window_attachment.take() else {
             return false;
         };
         let params = &frame["params"];
         if let Some(refusal) = params.get("refusal") {
-            let refusal = serde_json::from_value::<Refusal>(refusal.clone()).unwrap_or_else(|_| {
-                Refusal::HelperReplyInvalid {
-                    field: "device.reply.refusal".into(),
-                    expected: "typed_refusal".into(),
-                    received_type: "unreadable".into(),
-                }
-            });
-            let _ = pending
-                .reply
-                .send(answered(pending.request_id, Err(refusal.into())));
+            let _ = pending.reply.send(answered(
+                pending.request_id,
+                Err(window_refusal(refusal).into()),
+            ));
             return true;
         }
         let result = &params["result"];
@@ -266,22 +250,7 @@ impl Runtime {
         let (application, title) = (field("application"), field("title"));
         let name = window_file_name(&application, &title);
         let text_name = window_text_name(&application, &title);
-        let read = match pending.text {
-            WindowTextSource::Engine(read) => TextRead::Read(engine_window_text(read)),
-            WindowTextSource::Helper {
-                application_pid,
-                window_id,
-            } => match self.ask_helper(
-                "window_text",
-                json!({"application_pid": application_pid, "window_id": window_id,
-                    "limits": WindowTextLimits::ATTACHMENT}),
-                Operation::Capture,
-            ) {
-                Ok(receiver) => TextRead::Asked(receiver),
-                Err(refusal) => TextRead::Read(Err(refusal.code().name().to_owned())),
-            },
-            WindowTextSource::Unknown => TextRead::Read(Err("window_unknown".into())),
-        };
+        let read = self.window_text_read(pending.text);
         let context = self.attachment_context();
         let PendingWindow {
             ask_id,
@@ -329,10 +298,54 @@ impl Runtime {
         true
     }
 
+    /// Where the window's text comes from: the engine's read, or the
+    /// helper asked now; a window nobody identified has none.
+    fn window_text_read(&mut self, text: WindowTextSource) -> TextRead {
+        match text {
+            WindowTextSource::Engine(read) => TextRead::Read(engine_window_text(read)),
+            WindowTextSource::Helper {
+                application_pid,
+                window_id,
+            } => match self.ask_helper(
+                "window_text",
+                json!({"application_pid": application_pid, "window_id": window_id,
+                    "limits": WindowTextLimits::ATTACHMENT}),
+                Operation::Capture,
+            ) {
+                Ok(receiver) => TextRead::Asked(receiver),
+                Err(refusal) => TextRead::Read(Err(refusal.code().name().to_owned())),
+            },
+            WindowTextSource::Unknown => TextRead::Read(Err("window_unknown".into())),
+        }
+    }
+}
+
+/// The refusal a `device.reply` carried, or why it could not be read.
+fn window_refusal(refusal: &Value) -> Refusal {
+    serde_json::from_value::<Refusal>(refusal.clone()).unwrap_or_else(|_| {
+        Refusal::HelperReplyInvalid {
+            field: "device.reply.refusal".into(),
+            expected: "typed_refusal".into(),
+            received_type: "unreadable".into(),
+        }
+    })
+}
+
+impl crate::daemon::assistant::AssistantHandle {
+    /// «Adjuntar ventana» ends before its capture with `refusal`, which the
+    /// app is told; the next one may start.
+    pub(super) fn refuse_window(&mut self, refusal: Refusal) {
+        if let Some(pending) = self.window_attachment.take() {
+            let _ = pending
+                .reply
+                .send(answered(pending.request_id, Err(refusal.into())));
+        }
+    }
+
     /// The helper took the capture of «Adjuntar ventana»: that window is the
     /// one whose text it reads next.
     pub(super) fn window_captured_by_helper(&mut self, application_pid: i32, window_id: u32) {
-        if let Some(pending) = self.conversation.window_attachment.as_mut() {
+        if let Some(pending) = self.window_attachment.as_mut() {
             pending.text = WindowTextSource::Helper {
                 application_pid,
                 window_id,
@@ -342,7 +355,7 @@ impl Runtime {
 
     /// The engine took the capture of «Adjuntar ventana» and read its tree.
     pub(super) fn window_read_by_engine(&mut self, read: std::result::Result<String, String>) {
-        if let Some(pending) = self.conversation.window_attachment.as_mut() {
+        if let Some(pending) = self.window_attachment.as_mut() {
             pending.text = WindowTextSource::Engine(read);
         }
     }

@@ -23,9 +23,9 @@ fn chunk(recording: &str) -> ChunkMetadata {
 
 async fn confirm(runtime: &mut Runtime, id: &str) -> Result<()> {
     let (events, mut outcomes) = mpsc::channel(8);
-    runtime.work.work_events = events;
+    runtime.work_events = events;
     let generation = runtime.state.generation();
-    let ticket = pending_work(&mut runtime.work.worker, generation, ())?;
+    let ticket = pending_work(&mut runtime.transfers.worker, generation, ())?;
     runtime
         .work_event(WorkResult::Store(crate::daemon::StoreWork::Uploaded {
             ticket,
@@ -33,7 +33,7 @@ async fn confirm(runtime: &mut Runtime, id: &str) -> Result<()> {
             result: Ok(()),
         }))
         .await?;
-    while runtime.work.worker.active().is_some() {
+    while runtime.transfers.worker.active().is_some() {
         runtime
             .work_event(outcomes.recv().await.context("settlement absent")?)
             .await?;
@@ -128,7 +128,7 @@ async fn failed_deletion_is_logged_as_cleanup_and_retried_without_failing_the_up
     let bytes = std::fs::metadata(&saved)?.len();
     std::fs::rename(&saved, &path)?;
     let (events, mut outcomes) = mpsc::channel(8);
-    runtime.work.work_events = events;
+    runtime.work_events = events;
     runtime.schedule_upload().await?;
     runtime.store_actor.run(|_| Ok(())).await?;
     assert!(!path.exists());
@@ -158,7 +158,7 @@ async fn an_ack_with_wrong_identity_hash_or_durability_keeps_the_audio() -> Resu
         let (mut runtime, _) = fixture(directory.path())?;
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
         runtime.settings.hub_url = Some(format!("http://{}", listener.local_addr()?));
-        runtime.token = Some("synthetic-not-a-credential".into());
+        runtime.link.token = Some("synthetic-not-a-credential".into());
         let metadata = chunk("invalid");
         let receipt = runtime.fixture_store.seal_chunk(&metadata, b"synthetic")?;
         let (mut task, _bridge) = test_support::spawn_task(&runtime)?;
@@ -228,7 +228,7 @@ async fn lost_response_preserves_audio_and_retry_sends_the_same_chunk_before_del
     let (mut runtime, _) = fixture(directory.path())?;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     runtime.settings.hub_url = Some(format!("http://{}", listener.local_addr()?));
-    runtime.token = Some("synthetic-not-a-credential".into());
+    runtime.link.token = Some("synthetic-not-a-credential".into());
     let metadata = chunk("lost");
     let receipt = runtime.fixture_store.seal_chunk(&metadata, b"synthetic")?;
     let job = format!("upload-{}", metadata.id);
@@ -297,7 +297,7 @@ async fn a_reopened_store_prunes_old_confirmations_without_uploading_or_removing
     drop(store);
     let (mut runtime, _) = fixture(directory.path())?;
     let (events, mut outcomes) = mpsc::channel(8);
-    runtime.work.work_events = events;
+    runtime.work_events = events;
     crate::daemon::authority_fixture::set(
         &mut runtime.state,
         "connection",

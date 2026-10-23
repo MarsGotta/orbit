@@ -11,7 +11,7 @@ use serde_json::json;
 
 impl Runtime {
     pub(super) async fn dispatch_voice_transcription(&mut self) -> Result<()> {
-        if self.capture.audio.voice.submit {
+        if self.audio.lifecycle.voice.submit {
             self.prepend_joined_call_turn();
         }
         let Some(voice) = self.capture.buffer.voice.as_ref() else {
@@ -22,7 +22,7 @@ impl Runtime {
             self.say(NoticeCode::VoiceNoteEmpty);
             return Ok(());
         }
-        let cancelled = self.state.privacy_stopped() || !self.capture.audio.voice.submit;
+        let cancelled = self.state.privacy_stopped() || !self.audio.lifecycle.voice.submit;
         let duration_ms = voice_duration_ms(voice);
         // A call's turns have their own detector, which already asks for
         // this much speech.
@@ -40,9 +40,9 @@ impl Runtime {
         // interrupts him: its words are asked for first, and until they come
         // nothing is stopped, stored or shown (`hear_over_answer`).
         if !cancelled
-            && self.take_capture_over_answer()
+            && self.audio.take_capture_over_answer()
             && self.state.connection() == orbit_core::Connection::Online
-            && let Some(token) = self.token.clone()
+            && let Some(token) = self.link.token.clone()
             && let Some(voice) = self.capture.buffer.voice.take()
         {
             return self.hear_over_answer(voice, duration_ms, token).await;
@@ -130,15 +130,16 @@ impl Runtime {
             return Ok(());
         }
         if let Some(voice) = voice {
-            self.keep_submitted_call_turn(&source.message_id, voice);
+            self.audio
+                .keep_submitted_call_turn(&source.message_id, voice);
         }
-        if self.state.connection() != orbit_core::Connection::Online && self.token.is_some() {
+        if self.state.connection() != orbit_core::Connection::Online && self.link.token.is_some() {
             // Spoken with the hub away: kept and shown, sent when it is back.
             return self
                 .keep_voice_unsent(source.message_id, orbit_core::VOICE_HUB_UNREACHABLE)
                 .await;
         }
-        let Some(token) = self.token.clone() else {
+        let Some(token) = self.link.token.clone() else {
             self.keep_voice_unsent(source.message_id, orbit_core::VOICE_PAIRING_REQUIRED)
                 .await?;
             return Err(orbit_core::refusal::Refusal::NotPaired.into());
@@ -158,7 +159,7 @@ impl Runtime {
             now(),
         )?;
         self.store_actor.snapshot(&decision.state).await?;
-        self.work.durable_snapshot = crate::daemon::DurableSnapshot::from(&decision.state);
+        self.persisted.durable = crate::daemon::DurableSnapshot::from(&decision.state);
         self.state = decision.state;
         Ok(())
     }
@@ -241,7 +242,8 @@ impl Runtime {
             message_id: operation_id.clone(),
             duration_ms,
         };
-        self.keep_over_answer_turn(&operation_id, duration_ms, voice);
+        self.audio
+            .keep_over_answer_turn(&operation_id, duration_ms, voice);
         // Said nothing while it is heard: it may be noise.
         self.spawn_voice_transcription(source, wav, token, false)
             .await
@@ -304,16 +306,16 @@ impl Runtime {
         let settings = self.settings.clone();
         let development = self.development;
         let generation = self.state.generation();
-        let events = self.work.work_events.clone();
+        let events = self.work_events.clone();
         if announce {
             self.say(NoticeCode::VoiceTranscribing);
         }
         let operation_id = source.message_id.clone();
-        self.conversation.voice_operation = Some(operation_id.clone());
+        self.assistant.voice_operation = Some(operation_id.clone());
         let worker_operation_id = operation_id.clone();
         // One voice turn at a time; the guard above keeps a second turn out.
         // It is not a limit on stored voice messages.
-        let started = self.conversation.voice_task.start_logical(
+        let started = self.assistant.voice_task.start_logical(
             generation,
             self.turn.op.clone(),
             (),
@@ -343,7 +345,7 @@ impl Runtime {
             },
         );
         if started.is_none() {
-            self.conversation.voice_operation = None;
+            self.assistant.voice_operation = None;
             let decision = decide(
                 &self.state,
                 Event::VoiceFailed {
@@ -355,7 +357,7 @@ impl Runtime {
                 now(),
             )?;
             self.store_actor.snapshot(&decision.state).await?;
-            self.work.durable_snapshot = crate::daemon::DurableSnapshot::from(&decision.state);
+            self.persisted.durable = crate::daemon::DurableSnapshot::from(&decision.state);
             self.state = decision.state;
             // One slot protects the active voice transcription worker: a second
             // note cannot replace its receipt. This is not an audio size limit.

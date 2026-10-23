@@ -18,7 +18,7 @@ impl Runtime {
         match self.calendar_bridge_read(&ask.id, start_ms, end_ms, ask.calendar_cursor.clone()) {
             Ok(()) => Ok(()),
             Err(refusal) => {
-                self.conversation.bridge_request = None;
+                self.assistant.bridge_request = None;
                 self.refuse_bridge_admission(&ask.id, &refusal)
                     .await
                     .map_err(|_| Refusal::HubUnreachable { since_ms: None })

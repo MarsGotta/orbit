@@ -89,14 +89,14 @@ impl Runtime {
             // and that reset the detector this frame just opened a
             // turn in: the turn never ended and the next one found
             // its buffer taken.
-            if let (Some(call), Some(began)) = (self.capture.call_runtime.as_mut(), began) {
+            if let (Some(call), Some(began)) = (self.audio.call.as_mut(), began) {
                 call.detector = began;
             }
         }
         // A turn in which nothing was heard goes on in this one.
         let joined = joined.or_else(|| {
-            self.capture
-                .call_runtime
+            self.audio
+                .call
                 .as_mut()
                 .and_then(|call| call.carried.take())
         });
@@ -113,7 +113,7 @@ impl Runtime {
             })
             .collect();
         self.begin_call_voice(&preroll)?;
-        if let Some(call) = self.capture.call_runtime.as_mut() {
+        if let Some(call) = self.audio.call.as_mut() {
             call.joined = joined;
             call.capturing_over_answer = over_answer;
         }
@@ -130,10 +130,10 @@ impl Runtime {
     /// voice goes first in the new turn instead of being cancelled and lost.
     /// A turn already sent to Deimos is not carried: he has it.
     fn joinable_turn(&mut self) -> Option<CallTurnAudio> {
-        self.conversation.voice_task.active()?;
-        let operation = self.conversation.voice_operation.clone()?;
+        self.assistant.voice_task.active()?;
+        let operation = self.assistant.voice_operation.clone()?;
         let answered = self.state.durable.assistant.active_request.is_some();
-        let call = self.capture.call_runtime.as_mut()?;
+        let call = self.audio.call.as_mut()?;
         // A turn spoken over Deimos's answer never reached him: whatever he
         // is doing, the user's next words carry it.
         if let Some(turn) = call
@@ -150,62 +150,14 @@ impl Runtime {
             .filter(|turn| turn.operation_id == operation)
     }
 
-    /// Takes whether the turn just finished began over Deimos's answer.
-    pub(in crate::daemon) fn take_capture_over_answer(&mut self) -> bool {
-        self.capture
-            .call_runtime
-            .as_mut()
-            .is_some_and(|call| std::mem::take(&mut call.capturing_over_answer))
-    }
-
-    /// Holds a turn spoken over Deimos's answer while its words are asked for.
-    pub(in crate::daemon) fn keep_over_answer_turn(
-        &mut self,
-        operation_id: &str,
-        duration_ms: u64,
-        voice: crate::capture::VoiceBuffer,
-    ) {
-        if let Some(call) = self.capture.call_runtime.as_mut() {
-            call.over_answer = Some(OverAnswerTurn {
-                operation_id: operation_id.to_owned(),
-                duration_ms,
-                voice,
-            });
-        }
-    }
-
-    /// The turn spoken over Deimos's answer whose words were `operation_id`.
-    pub(in crate::daemon) fn take_over_answer_turn(
-        &mut self,
-        operation_id: &str,
-    ) -> Option<OverAnswerTurn> {
-        self.capture
-            .call_runtime
-            .as_mut()?
-            .over_answer
-            .take_if(|turn| turn.operation_id == operation_id)
-    }
-
-    /// The call turn `operation_id` sent to transcription, while kept.
-    pub(in crate::daemon) fn take_submitted_call_turn(
-        &mut self,
-        operation_id: &str,
-    ) -> Option<CallTurnAudio> {
-        self.capture
-            .call_runtime
-            .as_mut()?
-            .submitted
-            .take_if(|turn| turn.operation_id == operation_id)
-    }
-
     /// Nothing was heard in a call turn: its audio waits for what the user
     /// says next, which carries it (`carried`); the person may not have
     /// finished. While they already speak, it goes first in that turn.
     pub(in crate::daemon) fn carry_into_next_turn(&mut self, audio: CallTurnAudio) {
         let capturing = self.capture.buffer.voice.is_some();
         if let Some(call) = self
-            .capture
-            .call_runtime
+            .audio
+            .call
             .as_mut()
             .filter(|call| call.closing_at_ms.is_none())
         {
@@ -223,16 +175,16 @@ impl Runtime {
     /// the call's turn in course.
     pub(in crate::daemon) async fn interrupt_for_accepted_turn(&mut self) -> Result<()> {
         let answering = self.state.durable.assistant.active_request.is_some()
-            || self.conversation.speech_task.active().is_some()
+            || self.assistant.speech_task.active().is_some()
             || self
-                .capture
-                .call_runtime
+                .audio
+                .call
                 .as_ref()
                 .is_some_and(|call| call.playback_active);
         if !answering {
             return Ok(());
         }
-        let kept = self.capture.call_runtime.as_mut().map(|call| {
+        let kept = self.audio.call.as_mut().map(|call| {
             (
                 call.detector.clone(),
                 std::mem::take(&mut call.preroll),
@@ -243,10 +195,10 @@ impl Runtime {
             )
         });
         let voice = self.capture.buffer.voice.take();
-        let submit = self.capture.audio.voice.submit;
+        let submit = self.audio.lifecycle.voice.submit;
         self.apply(Event::Interrupt).await?;
         if let (Some(call), Some((detector, preroll, preroll_ns, joined, carried, over))) =
-            (self.capture.call_runtime.as_mut(), kept)
+            (self.audio.call.as_mut(), kept)
         {
             call.detector = detector;
             call.preroll = preroll;
@@ -256,24 +208,8 @@ impl Runtime {
             call.capturing_over_answer = over;
         }
         self.capture.buffer.voice = voice;
-        self.capture.audio.voice.submit = submit;
+        self.audio.lifecycle.voice.submit = submit;
         Ok(())
-    }
-
-    /// Keeps a call turn's voice while it is transcribed (see `joinable_turn`).
-    pub(in crate::daemon) fn keep_submitted_call_turn(
-        &mut self,
-        operation_id: &str,
-        voice: crate::capture::VoiceBuffer,
-    ) {
-        if let Some(call) = self
-            .capture
-            .call_runtime
-            .as_mut()
-            .filter(|call| call.closing_at_ms.is_none())
-        {
-            call.submitted = Some(call_turn_audio(operation_id.to_owned(), voice));
-        }
     }
 
     /// Puts the carried turn's voice before the turn about to be sent, when
@@ -281,12 +217,7 @@ impl Runtime {
     /// bounds (60 s, and the encrypted chunk). Otherwise the carried voice is
     /// dropped with its numbers in the log.
     pub(in crate::daemon) fn prepend_joined_call_turn(&mut self) {
-        let Some(joined) = self
-            .capture
-            .call_runtime
-            .as_mut()
-            .and_then(|call| call.joined.take())
-        else {
+        let Some(joined) = self.audio.call.as_mut().and_then(|call| call.joined.take()) else {
             return;
         };
         let Some(voice) = self.capture.buffer.voice.as_mut() else {
@@ -317,5 +248,67 @@ impl Runtime {
         voice.pcm = pcm;
         voice.started_at_ms = joined.started_at_ms;
         voice.monotonic_ns = joined.monotonic_ns;
+    }
+}
+
+impl crate::daemon::audio::AudioHandle {
+    /// Takes whether the turn just finished began over Deimos's answer.
+    pub(in crate::daemon) fn take_capture_over_answer(&mut self) -> bool {
+        self.call
+            .as_mut()
+            .is_some_and(|call| std::mem::take(&mut call.capturing_over_answer))
+    }
+
+    /// Holds a turn spoken over Deimos's answer while its words are asked for.
+    pub(in crate::daemon) fn keep_over_answer_turn(
+        &mut self,
+        operation_id: &str,
+        duration_ms: u64,
+        voice: crate::capture::VoiceBuffer,
+    ) {
+        if let Some(call) = self.call.as_mut() {
+            call.over_answer = Some(OverAnswerTurn {
+                operation_id: operation_id.to_owned(),
+                duration_ms,
+                voice,
+            });
+        }
+    }
+
+    /// The turn spoken over Deimos's answer whose words were `operation_id`.
+    pub(in crate::daemon) fn take_over_answer_turn(
+        &mut self,
+        operation_id: &str,
+    ) -> Option<OverAnswerTurn> {
+        self.call
+            .as_mut()?
+            .over_answer
+            .take_if(|turn| turn.operation_id == operation_id)
+    }
+
+    /// The call turn `operation_id` sent to transcription, while kept.
+    pub(in crate::daemon) fn take_submitted_call_turn(
+        &mut self,
+        operation_id: &str,
+    ) -> Option<CallTurnAudio> {
+        self.call
+            .as_mut()?
+            .submitted
+            .take_if(|turn| turn.operation_id == operation_id)
+    }
+
+    /// Keeps a call turn's voice while it is transcribed (see `joinable_turn`).
+    pub(in crate::daemon) fn keep_submitted_call_turn(
+        &mut self,
+        operation_id: &str,
+        voice: crate::capture::VoiceBuffer,
+    ) {
+        if let Some(call) = self
+            .call
+            .as_mut()
+            .filter(|call| call.closing_at_ms.is_none())
+        {
+            call.submitted = Some(call_turn_audio(operation_id.to_owned(), voice));
+        }
     }
 }

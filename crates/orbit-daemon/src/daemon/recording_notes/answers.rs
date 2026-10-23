@@ -182,7 +182,7 @@ impl Runtime {
         }
         let series = matches!(request, LibraryRequest::UseForSeries { .. });
         let changed = matches!(outcome, Outcome::Done { .. });
-        let library = &mut self.features.notes.library;
+        let library = &mut self.notes.library;
         match outcome {
             Outcome::Done { .. } => {
                 let target = request.target();
@@ -221,25 +221,16 @@ impl Runtime {
             }
             Outcome::Unreachable { cause } => {
                 self.log("note_library_unsent", &[("cause", &cause.to_string())]);
-                let library = &mut self.features.notes.library;
+                let library = &mut self.notes.library;
                 refuse_order(library, request, 0, "hub_unreachable", BTreeMap::new());
             }
         }
         if series && changed {
             // The series' dictionary can change the transcripts of its
             // meetings: every read is read again once, as for a dictionary.
-            self.invalidate_note_reads();
+            self.notes.invalidate_note_reads();
         }
-        self.features.notes.head.touch_library();
-    }
-
-    /// Every note read is read again once (a dictionary changed), rather than
-    /// one WebSocket event per historical recording.
-    fn invalidate_note_reads(&mut self) {
-        let head = &mut self.features.notes.head;
-        head.touch();
-        head.recordings.clear();
-        head.floor = head.revision;
+        self.notes.head.touch_library();
     }
 
     pub(super) fn dictionary_answer(
@@ -248,7 +239,7 @@ impl Runtime {
         outcome: Outcome,
     ) {
         let changed = matches!(&outcome, Outcome::Done { .. });
-        let library = &mut self.features.notes.library;
+        let library = &mut self.notes.library;
         let target = request.target();
         library
             .dictionary_failures
@@ -293,9 +284,9 @@ impl Runtime {
             // A shared dictionary can change any open transcript. Its confirmed
             // write invalidates all reads once, rather than flooding the hub's
             // bounded WebSocket queue with one event per historical recording.
-            self.invalidate_note_reads();
+            self.notes.invalidate_note_reads();
         }
-        self.features.notes.head.touch_library();
+        self.notes.head.touch_library();
         if let Some(report) = report {
             self.record(report);
         }
@@ -336,5 +327,16 @@ fn dictionary_failure(target: String, outcome: Outcome) -> Option<core::Dictiona
             detail: format!("No se confirmó el cambio del diccionario: {cause}"),
             numbers: BTreeMap::new(),
         }),
+    }
+}
+
+impl crate::daemon::recording_notes::NotesHandle {
+    /// Every note read is read again once (a dictionary changed), rather than
+    /// one WebSocket event per historical recording.
+    fn invalidate_note_reads(&mut self) {
+        let head = &mut self.head;
+        head.touch();
+        head.recordings.clear();
+        head.floor = head.revision;
     }
 }

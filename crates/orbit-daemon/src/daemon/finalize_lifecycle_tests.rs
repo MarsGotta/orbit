@@ -69,8 +69,8 @@ async fn drained_idle_with_insert_fault(
     // A closure that could not be written is said, not a stop.
     assert!(!runtime.state.privacy_stopped());
     assert!(runtime.fixture_store.get_job("finalize-old")?.is_none());
-    assert_eq!(runtime.features.notes.head.revision, 0);
-    assert!(!runtime.audio_is_draining() && runtime.capture.pending_seals.is_empty());
+    assert_eq!(runtime.notes.head.revision, 0);
+    assert!(!runtime.audio.audio_is_draining() && runtime.capture.pending_seals.is_empty());
     assert_eq!(
         runtime.fixture_store.load_snapshot::<State>()?,
         Some(runtime.state.clone())
@@ -102,18 +102,18 @@ async fn closure_completes_its_upload(runtime: &mut Runtime) -> Result<()> {
         .context("closure absent")?;
     assert!(runtime.finalize_is_ready(&closure)?);
     runtime.settings.hub_url = Some("http://127.0.0.1:9".into());
-    runtime.token = Some("SYNTHETIC-NOT-A-CREDENTIAL".into());
+    runtime.link.token = Some("SYNTHETIC-NOT-A-CREDENTIAL".into());
     assert!(runtime.schedule_finalize().await?);
     // Tokio current-thread fixture: abort before the spawned task is ever polled.
     // The synthetic receipt below exercises actor handling; no HTTP is executed.
     let ticket = runtime
-        .work
+        .transfers
         .worker
         .ticket()
         .cloned()
         .context("eligible closure ticket")?;
     let worker = runtime
-        .work
+        .transfers
         .worker
         .task_handle_mut()
         .context("eligible closure not scheduled")?;
@@ -132,8 +132,8 @@ async fn closure_completes_its_upload(runtime: &mut Runtime) -> Result<()> {
         crate::daemon::authority_fixture::set(&mut runtime.state, "connection", fixture_value);
     }
     runtime.settings.hub_url = None;
-    runtime.token = None;
-    let before = runtime.features.notes.head.changed_at("old");
+    runtime.link.token = None;
+    let before = runtime.notes.head.changed_at("old");
     runtime
         .work_event(WorkResult::Store(crate::daemon::StoreWork::Uploaded {
             ticket,
@@ -150,7 +150,7 @@ async fn closure_completes_its_upload(runtime: &mut Runtime) -> Result<()> {
         JobState::Succeeded
     );
     assert!(
-        runtime.features.notes.head.changed_at("old") > before,
+        runtime.notes.head.changed_at("old") > before,
         "the uploaded closure did not tell the app to read its note again"
     );
     Ok(())
@@ -209,7 +209,7 @@ async fn replacement_after_insert_failure(
         .get_job("finalize-old")?
         .context("drained Idle owner was replaced without preserving its closure")?;
     assert!(
-        runtime.features.notes.head.revision > 0,
+        runtime.notes.head.revision > 0,
         "the atomic replacement closure did not mark Notes"
     );
     assert_eq!(
@@ -286,7 +286,7 @@ async fn replacement_insert_failure_keeps_owner_snapshot_and_effects_unchanged()
     database.execute_batch("DROP TRIGGER synthetic_close_failure")?;
     start(&mut runtime, &mut receiver, "next").await?;
     assert!(runtime.fixture_store.get_job("finalize-old")?.is_some());
-    assert!(runtime.features.notes.head.revision > 0);
+    assert!(runtime.notes.head.revision > 0);
     assert_eq!(
         runtime
             .fixture_store

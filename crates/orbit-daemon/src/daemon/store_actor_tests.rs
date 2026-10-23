@@ -489,7 +489,7 @@ async fn upload_scheduler_does_not_await_behind_admitted_seals() -> Result<()> {
     start_recording(&mut runtime, &mut receiver, "schedule-seals").await?;
     runtime.seal(vec![pending_segment("schedule-seals", 0)])?;
     await_seal_receipts(&mut runtime)?;
-    runtime.token = Some("synthetic-token".into());
+    runtime.link.token = Some("synthetic-token".into());
     runtime.settings.hub_url = Some("http://127.0.0.1:1".into());
 
     let probe = snapshot_probe(&runtime)?;
@@ -739,7 +739,7 @@ async fn upload_admission_waits_off_loop_after_the_last_seal() -> Result<()> {
     start_recording(&mut runtime, &mut receiver, "last-seal-admission").await?;
     runtime.seal(vec![pending_segment("last-seal-admission", 0)])?;
     await_seal_receipts(&mut runtime)?;
-    runtime.token = Some("synthetic-token".into());
+    runtime.link.token = Some("synthetic-token".into());
     runtime.settings.hub_url = Some("http://127.0.0.1:1".into());
 
     let release = hold_the_actor(&runtime)?;
@@ -785,7 +785,7 @@ async fn upload_result_settles_off_loop_after_last_seal() -> Result<()> {
         .await?;
     let generation = runtime.state.generation();
     let ticket = runtime
-        .work
+        .transfers
         .worker
         .attach_test(generation, (), tokio::spawn(async {}));
 
@@ -807,7 +807,7 @@ async fn upload_result_settles_off_loop_after_last_seal() -> Result<()> {
         "applying an upload result held the daemon turn behind admitted seals: {outcome:?}"
     );
     runtime
-        .work
+        .transfers
         .worker
         .take()
         .context("missing durable settlement worker")?
@@ -827,7 +827,7 @@ async fn upload_settlement_releases_the_worker_slot() -> Result<()> {
     let (mut runtime, _receiver) = fixture(directory.path())?;
     let generation = runtime.state.generation();
     let ticket = runtime
-        .work
+        .transfers
         .worker
         .attach_test(generation, (), tokio::spawn(async {}));
 
@@ -842,7 +842,7 @@ async fn upload_settlement_releases_the_worker_slot() -> Result<()> {
         .await?;
 
     assert!(
-        runtime.work.worker.active().is_none(),
+        runtime.transfers.worker.active().is_none(),
         "UploadSettled kept the finished worker slot occupied"
     );
     Ok(())
@@ -855,7 +855,7 @@ async fn delta_bursts_write_no_snapshot_and_a_completed_turn_writes_one() -> Res
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let (hub, _commands) = mpsc::channel(16);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     runtime
         .apply(Event::Submit {
             attachments: Vec::new(),
@@ -1154,7 +1154,7 @@ async fn stop_retires_playback_and_volatile_work_before_a_blocked_write() -> Res
     let (daemon_output, helper_output) = tokio::io::duplex(4096);
     let (native, commands) = tokio::sync::mpsc::channel(64);
     let (events, _received_events) = tokio::sync::mpsc::channel(16);
-    runtime.native = native;
+    runtime.helper.sender = native;
     let bridge = tokio::spawn(crate::native::bridge(
         tokio::io::BufReader::new(daemon_input),
         daemon_output,
@@ -1162,7 +1162,7 @@ async fn stop_retires_playback_and_volatile_work_before_a_blocked_write() -> Res
         events,
     ));
     let mut written = tokio::io::BufReader::new(helper_output);
-    runtime.conversation.speak_next = true;
+    runtime.assistant.speak_next = true;
     let pending_task = || {
         let (held, dropped) = tokio::sync::oneshot::channel::<()>();
         let task = tokio::spawn(async move {
@@ -1173,7 +1173,7 @@ async fn stop_retires_playback_and_volatile_work_before_a_blocked_write() -> Res
     };
     let (worker, worker_dropped) = pending_task();
     let generation = runtime.state.generation();
-    runtime.work.worker.attach_test(generation, (), worker);
+    runtime.transfers.worker.attach_test(generation, (), worker);
     let release = hold_the_actor(&runtime)?;
     let outcome = {
         let mut stopping =
@@ -1197,8 +1197,8 @@ async fn stop_retires_playback_and_volatile_work_before_a_blocked_write() -> Res
         anyhow::Ok(orders)
     })
     .await;
-    let worker_retired = runtime.work.worker.active().is_none();
-    let playback_retired = !runtime.conversation.speak_next;
+    let worker_retired = runtime.transfers.worker.active().is_none();
+    let playback_retired = !runtime.assistant.speak_next;
     let _ = release.send(());
     let orders = orders.context("helper pipe did not receive both stop orders")??;
     let dropped = tokio::time::timeout(std::time::Duration::from_secs(10), async {
@@ -1317,7 +1317,7 @@ async fn privacy_snapshot_waits_for_writer_without_holding_maintenance() -> Resu
     assert!(runtime.privacy_retirement_owed);
     // The stop already queued its snapshot. Isolate retirement's retry from
     // maintain_state's separate snapshot policy, as the original fixture did.
-    runtime.work.durable_snapshot = DurableSnapshot::from(&runtime.state);
+    runtime.persisted.durable = DurableSnapshot::from(&runtime.state);
     let tick =
         tokio::time::timeout(std::time::Duration::from_secs(1), runtime.run_maintenance()).await;
     let reader = Store::open_existing(runtime.paths.store.clone(), [0x42; 32])?;
@@ -1357,14 +1357,14 @@ async fn closing_does_not_retry_an_owed_privacy_retirement() -> Result<()> {
         );
     }
     runtime.source_windows().await?;
-    assert!(runtime.source_operation_pending());
+    assert!(runtime.sources.source_operation_pending());
     {
         let fixture_value = serde_json::json!(true);
         crate::daemon::authority_fixture::set(&mut runtime.state, "privacy_stopped", fixture_value);
     }
     runtime.privacy_retirement_owed = true;
     runtime.closing = true;
-    runtime.work.durable_snapshot = DurableSnapshot::from(&runtime.state);
+    runtime.persisted.durable = DurableSnapshot::from(&runtime.state);
     let release = hold_the_actor(&runtime)?;
     let tick =
         tokio::time::timeout(std::time::Duration::from_secs(1), runtime.run_maintenance()).await;

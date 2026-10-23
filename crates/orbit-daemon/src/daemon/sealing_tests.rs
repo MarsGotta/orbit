@@ -64,7 +64,7 @@ async fn a_failed_write_retains_both_tracks_until_a_durable_receipt() -> Result<
     await_seal_receipts(&mut runtime)?;
     assert!(runtime.capture.pending_seals.is_empty());
     assert!(runtime.state.privacy_stopped());
-    assert!(runtime.work.worker.active().is_none());
+    assert!(runtime.transfers.worker.active().is_none());
     assert_eq!(runtime.fixture_store.diagnostics()?.chunk_count, 2);
     for track in ["mic_local", "remote_app"] {
         let bytes = runtime

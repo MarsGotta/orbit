@@ -18,17 +18,16 @@ impl Runtime {
     /// the failed delivery. Either way the slot is left as `None` so the next remote
     /// request is admitted rather than told the bridge is busy.
     pub(in crate::daemon) fn release_bridge_request(&mut self, reason: BridgeReleaseReason<'_>) {
-        if let Some(mut upload) = self.features.sources.bridge_upload.take() {
+        if let Some(mut upload) = self.sources.bridge_upload.take() {
             upload.work.cancel();
         }
-        let Some(ask) = self.conversation.bridge_request.take() else {
+        let Some(ask) = self.assistant.bridge_request.take() else {
             return;
         };
         let attempted_action = (ask.capability
             == orbit_core::device_bridge::Capability::PerformAction)
             .then(|| {
-                self.features
-                    .computer
+                self.computer
                     .active_general
                     .as_ref()
                     .map(|entry| entry.operation_id.clone())
@@ -74,16 +73,17 @@ impl Runtime {
         // «Adjuntar ventana» is answered to the app, not to the hub (its reply
         // is diverted in `send_frame`): without the hub it is told why here.
         if ask.for_attachment && self.state.connection() == Connection::Offline {
-            self.refuse_window(if self.state.privacy_stopped() {
-                Refusal::PrivacyStopped { since_ms: None }
-            } else {
-                Refusal::HubUnreachable { since_ms: None }
-            });
+            self.assistant
+                .refuse_window(if self.state.privacy_stopped() {
+                    Refusal::PrivacyStopped { since_ms: None }
+                } else {
+                    Refusal::HubUnreachable { since_ms: None }
+                });
             return true;
         }
         if self.state.privacy_stopped()
             && self.state.connection() == Connection::Offline
-            && !self.hub.is_some()
+            && !self.link.outbound.is_some()
         {
             self.note_bridge_send(
                 &hub_link::SendResult::Retired(hub_link::Retirement::PrivacyStop),
@@ -96,7 +96,8 @@ impl Runtime {
         // it may still deliver this final refusal on the open link before
         // retiring it.
         if self.state.connection() == Connection::Offline
-            && !(matches!(reason, BridgeReleaseReason::PrivacyStopped) && self.hub.is_some())
+            && !(matches!(reason, BridgeReleaseReason::PrivacyStopped)
+                && self.link.outbound.is_some())
         {
             self.note_bridge_send(
                 &hub_link::SendResult::Disconnected,
@@ -113,8 +114,7 @@ impl Runtime {
         ask: &BridgeAsk,
         reason: BridgeReleaseReason<'_>,
     ) -> Option<Refusal> {
-        self.features
-            .sources
+        self.sources
             .last_failure
             .as_ref()
             .filter(|failure| {

@@ -1,8 +1,9 @@
 //! App-facing daemon operations that own credentials, configuration and hub reads.
 
-use super::{Runtime, account_summary};
+use super::{Runtime, account_summary, decide, hub, now};
 use anyhow::{Result, bail};
 use orbit_core::Connection;
+use orbit_core::Event;
 use orbit_core::limits::MAX_SESSION_ID_BYTES;
 use orbit_core::notice::NoticeCode;
 
@@ -10,10 +11,51 @@ const MAX_DEVICE_NAME_CHARS: usize = 80;
 const MAX_PAIR_CODE_BYTES: usize = 256;
 
 impl Runtime {
+    /// Opens the hub link when the device is paired and nothing stops it.
+    pub(super) fn connect(&mut self) {
+        if self.state.privacy_stopped() || self.link.task.as_ref().is_some_and(|t| !t.is_finished())
+        {
+            return;
+        }
+        if let (Some(token), Some(_), Some(_)) = (
+            &self.link.token,
+            &self.settings.hub_url,
+            &self.settings.device_id,
+        ) {
+            // Existing 16-frame command queue: bounds local frames while the
+            // websocket is blocked. It is not a Deimos receipt or a retry queue.
+            match decide(&self.state, Event::Connecting, now()) {
+                Ok(decision) => self.state = decision.state,
+                Err(error) => {
+                    self.log("connect_decision_failed", &[("error", &error.to_string())]);
+                    return;
+                }
+            }
+            let commands = self.link.outbound.open(16);
+            let run = hub::run(
+                self.settings.clone(),
+                token.clone(),
+                self.development,
+                commands,
+                hub::Events {
+                    generation: self.state.generation(),
+                    sender: self.link.events.clone(),
+                },
+            );
+            // A panic ends this task with a failure and marks it down; the
+            // loop's upkeep connects again (`supervise_workers`).
+            self.link.task = Some(tokio::spawn(crate::supervision::relaunchable(
+                crate::supervision::Actor::HubConnection,
+                self.supervision.clone(),
+                run,
+            )));
+        }
+    }
+
     pub(super) fn hub_access(&self) -> Result<&str, orbit_core::refusal::Refusal> {
         crate::hub::access(
             &self.settings,
-            self.token.as_deref(),
+            self.link.token.as_deref(),
             self.state.privacy_stopped(),
             self.state.connection(),
         )
@@ -55,14 +97,14 @@ impl Runtime {
         self.paths.save_settings(&settings)?;
         self.settings = settings;
         self.state.views.account = Some(account_summary(&self.settings));
-        self.token = Some(token);
+        self.link.token = Some(token);
         self.restart_hub_connection().await?;
         self.say(NoticeCode::Paired);
         Ok(())
     }
 
     async fn restart_hub_connection(&mut self) -> Result<()> {
-        self.snapshot_revision = None;
+        self.assistant.snapshot_revision = None;
         if self.state.connection() != Connection::Offline {
             self.apply(orbit_core::Event::Connect(Connection::Offline))
                 .await?;

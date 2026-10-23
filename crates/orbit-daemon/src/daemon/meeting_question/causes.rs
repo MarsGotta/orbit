@@ -21,7 +21,6 @@ impl Runtime {
         now_ms: i64,
     ) {
         let thinking = self
-            .features
             .question
             .current
             .as_ref()
@@ -61,8 +60,8 @@ impl Runtime {
             self.say(notice);
             return;
         }
-        self.features.question.failure = None;
-        self.features.question.current = Some(MeetingQuestion::refused(
+        self.question.failure = None;
+        self.question.current = Some(MeetingQuestion::refused(
             request_id,
             meeting.map(|meeting| meeting.recording_id.clone()),
             question,

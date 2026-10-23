@@ -9,6 +9,9 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::collections::VecDeque;
 
+#[path = "interaction_snapshot.rs"]
+mod snapshot;
+
 /// Bounds volatile interrupted-turn identities so repeated local churn cannot
 /// grow daemon memory forever. 128 covers one identity for every session in
 /// the largest snapshot this module accepts. This is not a timeout or an
@@ -160,37 +163,6 @@ impl InterruptedTurns {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-enum TurnState {
-    Idle,
-    Submitting,
-    Streaming,
-    Interrupting,
-    Completed,
-    Failed,
-    OutcomeUnknown,
-}
-
-impl TurnState {
-    fn keeps_response_visible(self) -> bool {
-        match self {
-            Self::Idle => false,
-            Self::Submitting => true,
-            Self::Streaming => true,
-            // Orbit has already applied the local interrupt and discarded the
-            // request identity. The hub may still observe a terminal upstream
-            // event, but it is the answer the person chose to interrupt.
-            Self::Interrupting => false,
-            Self::Completed => false,
-            Self::Failed => false,
-            // The hub makes this state terminal and forbids a resend. There is
-            // no response known safe to attach to the selected conversation.
-            Self::OutcomeUnknown => false,
-        }
-    }
-}
-
 pub(super) struct PendingResponse {
     command_id: String,
     request_id: String,
@@ -215,7 +187,7 @@ impl Runtime {
         let Some(session_id) = self.state.session_id().clone() else {
             return;
         };
-        self.conversation
+        self.assistant
             .interrupted_turns
             .remember(session_id, turn_id.into());
     }
@@ -224,7 +196,7 @@ impl Runtime {
         let Some(session_id) = self.state.session_id().clone() else {
             return;
         };
-        self.conversation
+        self.assistant
             .interrupted_turns
             .forget(&session_id, turn_id);
     }
@@ -236,7 +208,7 @@ impl Runtime {
         let Some(session_id) = self.state.session_id().clone() else {
             return;
         };
-        self.conversation.interrupted_turns.await_ack(
+        self.assistant.interrupted_turns.await_ack(
             command_id.to_owned(),
             session_id,
             turn_id.to_owned(),
@@ -257,7 +229,7 @@ impl Runtime {
     /// neither success nor refusal is invented from a dropped sender.
     pub(super) fn interrupt_delivery_unknown(&mut self, turn_id: &str, cause: &str) {
         self.forget_interrupted_turn(turn_id);
-        self.conversation.interrupted_turns.forget_pending_ack();
+        self.assistant.interrupted_turns.forget_pending_ack();
         self.say_failure(NoticeCode::AssistantInterruptUnconfirmed, &cause);
     }
 
@@ -272,7 +244,7 @@ impl Runtime {
         frame_id: Option<&str>,
         data: &ErrorData,
     ) -> Result<bool> {
-        if !self.conversation.interrupted_turns.rejected(frame_id) {
+        if !self.assistant.interrupted_turns.rejected(frame_id) {
             return Ok(false);
         }
         let code = data.code.as_deref().unwrap_or("not_reported");
@@ -295,7 +267,7 @@ impl Runtime {
         if self.state.connection() != Connection::Online || self.state.privacy_stopped() {
             bail!("Conecta y reactiva Orbit antes de responder");
         }
-        if self.conversation.interaction_response.is_some() {
+        if self.assistant.interaction_response.is_some() {
             bail!("La respuesta anterior aún no está confirmada; no se reenvía");
         }
         let turn = self
@@ -326,7 +298,7 @@ impl Runtime {
         let command_id = id();
         self.send(crate::hub::command(&command_id, method, params)?)
             .await?;
-        self.conversation.interaction_response = Some(PendingResponse {
+        self.assistant.interaction_response = Some(PendingResponse {
             command_id,
             request_id: request,
             session_id,
@@ -341,12 +313,12 @@ impl Runtime {
     /// `INTERACTION_RESPONSE_DEADLINE`: its outcome is unknown, said so.
     pub(super) async fn expire_interaction_response(&mut self) -> Result<()> {
         if self
-            .conversation
+            .assistant
             .interaction_response
             .as_ref()
             .is_some_and(|pending| pending.sent_at.elapsed() > INTERACTION_RESPONSE_DEADLINE)
         {
-            self.conversation.interaction_response = None;
+            self.assistant.interaction_response = None;
             self.say(NoticeCode::ApprovalOutcomeUnknown);
             self.store_actor.snapshot(&self.state).await?;
         }
@@ -355,12 +327,12 @@ impl Runtime {
 
     pub(super) async fn interaction_error(&mut self, frame_id: Option<&str>) -> Result<()> {
         if self
-            .conversation
+            .assistant
             .interaction_response
             .as_ref()
             .is_some_and(|pending| Some(pending.command_id.as_str()) == frame_id)
         {
-            self.conversation.interaction_response = None;
+            self.assistant.interaction_response = None;
             self.say(NoticeCode::ApprovalOutcomeUnknown);
             self.store_actor.snapshot(&self.state).await?;
         }
@@ -373,7 +345,7 @@ impl Runtime {
         frame_id: Option<&str>,
         data: &InteractionData,
     ) -> Result<()> {
-        let Some(pending) = self.conversation.interaction_response.as_ref() else {
+        let Some(pending) = self.assistant.interaction_response.as_ref() else {
             return Ok(());
         };
         if frame_id != Some(pending.command_id.as_str()) {
@@ -388,7 +360,7 @@ impl Runtime {
             && data.applied == Some(true)
             && (pending.clarification || data.resolved == Some(1));
         let expired = matches_target && !resolved && data.applied == Some(false);
-        self.conversation.interaction_response = None;
+        self.assistant.interaction_response = None;
         if (applied || expired) && data.stale_interaction == Some(true) {
             // The receipt describes an earlier pending object, even when its
             // request ID was reused. Only the current snapshot owns that state.
@@ -421,142 +393,6 @@ impl Runtime {
             self.say(NoticeCode::ApprovalOutcomeUnknown);
         }
         self.store_actor.snapshot(&self.state).await?;
-        Ok(())
-    }
-
-    pub(super) async fn reconcile_typed_snapshot(&mut self, snapshot: &SnapshotData) -> Result<()> {
-        let revision = snapshot.revision;
-        if self
-            .snapshot_revision
-            .is_some_and(|current| revision < current)
-        {
-            return Ok(());
-        }
-        let sessions = &snapshot.sessions;
-        if sessions.len() > 128 {
-            bail!("Snapshot con {} sesiones; se admiten 128", sessions.len());
-        }
-        let Some(selected) = self.state.session_id().clone() else {
-            self.snapshot_revision = Some(revision);
-            return Ok(());
-        };
-        let Some(session) = sessions
-            .iter()
-            .find(|session| session.session_id == selected)
-        else {
-            // Omitted sessions are not proof of completion or loss of ownership.
-            return Ok(());
-        };
-        if self
-            .state
-            .durable
-            .assistant
-            .active_request
-            .as_deref()
-            .is_some_and(|active| session.turn_id.as_deref() != Some(active))
-        {
-            // A snapshot emitted just before our new command reached the hub
-            // must not erase that command's locally admitted identity.
-            return Ok(());
-        }
-        let raw_status = &session.status;
-        let Ok(turn_state) = serde_json::from_value::<TurnState>(Value::String(raw_status.clone()))
-        else {
-            // The hub runs from `main` and the Mac from its last release, so a
-            // newer hub may publish a state this version does not know (the
-            // two are tolerant of each other). Nothing is decided on it:
-            // the turn, its pending questions and the revision stay as they
-            // were, and the user is told the value, cut to what a notice can show.
-            self.log("unknown_turn_state", &[("status", raw_status)]);
-            self.say(
-                Notice::new(NoticeCode::AssistantStateUnknown)
-                    .with_token(NoticeKey::Code, raw_status),
-            );
-            return Ok(());
-        };
-        let snapshot_turn_id = session.turn_id.as_deref();
-        let was_interrupted = snapshot_turn_id.is_some_and(|turn_id| {
-            self.conversation
-                .interrupted_turns
-                .contains(&selected, turn_id)
-        });
-        let mut next = self.state.clone();
-        let pending = &session.pending;
-        if pending.len() > 128 {
-            bail!(
-                "Snapshot con {} interacciones pendientes; se admiten 128",
-                pending.len()
-            );
-        }
-        next.durable.assistant.pending_approval = None;
-        if turn_state.keeps_response_visible() && !was_interrupted {
-            let turn_id = session
-                .turn_id
-                .as_deref()
-                .context("Turno activo sin identidad")?;
-            uuid::Uuid::parse_str(turn_id).context("Identidad de turno incompatible")?;
-            next.durable.assistant.active_request = Some(turn_id.into());
-            if let Some(question) = pending.first() {
-                let request_id = question.request_id.as_str();
-                if request_id.is_empty() || request_id.len() > 160 {
-                    bail!(
-                        "Snapshot de interacción con request_id de {} bytes; se admiten 1 a 160",
-                        request_id.len()
-                    );
-                }
-                if question.state != "pending"
-                    || !matches!(question.kind.as_str(), "approval" | "clarify")
-                {
-                    bail!("Snapshot de interacción incompatible");
-                }
-                let description = question
-                    .description
-                    .as_deref()
-                    .or(question.question.as_deref())
-                    .context("Snapshot de interacción sin descripción o pregunta")?;
-                if description.len() > 16_000 {
-                    bail!(
-                        "Pregunta pendiente de {} bytes; se admiten 16000",
-                        description.len()
-                    );
-                }
-                let (choices, questions) =
-                    offered(question.choices.as_ref(), question.questions.as_ref());
-                next.durable.assistant.pending_approval = Some(Approval {
-                    request_id: request_id.into(),
-                    description: description.into(),
-                    clarification: question.kind == "clarify",
-                    choices,
-                    questions,
-                    deletes: orbit_core::Deletion::from_wire(question.deletes.as_ref()),
-                });
-                next.set_notice(
-                    self.scoped(
-                        Notice::new(NoticeCode::ApprovalsRecovered)
-                            .with(NoticeKey::Count, pending.len()),
-                    ),
-                );
-            }
-        } else {
-            if turn_state == TurnState::OutcomeUnknown
-                && next.durable.assistant.active_request.is_some()
-            {
-                // Otherwise the last thing said would stay «Deimos está
-                // pensando…» for a turn the hub will never finish.
-                next.set_notice(self.scoped(NoticeCode::AssistantOutcomeUnknown));
-            }
-            next.durable.assistant.active_request = None;
-        }
-        self.store_actor.snapshot(&next).await?;
-        if !turn_state.keeps_response_visible()
-            && let Some(turn_id) = snapshot_turn_id
-        {
-            self.conversation
-                .interrupted_turns
-                .forget(&selected, turn_id);
-        }
-        self.state = next;
-        self.snapshot_revision = Some(revision);
         Ok(())
     }
 }

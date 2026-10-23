@@ -68,18 +68,6 @@ impl MeetingSignal {
 }
 
 impl Runtime {
-    pub(super) fn begin_recording_signal(&mut self, recording_id: String, epoch: String) {
-        self.capture.audio.meeting.signal = self.capture.mic_stream.as_ref().map(|microphone| {
-            MeetingSignal::new(
-                recording_id,
-                epoch,
-                microphone.clone(),
-                self.capture.remote_stream.clone(),
-                Instant::now(),
-            )
-        });
-    }
-
     pub(super) fn observe_recording_signal(
         &mut self,
         observation: Option<ObservedPcmSignal>,
@@ -91,7 +79,7 @@ impl Runtime {
         let Some(observation) = observation else {
             return;
         };
-        let Some(monitor) = self.capture.audio.meeting.signal.as_mut() else {
+        let Some(monitor) = self.audio.lifecycle.meeting.signal.as_mut() else {
             return;
         };
         if self.capture.buffer.recording_owner(observation.source) == Some(&monitor.recording_id)
@@ -117,7 +105,7 @@ impl Runtime {
         if self.state.privacy_stopped() || !self.recording_active() {
             return None;
         }
-        if let Some(monitor) = &self.capture.audio.meeting.signal
+        if let Some(monitor) = &self.audio.lifecycle.meeting.signal
             && self
                 .state
                 .durable.capture.recording
@@ -134,12 +122,26 @@ impl Runtime {
             && self.capture.buffer.recording_owner("mic_local") == Some(&monitor.recording_id)
             && (monitor.remote_stream.is_none()
                 || self.capture.buffer.recording_owner("remote_app") == Some(&monitor.recording_id))
-            && self.capture.mic_stream.as_deref() == Some(&monitor.microphone_stream)
-            && self.capture.remote_stream == monitor.remote_stream
+            && self.audio.mic_stream.as_deref() == Some(&monitor.microphone_stream)
+            && self.audio.remote_stream == monitor.remote_stream
         {
             return monitor.view(at);
         }
         None
+    }
+}
+
+impl crate::daemon::audio::AudioHandle {
+    pub(super) fn begin_recording_signal(&mut self, recording_id: String, epoch: String) {
+        self.lifecycle.meeting.signal = self.mic_stream.as_ref().map(|microphone| {
+            MeetingSignal::new(
+                recording_id,
+                epoch,
+                microphone.clone(),
+                self.remote_stream.clone(),
+                Instant::now(),
+            )
+        });
     }
 }
 

@@ -29,6 +29,10 @@ use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
+mod folders;
+
+mod steps;
+
 /// What a `files_*` request asked, validated before the helper hears of it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum FilesAsk {
@@ -137,7 +141,7 @@ struct InFlight {
 /// The daemon's part of the folders: the list as stored, what the helper last
 /// said of each, and the one order of each kind it is waiting on.
 #[derive(Debug, Default)]
-pub(super) struct FilesRuntime {
+pub(super) struct FilesHandle {
     /// `None` until read from the store; an unreadable row is its cause.
     folders: Option<Result<Vec<Folder>, String>>,
     /// The last word on each folder, by id; absent is unknown, never «no».
@@ -153,156 +157,14 @@ pub(super) struct FilesRuntime {
 const REQUEST_TIMEOUT: Duration = Duration::from_millis(files::HELPER_REQUEST_TIMEOUT_MS);
 
 impl Runtime {
-    /// Reads the folders at startup. A row that cannot be read is said and
-    /// published with its cause, never as an empty list.
-    pub(super) fn recover_assistant_folders(&mut self) {
-        let loaded = self.reader.load_assistant_folders();
-        if loaded.is_err() {
-            self.log("assistant_folders_unreadable", &[]);
-        }
-        self.features.files.folders =
-            Some(loaded.map_err(|error| {
-                format!("No se pudieron leer las carpetas del asistente ({error})")
-            }));
-    }
-
-    fn saved_folders(&mut self) -> Result<Vec<Folder>, Refusal> {
-        if self.features.files.folders.is_none() {
-            self.recover_assistant_folders();
-        }
-        match &self.features.files.folders {
-            Some(Ok(folders)) => Ok(folders.clone()),
-            Some(Err(cause)) => Err(Refusal::StorageFailed {
-                operation: Operation::Files,
-                cause: Some(cause.clone().into()),
-            }),
-            None => Ok(Vec::new()),
-        }
-    }
-
-    /// The folders as the control topic publishes them.
-    pub(super) fn folders_knowledge(&self) -> Knowledge<Vec<FolderView>> {
-        match &self.features.files.folders {
-            None => Knowledge::Unknown {
-                why: TopicPending::NotObservedYet,
-            },
-            Some(Err(cause)) => Knowledge::Absent {
-                refusal: Refusal::StorageFailed {
-                    operation: Operation::Files,
-                    cause: Some(cause.clone().into()),
-                },
-            },
-            Some(Ok(folders)) => Knowledge::Present {
-                value: folders
-                    .iter()
-                    .map(|folder| FolderView {
-                        id: folder.id.clone(),
-                        path: folder.path.clone(),
-                        access: self
-                            .features
-                            .files
-                            .access
-                            .get(&folder.id)
-                            .cloned()
-                            .unwrap_or(FolderAccess::Unknown),
-                    })
-                    .collect(),
-                as_of_ms: None,
-            },
-        }
-    }
-
-    fn send_files_command(&mut self, name: &str, mut fields: Value) -> Result<String, Refusal> {
-        let id = format!("assistant-files-{}", super::id());
-        if let Some(object) = fields.as_object_mut() {
-            object.insert("id".into(), Value::from(id.clone()));
-        }
-        let command = crate::native::command(name, fields).map_err(|_| Refusal::Internal {
-            cause: orbit_core::refusal::InternalCause::NativeCommand,
-        })?;
-        self.native
-            .try_send(command.clone())
-            .map_err(|_| Refusal::Busy {
-                operation: Operation::Files,
-                retry_after_ms: None,
-            })?;
-        self.record_pending_native(&command);
-        Ok(id)
-    }
-
-    /// «Añadir carpeta»: the panel opens on the Mac; the choice arrives in
-    /// `files_response`. Refused at once, by name, when no folder can be added.
-    pub(super) fn add_assistant_folder(&mut self) -> Result<()> {
-        if self.state.privacy_stopped() {
-            return Err(Refusal::PrivacyStopped { since_ms: None }.into());
-        }
-        if !self.state.capabilities().native_helper() {
-            return Err(Refusal::HelperNotRunning.into());
-        }
-        if self.features.files.pick.is_some() {
-            return Err(Refusal::Busy {
-                operation: Operation::Files,
-                retry_after_ms: None,
-            }
-            .into());
-        }
-        let saved = self.saved_folders()?;
-        files::room_for_another(&saved)?;
-        let id = self.send_files_command("assistant_folder_pick", json!({}))?;
-        self.features.files.pick = Some(id);
-        Ok(())
-    }
-
-    /// «Quitar»: forgotten at once, bookmark included, also by a request
-    /// already under way: its next step neither reads in it nor answers
-    /// with what was read there.
-    pub(super) async fn remove_assistant_folder(&mut self, id: &str) -> Result<()> {
-        let saved = self.saved_folders()?;
-        if let Some(folders) = files::without_folder(&saved, id) {
-            self.store_folders(folders).await?;
-        }
-        self.features.files.access.remove(id);
-        if let Some(request) = self.features.files.request.as_mut() {
-            request.saved.retain(|folder| folder.id != id);
-        }
-        Ok(())
-    }
-
-    async fn store_folders(&mut self, folders: Vec<Folder>) -> Result<()> {
-        let kept = folders.clone();
-        self.store_actor
-            .run(move |store| Ok(store.save_assistant_folders(&kept)?))
-            .await
-            .context("No se pudieron guardar las carpetas del asistente")?;
-        self.features.files.folders = Some(Ok(folders));
-        Ok(())
-    }
-
-    /// Asks the helper whether every folder still opens, for Ajustes.
-    pub(super) fn check_assistant_folders(&mut self) {
-        let Ok(saved) = self.saved_folders() else {
-            return;
-        };
-        if saved.is_empty()
-            || self.features.files.check.is_some()
-            || !self.state.capabilities().native_helper()
-        {
-            return;
-        }
-        let bookmarks: Vec<FolderBookmark> = saved.iter().map(FolderBookmark::from).collect();
-        if let Ok(id) = self.send_files_command("assistant_folders", json!({"folders":bookmarks})) {
-            self.features.files.check = Some(id);
-        }
-    }
-
     /// A helper that went away answers nothing it was asked: its folders are
     /// unknown again and a request it held is refused with `cause` — it
     /// restarted, or it is gone and nothing has started again yet.
     pub(super) fn files_helper_lost(&mut self, cause: Refusal) {
-        self.features.files.access.clear();
-        self.features.files.pick = None;
-        self.features.files.check = None;
-        if let Some(request) = self.features.files.request.take() {
+        self.files.access.clear();
+        self.files.pick = None;
+        self.files.check = None;
+        if let Some(request) = self.files.request.take() {
             self.refuse_files(&request.ask_id, cause);
         }
     }
@@ -334,8 +196,10 @@ impl Runtime {
         if let Some(path) = request.path() {
             fields["path"] = Value::from(path);
         }
-        let native_id = self.send_files_command("assistant_folders", fields)?;
-        self.features.files.request = Some(InFlight {
+        let native_id = self
+            .helper
+            .send_files_command("assistant_folders", fields)?;
+        self.files.request = Some(InFlight {
             native_id,
             ask_id: ask.id.clone(),
             ask: request,
@@ -351,7 +215,6 @@ impl Runtime {
     /// single slot is free before the hub gives up.
     pub(super) fn check_files_timeout(&mut self) {
         let expired = self
-            .features
             .files
             .request
             .as_ref()
@@ -359,7 +222,7 @@ impl Runtime {
         if !expired {
             return;
         }
-        if let Some(request) = self.features.files.request.take() {
+        if let Some(request) = self.files.request.take() {
             self.refuse_files(
                 &request.ask_id,
                 Refusal::Timeout {
@@ -372,21 +235,11 @@ impl Runtime {
         }
     }
 
-    /// Whether `request_id` is still the bridge request being served: one the
-    /// privacy stop, a disconnection or a timeout released is answered by
-    /// whoever released it, never twice.
-    fn still_asked(&self, request_id: &str) -> bool {
-        self.conversation
-            .bridge_request
-            .as_ref()
-            .is_some_and(|ask| ask.id == request_id)
-    }
-
     fn refuse_files(&mut self, request_id: &str, refusal: Refusal) {
-        if !self.still_asked(request_id) {
+        if !self.assistant.still_asked(request_id) {
             return;
         }
-        self.conversation.bridge_request = None;
+        self.assistant.bridge_request = None;
         let code = refusal.code().name();
         self.say(Notice::new(NoticeCode::BridgeRefused).with_token(NoticeKey::Code, code));
         let frame = json!(DeviceReplyParams::refused(
@@ -399,10 +252,10 @@ impl Runtime {
     }
 
     fn answer_files(&mut self, request_id: &str, result: BridgeResult) {
-        if !self.still_asked(request_id) {
+        if !self.assistant.still_asked(request_id) {
             return;
         }
-        self.conversation.bridge_request = None;
+        self.assistant.bridge_request = None;
         let frame = json!(DeviceReplyParams::answered(request_id.to_owned(), result));
         let sent = self.send_frame(hub::command(request_id, "device.reply", frame));
         self.note_bridge_send(&sent, "the folder answer");
@@ -412,13 +265,13 @@ impl Runtime {
     /// response is not one of them.
     pub(super) async fn files_response(&mut self, event: &Value) -> Result<bool> {
         let response = NativeResponseFields::from_value(event)?;
-        if self.features.files.pick.as_deref() == Some(response.id.as_str()) {
-            self.features.files.pick = None;
+        if self.files.pick.as_deref() == Some(response.id.as_str()) {
+            self.files.pick = None;
             self.on_folder_picked(&response).await?;
             return Ok(true);
         }
-        if self.features.files.check.as_deref() == Some(response.id.as_str()) {
-            self.features.files.check = None;
+        if self.files.check.as_deref() == Some(response.id.as_str()) {
+            self.files.check = None;
             match Self::folders_reply(&response) {
                 Ok(reply) => self.take_reports(&reply.folders).await,
                 Err(_) => self.log("assistant_folders_check_failed", &[]),
@@ -426,7 +279,6 @@ impl Runtime {
             return Ok(true);
         }
         let Some(request) = self
-            .features
             .files
             .request
             .take_if(|request| request.native_id == response.id)
@@ -435,7 +287,7 @@ impl Runtime {
         };
         // Released meanwhile (privacy stop, a lost hub, a timeout): whoever
         // released it answered; nothing more is read for it.
-        if !self.still_asked(&request.ask_id) {
+        if !self.assistant.still_asked(&request.ask_id) {
             return Ok(true);
         }
         let outcome = match &request.stage {
@@ -451,69 +303,6 @@ impl Runtime {
             self.refuse_files(&request.ask_id, refusal);
         }
         Ok(true)
-    }
-
-    async fn on_folder_picked(&mut self, response: &NativeResponseFields) -> Result<()> {
-        if !response.ok {
-            let error = response.error.as_ref();
-            let code = error.map_or("assistant_folder_pick_failed", |error| error.code.as_str());
-            let detail = error.and_then(|error| error.detail.as_ref());
-            let mut notice =
-                Notice::new(NoticeCode::AssistantFolderNotAdded).with_token(NoticeKey::Code, code);
-            if let Some(kind) = detail
-                .and_then(|detail| detail.pointer("/cause/kind"))
-                .and_then(Value::as_str)
-            {
-                notice = notice.with_token(NoticeKey::Cause, kind);
-            }
-            if let Some(status) = detail
-                .and_then(|detail| detail.get("os_status"))
-                .and_then(Value::as_i64)
-            {
-                notice = notice.with(NoticeKey::Status, status);
-            }
-            self.say(notice);
-            return Ok(());
-        }
-        let picked = response
-            .result
-            .as_ref()
-            .map(|result| decode_result_body::<PickReply>("assistant_folder_pick", result));
-        let Some(Ok(PickReply::Chosen {
-            path,
-            bookmark_base64,
-        })) = picked
-        else {
-            if !matches!(picked, Some(Ok(PickReply::Cancelled))) {
-                self.log("assistant_folder_pick_invalid", &[]);
-            }
-            return Ok(());
-        };
-        let chosen = Folder {
-            id: uuid::Uuid::new_v4().to_string(),
-            path,
-            bookmark_base64,
-        };
-        let added = match self.saved_folders() {
-            Ok(saved) => files::with_folder(&saved, chosen),
-            Err(refusal) => Err(refusal),
-        };
-        match added {
-            Ok(Some(folders)) => {
-                if self.store_folders(folders).await.is_err() {
-                    self.log("assistant_folders_unsaved", &[]);
-                    self.say(not_added(&Refusal::StorageFailed {
-                        operation: Operation::Files,
-                        cause: None,
-                    }));
-                    return Ok(());
-                }
-                self.check_assistant_folders();
-            }
-            Ok(None) => {}
-            Err(refusal) => self.say(not_added(&refusal)),
-        }
-        Ok(())
     }
 
     fn folders_reply(response: &NativeResponseFields) -> Result<FoldersReply, Refusal> {
@@ -533,70 +322,6 @@ impl Runtime {
             }
         }
         Ok(reply)
-    }
-
-    /// What the helper just said of each folder still kept: shown in
-    /// Ajustes, and a renewed bookmark or a moved folder stored. A report of
-    /// a folder removed meanwhile changes nothing.
-    async fn take_reports(&mut self, reports: &[FolderReport]) {
-        let Ok(saved) = self.saved_folders() else {
-            return;
-        };
-        let reports: Vec<FolderReport> = reports
-            .iter()
-            .filter(|report| saved.iter().any(|folder| folder.id == report.id()))
-            .cloned()
-            .collect();
-        for report in &reports {
-            let access = match report {
-                FolderReport::Accessible { .. } => FolderAccess::Accessible,
-                FolderReport::Unavailable { cause, .. } => FolderAccess::Unavailable {
-                    cause: cause.clone(),
-                },
-            };
-            self.features
-                .files
-                .access
-                .insert(report.id().to_owned(), access);
-        }
-        if let Some(folders) = files::refreshed(&saved, &reports) {
-            let kept: Vec<String> = folders.iter().map(|folder| folder.id.clone()).collect();
-            if self.store_folders(folders).await.is_err() {
-                self.log("assistant_folders_refresh_unsaved", &[]);
-                return;
-            }
-            self.features.files.access.retain(|id, _| kept.contains(id));
-        }
-    }
-
-    /// A folder the second step could not open is said in Ajustes as the
-    /// first step's report would have said it.
-    fn note_step_folder(&mut self, request: &InFlight, response: &NativeResponseFields) {
-        let Some(error) = response
-            .error
-            .as_ref()
-            .filter(|error| !response.ok && error.code == "assistant_folder_unavailable")
-        else {
-            return;
-        };
-        let detail = error.detail.as_ref();
-        let id = detail
-            .and_then(|detail| detail.get("id"))
-            .and_then(Value::as_str);
-        let cause = detail
-            .and_then(|detail| detail.get("cause"))
-            .cloned()
-            .and_then(|cause| serde_json::from_value::<FolderCause>(cause).ok());
-        if let (Some(id), Some(cause)) = (id, cause)
-            && request.saved.iter().any(|folder| folder.id == id)
-        {
-            self.features.files.access.insert(
-                id.to_owned(),
-                FolderAccess::Unavailable {
-                    cause: cause.bounded(),
-                },
-            );
-        }
     }
 
     /// The helper's refusal of a step, in the request's own terms.
@@ -642,364 +367,6 @@ impl Runtime {
             code => Self::bridge_refusal_code(code),
         })
     }
-
-    async fn on_resolved(
-        &mut self,
-        request: &InFlight,
-        response: &NativeResponseFields,
-    ) -> Result<(), Refusal> {
-        if request.saved.is_empty() {
-            return Err(Refusal::NoFolders);
-        }
-        if let Some(refusal) = Self::helper_refusal(request, response) {
-            self.note_step_folder(request, response);
-            return Err(refusal);
-        }
-        let mut reply = Self::folders_reply(response)?;
-        // A folder removed while this step ran is not one of the request's.
-        reply
-            .folders
-            .retain(|report| request.saved.iter().any(|folder| folder.id == report.id()));
-        self.take_reports(&reply.folders).await;
-        let open: Vec<(String, String)> = reply
-            .folders
-            .iter()
-            .filter_map(|report| match report {
-                FolderReport::Accessible { id, path, .. } => Some((id.clone(), path.clone())),
-                FolderReport::Unavailable { .. } => None,
-            })
-            .collect();
-        let bookmark = |id: &str| {
-            request
-                .saved
-                .iter()
-                .find(|folder| folder.id == id)
-                .map(FolderBookmark::from)
-        };
-        let (name, fields, admitted) = match &request.ask {
-            FilesAsk::List {
-                path: None,
-                after_index,
-            } => {
-                self.answer_files(&request.ask_id, roots_page(request, &reply, *after_index));
-                return Ok(());
-            }
-            FilesAsk::Search {
-                query,
-                path: None,
-                content,
-            } => {
-                // A folder inside another (or the same one twice) is walked
-                // once, as part of the outer one: the helper walks each root whole.
-                let covered = |index: usize, path: &str| {
-                    open.iter().enumerate().any(|(other_index, (_, other))| {
-                        other_index != index
-                            && files::is_within(path, other)
-                            && (path != other || other_index < index)
-                    })
-                };
-                let roots: Vec<SearchRoot> = open
-                    .iter()
-                    .enumerate()
-                    .filter(|(index, (_, path))| !covered(*index, path))
-                    .filter_map(|(_, (id, path))| {
-                        bookmark(id).map(|folder| SearchRoot {
-                            folder,
-                            path: path.clone(),
-                        })
-                    })
-                    .collect();
-                if roots.is_empty() {
-                    return Err(first_unavailable(&request.saved, &reply.folders));
-                }
-                (
-                    "assistant_files_search",
-                    json!({"roots":roots,"query":query,"content":content,
-                        "limits":SearchLimits::ORBIT}),
-                    None,
-                )
-            }
-            ask @ (FilesAsk::List { .. } | FilesAsk::Search { .. } | FilesAsk::Read { .. }) => {
-                let path = ask.path().unwrap_or_default();
-                let admitted = files::admit(ask.asked(), path, &request.saved, &reply)?;
-                let folder = bookmark(&admitted.folder).ok_or(Refusal::HelperReplyInvalid {
-                    field: "assistant_folders.folders.id".into(),
-                    expected: "a folder of the request".into(),
-                    received_type: "unknown_id".into(),
-                })?;
-                let (name, fields) = match ask {
-                    FilesAsk::List { after_index, .. } => (
-                        "assistant_files_list",
-                        json!({"folder":folder,"path":admitted.path,"after_index":after_index,
-                            "max_entries":files::MAX_LIST_ENTRIES}),
-                    ),
-                    FilesAsk::Search { query, content, .. } => (
-                        "assistant_files_search",
-                        json!({"roots":[SearchRoot{folder, path: admitted.path.clone()}],
-                            "query":query,"content":content,"limits":SearchLimits::ORBIT}),
-                    ),
-                    FilesAsk::Read {
-                        after_index,
-                        after_page,
-                        ..
-                    } => (
-                        "assistant_files_read",
-                        json!({"folder":folder,"path":admitted.path,
-                            "read": read_as(admitted.content, *after_index, *after_page)}),
-                    ),
-                };
-                (name, fields, Some(admitted))
-            }
-        };
-        let native_id = self.send_files_command(name, fields)?;
-        // `started` stays the request's: its bound counts both steps.
-        self.features.files.request = Some(InFlight {
-            native_id,
-            stage: Stage::Working { admitted, open },
-            ..request.clone()
-        });
-        Ok(())
-    }
-
-    async fn on_worked(
-        &mut self,
-        request: &InFlight,
-        admitted: Option<&Admitted>,
-        open: &[(String, String)],
-        response: &NativeResponseFields,
-    ) -> Result<(), Refusal> {
-        let kept = |id: &str| request.saved.iter().any(|folder| folder.id == id);
-        // Removed while the helper read it: what was read there is dropped.
-        if let Some(admitted) = admitted
-            && !kept(&admitted.folder)
-        {
-            return Err(removed_meanwhile(request));
-        }
-        if let Some(refusal) = Self::helper_refusal(request, response) {
-            self.note_step_folder(request, response);
-            return Err(refusal);
-        }
-        let result = response
-            .result
-            .as_ref()
-            .ok_or(Refusal::HelperReplyInvalid {
-                field: "result".into(),
-                expected: "object".into(),
-                received_type: "absent".into(),
-            })?;
-        match &request.ask {
-            FilesAsk::List { after_index, .. } => {
-                let reply: ListReply = decode_result_body("assistant_files_list", result)
-                    .map_err(Refusal::helper_reply_invalid)?;
-                let path = admitted.map(|admitted| admitted.path.clone());
-                let budget = files::page_budget(path.as_deref().unwrap_or_default());
-                let (entries, next_after_index) =
-                    files::fit_entries(reply.entries, *after_index, reply.next_after_index, budget);
-                self.answer_files(
-                    &request.ask_id,
-                    BridgeResult::FilesList(FilesListResult {
-                        path,
-                        entries,
-                        total: reply.total,
-                        after_index: *after_index,
-                        next_after_index,
-                    }),
-                );
-            }
-            FilesAsk::Search {
-                query,
-                path,
-                content,
-            } => {
-                let mut reply: SearchReply = decode_result_body("assistant_files_search", result)
-                    .map_err(Refusal::helper_reply_invalid)?;
-                // A search of every folder, one of them removed meanwhile.
-                if admitted.is_none() && open.iter().any(|(id, _)| !kept(id)) {
-                    if request.saved.is_empty() {
-                        return Err(Refusal::NoFolders);
-                    }
-                    reply.results.retain(|hit| {
-                        open.iter()
-                            .any(|(id, root)| kept(id) && files::is_within(&hit.path, root))
-                    });
-                }
-                let shown = admitted
-                    .map(|admitted| admitted.path.clone())
-                    .or_else(|| path.clone());
-                let budget = files::page_budget(query)
-                    .saturating_sub(files::encoded_len(shown.as_deref().unwrap_or_default()));
-                let (results, stopped) = files::fit_hits(reply.results, reply.stopped, budget);
-                self.answer_files(
-                    &request.ask_id,
-                    BridgeResult::FilesSearch(FilesSearchResult {
-                        query: query.clone(),
-                        path: shown,
-                        content: *content,
-                        results,
-                        visited: reply.visited,
-                        files_read: reply.files_read,
-                        bytes_read: reply.bytes_read,
-                        partial_files: reply.partial_files,
-                        stopped,
-                    }),
-                );
-            }
-            FilesAsk::Read { .. } => {
-                let admitted = admitted.ok_or(Refusal::InvalidParameter {
-                    parameter: Parameter::Request,
-                    expected: Expected::ValidSelection,
-                })?;
-                let reply: ReadReply = decode_result_body("assistant_files_read", result)
-                    .map_err(Refusal::helper_reply_invalid)?;
-                self.answer_read(request, admitted, reply).await?;
-            }
-        }
-        Ok(())
-    }
-
-    async fn answer_read(
-        &mut self,
-        request: &InFlight,
-        admitted: &Admitted,
-        reply: ReadReply,
-    ) -> Result<(), Refusal> {
-        let budget = files::page_budget(&admitted.path);
-        let content = match reply {
-            ReadReply::Text {
-                text,
-                after_index,
-                next_after_index,
-                ..
-            } => {
-                let (text, next_after_index) =
-                    files::fit_text(text, after_index, next_after_index, budget);
-                FileContent::Text {
-                    text,
-                    after_index,
-                    next_after_index,
-                }
-            }
-            ReadReply::Pdf {
-                pages,
-                page_count,
-                after_page,
-                after_index,
-                next_after_page,
-                next_after_index,
-            } => {
-                let next = next_after_page.map(|page| (page, next_after_index.unwrap_or(0)));
-                let (pages, next) = files::fit_pages(pages, after_page, after_index, next, budget);
-                FileContent::Pdf {
-                    pages,
-                    page_count,
-                    after_page,
-                    after_index,
-                    next_after_page: next.map(|(page, _)| page),
-                    next_after_index: next.map(|(_, index)| index),
-                }
-            }
-            ReadReply::Image {
-                png_base64,
-                width,
-                height,
-                source_width,
-                source_height,
-            } => {
-                use base64::Engine as _;
-                let invalid = || Refusal::HelperReplyInvalid {
-                    field: "png_base64".into(),
-                    expected: "png_within_capture_bounds".into(),
-                    received_type: "string".into(),
-                };
-                let png = base64::engine::general_purpose::STANDARD
-                    .decode(png_base64.as_bytes())
-                    .map_err(|_| invalid())?;
-                orbit_core::sources::validate_png(&png, width, height).map_err(|_| invalid())?;
-                let Some(ask) = self
-                    .conversation
-                    .bridge_request
-                    .clone()
-                    .filter(|ask| ask.id == request.ask_id)
-                else {
-                    return Ok(());
-                };
-                let partial = FilesReadResult {
-                    path: admitted.path.clone(),
-                    size_bytes: admitted.size_bytes,
-                    modified_ms: admitted.modified_ms,
-                    content: FileContent::Image {
-                        capture_id: String::new(),
-                        width,
-                        height,
-                        mime_type: "image/png".into(),
-                        sha256: String::new(),
-                        source_width,
-                        source_height,
-                    },
-                };
-                // The bytes go out of band, as a screenshot's do; the reply
-                // that names the capture is sent once the hub holds it.
-                self.upload_file_capture(&ask, png, partial)
-                    .await
-                    .map_err(|_| Self::bridge_refusal_code("capture_upload_failed"))?;
-                return Ok(());
-            }
-        };
-        self.answer_files(
-            &request.ask_id,
-            BridgeResult::FilesRead(FilesReadResult {
-                path: admitted.path.clone(),
-                size_bytes: admitted.size_bytes,
-                modified_ms: admitted.modified_ms,
-                content,
-            }),
-        );
-        Ok(())
-    }
-}
-
-/// The answer to a request whose folder was removed while the helper read
-/// it: the path is no longer inside the folders that remain.
-fn removed_meanwhile(request: &InFlight) -> Refusal {
-    if request.saved.is_empty() {
-        return Refusal::NoFolders;
-    }
-    Refusal::OutsideFolders {
-        path: request.ask.path().unwrap_or_default().to_owned(),
-        resolved: None,
-        folders: request
-            .saved
-            .iter()
-            .map(|folder| folder.path.clone())
-            .collect(),
-    }
-}
-
-/// What the screen says when a folder chosen in the panel is not kept: the
-/// refusal's code with its cause and numbers, never the folder's path.
-fn not_added(refusal: &Refusal) -> Notice {
-    let mut notice = Notice::new(NoticeCode::AssistantFolderNotAdded)
-        .with_token(NoticeKey::Code, refusal.code().name());
-    if let Refusal::TooMany { count, max, .. } = refusal {
-        notice = notice
-            .with(NoticeKey::Count, *count)
-            .with(NoticeKey::Max, *max);
-    }
-    if let Refusal::FolderUnavailable { cause, .. } = refusal
-        && let FolderCause::PathTooLong { bytes, max_bytes }
-        | FolderCause::BookmarkTooLarge { bytes, max_bytes } = cause
-    {
-        let kind = if matches!(cause, FolderCause::PathTooLong { .. }) {
-            "path_too_long"
-        } else {
-            "bookmark_too_large"
-        };
-        notice = notice
-            .with_token(NoticeKey::Cause, kind)
-            .with(NoticeKey::Bytes, *bytes)
-            .with(NoticeKey::MaxBytes, *max_bytes);
-    }
-    notice
 }
 
 fn invalid_detail(code: &str) -> Refusal {
@@ -1008,62 +375,6 @@ fn invalid_detail(code: &str) -> Refusal {
         expected: format!("native_v1/{code}").into(),
         received_type: "invalid".into(),
     }
-}
-
-/// How the helper reads an admitted file.
-fn read_as(content: Option<ContentKind>, after_index: u64, after_page: u32) -> ReadAs {
-    match content.unwrap_or(ContentKind::Text) {
-        ContentKind::Text => ReadAs::Text {
-            after_index,
-            max_bytes: files::MAX_TEXT_PAGE_BYTES,
-        },
-        ContentKind::Pdf => ReadAs::Pdf {
-            after_page,
-            after_index,
-            max_bytes: files::MAX_TEXT_PAGE_BYTES,
-            max_pages: files::MAX_PDF_PAGES_PER_ANSWER,
-        },
-        ContentKind::Image => ReadAs::Image {
-            max_png_bytes: u32::try_from(orbit_core::sources::MAX_SOURCE_BYTES).unwrap_or(u32::MAX),
-            max_width: orbit_core::sources::MAX_WINDOW_WIDTH,
-            max_height: orbit_core::sources::MAX_WINDOW_HEIGHT,
-        },
-    }
-}
-
-/// The folders themselves as a listing: each by its whole path, with why it
-/// does not open when it does not.
-fn roots_page(request: &InFlight, reply: &FoldersReply, after_index: u64) -> BridgeResult {
-    let paths = files::folder_paths(&request.saved, &reply.folders);
-    let entries: Vec<Entry> = request
-        .saved
-        .iter()
-        .zip(paths)
-        .map(|(folder, path)| Entry {
-            name: path,
-            kind: EntryKind::Folder,
-            size_bytes: None,
-            modified_ms: None,
-            unavailable: reply.folders.iter().find_map(|report| match report {
-                FolderReport::Unavailable { id, cause } if *id == folder.id => Some(cause.clone()),
-                FolderReport::Unavailable { .. } | FolderReport::Accessible { .. } => None,
-            }),
-        })
-        .collect();
-    let total = entries.len() as u64;
-    let skipped: Vec<Entry> = entries
-        .into_iter()
-        .skip(usize::try_from(after_index).unwrap_or(usize::MAX))
-        .collect();
-    let (entries, next_after_index) =
-        files::fit_entries(skipped, after_index, None, files::MAX_PAGE_BYTES);
-    BridgeResult::FilesList(FilesListResult {
-        path: None,
-        entries,
-        total,
-        after_index,
-        next_after_index,
-    })
 }
 
 /// Why a search over every folder has none to walk.
@@ -1082,6 +393,99 @@ fn first_unavailable(saved: &[Folder], reports: &[FolderReport]) -> Refusal {
             })
         })
         .unwrap_or(Refusal::NoFolders)
+}
+
+impl crate::daemon::assistant::AssistantHandle {
+    /// Whether `request_id` is still the bridge request being served: one the
+    /// privacy stop, a disconnection or a timeout released is answered by
+    /// whoever released it, never twice.
+    fn still_asked(&self, request_id: &str) -> bool {
+        self.bridge_request
+            .as_ref()
+            .is_some_and(|ask| ask.id == request_id)
+    }
+}
+
+impl FilesHandle {
+    /// The folders as the control topic publishes them.
+    pub(super) fn folders_knowledge(&self) -> Knowledge<Vec<FolderView>> {
+        match &self.folders {
+            None => Knowledge::Unknown {
+                why: TopicPending::NotObservedYet,
+            },
+            Some(Err(cause)) => Knowledge::Absent {
+                refusal: Refusal::StorageFailed {
+                    operation: Operation::Files,
+                    cause: Some(cause.clone().into()),
+                },
+            },
+            Some(Ok(folders)) => Knowledge::Present {
+                value: folders
+                    .iter()
+                    .map(|folder| FolderView {
+                        id: folder.id.clone(),
+                        path: folder.path.clone(),
+                        access: self
+                            .access
+                            .get(&folder.id)
+                            .cloned()
+                            .unwrap_or(FolderAccess::Unknown),
+                    })
+                    .collect(),
+                as_of_ms: None,
+            },
+        }
+    }
+
+    /// A folder the second step could not open is said in Ajustes as the
+    /// first step's report would have said it.
+    fn note_step_folder(&mut self, request: &InFlight, response: &NativeResponseFields) {
+        let Some(error) = response
+            .error
+            .as_ref()
+            .filter(|error| !response.ok && error.code == "assistant_folder_unavailable")
+        else {
+            return;
+        };
+        let detail = error.detail.as_ref();
+        let id = detail
+            .and_then(|detail| detail.get("id"))
+            .and_then(Value::as_str);
+        let cause = detail
+            .and_then(|detail| detail.get("cause"))
+            .cloned()
+            .and_then(|cause| serde_json::from_value::<FolderCause>(cause).ok());
+        if let (Some(id), Some(cause)) = (id, cause)
+            && request.saved.iter().any(|folder| folder.id == id)
+        {
+            self.access.insert(
+                id.to_owned(),
+                FolderAccess::Unavailable {
+                    cause: cause.bounded(),
+                },
+            );
+        }
+    }
+}
+
+impl crate::daemon::helper::HelperHandle {
+    fn send_files_command(&mut self, name: &str, mut fields: Value) -> Result<String, Refusal> {
+        let id = format!("assistant-files-{}", super::id());
+        if let Some(object) = fields.as_object_mut() {
+            object.insert("id".into(), Value::from(id.clone()));
+        }
+        let command = crate::native::command(name, fields).map_err(|_| Refusal::Internal {
+            cause: orbit_core::refusal::InternalCause::NativeCommand,
+        })?;
+        self.sender
+            .try_send(command.clone())
+            .map_err(|_| Refusal::Busy {
+                operation: Operation::Files,
+                retry_after_ms: None,
+            })?;
+        self.record_pending(&command);
+        Ok(id)
+    }
 }
 
 #[cfg(test)]

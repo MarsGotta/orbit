@@ -25,7 +25,7 @@ async fn paired(runtime: &mut Runtime) -> Result<fake_hub::Shared> {
     let hub: fake_hub::Shared = Arc::new(Mutex::new(Hub { ..Hub::default() }));
     runtime.settings.hub_url = Some(fake_hub::start(hub.clone()).await?);
     runtime.settings.device_id = Some(DEVICE.into());
-    runtime.token = Some("synthetic-not-a-credential".into());
+    runtime.link.token = Some("synthetic-not-a-credential".into());
     Ok(hub)
 }
 
@@ -59,7 +59,7 @@ async fn turn(
     events: &mut tokio::sync::mpsc::Receiver<super::NoteEvent>,
     now_ms: i64,
 ) -> Result<usize> {
-    runtime.features.notes.pinned_now = Some(now_ms);
+    runtime.notes.pinned_now = Some(now_ms);
     let started = runtime.maintain_recording_notes_at(now_ms);
     for _ in 0..started {
         answer(runtime, events, now_ms).await?;
@@ -172,15 +172,15 @@ async fn the_hubs_turns_arrive_unchanged_across_pages() -> Result<()> {
 async fn the_account_name_goes_to_the_hub_on_connecting() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
-    runtime.features.notes = super::NotesRuntime::for_tests(runtime.features.notes.events.clone());
-    let mut events = runtime.features.notes.test_events();
+    runtime.notes = super::NotesHandle::for_tests(runtime.notes.events.clone());
+    let mut events = runtime.notes.test_events();
     let hub = paired(&mut runtime).await?;
     assert_eq!(
         turn(&mut runtime, &mut events, START).await?,
         0,
         "not yet ready"
     );
-    runtime.notes_hub_ready();
+    runtime.notes.notes_hub_ready();
     assert_eq!(turn(&mut runtime, &mut events, START).await?, 1);
     assert_eq!(
         received(&hub, "PUT", "/v1/device/profile"),
@@ -214,7 +214,7 @@ async fn the_list_joins_this_macs_recordings_and_the_hubs() -> Result<()> {
             fake_hub::document(OLDER, "Retro", START - 86_400_000),
         );
     }
-    runtime.features.notes.pinned_now = Some(START + 60_000);
+    runtime.notes.pinned_now = Some(START + 60_000);
     let page = read(&runtime, ReadRequest::NotesPage { cursor: None }).await?;
     let rows = page
         .items
@@ -404,14 +404,14 @@ async fn a_first_page_at_every_bound_fits_its_read() -> Result<()> {
 async fn an_open_note_is_read_again_by_recording_changed_and_nothing_else() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let _hub = paired(&mut runtime).await?;
-    let before = runtime.features.notes.head.changed_at(RECORDING);
+    let before = runtime.notes.head.changed_at(RECORDING);
     // A minute of the daemon's upkeep moves nothing about this note.
     for second in 0..60 {
         turn(&mut runtime, &mut events, START + second * 1_000).await?;
     }
-    assert_eq!(runtime.features.notes.head.changed_at(RECORDING), before);
+    assert_eq!(runtime.notes.head.changed_at(RECORDING), before);
     let frame = orbit_core::wire::hub::HubEvent::decode(json!({
         "v": 1, "id": null, "event": "recording.changed",
         "data": {"recording_id": RECORDING}
@@ -420,8 +420,8 @@ async fn an_open_note_is_read_again_by_recording_changed_and_nothing_else() -> R
     runtime
         .hub_event(crate::hub::HubEvent::Decoded(Box::new(frame)))
         .await?;
-    assert!(runtime.features.notes.head.changed_at(RECORDING) > before);
-    assert_eq!(runtime.features.notes.head.changed_at(OLDER), 0);
+    assert!(runtime.notes.head.changed_at(RECORDING) > before);
+    assert_eq!(runtime.notes.head.changed_at(OLDER), 0);
     Ok(())
 }
 
@@ -431,7 +431,7 @@ async fn an_open_note_is_read_again_by_recording_changed_and_nothing_else() -> R
 async fn private_notes_written_offline_reach_the_hub_when_it_returns() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let hub = paired(&mut runtime).await?;
     start_recording(&mut runtime);
     crate::daemon::authority_fixture::set(&mut runtime.state, "connection", json!("offline"));
@@ -449,7 +449,7 @@ async fn private_notes_written_offline_reach_the_hub_when_it_returns() -> Result
     assert!(shown.private_notes.pending);
 
     crate::daemon::authority_fixture::set(&mut runtime.state, "connection", json!("online"));
-    runtime.notes_hub_ready();
+    runtime.notes.notes_hub_ready();
     turn(&mut runtime, &mut events, START + 1_000).await?;
     assert_eq!(
         received(&hub, "PUT", "/private-notes"),
@@ -469,7 +469,7 @@ async fn private_notes_written_offline_reach_the_hub_when_it_returns() -> Result
 async fn private_notes_on_a_stale_revision_go_again_on_the_current_one() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let hub = paired(&mut runtime).await?;
     let mut document = fake_hub::document(RECORDING, "Comité", START);
     document["private_notes"] = json!({"text": "antes", "revision": 4});
@@ -498,7 +498,7 @@ async fn private_notes_on_a_stale_revision_go_again_on_the_current_one() -> Resu
 async fn the_old_stores_private_notes_go_up_once() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let hub = paired(&mut runtime).await?;
     runtime.fixture_store.save_private_notes(
         &orbit_store::PendingPrivateNotes {
@@ -509,7 +509,7 @@ async fn the_old_stores_private_notes_go_up_once() -> Result<()> {
         1,
     )?;
     runtime.recover_recording_notes()?;
-    runtime.notes_hub_ready();
+    runtime.notes.notes_hub_ready();
     turn(&mut runtime, &mut events, START).await?;
     turn(&mut runtime, &mut events, START + 60_000).await?;
     assert_eq!(
@@ -526,7 +526,7 @@ async fn the_old_stores_private_notes_go_up_once() -> Result<()> {
 async fn orders_reach_the_hubs_routes() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let hub = paired(&mut runtime).await?;
     let mut document = fake_hub::document(RECORDING, "Comité", START);
     document["note"] = fake_hub::note(7);
@@ -584,7 +584,7 @@ async fn orders_reach_the_hubs_routes() -> Result<()> {
 async fn language_and_title_reach_the_hubs_routes() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let hub = paired(&mut runtime).await?;
     lock(&hub).documents.insert(
         RECORDING.into(),
@@ -655,7 +655,7 @@ async fn language_and_title_reach_the_hubs_routes() -> Result<()> {
 async fn unreadable_audio_is_said_with_how_many_groups_of_how_many() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let hub = paired(&mut runtime).await?;
     lock(&hub).documents.insert(
         RECORDING.into(),
@@ -722,7 +722,7 @@ async fn a_language_or_title_the_hub_refuses_is_refused_here() -> Result<()> {
 async fn a_refused_or_unsent_order_is_said() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let hub = paired(&mut runtime).await?;
     lock(&hub).failing = Some(422);
     runtime
@@ -781,7 +781,7 @@ async fn template_orders_go_to_the_hub_and_a_refusal_is_shown() -> Result<()> {
     use orbit_core::notes::{LibraryItem, LibraryRequest, TemplateDraft, TemplateSection};
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let hub = paired(&mut runtime).await?;
     let draft = TemplateDraft {
         name: "Comité".into(),
@@ -812,9 +812,14 @@ async fn template_orders_go_to_the_hub_and_a_refusal_is_shown() -> Result<()> {
             },
         })
         .await?;
-    assert!(runtime.library_state().contains(&LibraryItem::Pending {
-        target: "template:mia".into()
-    }));
+    assert!(
+        runtime
+            .notes
+            .library_state()
+            .contains(&LibraryItem::Pending {
+                target: "template:mia".into()
+            })
+    );
     answer(&mut runtime, &mut events, START).await?;
     turn(&mut runtime, &mut events, START).await?;
     let saved = received(&hub, "PUT", "/v1/note-templates/mia");
@@ -836,9 +841,15 @@ async fn template_orders_go_to_the_hub_and_a_refusal_is_shown() -> Result<()> {
         })
         .await?;
     answer(&mut runtime, &mut events, START).await?;
-    assert!(runtime.library_state().iter().any(|item| matches!(item,
+    assert!(
+        runtime
+            .notes
+            .library_state()
+            .iter()
+            .any(|item| matches!(item,
         LibraryItem::Refused(refusal) if refusal.target_id == "mia"
-            && refusal.action == "delete" && refusal.status == 409)));
+            && refusal.action == "delete" && refusal.status == 409))
+    );
     Ok(())
 }
 
@@ -879,7 +890,7 @@ async fn the_account_name_is_read_with_a_deadline_and_says_yo_when_late() -> Res
 async fn a_privacy_stop_sends_nothing_and_keeps_what_is_owed() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let hub = paired(&mut runtime).await?;
     runtime
         .command(Command::NotePrivateSave {
@@ -945,7 +956,7 @@ async fn the_linked_events_invitees_reach_the_note_read() -> Result<()> {
 async fn a_rename_carries_the_selected_turn_or_whole_voice_to_http() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let hub = paired(&mut runtime).await?;
     lock(&hub).documents.insert(
         RECORDING.into(),
@@ -977,7 +988,7 @@ async fn a_missing_turn_rename_keeps_the_hubs_code_and_numbers() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     runtime.report_log = Some(orbit_ipc::report::ReportLog::daemon(directory.path()));
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let hub = paired(&mut runtime).await?;
     lock(&hub).missing_turn = Some((12_000, 3));
     runtime
@@ -1136,7 +1147,7 @@ async fn the_series_template_and_dictionary_go_together_and_a_refusal_keeps_its_
     use orbit_core::notes::{LibraryItem, LibraryRequest};
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let hub = paired(&mut runtime).await?;
     lock(&hub).documents.insert(
         RECORDING.into(),
@@ -1151,23 +1162,28 @@ async fn the_series_template_and_dictionary_go_together_and_a_refusal_keeps_its_
         },
     };
 
-    runtime.features.notes.head.touch_recording(OLDER);
-    let library_before = runtime.features.notes.head.library_revision;
+    runtime.notes.head.touch_recording(OLDER);
+    let library_before = runtime.notes.head.library_revision;
     runtime.command(order()).await?;
-    assert!(runtime.library_state().contains(&LibraryItem::Pending {
-        target: format!("meeting_series:{RECORDING}")
-    }));
+    assert!(
+        runtime
+            .notes
+            .library_state()
+            .contains(&LibraryItem::Pending {
+                target: format!("meeting_series:{RECORDING}")
+            })
+    );
     answer(&mut runtime, &mut events, START).await?;
     assert_eq!(
         received(&hub, "PUT", &format!("/v1/recordings/{RECORDING}/series")),
         [json!({"template_id": "project",
             "dictionary_id": "0d9a7c3e-2b1f-4e6a-9c8d-7f6e5d4c3b2a"})]
     );
-    let head = &runtime.features.notes.head;
+    let head = &runtime.notes.head;
     assert!(head.recordings.is_empty());
     assert_eq!(head.floor, head.revision);
     assert!(head.library_revision > library_before);
-    assert!(runtime.library_state().is_empty());
+    assert!(runtime.notes.library_state().is_empty());
 
     lock(&hub).series_refusal = Some((
         409,
@@ -1176,12 +1192,18 @@ async fn the_series_template_and_dictionary_go_together_and_a_refusal_keeps_its_
     ));
     runtime.command(order()).await?;
     answer(&mut runtime, &mut events, START).await?;
-    assert!(runtime.library_state().iter().any(|item| matches!(item,
+    assert!(
+        runtime
+            .notes
+            .library_state()
+            .iter()
+            .any(|item| matches!(item,
         LibraryItem::Refused(refusal) if refusal.target_kind == "meeting_series"
             && refusal.target_id == RECORDING && refusal.action == "use_for_series"
             && refusal.status == 409 && refusal.code == "note_template_links_full"
             && refusal.numbers.get("links") == Some(&256)
-            && refusal.numbers.get("max_links") == Some(&256))));
+            && refusal.numbers.get("max_links") == Some(&256)))
+    );
 
     // Several dictionaries go as the whole list, for a hub that takes it.
     lock(&hub).series_refusal = None;
@@ -1209,8 +1231,14 @@ async fn the_series_template_and_dictionary_go_together_and_a_refusal_keeps_its_
     lock(&hub).without_series_routes = true;
     runtime.command(order()).await?;
     answer(&mut runtime, &mut events, START).await?;
-    assert!(runtime.library_state().iter().any(|item| matches!(item,
+    assert!(
+        runtime
+            .notes
+            .library_state()
+            .iter()
+            .any(|item| matches!(item,
         LibraryItem::Refused(refusal) if refusal.action == "use_for_series"
-            && refusal.status == 404 && refusal.code == "hub_route_missing")));
+            && refusal.status == 404 && refusal.code == "hub_route_missing"))
+    );
     Ok(())
 }

@@ -79,11 +79,7 @@ async fn event_sequence_preserves_frames_revisions_and_recomputation() -> anyhow
                     .set_notice(Notice::new(NoticeCode::NoteChangeUnsent));
             }
             5 => {
-                runtime
-                    .features
-                    .notes
-                    .head
-                    .touch_recording("synthetic-recording");
+                runtime.notes.head.touch_recording("synthetic-recording");
             }
             8 => {
                 crate::daemon::authority_fixture::set(
@@ -173,9 +169,9 @@ fn control_retry_deadline_and_cause_publish_but_countdown_does_not() -> anyhow::
         "capabilities.accessibility_state",
         serde_json::json!(PermissionState::Granted),
     );
-    runtime.features.computer.engine_failure = Some("synthetic".into());
-    runtime.features.computer.engine_failure_kind = Some(EngineCause::InitializationFailed);
-    runtime.features.computer.engine_retry_at_ms = Some(10_000);
+    runtime.computer.engine_failure = Some("synthetic".into());
+    runtime.computer.engine_failure_kind = Some(EngineCause::InitializationFailed);
+    runtime.computer.engine_retry_at_ms = Some(10_000);
     let mut board = TopicBoard::new("retry".into());
     let receiver = board.channels()[&TopicId::Control].subscribe();
     let publish = |board: &mut TopicBoard, runtime: &Runtime| {
@@ -200,13 +196,13 @@ fn control_retry_deadline_and_cause_publish_but_countdown_does_not() -> anyhow::
         )
     };
     assert_eq!(failed(5_000), failed(3_000));
-    runtime.features.computer.engine_failure = Some("same cause, different diagnostic".into());
+    runtime.computer.engine_failure = Some("same cause, different diagnostic".into());
     publish(&mut board, &runtime);
     assert_eq!(*receiver.borrow(), first);
-    runtime.features.computer.engine_retry_at_ms = Some(15_000);
+    runtime.computer.engine_retry_at_ms = Some(15_000);
     publish(&mut board, &runtime);
     assert_eq!(receiver.borrow().revision, first.revision + 1);
-    runtime.features.computer.engine_failure_kind = Some(EngineCause::Unhealthy);
+    runtime.computer.engine_failure_kind = Some(EngineCause::Unhealthy);
     publish(&mut board, &runtime);
     assert_eq!(receiver.borrow().revision, first.revision + 2);
     let frame = serde_json::to_value(&*receiver.borrow())?;
@@ -214,9 +210,9 @@ fn control_retry_deadline_and_cause_publish_but_countdown_does_not() -> anyhow::
         frame["data"]["knowledge"]["value"]["engine"]["refusal"]["cause"],
         "unhealthy"
     );
-    runtime.features.computer.engine_failure = None;
-    runtime.features.computer.engine_failure_kind = None;
-    runtime.features.computer.engine_retry_at_ms = None;
+    runtime.computer.engine_failure = None;
+    runtime.computer.engine_failure_kind = None;
+    runtime.computer.engine_retry_at_ms = None;
     publish(&mut board, &runtime);
     assert_eq!(receiver.borrow().revision, first.revision + 3);
     for (id, expected) in board.recompute_all(&TopicSource {
@@ -374,7 +370,7 @@ fn a_short_recording_does_not_publish_an_intermediate_notes_head_before_its_cade
         "a recording command must keep the Notes cadence"
     );
     runtime.state.durable.capture.recording = None;
-    runtime.features.notes.head.touch_recording(recording_id);
+    runtime.notes.head.touch_recording(recording_id);
     board.state_changed();
     board.publish(&TopicSource {
         state: &runtime.state,

@@ -32,8 +32,8 @@ async fn restarted_with(
         crate::daemon::cut_recovery::recovery_after_restart(saved.capture.recording.as_ref(), true);
     runtime.state.durable = saved.recovered();
     runtime.capture.buffer.reset();
-    runtime.capture.mic_stream = None;
-    runtime.capture.pending_starts.clear();
+    runtime.audio.mic_stream = None;
+    runtime.audio.pending_starts.clear();
     while receiver.try_recv().is_ok() {}
     runtime
         .recover_recording_at_start(orbit_core::RecordingInterruption {

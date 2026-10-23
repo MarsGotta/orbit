@@ -14,14 +14,14 @@ impl Runtime {
     /// The catalogue comes from the engine, asked of it, not from a list
     /// Orbit keeps. A newer engine's tool appears here on its own.
     pub(super) async fn serve_control_tools(&mut self, ask: &BridgeAsk) -> Result<(), Refusal> {
-        if !self.engine_is_ready() {
+        if !self.computer.engine_is_ready() {
             return Err(self.bridge_engine_refusal());
         }
         // One page, never the whole catalogue. The engine's is
         // 147 909 bytes and the link refuses anything over 128 KiB, so
         // a reply that asked for a whole frame was a reply that never
         // left the Mac.
-        let catalogue = self.engine_tools();
+        let catalogue = self.computer.engine_tools();
         let page = orbit_core::device_bridge::catalogue_page(&catalogue, ask.catalogue_after);
         let result = BridgeResult::ControlTools(ControlToolsResult {
             tools: page.tools,
@@ -29,7 +29,7 @@ impl Runtime {
             total: page.total,
             next_after_index: page.next_after_index,
         });
-        self.conversation.bridge_request = None;
+        self.assistant.bridge_request = None;
         self.send(
             hub::command(&ask.id, "device.reply", result_payload(&ask.id, result))
                 .map_err(|_| Refusal::HubUnreachable { since_ms: None })?,
@@ -131,7 +131,7 @@ impl Runtime {
         receipt: &Value,
     ) {
         let Some(ask) = self
-            .conversation
+            .assistant
             .bridge_request
             .as_ref()
             .filter(|ask| {
@@ -166,6 +166,6 @@ impl Runtime {
             ),
         ));
         self.note_bridge_send(&result, "the receipt of the engine's single attempt");
-        self.conversation.bridge_request = None;
+        self.assistant.bridge_request = None;
     }
 }

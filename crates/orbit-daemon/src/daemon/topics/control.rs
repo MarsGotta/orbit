@@ -19,13 +19,13 @@ impl ProjectTopic for Projector {
             &status,
             orbit_core::computer_control::engine::Status::Failed { .. }
         ) {
-            runtime.features.computer.engine_retry_at_ms
+            runtime.computer.engine_retry_at_ms
         } else {
             None
         };
         let engine = engine_knowledge_with_permissions(
             status,
-            runtime.engine_failure_cause(),
+            runtime.computer.engine_failure_cause(),
             runtime.state.capabilities().accessibility_state(),
             runtime.state.capabilities().screen_state(),
         );
@@ -50,9 +50,9 @@ impl ProjectTopic for Projector {
             value: control::Value {
                 engine,
                 retry_at_ms,
-                action: runtime.active_control_action().cloned(),
+                action: runtime.computer.active_control_action().cloned(),
                 history,
-                folders: Box::new(runtime.folders_knowledge()),
+                folders: Box::new(runtime.files.folders_knowledge()),
             },
             as_of_ms: None,
         })
@@ -204,11 +204,10 @@ mod tests {
                 fixture_value,
             );
         }
-        runtime.features.computer.declared_tools = Some(7);
+        runtime.computer.declared_tools = Some(7);
         // Not connecting: a worker holding a counted engine is Ready.
         let generation = runtime.state.generation();
         runtime
-            .features
             .computer
             .work
             .attach_test(generation, (), tokio::spawn(async {}));
@@ -239,7 +238,7 @@ mod tests {
         )
         .and_then(|entry| entry.from_channel("local"))
         .map_err(|error| anyhow::anyhow!("{error}"))?;
-        runtime.features.computer.active_general = Some(action);
+        runtime.computer.active_general = Some(action);
         let TopicData::Control(Knowledge::Present { value, .. }) = projected(&runtime) else {
             anyhow::bail!("a ready engine must publish a present head");
         };
@@ -302,7 +301,7 @@ mod tests {
         .map_err(|error| anyhow::anyhow!("{error}"))?
         .from_channel("deimos")
         .map_err(|error| anyhow::anyhow!("{error}"))?;
-        runtime.features.computer.active_general = Some(action);
+        runtime.computer.active_general = Some(action);
         board.state_changed();
         board.publish(&TopicSource {
             state: &runtime.state,
@@ -345,7 +344,7 @@ mod tests {
             );
         }
         let (work, mut events) = tokio::sync::mpsc::channel(4);
-        runtime.work.work_events = work;
+        runtime.work_events = work;
         let mut board = super::super::TopicBoard::new("control-unbundled".into());
         let receiver = board.channels()[&TopicId::Control].subscribe();
         board.publish(&TopicSource {
@@ -394,7 +393,7 @@ mod tests {
                 .ok_or_else(|| anyhow::anyhow!("daemon directory"))?,
         )?;
         std::fs::write(&daemon, b"synthetic daemon")?;
-        runtime.features.computer.daemon_executable = Some(daemon.clone());
+        runtime.computer.daemon_executable = Some(daemon.clone());
         let missing_driver = crate::cua::resolve_driver_path("", &daemon)?;
         assert!(
             !missing_driver.exists(),
@@ -418,7 +417,7 @@ mod tests {
             );
         }
         let (work, mut events) = tokio::sync::mpsc::channel(4);
-        runtime.work.work_events = work;
+        runtime.work_events = work;
         runtime.maintain_engine().await;
         assert!(matches!(
             engine_of(&runtime),

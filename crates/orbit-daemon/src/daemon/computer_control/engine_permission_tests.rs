@@ -52,7 +52,7 @@ async fn with_both_permissions_the_engine_starts_by_itself_without_the_hub() -> 
             .context("synthetic daemon route")?;
     std::fs::create_dir_all(daemon.parent().context("daemon directory")?)?;
     std::fs::write(&daemon, b"synthetic daemon")?;
-    runtime.features.computer.daemon_executable = Some(daemon.clone());
+    runtime.computer.daemon_executable = Some(daemon.clone());
     let missing_driver = crate::cua::resolve_driver_path("", &daemon)?;
     assert!(
         !missing_driver.exists(),
@@ -70,11 +70,11 @@ async fn with_both_permissions_the_engine_starts_by_itself_without_the_hub() -> 
     );
     runtime.state.set_notice(NoticeCode::SessionOpened);
     runtime.state.durable.voice.voice_active = true;
-    let calendar = runtime.features.calendar.view.clone();
+    let calendar = runtime.calendar.view.clone();
     let turn = runtime.state.durable.assistant.turn.clone();
     let notice = runtime.state.durable.notice.clone();
     let (work, mut events) = mpsc::channel(4);
-    runtime.work.work_events = work;
+    runtime.work_events = work;
     runtime.maintain_computer().await?;
     let event = tokio::time::timeout(Duration::from_secs(2), events.recv())
         .await
@@ -82,7 +82,6 @@ async fn with_both_permissions_the_engine_starts_by_itself_without_the_hub() -> 
         .context("worker absent")?;
     runtime.work_event(event).await?;
     let view = runtime
-        .features
         .computer
         .view
         .clone()
@@ -94,7 +93,7 @@ async fn with_both_permissions_the_engine_starts_by_itself_without_the_hub() -> 
     );
     assert!(view.detail.contains("MacOS/cua-driver"), "{}", view.detail);
     assert_eq!(view.stage, ComputerStage::Failed);
-    assert_eq!(runtime.features.calendar.view, calendar);
+    assert_eq!(runtime.calendar.view, calendar);
     assert_eq!(runtime.state.durable.assistant.turn, turn);
     assert_eq!(runtime.state.durable.notice, notice);
     assert!(runtime.state.durable.voice.voice_active);
@@ -117,11 +116,11 @@ async fn unbundled_daemon_maintenance_refuses_before_starting_a_worker() -> Resu
     );
     runtime.state.set_notice(NoticeCode::SessionOpened);
     runtime.state.durable.voice.voice_active = true;
-    let calendar = runtime.features.calendar.view.clone();
+    let calendar = runtime.calendar.view.clone();
     let turn = runtime.state.durable.assistant.turn.clone();
     let notice = runtime.state.durable.notice.clone();
     let (work, mut events) = mpsc::channel(4);
-    runtime.work.work_events = work;
+    runtime.work_events = work;
     runtime.maintain_computer().await?;
     let orbit_core::computer_control::engine::Status::Failed { cause, .. } =
         runtime.engine_status()
@@ -133,9 +132,9 @@ async fn unbundled_daemon_maintenance_refuses_before_starting_a_worker() -> Resu
         "{cause}"
     );
     assert!(cause.contains(&std::env::current_exe()?.display().to_string()));
-    assert!(runtime.features.computer.work.active().is_none());
+    assert!(runtime.computer.work.active().is_none());
     assert!(events.try_recv().is_err(), "something was launched");
-    assert_eq!(runtime.features.calendar.view, calendar);
+    assert_eq!(runtime.calendar.view, calendar);
     assert_eq!(runtime.state.durable.assistant.turn, turn);
     assert_eq!(runtime.state.durable.notice, notice);
     assert!(runtime.state.durable.voice.voice_active);
@@ -157,7 +156,7 @@ async fn without_a_permission_the_engine_is_not_launched_and_the_cause_is_named(
     );
     runtime.maintain_computer().await?;
     assert!(
-        runtime.features.computer.work.active().is_none(),
+        runtime.computer.work.active().is_none(),
         "the engine was launched without Accessibility"
     );
     let reason = permission_reason(&runtime);
@@ -181,7 +180,7 @@ async fn without_a_permission_the_engine_is_not_launched_and_the_cause_is_named(
     );
     runtime.maintain_computer().await?;
     assert!(
-        runtime.features.computer.work.active().is_none(),
+        runtime.computer.work.active().is_none(),
         "an unknown permission launched the engine"
     );
     let reason = permission_reason(&runtime);
@@ -198,7 +197,7 @@ async fn without_a_permission_the_engine_is_not_launched_and_the_cause_is_named(
         PermissionState::Denied,
     );
     let (hub, mut replies) = mpsc::channel(4);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     runtime
         .device_request_raw(&json!({"request_id": "missing-permission", "capability": "perform_action",
             "parameters": {"action": {"tool": "launch_app", "arguments": {"bundle_id": "com.apple.calculator"}}}}))
@@ -227,7 +226,7 @@ async fn an_unknown_permission_does_not_stop_a_running_engine() -> Result<()> {
     );
     h.runtime.maintain_computer().await?;
     assert!(
-        h.runtime.engine_is_ready(),
+        h.runtime.computer.engine_is_ready(),
         "the unknown stopped the engine"
     );
     h.runtime
@@ -268,14 +267,14 @@ async fn withdrawing_the_permission_stops_the_engine_and_says_why() -> Result<()
     // id is unpaired and is not a permission observation.
     let status_id =
         status_id.context("the daemon did not ask the helper for the permissions again")?;
-    assert!(h.runtime.engine_is_ready());
+    assert!(h.runtime.computer.engine_is_ready());
 
     h.runtime
         .native_event(helper_permissions(&status_id, json!(false), true))
         .await?;
     h.runtime.maintain_computer().await?;
     assert!(
-        !h.runtime.engine_is_ready(),
+        !h.runtime.computer.engine_is_ready(),
         "without Accessibility the engine kept going after the helper's real false"
     );
     assert_eq!(
@@ -355,6 +354,7 @@ async fn another_conversation_leaves_the_engine_and_its_catalogue_alone() -> Res
     assert_eq!(lists.load(Ordering::SeqCst), 1);
     let epoch = h
         .runtime
+        .computer
         .computer_connection_epoch()
         .map(str::to_owned)
         .context("engine connected")?;
@@ -375,11 +375,11 @@ async fn another_conversation_leaves_the_engine_and_its_catalogue_alone() -> Res
     h.runtime.maintain_computer().await?;
 
     assert!(
-        h.runtime.engine_is_ready(),
+        h.runtime.computer.engine_is_ready(),
         "changing conversation stopped the engine"
     );
     assert_eq!(
-        h.runtime.computer_connection_epoch(),
+        h.runtime.computer.computer_connection_epoch(),
         Some(epoch.as_str()),
         "changing conversation brought up another engine"
     );
@@ -423,10 +423,13 @@ async fn the_privacy_stop_still_cuts_an_action_in_flight() -> Result<()> {
         .native_event(json!({"event": "privacy_stop", "privacy_stopped": true}))
         .await?;
     assert!(
-        h.runtime.features.computer.work.active().is_none(),
+        h.runtime.computer.work.active().is_none(),
         "the action kept running"
     );
-    assert!(!h.runtime.engine_is_ready(), "the engine stayed connected");
+    assert!(
+        !h.runtime.computer.engine_is_ready(),
+        "the engine stayed connected"
+    );
     assert!(
         h.runtime
             .control_history()?
@@ -472,7 +475,7 @@ async fn without_a_helper_the_refusal_says_so_and_promises_nothing() -> Result<(
         "the rearm without a helper did not rearm"
     );
     let (hub, mut replies) = mpsc::channel(4);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     runtime
         .device_request_raw(&json!({"request_id": "no-helper", "capability": "perform_action",
             "parameters": {"action": {"tool": "launch_app", "arguments": {"bundle_id": "com.apple.calculator"}}}}))
@@ -533,7 +536,7 @@ async fn an_unanswered_status_is_not_asked_again() -> Result<()> {
         PermissionState::Granted,
     );
     for _ in 0..5 {
-        h.runtime.features.computer.next_permission_poll = None;
+        h.runtime.computer.next_permission_poll = None;
         h.runtime.poll_permissions();
     }
     let mut asked = 0;
@@ -543,7 +546,8 @@ async fn an_unanswered_status_is_not_asked_again() -> Result<()> {
     assert_eq!(asked, 1, "it was asked again without an answer");
     let pending = h
         .runtime
-        .pending_native
+        .helper
+        .pending
         .values()
         .filter(|name| name.as_str() == "status")
         .count();
@@ -554,7 +558,6 @@ async fn an_unanswered_status_is_not_asked_again() -> Result<()> {
     // never saw it does not stop the polling for good.
     let (id, _) = h
         .runtime
-        .features
         .computer
         .permission_poll
         .clone()
@@ -562,16 +565,17 @@ async fn an_unanswered_status_is_not_asked_again() -> Result<()> {
     let long_ago = std::time::Instant::now()
         .checked_sub(Duration::from_secs(11))
         .context("monotonic clock too young")?;
-    h.runtime.features.computer.permission_poll = Some((id.clone(), long_ago));
-    h.runtime.features.computer.next_permission_poll = None;
+    h.runtime.computer.permission_poll = Some((id.clone(), long_ago));
+    h.runtime.computer.next_permission_poll = None;
     h.runtime.poll_permissions();
     assert!(
-        !h.runtime.pending_native.contains_key(&id),
+        !h.runtime.helper.pending.contains_key(&id),
         "the lost question is still pending"
     );
     let pending = h
         .runtime
-        .pending_native
+        .helper
+        .pending
         .values()
         .filter(|name| name.as_str() == "status")
         .count();
@@ -618,7 +622,7 @@ async fn another_conversation_does_not_cut_an_action_in_flight() -> Result<()> {
     h.finish().await?;
     assert_eq!(h.calls("launch_app"), 1);
     assert!(
-        h.runtime.engine_is_ready(),
+        h.runtime.computer.engine_is_ready(),
         "the engine fell with the conversation"
     );
     assert_eq!(

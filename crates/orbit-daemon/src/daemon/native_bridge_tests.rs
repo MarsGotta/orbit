@@ -297,7 +297,7 @@ async fn a_returning_helper_restores_the_capability_and_resumes_the_cut_recordin
         runtime.state.durable.notice
     );
     assert!(
-        !runtime.audio_is_draining(),
+        !runtime.audio.audio_is_draining(),
         "with the helper gone nothing is left draining"
     );
     // Without a helper, the upkeep waits for it and reopens nothing.
@@ -366,7 +366,7 @@ async fn native_send_to_a_stalled_helper_times_out_at_the_deadline_as_backpressu
     let (mut runtime, _commands) = fixture(directory.path())?;
     said::trace(&mut runtime, directory.path());
     let (native, _stalled) = stalled_native_channel()?;
-    runtime.native = native;
+    runtime.helper.sender = native;
     let notices_before = runtime.state.durable.notice_log.records().len();
     let started = tokio::time::Instant::now();
     let sent = tokio::time::timeout(
@@ -430,7 +430,7 @@ async fn native_send_of_a_privacy_stop_to_a_stalled_helper_is_said_and_latches_n
     let (mut runtime, _commands) = fixture(directory.path())?;
     said::trace(&mut runtime, directory.path());
     let (native, _stalled) = stalled_native_channel()?;
-    runtime.native = native;
+    runtime.helper.sender = native;
     let sent = tokio::time::timeout(
         STALLED_HELPER_STALL_GUARD,
         runtime.native_send("privacy_stop", json!({})),
@@ -481,7 +481,7 @@ async fn a_capture_stop_stalled_once_is_retried_and_the_next_meeting_can_start()
     said::trace(&mut runtime, directory.path());
     let stream = start_meeting(&mut runtime, &mut receiver).await?;
     let (native, _stalled) = stalled_native_channel()?;
-    runtime.native = native;
+    runtime.helper.sender = native;
     tokio::time::timeout(
         STALLED_HELPER_STALL_GUARD,
         runtime.contain(
@@ -522,15 +522,15 @@ async fn a_capture_stop_stalled_once_is_retried_and_the_next_meeting_can_start()
     assert!(!notice.contains("6 s"), "{notice}");
 
     let (native, mut recovered) = mpsc::channel(8);
-    runtime.native = native;
+    runtime.helper.sender = native;
     runtime.run_maintenance().await;
     let retry = crate::daemon::audio::tests::take_helper_command(&mut recovered, "capture_stop")?;
     runtime
         .handle_native_event(json!({"event":"response","id":retry["id"],"ok":true,
             "result":{"drain_complete":true}}))
         .await;
-    assert!(runtime.capture.mic_stream.is_none());
-    assert!(!runtime.audio_is_draining());
+    assert!(runtime.audio.mic_stream.is_none());
+    assert!(!runtime.audio.audio_is_draining());
     assert!(
         !runtime.accepts_audio(&frame),
         "the acknowledged capture_stop closes the old stream"

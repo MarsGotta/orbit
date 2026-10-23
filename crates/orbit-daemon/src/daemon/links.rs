@@ -46,33 +46,18 @@ impl Runtime {
             payload["muted"] = json!(true);
         }
         let command = native::command("audio_start", payload)?;
-        self.record_pending_native(&command);
+        self.helper.record_pending(&command);
         let header = NativeCommandHeader::from_value(&command)?;
         if muted {
-            self.await_muted_start(header.id);
+            self.audio.await_muted_start(header.id);
         }
-        self.capture.pending_starts.push(header.id.into());
-        self.native
+        self.audio.pending_starts.push(header.id.into());
+        self.helper
+            .sender
             .send(command)
             .await
             .context("Helper nativo desconectado")?;
         Ok(())
-    }
-    /// Records that `command` was sent to the helper under `id`, so a late
-    /// refusal can be classified by command name without parsing the id. Drops
-    /// the oldest entry at capacity so the table stays bounded.
-    pub(super) fn record_pending_native(&mut self, command: &Value) {
-        let Ok(header) = NativeCommandHeader::from_value(command) else {
-            return;
-        };
-        let (id, name) = (header.id, header.command);
-        if self.pending_native.len() >= MAX_PENDING_NATIVE
-            && !self.pending_native.contains_key(id)
-            && let Some(oldest) = self.pending_native.keys().next().cloned()
-        {
-            self.pending_native.remove(&oldest);
-        }
-        self.pending_native.insert(id.to_owned(), name.to_owned());
     }
     pub(super) async fn native_send(&mut self, name: &str, fields: Value) -> Result<()> {
         if !self.state.capabilities().native_helper() {
@@ -92,11 +77,13 @@ impl Runtime {
             .command
             .to_owned();
         let name = name.as_str();
-        self.record_pending_native(&command);
+        self.helper.record_pending(&command);
         // Every helper send carries the 500 ms deadline. A stalled
         // helper must not stall the actor; the deadline classifies the loss
         // with the same taxonomy the rest of the actor already speaks.
-        match tokio::time::timeout(Duration::from_millis(500), self.native.send(command)).await {
+        match tokio::time::timeout(Duration::from_millis(500), self.helper.sender.send(command))
+            .await
+        {
             Ok(Ok(())) => Ok(()),
             Err(_elapsed) => match name {
                 "audio_stop" | "capture_stop" | "privacy_stop" => {
@@ -166,7 +153,7 @@ impl Runtime {
     pub(super) async fn interrupt_turn(&mut self, turn_id: Option<&str>, stop_window: bool) {
         if let Some(turn_id) = turn_id {
             self.remember_interrupted_turn(turn_id);
-            if self.hub.is_some() {
+            if self.link.outbound.is_some() {
                 let command_id = id();
                 let frame = hub::command(
                     &command_id,

@@ -13,7 +13,7 @@ const NOW: i64 = 1_800_000_000_000;
 
 /// A question refused for having no meeting: shown for eight seconds.
 async fn refused_question(runtime: &mut Runtime) -> Result<String> {
-    runtime.features.question.clock_ms = Some(NOW);
+    runtime.question.clock_ms = Some(NOW);
     runtime
         .command(Command::MeetingAsk {
             question: "¿Qué se decidió?".into(),
@@ -21,7 +21,6 @@ async fn refused_question(runtime: &mut Runtime) -> Result<String> {
         })
         .await?;
     let question = runtime
-        .features
         .question
         .current
         .clone()
@@ -31,9 +30,9 @@ async fn refused_question(runtime: &mut Runtime) -> Result<String> {
 }
 
 async fn at(runtime: &mut Runtime, now_ms: i64) -> Result<bool> {
-    runtime.features.question.clock_ms = Some(now_ms);
+    runtime.question.clock_ms = Some(now_ms);
     runtime.maintain_meeting_question().await?;
-    Ok(runtime.features.question.current.is_some())
+    Ok(runtime.question.current.is_some())
 }
 
 #[tokio::test]
@@ -41,7 +40,7 @@ async fn a_held_question_stays_past_its_time_and_goes_after_the_grace() -> Resul
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     let id = refused_question(&mut runtime).await?;
-    runtime.features.question.clock_ms = Some(NOW + 1_000);
+    runtime.question.clock_ms = Some(NOW + 1_000);
     runtime
         .command(Command::MeetingQuestionHold {
             id: id.clone(),

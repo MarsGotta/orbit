@@ -41,7 +41,7 @@ struct Mac {
 #[tokio::test]
 async fn deimos_uses_the_same_pure_calendar_access_decision() -> Result<()> {
     let mut mac = mac(vec![]).await?;
-    mac.runtime.features.calendar.view.authorization = CalendarAuthorization::Denied;
+    mac.runtime.calendar.view.authorization = CalendarAuthorization::Denied;
     let core = orbit_core::topics::agenda::access(CalendarAuthorization::Denied, false);
     assert_eq!(mac.runtime.calendar_access(), core);
     let refusal = match mac.runtime.calendar_bridge_read(
@@ -75,7 +75,7 @@ async fn deimos_uses_the_same_pure_calendar_access_decision() -> Result<()> {
             "calendar_backend_unavailable",
         ),
     ] {
-        mac.runtime.features.calendar.view.authorization = authorization;
+        mac.runtime.calendar.view.authorization = authorization;
         let core = orbit_core::topics::agenda::access(authorization, false);
         assert_eq!(mac.runtime.calendar_access(), core);
         let result = mac.runtime.calendar_bridge_read(
@@ -127,7 +127,8 @@ async fn full_hub_names_calendar_reply_capacity_without_success_notice() -> Resu
 async fn retired_hub_names_calendar_reply_loss_without_success_row() -> Result<()> {
     let mut mac = mac(vec![event(1, OCTOBER_MS, "work")]).await?;
     mac.runtime
-        .hub
+        .link
+        .outbound
         .retire(crate::daemon::hub_link::Retirement::AuthorityRetired);
     mac.runtime
         .device_request_raw(&json!({
@@ -175,7 +176,7 @@ async fn stop_answers_pending_calendar_read_once() -> Result<()> {
             "parameters":{"start_ms":OCTOBER_MS,"end_ms":OCTOBER_MS + DAY_MS}
         }))
         .await?;
-    assert!(mac.runtime.features.calendar.deimos.is_some());
+    assert!(mac.runtime.calendar.deimos.is_some());
     assert!(mac.frames.try_recv().is_err());
 
     mac.runtime
@@ -213,7 +214,7 @@ async fn closing_answers_pending_calendar_read_with_disconnection() -> Result<()
             "parameters":{"start_ms":OCTOBER_MS,"end_ms":OCTOBER_MS + DAY_MS}
         }))
         .await?;
-    assert!(mac.runtime.features.calendar.deimos.is_some());
+    assert!(mac.runtime.calendar.deimos.is_some());
     mac.runtime
         .close_for_exit(
             orbit_core::privacy_stop::StopCause::Shutdown,
@@ -239,7 +240,7 @@ async fn revocation_answers_pending_calendar_read_like_privacy_stop() -> Result<
             "parameters":{"start_ms":OCTOBER_MS,"end_ms":OCTOBER_MS + DAY_MS}
         }))
         .await?;
-    assert!(mac.runtime.features.calendar.deimos.is_some());
+    assert!(mac.runtime.calendar.deimos.is_some());
     mac.runtime
         .apply(orbit_core::Event::Connect(orbit_core::Connection::Revoked))
         .await?;
@@ -316,7 +317,7 @@ async fn mac(agenda: Vec<Value>) -> Result<Mac> {
         );
     }
     let (hub, frames) = mpsc::channel(64);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     Ok(Mac {
         _directory: directory,
         runtime,

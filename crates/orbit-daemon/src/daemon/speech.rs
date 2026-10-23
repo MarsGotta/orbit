@@ -1,7 +1,7 @@
 use super::{Runtime, WorkResult, id};
 use anyhow::{Result, bail};
 use orbit_core::refusal::{Expected, Parameter, Refusal};
-use serde_json::json;
+use serde_json::{Value, json};
 
 /// The answer read aloud at the user's request, and the playback that
 /// carries it: the helper names that playback when it ends.
@@ -12,6 +12,45 @@ pub(super) struct ReadAloud {
 }
 
 impl Runtime {
+    /// The helper says how a playback goes; one that ended frees its
+    /// reading.
+    pub(super) fn on_playback_progress(&mut self, event: Value) -> Result<()> {
+        let decoded: orbit_core::wire::native::NativeEvent = serde_json::from_value(event)?;
+        let orbit_core::wire::native::NativeEvent::PlaybackProgress {
+            playback_id,
+            state,
+            playback_active,
+            ..
+        } = decoded
+        else {
+            bail!("Evento de progreso nativo incoherente");
+        };
+        let state = match state.as_str() {
+            "started" => "started",
+            "played" => "played",
+            "cancelled" => "cancelled",
+            _ => "unrecognized_state",
+        };
+        if matches!(state, "played" | "cancelled") {
+            self.assistant.playback_ended(&playback_id);
+        }
+        self.log(
+            "native_playback_progress",
+            &[
+                ("state", state),
+                ("active", if playback_active { "true" } else { "false" }),
+            ],
+        );
+        Ok(())
+    }
+
+    /// Nothing plays any more, and nothing waits to be read next.
+    pub(super) async fn stop_playback(&mut self) -> Result<()> {
+        self.assistant.speech_task.cancel();
+        self.assistant.speak_next = false;
+        self.native_send("playback_stop", json!({})).await
+    }
+
     /// «Escuchar»: the hub's voice reads `text`, the answer `message_id`.
     /// A new one replaces the one being read (the helper stops a playback
     /// when another one starts). Each refusal names its cause.
@@ -39,11 +78,11 @@ impl Runtime {
         if self.state.durable.voice.call.is_some() {
             bail!("Durante una llamada, Orbit no lee otras respuestas en voz alta");
         }
-        if self.token.is_none() {
+        if self.link.token.is_none() {
             return Err(Refusal::NotPaired.into());
         }
         let playback_id = id();
-        self.conversation.read_aloud = Some(ReadAloud {
+        self.assistant.read_aloud = Some(ReadAloud {
             message_id,
             playback_id: playback_id.clone(),
         });
@@ -53,23 +92,11 @@ impl Runtime {
 
     /// «Parar»: what is being read stops, in the hub fetch or in the helper.
     pub(super) async fn stop_speaking(&mut self) -> Result<()> {
-        if self.conversation.read_aloud.take().is_none() {
+        if self.assistant.read_aloud.take().is_none() {
             return Ok(());
         }
-        self.conversation.speech_task.cancel();
+        self.assistant.speech_task.cancel();
         self.native_send("playback_stop", json!({})).await
-    }
-
-    /// The helper says a playback ended, played or cancelled.
-    pub(super) fn playback_ended(&mut self, playback_id: &str) {
-        if self
-            .conversation
-            .read_aloud
-            .as_ref()
-            .is_some_and(|read| read.playback_id == playback_id)
-        {
-            self.conversation.read_aloud = None;
-        }
     }
 
     /// Replay the last assistant turn locally. A replay replaces the
@@ -77,7 +104,7 @@ impl Runtime {
     /// discarded. It is not a queue of turns to read.
     pub(super) fn start_speech(&mut self) {
         let requested =
-            std::mem::take(&mut self.conversation.speak_next) || self.settings.speak_responses;
+            std::mem::take(&mut self.assistant.speak_next) || self.settings.speak_responses;
         // During meetings the default response stays private in the terminal.
         if !requested
             || self.recording_active()
@@ -98,20 +125,20 @@ impl Runtime {
             return;
         };
         // The turn's own voice replaces an answer the user was hearing.
-        self.conversation.read_aloud = None;
+        self.assistant.read_aloud = None;
         self.play_speech(text, id());
     }
 
     /// Fetches `text` in the hub's voice and hands it to the helper as
     /// `playback_id`, replacing the speech in flight.
     fn play_speech(&mut self, text: String, playback_id: String) {
-        let Some(token) = self.token.clone() else {
+        let Some(token) = self.link.token.clone() else {
             return;
         };
         let settings = self.settings.clone();
         let development = self.development;
-        let native_tx = self.native.clone();
-        let events = self.work.work_events.clone();
+        let native_tx = self.helper.sender.clone();
+        let events = self.work_events.clone();
         let generation = self.state.generation();
         // The voice of the agent the answer is from: the open conversation's.
         let agent_id = self.turn_agent_id();
@@ -119,7 +146,7 @@ impl Runtime {
         let voice = self.reading_voice();
         // A replay request does not erase a known capability. The worker's
         // result may update it; until then the last observed fact still holds.
-        self.conversation.speech_task.replace_logical(
+        self.assistant.speech_task.replace_logical(
             generation,
             self.turn.op.clone(),
             (),
@@ -165,6 +192,19 @@ impl Runtime {
     }
 }
 
+impl crate::daemon::assistant::AssistantHandle {
+    /// The helper says a playback ended, played or cancelled.
+    pub(super) fn playback_ended(&mut self, playback_id: &str) {
+        if self
+            .read_aloud
+            .as_ref()
+            .is_some_and(|read| read.playback_id == playback_id)
+        {
+            self.read_aloud = None;
+        }
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
@@ -202,17 +242,14 @@ mod tests {
                 voice: None,
             }),
         });
-        runtime.token = Some("synthetic-token".into());
-        runtime.conversation.speak_next = true;
+        runtime.link.token = Some("synthetic-token".into());
+        runtime.assistant.speak_next = true;
         let voice = runtime.reading_voice();
-        runtime
-            .conversation
-            .speech_voices
-            .insert(voice.clone(), false);
+        runtime.assistant.speech_voices.insert(voice.clone(), false);
         runtime.start_speech();
-        assert!(runtime.conversation.speech_task.active().is_some());
-        assert_eq!(runtime.conversation.speech_voices.get(&voice), Some(&false));
-        if let Some(task) = runtime.conversation.speech_task.take() {
+        assert!(runtime.assistant.speech_task.active().is_some());
+        assert_eq!(runtime.assistant.speech_voices.get(&voice), Some(&false));
+        if let Some(task) = runtime.assistant.speech_task.take() {
             task.abort();
         }
     }
@@ -240,7 +277,7 @@ mod tests {
         directory: &std::path::Path,
     ) -> (Runtime, tokio::sync::mpsc::Receiver<serde_json::Value>) {
         let (mut runtime, native) = super::super::audio::tests::fixture(directory).unwrap();
-        runtime.token = Some("synthetic-not-a-credential-speak".into());
+        runtime.link.token = Some("synthetic-not-a-credential-speak".into());
         // Nothing listens there: the fetch fails, which these tests do not read.
         runtime.settings.hub_url = Some("http://127.0.0.1:9/".into());
         (runtime, native)
@@ -266,8 +303,8 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(speaking(&runtime), "answer-1");
-        assert!(runtime.conversation.speech_task.active().is_some());
-        let playback = runtime.conversation.read_aloud.clone().unwrap().playback_id;
+        assert!(runtime.assistant.speech_task.active().is_some());
+        let playback = runtime.assistant.read_aloud.clone().unwrap().playback_id;
         runtime
             .native_event(progress(&playback, "started"))
             .await
@@ -304,7 +341,7 @@ mod tests {
         assert_eq!(speaking(&runtime), "answer-2");
         runtime.command(Command::SpeakStop).await.unwrap();
         assert_eq!(speaking(&runtime), serde_json::Value::Null);
-        assert!(runtime.conversation.speech_task.active().is_none());
+        assert!(runtime.assistant.speech_task.active().is_none());
         let mut orders = Vec::new();
         while let Ok(order) = native.try_recv() {
             orders.push(order["command"].as_str().unwrap_or_default().to_owned());

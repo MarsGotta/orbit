@@ -140,13 +140,13 @@ impl Runtime {
             return Ok(());
         }
         if self.closing
-            || self.audio_is_draining()
+            || self.audio.audio_is_draining()
             || self.stopped_audio_owed()
             || !self.capture.pending_seals.is_empty()
             || self.capture.buffer.has_unsealed_recording_audio()
-            || self.capture.mic_stream.is_some()
-            || self.capture.remote_stream.is_some()
-            || !self.capture.pending_starts.is_empty()
+            || self.audio.mic_stream.is_some()
+            || self.audio.remote_stream.is_some()
+            || !self.audio.pending_starts.is_empty()
         {
             // The cut is still settling its audio; nothing is decided
             // until what was recorded is sealed.
@@ -164,7 +164,7 @@ impl Runtime {
             // start): it does not resume.
             _ => CutRecovery::new(
                 &recording.id,
-                &self.unattributed_cut_cause(),
+                &self.capture.unattributed_cut_cause(),
                 false,
                 last_audio_at_ms(&recording),
             ),
@@ -246,16 +246,6 @@ impl Runtime {
             self.capture.recovery = Some(recovery);
         }
         Ok(())
-    }
-
-    /// As if the capture had stayed away for the whole wait.
-    #[cfg(test)]
-    pub(super) fn expire_capture_wait(&mut self) {
-        if let Some(recovery) = self.capture.recovery.as_mut() {
-            recovery.waiting_since = Instant::now()
-                .checked_sub(CAPTURE_RETURN_WAIT)
-                .unwrap_or(recovery.waiting_since);
-        }
     }
 
     fn cut_will_resume_with(&self, recovery: &CutRecovery) -> bool {
@@ -350,7 +340,7 @@ impl Runtime {
             Some(recovery) if recovery.recording_id == recording.id => recovery,
             _ => CutRecovery::new(
                 &recording.id,
-                &self.unattributed_cut_cause(),
+                &self.capture.unattributed_cut_cause(),
                 false,
                 last_audio_at_ms(&recording),
             ),
@@ -359,17 +349,6 @@ impl Runtime {
         // read from the snapshot: the end is the later of the two.
         recovery.cut_at_ms = recovery.cut_at_ms.max(last_audio_at_ms(&recording));
         self.close_cut_recording(recovery).await
-    }
-
-    /// The code a closure says when no cut was recorded for it: the typed
-    /// interruption the daemon kept, or that the cause is unknown.
-    fn unattributed_cut_cause(&self) -> String {
-        self.capture
-            .interruption
-            .as_ref()
-            .and_then(|interruption| serde_json::to_value(interruption.cause).ok())
-            .and_then(|value| value.as_str().map(str::to_owned))
-            .unwrap_or_else(|| "cause_not_saved".to_owned())
     }
 }
 
@@ -391,4 +370,26 @@ fn last_audio_at_ms(recording: &orbit_core::Recording) -> i64 {
         .max()
         .unwrap_or(recording.started_at_ms)
         .max(recording.started_at_ms)
+}
+
+impl crate::daemon::capture_handle::CaptureHandle {
+    /// As if the capture had stayed away for the whole wait.
+    #[cfg(test)]
+    pub(super) fn expire_capture_wait(&mut self) {
+        if let Some(recovery) = self.recovery.as_mut() {
+            recovery.waiting_since = Instant::now()
+                .checked_sub(CAPTURE_RETURN_WAIT)
+                .unwrap_or(recovery.waiting_since);
+        }
+    }
+
+    /// The code a closure says when no cut was recorded for it: the typed
+    /// interruption the daemon kept, or that the cause is unknown.
+    fn unattributed_cut_cause(&self) -> String {
+        self.interruption
+            .as_ref()
+            .and_then(|interruption| serde_json::to_value(interruption.cause).ok())
+            .and_then(|value| value.as_str().map(str::to_owned))
+            .unwrap_or_else(|| "cause_not_saved".to_owned())
+    }
 }

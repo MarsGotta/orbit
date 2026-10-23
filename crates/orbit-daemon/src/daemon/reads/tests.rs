@@ -201,10 +201,9 @@ async fn cursors_of_other_shapes_and_missing_offsets_are_refused() -> anyhow::Re
             fixture_value,
         );
     }
-    runtime.features.computer.declared_tools = Some(0);
+    runtime.computer.declared_tools = Some(0);
     let generation = runtime.state.generation();
     runtime
-        .features
         .computer
         .work
         .attach_test(generation, (), tokio::spawn(async {}));
@@ -288,7 +287,7 @@ fn without_reported_permissions_the_catalogue_names_the_cause() -> anyhow::Resul
             fixture_value,
         );
     }
-    assert!(!runtime.engine_is_ready());
+    assert!(!runtime.computer.engine_is_ready());
     let answer = read(&mut runtime, ReadRequest::EngineTools { cursor: None });
     assert_eq!(
         answer,
@@ -336,10 +335,10 @@ async fn oversized_agenda_reply_names_the_ipc_envelope_and_its_exact_bytes() -> 
         "44444444-4444-4444-8444-444444444444",
     );
     ack(&mut runtime, &command, response).await?;
-    let snapshot = runtime.features.calendar.complete.as_ref().ok_or_else(|| {
+    let snapshot = runtime.calendar.complete.as_ref().ok_or_else(|| {
         anyhow::anyhow!(
             "valid native event was not admitted: {:?}",
-            runtime.features.calendar.read_failure
+            runtime.calendar.read_failure
         )
     })?;
     assert_eq!(snapshot.events.len(), 1);

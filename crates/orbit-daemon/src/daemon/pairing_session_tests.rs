@@ -21,7 +21,7 @@ const DEVICE_NAME: &str = "Fixture Mac";
 /// A paired runtime online with the one-shot hub at `base`.
 pub(super) fn online_with_hub(runtime: &mut Runtime, base: &reqwest::Url) {
     runtime.settings.hub_url = Some(base.to_string());
-    runtime.token = Some(DEVICE_TOKEN.into());
+    runtime.link.token = Some(DEVICE_TOKEN.into());
     runtime.settings.device_id = Some(DEVICE_ID.into());
     crate::daemon::authority_fixture::set(
         &mut runtime.state,
@@ -447,7 +447,7 @@ async fn reading_a_conversation_offline_says_the_hub_is_missing() -> Result<()> 
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     runtime.settings.hub_url = Some("http://127.0.0.1:9".into());
-    runtime.token = Some(DEVICE_TOKEN.into());
+    runtime.link.token = Some(DEVICE_TOKEN.into());
     runtime.settings.device_id = Some(DEVICE_ID.into());
     crate::daemon::authority_fixture::set(
         &mut runtime.state,
@@ -483,9 +483,9 @@ async fn transcript_retry_calls_the_hub_route_with_the_device_bearer_and_publish
     let (mut runtime, _helper) = fixture(directory.path())?;
     let (base, seen) = one_shot_http(json_response("200 OK", "{\"requeued\":2}")).await?;
     runtime.settings.hub_url = Some(base.to_string());
-    runtime.token = Some(DEVICE_TOKEN.into());
+    runtime.link.token = Some(DEVICE_TOKEN.into());
     runtime.settings.device_id = Some(DEVICE_ID.into());
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
 
     runtime
         .command(Command::TranscriptRetry {
@@ -655,7 +655,7 @@ async fn manual_final_pass_reaches_hub_and_refusals_reach_notice_and_report() ->
         runtime.report_log = Some(orbit_ipc::report::ReportLog::daemon(directory.path()));
         let (base, seen) = one_shot_http(response).await?;
         online_with_hub(&mut runtime, &base);
-        let mut events = runtime.features.notes.test_events();
+        let mut events = runtime.notes.test_events();
         let command: Command = serde_json::from_value(serde_json::json!({
             "command":"transcript_retranscribe", "recording_id":RECORDING_ID
         }))?;
@@ -733,7 +733,7 @@ async fn a_lost_hub_response_is_unconfirmed_with_its_own_notice_and_report() -> 
         // The peer closes without an HTTP answer; it is a local fixture, never a service.
         let (base, seen) = one_shot_http(response).await?;
         online_with_hub(&mut runtime, &base);
-        let mut events = runtime.features.notes.test_events();
+        let mut events = runtime.notes.test_events();
         let command: Command = serde_json::from_value(serde_json::json!({
             "command":"transcript_retranscribe", "recording_id":RECORDING_ID
         }))?;
@@ -778,7 +778,7 @@ async fn dictionary_orders_preserve_numbers_without_logging_terms() -> Result<()
     runtime.report_log = Some(orbit_ipc::report::ReportLog::daemon(directory.path()));
     let (base, seen) = one_shot_http(json_response("409 Conflict", r#"{"code":"dictionary_full","message":"Hay 128 términos; el máximo es 128","refusal":{"terms":128,"max_terms":128}}"#)).await?;
     online_with_hub(&mut runtime, &base);
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let command: Command = serde_json::from_value(serde_json::json!({
         "command": "note_library", "request": {"action": "dictionary", "request": {
             "action": "correct", "recording_id": RECORDING_ID, "dictionary_id": SESSION_ID,
@@ -800,7 +800,7 @@ async fn dictionary_orders_preserve_numbers_without_logging_terms() -> Result<()
     );
     let payload: serde_json::Value = serde_json::from_str(&wire.body)?;
     assert_eq!(payload["correct"], "private-right-canary");
-    let items = serde_json::to_value(runtime.library_state())?;
+    let items = serde_json::to_value(runtime.notes.library_state())?;
     let refusal = items
         .as_array()
         .context("library array")?
@@ -834,7 +834,7 @@ async fn a_correction_s_conflicts_reach_the_library_by_its_target() -> Result<()
         "other_correct":"LedgerBox","applied_dictionary_id":"dic-uno"}]}"#;
     let (base, seen) = one_shot_http(json_response("200 OK", answer)).await?;
     online_with_hub(&mut runtime, &base);
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let command: Command = serde_json::from_value(serde_json::json!({
         "command": "note_library", "request": {"action": "dictionary", "request": {
             "action": "correct", "recording_id": RECORDING_ID, "dictionary_ids": ["dic-dos"],
@@ -846,7 +846,7 @@ async fn a_correction_s_conflicts_reach_the_library_by_its_target() -> Result<()
         .note_answer(events.recv().await.context("dictionary answer")?)
         .await?;
     recorded(&seen)?;
-    let items = serde_json::to_value(runtime.library_state())?;
+    let items = serde_json::to_value(runtime.notes.library_state())?;
     let warned = items
         .as_array()
         .context("library array")?
@@ -872,7 +872,7 @@ async fn an_older_hub_s_correction_has_no_conflicts_to_show() -> Result<()> {
     let answer = r#"{"id":"dic-uno","name":"Proyecto","terms":[],"series":[]}"#;
     let (base, seen) = one_shot_http(json_response("200 OK", answer)).await?;
     online_with_hub(&mut runtime, &base);
-    let mut events = runtime.features.notes.test_events();
+    let mut events = runtime.notes.test_events();
     let command: Command = serde_json::from_value(serde_json::json!({
         "command": "note_library", "request": {"action": "dictionary", "request": {
             "action": "correct", "recording_id": RECORDING_ID, "dictionary_id": "dic-uno",
@@ -884,7 +884,7 @@ async fn an_older_hub_s_correction_has_no_conflicts_to_show() -> Result<()> {
         .note_answer(events.recv().await.context("dictionary answer")?)
         .await?;
     recorded(&seen)?;
-    let items = serde_json::to_value(runtime.library_state())?;
+    let items = serde_json::to_value(runtime.notes.library_state())?;
     let items = items.as_array().context("library array")?;
     assert!(
         !items
@@ -917,7 +917,7 @@ async fn an_offline_dictionary_order_is_refused_without_retaining_terms_to_retry
         }}
     }))?;
     runtime.command(command).await?;
-    let state = serde_json::to_value(runtime.library_state())?;
+    let state = serde_json::to_value(runtime.notes.library_state())?;
     let items = state.as_array().context("library")?;
     assert!(!items.iter().any(|item| item["item"] == "pending"));
     let refusal = items
@@ -936,9 +936,9 @@ async fn a_confirmed_dictionary_change_invalidates_every_recording_read() -> Res
     let (mut runtime, _helper) = fixture(directory.path())?;
     let (base, seen) = one_shot_http(json_response("200 OK", "{}")).await?;
     online_with_hub(&mut runtime, &base);
-    runtime.features.notes.head.touch_recording(RECORDING_ID);
-    let before = runtime.features.notes.head.changed_at(RECORDING_ID);
-    let mut events = runtime.features.notes.test_events();
+    runtime.notes.head.touch_recording(RECORDING_ID);
+    let before = runtime.notes.head.changed_at(RECORDING_ID);
+    let mut events = runtime.notes.test_events();
     let command: Command = serde_json::from_value(serde_json::json!({
         "command": "note_library", "request": {"action": "dictionary", "request": {
             "action": "remove", "dictionary_id": SESSION_ID, "entry_id": "entry"
@@ -949,7 +949,7 @@ async fn a_confirmed_dictionary_change_invalidates_every_recording_read() -> Res
         .note_answer(events.recv().await.context("dictionary confirmation")?)
         .await?;
     recorded(&seen)?;
-    let head = &runtime.features.notes.head;
+    let head = &runtime.notes.head;
     assert!(head.changed_at(RECORDING_ID) > before);
     assert_eq!(
         head.changed_at("40000000-0000-4000-8000-000000000004"),
@@ -975,7 +975,7 @@ async fn local_access_refusals_keep_their_actual_cause() -> Result<()> {
             }}
         }))?;
         runtime.command(command).await?;
-        let state = serde_json::to_value(runtime.library_state())?;
+        let state = serde_json::to_value(runtime.notes.library_state())?;
         let failure = state
             .as_array()
             .context("library")?

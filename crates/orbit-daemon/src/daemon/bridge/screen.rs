@@ -118,7 +118,9 @@ fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
 impl Runtime {
     /// The engine's listing when it is connected, the helper's otherwise.
     pub(super) async fn serve_screen_sources(&mut self) -> Result<(), Refusal> {
-        if self.computer_connection_epoch().is_some() && self.read_computer_windows().is_ok() {
+        if self.computer.computer_connection_epoch().is_some()
+            && self.read_computer_windows().is_ok()
+        {
             return Ok(());
         }
         self.source_windows().await.map_err(source_start_refusal)
@@ -154,7 +156,7 @@ impl Runtime {
         observation: &Value,
     ) -> Result<bool> {
         let Some(ask) = self
-            .conversation
+            .assistant
             .bridge_request
             .as_ref()
             .filter(|ask| ask.capability == Capability::ScreenSources)
@@ -184,48 +186,8 @@ impl Runtime {
             ),
         ));
         self.note_bridge_send(&sent, "the engine's windows reply");
-        self.conversation.bridge_request = None;
+        self.assistant.bridge_request = None;
         Ok(true)
-    }
-
-    pub(in crate::daemon) fn bridge_screenshot_target(
-        &self,
-        observation: &Value,
-    ) -> Option<(i64, u64, String, String)> {
-        let ask = self
-            .conversation
-            .bridge_request
-            .as_ref()
-            .filter(|ask| ask.capability == Capability::Screenshot)?;
-        let listing = ComputerWindows::deserialize(observation).ok()?;
-        let matching = listing
-            .structured
-            .windows
-            .iter()
-            .filter_map(|row| {
-                let pid = row.pid?;
-                let window_id = row.window_id?;
-                let application = row.name()?;
-                let title = row.title.as_str();
-                if pid <= 0
-                    || window_id == 0
-                    || !ask.matches_window_filter(application, row.bundle_id.as_deref(), title)
-                {
-                    return None;
-                }
-                Some((
-                    row.z_index.unwrap_or(i64::MIN),
-                    pid,
-                    window_id,
-                    application.to_owned(),
-                    title.to_owned(),
-                ))
-            })
-            .collect();
-        titled_first(matching, |candidate| candidate.4.as_str())
-            .into_iter()
-            .max_by_key(|candidate| candidate.0)
-            .map(|(_, pid, window_id, application, title)| (pid, window_id, application, title))
     }
 
     pub(in crate::daemon) async fn answer_bridge_from_computer_screenshot(
@@ -235,7 +197,7 @@ impl Runtime {
         title: &str,
     ) -> Result<bool> {
         let Some(ask) = self
-            .conversation
+            .assistant
             .bridge_request
             .as_ref()
             .filter(|ask| ask.capability == Capability::Screenshot)
@@ -275,7 +237,7 @@ impl Runtime {
         fitted: orbit_core::sources::FittedDesktop,
     ) -> Result<()> {
         let Some(ask) = self
-            .conversation
+            .assistant
             .bridge_request
             .as_ref()
             .filter(|ask| ask.capability == Capability::Screenshot)
@@ -308,7 +270,7 @@ impl Runtime {
                 "Pantalla completa",
             )
             .await?;
-        self.features.computer.pending_desktop = uploading.map(|capture_id| (capture_id, scale));
+        self.computer.pending_desktop = uploading.map(|capture_id| (capture_id, scale));
         Ok(())
     }
 }
@@ -325,4 +287,45 @@ fn engine_size_matches(structured: Option<&Value>, width: u32, height: u32) -> b
             .as_ref()
             .and_then(|value| value.screenshot_height)
             .is_some_and(|value| value != u64::from(height)))
+}
+
+impl crate::daemon::assistant::AssistantHandle {
+    pub(in crate::daemon) fn bridge_screenshot_target(
+        &self,
+        observation: &Value,
+    ) -> Option<(i64, u64, String, String)> {
+        let ask = self
+            .bridge_request
+            .as_ref()
+            .filter(|ask| ask.capability == Capability::Screenshot)?;
+        let listing = ComputerWindows::deserialize(observation).ok()?;
+        let matching = listing
+            .structured
+            .windows
+            .iter()
+            .filter_map(|row| {
+                let pid = row.pid?;
+                let window_id = row.window_id?;
+                let application = row.name()?;
+                let title = row.title.as_str();
+                if pid <= 0
+                    || window_id == 0
+                    || !ask.matches_window_filter(application, row.bundle_id.as_deref(), title)
+                {
+                    return None;
+                }
+                Some((
+                    row.z_index.unwrap_or(i64::MIN),
+                    pid,
+                    window_id,
+                    application.to_owned(),
+                    title.to_owned(),
+                ))
+            })
+            .collect();
+        titled_first(matching, |candidate| candidate.4.as_str())
+            .into_iter()
+            .max_by_key(|candidate| candidate.0)
+            .map(|(_, pid, window_id, application, title)| (pid, window_id, application, title))
+    }
 }

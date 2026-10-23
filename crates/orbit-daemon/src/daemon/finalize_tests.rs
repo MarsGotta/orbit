@@ -386,7 +386,7 @@ async fn helper_loss_keeps_an_empty_recording_and_closes_it_when_the_helper_neve
     );
     // The helper never came back within the wait: the empty recording is
     // closed and the closure says why.
-    runtime.expire_capture_wait();
+    runtime.capture.expire_capture_wait();
     runtime.run_maintenance().await;
     let recording = runtime
         .state
@@ -458,7 +458,7 @@ async fn empty_capture_cut_preserves_its_cause_without_claiming_saved_audio() ->
         .await?;
     settle_seal_receipts(&mut runtime).await?;
     // The helper does not come back: the empty recording is closed.
-    runtime.expire_capture_wait();
+    runtime.capture.expire_capture_wait();
     runtime.run_maintenance().await;
 
     // The cut is said with its code, then the empty close and why it could
@@ -672,7 +672,7 @@ async fn retired_start_refusal_does_not_touch_the_next_call() -> Result<()> {
             "error":{"code":"screen_permission_required",
                 "message":"Falta el permiso de captura de pantalla"}}))
         .await?;
-    assert_eq!(runtime.capture.mic_stream.as_deref(), Some(call_stream));
+    assert_eq!(runtime.audio.mic_stream.as_deref(), Some(call_stream));
     assert_eq!(runtime.capture.interruption, interruption_before);
     assert_eq!(runtime.state.durable.notice, notice_before);
     assert_eq!(
@@ -687,7 +687,7 @@ async fn retired_start_refusal_does_not_touch_the_next_call() -> Result<()> {
     );
     assert!(
         runtime
-            .capture
+            .audio
             .pending_starts
             .iter()
             .any(|id| id == call_start["id"].as_str().unwrap_or_default())
@@ -735,7 +735,7 @@ async fn voice_refusal_during_starting_recording_keeps_permission_cause() -> Res
     assert!(!said::has(&runtime.state, NoticeCode::VoiceNoteEmpty));
     assert!(!runtime.state.durable.voice.voice_active);
     assert!(runtime.capture.buffer.voice.is_none());
-    assert!(runtime.capture.audio.full_stop.is_none());
+    assert!(runtime.audio.lifecycle.full_stop.is_none());
     assert!(
         receiver.try_recv().is_err(),
         "an empty voice note requested another helper action"
@@ -790,8 +790,8 @@ async fn second_refusal_keeps_first_cause_and_wait_notice() -> Result<()> {
     );
     assert_eq!(
         runtime
-            .capture
             .audio
+            .lifecycle
             .full_stop
             .as_ref()
             .map(|(id, _)| id.as_str()),
@@ -1271,7 +1271,7 @@ async fn live_cut_keeps_the_first_typed_interruption() -> Result<()> {
         "capabilities.native_helper",
         serde_json::json!(false),
     );
-    runtime.expire_capture_wait();
+    runtime.capture.expire_capture_wait();
     runtime.run_maintenance().await;
     let closure = runtime
         .fixture_store

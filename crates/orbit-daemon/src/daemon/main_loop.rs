@@ -97,7 +97,7 @@ fn spawn_capture(
         port: runtime.store_actor.capture_port(),
         store: runtime.paths.store.clone(),
         reader: channels.capture_reader.take()?,
-        gate: runtime.work.retry_gate.clone(),
+        gate: runtime.transfers.retry_gate.clone(),
         root: runtime.paths.root.clone(),
         tick: capture_lane::task::CAPTURE_TICK,
         supervision: runtime.supervision.clone(),
@@ -308,7 +308,7 @@ impl MainLoop<'_> {
         self.runtime
             .turn_watch
             .begin(turn_watch::TurnSource::hub(&event));
-        let op = self.runtime.hub_event_op(&event);
+        let op = self.runtime.link.hub_event_op(&event);
         self.runtime
             .begin_turn(op, orbit_core::notice::ReportSource::Hub);
         if generation == self.runtime.state.generation() {
@@ -393,8 +393,9 @@ impl MainLoop<'_> {
         // silence.
         let queued = self
             .runtime
+            .capture
             .unserved_native_events(self.channels.native_events.len());
-        self.runtime.note_loop_tick(queued, self.last_tick);
+        self.runtime.audio.note_loop_tick(queued, self.last_tick);
         self.process.topic_board.state_changed();
         let watch = self.runtime.turn_watch.clone();
         watch
@@ -413,6 +414,7 @@ impl MainLoop<'_> {
             (
                 "queued_native_events",
                 self.runtime
+                    .capture
                     .unserved_native_events(self.channels.native_events.len())
                     .to_string(),
             ),
@@ -467,10 +469,10 @@ impl MainLoop<'_> {
         if !self.runtime.store_actor.bounded_exit_declared() {
             let _ = self.runtime.store_actor.snapshot(&self.runtime.state).await;
         }
-        if let Some(task) = self.runtime.hub_task.take() {
+        if let Some(task) = self.runtime.link.task.take() {
             task.abort();
         }
-        self.runtime.work.worker.cancel();
+        self.runtime.transfers.worker.cancel();
         // The loop is gone: the task reads and drops the helper's last
         // frames, so a full channel cannot hold the helper's own closure.
         self.runtime.capture.lane.lock().discard = true;

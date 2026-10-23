@@ -106,9 +106,9 @@ async fn typed_permission_frames_name_the_actual_mac_permission() -> Result<()> 
                 fixture_value,
             );
         }
-        runtime.features.calendar.view.authorization = calendar;
+        runtime.calendar.view.authorization = calendar;
         let (sender, mut receiver) = mpsc::channel(16);
-        runtime.hub.install(sender);
+        runtime.link.outbound.install(sender);
         runtime
             .device_request_raw(
                 &json!({"request_id":"ask","capability":capability,"parameters":{}}),
@@ -826,14 +826,15 @@ async fn an_evicted_audio_stop_ack_still_cuts_and_closes_the_microphone() {
     assert_eq!(stop["command"], "audio_stop");
 
     for index in 0..MAX_PENDING_NATIVE {
-        runtime.record_pending_native(&json!({
+        runtime.helper.record_pending(&json!({
             "id": format!("zz-noncapture-{index:03}"),
             "command": "application_sources"
         }));
     }
     assert!(
         !runtime
-            .pending_native
+            .helper
+            .pending
             .contains_key(stop["id"].as_str().unwrap()),
         "the fixture must reproduce eviction from the generic index"
     );
@@ -847,8 +848,8 @@ async fn an_evicted_audio_stop_ack_still_cuts_and_closes_the_microphone() {
         .handle_native_event(json!({"event":"response","id":cut["id"],"ok":true,
             "result":{"drain_complete":true}}))
         .await;
-    assert!(runtime.capture.mic_stream.is_none());
-    assert!(!runtime.audio_is_draining());
+    assert!(runtime.audio.mic_stream.is_none());
+    assert!(!runtime.audio.audio_is_draining());
     let notice = said(&runtime).join(" | ");
     assert!(notice.contains("audio_stop"), "{notice}");
     assert!(!notice.contains("No se corta nada"), "{notice}");
@@ -875,7 +876,7 @@ async fn tick_expiry_with_a_stalled_audio_stop_closes_the_microphone() {
     stalled_native
         .try_send(json!({"fixture":"occupied"}))
         .unwrap();
-    runtime.native = stalled_native;
+    runtime.helper.sender = stalled_native;
 
     runtime.run_maintenance().await;
     let notice = said(&runtime).join(" | ");
@@ -887,7 +888,7 @@ async fn tick_expiry_with_a_stalled_audio_stop_closes_the_microphone() {
     assert!(stalled.try_recv().is_ok());
 
     let (native, mut recovered) = mpsc::channel(8);
-    runtime.native = native;
+    runtime.helper.sender = native;
     runtime.run_maintenance().await;
     let cut =
         crate::daemon::audio::tests::take_helper_command(&mut recovered, "capture_stop").unwrap();
@@ -895,8 +896,8 @@ async fn tick_expiry_with_a_stalled_audio_stop_closes_the_microphone() {
         .handle_native_event(json!({"event":"response","id":cut["id"],"ok":true,
             "result":{"drain_complete":true}}))
         .await;
-    assert!(runtime.capture.mic_stream.is_none());
-    assert!(!runtime.audio_is_draining());
+    assert!(runtime.audio.mic_stream.is_none());
+    assert!(!runtime.audio.audio_is_draining());
 }
 
 #[tokio::test]
@@ -909,23 +910,23 @@ async fn privacy_stop_stalled_once_is_retried_until_the_microphone_closes() {
     stalled_native
         .try_send(json!({"fixture":"occupied"}))
         .unwrap();
-    runtime.native = stalled_native;
+    runtime.helper.sender = stalled_native;
 
     runtime
         .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     assert!(runtime.state.privacy_stopped());
     assert!(
-        runtime.full_stop_send_owed(),
+        runtime.audio.full_stop_send_owed(),
         "privacy_stop was never enqueued"
     );
     assert!(
-        runtime.capture.mic_stream.is_some(),
+        runtime.audio.mic_stream.is_some(),
         "no native drain was acknowledged"
     );
 
     let (native, mut recovered) = mpsc::channel(8);
-    runtime.native = native;
+    runtime.helper.sender = native;
     runtime.run_maintenance().await;
     let retry =
         crate::daemon::audio::tests::take_helper_command(&mut recovered, "privacy_stop").unwrap();
@@ -933,8 +934,8 @@ async fn privacy_stop_stalled_once_is_retried_until_the_microphone_closes() {
         .handle_native_event(json!({"event":"response","id":retry["id"],"ok":true,
         "result":{"privacy_stopped":true,"drain_complete":true}}))
         .await;
-    assert!(runtime.capture.mic_stream.is_none());
-    assert!(!runtime.audio_is_draining());
+    assert!(runtime.audio.mic_stream.is_none());
+    assert!(!runtime.audio.audio_is_draining());
     assert!(runtime.state.privacy_stopped());
 }
 
@@ -948,9 +949,9 @@ async fn a_stream_still_open_in_the_helper_is_cut_whatever_the_state_says() {
         let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
         runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
         match open {
-            "mic" => runtime.capture.mic_stream = Some("orphan-mic".into()),
-            "remote" => runtime.capture.remote_stream = Some("orphan-remote".into()),
-            _ => runtime.capture.pending_starts.push("orphan-start".into()),
+            "mic" => runtime.audio.mic_stream = Some("orphan-mic".into()),
+            "remote" => runtime.audio.remote_stream = Some("orphan-remote".into()),
+            _ => runtime.audio.pending_starts.push("orphan-start".into()),
         }
         assert!(!orbit_core::privacy_stop::capture_live(&runtime.state));
         runtime

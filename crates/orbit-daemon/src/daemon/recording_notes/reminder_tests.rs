@@ -20,7 +20,7 @@ async fn paired(runtime: &mut Runtime) -> Result<fake_hub::Shared> {
     let hub: fake_hub::Shared = Arc::new(Mutex::new(Hub::default()));
     runtime.settings.hub_url = Some(fake_hub::start(hub.clone()).await?);
     runtime.settings.device_id = Some("11111111-1111-4111-8111-111111111111".into());
-    runtime.token = Some("synthetic-not-a-credential".into());
+    runtime.link.token = Some("synthetic-not-a-credential".into());
     crate::daemon::authority_fixture::set(
         &mut runtime.state,
         "connection",

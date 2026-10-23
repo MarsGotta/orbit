@@ -71,7 +71,7 @@ impl Runtime {
     /// The recordings of this Mac the hub does not have whole yet: the one
     /// being recorded and those still uploading, newest first.
     fn local_rows(&self) -> Result<Vec<MeetingRow>, Refusal> {
-        let now_ms = self.notes_now();
+        let now_ms = self.notes.notes_now();
         let mut rows = Vec::new();
         let active = self
             .state
@@ -170,7 +170,7 @@ impl Runtime {
     /// The notes reads, prepared on the loop and answered off it.
     pub(in crate::daemon) fn notes_read(&self, read: &ReadRequest) -> Option<RemoteRead> {
         let hub = self.hub_for_read();
-        let head = &self.features.notes.head;
+        let head = &self.notes.head;
         let answer: RemoteRead = match read {
             ReadRequest::NotesPage { cursor } => self.notes_page(hub, cursor.as_ref()),
             ReadRequest::NoteDetail { id, .. } => self.note_detail(hub, id),
@@ -188,7 +188,7 @@ impl Runtime {
                     Ok(skip) => skip.unwrap_or(0),
                     Err(refusal) => return Some(Box::pin(async move { absent(refusal) })),
                 };
-                let state = self.library_state();
+                let state = self.notes.library_state();
                 let revision = head.library_revision;
                 Box::pin(super::lists::library(hub, skip, state, revision))
             }
@@ -232,7 +232,7 @@ impl Runtime {
             Ok(rows) => rows,
             Err(refusal) => return Box::pin(async { absent(refusal) }),
         };
-        let revision = self.features.notes.head.revision;
+        let revision = self.notes.head.revision;
         let listed = Listed {
             rows,
             // The call in progress is on the hub as an open recording
@@ -244,8 +244,8 @@ impl Runtime {
                 .call
                 .as_ref()
                 .map(|call| call.id.clone()),
-            titles: self.features.notes.outbox.pending_titles(),
-            deleting: self.features.notes.outbox.deleting(),
+            titles: self.notes.outbox.pending_titles(),
+            deleting: self.notes.outbox.deleting(),
         };
         Box::pin(list_page(hub, before, first, listed, revision))
     }
@@ -266,9 +266,9 @@ impl Runtime {
             row,
             event: self.recording_event(id),
             private,
-            orders: self.features.notes.outbox.meeting_orders(id),
+            orders: self.notes.outbox.meeting_orders(id),
         };
-        let revision = self.features.notes.head.changed_at(id);
+        let revision = self.notes.head.changed_at(id);
         Box::pin(detail(hub, id.to_owned(), local, revision))
     }
 
@@ -294,7 +294,7 @@ impl Runtime {
             || self
                 .local_rows()
                 .is_ok_and(|rows| rows.iter().any(|row| row.recording_id == id));
-        let revision = self.features.notes.head.changed_at(id);
+        let revision = self.notes.head.changed_at(id);
         Box::pin(transcript(hub, id.to_owned(), offset, local, revision))
     }
 }

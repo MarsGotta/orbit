@@ -41,9 +41,9 @@ async fn connected(
     let directory = tempfile::tempdir()?;
     let (mut runtime, helper) = fixture(directory.path())?;
     let (hub, frames) = mpsc::channel(16);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     runtime.settings.device_id = Some(DEVICE.into());
-    runtime.token = Some("synthetic-device-token".into());
+    runtime.link.token = Some("synthetic-device-token".into());
     runtime
         .hub_event(HubEvent::Frame(ready(attachments)))
         .await?;
@@ -585,7 +585,7 @@ async fn attach_the_editor_window(text_reply: Value, stop_first: bool) -> Result
     let (_directory, mut runtime, frames, mut helper) =
         connected(Some(limits(10_000_000, 10))).await?;
     let (work, mut work_events) = mpsc::channel(16);
-    runtime.work.work_events = work;
+    runtime.work_events = work;
     let (url, recorded) = http_hub(|request| {
         let body = if request.path == "/v1/attachments/capture" {
             json!({"attachment": {"id": PICTURE, "name": "Editor — Nota sintética.png",
@@ -724,8 +724,8 @@ async fn a_window_is_captured_as_the_assistant_s_and_kept_as_an_attachment() -> 
     while let Ok(frame) = frames.try_recv() {
         assert_ne!(frame["method"], "device.reply", "{frame}");
     }
-    assert!(runtime.conversation.bridge_request.is_none());
-    assert!(runtime.conversation.window_attachment.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.window_attachment.is_none());
     Ok(())
 }
 
@@ -851,7 +851,7 @@ async fn a_window_the_helper_cannot_take_answers_the_app_with_its_cause() -> Res
     while let Ok(frame) = frames.try_recv() {
         assert_ne!(frame["method"], "device.reply", "{frame}");
     }
-    assert!(runtime.conversation.window_attachment.is_none());
+    assert!(runtime.assistant.window_attachment.is_none());
     Ok(())
 }
 
@@ -891,11 +891,11 @@ async fn a_hub_drop_during_attach_window_answers_the_app_and_frees_the_slot() ->
     let client = orbit_ipc::LocalClient::new(calls, &std::collections::BTreeMap::new(), ended);
     let (asked, _listing) =
         attach_window_started(&mut runtime, &client, &mut received, &mut helper).await?;
-    assert!(runtime.conversation.bridge_request.is_some());
+    assert!(runtime.assistant.bridge_request.is_some());
 
     runtime.hub_event(HubEvent::Disconnected).await?;
-    assert!(runtime.conversation.bridge_request.is_none());
-    assert!(runtime.conversation.window_attachment.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.window_attachment.is_none());
     let refused = tokio::time::timeout(std::time::Duration::from_secs(5), asked)
         .await
         .context("the app's «Adjuntar ventana» was never answered after the hub dropped")??
@@ -928,7 +928,7 @@ async fn attach_window_works_again_after_the_hub_comes_back() -> Result<()> {
         .await?;
 
     let (hub, _frames) = mpsc::channel(16);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     runtime.hub_event(HubEvent::Connected).await?;
     runtime
         .hub_event(HubEvent::Frame(ready(Some(limits(10_000_000, 10)))))
@@ -937,7 +937,7 @@ async fn attach_window_works_again_after_the_hub_comes_back() -> Result<()> {
     // The second capture starts: the helper is asked for the windows again.
     let (second, _listing) =
         attach_window_started(&mut runtime, &client, &mut received, &mut helper).await?;
-    assert!(runtime.conversation.window_attachment.is_some());
+    assert!(runtime.assistant.window_attachment.is_some());
     assert!(!second.is_finished());
     Ok(())
 }
@@ -1009,7 +1009,7 @@ async fn photo_runtime() -> Result<(
 )> {
     let (directory, mut runtime, _frames, helper) = connected(Some(limits(1_000_000, 10))).await?;
     let (work, work_events) = mpsc::channel(16);
-    runtime.work.work_events = work;
+    runtime.work_events = work;
     let (url, recorded) = photo_hub().await?;
     runtime.settings.hub_url = Some(url);
     Ok((directory, runtime, helper, work_events, recorded))

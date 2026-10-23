@@ -41,7 +41,7 @@ async fn privacy_stop_keeps_its_notice_with_a_pending_bridge_request() -> Result
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     logging(&mut runtime, directory.path());
-    runtime.conversation.bridge_request = Some(BridgeAsk {
+    runtime.assistant.bridge_request = Some(BridgeAsk {
         for_attachment: false,
         id: "pending-during-stop".into(),
         capability: orbit_core::device_bridge::Capability::ScreenSources,
@@ -59,7 +59,7 @@ async fn privacy_stop_keeps_its_notice_with_a_pending_bridge_request() -> Result
         .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
     assert!(runtime.state.privacy_stopped());
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
     assert!(
         said::has(&runtime.state, NoticeCode::PrivacyStopped),
         "{:?}",
@@ -82,12 +82,12 @@ async fn privacy_stop_queues_refusal_before_retiring_hub() -> Result<()> {
     let (mut runtime, _) = fixture(directory.path())?;
     logging(&mut runtime, directory.path());
     let (sender, mut frames) = mpsc::channel(2);
-    runtime.hub.install(sender);
+    runtime.link.outbound.install(sender);
     {
         let fixture_value = serde_json::json!(orbit_core::Connection::Online);
         crate::daemon::authority_fixture::set(&mut runtime.state, "connection", fixture_value);
     }
-    runtime.conversation.bridge_request = Some(BridgeAsk {
+    runtime.assistant.bridge_request = Some(BridgeAsk {
         for_attachment: false,
         id: "pending-during-stop".into(),
         capability: orbit_core::device_bridge::Capability::ScreenSources,
@@ -107,7 +107,7 @@ async fn privacy_stop_queues_refusal_before_retiring_hub() -> Result<()> {
         .await;
 
     assert!(runtime.state.privacy_stopped());
-    assert!(runtime.hub.is_none());
+    assert!(runtime.link.outbound.is_none());
     let frame = frames.try_recv()?;
     assert_eq!(frame["method"], "device.reply");
     assert_eq!(frame["params"]["request_id"], "pending-during-stop");
@@ -130,8 +130,8 @@ async fn privacy_stop_orders_native_cut_before_hub_refusal() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut native_frames) = fixture(directory.path())?;
     let (sender, mut hub_frames) = mpsc::channel(2);
-    runtime.hub.install(sender);
-    runtime.conversation.bridge_request = Some(BridgeAsk {
+    runtime.link.outbound.install(sender);
+    runtime.assistant.bridge_request = Some(BridgeAsk {
         for_attachment: false,
         id: "cut-before-refusal".into(),
         capability: orbit_core::device_bridge::Capability::ScreenSources,
@@ -145,8 +145,11 @@ async fn privacy_stop_orders_native_cut_before_hub_refusal() -> Result<()> {
         calendar_cursor: None,
         files: None,
     });
-    for _ in 0..runtime.native.max_capacity() {
-        runtime.native.try_send(json!({"fixture":"occupied"}))?;
+    for _ in 0..runtime.helper.sender.max_capacity() {
+        runtime
+            .helper
+            .sender
+            .try_send(json!({"fixture":"occupied"}))?;
     }
 
     let stop = runtime.privacy_stop(orbit_core::privacy_stop::UserStop::Order);
@@ -222,7 +225,7 @@ async fn hub_encoding_failure_is_reported_without_queue_admission() -> Result<()
     let (mut runtime, _) = fixture(directory.path())?;
     logging(&mut runtime, directory.path());
     let (sender, mut frames) = mpsc::channel(1);
-    runtime.hub.install(sender);
+    runtime.link.outbound.install(sender);
     let result = runtime.send_frame(crate::hub::command(
         "invalid-chat-fixture",
         "chat.send",
@@ -248,7 +251,7 @@ async fn full_hub_report_names_capacity_and_does_not_queue_reply() -> Result<()>
     let (mut runtime, _) = fixture(directory.path())?;
     let (sender, mut frames) = mpsc::channel(1);
     sender.try_send(json!({"fixture":"occupied"}))?;
-    runtime.hub.install(sender);
+    runtime.link.outbound.install(sender);
     let Err(error) = runtime.send(json!({"method":"device.reply"})).await else {
         bail!("the full channel should have refused the reply")
     };
@@ -267,7 +270,7 @@ async fn action_receipt_is_reported_only_after_queue_admission() -> Result<()> {
     logging(&mut runtime, directory.path());
     let (sender, mut frames) = mpsc::channel(1);
     sender.try_send(json!({"fixture":"occupied"}))?;
-    runtime.hub.install(sender);
+    runtime.link.outbound.install(sender);
     let ask = BridgeAsk {
         for_attachment: false,
         id: "remote-action".into(),
@@ -285,7 +288,7 @@ async fn action_receipt_is_reported_only_after_queue_admission() -> Result<()> {
         calendar_cursor: None,
         files: None,
     };
-    runtime.conversation.bridge_request = Some(ask.clone());
+    runtime.assistant.bridge_request = Some(ask.clone());
     runtime.finish_remote_computer_action("one-attempt", &json!({"ok":true}));
     assert_eq!(
         runtime.state.notice_code(),
@@ -300,8 +303,8 @@ async fn action_receipt_is_reported_only_after_queue_admission() -> Result<()> {
     assert_eq!(frames.try_recv()?["fixture"], "occupied");
     assert!(frames.try_recv().is_err());
     let (sender, mut admitted) = mpsc::channel(1);
-    runtime.hub.install(sender);
-    runtime.conversation.bridge_request = Some(ask.clone());
+    runtime.link.outbound.install(sender);
+    runtime.assistant.bridge_request = Some(ask.clone());
     runtime.finish_remote_computer_action("second-attempt", &json!({"ok":true}));
     // Queued, never «received»: there is no receipt from Deimos.
     assert_eq!(
@@ -315,9 +318,10 @@ async fn action_receipt_is_reported_only_after_queue_admission() -> Result<()> {
         "second-attempt"
     );
     runtime
-        .hub
+        .link
+        .outbound
         .retire(crate::daemon::hub_link::Retirement::PrivacyStop);
-    runtime.conversation.bridge_request = Some(ask);
+    runtime.assistant.bridge_request = Some(ask);
     runtime.finish_remote_computer_action("third-attempt", &json!({"ok":true}));
     assert_eq!(
         runtime.state.notice_code(),
@@ -354,26 +358,27 @@ async fn bridge_release_reports_full_and_retired_link() -> Result<()> {
     };
     let (sender, mut frames) = mpsc::channel(1);
     sender.try_send(json!({"fixture":"occupied"}))?;
-    runtime.hub.install(sender);
-    runtime.conversation.bridge_request = Some(ask.clone());
+    runtime.link.outbound.install(sender);
+    runtime.assistant.bridge_request = Some(ask.clone());
     runtime.release_bridge_request(BridgeReleaseReason::Cancelled);
     assert_eq!(
         runtime.state.notice_code(),
         Some(NoticeCode::BridgeReplyUndelivered)
     );
 
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
     assert_undelivered_cause(directory.path(), "capacidad 1")?;
     assert_eq!(frames.try_recv()?["fixture"], "occupied");
     assert!(frames.try_recv().is_err());
 
     runtime
-        .hub
+        .link
+        .outbound
         .retire(crate::daemon::hub_link::Retirement::AuthorityRetired);
-    runtime.conversation.bridge_request = Some(ask);
+    runtime.assistant.bridge_request = Some(ask);
     runtime.release_bridge_request(BridgeReleaseReason::Cancelled);
 
-    assert!(runtime.conversation.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_request.is_none());
     assert_undelivered_cause(directory.path(), "retirada de autoridad")?;
     Ok(())
 }
@@ -401,8 +406,8 @@ async fn engine_windows_reply_reports_full_and_retired_link() -> Result<()> {
     let observation = json!({"structured":{"windows":[]}});
     let (sender, mut frames) = mpsc::channel(1);
     sender.try_send(json!({"fixture":"occupied"}))?;
-    runtime.hub.install(sender);
-    runtime.conversation.bridge_request = Some(ask.clone());
+    runtime.link.outbound.install(sender);
+    runtime.assistant.bridge_request = Some(ask.clone());
     assert!(
         runtime
             .answer_bridge_from_computer_windows(&observation)
@@ -417,9 +422,10 @@ async fn engine_windows_reply_reports_full_and_retired_link() -> Result<()> {
     assert_eq!(frames.try_recv()?["fixture"], "occupied");
     assert!(frames.try_recv().is_err());
     runtime
-        .hub
+        .link
+        .outbound
         .retire(crate::daemon::hub_link::Retirement::NetworkCancelled);
-    runtime.conversation.bridge_request = Some(ask);
+    runtime.assistant.bridge_request = Some(ask);
     assert!(
         runtime
             .answer_bridge_from_computer_windows(&observation)
@@ -452,8 +458,8 @@ async fn helper_windows_reply_reports_full_and_retired_link() -> Result<()> {
     };
     let (sender, mut frames) = mpsc::channel(1);
     sender.try_send(json!({"fixture":"occupied"}))?;
-    runtime.hub.install(sender);
-    runtime.conversation.bridge_request = Some(ask.clone());
+    runtime.link.outbound.install(sender);
+    runtime.assistant.bridge_request = Some(ask.clone());
     runtime
         .answer_bridge_from_sources(&json!({"id":"source-list-fixture","ok":false,"error":{"code":"source_inventory_failed","message":"No se pudo leer el inventario"}}))
         .await?;
@@ -466,9 +472,10 @@ async fn helper_windows_reply_reports_full_and_retired_link() -> Result<()> {
     assert_eq!(frames.try_recv()?["fixture"], "occupied");
     assert!(frames.try_recv().is_err());
     runtime
-        .hub
+        .link
+        .outbound
         .retire(crate::daemon::hub_link::Retirement::AuthorityRetired);
-    runtime.conversation.bridge_request = Some(ask);
+    runtime.assistant.bridge_request = Some(ask);
     runtime
         .answer_bridge_from_sources(&json!({"id":"source-list-fixture","ok":false,"error":{"code":"source_inventory_failed","message":"No se pudo leer el inventario"}}))
         .await?;
@@ -517,7 +524,7 @@ async fn full_command_channel_fails_the_send_immediately_and_audio_keeps_process
     for _ in 0..16 {
         hub.try_send(json!({"fixture":"saturated"})).ok();
     }
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     let notices_before = runtime.state.durable.notice_log.records().len();
     let sent = tokio::time::timeout(
         Duration::from_secs(1),

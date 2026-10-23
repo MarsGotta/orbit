@@ -242,7 +242,7 @@ async fn a_chunk_transfer_that_panics_is_counted_and_the_chunks_still_go_up() ->
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let (mut runtime, mut commands) = fixture(directory.path())?;
     runtime.settings.hub_url = Some(format!("http://{}", listener.local_addr()?));
-    runtime.token = Some("synthetic-not-a-credential".into());
+    runtime.link.token = Some("synthetic-not-a-credential".into());
     let (received, hub) = synthetic_hub(listener);
     let stream = start(&mut runtime, &mut commands).await?;
     runtime.capture.lane.inject_panics(0, 1);

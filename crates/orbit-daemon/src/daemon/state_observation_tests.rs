@@ -86,7 +86,7 @@ async fn chat_send_declares_an_active_call() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     let (hub, mut hub_frames) = mpsc::channel(16);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     runtime.state.durable.voice.call = Some(CallState {
         id: "20000000-0000-4000-8000-000000000006".into(),
         phase: CallPhase::Listening,
@@ -118,7 +118,7 @@ async fn chat_turn_messages_carry_increasing_at_ms() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
     let (hub, mut hub_frames) = mpsc::channel(16);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
 
     runtime
         .command(Command::Chat {
@@ -250,7 +250,9 @@ async fn helper_permissions_feed_the_state_and_capture() -> Result<()> {
 
     // Each answer is paired with a status the daemon sent. An id it did not
     // send is unpaired and is not read as permissions.
-    runtime.record_pending_native(&json!({"id": "status", "command": "status"}));
+    runtime
+        .helper
+        .record_pending(&json!({"id": "status", "command": "status"}));
     runtime
         .native_event(helper_status("denied", false, true))
         .await?;
@@ -278,7 +280,9 @@ async fn helper_permissions_feed_the_state_and_capture() -> Result<()> {
         })
     );
 
-    runtime.record_pending_native(&json!({"id": "status", "command": "status"}));
+    runtime
+        .helper
+        .record_pending(&json!({"id": "status", "command": "status"}));
     runtime
         .native_event(helper_status("notDetermined", true, false))
         .await?;
@@ -298,7 +302,9 @@ async fn helper_permissions_feed_the_state_and_capture() -> Result<()> {
         })
     );
 
-    runtime.record_pending_native(&json!({"id": "status", "command": "status"}));
+    runtime
+        .helper
+        .record_pending(&json!({"id": "status", "command": "status"}));
     runtime
         .native_event(helper_status("authorized", true, false))
         .await?;

@@ -51,32 +51,16 @@ impl FullStop {
 impl Runtime {
     pub(super) fn begin_audio_drain(&mut self, announce: bool) {
         let observed_at = Instant::now();
-        let started_at = *self.capture.audio.started_at.get_or_insert(observed_at);
-        self.capture.audio.last_liveness.get_or_insert(observed_at);
-        self.capture.audio.deadline = Some(drain_deadline(observed_at, started_at));
+        let started_at = *self.audio.lifecycle.started_at.get_or_insert(observed_at);
+        self.audio
+            .lifecycle
+            .last_liveness
+            .get_or_insert(observed_at);
+        self.audio.lifecycle.deadline = Some(drain_deadline(observed_at, started_at));
         self.state.views.draining_since_ms.get_or_insert_with(now);
         if announce {
             self.say(NoticeCode::AudioDrainWaiting);
         }
-    }
-
-    pub(in crate::daemon) fn observe_audio_helper_liveness(&mut self, event: &Value) {
-        if !self.capture.audio.pending()
-            || !matches!(
-                NativeEventHeader::from_value(event)
-                    .ok()
-                    .map(|header| header.event),
-                Some("state" | "audio" | "response" | "local_rearm")
-            )
-        {
-            return;
-        }
-        let observed_at = Instant::now();
-        let Some(started_at) = self.capture.audio.started_at else {
-            return;
-        };
-        self.capture.audio.last_liveness = Some(observed_at);
-        self.capture.audio.deadline = Some(drain_deadline(observed_at, started_at));
     }
 
     /// Timeout/EOF is not a successful barrier. Preserve what arrived and
@@ -101,8 +85,8 @@ impl Runtime {
         stream: String,
     ) -> Result<()> {
         if self
-            .capture
             .audio
+            .lifecycle
             .stops
             .values()
             .any(|pending| pending.stream == stream)
@@ -111,7 +95,7 @@ impl Runtime {
         }
         let command = native::command("audio_stop", json!({"stream_id":stream}))?;
         let command_id = NativeCommandHeader::from_value(&command)?.id.to_owned();
-        self.capture.audio.stops.insert(
+        self.audio.lifecycle.stops.insert(
             command_id,
             PendingStop {
                 stream,
@@ -120,8 +104,10 @@ impl Runtime {
             },
         );
         self.begin_audio_drain(true);
-        self.record_pending_native(&command);
-        match tokio::time::timeout(Duration::from_millis(500), self.native.send(command)).await {
+        self.helper.record_pending(&command);
+        match tokio::time::timeout(Duration::from_millis(500), self.helper.sender.send(command))
+            .await
+        {
             Ok(Ok(())) => Ok(()),
             Ok(Err(_closed)) => {
                 bail!("El Mac no recibió la orden audio_stop: el canal con Orbit.app está cerrado")
@@ -143,13 +129,13 @@ impl Runtime {
         result: &Value,
     ) -> Result<bool> {
         let full_stop = self
-            .capture
             .audio
+            .lifecycle
             .full_stop
             .as_ref()
             .filter(|(id, _)| id == command_id)
             .map(|(_, kind)| *kind);
-        if (full_stop.is_some() || self.capture.audio.stops.contains_key(command_id))
+        if (full_stop.is_some() || self.audio.lifecycle.stops.contains_key(command_id))
             && !decode_result_body::<DrainAcknowledgement>("audio_stop", result)?.drain_complete
         {
             bail!(
@@ -160,18 +146,18 @@ impl Runtime {
             self.full_stop_drained(kind).await?;
             return Ok(true);
         }
-        let Some(pending) = self.capture.audio.stops.remove(command_id) else {
+        let Some(pending) = self.audio.lifecycle.stops.remove(command_id) else {
             return Ok(false);
         };
         if pending.source == "mic_local"
-            && self.capture.mic_stream.as_deref() == Some(&pending.stream)
+            && self.audio.mic_stream.as_deref() == Some(&pending.stream)
         {
-            self.capture.mic_stream = None;
+            self.audio.mic_stream = None;
         }
         if pending.source == "remote_app"
-            && self.capture.remote_stream.as_deref() == Some(&pending.stream)
+            && self.audio.remote_stream.as_deref() == Some(&pending.stream)
         {
-            self.capture.remote_stream = None;
+            self.audio.remote_stream = None;
         }
         let segments = self.capture.buffer.pause_source(pending.source)?;
         self.seal(segments)?;
@@ -184,7 +170,7 @@ impl Runtime {
     /// stop's cause stays the line the user reads; the confirmation is added.
     async fn full_stop_drained(&mut self, kind: FullStop) -> Result<()> {
         self.flush_stopped_audio().await?;
-        self.capture.retired_stops.clear();
+        self.audio.retired_stops.clear();
         let confirmed = match kind {
             FullStop::Privacy => NoticeCode::PrivacyStopConfirmed,
             FullStop::Cut => NoticeCode::CaptureCutConfirmed,
@@ -210,12 +196,12 @@ impl Runtime {
     }
 
     pub(in crate::daemon) async fn complete_audio_drain(&mut self) -> Result<()> {
-        if self.capture.audio.pending() {
+        if self.audio.lifecycle.pending() {
             return Ok(());
         }
-        self.capture.audio.deadline = None;
-        self.capture.audio.started_at = None;
-        self.capture.audio.last_liveness = None;
+        self.audio.lifecycle.deadline = None;
+        self.audio.lifecycle.started_at = None;
+        self.audio.lifecycle.last_liveness = None;
         self.state.views.draining_since_ms = None;
         if !self.close_drained_recording().await? {
             return Ok(());
@@ -241,13 +227,13 @@ impl Runtime {
         &mut self,
         kind: FullStop,
     ) -> Result<()> {
-        self.capture.audio.full_stop_owed = true;
-        self.mark_call_stopping();
-        self.capture.audio.voice.submit = false;
-        self.capture.audio.voice.end = false;
-        self.capture.audio.meeting.recording_end = Some(true);
-        self.capture.pending_starts.clear();
-        if self.capture.audio.full_stop.is_some() {
+        self.audio.lifecycle.full_stop_owed = true;
+        self.audio.mark_call_stopping();
+        self.audio.lifecycle.voice.submit = false;
+        self.audio.lifecycle.voice.end = false;
+        self.audio.lifecycle.meeting.recording_end = Some(true);
+        self.audio.pending_starts.clear();
+        if self.audio.lifecycle.full_stop.is_some() {
             return Ok(());
         }
         if !self.state.capabilities().native_helper() {
@@ -256,12 +242,12 @@ impl Runtime {
         }
         let name = kind.command();
         let command = native::command(name, json!({}))?;
-        self.capture.audio.full_stop = Some((
+        self.audio.lifecycle.full_stop = Some((
             NativeCommandHeader::from_value(&command)?.id.to_owned(),
             kind,
         ));
-        self.capture.audio.full_stop_send_owed = false;
-        self.record_pending_native(&command);
+        self.audio.lifecycle.full_stop_send_owed = false;
+        self.helper.record_pending(&command);
         self.begin_audio_drain(false);
         // The caller already wrote why the stop happened, and that cause is the
         // only line telling a person what to do about it. Overwriting it made
@@ -274,7 +260,9 @@ impl Runtime {
         // protects the actor from a full helper channel; it is the measured
         // native command deadline, not evidence that Orbit.app died and not a
         // deadline after which the microphone is known to be closed.
-        match tokio::time::timeout(Duration::from_millis(500), self.native.send(command)).await {
+        match tokio::time::timeout(Duration::from_millis(500), self.helper.sender.send(command))
+            .await
+        {
             Ok(Ok(())) => Ok(()),
             Ok(Err(_closed)) => {
                 self.state = decide(&self.state, Event::HelperStopUndelivered, now())?.state;
@@ -283,7 +271,7 @@ impl Runtime {
                 )
             }
             Err(_elapsed) => {
-                self.capture.audio.full_stop_send_owed = true;
+                self.audio.lifecycle.full_stop_send_owed = true;
                 bail!(
                     "El Mac no recibió la orden {name} en 500 ms. Orbit ya no guarda el audio de esa captura; la orden se reintenta desde el mantenimiento hasta que el canal la acepte."
                 )
@@ -295,23 +283,25 @@ impl Runtime {
     /// channel. Success means delivered to that channel, not microphone
     /// closed; `full_stop` remains until the matching drain response arrives.
     pub(in crate::daemon) async fn retry_full_stop_send(&mut self) -> Result<()> {
-        if !self.capture.audio.full_stop_send_owed || !self.state.capabilities().native_helper() {
+        if !self.audio.lifecycle.full_stop_send_owed || !self.state.capabilities().native_helper() {
             return Ok(());
         }
-        let Some((command_id, kind)) = self.capture.audio.full_stop.as_ref() else {
-            self.capture.audio.full_stop_send_owed = false;
+        let Some((command_id, kind)) = self.audio.lifecycle.full_stop.as_ref() else {
+            self.audio.lifecycle.full_stop_send_owed = false;
             return Ok(());
         };
         let command_id = command_id.clone();
         let name = kind.command();
         let command = native::command(name, json!({"id":command_id}))?;
-        self.record_pending_native(&command);
-        match tokio::time::timeout(Duration::from_millis(500), self.native.send(command)).await {
+        self.helper.record_pending(&command);
+        match tokio::time::timeout(Duration::from_millis(500), self.helper.sender.send(command))
+            .await
+        {
             Ok(Ok(())) => {
-                self.capture.audio.full_stop_send_owed = false;
+                self.audio.lifecycle.full_stop_send_owed = false;
                 // The drain window starts when the helper actually receives
                 // this order, not when its full channel rejected it.
-                self.capture.audio.started_at = None;
+                self.audio.lifecycle.started_at = None;
                 self.begin_audio_drain(false);
                 Ok(())
             }
@@ -328,12 +318,12 @@ impl Runtime {
     pub(in crate::daemon) async fn flush_stopped_audio(&mut self) -> Result<()> {
         // All native tail frames must arrive before this local durability
         // boundary. On failure voice stays owned here or in pending_seals.
-        self.capture.audio.voice.submit = false;
+        self.audio.lifecycle.voice.submit = false;
         self.dispatch_voice_transcription().await?;
-        self.capture.mic_stream = None;
-        self.capture.remote_stream = None;
-        self.capture.pending_starts.clear();
-        self.capture.audio = super::AudioLifecycle::default();
+        self.audio.mic_stream = None;
+        self.audio.remote_stream = None;
+        self.audio.pending_starts.clear();
+        self.audio.lifecycle = super::AudioLifecycle::default();
         self.state.views.draining_since_ms = None;
         let segments = self.capture.buffer.flush(true);
         self.seal(segments)?;
@@ -344,19 +334,11 @@ impl Runtime {
         Ok(())
     }
 
-    pub(in crate::daemon) fn audio_is_draining(&self) -> bool {
-        self.capture.audio.pending()
-    }
-
     /// Whether a whole-helper stop still owes the local flush of the audio it
     /// stopped: always under the user's stop, and after a cut or a closing until
     /// the flush succeeds.
     pub(in crate::daemon) fn stopped_audio_owed(&self) -> bool {
-        self.state.privacy_stopped() || self.capture.audio.full_stop_owed
-    }
-
-    pub(in crate::daemon) fn full_stop_send_owed(&self) -> bool {
-        self.capture.audio.full_stop_send_owed
+        self.state.privacy_stopped() || self.audio.lifecycle.full_stop_owed
     }
 }
 
@@ -371,4 +353,33 @@ fn drain_deadline(observed_at: Instant, started_at: Instant) -> Instant {
                 .checked_add(AUDIO_DRAIN_LIMIT)
                 .unwrap_or(started_at),
         )
+}
+
+impl crate::daemon::audio::AudioHandle {
+    pub(in crate::daemon) fn observe_audio_helper_liveness(&mut self, event: &Value) {
+        if !self.lifecycle.pending()
+            || !matches!(
+                NativeEventHeader::from_value(event)
+                    .ok()
+                    .map(|header| header.event),
+                Some("state" | "audio" | "response" | "local_rearm")
+            )
+        {
+            return;
+        }
+        let observed_at = Instant::now();
+        let Some(started_at) = self.lifecycle.started_at else {
+            return;
+        };
+        self.lifecycle.last_liveness = Some(observed_at);
+        self.lifecycle.deadline = Some(drain_deadline(observed_at, started_at));
+    }
+
+    pub(in crate::daemon) fn audio_is_draining(&self) -> bool {
+        self.lifecycle.pending()
+    }
+
+    pub(in crate::daemon) fn full_stop_send_owed(&self) -> bool {
+        self.lifecycle.full_stop_send_owed
+    }
 }

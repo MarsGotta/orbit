@@ -22,7 +22,7 @@ impl Runtime {
         now_ms: i64,
     ) -> Result<()> {
         let current = self.state.generation();
-        let settlement = self.features.notes.outbox.settle(&lane, &ticket, current);
+        let settlement = self.notes.outbox.settle(&lane, &ticket, current);
         let Some(sent) = self.settled_value("note_lane", settlement) else {
             return Ok(());
         };
@@ -59,10 +59,7 @@ impl Runtime {
                     .run(move |store| Ok(store.confirm_private_notes(&id, &sent.markdown)?))
                     .await
                     .context("No se pudo apuntar que el hub tiene las notas privadas")?;
-                self.features
-                    .notes
-                    .outbox
-                    .private_delivered(&recording, confirmed);
+                self.notes.outbox.private_delivered(&recording, confirmed);
             }
             Outcome::Refused { status, code, .. } => {
                 // They stay on this Mac: only the person can give them up.
@@ -73,7 +70,7 @@ impl Runtime {
                         ("code", code.as_deref().unwrap_or("none")),
                     ],
                 );
-                let outbox = &mut self.features.notes.outbox;
+                let outbox = &mut self.notes.outbox;
                 outbox.failed(&lane, now_ms);
                 if outbox.first_said(&lane, status, code.as_deref()) {
                     self.private_notes_refused(status, code.as_deref());
@@ -81,7 +78,7 @@ impl Runtime {
             }
             Outcome::Unreachable { .. } => {
                 self.log_outcome("private_notes_not_saved", &outcome);
-                self.features.notes.outbox.failed(&lane, now_ms);
+                self.notes.outbox.failed(&lane, now_ms);
             }
         }
         Ok(())
@@ -98,7 +95,7 @@ impl Runtime {
         if matches!(outcome, Outcome::Unreachable { .. }) && sent.order.repeatable() {
             // The hub did not answer: the order waits and goes again.
             self.log_outcome("note_order_retrying", &outcome);
-            self.features.notes.outbox.failed(&key, now_ms);
+            self.notes.outbox.failed(&key, now_ms);
             return Ok(());
         }
         if sent.order.deletes().is_some() {
@@ -109,7 +106,7 @@ impl Runtime {
             .run(move |store| Ok(store.remove_note_order(&lane_key, &target, sequence)?))
             .await
             .context("No se pudo apuntar en este Mac que el hub respondió al cambio")?;
-        let outbox = &mut self.features.notes.outbox;
+        let outbox = &mut self.notes.outbox;
         outbox.succeeded(&key);
         // A newer order that replaced this one meanwhile keeps its place.
         outbox.forget(&lane, &sent);
@@ -118,7 +115,7 @@ impl Runtime {
                 recording_id,
                 order,
             } => {
-                self.features.notes.head.touch_recording(&recording_id);
+                self.notes.head.touch_recording(&recording_id);
                 self.order_answer(&order, outcome);
             }
             QueuedOrder::Library { request } => self.library_answer(&request, outcome),

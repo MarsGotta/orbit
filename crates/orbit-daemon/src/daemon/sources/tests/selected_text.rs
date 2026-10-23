@@ -250,7 +250,6 @@ async fn refused_or_obsolete_text_never_changes_format_or_stops_unrelated_audio(
             }
             _ => {
                 runtime
-                    .features
                     .sources
                     .operation
                     .as_mut()

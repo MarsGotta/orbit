@@ -86,7 +86,6 @@ fn saved(start: i64) -> Value {
 
 fn write(runtime: &Runtime, request_id: &str) -> Result<CalendarWriteView> {
     runtime
-        .features
         .calendar
         .view
         .clone()
@@ -161,7 +160,7 @@ async fn only_the_latest_saved_write_retains_a_bounded_occurrence() -> Result<()
             CalendarWriteStage::Saved
         );
     }
-    let writes = runtime.features.calendar.view.clone().writes;
+    let writes = runtime.calendar.view.clone().writes;
     assert_eq!(writes.len(), WRITE_RECORDS);
     let carrying: Vec<&str> = writes
         .iter()
@@ -271,7 +270,7 @@ async fn a_read_that_keeps_restarting_ends_by_name() -> Result<()> {
             assert_eq!(fields["cause"]["kind"], "calendar_changed");
             assert_eq!(fields["cause"]["changes"], 4);
             assert_eq!(fields["cause"]["max_restarts"], 3);
-            assert!(runtime.features.calendar.screen.is_none());
+            assert!(runtime.calendar.screen.is_none());
             return Ok(());
         }
     }
@@ -468,7 +467,6 @@ async fn a_lost_answer_is_outcome_unknown_and_never_sent_twice() -> Result<()> {
     let command = next_command(&mut receiver).await?;
     assert_eq!(command["command"], "calendar_save");
     runtime
-        .features
         .calendar
         .pending
         .as_mut()

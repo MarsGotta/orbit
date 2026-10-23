@@ -66,19 +66,19 @@ impl Runtime {
     /// ACK still named by a capture registry.
     pub(crate) fn capture_response_command(&self, command_id: &str) -> Option<&str> {
         if self
-            .capture
+            .audio
             .pending_starts
             .iter()
             .any(|pending| pending == command_id)
-            || self.capture.retired_call_starts.contains_key(command_id)
-            || self.call_start_request_pending(command_id)
+            || self.audio.retired_call_starts.contains_key(command_id)
+            || self.audio.call_start_request_pending(command_id)
         {
             return Some("audio_start");
         }
-        self.capture
-            .audio
+        self.audio
+            .lifecycle
             .response_command(command_id)
-            .or_else(|| self.pending_native.get(command_id).map(String::as_str))
+            .or_else(|| self.helper.pending.get(command_id).map(String::as_str))
     }
 
     /// A short name for a helper event in a notice: its kind, or the order a

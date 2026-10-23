@@ -1,7 +1,6 @@
 //! What the library read adds to the hub's lists: the orders still on
 //! this Mac, the refused ones and the undos answered. Kept in memory only:
 //! the orders themselves wait in the outbox.
-use super::Runtime;
 use orbit_core::notes::{self as core, LibraryRefusal, LibraryRequest};
 use std::collections::{BTreeMap, VecDeque};
 
@@ -20,56 +19,6 @@ pub(in crate::daemon) struct LibraryRuntime {
     pub(super) dictionary_conflicts: VecDeque<(String, Vec<core::DictionaryConflict>)>,
     pub(super) refusals: VecDeque<LibraryRefusal>,
     pub(super) restores: VecDeque<(String, String)>,
-}
-
-impl Runtime {
-    /// What the library read adds to the hub's lists: the orders on their
-    /// way, the refused ones and the undos answered.
-    pub(in crate::daemon) fn library_state(&self) -> Vec<core::LibraryItem> {
-        let library = &self.features.notes.library;
-        let pending =
-            self.features
-                .notes
-                .outbox
-                .library_orders()
-                .map(|request| core::LibraryItem::Pending {
-                    target: request.target(),
-                });
-        let refused = library
-            .refusals
-            .iter()
-            .cloned()
-            .map(core::LibraryItem::Refused);
-        let restored =
-            library
-                .restores
-                .iter()
-                .map(|(request_id, template_id)| core::LibraryItem::Restored {
-                    request_id: request_id.clone(),
-                    template_id: template_id.clone(),
-                });
-        let dictionary_failures = library
-            .dictionary_failures
-            .iter()
-            .cloned()
-            .map(|failure| core::LibraryItem::DictionaryRefused { failure });
-        let dictionary_conflicts =
-            library
-                .dictionary_conflicts
-                .iter()
-                .map(
-                    |(target, conflicts)| core::LibraryItem::DictionaryConflicts {
-                        target: target.clone(),
-                        conflicts: conflicts.clone(),
-                    },
-                );
-        pending
-            .chain(refused)
-            .chain(restored)
-            .chain(dictionary_failures)
-            .chain(dictionary_conflicts)
-            .collect()
-    }
 }
 
 pub(super) fn refusal_target(refusal: &LibraryRefusal) -> String {
@@ -123,5 +72,53 @@ pub(super) fn refuse_order(
     });
     while library.refusals.len() > MAX_KEPT_REFUSALS {
         library.refusals.pop_front();
+    }
+}
+
+impl crate::daemon::recording_notes::NotesHandle {
+    /// What the library read adds to the hub's lists: the orders on their
+    /// way, the refused ones and the undos answered.
+    pub(in crate::daemon) fn library_state(&self) -> Vec<core::LibraryItem> {
+        let library = &self.library;
+        let pending = self
+            .outbox
+            .library_orders()
+            .map(|request| core::LibraryItem::Pending {
+                target: request.target(),
+            });
+        let refused = library
+            .refusals
+            .iter()
+            .cloned()
+            .map(core::LibraryItem::Refused);
+        let restored =
+            library
+                .restores
+                .iter()
+                .map(|(request_id, template_id)| core::LibraryItem::Restored {
+                    request_id: request_id.clone(),
+                    template_id: template_id.clone(),
+                });
+        let dictionary_failures = library
+            .dictionary_failures
+            .iter()
+            .cloned()
+            .map(|failure| core::LibraryItem::DictionaryRefused { failure });
+        let dictionary_conflicts =
+            library
+                .dictionary_conflicts
+                .iter()
+                .map(
+                    |(target, conflicts)| core::LibraryItem::DictionaryConflicts {
+                        target: target.clone(),
+                        conflicts: conflicts.clone(),
+                    },
+                );
+        pending
+            .chain(refused)
+            .chain(restored)
+            .chain(dictionary_failures)
+            .chain(dictionary_conflicts)
+            .collect()
     }
 }

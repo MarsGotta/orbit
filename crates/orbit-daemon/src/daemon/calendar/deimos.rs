@@ -35,6 +35,9 @@ use serde_json::{Value, json};
 use super::*;
 use crate::hub;
 
+#[path = "deimos_pages.rs"]
+mod pages;
+
 fn bridge_calendar_refusal(code: &'static str) -> orbit_core::refusal::Refusal {
     Runtime::bridge_refusal_code(code)
 }
@@ -300,11 +303,11 @@ impl Runtime {
         match cursor {
             None => {
                 // A new walk replaces one that was abandoned half way.
-                self.features.calendar.cut_deimos = None;
-                self.features.calendar.deimos = Some(Walk::new(super::super::id(), range));
+                self.calendar.cut_deimos = None;
+                self.calendar.deimos = Some(Walk::new(super::super::id(), range));
             }
             Some(cursor) => {
-                let matches = self.features.calendar.deimos.as_ref().is_some_and(|walk| {
+                let matches = self.calendar.deimos.as_ref().is_some_and(|walk| {
                     walk.request.is_none()
                         && walk.read_id == cursor.read_id
                         && walk.range == range
@@ -312,14 +315,14 @@ impl Runtime {
                         && walk.position == cursor.position
                 });
                 if !matches {
-                    if self.features.calendar.cut_deimos.as_deref() == Some(&cursor.read_id) {
+                    if self.calendar.cut_deimos.as_deref() == Some(&cursor.read_id) {
                         return Err(bridge_calendar_refusal("capture_stopped"));
                     }
                     return Err(bridge_calendar_refusal("calendar_read_restarted"));
                 }
             }
         }
-        if let Some(walk) = self.features.calendar.deimos.as_mut() {
+        if let Some(walk) = self.calendar.deimos.as_mut() {
             walk.request = Some(request_id.to_owned());
             walk.answer.clear();
             walk.used = 0;
@@ -335,200 +338,16 @@ impl Runtime {
         Ok(())
     }
 
-    /// Fills the answer from the windows already read, and sends it when it is
-    /// full, when the range is done or when it has taken long enough.
-    fn continue_deimos(&mut self) {
-        self.continue_deimos_with(calendar_page);
-    }
-
-    // The same walk handles a real page and an encoder failure; injecting only
-    // the encoder lets a test reach that branch without fake calendar fields.
-    fn continue_deimos_with(
-        &mut self,
-        mut encode_page: impl FnMut(
-            &[CalendarOccurrence],
-            CalendarPosition,
-            usize,
-            bool,
-        ) -> std::result::Result<CalendarPage, serde_json::Error>,
-    ) {
-        loop {
-            let step = {
-                let Some(walk) = self.features.calendar.deimos.as_mut() else {
-                    return;
-                };
-                if walk.request.is_none() {
-                    return;
-                }
-                if walk.at_ms >= walk.range.end_unix_ms {
-                    Step::Answer { last: true }
-                } else {
-                    match walk.cache.as_ref() {
-                        Some(cache) if cache.window.start_unix_ms == walk.at_ms => {
-                            match encode_page(
-                                &cache.events,
-                                walk.position,
-                                MAX_CALENDAR_PAGE_BYTES.saturating_sub(walk.used),
-                                !walk.answer.is_empty(),
-                            ) {
-                                Err(_) => Step::Fail,
-                                Ok(slice) => {
-                                    walk.used = walk.used.saturating_add(slice.used);
-                                    walk.answer.extend(slice.events);
-                                    walk.oversized.extend(slice.oversized);
-                                    match slice.next {
-                                        Some(next) => {
-                                            walk.position = next;
-                                            Step::Answer { last: false }
-                                        }
-                                        None => {
-                                            walk.at_ms = cache.window.end_unix_ms;
-                                            walk.position = CalendarPosition::default();
-                                            walk.cache = None;
-                                            continue;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        _ if walk.windows_read_now > 0
-                            && walk.started.elapsed() >= PAGE_TIME_BUDGET =>
-                        {
-                            Step::Answer { last: false }
-                        }
-                        _ => Step::Wait,
-                    }
-                }
-            };
-            match step {
-                Step::Answer { last } => self.send_deimos_page(last),
-                Step::Wait => {}
-                Step::Fail => self.deimos_failed_refusal(Refusal::EncodeFailed {
-                    resource: orbit_core::refusal::Resource::Calendar,
-                }),
-            }
-            return;
-        }
-    }
-
-    /// One window of the walk, read whole. Events that began before it were
-    /// already sent with the window where they start.
-    pub(super) fn deimos_window_read(&mut self, mut read: WindowRead) -> Result<()> {
-        let Some(walk) = self.features.calendar.deimos.as_mut() else {
-            return Ok(());
-        };
-        if walk.request.is_none() || read.window.start_unix_ms != walk.at_ms {
-            return Ok(());
-        }
-        if read.window.start_unix_ms > walk.range.start_unix_ms {
-            read.keep_from(read.window.start_unix_ms);
-        }
-        walk.read_at.get_or_insert(read.observed_at_unix_ms);
-        walk.timezone
-            .get_or_insert_with(|| read.system_timezone.clone());
-        walk.oversized.append(&mut read.oversized);
-        for omission in read.omitted {
-            let count = walk.omitted.entry(omission.reason).or_insert(0);
-            *count = count.saturating_add(omission.count);
-        }
-        walk.restarts = 0;
-        walk.windows_read_now = walk.windows_read_now.saturating_add(1);
-        walk.cache = Some(Cached {
-            window: read.window,
-            events: read.events,
-        });
-        self.continue_deimos();
-        Ok(())
-    }
-
-    fn send_deimos_page(&mut self, last: bool) {
-        let Some(walk) = self.features.calendar.deimos.as_mut() else {
-            return;
-        };
-        let events = std::mem::take(&mut walk.answer);
-        let mut typed_events = Vec::with_capacity(events.len());
-        for (index, event) in events.iter().enumerate() {
-            match serde_json::from_value::<CalendarBridgeEvent>(event.clone()) {
-                Ok(typed) => typed_events.push(typed),
-                Err(_) => {
-                    let field = invalid_calendar_event_field(event);
-                    self.deimos_failed_refusal(orbit_core::refusal::Refusal::HelperReplyInvalid {
-                        field,
-                        expected: orbit_core::refusal::Expected::CalendarEvent {
-                            position: index as u64,
-                            rows: events.len() as u64,
-                        },
-                        received_type: "invalid_calendar_event".into(),
-                    });
-                    return;
-                }
-            }
-        }
-        let Some(request_id) = walk.request.take() else {
-            return;
-        };
-        let oversized = std::mem::take(&mut walk.oversized);
-        let result = CalendarReadResult {
-            read_id: walk.read_id.clone(),
-            requested: CalendarRequested {
-                start_unix_ms: walk.range.start_unix_ms,
-                end_unix_ms: walk.range.end_unix_ms,
-            },
-            // When EventKit was actually read, not when anything was kept.
-            read_at_unix_ms: walk.read_at,
-            system_timezone: walk.timezone.clone(),
-            provider_sync_status: "unknown".into(),
-            enumeration: "bounded_local_read".into(),
-            events_returned: events.len(),
-            events: typed_events,
-            omitted: walk
-                .omitted
-                .iter()
-                .map(|(reason, count)| CalendarOmission {
-                    reason: reason.clone(),
-                    count: *count,
-                })
-                .collect(),
-            oversized: (!oversized.is_empty()).then_some(oversized),
-            next_after_ms: (!last).then_some(walk.at_ms),
-            next_after_index: (!last).then_some(walk.position.index),
-            next_after_invitee: (!last && walk.position.invitee > 0)
-                .then_some(walk.position.invitee),
-        };
-        if last {
-            self.features.calendar.deimos = None;
-        }
-        self.send_bridge_now(
-            hub::command(
-                &request_id,
-                "device.reply",
-                json!(DeviceReplyParams::answered(
-                    request_id.clone(),
-                    BridgeResult::CalendarRead(result)
-                )),
-            ),
-            "the agenda reply",
-        );
-        if self
-            .conversation
-            .bridge_request
-            .as_ref()
-            .is_some_and(|ask| ask.id == request_id)
-        {
-            self.conversation.bridge_request = None;
-        }
-    }
-
     /// A read ended by name: whoever waits is told why, and the walk goes.
     pub(super) fn deimos_failed_refusal(&mut self, refusal: orbit_core::refusal::Refusal) {
-        let Some(walk) = self.features.calendar.deimos.take() else {
+        let Some(walk) = self.calendar.deimos.take() else {
             return;
         };
         let Some(request_id) = walk.request else {
             return;
         };
         if self
-            .conversation
+            .assistant
             .bridge_request
             .as_ref()
             .is_some_and(|ask| ask.id == request_id)
@@ -541,18 +360,16 @@ impl Runtime {
                 ),
                 refusal.code().name(),
             );
-            self.conversation.bridge_request = None;
+            self.assistant.bridge_request = None;
         }
     }
 
     /// Drops the walk, answering a question still waiting on it with `code`.
     pub(super) fn drop_deimos_walk(&mut self, code: &'static str, refusal: Refusal) {
-        if let Some(walk) = self.features.calendar.deimos.as_ref() {
-            self.features.calendar.cut_deimos =
-                (code == "capture_stopped").then(|| walk.read_id.clone());
+        if let Some(walk) = self.calendar.deimos.as_ref() {
+            self.calendar.cut_deimos = (code == "capture_stopped").then(|| walk.read_id.clone());
         }
         let waiting = self
-            .features
             .calendar
             .deimos
             .as_ref()
@@ -560,7 +377,7 @@ impl Runtime {
         if waiting {
             self.deimos_failed_refusal(refusal);
         }
-        self.features.calendar.deimos = None;
+        self.calendar.deimos = None;
     }
 
     /// Queue admission is observable here; Deimos reception is not.
@@ -576,123 +393,5 @@ impl Runtime {
 }
 
 #[cfg(test)]
-mod field_validation_tests {
-    use super::*;
-    use crate::daemon::{audio::tests::fixture, calendar::tests::seed};
-    use tokio::sync::mpsc;
-
-    #[test]
-    fn invalid_nested_calendar_field_is_named() {
-        let row = json!({
-            "observation_id":"synthetic",
-            "calendar":{"source_id":"account"},
-            "calendar_item_id":"item",
-            "start_unix_ms":1,
-            "end_unix_ms":2,
-            "interpreted_timezone":"UTC",
-            "is_floating":false,
-            "is_all_day":false,
-            "is_detached":false,
-            "title":"synthetic",
-            "status":"confirmed",
-            "invitees_status":"not_requested",
-            "event_url_status":"not_requested"
-        });
-        assert_eq!(invalid_calendar_event_field(&row), "calendar.calendar_id");
-    }
-
-    #[tokio::test]
-    async fn a_page_encoding_error_uses_its_own_code_on_the_real_walk() -> Result<()> {
-        let directory = tempfile::tempdir()?;
-        let (mut runtime, mut helper) = fixture(directory.path())?;
-        seed(&mut runtime, &mut helper).await?;
-        let (hub, mut frames) = mpsc::channel(16);
-        runtime.hub.install(hub);
-        runtime
-            .device_request_raw(&json!({
-                "request_id":"encode-failure", "capability":"calendar_read",
-                "parameters":{"start_ms":1_790_000_000_000i64,"end_ms":1_790_086_400_000i64},
-            }))
-            .await?;
-        let walk = runtime
-            .features
-            .calendar
-            .deimos
-            .as_mut()
-            .ok_or_else(|| anyhow::anyhow!("the calendar walk did not start"))?;
-        walk.cache = Some(Cached {
-            window: CalendarWindow {
-                start_unix_ms: walk.at_ms,
-                end_unix_ms: walk.range.end_unix_ms,
-            },
-            events: vec![],
-        });
-        runtime.continue_deimos_with(|_, _, _, _| {
-            Err(serde_json::Error::io(std::io::Error::other(
-                "synthetic encoding failure",
-            )))
-        });
-        let frame = frames.try_recv()?;
-        assert_eq!(frame["params"]["refusal"]["code"], "encode_failed");
-        assert_eq!(frame["params"]["refusal"]["resource"], "calendar");
-        assert!(!frame.to_string().contains("synthetic encoding failure"));
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn invalid_calendar_event_answers_before_retiring_the_walk() -> Result<()> {
-        let directory = tempfile::tempdir()?;
-        let (mut runtime, mut helper) = fixture(directory.path())?;
-        seed(&mut runtime, &mut helper).await?;
-        let (hub, mut frames) = mpsc::channel(16);
-        runtime.hub.install(hub);
-        runtime
-            .device_request_raw(&json!({
-                "request_id":"invalid-event", "capability":"calendar_read",
-                "parameters":{"start_ms":1_790_000_000_000i64,"end_ms":1_790_086_400_000i64},
-            }))
-            .await?;
-        let walk = runtime
-            .features
-            .calendar
-            .deimos
-            .as_mut()
-            .ok_or_else(|| anyhow::anyhow!("the calendar walk did not start"))?;
-        walk.answer.push(json!({"unexpected":"invalid event"}));
-        runtime.send_deimos_page(true);
-        let frame = frames.try_recv()?;
-        assert_eq!(frame["params"]["request_id"], "invalid-event");
-        assert_eq!(
-            frame["params"]["refusal"],
-            json!({
-                "code":"helper_reply_invalid", "field":"observation_id", "received_type":"invalid_calendar_event",
-                "expected":{"kind":"calendar_event", "position":0, "rows":1}, "retry":{"kind":"after_fix"}
-            })
-        );
-        assert!(runtime.features.calendar.deimos.is_none());
-        Ok(())
-    }
-
-    #[test]
-    fn numbered_calendar_causes_keep_their_contract_bounds() {
-        use orbit_core::refusal::CalendarReadLimit;
-        assert_eq!(
-            bridge_calendar_refusal("calendar_event_too_large"),
-            Refusal::CalendarReadLimit {
-                cause: CalendarReadLimit::Page {
-                    max_bytes: orbit_core::calendar::MAX_NATIVE_PAGE_BYTES as u64
-                }
-            }
-        );
-        assert_eq!(
-            bridge_calendar_refusal("calendar_limit_exceeded"),
-            Refusal::CalendarReadLimit {
-                cause: CalendarReadLimit::Fields {
-                    max_title_bytes: orbit_core::calendar::MAX_TITLE_BYTES as u64,
-                    max_label_bytes: orbit_core::calendar::MAX_LABEL_BYTES as u64,
-                    max_timezone_bytes: orbit_core::calendar::MAX_TIMEZONE_BYTES as u64,
-                }
-            }
-        );
-    }
-}
+#[path = "deimos_tests.rs"]
+mod field_validation_tests;

@@ -54,7 +54,7 @@ fn voice_manifests(runtime: &Runtime) -> Result<usize> {
 async fn a_voice_note_spoken_while_the_hub_is_offline_is_kept_and_shown() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    runtime.token = Some(TOKEN.into());
+    runtime.link.token = Some(TOKEN.into());
     crate::daemon::authority_fixture::set(
         &mut runtime.state,
         "connection",
@@ -91,7 +91,7 @@ async fn a_voice_note_spoken_while_the_hub_is_offline_is_kept_and_shown() -> Res
 async fn an_offline_voice_note_is_sent_when_the_hub_is_back() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    runtime.token = Some(TOKEN.into());
+    runtime.link.token = Some(TOKEN.into());
     crate::daemon::authority_fixture::set(
         &mut runtime.state,
         "connection",
@@ -110,7 +110,7 @@ async fn an_offline_voice_note_is_sent_when_the_hub_is_back() -> Result<()> {
         .clone();
     runtime.run_maintenance().await;
     assert_eq!(
-        runtime.conversation.voice_operation, None,
+        runtime.assistant.voice_operation, None,
         "nothing is sent while the hub is away"
     );
     crate::daemon::authority_fixture::set(
@@ -120,7 +120,7 @@ async fn an_offline_voice_note_is_sent_when_the_hub_is_back() -> Result<()> {
     );
     runtime.run_maintenance().await;
     assert_eq!(
-        runtime.conversation.voice_operation.as_deref(),
+        runtime.assistant.voice_operation.as_deref(),
         Some(message_id.as_str()),
         "the waiting note is being transcribed"
     );
@@ -143,7 +143,7 @@ async fn an_offline_voice_note_is_sent_when_the_hub_is_back() -> Result<()> {
 async fn after_an_offline_voice_note_a_meeting_can_start() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    runtime.token = Some(TOKEN.into());
+    runtime.link.token = Some(TOKEN.into());
     crate::daemon::authority_fixture::set(
         &mut runtime.state,
         "connection",
@@ -178,7 +178,7 @@ async fn after_an_offline_voice_note_a_meeting_can_start() -> Result<()> {
 async fn an_offline_voice_note_is_not_stored_twice_and_cancelled_at_the_stop() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    runtime.token = Some(TOKEN.into());
+    runtime.link.token = Some(TOKEN.into());
     crate::daemon::authority_fixture::set(
         &mut runtime.state,
         "connection",
@@ -227,7 +227,7 @@ async fn a_failed_voice_note_survives_the_next_message() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     let (hub, _hub_rx) = mpsc::channel(4);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     // Unpaired when the note is recorded: its transcription fails, its WAV stays.
     record(&mut runtime, &mut helper, 8_000, Command::VoiceEnd).await?;
     let message_id = runtime
@@ -240,7 +240,7 @@ async fn a_failed_voice_note_survives_the_next_message() -> Result<()> {
         .user
         .id
         .clone();
-    runtime.token = Some(TOKEN.into());
+    runtime.link.token = Some(TOKEN.into());
     runtime
         .command(Command::Chat {
             attachments: Vec::new(),
@@ -299,7 +299,7 @@ async fn meeting_with_offline_voice_note(
     runtime: &mut Runtime,
     helper: &mut mpsc::Receiver<Value>,
 ) -> Result<String> {
-    runtime.token = Some(TOKEN.into());
+    runtime.link.token = Some(TOKEN.into());
     let stream = start(runtime, helper).await?;
     runtime.handle_native_event(frame(&stream, 0, 8_000)).await;
     crate::daemon::authority_fixture::set(
@@ -404,7 +404,7 @@ async fn a_waiting_note_is_shown_in_its_conversation_and_not_in_another() -> Res
 async fn a_waiting_note_is_sent_only_into_its_own_conversation() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    runtime.token = Some(TOKEN.into());
+    runtime.link.token = Some(TOKEN.into());
     open_conversation(&mut runtime, "conversacion-a").await?;
     crate::daemon::authority_fixture::set(
         &mut runtime.state,
@@ -430,12 +430,12 @@ async fn a_waiting_note_is_sent_only_into_its_own_conversation() -> Result<()> {
     );
     runtime.run_maintenance().await;
     assert_eq!(
-        runtime.conversation.voice_operation, None,
+        runtime.assistant.voice_operation, None,
         "the note of conversation A was sent into conversation B"
     );
     open_conversation(&mut runtime, "conversacion-a").await?;
     runtime.run_maintenance().await;
-    assert_eq!(runtime.conversation.voice_operation, Some(note));
+    assert_eq!(runtime.assistant.voice_operation, Some(note));
     Ok(())
 }
 
@@ -445,7 +445,7 @@ async fn a_waiting_note_is_sent_only_into_its_own_conversation() -> Result<()> {
 async fn discarding_a_failed_note_removes_it_and_its_audio() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    runtime.token = Some(TOKEN.into());
+    runtime.link.token = Some(TOKEN.into());
     crate::daemon::authority_fixture::set(
         &mut runtime.state,
         "connection",

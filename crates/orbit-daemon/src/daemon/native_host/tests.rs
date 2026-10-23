@@ -180,9 +180,11 @@ fn reducing_facts_does_not_write_state_or_emit_effects() -> anyhow::Result<()> {
     let (mut runtime, mut native) = crate::daemon::audio::tests::fixture(directory.path())?;
     let before = runtime.state.clone();
     runtime.fixture_store.save_snapshot(&before)?;
-    runtime.observe_native_host(&json!({"event":"ready","capabilities":["application_identity"]}));
-    runtime.observe_native_host(&state(4, false));
-    assert!(runtime.observe_native_host(&state(5, true)).privacy_stopped);
+    runtime
+        .helper
+        .observe_host(&json!({"event":"ready","capabilities":["application_identity"]}));
+    runtime.helper.observe_host(&state(4, false));
+    assert!(runtime.helper.observe_host(&state(5, true)).privacy_stopped);
     assert_eq!(runtime.state, before);
     assert_eq!(
         runtime.fixture_store.load_snapshot::<orbit_core::State>()?,

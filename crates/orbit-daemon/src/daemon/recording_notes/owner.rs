@@ -79,7 +79,7 @@ async fn account_full_name() -> String {
 
 impl Runtime {
     pub(super) fn start_owner_lookup(&mut self) {
-        let notes = &mut self.features.notes;
+        let notes = &mut self.notes;
         if notes.owner_name.is_some() || notes.owner_lookup_started {
             return;
         }
@@ -99,7 +99,7 @@ impl Runtime {
     pub(super) fn start_profile(&mut self, hub: &NoteHub, now_ms: i64) -> bool {
         let generation = self.state.generation();
         let op = self.turn.op.clone();
-        let notes = &mut self.features.notes;
+        let notes = &mut self.notes;
         let Some(owner) = notes.owner_name.clone() else {
             return false;
         };
@@ -127,7 +127,7 @@ impl Runtime {
     pub(super) fn profile_answer(&mut self, outcome: &Outcome, now_ms: i64) {
         if !matches!(outcome, Outcome::Done { .. }) {
             self.log_outcome("device_profile_not_saved", outcome);
-            let notes = &mut self.features.notes;
+            let notes = &mut self.notes;
             notes.profile_owed = true;
             notes.profile_due_ms = now_ms.saturating_add(RETRY_AFTER_MS);
         }

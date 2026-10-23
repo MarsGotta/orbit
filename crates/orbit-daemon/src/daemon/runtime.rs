@@ -1,4 +1,5 @@
-//! The daemon's one state owner and the results its workers send back.
+//! The daemon's one state owner, a coordinator over one handle per domain,
+//! and the results its workers send back.
 use super::*;
 
 /// How many in-flight helper command IDs the daemon and bridge retain. This
@@ -169,6 +170,11 @@ pub(super) enum StoreWork {
     },
 }
 
+/// The daemon's state owner. The coordinator's own fields are what every
+/// domain reads or writes: the core's `State`, which each decision takes and
+/// returns whole, the settings and paths, the store, the turn and its logs.
+/// Its methods are the operations that cross domains. Each handle below owns
+/// one domain's runtime state and the methods that touch only that state.
 pub(super) struct Runtime {
     pub(super) closing: bool,
     /// A timed-out privacy retirement keeps its durable tail owed to the
@@ -196,32 +202,39 @@ pub(super) struct Runtime {
     pub(super) error_reports: crate::error_reports::ErrorReports,
     /// The op of the turn being handled and who it answers.
     pub(super) turn: turn::Turn,
-    pub(super) native: mpsc::Sender<Value>,
-    pub(super) hub: hub_link::HubLink,
-    pub(super) hub_protocol_version: Option<u64>,
-    pub(super) unrecognized_hub_events: BTreeSet<String>,
-    /// Whether the hub last said it was nearly full (`ready.storage`,
-    /// `storage.status`); `None` before it said anything. Kept in memory
-    /// only, so a restart of Orbit says a nearly full hub once more.
-    pub(super) hub_storage_nearly_full: Option<bool>,
-    pub(super) hub_task: Option<JoinHandle<Result<()>>>,
-    pub(super) snapshot_revision: Option<u64>,
-    pub(super) hub_events: mpsc::Sender<(u64, HubEvent)>,
-    /// Helper command ids still waiting for a reply, with the name of the
-    /// command each one carried. Bounded by [`MAX_PENDING_NATIVE`]; entries
-    /// are removed when the matching response arrives, so a late refusal can
-    /// be classified without parsing names out of the id.
-    pub(super) pending_native: BTreeMap<String, String>,
-    /// Helper orders a task off the loop waits for (`helper_waits`), by id.
-    /// An entry leaves when its reply arrives, when its task gave up and
-    /// the next order is sent, or when the helper restarts.
-    pub(super) helper_waits:
-        BTreeMap<String, tokio::sync::oneshot::Sender<helper_waits::HelperAnswer>>,
-    pub(super) token: Option<String>,
-    pub(super) work: WorkRuntime,
-    pub(super) conversation: ConversationRuntime,
-    pub(super) capture: CaptureRuntime,
-    pub(super) features: FeatureRuntime,
+    /// Where every worker off the loop sends its result.
+    pub(super) work_events: mpsc::Sender<WorkResult>,
+    /// What the last stored snapshot held (`kernel`).
+    pub(super) persisted: kernel::Persisted,
+    // One handle per domain.
+    /// The helper's channel, its pending orders and its identity.
+    pub(super) helper: helper::HelperHandle,
+    /// The hub link, its connection task and the device's credential.
+    pub(super) link: hub_link::LinkHandle,
+    /// The durable transfers: a recording's closure and chunk cleanup.
+    pub(super) transfers: transfers::TransfersHandle,
+    /// The conversation with the assistant, its voice turns and readings.
+    pub(super) assistant: assistant::AssistantHandle,
+    /// The recording's capture: its buffer, its seals and its lane.
+    pub(super) capture: capture_handle::CaptureHandle,
+    /// The meeting's, the voice note's and the call's audio.
+    pub(super) audio: audio::AudioHandle,
+    /// The screens, windows and apps offered as sources.
+    pub(super) sources: sources::SourcesHandle,
+    /// The agenda the Mac reads and writes, one order at a time.
+    pub(super) calendar: calendar::CalendarHandle,
+    /// Control of the Mac through the engine.
+    pub(super) computer: computer_control::ComputerHandle,
+    /// The meetings' notes, their outbox and the library.
+    pub(super) notes: recording_notes::NotesHandle,
+    /// The call detection, its preference and the agenda around a call.
+    pub(super) calls: call_detection::CallDetectionHandle,
+    /// The question to Deimos during a meeting and the «Oye Deimos»
+    /// detector's state.
+    pub(super) question: meeting_question::QuestionHandle,
+    /// The folders the user gave the assistant, and the helper's word on them.
+    pub(super) files: assistant_files::FilesHandle,
+    /// Reads served off the actor and the privacy epoch that cancels them.
     pub(super) reads: InFlightReads,
     #[cfg(test)]
     pub(super) fixture_store: Store,
@@ -268,93 +281,4 @@ impl InFlightReads {
             | AuthorityChange::Interrupt => {}
         }
     }
-}
-
-pub(super) struct WorkRuntime {
-    /// The one durable transfer worker (upload or finalize). A second job
-    /// waits for its turn; this is not a queue limit.
-    pub(super) worker: ticketed::Ticketed<()>,
-    pub(super) retry_gate: upload_outcome::SharedGate,
-    pub(super) finalize_cursor: Option<String>,
-    pub(super) work_events: mpsc::Sender<WorkResult>,
-    pub(super) durable_snapshot: DurableSnapshot,
-    pub(super) force_snapshot_once: bool,
-    pub(super) finalize_ready: BTreeMap<String, bool>,
-}
-
-pub(super) struct ConversationRuntime {
-    pub(super) bridge_request: Option<BridgeAsk>,
-    pub(super) interaction_response: Option<interactions::PendingResponse>,
-    pub(super) interrupted_turns: interactions::InterruptedTurns,
-    /// One voice turn worker; a second turn cannot start while one runs.
-    pub(super) voice_task: ticketed::Ticketed<()>,
-    pub(super) voice_operation: Option<String>,
-    /// Voice turns left without a trace since the daemon started (nothing
-    /// heard, or carried by the next turn): the count the log carries.
-    pub(super) dropped_voice_turns: u64,
-    /// One playback at a time; a replay replaces the current one.
-    pub(super) speech_task: ticketed::Ticketed<()>,
-    /// What the last reading in each voice said, by the agent whose voice
-    /// it is (`AgentRoster::reading_voice`): `true` it played, `false` the
-    /// hub's voice did not arrive. A voice not read yet is not here, which
-    /// is unknown, not «no». One entry per voice that has read, so at most
-    /// one per agent a hub has listed while the daemon runs.
-    pub(super) speech_voices: BTreeMap<String, bool>,
-    pub(super) speak_next: bool,
-    pub(super) speech_notice_call_id: Option<String>,
-    /// The answer the user asked to hear («Escuchar»), while it plays.
-    pub(super) read_aloud: Option<speech::ReadAloud>,
-    /// What the agent did in the turn in progress, or the last one
-    /// (`chat.item`). Live only: a restart starts without it.
-    pub(super) work: Option<orbit_core::agent_work::AgentWork>,
-    /// The connected hub's attachment ceilings, from its last `ready`;
-    /// `None` before one arrives and for a 0.9.0 hub, which has none.
-    pub(super) hub_attachments: Option<orbit_core::attachments::AttachmentLimits>,
-    /// The conversation the next new one takes over (`Command::Handover`),
-    /// sent with its first `chat.send` and then forgotten.
-    pub(super) handover_from: Option<String>,
-    /// «Adjuntar ventana» while its capture runs (`window_attachment`).
-    pub(super) window_attachment: Option<window_attachment::PendingWindow>,
-}
-
-pub(super) struct CaptureRuntime {
-    pub(super) buffer: capture_lane::SplitBuffer,
-    pub(super) pending_seals: capture_lane::SealQueue,
-    /// The recording's lane, shared with the capture task.
-    pub(super) lane: capture_lane::CaptureLane,
-    /// Why the last seal the loop admitted failed, for the notice its caller
-    /// says (`say_failure`).
-    pub(super) seal_cause: Option<&'static str>,
-    /// The bridge position of the last helper event the loop served: what
-    /// the task handed over after it may be served.
-    pub(super) served_control: u64,
-    pub(super) reserve_exhausted: bool,
-    pub(super) seal_retry_at: Option<std::time::Instant>,
-    pub(super) audio: audio::AudioLifecycle,
-    pub(super) call_runtime: Option<call::CallRuntime>,
-    pub(super) mic_stream: Option<String>,
-    pub(super) remote_stream: Option<String>,
-    pub(super) pending_starts: Vec<String>,
-    pub(super) retired_call_starts: BTreeMap<String, String>,
-    pub(super) retired_stops: BTreeMap<String, audio::RetiredStreamStop>,
-    pub(super) interruption: Option<orbit_core::RecordingInterruption>,
-    /// The cut that left the recording interrupted, while it waits to
-    /// resume or close (`cut_recovery`).
-    pub(super) recovery: Option<cut_recovery::CutRecovery>,
-}
-
-pub(super) struct FeatureRuntime {
-    pub(super) sources: sources::SourceRuntime,
-    pub(super) calendar: calendar::CalendarRuntime,
-    pub(super) computer: computer_control::ComputerRuntime,
-    pub(super) meeting: meeting_runtime::MeetingRuntime,
-    /// The call detection, its preference and the agenda around a call.
-    pub(super) call: call_detection::CallRuntime,
-    /// The question to Deimos during a meeting and the «Oye Deimos»
-    /// detector's state.
-    pub(super) question: meeting_question::QuestionRuntime,
-    pub(super) native_host: native_host::NativeHost,
-    pub(super) notes: recording_notes::NotesRuntime,
-    /// The folders the user gave the assistant, and the helper's word on them.
-    pub(super) files: assistant_files::FilesRuntime,
 }

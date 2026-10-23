@@ -14,7 +14,7 @@ another call, voice note or active turn yields `AudioSessionBusy`.
 The daemon persists Starting before requesting a VoiceProcessing microphone.
 API support is not proof of actual processing: the ACK must report mode, actual
 enablement, bypass off, AGC off, `shared_engine` playback reference and pipeline
-identity (`CallStartReceipt`, `daemon/call.rs`). Every frame must retain that
+identity (`CallStartReceipt`, `daemon/call_receipts.rs`). Every frame must retain that
 provenance. A change/loss stops the call; privacy, disconnect, failure and expiry
 never auto-resume it.
 

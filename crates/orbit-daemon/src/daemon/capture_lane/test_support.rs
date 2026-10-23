@@ -37,7 +37,7 @@ pub(in crate::daemon) fn spawn_task_ticking(
             &runtime.paths.root,
         )),
         reader: crate::daemon::store_actor::open_reader(&runtime.paths.store, [0x42; 32])?,
-        gate: runtime.work.retry_gate.clone(),
+        gate: runtime.transfers.retry_gate.clone(),
         root: runtime.paths.root.clone(),
         tick,
         supervision: runtime.supervision.clone(),

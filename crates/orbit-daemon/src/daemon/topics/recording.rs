@@ -27,7 +27,7 @@ impl ProjectTopic for Projector {
             }
         } else if source
             .runtime
-            .is_some_and(|runtime| runtime.features.meeting.audio_source_observed)
+            .is_some_and(|runtime| runtime.audio.inventory.audio_source_observed)
         {
             Knowledge::Present {
                 value: state
@@ -71,7 +71,7 @@ impl ProjectTopic for Projector {
                 applications,
                 question: source
                     .runtime
-                    .and_then(|runtime| runtime.features.question.current.clone())
+                    .and_then(|runtime| runtime.question.current.clone())
                     .map(Box::new),
                 voice_trigger: source.runtime.and_then(|runtime| runtime.voice_status()),
                 microphone_muted: state

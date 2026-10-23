@@ -34,7 +34,7 @@ impl Runtime {
     /// Whether `holder` consumes the microphone now. A call's microphone is
     /// the call's alone.
     fn holds_microphone(&self, holder: Holder) -> bool {
-        self.capture.call_runtime.is_none()
+        self.audio.call.is_none()
             && match holder {
                 Holder::Meeting => self.recording_active(),
                 Holder::VoiceNote => self.state.durable.voice.voice_active,
@@ -43,7 +43,7 @@ impl Runtime {
 
     /// The open microphone's holder as the helper must know it.
     fn microphone_purpose(&self) -> Option<NativeMicrophonePurpose> {
-        self.capture.mic_stream.as_ref()?;
+        self.audio.mic_stream.as_ref()?;
         if self.holds_microphone(Holder::Meeting) {
             Some(NativeMicrophonePurpose::Meeting)
         } else if self.holds_microphone(Holder::VoiceNote) {
@@ -57,11 +57,11 @@ impl Runtime {
     /// opened when nobody holds it, otherwise shared, and the helper told who
     /// holds it now.
     pub(super) async fn take_microphone(&mut self, audio: Option<MeetingAudio>) -> Result<()> {
-        if self.capture.mic_stream.is_none() {
+        if self.audio.mic_stream.is_none() {
             let stream = id();
             self.start_track("mic_local", &stream, audio).await?;
-            self.capture.mic_stream = Some(stream);
-            self.capture.audio.microphone.told = Some(if audio.is_some() {
+            self.audio.mic_stream = Some(stream);
+            self.audio.lifecycle.microphone.told = Some(if audio.is_some() {
                 NativeMicrophonePurpose::Meeting
             } else {
                 NativeMicrophonePurpose::VoiceNote
@@ -83,7 +83,7 @@ impl Runtime {
             self.tell_microphone_holder().await;
             return Ok(true);
         }
-        if let Some(stream) = self.capture.mic_stream.clone() {
+        if let Some(stream) = self.audio.mic_stream.clone() {
             self.request_stream_stop("mic_local", stream).await?;
         }
         Ok(false)
@@ -96,10 +96,10 @@ impl Runtime {
         let Some(purpose) = self.microphone_purpose() else {
             return;
         };
-        if self.capture.audio.microphone.told == Some(purpose) {
+        if self.audio.lifecycle.microphone.told == Some(purpose) {
             return;
         }
-        let Some(stream) = self.capture.mic_stream.clone() else {
+        let Some(stream) = self.audio.mic_stream.clone() else {
             return;
         };
         let told = self
@@ -109,7 +109,7 @@ impl Runtime {
             )
             .await;
         match told {
-            Ok(()) => self.capture.audio.microphone.told = Some(purpose),
+            Ok(()) => self.audio.lifecycle.microphone.told = Some(purpose),
             Err(error) => self.log(
                 "audio_purpose_not_sent",
                 &[

@@ -11,7 +11,6 @@ async fn cleanup_notice_is_said_once_and_later_reads_preserve_another_notice() -
     let mut h = Mac::new(false).await?;
     let mut service = h
         .runtime
-        .features
         .computer
         .service
         .take()
@@ -81,13 +80,8 @@ async fn expired_computer_result_retires_authority_with_both_generations() -> Re
     runtime
         .computer_event(&ticket, Err(anyhow::anyhow!("synthetic late result")))
         .await?;
-    assert!(runtime.features.computer.work.active().is_none());
-    let view = runtime
-        .features
-        .computer
-        .view
-        .as_ref()
-        .context("computer view")?;
+    assert!(runtime.computer.work.active().is_none());
+    let view = runtime.computer.view.as_ref().context("computer view")?;
     assert_eq!(view.stage, ComputerStage::Cancelled);
     assert!(view.detail.contains(&started_generation.to_string()));
     assert!(view.detail.contains(&current_generation.to_string()));
@@ -119,7 +113,6 @@ async fn general_worker_checks_revocation_before_calling_the_tool() -> Result<()
         )?;
         let authority = h
             .runtime
-            .features
             .computer
             .authority
             .as_ref()
@@ -150,8 +143,8 @@ async fn other_revocation_answers_remote_action_with_its_cause() -> Result<()> {
     let mut h = Mac::new(true).await?;
     h.start_general_action().await?;
     let (sender, mut frames) = mpsc::channel(4);
-    h.runtime.hub.install(sender);
-    h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
+    h.runtime.link.outbound.install(sender);
+    h.runtime.assistant.bridge_request = Some(super::super::BridgeAsk {
         for_attachment: false,
         id: "remote-revocation".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -189,8 +182,8 @@ async fn computer_retirement_keeps_non_control_bridge_requests() -> Result<()> {
     ] {
         let mut h = Mac::new(false).await?;
         let (sender, mut frames) = mpsc::channel(4);
-        h.runtime.hub.install(sender);
-        h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
+        h.runtime.link.outbound.install(sender);
+        h.runtime.assistant.bridge_request = Some(super::super::BridgeAsk {
             for_attachment: false,
             id: "unrelated-reading".into(),
             capability,
@@ -211,7 +204,7 @@ async fn computer_retirement_keeps_non_control_bridge_requests() -> Result<()> {
             .await;
         assert!(frames.try_recv().is_err(), "{capability:?}");
         assert!(
-            h.runtime.conversation.bridge_request.is_some(),
+            h.runtime.assistant.bridge_request.is_some(),
             "{capability:?}"
         );
     }
@@ -237,8 +230,8 @@ async fn each_authority_revocation_answers_deimos_with_its_cause() -> Result<()>
         let mut h = Mac::new(true).await?;
         h.start_general_action().await?;
         let (sender, mut frames) = mpsc::channel(4);
-        h.runtime.hub.install(sender);
-        h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
+        h.runtime.link.outbound.install(sender);
+        h.runtime.assistant.bridge_request = Some(super::super::BridgeAsk {
             for_attachment: false,
             id: "authority-change".into(),
             capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -299,8 +292,8 @@ async fn engine_refusal_reports_full_and_retired_hub() -> Result<()> {
     };
     let (sender, mut frames) = mpsc::channel(1);
     sender.try_send(json!({"fixture":"occupied"}))?;
-    h.runtime.hub.install(sender);
-    h.runtime.conversation.bridge_request = Some(ask.clone());
+    h.runtime.link.outbound.install(sender);
+    h.runtime.assistant.bridge_request = Some(ask.clone());
     h.runtime.refuse_remote_engine_action("fixture", None).await;
     // Not delivered, with its cause (the full channel) in daemon.log.
     assert_eq!(
@@ -313,9 +306,10 @@ async fn engine_refusal_reports_full_and_retired_hub() -> Result<()> {
     assert_eq!(frames.try_recv()?["fixture"], "occupied");
     assert!(frames.try_recv().is_err());
     h.runtime
-        .hub
+        .link
+        .outbound
         .retire(crate::daemon::hub_link::Retirement::NetworkCancelled);
-    h.runtime.conversation.bridge_request = Some(ask);
+    h.runtime.assistant.bridge_request = Some(ask);
     h.runtime.refuse_remote_engine_action("fixture", None).await;
     assert!(
         said::told(&h.runtime).contains("cancelación de red"),
@@ -371,9 +365,9 @@ fn retry_countdown_does_not_change_the_control_revision() -> Result<()> {
             fixture_value,
         );
     }
-    runtime.features.computer.engine_failure = Some("fixture failure".into());
-    runtime.features.computer.engine_failure_kind = Some(EngineCause::InitializationFailed);
-    runtime.features.computer.engine_retry_at = Some(Instant::now() + Duration::from_secs(3_600));
+    runtime.computer.engine_failure = Some("fixture failure".into());
+    runtime.computer.engine_failure_kind = Some(EngineCause::InitializationFailed);
+    runtime.computer.engine_retry_at = Some(Instant::now() + Duration::from_secs(3_600));
 
     let mut board = TopicBoard::new("retry-fixture".into());
     let _receiver = board.channels()[&TopicId::Control].subscribe();
@@ -384,7 +378,7 @@ fn retry_countdown_does_not_change_the_control_revision() -> Result<()> {
     });
     let first_revision = board.revisions()[&TopicId::Control];
     // A different remaining duration models the next tick without a clock wait.
-    runtime.features.computer.engine_retry_at = Some(Instant::now() + Duration::from_secs(1_800));
+    runtime.computer.engine_retry_at = Some(Instant::now() + Duration::from_secs(1_800));
     board.state_changed();
     board.publish(&TopicSource {
         state: &runtime.state,
@@ -486,10 +480,10 @@ impl Mac {
             );
         }
         let (work, events) = mpsc::channel(16);
-        runtime.work.work_events = work;
+        runtime.work_events = work;
         let calls = engine.record.clone();
         let client = engine.connect().await?;
-        runtime.features.computer.service = Some(ActionService::from_client(client));
+        runtime.computer.service = Some(ActionService::from_client(client));
         Ok(Self {
             runtime,
             events,
@@ -584,7 +578,7 @@ impl Mac {
     async fn ask(&mut self, capability: &str, parameters: Value) -> Result<Value> {
         let request_id = id();
         let (hub, mut frames) = mpsc::channel(16);
-        self.runtime.hub.install(hub);
+        self.runtime.link.outbound.install(hub);
         self.runtime
             .device_request_raw(&json!({"request_id":request_id,
             "capability":capability,"parameters":parameters}))
@@ -612,7 +606,7 @@ async fn revoked_in_flight_history_is_uncertain_and_queryable() -> Result<()> {
         )
         .map_err(anyhow::Error::msg)?;
         h.runtime.upsert_control_history(entry.clone())?;
-        h.runtime.features.computer.active_general = Some(entry);
+        h.runtime.computer.active_general = Some(entry);
         h.runtime.command(stop).await?;
         let history = h.runtime.control_history()?;
         assert_eq!(history.len(), 1);
@@ -625,7 +619,7 @@ async fn revoked_in_flight_history_is_uncertain_and_queryable() -> Result<()> {
 async fn stopped_tick_revokes_control_that_appeared_after_the_stop() -> Result<()> {
     let mut h = Mac::new(true).await?;
     h.start_general_action().await?;
-    assert!(h.runtime.features.computer.work.active().is_some());
+    assert!(h.runtime.computer.work.active().is_some());
     {
         let fixture_value = serde_json::json!(true);
         crate::daemon::authority_fixture::set(
@@ -635,8 +629,8 @@ async fn stopped_tick_revokes_control_that_appeared_after_the_stop() -> Result<(
         );
     }
     h.runtime.apply(Event::Tick).await?;
-    assert!(h.runtime.features.computer.service.is_none());
-    assert!(h.runtime.features.computer.work.active().is_none());
+    assert!(h.runtime.computer.service.is_none());
+    assert!(h.runtime.computer.work.active().is_none());
     assert_eq!(
         h.runtime.control_history()?[0].outcome,
         ControlOutcome::Unknown
@@ -692,14 +686,14 @@ async fn close_keeps_granted_engine_off_during_maintenance() -> Result<()> {
         engine::Decision::Keep
     );
     runtime.maintain_engine().await;
-    assert!(runtime.features.computer.service.is_none());
-    assert!(runtime.features.computer.work.active().is_none());
+    assert!(runtime.computer.service.is_none());
+    assert!(runtime.computer.work.active().is_none());
     Ok(())
 }
 
 async fn remote_reply(h: &mut Mac, capability: &str, parameters: Value) -> Result<Value> {
     let (sender, mut hub) = mpsc::channel(16);
-    h.runtime.hub.install(sender);
+    h.runtime.link.outbound.install(sender);
     h.runtime
         .device_request_raw(&json!({
             "request_id":"engine-start", "capability":capability, "parameters":parameters,
@@ -742,7 +736,7 @@ async fn unknown_capture_filter_is_refused_before_window_selection() -> Result<(
             json!(["application", "title"])
         };
         assert_eq!(expected["allowed"], allowed);
-        assert!(h.runtime.conversation.bridge_request.is_none());
+        assert!(h.runtime.assistant.bridge_request.is_none());
     }
     Ok(())
 }
@@ -770,7 +764,7 @@ async fn pending_source_names_busy_instead_of_engine_failure() -> Result<()> {
 async fn busy_engine_does_not_claim_to_have_failed_starting() -> Result<()> {
     let mut h = Mac::new(false).await?;
     let generation = h.runtime.state.generation();
-    h.runtime.features.computer.work.attach_test(
+    h.runtime.computer.work.attach_test(
         generation,
         (),
         tokio::spawn(async {
@@ -784,7 +778,7 @@ async fn busy_engine_does_not_claim_to_have_failed_starting() -> Result<()> {
     )
     .await?;
     assert_eq!(reply["refusal"]["code"], "busy");
-    if let Some(task) = h.runtime.features.computer.work.take() {
+    if let Some(task) = h.runtime.computer.work.take() {
         task.abort();
     }
     Ok(())
@@ -826,9 +820,9 @@ async fn history_storage_failure_is_named_before_input() -> Result<()> {
 #[tokio::test]
 async fn failed_engine_keeps_its_retry_number_without_its_system_error() -> Result<()> {
     let mut h = Mac::new(false).await?;
-    h.runtime.features.computer.service = None;
-    h.runtime.features.computer.engine_failure = Some("/Users/sample/private/engine".into());
-    h.runtime.features.computer.engine_retry_at = Some(Instant::now() + Duration::from_secs(3600));
+    h.runtime.computer.service = None;
+    h.runtime.computer.engine_failure = Some("/Users/sample/private/engine".into());
+    h.runtime.computer.engine_retry_at = Some(Instant::now() + Duration::from_secs(3600));
     let before = match h.runtime.engine_status() {
         engine::Status::Failed { retry_in_ms, .. } => retry_in_ms,
         status => anyhow::bail!("expected a failed engine before request: {status:?}"),
@@ -855,8 +849,8 @@ async fn failed_engine_keeps_its_retry_number_without_its_system_error() -> Resu
 async fn real_engine_failure_handler_never_replies_with_system_text() -> Result<()> {
     let mut h = Mac::new(false).await?;
     let (sender, mut hub) = mpsc::channel(16);
-    h.runtime.hub.install(sender);
-    h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
+    h.runtime.link.outbound.install(sender);
+    h.runtime.assistant.bridge_request = Some(super::super::BridgeAsk {
         for_attachment: false,
         id: "engine-error".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -890,14 +884,14 @@ async fn failed_active_action_replies_with_uncertain_outcome() -> Result<()> {
     {
         let mut h = Mac::new(false).await?;
         let (sender, mut hub) = mpsc::channel(16);
-        h.runtime.hub.install(sender);
+        h.runtime.link.outbound.install(sender);
         let operation_id = "22222222-2222-4222-8222-222222222222";
         let entry =
             ControlHistoryEntry::new(operation_id, "click", "Fixture", 1, ControlOutcome::Unknown)
                 .map_err(anyhow::Error::msg)?;
         h.runtime.upsert_control_history(entry.clone())?;
-        h.runtime.features.computer.active_general = Some(entry);
-        h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
+        h.runtime.computer.active_general = Some(entry);
+        h.runtime.assistant.bridge_request = Some(super::super::BridgeAsk {
             for_attachment: false,
             id: "11111111-1111-4111-8111-111111111111".into(),
             capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -944,7 +938,7 @@ async fn failed_active_action_replies_with_uncertain_outcome() -> Result<()> {
             h.runtime.control_history()?[0].outcome,
             ControlOutcome::Unknown
         );
-        assert!(h.runtime.conversation.bridge_request.is_none());
+        assert!(h.runtime.assistant.bridge_request.is_none());
         assert!(hub.try_recv().is_err(), "the action got another reply");
     }
     Ok(())
@@ -961,12 +955,12 @@ async fn an_engine_failure_leaves_its_cause_and_a_report_line() -> Result<()> {
     h.runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(&root));
     h.runtime.report_log = Some(orbit_ipc::report::ReportLog::daemon(&root));
     let (sender, mut frames) = mpsc::channel(4);
-    h.runtime.hub.install(sender);
+    h.runtime.link.outbound.install(sender);
     let call = ToolCall {
         tool: "get_window_state".into(),
         arguments: json!({"pid": 11, "window_id": 22, "query": ENORMOUS_TREE}),
     };
-    h.runtime.conversation.bridge_request = Some(super::super::BridgeAsk {
+    h.runtime.assistant.bridge_request = Some(super::super::BridgeAsk {
         for_attachment: false,
         id: "whole-window-read".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,

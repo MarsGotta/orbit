@@ -51,7 +51,7 @@ fn committee() -> Value {
 }
 
 async fn at(runtime: &mut Runtime, now_ms: i64) -> Result<()> {
-    runtime.features.call.clock_ms = Some(now_ms);
+    runtime.calls.clock_ms = Some(now_ms);
     runtime.maintain_call_detection().await
 }
 
@@ -83,7 +83,7 @@ async fn a_call_is_offered_recorded_with_its_event_and_ends_after_the_countdown(
     let (mut runtime, mut helper) = fixture(directory.path())?;
     // The detection's clock is the test's from the start: it never runs
     // backwards, so a wall-clock reading taken first would hold it there.
-    runtime.features.call.clock_ms = Some(NOW);
+    runtime.calls.clock_ms = Some(NOW);
     seed(&mut runtime, &mut helper).await?;
     runtime.recover_call_preference();
 
@@ -108,7 +108,7 @@ async fn a_call_is_offered_recorded_with_its_event_and_ends_after_the_countdown(
     )
     .await?;
     assert!(
-        runtime.features.call.events.is_some(),
+        runtime.calls.events.is_some(),
         "the agenda read for the call arrived"
     );
     at(&mut runtime, NOW + 2_999).await?;
@@ -172,7 +172,7 @@ async fn a_call_is_offered_recorded_with_its_event_and_ends_after_the_countdown(
 
     // Zoom leaves the microphone at one minute: three seconds later the
     // countdown starts, thirteen seconds after that the recording ends.
-    runtime.features.call.clock_ms = Some(NOW + MINUTE);
+    runtime.calls.clock_ms = Some(NOW + MINUTE);
     runtime.native_event(zoom_holding(false)).await?;
     at(&mut runtime, NOW + MINUTE + 2_999).await?;
     assert_eq!(panel(&runtime), None);
@@ -234,7 +234,7 @@ async fn record_without_asking_starts_alone_and_keep_recording_makes_it_manual()
         runtime.reader.load_call_preference()?,
         Some(CallPreference::Record)
     );
-    runtime.features.call.clock_ms = Some(NOW);
+    runtime.calls.clock_ms = Some(NOW);
     runtime.native_event(zoom_holding(true)).await?;
     at(&mut runtime, NOW + 3_000).await?;
     ack_starts(&mut runtime, &mut helper).await?;
@@ -250,7 +250,7 @@ async fn record_without_asking_starts_alone_and_keep_recording_makes_it_manual()
         panel(&runtime),
         Some(TopicPanel::Recording { ref recording_id, .. }) if recording_id == &recording.id
     ));
-    runtime.features.call.clock_ms = Some(NOW + MINUTE);
+    runtime.calls.clock_ms = Some(NOW + MINUTE);
     runtime.native_event(zoom_holding(false)).await?;
     at(&mut runtime, NOW + MINUTE + 3_000).await?;
     assert!(matches!(panel(&runtime), Some(TopicPanel::Ending { .. })));
@@ -285,7 +285,7 @@ async fn the_call_app_closing_during_the_countdown_ends_with_what_was_recorded()
             preference: CallPreference::Record,
         })
         .await?;
-    runtime.features.call.clock_ms = Some(NOW);
+    runtime.calls.clock_ms = Some(NOW);
     runtime.native_event(zoom_holding(true)).await?;
     at(&mut runtime, NOW + 3_000).await?;
     ack_starts(&mut runtime, &mut helper).await?;
@@ -296,7 +296,7 @@ async fn the_call_app_closing_during_the_countdown_ends_with_what_was_recorded()
         .recording
         .clone()
         .context("not started")?;
-    runtime.features.call.clock_ms = Some(NOW + MINUTE);
+    runtime.calls.clock_ms = Some(NOW + MINUTE);
     runtime.native_event(zoom_holding(false)).await?;
     at(&mut runtime, NOW + MINUTE + 4_000).await?;
     // Zoom quits: ScreenCaptureKit stops its stream and the helper cuts.
@@ -357,7 +357,7 @@ async fn privacy_stop_hides_the_offer_and_rearming_resumes_nothing() -> Result<(
     let (mut runtime, mut helper) = fixture(directory.path())?;
     // The detection's clock is the test's from the start: it never runs
     // backwards, so a wall-clock reading taken first would hold it there.
-    runtime.features.call.clock_ms = Some(NOW);
+    runtime.calls.clock_ms = Some(NOW);
     seed(&mut runtime, &mut helper).await?;
     runtime.recover_call_preference();
     runtime.native_event(zoom_holding(true)).await?;
@@ -392,7 +392,7 @@ async fn privacy_stop_hides_the_offer_and_rearming_resumes_nothing() -> Result<(
     runtime
         .native_event(host_state(2, false, status("full_access")))
         .await?;
-    runtime.features.call.clock_ms = Some(NOW + MINUTE);
+    runtime.calls.clock_ms = Some(NOW + MINUTE);
     runtime.native_event(zoom_holding(true)).await?;
     at(&mut runtime, NOW + 2 * MINUTE).await?;
     assert_eq!(panel(&runtime), None, "nothing resumes on its own");
@@ -405,7 +405,7 @@ async fn privacy_stop_hides_the_offer_and_rearming_resumes_nothing() -> Result<(
 async fn record_on_an_event_during_a_call_captures_the_call_and_links_the_event() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
-    runtime.features.call.clock_ms = Some(NOW);
+    runtime.calls.clock_ms = Some(NOW);
     runtime.recover_call_preference();
     runtime
         .command(Command::CallPreference {
@@ -451,7 +451,7 @@ async fn record_on_an_event_during_a_call_captures_the_call_and_links_the_event(
     );
     assert_eq!(manifest.payload["origin"], "explicit");
     // Started by hand: the call ending never ends it.
-    runtime.features.call.clock_ms = Some(NOW + MINUTE);
+    runtime.calls.clock_ms = Some(NOW + MINUTE);
     runtime.native_event(zoom_holding(false)).await?;
     at(&mut runtime, NOW + 10 * MINUTE).await?;
     assert_eq!(
@@ -475,7 +475,7 @@ async fn a_call_during_a_manual_recording_offers_and_starts_nothing() -> Result<
     for preference in [CallPreference::Notify, CallPreference::Record] {
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut helper) = fixture(directory.path())?;
-        runtime.features.call.clock_ms = Some(NOW);
+        runtime.calls.clock_ms = Some(NOW);
         runtime.recover_call_preference();
         runtime
             .command(Command::CallPreference { preference })
@@ -529,7 +529,7 @@ async fn the_call_app_closing_with_its_track_declared_stopped_ends_the_recording
             preference: CallPreference::Record,
         })
         .await?;
-    runtime.features.call.clock_ms = Some(NOW);
+    runtime.calls.clock_ms = Some(NOW);
     runtime.native_event(zoom_holding(true)).await?;
     at(&mut runtime, NOW + 3_000).await?;
     let starts = ack_starts(&mut runtime, &mut helper).await?;
@@ -546,7 +546,7 @@ async fn the_call_app_closing_with_its_track_declared_stopped_ends_the_recording
         .recording
         .clone()
         .context("not started")?;
-    runtime.features.call.clock_ms = Some(NOW + MINUTE);
+    runtime.calls.clock_ms = Some(NOW + MINUTE);
     runtime.native_event(zoom_holding(false)).await?;
     at(&mut runtime, NOW + MINUTE + 4_000).await?;
     runtime

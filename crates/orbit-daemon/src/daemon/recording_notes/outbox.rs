@@ -248,7 +248,7 @@ impl Runtime {
             .reader
             .note_orders()
             .context("No se pudieron leer los cambios de las notas pendientes")?;
-        let outbox = &mut self.features.notes.outbox;
+        let outbox = &mut self.notes.outbox;
         outbox.private = private.into_iter().collect();
         outbox.orders.clear();
         for order in waiting {
@@ -261,21 +261,13 @@ impl Runtime {
         Ok(())
     }
 
-    /// The hub connected: every lane may go now.
-    pub(super) fn outbox_hub_ready(&mut self) {
-        for state in self.features.notes.outbox.lanes.values_mut() {
-            state.failures = 0;
-            state.due_ms = i64::MIN;
-        }
-    }
-
     /// A privacy stop, a revocation, the close or a new device: what is in
     /// flight is aborted and stays owed, to go after the rearm, except an
     /// order that is not sent twice (`QueuedOrder::repeatable`): whether the
     /// hub acted on it is unknown, so it leaves the outbox, in the log.
     pub(super) fn retire_outbox(&mut self) {
         let mut unsure = Vec::new();
-        for (lane, state) in &mut self.features.notes.outbox.lanes {
+        for (lane, state) in &mut self.notes.outbox.lanes {
             if let (Lane::Orders(order_lane), Some(Sent::Order(sent))) =
                 (lane, state.in_flight.active())
                 && !sent.order.repeatable()
@@ -286,7 +278,7 @@ impl Runtime {
             state.due_ms = i64::MIN;
         }
         for (lane, sent) in unsure {
-            self.features.notes.outbox.forget(&lane, &sent);
+            self.notes.outbox.forget(&lane, &sent);
             let (key, target, sequence) = (lane.key(), sent.target.clone(), sent.sequence);
             if let Err(error) = self
                 .store_actor
@@ -300,9 +292,9 @@ impl Runtime {
             };
             self.log("note_order_cancelled_unconfirmed", &[("order", name)]);
             if let QueuedOrder::Library { request } = &sent.order {
-                let library = &mut self.features.notes.library;
+                let library = &mut self.notes.library;
                 super::library::refuse_order(library, request, 0, "not_sent", BTreeMap::new());
-                self.features.notes.head.touch_library();
+                self.notes.head.touch_library();
             }
         }
     }
@@ -312,7 +304,7 @@ impl Runtime {
     pub(super) async fn queue_order(&mut self, order: QueuedOrder) -> Result<()> {
         let lane = self.keep_order(order).await?;
         if let Some(hub) = self.note_hub() {
-            let now_ms = self.notes_now();
+            let now_ms = self.notes.notes_now();
             self.start_lane(&hub, Lane::Orders(lane), now_ms);
         }
         Ok(())
@@ -324,7 +316,7 @@ impl Runtime {
         let target = order
             .target()
             .unwrap_or_else(|| format!("dictionary:{}", crate::daemon::id()));
-        let outbox = &self.features.notes.outbox;
+        let outbox = &self.notes.outbox;
         let waiting = outbox.waiting();
         let replaces = outbox
             .orders
@@ -337,13 +329,13 @@ impl Runtime {
             }
             .into());
         }
-        let now_ms = self.notes_now();
+        let now_ms = self.notes.notes_now();
         let queued = self
             .store_actor
             .run(move |store| Ok(store.queue_note_order(&target, order, now_ms)?))
             .await
             .context("No se pudo guardar el cambio en este Mac")?;
-        let notes = &mut self.features.notes;
+        let notes = &mut self.notes;
         let orders = notes.outbox.orders.entry(lane.clone()).or_default();
         orders.retain(|kept| kept.target != queued.target);
         orders.push(queued);
@@ -362,7 +354,7 @@ impl Runtime {
     ) -> Result<()> {
         super::check_recording(&recording_id)?;
         orbit_core::notes::check_private_notes(&markdown)?;
-        let now_ms = self.notes_now();
+        let now_ms = self.notes.notes_now();
         let pending = orbit_store::PendingPrivateNotes {
             recording_id: recording_id.clone(),
             markdown,
@@ -373,7 +365,7 @@ impl Runtime {
             .await
             .context("No se pudieron guardar las notas privadas")?;
         // They go with the next turn of the outbox, at once.
-        let outbox = &mut self.features.notes.outbox;
+        let outbox = &mut self.notes.outbox;
         outbox.private.insert(recording_id.clone());
         let lane = Lane::Private(recording_id);
         outbox.lanes.entry(lane).or_default().due_ms = i64::MIN;
@@ -382,8 +374,7 @@ impl Runtime {
 
     /// Starts every lane that is due. Returns how many requests went out.
     pub(super) fn start_due_lanes(&mut self, hub: &NoteHub, now_ms: i64) -> usize {
-        self.features
-            .notes
+        self.notes
             .outbox
             .owed()
             .into_iter()
@@ -394,7 +385,7 @@ impl Runtime {
     /// Sends the lane's oldest order, or its private notes, when the lane is
     /// free and due and fewer than [`MAX_LANES_IN_FLIGHT`] are on their way.
     fn start_lane(&mut self, hub: &NoteHub, lane: Lane, now_ms: i64) -> bool {
-        let outbox = &self.features.notes.outbox;
+        let outbox = &self.notes.outbox;
         let busy = outbox
             .lanes
             .get(&lane)
@@ -422,14 +413,14 @@ impl Runtime {
             Lane::Private(recording) => match self.reader.private_notes(recording) {
                 Ok(Some(pending)) => Some(Sent::Private(pending)),
                 Ok(None) => {
-                    let outbox = &mut self.features.notes.outbox;
+                    let outbox = &mut self.notes.outbox;
                     outbox.private.remove(recording);
                     outbox.lanes.remove(&lane);
                     None
                 }
                 Err(error) => {
                     self.log("private_notes_unreadable", &[("error", &error.to_string())]);
-                    self.features.notes.outbox.failed(&lane, now_ms);
+                    self.notes.outbox.failed(&lane, now_ms);
                     None
                 }
             },
@@ -441,14 +432,14 @@ impl Runtime {
                 .map(Sent::Order),
         };
         let Some(sent) = sent else {
-            let purging = self.features.notes.deletions.purging.as_deref();
+            let purging = self.notes.deletions.purging.as_deref();
             if let Lane::Orders(OrderLane::Meeting(recording)) = &lane
                 && deleting
                 && purging != Some(recording.as_str())
             {
                 // A meeting still closing: its delete is looked at again in
                 // a while, not on every turn of the loop.
-                let state = self.features.notes.outbox.lanes.entry(lane).or_default();
+                let state = self.notes.outbox.lanes.entry(lane).or_default();
                 state.due_ms = now_ms.saturating_add(orbit_core::note_outbox::FIRST_RETRY_MS);
             }
             return false;
@@ -460,7 +451,7 @@ impl Runtime {
     fn send_lane(&mut self, hub: &NoteHub, lane: Lane, sent: Sent) {
         let generation = self.state.generation();
         let op = self.turn.op.clone();
-        let notes = &mut self.features.notes;
+        let notes = &mut self.notes;
         let events = notes.events.clone();
         let hub = hub.clone();
         let request = (lane.clone(), sent.clone());
@@ -493,5 +484,15 @@ impl Runtime {
                     .await;
                 })
             });
+    }
+}
+
+impl crate::daemon::recording_notes::NotesHandle {
+    /// The hub connected: every lane may go now.
+    pub(super) fn outbox_hub_ready(&mut self) {
+        for state in self.outbox.lanes.values_mut() {
+            state.failures = 0;
+            state.due_ms = i64::MIN;
+        }
     }
 }

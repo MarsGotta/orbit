@@ -129,7 +129,7 @@ async fn a_loop_held_fifteen_seconds_keeps_sealing_and_uploading_on_schedule() -
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     runtime.settings.hub_url = Some(format!("http://{}", listener.local_addr()?));
-    runtime.token = Some("synthetic-not-a-credential".into());
+    runtime.link.token = Some("synthetic-not-a-credential".into());
     let (received, hub) = synthetic_hub(listener);
     let streams = two_track_meeting(&mut runtime, &mut receiver).await?;
     let (mut task, bridge) = test_support::spawn_task(&runtime)?;

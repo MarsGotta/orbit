@@ -44,15 +44,15 @@ async fn detected_recording_refusal(field: &str, expected: NoticeCode) -> Result
     for permission in UNGRANTED {
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut helper) = fixture(directory.path())?;
-        runtime.features.call.clock_ms = Some(1_000);
-        runtime.features.call.preference = Some(Ok(CallPreference::Record));
+        runtime.calls.clock_ms = Some(1_000);
+        runtime.calls.preference = Some(Ok(CallPreference::Record));
         crate::daemon::authority_fixture::set(&mut runtime.state, field, json!(permission));
         runtime
             .native_event(json!({"event":"microphone_activity","v":1,"applications":[{
                 "application_pid":4242,"bundle_id":"us.zoom.xos","name":"zoom.us"
             }]}))
             .await?;
-        runtime.features.call.clock_ms = Some(4_000);
+        runtime.calls.clock_ms = Some(4_000);
         runtime.maintain_call_detection().await?;
         assert_fixable(&runtime, expected);
         while let Ok(command) = helper.try_recv() {

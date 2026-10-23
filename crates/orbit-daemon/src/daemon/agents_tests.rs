@@ -25,7 +25,7 @@ fn with_hub() -> Result<Fixture> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, helper) = fixture(directory.path())?;
     let (hub, hub_frames) = mpsc::channel(16);
-    runtime.hub.install(hub);
+    runtime.link.outbound.install(hub);
     runtime.settings.device_id = Some(DEVICE.into());
     Ok((directory, runtime, hub_frames, helper))
 }
@@ -132,8 +132,8 @@ fn meeting(runtime: &mut Runtime) {
             "ended_at_ms": null, "expires_at_ms": START + 3_600_000, "application_pid": null,
             "audio": "system", "phase": "recording", "sealed_chunks": 0, "gaps": 0}),
     );
-    runtime.capture.mic_stream = Some(MIC.into());
-    runtime.features.question.clock_ms = Some(START + 60_000);
+    runtime.audio.mic_stream = Some(MIC.into());
+    runtime.question.clock_ms = Some(START + 60_000);
 }
 
 fn heard(name: Option<&str>) -> Value {
@@ -149,7 +149,7 @@ fn heard(name: Option<&str>) -> Value {
 async fn the_hubs_agents_reach_the_app_and_the_wake_phrase_and_survive_a_restart() -> Result<()> {
     let (directory, mut runtime, _hub, mut helper) = with_hub()?;
     meeting(&mut runtime);
-    runtime.features.question.helper_listens = true;
+    runtime.question.helper_listens = true;
     ready(&mut runtime, two_agents()).await?;
     runtime.sync_wake_phrase().await?;
 
@@ -466,14 +466,14 @@ async fn speech_hub(
         ))
         .await?;
     runtime.settings.hub_url = Some(base.to_string());
-    runtime.token = Some("synthetic-not-a-credential-agents".into());
+    runtime.link.token = Some("synthetic-not-a-credential-agents".into());
     crate::daemon::authority_fixture::set(
         &mut runtime.state,
         "capabilities.native_helper",
         json!(true),
     );
     let (work, work_events) = mpsc::channel(16);
-    runtime.work.work_events = work;
+    runtime.work_events = work;
     Ok((seen, work_events))
 }
 
@@ -536,7 +536,7 @@ async fn a_spoken_reply_names_the_agent_of_its_turn() -> Result<()> {
         })
         .await?;
     let (seen, mut work_events) = speech_hub(&mut runtime).await?;
-    runtime.conversation.speak_next = true;
+    runtime.assistant.speak_next = true;
     let params = ask(&mut runtime, &mut hub_frames).await?;
     assert_eq!(params["agent_id"], "atlas");
     let body = speech_request(&mut runtime, &seen, &mut work_events).await?;
@@ -726,7 +726,7 @@ async fn a_new_turn_does_not_carry_the_previous_turns_work() -> Result<()> {
         .clone()
         .context("no turn")?;
     let carried = runtime
-        .conversation
+        .assistant
         .work
         .as_ref()
         .map(|work| work.turn_id.clone());
@@ -786,7 +786,7 @@ async fn an_interrupted_turns_work_ends() -> Result<()> {
     }
     runtime.command(Command::Interrupt).await?;
     assert!(runtime.state.durable.assistant.active_request.is_none());
-    let work = runtime.conversation.work.as_ref().context("no work")?;
+    let work = runtime.assistant.work.as_ref().context("no work")?;
     assert!(
         work.ended_at_ms.is_some(),
         "the interrupted turn's work never ends: {work:?}"
@@ -876,7 +876,7 @@ async fn forty_agents_keep_the_status_topic_and_the_list_the_mac_had() -> Result
 async fn a_changed_list_replaces_the_one_the_mac_had() -> Result<()> {
     let (directory, mut runtime, _hub, mut helper) = with_hub()?;
     meeting(&mut runtime);
-    runtime.features.question.helper_listens = true;
+    runtime.question.helper_listens = true;
     ready(&mut runtime, two_agents()).await?;
     runtime.sync_wake_phrase().await?;
     helper_commands(&mut helper);
@@ -958,6 +958,6 @@ async fn a_handover_opens_a_conversation_that_names_the_one_it_takes_over() -> R
     assert!(params.get("session_id").is_none(), "{params}");
     assert_eq!(runtime.state.agent_id(), Some("atlas"));
     // Only its first turn names it.
-    assert_eq!(runtime.conversation.handover_from, None);
+    assert_eq!(runtime.assistant.handover_from, None);
     Ok(())
 }

@@ -53,15 +53,7 @@ async fn emergency_queue_overflow_marks_the_continuous_original_incomplete() -> 
             .is_err()
     );
     assert_eq!(runtime.capture.pending_seals.len(), 4096);
-    assert_eq!(
-        runtime
-            .capture
-            .call_runtime
-            .as_ref()
-            .context("call absent")?
-            .gaps,
-        1
-    );
+    assert_eq!(runtime.audio.call.as_ref().context("call absent")?.gaps, 1);
     assert!(crate::daemon::turn::said::has(
         &runtime.state,
         orbit_core::notice::NoticeCode::AudioReserveExhausted

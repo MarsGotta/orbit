@@ -39,10 +39,10 @@ async fn a_real_sized_catalogue_crosses_the_hub_frame_in_pages() -> Result<()> {
 
     let mut h = mac_with(catalogue).await?;
     assert!(
-        h.runtime.engine_is_ready(),
+        h.runtime.computer.engine_is_ready(),
         "a real-sized catalogue connects"
     );
-    let whole = h.runtime.engine_tools();
+    let whole = h.runtime.computer.engine_tools();
     assert_eq!(whole.len(), declared);
     assert!(
         whole

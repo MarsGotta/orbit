@@ -41,13 +41,13 @@ impl Runtime {
         &mut self,
         stream: &str,
     ) -> Result<()> {
-        if self.capture.retired_stops.len() >= MAX_RETIRED_STOPS {
+        if self.audio.retired_stops.len() >= MAX_RETIRED_STOPS {
             self.retired_stop_capacity_exhausted().await?;
             return Ok(());
         }
         let command = native::command("audio_stop", json!({"stream_id":stream}))?;
         let command_id = NativeCommandHeader::from_value(&command)?.id.to_owned();
-        self.capture.retired_stops.insert(
+        self.audio.retired_stops.insert(
             command_id.clone(),
             RetiredStreamStop {
                 stream: stream.to_owned(),
@@ -60,7 +60,7 @@ impl Runtime {
     }
 
     pub(in crate::daemon) async fn retired_stop_capacity_exhausted(&mut self) -> Result<()> {
-        let pending = self.capture.retired_stops.len();
+        let pending = self.audio.retired_stops.len();
         self.log(
             "retired_stop_capacity_exhausted",
             &[
@@ -77,7 +77,7 @@ impl Runtime {
             &cause,
         )
         .await;
-        if !self.state.privacy_stopped() && self.capture.audio.full_stop.is_none() {
+        if !self.state.privacy_stopped() && self.audio.lifecycle.full_stop.is_none() {
             self.request_full_audio_stop(FullStop::Cut).await?;
         }
         Ok(())
@@ -85,7 +85,7 @@ impl Runtime {
 
     async fn send_retired_stream_stop(&mut self, command_id: &str) {
         let Some(stream) = self
-            .capture
+            .audio
             .retired_stops
             .get(command_id)
             .map(|stop| stop.stream.clone())
@@ -103,13 +103,15 @@ impl Runtime {
                     return;
                 }
             };
-        self.record_pending_native(&command);
+        self.helper.record_pending(&command);
         // The established 500 ms helper-channel budget protects the actor
         // from backpressure. It does not prove the retired stream closed: only
         // its matching drain receipt does, and an unsent stop stays owed.
-        match tokio::time::timeout(Duration::from_millis(500), self.native.send(command)).await {
+        match tokio::time::timeout(Duration::from_millis(500), self.helper.sender.send(command))
+            .await
+        {
             Ok(Ok(())) => {
-                if let Some(stop) = self.capture.retired_stops.get_mut(command_id) {
+                if let Some(stop) = self.audio.retired_stops.get_mut(command_id) {
                     stop.sent = true;
                 }
                 self.log(
@@ -118,7 +120,7 @@ impl Runtime {
                 );
             }
             Ok(Err(_closed)) => {
-                self.capture.retired_stops.remove(command_id);
+                self.audio.retired_stops.remove(command_id);
                 self.log("retired_audio_stop_helper_gone", &[("id", command_id)]);
             }
             Err(_elapsed) => {
@@ -129,8 +131,8 @@ impl Runtime {
 
     pub(in crate::daemon) async fn retry_retired_stream_stops(&mut self) {
         if !self.state.capabilities().native_helper() {
-            let retired_call_starts = self.capture.retired_call_starts.len();
-            let retired_stops = self.capture.retired_stops.len();
+            let retired_call_starts = self.audio.retired_call_starts.len();
+            let retired_stops = self.audio.retired_stops.len();
             if retired_call_starts > 0 || retired_stops > 0 {
                 self.log(
                     "retired_capture_debts_helper_unavailable",
@@ -139,13 +141,13 @@ impl Runtime {
                         ("retired_stops", &retired_stops.to_string()),
                     ],
                 );
-                self.capture.retired_call_starts.clear();
-                self.capture.retired_stops.clear();
+                self.audio.retired_call_starts.clear();
+                self.audio.retired_stops.clear();
             }
             return;
         }
         let owed = self
-            .capture
+            .audio
             .retired_stops
             .iter()
             .find(|(_, stop)| !stop.sent)
@@ -164,23 +166,23 @@ impl Runtime {
         start_failed: bool,
     ) -> Result<bool> {
         let ids: Vec<String> = self
-            .capture
             .audio
+            .lifecycle
             .stops
             .iter()
             .filter(|(_, stop)| stop.stream == stream)
             .map(|(id, _)| id.clone())
             .collect();
         for id in ids {
-            let Some(stop) = self.capture.audio.stops.remove(&id) else {
+            let Some(stop) = self.audio.lifecycle.stops.remove(&id) else {
                 continue;
             };
             if !stop.answered {
-                if self.capture.retired_stops.len() >= MAX_RETIRED_STOPS {
+                if self.audio.retired_stops.len() >= MAX_RETIRED_STOPS {
                     self.retired_stop_capacity_exhausted().await?;
                     return Ok(false);
                 }
-                self.capture.retired_stops.insert(
+                self.audio.retired_stops.insert(
                     id.clone(),
                     RetiredStreamStop {
                         stream: stream.to_owned(),
@@ -201,31 +203,9 @@ impl Runtime {
         Ok(true)
     }
 
-    pub(in crate::daemon) fn mark_overtaken_stop_answered(&mut self, command_id: &str) {
-        if let Some(stop) = self.capture.audio.stops.get_mut(command_id) {
-            stop.answered = true;
-        }
-    }
-
-    pub(in crate::daemon) fn call_stop_overtook_unanswered_start(&self, command_id: &str) -> bool {
-        self.capture
-            .audio
-            .stops
-            .get(command_id)
-            .is_some_and(|stop| {
-                stop.source == "mic_local"
-                    && self.closing_call_owns_stream(&stop.stream)
-                    && self
-                        .capture
-                        .retired_call_starts
-                        .values()
-                        .any(|stream| stream == &stop.stream)
-            })
-    }
-
     pub(in crate::daemon) fn begin_call_voice(&mut self, preroll: &[(Value, i64)]) -> Result<()> {
         self.capture.buffer.begin_voice()?;
-        self.capture.audio.voice.submit = true;
+        self.audio.lifecycle.voice.submit = true;
         for (frame, time) in preroll {
             self.capture.buffer.ingest_voice_frame(frame, *time)?;
         }
@@ -247,14 +227,14 @@ impl Runtime {
     pub(super) fn live_call_reached_drain_limit(&self) -> bool {
         let now = Instant::now();
         let hard_limit_reached = self
-            .capture
             .audio
+            .lifecycle
             .started_at
             .and_then(|started| started.checked_add(AUDIO_DRAIN_LIMIT))
             .is_some_and(|limit| now >= limit);
         let helper_is_live = self
-            .capture
             .audio
+            .lifecycle
             .last_liveness
             .and_then(|seen| seen.checked_add(AUDIO_SILENCE_TIMEOUT))
             .is_some_and(|silent_at| now < silent_at);
@@ -273,9 +253,25 @@ impl Runtime {
                             | CapturePhase::Finalizing
                     )
                 });
-        hard_limit_reached
-            && helper_is_live
-            && self.capture.call_runtime.is_some()
-            && !meeting_is_draining
+        hard_limit_reached && helper_is_live && self.audio.call.is_some() && !meeting_is_draining
+    }
+}
+
+impl crate::daemon::audio::AudioHandle {
+    pub(in crate::daemon) fn mark_overtaken_stop_answered(&mut self, command_id: &str) {
+        if let Some(stop) = self.lifecycle.stops.get_mut(command_id) {
+            stop.answered = true;
+        }
+    }
+
+    pub(in crate::daemon) fn call_stop_overtook_unanswered_start(&self, command_id: &str) -> bool {
+        self.lifecycle.stops.get(command_id).is_some_and(|stop| {
+            stop.source == "mic_local"
+                && self.closing_call_owns_stream(&stop.stream)
+                && self
+                    .retired_call_starts
+                    .values()
+                    .any(|stream| stream == &stop.stream)
+        })
     }
 }

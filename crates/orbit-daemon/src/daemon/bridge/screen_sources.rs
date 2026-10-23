@@ -22,7 +22,7 @@ impl Runtime {
     /// A capture Deimos asked for, refused with its cause and its numbers,
     /// as fields the translator can act on.
     pub(in crate::daemon) fn refuse_bridge_capture(&mut self, refusal: Refusal) {
-        let Some(ask) = self.conversation.bridge_request.take() else {
+        let Some(ask) = self.assistant.bridge_request.take() else {
             return;
         };
         let mut said = bridge_refused(&refusal);
@@ -49,7 +49,7 @@ impl Runtime {
         &mut self,
         event: &Value,
     ) -> Result<()> {
-        let Some(ask) = self.conversation.bridge_request.clone() else {
+        let Some(ask) = self.assistant.bridge_request.clone() else {
             return Ok(());
         };
         if ask.capability == Capability::ScreenSources {
@@ -77,9 +77,9 @@ impl Runtime {
                 )
             }
             // Still waiting: say nothing yet rather than reporting an empty Mac.
-            None if self.source_operation_pending() => return,
+            None if self.sources.source_operation_pending() => return,
             None => {
-                let failure = self.features.sources.last_failure.as_ref();
+                let failure = self.sources.last_failure.as_ref();
                 let refusal = failure
                     .map(|failure| failure.refusal.clone())
                     .unwrap_or_else(|| Self::bridge_refusal_code("source_inventory_failed"));
@@ -88,7 +88,7 @@ impl Runtime {
         };
         let result = self.send_frame(hub::command(&ask.id, "device.reply", payload));
         self.note_bridge_send(&result, "the windows reply");
-        self.conversation.bridge_request = None;
+        self.assistant.bridge_request = None;
     }
 
     /// The listing came back: the window Deimos named is chosen from it and
@@ -100,7 +100,7 @@ impl Runtime {
                 .await;
         }
         let Some(inventory) = self.state.views.source_inventory.as_ref() else {
-            if self.source_operation_pending() {
+            if self.sources.source_operation_pending() {
                 return Ok(());
             }
             return self
@@ -166,7 +166,7 @@ impl Runtime {
                 .refuse_bridge_request(ask, "source_capture_failed")
                 .await;
         };
-        if let Some(current) = self.conversation.bridge_request.as_mut() {
+        if let Some(current) = self.assistant.bridge_request.as_mut() {
             current.source_id = Some(source_id);
         }
         Ok(())
@@ -179,7 +179,7 @@ impl Runtime {
         event: &Value,
         response: NativeResponseView<'_>,
     ) -> Result<()> {
-        if self.source_operation_pending() {
+        if self.sources.source_operation_pending() {
             return Ok(());
         }
         if !response.ok {
@@ -204,7 +204,8 @@ impl Runtime {
             } => (application_name.clone(), title.clone(), binding),
         };
         if ask.for_attachment {
-            self.window_captured_by_helper(binding.application_pid, binding.window_id);
+            self.assistant
+                .window_captured_by_helper(binding.application_pid, binding.window_id);
         }
         let result =
             match ask.capability {
@@ -241,7 +242,7 @@ impl Runtime {
             result_payload(&ask.id, result),
         ));
         self.note_bridge_send(&sent, &format!("the screen read: {application} · {title}"));
-        self.conversation.bridge_request = None;
+        self.assistant.bridge_request = None;
         Ok(())
     }
 
@@ -264,7 +265,7 @@ impl Runtime {
             }
         };
         self.prepare_bridge_capture_upload(event);
-        let Some(upload) = self.features.sources.bridge_upload.as_mut() else {
+        let Some(upload) = self.sources.bridge_upload.as_mut() else {
             return self.refuse_capture_upload(ask, None).await;
         };
         upload.screenshot = Some(ScreenshotResult {
@@ -285,26 +286,21 @@ impl Runtime {
         ask: &BridgeAsk,
         code: &str,
     ) -> Result<()> {
-        if let Some(mut upload) = self.features.sources.bridge_upload.take() {
+        if let Some(mut upload) = self.sources.bridge_upload.take() {
             upload.work.cancel();
         }
-        let source_failure = self
-            .features
-            .sources
-            .last_failure
-            .clone()
-            .filter(|failure| {
-                (code == "source_inventory_failed" && ask.source_id.is_none())
-                    || (code == "source_capture_failed"
-                        && ask.source_id.as_deref() == Some(failure.operation_id.as_str()))
-            });
+        let source_failure = self.sources.last_failure.clone().filter(|failure| {
+            (code == "source_inventory_failed" && ask.source_id.is_none())
+                || (code == "source_capture_failed"
+                    && ask.source_id.as_deref() == Some(failure.operation_id.as_str()))
+        });
         let refusal = source_failure
             .as_ref()
             .map(|failure| failure.refusal.clone())
             .or_else(|| self.selection_refusal(ask, code))
             .unwrap_or_else(|| Self::bridge_refusal_code(code));
         self.say(bridge_refused(&refusal));
-        self.conversation.bridge_request = None;
+        self.assistant.bridge_request = None;
         let payload = self.bridge_refusal_frame(&ask.id, &refusal);
         self.send(hub::command(&ask.id, "device.reply", payload)?)
             .await

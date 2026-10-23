@@ -106,7 +106,7 @@ async fn awaiting_is_not_receiving_and_unrequested_remote_is_not_missing() -> Re
     assert_eq!(observed.mic_local.since_last_samples_ms, None);
     assert_eq!(observed.remote_app, None);
     let stream = runtime
-        .capture
+        .audio
         .mic_stream
         .clone()
         .context("microphone absent")?;
@@ -130,12 +130,12 @@ async fn low_signal_is_independent_per_track_and_original_pcm_is_unchanged() -> 
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     start(&mut runtime, &mut receiver, true).await?;
     let mic = runtime
-        .capture
+        .audio
         .mic_stream
         .clone()
         .context("microphone absent")?;
     let remote = runtime
-        .capture
+        .audio
         .remote_stream
         .clone()
         .context("remote absent")?;
@@ -221,7 +221,7 @@ async fn stale_delivery_is_a_projection_not_a_gap_or_automatic_stop() -> Result<
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     start(&mut runtime, &mut receiver, true).await?;
     let mic = runtime
-        .capture
+        .audio
         .mic_stream
         .clone()
         .context("microphone absent")?;
@@ -260,7 +260,7 @@ async fn rejected_or_old_stream_pcm_cannot_refresh_an_observation() -> Result<()
         .await?;
     assert_eq!(signal(&runtime)?.mic_local.received_frames, 0);
     let stream = runtime
-        .capture
+        .audio
         .mic_stream
         .clone()
         .context("microphone absent")?;
@@ -278,7 +278,7 @@ async fn paused_meeting_is_not_kept_live_by_shared_ptt_microphone() -> Result<()
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     start(&mut runtime, &mut receiver, false).await?;
     let mic = runtime
-        .capture
+        .audio
         .mic_stream
         .clone()
         .context("microphone absent")?;
@@ -300,8 +300,8 @@ async fn paused_meeting_is_not_kept_live_by_shared_ptt_microphone() -> Result<()
         CapturePhase::Paused
     );
     let before = runtime
-        .capture
         .audio
+        .lifecycle
         .meeting
         .signal
         .as_ref()
@@ -312,8 +312,8 @@ async fn paused_meeting_is_not_kept_live_by_shared_ptt_microphone() -> Result<()
     assert!(runtime.recording_signal_view().is_none());
     assert_eq!(
         runtime
-            .capture
             .audio
+            .lifecycle
             .meeting
             .signal
             .as_ref()
@@ -342,7 +342,7 @@ async fn stopping_preserves_late_tail_without_presenting_it_as_live() -> Result<
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     start(&mut runtime, &mut receiver, false).await?;
     let mic = runtime
-        .capture
+        .audio
         .mic_stream
         .clone()
         .context("microphone absent")?;
@@ -406,13 +406,13 @@ async fn replaced_epoch_or_recording_identity_cannot_borrow_old_measurements() -
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     start(&mut runtime, &mut receiver, false).await?;
     let mic = runtime
-        .capture
+        .audio
         .mic_stream
         .clone()
         .context("microphone absent")?;
     let epoch = runtime
-        .capture
         .audio
+        .lifecycle
         .meeting
         .signal
         .as_ref()
@@ -420,8 +420,8 @@ async fn replaced_epoch_or_recording_identity_cannot_borrow_old_measurements() -
         .capture_epoch_id
         .clone();
     runtime
-        .capture
         .audio
+        .lifecycle
         .meeting
         .signal
         .as_mut()
@@ -432,8 +432,8 @@ async fn replaced_epoch_or_recording_identity_cannot_borrow_old_measurements() -
     assert!(runtime.recording_signal_view().is_none());
     assert_eq!(
         runtime
-            .capture
             .audio
+            .lifecycle
             .meeting
             .signal
             .as_ref()
@@ -444,16 +444,16 @@ async fn replaced_epoch_or_recording_identity_cannot_borrow_old_measurements() -
         0
     );
     runtime
-        .capture
         .audio
+        .lifecycle
         .meeting
         .signal
         .as_mut()
         .context("monitor absent")?
         .capture_epoch_id = epoch;
     runtime
-        .capture
         .audio
+        .lifecycle
         .meeting
         .signal
         .as_mut()
@@ -472,7 +472,7 @@ async fn resume_starts_a_new_observation_and_old_stream_cannot_update_it() -> Re
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     start(&mut runtime, &mut receiver, false).await?;
     let old_stream = runtime
-        .capture
+        .audio
         .mic_stream
         .clone()
         .context("microphone absent")?;
@@ -508,8 +508,8 @@ async fn impossible_receive_time_is_not_presented_as_a_current_observation() -> 
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     start(&mut runtime, &mut receiver, false).await?;
     let origin = runtime
-        .capture
         .audio
+        .lifecycle
         .meeting
         .signal
         .as_ref()

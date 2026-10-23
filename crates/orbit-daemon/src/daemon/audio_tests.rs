@@ -13,14 +13,10 @@ pub(in crate::daemon) use tokio::time::Instant;
 pub(in crate::daemon) use super::super::WorkResult;
 use crate::config::{Paths, Settings};
 use crate::daemon::turn::said;
-use crate::daemon::{
-    CaptureRuntime, ConversationRuntime, DurableSnapshot, FeatureRuntime, WorkRuntime,
-};
 pub(in crate::daemon) use anyhow::Context;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use orbit_core::notice::NoticeCode;
 use orbit_core::{Connection, State};
-use std::collections::BTreeMap;
 use tokio::sync::mpsc;
 
 #[path = "actor_tests.rs"]
@@ -83,7 +79,7 @@ pub(in crate::daemon) fn fixture(
         "capabilities.screen_state",
         json!(orbit_core::PermissionState::Granted),
     );
-    let durable_snapshot = DurableSnapshot::from(&state);
+    let persisted = crate::daemon::kernel::Persisted::new(&state);
     Ok((
         Runtime {
             closing: false,
@@ -105,55 +101,21 @@ pub(in crate::daemon) fn fixture(
             fixture_store,
             store_actor,
             supervision: Default::default(),
-            native,
-            hub: super::super::hub_link::HubLink::default(),
-            hub_protocol_version: None,
-            unrecognized_hub_events: Default::default(),
-            hub_storage_nearly_full: None,
-            hub_task: None,
-            snapshot_revision: None,
-            hub_events,
-            pending_native: BTreeMap::new(),
-            helper_waits: BTreeMap::new(),
-            token: None,
-            work: WorkRuntime {
-                worker: crate::daemon::ticketed::Ticketed::logical(),
-                retry_gate: Default::default(),
-                finalize_cursor: None,
-                work_events,
-                durable_snapshot,
-                force_snapshot_once: false,
-                finalize_ready: BTreeMap::new(),
-            },
-            conversation: ConversationRuntime {
-                bridge_request: None,
-                interaction_response: None,
-                interrupted_turns: Default::default(),
-                voice_task: crate::daemon::ticketed::Ticketed::logical(),
-                voice_operation: None,
-                dropped_voice_turns: 0,
-                speech_task: crate::daemon::ticketed::Ticketed::logical(),
-                speech_voices: BTreeMap::new(),
-                speak_next: false,
-                read_aloud: None,
-                hub_attachments: None,
-                handover_from: None,
-                window_attachment: None,
-                speech_notice_call_id: None,
-                work: None,
-            },
-            capture: CaptureRuntime::new(None),
-            features: FeatureRuntime {
-                sources: Default::default(),
-                calendar: Default::default(),
-                computer: Default::default(),
-                meeting: Default::default(),
-                call: Default::default(),
-                question: Default::default(),
-                native_host: Default::default(),
-                notes: crate::daemon::recording_notes::NotesRuntime::for_tests(notes_events),
-                files: Default::default(),
-            },
+            helper: crate::daemon::helper::HelperHandle::new(native),
+            link: super::super::hub_link::LinkHandle::new(hub_events, None),
+            work_events,
+            persisted,
+            transfers: Default::default(),
+            assistant: crate::daemon::assistant::AssistantHandle::new(),
+            capture: crate::daemon::capture_handle::CaptureHandle::new(None),
+            audio: Default::default(),
+            sources: Default::default(),
+            calendar: Default::default(),
+            computer: Default::default(),
+            notes: crate::daemon::recording_notes::NotesHandle::for_tests(notes_events),
+            calls: Default::default(),
+            question: Default::default(),
+            files: Default::default(),
             reads: Default::default(),
         },
         receiver,
@@ -303,8 +265,8 @@ async fn failed_seal_preserves_close_and_seals_once_after_destination_recovers()
     // Model the helper's confirmed drain at the boundary immediately before
     // complete_audio_drain: this isolates the drain's own seal from the
     // earlier per-stream seal performed by the normal response handler.
-    runtime.capture.audio.stops.clear();
-    runtime.capture.mic_stream = None;
+    runtime.audio.lifecycle.stops.clear();
+    runtime.audio.mic_stream = None;
     let chunks_path = runtime.paths.store.join("chunks");
     std::fs::remove_dir(&chunks_path)?;
     std::fs::write(&chunks_path, b"fixture: not a directory")?;
@@ -312,7 +274,7 @@ async fn failed_seal_preserves_close_and_seals_once_after_destination_recovers()
         bail!("the invalid destination should have prevented the seal")
     };
     assert!(failure.to_string().contains("directorio"), "{failure}");
-    assert_eq!(runtime.capture.audio.meeting.recording_end, Some(true));
+    assert_eq!(runtime.audio.lifecycle.meeting.recording_end, Some(true));
     assert_eq!(
         runtime.state.notice_code(),
         Some(NoticeCode::RecordingSealFailed),
@@ -401,7 +363,7 @@ async fn finish_waits_for_ack_and_preserves_the_final_native_frames() -> Result<
             .len(),
         44 + 400
     );
-    assert!(!runtime.audio_is_draining());
+    assert!(!runtime.audio.audio_is_draining());
     Ok(())
 }
 
@@ -415,8 +377,8 @@ async fn pause_does_not_record_microphone_frames_owned_by_voice() -> Result<()> 
     assert_eq!(playback_stop["command"], "playback_stop");
     runtime.native_event(frame(&stream, 0, 100)).await?;
     runtime.apply(Event::PauseMeeting).await?;
-    assert_eq!(runtime.capture.mic_stream.as_deref(), Some(stream.as_str()));
-    assert!(!runtime.audio_is_draining());
+    assert_eq!(runtime.audio.mic_stream.as_deref(), Some(stream.as_str()));
+    assert!(!runtime.audio.audio_is_draining());
     runtime.native_event(frame(&stream, 1, 8000)).await?;
     settle_seal_receipts(&mut runtime).await?;
     assert_eq!(runtime.fixture_store.diagnostics()?.chunk_count, 1);
@@ -441,16 +403,16 @@ async fn privacy_stop_cancels_tasks_and_drains_only_the_bound_old_stream() -> Re
     let stream = start(&mut runtime, &mut receiver).await?;
     runtime.native_event(frame(&stream, 0, 100)).await?;
     let generation = runtime.state.generation();
-    pending_work(&mut runtime.conversation.voice_task, generation, ())?;
-    pending_work(&mut runtime.conversation.speech_task, generation, ())?;
+    pending_work(&mut runtime.assistant.voice_task, generation, ())?;
+    pending_work(&mut runtime.assistant.speech_task, generation, ())?;
     let voice_abort = runtime
-        .conversation
+        .assistant
         .voice_task
         .task_handle()
         .context("voice worker absent")?
         .abort_handle();
     let speech_abort = runtime
-        .conversation
+        .assistant
         .speech_task
         .task_handle()
         .context("speech worker absent")?
@@ -460,8 +422,8 @@ async fn privacy_stop_cancels_tasks_and_drains_only_the_bound_old_stream() -> Re
         .await;
     tokio::task::yield_now().await;
     assert!(voice_abort.is_finished() && speech_abort.is_finished());
-    assert!(runtime.conversation.voice_task.active().is_none());
-    assert!(runtime.conversation.speech_task.active().is_none());
+    assert!(runtime.assistant.voice_task.active().is_none());
+    assert!(runtime.assistant.speech_task.active().is_none());
     assert!(runtime.state.privacy_stopped());
     let stop = receiver.recv().await.context("privacy stop absent")?;
     assert_eq!(stop["command"], "privacy_stop");
@@ -478,7 +440,7 @@ async fn privacy_stop_cancels_tasks_and_drains_only_the_bound_old_stream() -> Re
     assert_eq!(chunks[0].metadata.frames, 200);
     runtime.native_event(frame(&stream, 2, 8000)).await?;
     assert_eq!(runtime.fixture_store.diagnostics()?.chunk_count, 1);
-    assert!(runtime.capture.mic_stream.is_none());
+    assert!(runtime.audio.mic_stream.is_none());
     Ok(())
 }
 
@@ -510,7 +472,7 @@ async fn voice_source_is_durable_before_credentials_or_provider_are_needed() -> 
         crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
     }
     runtime.capture.buffer.begin_voice()?;
-    runtime.capture.audio.voice.submit = true;
+    runtime.audio.lifecycle.voice.submit = true;
     runtime
         .capture
         .buffer
@@ -522,7 +484,7 @@ async fn voice_source_is_durable_before_credentials_or_provider_are_needed() -> 
         refusal.downcast_ref::<orbit_core::refusal::Refusal>(),
         Some(orbit_core::refusal::Refusal::NotPaired)
     ));
-    assert!(runtime.conversation.voice_task.active().is_none());
+    assert!(runtime.assistant.voice_task.active().is_none());
     let note = &runtime
         .state
         .durable
@@ -572,7 +534,7 @@ async fn a_voice_note_is_not_uploaded_as_a_recording() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime.capture.buffer.begin_voice()?;
-    runtime.capture.audio.voice.submit = true;
+    runtime.audio.lifecycle.voice.submit = true;
     runtime
         .capture
         .buffer
@@ -605,15 +567,15 @@ async fn a_voice_note_is_not_uploaded_as_a_recording() -> Result<()> {
 async fn occupied_voice_worker_returns_typed_capacity_with_numbers() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
-    runtime.token = Some("synthetic".into());
+    runtime.link.token = Some("synthetic".into());
     runtime.capture.buffer.begin_voice()?;
-    runtime.capture.audio.voice.submit = true;
+    runtime.audio.lifecycle.voice.submit = true;
     runtime
         .capture
         .buffer
         .ingest(&frame("voice", 5, VOICE_NOTE_FRAMES), 1234)?;
     pending_work(
-        &mut runtime.conversation.voice_task,
+        &mut runtime.assistant.voice_task,
         runtime.state.generation(),
         (),
     )?;
@@ -643,9 +605,9 @@ async fn an_empty_transcription_leaves_the_voice_note_without_a_failure() -> Res
             duration_ms: 1_000,
         })
         .await?;
-    runtime.conversation.voice_operation = Some("voice-message".into());
+    runtime.assistant.voice_operation = Some("voice-message".into());
     let ticket = pending_work(
-        &mut runtime.conversation.voice_task,
+        &mut runtime.assistant.voice_task,
         runtime.state.generation(),
         (),
     )?;
@@ -687,7 +649,7 @@ async fn late_transcript_after_privacy_stop_is_not_submitted() -> Result<()> {
     }
     let original_turn = runtime.state.durable.assistant.turn.clone();
     let ticket = pending_work(
-        &mut runtime.conversation.voice_task,
+        &mut runtime.assistant.voice_task,
         runtime.state.generation(),
         (),
     )?;
@@ -707,8 +669,8 @@ async fn late_transcript_after_privacy_stop_is_not_submitted() -> Result<()> {
         ))
         .await?;
     assert_eq!(runtime.state.durable.assistant.turn, original_turn);
-    assert!(runtime.conversation.voice_task.active().is_none());
-    assert!(!runtime.conversation.speak_next);
+    assert!(runtime.assistant.voice_task.active().is_none());
+    assert!(!runtime.assistant.speak_next);
     Ok(())
 }
 
@@ -723,9 +685,9 @@ async fn generation_change_marks_the_pending_note_instead_of_leaving_it_in_progr
             duration_ms: 1_000,
         })
         .await?;
-    runtime.conversation.voice_operation = Some("voice-generation".into());
+    runtime.assistant.voice_operation = Some("voice-generation".into());
     let started_generation = runtime.state.generation();
-    let ticket = pending_work(&mut runtime.conversation.voice_task, started_generation, ())?;
+    let ticket = pending_work(&mut runtime.assistant.voice_task, started_generation, ())?;
     {
         let fixture_value = serde_json::json!(runtime.state.generation().saturating_add(1));
         crate::daemon::authority_fixture::set(&mut runtime.state, "generation", fixture_value);
@@ -764,10 +726,10 @@ async fn interrupt_invalidates_an_already_queued_voice_result_without_stopping_m
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let stream = start(&mut runtime, &mut receiver).await?;
     let generation = runtime.state.generation();
-    runtime.conversation.voice_operation = Some("voice-message".into());
-    pending_work(&mut runtime.conversation.voice_task, generation, ())?;
+    runtime.assistant.voice_operation = Some("voice-message".into());
+    pending_work(&mut runtime.assistant.voice_task, generation, ())?;
     let abort = runtime
-        .conversation
+        .assistant
         .voice_task
         .task_handle()
         .context("voice worker absent")?
@@ -778,13 +740,13 @@ async fn interrupt_invalidates_an_already_queued_voice_result_without_stopping_m
             message: "Synthetic TTS error".into(),
         })
         .await?;
-    assert!(runtime.conversation.voice_task.active().is_some());
+    assert!(runtime.assistant.voice_task.active().is_some());
     runtime.command(crate::daemon::Command::Interrupt).await?;
     tokio::task::yield_now().await;
     assert!(abort.is_finished());
-    assert!(runtime.conversation.voice_task.active().is_none());
+    assert!(runtime.assistant.voice_task.active().is_none());
     assert_eq!(runtime.state.generation(), generation);
-    assert_eq!(runtime.capture.mic_stream.as_deref(), Some(stream.as_str()));
+    assert_eq!(runtime.audio.mic_stream.as_deref(), Some(stream.as_str()));
     assert_eq!(
         runtime
             .state
@@ -820,7 +782,7 @@ async fn interrupt_before_voice_finish_preserves_source_without_submitting() -> 
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime.capture.buffer.begin_voice()?;
-    runtime.capture.audio.voice.submit = true;
+    runtime.audio.lifecycle.voice.submit = true;
     runtime.capture.buffer.ingest(&frame("voice", 0, 100), 5)?;
     runtime
         .cancel_voice_transcription(VoiceCancellationCause::Authority(
@@ -830,8 +792,8 @@ async fn interrupt_before_voice_finish_preserves_source_without_submitting() -> 
     runtime.dispatch_voice_transcription().await?;
     settle_seal_receipts(&mut runtime).await?;
     assert_eq!(runtime.fixture_store.diagnostics()?.chunk_count, 1);
-    assert!(runtime.conversation.voice_task.active().is_none());
-    assert!(runtime.conversation.voice_operation.is_none());
+    assert!(runtime.assistant.voice_task.active().is_none());
+    assert!(runtime.assistant.voice_operation.is_none());
     Ok(())
 }
 
@@ -1089,9 +1051,9 @@ async fn silent_call_stop_replaces_the_wait_notice() -> Result<()> {
         runtime.state.notice_code(),
         Some(NoticeCode::AudioDrainWaiting)
     );
-    runtime.capture.audio.deadline = Some(Instant::now());
+    runtime.audio.lifecycle.deadline = Some(Instant::now());
     runtime.handle_audio_timeout().await;
-    assert!(!runtime.audio_is_draining());
+    assert!(!runtime.audio.audio_is_draining());
     assert_ne!(
         runtime.state.notice_code(),
         Some(NoticeCode::AudioDrainWaiting),
@@ -1110,37 +1072,37 @@ async fn silent_call_stop_replaces_the_wait_notice() -> Result<()> {
 async fn drain_deadline_keeps_an_unsent_capture_stop_owed() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
-    runtime.capture.mic_stream = Some("synthetic-open-mic".into());
+    runtime.audio.mic_stream = Some("synthetic-open-mic".into());
     let (blocked, _occupied) = mpsc::channel(1);
     blocked.try_send(json!({"fixture":"occupied"}))?;
-    runtime.native = blocked;
+    runtime.helper.sender = blocked;
     assert!(
         runtime
             .request_full_audio_stop(FullStop::Cut)
             .await
             .is_err()
     );
-    assert!(runtime.full_stop_send_owed());
-    runtime.capture.audio.deadline = Some(Instant::now());
+    assert!(runtime.audio.full_stop_send_owed());
+    runtime.audio.lifecycle.deadline = Some(Instant::now());
 
     runtime.handle_audio_timeout().await;
     assert!(
-        runtime.full_stop_send_owed(),
+        runtime.audio.full_stop_send_owed(),
         "the helper never accepted capture_stop"
     );
     assert_eq!(
-        runtime.capture.mic_stream.as_deref(),
+        runtime.audio.mic_stream.as_deref(),
         Some("synthetic-open-mic")
     );
     let (native, mut receiver) = mpsc::channel(8);
-    runtime.native = native;
+    runtime.helper.sender = native;
     runtime.run_maintenance().await;
     let retry = take_helper_command(&mut receiver, "capture_stop")?;
     runtime
         .handle_native_event(json!({"event":"response","id":retry["id"],"ok":true,
         "result":{"drain_complete":true}}))
         .await;
-    assert!(runtime.capture.mic_stream.is_none());
+    assert!(runtime.audio.mic_stream.is_none());
     Ok(())
 }
 
@@ -1152,26 +1114,26 @@ async fn lost_helper_ends_an_owed_stop_and_seals_received_audio() -> Result<()> 
     runtime.native_event(frame(&stream, 0, 100)).await?;
     let (blocked, _occupied) = mpsc::channel(1);
     blocked.try_send(json!({"fixture":"occupied"}))?;
-    runtime.native = blocked;
+    runtime.helper.sender = blocked;
     assert!(
         runtime
             .request_full_audio_stop(FullStop::Cut)
             .await
             .is_err()
     );
-    assert!(runtime.full_stop_send_owed());
+    assert!(runtime.audio.full_stop_send_owed());
 
     runtime
         .handle_native_event(json!({"event":"helper_disconnected"}))
         .await;
     assert!(!runtime.state.capabilities().native_helper());
-    runtime.capture.audio.deadline = Some(Instant::now());
+    runtime.audio.lifecycle.deadline = Some(Instant::now());
     runtime.handle_audio_timeout().await;
     settle_seal_receipts(&mut runtime).await?;
 
-    assert!(!runtime.audio_is_draining());
-    assert!(!runtime.full_stop_send_owed());
-    assert!(runtime.capture.mic_stream.is_none());
+    assert!(!runtime.audio.audio_is_draining());
+    assert!(!runtime.audio.full_stop_send_owed());
+    assert!(runtime.audio.mic_stream.is_none());
     let sealed = runtime.fixture_store.list_chunks("meeting", None, 10)?;
     assert_eq!(sealed.len(), 1);
     assert_eq!(sealed[0].metadata.frames, 100);
@@ -1201,17 +1163,17 @@ async fn helper_lost_after_retry_notice_seals_audio_on_next_tick() -> Result<()>
     runtime.native_event(frame(&stream, 0, 100)).await?;
     let (blocked, _occupied) = mpsc::channel(1);
     blocked.try_send(json!({"fixture":"occupied"}))?;
-    runtime.native = blocked;
+    runtime.helper.sender = blocked;
     assert!(
         runtime
             .request_full_audio_stop(FullStop::Cut)
             .await
             .is_err()
     );
-    runtime.capture.audio.deadline = Some(Instant::now());
+    runtime.audio.lifecycle.deadline = Some(Instant::now());
     runtime.handle_audio_timeout().await;
     assert_eq!(runtime.state.notice_code(), Some(NoticeCode::StopRetrying));
-    assert!(runtime.capture.audio.deadline.is_none());
+    assert!(runtime.audio.lifecycle.deadline.is_none());
 
     runtime
         .handle_native_event(json!({"event":"helper_disconnected"}))
@@ -1231,9 +1193,9 @@ async fn helper_lost_after_retry_notice_seals_audio_on_next_tick() -> Result<()>
     runtime.run_maintenance().await;
     settle_seal_receipts(&mut runtime).await?;
 
-    assert!(!runtime.audio_is_draining());
-    assert!(!runtime.full_stop_send_owed());
-    assert!(runtime.capture.mic_stream.is_none());
+    assert!(!runtime.audio.audio_is_draining());
+    assert!(!runtime.audio.full_stop_send_owed());
+    assert!(runtime.audio.mic_stream.is_none());
     let sealed = runtime.fixture_store.list_chunks("meeting", None, 10)?;
     assert_eq!(sealed.len(), 1);
     assert_eq!(sealed[0].metadata.frames, 100);
@@ -1266,46 +1228,46 @@ async fn delivered_retry_rearms_drain_deadline_until_unconfirmed_cut() -> Result
     runtime.native_event(frame(&stream, 0, 100)).await?;
     let (blocked, _occupied) = mpsc::channel(1);
     blocked.try_send(json!({"fixture":"occupied"}))?;
-    runtime.native = blocked;
+    runtime.helper.sender = blocked;
     assert!(
         runtime
             .request_full_audio_stop(FullStop::Cut)
             .await
             .is_err()
     );
-    runtime.capture.audio.deadline = Some(Instant::now());
+    runtime.audio.lifecycle.deadline = Some(Instant::now());
     runtime.handle_audio_timeout().await;
-    assert!(runtime.full_stop_send_owed());
-    assert!(runtime.capture.audio.deadline.is_none());
-    runtime.capture.audio.started_at = Some(
+    assert!(runtime.audio.full_stop_send_owed());
+    assert!(runtime.audio.lifecycle.deadline.is_none());
+    runtime.audio.lifecycle.started_at = Some(
         Instant::now()
             .checked_sub(Duration::from_secs(20))
             .context("a twenty-second-old drain start")?,
     );
 
     let (native, mut recovered) = mpsc::channel(8);
-    runtime.native = native;
+    runtime.helper.sender = native;
     runtime.retry_full_stop_send().await?;
     let delivered = recovered.try_recv().context("capture_stop retry absent")?;
     assert_eq!(delivered["command"], "capture_stop");
-    assert!(!runtime.full_stop_send_owed());
+    assert!(!runtime.audio.full_stop_send_owed());
     assert!(
-        runtime.capture.audio.deadline.is_some(),
+        runtime.audio.lifecycle.deadline.is_some(),
         "delivery must restart the drain deadline even without an ACK"
     );
     assert!(
         runtime
-            .capture
             .audio
+            .lifecycle
             .deadline
             .is_some_and(|deadline| deadline > Instant::now()),
         "the new drain window must not inherit a hard limit already 20 seconds old"
     );
-    runtime.capture.audio.deadline = Some(Instant::now());
+    runtime.audio.lifecycle.deadline = Some(Instant::now());
     runtime.handle_audio_timeout().await;
     settle_seal_receipts(&mut runtime).await?;
-    assert!(!runtime.audio_is_draining());
-    assert!(runtime.capture.mic_stream.is_none());
+    assert!(!runtime.audio.audio_is_draining());
+    assert!(runtime.audio.mic_stream.is_none());
     assert_eq!(
         runtime
             .fixture_store
@@ -1352,9 +1314,9 @@ async fn privacy_stop_marks_pending_voice_transcription_as_failed() -> Result<()
             duration_ms: 1_000,
         })
         .await?;
-    runtime.conversation.voice_operation = Some("voice-privacy".into());
+    runtime.assistant.voice_operation = Some("voice-privacy".into());
     let _ticket = pending_work(
-        &mut runtime.conversation.voice_task,
+        &mut runtime.assistant.voice_task,
         runtime.state.generation(),
         (),
     )?;
@@ -1377,7 +1339,7 @@ async fn privacy_stop_marks_pending_voice_transcription_as_failed() -> Result<()
             .map(|failure| failure.code.as_str()),
         Some("voice_transcription_privacy_stopped")
     );
-    assert!(runtime.conversation.voice_task.active().is_none());
+    assert!(runtime.assistant.voice_task.active().is_none());
     Ok(())
 }
 
@@ -1393,7 +1355,7 @@ async fn assert_voice_retirement_cause(
             duration_ms: 1_000,
         })
         .await?;
-    runtime.conversation.voice_operation = Some("voice-retired".into());
+    runtime.assistant.voice_operation = Some("voice-retired".into());
     runtime.retire_voice_transcription(change);
     assert_eq!(
         runtime
@@ -1433,7 +1395,7 @@ async fn voice_cancellation_cause_is_persisted_by_each_entry_point() -> Result<(
                 duration_ms: 1_000,
             })
             .await?;
-        runtime.conversation.voice_operation = Some("voice-cancelled".into());
+        runtime.assistant.voice_operation = Some("voice-cancelled".into());
         // `..._by_mars`: wire/stored name kept for compatibility with 0.9.0
         let expected = match entry {
             "interrupt" => {
@@ -1504,17 +1466,14 @@ async fn session_device_and_revocation_retire_the_pending_voice_note() -> Result
                 duration_ms: 1_000,
             })
             .await?;
-        runtime.conversation.voice_operation = Some("voice-change".into());
+        runtime.assistant.voice_operation = Some("voice-change".into());
         pending_work(
-            &mut runtime.conversation.voice_task,
+            &mut runtime.assistant.voice_task,
             runtime.state.generation(),
             (),
         )?;
         runtime.apply(event.clone()).await?;
-        assert!(
-            runtime.conversation.voice_task.active().is_none(),
-            "{event:?}"
-        );
+        assert!(runtime.assistant.voice_task.active().is_none(), "{event:?}");
         let saved = runtime
             .fixture_store
             .load_snapshot::<State>()?
@@ -1556,9 +1515,9 @@ async fn hub_link_flicker_keeps_the_pending_voice_worker_and_note() -> Result<()
                 duration_ms: 1_000,
             })
             .await?;
-        runtime.conversation.voice_operation = Some("voice-link-flicker".into());
+        runtime.assistant.voice_operation = Some("voice-link-flicker".into());
         pending_work(
-            &mut runtime.conversation.voice_task,
+            &mut runtime.assistant.voice_task,
             runtime.state.generation(),
             (),
         )?;
@@ -1566,12 +1525,9 @@ async fn hub_link_flicker_keeps_the_pending_voice_worker_and_note() -> Result<()
         for event in events {
             runtime.apply(event.clone()).await?;
             assert_eq!(runtime.state.generation(), generation, "{event:?}");
-            assert!(
-                runtime.conversation.voice_task.active().is_some(),
-                "{event:?}"
-            );
+            assert!(runtime.assistant.voice_task.active().is_some(), "{event:?}");
             assert_eq!(
-                runtime.conversation.voice_operation.as_deref(),
+                runtime.assistant.voice_operation.as_deref(),
                 Some("voice-link-flicker"),
                 "{event:?}"
             );
@@ -1610,9 +1566,9 @@ async fn hub_link_change_cancels_a_call_turn_but_keeps_a_saved_voice_note() -> R
                 duration_ms: 1_000,
             })
             .await?;
-        runtime.conversation.voice_operation = Some("voice-call-link".into());
+        runtime.assistant.voice_operation = Some("voice-call-link".into());
         let ticket = pending_work(
-            &mut runtime.conversation.voice_task,
+            &mut runtime.assistant.voice_task,
             runtime.state.generation(),
             (),
         )?;
@@ -1626,12 +1582,9 @@ async fn hub_link_change_cancels_a_call_turn_but_keeps_a_saved_voice_note() -> R
         });
         runtime.apply(event.clone()).await?;
         assert!(runtime.state.durable.voice.call.is_none(), "{event:?}");
-        assert!(
-            runtime.conversation.voice_task.active().is_none(),
-            "{event:?}"
-        );
+        assert!(runtime.assistant.voice_task.active().is_none(), "{event:?}");
         assert_eq!(
-            runtime.conversation.voice_operation.as_deref(),
+            runtime.assistant.voice_operation.as_deref(),
             None,
             "{event:?}"
         );
@@ -1666,7 +1619,7 @@ async fn hub_link_change_cancels_a_call_turn_but_keeps_a_saved_voice_note() -> R
                 },
             ))
             .await?;
-        assert!(!runtime.conversation.speak_next);
+        assert!(!runtime.assistant.speak_next);
 
         let directory = tempfile::tempdir()?;
         let (mut note_runtime, _receiver) = fixture(directory.path())?;
@@ -1676,15 +1629,15 @@ async fn hub_link_change_cancels_a_call_turn_but_keeps_a_saved_voice_note() -> R
                 duration_ms: 1_000,
             })
             .await?;
-        note_runtime.conversation.voice_operation = Some("saved-note-link".into());
+        note_runtime.assistant.voice_operation = Some("saved-note-link".into());
         pending_work(
-            &mut note_runtime.conversation.voice_task,
+            &mut note_runtime.assistant.voice_task,
             note_runtime.state.generation(),
             (),
         )?;
         note_runtime.apply(event.clone()).await?;
         assert!(
-            note_runtime.conversation.voice_task.active().is_some(),
+            note_runtime.assistant.voice_task.active().is_some(),
             "{event:?}"
         );
         assert!(
@@ -1716,9 +1669,9 @@ async fn meeting_capture_cut_keeps_a_saved_voice_note_transcription() -> Result<
             duration_ms: 1_000,
         })
         .await?;
-    runtime.conversation.voice_operation = Some("saved-note-during-meeting".into());
+    runtime.assistant.voice_operation = Some("saved-note-during-meeting".into());
     pending_work(
-        &mut runtime.conversation.voice_task,
+        &mut runtime.assistant.voice_task,
         runtime.state.generation(),
         (),
     )?;
@@ -1746,9 +1699,9 @@ async fn meeting_capture_cut_keeps_a_saved_voice_note_transcription() -> Result<
             "Corte sintético de la reunión",
         )
         .await;
-    assert!(runtime.conversation.voice_task.active().is_some());
+    assert!(runtime.assistant.voice_task.active().is_some());
     assert_eq!(
-        runtime.conversation.voice_operation.as_deref(),
+        runtime.assistant.voice_operation.as_deref(),
         Some("saved-note-during-meeting")
     );
     assert!(

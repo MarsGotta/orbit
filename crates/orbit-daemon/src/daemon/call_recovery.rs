@@ -38,11 +38,11 @@ impl Runtime {
     /// A failure aborts startup; a later startup reconciles immutable boundaries.
     pub(super) async fn recover_call_closures(&mut self, recovered_at_ms: i64) -> Result<usize> {
         if self.state.durable.voice.call.is_some()
-            || self.capture.call_runtime.is_some()
-            || self.capture.mic_stream.is_some()
-            || self.capture.remote_stream.is_some()
-            || self.audio_is_draining()
-            || !self.capture.pending_starts.is_empty()
+            || self.audio.call.is_some()
+            || self.audio.mic_stream.is_some()
+            || self.audio.remote_stream.is_some()
+            || self.audio.audio_is_draining()
+            || !self.audio.pending_starts.is_empty()
             || !self.capture.pending_seals.is_empty()
             || self.capture.buffer.has_pending_audio()
         {

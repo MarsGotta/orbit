@@ -7,6 +7,9 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
+#[path = "finalize_schedule.rs"]
+mod schedule;
+
 #[cfg(test)]
 #[path = "finalize_tests.rs"]
 mod tests;
@@ -72,7 +75,7 @@ impl Runtime {
             (CapturePhase::Idle, Some(ended_at_ms)) => (ended_at_ms, previous.gaps),
             _ => return Ok(None),
         };
-        if self.audio_is_draining()
+        if self.audio.audio_is_draining()
             || self
                 .capture
                 .pending_seals
@@ -161,10 +164,10 @@ impl Runtime {
             // with its tries (`cut_recovery`).
             return Ok(());
         }
-        if self.audio_is_draining()
-            || self.capture.mic_stream.is_some()
-            || self.capture.remote_stream.is_some()
-            || !self.capture.pending_starts.is_empty()
+        if self.audio.audio_is_draining()
+            || self.audio.mic_stream.is_some()
+            || self.audio.remote_stream.is_some()
+            || !self.audio.pending_starts.is_empty()
             || !self.capture.pending_seals.is_empty()
             || self.capture.buffer.has_pending_audio()
         {
@@ -197,7 +200,7 @@ impl Runtime {
         // The local enqueue is the durable closure, including while the hub
         // is disconnected or privacy-stopped. The topic sees this generation
         // in the same actor turn after the write receipt.
-        self.features.notes.head.touch();
+        self.notes.head.touch();
         Ok(())
     }
 
@@ -224,6 +227,29 @@ impl Runtime {
         if let Some(existing) = self.recording_closure(recording_id)? {
             return Ok(existing);
         }
+        let manifest = self.closure_manifest(recording_id, started_at_ms, ended_at_ms, gaps)?;
+        Ok(Job {
+            id: job_id,
+            kind: orbit_store::QueueKind::RecordingFinalize.into(),
+            state: JobState::Queued,
+            created_at: ended_at_ms,
+            // No op here: the store checks this closure against the
+            // transcript's manifest field by field (ops stay on the
+            // transcript fetch, whose notices the person reads).
+            payload: json!({"recording_id":recording_id,"manifest":manifest}),
+        })
+    }
+
+    /// What the closure tells the hub: the tracks the store holds, the
+    /// gaps, the times, the title, what the recording is and the event it
+    /// was started from, and where the microphone was muted.
+    fn closure_manifest(
+        &self,
+        recording_id: &str,
+        started_at_ms: i64,
+        ended_at_ms: i64,
+        gaps: u64,
+    ) -> Result<Value> {
         let tracks = self.track_summaries(recording_id)?;
         let recording = self.reader.get_job(&format!("recording-{recording_id}"))?;
         let title = if let Some(recording) = self
@@ -271,16 +297,7 @@ impl Runtime {
         {
             manifest["muted_spans"] = serde_json::to_value(spans)?;
         }
-        Ok(Job {
-            id: job_id,
-            kind: orbit_store::QueueKind::RecordingFinalize.into(),
-            state: JobState::Queued,
-            created_at: ended_at_ms,
-            // No op here: the store checks this closure against the
-            // transcript's manifest field by field (ops stay on the
-            // transcript fetch, whose notices the person reads).
-            payload: json!({"recording_id":recording_id,"manifest":manifest}),
-        })
+        Ok(manifest)
     }
 
     /// What the store holds of each track of `recording_id`.
@@ -311,147 +328,6 @@ impl Runtime {
             cursor = page.last().map(|chunk| chunk.metadata.id.clone());
         }
         Ok(tracks)
-    }
-
-    pub(super) async fn schedule_finalize(&mut self) -> Result<bool> {
-        // Bound candidate work and advance a cursor: an earlier blocked
-        // recording must not conceal later eligible closures indefinitely.
-        let mut jobs = self.reader.pending_jobs_of_kind(
-            "recording_finalize",
-            self.work.finalize_cursor.as_deref(),
-            16,
-        )?;
-        if jobs.is_empty() {
-            self.work.finalize_cursor = None;
-            jobs = self
-                .reader
-                .pending_jobs_of_kind("recording_finalize", None, 16)?;
-        }
-        let mut candidate = None;
-        for job in jobs {
-            self.work.finalize_cursor = Some(job.id.clone());
-            if self.finalize_is_ready(&job)? {
-                candidate = Some(job);
-                break;
-            }
-        }
-        let Some(job) = candidate else {
-            return Ok(false);
-        };
-        let recording_id = job.payload["recording_id"]
-            .as_str()
-            .context("Manifiesto sin recording_id")?
-            .to_owned();
-        let token = self.token.clone().context("Sin credencial")?;
-        let base = crate::config::validate_hub_url(
-            self.settings.hub_url.as_deref().context("Sin hub")?,
-            self.development,
-        )?;
-        // Chunks the hub refused for good are declared, not waited for.
-        let mut refused = Vec::new();
-        loop {
-            let page = self.reader.refused_chunks(
-                &recording_id,
-                refused
-                    .last()
-                    .map(|chunk: &orbit_store::ChunkMetadata| chunk.id.as_str()),
-                orbit_store::MAX_PAGE_SIZE,
-            )?;
-            if page.is_empty() {
-                break;
-            }
-            refused.extend(page);
-        }
-        let mut manifest = job.payload["manifest"].clone();
-        if !refused.is_empty() {
-            declare_refused_chunks(&mut manifest, &refused)?;
-            self.log(
-                "closure_declares_refused_chunks",
-                &[("chunks", &refused.len().to_string())],
-            );
-        }
-        let generation = self.state.generation();
-        let events = self.work.work_events.clone();
-        let job_id = job.id.clone();
-        let job_op = super::turn::job_op(&job.payload).unwrap_or_else(|| self.turn.op.clone());
-        self.store_actor
-            .run(move |store| Ok(store.update_job(&job_id, JobState::Running)?))
-            .await?;
-        self.work
-            .worker
-            .start_logical(generation, job_op, (), move |ticket| {
-                tokio::spawn(async move {
-                    let result: Result<()> = async {
-                        let response = crate::hub::request(
-                            reqwest::Method::POST,
-                            base.join(&format!("v1/recordings/{recording_id}/finalize"))?,
-                            Some(&token),
-                            ticket.op(),
-                        )?
-                        .json(&manifest)
-                        .send()
-                        .await?;
-                        let response = crate::retry::check_response(response).await?;
-                        let receipt: Value = crate::hub::bounded_json(response).await?;
-                        if receipt["durable"] != true
-                            || receipt["finalized"] != true
-                            || receipt["recording_id"] != recording_id
-                        {
-                            bail!("Recibo de finalización no válido");
-                        }
-                        Ok(())
-                    }
-                    .await;
-                    crate::daemon::deliver_work(
-                        &events,
-                        WorkResult::Store(crate::daemon::StoreWork::Uploaded {
-                            ticket,
-                            job_id: job.id,
-                            result,
-                        }),
-                    )
-                    .await;
-                })
-            })
-            .context("No se pudo reservar el cierre de grabación")?;
-        Ok(true)
-    }
-
-    fn finalize_is_ready(&mut self, job: &Job) -> Result<bool> {
-        let recording = job.payload["recording_id"]
-            .as_str()
-            .context("Cierre sin identidad")?;
-        if self
-            .capture
-            .pending_seals
-            .iter()
-            .any(|segment| segment.metadata.recording_id == recording)
-        {
-            return Ok(false);
-        }
-        if let Some(ready) = self.work.finalize_ready.get(recording) {
-            return Ok(*ready);
-        }
-        let expected = job.payload["manifest"]["tracks"]
-            .as_array()
-            .context("Cierre sin resumen de pistas")?
-            .iter()
-            .try_fold(0u64, |total, track| {
-                total
-                    .checked_add(
-                        track["chunk_count"]
-                            .as_u64()
-                            .context("Resumen de pista sin fragmentos")?,
-                    )
-                    .context("Contador de fragmentos agotado")
-            })?;
-        let (chunks, uploaded) = self.reader.finalize_counts(recording)?;
-        // A chunk the hub refused for good is settled too: the closure
-        // declares it lost instead of waiting for it for ever.
-        let refused = self.reader.refused_chunk_count(recording)?;
-        let ready = chunks == expected && uploaded.saturating_add(refused) == expected;
-        self.work.finalize_ready.insert(recording.to_owned(), ready);
-        Ok(ready)
     }
 }
 

@@ -45,8 +45,8 @@ impl Runtime {
         // protects retirement from a hub that never finishes local delivery.
         // Twenty loopback stops wrote the frame (load 4.38–4.67). This is not
         // a receipt from Hermes or permission to resume the stopped turn.
-        let had_hub = self.hub.retire(reason);
-        if let Some(mut task) = self.hub_task.take() {
+        let had_hub = self.link.outbound.retire(reason);
+        if let Some(mut task) = self.link.task.take() {
             if had_hub {
                 match tokio::time::timeout(std::time::Duration::from_secs(5), &mut task).await {
                     Ok(Ok(Ok(()))) => {}

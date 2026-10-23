@@ -74,6 +74,25 @@ pub(in crate::daemon) struct AudioLifecycle {
     last_liveness: Option<Instant>,
 }
 
+/// The audio's handle: the three lifecycles, the streams this capture
+/// opened, and the starts and stops the helper has yet to answer.
+#[derive(Default)]
+pub(in crate::daemon) struct AudioHandle {
+    pub(in crate::daemon) lifecycle: AudioLifecycle,
+    /// The call with the assistant while it runs.
+    pub(in crate::daemon) call: Option<super::call::CallRuntime>,
+    pub(in crate::daemon) mic_stream: Option<String>,
+    pub(in crate::daemon) remote_stream: Option<String>,
+    /// `audio_start` orders the helper has not answered yet.
+    pub(in crate::daemon) pending_starts: Vec<String>,
+    /// A retired call's start, by command id, with the stream it asked for.
+    pub(in crate::daemon) retired_call_starts: BTreeMap<String, String>,
+    /// Stops of retired streams, by command id.
+    pub(in crate::daemon) retired_stops: BTreeMap<String, RetiredStreamStop>,
+    /// The meeting's audio sources the helper was asked to list.
+    pub(in crate::daemon) inventory: super::meeting_runtime::MeetingRuntime,
+}
+
 impl AudioLifecycle {
     fn pending(&self) -> bool {
         !self.stops.is_empty() || self.full_stop.is_some()
@@ -109,9 +128,9 @@ impl Runtime {
                 | Event::ResumeMeeting
                 | Event::VoiceStart
                 | Event::LocalRearm
-        ) && (self.capture.audio.pending()
-            || self.capture.audio.meeting.finish_owed()
-            || self.capture.audio.voice.end)
+        ) && (self.audio.lifecycle.pending()
+            || self.audio.lifecycle.meeting.finish_owed()
+            || self.audio.lifecycle.voice.end)
         {
             return busy(orbit_core::refusal::Operation::AudioDrain);
         }
@@ -119,17 +138,16 @@ impl Runtime {
             anyhow::bail!("El micrófono está silenciado: reactívalo para dictar una nota de voz");
         }
         if matches!(event, Event::VoiceStart)
-            && (self.conversation.voice_task.active().is_some()
-                || self.capture.buffer.voice.is_some())
+            && (self.assistant.voice_task.active().is_some() || self.capture.buffer.voice.is_some())
         {
             return busy(orbit_core::refusal::Operation::Interaction);
         }
         if matches!(event, Event::CallStart { .. })
-            && (self.capture.call_runtime.is_some()
-                || self.capture.mic_stream.is_some()
-                || self.capture.remote_stream.is_some()
+            && (self.audio.call.is_some()
+                || self.audio.mic_stream.is_some()
+                || self.audio.remote_stream.is_some()
                 || self.capture.buffer.voice.is_some()
-                || self.conversation.voice_task.active().is_some())
+                || self.assistant.voice_task.active().is_some())
         {
             return busy(orbit_core::refusal::Operation::AudioSession);
         }
@@ -138,15 +156,15 @@ impl Runtime {
 
     /// A frame belongs to a stream this capture opened.
     pub(in crate::daemon) fn accepts_audio(&self, frame: &Value) -> bool {
-        if self.state.privacy_stopped() && !self.audio_is_draining() {
+        if self.state.privacy_stopped() && !self.audio.audio_is_draining() {
             return false;
         }
         let Ok(audio) = NativeAudioIdentityRef::from_value(frame) else {
             return false;
         };
         match audio.source {
-            "mic_local" => self.capture.mic_stream.as_deref() == Some(audio.stream_id),
-            "remote_app" => self.capture.remote_stream.as_deref() == Some(audio.stream_id),
+            "mic_local" => self.audio.mic_stream.as_deref() == Some(audio.stream_id),
+            "remote_app" => self.audio.remote_stream.as_deref() == Some(audio.stream_id),
             _ => false,
         }
     }

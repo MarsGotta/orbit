@@ -79,12 +79,12 @@ impl VoiceCancellationCause {
 impl Runtime {
     pub(in crate::daemon) async fn start_voice_audio(&mut self) -> Result<()> {
         self.capture.buffer.begin_voice()?;
-        self.capture.audio.voice.submit = true;
+        self.audio.lifecycle.voice.submit = true;
         self.take_microphone(None).await
     }
 
     pub(in crate::daemon) async fn finish_voice_audio(&mut self) -> Result<()> {
-        self.capture.audio.voice.end = true;
+        self.audio.lifecycle.voice.end = true;
         self.release_microphone(Holder::VoiceNote).await?;
         self.complete_audio_drain().await
     }
@@ -92,17 +92,17 @@ impl Runtime {
     /// Esc: the note finishes as any other and is kept on this Mac like a
     /// cancelled turn, but it is never transcribed or sent.
     pub(in crate::daemon) async fn cancel_voice_audio(&mut self) -> Result<()> {
-        self.capture.audio.voice.submit = false;
+        self.audio.lifecycle.voice.submit = false;
         self.finish_voice_audio().await
     }
 
     /// After the drain: the note that ended goes to transcription.
     pub(super) async fn dispatch_drained_voice(&mut self) -> Result<()> {
-        if self.capture.audio.voice.end {
+        if self.audio.lifecycle.voice.end {
             // This drain is over whatever the dispatch says: a note that
             // could not be sent waits on the Mac, and nothing else waits for
             // it (`busy/audio_drain` once held every recording until a restart).
-            self.capture.audio.voice.end = false;
+            self.audio.lifecycle.voice.end = false;
             self.dispatch_voice_transcription().await?;
         }
         Ok(())
@@ -110,8 +110,8 @@ impl Runtime {
 
     pub(in crate::daemon) fn discard_refused_voice(&mut self) {
         self.capture.buffer.voice = None;
-        self.capture.audio.voice.submit = false;
-        self.capture.audio.voice.end = false;
+        self.audio.lifecycle.voice.submit = false;
+        self.audio.lifecycle.voice.end = false;
     }
 
     pub(in crate::daemon) fn retire_voice_transcription(
@@ -123,16 +123,16 @@ impl Runtime {
 
     fn mark_voice_transcription_cancelled(&mut self, cause: VoiceCancellationCause) -> bool {
         let op = self
-            .conversation
+            .assistant
             .voice_task
             .ticket()
             .map(|ticket| ticket.op().clone());
-        self.conversation.voice_task.cancel();
-        let pending = self.conversation.voice_operation.take();
+        self.assistant.voice_task.cancel();
+        let pending = self.assistant.voice_operation.take();
         if let Some(operation_id) = pending.as_ref() {
             // A turn spoken over Deimos's answer reached no one and was never
             // stored: the change that stops its transcription retires it.
-            let _ = self.take_over_answer_turn(operation_id);
+            let _ = self.audio.take_over_answer_turn(operation_id);
             if let Some(voice) = self
                 .state
                 .durable
@@ -155,7 +155,7 @@ impl Runtime {
         }
         // A voice turn still held by the user can finish locally, but must not
         // be submitted after Esc, including while waiting for native stop ACK.
-        self.capture.audio.voice.submit = false;
+        self.audio.lifecycle.voice.submit = false;
         pending.is_some()
     }
 
@@ -166,7 +166,7 @@ impl Runtime {
         let pending = self.mark_voice_transcription_cancelled(cause);
         if pending {
             self.store_actor.snapshot(&self.state).await?;
-            self.work.durable_snapshot = crate::daemon::DurableSnapshot::from(&self.state);
+            self.persisted.durable = crate::daemon::DurableSnapshot::from(&self.state);
         }
         Ok(())
     }

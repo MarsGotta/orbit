@@ -62,9 +62,9 @@ async fn expired_call_tick_does_not_claim_the_user_interrupted_its_voice_note() 
             duration_ms: 1_000,
         })
         .await?;
-    runtime.conversation.voice_operation = Some("voice-expired-call".into());
+    runtime.assistant.voice_operation = Some("voice-expired-call".into());
     pending_work(
-        &mut runtime.conversation.voice_task,
+        &mut runtime.assistant.voice_task,
         runtime.state.generation(),
         (),
     )?;
@@ -95,7 +95,7 @@ async fn expired_call_tick_does_not_claim_the_user_interrupted_its_voice_note() 
             .map(|failure| failure.code.as_str()),
         Some("voice_transcription_call_stopped_automatically")
     );
-    assert!(runtime.conversation.voice_task.active().is_none());
+    assert!(runtime.assistant.voice_task.active().is_none());
     Ok(())
 }
 
@@ -109,9 +109,9 @@ async fn helper_cut_does_not_claim_the_user_interrupted_its_voice_note() -> Resu
             duration_ms: 1_000,
         })
         .await?;
-    runtime.conversation.voice_operation = Some("voice-helper-cut".into());
+    runtime.assistant.voice_operation = Some("voice-helper-cut".into());
     pending_work(
-        &mut runtime.conversation.voice_task,
+        &mut runtime.assistant.voice_task,
         runtime.state.generation(),
         (),
     )?;
@@ -147,7 +147,7 @@ async fn helper_cut_does_not_claim_the_user_interrupted_its_voice_note() -> Resu
             .map(|failure| failure.code.as_str()),
         Some("voice_transcription_helper_cut")
     );
-    assert!(runtime.conversation.voice_task.active().is_none());
+    assert!(runtime.assistant.voice_task.active().is_none());
     Ok(())
 }
 
@@ -163,9 +163,9 @@ async fn assert_automatic_stop_reason(
             duration_ms: 1_000,
         })
         .await?;
-    runtime.conversation.voice_operation = Some("voice-call-stop-reason".into());
+    runtime.assistant.voice_operation = Some("voice-call-stop-reason".into());
     pending_work(
-        &mut runtime.conversation.voice_task,
+        &mut runtime.assistant.voice_task,
         runtime.state.generation(),
         (),
     )?;
@@ -202,7 +202,7 @@ async fn assert_automatic_stop_reason(
         "{reason:?}"
     );
     assert!(
-        runtime.conversation.voice_task.active().is_none(),
+        runtime.assistant.voice_task.active().is_none(),
         "{reason:?}"
     );
     Ok(())
@@ -235,9 +235,9 @@ async fn expired_detector_frame_routes_its_reason_into_the_voice_snapshot() -> R
             duration_ms: 1_000,
         })
         .await?;
-    runtime.conversation.voice_operation = Some("voice-detector-expired".into());
+    runtime.assistant.voice_operation = Some("voice-detector-expired".into());
     pending_work(
-        &mut runtime.conversation.voice_task,
+        &mut runtime.assistant.voice_task,
         runtime.state.generation(),
         (),
     )?;
@@ -288,9 +288,9 @@ async fn new_call_turn_names_the_turn_instead_of_a_user_interrupt() -> Result<()
             duration_ms: 1_000,
         })
         .await?;
-    runtime.conversation.voice_operation = Some("voice-call-barge-in".into());
+    runtime.assistant.voice_operation = Some("voice-call-barge-in".into());
     pending_work(
-        &mut runtime.conversation.voice_task,
+        &mut runtime.assistant.voice_task,
         runtime.state.generation(),
         (),
     )?;
@@ -431,14 +431,14 @@ async fn interrupt_snapshot_failure_keeps_the_call_listening() -> Result<()> {
         .context("call missing before interrupt")?
         .phase = CallPhase::UserSpeaking;
     runtime.state.durable.assistant.active_request = Some("call-turn".into());
-    runtime.conversation.voice_operation = Some("call-turn".into());
-    runtime.conversation.voice_task.attach_test(
+    runtime.assistant.voice_operation = Some("call-turn".into());
+    runtime.assistant.voice_task.attach_test(
         runtime.state.generation(),
         (),
         tokio::spawn(std::future::pending()),
     );
     runtime.store_actor.snapshot(&runtime.state).await?;
-    runtime.work.durable_snapshot = crate::daemon::kernel::DurableSnapshot::from(&runtime.state);
+    runtime.persisted.durable = crate::daemon::kernel::DurableSnapshot::from(&runtime.state);
     let database = rusqlite::Connection::open(runtime.paths.store.join("orbit.sqlite3"))?;
     database.execute_batch(
         "CREATE TRIGGER fail_call_interrupt_snapshot BEFORE UPDATE ON settings
@@ -462,8 +462,8 @@ async fn interrupt_snapshot_failure_keeps_the_call_listening() -> Result<()> {
         runtime.state.durable.assistant.active_request.as_deref(),
         Some("call-turn")
     );
-    assert!(runtime.conversation.voice_task.active().is_none());
-    assert!(runtime.conversation.voice_operation.is_none());
+    assert!(runtime.assistant.voice_task.active().is_none());
+    assert!(runtime.assistant.voice_operation.is_none());
     assert_eq!(
         runtime
             .state
@@ -529,7 +529,7 @@ async fn invalid_native_processing_ack_never_authorizes_derived_voice() -> Resul
         0,
         true
     )));
-    assert!(runtime.conversation.voice_task.active().is_none());
+    assert!(runtime.assistant.voice_task.active().is_none());
     Ok(())
 }
 
@@ -548,8 +548,8 @@ async fn explicit_call_stop_preserves_silence_and_cancelled_utterance_in_origina
             .native_event(call_frame(&stream, sequence, false))
             .await?;
     }
-    assert!(runtime.state.durable.voice.call.is_some() && runtime.capture.mic_stream.is_some());
-    assert!(runtime.conversation.voice_task.active().is_none());
+    assert!(runtime.state.durable.voice.call.is_some() && runtime.audio.mic_stream.is_some());
+    assert!(runtime.assistant.voice_task.active().is_none());
     runtime.apply(Event::CallStop).await?;
     let stop = loop {
         let command = receiver.recv().await.context("audio stop absent")?;
@@ -591,7 +591,7 @@ async fn explicit_call_stop_preserves_silence_and_cancelled_utterance_in_origina
             .get_job("finalize-synthetic-call")?
             .is_some()
     );
-    assert!(runtime.capture.call_runtime.is_none() && runtime.capture.mic_stream.is_none());
+    assert!(runtime.audio.call.is_none() && runtime.audio.mic_stream.is_none());
     Ok(())
 }
 
@@ -600,12 +600,12 @@ async fn barge_in_invalidates_stt_operation_without_stopping_original_capture() 
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let stream = start_call(&mut runtime, &mut receiver).await?;
-    runtime.conversation.voice_operation = Some("stale-call-turn".into());
+    runtime.assistant.voice_operation = Some("stale-call-turn".into());
     let task = tokio::spawn(std::future::pending::<()>());
     let abort = task.abort_handle();
     let generation = runtime.state.generation();
     runtime
-        .conversation
+        .assistant
         .voice_task
         .attach_test(generation, (), task);
     for sequence in 0..2 {
@@ -615,7 +615,7 @@ async fn barge_in_invalidates_stt_operation_without_stopping_original_capture() 
     }
     tokio::task::yield_now().await;
     assert!(abort.is_finished());
-    assert!(runtime.conversation.voice_operation.is_none());
+    assert!(runtime.assistant.voice_operation.is_none());
     assert!(runtime.capture.buffer.voice.is_some());
     assert_eq!(runtime.state.generation(), generation);
     assert_eq!(
@@ -629,7 +629,7 @@ async fn barge_in_invalidates_stt_operation_without_stopping_original_capture() 
             .phase,
         CallPhase::UserSpeaking
     );
-    assert_eq!(runtime.capture.mic_stream.as_deref(), Some(stream.as_str()));
+    assert_eq!(runtime.audio.mic_stream.as_deref(), Some(stream.as_str()));
     assert_eq!(
         receiver
             .recv()

@@ -45,7 +45,7 @@ impl Runtime {
     /// kept. Without that WAV there is nothing to send, and the refusal
     /// says it is the audio that is missing.
     pub(super) async fn retry_voice_transcription(&mut self, message_id: String) -> Result<()> {
-        if self.conversation.voice_task.active().is_some() || self.capture.buffer.voice.is_some() {
+        if self.assistant.voice_task.active().is_some() || self.capture.buffer.voice.is_some() {
             return Err(orbit_core::refusal::Refusal::Busy {
                 operation: orbit_core::refusal::Operation::Interaction,
                 retry_after_ms: None,
@@ -58,7 +58,7 @@ impl Runtime {
         // The pure decision first, so a note that cannot be retried is
         // refused for that before its audio is looked for.
         decide(&self.state, retry.clone(), now())?;
-        let Some(token) = self.token.clone() else {
+        let Some(token) = self.link.token.clone() else {
             return Err(orbit_core::refusal::Refusal::NotPaired.into());
         };
         let Some((chunk_id, wav)) = self.stored_voice_note(&message_id)? else {
@@ -110,9 +110,8 @@ impl Runtime {
     /// A voice turn left without a trace, counted in the log with why:
     /// `no_words` (the hub heard none) or `joined_next_turn`. Never its words.
     pub(super) fn note_dropped_voice(&mut self, reason: &str) {
-        self.conversation.dropped_voice_turns =
-            self.conversation.dropped_voice_turns.saturating_add(1);
-        let count = self.conversation.dropped_voice_turns.to_string();
+        self.assistant.dropped_voice_turns = self.assistant.dropped_voice_turns.saturating_add(1);
+        let count = self.assistant.dropped_voice_turns.to_string();
         self.log(
             "voice_turn_dropped",
             &[("reason", reason), ("count", &count)],
@@ -160,12 +159,12 @@ impl Runtime {
         let durable = &self.state.durable;
         if self.state.privacy_stopped()
             || self.state.connection() != orbit_core::Connection::Online
-            || self.token.is_none()
+            || self.link.token.is_none()
             || durable.assistant.active_request.is_some()
             || durable.voice.voice_active
             || durable.voice.call.is_some()
             || durable.assistant.pending_approval.is_some()
-            || self.conversation.voice_task.active().is_some()
+            || self.assistant.voice_task.active().is_some()
             || self.capture.buffer.voice.is_some()
         {
             return Ok(());

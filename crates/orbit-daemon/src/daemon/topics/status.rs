@@ -27,7 +27,7 @@ impl ProjectTopic for Projector {
                     .and_then(|roster| roster.addable().map(<[String]>::to_vec)),
                 attachments: source
                     .runtime
-                    .and_then(|runtime| runtime.conversation.hub_attachments),
+                    .and_then(|runtime| runtime.assistant.hub_attachments),
                 hub: state.connection().clone(),
                 account: state.views.account.clone(),
                 privacy_stopped: state.privacy_stopped(),

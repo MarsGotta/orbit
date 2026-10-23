@@ -30,11 +30,11 @@ impl Runtime {
         }
         request.validate()?;
         if !self.state.capabilities().native_helper()
-            || !self.features.native_host.calendar_backend_available()
+            || !self.helper.host.calendar_backend_available()
         {
             bail!("El lector de calendarios del Mac no está disponible ahora mismo");
         }
-        let calendar = &mut self.features.calendar;
+        let calendar = &mut self.calendar;
         match request {
             // Handled above.
             Request::Save { .. } | Request::Delete { .. } => {}

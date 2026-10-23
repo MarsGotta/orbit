@@ -62,7 +62,7 @@ fn worst_case(runtime: &mut Runtime) -> anyhow::Result<()> {
         ceiling_notice_given: false,
         muted_spans: Vec::new(),
     });
-    runtime.features.meeting.audio_source_observed = true;
+    runtime.audio.inventory.audio_source_observed = true;
     runtime.state.views.audio_sources = (0..200)
         .map(|i| AudioSource {
             application_pid: i + 1,
@@ -75,10 +75,10 @@ fn worst_case(runtime: &mut Runtime) -> anyhow::Result<()> {
         device_name: Some("m".repeat(256).into()),
         device_id_short: Some("d".repeat(128).into()),
     });
-    runtime.features.calendar.view.authorization = CalendarAuthorization::FullAccess;
-    runtime.features.calendar.inventory_valid = true;
+    runtime.calendar.view.authorization = CalendarAuthorization::FullAccess;
+    runtime.calendar.inventory_valid = true;
     // calendar::writes::WRITE_RECORDS: the existing queue holds sixteen writes.
-    runtime.features.calendar.view.writes = (0..WRITE_RECORDS)
+    runtime.calendar.view.writes = (0..WRITE_RECORDS)
         .map(|i| CalendarWriteView {
             request_id: format!("{i:03}{}", "x".repeat(61)),
             operation: CalendarWriteOperation::Create,
@@ -90,15 +90,14 @@ fn worst_case(runtime: &mut Runtime) -> anyhow::Result<()> {
         .collect();
     for i in 0..MAX_NAMED_RECORDINGS {
         runtime
-            .features
             .notes
             .head
             .touch_recording(&format!("00000000-0000-4000-8000-{i:012x}"));
     }
-    runtime.features.notes.head.revision = u64::MAX;
-    runtime.features.notes.head.library_revision = u64::MAX;
-    runtime.features.notes.head.floor = u64::MAX;
-    for at in runtime.features.notes.head.recordings.values_mut() {
+    runtime.notes.head.revision = u64::MAX;
+    runtime.notes.head.library_revision = u64::MAX;
+    runtime.notes.head.floor = u64::MAX;
+    for at in runtime.notes.head.recordings.values_mut() {
         *at = u64::MAX;
     }
     for _ in 0..orbit_core::notice::CAPACITY {
@@ -147,7 +146,7 @@ async fn measure_worst_case_projections() -> anyhow::Result<()> {
         let data = project(*id, &source);
         match &data {
             TopicData::Agenda(Knowledge::Present { value, .. }) => {
-                assert_eq!(runtime.features.calendar.view.writes.len(), WRITE_RECORDS);
+                assert_eq!(runtime.calendar.view.writes.len(), WRITE_RECORDS);
                 assert!(!value.writes.is_empty());
             }
             TopicData::Control(Knowledge::Present { value, .. }) => {
@@ -212,7 +211,7 @@ async fn measure_worst_case_projections() -> anyhow::Result<()> {
     let mut occurrence: orbit_core::calendar::CalendarOccurrence =
         serde_json::from_value(saved["occurrence"].clone())?;
     occurrence.calendar_item_id = "x".repeat(orbit_core::calendar::MAX_LABEL_BYTES);
-    for write in &mut runtime.features.calendar.view.writes {
+    for write in &mut runtime.calendar.view.writes {
         write.occurrence = Some(Box::new(occurrence.clone()));
     }
     let source = TopicSource {

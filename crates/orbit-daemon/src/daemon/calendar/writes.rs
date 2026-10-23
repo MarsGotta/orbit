@@ -90,34 +90,8 @@ impl Runtime {
         refusal: Option<CalendarWriteRefusal>,
     ) -> Result<()> {
         let operation = request.operation();
-        let unavailable = !self.state.capabilities().native_helper()
-            || !self.features.native_host.calendar_backend_available();
-        let refusal = refusal
-            .or_else(|| {
-                self.features
-                    .calendar
-                    .view
-                    .writes
-                    .iter()
-                    .any(|write| write.request_id == request_id)
-                    .then(|| CalendarWriteRefusal::NotWritten {
-                        cause: "calendar_write_request_reused".into(),
-                    })
-            })
-            .or_else(|| {
-                self.state
-                    .privacy_stopped()
-                    .then(|| CalendarWriteRefusal::NotWritten {
-                        cause: "privacy_stopped".into(),
-                    })
-            })
-            .or_else(|| {
-                unavailable.then(|| CalendarWriteRefusal::NotWritten {
-                    cause: "calendar_backend_unavailable".into(),
-                })
-            });
+        let refusal = refusal.or_else(|| self.local_write_refusal(&request_id));
         let unfinished = self
-            .features
             .calendar
             .view
             .writes
@@ -130,53 +104,9 @@ impl Runtime {
             })
             .count();
         if let Some(refusal) = refusal {
-            // The causes Orbit refuses by itself, before anything is sent.
-            let cause = match &refusal {
-                CalendarWriteRefusal::NotWritten { cause } => Some(cause.as_str()),
-                CalendarWriteRefusal::EventNotFound { .. }
-                | CalendarWriteRefusal::NotEditable { .. }
-                | CalendarWriteRefusal::InvalidChange(_)
-                | CalendarWriteRefusal::PermissionDenied { .. }
-                | CalendarWriteRefusal::SaveFailed { .. }
-                | CalendarWriteRefusal::OutcomeUnknown { .. }
-                | CalendarWriteRefusal::QueueFull { .. } => None,
-            };
-            let notice = match cause {
-                Some("privacy_stopped") => {
-                    "Todo está parado: Orbit no cambia el calendario hasta que lo reactives. No se cambió nada.".to_owned()
-                }
-                Some("calendar_backend_unavailable") => {
-                    "El lector de calendarios del Mac no está disponible ahora mismo. No se cambió nada.".to_owned()
-                }
-                Some("calendar_write_request_reused") => format!(
-                    "Ya hay una escritura con el identificador {request_id}; cada cambio necesita el suyo. No se cambió nada."
-                ),
-                Some(_) | None => refusal.notice(),
-            };
-            // Whoever asked hears the same cause, typed where a common
-            // refusal exists and by its notice otherwise.
-            let error: anyhow::Error = match cause {
-                Some("privacy_stopped") => {
-                    orbit_core::refusal::Refusal::PrivacyStopped { since_ms: None }.into()
-                }
-                Some("calendar_backend_unavailable") => {
-                    orbit_core::refusal::Refusal::CalendarBackendUnavailable.into()
-                }
-                Some(_) | None => refusal.clone().into(),
-            };
-            // A reused identifier names another write's record: that record
-            // stays as it is, and only the caller hears the refusal.
-            if cause != Some("calendar_write_request_reused") {
-                self.record_write(CalendarWriteView {
-                    request_id,
-                    operation,
-                    stage: CalendarWriteStage::Refused,
-                    occurrence: None,
-                    refusal: Some(refusal),
-                    detail: notice,
-                });
-            }
-            return Err(error);
+            return Err(self
+                .calendar
+                .refuse_write_locally(request_id, operation, refusal));
         }
         if unfinished >= WRITE_RECORDS {
             // Nothing was sent; the count and the limit go to whoever asked.
@@ -186,7 +116,7 @@ impl Runtime {
             }
             .into());
         }
-        self.record_write(CalendarWriteView {
+        self.calendar.record_write(CalendarWriteView {
             request_id: request_id.clone(),
             operation,
             stage: CalendarWriteStage::Queued,
@@ -194,47 +124,34 @@ impl Runtime {
             refusal: None,
             detail: "Esperando a que EventKit termine lo anterior.".into(),
         });
-        self.features
-            .calendar
-            .write_queue
-            .push_back((request_id, request));
+        self.calendar.write_queue.push_back((request_id, request));
         self.pump_calendar();
         Ok(())
     }
 
-    /// Keeps one record per `request_id`, oldest first; a finished one makes
-    /// room for a new write (`WRITE_RECORDS`).
-    fn record_write(&mut self, record: CalendarWriteView) {
-        let writes = &mut self.features.calendar.view.writes;
-        if let Some(existing) = writes
-            .iter_mut()
-            .find(|write| write.request_id == record.request_id)
-        {
-            *existing = record;
-            return;
-        }
-        while writes.len() >= WRITE_RECORDS {
-            let Some(oldest) = writes.iter().position(|write| {
-                !matches!(
-                    write.stage,
-                    CalendarWriteStage::Queued | CalendarWriteStage::Writing
-                )
-            }) else {
-                break;
-            };
-            writes.remove(oldest);
-        }
-        writes.push(record);
-    }
-
-    fn write_stage(&self, request_id: &str) -> Option<CalendarWriteStage> {
-        self.features
+    /// Why Orbit refuses a write by itself: a reused identifier, the
+    /// user's stop, or no calendar reader on the Mac.
+    fn local_write_refusal(&self, request_id: &str) -> Option<CalendarWriteRefusal> {
+        let unavailable = !self.state.capabilities().native_helper()
+            || !self.helper.host.calendar_backend_available();
+        let reused = self
             .calendar
             .view
             .writes
             .iter()
-            .find(|write| write.request_id == request_id)
-            .map(|write| write.stage)
+            .any(|write| write.request_id == request_id);
+        let cause = if reused {
+            "calendar_write_request_reused"
+        } else if self.state.privacy_stopped() {
+            "privacy_stopped"
+        } else if unavailable {
+            "calendar_backend_unavailable"
+        } else {
+            return None;
+        };
+        Some(CalendarWriteRefusal::NotWritten {
+            cause: cause.into(),
+        })
     }
 
     /// Only a write still with the helper may end; one already ended (by a
@@ -247,7 +164,7 @@ impl Runtime {
         occurrence: Option<orbit_core::calendar::CalendarOccurrence>,
         refusal: Option<CalendarWriteRefusal>,
     ) {
-        if self.write_stage(request_id) != Some(CalendarWriteStage::Writing) {
+        if self.calendar.write_stage(request_id) != Some(CalendarWriteStage::Writing) {
             return;
         }
         let mut detail = match (&stage, &refusal) {
@@ -269,7 +186,7 @@ impl Runtime {
         if occurrence.is_some() {
             // Only the newest saved write keeps its occurrence (see
             // `MAX_WRITE_OCCURRENCE_BYTES`); the read brings the others.
-            for write in &mut self.features.calendar.view.writes {
+            for write in &mut self.calendar.view.writes {
                 write.occurrence = None;
             }
         }
@@ -279,7 +196,7 @@ impl Runtime {
                 | CalendarWriteStage::Deleted
                 | CalendarWriteStage::OutcomeUnknown
         ) || matches!(refusal, Some(CalendarWriteRefusal::EventNotFound { .. }));
-        self.record_write(CalendarWriteView {
+        self.calendar.record_write(CalendarWriteView {
             request_id: request_id.into(),
             operation: request.operation(),
             stage,
@@ -292,21 +209,6 @@ impl Runtime {
             // EventKit also says so (`calendar_invalidated`); this does not
             // wait for it.
             self.restart_screen_read();
-        }
-    }
-
-    /// The write is now with the helper.
-    pub(super) fn write_sent(&mut self, request_id: &str) {
-        if let Some(write) = self
-            .features
-            .calendar
-            .view
-            .writes
-            .iter_mut()
-            .find(|write| write.request_id == request_id)
-        {
-            write.stage = CalendarWriteStage::Writing;
-            write.detail = "EventKit está aplicando el cambio.".into();
         }
     }
 
@@ -330,7 +232,7 @@ impl Runtime {
                 Some(CalendarWriteRefusal::OutcomeUnknown { cause }),
             );
         } else {
-            self.record_write(CalendarWriteView {
+            self.calendar.record_write(CalendarWriteView {
                 request_id: request_id.into(),
                 operation: request.operation(),
                 stage: CalendarWriteStage::Refused,
@@ -405,20 +307,18 @@ impl Runtime {
     /// the helper, if any, can no longer be answered and its outcome is
     /// unknown. Nothing is sent again.
     pub(super) fn revoke_calendar_writes(&mut self, code: &str) {
-        let queued: Vec<(String, WriteRequest)> =
-            self.features.calendar.write_queue.drain(..).collect();
+        let queued: Vec<(String, WriteRequest)> = self.calendar.write_queue.drain(..).collect();
         for (request_id, request) in queued {
             self.calendar_write_failed(&request_id, &request, code, false);
         }
         if let Some(Job::Write {
             request_id,
             request,
-        }) = self.features.calendar.parked.take()
+        }) = self.calendar.parked.take()
         {
             self.calendar_write_failed(&request_id, &request, code, false);
         }
         let in_flight = self
-            .features
             .calendar
             .pending
             .as_ref()
@@ -432,5 +332,112 @@ impl Runtime {
         if let Some((request_id, request)) = in_flight {
             self.calendar_write_failed(&request_id, &request, code, true);
         }
+    }
+}
+
+impl crate::daemon::calendar::CalendarHandle {
+    /// Keeps one record per `request_id`, oldest first; a finished one makes
+    /// room for a new write (`WRITE_RECORDS`).
+    fn record_write(&mut self, record: CalendarWriteView) {
+        let writes = &mut self.view.writes;
+        if let Some(existing) = writes
+            .iter_mut()
+            .find(|write| write.request_id == record.request_id)
+        {
+            *existing = record;
+            return;
+        }
+        while writes.len() >= WRITE_RECORDS {
+            let Some(oldest) = writes.iter().position(|write| {
+                !matches!(
+                    write.stage,
+                    CalendarWriteStage::Queued | CalendarWriteStage::Writing
+                )
+            }) else {
+                break;
+            };
+            writes.remove(oldest);
+        }
+        writes.push(record);
+    }
+
+    fn write_stage(&self, request_id: &str) -> Option<CalendarWriteStage> {
+        self.view
+            .writes
+            .iter()
+            .find(|write| write.request_id == request_id)
+            .map(|write| write.stage)
+    }
+
+    /// The write is now with the helper.
+    pub(super) fn write_sent(&mut self, request_id: &str) {
+        if let Some(write) = self
+            .view
+            .writes
+            .iter_mut()
+            .find(|write| write.request_id == request_id)
+        {
+            write.stage = CalendarWriteStage::Writing;
+            write.detail = "EventKit está aplicando el cambio.".into();
+        }
+    }
+}
+
+impl crate::daemon::calendar::CalendarHandle {
+    /// A write refused before anything is sent: its record says why, unless
+    /// the identifier is another write's, and the caller hears the cause.
+    fn refuse_write_locally(
+        &mut self,
+        request_id: String,
+        operation: CalendarWriteOperation,
+        refusal: CalendarWriteRefusal,
+    ) -> anyhow::Error {
+        // The causes Orbit refuses by itself, before anything is sent.
+        let cause = match &refusal {
+            CalendarWriteRefusal::NotWritten { cause } => Some(cause.as_str()),
+            CalendarWriteRefusal::EventNotFound { .. }
+            | CalendarWriteRefusal::NotEditable { .. }
+            | CalendarWriteRefusal::InvalidChange(_)
+            | CalendarWriteRefusal::PermissionDenied { .. }
+            | CalendarWriteRefusal::SaveFailed { .. }
+            | CalendarWriteRefusal::OutcomeUnknown { .. }
+            | CalendarWriteRefusal::QueueFull { .. } => None,
+        };
+        let notice = match cause {
+            Some("privacy_stopped") => {
+                "Todo está parado: Orbit no cambia el calendario hasta que lo reactives. No se cambió nada.".to_owned()
+            }
+            Some("calendar_backend_unavailable") => {
+                "El lector de calendarios del Mac no está disponible ahora mismo. No se cambió nada.".to_owned()
+            }
+            Some("calendar_write_request_reused") => format!(
+                "Ya hay una escritura con el identificador {request_id}; cada cambio necesita el suyo. No se cambió nada."
+            ),
+            Some(_) | None => refusal.notice(),
+        };
+        // Whoever asked hears the same cause, typed where a common
+        // refusal exists and by its notice otherwise.
+        let error: anyhow::Error = match cause {
+            Some("privacy_stopped") => {
+                orbit_core::refusal::Refusal::PrivacyStopped { since_ms: None }.into()
+            }
+            Some("calendar_backend_unavailable") => {
+                orbit_core::refusal::Refusal::CalendarBackendUnavailable.into()
+            }
+            Some(_) | None => refusal.clone().into(),
+        };
+        // A reused identifier names another write's record: that record
+        // stays as it is, and only the caller hears the refusal.
+        if cause != Some("calendar_write_request_reused") {
+            self.record_write(CalendarWriteView {
+                request_id,
+                operation,
+                stage: CalendarWriteStage::Refused,
+                occurrence: None,
+                refusal: Some(refusal),
+                detail: notice,
+            });
+        }
+        error
     }
 }

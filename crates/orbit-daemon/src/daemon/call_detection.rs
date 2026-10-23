@@ -25,7 +25,7 @@ pub(super) struct CallEvents {
 }
 
 #[derive(Default)]
-pub(super) struct CallRuntime {
+pub(super) struct CallDetectionHandle {
     pub(super) detector: CallDetector,
     /// «Al detectar una llamada». `Err` says why it could not be read; the
     /// detection then behaves as «Avisarme», which never records alone.
@@ -41,7 +41,7 @@ pub(super) struct CallRuntime {
     pub(super) clock_ms: Option<i64>,
 }
 
-impl CallRuntime {
+impl CallDetectionHandle {
     fn preference(&self) -> CallPreference {
         match &self.preference {
             Some(Ok(preference)) => *preference,
@@ -51,19 +51,10 @@ impl CallRuntime {
 }
 
 impl Runtime {
-    /// The detection's clock: Unix milliseconds.
-    pub(super) fn call_now(&self) -> i64 {
-        #[cfg(test)]
-        if let Some(now_ms) = self.features.call.clock_ms {
-            return now_ms;
-        }
-        now()
-    }
-
     fn call_facts(&self) -> CallFacts {
         CallFacts {
-            now_ms: self.call_now(),
-            preference: self.features.call.preference(),
+            now_ms: self.calls.call_now(),
+            preference: self.calls.preference(),
             privacy_stopped: self.state.privacy_stopped(),
             recording_live: self.state.durable.capture.recording.as_ref().is_some_and(
                 |recording| {
@@ -81,7 +72,7 @@ impl Runtime {
     /// preference that cannot be read is said, and the detection behaves as
     /// «Avisarme» until they choose again.
     pub(super) fn recover_call_preference(&mut self) {
-        self.features.call.preference = Some(match self.reader.load_call_preference() {
+        self.calls.preference = Some(match self.reader.load_call_preference() {
             Ok(preference) => Ok(preference.unwrap_or_default()),
             Err(error) => {
                 let cause = format!(
@@ -99,7 +90,7 @@ impl Runtime {
             .run(move |store| Ok(store.save_call_preference(preference)?))
             .await
             .context("No se pudo guardar la preferencia «Al detectar una llamada»")?;
-        self.features.call.preference = Some(Ok(preference));
+        self.calls.preference = Some(Ok(preference));
         Ok(())
     }
 
@@ -108,7 +99,7 @@ impl Runtime {
     /// a countdown from ending its recording.
     pub(super) async fn apply_call(&mut self, input: CallInput) -> Result<()> {
         let facts = self.call_facts();
-        let update = self.features.call.detector.apply(input, &facts);
+        let update = self.calls.detector.apply(input, &facts);
         let mut failure = None;
         for effect in update.effects {
             if let Err(error) = self.call_effect(effect).await {
@@ -162,7 +153,7 @@ impl Runtime {
     /// The daemon's once-a-second upkeep: time passes, and a recording the
     /// call started that ended some other way is let go.
     pub(super) async fn maintain_call_detection(&mut self) -> Result<()> {
-        if let Some(owned) = self.features.call.detector.owned_recording() {
+        if let Some(owned) = self.calls.detector.owned_recording() {
             let open = self
                 .state
                 .durable
@@ -172,7 +163,7 @@ impl Runtime {
                 .is_some_and(|recording| recording.id == owned && recording.ended_at_ms.is_none());
             if !open {
                 let recording_id = owned.to_owned();
-                self.features.call.linked = None;
+                self.calls.linked = None;
                 self.apply_call(CallInput::RecordingEnded { recording_id })
                     .await?;
             }
@@ -192,13 +183,7 @@ impl Runtime {
         if code != "system_audio_stream_stopped" {
             return;
         }
-        let Some(recording_id) = self
-            .features
-            .call
-            .detector
-            .owned_recording()
-            .map(str::to_owned)
-        else {
+        let Some(recording_id) = self.calls.detector.owned_recording().map(str::to_owned) else {
             return;
         };
         if let Err(error) = self
@@ -210,19 +195,10 @@ impl Runtime {
         }
     }
 
-    /// The user's stop, a revocation or closing (the retire plan's slot): the
-    /// offer and the recording the call started are forgotten, and nothing
-    /// resumes on its own.
-    pub(super) fn retire_call_detection(&mut self) {
-        self.features.call.detector.retire();
-        self.features.call.linked = None;
-        self.features.call.events = None;
-    }
-
     async fn call_effect(&mut self, effect: CallEffect) -> Result<()> {
         match effect {
             CallEffect::ReadCalendar => {
-                let now_ms = self.call_now();
+                let now_ms = self.calls.call_now();
                 self.read_calendar_for_call(CalendarWindow {
                     start_unix_ms: now_ms,
                     // Half-open: an event starting exactly at the edge counts.
@@ -243,34 +219,15 @@ impl Runtime {
         }
     }
 
-    /// Who started the capture of `recording_id`, kept with its epoch: a
-    /// call or the user.
-    pub(super) fn capture_origin(&self, recording_id: &str) -> &'static str {
-        if self.features.call.starting
-            || self.features.call.detector.owned_recording() == Some(recording_id)
-        {
-            "call_detection"
-        } else {
-            "explicit_recording_start_or_resume"
-        }
-    }
-
-    /// The event of the call `app` holds, from the agenda read for it.
-    fn call_event(&self, app: &CallApp) -> Option<LinkedEvent> {
-        let events = self.features.call.events.as_ref()?;
-        choose_event(&events.events, &app.bundle_id, self.call_now())
-            .map(LinkedEvent::from_occurrence)
-    }
-
     async fn start_call_recording(
         &mut self,
         call_id: String,
         app: CallApp,
         automatic: bool,
     ) -> Result<()> {
-        let event = self.call_event(&app);
+        let event = self.calls.call_event(&app);
         let title = call_title(&app, event.as_ref());
-        self.features.call.starting = true;
+        self.calls.starting = true;
         let started = self
             .start_meeting(
                 title,
@@ -281,12 +238,12 @@ impl Runtime {
                 "call_detection",
             )
             .await;
-        self.features.call.starting = false;
+        self.calls.starting = false;
         match started {
             Ok(recording_id) => {
-                self.features.call.linked = event.map(|event| (recording_id.clone(), event));
+                self.calls.linked = event.map(|event| (recording_id.clone(), event));
                 let facts = self.call_facts();
-                self.features.call.detector.apply(
+                self.calls.detector.apply(
                     CallInput::Started {
                         call_id,
                         recording_id,
@@ -302,8 +259,7 @@ impl Runtime {
             }
             Err(error) => {
                 let facts = self.call_facts();
-                self.features
-                    .call
+                self.calls
                     .detector
                     .apply(CallInput::StartFailed { call_id }, &facts);
                 Err(error.context(format!(
@@ -320,7 +276,7 @@ impl Runtime {
         app: &CallApp,
         cause: FinishCause,
     ) -> Result<()> {
-        self.features.call.linked = None;
+        self.calls.linked = None;
         let open = self
             .state
             .durable
@@ -350,57 +306,47 @@ impl Runtime {
     /// The call detection for the recording topic: the preference and what
     /// the floating panel has to say. Nothing while privacy is stopped.
     pub(super) fn call_topic(&self) -> topic::Call {
-        let (preference, preference_unreadable) = match &self.features.call.preference {
+        let (preference, preference_unreadable) = match &self.calls.preference {
             Some(Ok(preference)) => (Some(*preference), None),
             Some(Err(cause)) => (None, Some(cause.clone())),
             None => (None, None),
         };
-        let now_ms = self.call_now();
+        let now_ms = self.calls.call_now();
         let panel = if self.state.privacy_stopped() {
             None
         } else {
-            self.features
-                .call
-                .detector
-                .panel(now_ms)
-                .map(|panel| match panel {
-                    CallPanel::Offer { call_id, app } => topic::CallPanel::Offer {
-                        call_id,
-                        event_title: self.call_event(&app).map(|event| event.title),
-                        application: app.name,
-                    },
-                    CallPanel::Recording { recording_id, app } => topic::CallPanel::Recording {
-                        event_title: self
-                            .features
-                            .call
-                            .linked
-                            .as_ref()
-                            .filter(|(linked, _)| linked == &recording_id)
-                            .map(|(_, event)| event.title.clone()),
-                        recording_id,
-                        application: app.name,
-                    },
-                    CallPanel::Ending {
-                        recording_id,
-                        app,
-                        ends_at_ms,
-                    } => topic::CallPanel::Ending {
-                        recording_id,
-                        application: app.name,
-                        ends_at_ms,
-                    },
-                })
+            self.calls.detector.panel(now_ms).map(|panel| match panel {
+                CallPanel::Offer { call_id, app } => topic::CallPanel::Offer {
+                    call_id,
+                    event_title: self.calls.call_event(&app).map(|event| event.title),
+                    application: app.name,
+                },
+                CallPanel::Recording { recording_id, app } => topic::CallPanel::Recording {
+                    event_title: self
+                        .calls
+                        .linked
+                        .as_ref()
+                        .filter(|(linked, _)| linked == &recording_id)
+                        .map(|(_, event)| event.title.clone()),
+                    recording_id,
+                    application: app.name,
+                },
+                CallPanel::Ending {
+                    recording_id,
+                    app,
+                    ends_at_ms,
+                } => topic::CallPanel::Ending {
+                    recording_id,
+                    application: app.name,
+                    ends_at_ms,
+                },
+            })
         };
         topic::Call {
             preference,
             preference_unreadable,
             panel,
         }
-    }
-
-    /// The agenda read for a call arrived.
-    pub(super) fn call_calendar_read(&mut self, events: Vec<CalendarOccurrence>) {
-        self.features.call.events = Some(CallEvents { events });
     }
 }
 
@@ -421,6 +367,48 @@ fn call_title(app: &CallApp, event: Option<&LinkedEvent>) -> String {
             },
             str::to_owned,
         )
+}
+
+impl CallDetectionHandle {
+    /// The detection's clock: Unix milliseconds.
+    pub(super) fn call_now(&self) -> i64 {
+        #[cfg(test)]
+        if let Some(now_ms) = self.clock_ms {
+            return now_ms;
+        }
+        now()
+    }
+
+    /// The user's stop, a revocation or closing (the retire plan's slot): the
+    /// offer and the recording the call started are forgotten, and nothing
+    /// resumes on its own.
+    pub(super) fn retire_call_detection(&mut self) {
+        self.detector.retire();
+        self.linked = None;
+        self.events = None;
+    }
+
+    /// Who started the capture of `recording_id`, kept with its epoch: a
+    /// call or the user.
+    pub(super) fn capture_origin(&self, recording_id: &str) -> &'static str {
+        if self.starting || self.detector.owned_recording() == Some(recording_id) {
+            "call_detection"
+        } else {
+            "explicit_recording_start_or_resume"
+        }
+    }
+
+    /// The event of the call `app` holds, from the agenda read for it.
+    fn call_event(&self, app: &CallApp) -> Option<LinkedEvent> {
+        let events = self.events.as_ref()?;
+        choose_event(&events.events, &app.bundle_id, self.call_now())
+            .map(LinkedEvent::from_occurrence)
+    }
+
+    /// The agenda read for a call arrived.
+    pub(super) fn call_calendar_read(&mut self, events: Vec<CalendarOccurrence>) {
+        self.events = Some(CallEvents { events });
+    }
 }
 
 #[cfg(test)]

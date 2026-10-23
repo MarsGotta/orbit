@@ -74,15 +74,15 @@ async fn attach_with_the_engine(
     })
     .await?;
     h.runtime.settings.hub_url = Some(url);
-    h.runtime.token = Some("synthetic device credential".to_owned());
-    h.runtime.conversation.hub_attachments = Some(orbit_core::attachments::AttachmentLimits {
+    h.runtime.link.token = Some("synthetic device credential".to_owned());
+    h.runtime.assistant.hub_attachments = Some(orbit_core::attachments::AttachmentLimits {
         max_file_bytes: 10_000_000,
         max_message_files: 10,
         max_message_bytes: 10_000_000,
         max_session_bytes: 100_000_000,
     });
     let (hub, _frames) = mpsc::channel(16);
-    h.runtime.hub.install(hub);
+    h.runtime.link.outbound.install(hub);
     let (calls, mut received) = mpsc::channel(4);
     let (_ended, ended) = tokio::sync::watch::channel(None);
     let client = orbit_ipc::LocalClient::new(calls, &std::collections::BTreeMap::new(), ended);
