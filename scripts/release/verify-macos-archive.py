@@ -546,7 +546,7 @@ def check_engine_metadata(data):
     require(isinstance(info, dict), "the engine's Info.plist must be a dictionary")
     # The same version the bundler reads, without another hand-written copy.
     source = (
-        Path(__file__).resolve().parents[2] / "crates/orbit-daemon/src/cua.rs"
+        Path(__file__).resolve().parents[2] / "crates/orbit-control/src/cua.rs"
     ).read_text()
     version = re.search(
         r'^pub const VERIFIED_DRIVER_VERSION: &str = "([0-9.]+)";', source, re.M

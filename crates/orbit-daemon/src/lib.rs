@@ -2,10 +2,9 @@
 // inspect foreign enums with catch-all arms. Production always gets the lint.
 #![cfg_attr(not(test), deny(clippy::wildcard_enum_match_arm))]
 
-pub mod app_control;
 pub mod capture;
 pub mod config;
-pub mod cua;
+pub use orbit_control::cua;
 pub mod daemon;
 pub mod diagnostics;
 pub mod error_reports;

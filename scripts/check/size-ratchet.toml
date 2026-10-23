@@ -1,0 +1,187 @@
+# The size ratchet of scripts/check/sizes.py: every production file over 500
+# lines of code and every function over 80, at the size each had when the
+# limits arrived. The gate fails when one grows, when anything new goes over,
+# and when an entry is no longer exact. Lower entries with
+# `python3 scripts/check/sizes.py --shrink`; never add one or raise one.
+
+[files]
+"crates/orbit-control/src/cua.rs" = 1367
+"crates/orbit-core/src/assistant_files.rs" = 806
+"crates/orbit-core/src/calendar/writes.rs" = 1053
+"crates/orbit-core/src/wire/hub.rs" = 629
+"crates/orbit-core/src/wire/native.rs" = 821
+"crates/orbit-daemon/src/daemon/startup.rs" = 607
+"crates/orbit-daemon/src/hub.rs" = 1057
+"crates/orbit-ipc/src/ipc.rs" = 963
+"native/macos/Sources/OrbitNative/OrbitApplication.swift" = 914
+"native/macos/Sources/OrbitNativeHost/AudioCapture.swift" = 547
+"native/macos/Sources/OrbitNativeProtocol/NativeWire.swift" = 714
+"scripts/e2e-mac/mac.py" = 816
+"scripts/release/verify-macos-archive.py" = 547
+"server/orbit_hub/assistant/acp.py" = 846
+"server/orbit_hub/assistant/hermes.py" = 766
+"server/orbit_hub/assistant/openai.py" = 768
+"server/orbit_hub/meeting_final_pass.py" = 594
+"server/orbit_mcp/hub.py" = 528
+"server/orbit_mcp/refusals.py" = 507
+"server/orbit_mcp/server.py" = 649
+
+[functions."apps/desktop/src-tauri/src/commands.rs"]
+"orbit_panel_send" = 81
+
+[functions."apps/desktop/src-tauri/src/lib.rs"]
+"setup" = 109
+
+[functions."crates/orbit-app-core/contract/snapshot.rs"]
+"<AppSnapshot as Default>::default" = 128
+
+[functions."crates/orbit-app-core/src/client/agenda.rs"]
+"hydrate_agenda" = 89
+
+[functions."crates/orbit-app-core/src/client/mod.rs"]
+"DaemonClient::connect_with_clock" = 132
+
+[functions."crates/orbit-app-core/src/client/note_read.rs"]
+"DaemonClient::read_note" = 109
+
+[functions."crates/orbit-app-core/src/client/send.rs"]
+"DaemonClient::send_as" = 96
+
+[functions."crates/orbit-app-core/src/features/agenda.rs"]
+"project_with_read" = 214
+
+[functions."crates/orbit-app-core/src/features/assistant.rs"]
+"project" = 113
+
+[functions."crates/orbit-app-core/src/features/briefing.rs"]
+"project" = 197
+
+[functions."crates/orbit-app-core/src/features/note.rs"]
+"map_command" = 83
+
+[functions."crates/orbit-app-core/src/features/recording.rs"]
+"project" = 139
+
+[functions."crates/orbit-app-core/src/features/status.rs"]
+"project" = 131
+
+[functions."crates/orbit-app-core/src/projection/library.rs"]
+"project_library" = 118
+
+[functions."crates/orbit-app-core/src/update.rs"]
+"UpdateService::last_installation_at" = 105
+"UpdateService::run_installer" = 94
+"retire_previous_from_listing" = 82
+
+[functions."crates/orbit-app-core/src/update/download.rs"]
+"Updater::fetch" = 94
+
+[functions."crates/orbit-control/src/cua.rs"]
+"inspect_previous_listener" = 217
+"start_engine_after_inspection" = 110
+
+[functions."crates/orbit-core/src/assistant_files.rs"]
+"admit" = 102
+
+[functions."crates/orbit-core/src/calendar/events.rs"]
+"CalendarOccurrence::validate_fields" = 83
+
+[functions."crates/orbit-core/src/calendar/pages.rs"]
+"assemble_view" = 87
+
+[functions."crates/orbit-core/src/call_detection.rs"]
+"CallDetector::advance" = 97
+
+[functions."crates/orbit-core/src/device_bridge.rs"]
+"calendar_page" = 93
+
+[functions."crates/orbit-core/src/process_listing.rs"]
+"decide_engine_listener" = 82
+
+[functions."crates/orbit-daemon/src/daemon/commands.rs"]
+"Runtime::command" = 115
+
+[functions."crates/orbit-daemon/src/daemon/read_dispatch.rs"]
+"Runtime::serve_read" = 93
+
+[functions."crates/orbit-daemon/src/daemon/startup.rs"]
+"recover" = 84
+
+[functions."crates/orbit-daemon/src/error_reports.rs"]
+"scrub" = 84
+
+[functions."crates/orbit-daemon/src/hub.rs"]
+"connect" = 146
+"transcribe" = 104
+
+[functions."crates/orbit-daemon/src/hub_agents.rs"]
+"AgentHub::exchange" = 98
+
+[functions."crates/orbit-daemon/src/native.rs"]
+"bridge_inner" = 177
+"native_error_field" = 82
+
+[functions."crates/orbit-daemon/src/speech.rs"]
+"play" = 99
+
+[functions."crates/orbit-store/src/blobs.rs"]
+"Store::recover_next" = 102
+
+[functions."crates/orbit-store/src/store.rs"]
+"Store::open" = 95
+
+[functions."native/macos/Sources/OrbitNative/OrbitApplication.swift"]
+"OrbitApplication.audioRouteChanged" = 90
+"OrbitApplication.perform" = 160
+"OrbitApplication.receive" = 96
+
+[functions."native/macos/Sources/OrbitNativeCalendar/EventKitOccurrences.swift"]
+"EventKitCalendarReader.occurrence" = 86
+
+[functions."native/macos/Sources/OrbitNativeHost/AudioCapture.swift"]
+"SystemAudioCapture.start" = 100
+
+[functions."native/macos/Sources/OrbitNativeHost/CompressedAudioDecoder.swift"]
+"CompressedAudioDecoder.decode" = 187
+
+[functions."native/macos/Sources/OrbitNativeHost/WindowScreenshots.swift"]
+"WindowScreenshots.inventory" = 89
+
+[functions."scripts/macos/smoke-native.py"]
+"run_smoke" = 112
+
+[functions."scripts/release/verify-macos-archive.py"]
+"check_members" = 96
+
+[functions."server/orbit_hub/assistant/hermes.py"]
+"HermesConnection.receive" = 114
+"HermesConnection.rpc" = 117
+
+[functions."server/orbit_hub/assistant/openai.py"]
+"OpenAIConnection._turn" = 94
+"OpenAISpeech.synthesize" = 89
+"describe_failure" = 83
+
+[functions."server/orbit_hub/meeting_final_pass.py"]
+"FinalPassWorker.run_once" = 142
+
+[functions."server/orbit_hub/meetings/repository.py"]
+"rename" = 110
+
+[functions."server/orbit_hub/meetings/routes.py"]
+"mount" = 205
+
+[functions."server/orbit_hub/meetings/turns.py"]
+"read" = 136
+
+[functions."server/orbit_hub/routes/assistants.py"]
+"mount" = 90
+
+[functions."server/orbit_mcp/calendar.py"]
+"_event_line" = 84
+
+[functions."server/orbit_mcp/refusals.py"]
+"error_result" = 218
+
+[functions."server/orbit_mcp/server.py"]
+"build_server" = 508

@@ -46,6 +46,7 @@ privacy latch. `orbit-mcp` exposes `orbit_devices`, `orbit_windows`,
 | `orbit-core` | Pure policies, state and typed contracts, with facts/time supplied |
 | `orbit-store` | Encrypted storage; receives its key, never opens Keychain or reads clocks |
 | `orbit-ipc` | Typed local transports, paths, configuration and reports |
+| `orbit-control` | The control engine's adapter: the verified CUA MCP client, the engine's processes and their cleanup; its decisions are `orbit-core`'s |
 | `orbit-daemon` | Runtime composition, capture, hub, helper and engine; standalone binary is development-only |
 | `orbit-app-core` | App client, projections and updater, without Tauri |
 | `orbit-desktop` | Tauri shell linking the daemon into the app |
@@ -59,7 +60,9 @@ runtime state and the methods that touch only that state. What crosses
 domains stays on the coordinator, including every core decision:
 `daemon/kernel.rs` adopts the decision and hands each effect to the domain
 that executes it, and `daemon/native_events/` routes each helper event and
-answer the same way.
+answer the same way. A domain uses another only through its handle and its
+types; `scripts/check/boundaries.toml` lists the edges between domains, here
+and in `orbit-core`'s `transition/`, and the gate refuses new ones.
 
 ## Boundaries and contracts
 

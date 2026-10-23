@@ -1,0 +1,61 @@
+# The domain boundaries that scripts/check/boundaries.py enforces.
+#
+# `edges` are the dependencies between domains that the code has and the
+# design allows: `a = ["b"]` lets domain a name b's types, the functions b
+# offers and the methods of b's handle. A new edge fails the gate; add one
+# only when the design says a depends on b.
+#
+# `reaches` are the places where a domain already reaches into another's
+# internals (a field of its handle, a function it does not offer, one of its
+# submodules). The list takes no new entries and must stay exact: when the
+# code stops reaching, remove the entry.
+
+# The core's pure decisions, one module of orbit_core::transition per domain.
+# `stops` routes the events every domain hears (a privacy stop, a cut, the
+# clock) to each domain in turn, so it is a coordinator, like transition.rs.
+[core]
+crate = "crates/orbit-core"
+parent = "transition"
+coordinators = ["stops"]
+
+# What a domain reads of another: its guards, on the state before the event.
+[core.offers]
+helper = ["ensure_microphone", "ensure_screen"]
+
+[core.edges]
+capture = ["helper"]
+voice_call = ["helper"]
+
+# The daemon's domains: each module that owns a handle of `Runtime`. Every
+# other module of the daemon (kernel, commands, native_events, reads, topics,
+# stops, ...) is the coordinator. The calendar has no edge to the capture.
+[daemon]
+crate = "crates/orbit-daemon"
+parent = "daemon"
+handles = "crates/orbit-daemon/src/daemon/runtime.rs"
+
+[daemon.edges]
+assistant_files = ["assistant", "helper"]
+audio = ["assistant", "call_detection", "capture_handle", "helper"]
+calendar = ["assistant", "call_detection", "helper", "hub_link"]
+computer_control = ["assistant", "helper"]
+meeting_question = ["assistant", "audio", "capture_handle"]
+recording_notes = ["capture_handle"]
+sources = ["assistant", "helper"]
+transfers = ["capture_handle", "recording_notes"]
+
+[daemon.reaches]
+"assistant_files -> assistant" = [".bridge_request"]
+"audio -> assistant" = [".voice_operation", ".voice_task"]
+"audio -> capture_handle" = [".buffer", ".interruption", ".pending_seals", ".reserve_exhausted"]
+"audio -> helper" = [".sender"]
+"calendar -> assistant" = [".bridge_request"]
+"calendar -> helper" = [".host", ".sender"]
+"computer_control -> assistant" = [".bridge_request"]
+"computer_control -> helper" = [".pending", ".sender"]
+"meeting_question -> assistant" = [".speak_next", ".voice_task"]
+"meeting_question -> audio" = [".mic_stream"]
+"meeting_question -> capture_handle" = [".buffer"]
+"recording_notes -> capture_handle" = [".lane"]
+"sources -> helper" = [".host", ".sender"]
+"transfers -> capture_handle" = [".pending_seals"]

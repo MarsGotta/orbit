@@ -75,8 +75,11 @@ These have caused lengthy investigations or broken releases. Look for them activ
 
 ## Working practices
 
-Keep modules focused and contracts typed. Prefer small vertical features over
-empty scaffolding. Do not panic on external input. Bound messages, audio and
+Keep modules focused and contracts typed: the gate holds production files to
+500 lines of code and functions to 80, with a ratchet for older code that may
+only shrink, and a domain may use another only through its handle and types
+(`scripts/check/sizes.py`, `scripts/check/boundaries.py`). Prefer small
+vertical features over empty scaffolding. Do not panic on external input. Bound messages, audio and
 queues. Keep conversation content and secrets out of logs. Tests and examples
 use invented people, organizations, meetings and addresses; use documentation
 addresses such as `100.64.0.1`, `hub.example` and `example.test`.

@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-CUA = Path(__file__).resolve().parents[2] / "crates/orbit-daemon/src/cua.rs"
+CUA = Path(__file__).resolve().parents[2] / "crates/orbit-control/src/cua.rs"
 
 
 def verified_driver_version():

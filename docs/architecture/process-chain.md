@@ -113,7 +113,7 @@ executable identity (`Member::App` in `orbit-core/src/orbit_bundle.rs`).
 ## Control engine
 
 `cua-driver` is pinned by `VERIFIED_DRIVER_VERSION` in
-`crates/orbit-daemon/src/cua.rs`, currently 0.28.2. See
+`crates/orbit-control/src/cua.rs`, currently 0.28.2. See
 [CUA](../../contracts/cua-v1.md) and [control policy](../../contracts/control-policy-v1.md).
 
 - `orbit_core::computer_control::engine::decide` runs from maintenance. It starts

@@ -3,11 +3,11 @@
 #[allow(dead_code)]
 #[path = "../src/cua.rs"]
 mod cua;
-// cua.rs takes its macOS engine census from the daemon's app_control, which
+// cua.rs takes its macOS engine census from the crate's app_control, which
 // this test crate does not compile; the library's own census stands in for it.
 #[cfg(target_os = "macos")]
 mod app_control {
-    pub(crate) use orbit_daemon::app_control::engine_process_listing;
+    pub(crate) use orbit_control::app_control::engine_process_listing;
 }
 
 use cua::{CuaClient, CuaConfig, LocalCua, VERIFIED_DRIVER_VERSION, resolve_driver_path};
@@ -974,7 +974,7 @@ async fn connection_rejects_paths_before_any_process_can_start() {
 #[test]
 fn the_default_socket_lives_under_orbit_own_private_root() {
     let root = PathBuf::from("/home/someone/.orbit");
-    let socket = orbit_daemon::cua::default_socket_path(&root);
+    let socket = orbit_control::cua::default_socket_path(&root);
     assert!(socket.starts_with(&root));
     assert!(socket.parent().is_some_and(|parent| parent != root));
 }

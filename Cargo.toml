@@ -3,6 +3,7 @@ members = [
     "crates/orbit-core",
     "crates/orbit-store",
     "crates/orbit-ipc",
+    "crates/orbit-control",
     "crates/orbit-daemon",
     "crates/orbit-app-core",
     "apps/desktop/src-tauri",

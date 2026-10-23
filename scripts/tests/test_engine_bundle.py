@@ -27,7 +27,7 @@ class EngineBundleTests(unittest.TestCase):
                     "scripts/macos/bundle.sh",
                     "scripts/release/lib.sh",
                     "Cargo.toml",
-                    "crates/orbit-daemon/src/cua.rs",
+                    "crates/orbit-control/src/cua.rs",
                     "native/macos/Info.plist",
                     "third-party/cua-driver/LICENSE.md",
                     "LICENSE",
@@ -97,7 +97,7 @@ with open(path, "wb") as target: plistlib.dump(info, target)
                 )
                 version = next(
                     line.split('"')[1]
-                    for line in (ROOT / "crates/orbit-daemon/src/cua.rs")
+                    for line in (ROOT / "crates/orbit-control/src/cua.rs")
                     .read_text()
                     .splitlines()
                     if line.startswith("pub const VERIFIED_DRIVER_VERSION")

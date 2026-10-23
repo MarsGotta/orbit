@@ -105,7 +105,7 @@ pub struct NativeImage {
 /// A collected exit, before Orbit invalidates or kills the connection. Only
 /// process identity and status cross into the visible notice; no error text.
 #[derive(Debug)]
-pub(crate) struct EngineExit {
+pub struct EngineExit {
     pub process: &'static str,
     pub status: ExitStatus,
 }
@@ -1090,7 +1090,7 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
     /// Nonblocking: maintenance checks idle children without sending a tool.
     /// Workers own the same children while a request is in flight; transport
     /// failures collect their status before poisoning can kill them.
-    pub(crate) fn check_processes(&mut self) -> Result<()> {
+    pub fn check_processes(&mut self) -> Result<()> {
         if let Some(engine) = self.engine.as_mut()
             && let Some(status) = engine
                 .child
@@ -1125,8 +1125,8 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
         self.startup_inspection_notice.take()
     }
 
-    #[cfg(test)]
-    pub(crate) fn set_startup_cleanup_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_startup_cleanup_for_test(
         &mut self,
         cleanup: Vec<orbit_core::topics::control::EngineCleanup>,
     ) {

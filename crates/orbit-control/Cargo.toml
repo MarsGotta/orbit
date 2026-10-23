@@ -1,0 +1,29 @@
+[package]
+name = "orbit-control"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# The control engine's adapter: the verified CUA MCP client, the engine's
+# processes and their cleanup. Its pure decisions stay in orbit-core
+# (`computer_control`, `process_listing`), and the daemon's control domain
+# (`daemon/computer_control/`) drives it.
+[dependencies]
+orbit-core = { path = "../orbit-core" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+tempfile.workspace = true
+tokio = { version = "1.48", features = ["full"] }
+rustix = { version = "1.1", features = ["process", "fs"] }
+
+[features]
+# The daemon's tests set an engine's startup cleanup without starting one.
+test-support = []
+
+[dev-dependencies]
+tokio = { version = "1.48", features = ["test-util"] }
+
+[lints]
+workspace = true

@@ -26,9 +26,9 @@ if ! [[ -f "$orbit_cua_driver" && -x "$orbit_cua_driver" ]]; then
   echo "The CUA driver does not exist or is not executable: $orbit_cua_driver" >&2
   exit 1
 fi
-orbit_cua_expected_version="$(sed -n 's/^pub const VERIFIED_DRIVER_VERSION: &str = "\([0-9][0-9.]*\)";/\1/p' "$orbit_repo/crates/orbit-daemon/src/cua.rs")"
+orbit_cua_expected_version="$(sed -n 's/^pub const VERIFIED_DRIVER_VERSION: &str = "\([0-9][0-9.]*\)";/\1/p' "$orbit_repo/crates/orbit-control/src/cua.rs")"
 if [[ ! "$orbit_cua_expected_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "VERIFIED_DRIVER_VERSION could not be read from crates/orbit-daemon/src/cua.rs." >&2
+  echo "VERIFIED_DRIVER_VERSION could not be read from crates/orbit-control/src/cua.rs." >&2
   exit 1
 fi
 if ! orbit_cua_version_output="$("$orbit_cua_driver" --version 2>&1)"; then

@@ -2930,6 +2930,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "orbit-control"
+version = "0.11.0"
+dependencies = [
+ "anyhow",
+ "orbit-core",
+ "rustix",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "orbit-core"
 version = "0.11.0"
 dependencies = [
@@ -2957,6 +2971,7 @@ dependencies = [
  "directories",
  "futures-util",
  "keyring",
+ "orbit-control",
  "orbit-core",
  "orbit-ipc",
  "orbit-store",

@@ -639,7 +639,7 @@ class ReleaseBuildTests(unittest.TestCase):
         files = (
             "scripts/macos/bundle.sh",
             "Cargo.toml",
-            "crates/orbit-daemon/src/cua.rs",
+            "crates/orbit-control/src/cua.rs",
             "native/macos/Info.plist",
             "native/macos/Orbit.entitlements",
             "apps/desktop/src-tauri/icons/icon.icns",
@@ -855,7 +855,7 @@ class ReleaseBuildTests(unittest.TestCase):
         for name in (
             "scripts/release/lib.sh", "scripts/release/fetch-build.sh",
             "scripts/release/verify-macos-archive.py", "Cargo.toml",
-            "crates/orbit-daemon/src/cua.rs", "third-party/cua-driver/LICENSE.md",
+            "crates/orbit-control/src/cua.rs", "third-party/cua-driver/LICENSE.md",
         ):
             target = fixture / name
             target.parent.mkdir(parents=True, exist_ok=True)

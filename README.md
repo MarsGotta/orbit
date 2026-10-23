@@ -75,7 +75,7 @@ environment, the zones and what only a Mac can check.
 
 On macOS, use a `timeout` implementation (for example GNU coreutils' `gtimeout`)
 for test commands, and build with the exact `cua-driver` version pinned in
-[the adapter](crates/orbit-daemon/src/cua.rs):
+[the adapter](crates/orbit-control/src/cua.rs):
 
 ```sh
 gtimeout 600 swift test --package-path native/macos

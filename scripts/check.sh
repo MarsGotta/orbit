@@ -45,7 +45,9 @@ is non-zero if any of them fails.
 
 Zones:
   rust      format, strict clippy, cargo test --workspace and generated TypeScript
-  guards    python3 -B -m unittest discover -s scripts/tests (after the hub's
+  guards    the size limits and their ratchet (scripts/check/sizes.py), the domain
+            boundaries (scripts/check/boundaries.py), and
+            python3 -B -m unittest discover -s scripts/tests (after the hub's
             environment: the hub publish guards run uv offline from its cache)
   hub       ruff, format, the hub's pytest with its e2e, and the harness dry run
   ui        lint, typecheck, vitest and build of apps/desktop
@@ -291,6 +293,11 @@ run_rust_zone() {
 # server/.venv is there: without it, a fresh machine failed 11 guards with
 # "Network connectivity is disabled" (CI, 2026-10-21).
 run_guards_zone() {
+  # The source's own limits: they read text only and need no environment.
+  check_run guards-sizes "guards · 500 lines per file, 80 per function, and their ratchet" --cwd "$ROOT" -- \
+    python3 -B "$CHECK_DIR/sizes.py"
+  check_run guards-boundaries "guards · a domain uses another only through its handle and types" \
+    --cwd "$ROOT" -- python3 -B "$CHECK_DIR/boundaries.py"
   check_run guards "guards" --needs env-rust --needs env-hub --cwd "$ROOT" --report "unittest:$LOG_DIR/guards.json" -- \
     python3 -B "$CHECK_DIR/unittest_runner.py" scripts/tests "$LOG_DIR/guards.json"
 }

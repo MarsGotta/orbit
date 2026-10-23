@@ -12,7 +12,7 @@ Recording can continue offline.
 Install the development tools listed in the [README](../README.md#build-and-check).
 Run the full repository gate before packaging, then the Swift tests on macOS.
 The bundle script requires the published `cua-driver` version recorded in
-`crates/orbit-daemon/src/cua.rs` (currently 0.28.2):
+`crates/orbit-control/src/cua.rs` (currently 0.28.2):
 
 ```sh
 ORBIT_CUA_DRIVER_BINARY=/absolute/path/to/cua-driver bash scripts/macos/bundle.sh
