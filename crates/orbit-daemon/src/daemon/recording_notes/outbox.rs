@@ -23,6 +23,8 @@ use orbit_core::notes::LibraryRequest;
 use orbit_store::WaitingOrder;
 use std::collections::{BTreeMap, BTreeSet};
 
+mod supervised;
+
 /// Lanes with a request in flight at once. Six is what this Mac kept open
 /// before the outbox (four note orders, one private notes save, one library
 /// order), so the hub sees no more requests than it did; one per lane keeps

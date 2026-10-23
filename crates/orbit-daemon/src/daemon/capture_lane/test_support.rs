@@ -40,6 +40,7 @@ pub(in crate::daemon) fn spawn_task_ticking(
         gate: runtime.work.retry_gate.clone(),
         root: runtime.paths.root.clone(),
         tick,
+        supervision: runtime.supervision.clone(),
     };
     Ok((CaptureTask::spawn(parts)?, audio_tx))
 }

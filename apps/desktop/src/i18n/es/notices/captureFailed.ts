@@ -75,6 +75,7 @@ const sealCauses: Record<string, string> = {
   destination_invalid: "el destino del audio en este Mac no es una carpeta normal",
   reserve_exhausted: "se llenó la reserva de memoria del audio",
   writer_unavailable: "el almacén de Orbit no admitió más trabajo",
+  writer_panicked: "el escritor del almacén de Orbit falló al guardarlo y volvió a arrancar",
 };
 
 /** What to do about a cause the person can act on. */

@@ -61,6 +61,13 @@ describe("a cut or unsaved recording says what happened", () => {
     );
   });
 
+  it("a seal the store's writer fell on says so and that it is tried again", () => {
+    const text = shown("recording_seal_failed", { cause: "writer_panicked", fragments: 1 });
+    expect(text).toContain("el escritor del almacén de Orbit falló");
+    expect(text).not.toContain("writer_panicked");
+    expect(text).toContain("Orbit lo vuelve a intentar");
+  });
+
   it("a close the Mac never confirmed says what was kept and that the note is written", () => {
     const kept = shown("recording_close_unconfirmed", { fragments: true });
     expect(kept).toContain("no confirmó a tiempo el final de la grabación");

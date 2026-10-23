@@ -804,7 +804,7 @@ async fn stop_sends_shutdown_closes_the_input_and_lets_the_helper_leave() -> Res
     )?;
     let (_send, commands) = mpsc::channel(1);
     let (events, mut observed) = mpsc::channel(8);
-    let helper = Supervisor::spawn(Some(script), commands, events);
+    let helper = Supervisor::spawn(Some(script), commands, events, Default::default());
     helper_ready(&mut observed).await?;
     let end = helper.stop(&mut observed).await;
     assert_eq!(
@@ -843,7 +843,7 @@ async fn a_helper_that_does_not_leave_is_killed_after_its_grace() -> Result<()> 
     )?;
     let (_send, commands) = mpsc::channel(1);
     let (events, mut observed) = mpsc::channel(8);
-    let helper = Supervisor::spawn(Some(script), commands, events);
+    let helper = Supervisor::spawn(Some(script), commands, events, Default::default());
     helper_ready(&mut observed).await?;
     let asked = std::time::Instant::now();
     let end = helper.stop(&mut observed).await;
@@ -875,7 +875,7 @@ async fn heartbeats_reach_the_helper_while_the_daemon_runtime_is_held() -> Resul
     )?;
     let (_send, commands) = mpsc::channel(1);
     let (events, mut observed) = mpsc::channel(8);
-    let helper = Supervisor::spawn(Some(script), commands, events);
+    let helper = Supervisor::spawn(Some(script), commands, events, Default::default());
     helper_ready(&mut observed).await?;
     let beats = || {
         std::fs::read_to_string(&received)
@@ -918,7 +918,7 @@ async fn a_stop_during_the_relaunch_wait_launches_nothing_more() -> Result<()> {
     )?;
     let (_send, commands) = mpsc::channel(1);
     let (events, mut observed) = mpsc::channel(8);
-    let helper = Supervisor::spawn(Some(script), commands, events);
+    let helper = Supervisor::spawn(Some(script), commands, events, Default::default());
     // The fall is announced before the supervisor starts its wait: the event,
     // not a sleep, says the supervisor is now between launches.
     let fell = timeout(Duration::from_secs(10), observed.recv())

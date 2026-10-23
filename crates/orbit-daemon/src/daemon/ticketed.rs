@@ -257,6 +257,22 @@ impl<T> Ticketed<T> {
         Settlement::Current(active.value)
     }
 
+    /// The ticket of a worker that ended in a panic, once: it can deliver
+    /// nothing, so its owner settles it as a failure or clears the slot. A
+    /// worker that ended normally keeps its slot until its result settles.
+    pub(super) fn panicked(&mut self) -> Option<WorkTicket> {
+        use futures_util::FutureExt;
+        let active = self.active.as_mut()?;
+        if !active.task.as_ref()?.is_finished() {
+            return None;
+        }
+        let finished = active.task.take()?;
+        match finished.now_or_never() {
+            Some(Err(error)) if error.is_panic() => Some(active.ticket.clone()),
+            _ => None,
+        }
+    }
+
     pub(super) fn cancel(&mut self) {
         if let Some(active) = self.active.take()
             && let Some(task) = active.task

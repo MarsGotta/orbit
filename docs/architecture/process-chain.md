@@ -73,6 +73,15 @@ In `apps/desktop/src-tauri/src/daemon_thread.rs` and `src/lib.rs`:
   daemon completion (a panic, or its run ending) after its first minute
   relaunches the whole app (`DAEMON_RELAUNCH_MIN_UPTIME` in
   `daemon_thread.rs`); one that falls sooner closes the app and logs the cause.
+- **Actor panic:** a panic inside one of the daemon's actors (the capture
+  task, the store writer, the helper's supervision, the hub connection, the
+  loop's workers) is caught there, logged as `actor_panicked` with the actor
+  and its counts but never the panic's message, and only that actor is
+  relaunched from durable state; a recording goes on. Each actor has three
+  relaunches per minute (`RESTART_BUDGET`, `RESTART_WINDOW` in
+  `orbit-daemon/src/supervision.rs`); its next panic ends the loop with a
+  failure, the unexpected completion above. A panic of the loop itself is
+  one too.
 - **Crash:** memory-only audio is lost. Next startup marks the recording
   interrupted and reports how many chunks were saved
   (`RecordingInterruptedByRestart` in `orbit-core/src/model.rs`); once the new

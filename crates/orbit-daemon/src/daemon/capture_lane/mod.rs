@@ -20,6 +20,8 @@ mod buffer;
 mod fast;
 mod seal_cause;
 mod seals;
+#[cfg(test)]
+mod supervision_tests;
 pub(super) mod task;
 #[cfg(test)]
 pub(super) mod test_support;
@@ -111,6 +113,17 @@ pub(super) struct LaneCore {
     /// The loop has ended: the task reads and drops whatever still comes, so
     /// the helper's last frames cannot hold its own closure.
     pub(super) discard: bool,
+    /// Panics a test injects into the task's next frames, and into its next
+    /// chunk transfers. Nothing in a build without tests can set them.
+    #[cfg(test)]
+    pub(super) injected: Injected,
+}
+
+#[cfg(test)]
+#[derive(Default)]
+pub(super) struct Injected {
+    pub(super) frames: u32,
+    pub(super) uploads: u32,
 }
 
 /// The lane, shared by the runtime and the capture task.
@@ -179,5 +192,42 @@ impl CaptureLane {
     /// Stops the task's own handling until the loop arms the lane again.
     pub(super) fn disarm(&self) {
         self.lock().gate.armed = false;
+    }
+
+    /// The task's next `frames` frames panic as they arrive, and its next
+    /// `uploads` chunk transfers as they start.
+    #[cfg(test)]
+    pub(super) fn inject_panics(&self, frames: u32, uploads: u32) {
+        let mut core = self.lock();
+        core.injected.frames = frames;
+        core.injected.uploads = uploads;
+    }
+
+    #[cfg(test)]
+    #[allow(clippy::panic, reason = "a test injects this panic on purpose")]
+    pub(super) fn panic_if_injected(&self) {
+        let fire = {
+            let mut core = self.lock();
+            let fire = core.injected.frames > 0;
+            core.injected.frames = core.injected.frames.saturating_sub(1);
+            fire
+        };
+        if fire {
+            panic!("injected capture task panic");
+        }
+    }
+
+    #[cfg(test)]
+    #[allow(clippy::panic, reason = "a test injects this panic on purpose")]
+    pub(super) fn panic_upload_if_injected(&self) {
+        let fire = {
+            let mut core = self.lock();
+            let fire = core.injected.uploads > 0;
+            core.injected.uploads = core.injected.uploads.saturating_sub(1);
+            fire
+        };
+        if fire {
+            panic!("injected chunk upload panic");
+        }
     }
 }

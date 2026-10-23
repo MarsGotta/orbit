@@ -1,6 +1,8 @@
 //! The helper's supervision: its launches and relaunches, the tap that hands
 //! its events over, and its closure in order.
 use super::*;
+use crate::supervision::{Actor, Supervision, Verdict};
+use futures_util::FutureExt;
 
 /// Ten seconds of two-track input fits with margin: the tap produces
 /// ≈47 ev/s × 2 pistas and the bridge needs room to keep emitting while a
@@ -131,6 +133,7 @@ impl Supervisor {
         path: Option<PathBuf>,
         commands: mpsc::Receiver<Value>,
         route: impl Into<NativeRoute>,
+        supervision: Supervision,
     ) -> Self {
         let route = route.into();
         let (stop, stopped) = watch::channel(false);
@@ -143,7 +146,16 @@ impl Supervisor {
                     .enable_all()
                     .build()
                 {
-                    Ok(runtime) => runtime.block_on(supervise(path, commands, route, stopped)),
+                    Ok(runtime) => {
+                        let life = Life {
+                            path,
+                            commands,
+                            route,
+                            stopped,
+                            supervision,
+                        };
+                        life.run(&runtime)
+                    }
                     Err(_) => {
                         if route
                             .blocking_send(json!({"event":"helper_disconnected"}))
@@ -190,16 +202,60 @@ impl Supervisor {
     }
 }
 
-/// The supervision's whole life on its own thread: `run`, and the fall it
-/// announces when the relaunches run out.
-async fn supervise(
+/// What the supervision keeps across a panic of its own: the daemon's
+/// commands, in order, the route its events take and the stop.
+struct Life {
     path: Option<PathBuf>,
     commands: mpsc::Receiver<Value>,
     route: NativeRoute,
     stopped: watch::Receiver<bool>,
+    supervision: Supervision,
+}
+
+impl Life {
+    /// One run of [`supervise`] after another, while a panic is within the
+    /// budget. The helper of the run that panicked goes with it: its child
+    /// is killed on drop. The daemon hears that as a helper that fell, and
+    /// latches the capture; the relaunched supervision launches a new
+    /// helper, whose `ready` lets a recording that was live go on
+    /// (`cut_recovery`), as after any fall of the helper.
+    fn run(mut self, runtime: &tokio::runtime::Runtime) -> HelperEnd {
+        loop {
+            let run = supervise(
+                self.path.clone(),
+                &mut self.commands,
+                self.route.clone(),
+                self.stopped.clone(),
+            );
+            let Ok(end) = runtime.block_on(std::panic::AssertUnwindSafe(run).catch_unwind()) else {
+                let verdict = self.supervision.panicked(Actor::HelperSupervisor);
+                if self
+                    .route
+                    .blocking_send(json!({"event":"helper_disconnected"}))
+                    .is_err()
+                {
+                    eprintln!("helper_disconnected_receiver_closed");
+                }
+                if verdict == Verdict::GiveUp || *self.stopped.borrow() {
+                    return HelperEnd::GaveUp;
+                }
+                continue;
+            };
+            return end;
+        }
+    }
+}
+
+/// The supervision's whole life on its own thread: `run`, and the fall it
+/// announces when the relaunches run out.
+async fn supervise(
+    path: Option<PathBuf>,
+    commands: &mut mpsc::Receiver<Value>,
+    route: NativeRoute,
+    stopped: watch::Receiver<bool>,
 ) -> HelperEnd {
     let stopping = stopped.clone();
-    match run(path, commands, route.clone(), stopped).await {
+    match run_with(path, commands, route.clone(), stopped).await {
         Ok(end) => end,
         Err(_) => {
             // The daemon latches the capture on this; a supervision
@@ -223,20 +279,28 @@ pub async fn run(
     path: Option<PathBuf>,
     commands: mpsc::Receiver<Value>,
     route: impl Into<NativeRoute>,
+    stop: watch::Receiver<bool>,
+) -> Result<HelperEnd> {
+    let mut commands = commands;
+    run_with(path, &mut commands, route.into(), stop).await
+}
+
+async fn run_with(
+    path: Option<PathBuf>,
+    commands: &mut mpsc::Receiver<Value>,
+    route: NativeRoute,
     mut stop: watch::Receiver<bool>,
 ) -> Result<HelperEnd> {
-    let route = route.into();
     let path = path.context("El helper nativo no está configurado")?;
     if !path.is_absolute() {
         anyhow::bail!("El helper debe tener una ruta absoluta");
     }
-    let mut commands = commands;
     let mut consecutive_failures: u32 = 0;
     loop {
         if *stop.borrow() {
             return Ok(HelperEnd::NotRunning);
         }
-        let (bridge_result, saw_ready) = launch(&path, &mut commands, &route, &mut stop).await;
+        let (bridge_result, saw_ready) = launch(&path, commands, &route, &mut stop).await;
         let bridge_error = match bridge_result {
             Ok(end) => return Ok(end),
             Err(error) => error,
@@ -291,7 +355,10 @@ async fn launch(
             }
         }
     });
-    let bridge_result = run_helper_bridge(path, commands, bridge_tx_for_bridge, stop).await;
+    let bridge = run_helper_bridge(path, commands, bridge_tx_for_bridge, stop);
+    #[cfg(test)]
+    let bridge = panic_when_asked(path, bridge);
+    let bridge_result = bridge.await;
     // Closing the original sender (the bridge task already dropped its
     // clone) is what signals the tap to finish.
     drop(bridge_tx);
@@ -372,3 +439,26 @@ where
         }
     }
 }
+
+/// A test asks the supervision to panic while its helper runs by creating
+/// `<helper>.panic` beside the helper; it is removed as the panic fires.
+/// Nothing in a build without tests looks for it.
+#[cfg(test)]
+#[allow(clippy::panic, reason = "a test injects this panic on purpose")]
+async fn panic_when_asked<T>(path: &std::path::Path, bridge: impl Future<Output = T>) -> T {
+    let trigger = path.with_extension("panic");
+    tokio::pin!(bridge);
+    loop {
+        tokio::select! {
+            out = &mut bridge => return out,
+            () = tokio::time::sleep(Duration::from_millis(20)) => {
+                if std::fs::remove_file(&trigger).is_ok() {
+                    panic!("injected helper supervisor panic");
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod supervision_tests;

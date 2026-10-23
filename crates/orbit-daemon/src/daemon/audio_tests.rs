@@ -104,6 +104,7 @@ pub(in crate::daemon) fn fixture(
             voice_audio_reader,
             fixture_store,
             store_actor,
+            supervision: Default::default(),
             native,
             hub: super::super::hub_link::HubLink::default(),
             hub_protocol_version: None,

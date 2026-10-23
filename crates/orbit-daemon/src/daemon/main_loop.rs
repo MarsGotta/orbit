@@ -4,6 +4,7 @@
 use super::*;
 
 mod orders;
+mod workers;
 
 /// How many turns each arm served, for the aggregate logged at closure.
 #[derive(Default)]
@@ -58,7 +59,12 @@ pub(super) async fn serve(
         let commands = channels.native_commands.take();
         let route = channels.native_route.take();
         if let (Some(commands), Some(route)) = (commands, route) {
-            helper = Some(native::Supervisor::spawn(helper_path, commands, route));
+            helper = Some(native::Supervisor::spawn(
+                helper_path,
+                commands,
+                route,
+                runtime.supervision.clone(),
+            ));
         }
     }
     runtime.connect();
@@ -94,6 +100,7 @@ fn spawn_capture(
         gate: runtime.work.retry_gate.clone(),
         root: runtime.paths.root.clone(),
         tick: capture_lane::task::CAPTURE_TICK,
+        supervision: runtime.supervision.clone(),
         diagnostics: runtime
             .diagnostics
             .as_ref()
@@ -133,6 +140,11 @@ impl MainLoop<'_> {
                 break;
             }
             Box::pin(self.end_turn()).await;
+            // An actor past its budget ends the daemon: the app relaunches it
+            // whole, from the store, as after any fall.
+            if let Some(spent) = self.runtime.supervision.exhausted() {
+                bail!("{}", spent.describe());
+            }
             if self.closing.exit_now(std::time::Instant::now()) {
                 let _ = self.runtime.declare_bounded_exit().await;
                 break;
@@ -264,10 +276,8 @@ impl MainLoop<'_> {
             .begin(turn_watch::TurnSource::native(&event));
         self.runtime
             .begin_fresh_turn(orbit_core::notice::ReportSource::Daemon);
-        if let Some(seq) = seq {
-            // Every frame the helper sent before this event, first.
-            self.runtime.capture_barrier(seq).await;
-        }
+        // Every frame the helper sent before this event, first.
+        self.runtime.capture_barrier(seq).await;
         if self.closing.allows_native_event(&event) {
             self.process.topic_board.state_changed();
             self.runtime.handle_native_event(event).await;
@@ -354,6 +364,9 @@ impl MainLoop<'_> {
             self.log_stall(late, slowest.as_ref());
         }
         self.process.topic_board.state_changed();
+        #[cfg(test)]
+        self.runtime.inject_test_faults();
+        Box::pin(self.runtime.supervise_workers()).await;
         Box::pin(self.runtime.run_vertical_maintenance()).await;
         Box::pin(self.runtime.run_state_maintenance()).await;
         let watch = self.runtime.turn_watch.clone();

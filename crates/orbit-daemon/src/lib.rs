@@ -17,3 +17,4 @@ pub mod native;
 pub use orbit_ipc::permissions;
 pub mod retry;
 pub mod speech;
+pub mod supervision;

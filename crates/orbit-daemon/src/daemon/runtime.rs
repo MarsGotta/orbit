@@ -185,6 +185,8 @@ pub(super) struct Runtime {
     /// Reads voice-note audio off the actor; see `reads::VoiceAudioReader`.
     pub(super) voice_audio_reader: reads::VoiceAudioReader,
     pub(super) store_actor: store_actor::StoreActor,
+    /// Every actor's panics, counted; the loop ends on a spent budget.
+    pub(super) supervision: crate::supervision::Supervision,
     /// `None` only in fixtures that assert nothing about the trail.
     pub(super) diagnostics: Option<crate::diagnostics::DiagnosticLog>,
     /// The local report log; `None` in fixtures, like `diagnostics`.

@@ -34,6 +34,7 @@ mod owner;
 pub(super) mod reads;
 mod reminders;
 mod send;
+mod supervised;
 #[cfg(test)]
 mod tests;
 

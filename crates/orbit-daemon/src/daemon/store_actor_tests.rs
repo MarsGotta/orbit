@@ -120,6 +120,7 @@ async fn abandoned_store_receipt_does_not_replace_the_user_notice() -> Result<()
         store,
         events,
         crate::diagnostics::DiagnosticLog::in_root(directory.path()),
+        crate::supervision::Supervision::default(),
     )?;
     let abandoned = actor.begin_run(|_| Ok::<_, anyhow::Error>(()))?;
     drop(abandoned);

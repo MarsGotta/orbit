@@ -8,10 +8,13 @@
 //! waits only for its next frame, its own clock, or room in the queue of
 //! what it hands the loop, which is the same backpressure the loop's own
 //! channel put on the helper before.
-use super::{CaptureLane, fast, uploads::Uploader};
+use super::{CaptureLane, ForwardedItem, fast, uploads::Uploader};
 use crate::daemon::store_actor::CapturePort;
 use crate::native::{AudioItem, RoutedAudio};
+use crate::supervision::{Actor, Supervision, Verdict};
+use futures_util::FutureExt;
 use std::{
+    panic::AssertUnwindSafe,
     path::PathBuf,
     time::{Duration, Instant},
 };
@@ -38,6 +41,10 @@ pub(in crate::daemon) const CAPTURE_TICK: Duration = Duration::from_secs(1);
 /// that waits, so a slow turn is a defect to find, never a normal case.
 const SLOW_TURN: Duration = crate::daemon::turn_watch::SLOW_TURN_THRESHOLD;
 
+/// The `reason` of the gap the task declares for the frame it was serving
+/// when it panicked: a code, as the helper's own reasons are.
+pub(in crate::daemon) const PANIC_GAP_REASON: &str = "capture_task_panicked";
+
 /// What the task needs from the daemon.
 pub(in crate::daemon) struct TaskParts {
     pub(in crate::daemon) lane: CaptureLane,
@@ -52,6 +59,8 @@ pub(in crate::daemon) struct TaskParts {
     /// [`CAPTURE_TICK`]; a test that proves something happens without the
     /// clock sets it longer than the test.
     pub(in crate::daemon) tick: Duration,
+    /// Where its panics, and its transfers', are counted.
+    pub(in crate::daemon) supervision: Supervision,
 }
 
 /// The running task, as the daemon holds it.
@@ -72,7 +81,7 @@ impl CaptureTask {
                     .enable_all()
                     .build()
                 {
-                    Ok(runtime) => runtime.block_on(serve(parts, stopped)),
+                    Ok(runtime) => supervise(&runtime, Held::new(parts), &stopped),
                     Err(_) => eprintln!("capture_task_runtime_failed"),
                 }
             })?;
@@ -121,38 +130,138 @@ struct Task {
     diagnostics: Option<crate::diagnostics::DiagnosticLog>,
 }
 
-async fn serve(parts: TaskParts, mut stopped: watch::Receiver<bool>) {
-    let TaskParts {
-        lane,
-        mut audio,
-        port,
-        store,
-        diagnostics,
-        reader,
-        gate,
-        root,
+/// The helper frame the task was serving: its place and its track, for the
+/// gap a panic leaves.
+struct InHand {
+    seq: u64,
+    source: String,
+    stream: String,
+}
+
+impl InHand {
+    fn of(routed: &RoutedAudio) -> Option<Self> {
+        let AudioItem::Frame(frame) = &routed.item else {
+            return None;
+        };
+        Some(Self {
+            seq: routed.seq,
+            source: frame.get("source")?.as_str()?.to_owned(),
+            stream: frame.get("stream_id")?.as_str()?.to_owned(),
+        })
+    }
+}
+
+/// What outlives one run of the task: its channel, in the helper's order,
+/// its chunk transfers and the frame in hand. A relaunch starts from these
+/// and from the lane, which the loop shares and keeps.
+struct Held {
+    task: Task,
+    audio: mpsc::Receiver<RoutedAudio>,
+    uploader: Uploader,
+    transfers: mpsc::Receiver<()>,
+    tick: Duration,
+    supervision: Supervision,
+    in_hand: Option<InHand>,
+}
+
+impl Held {
+    fn new(parts: TaskParts) -> Self {
+        let (done, transfers) = mpsc::channel(1);
+        let uploader = Uploader::new(
+            parts.reader,
+            parts.port.clone(),
+            parts.gate,
+            parts.root,
+            done,
+            parts.supervision.clone(),
+        );
+        Self {
+            task: Task {
+                lane: parts.lane,
+                port: parts.port,
+                store: parts.store,
+                diagnostics: parts.diagnostics,
+            },
+            audio: parts.audio,
+            uploader,
+            transfers,
+            tick: parts.tick,
+            supervision: parts.supervision,
+            in_hand: None,
+        }
+    }
+
+    /// After a panic, before the relaunch: the loop serves every frame until
+    /// it arms the lane again, and the frame in hand, which may or may not
+    /// have reached the recording, is declared a hole of its track. The
+    /// hole is what keeps the recording: the loop seals that track's tail
+    /// and accepts its next frame, instead of refusing a sequence that no
+    /// longer follows. At most that one frame is lost, and said.
+    fn after_panic(&mut self) {
+        let lane = &self.task.lane;
+        {
+            let mut core = lane.lock();
+            core.gate.armed = false;
+            if let Some(in_hand) = self.in_hand.take() {
+                let gap = serde_json::json!({
+                    "event": "gap", "v": 1, "source": in_hand.source,
+                    "stream_id": in_hand.stream, "reason": PANIC_GAP_REASON,
+                    "frames": 0, "duration_unknown": true,
+                });
+                fast::forward(&mut core, in_hand.seq, ForwardedItem::Event(gap));
+                core.consumed_through = core.consumed_through.max(in_hand.seq);
+            }
+        }
+        lane.wake_loop();
+        lane.wake_progress();
+    }
+}
+
+/// The task's life: one run of [`serve`] after another, as long as a panic
+/// is within its budget. Past it the task stays down and its channel closes,
+/// so the bridge hands every frame to the loop (`NativeRoute::send`), and
+/// the loop ends the daemon on the spent budget.
+fn supervise(runtime: &tokio::runtime::Runtime, mut held: Held, stopped: &watch::Receiver<bool>) {
+    loop {
+        let run = AssertUnwindSafe(serve(&mut held, stopped.clone())).catch_unwind();
+        if runtime.block_on(run).is_ok() {
+            return;
+        }
+        held.after_panic();
+        if held.supervision.panicked(Actor::CaptureTask) == Verdict::GiveUp {
+            return;
+        }
+    }
+}
+
+async fn serve(held: &mut Held, mut stopped: watch::Receiver<bool>) {
+    let Held {
+        task,
+        audio,
+        uploader,
+        transfers,
         tick,
-    } = parts;
-    let (done, mut transfers) = mpsc::channel(1);
-    let mut uploader = Uploader::new(reader, port.clone(), gate, root, done);
-    let task = Task {
-        lane,
-        port,
-        store,
-        diagnostics,
-    };
+        in_hand,
+        ..
+    } = held;
     task.lane.lock().task_running = true;
     let _running = Running(task.lane.clone());
-    let mut tick = tokio::time::interval(tick);
+    if *stopped.borrow() {
+        task.lane.lock().discard = true;
+        return;
+    }
+    let mut tick = tokio::time::interval(*tick);
     let mut listening = true;
     loop {
         tokio::select! {
             routed = audio.recv(), if listening => match routed {
                 Some(routed) => {
                     let started = Instant::now();
+                    *in_hand = InHand::of(&routed);
                     if task.receive(routed, audio.len()).await {
                         uploader.schedule(&task.lane);
                     }
+                    *in_hand = None;
                     task.timed("frame", started);
                 }
                 // No helper, or it is gone: the chunks still go up.
@@ -193,6 +302,8 @@ impl Task {
                 false
             }
             AudioItem::Frame(frame) => {
+                #[cfg(test)]
+                self.lane.panic_if_injected();
                 self.room().await;
                 let (handed_over, receipted) = {
                     let mut core = self.lane.lock();

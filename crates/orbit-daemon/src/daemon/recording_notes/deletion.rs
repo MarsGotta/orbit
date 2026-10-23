@@ -333,29 +333,16 @@ impl Runtime {
         self.features.notes.deletions.purging = Some(recording.clone());
         let port = self.store_actor.capture_port();
         let events = self.features.notes.events.clone();
+        let supervision = self.supervision.clone();
+        let deleting = recording.clone();
         tokio::spawn(async move {
-            let mut total = Deleted::default();
-            let outcome = loop {
-                let id = recording.clone();
-                let step = match port.begin_run(move |store| {
-                    Ok(store.delete_recording(&id, scope, PURGE_STEP_CHUNKS)?)
-                }) {
-                    Ok(receipt) => receipt.wait().await,
-                    Err(error) => Err(error),
-                };
-                match step {
-                    Ok(step) => {
-                        total.chunks += step.chunks;
-                        total.jobs += step.jobs;
-                        total.records += step.records;
-                        total.orders += step.orders;
-                        if step.done {
-                            break Ok(total);
-                        }
-                    }
-                    Err(error) => break Err(format!("{error:#}")),
-                }
-            };
+            let purge = purge_steps(port, deleting, scope);
+            // A panic is a deletion that failed: it is owed again and
+            // retried, as any failure of the store here is.
+            let outcome = supervision
+                .guard(crate::supervision::Actor::NoteDeletion, purge)
+                .await
+                .unwrap_or_else(|_| Err("El borrado en este Mac falló; se reintentará".into()));
             let event = NoteEvent::Purged {
                 recording,
                 scope,
@@ -429,3 +416,37 @@ impl Runtime {
         discarded || !self.closing(recording)
     }
 }
+
+/// The deletion's steps, each a bounded run of the writer, until the store
+/// says it is done.
+async fn purge_steps(
+    port: crate::daemon::store_actor::CapturePort,
+    recording: String,
+    scope: DeletionScope,
+) -> std::result::Result<Deleted, String> {
+    let mut total = Deleted::default();
+    loop {
+        let id = recording.clone();
+        let step = match port
+            .begin_run(move |store| Ok(store.delete_recording(&id, scope, PURGE_STEP_CHUNKS)?))
+        {
+            Ok(receipt) => receipt.wait().await,
+            Err(error) => Err(error),
+        };
+        match step {
+            Ok(step) => {
+                total.chunks += step.chunks;
+                total.jobs += step.jobs;
+                total.records += step.records;
+                total.orders += step.orders;
+                if step.done {
+                    return Ok(total);
+                }
+            }
+            Err(error) => return Err(format!("{error:#}")),
+        }
+    }
+}
+
+#[cfg(test)]
+mod supervision_tests;

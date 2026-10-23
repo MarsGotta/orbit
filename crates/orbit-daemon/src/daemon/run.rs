@@ -277,10 +277,14 @@ async fn start_runtime(
     )
     .await?;
     let (work_events, work_rx) = mpsc::channel(WORK_EVENTS_CAPACITY);
+    let supervision = crate::supervision::Supervision::new(Some(
+        crate::diagnostics::DiagnosticLog::in_root(&boot.paths.root),
+    ));
     let store_actor = store_actor::StoreActor::spawn_with_diagnostics(
         store,
         work_events.clone(),
         crate::diagnostics::DiagnosticLog::in_root(&boot.paths.root),
+        supervision.clone(),
     )?;
     let stop_store = startup::StopStore::Actor(store_actor.startup_stop_writer()?);
     let written = Written {
@@ -299,6 +303,7 @@ async fn start_runtime(
     .await?;
     let recovered = runtime_build::Recovered {
         store_actor,
+        supervision,
         checkpoint: &checkpoint,
         prepared,
         work_events,

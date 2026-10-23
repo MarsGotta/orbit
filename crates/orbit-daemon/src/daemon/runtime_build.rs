@@ -14,6 +14,7 @@ pub(super) struct Boot {
 /// The recovered pieces the runtime is built from.
 pub(super) struct Recovered<'a> {
     pub(super) store_actor: store_actor::StoreActor,
+    pub(super) supervision: crate::supervision::Supervision,
     pub(super) checkpoint: &'a startup::RecoveryCheckpoint,
     pub(super) prepared: startup::PreparedEnvironment,
     pub(super) work_events: mpsc::Sender<WorkResult>,
@@ -112,6 +113,7 @@ pub(super) fn build_runtime(
     } = boot;
     let Recovered {
         mut store_actor,
+        supervision,
         checkpoint,
         prepared,
         work_events,
@@ -127,7 +129,6 @@ pub(super) fn build_runtime(
     channels.capture_reader = Some(store_actor.runtime_reader(&paths.store, key)?);
     let mut state = checkpoint.state.clone();
     state.views.recovery = orbit_core::RecoveryStatus::Unknown;
-    let durable_snapshot = DurableSnapshot::from(&state);
     #[cfg(test)]
     let fixture_store = test_store::open_existing(&paths.store, key)?;
     let turn_watch = turn_watch::TurnWatch::default();
@@ -147,6 +148,7 @@ pub(super) fn build_runtime(
         paths,
         settings,
         development,
+        work: WorkRuntime::new(work_events, DurableSnapshot::from(&state)),
         state,
         reader,
         turn_watch,
@@ -154,6 +156,7 @@ pub(super) fn build_runtime(
         #[cfg(test)]
         fixture_store,
         store_actor,
+        supervision,
         diagnostics: Some(diagnostics),
         report_log: Some(report_log),
         error_reports,
@@ -169,7 +172,6 @@ pub(super) fn build_runtime(
         pending_native: BTreeMap::new(),
         helper_waits: BTreeMap::new(),
         token,
-        work: WorkRuntime::new(work_events, durable_snapshot),
         conversation: ConversationRuntime::new(),
         capture: CaptureRuntime::new(recovery),
         features: FeatureRuntime::new(ends.notes_events),

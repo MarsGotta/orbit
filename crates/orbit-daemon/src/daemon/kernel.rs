@@ -66,7 +66,7 @@ impl Runtime {
                 }
             }
             let commands = self.hub.open(16);
-            self.hub_task = Some(tokio::spawn(hub::run(
+            let run = hub::run(
                 self.settings.clone(),
                 token.clone(),
                 self.development,
@@ -75,6 +75,13 @@ impl Runtime {
                     generation: self.state.generation(),
                     sender: self.hub_events.clone(),
                 },
+            );
+            // A panic ends this task with a failure and marks it down; the
+            // loop's upkeep connects again (`supervise_workers`).
+            self.hub_task = Some(tokio::spawn(crate::supervision::relaunchable(
+                crate::supervision::Actor::HubConnection,
+                self.supervision.clone(),
+                run,
             )));
         }
     }

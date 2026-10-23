@@ -5,7 +5,9 @@
 use super::CaptureLane;
 use crate::daemon::store_actor::CapturePort;
 use crate::daemon::upload_outcome::{self, ChunkPut, HUB_FULL_RETRY, SharedGate};
+use crate::supervision::{Actor, Supervision};
 use anyhow::{Context, Result};
+use futures_util::FutureExt;
 use orbit_core::notice::Notice;
 use orbit_store::{ChunkReceipt, Job, JobState, ReadOnlyStore};
 use std::{
@@ -55,6 +57,7 @@ pub(super) struct Uploader {
     cursor: Arc<Mutex<Option<String>>>,
     in_flight: Option<JoinHandle<()>>,
     done: mpsc::Sender<()>,
+    supervision: Supervision,
 }
 
 /// What a spawned transfer carries.
@@ -74,6 +77,7 @@ impl Uploader {
         gate: SharedGate,
         root: PathBuf,
         done: mpsc::Sender<()>,
+        supervision: Supervision,
     ) -> Self {
         Self {
             reader: Arc::new(Mutex::new(reader)),
@@ -83,6 +87,19 @@ impl Uploader {
             cursor: Arc::default(),
             in_flight: None,
             done,
+            supervision,
+        }
+    }
+
+    /// A transfer that ended in a panic is counted, and the next one is
+    /// started as after any failed transfer: its job stays where the store
+    /// has it (queued or running) and is listed again, and a chunk the hub
+    /// already took is answered again by its idempotent PUT.
+    fn reap(&self, finished: JoinHandle<()>) {
+        if let Some(Err(error)) = finished.now_or_never()
+            && error.is_panic()
+        {
+            self.supervision.panicked(Actor::ChunkUpload);
         }
     }
 
@@ -95,7 +112,9 @@ impl Uploader {
         {
             return;
         }
-        self.in_flight = None;
+        if let Some(finished) = self.in_flight.take() {
+            self.reap(finished);
+        }
         let view = lane.lock().upload.clone();
         if view.privacy_stopped || !view.online || !self.gate.ready(Instant::now()) {
             return;
@@ -180,6 +199,8 @@ fn blocking_read<T: Send + 'static>(
 
 impl Transfer {
     async fn run(self, lane: &CaptureLane) -> Result<Option<UploadReport>> {
+        #[cfg(test)]
+        lane.panic_upload_if_injected();
         let discarded = |recording: &str| lane.lock().upload.discarded.contains(recording);
         let Some((job, receipt, forbidden)) = next_job(&self.reader, &self.cursor).await? else {
             return Ok(None);

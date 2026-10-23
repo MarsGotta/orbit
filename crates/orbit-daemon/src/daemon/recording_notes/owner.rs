@@ -85,8 +85,13 @@ impl Runtime {
         }
         notes.owner_lookup_started = true;
         let events = notes.events.clone();
+        let supervision = self.supervision.clone();
         tokio::spawn(async move {
-            let name = account_full_name().await;
+            // A panic reads as an account without a name, as a failed read.
+            let name = supervision
+                .guard(crate::supervision::Actor::NoteOwner, account_full_name())
+                .await
+                .unwrap_or_else(|_| core::owner_name(None));
             deliver(&events, NoteEvent::Owner { name }).await;
         });
     }

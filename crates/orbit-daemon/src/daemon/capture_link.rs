@@ -231,8 +231,14 @@ impl Runtime {
 
     /// Before the loop serves the helper event at `seq`: the task has handled
     /// every frame the helper sent before it, and the loop has served those
-    /// the task handed over.
-    pub(super) async fn capture_barrier(&mut self, seq: u64) {
+    /// the task handed over. An event without a place came to the loop
+    /// because the task's channel is closed (the task is down): what the
+    /// task handed over before it went down came first, and is served first.
+    pub(super) async fn capture_barrier(&mut self, seq: Option<u64>) {
+        let Some(seq) = seq else {
+            self.serve_forwarded(None).await;
+            return;
+        };
         let deadline = std::time::Instant::now() + BARRIER_BOUND;
         loop {
             self.serve_forwarded(Some(seq)).await;

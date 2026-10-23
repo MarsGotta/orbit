@@ -4,6 +4,7 @@
 //! SQLite mutations and filesystem synchronization. Durable completions
 //! return through the daemon's ordinary work-event channel.
 use super::{WorkResult, native};
+use crate::supervision::Supervision;
 use anyhow::Result;
 use orbit_core::State;
 use orbit_store::{Job, ReadOnlyStore, Store};
@@ -31,12 +32,15 @@ mod capture_port;
 mod lanes;
 mod receipts;
 mod writer;
+mod writer_loop;
 pub(super) use capture_port::CapturePort;
 pub(super) use capture_port::StoreCompletion;
 use lanes::{CriticalSnapshot, Lanes, Parked, PendingSnapshot, Step, refusal};
 pub(super) use receipts::{StartupStopWriter, StoreReceipt};
 use receipts::{admission_error, receive, uncertain};
 use writer::Writer;
+#[cfg(test)]
+pub(in crate::daemon) use writer_loop::{WRITER_PANIC_CAUSE, faults};
 
 pub(super) fn open_owner(directory: &std::path::Path, key: [u8; 32]) -> Result<Store> {
     Ok(Store::open(directory, key)?)
@@ -159,15 +163,32 @@ impl StoreActor {
         store: Store,
         events: tokio::sync::mpsc::Sender<WorkResult>,
     ) -> Result<Self> {
-        Self::spawn_with_reporter(store, events, Arc::default(), None)
+        Self::spawn_supervised(store, events, Supervision::default())
+    }
+
+    /// The same, its panics counted in `supervision`.
+    #[cfg(test)]
+    pub(super) fn spawn_supervised(
+        store: Store,
+        events: tokio::sync::mpsc::Sender<WorkResult>,
+        supervision: Supervision,
+    ) -> Result<Self> {
+        Self::spawn_with_reporter(store, events, Arc::default(), None, supervision)
     }
 
     pub(super) fn spawn_with_diagnostics(
         store: Store,
         events: tokio::sync::mpsc::Sender<WorkResult>,
         diagnostics: crate::diagnostics::DiagnosticLog,
+        supervision: Supervision,
     ) -> Result<Self> {
-        Self::spawn_with_reporter(store, events, Arc::default(), Some(diagnostics))
+        Self::spawn_with_reporter(
+            store,
+            events,
+            Arc::default(),
+            Some(diagnostics),
+            supervision,
+        )
     }
 
     /// The same actor, with its loop turns counted into `turns`.
@@ -182,7 +203,7 @@ impl StoreActor {
         events: tokio::sync::mpsc::Sender<WorkResult>,
         turns: Arc<AtomicU64>,
     ) -> Result<Self> {
-        Self::spawn_with_reporter(store, events, turns, None)
+        Self::spawn_with_reporter(store, events, turns, None, Supervision::default())
     }
 
     fn spawn_with_reporter(
@@ -190,6 +211,7 @@ impl StoreActor {
         events: tokio::sync::mpsc::Sender<WorkResult>,
         turns: Arc<AtomicU64>,
         diagnostics: Option<crate::diagnostics::DiagnosticLog>,
+        supervision: Supervision,
     ) -> Result<Self> {
         let (sender, receiver) = mpsc::sync_channel(STORE_OP_CAPACITY);
         let completions = Arc::new(Mutex::new(VecDeque::new()));
@@ -200,15 +222,16 @@ impl StoreActor {
         let thread = thread::Builder::new()
             .name("orbit-store".into())
             .spawn(move || {
-                run(
+                writer_loop::run(writer_loop::WriterParts {
                     store,
                     receiver,
                     events,
-                    thread_completions,
-                    &turns,
-                    thread_guard,
+                    completions: thread_completions,
+                    turns,
+                    startup_guard_active: thread_guard,
                     diagnostics,
-                )
+                    supervision,
+                })
             })?;
         Ok(Self {
             seals: CapturePort::new(sender.clone(), completions),
@@ -382,134 +405,8 @@ impl Drop for StoreActor {
     }
 }
 
-fn run(
-    store: Store,
-    receiver: mpsc::Receiver<StoreOp>,
-    events: tokio::sync::mpsc::Sender<WorkResult>,
-    completions: Arc<Mutex<VecDeque<StoreCompletion>>>,
-    turns: &AtomicU64,
-    startup_guard_active: Arc<std::sync::atomic::AtomicBool>,
-    diagnostics: Option<crate::diagnostics::DiagnosticLog>,
-) {
-    let mut lanes = Lanes::default();
-    let mut writer = Writer {
-        store,
-        events,
-        completions,
-        seal_retry_at: Instant::now(),
-        last_snapshot: None,
-        held_startup_stop: None,
-        startup_guard_active,
-        diagnostics,
-        pending_problems: VecDeque::new(),
-        overflowed_problems: 0,
-    };
-    let mut disconnected = false;
-
-    loop {
-        turns.fetch_add(1, Ordering::Relaxed);
-        // A problem notice that was refused for a full channel is
-        // retried here first: the loop it must reach may have made room
-        // while the writer was inside a system call.
-        writer.deliver_pending_problems();
-        while let Ok(operation) = receiver.try_recv() {
-            lanes.admit(operation);
-        }
-
-        let step = lanes.next_step();
-        match step {
-            Step::Seal => {
-                if let Some(queued) = lanes.seals.pop_front() {
-                    let owed = lanes.owed_seals().saturating_add(1);
-                    let queue_wait_us = Instant::now()
-                        .duration_since(queued.operation.1)
-                        .as_micros()
-                        .min(u128::from(u64::MAX)) as u64;
-                    let sealed = writer.seal(&queued.operation.0, owed, Some(queue_wait_us));
-                    if !sealed {
-                        let failed_at = Instant::now();
-                        if lanes.parked.is_empty() {
-                            writer.seal_retry_at = failed_at + SEAL_RETRY_DELAY;
-                        }
-                        lanes.parked.push_back(Parked {
-                            segment: queued.operation.0,
-                            failed_at,
-                        });
-                    }
-                }
-            }
-            Step::Retry => {
-                lanes.retry = None;
-                writer.retry_parked(&mut lanes);
-            }
-            Step::Flush => writer.write_snapshot(&mut lanes),
-            Step::Run => {
-                if let Some(queued) = lanes.runs.pop_front() {
-                    let receipt_lost = (queued.operation)(&mut writer.store);
-                    if receipt_lost {
-                        writer.report_receipt_loss("run");
-                    }
-                }
-            }
-            Step::Critical => {
-                if let Some(queued) = lanes.critical.pop_front() {
-                    writer.write_critical(&mut lanes, queued.operation);
-                }
-            }
-            Step::Idle => {}
-        }
-
-        // Audio first: a retry that has fallen due runs before a snapshot due
-        // in the same turn.
-        if writer
-            .retry_due(&lanes)
-            .is_some_and(|due| Instant::now() >= due)
-        {
-            writer.retry_parked(&mut lanes);
-        }
-        if writer
-            .snapshot_due(&lanes)
-            .is_some_and(|due| Instant::now() >= due)
-        {
-            writer.write_snapshot(&mut lanes);
-        }
-
-        if disconnected {
-            break;
-        }
-        // The writer sleeps until the next real deadline, computed
-        // from the same answers that gate the writes above. With nothing owed
-        // it waits for an operation or for the queue to close: there is no
-        // deadline to wake for, so it wakes for none. A pending problem
-        // notice is itself a real deadline: the writer is the only
-        // one who can retry its delivery.
-        let deadline = if lanes.ready() {
-            Some(Instant::now())
-        } else {
-            [
-                writer.retry_due(&lanes),
-                writer.snapshot_due(&lanes),
-                writer.problem_flush_due(),
-            ]
-            .into_iter()
-            .flatten()
-            .min()
-        };
-        let next = match deadline {
-            Some(deadline) => {
-                receiver.recv_timeout(deadline.saturating_duration_since(Instant::now()))
-            }
-            None => receiver
-                .recv()
-                .map_err(|_| mpsc::RecvTimeoutError::Disconnected),
-        };
-        match next {
-            Ok(operation) => lanes.admit(operation),
-            Err(mpsc::RecvTimeoutError::Timeout) => {}
-            Err(mpsc::RecvTimeoutError::Disconnected) => disconnected = true,
-        }
-    }
-}
+#[cfg(test)]
+mod supervision_tests;
 
 #[cfg(test)]
 mod pending_problem_tests {
