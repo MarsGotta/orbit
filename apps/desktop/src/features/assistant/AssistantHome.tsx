@@ -18,7 +18,7 @@ import { useFirstLines } from "./first-lines";
 import { sessionWhen } from "./session-title";
 import { SignInNotice } from "./SignInNotice";
 import { useAssistantSessions } from "./useAssistantSessions";
-import styles from "./Assistants.module.css";
+import styles from "./AssistantPages.module.css";
 
 type Send = (command: AppCommand) => unknown;
 

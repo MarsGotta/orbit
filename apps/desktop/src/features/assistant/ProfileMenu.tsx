@@ -12,7 +12,7 @@ import { callAgent } from "./agent-calls";
 import { assistantHash } from "./assistant-route";
 import { colorOf, profileProblem } from "./assistants";
 import { ColorField, DescriptionField, NameField } from "./ProfileFields";
-import styles from "./Assistants.module.css";
+import styles from "./AssistantPages.module.css";
 
 interface Profile {
   name: string;

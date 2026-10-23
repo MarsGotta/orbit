@@ -10,7 +10,7 @@ import { colorOf } from "./assistants";
 import { agentFor, agentsOf } from "./agents";
 import { StatusLine } from "./AssistantHome";
 import { SignInNotice } from "./SignInNotice";
-import styles from "./Assistants.module.css";
+import styles from "./AssistantPages.module.css";
 
 type Send = (command: AppCommand) => unknown;
 

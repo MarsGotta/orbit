@@ -7,7 +7,7 @@ import { assistantsCopy as copy } from "../../i18n/es/assistants";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { healthOf } from "./assistants";
 import { useSignIn, type SignInView } from "./use-sign-in";
-import styles from "./Assistants.module.css";
+import styles from "./AssistantPages.module.css";
 
 /** Another assistant of the same service already signed in with this account. */
 export function sharedAccount(agent: Agent, agents: readonly Agent[]): Agent | undefined {

@@ -10,7 +10,7 @@ import type { AgentPort } from "../settings/agents/use-agent-config";
 import { goTo } from "./assistant-route";
 import { ConnectStep, HubStep, KindStep, NameStep, ReadyStep } from "./AddSteps";
 import { STEPS, useAddAssistant, type AddFlow } from "./use-add-assistant";
-import styles from "./Assistants.module.css";
+import styles from "./AssistantPages.module.css";
 
 type Send = (command: AppCommand) => unknown;
 

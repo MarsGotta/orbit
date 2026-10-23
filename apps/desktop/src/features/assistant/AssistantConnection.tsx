@@ -11,7 +11,7 @@ import { callAgent } from "./agent-calls";
 import { healthOf, type Health } from "./assistants";
 import { agentsOf } from "./agents";
 import { SignInNotice } from "./SignInNotice";
-import styles from "./Assistants.module.css";
+import styles from "./AssistantPages.module.css";
 
 type Send = (command: AppCommand) => unknown;
 

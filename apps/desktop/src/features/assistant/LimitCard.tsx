@@ -8,7 +8,7 @@ import { assistantsCopy as copy, vendorOf } from "../../i18n/es/assistants";
 import { assistantHash } from "./assistant-route";
 import { colorOf, healthOf, type Health } from "./assistants";
 import { handingOver, stopWaiting, useHandovers, waitFor } from "./handover";
-import styles from "./Assistants.module.css";
+import styles from "./AssistantPages.module.css";
 
 type Send = (command: AppCommand) => unknown;
 type Offer = { agent: Agent; health: Health };

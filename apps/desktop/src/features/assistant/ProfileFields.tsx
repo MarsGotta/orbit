@@ -3,7 +3,7 @@ import type { AssistantColor } from "../../design/AssistantAvatar";
 import { moveWithArrows } from "../../design/roving";
 import { assistantsCopy as copy } from "../../i18n/es/assistants";
 import { DESCRIPTION_MAX, NAME_MAX, type profileProblem } from "./assistants";
-import styles from "./Assistants.module.css";
+import styles from "./AssistantPages.module.css";
 
 const COLORS: readonly AssistantColor[] = [1, 2, 3, 4];
 

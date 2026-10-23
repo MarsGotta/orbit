@@ -18,7 +18,7 @@ import { colorOf } from "./assistants";
 import { Connection } from "./AssistantConnection";
 import { agentsOf } from "./agents";
 import { AssistantIdentity } from "./AssistantIdentity";
-import styles from "./Assistants.module.css";
+import styles from "./AssistantPages.module.css";
 
 type Send = (command: AppCommand) => unknown;
 

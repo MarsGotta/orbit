@@ -10,7 +10,7 @@ import { NAME_MAX } from "./assistants";
 import { ColorChoice } from "./ProfileFields";
 import { sharedAccount, SignInWaiting } from "./SignInNotice";
 import { KINDS, type AddFlow, type Kind } from "./use-add-assistant";
-import styles from "./Assistants.module.css";
+import styles from "./AssistantPages.module.css";
 
 /** Step 1: «¿Con qué va a funcionar?». */
 export function KindStep({ flow, offered }: { flow: AddFlow; offered: boolean }) {
