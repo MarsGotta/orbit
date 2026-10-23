@@ -6,6 +6,23 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
+/// The topic's ceiling, in bytes of one frame. Each ceiling protects one
+/// subscriber's frame allocation and actor serialization time, using the
+/// measured payloads; none limits stored data or grants permission.
+///
+/// One turn, never the conversation (the app reads that from the
+/// hub), and the agent's work in it. A turn at its ceilings — a 32 KiB
+/// question, a 96 KiB answer (`MAX_TEXT_BYTES` and three times it) and a
+/// 16 KB pending description — in characters that escape to two bytes
+/// (quotes, line breaks) measured 294,695 bytes; with its work at its
+/// ceilings (`agent_work`: every step kept, in four-byte characters, and
+/// the one plan) 407,761, under 416 KiB (425,984; the daemon's
+/// `a_turn_and_its_work_at_their_ceilings_fit_the_topic`). Control
+/// characters escape to six bytes; such a turn is refused with its size.
+pub const MAX_BYTES: usize = 416 * 1024;
+/// 100 ms bounds streamed-text redraws, not hub message throughput.
+pub const MIN_INTERVAL_MS: u64 = 100;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Activity {

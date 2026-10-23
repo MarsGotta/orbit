@@ -13,6 +13,7 @@ pub(crate) mod authority_fixture;
 pub mod calendar;
 pub mod calendar_control;
 pub mod call_detection;
+mod catalogue;
 pub mod computer_control;
 pub mod device_bridge;
 pub mod failure;

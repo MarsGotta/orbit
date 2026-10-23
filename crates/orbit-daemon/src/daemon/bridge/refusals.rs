@@ -102,8 +102,9 @@ fn general_code(code: &str) -> Option<Refusal> {
     Some(match code {
         "privacy_stopped" => Refusal::PrivacyStopped { since_ms: None },
         "helper_not_connected" | "helper_not_running" => Refusal::HelperNotRunning,
-        // The helper's main thread held a full backlog: a busy Mac.
-        "busy" | "native_main_thread_busy" => Refusal::Busy {
+        // The helper's main thread held a full backlog, or its general lane
+        // already queues as many orders as it admits: a busy Mac.
+        "busy" | "native_main_thread_busy" | "native_backpressure" => Refusal::Busy {
             operation: Operation::Interaction,
             retry_after_ms: None,
         },
@@ -259,6 +260,19 @@ mod tests {
     fn a_read_refused_behind_a_held_main_thread_is_a_busy_mac() {
         assert_eq!(
             Runtime::bridge_refusal_code("native_main_thread_busy"),
+            Refusal::Busy {
+                operation: Operation::Interaction,
+                retry_after_ms: None,
+            }
+        );
+    }
+
+    /// A read the helper refused because its general lane already holds a
+    /// full queue is a busy Mac too, never a reply the daemon could not read.
+    #[test]
+    fn a_read_refused_behind_a_full_general_lane_is_a_busy_mac() {
+        assert_eq!(
+            Runtime::bridge_refusal_code("native_backpressure"),
             Refusal::Busy {
                 operation: Operation::Interaction,
                 retry_after_ms: None,

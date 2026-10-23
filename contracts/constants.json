@@ -70,7 +70,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-core/src/limits.rs",
+        "file": "crates/orbit-core/src/limits/ipc.rs",
         "name": "MAX_IPC_LINE_BYTES",
         "unit": "bytes"
       },
@@ -89,7 +89,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-core/src/limits.rs",
+        "file": "crates/orbit-core/src/limits/ipc.rs",
         "name": "MAX_COMMAND_RESPONSE_BYTES",
         "unit": "bytes"
       }
@@ -103,7 +103,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-core/src/limits.rs",
+        "file": "crates/orbit-core/src/limits/ipc.rs",
         "name": "MAX_DEFAULT_COMMAND_BYTES",
         "unit": "bytes"
       }
@@ -117,7 +117,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-core/src/limits.rs",
+        "file": "crates/orbit-core/src/limits/helper.rs",
         "name": "MAX_HELPER_COMMAND_LINE_BYTES",
         "unit": "bytes"
       },
@@ -136,7 +136,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-core/src/limits.rs",
+        "file": "crates/orbit-core/src/limits/helper.rs",
         "name": "MAX_HELPER_EVENT_LINE_BYTES",
         "unit": "bytes"
       },
@@ -155,7 +155,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-core/src/limits.rs",
+        "file": "crates/orbit-core/src/limits/hub.rs",
         "name": "MAX_HUB_INCOMING_FRAME_BYTES",
         "unit": "bytes"
       }
@@ -169,7 +169,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-core/src/limits.rs",
+        "file": "crates/orbit-core/src/limits/hub.rs",
         "name": "MAX_HUB_HTTP_BODY_BYTES",
         "unit": "bytes"
       }
@@ -183,7 +183,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-core/src/limits.rs",
+        "file": "crates/orbit-core/src/limits/hub.rs",
         "name": "MAX_HUB_OUTGOING_FRAME_BYTES",
         "unit": "bytes"
       },
@@ -202,7 +202,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-core/src/limits.rs",
+        "file": "crates/orbit-core/src/limits/control.rs",
         "name": "MAX_ACTION_RECEIPT_BYTES",
         "unit": "bytes"
       }
@@ -216,7 +216,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-core/src/limits.rs",
+        "file": "crates/orbit-core/src/limits/control.rs",
         "name": "MAX_ACTION_BYTES",
         "unit": "bytes"
       },
@@ -296,7 +296,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-core/src/limits.rs",
+        "file": "crates/orbit-core/src/limits/control.rs",
         "name": "CAPTURE_UPLOAD_TIMEOUT_SECONDS",
         "unit": "seconds"
       }
@@ -338,7 +338,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-core/src/limits.rs",
+        "file": "crates/orbit-core/src/limits/voice.rs",
         "name": "MAX_SPEECH_CLIP_BYTES",
         "unit": "bytes"
       },
@@ -362,7 +362,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-core/src/limits.rs",
+        "file": "crates/orbit-core/src/limits/control.rs",
         "name": "MAX_WINDOW_INVENTORY_BYTES",
         "unit": "bytes"
       },
@@ -1506,7 +1506,7 @@
         "unit": "bytes"
       },
       {
-        "file": "crates/orbit-core/src/limits.rs",
+        "file": "crates/orbit-core/src/limits/assistant.rs",
         "name": "MAX_ATTACHMENT_BYTES",
         "unit": "bytes"
       }

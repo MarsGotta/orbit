@@ -2,6 +2,20 @@
 use crate::{AccountSummary, Connection};
 use serde::{Deserialize, Serialize};
 
+/// The topic's ceiling, in bytes of one frame. Each ceiling protects one
+/// subscriber's frame allocation and actor serialization time, using the
+/// measured payloads; none limits stored data or grants permission.
+///
+/// 102-byte measured head; 4 KiB catches its accidental growth, not status
+/// data. The hub's agents ride it too: `agents::MAX_AGENTS` at the hub's
+/// bounds, each with its profile, account and usage (a 90-character
+/// description, four bytes a character, a 128-byte address), measured
+/// 34,329 bytes for the whole topic on 2026-10-22, so 32 KiB more holds
+/// them with 6 KiB to spare (`agents_at_their_ceiling_keep_the_status_topic`).
+pub const MAX_BYTES: usize = 36 * 1024;
+/// Published as soon as it changes.
+pub const MIN_INTERVAL_MS: u64 = 0;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Value {
     #[serde(default, skip_serializing_if = "Option::is_none")]

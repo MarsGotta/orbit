@@ -39,7 +39,7 @@ pub enum Pending {
 }
 
 macro_rules! topics {
-    ($($variant:ident => $module:ident: $max:expr, $interval:expr;)+) => {
+    ($($variant:ident => $module:ident;)+) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
         #[serde(rename_all = "snake_case")]
         pub enum TopicId { $($variant,)+ }
@@ -48,11 +48,11 @@ macro_rules! topics {
             pub const ALL: &'static [Self] = &[$(Self::$variant,)+];
 
             pub const fn max_bytes(self) -> usize {
-                match self { $(Self::$variant => $max,)+ }
+                match self { $(Self::$variant => $module::MAX_BYTES,)+ }
             }
 
             pub const fn min_interval_ms(self) -> u64 {
-                match self { $(Self::$variant => $interval,)+ }
+                match self { $(Self::$variant => $module::MIN_INTERVAL_MS,)+ }
             }
         }
 
@@ -82,61 +82,17 @@ macro_rules! topics {
     };
 }
 
-// Each ceiling protects one subscriber's frame allocation and actor serialization
-// time, using the measured payloads. None limits stored data or grants
-// permission; large collections belong in paged reads.
+// Each topic's ceiling and redraw interval are its domain's, beside its
+// value (`MAX_BYTES`, `MIN_INTERVAL_MS`); large collections belong in paged reads.
 topics! {
-    // 102-byte measured head; 4 KiB catches its accidental growth, not status
-    // data. The hub's agents ride it too: `agents::MAX_AGENTS` at the hub's
-    // bounds, each with its profile, account and usage (a 90-character
-    // description, four bytes a character, a 128-byte address), measured
-    // 34,329 bytes for the whole topic on 2026-10-22, so 32 KiB more holds
-    // them with 6 KiB to spare (`agents_at_their_ceiling_keep_the_status_topic`).
-    Status => status: 36 * 1024, 0;
-    // 317-byte measured permissions; 2 KiB catches growth, not a permission gate.
-    Permissions => permissions: 2 * 1024, 0;
-    // ~1 KiB plus 60 B/app; 16 KiB fits 200 apps, not an app-count limit.
-    // 250 ms follows the level meter, shielding actor serialization from ~94 audio events/s.
-    Recording => recording: 16 * 1024, 250;
-    // Two things share it. The read head (window, read id, zone, counts) is
-    // below 1 KiB and needs no more: events travel in paged reads, so this is
-    // not a calendar limit. The head also carries the outcomes of the writes
-    // the user makes from Orbit, each a few hundred bytes with its notice; the daemon puts in
-    // the newest that fit in what is left and leaves the older ones out. One
-    // left out is not lost: the view counts a write the head never names as
-    // unknown after `calendar::WRITE_LIFETIME_NS`, says so and reads again,
-    // and it is never sent twice. Not a limit on how many writes the user makes.
-    Agenda => agenda: 4 * 1024, 0;
-    // Three counters and at most 32 named recordings, about 2.3 KiB
-    // with every number at its widest (`the_head_with_every_name_fits_its_
-    // frame`). 8 KiB catches growth; the meetings themselves are read from
-    // the hub. 1 s bounds list rereads, not how often the hub announces.
-    Notes => notes: 8 * 1024, 1_000;
-    // One turn, never the conversation (the app reads that from the
-    // hub), and the agent's work in it. A turn at its ceilings — a 32 KiB
-    // question, a 96 KiB answer (`MAX_TEXT_BYTES` and three times it) and a
-    // 16 KB pending description — in characters that escape to two bytes
-    // (quotes, line breaks) measured 294,695 bytes; with its work at its
-    // ceilings (`agent_work`: every step kept, in four-byte characters, and
-    // the one plan) 407,761, under 416 KiB (425,984; the daemon's
-    // `a_turn_and_its_work_at_their_ceilings_fit_the_topic`). Control
-    // characters escape to six bytes; such a turn is refused with its size.
-    // 100 ms bounds streamed-text redraws, not hub message throughput.
-    Assistant => assistant: 416 * 1024, 100;
-    // Twenty control rows use 4 KiB, and the assistant's folders at their
-    // costliest (eight 1024-byte paths of control characters, six bytes each
-    // once escaped, with their causes) about 51 KiB: 80 KiB holds both
-    // (`maximal_recent_record_fits_the_control_topic_ceiling`). It excludes
-    // the paged tool catalog and limits neither the record nor the files.
-    Control => control: 80 * 1024, 0;
-    // One typed notice: a code, an op of at most 64 bytes and data
-    // from a closed set of keys whose values are numbers, booleans or
-    // tokens of at most 64 bytes; the frame carries it as the notice of the
-    // moment and in the log. With all 51 keys filled at their longest it
-    // measured 8,348 bytes (`notices_frame_fits_with_every_key_at_its_longest`),
-    // about 160 bytes per key added. 12 KiB leaves room for some twenty more
-    // keys; it bounds one frame, not how many notices are said.
-    Notices => notices: 12 * 1024, 0;
+    Status => status;
+    Permissions => permissions;
+    Recording => recording;
+    Agenda => agenda;
+    Notes => notes;
+    Assistant => assistant;
+    Control => control;
+    Notices => notices;
 }
 
 /// Four per second protects the actor from ~94 audio events per second on two

@@ -3,6 +3,15 @@ use super::Knowledge;
 use crate::{Recording, audio_signal::RecordingSignalView, call_detection::CallPreference};
 use serde::{Deserialize, Serialize};
 
+/// The topic's ceiling, in bytes of one frame. Each ceiling protects one
+/// subscriber's frame allocation and actor serialization time, using the
+/// measured payloads; none limits stored data or grants permission.
+///
+/// ~1 KiB plus 60 B/app; 16 KiB fits 200 apps, not an app-count limit.
+pub const MAX_BYTES: usize = 16 * 1024;
+/// 250 ms follows the level meter, shielding actor serialization from ~94 audio events/s.
+pub const MIN_INTERVAL_MS: u64 = 250;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Application {
     pub name: String,

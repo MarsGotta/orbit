@@ -6,6 +6,22 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
+/// The topic's ceiling, in bytes of one frame. Each ceiling protects one
+/// subscriber's frame allocation and actor serialization time, using the
+/// measured payloads; none limits stored data or grants permission.
+///
+/// Two things share it. The read head (window, read id, zone, counts) is
+/// below 1 KiB and needs no more: events travel in paged reads, so this is
+/// not a calendar limit. The head also carries the outcomes of the writes
+/// the user makes from Orbit, each a few hundred bytes with its notice; the daemon puts in
+/// the newest that fit in what is left and leaves the older ones out. One
+/// left out is not lost: the view counts a write the head never names as
+/// unknown after `calendar::WRITE_LIFETIME_NS`, says so and reads again,
+/// and it is never sent twice. Not a limit on how many writes the user makes.
+pub const MAX_BYTES: usize = 4 * 1024;
+/// Published as soon as it changes.
+pub const MIN_INTERVAL_MS: u64 = 0;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Value {
     pub invalidation: u64,

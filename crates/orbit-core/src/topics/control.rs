@@ -19,6 +19,19 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
+/// The topic's ceiling, in bytes of one frame. Each ceiling protects one
+/// subscriber's frame allocation and actor serialization time, using the
+/// measured payloads; none limits stored data or grants permission.
+///
+/// Twenty control rows use 4 KiB, and the assistant's folders at their
+/// costliest (eight 1024-byte paths of control characters, six bytes each
+/// once escaped, with their causes) about 51 KiB: 80 KiB holds both
+/// (`maximal_recent_record_fits_the_control_topic_ceiling`). It excludes
+/// the paged tool catalog and limits neither the record nor the files.
+pub const MAX_BYTES: usize = 80 * 1024;
+/// Published as soon as it changes.
+pub const MIN_INTERVAL_MS: u64 = 0;
+
 /// How many history entries the head carries. An entry measured 203 B, so
 /// twenty fill ~4 KiB of the 16 KiB ceiling; this bounds the frame the daemon
 /// republishes on every control change, not the record, whose

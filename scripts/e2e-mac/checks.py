@@ -487,7 +487,7 @@ def c12_call(ev: dict) -> tuple[bool, str]:
 
 def failure_codes(notice_rs: str) -> set[str]:
     """The codes `NoticeCode::is_failure` names besides the `failed` class:
-    failures that are silent on screen (crates/orbit-core/src/notice.rs). Read
+    failures that are silent on screen (crates/orbit-core/src/notice/mod.rs). Read
     from the source so the test follows the one place that decides it."""
     start = notice_rs.index("pub const fn is_failure(self) -> bool {")
     body = notice_rs[start : notice_rs.index("\n    }\n", start)]

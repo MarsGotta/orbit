@@ -14,9 +14,8 @@ pub use meetings::*;
 
 use serde::{Deserialize, Serialize};
 
-// Copies of the hub's bounds (`server/orbit_hub/notes/{models,templates,
-// custom_templates}.py`), registered in `limits.rs` and compared by
-// `scripts/tests/test_constants_copies.py`.
+// Copies of the hub's bounds (`server/orbit_hub/notes/{models,templates,custom_templates}.py`),
+// registered in `limits/notes.rs`, compared by `scripts/tests/test_constants_copies.py`.
 
 /// Private notes typed during a meeting: about ten thousand words, far
 /// beyond what anyone types live. The Mac checks it before keeping them in

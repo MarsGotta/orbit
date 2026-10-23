@@ -373,7 +373,9 @@ class RealTest:
         # read from the one place that decides it (NoticeCode::is_failure).
         self.ev["failure_codes"] = sorted(
             checks.failure_codes(
-                (ROOT / "crates" / "orbit-core" / "src" / "notice.rs").read_text(encoding="utf-8")
+                (ROOT / "crates" / "orbit-core" / "src" / "notice" / "mod.rs").read_text(
+                    encoding="utf-8"
+                )
             )
         )
         self.ui: Interface | None = None

@@ -4,6 +4,18 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+/// The topic's ceiling, in bytes of one frame. Each ceiling protects one
+/// subscriber's frame allocation and actor serialization time, using the
+/// measured payloads; none limits stored data or grants permission.
+///
+/// Three counters and at most 32 named recordings, about 2.3 KiB
+/// with every number at its widest (`the_head_with_every_name_fits_its_
+/// frame`). 8 KiB catches growth; the meetings themselves are read from
+/// the hub.
+pub const MAX_BYTES: usize = 8 * 1024;
+/// 1 s bounds list rereads, not how often the hub announces.
+pub const MIN_INTERVAL_MS: u64 = 1_000;
+
 /// Recordings whose change this head names one by one. The hub says which
 /// recording changed (`recording.changed`); a meeting being recorded changes
 /// every 20–30 s, and a day holds a handful of meetings, so 32 cover far more
