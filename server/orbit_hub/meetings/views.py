@@ -363,6 +363,11 @@ def document(store, notes, db, device: str, recording: str, *, default_language)
             }
             for hole in transcript.missing
         ]
+    if transcript.muted:
+        # «Silenciar»: where the microphone was muted, from the meeting's start.
+        progress["muted_microphone"] = [
+            {"start_ms": span.start_ms, "end_ms": span.end_ms} for span in transcript.muted
+        ]
     repeating = retranscribing(db, device, recording)
     if repeating is not None:
         progress["retranscribing"] = repeating

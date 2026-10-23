@@ -382,6 +382,7 @@ impl Runtime {
             Command::MeetingFinish => self.apply(Event::FinishMeeting).await?,
             Command::MeetingDiscard { recording_id } => self.discard_meeting(recording_id).await?,
             Command::MeetingDelete { recording_id } => self.delete_meeting(recording_id).await?,
+            Command::MicrophoneMute { muted } => self.mute_microphone(muted).await?,
             Command::Approval { approved, choice } => {
                 let approval = self
                     .state

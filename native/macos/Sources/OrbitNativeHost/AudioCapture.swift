@@ -24,6 +24,9 @@ final class AudioFrameRelay {
     /// this drain, never from the audio callback. Read and written only on
     /// `queue`, so it can be attached to a live stream and taken off it.
     private var frameSink: MicrophoneFrameSink?
+    /// «Silenciar»: which drained blocks leave as silence. Read and written
+    /// only on `queue`.
+    private var mute = MicrophoneMuteGate()
     private let queue = DispatchQueue(label: "orbit.native.audio.drain")
     private var timer: DispatchSourceTimer?
     private var lastFramesAt = ProcessInfo.processInfo.systemUptime
@@ -57,6 +60,21 @@ final class AudioFrameRelay {
             frameSink = sink
             if let previous, previous !== sink { previous.finish() }
         }
+    }
+
+    /// Mutes or unmutes what this relay sends from the next drain on. Once it
+    /// returns no muted sample leaves; false when an unmute cannot read the
+    /// host clock, and the relay then stays muted.
+    func setMuted(_ value: Bool) -> Bool {
+        var nowNS: UInt64 = 0
+        if !value {
+            guard let now = CaptureClock.nanoseconds(CMClockGetTime(CMClockGetHostTimeClock())) else {
+                return false
+            }
+            nowNS = now
+        }
+        queue.sync { [self] in mute.set(muted: value, nowNS: nowNS) }
+        return true
     }
 
     func start() {
@@ -140,11 +158,13 @@ final class AudioFrameRelay {
                 self.routeResume = nil
             }
             let sampleRate = converter?.outputRate ?? block.sample_rate
-            let measured = PCMLevel(pcm16: data)
-            frameSink?.receive(pcm16: data, sampleRate: sampleRate, rmsDBFS: measured.rmsDBFS)
+            // The phrase listener hears what leaves: silence while muted.
+            let sent = mute.outgoing(data, capturedAtNS: block.monotonic_ns)
+            let measured = PCMLevel(pcm16: sent)
+            frameSink?.receive(pcm16: sent, sampleRate: sampleRate, rmsDBFS: measured.rmsDBFS)
             let typed = NativeEvent.makeAudio(source: source, streamID: streamID,
-                sequence: block.sequence - emptyConvertedBlocks, sampleRate: sampleRate, frames: UInt32(data.count / 2),
-                monotonicNS: block.monotonic_ns, pcmBase64: data.base64EncodedString(),
+                sequence: block.sequence - emptyConvertedBlocks, sampleRate: sampleRate, frames: UInt32(sent.count / 2),
+                monotonicNS: block.monotonic_ns, pcmBase64: sent.base64EncodedString(),
                 processing: processing, playback: playbackActivity?.snapshot())
             guard channel.send(typed) else { deliveryFailed = true; break }
             let end = block.monotonic_ns.addingReportingOverflow(
@@ -203,6 +223,9 @@ package final class MicrophoneCapture {
     private var stopTask: Task<Bool, Never>?
     package private(set) var sampleRate: UInt32?
     package var failed: ((String) -> Void)?
+    /// The stream «Silenciar» muted. A route change restarts the same stream
+    /// ID and stays muted; a new stream starts unmuted unless asked.
+    private var mutedStreamID: String?
     package init(session: SharedAudioSession, channel: NativeChannel) {
         self.session = session
         self.channel = channel
@@ -217,7 +240,10 @@ package final class MicrophoneCapture {
     }
 
     package func start(streamID: String, processing: AudioProcessingMode,
-                       outputRate: UInt32? = nil, routeResume: AudioRouteResume? = nil) throws -> [String: Any] {
+                       outputRate: UInt32? = nil, routeResume: AudioRouteResume? = nil,
+                       muted: Bool = false) throws -> [String: Any] {
+        if muted { mutedStreamID = streamID }
+        let startsMuted = mutedStreamID == streamID
         guard stopTask == nil, slot.transition(to: .starting) else {
             throw NativeFailure("microphone_already_active")
         }
@@ -275,6 +301,8 @@ package final class MicrophoneCapture {
         }
         self.relay = relay
         self.sampleRate = wireRate
+        // Muting never fails: only an unmute reads the clock.
+        _ = relay.setMuted(startsMuted)
         session.captureDidStart()
         relay.start()
         guard slot.transition(to: .active) else {
@@ -290,7 +318,18 @@ package final class MicrophoneCapture {
                 "channels": 1, "input_channels": Int(format.channelCount),
                 "echo_control": processing == .voiceProcessing ? "apple_voice_processing_unvalidated" : "unprocessed"]
         result.merge(session.observation.fields) { _, observed in observed }
+        if startsMuted { result["muted"] = true }
         return result
+    }
+
+    /// «Silenciar» on `streamID`, the live stream or the one a route change
+    /// is restarting. An unmute that cannot read the host clock is refused
+    /// and the stream stays muted.
+    @MainActor package func setMuted(_ muted: Bool, streamID: String) throws {
+        if let relay, relay.streamID == streamID, !relay.setMuted(muted) {
+            throw NativeFailure("capture_clock_unavailable")
+        }
+        mutedStreamID = muted ? streamID : nil
     }
 
     @MainActor package func stopForRouteChange() async -> (drained: Bool, resume: AudioRouteResume) {

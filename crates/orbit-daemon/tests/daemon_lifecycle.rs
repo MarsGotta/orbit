@@ -121,6 +121,7 @@ fn a_restart_nobody_stopped_comes_back_working() -> anyhow::Result<()> {
         tracks: Vec::new(),
         finalizing_since_ms: None,
         ceiling_notice_given: false,
+        muted_spans: Vec::new(),
     });
     store.save_snapshot(&snapshot)?;
     drop(store);
@@ -200,6 +201,7 @@ fn real_restart_closes_a_user_stopped_empty_recording_before_ready() -> anyhow::
         tracks: Vec::new(),
         finalizing_since_ms: None,
         ceiling_notice_given: false,
+        muted_spans: Vec::new(),
     });
     store.save_snapshot(&snapshot)?;
     drop(store);
@@ -285,6 +287,7 @@ fn real_restart_names_a_capture_that_was_live_in_the_snapshot() -> anyhow::Resul
         tracks: Vec::new(),
         finalizing_since_ms: None,
         ceiling_notice_given: false,
+        muted_spans: Vec::new(),
     });
     store.save_snapshot(&snapshot)?;
     drop(store);

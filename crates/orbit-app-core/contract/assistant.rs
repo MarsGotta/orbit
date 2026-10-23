@@ -263,6 +263,10 @@ app_type! {
         /// tras 1 minuto sin que hables»), from orbit-core's voice policy.
         #[ts(type = "number")]
         pub idle_hangup_ms: i64,
+        /// «Silenciar»: the assistant does not hear the user, who still
+        /// hears it; set once the Mac confirmed it.
+        #[serde(default, skip_serializing_if = "is_false")]
+        pub microphone_muted: bool,
     }
 }
 

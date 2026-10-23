@@ -75,7 +75,12 @@ async def test_every_closing_manifest_the_mac_writes_is_accepted_with_its_kind_a
             name: (await http.get(f"/v1/recordings/{recording}", headers=bearer(owner))).json()
             for name, recording in closed.items()
         }
-    assert len(closed) == 5, sorted(closed)
+    assert len(closed) == 6, sorted(closed)
+    # «Silenciar»: the muted closure's transcript says where.
+    assert documents["recording-manifest-muted-v1.json"]["transcript"]["muted_microphone"] == [
+        {"start_ms": 2000, "end_ms": 4000},
+        {"start_ms": 7000, "end_ms": 10000},
+    ]
     call = closed["recording-manifest-voice-call-v1.json"]
     # A voice call is not a meeting: not listed, and no note was asked for.
     assert {row["recording_id"] for row in listing["meetings"]} == set(closed.values()) - {call}

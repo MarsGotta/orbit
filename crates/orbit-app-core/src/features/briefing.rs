@@ -1212,6 +1212,7 @@ mod tests {
                             call: None,
                             question: None,
                             voice_trigger: None,
+                            microphone_muted: false,
                             applications: Knowledge::Unknown {
                                 why: orbit_core::topics::Pending::NotObservedYet,
                             },

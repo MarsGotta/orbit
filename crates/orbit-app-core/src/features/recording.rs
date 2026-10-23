@@ -123,6 +123,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
                             agent_id: value.agent_id.clone(),
                             idle_hangup_ms: orbit_core::voice::VoicePolicy::default()
                                 .idle_timeout_ms,
+                            microphone_muted: value.microphone_muted,
                         }),
                         FeatureAvailability::Current,
                     )
@@ -723,6 +724,7 @@ mod topic_tests {
             tracks: Vec::new(),
             finalizing_since_ms: None,
             ceiling_notice_given: false,
+            muted_spans: Vec::new(),
         };
         let frame: TopicFrame = serde_json::from_value(serde_json::json!({
             "epoch": "synthetic", "revision": 1,
@@ -890,6 +892,7 @@ mod topic_tests {
             tracks: Vec::new(),
             finalizing_since_ms: None,
             ceiling_notice_given: false,
+            muted_spans: Vec::new(),
         };
         let frame: TopicFrame = serde_json::from_value(serde_json::json!({
             "epoch": "synthetic", "revision": 1,

@@ -20,6 +20,7 @@ fn head(recording: Option<Recording>) -> topic_recording::Value {
         call: None,
         question: None,
         voice_trigger: None,
+        microphone_muted: false,
         applications: Knowledge::Unknown {
             why: Pending::NotObservedYet,
         },
@@ -291,4 +292,13 @@ fn a_recording_says_its_limit_before_starting_and_its_end_while_it_runs() {
     assert_eq!(running.ends_at_ms, Some(1_000 + 78 * 60_000));
     let wire = serde_json::to_value(&running).expect("meeting wire");
     assert_eq!(wire["limit_minutes"], 240);
+}
+
+/// «Micrófono silenciado» is what the daemon's topic says, never assumed.
+#[test]
+fn the_recording_card_says_muted_only_when_the_topic_does() {
+    let mut value = head(Some(recording(CapturePhase::Recording)));
+    assert!(!project_meeting_topic(&value).microphone_muted);
+    value.microphone_muted = true;
+    assert!(project_meeting_topic(&value).microphone_muted);
 }

@@ -33,6 +33,7 @@ export const commandFeature = {
   "meeting_rename": "note",
   "meeting_resume": "recording",
   "meeting_start": "recording",
+  "microphone_mute": "recording",
   "new_session": "assistant",
   "note_action_toggle": "note",
   "note_edit": "note",

@@ -483,6 +483,7 @@ fn installation_waits_for_recording_call_and_known_state() -> Result<(), Box<dyn
         tracks: vec![],
         finalizing_since_ms: None,
         ceiling_notice_given: false,
+        muted_spans: Vec::new(),
     })?;
     observe(&mut topics, &recording, 2)?;
     assert!(
@@ -561,6 +562,7 @@ fn only_a_live_capture_holds_the_update() -> Result<(), Box<dyn Error>> {
                 tracks: vec![],
                 finalizing_since_ms: None,
                 ceiling_notice_given: false,
+                muted_spans: Vec::new(),
             })?;
         observe(&mut topics, &recording)?;
         let blocker = UpdateService::installation_blocker(&topics);

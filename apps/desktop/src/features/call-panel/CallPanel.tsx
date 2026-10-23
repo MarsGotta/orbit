@@ -84,10 +84,21 @@ export function EndingCard({ panel, send }: { panel: Ending; send: PanelSend }) 
   );
 }
 
+/** «Silenciar» / «Reactivar micrófono»: only her microphone, never the call. */
+function MuteButton({ meeting, send }: { meeting: MeetingSnapshot; send: PanelSend }) {
+  const copy = useSpanish();
+  const muted = meeting.microphone_muted === true;
+  return (
+    <Button onClick={() => void send({ command: "microphone_mute", muted: !muted })} size={32}>
+      {muted ? copy.microphoneMute.unmute : copy.microphoneMute.mute}
+    </Button>
+  );
+}
+
 /**
  * Any recording in progress, started by a call or by hand: its time, what it
- * records, «Preguntar a Deimos» while asking is offered, «Parar», and
- * whether «Oye Deimos» listens.
+ * records, «Preguntar a Deimos» while asking is offered, «Silenciar», «Parar»,
+ * and whether «Oye Deimos» listens.
  */
 export function RecordingCard({
   call,
@@ -122,24 +133,30 @@ export function RecordingCard({
         </span>
       </p>
       {what != null && what !== "" && <p className={styles.sub}>{what}</p>}
+      {meeting.microphone_muted === true && <p className={styles.sub}>{es.microphoneMute.muted}</p>}
       {discard.asking && meeting.recording_id !== null ? (
         <DiscardQuestion onKeep={discard.keep} recordingId={meeting.recording_id} send={send} />
       ) : (
-        <PanelControls discard={discard} onAsk={onAsk} send={send} stop={stop} />
+        <PanelControls discard={discard} meeting={meeting} onAsk={onAsk} send={send} stop={stop} />
       )}
       {voice !== null && <p className={styles.hint}>{voice}</p>}
     </div>
   );
 }
 
-/** «Preguntar a Deimos», «Parar» and, under them, «Terminar sin guardar». */
+/**
+ * «Preguntar a Deimos», «Silenciar», «Parar» and, under them, «Terminar sin
+ * guardar».
+ */
 function PanelControls({
   discard,
+  meeting,
   onAsk,
   send,
   stop,
 }: {
   discard: ReturnType<typeof useDiscardQuestion>;
+  meeting: MeetingSnapshot;
   onAsk?: () => void;
   send: PanelSend;
   stop: ReturnType<typeof useFeedback>;
@@ -153,6 +170,7 @@ function PanelControls({
             {copy.meetingQuestion.ask}
           </Button>
         )}
+        {meeting.phase === "recording" && <MuteButton meeting={meeting} send={send} />}
         <Button
           doneLabel={es.callDetection.stopPending}
           feedback={stop.feedback}

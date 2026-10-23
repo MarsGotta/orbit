@@ -23,4 +23,9 @@ agent_id?: string,
  * The user's silence that hangs it up by itself («se cuelga sola
  * tras 1 minuto sin que hables»), from orbit-core's voice policy.
  */
-idle_hangup_ms: number, };
+idle_hangup_ms: number, 
+/**
+ * «Silenciar»: the assistant does not hear the user, who still
+ * hears it; set once the Mac confirmed it.
+ */
+microphone_muted?: boolean, };

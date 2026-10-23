@@ -56,6 +56,20 @@
   {
     "copies": [
       {
+        "file": "server/orbit_hub/protocol.py",
+        "name": "MAX_MUTED_SPANS",
+        "unit": "spans"
+      }
+    ],
+    "name": "MAX_MUTED_SPANS",
+    "resource": "muted microphone stretches of one recording",
+    "source": "rust",
+    "unit": "spans",
+    "value": 256
+  },
+  {
+    "copies": [
+      {
         "file": "crates/orbit-core/src/limits.rs",
         "name": "MAX_IPC_LINE_BYTES",
         "unit": "bytes"

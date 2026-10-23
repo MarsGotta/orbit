@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { MissingAudio } from "./TranscriptTools";
+import { MissingAudio, MutedMicrophone } from "./TranscriptTools";
 
 afterEach(cleanup);
 
@@ -76,5 +76,23 @@ describe("a transcript with audio the hub never got", () => {
         "Falta el audio de la reunión: no llegó al hub y esa parte no está en la transcripción.",
       ),
     ).toBeTruthy();
+  });
+});
+
+describe("a transcript with the microphone muted", () => {
+  it("says each muted stretch in one calm line, from when to when", () => {
+    const shown = note();
+    shown.transcript.muted_microphone = [
+      { start_ms: 724_000, end_ms: 750_000 },
+      { start_ms: 3_600_000, end_ms: 3_605_000 },
+    ];
+    render(<MutedMicrophone note={shown} />);
+    expect(screen.getByText("Micrófono silenciado · 12:04 – 12:30")).toBeTruthy();
+    expect(screen.getByText("Micrófono silenciado · 60:00 – 60:05")).toBeTruthy();
+  });
+
+  it("says nothing for a meeting never muted", () => {
+    const { container } = render(<MutedMicrophone note={note()} />);
+    expect(container.textContent).toBe("");
   });
 });

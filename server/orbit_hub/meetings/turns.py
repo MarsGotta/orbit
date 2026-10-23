@@ -15,6 +15,7 @@ from collections import Counter
 from dataclasses import dataclass
 
 from . import dictionaries, repository
+from . import muted as mute
 from .open_recordings import length_ms, open_capture
 
 # How the local microphone is named before the Mac has said who owns it
@@ -271,6 +272,8 @@ class Transcript:
     dictionary_terms: tuple[dict, ...] = ()
     # Stretches of audio the hub never got, declared by the Mac at closure.
     missing: tuple[MissingAudio, ...] = ()
+    # Where the microphone was muted («Silenciar»), declared at closure too.
+    muted: tuple[mute.MutedSpan, ...] = ()
 
     def correct(self, text: str) -> str:
         return dictionaries.substitute(text, self.dictionary_terms)
@@ -282,10 +285,11 @@ class Transcript:
         return UNKNOWN_SPEAKER
 
     def lines(self) -> list[Line]:
-        """The turns, and where audio is missing a line that says so."""
+        """The turns, and where audio is missing or muted a line that says so."""
         spoken = [Line(turn.at_ms, self.name(turn.speaker_key), turn.text) for turn in self.turns]
         holes = [hole.line(self.audio_ms) for hole in self.missing]
-        return sorted(spoken + holes, key=lambda line: line.at_ms)
+        silenced = [Line(span.start_ms, mute.SPEAKER, span.text()) for span in self.muted]
+        return sorted(spoken + holes + silenced, key=lambda line: line.at_ms)
 
 
 def started_at(store, db, device: str, recording: str) -> int | None:
@@ -451,4 +455,5 @@ def read(
         local_name=speaker_name("mic_local", "mic_local", renames, owner),
         final=final is not None,
         missing=missing_audio(store, db, device, recording, started),
+        muted=mute.read(store, db, device, recording),
     )

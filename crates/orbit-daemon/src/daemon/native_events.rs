@@ -228,9 +228,10 @@ impl Runtime {
         if !response.ok {
             self.record_failed_order(&response, command_name.as_deref());
         }
-        if self.wake_phrase_response(&response) {
+        if self.wake_phrase_response(&response) || self.mute_response(&response) {
             return Ok(());
         }
+        self.muted_start_receipt(&response);
         if let Some(stop) = self.capture.retired_stops.remove(&response.id) {
             let outcome = if response.ok {
                 match response.result.as_ref() {

@@ -381,6 +381,10 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub voice_trigger: Option<VoiceStatusSnapshot>,
+        /// «Micrófono silenciado»: the recording's microphone is muted, as
+        /// the Mac confirmed it; the other side of the call still records.
+        #[serde(default, skip_serializing_if = "is_false")]
+        pub microphone_muted: bool,
         pub recent: Vec<RecentMeetingSnapshot>,
         pub applications: Vec<MeetingApplicationSnapshot>,
         pub applications_state: MeetingApplicationsState,

@@ -31,6 +31,11 @@ pub struct Value {
     /// not, why. Absent outside a recording (nothing to say then).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub voice_trigger: Option<crate::meeting_question::VoiceStatus>,
+    /// The recording's microphone is muted («Silenciar»), as the Mac
+    /// confirmed it. The spans themselves stay out of the topic: they
+    /// travel with the recording's closure.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub microphone_muted: bool,
 }
 
 /// What the call detection says: the user's preference and what the floating

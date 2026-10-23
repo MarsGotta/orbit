@@ -61,6 +61,9 @@ impl ProjectTopic for Projector {
                 .runtime
                 .and_then(|runtime| runtime.conversation.work.clone())
                 .map(Box::new),
+            microphone_muted: source
+                .runtime
+                .is_some_and(|runtime| runtime.call_microphone_muted()),
         };
         let data = TopicData::Assistant(Knowledge::Present {
             value,

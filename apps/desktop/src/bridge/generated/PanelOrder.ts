@@ -2,6 +2,6 @@
 
 /**
  * Orders accepted by the floating call panel. Window-local orders stay
- * in Tauri; the seven recording orders use the core command unchanged.
+ * in Tauri; the recording orders use the core command unchanged.
  */
-export type PanelOrder = { "command": "panel_focus", focus: boolean, } | { "command": "open_url", url: string, } | { "command": "call_record", call_id: string, } | { "command": "call_dismiss", call_id: string, } | { "command": "recording_keep", recording_id: string, } | { "command": "meeting_finish" } | { "command": "meeting_discard", recording_id: string, } | { "command": "meeting_ask", question: string, minutes: number, } | { "command": "meeting_question_close", id: string, } | { "command": "approval", approved: boolean, choice?: string, } | { "command": "clarify", answer: string, question_id?: string, };
+export type PanelOrder = { "command": "panel_focus", focus: boolean, } | { "command": "open_url", url: string, } | { "command": "call_record", call_id: string, } | { "command": "call_dismiss", call_id: string, } | { "command": "recording_keep", recording_id: string, } | { "command": "meeting_finish" } | { "command": "meeting_discard", recording_id: string, } | { "command": "microphone_mute", muted: boolean, } | { "command": "meeting_ask", question: string, minutes: number, } | { "command": "meeting_question_close", id: string, } | { "command": "approval", approved: boolean, choice?: string, } | { "command": "clarify", answer: string, question_id?: string, };

@@ -25,3 +25,7 @@ generates them, and Rust and Swift decode them.
 `commands/audio_purpose.json` changes the consumer of a shared microphone without
 reopening it. Its response only acknowledges the command; the daemon
 does not read its body, just as with `audio_wake_phrase`.
+
+`commands/audio_mute.json` («Silenciar») mutes a microphone stream; its result
+`results/audio_mute.json` is the state the helper applied, which the daemon
+reads before it shows the microphone muted.

@@ -105,6 +105,7 @@ fn sources_and_tracks_are_additive_on_the_golden_contract() {
         }],
         finalizing_since_ms: None,
         ceiling_notice_given: false,
+        muted_spans: Vec::new(),
     });
     let encoded = serde_json::to_value(&state).unwrap();
     let restored: State = serde_json::from_value(encoded).unwrap();

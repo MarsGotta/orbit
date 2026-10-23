@@ -24,7 +24,7 @@ impl Runtime {
             | Some(orbit_core::protocol::MeetingAudio::MicrophoneOnly)
             | None => None,
         };
-        let payload = if source == "remote_app" {
+        let mut payload = if source == "remote_app" {
             match audio {
                 Some(orbit_core::protocol::MeetingAudio::System) => {
                     json!({"source":source,"stream_id":stream,"capture_scope":"system"})
@@ -40,9 +40,17 @@ impl Runtime {
             json!({"source":source,"stream_id":stream,
                 "purpose": if audio.is_some() { "meeting" } else { "voice_note" }})
         };
+        // A meeting resumed with «Silenciar» on starts muted.
+        let muted = source == "mic_local" && audio.is_some() && self.microphone_starts_muted();
+        if muted {
+            payload["muted"] = json!(true);
+        }
         let command = native::command("audio_start", payload)?;
         self.record_pending_native(&command);
         let header = NativeCommandHeader::from_value(&command)?;
+        if muted {
+            self.await_muted_start(header.id);
+        }
         self.capture.pending_starts.push(header.id.into());
         self.native
             .send(command)

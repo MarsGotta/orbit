@@ -47,7 +47,11 @@ fn the_menu_offers_only_what_can_be_done_now() {
         ])
     );
     let mut recording = TrayState::default();
-    recording.follow_meeting(&meeting(MeetingPhase::Recording, "rec-1", START), START);
+    recording.follow_meeting(
+        &meeting(MeetingPhase::Recording, "rec-1", START),
+        None,
+        START,
+    );
     let rows = labels(&recording);
     assert_eq!(rows[2], ("Grabar reunión ahora".to_owned(), false));
     assert_eq!(rows[3], ("Terminar grabación".to_owned(), true));
@@ -60,7 +64,11 @@ fn the_menu_offers_only_what_can_be_done_now() {
 #[test]
 fn ending_without_saving_asks_in_the_menu_first() {
     let mut state = TrayState::default();
-    state.follow_meeting(&meeting(MeetingPhase::Recording, "rec-1", START), START);
+    state.follow_meeting(
+        &meeting(MeetingPhase::Recording, "rec-1", START),
+        None,
+        START,
+    );
     assert!(
         discard_command(&state).is_none(),
         "the first click only asks"
@@ -102,21 +110,29 @@ fn ending_without_saving_asks_in_the_menu_first() {
 #[test]
 fn the_question_goes_with_its_recording() {
     let mut state = TrayState::default();
-    state.follow_meeting(&meeting(MeetingPhase::Starting, "rec-1", START), START);
+    state.follow_meeting(
+        &meeting(MeetingPhase::Starting, "rec-1", START),
+        None,
+        START,
+    );
     assert_eq!(
         labels(&state)[4],
         ("Terminar sin guardar…".to_owned(), false)
     );
-    state.follow_meeting(&meeting(MeetingPhase::Paused, "rec-1", START), START);
+    state.follow_meeting(&meeting(MeetingPhase::Paused, "rec-1", START), None, START);
     state.ask_discard();
-    state.follow_meeting(&meeting(MeetingPhase::Recording, "rec-2", START), START);
+    state.follow_meeting(
+        &meeting(MeetingPhase::Recording, "rec-2", START),
+        None,
+        START,
+    );
     assert!(discard_command(&state).is_none());
     assert_eq!(
         labels(&state)[4],
         ("Terminar sin guardar…".to_owned(), true)
     );
     state.ask_discard();
-    state.follow_meeting(&meeting(MeetingPhase::Idle, "rec-2", START), START);
+    state.follow_meeting(&meeting(MeetingPhase::Idle, "rec-2", START), None, START);
     assert!(discard_command(&state).is_none());
     assert_eq!(
         labels(&state)[4],
@@ -133,11 +149,59 @@ fn a_new_version_sits_beside_parar_todo_and_says_when_it_cannot_install() {
         }),
         ..TrayState::default()
     };
-    offered.follow_meeting(&meeting(MeetingPhase::Recording, "rec-1", START), START);
+    offered.follow_meeting(
+        &meeting(MeetingPhase::Recording, "rec-1", START),
+        None,
+        START,
+    );
     let rows = labels(&offered);
-    assert_eq!(rows[6], ("Parar todo".to_owned(), true));
-    assert_eq!(rows[7], ("Actualizar a la 0.10.2".to_owned(), false));
+    assert_eq!(rows[7], ("Parar todo".to_owned(), true));
+    assert_eq!(rows[8], ("Actualizar a la 0.10.2".to_owned(), false));
     assert_eq!(rows.last(), Some(&("Salir de Orbit".to_owned(), true)));
+}
+
+/// «Silenciar» beside «Terminar sin guardar…» while a recording records or
+/// a call is on, «Reactivar micrófono» once the daemon says it is muted;
+/// never another mark.
+#[test]
+fn the_menu_mutes_and_unmutes_the_microphone_of_a_recording_or_a_call() {
+    let mut state = TrayState::default();
+    state.follow_meeting(
+        &meeting(MeetingPhase::Recording, "rec-1", START),
+        None,
+        START,
+    );
+    assert_eq!(
+        labels(&state)[4],
+        ("Terminar sin guardar…".to_owned(), true)
+    );
+    assert_eq!(labels(&state)[5], ("Silenciar".to_owned(), true));
+    let mut muted = meeting(MeetingPhase::Recording, "rec-1", START);
+    muted.microphone_muted = true;
+    state.follow_meeting(&muted, None, START);
+    assert_eq!(labels(&state)[5], ("Reactivar micrófono".to_owned(), true));
+    assert_eq!(look(&state, START).image, MarkImage::RecordingOnDark);
+    state.follow_meeting(&meeting(MeetingPhase::Paused, "rec-1", START), None, START);
+    assert!(!labels(&state).iter().any(|(label, _)| label == "Silenciar"));
+    let call = CallSnapshot {
+        started_at_ms: START,
+        seeing_screen: false,
+        last_line: None,
+        speaking: false,
+        voice_unavailable: false,
+        expires_at_ms: START + 60_000,
+        origin: orbit_app_core::CallOrigin::App,
+        agent_id: None,
+        idle_hangup_ms: 60_000,
+        microphone_muted: true,
+    };
+    state.follow_meeting(
+        &meeting(MeetingPhase::Idle, "rec-1", START),
+        Some(&call),
+        START,
+    );
+    assert!(labels(&state).contains(&("Reactivar micrófono".to_owned(), true)));
+    assert_eq!(look(&state, START), rest(), "a call keeps the mark at rest");
 }
 
 #[test]
@@ -202,7 +266,11 @@ fn at_rest_the_mark_is_the_template_symbol_with_nothing_beside_it() {
 #[test]
 fn a_recording_turns_the_moon_red_and_shows_its_time() {
     let mut state = TrayState::default();
-    state.follow_meeting(&meeting(MeetingPhase::Recording, "rec-1", START), START);
+    state.follow_meeting(
+        &meeting(MeetingPhase::Recording, "rec-1", START),
+        None,
+        START,
+    );
     assert_eq!(
         look(&state, START + 42_000),
         Look {
@@ -226,20 +294,27 @@ fn a_recording_turns_the_moon_red_and_shows_its_time() {
 #[test]
 fn a_pause_stops_the_time_beside_the_mark() {
     let mut state = TrayState::default();
-    state.follow_meeting(&meeting(MeetingPhase::Recording, "rec-1", START), START);
+    state.follow_meeting(
+        &meeting(MeetingPhase::Recording, "rec-1", START),
+        None,
+        START,
+    );
     state.follow_meeting(
         &meeting(MeetingPhase::Paused, "rec-1", START),
+        None,
         START + 60_000,
     );
     assert_eq!(look(&state, START + 600_000).title, "01:00");
     state.follow_meeting(
         &meeting(MeetingPhase::Recording, "rec-1", START),
+        None,
         START + 120_000,
     );
     assert_eq!(look(&state, START + 130_000).title, "01:10");
     // Another recording starts its own count.
     state.follow_meeting(
         &meeting(MeetingPhase::Recording, "rec-2", START + 200_000),
+        None,
         START + 200_000,
     );
     assert_eq!(look(&state, START + 205_000).title, "00:05");
@@ -277,16 +352,25 @@ fn an_assistant_waiting_for_you_turns_the_moon_amber_until_you_answer() {
 #[test]
 fn the_mark_goes_back_when_the_recording_ends() {
     let mut state = TrayState::default();
-    state.follow_meeting(&meeting(MeetingPhase::Recording, "rec-1", START), START);
+    state.follow_meeting(
+        &meeting(MeetingPhase::Recording, "rec-1", START),
+        None,
+        START,
+    );
     state.follow_meeting(
         &meeting(MeetingPhase::Finishing, "rec-1", START),
+        None,
         START + 5_000,
     );
     assert_eq!(look(&state, START + 6_000), rest());
-    state.follow_meeting(&meeting(MeetingPhase::Recording, "rec-2", START), START);
+    state.follow_meeting(
+        &meeting(MeetingPhase::Recording, "rec-2", START),
+        None,
+        START,
+    );
     state.follow_chat(&chat(Some(approval())));
     assert_eq!(look(&state, START).image, MarkImage::RecordingOnDark);
-    state.follow_meeting(&meeting(MeetingPhase::Idle, "rec-2", START), START);
+    state.follow_meeting(&meeting(MeetingPhase::Idle, "rec-2", START), None, START);
     assert_eq!(
         look(&state, START),
         Look {

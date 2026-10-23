@@ -303,3 +303,17 @@ it("rounds the seconds left up and never below zero", () => {
   expect(secondsLeft(10_000, 10_000)).toBe(0);
   expect(secondsLeft(10_000, 50_000)).toBe(0);
 });
+
+it("«Silenciar» mutes only her microphone, and says it once the Mac confirmed it", async () => {
+  const { port, sent } = portWith(byCall);
+  render(<PanelApp port={port} />);
+  await userEvent.click(await screen.findByRole("button", { name: "Silenciar" }));
+  expect(sent).toEqual([{ command: "microphone_mute", muted: true }]);
+  expect(screen.queryByText("Micrófono silenciado")).toBeNull();
+  cleanup();
+  const muted = portWith({ ...byCall, microphone_muted: true });
+  render(<PanelApp port={muted.port} />);
+  expect(await screen.findByText("Micrófono silenciado")).toBeTruthy();
+  await userEvent.click(screen.getByRole("button", { name: "Reactivar micrófono" }));
+  expect(muted.sent).toEqual([{ command: "microphone_mute", muted: false }]);
+});

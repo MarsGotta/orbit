@@ -9,6 +9,7 @@ export const panelOrders = {
   "meeting_discard": true,
   "meeting_finish": true,
   "meeting_question_close": true,
+  "microphone_mute": true,
   "open_url": true,
   "panel_focus": true,
   "recording_keep": true

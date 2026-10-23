@@ -62,3 +62,16 @@ export function MissingAudio({ note }: { note: OpenNoteSnapshot }) {
     </>
   );
 }
+
+/** «Silenciar»: each stretch where the microphone was muted, in one calm line. */
+export function MutedMicrophone({ note }: { note: OpenNoteSnapshot }) {
+  return (
+    <>
+      {(note.transcript.muted_microphone ?? []).map((span) => (
+        <p className={styles.quiet} key={span.start_ms}>
+          {es.notes.mutedMicrophone(span.start_ms, span.end_ms)}
+        </p>
+      ))}
+    </>
+  );
+}

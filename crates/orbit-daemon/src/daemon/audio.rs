@@ -22,6 +22,7 @@ mod call;
 mod drain;
 mod meeting;
 mod microphone;
+mod mute;
 mod timeout;
 mod voice;
 
@@ -32,6 +33,9 @@ pub(in crate::daemon) use voice::{VoiceCancellationCause, VoiceSource};
 #[cfg(test)]
 #[path = "audio/microphone_tests.rs"]
 mod microphone_tests;
+#[cfg(test)]
+#[path = "audio/mute_tests.rs"]
+mod mute_tests;
 #[cfg(test)]
 #[path = "audio/sharing_tests.rs"]
 mod sharing_tests;
@@ -50,6 +54,9 @@ pub(in crate::daemon) struct AudioLifecycle {
     pub(in crate::daemon) voice: voice::VoiceAudio,
     /// Who the helper was last told holds the microphone.
     microphone: microphone::MicrophoneHolder,
+    /// «Silenciar» beyond the recording's spans: the call's, and the orders
+    /// the helper has not answered.
+    mute: mute::MicrophoneMute,
     /// Selective stops waiting for their drain, by command id.
     pub(in crate::daemon) stops: BTreeMap<String, drain::PendingStop>,
     /// The whole-helper stop still waiting for its drain, by command id.
@@ -107,6 +114,9 @@ impl Runtime {
             || self.capture.audio.voice.end)
         {
             return busy(orbit_core::refusal::Operation::AudioDrain);
+        }
+        if matches!(event, Event::VoiceStart) && self.meeting_microphone_muted() {
+            anyhow::bail!("El micrófono está silenciado: reactívalo para dictar una nota de voz");
         }
         if matches!(event, Event::VoiceStart)
             && (self.conversation.voice_task.active().is_some()

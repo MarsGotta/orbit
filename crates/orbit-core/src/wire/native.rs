@@ -167,6 +167,21 @@ pub enum NativeCommand {
         application_pid: Option<i32>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         capture_scope: Option<NativeCaptureScope>,
+        /// A microphone that starts muted (a meeting resumed with «Silenciar»
+        /// on): the helper sends silence from its first frame and says
+        /// `muted:true` in its answer. Absent: not muted.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        muted: Option<bool>,
+    },
+    /// «Silenciar»: the helper replaces the microphone stream's samples with
+    /// silence before they leave it (same frames, same timing), or stops
+    /// doing so, and answers with the state it applied.
+    #[serde(rename = "audio_mute")]
+    AudioMute {
+        v: u8,
+        id: String,
+        stream_id: String,
+        muted: bool,
     },
     /// Updates the consumer when a voice note shares a meeting's microphone.
     #[serde(rename = "audio_purpose")]
@@ -383,6 +398,7 @@ impl NativeCommand {
             "permissions",
             "audio_start",
             "audio_purpose",
+            "audio_mute",
             "audio_wake_phrase",
             "audio_stop",
             "playback",

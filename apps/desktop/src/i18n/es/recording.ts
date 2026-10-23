@@ -1,6 +1,13 @@
 import { duration } from "./duration";
 
 export const recording = {
+  // «Silenciar»: the recording's or the call's microphone, never the other
+  // side of the call. The card says it once the Mac confirmed it.
+  microphoneMute: {
+    mute: "Silenciar",
+    unmute: "Reactivar micrófono",
+    muted: "Micrófono silenciado",
+  },
   meeting: {
     // Opens «Nueva grabación»; the menu bar alone starts at once.
     recordNow: "Grabar reunión",

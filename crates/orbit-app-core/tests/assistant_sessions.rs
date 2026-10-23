@@ -28,6 +28,7 @@ fn assistant_value(active: &str) -> orbit_core::topics::assistant::Value {
         },
         short_voice_note: None,
         work: None,
+        microphone_muted: false,
     }
 }
 

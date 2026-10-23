@@ -12,6 +12,9 @@ mod health;
 #[path = "call_turn_tests.rs"]
 mod turns;
 
+#[path = "call_mute_tests.rs"]
+mod mute;
+
 fn processing() -> Value {
     json!({"processing":"voice_processing","processing_enabled":true,
         "processing_bypassed":false,"agc_enabled":false,"playback_reference":"shared_engine",

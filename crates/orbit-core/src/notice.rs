@@ -158,6 +158,10 @@ notice_codes! {
     /// One track of a recording stopped (`origin`: `mic_local` or
     /// `remote_app`) and could not come back; the other track goes on.
     TrackStopped => Fixable,
+    /// The Mac did not confirm muting or unmuting the microphone
+    /// («Silenciar»), with the helper's `code`: the microphone stays as it
+    /// was shown.
+    MicrophoneMuteRefused => Failed,
     /// A recording closed with no audio; what interrupted it was said before.
     RecordingEmpty => Silent,
     MicrophonePermissionMissing => Fixable,

@@ -27,7 +27,7 @@ app_type! {
 
 app_type! {
     /// Orders accepted by the floating call panel. Window-local orders stay
-    /// in Tauri; the seven recording orders use the core command unchanged.
+    /// in Tauri; the recording orders use the core command unchanged.
     #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
     pub enum PanelOrder {
         PanelFocus { focus: bool },
@@ -38,6 +38,8 @@ app_type! {
         MeetingFinish,
         /// «Terminar sin guardar», confirmed in the panel.
         MeetingDiscard { recording_id: String },
+        /// «Silenciar» / «Reactivar micrófono» on the recording's card.
+        MicrophoneMute { muted: bool },
         MeetingAsk { question: String, minutes: u16 },
         MeetingQuestionClose { id: String },
         /// The agent's question answered from the panel, as from the chat.

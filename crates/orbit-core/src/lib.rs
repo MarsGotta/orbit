@@ -20,6 +20,7 @@ pub mod hub_storage;
 pub mod limits;
 pub mod meeting_audio;
 pub mod meeting_question;
+pub mod microphone_mute;
 pub mod model;
 pub mod note_outbox;
 pub mod notes;

@@ -354,7 +354,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
                 return
             }
             execute(command, ownsGeneralLane: false)
-        case .permissions, .audioStart, .audioPurpose, .audioWakePhrase, .audioStop, .playback,
+        case .permissions, .audioStart, .audioPurpose, .audioMute, .audioWakePhrase, .audioStop, .playback,
              .playbackClip, .applicationSources,
              .screenSources, .screenshot, .selectedText:
             guard connected else {
@@ -496,7 +496,8 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
                     configured: audioSession.configured, microphoneActive: microphone.slot.isActive,
                     remoteActive: systemAudio.slot.isActive || privacyCleanupInFlight > 0,
                     playbackActive: playback.playing) else { throw NativeFailure("audio_session_busy") }
-                let result = try microphone.start(streamID: id, processing: requested)
+                let result = try microphone.start(streamID: id, processing: requested,
+                                                  muted: fields.muted == true)
                 microphonePurpose = fields.purpose
                 microphoneMeeting = fields.purpose == .meeting
                 return result
@@ -536,6 +537,15 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             microphonePurpose = wire.fields.purpose
             microphoneMeeting = wire.fields.purpose == .meeting
             return ["stream_id": wire.fields.stream_id, "purpose": wire.fields.purpose.rawValue]
+        case .audioMute(let wire):
+            // «Silenciar»: the samples leave as silence from now on, same
+            // frames and timing; kept over a route change's restart.
+            let id = wire.fields.stream_id
+            guard microphone.streamID == id || audioRouteRecoveringStreamID == id else {
+                throw NativeFailure("stream_not_found")
+            }
+            try microphone.setMuted(wire.fields.muted, streamID: id)
+            return ["stream_id": id, "muted": wire.fields.muted]
         case .audioWakePhrase(let wire):
             // «Oye Deimos» goes with the meeting recording, on the
             // live microphone stream whoever opened it: the daemon turns it

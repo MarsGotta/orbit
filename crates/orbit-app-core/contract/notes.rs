@@ -236,6 +236,22 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub missing_audio: Option<Vec<NoteMissingAudioSnapshot>>,
+        /// Where the microphone was muted («Silenciar»): the transcript says
+        /// each stretch in one calm line.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub muted_microphone: Option<Vec<NoteMutedMicrophoneSnapshot>>,
+    }
+}
+
+app_type! {
+    /// One stretch of a muted microphone, from `start_ms` to `end_ms` of
+    /// the meeting.
+    pub struct NoteMutedMicrophoneSnapshot {
+        #[ts(type = "number")]
+        pub start_ms: u64,
+        #[ts(type = "number")]
+        pub end_ms: u64,
     }
 }
 

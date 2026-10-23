@@ -37,4 +37,14 @@ final class NativeCommandRouterTests: XCTestCase {
         XCTAssertEqual(router.route(purpose, at: 1), .bypass)
     }
 
+    func testMicrophoneMuteCannotWaitBehindAPermissionPrompt() throws {
+        var router = NativeCommandRouter()
+        let permission = try command("permission", "permissions", fields: ["request": ["calendars"]])
+        let mute = try command("mute", "audio_mute", fields: [
+            "stream_id": "meeting-stream", "muted": true,
+        ])
+        XCTAssertEqual(router.route(permission, at: 0), .start)
+        XCTAssertEqual(router.route(mute, at: 1), .bypass)
+    }
+
 }

@@ -10,6 +10,7 @@ fn an_unverifiable_inventory_is_unavailable_with_its_numbers_not_empty() {
         call: None,
         question: None,
         voice_trigger: None,
+        microphone_muted: false,
         applications: orbit_core::topics::Knowledge::Absent {
             refusal: orbit_core::refusal::Refusal::TooLarge {
                 resource: orbit_core::refusal::Resource::Source,
@@ -334,4 +335,22 @@ fn the_changes_still_on_this_mac_reach_the_open_note() {
         ["action:a0123456789ab", "sections"]
     );
     assert!(pending.summary.expect("a summary").sections[0].edited);
+}
+
+/// «Silenciar»: the hub's muted stretches reach the open transcript as they
+/// came, and a hub that says none adds nothing.
+#[test]
+fn the_muted_stretches_reach_the_open_transcript() {
+    let mut raw = serde_json::to_value(hub_document()).unwrap();
+    raw["transcript"]["muted_microphone"] =
+        serde_json::json!([{"start_ms": 724_000, "end_ms": 750_000}]);
+    let document = serde_json::from_value(raw).unwrap();
+    let projected = serde_json::to_value(project_open_note(document, Ok(vec![]), None)).unwrap();
+    assert_eq!(
+        projected["transcript"]["muted_microphone"],
+        serde_json::json!([{"start_ms": 724_000, "end_ms": 750_000}])
+    );
+    let projected =
+        serde_json::to_value(project_open_note(hub_document(), Ok(vec![]), None)).unwrap();
+    assert!(projected["transcript"].get("muted_microphone").is_none());
 }

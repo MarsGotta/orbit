@@ -1,23 +1,13 @@
 use crate::daemon_thread::EmbeddedDaemon;
-use orbit_app_core::{AppCommand, ChatSnapshot, DaemonClient, MeetingPhase, MeetingSnapshot};
+use orbit_app_core::{
+    AppCommand, CallSnapshot, ChatSnapshot, DaemonClient, MeetingPhase, MeetingSnapshot,
+};
 use std::sync::{Mutex, PoisonError};
 use std::time::Duration;
 use tauri::{
     Manager,
-    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{TrayIcon, TrayIconBuilder},
 };
-
-const OPEN: &str = "open";
-const RECORD: &str = "record";
-const FINISH_RECORDING: &str = "finish_recording";
-const DISCARD_RECORDING: &str = "discard_recording";
-const DISCARD_QUESTION: &str = "discard_question";
-const CONFIRM_DISCARD: &str = "confirm_discard";
-const KEEP_RECORDING: &str = "keep_recording";
-const STOP: &str = "stop";
-const QUIT: &str = "quit";
-const UPDATE: &str = "update";
 
 /// How often the time beside the mark moves while it records: it counts
 /// seconds.
@@ -34,6 +24,10 @@ struct TrayState {
     /// «Terminar sin guardar…» was chosen and waits for its answer, in the
     /// menu itself: the first click only asks.
     asking_discard: bool,
+    /// «Silenciar» (`Some(false)`) or «Reactivar micrófono» (`Some(true)`)
+    /// while a recording records or a call is on. The mark does not change:
+    /// the brand has only rest, recording and attention; the menu says it.
+    microphone_muted: Option<bool>,
     /// An assistant waits for the user: an approval or a question.
     needs_you: bool,
     /// The system's appearance, which the menu bar follows.
@@ -78,7 +72,16 @@ impl RecordedClock {
 }
 
 impl TrayState {
-    fn follow_meeting(&mut self, meeting: &MeetingSnapshot, now_ms: i64) {
+    fn follow_meeting(
+        &mut self,
+        meeting: &MeetingSnapshot,
+        call: Option<&CallSnapshot>,
+        now_ms: i64,
+    ) {
+        self.microphone_muted = match call {
+            Some(call) => Some(call.microphone_muted),
+            None => (meeting.phase == MeetingPhase::Recording).then_some(meeting.microphone_muted),
+        };
         let same = self
             .recording
             .as_ref()
@@ -143,91 +146,10 @@ mod look;
 #[cfg(test)]
 use look::MarkImage;
 use look::{Appearance, Look, look};
+mod menu;
+use menu::*;
 #[cfg(test)]
 use tauri::image::Image;
-
-#[derive(Debug, PartialEq, Eq)]
-enum Entry {
-    Item {
-        id: &'static str,
-        label: String,
-        enabled: bool,
-    },
-    Separator,
-}
-
-fn item(id: &'static str, label: impl Into<String>, enabled: bool) -> Entry {
-    Entry::Item {
-        id,
-        label: label.into(),
-        enabled,
-    }
-}
-
-/// The menu, grouped as the window is: open Orbit; record or finish, only
-/// the one that can be done now enabled, and «Terminar sin guardar…», which
-/// asks in the menu itself before it throws the recording away; stop
-/// everything and the update on offer; quit. Recording here starts at once,
-/// as ⌃⌥M does («Grabar reunión» in the window opens «Nueva grabación»).
-fn entries(state: &TrayState) -> Vec<Entry> {
-    let recording = state.recording.is_some();
-    let mut entries = vec![
-        item(OPEN, "Abrir Orbit", true),
-        Entry::Separator,
-        item(RECORD, "Grabar reunión ahora", !recording),
-        item(FINISH_RECORDING, "Terminar grabación", recording),
-    ];
-    if state.asking_discard {
-        entries.extend([
-            item(
-                DISCARD_QUESTION,
-                "¿Terminar sin guardar? Se borra lo grabado y no se escribe nota.",
-                false,
-            ),
-            item(CONFIRM_DISCARD, "Borrar y terminar", true),
-            item(KEEP_RECORDING, "Seguir grabando", true),
-        ]);
-    } else {
-        let discardable = recording && state.discardable;
-        entries.push(item(
-            DISCARD_RECORDING,
-            "Terminar sin guardar…",
-            discardable,
-        ));
-    }
-    entries.extend([Entry::Separator, item(STOP, "Parar todo", true)]);
-    if let Some(offer) = &state.update {
-        entries.push(item(
-            UPDATE,
-            format!("Actualizar a la {}", offer.version),
-            offer.installable,
-        ));
-    }
-    entries.extend([Entry::Separator, item(QUIT, "Salir de Orbit", true)]);
-    entries
-}
-
-/// Whether «Terminar grabación» has a recording to finish: also while it
-/// starts or is paused, not while it is already being saved.
-fn finishable(phase: &MeetingPhase) -> bool {
-    matches!(
-        phase,
-        MeetingPhase::Starting | MeetingPhase::Recording | MeetingPhase::Paused
-    )
-}
-
-fn menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>, entries: &[Entry]) -> tauri::Result<Menu<R>> {
-    let menu = Menu::new(app)?;
-    for entry in entries {
-        match entry {
-            Entry::Item { id, label, enabled } => {
-                menu.append(&MenuItem::with_id(app, *id, label, *enabled, None::<&str>)?)?
-            }
-            Entry::Separator => menu.append(&PredefinedMenuItem::separator(app)?)?,
-        }
-    }
-    Ok(menu)
-}
 
 struct Shown {
     state: TrayState,
@@ -329,8 +251,9 @@ pub(crate) fn refresh_update<R: tauri::Runtime>(
 pub(crate) fn refresh_recording<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     meeting: &MeetingSnapshot,
+    call: Option<&CallSnapshot>,
 ) -> tauri::Result<()> {
-    refresh(app, |state, now| state.follow_meeting(meeting, now))
+    refresh(app, |state, now| state.follow_meeting(meeting, call, now))
 }
 
 pub(crate) fn refresh_assistant<R: tauri::Runtime>(
@@ -408,6 +331,12 @@ fn handle_menu(app: &tauri::AppHandle, event: tauri::menu::MenuEvent) {
                 send_meeting_command(app, command);
             }
         }
+        MUTE | UNMUTE => send_meeting_command(
+            app,
+            AppCommand::Daemon(Box::new(orbit_core::protocol::Command::MicrophoneMute {
+                muted: event.id().as_ref() == MUTE,
+            })),
+        ),
         STOP => stop_privacy(app),
         QUIT => quit(app),
         UPDATE => {

@@ -49,6 +49,13 @@ public struct NativeAudioStartFields: Decodable, Sendable {
     public let purpose: NativeMicrophonePurpose?
     public let application_pid: Int32?
     public let capture_scope: NativeWireCaptureScope?
+    /// A microphone that starts muted («Silenciar» kept over a pause).
+    public let muted: Bool?
+}
+/// «Silenciar»: the microphone stream's samples leave as silence, or stop doing so.
+public struct NativeAudioMuteFields: Decodable, Sendable {
+    public let stream_id: String
+    public let muted: Bool
 }
 /// «Oye Deimos» on (or off) on the live microphone stream. `assistant_names`
 /// is every agent's name (hub-v1 «Agents»); `assistant_name`, the default
@@ -93,6 +100,7 @@ public enum NativeWireCommand: Decodable, Sendable {
     case permissions(NativeWireEnvelope<NativePermissionsFields>)
     case audioStart(NativeWireEnvelope<NativeAudioStartFields>)
     case audioPurpose(NativeWireEnvelope<NativeAudioPurposeFields>)
+    case audioMute(NativeWireEnvelope<NativeAudioMuteFields>)
     case audioWakePhrase(NativeWireEnvelope<NativeAudioWakePhraseFields>)
     case audioStop(NativeWireEnvelope<NativeStreamFields>)
     case playback(NativeWireEnvelope<NativePlaybackFields>)
@@ -124,6 +132,7 @@ public enum NativeWireCommand: Decodable, Sendable {
         case .permissions(let value): return (value.v, value.id)
         case .audioStart(let value): return (value.v, value.id)
         case .audioPurpose(let value): return (value.v, value.id)
+        case .audioMute(let value): return (value.v, value.id)
         case .audioWakePhrase(let value): return (value.v, value.id)
         case .audioStop(let value): return (value.v, value.id)
         case .playback(let value): return (value.v, value.id)
@@ -189,6 +198,7 @@ public enum NativeWireCommand: Decodable, Sendable {
         case "permissions": self = .permissions(try .init(from: decoder))
         case "audio_start": self = .audioStart(try .init(from: decoder))
         case "audio_purpose": self = .audioPurpose(try .init(from: decoder))
+        case "audio_mute": self = .audioMute(try .init(from: decoder))
         case "audio_wake_phrase": self = .audioWakePhrase(try .init(from: decoder))
         case "audio_stop": self = .audioStop(try .init(from: decoder))
         case "playback": self = .playback(try .init(from: decoder))
@@ -227,6 +237,7 @@ public enum NativeWireCommand: Decodable, Sendable {
         case .permissions: "permissions"
         case .audioStart: "audio_start"
         case .audioPurpose: "audio_purpose"
+        case .audioMute: "audio_mute"
         case .audioWakePhrase: "audio_wake_phrase"
         case .audioStop: "audio_stop"
         case .playback: "playback"
@@ -249,7 +260,7 @@ public enum NativeWireCommand: Decodable, Sendable {
         "calendar_sources", "calendar_snapshot", "calendar_save", "calendar_delete",
         "privacy_stop", "capture_stop",
         "playback_stop", "rearm", "shutdown", "permissions", "audio_start",
-        "audio_purpose", "audio_wake_phrase", "audio_stop", "playback", "playback_clip",
+        "audio_purpose", "audio_mute", "audio_wake_phrase", "audio_stop", "playback", "playback_clip",
         "application_sources", "screen_sources",
         "screenshot", "selected_text",
         "assistant_folder_pick", "assistant_folders", "assistant_files_list",

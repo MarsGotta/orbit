@@ -226,31 +226,7 @@ impl Runtime {
         if let Some(existing) = self.recording_closure(recording_id)? {
             return Ok(existing);
         }
-        let mut tracks: BTreeMap<String, TrackSummary> = BTreeMap::new();
-        let mut cursor = None;
-        loop {
-            let page = self
-                .reader
-                .list_chunks(recording_id, cursor.as_deref(), 100)?;
-            if page.is_empty() {
-                break;
-            }
-            for chunk in &page {
-                let summary = tracks
-                    .entry(chunk.metadata.track.clone())
-                    .or_insert_with(|| TrackSummary {
-                        track: chunk.metadata.track.clone(),
-                        ..TrackSummary::default()
-                    });
-                summary.chunk_count += 1;
-                summary.last_sequence = summary.last_sequence.max(chunk.metadata.sequence);
-                summary.total_frames = summary
-                    .total_frames
-                    .checked_add(chunk.metadata.frames)
-                    .context("Contador de audio fuera de límites")?;
-            }
-            cursor = page.last().map(|chunk| chunk.metadata.id.clone());
-        }
+        let tracks = self.track_summaries(recording_id)?;
         let recording = self.reader.get_job(&format!("recording-{recording_id}"))?;
         let title = if let Some(recording) = self
             .state
@@ -290,6 +266,12 @@ impl Runtime {
         if let Some(event) = event {
             manifest["event"] = serde_json::to_value(event)?;
         }
+        // Where the microphone was muted; a hub that does not know it ignores it.
+        if let Some(spans) =
+            self.closure_muted_spans(recording_id, ended_at_ms.saturating_sub(started_at_ms))
+        {
+            manifest["muted_spans"] = serde_json::to_value(spans)?;
+        }
         Ok(Job {
             id: job_id,
             kind: orbit_store::QueueKind::RecordingFinalize.into(),
@@ -300,6 +282,36 @@ impl Runtime {
             // transcript fetch, whose notices the person reads).
             payload: json!({"recording_id":recording_id,"manifest":manifest}),
         })
+    }
+
+    /// What the store holds of each track of `recording_id`.
+    fn track_summaries(&self, recording_id: &str) -> Result<BTreeMap<String, TrackSummary>> {
+        let mut tracks: BTreeMap<String, TrackSummary> = BTreeMap::new();
+        let mut cursor = None;
+        loop {
+            let page = self
+                .reader
+                .list_chunks(recording_id, cursor.as_deref(), 100)?;
+            if page.is_empty() {
+                break;
+            }
+            for chunk in &page {
+                let summary = tracks
+                    .entry(chunk.metadata.track.clone())
+                    .or_insert_with(|| TrackSummary {
+                        track: chunk.metadata.track.clone(),
+                        ..TrackSummary::default()
+                    });
+                summary.chunk_count += 1;
+                summary.last_sequence = summary.last_sequence.max(chunk.metadata.sequence);
+                summary.total_frames = summary
+                    .total_frames
+                    .checked_add(chunk.metadata.frames)
+                    .context("Contador de audio fuera de límites")?;
+            }
+            cursor = page.last().map(|chunk| chunk.metadata.id.clone());
+        }
+        Ok(tracks)
     }
 
     pub(super) async fn schedule_finalize(&mut self) -> Result<bool> {

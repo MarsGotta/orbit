@@ -28,7 +28,7 @@ def audio_bytes(seconds, *, silent=False, silences=()):
     return wav_bytes(bytes(pcm))
 
 
-def seed(store, body, *, drafts=(), track="mic_local", offset_ms=0):
+def seed(store, body, *, drafts=(), track="mic_local", offset_ms=0, muted=()):
     owner, identity = device(store)["device_id"], str(uuid4())
     started = 1_760_000_000_000
     bodies = body if isinstance(body, dict) else {track: body}
@@ -74,6 +74,7 @@ def seed(store, body, *, drafts=(), track="mic_local", offset_ms=0):
             "finalized_at_ms": started + offset_ms + duration_ms,
             "gaps": 0,
             "tracks": tracks,
+            **({"muted_spans": list(muted)} if muted else {}),
         },
     )
     indices = dict.fromkeys(bodies, 0)
@@ -148,9 +149,12 @@ async def run_pass(
     track="mic_local",
     offset_ms=0,
     decode=False,
+    muted=(),
 ):
     _, store, _ = environment
-    owner, identity = seed(store, body, drafts=drafts, track=track, offset_ms=offset_ms)
+    owner, identity = seed(
+        store, body, drafts=drafts, track=track, offset_ms=offset_ms, muted=muted
+    )
     transcriber, calls = fake_whisper(answer, decode=decode)
 
     async def separate(configuration, fd, duration):

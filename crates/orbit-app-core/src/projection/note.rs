@@ -334,6 +334,16 @@ fn project_transcript(
                 })
                 .collect()
         }),
+        muted_microphone: (!transcript.muted_microphone.is_empty()).then(|| {
+            transcript
+                .muted_microphone
+                .iter()
+                .map(|span| crate::NoteMutedMicrophoneSnapshot {
+                    start_ms: span.start_ms,
+                    end_ms: span.end_ms,
+                })
+                .collect()
+        }),
         retranscribing: transcript
             .retranscribing
             .map(|repeating| NoteRetranscribingSnapshot {

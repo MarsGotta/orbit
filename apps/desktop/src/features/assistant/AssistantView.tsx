@@ -149,6 +149,7 @@ function AssistantScreen({
           lastQuestion={lastQuestion(chat)}
           onHangUp={calls.endCall}
           onMinimise={() => setMinimised(true)}
+          onMute={(muted) => send({ command: "microphone_mute", muted })}
         />
       ) : (
         <ConversationArea

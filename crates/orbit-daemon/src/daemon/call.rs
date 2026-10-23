@@ -529,6 +529,7 @@ impl Runtime {
             received_at_ms,
             voiced: energy_exceeds(&pcm, policy.rms_threshold),
             response_active,
+            muted: self.microphone_muted(),
         };
         let (action, preroll, began) = self.observe_call_audio(
             frame,

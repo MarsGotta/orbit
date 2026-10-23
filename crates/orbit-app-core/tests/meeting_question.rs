@@ -44,6 +44,7 @@ fn recording_head(
                     tracks: Vec::new(),
                     finalizing_since_ms: None,
                     ceiling_notice_given: false,
+                    muted_spans: Vec::new(),
                 })),
                 recording_signal: None,
                 pending_jobs: 0,
@@ -51,6 +52,7 @@ fn recording_head(
                 call: None,
                 question: question.map(Box::new),
                 voice_trigger: trigger,
+                microphone_muted: false,
                 applications: Knowledge::Unknown {
                     why: Pending::NotObservedYet,
                 },

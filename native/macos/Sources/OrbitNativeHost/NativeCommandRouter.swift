@@ -84,6 +84,7 @@ package struct NativeCommandRouter {
     private static func usesUrgentAudioLane(_ command: NativeWireCommand) -> Bool {
         command.command == "playback" || command.command == "playback_clip"
             || command.command == "audio_stop" || command.command == "audio_purpose"
+            || command.command == "audio_mute"
     }
 
     private static func deadline(for command: NativeWireCommand) -> TimeInterval {

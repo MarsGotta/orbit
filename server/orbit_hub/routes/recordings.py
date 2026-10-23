@@ -54,6 +54,9 @@ def mount(
         for track in stored["tracks"]:
             if not track.get("missing_sequences"):
                 track.pop("missing_sequences", None)
+        # Likewise a closure never muted, as a Mac before «Silenciar» wrote it.
+        if not stored["muted_spans"]:
+            stored.pop("muted_spans")
         outcome = await in_store(
             store_executor,
             lambda: store.recordings.finalize(

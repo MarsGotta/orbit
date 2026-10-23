@@ -117,6 +117,7 @@ fn panel_accepts_its_recording_orders_and_explicit_focus_only()
         serde_json::json!({"command":"recording_keep","recording_id":"r"}),
         serde_json::json!({"command":"meeting_finish"}),
         serde_json::json!({"command":"meeting_discard","recording_id":"r"}),
+        serde_json::json!({"command":"microphone_mute","muted":true}),
         serde_json::json!({"command":"meeting_ask","question":"¿Qué dijo?","minutes":5}),
         serde_json::json!({"command":"meeting_question_close","id":"q"}),
     ] {

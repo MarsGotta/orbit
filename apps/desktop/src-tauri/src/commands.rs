@@ -97,6 +97,11 @@ pub async fn orbit_panel_send(
                 recording_id,
             }))
         }
+        PanelOrder::MicrophoneMute { muted } => {
+            AppCommand::Daemon(Box::new(orbit_core::protocol::Command::MicrophoneMute {
+                muted,
+            }))
+        }
         PanelOrder::MeetingAsk { question, minutes } => {
             AppCommand::Daemon(Box::new(orbit_core::protocol::Command::MeetingAsk {
                 question,

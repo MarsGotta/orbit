@@ -15,7 +15,7 @@ from .group_storage import GroupRepository
 from .log import report, supervised
 from .meeting_diarization import separate
 from .meeting_transcription import MAX_AUDIO_BYTES, REQUEST_TIMEOUT_SECONDS
-from .meetings import open_recordings, repository, turns
+from .meetings import muted, open_recordings, repository, turns
 from .protocol import HubError
 
 # Second real measurement (October 2026): at most 45 s, selecting the longest pause
@@ -174,6 +174,7 @@ class FinalPassRepository:
                 **dict(row),
                 "language": chosen[0] if chosen else None,
                 "lengths": lengths,
+                "muted": muted.read(self.store, db, row["device_id"], row["recording"]),
             }
 
     def advance(self, job, progress):
@@ -188,6 +189,8 @@ class FinalPassRepository:
         device, recording = job["device_id"], job["recording"]
         voices = {"spans": result["spans"]}
         text = {key: result[key] for key in ("words", "audio_ms", "language")}
+        # What a model heard in the microphone's muted silence is not speech.
+        text["words"] = muted.heard(job.get("muted", ()), text["words"])
         sealed = repository._seal(self.store, voices, f"recording-voices:{device}:{recording}")
         transcript = repository._seal(
             self.store, text, f"recording-final-transcript:{device}:{recording}"
@@ -267,7 +270,8 @@ class FinalPassRepository:
                 groups.append(
                     (at, at + open_recordings.length_ms(group), str(body.get("text") or ""))
                 )
-            return groups
+            # A group wholly in the microphone's muted silence lost nothing.
+            return muted.spoken(job.get("muted", ()), groups) if track == "mic_local" else groups
 
     def chunks(self, job, track):
         with self.store.read_snapshot() as db:

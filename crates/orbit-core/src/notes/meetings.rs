@@ -144,6 +144,18 @@ pub struct TranscriptProgress {
     /// 0.10.1, which does not say.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub missing_audio: Vec<MissingAudio>,
+    /// Where the person muted the microphone («Silenciar»), from the
+    /// meeting's start, as the closure declared it. Empty from a hub that
+    /// does not say.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub muted_microphone: Vec<MutedMicrophone>,
+}
+
+/// One stretch of a muted microphone, in milliseconds from the meeting's start.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MutedMicrophone {
+    pub start_ms: u64,
+    pub end_ms: u64,
 }
 
 /// One hole of a track: `at_ms` from the meeting's start and `duration_ms`

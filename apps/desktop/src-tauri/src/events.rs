@@ -11,7 +11,7 @@ fn emit_feature_frames<R: tauri::Runtime>(
         let menu = match &frame {
             FeatureFrame::Local { view, .. } => crate::tray::refresh_update(app, &view.update),
             FeatureFrame::Recording { view, .. } => {
-                crate::tray::refresh_recording(app, &view.meeting)
+                crate::tray::refresh_recording(app, &view.meeting, view.call.as_ref())
             }
             FeatureFrame::Assistant { view, .. } => crate::tray::refresh_assistant(app, view),
             _ => Ok(()),

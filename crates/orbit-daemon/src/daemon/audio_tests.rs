@@ -1718,6 +1718,7 @@ async fn meeting_capture_cut_keeps_a_saved_voice_note_transcription() -> Result<
         tracks: Vec::new(),
         finalizing_since_ms: None,
         ceiling_notice_given: false,
+        muted_spans: Vec::new(),
     });
     assert!(runtime.state.durable.call.is_none());
     runtime

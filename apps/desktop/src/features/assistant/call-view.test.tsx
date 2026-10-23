@@ -117,6 +117,20 @@ describe("the call view", () => {
     expect(screen.queryByRole("button", { name: /Deshacer/ })).toBeNull();
   });
 
+  it("«Silenciar»: the assistant stops hearing her, and the view says it once confirmed", () => {
+    const { sent, rerender } = show(call({ speaking: false }));
+    fireEvent.click(screen.getByRole("button", { name: "Silenciar" }));
+    expect(sent).toEqual([{ command: "microphone_mute", muted: true }]);
+    expect(screen.getByText("Te escucha")).toBeTruthy();
+    rerender(call({ speaking: false, microphone_muted: true }));
+    expect(screen.getByText("Micrófono silenciado")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Reactivar micrófono" }));
+    expect(sent).toEqual([
+      { command: "microphone_mute", muted: true },
+      { command: "microphone_mute", muted: false },
+    ]);
+  });
+
   it("minimises to a floating card over the conversation, and opens again", () => {
     const { sent } = show(call());
     fireEvent.click(screen.getByRole("button", { name: "Minimizar" }));

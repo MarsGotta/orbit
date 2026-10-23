@@ -102,6 +102,10 @@ pub struct Recording {
     /// ceiling: said once. Absent in a snapshot from an older version.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub ceiling_notice_given: bool,
+    /// Where the person muted the microphone («Silenciar»), from the
+    /// recording's start; the last is open while it is muted.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub muted_spans: Vec<crate::microphone_mute::MutedSpan>,
 }
 
 /// How long any recording may run, whatever started it: by hand, the menu
@@ -1057,6 +1061,7 @@ mod projection_tests {
                     tracks: Vec::new(),
                     finalizing_since_ms: Some(2_000),
                     ceiling_notice_given: false,
+                    muted_spans: Vec::new(),
                 }),
                 ..crate::DurableState::default()
             },

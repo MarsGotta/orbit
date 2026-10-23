@@ -899,6 +899,7 @@ fn decide_capture_start(
         },
         finalizing_since_ms: None,
         ceiling_notice_given: false,
+        muted_spans: Vec::new(),
     });
     effects.push(Effect::StartCapture {
         recording_id: id,
@@ -2060,6 +2061,7 @@ mod tests {
             tracks: Vec::new(),
             finalizing_since_ms: None,
             ceiling_notice_given: false,
+            muted_spans: Vec::new(),
         }
     }
 
@@ -2192,6 +2194,7 @@ mod tests {
         let state = state_with_recording(Recording {
             finalizing_since_ms: Some(since),
             ceiling_notice_given: false,
+            muted_spans: Vec::new(),
             ..recording_in_phase(CapturePhase::Finalizing)
         });
         let decision = decide(&state, Event::Tick, since + FINALIZING_TIMEOUT_MS + 1).unwrap();
@@ -2211,6 +2214,7 @@ mod tests {
         let state = state_with_recording(Recording {
             finalizing_since_ms: Some(since),
             ceiling_notice_given: false,
+            muted_spans: Vec::new(),
             ..recording_in_phase(CapturePhase::Finalizing)
         });
         let decision = decide(&state, Event::Tick, since + FINALIZING_TIMEOUT_MS).unwrap();

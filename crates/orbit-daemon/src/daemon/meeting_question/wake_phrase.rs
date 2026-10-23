@@ -55,6 +55,10 @@ impl Runtime {
             })
         {
             Some("not_recording")
+        } else if self.meeting_microphone_muted() {
+            // The helper sends silence while muted; a question that still
+            // arrives began before, and «Silenciar» means she is not asking.
+            Some("microphone_muted")
         } else if self.state.durable.voice_active || self.capture.buffer.voice.is_some() {
             Some("dictating")
         } else if agent.is_none() {

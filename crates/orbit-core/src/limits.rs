@@ -140,6 +140,15 @@ pub fn registry() -> Vec<Limit> {
             unit: "agents",
             resource: "agents one hub offers and the Mac takes",
         },
+        // The stretches one recording's microphone may be muted, which its
+        // closing manifest declares; the hub admits as many
+        // (server/orbit_hub/protocol.py).
+        Limit {
+            name: "MAX_MUTED_SPANS",
+            value: crate::microphone_mute::MAX_MUTED_SPANS as u64,
+            unit: "spans",
+            resource: "muted microphone stretches of one recording",
+        },
         item!(MAX_IPC_LINE_BYTES, "bytes", "app IPC line"),
         item!(MAX_COMMAND_RESPONSE_BYTES, "bytes", "command response"),
         item!(MAX_DEFAULT_COMMAND_BYTES, "bytes", "default command"),

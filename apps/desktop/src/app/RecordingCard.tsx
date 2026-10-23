@@ -44,7 +44,11 @@ function voiceLine(meeting: MeetingSnapshot, es: Copy): string | null {
 }
 
 function silentLine(meeting: MeetingSnapshot, es: Copy): string | null {
-  const silent = meeting.tracks.find((track) => track.level === "silent");
+  // A muted microphone is silent on purpose: not a problem to check.
+  const silent = meeting.tracks.find(
+    (track) =>
+      track.level === "silent" && !(track.name === "mic_local" && meeting.microphone_muted),
+  );
   if (silent?.name === "remote_app") return es.meeting.systemSilent;
   if (silent?.name === "mic_local") return es.meeting.microphoneSilent;
   return null;
@@ -73,6 +77,7 @@ function Controls({ meeting, send }: { meeting: MeetingSnapshot; send: Send }) {
             {es.recordingCard.pause}
           </Button>
         )}
+        {meeting.phase === "recording" && <MuteButton meeting={meeting} send={send} />}
         {meeting.phase === "paused" && (
           <Button onClick={() => send({ command: "meeting_resume" })} size={32}>
             {es.recordingCard.resume}
@@ -85,6 +90,24 @@ function Controls({ meeting, send }: { meeting: MeetingSnapshot; send: Send }) {
       {discard.offered && <DiscardButton onAsk={discard.ask} />}
     </>
   );
+}
+
+/** «Silenciar» / «Reactivar micrófono»: only her microphone, never the call. */
+function MuteButton({ meeting, send }: { meeting: MeetingSnapshot; send: Send }) {
+  const es = useSpanish();
+  const muted = meeting.microphone_muted === true;
+  return (
+    <Button onClick={() => send({ command: "microphone_mute", muted: !muted })} size={32}>
+      {muted ? es.microphoneMute.unmute : es.microphoneMute.mute}
+    </Button>
+  );
+}
+
+/** «Micrófono silenciado», once the Mac confirmed it. */
+function MutedLine({ meeting }: { meeting: MeetingSnapshot }) {
+  const es = useSpanish();
+  if (meeting.microphone_muted !== true) return null;
+  return <div className={styles.meta}>{es.microphoneMute.muted}</div>;
 }
 
 /**
@@ -128,6 +151,7 @@ export function RecordingCard({
       </div>
       <div className={styles.title}>{meeting.title ?? es.meeting.defaultTitle}</div>
       <div className={styles.meta}>{audioLine(meeting, timezone, es)}</div>
+      <MutedLine meeting={meeting} />
       {voice !== null && <div className={styles.meta}>{voice}</div>}
       {silent !== null && (
         <div className={styles.warn}>

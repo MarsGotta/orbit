@@ -222,6 +222,14 @@ class DeviceReplyParams(StrictModel):
 MAX_DECLARED_MISSING_CHUNKS = 1024
 
 
+# Stretches one recording may declare its microphone muted («Silenciar»): the
+# Mac's `orbit_core::microphone_mute::MAX_MUTED_SPANS`, compared in
+# contracts/constants.json. About 40 bytes each, 256 fit beside the largest
+# calendar event inside the 512 KiB manifest; a four hour meeting muted
+# about once a minute. It does not bound how long a stretch lasts.
+MAX_MUTED_SPANS = 256
+
+
 class TrackManifest(StrictModel):
     track: Literal["mic_local", "remote_app"]
     # The chunks the hub holds for this track, and their frames.
@@ -246,6 +254,19 @@ class TrackManifest(StrictModel):
         return self
 
 
+class MutedSpan(StrictModel):
+    """Where the microphone was muted, in ms from the recording's start."""
+
+    start_ms: int = Field(ge=0, le=2**63 - 1)
+    end_ms: int = Field(ge=0, le=2**63 - 1)
+
+    @model_validator(mode="after")
+    def _ends_after_it_starts(self):
+        if self.end_ms < self.start_ms:
+            raise ValueError("a muted span ends after it starts")
+        return self
+
+
 class RecordingManifest(StrictModel):
     tracks: list[TrackManifest] = Field(max_length=2)
     gaps: int = Field(ge=0, le=2**63 - 1)
@@ -260,6 +281,9 @@ class RecordingManifest(StrictModel):
     # the note the hub asks for at finalize has its title, invitees and series.
     # The finalize route validates it as `notes.models.EventContext`.
     event: dict | None = None
+    # «Silenciar»: the stretches the Mac sent silence for on the microphone
+    # track. Absent (a Mac before it): none.
+    muted_spans: list[MutedSpan] = Field(default_factory=list, max_length=MAX_MUTED_SPANS)
 
 
 PARAMETERS = {

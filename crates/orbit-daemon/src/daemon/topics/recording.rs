@@ -52,13 +52,17 @@ impl ProjectTopic for Projector {
         );
         TopicData::Recording(Knowledge::Present {
             value: Value {
-                // One being thrown away is gone for the person at once.
+                // One being thrown away is gone for the person at once; the
+                // muted spans travel with the closure, not the topic.
                 recording: state
                     .durable
                     .recording
                     .clone()
                     .filter(|recording| state.durable.discarding() != Some(recording.id.as_str()))
-                    .map(Box::new),
+                    .map(|mut recording| {
+                        recording.muted_spans.clear();
+                        Box::new(recording)
+                    }),
                 recording_signal: recording_signal.map(Box::new),
                 pending_jobs: state.durable.pending_jobs,
                 offline: !matches!(state.connection(), Connection::Online),
@@ -69,6 +73,11 @@ impl ProjectTopic for Projector {
                     .and_then(|runtime| runtime.features.question.current.clone())
                     .map(Box::new),
                 voice_trigger: source.runtime.and_then(|runtime| runtime.voice_status()),
+                microphone_muted: state
+                    .durable
+                    .recording
+                    .as_ref()
+                    .is_some_and(orbit_core::microphone_mute::recording_muted),
             },
             as_of_ms: None,
         })
@@ -103,6 +112,7 @@ mod tests {
             tracks: Vec::new(),
             finalizing_since_ms: None,
             ceiling_notice_given: false,
+            muted_spans: Vec::new(),
         });
         state
     }

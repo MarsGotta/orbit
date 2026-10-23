@@ -26,6 +26,7 @@ pub(crate) fn project_meeting_topic(
     }
     meeting.question = value.question.as_deref().map(meeting_question);
     meeting.voice_trigger = value.voice_trigger.clone().map(voice_trigger);
+    meeting.microphone_muted = value.microphone_muted;
     match &value.applications {
         Knowledge::Present { value, .. } => {
             meeting.applications = value
@@ -265,6 +266,7 @@ fn project_meeting_parts(
         question: None,
         ask: None,
         voice_trigger: None,
+        microphone_muted: false,
         recent: project_recent(recording),
         applications: Vec::new(),
         applications_state: MeetingApplicationsState::Unavailable,

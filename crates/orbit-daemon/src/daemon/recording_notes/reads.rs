@@ -419,6 +419,7 @@ async fn detail(
                     pending_chunks: 0,
                     failed_groups: Vec::new(),
                     missing_audio: Vec::new(),
+                    muted_microphone: Vec::new(),
                     retranscribing: None,
                 },
                 note: None,

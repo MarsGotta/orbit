@@ -68,6 +68,9 @@ impl Runtime {
     /// answer, and each wait ends with `helper_restarted`.
     pub(super) fn end_helper_waits(&mut self) {
         self.helper_waits.clear();
+        // «Silenciar» asked of the helper that went: never answered, and
+        // the microphone stays as it was shown.
+        self.forget_mute_orders();
     }
 }
 

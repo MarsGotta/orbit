@@ -360,6 +360,7 @@ fn a_short_recording_does_not_publish_an_intermediate_notes_head_before_its_cade
         tracks: Vec::new(),
         finalizing_since_ms: None,
         ceiling_notice_given: false,
+        muted_spans: Vec::new(),
     });
     board.state_changed();
     board.publish_command(&TopicSource {

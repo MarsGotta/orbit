@@ -19,6 +19,7 @@ export const noticeClass = {
   audio_route_recovered: "done",
   voice_note_cancelled_by_audio_route: "fixable",
   track_stopped: "fixable",
+  microphone_mute_refused: "failed",
   recording_empty: "silent",
   microphone_permission_missing: "fixable",
   screen_permission_missing: "fixable",

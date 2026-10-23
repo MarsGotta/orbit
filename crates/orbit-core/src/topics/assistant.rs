@@ -59,6 +59,10 @@ pub struct Value {
     /// What the agent did in the turn in progress, or the last one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub work: Option<Box<crate::agent_work::AgentWork>>,
+    /// The call's microphone is muted («Silenciar»), as the Mac confirmed
+    /// it: the assistant does not hear the user, who still hears it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub microphone_muted: bool,
 }
 
 fn unknown_call() -> Knowledge<Option<crate::voice::CallState>> {

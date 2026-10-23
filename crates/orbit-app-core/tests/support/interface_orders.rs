@@ -187,6 +187,10 @@ pub fn cases() -> Vec<(Value, FeatureId)> {
             FeatureId::Recording,
         ),
         (
+            json!({"command":"microphone_mute","muted":true}),
+            FeatureId::Recording,
+        ),
+        (
             json!({"command":"call_record","call_id":"call-1"}),
             FeatureId::Recording,
         ),

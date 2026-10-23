@@ -93,6 +93,7 @@ impl Default for AppSnapshot {
                 question: None,
                 ask: None,
                 voice_trigger: None,
+                microphone_muted: false,
                 recent: Vec::new(),
                 applications: Vec::new(),
                 applications_state: MeetingApplicationsState::Unavailable,

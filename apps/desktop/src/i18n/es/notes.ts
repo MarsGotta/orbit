@@ -82,6 +82,9 @@ export const notes = {
         durationMs === null ? "" : ` durante ${Math.max(1, Math.round(durationMs / 1_000))} s`;
       return `Falta el audio ${source}${from}${length}: no llegó al hub y esa parte no está en la transcripción.`;
     },
+    // «Silenciar»: a stretch where the microphone was muted, from the meeting's start.
+    mutedMicrophone: (startMs: number, endMs: number) =>
+      `Micrófono silenciado · ${mmss(startMs)} – ${mmss(endMs)}`,
     // A completed pass that kept spans of the live draft where the new text
     // lost them or looped: not a failure, the better of the two was used.
     keptDraft: (spans: number) =>

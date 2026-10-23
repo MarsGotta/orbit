@@ -73,6 +73,8 @@ router, host and calendar bridge receive that value. Refusals keep request ID.
 - `hello`/`heartbeat` renew channel health, as any command does; `status` reads without TCC.
 - `permissions` asks only the system permission explicitly requested by the app.
 - `audio_start` opens microphone/system audio; app capture includes its PID.
+- `audio_mute {stream_id,muted}` («Silenciar») makes the microphone stream's
+  samples leave as silence, or stops doing so; see «Muted microphone» below.
 - `audio_stop` drains that source. `audio_wake_phrase` follows the live meeting
   microphone even if a voice note originally opened it. Its optional
   `assistant_names` lists every agent's name, and the helper listens for all
@@ -500,6 +502,7 @@ The microphone uses the macOS default device without changing global settings.
 Sleep/logout stop capture (`capture_stopped`) without latching. A microphone
 `audio_start` carries `purpose`, `meeting` or `voice_note`; absent means unknown.
 `audio_purpose {stream_id,purpose}` updates it while both share the microphone.
+A microphone `audio_start` may carry `muted:true` («Muted microphone» below).
 The purpose names who holds it: `meeting` while a meeting records, also with a
 voice note dictated over it, and also when the meeting starts while a note
 already runs; `voice_note` when the note holds it alone, also after the meeting
@@ -545,6 +548,34 @@ callbacks to a fixed mono 48000 Hz player without reconnecting the graph.
 Only upsampling occurs, with under one source-sample interval deferred at the end;
 tests do not establish acoustic quality. Retired IDs reject late packets;
 the session restarts at 10000 generations.
+
+## Muted microphone
+
+`audio_mute {stream_id,muted}` («Silenciar») mutes or unmutes the live
+microphone stream, or the one an audio route change is restarting under the
+same `stream_id`. Its answer is `{stream_id,muted}`, the state the helper
+applied; any other stream is `stream_not_found`. It is an urgent order, like
+`audio_purpose`, and neither opens nor reconfigures a device.
+
+While muted, the relay replaces every drained block with zeros of the same
+length: the same `frames`, `sequence`, `monotonic_ns` and processing fields, so
+the recording lasts the same and its tracks line up. A block captured before
+an unmute that is still in the ring stays silent. The «Oye Deimos» listener
+is fed from the same drained bytes, so it hears silence. Nothing said while
+muted leaves the helper. A route change keeps the stream muted; any new
+stream starts unmuted unless its microphone `audio_start` carries
+`muted:true` (a meeting resumed while muted), whose answer then says
+`muted:true`. An unmute that cannot read the host clock fails with
+`capture_clock_unavailable` and the stream stays muted. `audio_stop` ends it
+with the stream. The system's audio track is never muted.
+
+The daemon shows the microphone muted only once an answer says so; an answer
+without it (a refusal, a helper that does not know the order or the field)
+is said as `microphone_mute_refused` with its code. While muted the daemon
+opens no call turn, does not count the time as the user's silence that hangs
+up (the call's ceiling still counts), refuses a voice note and ignores an
+`assistant_question` (`microphone_muted`). A meeting's muted stretches go to
+the hub in its closing manifest (`muted_spans`, hub-v1).
 
 ## Processed voice session
 

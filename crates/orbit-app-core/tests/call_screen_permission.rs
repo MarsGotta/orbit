@@ -39,3 +39,29 @@ fn the_call_sees_the_screen_with_the_permission() {
     );
     assert_eq!(call(PermissionState::Granted, true), Some(false));
 }
+
+/// «Silenciar» during a call: the call view says it once the daemon's topic
+/// does, and not before.
+#[test]
+fn the_call_says_muted_only_when_the_daemon_does() {
+    let muted = |microphone_muted| {
+        let mut value = assistant_topic::assistant_value();
+        value.call = Knowledge::Present {
+            value: Some(CallState {
+                id: "20000000-0000-4000-8000-000000000012".into(),
+                phase: CallPhase::Listening,
+                started_at_ms: 1_000,
+                expires_at_ms: 61_000,
+                turns: 0,
+                origin: orbit_core::CallOrigin::App,
+            }),
+            as_of_ms: None,
+        };
+        value.microphone_muted = microphone_muted;
+        assistant_topic::snapshot(value, PermissionState::Granted)
+            .call
+            .map(|call| call.microphone_muted)
+    };
+    assert_eq!(muted(false), Some(false));
+    assert_eq!(muted(true), Some(true));
+}

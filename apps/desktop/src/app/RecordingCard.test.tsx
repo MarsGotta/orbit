@@ -337,3 +337,29 @@ describe("«Terminar sin guardar»", () => {
     expect(screen.getByRole("button", { name: "Terminar sin guardar" })).toBeTruthy();
   });
 });
+
+describe("«Silenciar» on the recording card", () => {
+  it("mutes only while it records, and says it once the Mac confirmed it", async () => {
+    const { sent, rerender } = renderCard();
+    const card = screen.getByRole("region", { name: "Grabación en curso" });
+    expect(card.textContent).not.toContain("Micrófono silenciado");
+    await userEvent.click(screen.getByRole("button", { name: "Silenciar" }));
+    expect(sent).toEqual([{ command: "microphone_mute", muted: true }]);
+    rerender(
+      meeting({
+        microphone_muted: true,
+        tracks: [{ name: "mic_local", level: "silent", chunks_uploaded: 0, gaps: 0 }],
+      }),
+    );
+    expect(card.textContent).toContain("Micrófono silenciado");
+    expect(card.textContent).not.toContain("Micrófono en silencio");
+    await userEvent.click(screen.getByRole("button", { name: "Reactivar micrófono" }));
+    expect(sent).toEqual([
+      { command: "microphone_mute", muted: true },
+      { command: "microphone_mute", muted: false },
+    ]);
+    rerender(meeting({ phase: "paused", microphone_muted: true }));
+    expect(screen.queryByRole("button", { name: "Reactivar micrófono" })).toBeNull();
+    expect(card.textContent).toContain("Micrófono silenciado");
+  });
+});

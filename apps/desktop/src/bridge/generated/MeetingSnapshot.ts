@@ -51,7 +51,12 @@ ask?: MeetingAskSnapshot,
  * Whether «Oye Deimos» listens during the recording, and
  * why not; absent outside a recording.
  */
-voice_trigger?: VoiceStatusSnapshot, recent: Array<RecentMeetingSnapshot>, applications: Array<MeetingApplicationSnapshot>, applications_state: MeetingApplicationsState, 
+voice_trigger?: VoiceStatusSnapshot, 
+/**
+ * «Micrófono silenciado»: the recording's microphone is muted, as
+ * the Mac confirmed it; the other side of the call still records.
+ */
+microphone_muted?: boolean, recent: Array<RecentMeetingSnapshot>, applications: Array<MeetingApplicationSnapshot>, applications_state: MeetingApplicationsState, 
 /**
  * Why the list is unavailable, with its numbers, when the state is
  * `Unavailable`.

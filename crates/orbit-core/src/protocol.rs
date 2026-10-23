@@ -317,6 +317,12 @@ pub enum Command {
     MeetingDiscard {
         recording_id: String,
     },
+    /// «Silenciar» (`muted`) or «Reactivar micrófono»: the microphone of the
+    /// recording or of the call with the assistant. The other side of a
+    /// meeting keeps recording; the app shows it muted once the Mac says so.
+    MicrophoneMute {
+        muted: bool,
+    },
     Approval {
         approved: bool,
         /// Which of the request's choices; absent, `once` or `deny`.
@@ -368,7 +374,8 @@ impl Command {
             | Self::MeetingPause
             | Self::MeetingResume
             | Self::MeetingFinish
-            | Self::MeetingDiscard { .. } => Some(FeatureId::Recording),
+            | Self::MeetingDiscard { .. }
+            | Self::MicrophoneMute { .. } => Some(FeatureId::Recording),
             Self::Calendar { .. } => Some(FeatureId::Agenda),
             Self::AssistantFolderAdd | Self::AssistantFolderRemove { .. } => {
                 Some(FeatureId::Control)

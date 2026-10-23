@@ -686,7 +686,7 @@ legacy untagged audio. Absent legacy epochs stay absent: old audio, metadata and
 receipts are not rewritten. An opaque keyed equality index supports scoped reads.
 
 `POST /v1/recordings/{uuid}/finalize` accepts
-`{tracks:[{track,chunk_count,last_sequence,total_frames}],gaps,started_at_ms,finalized_at_ms,title?,kind?,event?}`.
+`{tracks:[{track,chunk_count,last_sequence,total_frames}],gaps,started_at_ms,finalized_at_ms,title?,kind?,event?,muted_spans?}`.
 `title` is optional for compatibility with older devices and, when present, is
 a string of at most 256 characters. The hub stores it with the encrypted
 recording manifest. `kind` is `meeting` (the default) or `voice_call`;
@@ -708,6 +708,19 @@ start, `duration_ms` (each `null` when the chunks around it do not tell) and its
 `chunks`; the note's transcript carries a line at that time saying the audio is
 missing. The field is additive: a manifest without it (a 0.10.1 device) is
 checked and stored exactly as before, so its retried closure still matches.
+
+The manifest may add `muted_spans: [{start_ms,end_ms}]` («Silenciar»): where
+the device sent silence for the microphone track, in milliseconds from
+`started_at_ms`, each ending at or after it starts, at most 256
+(`MAX_MUTED_SPANS`, the Mac's `orbit_core::microphone_mute::MAX_MUTED_SPANS`);
+anything else is `invalid_manifest`. The system's audio is never muted.
+`GET /v1/recordings/{uuid}` then says them in `transcript.muted_microphone`,
+the note's transcript carries a line at each start («Micrófono silenciado ·
+12:04 – 12:30»), and the final pass compares no draft group wholly inside one
+with the final words and keeps no final microphone word that starts inside
+one: what a model hears in that silence is not speech. The field is additive:
+a manifest without it is stored as before, and a hub without it ignores it.
+
 Finalizing a `meeting` asks for its note at once, with the manifest's title and
 event and the series' template; a `voice_call` gets no note and is not listed.
 

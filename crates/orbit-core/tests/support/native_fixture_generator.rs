@@ -81,6 +81,7 @@ pub fn generate() -> Result<(), Box<dyn Error>> {
             "audio_purpose",
             json!({"stream_id":"stream-1","purpose":"voice_note"}),
         ),
+        ("audio_mute", json!({"stream_id":"stream-1","muted":true})),
         (
             "audio_wake_phrase",
             json!({"stream_id":"stream-1","enabled":true,"assistant_name":"Atlas",
@@ -297,6 +298,7 @@ pub fn generate() -> Result<(), Box<dyn Error>> {
             "processing_enabled":true,"processing_bypassed":false,"agc_enabled":false,
             "playback_reference":"shared_engine","pipeline_id":"fixture"}),
         ),
+        ("audio_mute", json!({"stream_id":"stream-1","muted":true})),
         (
             "audio_stop",
             json!({"stream_id":"stream-1","drain_complete":true}),

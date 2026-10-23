@@ -20,8 +20,35 @@ fn titled_manifest(title: Option<&str>) -> Result<Value> {
 /// The closure `finalize.rs` writes for a recording whose own job
 /// (`recording-{id}`) holds `recording`.
 fn manifest_of(recording: Option<Value>) -> Result<Value> {
+    manifest_muted(recording, Vec::new())
+}
+
+/// The closure of a recording muted (`muted`, from its start) in the
+/// daemon's state as it closes.
+fn manifest_muted(
+    recording: Option<Value>,
+    muted: Vec<orbit_core::microphone_mute::MutedSpan>,
+) -> Result<Value> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
+    if !muted.is_empty() {
+        runtime.state.durable.recording = Some(orbit_core::Recording {
+            id: MANIFEST_RECORDING.into(),
+            title: "Reunión con silencio".into(),
+            started_at_ms: 1_700_000_000_000,
+            ended_at_ms: Some(1_700_000_010_000),
+            expires_at_ms: 1_700_014_400_000,
+            application_pid: None,
+            audio: orbit_core::protocol::MeetingAudio::System,
+            phase: CapturePhase::Idle,
+            sealed_chunks: 5,
+            gaps: 2,
+            tracks: Vec::new(),
+            finalizing_since_ms: None,
+            ceiling_notice_given: false,
+            muted_spans: muted,
+        });
+    }
     for (track, count) in [("mic_local", 3), ("remote_app", 2)] {
         for sequence in 0..count {
             runtime.fixture_store.seal_chunk(
@@ -71,7 +98,7 @@ fn linked_meeting() -> Value {
     ]}})
 }
 
-fn contract_manifest_variants() -> Result<[(&'static str, Value); 5]> {
+fn contract_manifest_variants() -> Result<[(&'static str, Value); 6]> {
     let titled = titled_manifest(Some("Reunión ágil"))?;
     let null_title = titled_manifest(None)?;
     let mut legacy = null_title.clone();
@@ -91,6 +118,13 @@ fn contract_manifest_variants() -> Result<[(&'static str, Value); 5]> {
             "recording-manifest-voice-call-v1.json",
             manifest_of(Some(json!({"recording_id":MANIFEST_RECORDING,
                 "recording_kind":"voice_call","started_at_ms":1_700_000_000_000_i64})))?,
+        ),
+        (
+            "recording-manifest-muted-v1.json",
+            manifest_muted(
+                Some(json!({"recording_id":MANIFEST_RECORDING,"title":"Reunión con silencio"})),
+                muted_spans(),
+            )?,
         ),
     ])
 }
@@ -131,6 +165,41 @@ fn the_closure_says_its_kind_and_carries_its_event() -> Result<()> {
         "recording_kind":"voice_call","started_at_ms":1_700_000_000_000_i64})))?;
     assert_eq!(call["kind"], "voice_call");
     assert!(call.get("event").is_none());
+    Ok(())
+}
+
+/// Muted from 2 s to 4 s, and again from 7 s until the recording ended.
+fn muted_spans() -> Vec<orbit_core::microphone_mute::MutedSpan> {
+    use orbit_core::microphone_mute::MutedSpan;
+    vec![
+        MutedSpan {
+            start_ms: 2_000,
+            end_ms: Some(4_000),
+        },
+        MutedSpan {
+            start_ms: 7_000,
+            end_ms: None,
+        },
+    ]
+}
+
+/// «Silenciar»: the closure carries every muted stretch with its end, the
+/// open one ending with the recording; one never muted carries none.
+#[test]
+fn the_closure_carries_where_the_microphone_was_muted() -> Result<()> {
+    let muted = manifest_muted(
+        Some(json!({"recording_id":MANIFEST_RECORDING,"title":"Reunión con silencio"})),
+        muted_spans(),
+    )?;
+    assert_eq!(
+        muted["muted_spans"],
+        json!([{"start_ms":2_000,"end_ms":4_000},{"start_ms":7_000,"end_ms":10_000}])
+    );
+    assert!(
+        titled_manifest(Some("Reunión ágil"))?
+            .get("muted_spans")
+            .is_none()
+    );
     Ok(())
 }
 
@@ -762,6 +831,7 @@ async fn expiry_closes_empty_capture_and_admits_call() -> Result<()> {
         tracks: Vec::new(),
         finalizing_since_ms: None,
         ceiling_notice_given: false,
+        muted_spans: Vec::new(),
     });
     runtime.run_maintenance().await;
 
@@ -882,6 +952,7 @@ async fn finalize_deadline_closes_empty_capture_and_admits_call() -> Result<()> 
         tracks: Vec::new(),
         finalizing_since_ms: Some(0),
         ceiling_notice_given: false,
+        muted_spans: Vec::new(),
     });
     runtime.run_maintenance().await;
 
@@ -1019,6 +1090,7 @@ async fn recovery_keeps_an_existing_closure_and_continues() -> Result<()> {
         tracks: Vec::new(),
         finalizing_since_ms: None,
         ceiling_notice_given: false,
+        muted_spans: Vec::new(),
     });
     let existing = Job {
         id: "finalize-already-closed".into(),
@@ -1076,6 +1148,7 @@ async fn later_stop_keeps_the_earlier_empty_interruption_cause() -> Result<()> {
         tracks: Vec::new(),
         finalizing_since_ms: None,
         ceiling_notice_given: false,
+        muted_spans: Vec::new(),
     });
     runtime.capture.interruption = Some(orbit_core::RecordingInterruption {
         cause: orbit_core::RecordingInterruptionCause::HelperLost,
@@ -1115,6 +1188,7 @@ async fn later_cut_closes_an_earlier_empty_interruption_without_relabeling() -> 
         tracks: Vec::new(),
         finalizing_since_ms: None,
         ceiling_notice_given: false,
+        muted_spans: Vec::new(),
     });
     runtime.capture.interruption = Some(orbit_core::RecordingInterruption {
         cause: orbit_core::RecordingInterruptionCause::HelperCaptureStop,
@@ -1209,6 +1283,7 @@ async fn recovery_does_not_call_a_stale_zero_count_no_audio() -> Result<()> {
         tracks: Vec::new(),
         finalizing_since_ms: None,
         ceiling_notice_given: false,
+        muted_spans: Vec::new(),
     });
     runtime.fixture_store.seal_chunk(
         &orbit_store::ChunkMetadata {

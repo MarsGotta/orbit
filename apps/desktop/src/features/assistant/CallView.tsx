@@ -50,12 +50,25 @@ function CallStatus({ call, now }: { call: CallSnapshot | null; now: number }) {
           ? copy.assistant.noHermesVoice
           : call.speaking
             ? copy.call.speaking
-            : copy.call.listening}
+            : call.microphone_muted === true
+              ? copy.microphoneMute.muted
+              : copy.call.listening}
       </span>
       <span className={styles.clock} role="timer">
         {mmss(now - call.started_at_ms)}
       </span>
     </div>
+  );
+}
+
+/** «Silenciar» / «Reactivar micrófono»: the assistant stops hearing her. */
+function MuteButton({ call, onMute }: { call: CallSnapshot; onMute: (muted: boolean) => void }) {
+  const copy = useSpanish();
+  const muted = call.microphone_muted === true;
+  return (
+    <Button onClick={() => onMute(!muted)} size={40}>
+      {muted ? copy.microphoneMute.unmute : copy.microphoneMute.mute}
+    </Button>
   );
 }
 
@@ -68,14 +81,20 @@ interface CallProps {
 /**
  * The call, calm: a circle whose bars move while the agent speaks, who
  * speaks, the stopwatch, the last question and answer, whether it sees the
- * screen, «Minimizar», «Colgar» and the limits.
+ * screen, «Minimizar», «Silenciar», «Colgar» and the limits.
  */
 export function CallView({
   call,
   lastQuestion,
   onHangUp,
   onMinimise,
-}: CallProps & { lastQuestion: string | null; onMinimise: () => void }) {
+  onMute,
+}: CallProps & {
+  lastQuestion: string | null;
+  onMinimise: () => void;
+  /** «Silenciar» (`true`) or «Reactivar micrófono» (`false`). */
+  onMute: (muted: boolean) => void;
+}) {
   const copy = useSpanish();
   const titleId = useId();
   const now = useNow(1_000);
@@ -112,6 +131,7 @@ export function CallView({
           <Button onClick={onMinimise} size={40}>
             {copy.design.collapseCall}
           </Button>
+          {call !== null && <MuteButton call={call} onMute={onMute} />}
           <Button onClick={onHangUp} size={40} variant="danger">
             {copy.design.hangUp}
           </Button>

@@ -48,6 +48,7 @@ fn the_turn_and_approval_are_projected_without_assuming_unknown_roles() {
         },
         short_voice_note: None,
         work: None,
+        microphone_muted: false,
     };
     let mut topics = TopicCache::default();
     topics.observe_at(
@@ -127,6 +128,7 @@ fn the_agents_questions_and_its_work_are_projected_as_they_came() {
         },
         short_voice_note: None,
         work: Some(Box::new(work.clone())),
+        microphone_muted: false,
     };
     let mut topics = TopicCache::default();
     topics.observe_at(
