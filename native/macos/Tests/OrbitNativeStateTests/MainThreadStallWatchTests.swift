@@ -51,7 +51,9 @@ final class MainThreadStallWatchTests: XCTestCase {
         }
         XCTAssertEqual(ongoing.count, 1)
         XCTAssertEqual(ongoing.first?.ongoing, true)
-        XCTAssertGreaterThan(ongoing.first?.stalledMs ?? 0, Int(MainThreadStallWatch.ongoingMark * 1000))
+        // Said on the first tick past the mark; the tenths the loop adds can
+        // round that to the mark itself.
+        XCTAssertGreaterThanOrEqual(ongoing.first?.stalledMs ?? 0, Int(MainThreadStallWatch.ongoingMark * 1000))
         let ended = watch.pingAnswered(at: 11.3)
         XCTAssertEqual(ended?.ongoing, false)
         XCTAssertEqual(ended?.stalledMs, 11_300)
