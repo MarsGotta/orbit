@@ -45,12 +45,21 @@ it("Hoy and Calendario send the same order for an event that began twenty minute
   const calendar = { events: [event] } as CalendarSnapshot;
   const hook = renderHook(() => useCalendarView(calendar, "Europe/Madrid", fromCalendar));
   render(
-    <NextMeetingCard meeting={meeting} send={fromToday} nowMs={now} timezone="Europe/Madrid" />,
+    <NextMeetingCard
+      meeting={meeting}
+      nowMs={now}
+      online
+      send={fromToday}
+      timezone="Europe/Madrid"
+    />,
   );
   // No video call to join: the card only records («Solo grabar»).
   fireEvent.click(screen.getByRole("button", { name: /Solo grabar/ }));
   act(() => hook.result.current.startMeeting(event));
-  const todayOrder = fromToday.mock.calls[0]![0];
+  // The card also asks the hub for its reminder; the recording order is the other one.
+  const todayOrder = fromToday.mock.calls
+    .map(([command]) => command)
+    .find((command) => command.command === "meeting_start");
   const calendarOrder = fromCalendar.mock.calls[0]![0];
   // Same payload: only app-core may choose the recording's duration.
   expect(todayOrder).toEqual(calendarOrder);

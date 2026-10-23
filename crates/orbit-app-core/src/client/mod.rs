@@ -104,6 +104,7 @@ mod agents;
 mod library;
 mod note_read;
 mod notes;
+mod reminders;
 mod series;
 mod sessions;
 use agenda::*;

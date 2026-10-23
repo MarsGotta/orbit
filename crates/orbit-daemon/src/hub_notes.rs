@@ -21,6 +21,8 @@ use std::collections::BTreeMap;
 /// reported.
 pub(crate) const MAX_ERROR_BYTES: usize = 4 * 1024;
 
+mod reminders;
+
 #[derive(Clone)]
 pub struct NoteHub {
     pub base: reqwest::Url,
@@ -317,17 +319,23 @@ impl NoteHub {
         .await
     }
 
-    /// `GET /v1/series/previous-meeting?calendar_item_id=&before_ms=`.
+    /// `GET /v1/series/previous-meeting?calendar_item_id=&before_ms=`, and
+    /// `&title_digest=` for the title's fallback (a hub up to 0.11 ignores it).
     pub async fn previous_meeting(
         &self,
         calendar_item_id: &str,
         before_ms: i64,
+        title_digest: Option<&str>,
     ) -> Answer<orbit_core::notes::SeriesPrevious> {
         let mut url = self.endpoint(&["v1", "series", "previous-meeting"]);
         if let Ok(url) = url.as_mut() {
-            url.query_pairs_mut()
+            let mut query = url.query_pairs_mut();
+            query
                 .append_pair("calendar_item_id", calendar_item_id)
                 .append_pair("before_ms", &before_ms.to_string());
+            if let Some(digest) = title_digest {
+                query.append_pair("title_digest", digest);
+            }
         }
         self.send(reqwest::Method::GET, url, None).await
     }

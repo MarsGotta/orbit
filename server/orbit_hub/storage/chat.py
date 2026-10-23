@@ -139,15 +139,19 @@ class ChatRepository:
         duration_ms: int | None = None,
         client_id: str | None = None,
         attachments: list[str] | tuple[str, ...] = (),
+        work: dict | None = None,
     ) -> None:
         """Append one message; `attachments`, the ids its turn named, are bound
-        to it in the same transaction (`AttachmentRepository.bind`)."""
+        to it in the same transaction (`AttachmentRepository.bind`). `work` is
+        an answer's summary of its turn (`runtime.work`), encrypted beside it:
+        what a tool used can name the user's things."""
         encoded = text.encode()
+        summary = None if work is None else json.dumps(work, ensure_ascii=False).encode()
         with self.store.transaction() as db:
-            self.store.ensure_capacity(len(encoded) + 256)
+            self.store.ensure_capacity(len(encoded) + len(summary or b"") + 256)
             cursor = db.execute(
                 "INSERT INTO messages(session_id,role,body,created_at_ms,kind,duration_ms,"
-                "client_id) VALUES (?,?,?,?,?,?,?)",
+                "client_id,work) VALUES (?,?,?,?,?,?,?,?)",
                 (
                     session_id,
                     role,
@@ -156,6 +160,9 @@ class ChatRepository:
                     kind,
                     duration_ms,
                     client_id,
+                    None
+                    if summary is None
+                    else self.store.encrypt(summary, f"message-work:{session_id}"),
                 ),
             )
             if attachments:
@@ -218,7 +225,9 @@ class ChatRepository:
 
     def _message(self, db, session_id: str, row, attached: dict) -> dict:
         """One stored message as the page carries it, decrypted."""
-        body = db.execute("SELECT body FROM messages WHERE id=?", (row["id"],)).fetchone()[0]
+        body, work = db.execute(
+            "SELECT body, work FROM messages WHERE id=?", (row["id"],)
+        ).fetchone()
         message = {
             "id": row["id"],
             "role": row["role"],
@@ -232,4 +241,6 @@ class ChatRepository:
             message["client_id"] = row["client_id"]
         if row["id"] in attached:
             message["attachments"] = attached[row["id"]]
+        if work is not None:
+            message["work"] = json.loads(self.store.decrypt(work, f"message-work:{session_id}"))
         return message

@@ -56,6 +56,11 @@ pub(crate) struct Hub {
     pub refusing: BTreeMap<String, u16>,
     /// Recordings whose requests this hub takes and never answers.
     pub silent: std::collections::BTreeSet<String>,
+    /// `/v1/reminders/{key}`: each meeting's reminder, the latest edit kept
+    /// (`storage/reminders.py`).
+    pub reminders: BTreeMap<String, Value>,
+    /// A hub up to 0.11: the reminder routes are not there.
+    pub without_reminder_routes: bool,
 }
 
 pub(crate) type Shared = Arc<Mutex<Hub>>;
@@ -200,6 +205,24 @@ impl Hub {
         (200, json!({"meetings": rows, "more": more}))
     }
 
+    fn reminder(&mut self, method: &str, key: &str, body: &Value) -> (u16, Value) {
+        if self.without_reminder_routes {
+            return (404, json!({"detail": "Not Found"}));
+        }
+        let kept = self.reminders.get(key).cloned();
+        if method == "PUT" {
+            let newer = kept
+                .as_ref()
+                .is_none_or(|kept| kept["edited_at_ms"].as_i64() < body["edited_at_ms"].as_i64());
+            if newer {
+                let edit = json!({"text": body["text"], "edited_at_ms": body["edited_at_ms"]});
+                self.reminders.insert(key.into(), edit);
+            }
+        }
+        let reminder = self.reminders.get(key).cloned().unwrap_or(Value::Null);
+        (200, json!({"key": key, "reminder": reminder}))
+    }
+
     fn default_name(&self, key: &str) -> String {
         match key {
             "mic_local" => self
@@ -236,6 +259,9 @@ impl Hub {
         );
         if series_route && self.without_series_routes {
             return (404, json!({"detail": "Not Found"}));
+        }
+        if let ["v1", "reminders", key] = segments.as_slice() {
+            return self.reminder(method, key, &body);
         }
         match (method, segments.as_slice()) {
             ("GET", ["v1", "series", "previous-meeting"]) => {

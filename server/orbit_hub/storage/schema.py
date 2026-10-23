@@ -19,6 +19,7 @@ from ..group_storage import SCHEMA as GROUP_SCHEMA
 from ..meetings.dictionaries import SCHEMA as DICTIONARIES_SCHEMA
 from ..meetings.dictionaries import migrate as migrate_dictionaries
 from ..meetings.repository import SCHEMA as MEETINGS_SCHEMA
+from .reminders import SCHEMA as REMINDERS_SCHEMA
 
 # The key check: one row the hub encrypts with its key when it first opens a
 # database, so a database never opens with another key (which would leave it
@@ -133,6 +134,8 @@ def migrate(db, encrypt: Callable[[bytes, str], bytes]) -> None:
     db.executescript(ROSTER_SCHEMA)
     db.executescript(HANDOVER_SCHEMA)
     db.executescript(ATTACHMENTS_SCHEMA)
+    # «Recordatorio personal», the owner's on every Mac.
+    db.executescript(REMINDERS_SCHEMA)
     db.executescript(_KEY_CHECK_SCHEMA)
     db.execute(
         "INSERT OR IGNORE INTO storage_key_check(id, body) VALUES (1, ?)",
@@ -159,6 +162,9 @@ def _migrate_core(db) -> None:
         ("kind", "TEXT NOT NULL DEFAULT 'text'"),
         ("duration_ms", "INTEGER"),
         ("client_id", "TEXT"),
+        # An answer's summary of what its turn did (`runtime.work`), encrypted.
+        # Answers stored before it have none, and show none.
+        ("work", "BLOB"),
     ):
         if column not in message_columns:
             db.execute(f"ALTER TABLE messages ADD COLUMN {column} {definition}")

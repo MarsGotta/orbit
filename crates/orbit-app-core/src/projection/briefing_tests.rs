@@ -314,3 +314,50 @@ fn the_series_says_none_apart_from_not_known() {
     );
     assert_eq!(next["previous"]["recording_id"], "rec-by-title");
 }
+
+/// «Recordatorio personal» as the hub keeps it for every Mac: the next
+/// meeting carries it once it was read for that meeting; a read of another
+/// meeting, none yet or one that failed is unknown, and the Mac's own copy
+/// stands.
+#[test]
+fn the_next_meeting_carries_its_reminder_from_the_hub() {
+    use orbit_core::reminders::Reminder;
+    let mut state = design_review();
+    let next = projected_briefing(&state, at_local(9, 0))["next"].clone();
+    assert!(next.get("reminder").is_none(), "not asked for yet");
+    state.reminder = Some(crate::ReminderRead {
+        series_key: "revisión de diseño".into(),
+        answer: Ok(Some(Reminder {
+            text: "Llevar las cifras".into(),
+            edited_at_ms: 42,
+        })),
+    });
+    let briefing = projected_briefing(&state, at_local(9, 0));
+    assert_eq!(
+        briefing["next"]["reminder"],
+        json!({"state": "known", "text": "Llevar las cifras", "edited_at_ms": 42})
+    );
+    assert!(briefing["upcoming"][1].get("reminder").is_none());
+    state.reminder = Some(crate::ReminderRead {
+        series_key: "revisión de diseño".into(),
+        answer: Ok(None),
+    });
+    let next = projected_briefing(&state, at_local(9, 0))["next"].clone();
+    assert_eq!(next["reminder"], json!({"state": "none"}));
+    state.reminder = Some(crate::ReminderRead {
+        series_key: "revisión de diseño".into(),
+        answer: Err("El hub respondió HTTP 404".into()),
+    });
+    let next = projected_briefing(&state, at_local(9, 0))["next"].clone();
+    assert_eq!(
+        next["reminder"],
+        json!({"state": "unknown", "cause": "El hub respondió HTTP 404"})
+    );
+    // Read for another meeting: not this one's.
+    state.reminder = Some(crate::ReminderRead {
+        series_key: "comida con ribera".into(),
+        answer: Ok(None),
+    });
+    let next = projected_briefing(&state, at_local(9, 0))["next"].clone();
+    assert!(next.get("reminder").is_none());
+}

@@ -12,6 +12,8 @@ interface Props {
   send: Send;
   nowMs: number;
   timezone: string;
+  /** The hub can be reached (its reminder is asked again when it comes back). */
+  online: boolean;
 }
 
 const hasUrl = (url: string | null): url is string => url !== null && url !== "";
@@ -27,7 +29,7 @@ export function meetingWhen(meeting: BriefingNextSnapshot, timezone: string): st
  * with «Unirse y grabar» (or «Solo grabar» with no call to join) and the
  * earlier note. Below the line, what was left open and a personal reminder.
  */
-export function NextMeetingCard({ meeting, send, nowMs, timezone }: Props) {
+export function NextMeetingCard({ meeting, send, nowMs, timezone, online }: Props) {
   const minutes = Math.max(0, Math.ceil((meeting.start_ms - nowMs) / 60_000));
   const label = meeting.start_ms <= nowMs ? es.briefing.nextNow : es.briefing.nextStartsIn(minutes);
   const record = () => {
@@ -72,6 +74,9 @@ export function NextMeetingCard({ meeting, send, nowMs, timezone }: Props) {
         )}
         <PersonalReminder
           calendarItemId={meeting.event?.calendar_item_id ?? null}
+          hub={meeting.reminder}
+          online={online}
+          send={send}
           seriesKey={meeting.series_key}
         />
       </div>

@@ -3,9 +3,16 @@ import type { Attachment } from "./Attachment";
 import type { ChatRole } from "./ChatRole";
 import type { ToolReceipt } from "./ToolReceipt";
 import type { VoiceNote } from "./VoiceNote";
+import type { WorkSummary } from "./WorkSummary";
 
 export type ChatMessage = { id: string, role: ChatRole, text: string, at_ms: number, streaming: boolean, voice: VoiceNote | null, receipts: Array<ToolReceipt>, 
 /**
  * The files the user's message carried.
  */
-attachments?: Array<Attachment>, };
+attachments?: Array<Attachment>, 
+/**
+ * An answer read from the hub: what its turn did («Trabajó…»).
+ * Absent while it is the turn in progress (`ChatSnapshot.work`) and
+ * for answers stored before the hub kept it.
+ */
+work?: WorkSummary, };

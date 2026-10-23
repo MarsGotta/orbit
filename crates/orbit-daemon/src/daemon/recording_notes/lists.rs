@@ -14,16 +14,21 @@ fn absent(refusal: Refusal) -> Knowledge<Page<Value>> {
     Knowledge::Absent { refusal }
 }
 
-/// The earlier meeting of a series and its note's tasks, as the hub gives
-/// them; `previous: null` is the hub's fact that there is none.
+/// The earlier meeting of a series (`(calendar_item_id, before_ms)`) and its
+/// note's tasks, as the hub gives them; failing that, with `title_digest`, the
+/// earlier meeting of the same title. `previous: null` is the hub's fact that
+/// there is none.
 pub(super) async fn series_previous(
     hub: Result<NoteHub, Refusal>,
-    calendar_item_id: String,
-    before_ms: i64,
+    (calendar_item_id, before_ms): (String, i64),
+    title_digest: Option<String>,
     revision: u64,
 ) -> Knowledge<Page<Value>> {
     let read = match hub {
-        Ok(hub) => match hub.previous_meeting(&calendar_item_id, before_ms).await {
+        Ok(hub) => match hub
+            .previous_meeting(&calendar_item_id, before_ms, title_digest.as_deref())
+            .await
+        {
             // The route names no recording, so its 404 is a hub that does
             // not have it (0.10 and earlier): unknown, never «none».
             crate::hub_notes::Answer::Refused { status: 404, .. } => Err(Refusal::UpstreamFailed {

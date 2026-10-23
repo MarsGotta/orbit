@@ -12,6 +12,8 @@ through its own repository over that one connection and one schema
   (`recordings.py`); `store.groups`, the groups they are transcribed in
   (`group_storage.py`);
 - `store.space`: what the database uses, its limit and admission (`space.py`);
+- `store.reminders`: the owner's «Recordatorio personal» of each meeting,
+  shared by every Mac (`reminders.py`);
 - `store.attachments`, and the meetings, notes and agents repositories, which
   take the store.
 """

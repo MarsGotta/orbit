@@ -359,6 +359,9 @@ pub struct SessionMessage {
     /// The files the message carried, as the hub lists them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attachments: Vec<crate::attachments::Attachment>,
+    /// An answer's summary of what its turn did; none from a hub up to 0.11.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub work: Option<crate::agent_work::WorkSummary>,
 }
 
 /// A voice note in a conversation: its length, and whether this Mac still

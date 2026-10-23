@@ -174,6 +174,8 @@ pub(crate) struct BriefingFixture {
     pub recordings: Vec<crate::NoteListItem>,
     /// The next meeting's series, as the client read it.
     pub series: Option<crate::SeriesPreviousRead>,
+    /// A meeting's reminder, as the client read it from the hub.
+    pub reminder: Option<crate::ReminderRead>,
 }
 
 pub(crate) fn briefing_fixture(events: Vec<CalendarOccurrence>) -> BriefingFixture {
@@ -181,6 +183,7 @@ pub(crate) fn briefing_fixture(events: Vec<CalendarOccurrence>) -> BriefingFixtu
         events,
         recordings: Vec::new(),
         series: None,
+        reminder: None,
     }
 }
 
@@ -287,6 +290,7 @@ pub(crate) fn projected_briefing(fixture: &BriefingFixture, now_ms: i64) -> Valu
     if let Some(notes) = local.notes.as_mut() {
         notes.list = fixture.recordings.clone();
         notes.series_previous = fixture.series.clone().map(Box::new);
+        notes.reminder = fixture.reminder.clone().map(Box::new);
         notes.index = Some(Box::new(crate::NotesIndexSnapshot {
             state: crate::NotesIndexState::Available,
             more: false,

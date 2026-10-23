@@ -27,6 +27,7 @@ from .chat import ChatRepository
 from .devices import DeviceRepository
 from .operations import OperationRepository
 from .recordings import RecordingRepository
+from .reminders import ReminderRepository
 from .space import SpaceRepository, is_storage_full
 
 
@@ -110,6 +111,9 @@ class Store:
         self.recordings = RecordingRepository(self)
         self.groups = GroupRepository(self)
         self.attachments = AttachmentRepository(self)
+        self.reminders = ReminderRepository(
+            self, hmac.digest(key, b"orbit.reminder.key.v1", "sha256")
+        )
 
     def recover_interrupted(self) -> None:
         """Only hub startup calls this; opening the admin CLI must not alter live turns."""

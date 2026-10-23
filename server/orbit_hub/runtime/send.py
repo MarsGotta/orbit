@@ -17,6 +17,7 @@ from ..meeting_context import MeetingTurn, meeting_context, read_meeting
 from ..protocol import HubError, emit
 from ..storage import SESSION_MESSAGES_PAGE_LIMIT
 from ..turns import TurnState, advance, can_start_turn
+from .work import TurnWork
 
 _UNKNOWN_OUTCOME = (
     "El resultado del turno anterior es incierto; abre una sesión nueva "
@@ -197,13 +198,15 @@ class TurnSender:
         sent = meeting.text if meeting is not None else params.text
         upstream_text = f"[Orbit · {runtime.device_name} · {input_type}]\n{sent}"
         runtime.turn_ids[session_id] = request_id
+        now_ms = round(runtime.now() * 1000)
+        runtime.work[session_id] = TurnWork(now_ms)
         # The conversation keeps what the user sees: a meeting question without
         # the transcript that went with it.
         runtime.store.chat.append_message(
             session_id,
             "user",
             meeting.visible if meeting is not None else params.text,
-            now_ms=round(runtime.now() * 1000),
+            now_ms=now_ms,
             kind="voice" if params.voice is not None else "text",
             duration_ms=params.voice.duration_ms if params.voice is not None else None,
             client_id=params.client_id,

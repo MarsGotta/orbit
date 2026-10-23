@@ -71,6 +71,25 @@ app_type! {
 }
 
 app_type! {
+    /// «Recordatorio personal» as the hub keeps it for every Mac
+    /// (`GET /v1/reminders/{key}`). The interface keeps its own copy and
+    /// shows it whatever this says; the latest edit of both wins.
+    #[serde(tag = "state", rename_all = "snake_case")]
+    pub enum BriefingReminder {
+        /// Not read, or the hub could not be asked (an older hub, no link):
+        /// the Mac's own copy stands.
+        Unknown { cause: String },
+        /// Nobody wrote one on the hub.
+        None,
+        Known {
+            text: String,
+            #[ts(type = "number")]
+            edited_at_ms: i64,
+        },
+    }
+}
+
+app_type! {
     #[serde(rename_all = "snake_case")]
     pub enum BriefingRecordingState {
         None,
@@ -98,6 +117,10 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub previous_actions: Option<BriefingPreviousActions>,
+        /// Only on the next meeting, once its reminder was asked for.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub reminder: Option<BriefingReminder>,
         pub recording: BriefingRecordingState,
     }
 }

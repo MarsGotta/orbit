@@ -184,6 +184,21 @@ pub enum Command {
     MeetingQuestionClose {
         id: String,
     },
+    /// The pointer entered (`held`) or left the floating panel showing
+    /// question `id`: its deadline waits while it is held. A question already
+    /// gone is not an error.
+    MeetingQuestionHold {
+        id: String,
+        held: bool,
+    },
+    /// «Recordatorio personal»: an edit of meeting `key`'s reminder (its
+    /// title's digest), written at `edited_at_ms`. Answered once the hub kept
+    /// it, or a later one: the latest edit wins.
+    ReminderWrite {
+        key: String,
+        text: String,
+        edited_at_ms: i64,
+    },
     /// «Al detectar una llamada»: the user's preference, kept by the daemon.
     CallPreference {
         preference: crate::call_detection::CallPreference,
@@ -329,13 +344,14 @@ impl Command {
             | Self::SpeakerRename { .. }
             | Self::MeetingLanguage { .. }
             | Self::MeetingRename { .. } => Some(FeatureId::Note),
-            Self::NoteLibrary { .. } => Some(FeatureId::Notes),
+            Self::NoteLibrary { .. } | Self::ReminderWrite { .. } => Some(FeatureId::Notes),
             Self::AudioSourcesRefresh
             | Self::CallRecord { .. }
             | Self::CallDismiss { .. }
             | Self::RecordingKeep { .. }
             | Self::MeetingAsk { .. }
             | Self::MeetingQuestionClose { .. }
+            | Self::MeetingQuestionHold { .. }
             | Self::CallPreference { .. }
             | Self::MeetingStart { .. }
             | Self::MeetingPause

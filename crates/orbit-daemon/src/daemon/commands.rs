@@ -208,6 +208,7 @@ impl Runtime {
                 .await?
             }
             Command::MeetingQuestionClose { id } => self.close_meeting_question(&id),
+            Command::MeetingQuestionHold { id, held } => self.hold_meeting_question(&id, held),
             Command::Chat {
                 text,
                 attachments,
@@ -241,10 +242,12 @@ impl Runtime {
                 })
                 .await?;
             }
-            // Served off the loop by `serve_attachment`, never here.
+            // Served off the loop by `serve_attachment` and
+            // `serve_reminder_write`, never here.
             Command::AttachmentAdd { .. }
             | Command::AttachmentFetch { .. }
-            | Command::AttachmentSave { .. } => {}
+            | Command::AttachmentSave { .. }
+            | Command::ReminderWrite { .. } => {}
             Command::NewSession { agent_id } => {
                 self.ensure_known_agent(agent_id.as_deref())?;
                 self.ensure_conversation_can_change()?;

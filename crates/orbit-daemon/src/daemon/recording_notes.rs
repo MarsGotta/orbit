@@ -29,6 +29,7 @@ mod outbox;
 mod outbox_tests;
 mod owner;
 pub(super) mod reads;
+mod reminders;
 mod send;
 #[cfg(test)]
 mod tests;

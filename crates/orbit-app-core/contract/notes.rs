@@ -378,6 +378,11 @@ app_type! {
         #[serde(skip)]
         #[ts(skip)]
         pub(crate) series_previous: Option<Box<SeriesPreviousRead>>,
+        /// The last read of a meeting's «Recordatorio personal» on the hub
+        /// (`client::reminders`), which Hoy projects (`briefing.next.reminder`).
+        #[serde(skip)]
+        #[ts(skip)]
+        pub(crate) reminder: Option<Box<ReminderRead>>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub index: Option<Box<NotesIndexSnapshot>>,
@@ -420,6 +425,15 @@ pub struct SeriesPreviousRead {
     pub before_ms: i64,
     /// The hub's answer, or why it could not be read.
     pub answer: Result<orbit_core::notes::SeriesPrevious, String>,
+}
+
+/// One read of a meeting's reminder on the hub, by its series key (the
+/// title's words): the hub's reminder, `None` when nobody wrote one, or why it
+/// could not be read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReminderRead {
+    pub series_key: String,
+    pub answer: Result<Option<orbit_core::reminders::Reminder>, String>,
 }
 
 app_type! {

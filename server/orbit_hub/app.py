@@ -112,7 +112,7 @@ def _mount_devices(app: FastAPI, hub: composition.Hub, identity) -> None:
     from .routes import agents as agent_routes
     from .routes import assistants as assistant_routes
     from .routes import attachments as attachment_routes
-    from .routes import audio, recordings
+    from .routes import audio, recordings, reminders
     from .routes import captures as capture_routes
     from .ws import mount as mount_ws
 
@@ -135,6 +135,7 @@ def _mount_devices(app: FastAPI, hub: composition.Hub, identity) -> None:
         app, store, identity, bounded_body, executor, hub.prepare_signal, now, hub.notes,
         hub.runtimes.recording_changed, settings.diarization is not None,
     )  # fmt: skip
+    reminders.mount(app, store, identity, bounded_body, executor)
     mount_ws(
         app, settings, hub.agents, identity, allowed_transport, hub.runtimes.of, store, now,
         hub.bridge, hub.bridge_waiters, hub_version,

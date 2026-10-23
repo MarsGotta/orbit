@@ -84,7 +84,7 @@ describe("the glossary", () => {
 
   it("calls the meeting's own note a personal reminder, and the open items what was left", () => {
     expect(es.briefing.reminder).toBe("Recordatorio personal");
-    expect(es.briefing.reminderHelp).toBe("Solo lo ves tú, en este Mac. No va a la nota.");
+    expect(es.briefing.reminderHelp).toBe("Solo lo ves tú. No va a la nota.");
     expect(es.briefing.pending).toBe("Pendiente de la última vez");
   });
 

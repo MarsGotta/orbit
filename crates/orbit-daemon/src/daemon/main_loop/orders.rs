@@ -2,8 +2,8 @@
 //! off it, and answered with the topics' revisions they produced.
 use super::*;
 
-/// Reads, Ajustes › Agentes and the attachment orders change nothing of the
-/// daemon's state: they are answered off the loop.
+/// Reads, Ajustes › Agentes, the attachment orders and a reminder's save
+/// change nothing of the daemon's state: they are answered off the loop.
 fn off_loop(command: &Command) -> bool {
     matches!(
         command,
@@ -13,6 +13,7 @@ fn off_loop(command: &Command) -> bool {
             | Command::AttachmentAdd { .. }
             | Command::AttachmentFetch { .. }
             | Command::AttachmentSave { .. }
+            | Command::ReminderWrite { .. }
     )
 }
 
@@ -81,6 +82,15 @@ impl MainLoop<'_> {
                 | Command::AttachmentSave { .. }
         ) {
             runtime.serve_attachment(command.clone(), id, reply);
+        } else if let Command::ReminderWrite {
+            key,
+            text,
+            edited_at_ms,
+        } = command
+        {
+            let reply_with = (Some(board.epoch().to_owned()), board.revisions());
+            let edit = (key.clone(), text.clone(), *edited_at_ms);
+            runtime.serve_reminder_write(edit, id, reply, reply_with);
         } else if matches!(command, Command::SubscribeTopics { .. }) {
             let response = topic_response(id, board.revisions(), None, None);
             record_ipc_reply_loss(reply.send(response), command, runtime.diagnostics.as_ref());

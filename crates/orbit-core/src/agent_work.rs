@@ -229,6 +229,24 @@ impl AgentWork {
     }
 }
 
+/// What a turn did, as the hub keeps it with its answer (hub-v1, the
+/// messages page): the folded line of an answer after later turns and when
+/// the conversation is opened again. The steps themselves are live only.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+)]
+pub struct WorkSummary {
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub started_at_ms: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub ended_at_ms: u64,
+    pub tools: u32,
+    pub subjects: Vec<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

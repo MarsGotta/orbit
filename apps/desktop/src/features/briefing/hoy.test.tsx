@@ -161,6 +161,7 @@ describe("Hoy, a normal day", () => {
     expect(within(card).getByText("14:50 – 15:35 · videollamada")).toBeTruthy();
     expect(within(card).getByText("Se acordó simplificar el paso de pago.")).toBeTruthy();
     expect(within(card).getByText("Con Marta Ibáñez, Diego Salinas y Javier Ortega")).toBeTruthy();
+    send.mockClear();
     await userEvent.click(within(card).getByRole("button", { name: "Unirse y grabar" }));
     expect(send.mock.calls.map(([command]) => command.command)).toEqual([
       "open_url",
@@ -264,14 +265,22 @@ describe("Pendiente de la última vez", () => {
 });
 
 describe("Recordatorio personal", () => {
-  it("stays on this Mac, for this series, and never reaches the daemon", async () => {
+  it("is kept here and on the hub for every Mac, for this series, never in the note", async () => {
     const { send, unmount } = show(snapshot());
     const field = screen.getByRole("textbox", { name: "Recordatorio personal" });
-    expect(screen.getByText("Solo lo ves tú, en este Mac. No va a la nota.")).toBeTruthy();
+    expect(screen.getByText("Solo lo ves tú. No va a la nota.")).toBeTruthy();
     await userEvent.type(field, "Llevar las cifras del piloto");
     fireEvent.blur(field);
     expect(screen.getByText("✓ Guardado")).toBeTruthy();
-    expect(send).not.toHaveBeenCalled();
+    const sent = send.mock.calls.map(([command]) => command.command);
+    expect(sent).toContain("reminder_read");
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: "reminder_save",
+        series_key: "revision del diseno",
+        text: "Llevar las cifras del piloto",
+      }),
+    );
     unmount();
     show(snapshot());
     expect(

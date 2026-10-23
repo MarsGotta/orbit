@@ -492,9 +492,12 @@ def test_a_turn_without_attachments_keeps_the_0_9_0_shape(environment, tmp_path)
     [(_, _, prompt)] = [call for call in hermes.calls if call[1] == "prompt.submit"]
     assert set(prompt) == {"session_id", "text"}
     assert "Adjuntos" not in prompt["text"]
+    # No attachments anywhere. The answer adds only its turn's `work`
+    # summary, which a Mac up to 0.11 ignores (its `HubMessage` does not
+    # refuse unknown fields).
     assert [set(message) for message in page.json()["messages"]] == [
         {"id", "role", "text", "at_ms", "kind"},
-        {"id", "role", "text", "at_ms", "kind"},
+        {"id", "role", "text", "at_ms", "kind", "work"},
     ]
 
 

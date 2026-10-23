@@ -1,0 +1,40 @@
+{
+  "_about": "A meeting's title as Hoy matches it with an earlier meeting: its words, lowercase, without the ones made only of digits (`orbit_core::notes::title_key`, `orbit_hub.meetings.series.title_key`), and the SHA-256 of those words that travels instead of the title (`title_digest`). A title with no such words has no key and matches nothing. Invented titles.",
+  "cases": [
+    {
+      "title": "Revisión de diseño",
+      "key": "revisión de diseño",
+      "digest": "ee009505531381ac0ce81bbac953dcf1f849ab8e3b8f94d1292854901fc22cff"
+    },
+    {
+      "title": "  REVISIÓN — de   diseño 12 ",
+      "key": "revisión de diseño",
+      "digest": "ee009505531381ac0ce81bbac953dcf1f849ab8e3b8f94d1292854901fc22cff"
+    },
+    {
+      "title": "Comité 2026: presupuesto",
+      "key": "comité presupuesto",
+      "digest": "f9b6f2f38cfc830d2325e66c93a7c4a78a67f33e1e69f38c179a2774cc375050"
+    },
+    {
+      "title": "1:1 con Ana",
+      "key": "con ana",
+      "digest": "00547c908f5cea67d904f1d13d9a915a22768c85d1b7840b0d3148938a949478"
+    },
+    {
+      "title": "Café_con_leche",
+      "key": "café con leche",
+      "digest": "03ab23fe2245c8a70f5ffea7dd4468b8349a45bed6947f224a26365cde55bce2"
+    },
+    {
+      "title": "Q3 · planificación",
+      "key": "q3 planificación",
+      "digest": "406720567d81db2ba2f0f9a1abcb4a7a0398c3f92107621b98c4d7d63f352366"
+    },
+    {
+      "title": "2026-10-23",
+      "key": "",
+      "digest": null
+    }
+  ]
+}

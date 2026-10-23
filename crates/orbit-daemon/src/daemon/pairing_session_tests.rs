@@ -311,7 +311,8 @@ async fn opening_a_previous_conversation_shows_its_messages() -> Result<()> {
         "200 OK",
         "{\"messages\":[\
           {\"id\":1,\"role\":\"user\",\"text\":\"Hola\",\"at_ms\":1700000000000,\"kind\":\"text\",\"client_id\":\"40000000-0000-4000-8000-000000000004\"},\
-          {\"id\":2,\"role\":\"assistant\",\"text\":\"Respuesta\",\"at_ms\":1700000001000,\"kind\":\"text\"}],\
+          {\"id\":2,\"role\":\"assistant\",\"text\":\"Respuesta\",\"at_ms\":1700000001000,\"kind\":\"text\",\
+           \"work\":{\"started_at_ms\":1700000000000,\"ended_at_ms\":1700000001000,\"tools\":2,\"subjects\":[\"el calendario\"]}}],\
           \"next\":null,\"total\":2}",
     ))
     .await?;
@@ -347,6 +348,17 @@ async fn opening_a_previous_conversation_shows_its_messages() -> Result<()> {
     assert_eq!(messages[0].id, "40000000-0000-4000-8000-000000000004");
     assert_eq!(messages[1].id, "2");
     assert_eq!(messages[0].at_ms, Some(1_700_000_000_000));
+    // Each answer keeps what its turn did; the user's message has none.
+    assert_eq!(messages[0].work, None);
+    assert_eq!(
+        messages[1].work,
+        Some(orbit_core::agent_work::WorkSummary {
+            started_at_ms: 1_700_000_000_000,
+            ended_at_ms: 1_700_000_001_000,
+            tools: 2,
+            subjects: vec!["el calendario".into()],
+        })
+    );
     assert_eq!(value.total, 2);
     Ok(())
 }

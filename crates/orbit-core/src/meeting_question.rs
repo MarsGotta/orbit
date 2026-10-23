@@ -10,6 +10,9 @@
 use crate::Connection;
 use serde::{Deserialize, Serialize};
 
+mod hold;
+pub use hold::HOLD_GRACE_MS;
+
 /// The windows of transcript the user can choose from the button, in minutes.
 /// 2 is the default (product decision, 2026-09-29).
 /// The app receives them from app-core, never copies them.
@@ -196,6 +199,12 @@ pub struct MeetingQuestion {
     /// did, and the panel must not say «Deimos no respondió» about it.
     #[serde(default)]
     pub sent: bool,
+    /// The pointer is over the floating panel: no deadline until it leaves.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub held: bool,
+    /// When the pointer last left the panel; the grace runs from it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub released_at_ms: Option<i64>,
 }
 
 /// What the conversation says about a question's turn.
@@ -231,6 +240,8 @@ impl MeetingQuestion {
             asked_at_ms: now_ms,
             finished_at_ms: None,
             sent: true,
+            held: false,
+            released_at_ms: None,
         }
     }
 
@@ -258,6 +269,8 @@ impl MeetingQuestion {
             asked_at_ms: now_ms,
             finished_at_ms: Some(now_ms),
             sent: false,
+            held: false,
+            released_at_ms: None,
         }
     }
 
@@ -280,15 +293,23 @@ impl MeetingQuestion {
         true
     }
 
-    /// Until when the panel shows it; `None` while Deimos is thinking (the
-    /// panel stays until the answer or the user closes it).
+    /// Until when the panel shows it; `None` while Deimos is thinking or the
+    /// pointer is over the panel (it stays until the answer, the pointer
+    /// leaves or the user closes it). A release adds its grace
+    /// (`hold::HOLD_GRACE_MS`), never shortening what was left.
     pub fn shown_until_ms(&self) -> Option<i64> {
         let finished = self.finished_at_ms?;
-        match self.stage {
-            QuestionStage::Thinking => None,
-            QuestionStage::Answered => Some(finished.saturating_add(ANSWER_SHOWN_MS)),
-            QuestionStage::Failed => Some(finished.saturating_add(FAILURE_SHOWN_MS)),
+        let shown = match self.stage {
+            QuestionStage::Thinking => return None,
+            QuestionStage::Answered => finished.saturating_add(ANSWER_SHOWN_MS),
+            QuestionStage::Failed => finished.saturating_add(FAILURE_SHOWN_MS),
+        };
+        if self.held {
+            return None;
         }
+        Some(self.released_at_ms.map_or(shown, |released| {
+            shown.max(released.saturating_add(HOLD_GRACE_MS))
+        }))
     }
 
     /// The panel has shown it long enough.

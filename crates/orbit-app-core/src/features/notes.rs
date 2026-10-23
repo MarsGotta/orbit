@@ -32,6 +32,18 @@ pub enum NotesCommand {
     NotesRefresh,
     /// «Cargar más»: one more page of the hub's list.
     NotesMore,
+    /// Hoy asks the hub for the next meeting's «Recordatorio personal».
+    ReminderRead {
+        series_key: String,
+    },
+    /// An edit of it, written at `edited_at_ms`; taken once the hub kept it
+    /// (or a later one), then read again.
+    ReminderSave {
+        series_key: String,
+        text: String,
+        #[ts(type = "number")]
+        edited_at_ms: i64,
+    },
 }
 
 #[cfg(test)]

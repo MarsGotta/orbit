@@ -157,6 +157,63 @@ describe("the agent's work in the chat", () => {
   });
 });
 
+describe("each answer keeps what its turn did", () => {
+  const message = (id: string, role: ChatMessage["role"], text: string, at_ms: number) => ({
+    ...question,
+    id,
+    role,
+    text,
+    at_ms,
+  });
+
+  it("an earlier answer keeps its «Trabajó…» once the next turn is the one in the topic", () => {
+    vi.useFakeTimers({ now: 120_000 });
+    render(
+      <MessageList
+        busy
+        messages={[
+          message("turno-1", "user", "Primera pregunta sintética", 1_000),
+          {
+            ...message("7", "assistant", "Primera respuesta", 47_000),
+            work: { started_at_ms: 1_000, ended_at_ms: 47_000, tools: 3, subjects: ["Mail"] },
+          },
+          message("turno-2", "user", "Segunda pregunta sintética", 100_000),
+        ]}
+        send={() => undefined}
+        work={work({ turn_id: "turno-2", started_at_ms: 100_000 })}
+        workInFlight
+      />,
+    );
+    expect(screen.getByText("Usó Mail · 3 pasos · 46 s")).toBeTruthy();
+    expect(screen.getByText("Trabajando · 20 s")).toBeTruthy();
+  });
+
+  it("reopened, every answer says how long its own turn worked", () => {
+    render(
+      <MessageList
+        messages={[
+          message("turno-1", "user", "Primera", 1_000),
+          {
+            ...message("2", "assistant", "Uno", 6_000),
+            work: { started_at_ms: 1_000, ended_at_ms: 6_000, tools: 0, subjects: [] },
+          },
+          message("turno-2", "user", "Segunda", 10_000),
+          {
+            ...message("4", "assistant", "Dos", 22_000),
+            work: { started_at_ms: 10_000, ended_at_ms: 22_000, tools: 0, subjects: [] },
+          },
+          // Stored before the hub kept it: nothing extra.
+          message("5", "assistant", "Antigua", 30_000),
+        ]}
+        send={() => undefined}
+      />,
+    );
+    expect(screen.getByText("Trabajó 5 s")).toBeTruthy();
+    expect(screen.getByText("Trabajó 12 s")).toBeTruthy();
+    expect(screen.getAllByText(/^Trabajó/)).toHaveLength(2);
+  });
+});
+
 describe("questions and approvals with the agent's real choices", () => {
   const approval: ChatPending = {
     kind: "approval",

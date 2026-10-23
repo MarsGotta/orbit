@@ -4,7 +4,7 @@ import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import type { VoiceNoteAudioSnapshot } from "../../bridge/generated/VoiceNoteAudioSnapshot";
 import { Icon } from "../../design/Icon";
 import { useSpanish } from "../../i18n/AssistantCopy";
-import { AgentWorkView, AnswerHead, type StepWait } from "./AgentWork";
+import { AgentWorkView, AnswerHead, type StepWait, workSummary } from "./AgentWork";
 import { AssistantAnswer } from "./AssistantAnswer";
 import { AttachmentGallery } from "./AttachmentGallery";
 import { CopyButton } from "./CopyButton";
@@ -102,6 +102,12 @@ function Answer({
   );
 }
 
+/** An earlier answer's line: what its turn did, as the hub kept it; nothing when it kept none. */
+function StoredWork({ message }: { message: ChatMessage }) {
+  const summary = message.work == null ? "" : workSummary(message.work);
+  return <AnswerHead>{summary === "" ? null : <span>{summary}</span>}</AnswerHead>;
+}
+
 /**
  * The conversation: the user's messages on the right, the agent's answers
  * at reading width with what it did on their first line. A turn still
@@ -142,7 +148,7 @@ export function MessageList({
           {message.role === "assistant" ? (
             <Answer
               answering={answering}
-              head={answered && index === asked + 1 ? workView : <AnswerHead />}
+              head={answered && index === asked + 1 ? workView : <StoredWork message={message} />}
               message={message}
               retry={retryText(messages, index)}
               send={send}

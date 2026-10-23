@@ -35,6 +35,7 @@ from .events import TurnEvents
 from .inputs import TurnInputTracker
 from .resume import LiveKey, Resumes
 from .send import TurnSender
+from .work import TurnWork
 
 Pending = tuple[str, str, PermissionRequest | ClarificationRequest]
 
@@ -62,6 +63,8 @@ class DeviceRuntime:
         self.bindings: dict[LiveKey, str] = {}
         self.resumed_message_counts: dict[LiveKey, int | None] = {}
         self.turn_ids: dict[str, str] = {}
+        # What each conversation's turn in flight did, for its answer (`work`).
+        self.work: dict[str, TurnWork] = {}
         # The `chat.send` ids whose message this hub stored, until the socket
         # that sent them has answered (`ws_dispatch`): a send refused before
         # this point kept nothing and gives its id back.

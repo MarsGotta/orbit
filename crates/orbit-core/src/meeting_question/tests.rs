@@ -439,3 +439,98 @@ fn the_same_question_is_the_same_words_whatever_their_marks() {
         "no words is never the same question"
     );
 }
+
+/// An answered question at `START + 4 s`, as the panel shows it.
+fn answered() -> MeetingQuestion {
+    let mut question = asked();
+    question.follow(
+        TurnFacts {
+            in_flight: false,
+            answer: Some("Dijo que sube un diez por ciento."),
+            failure: None,
+        },
+        START + 4_000,
+    );
+    question
+}
+
+#[test]
+fn the_pointer_over_the_panel_holds_the_answer_past_its_deadline() {
+    let mut question = answered();
+    let deadline = START + 4_000 + ANSWER_SHOWN_MS;
+    question.hold(true, START + 10_000);
+    assert_eq!(question.shown_until_ms(), None, "held: no deadline");
+    assert!(!question.expired(deadline + 60_000), "it stays while held");
+    // Released long after its deadline: a short grace, then it goes.
+    question.hold(false, deadline + 60_000);
+    assert_eq!(
+        question.shown_until_ms(),
+        Some(deadline + 60_000 + HOLD_GRACE_MS)
+    );
+    assert!(!question.expired(deadline + 60_000 + HOLD_GRACE_MS - 1));
+    assert!(question.expired(deadline + 60_000 + HOLD_GRACE_MS));
+}
+
+#[test]
+fn a_release_before_the_deadline_keeps_the_deadline() {
+    let mut question = answered();
+    question.hold(true, START + 5_000);
+    question.hold(false, START + 6_000);
+    assert_eq!(
+        question.shown_until_ms(),
+        Some(START + 4_000 + ANSWER_SHOWN_MS),
+        "the grace never shortens what was left"
+    );
+}
+
+#[test]
+fn a_hold_while_deimos_thinks_keeps_the_answer_once_it_arrives() {
+    let mut question = asked();
+    question.hold(true, START + 1_000);
+    question.follow(
+        TurnFacts {
+            in_flight: false,
+            answer: Some("Que sí."),
+            failure: None,
+        },
+        START + 2_000,
+    );
+    assert_eq!(question.stage, QuestionStage::Answered);
+    assert_eq!(question.shown_until_ms(), None);
+    assert!(!question.expired(START + 2_000 + ANSWER_SHOWN_MS));
+}
+
+#[test]
+fn a_failure_under_the_pointer_is_held_too() {
+    let mut refused = MeetingQuestion::refused(
+        "request-3".into(),
+        None,
+        "¿Y?".into(),
+        2,
+        QuestionOrigin::Typed,
+        QuestionCause::NoMeeting,
+        START,
+    );
+    refused.hold(true, START + 1_000);
+    assert!(!refused.expired(START + FAILURE_SHOWN_MS));
+    refused.hold(false, START + 20_000);
+    assert_eq!(
+        refused.shown_until_ms(),
+        Some(START + 20_000 + HOLD_GRACE_MS)
+    );
+}
+
+#[test]
+fn a_question_from_before_the_hold_reads_as_not_held() -> Result<(), serde_json::Error> {
+    let mut value = serde_json::to_value(answered())?;
+    if let Some(object) = value.as_object_mut() {
+        object.remove("held");
+        object.remove("released_at_ms");
+    }
+    let question: MeetingQuestion = serde_json::from_value(value)?;
+    assert_eq!(
+        question.shown_until_ms(),
+        Some(START + 4_000 + ANSWER_SHOWN_MS)
+    );
+    Ok(())
+}

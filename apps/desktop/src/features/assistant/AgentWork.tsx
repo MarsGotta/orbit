@@ -26,11 +26,14 @@ function listText(subjects: string[]): string {
   return `${subjects.slice(0, -1).join(", ")} y ${subjects[subjects.length - 1]}`;
 }
 
+/** What the folded line needs: the turn in the topic, or an answer's summary from the hub. */
+type Worked = Pick<AgentWork, "started_at_ms" | "ended_at_ms" | "tools" | "subjects">;
+
 /**
  * The folded line of an ended turn: what its tools used, how many and how
  * long («Usó Mail · 3 pasos · 46 s»); without tools, only how long it worked.
  */
-export function workSummary(work: AgentWork): string {
+export function workSummary(work: Worked): string {
   const took =
     work.ended_at_ms == null ? null : durationText(work.ended_at_ms - work.started_at_ms);
   if (work.tools === 0) return took === null ? "" : copy.worked(took);

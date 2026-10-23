@@ -79,9 +79,12 @@ class TurnEvents:
             await self.status(session_id, turn_id, event.kind, event.text)
         elif isinstance(event, ActivityItem):
             # Live only: neither stored nor in the snapshot. A Mac that
-            # reconnects mid-turn sees the steps that follow.
-            data = {"session_id": session_id, **public_item(event)}
-            await runtime.publish(emit("chat.item", data, turn_id))
+            # reconnects mid-turn sees the steps that follow. Their count
+            # and what they used stay with the answer (`runtime.work`).
+            item = public_item(event)
+            if (work := runtime.work.get(session_id)) is not None:
+                work.record(item)
+            await runtime.publish(emit("chat.item", {"session_id": session_id, **item}, turn_id))
 
     def _resume_progress(self, key, event) -> bool:
         """A reopen's history event, which no turn event is; True when handled."""
@@ -226,10 +229,16 @@ class TurnEvents:
         # Failed output remains a live partial, never an authoritative history message.
         persisted = True
         warning_code: str | None = None
+        work = runtime.work.pop(session_id, None)
         if status != "error" and text:
+            now_ms = round(runtime.now() * 1000)
             try:
                 runtime.store.chat.append_message(
-                    session_id, "assistant", text, now_ms=round(runtime.now() * 1000)
+                    session_id,
+                    "assistant",
+                    text,
+                    now_ms=now_ms,
+                    work=work.summary(now_ms) if work is not None else None,
                 )
             except HubError as exc:
                 # Persistence failure: the turn still ends and the session

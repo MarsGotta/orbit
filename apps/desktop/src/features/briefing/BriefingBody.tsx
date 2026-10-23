@@ -47,7 +47,13 @@ export function BriefingBody(props: Props) {
     <>
       {recording ??
         (next ? (
-          <NextMeetingCard meeting={next} nowMs={nowMs} send={send} timezone={timezone} />
+          <NextMeetingCard
+            meeting={next}
+            nowMs={nowMs}
+            online={snapshot.connection?.hub === "paired"}
+            send={send}
+            timezone={timezone}
+          />
         ) : (
           <NoMeetings onRecord={props.onRecord} zero={briefing.agenda.length === 0} />
         ))}

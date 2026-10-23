@@ -157,6 +157,24 @@ pub fn cases() -> Vec<(Value, FeatureId)> {
             json!({"command":"meeting_question_close","id":"turn-1"}),
             FeatureId::Recording,
         ),
+        (
+            json!({"command":"meeting_question_hold","id":"turn-1","held":true}),
+            FeatureId::Recording,
+        ),
+        (
+            json!({"command":"reminder_read","series_key":"revisión semanal"}),
+            FeatureId::Notes,
+        ),
+        (
+            json!({"command":"reminder_save","series_key":"revisión semanal",
+                "text":"Reservar la sala","edited_at_ms":7}),
+            FeatureId::Notes,
+        ),
+        (
+            json!({"command":"reminder_write","key": "ab".repeat(32),
+                "text":"Reservar la sala","edited_at_ms":7}),
+            FeatureId::Notes,
+        ),
         (json!({"command":"meeting_pause"}), FeatureId::Recording),
         (json!({"command":"meeting_resume"}), FeatureId::Recording),
         (json!({"command":"meeting_finish"}), FeatureId::Recording),

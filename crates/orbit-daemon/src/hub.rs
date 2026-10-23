@@ -155,6 +155,9 @@ pub struct HubMessage {
     /// The files the message carried; absent from a 0.9.0 hub.
     #[serde(default)]
     pub attachments: Vec<orbit_core::attachments::Attachment>,
+    /// What an answer's turn did; absent from a hub up to 0.11.
+    #[serde(default)]
+    pub work: Option<orbit_core::agent_work::WorkSummary>,
 }
 
 /// One page of a conversation: its messages in order, and the `before` of

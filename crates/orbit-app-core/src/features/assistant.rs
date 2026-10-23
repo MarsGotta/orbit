@@ -168,5 +168,7 @@ fn chat_message(message: &orbit_core::Message, streaming: bool) -> ChatMessage {
         }),
         receipts: Vec::new(),
         attachments: message.attachments.clone(),
+        // The turn's work rides the topic beside it (`ChatSnapshot.work`).
+        work: None,
     }
 }

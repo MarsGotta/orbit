@@ -14,6 +14,7 @@ fn chat(activity: Option<AssistantActivity>) -> ChatSnapshot {
         voice: None,
         receipts: Vec::new(),
         attachments: Vec::new(),
+        work: None,
     }];
     chat
 }

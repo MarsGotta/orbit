@@ -186,13 +186,17 @@ impl Runtime {
             ReadRequest::SeriesPrevious {
                 calendar_item_id,
                 before_ms,
+                title_digest,
                 ..
             } => Box::pin(super::lists::series_previous(
                 hub,
-                calendar_item_id.clone(),
-                *before_ms,
+                (calendar_item_id.clone(), *before_ms),
+                title_digest.clone(),
                 head.revision,
             )),
+            ReadRequest::PersonalReminder { key, .. } => {
+                Box::pin(super::reminders::read(hub, key.clone(), head.revision))
+            }
             ReadRequest::AgendaRange { .. }
             | ReadRequest::AgendaCalendars { .. }
             | ReadRequest::Sessions { .. }

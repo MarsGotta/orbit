@@ -16,9 +16,26 @@ the date as the visible title.
 `GET /v1/sessions/{id}/messages?before=&limit=` returns
 `{"messages":[{"id":integer,"role":"user"|"assistant","text":string,
 "at_ms":integer|null,"kind":"text"|"voice","duration_ms"?:integer,
-"client_id"?:string,"attachments"?:[attachment]}],"next":integer|null,"total":integer,
-"agent_id"?:string}` in order. `attachments` lists a user message's files; see
-[Attachments](#attachments).
+"client_id"?:string,"attachments"?:[attachment],"work"?:{"started_at_ms":integer,
+"ended_at_ms":integer,"tools":integer,"subjects":[string]}}],"next":integer|null,
+"total":integer,"agent_id"?:string}` in order. `attachments` lists a user message's files; see
+[Attachments](#attachments). `work` is an answer's summary of its turn, kept
+with it when the turn ends: tool steps that ended (each once) and what they
+used (each once, at most 8, `MAX_WORK_SUBJECTS`), from the turn's `chat.item`s.
+The Mac folds it into «Trabajó…» after later turns and when the conversation
+is opened again. Answers stored before it, and user messages, have none.
+
+`GET /v1/reminders/{key}` → `{"key","reminder":{"text","edited_at_ms"}|null}`
+and `PUT /v1/reminders/{key}` `{"text","edited_at_ms"}` → the same, with the
+reminder kept: «Recordatorio personal» in Hoy, the owner's on every paired Mac,
+never put into a note. `key` is the meeting's `title_digest` (see
+`/v1/series/previous-meeting`); the hub keys its row by an HMAC of it and
+encrypts the text. The latest `edited_at_ms` wins: an older edit is answered
+with the newer one kept, and an emptied reminder is an edit. `null` is the
+hub's fact that nobody wrote one. A key that is not 64 hexadecimal characters,
+a text over 1000 characters (`MAX_REMINDER_CHARS`, with `chars,max_chars`) or a
+negative time yields `400 invalid_parameters` `{field,…}`. A hub before these
+routes answers 404; the Mac keeps its own copy and sends it again later.
 `agent_id` is the session's agent; see [Agents](#agents).
 Pages allow 200 messages and 512 KiB of JSON without cutting a message; `next`
 reads older messages. A message unable to fit alone yields
@@ -47,7 +64,17 @@ commands are available to the app; unknown or repeated fields remain invalid:
 {"command":"attachment_add","source":{"from":"window"}}
 {"command":"attachment_fetch","attachment_id":"…"}
 {"command":"attachment_save","attachment_id":"…"}
+{"command":"meeting_question_hold","id":"turn-uuid","held":true}
+{"command":"reminder_write","key":"<title_digest>","text":"Reservar la sala","edited_at_ms":1800000000000}
 ```
+
+`meeting_question_hold` says the pointer entered (`held:true`) or left the
+floating panel showing question `id`: while held the question has no
+`shown_until_ms` and is not let go; once released it stays until its own time
+or 5 s after the release (`HOLD_GRACE_MS`), whichever is later. Another or a
+gone question is not an error. `reminder_write` runs off the loop and answers,
+as any order, once the hub kept the edit (or a later one) with
+`PUT /v1/reminders/{key}`, or with the refusal; the interface keeps its copy.
 
 The `attachment_*` orders run off the daemon's loop and answer outside `State`
 with `{"v":1,"id":…,"ok":…,"error":…,"refusal"?:…,"attachment"?:…,"content"?:
@@ -827,6 +854,14 @@ Device bearer authentication; errors include `code`, numbered `refusal` and `op`
   characters, over 1024 bytes with `bytes,max_bytes`), yields
   `400 invalid_parameters` `{field,…}`. A hub before this route answers 404
   without a code; the Mac reads that as unknown, never as «no earlier meeting».
+  Optional `&title_digest=`: the SHA-256, in lowercase hexadecimal, of the next
+  meeting's title words (lowercase, words made only of digits left out; see
+  `contracts/fixtures/series-title-keys-v1.json`). When the series has no such
+  meeting, `previous` is the latest of the same meetings whose own title, or
+  the name the user gave it, has that digest: a meeting recorded by hand with
+  the event's title carries no series. The title never travels as text. A
+  value that is not 64 hexadecimal characters yields `400 invalid_parameters`
+  `{field:"title_digest",chars,expected_chars}`; a hub up to 0.11 ignores it.
 - `PUT /v1/recordings/{uuid}/series` `{template_id,dictionary_id:string|null}`
   or `{template_id,dictionary_ids:[string]}` →
   `{recording_id,calendar_item_id,template_id,dictionary_id,dictionary_ids}`:

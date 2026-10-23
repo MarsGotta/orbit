@@ -1012,9 +1012,17 @@ async fn a_missing_turn_rename_keeps_the_hubs_code_and_numbers() -> Result<()> {
 const SERIES: &str = "serie-comité 1";
 
 async fn series_previous(runtime: &Runtime) -> Knowledge<Page<Value>> {
+    series_previous_titled(runtime, None).await
+}
+
+async fn series_previous_titled(
+    runtime: &Runtime,
+    title_digest: Option<String>,
+) -> Knowledge<Page<Value>> {
     let request = ReadRequest::SeriesPrevious {
         calendar_item_id: SERIES.into(),
         before_ms: START,
+        title_digest,
         cursor: None,
     };
     match runtime.notes_read(&request) {
@@ -1083,6 +1091,39 @@ async fn the_series_earlier_meeting_passes_through_and_an_older_hub_is_not_none(
         } => {}
         other => bail!("an older hub was read as {other:?}"),
     }
+    Ok(())
+}
+
+/// The next meeting's title goes to the hub as its digest, never as text, so
+/// the hub can fall back to the earlier meeting of the same title; a read
+/// without one asks what an older Mac asked.
+#[tokio::test]
+async fn the_series_read_names_the_title_by_its_digest_only() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _) = fixture(directory.path())?;
+    let hub = paired(&mut runtime).await?;
+    let digest = orbit_core::series_title::title_digest("Comité de dirección")
+        .context("a title with words")?;
+    let Knowledge::Present { .. } = series_previous_titled(&runtime, Some(digest.clone())).await
+    else {
+        bail!("the titled read was not answered");
+    };
+    let asked = lock(&hub)
+        .received
+        .last()
+        .map(|request| request.query.clone())
+        .unwrap_or_default();
+    assert!(asked.contains(&format!("title_digest={digest}")), "{asked}");
+    assert!(!asked.contains("Comit"), "{asked}");
+    let Knowledge::Present { .. } = series_previous(&runtime).await else {
+        bail!("the read without a title was not answered");
+    };
+    let asked = lock(&hub)
+        .received
+        .last()
+        .map(|request| request.query.clone())
+        .unwrap_or_default();
+    assert!(!asked.contains("title_digest"), "{asked}");
     Ok(())
 }
 

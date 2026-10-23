@@ -72,6 +72,10 @@ macro_rules! reads {
 // default completion ceiling (NoteDetail above); its tasks, title and short
 // summary are a fraction of it, so 64 KiB holds them. A larger answer is
 // refused with its size, never cut.
+// PersonalReminder: one meeting's «Recordatorio personal» (`GET
+// /v1/reminders/{key}`), its text at the hub's 1,000 characters
+// (`MAX_REMINDER_CHARS`) escaped as six bytes each, its time and its key:
+// under 7 KiB. 8 KiB holds it; it bounds one read.
 reads! {
     AgendaRange { start_ms: i64, end_ms: i64 } => 128 * 1024;
     AgendaCalendars => 64 * 1024;
@@ -83,7 +87,8 @@ reads! {
     SessionMessages { session_id: String } => 640 * 1024;
     ControlHistory => 96 * 1024;
     EngineTools => 96 * 1024;
-    SeriesPrevious { calendar_item_id: String, before_ms: i64 } => 64 * 1024;
+    SeriesPrevious { calendar_item_id: String, before_ms: i64, title_digest: Option<String> } => 64 * 1024;
+    PersonalReminder { key: String } => 8 * 1024;
 }
 
 pub const fn max_page_bytes() -> usize {

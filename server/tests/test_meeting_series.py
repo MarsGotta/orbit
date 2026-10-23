@@ -9,6 +9,7 @@ with a scripted model (`support_series.Bench`). Invented meetings and people.
 """
 
 import json
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -17,6 +18,7 @@ from support_app import client
 from support_notes import note_answer
 from support_series import SERIES, Bench, recording
 
+from orbit_hub.meetings import series
 from orbit_hub.notes.series_key import MAX_SERIES_KEY_BYTES
 
 NOW = 2000.0
@@ -80,12 +82,11 @@ def meeting(bench, started_at_ms: int, meeting_event: dict | None, *, tasks=None
     return identity
 
 
-def previous(http, headers, series=SERIES, before_ms=NEXT_MS):
-    return http.get(
-        "/v1/series/previous-meeting",
-        params={"calendar_item_id": series, "before_ms": before_ms},
-        headers=headers,
-    )
+def previous(http, headers, series=SERIES, before_ms=NEXT_MS, title_digest=None):
+    params = {"calendar_item_id": series, "before_ms": before_ms}
+    if title_digest is not None:
+        params["title_digest"] = title_digest
+    return http.get("/v1/series/previous-meeting", params=params, headers=headers)
 
 
 # Proposal 5: «Pendiente de la última vez».
@@ -195,6 +196,82 @@ def test_a_previous_meeting_query_is_refused_with_the_field_and_its_numbers(envi
         assert no_time.status_code == 400
         assert no_time.json()["refusal"]["field"] == "before_ms"
         assert previous(http, {}).status_code == 401
+
+
+# «Pendiente de la última vez» by the title, when the series has no earlier
+# meeting: one recorded by hand with the event's title carries no series. The
+# title travels as the digest of its words (`title_digest`), never as text.
+
+TITLES = json.loads(
+    (
+        Path(__file__).resolve().parents[2] / "contracts/fixtures/series-title-keys-v1.json"
+    ).read_text()
+)["cases"]
+
+
+def test_title_keys_are_the_macs(bench):
+    """The same words and digest as `orbit_core::notes::title_key`, from one fixture."""
+    for case in TITLES:
+        assert series.title_key(case["title"]) == case["key"], case
+        assert series.title_digest(case["title"]) == case["digest"], case
+
+
+async def test_without_an_earlier_meeting_in_the_series_the_same_title_brings_its_tasks(bench):
+    by_hand = meeting(bench, NEXT_MS - 7 * DAY_MS, None, tasks=TASKS)
+    retitled(bench.store, bench.owner, by_hand, "Revisión de diseño 41")
+    # Another title, and a later one that is not before the next meeting.
+    other = meeting(bench, NEXT_MS - DAY_MS, None, tasks=TASKS)
+    retitled(bench.store, bench.owner, other, "Comida de equipo")
+    assert await bench.drain() == 2
+    digest = series.title_digest("Revisión de diseño")
+    headers = {"Authorization": "Bearer " + bench.token}
+    with client(bench.environment) as http:
+        found = previous(http, headers, title_digest=digest).json()["previous"]
+        assert found["recording_id"] == by_hand
+        assert [i["text"] for i in found["note"]["action_items"]] == [
+            "Enviar el acta",
+            "Revisar el presupuesto",
+        ]
+        # A Mac that sends no title gets what it always got.
+        assert previous(http, headers).json()["previous"] is None
+
+
+async def test_the_series_wins_over_a_later_meeting_of_the_same_title(bench):
+    linked = meeting(bench, NEXT_MS - 14 * DAY_MS, event(NEXT_MS - 14 * DAY_MS), tasks=TASKS[:1])
+    by_hand = meeting(bench, NEXT_MS - 7 * DAY_MS, None, tasks=TASKS)
+    retitled(bench.store, bench.owner, by_hand, "Revisión de diseño")
+    await bench.drain()
+    headers = {"Authorization": "Bearer " + bench.token}
+    digest = series.title_digest("Revisión de diseño")
+    with client(bench.environment) as http:
+        found = previous(http, headers, title_digest=digest).json()["previous"]
+        assert found["recording_id"] == linked
+
+
+def test_a_title_key_that_is_not_a_digest_is_refused_with_its_field(environment):
+    _, store, _ = environment
+    owner = device(store)
+    headers = {"Authorization": "Bearer " + owner["token"]}
+    with client(environment) as http:
+        refused = previous(http, headers, title_digest="Revisión de diseño")
+        assert refused.status_code == 400
+        assert refused.json()["refusal"]["field"] == "title_digest"
+
+
+def retitled(store, owner: str, recording_id: str, title: str) -> None:
+    """The manifest's own title, as a Mac sends it for a recording started by hand."""
+    context = f"manifest:{owner}:{recording_id}"
+    with store.transaction() as db:
+        row = db.execute(
+            "SELECT body FROM recording_manifests WHERE device_id=? AND recording=?",
+            (owner, recording_id),
+        ).fetchone()
+        manifest = json.loads(store.decrypt(row["body"], context))
+        manifest["title"] = title
+        db.execute(
+            "UPDATE recording_manifests SET body=? WHERE device_id=? AND recording=?",
+            (store.encrypt(json.dumps(manifest).encode(), context), owner, recording_id),
+        )
 
 
 # Proposal 9: «Usar lo mismo en toda la serie».

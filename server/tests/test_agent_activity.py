@@ -2,13 +2,14 @@
 questions keep the choices the agent offered (hub-v1 «chat.item»)."""
 
 import json
+from uuid import uuid4
 
 import pytest
 from support_review_regressions import reviewed as reviewed  # noqa: PLC0414
 from support_review_regressions import runtime_fixture
 
 from orbit_hub.assistant.activity import MAX_ITEM_LABEL_CHARS, ORBIT_TOOLS, tool_label
-from orbit_hub.protocol import ApprovalParams, ClarifyParams, HubError
+from orbit_hub.protocol import ApprovalParams, ClarifyParams, HubError, SendParams
 
 
 async def hermes(runtime, upstream, kind, payload):
@@ -43,6 +44,58 @@ async def test_a_hermes_tool_is_one_item_from_its_start_to_its_end(reviewed):
         "subject": "la pantalla",
     }
     assert completed["data"] == {**started["data"], "phase": "completed"}
+    await runtime.close()
+
+
+def answers(runtime, session):
+    page = runtime.store.chat.session_messages(runtime.device, session, None, 50)
+    return [message for message in page["messages"] if message["role"] == "assistant"]
+
+
+async def test_each_answer_keeps_what_its_turn_did_and_the_next_turn_does_not_take_it(reviewed):
+    """«Trabajó…» stays with its answer: the hub keeps each turn's summary with it."""
+    runtime, session, _, upstream = await runtime_fixture(reviewed)
+    clock = {"now": 1001.0}
+    runtime.now = lambda: clock["now"]
+    look = {"tool_id": "call-1", "name": "mcp_orbit_orbit_look", "args": {}}
+    calendar = {"tool_id": "call-2", "name": "mcp_orbit_orbit_calendar", "args": {}}
+    for call in (look, calendar):
+        await hermes(runtime, upstream, "tool.start", call)
+        await hermes(runtime, upstream, "tool.complete", {**call, "is_error": False})
+    # The same step told twice is still one step.
+    await hermes(runtime, upstream, "tool.complete", {**look, "is_error": False})
+    clock["now"] = 1047.0
+    await hermes(runtime, upstream, "message.complete", {"text": "Hecho.", "status": "success"})
+    [first] = answers(runtime, session)
+    assert first["work"] == {
+        "started_at_ms": 1_001_000,
+        "ended_at_ms": 1_047_000,
+        "tools": 2,
+        "subjects": ["la pantalla", "el calendario"],
+    }
+    # The next turn, without tools: only how long it worked; the first keeps its own.
+    await runtime.handle("chat.send", SendParams(text="otra", session_id=session), str(uuid4()))
+    clock["now"] = 1050.0
+    await hermes(runtime, upstream, "message.complete", {"text": "Vale.", "status": "success"})
+    first, second = answers(runtime, session)
+    assert first["work"]["tools"] == 2
+    assert second["work"] == {
+        "started_at_ms": 1_047_000,
+        "ended_at_ms": 1_050_000,
+        "tools": 0,
+        "subjects": [],
+    }
+    # What the user wrote carries no work.
+    page = runtime.store.chat.session_messages(runtime.device, session, None, 50)
+    assert all("work" not in m for m in page["messages"] if m["role"] == "user")
+    await runtime.close()
+
+
+async def test_an_answer_stored_before_the_summary_existed_has_none(reviewed):
+    runtime, session, _, _ = await runtime_fixture(reviewed)
+    runtime.store.chat.append_message(session, "assistant", "Antigua.", now_ms=1)
+    [old] = answers(runtime, session)
+    assert "work" not in old
     await runtime.close()
 
 

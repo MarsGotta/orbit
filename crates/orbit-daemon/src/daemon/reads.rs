@@ -264,6 +264,7 @@ impl HubReadContext {
                     at_ms: message.at_ms,
                     voice,
                     attachments: message.attachments,
+                    work: message.work,
                 }
             })
             .collect::<Vec<_>>();
@@ -395,7 +396,8 @@ pub(super) fn dispatch(
         | ReadRequest::NoteDetail { .. }
         | ReadRequest::NoteTranscript { .. }
         | ReadRequest::NoteLibrary { .. }
-        | ReadRequest::SeriesPrevious { .. } => Knowledge::Unknown {
+        | ReadRequest::SeriesPrevious { .. }
+        | ReadRequest::PersonalReminder { .. } => Knowledge::Unknown {
             why: Pending::NotObservedYet,
         },
         // The IPC loop answers these with one asynchronous hub page, so a
@@ -949,6 +951,9 @@ mod hub_page_tests {
                 duration_ms: u64::MAX,
                 audio_available: true,
             }),
+            // An answer's summary passes through as the hub wrote it: the
+            // same bytes on both sides, so it changes nothing here.
+            work: None,
         };
         // As many as the hub's page holds: 512 KiB less its 80-byte envelope.
         let mut messages = Vec::new();

@@ -3,6 +3,7 @@ import type { BriefingAttendeeSnapshot } from "./BriefingAttendeeSnapshot";
 import type { BriefingPreviousActions } from "./BriefingPreviousActions";
 import type { BriefingPreviousSnapshot } from "./BriefingPreviousSnapshot";
 import type { BriefingRecordingState } from "./BriefingRecordingState";
+import type { BriefingReminder } from "./BriefingReminder";
 import type { MeetingEventReference } from "./MeetingEventReference";
 
 export type BriefingNextSnapshot = { event_id: string, event?: MeetingEventReference, title: string, start_ms: number, end_ms: number, attendees: Array<BriefingAttendeeSnapshot>, url: string | null, series_key: string, previous: BriefingPreviousSnapshot | null, 
@@ -10,4 +11,8 @@ export type BriefingNextSnapshot = { event_id: string, event?: MeetingEventRefer
  * Only on the next meeting of a calendar series: absent on the rest
  * of the day's meetings and on an event without a series.
  */
-previous_actions?: BriefingPreviousActions, recording: BriefingRecordingState, };
+previous_actions?: BriefingPreviousActions, 
+/**
+ * Only on the next meeting, once its reminder was asked for.
+ */
+reminder?: BriefingReminder, recording: BriefingRecordingState, };

@@ -25,6 +25,21 @@ impl DaemonClient {
                 self.read_more_notes().await?;
                 return Ok(self.local_receipt());
             }
+            AppCommand::Notes(crate::NotesCommand::ReminderRead { series_key }) => {
+                self.read_reminder(series_key).await;
+                return Ok(self.local_receipt());
+            }
+            AppCommand::Notes(crate::NotesCommand::ReminderSave {
+                series_key,
+                text,
+                edited_at_ms,
+            }) => {
+                let order = Self::reminder_write(&series_key, text, edited_at_ms)?;
+                let receipt = self.send_daemon(order, op).await?;
+                // What the hub kept now: this edit, or a later one.
+                self.read_reminder(series_key).await;
+                return Ok(receipt);
+            }
             AppCommand::Assistant(AssistantCommand::VoiceNoteAudio { message_id }) => {
                 self.send_voice_note_audio(&message_id).await?;
                 return Ok(self.local_receipt());

@@ -62,7 +62,7 @@ struct Meeting {
 }
 
 impl Runtime {
-    fn question_now(&self) -> i64 {
+    pub(super) fn question_now(&self) -> i64 {
         #[cfg(test)]
         if let Some(now_ms) = self.features.question.clock_ms {
             return now_ms;
@@ -441,6 +441,9 @@ impl Runtime {
         }
     }
 }
+
+#[path = "meeting_question_hold.rs"]
+mod hold;
 
 #[cfg(test)]
 #[path = "meeting_question_tests.rs"]

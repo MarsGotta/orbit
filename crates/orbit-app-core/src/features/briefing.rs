@@ -169,17 +169,18 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         .copied()
         .map(|event| next_event(event, note_lookup.as_ref()))
         .collect::<Vec<_>>();
-    let series = input
-        .local
-        .notes
-        .as_ref()
-        .and_then(|notes| notes.series_previous.as_deref());
+    let notes = input.local.notes.as_ref();
+    let series = notes.and_then(|notes| notes.series_previous.as_deref());
+    let reminder = notes.and_then(|notes| notes.reminder.as_deref());
     // The next meeting is also the day's entry for it, the same in both.
     let next = upcoming
         .iter_mut()
         .find(|event| event.end_ms > now_ms)
         .map(|next| {
             *next = with_series(next.clone(), series);
+            next.reminder = reminder
+                .filter(|read| read.series_key == next.series_key)
+                .map(briefing_reminder);
             next.clone()
         });
     let agenda = events.iter().map(|event| agenda_event(event)).collect();
@@ -255,15 +256,9 @@ fn source_state<T>(knowledge: &Knowledge<T>) -> BriefingSourceState {
     }
 }
 
+/// A title's words, as the hub matches them too (`orbit_core::series_title`).
 pub(super) fn series_key(value: &str) -> String {
-    value
-        .split(|character: char| !character.is_alphanumeric())
-        .filter(|word| {
-            !word.is_empty() && !word.chars().all(|character| character.is_ascii_digit())
-        })
-        .map(str::to_lowercase)
-        .collect::<Vec<_>>()
-        .join(" ")
+    orbit_core::series_title::title_key(value)
 }
 
 struct NoteLookup<'a> {
@@ -345,6 +340,7 @@ fn next_event(
         series_key: series_key(&event.title),
         previous,
         previous_actions: None,
+        reminder: None,
         recording: event
             .recording
             .clone()
@@ -413,6 +409,20 @@ fn with_series(
     };
     next.previous_actions = Some(actions);
     next
+}
+
+/// The hub's reminder of the next meeting, or why it is not known.
+fn briefing_reminder(read: &crate::ReminderRead) -> crate::BriefingReminder {
+    match &read.answer {
+        Ok(Some(reminder)) => crate::BriefingReminder::Known {
+            text: reminder.text.clone(),
+            edited_at_ms: reminder.edited_at_ms,
+        },
+        Ok(None) => crate::BriefingReminder::None,
+        Err(cause) => crate::BriefingReminder::Unknown {
+            cause: cause.clone(),
+        },
+    }
 }
 
 fn agenda_event(event: &CalendarEventSnapshot) -> BriefingAgendaSnapshot {

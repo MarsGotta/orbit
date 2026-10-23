@@ -1868,5 +1868,43 @@
     "source": "registry",
     "unit": "nanoseconds",
     "value": 2000000000
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/runtime/work.py",
+        "name": "MAX_WORK_SUBJECTS",
+        "unit": "subjects"
+      },
+      {
+        "file": "crates/orbit-core/src/agent_work.rs",
+        "name": "MAX_WORK_SUBJECTS",
+        "unit": "subjects"
+      }
+    ],
+    "name": "MAX_WORK_SUBJECTS",
+    "resource": "things a turn's work summary names",
+    "source": "python",
+    "unit": "subjects",
+    "value": 8
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/storage/reminders.py",
+        "name": "MAX_REMINDER_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "apps/desktop/src/features/briefing/PersonalReminder.tsx",
+        "name": "MAX_REMINDER_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_REMINDER_CHARS",
+    "resource": "«Recordatorio personal» of one meeting",
+    "source": "python",
+    "unit": "characters",
+    "value": 1000
   }
 ]

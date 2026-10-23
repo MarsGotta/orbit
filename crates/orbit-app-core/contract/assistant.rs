@@ -107,6 +107,12 @@ app_type! {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         #[ts(as = "Option<Vec<orbit_core::attachments::Attachment>>", optional)]
         pub attachments: Vec<orbit_core::attachments::Attachment>,
+        /// An answer read from the hub: what its turn did («Trabajó…»).
+        /// Absent while it is the turn in progress (`ChatSnapshot.work`) and
+        /// for answers stored before the hub kept it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub work: Option<orbit_core::agent_work::WorkSummary>,
     }
 }
 

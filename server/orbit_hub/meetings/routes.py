@@ -100,6 +100,19 @@ def series_of(value: str | None) -> str:
         ) from None
 
 
+def digest_of(value: str | None) -> str | None:
+    """A title's digest from a query (`series.title_digest`), or a refusal naming the field."""
+    if value is None:
+        return None
+    if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
+        raise HubError(
+            "invalid_parameters",
+            "title_digest no válido: es el SHA-256 en hexadecimal del título",
+            numbers={"field": "title_digest", "chars": len(value), "expected_chars": 64},
+        )
+    return value
+
+
 def integer(value: str | None, field: str, *, default: int, minimum: int, maximum: int) -> int:
     if value is None:
         return default
@@ -184,10 +197,15 @@ def mount(
 
     @app.get("/v1/series/previous-meeting")
     async def previous_meeting(
-        request: Request, calendar_item_id: str | None = None, before_ms: str | None = None
+        request: Request,
+        calendar_item_id: str | None = None,
+        before_ms: str | None = None,
+        title_digest: str | None = None,
     ):
-        """The earlier meeting of a series and its note's tasks, for Hoy."""
+        """The earlier meeting of a series (or, failing that, of the same title)
+        and its note's tasks, for Hoy."""
         device, key = identity(request), series_of(calendar_item_id)
+        title = digest_of(title_digest)
         if before_ms is None:
             raise HubError(
                 "invalid_parameters",
@@ -196,7 +214,7 @@ def mount(
             )
         before = integer(before_ms, "before_ms", default=None, minimum=1, maximum=2**63 - 1)
         found = await read(
-            lambda db: series.previous(store, repository_of_notes, db, device, key, before)
+            lambda db: series.previous(store, repository_of_notes, db, device, key, before, title)
         )
         return JSONResponse({"calendar_item_id": key, "before_ms": before, "previous": found})
 

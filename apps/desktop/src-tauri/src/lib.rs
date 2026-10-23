@@ -4,6 +4,7 @@ mod events;
 mod interface_flush;
 mod notify;
 mod panel;
+mod panel_hover;
 mod tray;
 
 use anyhow::Context;
@@ -187,6 +188,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(updater.clone());
     tray::install(app.handle())?;
     events::forward_frames(app.handle().clone(), client.clone());
+    panel_hover::watch(app.handle().clone(), client.clone());
     tauri::async_runtime::spawn(async move {
         let log = orbit_ipc::report::LogFile::new(
             paths.root.join("logs/updates.log"),
