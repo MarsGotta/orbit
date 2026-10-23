@@ -15,7 +15,7 @@ const close = () => undefined;
 const SECTIONS: SidebarItemProps[] = [
   { active: true, href: "#hoy", icon: "briefing", label: "Hoy" },
   { active: false, href: "#calendario", icon: "calendar", label: "Calendario" },
-  { active: false, href: "#notas", icon: "notes", label: "Notas", meta: "1 en curso" },
+  { active: false, href: "#reuniones", icon: "meetings", label: "Reuniones", meta: "1 en curso" },
   {
     active: false,
     alert: { tone: "rec", text: "Te necesita" },

@@ -376,7 +376,7 @@ describe("«Rehacer transcripción» (annex, change 7)", () => {
       const send = vi.fn(send0);
       const view = render(<TranscriptTab note={value} send={send} />);
       fireEvent.click(screen.getByRole("button", { name: "Rehacer transcripción" }));
-      const question = screen.getByRole("dialog", { name: "¿Volver a transcribir la reunión?" });
+      const question = screen.getByRole("dialog", { name: "¿Rehacer la transcripción?" });
       expect(question.textContent).toContain(
         "Orbit vuelve a escuchar la grabación (2 min) en español. Puedes seguir con lo tuyo mientras tanto.",
       );
@@ -388,7 +388,7 @@ describe("«Rehacer transcripción» (annex, change 7)", () => {
         command: "transcript_retranscribe",
         recording_id: value.recording_id,
       });
-      expect(screen.getByText("En cola para volver a transcribir.")).toBeTruthy();
+      expect(screen.getByText("En cola para rehacer la transcripción.")).toBeTruthy();
       view.unmount();
     }
   });
@@ -405,7 +405,7 @@ describe("«Rehacer transcripción» (annex, change 7)", () => {
     };
     render(<TranscriptTab library={wordsLibrary()} note={value} send={vi.fn(send0)} />);
     fireEvent.click(screen.getByRole("button", { name: "Rehacer transcripción" }));
-    const question = screen.getByRole("dialog", { name: "¿Volver a transcribir la reunión?" });
+    const question = screen.getByRole("dialog", { name: "¿Rehacer la transcripción?" });
     expect(question.textContent).toContain("en español con Ferretería Albar y Lumo.");
     expect(question.textContent).toContain(
       "Se mantienen los nombres que pusiste a cada persona. El resumen no cambia hasta que lo rehagas.",
@@ -418,14 +418,14 @@ describe("«Rehacer transcripción» (annex, change 7)", () => {
     const value = note();
     const { container, rerender } = render(<TranscriptTab note={value} send={vi.fn(send0)} />);
     for (const [final_pass, words] of [
-      [{ state: "queued", error: null }, "En cola para volver a transcribir."],
+      [{ state: "queued", error: null }, "En cola para rehacer la transcripción."],
       [
         {
           state: "running",
           error: null,
           progress: { done_ms: 30_000, total_ms: 120_000, remaining_ms: 90_000 },
         },
-        "Volviendo a transcribir la reunión… · puedes seguir con lo tuyo",
+        "Rehaciendo la transcripción… · puedes seguir con lo tuyo",
       ],
     ] as const) {
       Object.assign(value.transcript, { final_pass });

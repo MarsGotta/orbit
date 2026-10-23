@@ -18,11 +18,15 @@ const icons = {
       <path d="M3.5 10h17M8 3v4M16 3v4" />
     </>,
   ],
+  // «Reuniones» in the sidebar: the brand's bars.
+  meetings: [1.7, <path d="M4 10.5v3M8 7v10M12 4.5v15M16 7v10M20 10.5v3" />],
   notes: [
     1.7,
     <>
-      <path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5z" />
-      <path d="M14 3.5v5h5M9 13h6M9 16.5h4" />
+      <path d="M5 4.5h9.5L19 9v10.5H5z" />
+      <path d="M14.5 4.5V9H19" />
+      <path d="M8.5 13.5h3.5M8.5 16.5h7" />
+      <circle cx="16" cy="13.5" r="1.1" fill="currentColor" stroke="none" />
     </>,
   ],
   assistant: [
@@ -160,21 +164,6 @@ const icons = {
     </>,
   ],
   themeDark: [1.8, <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />],
-  logo: [
-    null,
-    <>
-      <circle cx="12" cy="12" r="4.2" fill="currentColor" />
-      <ellipse
-        cx="12"
-        cy="12"
-        rx="10"
-        ry="4.2"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        transform="rotate(-28 12 12)"
-      />
-    </>,
-  ],
 } satisfies Record<string, [number | null, ReactNode]>;
 
 export type IconName = keyof typeof icons;

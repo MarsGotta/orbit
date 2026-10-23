@@ -1,0 +1,10 @@
+.mark {
+  display: block;
+  flex: none;
+}
+
+/* The ring and Deimos turn about the symbol's centre. */
+.orbit {
+  transform-box: view-box;
+  transform-origin: center;
+}

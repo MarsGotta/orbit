@@ -47,7 +47,7 @@ const base = {
     close: "Cerrar",
     save: "Guardar",
     redoSummary: "Rehacer resumen",
-    redoSummaryTitle: "¿Volver a escribir el resumen?",
+    redoSummaryTitle: "¿Rehacer el resumen?",
     redoSummaryBody: (template: string) =>
       `Orbit lo escribe de nuevo con la plantilla ${template} y la transcripción actual. Si lo cambiaste a mano, tu versión queda guardada.`,
 

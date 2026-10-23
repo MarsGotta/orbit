@@ -22,7 +22,7 @@ describe("«Rehacer resumen» in the Resumen", () => {
   it("sits beside «Copiar resumen» and asks first, saying the hand-made version is kept", async () => {
     const send = detail(written());
     fireEvent.click(screen.getByRole("button", { name: "Rehacer resumen" }));
-    const question = screen.getByRole("dialog", { name: "¿Volver a escribir el resumen?" });
+    const question = screen.getByRole("dialog", { name: "¿Rehacer el resumen?" });
     expect(question.textContent).toContain(
       "Orbit lo escribe de nuevo con la plantilla Revisión y la transcripción actual. Si lo cambiaste a mano, tu versión queda guardada.",
     );

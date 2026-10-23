@@ -7,25 +7,25 @@ afterEach(cleanup);
 it("says what it is doing and how long is left, with a bar of how far it has gone", () => {
   render(
     <ProgressCard percent={38} remaining="unos 3 min">
-      Volviendo a transcribir la reunión…
+      Rehaciendo la transcripción…
     </ProgressCard>,
   );
   const card = screen.getByRole("status");
-  expect(card.textContent).toContain("Volviendo a transcribir la reunión…");
+  expect(card.textContent).toContain("Rehaciendo la transcripción…");
   expect(card.textContent).toContain("unos 3 min");
   const bar = card.querySelector<HTMLElement>("[data-progress]");
   expect(bar?.style.width).toBe("38%");
 });
 
 it("keeps the bar within 0 and 100 whatever it is told", () => {
-  render(<ProgressCard percent={140}>Volviendo a transcribir la reunión…</ProgressCard>);
+  render(<ProgressCard percent={140}>Rehaciendo la transcripción…</ProgressCard>);
   expect(
     screen.getByRole("status").querySelector<HTMLElement>("[data-progress]")?.style.width,
   ).toBe("100%");
 });
 
 it("in the queue, before any progress, it has no bar", () => {
-  render(<ProgressCard>En cola para volver a transcribir.</ProgressCard>);
+  render(<ProgressCard>En cola para rehacer la transcripción.</ProgressCard>);
   expect(screen.getByRole("status").querySelector("[data-progress]")).toBeNull();
 });
 

@@ -77,7 +77,7 @@ describe("a retry whose audio is gone", () => {
       { place: "assistant" },
     );
     expect(messages.at(-1)?.text).toBe(
-      "El audio de esa nota de voz ya no está en este Mac: no se puede volver a transcribir. Grábala otra vez.",
+      "El audio de esa nota de voz ya no está en este Mac: no se puede reintentar la transcripción. Grábala otra vez.",
     );
   });
 

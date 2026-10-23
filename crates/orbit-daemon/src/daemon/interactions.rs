@@ -293,7 +293,7 @@ impl Runtime {
         mut params: Value,
     ) -> Result<()> {
         if self.state.connection() != Connection::Online || self.state.privacy_stopped() {
-            bail!("Conecta y rearma Orbit antes de responder");
+            bail!("Conecta y reactiva Orbit antes de responder");
         }
         if self.conversation.interaction_response.is_some() {
             bail!("La respuesta anterior aún no está confirmada; no se reenvía");

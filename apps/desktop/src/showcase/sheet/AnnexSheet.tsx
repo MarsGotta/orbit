@@ -125,7 +125,7 @@ function NoticesSection() {
           Se ha abierto tu navegador. Inicia sesión con tu cuenta de Claude y vuelve aquí.
         </ViewNotice>
         <ProgressCard percent={38} remaining="unos 3 min">
-          Volviendo a transcribir la reunión…{" "}
+          Rehaciendo la transcripción…{" "}
           <span className={sheet.meta}>· puedes seguir con lo tuyo</span>
         </ProgressCard>
         <BeingRedone active>

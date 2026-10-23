@@ -84,6 +84,23 @@ describe("the first run says where it is", () => {
     expect(screen.queryByRole("button", { name: "Atrás" })).toBeNull();
   });
 
+  it("every step has the small symbol beside «Orbit» in its header, and no other brand mark", () => {
+    show();
+    const brandMarks = () =>
+      Array.from(document.querySelectorAll("svg")).filter(
+        (svg) => svg.getAttribute("viewBox") !== "0 0 24 24",
+      );
+    for (const next of ["Empezar", "Emparejar después"]) {
+      const marks = brandMarks();
+      expect(marks).toHaveLength(1);
+      expect(marks[0]?.getAttribute("viewBox")).toBe("0 0 48 48");
+      expect(marks[0]?.closest("header")?.textContent).toContain("Orbit");
+      // Never the old planet with a ring.
+      expect(marks[0]?.querySelector("ellipse")).toBeNull();
+      press(next);
+    }
+  });
+
   it("«Empezar» goes on, «Atrás» comes back, and a bar returns to a step already seen", () => {
     show();
     press("Empezar");

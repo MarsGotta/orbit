@@ -41,7 +41,7 @@ impl Runtime {
             Request::RequestPermission => calendar.wanted_permission = true,
             Request::Read { window } => {
                 if self.state.privacy_stopped() {
-                    bail!("Privacidad detenida: Orbit no lee la agenda hasta que la rearmes");
+                    bail!("Todo está parado: Orbit no lee tu agenda hasta que lo reactives");
                 }
                 // Remembered, so the agenda reappears by itself when the
                 // permission arrives or the calendar changes.

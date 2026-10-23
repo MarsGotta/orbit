@@ -1,6 +1,6 @@
 import type { AppCommand } from "../bridge/generated";
+import { BrandMark } from "../design/Brand";
 import { RecordButton } from "../design/Button";
-import { Icon } from "../design/Icon";
 import { SidebarItem } from "../design/SidebarItem";
 import { agentFor } from "../features/assistant/agents";
 import { noteRowState } from "../features/notes/note-row";
@@ -27,6 +27,12 @@ function inProgress(snapshot: AppSnapshot): number {
     const tone = noteRowState(note).tone;
     return tone === "live" || tone === "working";
   }).length;
+}
+
+/** An assistant is working on an answer: thinking it or writing it. */
+function assistantWorking(snapshot: AppSnapshot): boolean {
+  const activity = snapshot.chat.activity;
+  return activity === "thinking" || activity === "responding";
 }
 
 /** While a recording or a call goes on, its card takes the place of «Grabar reunión». */
@@ -62,7 +68,7 @@ export function Sidebar(props: SidebarProps) {
     <nav aria-label={es.shell.viewsLabel} className={styles.sidebar}>
       <div aria-hidden="true" className={styles.windowButtons} />
       <div className={styles.logo}>
-        <Icon name="logo" size={20} />
+        <BrandMark orbiting={assistantWorking(snapshot)} />
         <span>{es.appName}</span>
       </div>
       <Live onRecord={props.onRecord} send={props.send} snapshot={snapshot} />
@@ -82,7 +88,7 @@ export function Sidebar(props: SidebarProps) {
         <SidebarItem
           active={view === "notes"}
           href={routeFor("notes")}
-          icon="notes"
+          icon="meetings"
           label={es.shell.notes}
           meta={working > 0 ? es.shell.inProgress(working) : undefined}
         />

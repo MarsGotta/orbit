@@ -1,6 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "../bridge/generated";
 import type { AppView as AppSnapshot } from "../state/app-view";
 import type { ViewId } from "../state/ui";
@@ -117,5 +117,138 @@ describe("the sidebar", () => {
     );
     expect(screen.getByRole("region", { name: "Llamada en curso" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Grabar reunión" })).toBeNull();
+  });
+});
+
+describe("the sidebar's logo", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const logo = () =>
+    screen.getByRole("navigation", { name: "Principal" }).querySelector("svg[data-orbiting]");
+  const working = (activity: string | null) =>
+    snapshot({ chat: { pending: null, activity } as unknown as AppSnapshot["chat"] });
+  const sidebar = (value: AppSnapshot) => (
+    <Sidebar onRecord={() => undefined} send={() => true} snapshot={value} view="briefing" />
+  );
+
+  it("is the brand's small symbol at 20 px beside «Orbit»: the ring in the text's colour, Deimos in the accent", () => {
+    renderSidebar();
+    const mark = logo();
+    expect(mark?.getAttribute("viewBox")).toBe("0 0 48 48");
+    expect(mark?.getAttribute("width")).toBe("20");
+    expect(mark?.querySelector("ellipse")).toBeNull();
+    expect(
+      Array.from(mark?.querySelectorAll("path") ?? []).map((path) => path.getAttribute("fill")),
+    ).toEqual(["currentColor", "var(--o-accText)", "currentColor"]);
+    expect(mark?.nextElementSibling?.textContent).toBe("Orbit");
+  });
+
+  it("turns Deimos while an assistant works on an answer, and stops when it is done", () => {
+    const { rerender } = render(sidebar(working(null)));
+    expect(logo()?.getAttribute("data-orbiting")).toBe("false");
+    rerender(sidebar(working("thinking")));
+    expect(logo()?.getAttribute("data-orbiting")).toBe("true");
+    rerender(sidebar(working("responding")));
+    expect(logo()?.getAttribute("data-orbiting")).toBe("true");
+    // Transcribing the user's voice note is not the assistant at work.
+    rerender(sidebar(working("transcribing")));
+    expect(logo()?.getAttribute("data-orbiting")).toBe("false");
+    rerender(sidebar(working(null)));
+    expect(logo()?.getAttribute("data-orbiting")).toBe("false");
+  });
+
+  it("stays still with «Reducir movimiento»", () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    render(sidebar(working("thinking")));
+    expect(logo()?.getAttribute("data-orbiting")).toBe("false");
+  });
+
+  /** A stand-in for the Web Animations API, which jsdom lacks: what was asked of it. */
+  function animations(currentTime: number) {
+    const calls: { keyframes: Keyframe[]; options: KeyframeAnimationOptions }[] = [];
+    const animate = (keyframes: Keyframe[], options: KeyframeAnimationOptions) => {
+      calls.push({ keyframes, options });
+      return { currentTime, cancel: () => undefined } as unknown as Animation;
+    };
+    const prototype = Element.prototype as Element & { animate?: unknown };
+    const before = prototype.animate;
+    prototype.animate = animate;
+    return {
+      calls,
+      restore: () => {
+        prototype.animate = before;
+      },
+    };
+  }
+
+  it("turns once every 12 s, clockwise, and eases Deimos back the short way when the work ends", () => {
+    // 9 s into a turn: 270°, so the way home is forwards, to 360°.
+    const late = animations(9_000);
+    try {
+      const { rerender } = render(sidebar(working("thinking")));
+      expect(late.calls[0]?.keyframes).toEqual([
+        { transform: "rotate(0deg)" },
+        { transform: "rotate(360deg)" },
+      ]);
+      expect(late.calls[0]?.options).toMatchObject({ duration: 12_000, iterations: Infinity });
+      rerender(sidebar(working(null)));
+      const back = late.calls[1];
+      expect(back?.keyframes).toEqual([
+        { transform: "rotate(270deg)" },
+        { transform: "rotate(360deg)" },
+      ]);
+      expect(Number(back?.options.duration)).toBeLessThan(1_000);
+    } finally {
+      late.restore();
+    }
+    cleanup();
+    // 3 s in: 90°, so it goes back, to 0°.
+    const early = animations(3_000);
+    try {
+      const { rerender } = render(sidebar(working("responding")));
+      rerender(sidebar(working(null)));
+      expect(early.calls[1]?.keyframes).toEqual([
+        { transform: "rotate(90deg)" },
+        { transform: "rotate(0deg)" },
+      ]);
+    } finally {
+      early.restore();
+    }
+  });
+
+  it("with «Reducir movimiento» neither turns nor eases back", () => {
+    const motion = animations(9_000);
+    let reduce = false;
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: reduce && query === "(prefers-reduced-motion: reduce)",
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    try {
+      const { rerender } = render(sidebar(working("thinking")));
+      expect(motion.calls).toHaveLength(1);
+      // Switched on while it turns: Deimos is home at once, without moving.
+      reduce = true;
+      rerender(sidebar(working("responding")));
+      expect(logo()?.getAttribute("data-orbiting")).toBe("false");
+      rerender(sidebar(working(null)));
+      expect(motion.calls).toHaveLength(1);
+    } finally {
+      motion.restore();
+    }
+  });
+
+  it("gives «Reuniones» the brand's bars", () => {
+    renderSidebar();
+    const link = screen.getByRole("link", { name: "Reuniones" });
+    expect(link.querySelector("path")?.getAttribute("d")).toBe(
+      "M4 10.5v3M8 7v10M12 4.5v15M16 7v10M20 10.5v3",
+    );
   });
 });

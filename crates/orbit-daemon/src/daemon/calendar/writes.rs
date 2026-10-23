@@ -143,7 +143,7 @@ impl Runtime {
             };
             let notice = match cause {
                 Some("privacy_stopped") => {
-                    "Privacidad detenida: Orbit no cambia el calendario hasta que la rearmes. No se cambió nada.".to_owned()
+                    "Todo está parado: Orbit no cambia el calendario hasta que lo reactives. No se cambió nada.".to_owned()
                 }
                 Some("calendar_backend_unavailable") => {
                     "El lector de calendarios del Mac no está disponible ahora mismo. No se cambió nada.".to_owned()

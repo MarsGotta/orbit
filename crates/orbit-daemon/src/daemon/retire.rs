@@ -16,13 +16,13 @@ pub(super) enum RetirePhase {
 pub(super) fn computer_reason(change: AuthorityChange) -> &'static str {
     match change {
         AuthorityChange::UserStop | AuthorityChange::Revoked => {
-            "Privacidad detenida: conexión, observaciones y autorización de control revocadas."
+            "Todo está parado: conexión, observaciones y autorización de control revocadas."
         }
         AuthorityChange::Closing => {
             "Orbit se está cerrando: conexión, observaciones y autorización de control retiradas."
         }
         AuthorityChange::Rearm => {
-            "Rearme local: el control requiere una conexión y observación nuevas."
+            "Orbit se reactivó: el control requiere una conexión y observación nuevas."
         }
         AuthorityChange::RearmWithoutStop => {
             "La autoridad local se renovó sin parada; el control requiere observación nueva."
@@ -338,10 +338,10 @@ mod authority_cause_tests {
     #[test]
     fn each_computer_authority_retirement_names_its_actual_cause() {
         for (change, cause) in [
-            (AuthorityChange::UserStop, "Privacidad detenida"),
-            (AuthorityChange::Revoked, "Privacidad detenida"),
+            (AuthorityChange::UserStop, "Todo está parado"),
+            (AuthorityChange::Revoked, "Todo está parado"),
             (AuthorityChange::Closing, "Orbit se está cerrando"),
-            (AuthorityChange::Rearm, "Rearme local"),
+            (AuthorityChange::Rearm, "Orbit se reactivó"),
             (AuthorityChange::RearmWithoutStop, "sin parada"),
             (AuthorityChange::Interrupt, "Control interrumpido"),
             (AuthorityChange::HubLink, "enlace con el hub"),
@@ -360,7 +360,7 @@ mod authority_cause_tests {
             let text = computer_reason(change);
             assert!(text.contains(cause), "{change:?}: {text}");
             if !matches!(change, AuthorityChange::UserStop | AuthorityChange::Revoked) {
-                assert!(!text.contains("Privacidad detenida"), "{change:?}: {text}");
+                assert!(!text.contains("Todo está parado"), "{change:?}: {text}");
             }
         }
     }

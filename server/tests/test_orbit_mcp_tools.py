@@ -200,7 +200,7 @@ async def test_uncertain_remote_action_keeps_its_retirement_cause_for_deimos(tmp
     assert "outcome_unknown" in body
     assert operation_id in body
     assert "Cambió el dispositivo" in body
-    assert "Privacidad detenida" not in body
+    assert "Todo está parado" not in body
 
 
 async def test_look_without_parameters_inventories_then_captures_without_parameters(tmp_path):

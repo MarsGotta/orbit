@@ -141,7 +141,7 @@ package struct CalendarHostFacts: Sendable {
             // The same code covers the user's latch and a stop still cleaning up;
             // the message says which, and only the user's latch needs a rearm.
             let message = current.latched
-                ? "Orbit está detenido por tu parada de privacidad; rearma para usar los calendarios."
+                ? "Todo está parado: reactiva Orbit para usar los calendarios."
                 : "Orbit está terminando de parar la captura o no está conectado; vuelve a intentarlo en unos segundos."
             channel.reject(command, code: "privacy_stopped", message: message)
             return nil

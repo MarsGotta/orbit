@@ -291,7 +291,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             MainActor.assumeIsolated { calendarHost().write(command) }
         case .privacyStop:
             respondAfterStop(command, reason: "daemon_requested", latches: true,
-                failureMessage: "Privacidad detenida; no se pudo confirmar todo el audio previo.")
+                failureMessage: "Todo está parado, pero no se pudo confirmar todo el audio previo.")
         case .captureStop:
             respondAfterStop(command, reason: StopPolicy.daemonCutReason, latches: false,
                 failureMessage: "Captura cortada; no se pudo confirmar todo el audio previo.")
@@ -304,7 +304,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             // rearm authority. Isolated fixtures do not.
             guard launchOptions.isManaged else {
                 channel.reject(command, code: "local_rearm_unavailable",
-                    message: "El rearme por pipe solo está disponible para el daemon local de Orbit.")
+                    message: "Solo el daemon local de Orbit puede reactivarlo, por su canal privado.")
                 return
             }
             if let refusal = rearmReadiness().refusal {

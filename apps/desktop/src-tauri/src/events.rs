@@ -11,12 +11,13 @@ fn emit_feature_frames<R: tauri::Runtime>(
         let menu = match &frame {
             FeatureFrame::Local { view, .. } => crate::tray::refresh_update(app, &view.update),
             FeatureFrame::Recording { view, .. } => {
-                crate::tray::refresh_recording(app, &view.meeting.phase)
+                crate::tray::refresh_recording(app, &view.meeting)
             }
+            FeatureFrame::Assistant { view, .. } => crate::tray::refresh_assistant(app, view),
             _ => Ok(()),
         };
         if let Err(error) = menu {
-            eprintln!("Orbit: no se pudo actualizar el menú: {error}");
+            eprintln!("Orbit: no se pudo actualizar la barra de menús: {error}");
         }
         // A long turn that ended, or a question from the agent, while
         // Orbit is in the background.

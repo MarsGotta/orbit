@@ -1,3 +1,4 @@
+import { BrandMark } from "../../design/Brand";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { toggleTheme, useTheme } from "../../design/theme";
@@ -18,7 +19,7 @@ export function DesignSheet() {
       <header className={styles.header}>
         <div className={styles.headerText}>
           <div className={styles.brand}>
-            <Icon name="logo" size={18} />
+            <BrandMark />
             <span>Orbit</span>
           </div>
           <h1 className={styles.title}>Sistema de diseño</h1>

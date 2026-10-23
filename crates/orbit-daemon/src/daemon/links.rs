@@ -134,7 +134,7 @@ impl Runtime {
         let interrupt =
             HubMethod::deserialize(&frame).is_ok_and(|header| header.method == "chat.interrupt");
         if self.state.privacy_stopped() && !(stop_window && interrupt) {
-            bail!("Privacidad detenida");
+            bail!("Todo está parado");
         }
         let result = self.send_frame(Ok(frame));
         if result.delivered_to_queue() {

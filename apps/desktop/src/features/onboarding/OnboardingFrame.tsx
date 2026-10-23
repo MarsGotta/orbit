@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { BrandMark } from "../../design/Brand";
 import { Button } from "../../design/Button";
-import { Icon } from "../../design/Icon";
 import { useSpanish } from "../../i18n/AssistantCopy";
 import type { PairingState } from "./OnboardingView";
 import styles from "./OnboardingView.module.css";
@@ -55,7 +55,7 @@ export function OnboardingFrame({ action, children, goTo, onSkipAll, step, steps
     <div className={styles.overlay} ref={overlay}>
       <header className={`${styles.header} ${mac ? styles.mac : ""}`}>
         <span className={styles.brand}>
-          <Icon name="logo" size={20} />
+          <BrandMark />
           <span>{es.appName}</span>
         </span>
         {step < steps && (

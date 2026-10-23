@@ -167,7 +167,7 @@ pub enum FinishCause {
 /// Why an answer was refused, with what it named.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum CallRefusal {
-    #[error("Privacidad detenida: Orbit no graba llamadas hasta que la rearmes")]
+    #[error("Todo está parado: Orbit no graba llamadas hasta que lo reactives")]
     PrivacyStopped,
     #[error(
         "El aviso de llamada {call_id} ya no está: la llamada terminó o ya se respondió. No se empezó a grabar."

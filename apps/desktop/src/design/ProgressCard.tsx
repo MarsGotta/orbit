@@ -5,7 +5,7 @@ import { Spinner } from "./Spinner";
 import styles from "./ProgressCard.module.css";
 
 export interface ProgressCardProps {
-  /** What is being done: «Volviendo a transcribir la reunión…». */
+  /** What is being done: «Rehaciendo la transcripción…». */
   children: ReactNode;
   /** How long is left, as the daemon estimates it: «unos 3 min». */
   remaining?: string;

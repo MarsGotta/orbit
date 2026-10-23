@@ -32,11 +32,10 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  color: var(--o-accText);
+  color: var(--o-ink);
 }
 
 .brand > span {
-  color: var(--o-ink);
   font: var(--o-text-h3);
 }
 

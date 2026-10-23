@@ -38,7 +38,7 @@ export function MenusSection() {
           note="Se mantienen los nombres que pusiste a cada persona. El resumen no cambia hasta que lo rehagas."
           onClose={() => setAsking(false)}
           onConfirm={() => setAsking(false)}
-          title="¿Volver a transcribir la reunión?"
+          title="¿Rehacer la transcripción?"
         >
           Orbit vuelve a escuchar la grabación (47 min) en español con Nubaria y Hoteles Ribera.
           Tarda unos 3 minutos y puedes seguir con lo tuyo.

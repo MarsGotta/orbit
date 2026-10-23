@@ -24,7 +24,7 @@ function Redo({ onConfirm }: { onConfirm: () => void }) {
             onConfirm();
             setOpen(false);
           }}
-          title="¿Volver a transcribir la reunión?"
+          title="¿Rehacer la transcripción?"
         >
           Tarda unos 3 minutos y puedes seguir con lo tuyo.
         </ConfirmCard>
@@ -36,7 +36,7 @@ function Redo({ onConfirm }: { onConfirm: () => void }) {
 it("asks beside its control, in a window named by its question, with the focus on «Cancelar»", () => {
   render(<Redo onConfirm={() => undefined} />);
   fireEvent.click(screen.getByRole("button", { name: REDO }));
-  const card = screen.getByRole("dialog", { name: "¿Volver a transcribir la reunión?" });
+  const card = screen.getByRole("dialog", { name: "¿Rehacer la transcripción?" });
   expect(card.textContent).toContain("Tarda unos 3 minutos");
   expect(document.activeElement).toBe(screen.getByRole("button", { name: "Cancelar" }));
 });

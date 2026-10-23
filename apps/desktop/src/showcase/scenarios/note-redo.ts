@@ -9,7 +9,7 @@ import { reuniones, tab, transcriptSteps } from "./notes";
 export const noteRedoScenarios: Scenario[] = [
   reuniones({
     id: "nota-retranscribir",
-    state: "Transcripción · ¿Volver a transcribir?",
+    state: "Transcripción · ¿Rehacer la transcripción?",
     description: "La pregunta anclada al botón, con lo que usa y lo que se mantiene.",
     route,
     views: (base) => opened(base),
@@ -23,7 +23,7 @@ export const noteRedoScenarios: Scenario[] = [
     route,
     views: (base) => opened(base, withPass({ state: "queued", error: null })),
     ready: tab("Transcripción"),
-    steps: [...transcriptSteps, { wait: "text=En cola para volver a transcribir." }],
+    steps: [...transcriptSteps, { wait: "text=En cola para rehacer la transcripción." }],
   }),
   reuniones({
     id: "nota-retranscribiendo",
@@ -82,7 +82,7 @@ export const noteRedoScenarios: Scenario[] = [
   }),
   reuniones({
     id: "nota-rehacer-resumen",
-    state: "Resumen · ¿Volver a escribir el resumen?",
+    state: "Resumen · ¿Rehacer el resumen?",
     description: "«Rehacer resumen» en la barra del Resumen, con su pregunta.",
     route,
     views: (base) => opened(base),

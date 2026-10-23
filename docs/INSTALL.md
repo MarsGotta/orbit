@@ -116,9 +116,9 @@ note, and the app reads it back. Recording stopped does not mean the note is
 ready. Offline audio waits on the Mac. Private notes and changes to a note
 wait durably until the hub confirms them.
 
-Privacy stop cuts capture, playback and transfers locally and survives quitting.
-**Ajustes › Privacidad › Rearmar** clears it locally. Rearming does not resume
-recording.
+Privacy stop («Parar todo») cuts capture, playback and transfers locally and
+survives quitting. **Ajustes › Privacidad y permisos › Reactivar Orbit** clears
+it locally. Reactivating does not resume recording.
 
 ## Quit, reopen and update
 

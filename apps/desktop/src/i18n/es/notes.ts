@@ -44,7 +44,7 @@ export const notes = {
     // Transcribing it again (annex, change 7): what it does first, then how
     // far it got, then what is left to do. The hub gives no estimate before
     // the pass starts, so the question does not promise how long it takes.
-    retranscribeTitle: "¿Volver a transcribir la reunión?",
+    retranscribeTitle: "¿Rehacer la transcripción?",
     retranscribeBody: (length: string, language: string | null, dictionaries: string[]) =>
       `Orbit vuelve a escuchar la grabación (${length})${language === null ? "" : ` en ${language}`}${dictionaries.length === 0 ? "" : ` con ${listOf(dictionaries)}`}. Puedes seguir con lo tuyo mientras tanto.`,
     retranscribeKeeps:
@@ -52,9 +52,9 @@ export const notes = {
     // A hub up to 0.10.1 writes the note again after the pass (proposal 35's fallback).
     retranscribeKeepsOlderHub:
       "Se mantienen los nombres que pusiste a cada persona. Después, Orbit reescribe la nota.",
-    stillRecording: "No se puede volver a transcribir: la grabación todavía no se ha cerrado.",
-    finalPassQueued: "En cola para volver a transcribir.",
-    finalPassRunning: "Volviendo a transcribir la reunión…",
+    stillRecording: "No se puede rehacer la transcripción: la grabación todavía no se ha cerrado.",
+    finalPassQueued: "En cola para rehacer la transcripción.",
+    finalPassRunning: "Rehaciendo la transcripción…",
     finalPassAside: " · puedes seguir con lo tuyo",
     remaining: (ms: number) => {
       const minutes = Math.ceil(ms / 60_000);

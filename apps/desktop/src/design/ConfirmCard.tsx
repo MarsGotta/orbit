@@ -12,7 +12,7 @@ export interface ConfirmCardProps {
   /** The button that asked: the card hangs from it and gives it the focus back. */
   anchor: HTMLElement | null;
   align?: "start" | "end";
-  /** The question: «¿Volver a transcribir la reunión?». */
+  /** The question: «¿Rehacer la transcripción?». */
   title: string;
   /** What it will do, how long it takes and what stays. */
   children: ReactNode;

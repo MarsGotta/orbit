@@ -45,7 +45,12 @@ pub fn run() -> anyhow::Result<()> {
         ])
         .manage(interface_flush::InterfaceFlush::default())
         .setup(setup)
-        .on_window_event(hide_on_close)
+        .on_window_event(|window, event| {
+            hide_on_close(window, event);
+            if let WindowEvent::ThemeChanged(theme) = event {
+                tray::refresh_appearance(window.app_handle(), *theme);
+            }
+        })
         .build(tauri::generate_context!())
         .context("No se pudo construir la aplicación")?;
     app.run(|handle, event| {

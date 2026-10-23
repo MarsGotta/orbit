@@ -1,4 +1,9 @@
-# ◉ Orbit
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/orbit-logotipo-color-oscuro.svg">
+    <img alt="Orbit" height="48" src="docs/assets/orbit-logotipo-color-claro.svg">
+  </picture>
+</h1>
 
 Orbit is a macOS companion for a personal assistant running in
 [Hermes Agent](https://github.com/NousResearch/hermes-agent), the open-source
@@ -118,8 +123,9 @@ privately as described in [SECURITY.md](SECURITY.md), never in a public issue.
 
 ## License
 
-Orbit is released under the [MIT License](LICENSE). The bundled `cua-driver`
-engine has its own license, in
+Orbit's code is released under the [MIT License](LICENSE). The Orbit name,
+logo, app icon, menu bar icons and assistant avatars are not covered by it.
+The bundled `cua-driver` engine has its own license, in
 [third-party/cua-driver/LICENSE.md](third-party/cua-driver/LICENSE.md). Each
 build writes the licences of the interface's packages and of the Rust crates
 compiled into the app to `Orbit.app/Contents/Resources/third-party/NOTICES.txt`

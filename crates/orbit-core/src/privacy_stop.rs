@@ -69,7 +69,7 @@ impl UserStop {
 
     /// What the user is told: their stop, where it came from and, when the helper
     /// gave one, its code. The interface's entry names the way back
-    /// (Rearmar).
+    /// (Reactivar).
     pub fn notice(&self) -> Notice {
         let notice = Notice::new(NoticeCode::PrivacyStopped)
             .with_token(NoticeKey::Origin, self.cause().name());

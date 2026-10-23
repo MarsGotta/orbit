@@ -38,7 +38,7 @@ public struct RearmReadiness: Equatable, Sendable {
                 + "y vuelve a abrirlo."
         }
         if quitRequested {
-            return "Orbit se está cerrando. Vuelve a abrirlo y rearma entonces."
+            return "Orbit se está cerrando. Ábrelo de nuevo y reactívalo entonces."
         }
         if cleanupInFlight > 0 {
             return "Orbit está terminando de guardar el audio anterior. "
@@ -50,7 +50,7 @@ public struct RearmReadiness: Equatable, Sendable {
         }
         if microphoneSlot.isActive || systemAudioSlot.isActive {
             return "Orbit todavía está iniciando o capturando audio. "
-                + "Detén la captura antes de rearmarlo."
+                + "Detén la captura antes de reactivarlo."
         }
         if microphoneSlot == .draining || systemAudioSlot == .draining {
             return "Orbit está terminando de guardar el audio anterior. "

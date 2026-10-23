@@ -114,7 +114,7 @@ ERROR_MESSAGES = {
     # These three codes arrived from the Mac's own Refusals but had no entry
     # here, so Deimos read a message without a cause. Each one now says what
     # stands between the request and the Mac.
-    "privacy_stopped": "La privacidad está detenida en ese Mac desde sus propios controles: Orbit no ve ni actúa en él hasta que se rearme allí, en el propio Mac. No es un error del Mac ni de la conexión; pregunta de nuevo cuando esté rearmada.",
+    "privacy_stopped": "Todo está parado en ese Mac desde sus propios controles: Orbit no ve ni actúa en él hasta que se reactive allí, en el propio Mac. No es un error del Mac ni de la conexión; pregunta de nuevo cuando esté reactivado.",
     "busy": "Ese Mac ya está atendiendo otra petición. No es una negativa: espera a que termine y vuelve a pedirla.",
     "pending_recording": "Ese Mac ya tiene una grabación pendiente. Termínala o espera a que cierre antes de iniciar otra captura o llamada.",
     "hub_unavailable": "El hub de Orbit no está disponible. Comprueba el servicio antes de reintentarlo.",
