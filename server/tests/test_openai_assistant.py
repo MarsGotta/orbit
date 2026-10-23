@@ -666,7 +666,7 @@ def test_a_turn_failure_reaches_the_mac_with_its_cause_and_numbers(
     assert "3000 ms" in error["data"]["message"]
     assert error["data"]["refusal"]["code"] == "assistant_rate_limited"
     assert error["data"]["refusal"]["retry_after_ms"] == 3000
-    assert store.session(paired["device_id"], session)["status"] == "failed"
+    assert store.chat.session(paired["device_id"], session)["status"] == "failed"
     assert said(store, paired["device_id"], session) == [{"role": "user", "text": "Hola"}]
 
 

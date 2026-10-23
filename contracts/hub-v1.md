@@ -155,6 +155,10 @@ message quotes the agent's own sentence, which may say it), `agent_rejected`
 crossed that ceiling), `agent_protocol`, and `agent_turn_unfinished`
 (`stop_reason`: `max_tokens`, `max_turn_requests` or `refusal`). What the agent
 said before it stopped was streamed live and is not stored as its answer.
+Any agent's start (its connection, or a session opening or reopening) that has
+not finished after 300 s is refused as `agent_start_timeout` (`agent_id`,
+`timeout_ms`) and what it had started is stopped; a slow or broken agent holds
+only the turn that asked for it, never another agent or another conversation.
 
 When persisting the assistant's final reply fails inside `message.complete`
 (`append_message`, session status update or quota), the turn still ends with
@@ -295,6 +299,12 @@ lost receipt never resubmits (`outcome_unknown`). A send the hub refuses before
 it stored the message (a refusal such as `meeting_not_found`, or a full disk)
 gives its id back: sending the same frame again is a new attempt. Once the
 message is stored, the id stays reserved whatever follows.
+
+A hub restart cuts the turns it was answering, and those whose outcome was
+already unknown: nothing can reconcile them once the hub stopped. Their
+conversations take the next `chat.send` (never `turn_outcome_unknown`), and
+that turn first gets a `chat.status` warning saying the previous answer was
+cut. The cut turn itself is never resent.
 
 The hub persists Orbit→Hermes bindings per authenticated device and never allows
 access to a Hermes session ID supplied by the client. Reconnecting does not
@@ -1399,6 +1409,7 @@ in `ready` has none of these routes (`404` with no `code`) and takes no
 | `account` | only for `acp` agents: `signed_in`, `signed_out`, `expired` (it refused for want of a sign-in after having one) or `unknown` (the hub has not learned it yet) |
 | `account_email`, `plan` | only when the agent's adapter said them (`_auth/status_update`) |
 | `limit` | only while the plan is at its limit: `{"until_ms": integer\|null}`, null when the provider did not say when it resets; a Mac treats one whose time has passed as over |
+| `backend` | only while the agent's last start failed (its connection or a new session): `{"state":"failed","code":"agent_start_failed","at_ms":1790000000000}`, `code` being the refusal that start ended with; gone once a start succeeds. Any kind of agent may have it; a Mac before it ignores it |
 | `usage` | only when the provider reported it: `{"used_percent": 0-100, "window": "five_hour"\|"seven_day"\|…\|null, "resets_at_ms": integer\|null}`. Today only Claude Code with a claude.ai subscription reports it, when it changes; Codex reports none, so a Codex agent has no usage |
 
 `default_agent_id` is the **primary**: the agent a turn without `agent_id`
@@ -1408,7 +1419,8 @@ lists the services the hub has an adapter for, possibly none.
 
 `agents.changed` (`id:null`) is sent to every connected device whenever the
 list changes: a profile, an agent added or removed, a sign-in or sign-out, an
-account the hub learned (expired, at its limit, its address), a usage report.
+account the hub learned (expired, at its limit, its address), a usage report,
+an agent's start failing or succeeding again (`backend`).
 Its `data` is `{"agents":[…],"default_agent_id":…,"addable_agents":[…]}`,
 exactly as `ready` gives them; a Mac before it ignores the event.
 

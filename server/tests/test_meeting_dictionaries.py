@@ -408,7 +408,7 @@ async def test_draft_and_every_final_window_send_the_recent_terms_and_retranscri
     await transcribe_drafts(None)
     from test_meeting_views import STARTED
 
-    store.finalize_recording(
+    store.recordings.finalize(
         owner["device_id"],
         recording,
         {

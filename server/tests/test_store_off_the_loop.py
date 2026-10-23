@@ -29,7 +29,7 @@ def test_ping_is_answered_while_an_8mib_chunk_persist_waits_for_release(environm
         "X-Orbit-Sequence": "0",
         "X-Orbit-SHA256": hashlib.sha256(body).hexdigest(),
     }
-    persist = store.put_chunk
+    persist = store.recordings.put_chunk
     persist_started = threading.Event()
     release_persist = threading.Event()
     pong_received = threading.Event()
@@ -39,7 +39,7 @@ def test_ping_is_answered_while_an_8mib_chunk_persist_waits_for_release(environm
         release_persist.wait()
         return persist(*arguments, **keywords)
 
-    monkeypatch.setattr(store, "put_chunk", delayed_persist)
+    monkeypatch.setattr(store.recordings, "put_chunk", delayed_persist)
     with (
         client(environment) as http,
         http.websocket_connect("wss://localhost/v1/ws", headers=headers) as ws,

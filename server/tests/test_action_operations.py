@@ -11,7 +11,8 @@ from conftest import bridge_body as body
 from conftest import bridge_signed as signed
 from conftest import connect_bridge as connect
 
-from orbit_hub.bridge_route import PATH, _action_outcome
+from orbit_hub.bridge_outcomes import action_outcome
+from orbit_hub.bridge_route import PATH
 from orbit_mcp.hub import HubClientError
 from orbit_mcp.refusals import error_result
 from orbit_mcp.server import _general_action
@@ -80,7 +81,7 @@ async def test_perform_action_returns_a_durable_pending_operation_immediately(br
             # not finished. Nobody is being asked to permit anything.
             assert pending["outcome"] == "in_progress"
             operation_id = pending["operation_id"]
-            stored = store.operation(owner["device_id"], operation_id)
+            stored = store.operations.get(owner["device_id"], operation_id)
             assert stored == {"status": "pending", "response": None}
 
             entry = await answer_once(
@@ -160,7 +161,7 @@ async def test_engine_refusal_is_actionable_and_never_no_answer(bridged, monkeyp
 async def test_orphaned_pending_action_becomes_unknown_instead_of_retryable(bridged):
     app, store, _adapter, owner = bridged
     operation_id = str(uuid4())
-    store.reserve_operation(
+    store.operations.reserve(
         owner["device_id"],
         operation_id,
         {
@@ -185,11 +186,11 @@ async def test_orphaned_pending_action_becomes_unknown_instead_of_retryable(brid
     assert response.json()["refusal"]["code"] == "receipt_lost"
     assert response.json()["refusal"]["retry"] == {"kind": "check_outcome"}
     assert "No repitas" in response.json()["next_step"]
-    assert store.operation(owner["device_id"], operation_id)["status"] == "completed"
+    assert store.operations.get(owner["device_id"], operation_id)["status"] == "completed"
 
 
 def test_connection_lost_after_publish_is_unknown_and_forbids_retry():
-    outcome = _action_outcome(
+    outcome = action_outcome(
         {
             "refusal": {
                 "code": "mac_disconnected",
@@ -218,7 +219,7 @@ async def test_stored_action_receipts_remain_readable_after_upgrade(bridged, out
     app, store, _adapter, owner = bridged
     operation = str(uuid4())
     receipt = {"state": outcome, "operation_id": operation, "code": code}
-    store.reserve_operation(
+    store.operations.reserve(
         owner["device_id"],
         operation,
         json.loads(
@@ -236,7 +237,7 @@ async def test_stored_action_receipts_remain_readable_after_upgrade(bridged, out
             "text": "calendar_invalid_event: fila 2, campo calendar.calendar_id, tamaño 700001, máximo 700000",
             "retry": {"kind": "never"},
         }
-    store.finish_operation(owner["device_id"], operation, saved)
+    store.operations.finish(owner["device_id"], operation, saved)
     config = Config(
         "https://localhost",
         Credentials(BRIDGE_KEY_ID, BRIDGE_KEY),
@@ -271,4 +272,4 @@ async def test_stored_action_receipts_remain_readable_after_upgrade(bridged, out
             assert "calendar_invalid_event" in spoken and "calendar.calendar_id" in spoken
             assert "700001" in spoken and "700000" in spoken
     assert translated["outcome"] == outcome and translated["receipt"] == receipt
-    assert store.operation(owner["device_id"], operation)["response"]["receipt"] == receipt
+    assert store.operations.get(owner["device_id"], operation)["response"]["receipt"] == receipt

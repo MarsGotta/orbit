@@ -25,7 +25,7 @@ def insert_job(store, owner, sequence=0):
         "monotonic_ns": 1000,
         "started_at_ms": 2000,
     }
-    store.put_chunk(
+    store.recordings.put_chunk(
         owner,
         chunk,
         recording,

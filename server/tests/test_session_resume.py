@@ -121,9 +121,9 @@ async def test_only_inflight_session_becomes_unknown_on_upstream_loss(environmen
     runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     active = await sent(runtime, "primer turno")
     idle = await sent(runtime, "conversación quieta")
-    assert store.session(owner, active)["status"] == "completed"
-    assert store.session(owner, idle)["status"] == "completed"
-    store.status(active, "streaming")
+    assert store.chat.session(owner, active)["status"] == "completed"
+    assert store.chat.session(owner, idle)["status"] == "completed"
+    store.chat.set_status(active, "streaming")
     queue = runtime.subscribe()
     await runtime.on_event("default", ConnectionLost())
     errors = []
@@ -131,8 +131,8 @@ async def test_only_inflight_session_becomes_unknown_on_upstream_loss(environmen
         frame = queue.get_nowait()
         if frame["event"] == "error":
             errors.append(frame)
-    assert store.session(owner, active)["status"] == "outcome_unknown"
-    assert store.session(owner, idle)["status"] == "completed"
+    assert store.chat.session(owner, active)["status"] == "outcome_unknown"
+    assert store.chat.session(owner, idle)["status"] == "completed"
     assert [frame["data"]["session_id"] for frame in errors] == [active]
     await runtime.close()
 
@@ -143,7 +143,7 @@ async def test_lost_hermes_keeps_reconnect_snapshot_for_unknown_turn(environment
     owner = device(store)["device_id"]
     runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "primer turno")
-    store.status(session_id, "streaming")
+    store.chat.set_status(session_id, "streaming")
     await runtime.on_event("default", ConnectionLost())
 
     viewer = runtime.subscribe()
@@ -164,14 +164,14 @@ async def test_new_hub_runtime_resumes_existing_hermes_history(environment):
     owner = device(store)["device_id"]
     first = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(first, "mensaje anterior")
-    stored_id = store.session(owner, session_id)["stored_id"]
+    stored_id = store.chat.session(owner, session_id)["stored_id"]
     assert said(store, owner, session_id)[0]["text"] == "mensaje anterior"
     await first.close()
 
     restarted = DeviceRuntime(owner, store, only(adapter), lambda: 1002)
     assert await sent(restarted, "mensaje siguiente", session_id) == session_id
-    assert store.session(owner, session_id)["stored_id"] == stored_id
-    assert store.sessions_after(owner, None)[1] == 1
+    assert store.chat.session(owner, session_id)["stored_id"] == stored_id
+    assert store.chat.sessions_after(owner, None)[1] == 1
     assert len(adapter.stored_sessions) == 1
     assert len(adapter.stored_sessions[stored_id]) == 2
     assert "mensaje anterior" in adapter.stored_sessions[stored_id][0]
@@ -192,13 +192,13 @@ async def test_hermes_epoch_change_resumes_stored_session(environment):
     owner = device(store)["device_id"]
     runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "mensaje anterior")
-    old_binding = store.session(owner, session_id)
+    old_binding = store.chat.session(owner, session_id)
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
     await runtime.on_event("default", ConnectionLost())
 
     assert await sent(runtime, "mensaje tras reinicio", session_id) == session_id
-    binding = store.session(owner, session_id)
+    binding = store.chat.session(owner, session_id)
     assert binding["epoch"] == "synthetic-epoch-1"
     assert binding["runtime_id"] != old_binding["runtime_id"]
     assert adapter.connections[1].calls[0][0] == "session.resume"
@@ -213,7 +213,7 @@ async def test_unknown_turn_is_never_resumed_or_resent(environment):
     owner = device(store)["device_id"]
     runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "mensaje anterior")
-    store.status(session_id, "outcome_unknown")
+    store.chat.set_status(session_id, "outcome_unknown")
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
 
@@ -267,8 +267,8 @@ async def test_deferred_resume_history_failure_is_reported_and_next_turn_reopens
     viewer = restarted.subscribe()
     assert await sent(restarted, "mensaje sin historial", session_id) == session_id
     connection = adapter.connections[1]
-    first_runtime_id = store.session(owner, session_id)["runtime_id"]
-    assert store.session(owner, session_id)["status"] == "streaming"
+    first_runtime_id = store.chat.session(owner, session_id)["runtime_id"]
+    assert store.chat.session(owner, session_id)["status"] == "streaming"
     await connection.callback(
         {
             "type": "message.complete",
@@ -293,7 +293,7 @@ async def test_deferred_resume_history_failure_is_reported_and_next_turn_reopens
     assert "17 mensajes" in error["data"]["message"]
     assert "historial" in error["data"]["message"]
     assert "Could not reopen" not in str(frames)
-    assert store.session(owner, session_id)["status"] == "failed"
+    assert store.chat.session(owner, session_id)["status"] == "failed"
     assert first_runtime_id not in connection.live_sessions
     assert [method for method, _ in connection.calls] == ["session.resume", "prompt.submit"]
 
@@ -304,7 +304,7 @@ async def test_deferred_resume_history_failure_is_reported_and_next_turn_reopens
         "session.resume",
         "prompt.submit",
     ]
-    stored_id = store.session(owner, session_id)["stored_id"]
+    stored_id = store.chat.session(owner, session_id)["stored_id"]
     assert (
         len(
             [text for text in adapter.stored_sessions[stored_id] if "mensaje sin historial" in text]
@@ -333,7 +333,7 @@ async def test_deferred_history_failure_refuses_before_prompt_and_retries_next_s
     runtime_id = connection.last_resumed_id
     assert runtime_id not in connection.live_sessions
     assert [method for method, _ in connection.calls] == ["session.resume"]
-    assert store.session(owner, session_id)["status"] == "completed"
+    assert store.chat.session(owner, session_id)["status"] == "completed"
     assert len(said(store, owner, session_id)) == 2
     await connection.callback(
         {
@@ -384,7 +384,7 @@ async def test_late_history_error_does_not_reconcile_completed_turn(environment)
         }
     )
     assert runtime.reconciliations == {}
-    assert store.session(owner, session_id)["status"] == "completed"
+    assert store.chat.session(owner, session_id)["status"] == "completed"
     frames = []
     while not viewer.empty():
         frames.append(viewer.get_nowait())
@@ -466,7 +466,7 @@ async def test_other_new_session_can_send_while_history_waits(environment):
             "session.resume",
             "prompt.submit",
         ]
-        assert store.session(owner, other)["status"] == "completed"
+        assert store.chat.session(owner, other)["status"] == "completed"
     finally:
         if not other_send.done():
             other_send.cancel()
@@ -490,21 +490,24 @@ async def test_live_session_sends_do_not_claim_history_reservation_under_lock_co
     owner = device(store)["device_id"]
     runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "turno anterior")
-    await runtime.lock.acquire()
-    first = asyncio.create_task(sent(runtime, "primer envío", session_id))
-    second = asyncio.create_task(sent(runtime, "segundo envío", session_id))
-    await asyncio.sleep(0)
-    runtime.lock.release()
-    try:
-        assert await first == session_id
-        assert await second == session_id
-        assert [method for method, _ in adapter.connections[0].calls].count("session.resume") == 0
-    finally:
-        for task in (first, second):
-            if not task.done():
-                task.cancel()
-        await asyncio.gather(first, second, return_exceptions=True)
-        await runtime.close()
+    # The conversation's lock is what its commits contend for.
+    async with runtime.conversations.using(session_id) as conversation:
+        await conversation.lock.acquire()
+        first = asyncio.create_task(sent(runtime, "primer envío", session_id))
+        second = asyncio.create_task(sent(runtime, "segundo envío", session_id))
+        await asyncio.sleep(0)
+        conversation.lock.release()
+        try:
+            assert await first == session_id
+            assert await second == session_id
+            calls = [method for method, _ in adapter.connections[0].calls]
+            assert calls.count("session.resume") == 0
+        finally:
+            for task in (first, second):
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(first, second, return_exceptions=True)
+            await runtime.close()
 
 
 @pytest.mark.parametrize(("hydrating", "progress"), [(False, None), (True, "complete")])
@@ -522,26 +525,41 @@ async def test_other_disconnected_session_can_resume_without_pending_hydration(
     await runtime.on_event("default", ConnectionLost())
     adapter.resume_hydrating = hydrating
     adapter.resume_progress = progress
-    await runtime.lock.acquire()
-    first = asyncio.create_task(sent(runtime, "mensaje uno", first_id))
-    second = asyncio.create_task(sent(runtime, "mensaje dos", second_id))
-    await asyncio.sleep(0)
-    runtime.lock.release()
-    try:
-        assert await first == first_id
-        assert await second == second_id
-        assert [method for method, _ in adapter.connections[1].calls] == [
-            "session.resume",
-            "prompt.submit",
-            "session.resume",
-            "prompt.submit",
-        ]
-    finally:
-        for task in (first, second):
-            if not task.done():
-                task.cancel()
-        await asyncio.gather(first, second, return_exceptions=True)
-        await runtime.close()
+    stored = {store.chat.session(owner, session)["stored_id"] for session in (first_id, second_id)}
+    # Each conversation's commit waits for its own lock: the two reopen at once.
+    conversations = runtime.conversations
+    async with conversations.using(first_id) as one, conversations.using(second_id) as two:
+        await one.lock.acquire()
+        await two.lock.acquire()
+        first = asyncio.create_task(sent(runtime, "mensaje uno", first_id))
+        second = asyncio.create_task(sent(runtime, "mensaje dos", second_id))
+        await asyncio.sleep(0)
+        one.lock.release()
+        two.lock.release()
+        try:
+            assert await first == first_id
+            assert await second == second_id
+            connection = adapter.connections[1]
+            # Each conversation reopened once, and its turn went after its reopen.
+            resumed = {
+                params["session_id"]: index
+                for index, (method, params) in enumerate(connection.calls)
+                if method == "session.resume"
+            }
+            submitted = {
+                connection.runtime_to_stored[params["session_id"]]: index
+                for index, (method, params) in enumerate(connection.calls)
+                if method == "prompt.submit"
+            }
+            assert len(connection.calls) == 4
+            assert resumed.keys() == submitted.keys() == stored
+            assert all(resumed[conversation] < submitted[conversation] for conversation in stored)
+        finally:
+            for task in (first, second):
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(first, second, return_exceptions=True)
+            await runtime.close()
 
 
 async def test_other_disconnected_session_refusal_names_remaining_history_time(environment):
@@ -597,7 +615,7 @@ async def test_ending_runtime_wakes_history_wait_with_its_cause(environment, end
     connection = adapter.connections[1]
     try:
         if ending == "unpair":
-            store.revoke(owner)
+            store.devices.revoke(owner)
             await runtime.revoke()
         else:
             await getattr(runtime, ending)()
@@ -615,14 +633,14 @@ async def test_ending_runtime_wakes_history_wait_with_its_cause(environment, end
 
 
 async def test_reused_live_runtime_keeps_early_history_completion(environment, monkeypatch):
-    from orbit_hub import runtime as runtime_module
+    from orbit_hub.runtime import resume as runtime_module
 
     _, store, _ = environment
     adapter = ResumableAdapter()
     owner = device(store)["device_id"]
     runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "turno anterior")
-    adapter.reuse_runtime_id = store.session(owner, session_id)["runtime_id"]
+    adapter.reuse_runtime_id = store.chat.session(owner, session_id)["runtime_id"]
     adapter.connections[0].connected = False
     adapter.connections[0].live_sessions.clear()
     await runtime.on_event("default", ConnectionLost())
@@ -713,7 +731,7 @@ async def test_resume_without_hydration_signal_refuses_before_prompt(environment
 
 
 async def test_deferred_history_timeout_refuses_before_prompt(environment, monkeypatch):
-    from orbit_hub import runtime as runtime_module
+    from orbit_hub.runtime import resume as runtime_module
 
     _, store, _ = environment
     adapter = ResumableAdapter()
@@ -730,10 +748,10 @@ async def test_deferred_history_timeout_refuses_before_prompt(environment, monke
     assert error.value.code == "session_resume_history_timeout"
     assert "1 ms" in error.value.message
     connection = adapter.connections[1]
-    runtime_id = store.session(owner, session_id)["runtime_id"]
+    runtime_id = store.chat.session(owner, session_id)["runtime_id"]
     assert runtime_id not in connection.live_sessions
     assert [method for method, _ in connection.calls] == ["session.resume"]
-    assert store.session(owner, session_id)["status"] == "completed"
+    assert store.chat.session(owner, session_id)["status"] == "completed"
     await restarted.close()
 
 
@@ -751,8 +769,8 @@ async def test_rejected_prompt_4001_is_not_outcome_unknown(environment):
         await sent(restarted, "mensaje rechazado", session_id)
     assert error.value.code == "session_runtime_not_found"
     connection = adapter.connections[1]
-    assert store.session(owner, session_id)["status"] == "failed"
-    assert store.session(owner, session_id)["runtime_id"] not in connection.live_sessions
+    assert store.chat.session(owner, session_id)["status"] == "failed"
+    assert store.chat.session(owner, session_id)["runtime_id"] not in connection.live_sessions
     assert [method for method, _ in connection.calls] == ["session.resume", "prompt.submit"]
     assert await sent(restarted, "mensaje siguiente", session_id) == session_id
     assert [method for method, _ in connection.calls] == [
@@ -783,7 +801,7 @@ async def test_unknown_resume_message_count_is_not_reported_as_zero(environment)
     await connection.callback(
         {
             "type": "message.complete",
-            "session_id": store.session(owner, session_id)["runtime_id"],
+            "session_id": store.chat.session(owner, session_id)["runtime_id"],
             "payload": {
                 "status": "error",
                 "error": "Could not reopen that session (its transcript could not be read).",
@@ -812,7 +830,7 @@ async def test_other_agent_init_failure_is_not_called_unreadable_history(environ
     restarted = DeviceRuntime(owner, store, only(adapter), lambda: 1002)
     assert await sent(restarted, "mensaje nuevo", session_id) == session_id
     connection = adapter.connections[1]
-    runtime_id = store.session(owner, session_id)["runtime_id"]
+    runtime_id = store.chat.session(owner, session_id)["runtime_id"]
     viewer = restarted.subscribe()
     viewer.get_nowait()
     await connection.callback(
@@ -843,10 +861,10 @@ async def test_agent_init_failure_on_new_session_is_not_resume_history_error(env
     owner = device(store)["device_id"]
     runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     session_id = await sent(runtime, "mensaje nuevo")
-    binding = store.session(owner, session_id)
+    binding = store.chat.session(owner, session_id)
     viewer = runtime.subscribe()
     viewer.get_nowait()
-    store.status(session_id, "streaming")
+    store.chat.set_status(session_id, "streaming")
     await runtime.connections["default"].callback(
         {
             "type": "message.complete",
@@ -875,7 +893,9 @@ async def test_replaced_resume_connection_has_its_own_cause(environment):
     owner = device(store)["device_id"]
     runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
     connection = await runtime.connect("default")
-    session_id = store.create_session(owner, "default", "old-runtime", "stored", "old-epoch", 1001)
+    session_id = store.chat.create_session(
+        owner, "default", "old-runtime", "stored", "old-epoch", 1001
+    )
 
     async def replace_connection(_stored_id):
         runtime.connections["default"] = object()
@@ -885,7 +905,7 @@ async def test_replaced_resume_connection_has_its_own_cause(environment):
     with pytest.raises(HubError) as error:
         await runtime.resume_if_disconnected(session_id, "default", connection)
     assert error.value.code == "session_resume_connection_replaced"
-    assert store.session(owner, session_id)["runtime_id"] == "old-runtime"
+    assert store.chat.session(owner, session_id)["runtime_id"] == "old-runtime"
     await connection.close()
 
 
@@ -893,7 +913,9 @@ async def test_disconnected_session_names_its_retry(environment):
     _, store, adapter = environment
     owner = device(store)["device_id"]
     runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
-    session_id = store.create_session(owner, "default", "old-runtime", "stored", "old-epoch", 1001)
+    session_id = store.chat.create_session(
+        owner, "default", "old-runtime", "stored", "old-epoch", 1001
+    )
     with pytest.raises(HubError) as error:
         runtime.require_live(session_id)
     assert error.value.code == "session_disconnected"
@@ -904,10 +926,12 @@ async def test_foreign_device_does_not_connect_or_resume(environment):
     _, store, adapter = environment
     owner = device(store, "propietaria")["device_id"]
     other = device(store, "otro dispositivo")["device_id"]
-    session_id = store.create_session(owner, "default", "old-runtime", "stored", "old-epoch", 1001)
+    session_id = store.chat.create_session(
+        owner, "default", "old-runtime", "stored", "old-epoch", 1001
+    )
     runtime = DeviceRuntime(other, store, only(adapter), lambda: 1001)
     with pytest.raises(HubError) as error:
         await sent(runtime, "intento ajeno", session_id)
     assert error.value.code == "session_not_found"
     assert adapter.connections == []
-    assert store.session(owner, session_id)["status"] == "idle"
+    assert store.chat.session(owner, session_id)["status"] == "idle"

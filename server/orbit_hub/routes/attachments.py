@@ -33,34 +33,8 @@ def mount(app, store, identity, bounded_body, store_executor, now, captures):
     @app.post("/v1/attachments")
     async def upload(request: Request):
         device = identity(request)
-        try:
-            name = valid_name(unquote(request.headers[NAME_HEADER], errors="strict"))
-            digest = request.headers["x-orbit-sha256"]
-            if not re.fullmatch(r"[a-f0-9]{64}", digest):
-                raise ValueError("Invalid digest")
-        except (KeyError, ValueError, UnicodeDecodeError) as exc:
-            raise HubError(
-                "invalid_attachment",
-                "Faltan el nombre o el resumen SHA-256 del adjunto, o no valen",
-                numbers={"field": "headers"},
-            ) from exc
-        declared = request.headers.get("content-length", "")
-        if declared.isdigit() and int(declared) > MAX_ATTACHMENT_BYTES:
-            # Refused before reading a byte, with the size the Mac declared.
-            raise too_large_file(name, int(declared))
-        try:
-            body = await bounded_body(request, MAX_ATTACHMENT_BYTES, "attachment")
-        except HubError as exc:
-            if exc.code == "too_large":
-                raise too_large_file(name, exc.numbers["bytes"]) from exc
-            raise
-        if hashlib.sha256(body).hexdigest() != digest:
-            raise HubError(
-                "invalid_attachment",
-                f"El resumen de «{name}» no coincide con lo recibido; vuelve a adjuntarlo",
-                numbers={"field": "x-orbit-sha256", "bytes": len(body)},
-            )
-        if not store.is_active(device):
+        name, body = await read_upload(request, bounded_body)
+        if not store.devices.is_active(device):
             raise HubError("revoked", "Dispositivo revocado")
         attachment = await in_store(
             store_executor, store.attachments.put, device, name, body, round(now() * 1000)
@@ -115,3 +89,35 @@ def mount(app, store, identity, bounded_body, store_executor, now, captures):
             media_type=stored.mime,
             headers={NAME_HEADER: quote(stored.name, safe="")},
         )
+
+
+async def read_upload(request: Request, bounded_body) -> tuple[str, bytes]:
+    """An upload's name and bytes, refused when either does not hold."""
+    try:
+        name = valid_name(unquote(request.headers[NAME_HEADER], errors="strict"))
+        digest = request.headers["x-orbit-sha256"]
+        if not re.fullmatch(r"[a-f0-9]{64}", digest):
+            raise ValueError("Invalid digest")
+    except (KeyError, ValueError, UnicodeDecodeError) as exc:
+        raise HubError(
+            "invalid_attachment",
+            "Faltan el nombre o el resumen SHA-256 del adjunto, o no valen",
+            numbers={"field": "headers"},
+        ) from exc
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > MAX_ATTACHMENT_BYTES:
+        # Refused before reading a byte, with the size the Mac declared.
+        raise too_large_file(name, int(declared))
+    try:
+        body = await bounded_body(request, MAX_ATTACHMENT_BYTES, "attachment")
+    except HubError as exc:
+        if exc.code == "too_large":
+            raise too_large_file(name, exc.numbers["bytes"]) from exc
+        raise
+    if hashlib.sha256(body).hexdigest() != digest:
+        raise HubError(
+            "invalid_attachment",
+            f"El resumen de «{name}» no coincide con lo recibido; vuelve a adjuntarlo",
+            numbers={"field": "x-orbit-sha256", "bytes": len(body)},
+        )
+    return name, body

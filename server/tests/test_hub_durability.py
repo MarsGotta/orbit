@@ -65,15 +65,20 @@ def test_a_chunk_is_acknowledged_durable_only_after_a_full_commit_holds(environm
     assert store._db.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     assert store._db.execute("PRAGMA synchronous").fetchone()[0] == 2  # FULL
     trace: list[str] = []
-    store._db.set_trace_callback(trace.append)
-    original = store.put_chunk
+    # Under the store's lock: a trace callback toggled while another thread is
+    # in a statement on this connection deadlocks it (sqlite3 holds the GIL
+    # while it waits for the connection's mutex; the callback holds the mutex
+    # while it waits for the GIL), and the hub's executor writes at startup.
+    with store._lock:
+        store._db.set_trace_callback(trace.append)
+    original = store.recordings.put_chunk
 
     def observed(*args, **kwargs):
         outcome = original(*args, **kwargs)
         trace.append("<put_chunk returned>")
         return outcome
 
-    store.put_chunk = observed
+    store.recordings.put_chunk = observed
     body, recording = wav_fixture(), str(uuid4())
     with client(environment) as http:
         response = http.put(
@@ -81,7 +86,8 @@ def test_a_chunk_is_acknowledged_durable_only_after_a_full_commit_holds(environm
             content=body,
             headers=chunk_headers(owner["token"], recording, 0, body),
         )
-    store._db.set_trace_callback(None)
+    with store._lock:
+        store._db.set_trace_callback(None)
     assert response.status_code == 200 and response.json()["durable"] is True
     insert = next(i for i, sql in enumerate(trace) if sql.startswith("INSERT INTO chunks"))
     commit = next(i for i, sql in enumerate(trace) if i > insert and sql == "COMMIT")
@@ -100,7 +106,7 @@ def test_a_full_disk_is_not_masked_by_a_second_rollback(environment):
     fill_the_disk(store)
     body, recording = big_wav(), str(uuid4())
     with pytest.raises(sqlite3.OperationalError) as raised:
-        store.put_chunk(
+        store.recordings.put_chunk(
             owner,
             f"{recording}-mic_local-0",
             recording,
@@ -198,7 +204,7 @@ def test_a_chat_message_the_full_disk_refused_is_said_with_its_cause(environment
     `internal_error` "No se pudo completar la operación; no se repetirá"."""
     _, store, _ = environment
     owner = device(store)
-    original = store.append_message
+    original = store.chat.append_message
     full = [1]
 
     def append_message(*args, **kwargs):
@@ -207,7 +213,7 @@ def test_a_chat_message_the_full_disk_refused_is_said_with_its_cause(environment
             raise sqlite3.OperationalError(DISK_FULL)
         return original(*args, **kwargs)
 
-    monkeypatch.setattr(store, "append_message", append_message)
+    monkeypatch.setattr(store.chat, "append_message", append_message)
     operation = str(uuid4())
     headers = {"Authorization": "Bearer " + owner["token"]}
     with (
@@ -226,7 +232,7 @@ def test_a_chat_message_the_full_disk_refused_can_be_sent_again(environment, mon
     `outcome_unknown` although the hub never stored it."""
     _, store, _ = environment
     owner = device(store)
-    original = store.append_message
+    original = store.chat.append_message
     full = [1]
 
     def append_message(*args, **kwargs):
@@ -235,7 +241,7 @@ def test_a_chat_message_the_full_disk_refused_can_be_sent_again(environment, mon
             raise sqlite3.OperationalError(DISK_FULL)
         return original(*args, **kwargs)
 
-    monkeypatch.setattr(store, "append_message", append_message)
+    monkeypatch.setattr(store.chat, "append_message", append_message)
     operation = str(uuid4())
     headers = {"Authorization": "Bearer " + owner["token"]}
     with (
@@ -256,9 +262,9 @@ def test_a_chat_message_the_full_disk_refused_can_be_sent_again(environment, mon
 def stored_conversation(data, key):
     """A store with one device, one conversation and one message; closed."""
     store = Store(data, key)
-    owner = store.pair(store.create_code(1000), "Mac de Alina", 1001)
-    session = store.create_session(owner["device_id"], "default", "rt", "st", "ep", 1002)
-    store.append_message(session, "user", "Recordar el acta del comité", now_ms=1_002_000)
+    owner = store.devices.pair(store.devices.create_code(1000), "Mac de Alina", 1001)
+    session = store.chat.create_session(owner["device_id"], "default", "rt", "st", "ep", 1002)
+    store.chat.append_message(session, "user", "Recordar el acta del comité", now_ms=1_002_000)
     store.close()
     return owner, session
 
@@ -294,9 +300,9 @@ def test_a_store_opened_with_a_key_that_is_not_its_own_refuses_to_start(tmp_path
     except ValueError:
         pass
     else:
-        facts["authenticated"] = opened.authenticate(owner["token"]) == owner["device_id"]
+        facts["authenticated"] = opened.devices.authenticate(owner["token"]) == owner["device_id"]
         body, recording = wav_fixture(), str(uuid4())
-        facts["new_chunk"] = opened.put_chunk(
+        facts["new_chunk"] = opened.recordings.put_chunk(
             owner["device_id"],
             f"{recording}-mic_local-0",
             recording,
@@ -307,7 +313,7 @@ def test_a_store_opened_with_a_key_that_is_not_its_own_refuses_to_start(tmp_path
             {"frames": 160},
         )
         try:
-            opened.session_messages(owner["device_id"], session, None, 10)
+            opened.chat.session_messages(owner["device_id"], session, None, 10)
         except InvalidTag:
             facts["old_messages"] = "InvalidTag"
         opened.close()
@@ -378,14 +384,14 @@ def test_a_chunk_the_quota_refused_is_not_marked_never_to_retry(environment):
     owner = device(store)
     body, recording = wav_fixture(), str(uuid4())
     with client(environment) as http:
-        store._quota = 1
+        store.space.quota_bytes = 1
         response = http.put(
             f"/v1/chunks/{recording}-mic_local-0",
             content=body,
             headers=chunk_headers(owner["token"], recording, 0, body),
         )
         refusal = response.json()["refusal"]
-        store._quota = 10 * 1024**3
+        store.space.quota_bytes = 10 * 1024**3
         admitted = http.put(
             f"/v1/chunks/{recording}-mic_local-0",
             content=body,

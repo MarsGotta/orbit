@@ -22,7 +22,7 @@ def target_key(method: str, session: str, turn: str, interaction: str = "") -> s
 def reserve(
     store, device, operation_id, payload, *, target, session_id, turn_id, live_targets, validate
 ):
-    fingerprint = store.operation_fingerprint(payload)
+    fingerprint = store.operations.fingerprint(payload)
     with store.transaction() as db:
         normal = db.execute(
             "SELECT fingerprint,response FROM operations WHERE device_id=? AND id=?",

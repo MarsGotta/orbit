@@ -20,12 +20,12 @@ def client(environment):
 def crash_the_revocation_pass(store, monkeypatch, crash):
     """Make one pass of the lifespan's `enforce_revocations` loop fail.
 
-    The loop asks `store.is_active` about every device with a runtime, so a
+    The loop asks `store.devices.is_active` about every device with a runtime, so a
     device needs one (an open socket) for the pass to get there. Sockets ask
     `is_active` too; only the loop's own call raises `crash()`. Returns the
     count of crashes still to happen.
     """
-    original = store.is_active
+    original = store.devices.is_active
     pending = [1]
 
     def is_active(device_id):
@@ -37,5 +37,5 @@ def crash_the_revocation_pass(store, monkeypatch, crash):
             raise crash()
         return original(device_id)
 
-    monkeypatch.setattr(store, "is_active", is_active)
+    monkeypatch.setattr(store.devices, "is_active", is_active)
     return pending

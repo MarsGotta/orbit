@@ -213,6 +213,22 @@ class GroupRepository:
                 ),
             )
 
+    def requeue_running(self, now: float) -> int:
+        """Give back every group a stopped worker left `running`: an attempt
+        whose outcome could not be written (a full disk, twice) or that the
+        worker crashed in. It counts as a failed attempt: retried at once, or
+        failed with `transcription_failed` when it was the fifth, as `fail`
+        does. Only the one transcription worker claims groups, and it calls
+        this as it starts, so no attempt in flight is taken back."""
+        with self.store.transaction() as db:
+            return db.execute(
+                """UPDATE transcription_groups
+                SET state=CASE WHEN attempts>=5 THEN 'failed' ELSE 'pending' END,
+                error_code='transcription_failed',next_attempt=?
+                WHERE state='running'""",
+                (now,),
+            ).rowcount
+
     def retry(self, device: str, recording: str, now: float) -> int:
         """Requeue exhausted groups for one device-owned recording."""
         with self.store.transaction() as db:

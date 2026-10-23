@@ -12,6 +12,17 @@ from ..errors import HubError
 from ..identifiers import canonical_uuid
 from ..log import in_store
 
+# The capture's native timing and format, each in its own header: all of
+# them, or none.
+TIMING_FIELDS = (
+    "started_at_ms",
+    "monotonic_ns",
+    "first_sample",
+    "frames",
+    "sample_rate",
+    "channels",
+)
+
 
 def mount(
     app,
@@ -25,6 +36,14 @@ def mount(
     prepare_signal,
     now,
 ):
+    mount_captures(app, identity, bounded_body, captures)
+    mount_chunks(
+        app, store, identity, bounded_body, validate_wav, settings, store_executor,
+        prepare_signal, now,
+    )  # fmt: skip
+
+
+def mount_captures(app, identity, bounded_body, captures):
     @app.put("/v1/captures/{capture_id}")
     async def capture(capture_id: str, request: Request):
         device = identity(request)
@@ -59,6 +78,10 @@ def mount(
             raise HubError("capture_duplicate", "La captura ya está guardada", http_status=409)
         return {"capture_id": capture_id, "stored": True}
 
+
+def mount_chunks(
+    app, store, identity, bounded_body, validate_wav, settings, store_executor, prepare_signal, now
+):
     @app.put("/v1/chunks/{chunk_id}")
     async def chunk(chunk_id: str, request: Request):
         device = identity(request)
@@ -79,42 +102,12 @@ def mount(
             raise HubError("invalid_chunk", "Metadatos de fragmento no válidos") from exc
         body = await bounded_body(request, settings.max_chunk_bytes, "recording")
         validate_wav(body)
-        metadata = {}
-        fields = ('started_at_ms', 'monotonic_ns', 'first_sample', 'frames', 'sample_rate', 'channels')  # fmt: skip
-        try:
-            for field in fields:
-                header = "x-orbit-" + field.replace("_", "-")
-                if header in request.headers:
-                    value = int(request.headers[header])
-                    if not 0 <= value <= 2**63 - 1:
-                        raise ValueError("Invalid capture metadata")
-                    metadata[field] = value
-            if metadata and set(metadata) != set(fields):
-                raise ValueError("Capture metadata must be complete")
-            if "x-orbit-capture-epoch-id" in request.headers:
-                epoch = request.headers["x-orbit-capture-epoch-id"]
-                if set(metadata) != set(fields):
-                    raise ValueError("Epoch requires complete native timing")
-                metadata["capture_epoch_id"] = canonical_uuid(epoch)
-            with wave.open(io.BytesIO(body), "rb") as audio:
-                if metadata and (
-                    metadata["frames"],
-                    metadata["sample_rate"],
-                    metadata["channels"],
-                ) != (audio.getnframes(), audio.getframerate(), audio.getnchannels()):
-                    raise ValueError("Metadata does not match WAV")
-        except ValueError as exc:
-            raise HubError(
-                "invalid_chunk", "Metadatos de reloj/formato incompletos o distintos del WAV"
-            ) from exc
-        metadata["wall_time_precision"] = (
-            "estimated_reception" if "started_at_ms" in metadata else "unknown"
-        )
-        if not store.is_active(device):
+        metadata = chunk_metadata(request.headers, body)
+        if not store.devices.is_active(device):
             raise HubError("revoked", "Dispositivo revocado")
         outcome = await in_store(
             store_executor,
-            store.put_chunk,
+            store.recordings.put_chunk,
             device,
             chunk_id,
             recording,
@@ -127,3 +120,39 @@ def mount(
         )
         prepare_signal.set()
         return outcome
+
+
+def chunk_metadata(headers, body: bytes) -> dict:
+    """A chunk's timing and format from its headers, checked against its WAV."""
+    metadata = {}
+    fields = TIMING_FIELDS
+    try:
+        for field in fields:
+            header = "x-orbit-" + field.replace("_", "-")
+            if header in headers:
+                value = int(headers[header])
+                if not 0 <= value <= 2**63 - 1:
+                    raise ValueError("Invalid capture metadata")
+                metadata[field] = value
+        if metadata and set(metadata) != set(fields):
+            raise ValueError("Capture metadata must be complete")
+        if "x-orbit-capture-epoch-id" in headers:
+            epoch = headers["x-orbit-capture-epoch-id"]
+            if set(metadata) != set(fields):
+                raise ValueError("Epoch requires complete native timing")
+            metadata["capture_epoch_id"] = canonical_uuid(epoch)
+        with wave.open(io.BytesIO(body), "rb") as audio:
+            if metadata and (
+                metadata["frames"],
+                metadata["sample_rate"],
+                metadata["channels"],
+            ) != (audio.getnframes(), audio.getframerate(), audio.getnchannels()):
+                raise ValueError("Metadata does not match WAV")
+    except ValueError as exc:
+        raise HubError(
+            "invalid_chunk", "Metadatos de reloj/formato incompletos o distintos del WAV"
+        ) from exc
+    metadata["wall_time_precision"] = (
+        "estimated_reception" if "started_at_ms" in metadata else "unknown"
+    )
+    return metadata

@@ -202,7 +202,7 @@ def test_a_turn_with_a_permission_runs_through_any_backend(environment):
         )
     ]
     assert connection.answers == [("live-1", "permission-1", "once")]
-    assert store.session(paired["device_id"], session)["status"] == "completed"
+    assert store.chat.session(paired["device_id"], session)["status"] == "completed"
     assert said(store, paired["device_id"], session) == [
         {"role": "user", "text": "Crea la nota de la excursión"},
         {"role": "assistant", "text": "Voy a crear la nota. Hecha."},

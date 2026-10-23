@@ -58,7 +58,9 @@ def seed_recording(root, source):
     initialize(data, key)
     store = Store(data, key)
     try:
-        device = store.pair(store.create_code(1000), "Final pass acceptance", 1001)["device_id"]
+        device = store.devices.pair(store.devices.create_code(1000), "Final pass acceptance", 1001)[
+            "device_id"
+        ]
         recording, sequence, frames = str(uuid4()), 0, 0
         with wave.open(str(source), "rb") as audio:
             channels, width, rate = audio.getnchannels(), audio.getsampwidth(), audio.getframerate()
@@ -76,7 +78,7 @@ def seed_recording(root, source):
                     chunk.setframerate(rate)
                     chunk.writeframes(pcm)
                 body = buffer.getvalue()
-                store.put_chunk(
+                store.recordings.put_chunk(
                     device,
                     f"{recording}-{sequence}",
                     recording,
@@ -98,7 +100,7 @@ def seed_recording(root, source):
                 raise ValueError("WAV truncated relative to its header")
         if not frames:
             raise ValueError("The WAV contains no frames")
-        store.finalize_recording(
+        store.recordings.finalize(
             device,
             recording,
             {

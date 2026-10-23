@@ -57,7 +57,7 @@ def test_a_chunk_missing_in_the_middle_is_declared_and_the_recording_closes(envi
     _, store, _ = environment
     owner = device(store)["device_id"]
     recording = recording_with_a_hole(store, owner)
-    receipt = store.finalize_recording(owner, recording, manifest())
+    receipt = store.recordings.finalize(owner, recording, manifest())
     assert receipt["finalized"] is True and receipt["durable"] is True
     # Honest: a declared hole is not a complete capture.
     assert receipt["capture_complete"] is False
@@ -84,7 +84,7 @@ def test_the_document_and_the_notes_prompt_say_a_part_is_missing(environment):
     _, store, _ = environment
     owner = device(store)
     recording = recording_with_a_hole(store, owner["device_id"])
-    store.finalize_recording(owner["device_id"], recording, manifest())
+    store.recordings.finalize(owner["device_id"], recording, manifest())
     finish_all(store)
     with client(environment) as http:
         response = http.get(
@@ -116,7 +116,7 @@ def test_a_declaration_that_does_not_match_what_the_hub_holds_is_refused(
     owner = device(store)["device_id"]
     recording = recording_with_a_hole(store, owner)
     with pytest.raises(HubError) as error:
-        store.finalize_recording(
+        store.recordings.finalize(
             owner, recording, manifest(declared, mic_count=mic_count, last=last)
         )
     assert error.value.code == "manifest_mismatch"

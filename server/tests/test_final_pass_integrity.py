@@ -39,7 +39,7 @@ def seed(store, body, *, drafts=(), track="mic_local", offset_ms=0):
             frames, sequence = audio.getnframes(), 0
             while pcm := audio.readframes(160000):
                 chunk = wav_bytes(pcm)
-                store.put_chunk(
+                store.recordings.put_chunk(
                     owner,
                     f"{identity}-{name}-{sequence}",
                     identity,
@@ -66,7 +66,7 @@ def seed(store, body, *, drafts=(), track="mic_local", offset_ms=0):
             }
         )
         duration_ms = max(duration_ms, frames // 16)
-    store.finalize_recording(
+    store.recordings.finalize(
         owner,
         identity,
         {
@@ -77,12 +77,12 @@ def seed(store, body, *, drafts=(), track="mic_local", offset_ms=0):
         },
     )
     indices = dict.fromkeys(bodies, 0)
-    while job := store.claim_transcription(1000):
+    while job := store.groups.claim(1000):
         name = job["manifest"]["track"]
         available, index = texts.get(name, ()), indices[name]
         text = available[index] if index < len(available) else ""
         if text is not None:
-            store.finish_transcription(job, text, language="es")
+            store.groups.finish(job, text, language="es")
         indices[name] += 1
     final.FinalPassRepository(store).request(owner, identity)
     return owner, identity

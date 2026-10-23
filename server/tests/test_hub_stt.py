@@ -72,7 +72,7 @@ def load_stt_settings(tmp_path, base, endpoint: str, *, language: str | None = "
 
 def seal_one_group(store, owner):
     _, recording = insert_job(store, owner)
-    store.finalize_recording(
+    store.recordings.finalize(
         owner,
         recording,
         {
@@ -104,9 +104,9 @@ def group_row(store, recording):
 def exhaust_one_group(store, owner):
     recording = seal_one_group(store, owner)
     for now in (1000, 1010, 1030, 1070, 1150):
-        job = store.claim_transcription(now)
+        job = store.groups.claim(now)
         assert job is not None and job["recording"] == recording
-        store.fail_transcription(job, "transcription_failed", now)
+        store.groups.fail(job, "transcription_failed", now)
     assert group_row(store, recording) == {
         "state": "failed",
         "attempts": 5,
@@ -124,8 +124,8 @@ def observe_transcription_changes(store, monkeypatch):
     """Queue durable worker transitions without putting a clock on them."""
     loop = asyncio.get_running_loop()
     changes = asyncio.Queue()
-    original_finish = store.finish_transcription
-    original_fail = store.fail_transcription
+    original_finish = store.groups.finish
+    original_fail = store.groups.fail
 
     def finish(job, text, language=None):
         original_finish(job, text, language)
@@ -135,8 +135,8 @@ def observe_transcription_changes(store, monkeypatch):
         original_fail(job, code, now)
         loop.call_soon_threadsafe(changes.put_nowait, (job["recording"], "failed"))
 
-    monkeypatch.setattr(store, "finish_transcription", finish)
-    monkeypatch.setattr(store, "fail_transcription", fail)
+    monkeypatch.setattr(store.groups, "finish", finish)
+    monkeypatch.setattr(store.groups, "fail", fail)
     return changes
 
 
@@ -280,7 +280,7 @@ async def test_authenticated_retry_route_requeues_and_worker_completes(
     provider = SyntheticStt("texto recuperado por HTTP")
     hermes = HermesMustStayDisconnected()
     changes = observe_transcription_changes(store, monkeypatch)
-    original_claim = store.claim_transcription
+    original_claim = store.groups.claim
     claim_released = threading.Event()
     pending_claim_started = asyncio.Event()
     checked_empty = asyncio.Event()
@@ -296,7 +296,7 @@ async def test_authenticated_retry_route_requeues_and_worker_completes(
             loop.call_soon_threadsafe(checked_empty.set)
         return result
 
-    monkeypatch.setattr(store, "claim_transcription", hold_claim_after_retry)
+    monkeypatch.setattr(store.groups, "claim", hold_claim_after_retry)
 
     async with tcp_server(provider.app) as endpoint:
         settings = load_stt_settings(tmp_path, base, endpoint)

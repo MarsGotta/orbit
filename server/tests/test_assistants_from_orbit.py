@@ -327,7 +327,9 @@ def test_removing_an_added_agent_keeps_its_conversations(environment, tmp_path):
         folder = settings.data_dir / "agents" / added / "codex-home"
         folder.mkdir(parents=True)
         (folder / "auth.json").write_text("{}")
-        session = store.create_session(paired["device_id"], added, "live", "stored", "epoch", 5)
+        session = store.chat.create_session(
+            paired["device_id"], added, "live", "stored", "epoch", 5
+        )
         kept = http.delete("/v1/agents/deimos", headers=auth(paired))
         removed = http.delete(f"/v1/agents/{added}", headers=auth(paired))
         rows = http.get("/v1/sessions", headers=auth(paired)).json()["sessions"]
@@ -357,13 +359,13 @@ def test_a_conversation_is_handed_over_with_its_unanswered_question(environment,
     settings, store, adapter = environment
     settings = with_adapters(settings, tmp_path)
     paired = device(store)
-    source = store.create_session(paired["device_id"], "lyra", "live", "stored", "epoch", 5)
+    source = store.chat.create_session(paired["device_id"], "lyra", "live", "stored", "epoch", 5)
     for role, text in (
         ("user", "¿Cuántas habitaciones libres hay?"),
         ("assistant", "Quedan doce en el hotel Brisa."),
         ("user", "¿Y para el fin de semana?"),
     ):
-        store.append_message(source, role, text, now_ms=1000)
+        store.chat.append_message(source, role, text, now_ms=1000)
     turn = str(uuid4())
     with hub(settings, store, adapter) as http, socket(http, paired) as ws:
         ws.receive_json()
@@ -419,9 +421,9 @@ def test_a_handover_without_a_question_is_refused(environment, tmp_path):
     settings, store, adapter = environment
     settings = with_adapters(settings, tmp_path)
     paired = device(store)
-    source = store.create_session(paired["device_id"], "lyra", "live", "stored", "epoch", 5)
-    store.append_message(source, "user", "Hola", now_ms=1000)
-    store.append_message(source, "assistant", "Hola, dime", now_ms=1001)
+    source = store.chat.create_session(paired["device_id"], "lyra", "live", "stored", "epoch", 5)
+    store.chat.append_message(source, "user", "Hola", now_ms=1000)
+    store.chat.append_message(source, "assistant", "Hola, dime", now_ms=1001)
     turn = str(uuid4())
     with hub(settings, store, adapter) as http, socket(http, paired) as ws:
         ws.receive_json()

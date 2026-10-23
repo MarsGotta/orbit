@@ -29,8 +29,8 @@ def recording(
     if final:
         finalize(store, owner, identity, count)
     if transcribed:
-        while job := store.claim_transcription(1000):
-            store.finish_transcription(job, text)
+        while job := store.groups.claim(1000):
+            store.groups.finish(job, text)
     return identity
 
 
@@ -78,8 +78,8 @@ async def test_a_note_waits_for_the_transcript_then_is_written(notes):
     document = worker.repository.document(owner, identity)
     assert (document["state"], model.calls) == ("waiting_transcript", [])
     assert document["next_attempt_ms"] == int((NOW + 10) * 1000)
-    while job := store.claim_transcription(1000):
-        store.finish_transcription(job, "Hablamos del presupuesto.")
+    while job := store.groups.claim(1000):
+        store.groups.finish(job, "Hablamos del presupuesto.")
     clock["now"] += 10
     await step(worker, clock)
     document = worker.repository.document(owner, identity)

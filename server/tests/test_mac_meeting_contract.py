@@ -126,7 +126,7 @@ async def test_meetings_that_start_together_are_all_listed_across_pages(hub):
     recordings = sorted(str(uuid4()) for _ in range(3))
     for recording in recordings:
         put(store, owner["device_id"], recording, "mic_local", 0, started_at_ms=1_000_000)
-        store.finalize_recording(
+        store.recordings.finalize(
             owner["device_id"],
             recording,
             {

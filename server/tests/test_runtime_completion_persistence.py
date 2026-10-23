@@ -18,7 +18,9 @@ async def test_quota_failure_completes_turn_without_upstream_loss(isolated):
     runtime, session, turn, upstream = await streaming_turn(isolated)
     queue = runtime.subscribe()
     assert queue.get_nowait()["event"] == "state.snapshot"
-    runtime.store._quota = 1  # Admission ceiling: persisting the final message must fail.
+    runtime.store.space.quota_bytes = (
+        1  # Admission ceiling: persisting the final message must fail.
+    )
     await runtime.connections["default"].callback(
         {
             "type": "message.complete",
@@ -32,7 +34,7 @@ async def test_quota_failure_completes_turn_without_upstream_loss(isolated):
     assert completed["data"]["text"] == "final synthetic reply"
     assert completed["data"]["persisted"] is False
     assert completed["data"]["warning"] == "quota_exceeded"
-    status = runtime.store.session(runtime.device, session)["status"]
+    status = runtime.store.chat.session(runtime.device, session)["status"]
     assert status not in {"streaming", "outcome_unknown"}
     assert runtime.connections["default"].connected
     assert all(frame["data"].get("code") != "outcome_unknown" for frame in frames)
@@ -58,7 +60,7 @@ async def test_healthy_persistence_reports_persisted_true(environment):
     assert {"role": "assistant", "text": "respuesta sintética"} in said(
         runtime.store, owner, created["session_id"]
     )
-    assert runtime.store.session(owner, created["session_id"])["status"] == "completed"
+    assert runtime.store.chat.session(owner, created["session_id"])["status"] == "completed"
     await runtime.close()
 
 
@@ -78,5 +80,5 @@ async def test_non_object_payload_warns_and_keeps_connection(isolated, payload):
         for frame in frames
     )
     assert runtime.connections["default"].connected
-    assert runtime.store.session(runtime.device, session)["status"] == "streaming"
+    assert runtime.store.chat.session(runtime.device, session)["status"] == "streaming"
     await runtime.close()

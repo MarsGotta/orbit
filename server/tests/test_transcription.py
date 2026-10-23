@@ -27,13 +27,13 @@ def test_jobs_recover_and_transcript_is_immutable(environment):
     settings, store, _ = environment
     owner = device(store)["device_id"]
     chunk, recording = insert_job(store, owner)
-    job = store.claim_transcription(1000)
-    assert store.claim_transcription(1000) is None
+    job = store.groups.claim(1000)
+    assert store.groups.claim(1000) is None
     store.recover_interrupted()
-    recovered = store.claim_transcription(1001)
+    recovered = store.groups.claim(1001)
     assert recovered["chunk_id"] == chunk
-    store.finish_transcription(recovered, "SYNTHETIC-TRANSCRIPT-CANARY")
-    store.finish_transcription(recovered, "must not overwrite")
+    store.groups.finish(recovered, "SYNTHETIC-TRANSCRIPT-CANARY")
+    store.groups.finish(recovered, "must not overwrite")
     transcript = read_transcript(store, owner, recording)
     assert transcript.segments[0].text == "SYNTHETIC-TRANSCRIPT-CANARY"
     assert store.groups.capture(owner, recording)["capture_finalized"] is False
@@ -55,13 +55,13 @@ def test_failed_job_backoff_and_revocation(environment):
     _, store, _ = environment
     owner = device(store)["device_id"]
     insert_job(store, owner)
-    job = store.claim_transcription(1000)
-    store.fail_transcription(job, "transcription_failed", 1000)
-    assert store.claim_transcription(1001) is None
-    assert store.claim_transcription(1011)["attempts"] == 1
+    job = store.groups.claim(1000)
+    store.groups.fail(job, "transcription_failed", 1000)
+    assert store.groups.claim(1001) is None
+    assert store.groups.claim(1011)["attempts"] == 1
     store.recover_interrupted()
-    store.revoke(owner)
-    assert store.claim_transcription(2000) is None
+    store.devices.revoke(owner)
+    assert store.groups.claim(2000) is None
 
 
 async def test_interactive_has_priority_and_worker_stays_serial(environment):

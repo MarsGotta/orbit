@@ -41,8 +41,8 @@ PRIVATE_NOTES = "- preguntar por el presupuesto de diciembre"
 
 def transcribe_everything(store, text_by_track: dict[str, str], now: float = NOW + 30) -> None:
     """Seal and finish every group that is due at `now`, with a text per track."""
-    while job := store.claim_transcription(now):
-        store.finish_transcription(job, text_by_track[job["manifest"]["track"]])
+    while job := store.groups.claim(now):
+        store.groups.finish(job, text_by_track[job["manifest"]["track"]])
 
 
 def label_remote_groups(store, owner: str, recording: str, label: str) -> None:
@@ -433,13 +433,13 @@ def failed_meeting(store, owner, *, partial=False, pending=False):
         put(store, owner, identity, track, 0)
     finalize(store, owner, identity, 1, tracks=tracks)
     if partial:
-        job = store.claim_transcription(1000)
+        job = store.groups.claim(1000)
         assert job["manifest"]["track"] == "mic_local"
-        store.finish_transcription(job, "Texto completado de micrófono.")
+        store.groups.finish(job, "Texto completado de micrófono.")
     for now in (1000, 1010) if pending else (1000, 1010, 1030, 1070, 1150):
-        job = store.claim_transcription(now)
+        job = store.groups.claim(now)
         assert job is not None
-        store.fail_transcription(
+        store.groups.fail(
             job, "transcription_timeout_300000" if pending else "transcription_http_503", now
         )
     return identity

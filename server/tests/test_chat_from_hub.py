@@ -31,8 +31,8 @@ def transcribed_recording(store, owner, lines):
         put(store, owner, recording, track, 0, started_at_ms=STARTED_MS + offset_ms)
     store.groups.prepare(10**6)
     texts = {track: text for track, _, text in lines}
-    while job := store.claim_transcription(10**6):
-        store.finish_transcription(job, texts[job["manifest"]["track"]])
+    while job := store.groups.claim(10**6):
+        store.groups.finish(job, texts[job["manifest"]["track"]])
     return recording
 
 
@@ -73,7 +73,7 @@ async def test_a_meeting_question_keeps_the_question_and_sends_the_window(enviro
     assert "Título: «Comité»" in sent
     assert "[00:03:20] Otra persona: Aprobamos el gasto" in sent
     assert "Empezamos el comité" not in sent
-    page = store.session_messages(owner, receipt["session_id"], None, 50)
+    page = store.chat.session_messages(owner, receipt["session_id"], None, 50)
     question = page["messages"][0]
     assert question["role"] == "user"
     assert question["text"] == "¿Qué se ha decidido?\n\n[Durante «Comité» · últimos 2 min]"
@@ -160,7 +160,7 @@ async def test_new_rows_carry_their_time_kind_and_the_macs_id(environment):
         str(uuid4()),
     )
 
-    rows = store.session_messages(owner, session, None, 50)["messages"]
+    rows = store.chat.session_messages(owner, session, None, 50)["messages"]
     assert [(row["role"], row["kind"], row.get("client_id")) for row in rows] == [
         ("user", "text", typed),
         ("assistant", "text", None),
@@ -175,14 +175,14 @@ async def test_new_rows_carry_their_time_kind_and_the_macs_id(environment):
 def test_old_rows_read_without_time_and_as_text(environment):
     _, store, _ = environment
     owner = device(store)["device_id"]
-    session = store.create_session(owner, "default", "runtime", "stored", "epoch", 1000.0)
+    session = store.chat.create_session(owner, "default", "runtime", "stored", "epoch", 1000.0)
     with store.transaction() as db:
         db.execute(
             "INSERT INTO messages(session_id,role,body) VALUES (?,?,?)",
             (session, "user", store.encrypt(b"antes", f"message:{session}:user")),
         )
 
-    [row] = store.session_messages(owner, session, None, 50)["messages"]
+    [row] = store.chat.session_messages(owner, session, None, 50)["messages"]
     assert row["text"] == "antes"
     assert row["at_ms"] is None
     assert row["kind"] == "text"
@@ -191,12 +191,15 @@ def test_old_rows_read_without_time_and_as_text(environment):
 def test_the_messages_page_keeps_limit_bytes_and_next(environment):
     _, store, _ = environment
     owner = device(store)["device_id"]
-    headers = {"Authorization": "Bearer " + store.pair(store.create_code(1000), "P", 1001)["token"]}
-    owner = store.devices()[-1]["id"]
-    session = store.create_session(owner, "default", "runtime", "stored", "epoch", 1000.0)
+    headers = {
+        "Authorization": "Bearer "
+        + store.devices.pair(store.devices.create_code(1000), "P", 1001)["token"]
+    }
+    owner = store.devices.all()[-1]["id"]
+    session = store.chat.create_session(owner, "default", "runtime", "stored", "epoch", 1000.0)
     # Thirty messages of 30 000 characters weigh ~900 KB: more than one page.
     for index in range(30):
-        store.append_message(session, "user", f"{index:02d}" + "x" * 30_000, now_ms=index)
+        store.chat.append_message(session, "user", f"{index:02d}" + "x" * 30_000, now_ms=index)
 
     with client(environment) as http:
         small = http.get(f"/v1/sessions/{session}/messages?limit=3", headers=headers).json()
@@ -222,7 +225,7 @@ def test_the_messages_page_keeps_limit_bytes_and_next(environment):
 def test_another_devices_conversation_is_not_found(environment):
     _, store, _ = environment
     stranger = device(store, "Otra Mac")
-    session = store.create_session(
+    session = store.chat.create_session(
         stranger["device_id"], "default", "runtime", "stored", "epoch", 1000.0
     )
     owner = device(store, "Sample Mac")
@@ -239,10 +242,10 @@ def test_the_session_list_says_when_each_conversation_started_and_last_spoke(env
     _, store, _ = environment
     owner = device(store, "Sample Mac")
     headers = {"Authorization": "Bearer " + owner["token"]}
-    quiet = store.create_session(owner["device_id"], "default", "r1", "s1", "epoch", 1000.0)
-    busy = store.create_session(owner["device_id"], "default", "r2", "s2", "epoch", 2000.0)
-    store.append_message(busy, "user", "Hola", now_ms=2_500_000)
-    store.append_message(busy, "assistant", "Hola, Alina", now_ms=2_600_000)
+    quiet = store.chat.create_session(owner["device_id"], "default", "r1", "s1", "epoch", 1000.0)
+    busy = store.chat.create_session(owner["device_id"], "default", "r2", "s2", "epoch", 2000.0)
+    store.chat.append_message(busy, "user", "Hola", now_ms=2_500_000)
+    store.chat.append_message(busy, "assistant", "Hola, Alina", now_ms=2_600_000)
 
     with client(environment) as http:
         rows = http.get("/v1/sessions?before=", headers=headers).json()["sessions"]
@@ -361,12 +364,12 @@ def test_websocket_chat_rejections_are_logged_once_before_or_during_dispatch(env
     if cause == "invalid_request":
         frame["params"]["text"] = ["PRIVATE PARAMETER"]
     elif cause == "operation_conflict":
-        store.reserve_operation(owner["device_id"], request_id, {"different": True})
+        store.operations.reserve(owner["device_id"], request_id, {"different": True})
     elif cause == "invalid_id":
         frame["id"] = "not-a-uuid"
     else:
         other = device(store, "Otro Mac")
-        frame["params"]["session_id"] = store.create_session(
+        frame["params"]["session_id"] = store.chat.create_session(
             other["device_id"], "default", "runtime", "stored", "epoch", 1000
         )
     records = []

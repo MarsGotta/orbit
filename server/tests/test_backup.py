@@ -75,11 +75,11 @@ def a_store_with_a_meeting_and_a_conversation(data: Path, key: Path):
     its WAL not checkpointed, as the hub runs."""
     initialize(data, key)
     store = Store(data, key)
-    owner = store.pair(store.create_code(1000), "Mac de Irene Velasco", 1001)
-    session = store.create_session(owner["device_id"], "default", "rt", "st", "ep", 1002)
-    store.append_message(session, "user", "Preparar el acta de la Fundación Lumbre", now_ms=1)
+    owner = store.devices.pair(store.devices.create_code(1000), "Mac de Irene Velasco", 1001)
+    session = store.chat.create_session(owner["device_id"], "default", "rt", "st", "ep", 1002)
+    store.chat.append_message(session, "user", "Preparar el acta de la Fundación Lumbre", now_ms=1)
     body, recording = wav_fixture(), str(uuid4())
-    store.put_chunk(
+    store.recordings.put_chunk(
         owner["device_id"],
         f"{recording}-mic_local-0",
         recording,
@@ -110,7 +110,7 @@ def test_a_nightly_copy_restored_into_a_new_data_dir_opens_with_the_key_and_read
         )
         assert (code, err) == (0, ""), err
         # Written while the hub keeps going: a later write does not reach the copy.
-        store.append_message(session, "user", "Escrito después de la copia", now_ms=2)
+        store.chat.append_message(session, "user", "Escrito después de la copia", now_ms=2)
     finally:
         store.close()
     copies = sorted(path for path in destination.rglob("*") if path.is_file())
@@ -140,8 +140,8 @@ def test_a_nightly_copy_restored_into_a_new_data_dir_opens_with_the_key_and_read
     assert "opens with the configured key" in out
     reopened = Store(restored, kept)
     try:
-        assert reopened.authenticate(owner["token"]) == owner["device_id"]
-        page = reopened.session_messages(owner["device_id"], session, None, 10)
+        assert reopened.devices.authenticate(owner["token"]) == owner["device_id"]
+        page = reopened.chat.session_messages(owner["device_id"], session, None, 10)
         assert [message["text"] for message in page["messages"]] == [
             "Preparar el acta de la Fundación Lumbre"
         ]
@@ -304,7 +304,7 @@ def test_going_back_to_the_release_the_copy_came_from_puts_the_copy_back(tmp_pat
     # The new release starts, migrates and writes.
     migrate(data)
     store = Store(data, key)
-    store.append_message(session, "user", "Escrito con la versión nueva", now_ms=3)
+    store.chat.append_message(session, "user", "Escrito con la versión nueva", now_ms=3)
     store.close()
     assert backup.activation_plan(data, backups, "0.10.2") == "copy"
     assert backup.activation_plan(data, backups, "0.10.1") == "restore"
@@ -314,7 +314,7 @@ def test_going_back_to_the_release_the_copy_came_from_puts_the_copy_back(tmp_pat
     assert backup.activation_plan(data, backups, "0.10.1") == "keep"
     restored = Store(data, key)
     try:
-        page = restored.session_messages(owner["device_id"], session, None, 10)
+        page = restored.chat.session_messages(owner["device_id"], session, None, 10)
         assert [message["text"] for message in page["messages"]] == [
             "Preparar el acta de la Fundación Lumbre"
         ]
@@ -323,7 +323,7 @@ def test_going_back_to_the_release_the_copy_came_from_puts_the_copy_back(tmp_pat
     # What the newer release wrote is set aside, not lost.
     kept = Store(aside, key)
     try:
-        page = kept.session_messages(owner["device_id"], session, None, 10)
+        page = kept.chat.session_messages(owner["device_id"], session, None, 10)
         assert page["messages"][-1]["text"] == "Escrito con la versión nueva"
     finally:
         kept.close()

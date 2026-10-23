@@ -24,7 +24,7 @@ def mount(
         body = await bounded_body(request, settings.max_audio_bytes, "audio")
         validate_wav(body)
         text = await transcriptions.transcribe(device, body)
-        if not store.is_active(device):
+        if not store.devices.is_active(device):
             raise HubError("revoked", "Dispositivo revocado")
         turn_inputs.mark_transcribed(device, text)
         return {"text": text}
@@ -58,7 +58,7 @@ def mount(
             except HubError as fallback:
                 unvoiced = fallback.code == "speech_not_configured"
                 raise (refusal if unvoiced else fallback) from None
-        if not store.is_active(device):
+        if not store.devices.is_active(device):
             raise HubError("revoked", "Dispositivo revocado")
         return Response(
             content=audio.body,

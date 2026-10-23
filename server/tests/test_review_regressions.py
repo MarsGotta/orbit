@@ -37,7 +37,7 @@ async def test_f1_terminal_error_without_complete_releases_session(reviewed, mes
     failed = queue.get_nowait()
     assert failed["event"] == "error" and failed["id"] == turn
     assert failed["data"]["code"] == "upstream_turn_failed"
-    assert runtime.store.session(runtime.device, session)["status"] == "failed"
+    assert runtime.store.chat.session(runtime.device, session)["status"] == "failed"
     await runtime.handle(
         "chat.send", SendParams(text="next explicit message", session_id=session), str(uuid4())
     )
@@ -60,7 +60,7 @@ async def test_f1_ambiguous_error_is_reconciled_not_blindly_terminal(reviewed, r
         }
     )
     await asyncio.gather(*list(runtime.reconciliations.values()))
-    assert runtime.store.session(runtime.device, session)["status"] == (
+    assert runtime.store.chat.session(runtime.device, session)["status"] == (
         "streaming" if running else "failed"
     )
     assert runtime.connections["default"].calls[-1][0] == "session.status"
@@ -177,7 +177,7 @@ def test_f4_quota_blocks_content_but_not_bound_interrupt_or_deny(reviewed):
         connection = adapter.connections[0]
         pending(http, connection)
         assert receive_event(ws)["event"] == "approval.required"
-        store._quota = 1  # Admission ceiling, never physical disk exhaustion.
+        store.space.quota_bytes = 1  # Admission ceiling, never physical disk exhaustion.
         interrupt = {
             "v": 1,
             "id": str(uuid4()),
@@ -240,7 +240,7 @@ def test_f4_more_than_128_resolved_denials_do_not_consume_interrupt_capacity(rev
         assert receive_event(ws)["event"] == "ready"
         session, turn = submit(ws)
         connection = adapter.connections[0]
-        store._quota = 1
+        store.space.quota_bytes = 1
         for index in range(140):
             request = f"fixture-{index}"
             pending(http, connection, request)

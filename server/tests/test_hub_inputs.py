@@ -51,7 +51,7 @@ async def test_malformed_hermes_interaction_preserves_live_reader_and_snapshots(
         {"type": kind, "session_id": upstream, "payload": payload}
     )
     assert runtime.connections["default"].live_sessions == {upstream}
-    assert runtime.store.session(runtime.device, session)["status"] == "streaming"
+    assert runtime.store.chat.session(runtime.device, session)["status"] == "streaming"
     assert runtime.subscribe().get_nowait()["event"] == "state.snapshot"
     await runtime.changed()
     assert queue.get_nowait()["event"] == (

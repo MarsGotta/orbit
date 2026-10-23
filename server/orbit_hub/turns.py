@@ -28,6 +28,13 @@ a final result while an interruption request is in flight. ``completed`` and
 ``failed`` return to ``idle``: only then can a new submit start. An
 ``interrupting`` turn that hears nothing from Hermes for
 ``INTERRUPT_DEADLINE_SECONDS`` seconds becomes ``outcome_unknown``.
+
+An ``outcome_unknown`` that the running hub never recorded was left by an
+earlier run (a restart in the middle of the turn, `storage.Store.
+recover_interrupted`): nothing can reconcile it any more, because the turn's
+identity lived in the stopped process. That turn was cut. It is never resent,
+but its conversation takes a new message, whose turn is told the previous
+answer was cut (``runtime.send``).
 """
 
 from enum import Enum

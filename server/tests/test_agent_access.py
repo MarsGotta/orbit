@@ -325,8 +325,8 @@ async def test_an_agent_reads_the_files_of_its_own_conversations_only(bridged_ag
     app, store = bridged_agents
     owner = device(store)
     attachment = store.attachments.put(owner["device_id"], "ruta.txt", b"Lago y ermita.\n", 1)
-    session = store.create_session(owner["device_id"], "vega", "rt", "st", "ep", 1.0)
-    store.append_message(session, "user", "Mira", now_ms=1, attachments=[attachment["id"]])
+    session = store.chat.create_session(owner["device_id"], "vega", "rt", "st", "ep", 1.0)
+    store.chat.append_message(session, "user", "Mira", now_ms=1, attachments=[attachment["id"]])
     vega, default, unknown = await post(
         app,
         signed_attachment_read(owner, attachment["id"], "vega"),

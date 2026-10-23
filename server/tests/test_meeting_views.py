@@ -102,11 +102,11 @@ def meeting(
             manifest["kind"] = kind
         if event is not None:
             manifest["event"] = event
-        store.finalize_recording(owner, identity, manifest)
+        store.recordings.finalize(owner, identity, manifest)
     pending = {track: list(values) for track, values in texts.items()}
-    while job := store.claim_transcription(1000):
+    while job := store.groups.claim(1000):
         track = job["manifest"]["track"]
-        store.finish_transcription(job, pending[track].pop(0), language=language)
+        store.groups.finish(job, pending[track].pop(0), language=language)
     return identity
 
 
@@ -588,7 +588,7 @@ async def test_the_listing_pages_newest_first_and_continues_before_the_last(hub)
     for minutes in range(3):
         identity = str(uuid4())
         put(store, paired["device_id"], identity, "mic_local", 0, started_at_ms=STARTED)
-        store.finalize_recording(
+        store.recordings.finalize(
             paired["device_id"],
             identity,
             {

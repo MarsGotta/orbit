@@ -32,7 +32,7 @@ def test_fixtures_use_the_registered_hub_protocol():
 
 
 def test_request_fixture_inventory_matches_hub_consumer():
-    from orbit_hub.ws import METHODS
+    from orbit_hub.ws_frames import METHODS
 
     assert set(METHODS) == REQUESTS
     assert names(ROOT / "requests") == REQUESTS

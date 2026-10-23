@@ -39,14 +39,14 @@ async def test_an_expired_interrupt_blocks_resend_without_replacing_the_turn(ref
                 "chat.send", SendParams(text="before deadline", session_id=session), str(uuid4())
             )
         assert busy.value.code == "session_busy"
-        assert store.session(owner, session)["status"] == "interrupting"
+        assert store.chat.session(owner, session)["status"] == "interrupting"
         now[0] = 1031.0
         with pytest.raises(HubError) as expired:
             await runtime.handle(
                 "chat.send", SendParams(text="at deadline", session_id=session), str(uuid4())
             )
         assert expired.value.code == "turn_outcome_unknown"
-        assert store.session(owner, session)["status"] == "outcome_unknown"
+        assert store.chat.session(owner, session)["status"] == "outcome_unknown"
         assert runtime.turn_ids[session] == turn
         assert [method for method, _ in runtime.connections["default"].calls] == [
             "prompt.submit",
@@ -91,7 +91,7 @@ async def test_unconfirmed_submit_marks_outcome_unknown_and_blocks_resend(unconf
         "session_id"
     ]
     upstream = next(iter(runtime.bindings))[1]
-    assert store.session(owner, session)["status"] == "outcome_unknown"
+    assert store.chat.session(owner, session)["status"] == "outcome_unknown"
     with pytest.raises(HubError) as error:
         await runtime.handle(
             "chat.send",
@@ -168,12 +168,12 @@ async def test_submitting_interrupt_never_returns_to_streaming(held):
         await runtime.handle(
             "chat.interrupt", InterruptParams(session_id=session, turn_id=turn), str(uuid4())
         )
-        assert store.session(owner, session)["status"] == "interrupting"
+        assert store.chat.session(owner, session)["status"] == "interrupting"
 
         connection.release_submit.set()
         name, data = await asyncio.wait_for(send, 2)
         assert name == "chat.session"
-        assert store.session(owner, session)["status"] == "interrupting"
+        assert store.chat.session(owner, session)["status"] == "interrupting"
         # The submit RPC reply must not claim the turn streamed when the
         # persisted state says the interrupt already owns it.
         assert data["status"] == "interrupting"

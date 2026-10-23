@@ -12,15 +12,26 @@ from orbit_hub.runtime import DeviceRuntime
 from orbit_hub.transcription import TranscriptionWorker
 
 
-class FlakyClaimStore:
+class FlakyClaims:
+    """The store's transcription groups, whose claim crashes `crashes` times."""
+
     def __init__(self, inner, crashes):
         self._inner, self._crashes = inner, crashes
 
-    def claim_transcription(self, now):
+    def claim(self, now):
         if self._crashes[0] > 0:
             self._crashes[0] -= 1
             raise RuntimeError("fixture claim crash")
-        return self._inner.claim_transcription(now)
+        return self._inner.claim(now)
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+
+class FlakyClaimStore:
+    def __init__(self, inner, crashes):
+        self._inner = inner
+        self.groups = FlakyClaims(inner.groups, crashes)
 
     def __getattr__(self, name):
         return getattr(self._inner, name)
@@ -90,7 +101,7 @@ def test_enforce_revocations_crash_relaunches_and_later_revocation_applies(
         while crashes[0] and time.monotonic() < crash_deadline:
             time.sleep(0.02)
         assert crashes[0] == 0, "enforce_revocations never reached the crashing pass"
-        store.revoke(paired["device_id"])
+        store.devices.revoke(paired["device_id"])
         connection = adapter.connections[0]
         deadline = time.monotonic() + 5
         while connection.connected and time.monotonic() < deadline:

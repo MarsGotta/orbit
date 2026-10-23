@@ -1,53 +1,49 @@
-"""Authenticated device WebSocket and method dispatch."""
+"""The authenticated device WebSocket: `/v1/ws`.
+
+Composition only. The socket is accepted and its frames are read here
+(`ws_reader`), answered in lanes (`ws_dispatch`) and a Mac's answers to the
+assistants' questions routed (`ws_replies`); the frames the runtime queues for
+the device are written by `outgoing`.
+"""
 
 import asyncio
-import json
+from collections.abc import Callable
 from contextlib import suppress
-from enum import Enum
+from dataclasses import dataclass
 
-from fastapi import WebSocket, WebSocketDisconnect
-from pydantic import ValidationError
-from uvicorn.protocols.utils import ClientDisconnected
+from fastapi import WebSocket
 
-from . import safety
 from .attachments import limits as attachment_limits
-from .errors import HubError, render
-from .log import bind_op, current_op, report
-from .protocol import HUB_PROTOCOL, PARAMETERS, DeviceReplyParams, Frame, emit
-from .storage import is_storage_full
-from .turns import TurnState, can_start_turn
+from .errors import HubError
+from .log import report
+from .protocol import HUB_PROTOCOL, emit
+from .ws_frames import DISCONNECTED, MAX_DEVICE_VERSION_LENGTH, Socket
+from .ws_reader import read_frames
+
+# Four connections per device: the Mac keeps one, and a reconnection can open
+# the next before the hub has seen the last one end (a send waits up to 10 s).
+# Each costs a queue of up to 256 frames (runtime.subscribe). It protects the
+# hub from one device opening sockets without end; why four, and not two, was
+# not measured. It does not limit devices, turns or requests over HTTP.
+MAX_SOCKETS_PER_DEVICE = 4
+# How long one frame may take to reach the Mac before its slot is freed.
+SEND_TIMEOUT_SECONDS = 10
 
 
-class MethodRoute(Enum):
-    DEVICE_REPLY = "device_reply"
-    RUNTIME = "runtime"
-    SUBMIT_LANE = "submit_lane"
+@dataclass(frozen=True)
+class Services:
+    """What every socket of the hub uses."""
 
-
-METHODS = {
-    "chat.send": MethodRoute.SUBMIT_LANE,
-    "chat.interrupt": MethodRoute.RUNTIME,
-    "approval.respond": MethodRoute.RUNTIME,
-    "clarify.respond": MethodRoute.RUNTIME,
-    "ping": MethodRoute.RUNTIME,
-    "device.reply": MethodRoute.DEVICE_REPLY,
-}
-
-# How a socket ends when the Mac goes away, not a failure to report: Starlette
-# says so once accepted, uvicorn's own error says so before.
-DISCONNECTED = (WebSocketDisconnect, ClientDisconnected)
-
-# A version label is display metadata, not a frame or capture limit. The
-# published "0.3.12" is 6 characters; 128 leaves room for a long build suffix
-# while bounding each label retained per device and echoed in ready events.
-MAX_DEVICE_VERSION_LENGTH = 128
-
-
-def error_event(code, message, request_id, *, status=None, numbers=None):
-    payload = {"op": current_op()}
-    if status is not None:
-        payload["status"] = status
-    return emit("error", render(code, message, payload=payload, numbers=numbers), request_id)
+    settings: object
+    agents: object
+    identity: Callable
+    allowed_transport: Callable
+    runtime_for: Callable
+    store: object
+    now: Callable[[], float]
+    bridge: object
+    bridge_waiters: dict
+    hub_version: Callable[[], str]
 
 
 def mount(
@@ -63,419 +59,175 @@ def mount(
     bridge_waiters,
     hub_version,
 ):
+    services = Services(
+        settings,
+        agents,
+        identity,
+        allowed_transport,
+        runtime_for,
+        store,
+        now,
+        bridge,
+        bridge_waiters,
+        hub_version,
+    )
+
     @app.websocket("/v1/ws")
     async def websocket(ws: WebSocket):
         # The socket's share of the global handler. A frame's failures are
-        # answered in `incoming`; this catches what is left of the connection.
+        # answered in the reader; this catches what is left of the connection.
         try:
-            await serve(ws)
+            socket = await accept(services, ws)
+            if socket is not None:
+                await serve(services, socket)
         except DISCONNECTED:
             return
         except Exception:  # noqa: BLE001 - never expose secret-bearing exceptions
             report("internal_error", "internal_error", route="/v1/ws")
 
-    async def serve(ws: WebSocket):
-        try:
-            if not allowed_transport(ws.scope, settings) or ws.headers.get("origin"):
-                await ws.close(code=4403)
-                return
-            device = identity(ws)
-        except HubError:
-            await ws.close(code=4401)
-            return
-        await ws.accept()
-        runtime = runtime_for(device)
-        device_version = ws.headers.get("x-orbit-device-version")
-        if device_version is not None and len(device_version) > MAX_DEVICE_VERSION_LENGTH:
-            report(
-                event="device_version_ignored",
-                code="device_version_too_long",
-                device=device,
-                exc_info=False,
-            )
-            device_version = None
-        # Four connections per device: the Mac keeps one, and a reconnection
-        # can open the next before the hub has seen the last one end (a send
-        # waits up to 10 s). Each costs a queue of up to 256 frames
-        # (runtime.subscribe). It protects the hub from one device opening
-        # sockets without end; why four, and not two, was not measured. It does
-        # not limit devices, turns or requests over HTTP.
-        if len(runtime.listeners) >= 4:
-            await ws.close(code=4429)
-            return
-        queue = runtime.subscribe()
-        store.mark_device_seen(device, now())
-        # Submit lanes outlive the viewer that opened them: their receipts are
-        # durable and their prompts must not be cancelled mid-flight.
-        in_flight: set[asyncio.Task] = set()
+    return websocket
 
-        async def outgoing():
-            await _send_or_evict(
-                emit(
-                    "ready",
-                    {
-                        "device_id": device,
-                        "hub_protocol": HUB_PROTOCOL,
-                        "hub_version": hub_version(),
-                        # The primary's, for Macs from before agents (0.9.0),
-                        # whose turns name none and so go to it.
-                        "assistant_name": agents.by_id[agents.primary_id].name,
-                        # `agents`, `default_agent_id` (the primary) and
-                        # `addable_agents`, as `agents.changed` repeats them.
-                        **agents.listing(),
-                        # Absent from a 0.9.0 hub, which has no attachments:
-                        # the Mac offers none to it (contracts/hub-v1.md).
-                        "attachments": attachment_limits(),
-                        "device_version": device_version,
-                        # Absent from a 0.10.1 hub: what the hub's storage
-                        # uses, its limit and what is left (contracts/hub-v1.md).
-                        "storage": store.storage_status(),
+
+async def accept(services: Services, ws: WebSocket) -> Socket | None:
+    """The authenticated device's socket, or None when it was refused and closed."""
+    try:
+        if not services.allowed_transport(ws.scope, services.settings) or ws.headers.get("origin"):
+            await ws.close(code=4403)
+            return None
+        device = services.identity(ws)
+    except HubError:
+        await ws.close(code=4401)
+        return None
+    await ws.accept()
+    runtime = services.runtime_for(device)
+    version = device_version(ws, device)
+    if len(runtime.listeners) >= MAX_SOCKETS_PER_DEVICE:
+        await ws.close(code=4429)
+        return None
+    queue = runtime.subscribe()
+    services.store.devices.mark_seen(device, services.now())
+    return Socket(
+        ws,
+        device,
+        version,
+        runtime,
+        queue,
+        services.store,
+        services.settings,
+        services.bridge,
+        services.bridge_waiters,
+    )
+
+
+def ready(services: Services, socket: Socket) -> dict:
+    agents = services.agents
+    return emit(
+        "ready",
+        {
+            "device_id": socket.device,
+            "hub_protocol": HUB_PROTOCOL,
+            "hub_version": services.hub_version(),
+            # The primary's, for Macs from before agents (0.9.0), whose turns
+            # name none and so go to it.
+            "assistant_name": agents.by_id[agents.primary_id].name,
+            # `agents`, `default_agent_id` (the primary) and `addable_agents`,
+            # as `agents.changed` repeats them.
+            **agents.listing(),
+            # Absent from a 0.9.0 hub, which has no attachments: the Mac
+            # offers none to it (contracts/hub-v1.md).
+            "attachments": attachment_limits(),
+            "device_version": socket.device_version,
+            # Absent from a 0.10.1 hub: what the hub's storage uses, its limit
+            # and what is left (contracts/hub-v1.md).
+            "storage": services.store.space.status(),
+        },
+    )
+
+
+async def serve(services: Services, socket: Socket) -> None:
+    tasks = [
+        asyncio.create_task(read_frames(socket)),
+        asyncio.create_task(outgoing(socket, ready(services, socket))),
+    ]
+    try:
+        with suppress(asyncio.CancelledError):
+            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        socket.runtime.listeners.discard(socket.queue)
+        services.store.devices.mark_seen(socket.device, services.now())
+        if not socket.runtime.listeners:
+            abandon(socket)
+        await finish(socket, tasks)
+
+
+def abandon(socket: Socket) -> None:
+    """The Mac is gone. Its outstanding questions will never be answered, and
+    letting them survive a reconnection would deliver a reply about a screen
+    from before the gap."""
+    for abandoned in socket.bridge.abandon(socket.device):
+        waiter = socket.bridge_waiters.pop(abandoned.request_id, None)
+        if waiter is not None and not waiter.done():
+            waiter.set_result(
+                {
+                    "refusal": {
+                        "code": "mac_disconnected",
+                        "last_seen_ms": None,
+                        "retry": {"kind": "check_outcome"},
                     },
-                )
-            )
-            while True:
-                frame = await queue.get()
-                if frame is None:
-                    await ws.close(code=4408)
-                    return
-                await _send_or_evict(frame)
-                if frame["event"] == "revoked":
-                    await ws.close(code=4403)
-                    return
-
-        async def _send_or_evict(frame: dict) -> None:
-            """Send one frame with a 10s deadline; on timeout free the slot."""
-            try:
-                await asyncio.wait_for(ws.send_json(frame), timeout=10)
-            except TimeoutError:
-                # A client that stops reading from the socket would hold its
-                # slot forever. Free the slot and log the eviction; message
-                # bodies never appear in the log line.
-                report(
-                    event="slow_client_evicted",
-                    code="slow_client_evicted",
-                    device=device,
-                )
-                await ws.close(code=4429)
-                raise
-
-        async def incoming():
-            while True:
-                raw = await ws.receive_text()
-                request_id = None
-                frame = None
-                # A frame that does not parse still gets an op for its error.
-                bind_op(None)
-                try:
-                    frame_bytes = len(raw.encode())
-                    if frame_bytes > settings.max_frame_bytes:
-                        raise HubError(
-                            "too_large",
-                            "Mensaje demasiado grande",
-                            numbers={
-                                "resource": "message",
-                                "bytes": frame_bytes,
-                                "max_bytes": settings.max_frame_bytes,
-                            },
-                        )
-                    frame = Frame.model_validate_json(raw)
-                    bind_op(frame.op if frame.op is not None else frame.id)
-                    request_id = frame.uuid()
-                    if not store.is_active(device):
-                        raise HubError("revoked", "Dispositivo revocado")
-                    if METHODS[frame.method] is MethodRoute.DEVICE_REPLY:
-                        # Answered straight through: there is no upstream turn
-                        # to reserve, and an answer this device was never asked
-                        # for is dropped rather than delivered to whoever
-                        # happens to be waiting on that id.
-                        raw_id = frame.params.get("request_id")
-                        if not isinstance(raw_id, str) or not 1 <= len(raw_id) <= 160:
-                            report(
-                                event="device_reply_invalid",
-                                code="invalid_request",
-                                device=device,
-                                field="request_id",
-                                exc_info=False,
-                            )
-                            queue.put_nowait(
-                                error_event(
-                                    "invalid_request",
-                                    "El campo request_id debe ser texto de 1 a 160 caracteres.",
-                                    request_id,
-                                    numbers={
-                                        "field": "request_id",
-                                        "expected": "texto de 1 a 160 caracteres",
-                                    },
-                                )
-                            )
-                            continue
-                        try:
-                            DeviceReplyParams.model_validate(frame.params)
-                        except ValidationError:
-                            claimed = bridge.resolve(raw_id, device)
-                            waiter = (
-                                bridge_waiters.pop(raw_id, None) if claimed is not None else None
-                            )
-                            if waiter is not None and not waiter.done():
-                                waiter.set_result(
-                                    {
-                                        "refusal": {
-                                            "code": "device_reply_invalid",
-                                            "field": "device.reply",
-                                            "expected": "un resultado o una negativa tipada",
-                                            "retry": {
-                                                "kind": "check_outcome"
-                                                if claimed.capability == "perform_action"
-                                                else "after_fix"
-                                            },
-                                        },
-                                        "device_version": device_version,
-                                    }
-                                )
-                            queue.put_nowait(
-                                error_event(
-                                    "invalid_request",
-                                    "La respuesta del Mac no cumple el sobre device.reply.",
-                                    request_id,
-                                    numbers={
-                                        "field": "device.reply",
-                                        "expected": "un resultado o una negativa tipada",
-                                    },
-                                )
-                            )
-                            continue
-                        claimed = bridge.resolve(raw_id, device)
-                        if claimed is None:
-                            continue
-                        waiter = bridge_waiters.pop(raw_id, None)
-                        if waiter is not None and not waiter.done():
-                            waiter.set_result({**frame.params, "device_version": device_version})
-                        continue
-                    params = PARAMETERS[frame.method].model_validate(frame.params)
-                    mutating = frame.method != "ping"
-                    safe_control = frame.method == "chat.interrupt" or (
-                        frame.method == "approval.respond" and not params.approved
-                    )
-                    safety_target = None
-                    if safe_control:
-                        if not params.turn_id:
-                            raise HubError(
-                                "turn_id_required",
-                                "El control requiere la identidad del turno original",
-                            )
-                        safety_target = safety.target_key(
-                            frame.method,
-                            params.session_id,
-                            params.turn_id,
-                            getattr(params, "request_id", ""),
-                        )
-                        live_targets = {
-                            safety.target_key("chat.interrupt", session, turn)
-                            for session, turn in runtime.turn_ids.items()
-                            if not can_start_turn(
-                                TurnState(store.session(device, session)["status"])
-                            )
-                        }
-                        live_targets.update(
-                            safety.target_key(
-                                "approval.respond", owner, runtime.turn_ids[owner], interaction
-                            )
-                            for interaction, (owner, kind, _) in runtime.pending.items()
-                            if kind == "approval" and owner in runtime.turn_ids
-                        )
-                        cached = safety.reserve(
-                            store,
-                            device,
-                            request_id,
-                            frame.model_dump(exclude={"op"}),
-                            target=safety_target,
-                            session_id=params.session_id,
-                            turn_id=params.turn_id,
-                            live_targets=live_targets,
-                            validate=lambda method=frame.method, parameters=params: (
-                                runtime.safety_target(method, parameters)
-                            ),
-                        )
-                        if cached is not None:
-                            queue.put_nowait(cached)
-                            continue
-                    elif mutating:
-                        cached = store.reserve_operation(
-                            device, request_id, frame.model_dump(exclude={"op"})
-                        )
-                        if cached is not None:
-                            queue.put_nowait(cached)
-                            continue
-
-                    async def dispatch(
-                        frame=frame,
-                        params=params,
-                        request_id=request_id,
-                        safe_control=safe_control,
-                        mutating=mutating,
-                        safety_target=safety_target,
-                    ) -> None:
-                        """Answer one request frame with the reader loop's error contract."""
-                        try:
-                            try:
-                                name, data = await runtime.handle(frame.method, params, request_id)
-                                response = emit(name, data, request_id)
-                            except HubError as exc:
-                                if not safe_control:
-                                    release(frame.method, request_id)
-                                    raise
-                                response = error_event(
-                                    exc.code,
-                                    str(exc),
-                                    request_id,
-                                    status="error",
-                                    numbers=exc.numbers,
-                                )
-                            except Exception:
-                                if not safe_control:
-                                    release(frame.method, request_id)
-                                    raise
-                                report(
-                                    event="outcome_unknown",
-                                    code="outcome_unknown",
-                                    device=device,
-                                    session=request_id,
-                                )
-                                response = error_event(
-                                    "outcome_unknown",
-                                    "No se pudo completar el control; no se repetirá",
-                                    request_id,
-                                    status="error",
-                                )
-                            if safe_control:
-                                safety.finish(store, device, safety_target, response)
-                            elif mutating:
-                                store.finish_operation(device, request_id, response)
-                        except HubError as exc:
-                            deliver(
-                                error_event(exc.code, str(exc), request_id, numbers=exc.numbers)
-                            )
-                            return
-                        except Exception as failure:  # noqa: BLE001 - never expose secret-bearing exceptions
-                            deliver(failed(failure, request_id))
-                            return
-                        finally:
-                            runtime.forget_commit(request_id)
-                        deliver(response)
-                        # `chat.interrupt` is here for its refusals: a rejected or
-                        # outcome-unknown interrupt changes no state, so `changed()`
-                        # never fires, and without a fresh snapshot the daemon keeps
-                        # discarding the turn it already hid.
-                        if frame.method in {
-                            "approval.respond",
-                            "clarify.respond",
-                            "chat.interrupt",
-                        }:
-                            await runtime.publish(emit("state.snapshot", runtime.snapshot()))
-
-                    def release(method: str, request_id=request_id) -> None:
-                        """A message refused before the hub kept or sent anything
-                        gives its id back, so the Mac can send it again."""
-                        if method != "chat.send" or runtime.committed(request_id):
-                            return
-                        try:
-                            store.release_operation(device, request_id)
-                        except Exception as failure:  # noqa: BLE001 - the refusal still goes out
-                            report(
-                                event="operation_release_failed",
-                                code="storage_full"
-                                if is_storage_full(failure)
-                                else "operation_release_failed",
-                                device=device,
-                                session=request_id,
-                            )
-
-                    def deliver(response: dict, request_id=request_id) -> None:
-                        try:
-                            queue.put_nowait(response)
-                        except asyncio.QueueFull:
-                            # A viewer that stopped reading must not lose the
-                            # durable receipt by taking the lane down with it.
-                            report(
-                                event="slow_client_evicted",
-                                code="slow_client_evicted",
-                                device=device,
-                                session=request_id,
-                                exc_info=False,
-                            )
-
-                    if METHODS[frame.method] is MethodRoute.SUBMIT_LANE:
-                        # prompt.submit runs in its own lane so controls and
-                        # pings are answered while Hermes has not acknowledged.
-                        # The lane is never cancelled: its receipt is durable and
-                        # a submit that may have reached Hermes is not retried.
-                        lane = asyncio.create_task(dispatch())
-                        in_flight.add(lane)
-                        lane.add_done_callback(in_flight.discard)
-                    else:
-                        await dispatch()
-                except (ValidationError, ValueError, json.JSONDecodeError):
-                    if frame is not None and frame.method == "chat.send":
-                        runtime.log_chat_rejection("invalid_request")
-                    queue.put_nowait(
-                        error_event("invalid_request", "Mensaje fuera de contrato", request_id)
-                    )
-                except HubError as exc:
-                    if frame is not None and frame.method == "chat.send":
-                        runtime.log_chat_rejection(exc.code, exc.numbers)
-                    queue.put_nowait(
-                        error_event(exc.code, str(exc), request_id, numbers=exc.numbers)
-                    )
-                except Exception as failure:  # noqa: BLE001 - never expose secret-bearing upstream exceptions
-                    response = failed(failure, request_id)
-                    if frame is not None and frame.method == "chat.send":
-                        runtime.log_chat_rejection(response["data"]["code"])
-                    queue.put_nowait(response)
-
-        def failed(failure: Exception, request_id) -> dict:
-            """The error for a failure no refusal named: the full disk with its
-            numbers, or the generic one. Reported either way, never its text."""
-            if is_storage_full(failure):
-                full = store.storage_full()
-                report(event="storage_full", code="storage_full", device=device, session=request_id)
-                return error_event(full.code, full.message, request_id, numbers=full.numbers)
-            report(event="internal_error", code="internal_error", device=device, session=request_id)
-            return error_event(
-                "internal_error", "No se pudo completar la operación; no se repetirá", request_id
+                    "device_version": socket.device_version,
+                }
             )
 
-        tasks = [asyncio.create_task(fn()) for fn in (incoming, outgoing)]
-        try:
-            with suppress(asyncio.CancelledError):
-                await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        finally:
-            runtime.listeners.discard(queue)
-            store.mark_device_seen(device, now())
-            if not runtime.listeners:
-                # The Mac is gone. Its outstanding questions will never be
-                # answered, and letting them survive a reconnection would
-                # deliver a reply about a screen from before the gap.
-                for abandoned in bridge.abandon(device):
-                    waiter = bridge_waiters.pop(abandoned.request_id, None)
-                    if waiter is not None and not waiter.done():
-                        waiter.set_result(
-                            {
-                                "refusal": {
-                                    "code": "mac_disconnected",
-                                    "last_seen_ms": None,
-                                    "retry": {"kind": "check_outcome"},
-                                },
-                                "device_version": device_version,
-                            }
-                        )
-            for task in tasks:
-                task.cancel()
-            with suppress(asyncio.CancelledError):
-                await asyncio.gather(*tasks, return_exceptions=True)
-            for task in tasks:
-                if task.cancelled():
-                    continue
-                failure = task.exception()
-                if failure is not None and not isinstance(failure, (*DISCONNECTED, TimeoutError)):
-                    # TimeoutError is the eviction `_send_or_evict` already reported.
-                    report("websocket_task_failed", "internal_error", device=device, exc=failure)
+
+def device_version(ws: WebSocket, device: str) -> str | None:
+    version = ws.headers.get("x-orbit-device-version")
+    if version is not None and len(version) > MAX_DEVICE_VERSION_LENGTH:
+        report(
+            event="device_version_ignored",
+            code="device_version_too_long",
+            device=device,
+            exc_info=False,
+        )
+        return None
+    return version
+
+
+async def outgoing(socket: Socket, ready: dict) -> None:
+    await send_or_evict(socket, ready)
+    while True:
+        frame = await socket.queue.get()
+        if frame is None:
+            await socket.ws.close(code=4408)
+            return
+        await send_or_evict(socket, frame)
+        if frame["event"] == "revoked":
+            await socket.ws.close(code=4403)
+            return
+
+
+async def send_or_evict(socket: Socket, frame: dict) -> None:
+    """Send one frame with a deadline; on timeout free the slot."""
+    try:
+        await asyncio.wait_for(socket.ws.send_json(frame), timeout=SEND_TIMEOUT_SECONDS)
+    except TimeoutError:
+        # A client that stops reading from the socket would hold its slot
+        # forever. Free the slot and log the eviction; message bodies never
+        # appear in the log line.
+        report(event="slow_client_evicted", code="slow_client_evicted", device=socket.device)
+        await socket.ws.close(code=4429)
+        raise
+
+
+async def finish(socket: Socket, tasks: list[asyncio.Task]) -> None:
+    """Stop the socket's reader and writer; the lanes they started go on."""
+    for task in tasks:
+        task.cancel()
+    with suppress(asyncio.CancelledError):
+        await asyncio.gather(*tasks, return_exceptions=True)
+    for task in tasks:
+        if task.cancelled():
+            continue
+        failure = task.exception()
+        if failure is not None and not isinstance(failure, (*DISCONNECTED, TimeoutError)):
+            # TimeoutError is the eviction `send_or_evict` already reported.
+            report("websocket_task_failed", "internal_error", device=socket.device, exc=failure)

@@ -14,7 +14,7 @@ def recording_fixture(store, owner):
     body = wav_fixture()
     for track in ("mic_local", "remote_app"):
         chunk = recording + "-" + track + "-0"
-        store.put_chunk(
+        store.recordings.put_chunk(
             owner,
             chunk,
             recording,
@@ -45,9 +45,9 @@ def test_finalize_checks_receipts_and_prevents_late_chunks(environment):
         "tracks": [{**manifest["tracks"][0], "total_frames": 999}, manifest["tracks"][1]],
     }
     with pytest.raises(HubError) as error:
-        store.finalize_recording(owner, recording, bad)
+        store.recordings.finalize(owner, recording, bad)
     assert error.value.code == "manifest_mismatch"
-    receipt = store.finalize_recording(owner, recording, manifest)
+    receipt = store.recordings.finalize(owner, recording, manifest)
     assert receipt == {
         "recording_id": recording,
         "finalized": True,
@@ -55,13 +55,13 @@ def test_finalize_checks_receipts_and_prevents_late_chunks(environment):
         "capture_complete": True,
         "transcript_ready": False,
     }
-    assert store.finalize_recording(owner, recording, manifest) == receipt
+    assert store.recordings.finalize(owner, recording, manifest) == receipt
     with pytest.raises(HubError) as error:
-        store.finalize_recording(owner, recording, {**manifest, "gaps": 1})
+        store.recordings.finalize(owner, recording, {**manifest, "gaps": 1})
     assert error.value.code == "manifest_conflict"
     body = wav_fixture()
     with pytest.raises(HubError) as error:
-        store.put_chunk(
+        store.recordings.put_chunk(
             owner,
             str(uuid4()),
             recording,
@@ -72,8 +72,8 @@ def test_finalize_checks_receipts_and_prevents_late_chunks(environment):
             {"frames": 160},
         )
     assert error.value.code == "recording_finalized"
-    while job := store.claim_transcription(3000):
-        store.finish_transcription(job, "synthetic")
+    while job := store.groups.claim(3000):
+        store.groups.finish(job, "synthetic")
     assert store.groups.capture(owner, recording)["transcript_ready"]
 
 
@@ -101,7 +101,7 @@ def test_finalization_retries_a_stored_manifest_without_kind_or_event(environmen
     _, store, _ = environment
     owner = device(store)
     recording, manifest = recording_fixture(store, owner["device_id"])
-    first = store.finalize_recording(owner["device_id"], recording, dict(manifest))
+    first = store.recordings.finalize(owner["device_id"], recording, dict(manifest))
     assert "kind" not in manifest and "event" not in manifest
     with client(environment) as http:
         response = http.post(

@@ -56,7 +56,7 @@ def mount(
                 track.pop("missing_sequences", None)
         outcome = await in_store(
             store_executor,
-            lambda: store.finalize_recording(
+            lambda: store.recordings.finalize(
                 device,
                 recording_id,
                 stored,
@@ -87,7 +87,7 @@ def mount(
             raise HubError("invalid_recording", "ID de grabación no válido") from exc
         retry_at = now()
         requeued = await in_store(
-            store_executor, store.retry_transcription, device, recording_id, retry_at
+            store_executor, store.groups.retry, device, recording_id, retry_at
         )
         if requeued:
             prepare_signal.set()

@@ -30,8 +30,8 @@ def recording(store, owner, *, text="Hablamos del presupuesto.") -> str:
         for sequence in range(2):
             put(store, owner, identity, track, sequence, capture_epoch_id=epoch)
     finalize(store, owner, identity, 2)
-    while job := store.claim_transcription(1000):
-        store.finish_transcription(job, text)
+    while job := store.groups.claim(1000):
+        store.groups.finish(job, text)
     return identity
 
 

@@ -151,7 +151,9 @@ async def test_prompt_submit_omits_unproven_source_without_retry_or_log(environm
         logged.append(fields)
 
     monkeypatch.setattr(FakeConnection, "rpc", reject_source)
-    monkeypatch.setattr("orbit_hub.runtime.report", record_fallback)
+    # Every piece of the runtime that reports a failure.
+    for piece in ("device", "events", "send"):
+        monkeypatch.setattr(f"orbit_hub.runtime.{piece}.report", record_fallback)
     _, store, adapter = environment
     owner = device(store, "Sample Mac")["device_id"]
     runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)

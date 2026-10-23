@@ -103,7 +103,7 @@ async def test_voice_working_notices_end_over_the_daemon_subscription(outcome, u
                         {
                             "command": "pair",
                             "hub_url": hub,
-                            "code": store.create_code(time.time()),
+                            "code": store.devices.create_code(time.time()),
                             "device_name": "Notice fixture",
                         }
                     )

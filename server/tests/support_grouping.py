@@ -29,7 +29,7 @@ def put(store, owner, recording, track, sequence, *, received=1000, frames=16000
         **changes,
     }
     chunk = f"{recording}-{track}-{sequence}"
-    store.put_chunk(
+    store.recordings.put_chunk(
         owner,
         chunk,
         recording,
@@ -44,7 +44,7 @@ def put(store, owner, recording, track, sequence, *, received=1000, frames=16000
 
 
 def finalize(store, owner, recording, count, *, tracks=("mic_local", "remote_app"), gaps=0):
-    return store.finalize_recording(
+    return store.recordings.finalize(
         owner,
         recording,
         {
@@ -66,8 +66,8 @@ def finalize(store, owner, recording, count, *, tracks=("mic_local", "remote_app
 
 def finish_all(store, now=1000):
     jobs = []
-    while job := store.claim_transcription(now):
-        store.finish_transcription(job, f"ASR GROUP {job['group_id']}")
+    while job := store.groups.claim(now):
+        store.groups.finish(job, f"ASR GROUP {job['group_id']}")
         jobs.append(job)
     return jobs
 

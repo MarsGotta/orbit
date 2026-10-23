@@ -68,7 +68,7 @@ def test_partial_finalization_flushes_without_waiting_for_deadline(environment):
     for sequence in range(3):
         for track in ("mic_local", "remote_app"):
             put(store, owner, recording, track, sequence)
-    assert store.claim_transcription(1029) is None
+    assert store.groups.claim(1029) is None
     assert finalize(store, owner, recording, 3)["capture_complete"]
     jobs = finish_all(store, 1029)
     assert len(jobs) == 2
@@ -84,8 +84,8 @@ def test_deadline_receipt_survives_reopen_and_duplicate_does_not_extend_it(envir
     put(store, owner, recording, "mic_local", 0, received=1028)
     reopened = Store(settings.data_dir, settings.key_file)
     try:
-        assert reopened.claim_transcription(1029) is None
-        job = reopened.claim_transcription(1030)
+        assert reopened.groups.claim(1029) is None
+        job = reopened.groups.claim(1030)
         assert job["manifest"]["flush_reason"] == "deadline"
         assert len(job["manifest"]["sources"]) == 2
     finally:
@@ -97,18 +97,18 @@ def test_recovery_keeps_group_id_sources_and_rejects_stale_attempt(environment):
     owner, recording = device(store)["device_id"], str(uuid4())
     for sequence in range(20):
         put(store, owner, recording, "mic_local", sequence)
-    first = store.claim_transcription(1000)
+    first = store.groups.claim(1000)
     store.recover_interrupted()
-    second = store.claim_transcription(1001)
+    second = store.groups.claim(1001)
     assert second["group_id"] == first["group_id"]
     assert second["audio"] == first["audio"] and second["manifest"] == first["manifest"]
     with pytest.raises(HubError, match="obsoleto"):
-        store.finish_transcription(first, "STALE MUST NOT BECOME FINAL")
-    store.fail_transcription(first, "stale_failure", 1002)
-    store.finish_transcription(second, "IMMUTABLE GROUP TEXT")
-    store.finish_transcription(first, "NO OVERWRITE")
+        store.groups.finish(first, "STALE MUST NOT BECOME FINAL")
+    store.groups.fail(first, "stale_failure", 1002)
+    store.groups.finish(second, "IMMUTABLE GROUP TEXT")
+    store.groups.finish(first, "NO OVERWRITE")
     assert read_transcript(store, owner, recording).segments[0].text == "IMMUTABLE GROUP TEXT"
-    assert store.claim_transcription(5000) is None
+    assert store.groups.claim(5000) is None
 
 
 def test_gap_late_arrival_and_clock_pause_never_reopen_or_cross_groups(environment):
@@ -116,18 +116,18 @@ def test_gap_late_arrival_and_clock_pause_never_reopen_or_cross_groups(environme
     owner, recording = device(store)["device_id"], str(uuid4())
     first, _, _ = put(store, owner, recording, "mic_local", 0)
     put(store, owner, recording, "mic_local", 2)
-    assert store.claim_transcription(1029) is None
-    a = store.claim_transcription(1030)
+    assert store.groups.claim(1029) is None
+    a = store.groups.claim(1030)
     assert a["manifest"]["source_chunk_ids"] == [first]
     assert a["manifest"]["flush_reason"] == "deadline"
-    store.finish_transcription(a, "before gap")
+    store.groups.finish(a, "before gap")
     put(store, owner, recording, "mic_local", 1)
-    b = store.claim_transcription(1030)
+    b = store.groups.claim(1030)
     assert [source["sequence"] for source in b["manifest"]["sources"]] == [1, 2]
-    store.finish_transcription(b, "late but separate")
+    store.groups.finish(b, "late but separate")
     put(store, owner, recording, "mic_local", 3, monotonic_ns=100_000_000_000)
     put(store, owner, recording, "mic_local", 4, monotonic_ns=110_000_000_000)
-    c = store.claim_transcription(1000)
+    c = store.groups.claim(1000)
     assert [source["sequence"] for source in c["manifest"]["sources"]] == [3]
     assert c["manifest"]["flush_reason"] == "boundary"
     assert read_transcript(store, owner, recording).segments[0].text == "before gap"
@@ -140,12 +140,12 @@ def test_out_of_order_lexicographic_uploads_wait_for_missing_sequence(environmen
     order = sorted(range(20), key=str)
     for sequence in order[:-1]:
         put(store, owner, recording, "mic_local", sequence)
-        assert store.claim_transcription(1000) is None
+        assert store.groups.claim(1000) is None
     put(store, owner, recording, "mic_local", order[-1])
-    job = store.claim_transcription(1000)
+    job = store.groups.claim(1000)
     assert job["manifest"]["flush_reason"] == "target"
     assert [source["sequence"] for source in job["manifest"]["sources"]] == list(range(20))
-    assert store.claim_transcription(1000) is None
+    assert store.groups.claim(1000) is None
 
 
 def test_finalized_window_can_flush_a_prefix_without_crossing_a_sequence_hole():
@@ -162,14 +162,14 @@ def test_terminal_retry_does_not_claim_again_or_mark_capture_incomplete(environm
         put(store, owner, recording, track, 0)
     finalize(store, owner, recording, 1)
     # Complete one track, then exhaust exactly five attempts on the other.
-    completed = store.claim_transcription(1000)
-    store.finish_transcription(completed, "one track")
+    completed = store.groups.claim(1000)
+    store.groups.finish(completed, "one track")
     now, identity = 1000, None
     for attempt in range(5):
-        job = store.claim_transcription(now)
+        job = store.groups.claim(now)
         identity = identity or job["group_id"]
         assert job["group_id"] == identity and job["attempts"] == attempt
-        store.fail_transcription(job, "synthetic_provider_failure", now)
+        store.groups.fail(job, "synthetic_provider_failure", now)
         if attempt == 0:
             pending = store._db.execute(
                 "SELECT state,attempts,next_attempt FROM transcription_groups WHERE id=?",
@@ -178,9 +178,9 @@ def test_terminal_retry_does_not_claim_again_or_mark_capture_incomplete(environm
             assert pending["state"] == "pending"
             assert pending["attempts"] == 1
             assert int(pending["next_attempt"] * 1000) == 1_010_000
-        assert store.claim_transcription(now + 1) is None
+        assert store.groups.claim(now + 1) is None
         now += 400
-    assert store.claim_transcription(now) is None
+    assert store.groups.claim(now) is None
     capture = store.groups.capture(owner, recording)
     assert capture["capture_complete"] and not capture["transcript_ready"]
     assert capture["pending_chunks"] == 1
@@ -250,12 +250,12 @@ def test_invalid_group_audio_is_terminal_not_forwarded_to_provider(environment):
             "UPDATE chunks SET body=? WHERE device_id=? AND id=?",
             (store.encrypt(b"synthetic corrupt WAV", f"chunk:{owner}:{chunk}"), owner, chunk),
         )
-    assert store.claim_transcription(1030) is None
+    assert store.groups.claim(1030) is None
     segment = store._db.execute(
         "SELECT state,error_code FROM transcription_groups WHERE recording=?", (recording,)
     ).fetchone()
     assert segment["state"] == "failed" and segment["error_code"] == "invalid_group_audio"
-    assert store.claim_transcription(5000) is None
+    assert store.groups.claim(5000) is None
 
 
 def test_grouping_is_deterministic_per_track_and_epoch(environment):

@@ -20,8 +20,8 @@ def attached(store, device_id, name, body):
     """A file attached to a message of a conversation with the default agent,
     the one an orbit-mcp without `ORBIT_MCP_AGENT` reads for."""
     attachment = store.attachments.put(device_id, name, body, now_ms=1)
-    session = store.create_session(device_id, IMPLICIT_AGENT_ID, "rt", "st", "ep", 1.0)
-    store.append_message(session, "user", "Mira", now_ms=1, attachments=[attachment["id"]])
+    session = store.chat.create_session(device_id, IMPLICIT_AGENT_ID, "rt", "st", "ep", 1.0)
+    store.chat.append_message(session, "user", "Mira", now_ms=1, attachments=[attachment["id"]])
     return attachment
 
 

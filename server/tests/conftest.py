@@ -8,11 +8,13 @@ from uuid import uuid4
 
 import pytest
 from support_audio import wav_bytes
+from support_blocking import Detector
 from support_network_fence import install
 from support_synthetic_stt import start_session_stt, stop_session_stt
 
 from orbit_hub.app import create_app
-from orbit_hub.assistant.agents import Agent, AgentConfiguration, Agents, configured_agents
+from orbit_hub.assistant.agent_kinds import AgentConfiguration, configured_agents
+from orbit_hub.assistant.agents import Agent, Agents
 from orbit_hub.assistant.backend import OpenedSession
 from orbit_hub.assistant.hermes import HermesAgent, HermesBackend, HermesConnection
 from orbit_hub.assistant.speech import SpeechClip
@@ -29,6 +31,10 @@ BRIDGE_NOW_MS = 1_000_000
 # Installed on import, before any test opens a socket. A test may only
 # connect to a port this process bound; see support_network_fence.
 FENCE = install()
+# Installed on import too: a blocking call made on a running event loop fails
+# the test that made it, naming the call and the hub's frame (support_blocking).
+BLOCKING = Detector()
+BLOCKING.install()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -45,7 +51,18 @@ def ample_disk(monkeypatch):
     nearly full. In tests that disk is this machine's, which fills with builds:
     a nearly full host made the hub announce `storage.status` in the middle of
     unrelated tests. Tests of the limit give the store their own `free_space`."""
-    monkeypatch.setattr("orbit_hub.storage.disk_free", lambda _path: 1 << 40)
+    monkeypatch.setattr("orbit_hub.storage.space.disk_free", lambda _path: 1 << 40)
+
+
+@pytest.fixture(autouse=True)
+def no_blocking_calls_on_the_loop():
+    """Fail the test whose code blocked a running event loop, even if swallowed."""
+    mark = BLOCKING.mark()
+    yield
+    detected = BLOCKING.since(mark)
+    assert not detected, "Blocking calls on the event loop: " + "; ".join(
+        f"{detection.call} by {detection.culprit}" for detection in detected
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -173,12 +190,12 @@ def storage_template(tmp_path_factory):
 
 
 def device(store, name="fixture"):
-    return store.pair(store.create_code(1000), name, 1001)
+    return store.devices.pair(store.devices.create_code(1000), name, 1001)
 
 
 def said(store, owner, session):
     """What the conversation keeps, role and text, oldest first."""
-    page = store.session_messages(owner, session, None, SESSION_MESSAGES_PAGE_LIMIT)
+    page = store.chat.session_messages(owner, session, None, SESSION_MESSAGES_PAGE_LIMIT)
     return [{"role": message["role"], "text": message["text"]} for message in page["messages"]]
 
 

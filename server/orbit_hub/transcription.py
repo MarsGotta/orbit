@@ -59,6 +59,11 @@ class TranscriptionWorker:
         self._supervisor = asyncio.create_task(supervised("transcription", self._loop))
 
     async def _loop(self):
+        # Each start first gives back the groups a stopped run left running:
+        # its outcome could not be written, and nothing else would retry them.
+        # While the disk is still full this fails too, and the supervisor
+        # tries again after its backoff.
+        await self._run_store(self.store.groups.requeue_running, self.now())
         self._task = asyncio.create_task(self._run())
         try:
             await self._task
@@ -124,7 +129,7 @@ class TranscriptionWorker:
                 if request.result.done():
                     continue
                 try:
-                    if not self.store.is_active(request.device):
+                    if not self.store.devices.is_active(request.device):
                         raise HubError("revoked", "Dispositivo revocado")
                     text = await self.speech.transcribe(request.body)
                     if not request.result.done():
@@ -157,10 +162,10 @@ class TranscriptionWorker:
                 result = await self.transcribe_meeting(
                     job["audio"], job.get("language"), job.get("prompt", "")
                 )
-                self.store.finish_transcription(job, result.text, result.language)
+                self.store.groups.finish(job, result.text, result.language)
                 await self._meeting_finished(job)
             except HubError as exc:
-                self.store.fail_transcription(job, durable_code(exc), self.now())
+                self.store.groups.fail(job, durable_code(exc), self.now())
                 await self._meeting_finished(job)
             except Exception:  # noqa: BLE001 - preserve the durable job with a redacted failure code
                 report(
@@ -168,7 +173,7 @@ class TranscriptionWorker:
                     code="transcription_failed",
                     device=job["device_id"],
                 )
-                self.store.fail_transcription(job, "transcription_failed", self.now())
+                self.store.groups.fail(job, "transcription_failed", self.now())
                 await self._meeting_finished(job)
 
     async def _meeting_finished(self, job: dict) -> None:
@@ -179,8 +184,15 @@ class TranscriptionWorker:
         if self.recording_changed is not None:
             self.recording_changed(job["device_id"], job["recording"])
 
+    async def _run_store(self, function, *arguments):
+        if self.store_executor is None:
+            return function(*arguments)
+        return await asyncio.get_running_loop().run_in_executor(
+            self.store_executor, function, *arguments
+        )
+
     async def _claim(self) -> dict | None:
-        """Run `claim_transcription` (prepare + claim + decrypt/assemble) off the loop.
+        """Run the group claim (prepare + claim + decrypt/assemble) off the loop.
 
         The heavy reads decrypt up to 20 MiB of audio; doing them on the loop
         blocked every other client while a meeting job was being sealed.
@@ -189,7 +201,7 @@ class TranscriptionWorker:
         def claim():
             from .meetings.dictionaries import prompt, terms_for
 
-            job = self.store.claim_transcription(self.now())
+            job = self.store.groups.claim(self.now())
             if job is not None:
                 job["prompt"] = prompt(terms_for(self.store, job["device_id"], job["recording"]))
             return job

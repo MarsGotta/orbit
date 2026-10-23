@@ -47,15 +47,15 @@ def assert_quota_numbers(numbers, quota):
 def test_every_quota_refusal_of_the_store_carries_its_numbers(environment):
     settings, store, _ = environment
     owner = device(store)["device_id"]
-    session = store.create_session(owner, "default", "runtime", "stored", "epoch", 1000)
+    session = store.chat.create_session(owner, "default", "runtime", "stored", "epoch", 1000)
     body = wav_fixture()
     digest = hashlib.sha256(body).hexdigest()
     constrained = Store(settings.data_dir, settings.key_file, quota_bytes=1)
     try:
         actions = [
-            lambda: constrained.create_code(1000),
-            lambda: constrained.append_message(session, "assistant", "BLOCKED", now_ms=2),
-            lambda: constrained.put_chunk(
+            lambda: constrained.devices.create_code(1000),
+            lambda: constrained.chat.append_message(session, "assistant", "BLOCKED", now_ms=2),
+            lambda: constrained.recordings.put_chunk(
                 owner, str(uuid4()), str(uuid4()), "mic_local", 0, digest, body, {"frames": 1}
             ),
         ]
@@ -73,7 +73,7 @@ def test_a_chunk_refused_by_the_quota_tells_the_mac_how_much(environment):
     paired = device(store)
     body = wav_fixture()
     with client(environment) as http:
-        store._quota = 1  # Admission ceiling, never physical disk exhaustion.
+        store.space.quota_bytes = 1  # Admission ceiling, never physical disk exhaustion.
         response = http.put(
             "/v1/chunks/new",
             headers={

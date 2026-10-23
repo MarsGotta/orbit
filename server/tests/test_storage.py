@@ -11,35 +11,37 @@ from orbit_hub.storage import Store
 
 def test_pairing_single_use_expiry_and_revocation(environment):
     _, store, _ = environment
-    code = store.create_code(1000)
-    paired = store.pair(code, "synthetic-name", 1001)
-    assert store.authenticate(paired["token"]) == paired["device_id"]
+    code = store.devices.create_code(1000)
+    paired = store.devices.pair(code, "synthetic-name", 1001)
+    assert store.devices.authenticate(paired["token"]) == paired["device_id"]
     with pytest.raises(HubError, match="Código"):
-        store.pair(code, "duplicate", 1001)
+        store.devices.pair(code, "duplicate", 1001)
     with pytest.raises(HubError):
-        store.pair(store.create_code(1000, 30), "expired", 1031)
-    store.revoke(paired["device_id"])
+        store.devices.pair(store.devices.create_code(1000, 30), "expired", 1031)
+    store.devices.revoke(paired["device_id"])
     with pytest.raises(HubError):
-        store.authenticate(paired["token"])
+        store.devices.authenticate(paired["token"])
 
 
 def test_encrypted_history_ownership_and_restart(environment):
     settings, store, _ = environment
     a, b = device(store), device(store)
-    session = store.create_session(a["device_id"], "default", "runtime", "stored", "epoch", 1000)
-    store.append_message(session, "user", "SYNTHETIC-SECRET-CANARY", now_ms=1)
-    store.status(session, "streaming")
+    session = store.chat.create_session(
+        a["device_id"], "default", "runtime", "stored", "epoch", 1000
+    )
+    store.chat.append_message(session, "user", "SYNTHETIC-SECRET-CANARY", now_ms=1)
+    store.chat.set_status(session, "streaming")
     with pytest.raises(HubError):
-        store.session_messages(b["device_id"], session, None, 1)
+        store.chat.session_messages(b["device_id"], session, None, 1)
     for path in settings.data_dir.iterdir():
         if path.is_file():
             assert b"SYNTHETIC-SECRET-CANARY" not in path.read_bytes()
     second = Store(settings.data_dir, settings.key_file)
     assert (
-        second.session(a["device_id"], session)["status"] == "streaming"
+        second.chat.session(a["device_id"], session)["status"] == "streaming"
     )  # admin open is harmless
     second.recover_interrupted()
-    assert second.session(a["device_id"], session)["status"] == "outcome_unknown"
+    assert second.chat.session(a["device_id"], session)["status"] == "outcome_unknown"
     second.close()
 
 
@@ -57,14 +59,14 @@ def test_operation_dedup_and_uncertain_receipt(environment):
     owner = device(store)["device_id"]
     op = str(uuid4())
     payload = {"text": "synthetic"}
-    assert store.reserve_operation(owner, op, payload) is None
+    assert store.operations.reserve(owner, op, payload) is None
     with pytest.raises(HubError) as error:
-        store.reserve_operation(owner, op, payload)
+        store.operations.reserve(owner, op, payload)
     assert error.value.code == "outcome_unknown"
-    store.finish_operation(owner, op, {"event": "chat.session"})
-    assert store.reserve_operation(owner, op, payload) == {"event": "chat.session"}
+    store.operations.finish(owner, op, {"event": "chat.session"})
+    assert store.operations.reserve(owner, op, payload) == {"event": "chat.session"}
     with pytest.raises(HubError) as error:
-        store.reserve_operation(owner, op, {"text": "different"})
+        store.operations.reserve(owner, op, {"text": "different"})
     assert error.value.code == "operation_conflict"
 
 
@@ -73,13 +75,15 @@ def test_chunks_idempotent_conflicting_and_revoked(environment):
     owner, chunk, recording = device(store)["device_id"], str(uuid4()), str(uuid4())
     body = b"synthetic audio bytes"
     digest = hashlib.sha256(body).hexdigest()
-    result = store.put_chunk(owner, chunk, recording, "mic_local", 0, digest, body)
+    result = store.recordings.put_chunk(owner, chunk, recording, "mic_local", 0, digest, body)
     assert result["durable"]
-    assert store.put_chunk(owner, chunk, recording, "mic_local", 0, digest, body) == result
+    assert (
+        store.recordings.put_chunk(owner, chunk, recording, "mic_local", 0, digest, body) == result
+    )
     with pytest.raises(HubError):
-        store.put_chunk(owner, chunk, recording, "remote_app", 0, digest, body)
+        store.recordings.put_chunk(owner, chunk, recording, "remote_app", 0, digest, body)
     with pytest.raises(HubError):
-        store.put_chunk(owner, str(uuid4()), recording, "mic_local", 0, digest, body)
-    store.revoke(owner)
+        store.recordings.put_chunk(owner, str(uuid4()), recording, "mic_local", 0, digest, body)
+    store.devices.revoke(owner)
     with pytest.raises(HubError):
-        store.put_chunk(owner, str(uuid4()), recording, "mic_local", 1, digest, body)
+        store.recordings.put_chunk(owner, str(uuid4()), recording, "mic_local", 1, digest, body)

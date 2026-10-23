@@ -19,10 +19,10 @@ def test_http_auth_and_pairing_validation(environment):
     _, store, _ = environment
     with client(environment) as http:
         assert http.get("/v1/sessions").status_code == 401
-        code = store.create_code(1000)
+        code = store.devices.create_code(1000)
         compatible = http.post("/v1/pair", json={"code": code, "name": "Fixture", "admin": True})
         assert compatible.status_code == 200 and "admin" not in compatible.json()
-        code = store.create_code(1000)
+        code = store.devices.create_code(1000)
         invalid = http.post("/v1/pair", json={"code": code, "name": ""})
         assert invalid.status_code == 400 and code not in invalid.text
         paired = http.post("/v1/pair", json={"code": code, "name": "Fixture"})
@@ -38,7 +38,7 @@ def test_sessions_created_preserves_real_number_and_fraction(environment):
     _, store, _ = environment
     paired = device(store)
     created = 1789668184.393808
-    session_id = store.create_session(
+    session_id = store.chat.create_session(
         paired["device_id"], "default", "runtime-1", "stored-1", "epoch-1", created
     )
 
@@ -128,7 +128,7 @@ async def test_interaction_cannot_cross_session_or_device(environment):
         )
     assert error.value.code == "interaction_not_found"
     with pytest.raises(HubError):
-        store.session_messages(other, first["session_id"], None, 1)
+        store.chat.session_messages(other, first["session_id"], None, 1)
     await runtime.handle(
         "approval.respond",
         ApprovalParams(session_id=first["session_id"], request_id="request", approved=True),
@@ -142,10 +142,10 @@ async def test_failed_completion_is_not_an_authoritative_history_message(environ
     owner = device(store)["device_id"]
     runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1000)
     upstream = str(uuid4())
-    session = store.create_session(owner, "default", upstream, str(uuid4()), "fixture", 1000)
+    session = store.chat.create_session(owner, "default", upstream, str(uuid4()), "fixture", 1000)
     runtime.bindings["default", upstream] = session
     runtime.turn_ids[session] = str(uuid4())
-    store.append_message(session, "user", "synthetic failed request", now_ms=1_000_000)
+    store.chat.append_message(session, "user", "synthetic failed request", now_ms=1_000_000)
     from conftest import FakeConnection
 
     await FakeConnection(partial(runtime.on_event, "default")).receive(
@@ -155,7 +155,7 @@ async def test_failed_completion_is_not_an_authoritative_history_message(environ
             "payload": {"text": "NEVER_A_CONFIRMED_ANSWER", "status": "error"},
         }
     )
-    assert store.session(owner, session)["status"] == "failed"
+    assert store.chat.session(owner, session)["status"] == "failed"
     assert said(store, owner, session) == [{"role": "user", "text": "synthetic failed request"}]
 
 
@@ -181,7 +181,7 @@ def test_revocation_interrupts_upstream_after_client_disconnect(environment, mon
         connection = adapter.connections[0]
         assert connection.connected  # Normal viewer closure must not interrupt the turn.
         assert [method for method, _ in connection.calls] == ["prompt.submit"]
-        store.revoke(paired["device_id"])
+        store.devices.revoke(paired["device_id"])
         deadline = time.monotonic() + 5
         while connection.connected and time.monotonic() < deadline:
             time.sleep(0.02)
@@ -204,7 +204,7 @@ async def test_revoked_runtime_drops_late_events_and_does_not_interrupt_another_
     await neighbour.handle("chat.send", SendParams(text="fixture other"), str(uuid4()))
     queue = runtime.subscribe()
     assert queue.get_nowait()["event"] == "state.snapshot"
-    store.revoke(owner)
+    store.devices.revoke(owner)
     await runtime.revoke()
     assert queue.get_nowait()["event"] == "revoked"
     await runtime.connections["default"].receive(

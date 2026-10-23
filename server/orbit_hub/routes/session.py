@@ -37,47 +37,12 @@ def mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_
     async def pair(request: Request):
         peer = request.client.host if request.client else "unknown"
         timestamp = now()
-        expired_peers = [
-            address
-            for address, (started_at, _) in pair_attempts.items()
-            if timestamp - started_at >= PAIR_ATTEMPT_RETENTION_SECONDS
-        ]
-        for address in expired_peers:
-            del pair_attempts[address]
-        started, attempts = pair_attempts.get(peer, (timestamp, 0))
-        if attempts >= 10:
-            raise HubError(
-                "rate_limited",
-                "Demasiados intentos; espera un minuto",
-                numbers={
-                    "attempts": attempts,
-                    "max_attempts": 10,
-                    "window_seconds": PAIR_ATTEMPT_RETENTION_SECONDS,
-                    "retry_after_ms": max(
-                        0, ceil((started + PAIR_ATTEMPT_RETENTION_SECONDS - timestamp) * 1000)
-                    ),
-                },
-            )
-        if len(pair_attempts) >= 4096 and peer not in pair_attempts:
-            next_expiration = min(started_at for started_at, _ in pair_attempts.values())
-            raise HubError(
-                "rate_limited",
-                "Límite de emparejado alcanzado",
-                numbers={
-                    "peers": len(pair_attempts),
-                    "max_peers": 4096,
-                    "retry_after_ms": max(
-                        0,
-                        ceil((next_expiration + PAIR_ATTEMPT_RETENTION_SECONDS - timestamp) * 1000),
-                    ),
-                },
-            )
-        pair_attempts[peer] = (started, attempts + 1)
+        admit_pair_attempt(pair_attempts, peer, timestamp)
         try:
             payload = PairRequest.model_validate_json(await bounded_body(request, 2048))
         except ValidationError as exc:
             raise HubError("invalid_request", "Solicitud de emparejado no válida") from exc
-        return store.pair(payload.code, payload.name, timestamp)
+        return store.devices.pair(payload.code, payload.name, timestamp)
 
     @app.get("/v1/sessions")
     async def sessions(request: Request, before: str | None = None, limit: int | None = None):
@@ -89,7 +54,7 @@ def mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_
                 canonical_uuid(before)
             except ValueError as exc:
                 raise HubError("invalid_request", "Cursor de sesiones no válido") from exc
-        page, total, next_cursor = store.sessions_after(
+        page, total, next_cursor = store.chat.sessions_after(
             device, before or None, bounded_limit(limit, SESSION_LIST_LIMIT, "sesiones")
         )
         # The conversation each was handed over from, when it was (`handover`).
@@ -112,7 +77,7 @@ def mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_
         device = identity(request)
         page = await in_store(
             store_executor,
-            store.session_messages,
+            store.chat.session_messages,
             device,
             session_id,
             before,
@@ -124,6 +89,46 @@ def mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_
             "agent_id": agents.owner(page),
             **({"handed_over_from": handed[session_id]} if session_id in handed else {}),
         }
+
+
+def admit_pair_attempt(pair_attempts: dict, peer: str, timestamp: float) -> None:
+    """Count one pairing attempt of `peer`, refused past the bounds above."""
+    expired_peers = [
+        address
+        for address, (started_at, _) in pair_attempts.items()
+        if timestamp - started_at >= PAIR_ATTEMPT_RETENTION_SECONDS
+    ]
+    for address in expired_peers:
+        del pair_attempts[address]
+    started, attempts = pair_attempts.get(peer, (timestamp, 0))
+    if attempts >= 10:
+        raise HubError(
+            "rate_limited",
+            "Demasiados intentos; espera un minuto",
+            numbers={
+                "attempts": attempts,
+                "max_attempts": 10,
+                "window_seconds": PAIR_ATTEMPT_RETENTION_SECONDS,
+                "retry_after_ms": max(
+                    0, ceil((started + PAIR_ATTEMPT_RETENTION_SECONDS - timestamp) * 1000)
+                ),
+            },
+        )
+    if len(pair_attempts) >= 4096 and peer not in pair_attempts:
+        next_expiration = min(started_at for started_at, _ in pair_attempts.values())
+        raise HubError(
+            "rate_limited",
+            "Límite de emparejado alcanzado",
+            numbers={
+                "peers": len(pair_attempts),
+                "max_peers": 4096,
+                "retry_after_ms": max(
+                    0,
+                    ceil((next_expiration + PAIR_ATTEMPT_RETENTION_SECONDS - timestamp) * 1000),
+                ),
+            },
+        )
+    pair_attempts[peer] = (started, attempts + 1)
 
 
 def bounded_limit(limit: int | None, maximum: int, what: str) -> int:

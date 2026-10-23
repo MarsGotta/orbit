@@ -15,7 +15,7 @@ from .storage import Store, initialize
 from .urls import LOOPBACK_HOSTS
 
 
-def main() -> None:
+def parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Orbit device hub")
     parser.add_argument("--config", type=Path, required=True)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -38,77 +38,90 @@ def main() -> None:
     serve.add_argument("--port", type=int, default=8788)
     serve.add_argument("--tls-cert", type=Path)
     serve.add_argument("--tls-key", type=Path)
-    args = parser.parse_args()
+    return parser
+
+
+def main() -> None:
+    args = parser().parse_args()
     try:
         settings = Settings.load(args.config)
         if args.command == "init":
             initialize(settings.data_dir, settings.key_file)
             Store(settings.data_dir, settings.key_file).close()
             print("Encrypted store initialized. Keep a safe copy of the key.")
-            return
-        if args.command == "backup":
+        elif args.command == "backup":
             # The key stays out of the copy (docs/self-hosting.md, "Backups").
             today = datetime.now(UTC).astimezone().date()  # the server's own day
             for line in nightly(settings.data_dir, args.destination, today):
                 print(line)
-            return
-        if args.command == "restore":
-            size = restore_copy(args.copy, settings.data_dir)
-            try:
-                Store(settings.data_dir, settings.key_file).close()
-            except BaseException:
-                # The data directory was empty: leave it so.
-                for suffix in ("", "-wal", "-shm"):
-                    (settings.data_dir / f"hub.sqlite3{suffix}").unlink(missing_ok=True)
-                raise
-            print(
-                f"Restored {args.copy} ({size} bytes) into {settings.data_dir}; "
-                "it opens with the configured key."
-            )
-            return
-        if args.command == "serve":
-            if not args.tls_cert and not (
-                settings.allow_insecure_localhost and args.host in LOOPBACK_HOSTS
-            ):
-                raise ValueError(
-                    "serve requires TLS unless allow_insecure_localhost is set and the host is loopback"
-                )
-            if bool(args.tls_cert) != bool(args.tls_key):
-                raise ValueError("TLS requires both --tls-cert and --tls-key")
-            import uvicorn
-
-            from .app import create_app
-
-            uvicorn.run(
-                create_app(settings),
-                host=args.host,
-                port=args.port,
-                ssl_certfile=str(args.tls_cert) if args.tls_cert else None,
-                ssl_keyfile=str(args.tls_key) if args.tls_key else None,
-                ws_max_size=settings.max_frame_bytes,
-                ws_max_queue=16,
-                limit_concurrency=64,
-                access_log=False,
-                proxy_headers=False,
-            )
-            return
-        store = Store(settings.data_dir, settings.key_file)
-        try:
-            if args.command == "pair-code":
-                print(store.create_code(time.time(), args.ttl))
-            elif args.command == "revoke":
-                store.revoke(args.device_id)
-                print(
-                    "Credential revoked. The hub will request interruption and close its "
-                    "connections; this does not undo actions already performed."
-                )
-            else:
-                print(json.dumps(store.devices(), indent=2))
-        finally:
-            store.close()
+        elif args.command == "restore":
+            restore(settings, args.copy)
+        elif args.command == "serve":
+            serve(settings, args)
+        else:
+            administer(settings, args)
     except (OSError, ValueError, HubError, BackupError, sqlite3.Error) as exc:
         print(f"Orbit Hub: {exc}", file=sys.stderr)
         raise SystemExit(1) from None
+
+
+def restore(settings: Settings, copy: Path) -> None:
+    size = restore_copy(copy, settings.data_dir)
+    try:
+        Store(settings.data_dir, settings.key_file).close()
+    except BaseException:
+        # The data directory was empty: leave it so.
+        for suffix in ("", "-wal", "-shm"):
+            (settings.data_dir / f"hub.sqlite3{suffix}").unlink(missing_ok=True)
+        raise
+    print(
+        f"Restored {copy} ({size} bytes) into {settings.data_dir}; "
+        "it opens with the configured key."
+    )
+
+
+def serve(settings: Settings, args) -> None:
+    loopback = settings.allow_insecure_localhost and args.host in LOOPBACK_HOSTS
+    if not args.tls_cert and not loopback:
+        raise ValueError(
+            "serve requires TLS unless allow_insecure_localhost is set and the host is loopback"
+        )
+    if bool(args.tls_cert) != bool(args.tls_key):
+        raise ValueError("TLS requires both --tls-cert and --tls-key")
+    import uvicorn
+
+    from .app import create_app
+
+    uvicorn.run(
+        create_app(settings),
+        host=args.host,
+        port=args.port,
+        ssl_certfile=str(args.tls_cert) if args.tls_cert else None,
+        ssl_keyfile=str(args.tls_key) if args.tls_key else None,
+        ws_max_size=settings.max_frame_bytes,
+        ws_max_queue=16,
+        limit_concurrency=64,
+        access_log=False,
+        proxy_headers=False,
+    )
+
+
+def administer(settings: Settings, args) -> None:
+    """The commands on the devices: a pairing code, a revocation, the list."""
+    store = Store(settings.data_dir, settings.key_file)
+    try:
+        if args.command == "pair-code":
+            print(store.devices.create_code(time.time(), args.ttl))
+        elif args.command == "revoke":
+            store.devices.revoke(args.device_id)
+            print(
+                "Credential revoked. The hub will request interruption and close its "
+                "connections; this does not undo actions already performed."
+            )
+        else:
+            print(json.dumps(store.devices.all(), indent=2))
+    finally:
+        store.close()
 
 
 if __name__ == "__main__":

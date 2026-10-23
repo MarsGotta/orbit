@@ -48,7 +48,7 @@ async def test_a_chunk_refused_in_the_middle_is_declared_and_the_meeting_closes(
         credential.write_bytes(b"e2e-synthetic-hermes-token")
         credential.chmod(0o600)
         store = Store(data, key)
-        original_put = store.put_chunk
+        original_put = store.recordings.put_chunk
         refusals = []
 
         def refuse_one(*arguments, **keywords):
@@ -59,7 +59,7 @@ async def test_a_chunk_refused_in_the_middle_is_declared_and_the_meeting_closes(
                 raise HubError("chunk_conflict", "Fragmento con otro contenido")
             return original_put(*arguments, **keywords)
 
-        store.put_chunk = refuse_one
+        store.recordings.put_chunk = refuse_one
         stt = SyntheticStt("Audio sintético de prueba.")
         device = RustDevice(binary, root / "device")
         try:
@@ -83,7 +83,7 @@ async def test_a_chunk_refused_in_the_middle_is_declared_and_the_meeting_closes(
                         {
                             "command": "pair",
                             "hub_url": hub,
-                            "code": store.create_code(time.time()),
+                            "code": store.devices.create_code(time.time()),
                             "device_name": "Synthetic E2E device",
                         }
                     )
@@ -110,7 +110,7 @@ async def test_a_chunk_refused_in_the_middle_is_declared_and_the_meeting_closes(
                     )
                     await until(lambda: _value(refusals), lambda value: value == [REFUSED])
                     await device.request({"command": "meeting_finish"})
-                    owner = store.devices()[0]["id"]
+                    owner = store.devices.all()[0]["id"]
 
                     async def transcript():
                         try:

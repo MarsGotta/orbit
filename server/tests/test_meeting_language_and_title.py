@@ -277,8 +277,8 @@ async def test_the_progress_counts_groups_done_of_those_repeated(hub):
         await http.put(
             f"/v1/recordings/{recording}/language", json={"language": "en"}, headers=bearer(paired)
         )
-        job = store.claim_transcription(NOW + 1)
-        store.finish_transcription(job, "One.", "en")
+        job = store.groups.claim(NOW + 1)
+        store.groups.finish(job, "One.", "en")
         document = await document_of(http, paired, recording)
     assert job["language"] == "en"
     assert document["transcript"]["retranscribing"] == {"language": "en", "done": 1, "total": 4}
@@ -367,9 +367,9 @@ async def test_during_a_recording_what_is_left_and_what_was_done_go_in_the_new_l
         )
     languages = []
     # Later, the chunks still waiting make a group by their deadline.
-    while job := store.claim_transcription(NOW + 1):
+    while job := store.groups.claim(NOW + 1):
         languages.append(job["language"])
-        store.finish_transcription(job, "Go on.", "en")
+        store.groups.finish(job, "Go on.", "en")
     assert changed.json() == {"language": "en", "requeued": len(transcribed)}
     assert len(transcribed) == 2
     # The two repeated and the two never transcribed.

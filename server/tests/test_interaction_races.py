@@ -203,7 +203,7 @@ async def test_rpc_requires_same_turn_connection_epoch_and_authority_after_await
         elif change == "disconnected":
             runtime.connections["default"].connected = False
         else:
-            runtime.store.revoke(runtime.device)
+            runtime.store.devices.revoke(runtime.device)
         release.set()
         _, receipt = await asyncio.wait_for(task, 2)
         assert receipt["stale_interaction"] is True and receipt["turn_id"] == turn

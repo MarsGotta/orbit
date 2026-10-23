@@ -26,8 +26,17 @@ from typing import Literal
 
 from pydantic import Field, ValidationError
 
-from .assistant.access import CAPABILITY_GROUP, disabled_message
+from .assistant.access import CAPABILITY_GROUP
 from .assistant.skills import MAX_NAME_CHARS
+from .bridge_outcomes import (
+    RESULT_PROTOCOL,
+    action_outcome,
+    failure,
+    publish_failed,
+    receipt_lost,
+    rendered_action,
+    reply_timeout,
+)
 from .device_bridge import (
     ACTION_REPLY_TIMEOUT_SECONDS,
     REQUEST_TIMEOUT_SECONDS,
@@ -42,7 +51,6 @@ from .protocol import DeviceSummary, emit
 from .turns import TurnState
 
 PROTOCOL = "orbit_device_bridge_v1"
-RESULT_PROTOCOL = "orbit_device_bridge_result_v1"
 PATH = "/internal/v1/device/request"
 ACTION_RESULT_PATH = "/internal/v1/device/action-result"
 DEVICES_PATH = "/internal/v1/devices"
@@ -190,7 +198,7 @@ class BridgeService:
         self.check()
         self.devices_auth.admit(headers, b"", int(self.timestamp()), self.monotonic())
         result = []
-        for row in self.store.active_devices():
+        for row in self.store.devices.active():
             runtime = self.runtimes.get(row["id"])
             connected = bool(runtime is not None and not runtime.revoked and runtime.listeners)
             summary = DeviceSummary(
@@ -209,27 +217,7 @@ class BridgeService:
     async def ask(self, headers, body) -> BridgeReply:
         self.check()
         self.auth.admit(headers, body, int(self.timestamp()), self.monotonic())
-        try:
-            request = BridgeRequest.model_validate_json(body)
-        except ValidationError as error:
-            first = error.errors(include_input=False, include_context=False)[0]
-            field = ".".join(str(part) for part in first["loc"])
-            raise BridgeError(
-                400,
-                "invalid_request",
-                detail={
-                    "field": field,
-                    "expected": "objeto"
-                    if first["type"] == "dict_type"
-                    else "campo válido del sobre",
-                },
-            ) from None
-        except (ValueError, TypeError, UnicodeError, RecursionError):
-            raise BridgeError(400, "invalid_request") from None
-        if request.capability != "perform_action" and len(body) > NON_ACTION_REQUEST_BYTES:
-            raise BridgeError(
-                400, "invalid_request", {"bytes": len(body), "max_bytes": NON_ACTION_REQUEST_BYTES}
-            )
+        request = self._request(body)
         group = CAPABILITY_GROUP.get(request.capability)
         if self.access is not None and group is not None:
             self.access.require(request.agent_id, group)
@@ -239,8 +227,7 @@ class BridgeService:
         if runtime is None or runtime.revoked or not runtime.listeners:
             raise BridgeError(404, "device_unavailable")
         request_id = str(uuid.uuid4())
-        loop = asyncio.get_running_loop()
-        waiter: asyncio.Future = loop.create_future()
+        waiter: asyncio.Future = asyncio.get_running_loop().create_future()
         try:
             self.bridge.open(request_id, request.device_id, request.capability, self.monotonic())
         except BridgeRefused as refusal:
@@ -248,6 +235,30 @@ class BridgeService:
         self.waiters[request_id] = waiter
         if request.capability == "perform_action":
             return await self._start_action(request, request_id, runtime, waiter)
+        answer = await self._question(request, request_id, runtime, waiter)
+        return self._answered(request, request_id, answer)
+
+    def _request(self, body) -> BridgeRequest:
+        """The request's envelope, refused with the field that is wrong."""
+        try:
+            request = BridgeRequest.model_validate_json(body)
+        except ValidationError as error:
+            first = error.errors(include_input=False, include_context=False)[0]
+            field = ".".join(str(part) for part in first["loc"])
+            expected = "objeto" if first["type"] == "dict_type" else "campo válido del sobre"
+            raise BridgeError(
+                400, "invalid_request", detail={"field": field, "expected": expected}
+            ) from None
+        except (ValueError, TypeError, UnicodeError, RecursionError):
+            raise BridgeError(400, "invalid_request") from None
+        if request.capability != "perform_action" and len(body) > NON_ACTION_REQUEST_BYTES:
+            raise BridgeError(
+                400, "invalid_request", {"bytes": len(body), "max_bytes": NON_ACTION_REQUEST_BYTES}
+            )
+        return request
+
+    async def _question(self, request, request_id, runtime, waiter) -> dict:
+        """Put the question to the Mac and wait, bounded, for its answer."""
         started_waiting = self.monotonic()
         try:
             await runtime.publish(
@@ -263,7 +274,7 @@ class BridgeService:
             answer = await asyncio.wait_for(waiter, REQUEST_TIMEOUT_SECONDS)
             # A real reply is stronger activity evidence than an open socket.
             # Keep the durable inventory current for both answers and refusals.
-            self.store.mark_device_seen(request.device_id, self.timestamp() / 1000)
+            self.store.devices.mark_seen(request.device_id, self.timestamp() / 1000)
         except TimeoutError:
             # Named as its own outcome rather than folded into a refusal: a
             # caller that cannot tell "the Mac said no" from "the Mac said
@@ -279,6 +290,9 @@ class BridgeService:
         finally:
             self.waiters.pop(request_id, None)
             self.bridge.resolve(request_id, request.device_id)
+        return answer
+
+    def _answered(self, request, request_id, answer: dict) -> BridgeReply:
         refusal = answer.get("refusal")
         version = {"device_version": answer.get("device_version")}
         if refusal is not None:
@@ -307,19 +321,12 @@ class BridgeService:
             result = dict(result)
             del result["capture_id"]
             result["data_base64"] = base64.b64encode(body).decode("ascii")
-        return BridgeReply(
-            200,
-            {
-                "protocol": RESULT_PROTOCOL,
-                "state": "answered",
-                "result": result,
-                **version,
-            },
-        )
+        answered = {"protocol": RESULT_PROTOCOL, "state": "answered", "result": result}
+        return BridgeReply(200, {**answered, **version})
 
     async def _start_action(self, request, request_id, runtime, waiter) -> BridgeReply:
         payload = request.model_dump(mode="json")
-        self.store.reserve_operation(request.device_id, request_id, payload)
+        self.store.operations.reserve(request.device_id, request_id, payload)
         try:
             await runtime.publish(
                 emit(
@@ -339,16 +346,7 @@ class BridgeService:
             )
             self.waiters.pop(request_id, None)
             self.bridge.resolve(request_id, request.device_id)
-            self.store.finish_operation(
-                request.device_id,
-                request_id,
-                {
-                    "outcome": "failed",
-                    "code": "connection_failed",
-                    "notice": "El Mac no recibió la petición de acción.",
-                    "next_step": "Comprueba la conexión de Orbit antes de preparar otra acción.",
-                },
-            )
+            self.store.operations.finish(request.device_id, request_id, publish_failed())
         else:
             task = asyncio.create_task(self._finish_action(request.device_id, request_id, waiter))
             self._action_tasks.add(task)
@@ -368,52 +366,21 @@ class BridgeService:
     async def _finish_action(self, device_id: str, operation_id: str, waiter) -> None:
         try:
             answer = await self.wait_for_reply(waiter, ACTION_REPLY_TIMEOUT_SECONDS)
-            self.store.mark_device_seen(device_id, self.timestamp() / 1000)
-            self.store.finish_operation(
+            self.store.devices.mark_seen(device_id, self.timestamp() / 1000)
+            self.store.operations.finish(
                 device_id,
                 operation_id,
-                {**_action_outcome(answer), "device_version": answer.get("device_version")},
+                {**action_outcome(answer), "device_version": answer.get("device_version")},
             )
         except asyncio.CancelledError:
             raise
         except TimeoutError:
             self.bridge.expire(self.monotonic(), operation_id)
-            expected = "respuesta de perform_action"
             deadline_ms = int(ACTION_REPLY_TIMEOUT_SECONDS * 1000)
-            notice = f"El Mac no confirmó la acción en {deadline_ms} ms; el resultado es incierto."
-            self.store.finish_operation(
-                device_id,
-                operation_id,
-                {
-                    "outcome": "unknown",
-                    "code": "device_reply_timeout",
-                    "expected": expected,
-                    "deadline_ms": deadline_ms,
-                    "refusal": render(
-                        "device_reply_timeout",
-                        notice,
-                        numbers={"expected": expected, "deadline_ms": deadline_ms},
-                    )["refusal"],
-                    "notice": notice,
-                    "next_step": "No repitas la acción; revisa su efecto en el Mac.",
-                },
-            )
+            self.store.operations.finish(device_id, operation_id, reply_timeout(deadline_ms))
         except Exception:  # noqa: BLE001 - operation stays unknown rather than being retried
-            report(
-                event="device_action_receipt_failed",
-                code="receipt_lost",
-                device=device_id,
-            )
-            self.store.finish_operation(
-                device_id,
-                operation_id,
-                {
-                    "outcome": "unknown",
-                    "code": "receipt_lost",
-                    "notice": "La respuesta se perdió después de enviar la acción.",
-                    "next_step": "No repitas la acción; revisa su efecto en el Mac.",
-                },
-            )
+            report(event="device_action_receipt_failed", code="receipt_lost", device=device_id)
+            self.store.operations.finish(device_id, operation_id, receipt_lost())
         finally:
             self.waiters.pop(operation_id, None)
             self.bridge.resolve(operation_id, device_id)
@@ -427,20 +394,15 @@ class BridgeService:
             raise BridgeError(400, "invalid_request") from None
         if self.access is not None:
             self.access.require(request.agent_id, "control")
-        operation = self.store.operation(request.device_id, request.operation_id)
+        operation = self.store.operations.get(request.device_id, request.operation_id)
         if operation is None:
             raise BridgeError(404, "operation_not_found")
         if (
             operation["status"] == "pending"
             and request.operation_id not in self._active_action_operations
         ):
-            response = {
-                "outcome": "unknown",
-                "code": "receipt_lost",
-                "notice": "La respuesta se perdió después de enviar la acción.",
-                "next_step": "No repitas la acción; revisa su efecto en el Mac.",
-            }
-            self.store.finish_operation(request.device_id, request.operation_id, response)
+            response = receipt_lost()
+            self.store.operations.finish(request.device_id, request.operation_id, response)
             operation = {"status": "completed", "response": response}
         elif operation["status"] == "pending":
             return {
@@ -500,83 +462,6 @@ class BridgeService:
         }
 
 
-def _action_outcome(answer: dict) -> dict:
-    refusal = answer.get("refusal")
-    if refusal is not None:
-        if refusal.get("retry", {}).get("kind") == "check_outcome":
-            return {
-                "outcome": "unknown",
-                "code": refusal["code"],
-                "refusal": refusal,
-                "notice": "El Mac no pudo confirmar el resultado de la acción.",
-                "next_step": "No repitas la acción; consulta su resultado y revisa su efecto en el Mac.",
-            }
-        return {
-            "outcome": "failed",
-            "code": refusal["code"],
-            "refusal": refusal,
-            "notice": "El Mac no completó la acción.",
-            "next_step": "Consulta la causa antes de preparar otra acción.",
-        }
-    result = answer.get("result")
-    receipt = result.get("receipt") if isinstance(result, dict) else None
-    if not isinstance(receipt, dict):
-        return {
-            "outcome": "unknown",
-            "result": result,
-            "code": "invalid_action_receipt",
-            "notice": "El Mac devolvió un recibo de acción no válido.",
-            "next_step": "No repitas la acción; revisa su efecto en el Mac.",
-        }
-    state = receipt.get("state")
-    code = receipt.get("code")
-    if state == "performed":
-        return {"outcome": "performed", "receipt": receipt, "result": result}
-    return {
-        "outcome": "failed",
-        "code": code if isinstance(code, str) else "action_failed",
-        "notice": "El Mac no pudo ejecutar la acción.",
-        "next_step": "Revisa Orbit y prepara otra acción sólo si no llegó a enviarse.",
-        "receipt": receipt,
-        "result": result,
-    }
-
-
-def failure(exc):
-    status, code, numbers, detail = exc.status, exc.code, exc.numbers, exc.detail
-    message = {
-        "unauthorized": "Acceso no autorizado",
-        "invalid_request": "Solicitud fuera de contrato",
-        "no_answer": "El Mac no respondió dentro del plazo",
-        "device_unavailable": "El Mac no está conectado",
-        "agent_not_found": "Este hub no tiene ese agente",
-    }.get(code, "No se pudo completar la petición")
-    if code == "agent_access_disabled" and numbers is not None:
-        message = disabled_message(str(numbers.get("agent_id")), str(numbers.get("group")))
-    if code == "skill_not_enabled" and numbers is not None:
-        enabled = str(numbers.get("enabled")).replace(",", ", ") or "ninguna"
-        message = (
-            f"El agente «{numbers.get('agent_id')}» no tiene activada ninguna skill llamada "
-            f"«{numbers.get('name')}»; las activadas son: {enabled}"
-        )
-    if code == "skills_not_in_hub" and numbers is not None:
-        message = (
-            f"El agente «{numbers.get('agent_id')}» es de tipo {numbers.get('kind')}: sus skills "
-            "son las de su perfil de Hermes, no las guarda Orbit"
-        )
-    if detail is not None:
-        message = f"El parámetro {detail['field']} debe ser {detail['expected']}."
-    payload = render(
-        code,
-        message,
-        payload={"protocol": RESULT_PROTOCOL, "state": "unavailable"},
-        numbers=numbers,
-    )
-    if detail is not None:
-        payload["refusal"].update(detail)
-    return json_response(payload, status)
-
-
 def mount(app, service, transport_allowed):
     async def request_device(headers, body):
         reply = await service.ask(headers, body)
@@ -590,25 +475,7 @@ def mount(app, service, transport_allowed):
         return json_response(payload, reply.status)
 
     def action_result(headers, body):
-        payload = service.action_result(headers, body)
-        if payload.get("outcome") in {"failed", "unknown", "expired", "rejected"}:
-            receipt = payload.get("receipt")
-            code = payload.get("code")
-            if not isinstance(code, str) and isinstance(receipt, dict):
-                code = receipt.get("code")
-            if not isinstance(code, str):
-                code = None
-                payload.pop("code", None)
-            fallback = {
-                "failed": "La acción falló",
-                "unknown": "No se confirmó el resultado; comprueba su efecto en el Mac",
-                "expired": "La operación caducó",
-                "rejected": "La acción fue rechazada",
-            }[payload["outcome"]]
-            notice = payload.get("notice")
-            message = notice if isinstance(notice, str) and notice else fallback
-            payload = render(code, message, payload=payload)
-        return payload
+        return rendered_action(service.action_result(headers, body))
 
     route = partial(private_route, app=app, transport_allowed=transport_allowed, failure=failure)
     route(

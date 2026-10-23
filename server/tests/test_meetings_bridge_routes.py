@@ -51,7 +51,7 @@ def recording_with_transcript(store, owner, text, *, title, started_at_ms=1_000,
     """A finalized recording whose single transcript is already finished."""
     recording = str(uuid4())
     put(store, owner, recording, "mic_local", 0, started_at_ms=started_at_ms)
-    store.finalize_recording(
+    store.recordings.finalize(
         owner,
         recording,
         {
@@ -69,9 +69,9 @@ def recording_with_transcript(store, owner, text, *, title, started_at_ms=1_000,
             "title": title,
         },
     )
-    job = store.claim_transcription(1_000)
+    job = store.groups.claim(1_000)
     assert job is not None and job["recording"] == recording
-    store.finish_transcription(job, text)
+    store.groups.finish(job, text)
     return recording
 
 
@@ -80,7 +80,7 @@ async def test_failed_transcript_is_a_causal_refusal_for_deimos(meetings_hub_app
     owner = device(store)
     recording = str(uuid4())
     put(store, owner["device_id"], recording, "mic_local", 0, started_at_ms=1_000)
-    store.finalize_recording(
+    store.recordings.finalize(
         owner["device_id"],
         recording,
         {
@@ -94,9 +94,9 @@ async def test_failed_transcript_is_a_causal_refusal_for_deimos(meetings_hub_app
         },
     )
     for now in (1000, 1010, 1030, 1070, 1150):
-        job = store.claim_transcription(now)
+        job = store.groups.claim(now)
         assert job is not None
-        store.fail_transcription(job, "transcription_http_503", now)
+        store.groups.fail(job, "transcription_http_503", now)
 
     async with (
         app.router.lifespan_context(app),
@@ -122,7 +122,7 @@ async def test_partial_transcript_returns_completed_track_and_failed_group_cause
     recording = str(uuid4())
     for track in ("mic_local", "remote_app"):
         put(store, owner["device_id"], recording, track, 0, started_at_ms=1_000)
-    store.finalize_recording(
+    store.recordings.finalize(
         owner["device_id"],
         recording,
         {
@@ -141,13 +141,13 @@ async def test_partial_transcript_returns_completed_track_and_failed_group_cause
             "title": "Reunión parcial sintética",
         },
     )
-    completed = store.claim_transcription(1_000)
+    completed = store.groups.claim(1_000)
     assert completed is not None
-    store.finish_transcription(completed, "Texto completado de micrófono.")
+    store.groups.finish(completed, "Texto completado de micrófono.")
     for now in (1_000, 1_010, 1_030, 1_070, 1_150):
-        failed = store.claim_transcription(now)
+        failed = store.groups.claim(now)
         assert failed is not None and failed["group_id"] != completed["group_id"]
-        store.fail_transcription(failed, "transcription_http_503", now)
+        store.groups.fail(failed, "transcription_http_503", now)
 
     async with (
         app.router.lifespan_context(app),
@@ -186,7 +186,7 @@ async def test_pending_transcript_reports_previous_failure_and_retry(meetings_hu
     owner = device(store)
     recording = str(uuid4())
     put(store, owner["device_id"], recording, "mic_local", 0, started_at_ms=1_000)
-    store.finalize_recording(
+    store.recordings.finalize(
         owner["device_id"],
         recording,
         {
@@ -200,9 +200,9 @@ async def test_pending_transcript_reports_previous_failure_and_retry(meetings_hu
         },
     )
     for now in (1000, 1010):
-        job = store.claim_transcription(now)
+        job = store.groups.claim(now)
         assert job is not None
-        store.fail_transcription(job, "transcription_timeout_300000", now)
+        store.groups.fail(job, "transcription_timeout_300000", now)
 
     async with (
         app.router.lifespan_context(app),
@@ -213,7 +213,7 @@ async def test_pending_transcript_reports_previous_failure_and_retry(meetings_hu
             {"device_id": owner["device_id"], "recording_id": recording, "format": "text"},
         )
         response = await http.post(TRANSCRIPT_PATH, content=body, headers=headers)
-        retry_job = store.claim_transcription(1030)
+        retry_job = store.groups.claim(1030)
         assert retry_job is not None and retry_job["recording"] == recording
         body, headers = signed(
             TRANSCRIPT_PATH,

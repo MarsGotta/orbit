@@ -149,13 +149,13 @@ def test_uncertain_action_stays_uncertain_through_websocket_and_result_route(
     monkeypatch.setattr(bridge_route.uuid, "uuid4", lambda: UUID(frame["id"]))
     app, store, _adapter, owner = bridged
     completed = threading.Event()
-    finish = store.finish_operation
+    finish = store.operations.finish
 
     def record_finish(*args):
         finish(*args)
         completed.set()
 
-    monkeypatch.setattr(store, "finish_operation", record_finish)
+    monkeypatch.setattr(store.operations, "finish", record_finish)
     body = bridge_body(
         "perform_action",
         owner["device_id"],

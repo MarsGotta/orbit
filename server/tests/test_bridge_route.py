@@ -244,7 +244,7 @@ async def test_named_action_refusal_survives_in_the_pending_operation(bridged):
             await mac
             operation_id = response.json()["operation_id"]
             for _ in range(100):
-                stored = store.operation(owner["device_id"], operation_id)
+                stored = store.operations.get(owner["device_id"], operation_id)
                 if stored is not None and stored["status"] == "completed":
                     break
                 await asyncio.sleep(0.01)
@@ -311,10 +311,10 @@ async def test_an_unsigned_or_tampered_request_is_refused(bridged):
 
 async def test_signed_device_inventory_is_decrypted_live_and_excludes_revoked(bridged):
     app, store, adapter, connected = bridged
-    disconnected = store.pair(store.create_code(700), "Mac de salón", 701)
-    revoked = store.pair(store.create_code(800), "Mac retirado", 801)
-    store.mark_device_seen(disconnected["device_id"], 850)
-    store.revoke(revoked["device_id"])
+    disconnected = store.devices.pair(store.devices.create_code(700), "Mac de salón", 701)
+    revoked = store.devices.pair(store.devices.create_code(800), "Mac retirado", 801)
+    store.devices.mark_seen(disconnected["device_id"], 850)
+    store.devices.revoke(revoked["device_id"])
 
     async with app.router.lifespan_context(app):
         await connect(app, store, adapter, connected)
@@ -512,10 +512,10 @@ async def test_device_inventory_marks_only_a_connected_macs_active_assistant_tur
                 "chat.send", SendParams(text="synthetic turn"), "turn-id"
             )
             assert await active() is True
-            store.status(receipt["session_id"], "completed")
+            store.chat.set_status(receipt["session_id"], "completed")
             assert await active() is False
-            store.status(receipt["session_id"], "outcome_unknown")
+            store.chat.set_status(receipt["session_id"], "outcome_unknown")
             assert await active() is False
-            store.status(receipt["session_id"], "streaming")
+            store.chat.set_status(receipt["session_id"], "streaming")
             runtime.listeners.clear()
             assert await active() is False

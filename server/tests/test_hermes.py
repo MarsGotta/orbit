@@ -299,17 +299,17 @@ async def test_large_resume_keeps_other_hermes_session_connected(environment, tm
                 "chat.send", SendParams(text="turno activo"), str(uuid4())
             )
             active = second["session_id"]
-            assert store.session(owner, quiet)["status"] == "completed"
-            assert store.session(owner, active)["status"] == "streaming"
+            assert store.chat.session(owner, quiet)["status"] == "completed"
+            assert store.chat.session(owner, active)["status"] == "streaming"
             runtime.connections["default"].live_sessions.discard(
-                store.session(owner, quiet)["runtime_id"]
+                store.chat.session(owner, quiet)["runtime_id"]
             )
 
             _, resumed = await runtime.handle(
                 "chat.send", SendParams(text="después", session_id=quiet), str(uuid4())
             )
             assert resumed["session_id"] == quiet
-            assert store.session(owner, active)["status"] == "streaming"
+            assert store.chat.session(owner, active)["status"] == "streaming"
             assert runtime.connections["default"].connected
             resume = next(item for item in requests if item["method"] == "session.resume")
             assert resume["params"]["defer_history"] is True

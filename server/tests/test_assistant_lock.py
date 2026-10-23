@@ -216,7 +216,7 @@ async def test_an_interrupt_of_the_conversation_being_reopened_applies_to_its_ne
     try:
         _, data = await runtime.handle("chat.send", SendParams(text="Primera"), str(uuid4()))
         session = data["session_id"]
-        store.status(session, "completed")
+        store.chat.set_status(session, "completed")
         runtime.pending.clear()
         made[0].connected = False
         turn = str(uuid4())

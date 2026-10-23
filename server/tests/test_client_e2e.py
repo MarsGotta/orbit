@@ -58,14 +58,14 @@ async def test_rust_daemon_pair_chat_privacy_recording_and_recovery():
             os.close(fd)
         store = Store(data, key)
         upload_receipts = []
-        original_put = store.put_chunk
+        original_put = store.recordings.put_chunk
 
         def observe_upload(*arguments, **keywords):
             receipt = original_put(*arguments, **keywords)
             upload_receipts.append((arguments[3], arguments[4], time.monotonic()))
             return receipt
 
-        store.put_chunk = observe_upload
+        store.recordings.put_chunk = observe_upload
         hermes = SyntheticHermes()
         # The hub transcribes meetings against its own STT, not Hermes.
         stt = SyntheticStt("Audio sintético de prueba.")
@@ -90,11 +90,11 @@ async def test_rust_daemon_pair_chat_privacy_recording_and_recovery():
                         {
                             "command": "pair",
                             "hub_url": hub,
-                            "code": store.create_code(time.time()),
+                            "code": store.devices.create_code(time.time()),
                             "device_name": "Synthetic E2E device",
                         }
                     )
-                    assert len(store.devices()) == 1
+                    assert len(store.devices.all()) == 1
                     await until(device.state, lambda state: state["connection"] == "online")
 
                     await device.request({"command": "chat", "text": "E2E_BASE"})
@@ -202,7 +202,7 @@ async def test_rust_daemon_pair_chat_privacy_recording_and_recovery():
                     await until(
                         device.state, lambda state: state["recording"]["sealed_chunks"] == 40
                     )
-                    owner = store.devices()[0]["id"]
+                    owner = store.devices.all()[0]["id"]
 
                     async def transcript():
                         try:
@@ -336,14 +336,14 @@ async def test_a_recording_keeps_going_while_the_hub_does_not_answer():
             os.close(fd)
         store = Store(data, key)
         deliveries = []
-        original_put = store.put_chunk
+        original_put = store.recordings.put_chunk
 
         def observe_upload(*arguments, **keywords):
             receipt = original_put(*arguments, **keywords)
             deliveries.append((arguments[3], arguments[4], hub_answering()))
             return receipt
 
-        store.put_chunk = observe_upload
+        store.recordings.put_chunk = observe_upload
         hermes = SyntheticHermes()
         stt = SyntheticStt("Audio sintético de prueba.")
         device = RustDevice(binary, root / "device")
@@ -372,11 +372,11 @@ async def test_a_recording_keeps_going_while_the_hub_does_not_answer():
                             {
                                 "command": "pair",
                                 "hub_url": relay,
-                                "code": store.create_code(time.time()),
+                                "code": store.devices.create_code(time.time()),
                                 "device_name": "Synthetic E2E device",
                             }
                         )
-                        owner = store.devices()[0]["id"]
+                        owner = store.devices.all()[0]["id"]
                         await until(device.state, lambda state: state["connection"] == "online")
                         await device.request(
                             {

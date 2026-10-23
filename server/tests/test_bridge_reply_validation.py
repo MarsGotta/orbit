@@ -11,7 +11,7 @@ from conftest import bridge_body, bridge_signed, device
 from fastapi.testclient import TestClient
 
 from orbit_hub.bridge_route import ACTION_RESULT_PATH, PATH
-from orbit_hub.ws import report
+from orbit_hub.ws_replies import report
 from orbit_mcp.hub import HubClientError, validate_mac_payload
 from orbit_mcp.refusals import error_result
 
@@ -57,7 +57,7 @@ def test_bad_reply_is_relayed_and_mcp_reports_the_field(bridged, capability):
                     await asyncio.gather(*tuple(app.state.device_bridge._action_tasks))
 
                 http.portal.call(action_settled)
-                payload = store.operation(owner["device_id"], request_id)["response"]
+                payload = store.operations.get(owner["device_id"], request_id)["response"]
                 assert response.status_code == 202
                 assert payload["outcome"] == "unknown"
                 assert "No repitas" in payload["next_step"]
@@ -100,7 +100,7 @@ def test_unreadable_reply_id_does_not_claim_a_live_question(bridged, bad_id):
     app, _store, _adapter, owner = bridged
     body = bridge_body("screen_sources", owner["device_id"])
     with (
-        patch("orbit_hub.ws.report", wraps=report) as logged,
+        patch("orbit_hub.ws_replies.report", wraps=report) as logged,
         TestClient(app, base_url="https://localhost") as http,
         http.websocket_connect(
             "wss://localhost/v1/ws", headers={"Authorization": "Bearer " + owner["token"]}
@@ -280,7 +280,7 @@ async def test_unanswered_action_expires_with_injected_deadline_and_frees_slot(b
                 for _ in range(4):
                     await asyncio.sleep(0)
                 assert reached_deadline.is_set()
-                outcome = store.operation(owner["device_id"], operation_id)["response"]
+                outcome = store.operations.get(owner["device_id"], operation_id)["response"]
                 assert outcome["outcome"] == "unknown"
                 assert outcome["code"] == "device_reply_timeout"
                 assert outcome["deadline_ms"] == 30_000

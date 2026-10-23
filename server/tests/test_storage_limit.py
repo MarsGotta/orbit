@@ -16,7 +16,7 @@ from conftest import device
 from support_app import client
 from support_transcription import wav_fixture
 
-from orbit_hub import app as app_module
+from orbit_hub import background
 from orbit_hub.config import Settings
 from orbit_hub.storage import (
     STORAGE_FREE_FLOOR_BYTES,
@@ -36,7 +36,7 @@ def opened(environment, free, quota=None):
 def test_without_a_quota_the_disk_sets_the_limit_and_leaves_room_for_a_copy(environment):
     store = opened(environment, lambda: 100 * GIB)
     try:
-        status = store.storage_status()
+        status = store.space.status()
     finally:
         store.close()
     used = status["used_bytes"]
@@ -58,10 +58,10 @@ def test_without_a_quota_the_disk_sets_the_limit_and_leaves_room_for_a_copy(envi
 def test_an_explicit_quota_caps_the_limit_but_never_past_what_the_disk_holds(environment):
     store = opened(environment, lambda: 100 * GIB, quota=20 * GIB)
     try:
-        assert store.storage_status()["max_bytes"] == 20 * GIB
-        assert store.storage_status()["limit"] == "quota"
-        store._free_space = lambda: 10 * GIB  # the disk fills with something else
-        status = store.storage_status()
+        assert store.space.status()["max_bytes"] == 20 * GIB
+        assert store.space.status()["limit"] == "quota"
+        store.space.free_space = lambda: 10 * GIB  # the disk fills with something else
+        status = store.space.status()
         assert status["limit"] == "disk"
         assert status["max_bytes"] < 20 * GIB
     finally:
@@ -71,11 +71,11 @@ def test_an_explicit_quota_caps_the_limit_but_never_past_what_the_disk_holds(env
 def test_a_disk_with_less_than_the_floor_free_admits_nothing_and_says_so(environment):
     store = opened(environment, lambda: STORAGE_FREE_FLOOR_BYTES // 2)
     try:
-        status = store.storage_status()
+        status = store.space.status()
         assert status["max_bytes"] == 0 and status["remaining_bytes"] == 0
         assert status["nearly_full"] is True
         with pytest.raises(Exception) as refused:
-            store.create_code(1000)
+            store.devices.create_code(1000)
         assert refused.value.code == "quota_exceeded"
         assert refused.value.numbers["limit"] == "disk"
         assert refused.value.numbers["remaining_bytes"] == 0
@@ -86,11 +86,13 @@ def test_a_disk_with_less_than_the_floor_free_admits_nothing_and_says_so(environ
 def test_nearly_full_starts_at_the_warning_share_of_the_limit(environment):
     store = opened(environment, lambda: 10**15)
     try:
-        used = store.physical_bytes()
-        store._quota = -(-used * 100 // STORAGE_WARNING_PERCENT) + 1  # just under the share
-        assert store.storage_status()["nearly_full"] is False
-        store._quota = used * 100 // STORAGE_WARNING_PERCENT  # at it
-        assert store.storage_status()["nearly_full"] is True
+        used = store.space.physical_bytes()
+        store.space.quota_bytes = (
+            -(-used * 100 // STORAGE_WARNING_PERCENT) + 1
+        )  # just under the share
+        assert store.space.status()["nearly_full"] is False
+        store.space.quota_bytes = used * 100 // STORAGE_WARNING_PERCENT  # at it
+        assert store.space.status()["nearly_full"] is True
     finally:
         store.close()
 
@@ -117,7 +119,7 @@ def test_a_chunk_over_the_limit_is_refused_with_its_numbers_and_what_sets_the_li
     _, store, _ = environment
     owner = device(store)
     body, recording = wav_fixture(), str(uuid4())
-    store._quota = store.physical_bytes() + 1024
+    store.space.quota_bytes = store.space.physical_bytes() + 1024
     with client(environment) as http:
         response = http.put(
             f"/v1/chunks/{recording}-mic_local-0",
@@ -134,7 +136,7 @@ def test_a_chunk_over_the_limit_is_refused_with_its_numbers_and_what_sets_the_li
     refusal = response.json()["refusal"]
     assert refusal["code"] == "quota_exceeded"
     assert refusal["limit"] == "quota"
-    assert refusal["max_bytes"] == store._quota
+    assert refusal["max_bytes"] == store.space.quota_bytes
     assert refusal["remaining_bytes"] == max(0, refusal["max_bytes"] - refusal["used_bytes"])
     assert refusal["retry"] == {"kind": "after_fix"}
     assert "storage_quota_bytes" in response.json()["message"]
@@ -146,7 +148,7 @@ def test_a_chunk_the_full_disk_refused_is_storage_full_with_the_free_space(envir
     body, recording = wav_fixture(), str(uuid4())
     # Admission lets it in (its numbers are what the hub measures, not the
     # disk SQLite writes to): the disk itself refuses.
-    store._free_space = lambda: 100 * GIB
+    store.space.free_space = lambda: 100 * GIB
 
     def disk_full(*_args, **_kwargs):
         raise OSError(28, "No space left on device")
@@ -170,14 +172,14 @@ def test_a_chunk_the_full_disk_refused_is_storage_full_with_the_free_space(envir
     assert "libera espacio" in payload["message"]
     refusal = payload["refusal"]
     assert refusal["free_bytes"] == 100 * GIB
-    assert refusal["used_bytes"] == store.physical_bytes()
+    assert refusal["used_bytes"] == store.space.physical_bytes()
     assert refusal["retry"] == {"kind": "after_fix"}
 
 
 def test_ready_says_what_the_hub_uses_and_what_is_left(environment):
     _, store, _ = environment
     owner = device(store)
-    store._free_space = lambda: 100 * GIB
+    store.space.free_space = lambda: 100 * GIB
     with (
         client(environment) as http,
         http.websocket_connect(
@@ -187,15 +189,15 @@ def test_ready_says_what_the_hub_uses_and_what_is_left(environment):
         ready = ws.receive_json()
     assert ready["event"] == "ready"
     storage = ready["data"]["storage"]
-    assert storage == store.storage_status()
+    assert storage == store.space.status()
     assert storage["limit"] == "disk" and storage["nearly_full"] is False
 
 
 def test_the_connected_macs_are_told_when_the_hub_becomes_nearly_full(environment, monkeypatch):
-    monkeypatch.setattr(app_module, "STORAGE_CHECK_SECONDS", 0.05)
+    monkeypatch.setattr(background, "STORAGE_CHECK_SECONDS", 0.05)
     _, store, _ = environment
     owner = device(store)
-    store._free_space = lambda: 100 * GIB
+    store.space.free_space = lambda: 100 * GIB
     with (
         client(environment) as http,
         http.websocket_connect(
@@ -203,7 +205,7 @@ def test_the_connected_macs_are_told_when_the_hub_becomes_nearly_full(environmen
         ) as ws,
     ):
         assert ws.receive_json()["data"]["storage"]["nearly_full"] is False
-        store._quota = store.physical_bytes() + 1  # past 80 % of the limit
+        store.space.quota_bytes = store.space.physical_bytes() + 1  # past 80 % of the limit
         while True:
             frame = ws.receive_json()
             if frame["event"] == "storage.status":
@@ -212,7 +214,7 @@ def test_the_connected_macs_are_told_when_the_hub_becomes_nearly_full(environmen
         assert told["nearly_full"] is True and told["limit"] == "quota"
         assert told["remaining_bytes"] == told["max_bytes"] - told["used_bytes"]
         # Back below once someone acts, and said again.
-        store._quota = None
+        store.space.quota_bytes = None
         while True:
             frame = ws.receive_json()
             if frame["event"] == "storage.status":
@@ -221,10 +223,10 @@ def test_the_connected_macs_are_told_when_the_hub_becomes_nearly_full(environmen
 
 
 def test_the_storage_watch_says_nothing_while_the_level_holds(environment, monkeypatch):
-    monkeypatch.setattr(app_module, "STORAGE_CHECK_SECONDS", 0.01)
+    monkeypatch.setattr(background, "STORAGE_CHECK_SECONDS", 0.01)
     _, store, _ = environment
     owner = device(store)
-    store._free_space = lambda: 100 * GIB
+    store.space.free_space = lambda: 100 * GIB
     with (
         client(environment) as http,
         http.websocket_connect(
@@ -233,13 +235,13 @@ def test_the_storage_watch_says_nothing_while_the_level_holds(environment, monke
     ):
         ws.receive_json()
         checked = []
-        status = store.storage_status
+        status = store.space.status
 
         def observed():
             checked.append(1)
             return status()
 
-        store.storage_status = observed
+        store.space.status = observed
         deadline = time.monotonic() + 10
         while len(checked) < 5 and time.monotonic() < deadline:
             time.sleep(0.01)

@@ -9,7 +9,7 @@ from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass
 
 from .assistant.acp_settings import AcpAgentSettings, parse_adapter
-from .assistant.agents import AgentConfiguration, configured_agents
+from .assistant.agent_kinds import AgentConfiguration, configured_agents
 from .error_reports import ErrorReportsConfiguration
 from .meeting_diarization import DiarizationConfiguration
 from .meeting_transcription import MeetingTranscriptionConfiguration
