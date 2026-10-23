@@ -4,12 +4,12 @@ import type { NotesSnapshot } from "../../bridge/generated/NotesSnapshot";
 import { Button } from "../../design/Button";
 import { EmptyState } from "../../design/EmptyState";
 import { Loading } from "../../design/Spinner";
-import { Skeleton } from "../../design/Skeleton";
 import { ViewError } from "../../design/ViewError";
 import { es } from "../../i18n/es";
 import type { AppView } from "../../state/app-view";
 import { MeetingsColumn } from "./MeetingsColumn";
 import { NoteDetail } from "./NoteDetail";
+import { NoteGone, NoteLoading, NoteReadFailure } from "./NoteReadStates";
 import { openMeeting, routeRecordingId } from "./note-route";
 import { noteWriting } from "./note-writing";
 import { useNoteArrows } from "./use-note-arrows";
@@ -51,43 +51,6 @@ function useNoteRoute(notes: NotesSnapshot, send: Send) {
     if (routeId !== "" && !readMatches) void send({ command: "notes_open", recording_id: routeId });
   }, [readMatches, routeId, send]);
   return { routeId, readMatches };
-}
-
-/** A note on its way: its shape, and what is being read. */
-function NoteLoading() {
-  return (
-    <div aria-busy="true" className={styles.page}>
-      <div className={styles.reading}>
-        <Skeleton height={12} widths={["56%"]} />
-        <Skeleton height={10} widths={["80%", "34%"]} />
-        <Loading size={14}>{es.notes.loadingNote}</Loading>
-        <Skeleton height={10} widths={["100%", "92%", "64%"]} />
-      </div>
-    </div>
-  );
-}
-
-/** Not drawn in the design: a note the hub could not give, with «Reintentar». */
-function NoteReadFailure({ recordingId, send }: { recordingId: string; send: Send }) {
-  return (
-    <div className={styles.centered} role="alert">
-      <EmptyState
-        action={
-          <Button
-            onClick={() => void send({ command: "notes_open", recording_id: recordingId })}
-            size={36}
-            variant="accent"
-          >
-            {es.notes.retry}
-          </Button>
-        }
-        icon="warning"
-        title={es.notes.noteReadFailed}
-      >
-        {es.notes.noteReadFailedBody}
-      </EmptyState>
-    </div>
-  );
 }
 
 function IndexFailure({ send }: { send: Send }) {
@@ -176,6 +139,7 @@ function opened({
   if (routeId !== "") {
     if (!readMatches || read?.state === "loading") return <NoteLoading />;
     if (read?.state === "failed") return <NoteReadFailure recordingId={routeId} send={send} />;
+    if (read?.state === "gone") return <NoteGone />;
   }
   const note = notes.open;
   if (!note || (routeId !== "" && note.recording_id !== routeId)) return null;

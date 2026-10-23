@@ -1,16 +1,23 @@
-- AXWindow "Orbit"
-  - AXWebArea
-    - AXGroup (Principal)
-      - [1] AXButton "Grabar reunión" [actions=[press]]
-      - AXLink "Hoy"
-      - AXLink "Calendario"
-      - [3] AXLink "Reuniones" [actions=[press]]
-      - [4] AXLink "Asistente" [actions=[press]]
-      - AXLink "Ajustes"
-    - AXGroup (Lista de reuniones)
-      - AXHeading
-        - AXStaticText = "Reuniones"
-      - [6] AXButton "Actualizar" [actions=[press]]
-    - AXHeading
-      - AXStaticText = "Aún no hay reuniones"
-    - AXStaticText = "Graba tu primera reunión y Orbit escribirá la nota por ti."
+- [0] AXWindow "Orbit" [actions=[raise]]
+  - [1] AXWebArea (Orbit) [actions=[showmenu,scrolltovisible]]
+    - [2] AXStaticText = "Orbit" [actions=[showmenu,scrolltovisible]]
+    - [3] AXButton "Grabar reunión" [actions=[press,showmenu,scrolltovisible]]
+    - [4] AXLink "Hoy" [actions=[press,showmenu,scrolltovisible]]
+      - [5] AXStaticText = "Hoy" [actions=[showmenu,scrolltovisible]]
+    - [6] AXLink "Calendario" [actions=[press,showmenu,scrolltovisible]]
+      - [7] AXStaticText = "Calendario" [actions=[showmenu,scrolltovisible]]
+    - [8] AXLink "Reuniones" [actions=[press,showmenu,scrolltovisible]]
+      - [9] AXStaticText = "Reuniones" [actions=[showmenu,scrolltovisible]]
+    - [10] AXLink "Asistente" [actions=[press,showmenu,scrolltovisible]]
+      - [11] AXStaticText = "Asistente" [actions=[showmenu,scrolltovisible]]
+    - [12] AXLink "Ajustes" [actions=[press,showmenu,scrolltovisible]]
+      - [13] AXStaticText = "Ajustes" [actions=[showmenu,scrolltovisible]]
+    - [14] AXStaticText = "Tú" [actions=[showmenu,scrolltovisible]]
+    - [15] AXHeading "Reuniones" [actions=[showmenu,scrolltovisible]]
+      - [16] AXStaticText = "Reuniones" [actions=[showmenu,scrolltovisible]]
+    - [17] AXButton "Actualizar" (Actualizar) [help="Actualizar" actions=[press,showmenu,scrolltovisible]]
+    - [18] AXButton "Cambiar a tema claro" (Cambiar a tema claro) [actions=[press,showmenu,scrolltovisible]]
+    - [19] AXHeading "Aún no hay reuniones" [actions=[showmenu,scrolltovisible]]
+      - [20] AXStaticText = "Aún no hay reuniones" [actions=[showmenu,scrolltovisible]]
+    - [21] AXStaticText = "Graba tu primera reunión y Orbit escribirá la nota por ti." [actions=[showmenu,scrolltovisible]]
+    - [22] AXButton "Grabar reunión" [actions=[press,showmenu,scrolltovisible]]

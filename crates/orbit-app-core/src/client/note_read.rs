@@ -40,11 +40,49 @@ pub(super) async fn read_page(
     checked_page(response, &request)
 }
 
+/// Why a note was not read: its meeting no longer exists, or the read
+/// failed, with its cause.
+enum Unread {
+    /// The hub has no such recording (`Refusal::NotFound` of a recording,
+    /// its 404 `recording_not_found`): deleted here or on another Mac.
+    Gone,
+    Failed(String),
+}
+
+impl From<String> for Unread {
+    fn from(cause: String) -> Self {
+        Self::Failed(cause)
+    }
+}
+
+/// One page of a note's read: a meeting that is gone says so apart from
+/// every other refusal.
+async fn note_page(daemon: &LocalClient, request: ReadRequest) -> Result<Page<Value>, Unread> {
+    use orbit_core::refusal::{Refusal, Resource};
+    let response = daemon
+        .read_topic(request.clone())
+        .await
+        .map_err(|error| error.to_string())?;
+    if response.read == Some(request.id())
+        && matches!(
+            response.answer,
+            Some(Knowledge::Absent {
+                refusal: Refusal::NotFound {
+                    resource: Resource::Recording
+                }
+            })
+        )
+    {
+        return Err(Unread::Gone);
+    }
+    Ok(checked_page(response, &request)?)
+}
+
 async fn read_document(
     daemon: &LocalClient,
     recording_id: &str,
-) -> Result<MeetingDocument, String> {
-    let page = read_page(
+) -> Result<MeetingDocument, Unread> {
+    let page = note_page(
         daemon,
         ReadRequest::NoteDetail {
             id: recording_id.into(),
@@ -60,16 +98,16 @@ async fn read_document(
     let document = serde_json::from_value::<MeetingDocument>(item)
         .map_err(|error| format!("Documento de la nota no válido: {error}"))?;
     if document.recording_id != recording_id {
-        return Err("La respuesta pertenece a otra nota".into());
+        return Err(Unread::Failed("La respuesta pertenece a otra nota".into()));
     }
     Ok(document)
 }
 
-async fn read_turns(daemon: &LocalClient, recording_id: &str) -> Result<Vec<Turn>, String> {
+async fn read_turns(daemon: &LocalClient, recording_id: &str) -> Result<Vec<Turn>, Unread> {
     let mut turns = Vec::new();
     let mut cursor: Option<Cursor> = None;
     for _ in 0..MAX_TURN_PAGES {
-        let page = read_page(
+        let page = note_page(
             daemon,
             ReadRequest::NoteTranscript {
                 id: recording_id.into(),
@@ -86,19 +124,19 @@ async fn read_turns(daemon: &LocalClient, recording_id: &str) -> Result<Vec<Turn
         match page.next {
             Some(next) if Some(&next) != cursor.as_ref() => cursor = Some(next),
             Some(_) => {
-                return Err(format!(
+                return Err(Unread::Failed(format!(
                     "Cursor repetido tras {} de {} intervenciones",
                     turns.len(),
                     page.total
-                ));
+                )));
             }
             None => return Ok(turns),
         }
     }
-    Err(format!(
+    Err(Unread::Failed(format!(
         "La transcripción no terminó en {MAX_TURN_PAGES} páginas ({} intervenciones)",
         turns.len()
-    ))
+    )))
 }
 
 /// The turns of a note whose transcript is complete: the capture closed,
@@ -177,24 +215,7 @@ impl DaemonClient {
         };
         let revision = self.note_changed_at(&recording_id).await;
         if opened {
-            self.update_local(|snapshot| {
-                if let Some(notes) = snapshot.notes.as_mut() {
-                    if notes
-                        .open
-                        .as_ref()
-                        .is_some_and(|open| open.recording_id != recording_id)
-                    {
-                        notes.open = None;
-                    }
-                    notes.open_read = Some(crate::NoteReadSnapshot {
-                        recording_id: recording_id.clone(),
-                        revision,
-                        state: crate::NoteReadState::Loading,
-                        detail: None,
-                        read_at_ms: None,
-                    });
-                }
-            });
+            self.show_loading(&recording_id, revision);
         }
         let mut reading = self.inner.note_io.lock().await;
         let read = match read_document(&self.inner.daemon, &recording_id).await {
@@ -218,9 +239,15 @@ impl DaemonClient {
                     }),
                     _ => None,
                 };
-                Ok((document, turns))
+                // Turns that failed still show the document; a meeting
+                // gone between the two reads is gone.
+                match turns {
+                    Ok(turns) => Ok((document, Ok(turns))),
+                    Err(Unread::Failed(cause)) => Ok((document, Err(cause))),
+                    Err(Unread::Gone) => Err(Unread::Gone),
+                }
             }
-            Err(cause) => Err(cause),
+            Err(unread) => Err(unread),
         };
         drop(reading);
         let library = self
@@ -248,7 +275,8 @@ impl DaemonClient {
                     }
                 }))
             }
-            Err(cause) if opened => {
+            Err(Unread::Gone) => Ok(self.show_gone(&recording_id, revision)),
+            Err(Unread::Failed(cause)) if opened => {
                 self.update_local(|snapshot| {
                     if let Some(notes) = snapshot.notes.as_mut() {
                         notes.open = None;
@@ -265,7 +293,7 @@ impl DaemonClient {
             }
             // A reread that failed keeps the note shown and says why; the
             // next change reads it again.
-            Err(cause) => Ok(self.update_local(|snapshot| {
+            Err(Unread::Failed(cause)) => Ok(self.update_local(|snapshot| {
                 if let Some(read) = snapshot
                     .notes
                     .as_mut()
@@ -276,6 +304,68 @@ impl DaemonClient {
                 }
             })),
         }
+    }
+
+    /// A note being opened: another one leaves, and this one shows loading.
+    fn show_loading(&self, recording_id: &str, revision: u64) {
+        self.update_local(|snapshot| {
+            if let Some(notes) = snapshot.notes.as_mut() {
+                if notes
+                    .open
+                    .as_ref()
+                    .is_some_and(|open| open.recording_id != recording_id)
+                {
+                    notes.open = None;
+                }
+                notes.open_read = Some(crate::NoteReadSnapshot {
+                    recording_id: recording_id.to_owned(),
+                    revision,
+                    state: crate::NoteReadState::Loading,
+                    detail: None,
+                    read_at_ms: None,
+                });
+            }
+        });
+    }
+
+    /// The meeting no longer exists: its note leaves and says so, with no
+    /// cause, and nothing reads it again (the reread needs an open note).
+    fn show_gone(&self, recording_id: &str, revision: u64) -> AppSnapshot {
+        self.update_local(|snapshot| {
+            if let Some(notes) = snapshot.notes.as_mut() {
+                notes.open = None;
+                notes.open_read = Some(crate::NoteReadSnapshot {
+                    recording_id: recording_id.to_owned(),
+                    revision,
+                    state: crate::NoteReadState::Gone,
+                    detail: None,
+                    read_at_ms: None,
+                });
+            }
+        })
+    }
+
+    /// «Borrar reunión» or «Terminar sin guardar» taken by the daemon: the
+    /// meeting's note leaves at once, before the hub deletes it, and a read
+    /// of it still on its way lands nowhere. Another meeting's note stays.
+    pub(super) async fn leave_meeting(&self, recording_id: &str) {
+        let shown = self.local_snapshot().notes.is_some_and(|notes| {
+            notes
+                .open
+                .is_some_and(|open| open.recording_id == recording_id)
+                || notes
+                    .open_read
+                    .is_some_and(|read| read.recording_id == recording_id)
+        });
+        if !shown {
+            return;
+        }
+        {
+            let mut target = self.inner.note_target.lock().await;
+            target.1 = target.1.wrapping_add(1);
+        }
+        let revision = self.note_changed_at(recording_id).await;
+        self.show_gone(recording_id, revision);
     }
 
     async fn note_is_target(&self, recording_id: &str, ticket: u64) -> bool {

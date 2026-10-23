@@ -100,6 +100,16 @@ describe("each failure the screen no longer explains is reported", () => {
     expect(failure).toMatchObject({ code: "note_read_problem", data: { stage: "incomplete" } });
   });
 
+  it("never a meeting that no longer exists", () => {
+    const gone = view({
+      notes: {
+        open: null,
+        open_read: { recording_id: "rec-1", revision: 3, state: "gone", detail: null },
+      },
+    });
+    expect(stateFailures(gone)).toEqual([]);
+  });
+
   it("a transcript that could not be read", () => {
     const failure = only(
       stateFailures(

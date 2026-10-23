@@ -18,7 +18,7 @@ import time
 
 import checks
 from interface import StepFailed
-from meeting_control_checks import TEXTS
+from meeting_control_checks import TEXTS, listed, note_still_open
 
 # Every wait these steps add: its bound and why it is that size, as
 # real_test.bounds says of its own.
@@ -161,7 +161,7 @@ def discard_second_recording(test) -> None:
         evidence["gone"] = test.wait_mac("discarded", second["id"])
         evidence["hub_after"] = wait_hub(test, "hub-deleted", second["id"], _deleted)
         ui.press(main, "Reuniones", ("AXLink",), first=True)
-        _read_list(test, "discard-meetings", second.get("title") or "")
+        _read_list(test, "discard-meetings", second.get("title") or "", left=False)
 
 
 def delete_first_meeting(test) -> None:
@@ -202,19 +202,22 @@ def delete_first_meeting(test) -> None:
         ui.press(main, TEXTS["delete"], ("AXButton",))
         evidence["gone"] = test.wait_mac("deleted", identifier)
         evidence["hub_after"] = wait_hub(test, "hub-deleted", identifier, _deleted)
-        # The app goes back to «Reuniones» by itself.
-        _read_list(test, "delete-meetings", title)
+        # The app goes back to «Reuniones» by itself, with no note open.
+        _read_list(test, "delete-meetings", title, left=True)
 
 
-def _read_list(test, label: str, title: str) -> None:
-    """The list of meetings, read until it is on screen without `title`."""
+def _read_list(test, label: str, title: str, left: bool) -> None:
+    """The list of meetings, read until it is on screen without `title`
+    (meeting_control_checks.listed) and, when `left`, with that meeting's
+    note no longer open beside it."""
+
+    def done(nodes) -> bool:
+        names = listed(nodes)
+        if names is None or (title and title in names):
+            return False
+        return not (left and title and note_still_open(nodes, title))
+
     test.measure(
         "screen",
-        test.ui.read_until(
-            test.main,
-            label,
-            None,
-            lambda text: TEXTS["list"] in text and not (title and title in text),
-            test.bounds["screen"][0],
-        ),
+        test.ui.read_nodes_until(test.main, label, None, done, test.bounds["screen"][0]),
     )

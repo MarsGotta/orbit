@@ -41,7 +41,7 @@
   "click:Asistente": "assistant"
  },
  "notes-list": {
-  "click:R Reunión 16/10/26, 10:00 Se revisó el presupuesto y el calendario de obras 16 oct, 10:00": "note-summary",
+  "click:Reunión 16/10/26, 10:00 10:00 Se revisó el presupuesto y el calendario de obras": "note-summary",
   "click:Asistente": "assistant"
  },
  "assistant": {
@@ -70,7 +70,7 @@
  },
  "meetings-after-discard": {
   "click:Reuniones": "meetings-after-discard",
-  "click:R Reunión 16/10/26, 10:00 Se revisó el presupuesto y el calendario de obras 16 oct, 10:00": "note-to-delete"
+  "click:Reunión 16/10/26, 10:00 10:00 Se revisó el presupuesto y el calendario de obras": "note-to-delete"
  },
  "note-to-delete": {
   "click:Más": "note-menu"

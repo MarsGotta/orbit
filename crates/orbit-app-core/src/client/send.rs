@@ -98,10 +98,30 @@ impl DaemonClient {
                 refusal: None,
             });
         }
+        self.send_and_follow(command, op).await
+    }
+
+    /// A daemon order, and what the app does once it is taken: the library
+    /// read again after a change to it, and a meeting deleted or thrown away
+    /// leaves its open note.
+    async fn send_and_follow(
+        &self,
+        command: Command,
+        op: orbit_core::notice::Op,
+    ) -> Result<CommandReceipt, AppError> {
         let library = matches!(command, Command::NoteLibrary { .. });
+        let left = match &command {
+            Command::MeetingDelete { recording_id } | Command::MeetingDiscard { recording_id } => {
+                Some(recording_id.clone())
+            }
+            _ => None,
+        };
         let receipt = self.send_daemon(command, op).await?;
         if library {
             self.read_library().await;
+        }
+        if let Some(recording_id) = left {
+            self.leave_meeting(&recording_id).await;
         }
         Ok(receipt)
     }

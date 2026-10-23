@@ -42,10 +42,10 @@
 "DaemonClient::connect_with_clock" = 132
 
 [functions."crates/orbit-app-core/src/client/note_read.rs"]
-"DaemonClient::read_note" = 109
+"DaemonClient::read_note" = 97
 
 [functions."crates/orbit-app-core/src/client/send.rs"]
-"DaemonClient::send_as" = 96
+"DaemonClient::send_as" = 91
 
 [functions."crates/orbit-app-core/src/features/agenda.rs"]
 "project_with_read" = 214

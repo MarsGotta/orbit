@@ -1,20 +1,38 @@
-- AXWindow "Orbit"
-  - AXWebArea
-    - AXGroup (Principal)
-      - [1] AXButton "Grabar reunión" [actions=[press]]
-      - AXLink "Hoy"
-      - AXLink "Calendario"
-      - [3] AXLink "Reuniones" [actions=[press]]
-      - [4] AXLink "Asistente" [actions=[press]]
-      - AXLink "Ajustes"
-    - AXGroup (Lista de reuniones)
-      - AXHeading
-        - AXStaticText = "Reuniones"
-      - [7] AXButton "R Reunión 16/10/26, 10:00 Se revisó el presupuesto y el calendario de obras 16 oct, 10:00" [actions=[press]]
-    - AXHeading
-      - [8] AXTextField = "Reunión 16/10/26, 10:00" (Título de la reunión) [actions=[confirm]]
-    - AXStaticText = "Se revisó el presupuesto y el calendario de obras."
-    - AXGroup
-      - [30] AXButton "Preguntar a Deimos" [actions=[press]]
-      - [31] AXButton "Plantilla: General · Español" [actions=[press]]
-      - [32] AXButton "Más" [actions=[press]]
+- [0] AXWindow "Orbit" [actions=[raise]]
+  - [1] AXWebArea (Orbit) [actions=[showmenu,scrolltovisible]]
+    - [2] AXStaticText = "Orbit" [actions=[showmenu,scrolltovisible]]
+    - [3] AXButton "Grabar reunión" [actions=[press,showmenu,scrolltovisible]]
+    - [4] AXLink "Hoy" [actions=[press,showmenu,scrolltovisible]]
+      - [5] AXStaticText = "Hoy" [actions=[showmenu,scrolltovisible]]
+    - [6] AXLink "Calendario" [actions=[press,showmenu,scrolltovisible]]
+      - [7] AXStaticText = "Calendario" [actions=[showmenu,scrolltovisible]]
+    - [8] AXLink "Reuniones" [actions=[press,showmenu,scrolltovisible]]
+      - [9] AXStaticText = "Reuniones" [actions=[showmenu,scrolltovisible]]
+    - [10] AXLink "Asistente" [actions=[press,showmenu,scrolltovisible]]
+      - [11] AXStaticText = "Asistente" [actions=[showmenu,scrolltovisible]]
+    - [12] AXLink "Ajustes" [actions=[press,showmenu,scrolltovisible]]
+      - [13] AXStaticText = "Ajustes" [actions=[showmenu,scrolltovisible]]
+    - [14] AXStaticText = "Tú" [actions=[showmenu,scrolltovisible]]
+    - [15] AXHeading "Reuniones" [actions=[showmenu,scrolltovisible]]
+      - [16] AXStaticText = "Reuniones" [actions=[showmenu,scrolltovisible]]
+    - [17] AXButton "Actualizar" (Actualizar) [help="Actualizar" actions=[press,showmenu,scrolltovisible]]
+    - [18] AXHeading "Hoy" [actions=[showmenu,scrolltovisible]]
+      - [19] AXStaticText = "Hoy" [actions=[showmenu,scrolltovisible]]
+    - [20] AXLink "Reunión 16/10/26, 10:00 10:00
+Se revisó el presupuesto y el calendario de obras" [actions=[press,showmenu,scrolltovisible]]
+      - [21] AXStaticText = "Reunión 16/10/26, 10:00" [actions=[showmenu,scrolltovisible]]
+      - [22] AXStaticText = "10:00" [actions=[showmenu,scrolltovisible]]
+      - [23] AXStaticText = "Se revisó el presupuesto y el calendario de obras" [actions=[showmenu,scrolltovisible]]
+    - [24] AXList [actions=[showmenu,scrolltovisible]]
+      - [25] AXLink "Reuniones" [actions=[press,showmenu,scrolltovisible]]
+        - [26] AXStaticText = "Reuniones" [actions=[showmenu,scrolltovisible]]
+      - [27] AXStaticText = "/" [actions=[showmenu,scrolltovisible]]
+      - [28] AXStaticText = "Reunión 16/10/26, 10:00" [actions=[showmenu,scrolltovisible]]
+    - [29] AXButton "Cambiar a tema claro" (Cambiar a tema claro) [actions=[press,showmenu,scrolltovisible]]
+    - [30] AXHeading "Título de la reunión" [actions=[showmenu,scrolltovisible]]
+      - [31] AXTextField "Título de la reunión" = "Reunión 16/10/26, 10:00" (Título de la reunión) [actions=[press,showmenu,scrolltovisible]]
+    - [32] AXStaticText = "Se revisó el presupuesto y el calendario de obras." [actions=[showmenu,scrolltovisible]]
+    - [33] AXStaticText = "Hoy · 10:00 – 10:02 · 2 min" [actions=[showmenu,scrolltovisible]]
+    - [34] AXButton "Preguntar a Deimos" [actions=[press,showmenu,scrolltovisible]]
+    - [35] AXButton "Plantilla: General · Español" [actions=[press,showmenu,scrolltovisible]]
+    - [36] AXButton "Más" [actions=[press,showmenu,scrolltovisible]]

@@ -93,6 +93,47 @@ describe("a meeting being opened", () => {
     expect(screen.getByRole("heading", { name: "Elige una reunión" })).toBeTruthy();
   });
 
+  it("says a meeting that no longer exists, without «Reintentar» or reading it again", () => {
+    window.location.hash = "#/notes/rec-comite";
+    const { send } = view(
+      notesSnapshot({
+        open: null,
+        open_read: {
+          recording_id: "rec-comite",
+          revision: 4,
+          state: "gone",
+          detail: null,
+          read_at_ms: null,
+        },
+      }),
+    );
+    expect(screen.getByRole("heading", { name: "Esta reunión ya no existe" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reintentar" })).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Título de la reunión" })).toBeNull();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("leaves a deleted meeting for the list, with no note selected", () => {
+    window.location.hash = "#/notes";
+    const { send } = view(
+      notesSnapshot({
+        open: null,
+        open_read: {
+          recording_id: "rec-comite",
+          revision: 4,
+          state: "gone",
+          detail: null,
+          read_at_ms: null,
+        },
+      }),
+    );
+    expect(screen.getByRole("heading", { name: "Elige una reunión" })).toBeTruthy();
+    expect(screen.queryByText("Esta reunión ya no existe")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Título de la reunión" })).toBeNull();
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it("leaves a meeting being deleted for the choice of another", () => {
     view(notesSnapshot({ open: { ...writtenNote(), pending_changes: ["delete"] } }));
     expect(screen.queryByRole("textbox", { name: "Título de la reunión" })).toBeNull();

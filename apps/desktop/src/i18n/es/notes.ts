@@ -28,6 +28,10 @@ export const notes = {
     // stays in the log.
     noteReadFailed: "No se pudo abrir la nota",
     noteReadFailedBody: "Vuelve a intentarlo. Tus reuniones siguen guardadas en el hub.",
+    // A meeting deleted or thrown away, here or on another Mac: not a
+    // failure, and nothing to retry.
+    noteGone: "Esta reunión ya no existe",
+    noteGoneBody: "Se borró, en este Mac o en otro. Elige otra en la lista.",
     indexFailed: "No se pudo leer la lista de reuniones. Vuelve a intentarlo.",
     // The hub out of reach is not a failure; the connection says
     // itself at the top of the window.

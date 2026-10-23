@@ -72,6 +72,8 @@ struct HubNow {
     note_writing: AtomicBool,
     /// The list's row: the note's summary is written.
     note_ready: AtomicBool,
+    /// The meeting was deleted: the hub answers that it has no such recording.
+    deleted: AtomicBool,
 }
 
 fn document_now(now: &HubNow) -> Value {
@@ -169,7 +171,17 @@ fn answer(read: &ReadRequest, now: &HubNow) -> Knowledge<Page<Value>> {
         },
         as_of_ms: None,
     };
+    let gone = || Knowledge::Absent {
+        refusal: orbit_core::refusal::Refusal::NotFound {
+            resource: orbit_core::refusal::Resource::Recording,
+        },
+    };
     match read {
+        ReadRequest::NoteDetail { .. } | ReadRequest::NoteTranscript { .. }
+            if now.deleted.load(Ordering::SeqCst) =>
+        {
+            gone()
+        }
         ReadRequest::NotesPage { cursor: None } => page(
             vec![row_now(now), row(OTHER_ID, 1_790_400_000_000)],
             Some(Cursor::DescendingDateAndId {
@@ -771,5 +783,118 @@ async fn dictionary_changes_reread_the_turns_of_an_already_complete_meeting()
             .text,
         "Siguiente."
     );
+    Ok(())
+}
+
+/// A meeting deleted on the hub (here, or on another Mac) while its note is
+/// open: the read that follows its change says it is gone, not that it
+/// failed. The note leaves, nothing reads it again, and opening it again
+/// says the same without an error.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_meeting_deleted_on_the_hub_is_gone_not_a_failed_read() -> Result<(), Box<dyn Error>> {
+    let fixture = fixture().await?;
+    open(&fixture).await?;
+    fixture.hub_now.deleted.store(true, Ordering::SeqCst);
+    let mut head = notes::Value::default();
+    head.touch_recording(RECORDING_ID);
+    fixture
+        .notes_topic
+        .send_replace(head_frame(2, head.clone()));
+    let gone = until(&fixture.client, |snapshot| {
+        snapshot
+            .notes
+            .as_ref()
+            .and_then(|notes| notes.open_read.as_ref())
+            .is_some_and(|read| read.state == NoteReadState::Gone)
+    })
+    .await?;
+    let notes = gone.notes.unwrap();
+    assert!(
+        notes.open.is_none(),
+        "the deleted meeting's note is not kept"
+    );
+    let read = notes.open_read.unwrap();
+    assert_eq!(read.recording_id, RECORDING_ID);
+    assert_eq!(
+        read.detail, None,
+        "a meeting that is gone is no read problem"
+    );
+
+    // Another change of it reads nothing: there is no open note to read.
+    let details = fixture.detail_reads.load(Ordering::SeqCst);
+    let lists = fixture.list_reads.load(Ordering::SeqCst);
+    head.touch_recording(RECORDING_ID);
+    fixture.notes_topic.send_replace(head_frame(3, head));
+    reads_until(&fixture, || {
+        fixture.list_reads.load(Ordering::SeqCst) > lists
+    })
+    .await?;
+    assert_eq!(fixture.detail_reads.load(Ordering::SeqCst), details);
+
+    // Opened again (a link to it): gone, and not an error.
+    open(&fixture).await?;
+    let notes = fixture.client.composed_snapshot().notes.unwrap();
+    assert!(notes.open.is_none());
+    let read = notes.open_read.unwrap();
+    assert_eq!((read.state, read.detail), (NoteReadState::Gone, None));
+    Ok(())
+}
+
+/// «Borrar reunión» and «Terminar sin guardar» taken by the daemon: the
+/// app leaves that meeting's note at once, before the hub deletes it, and
+/// nothing reads it again; another meeting's open note stays.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_meeting_deleted_or_discarded_here_leaves_its_open_note() -> Result<(), Box<dyn Error>> {
+    for order in [
+        Command::MeetingDelete {
+            recording_id: RECORDING_ID.into(),
+        },
+        Command::MeetingDiscard {
+            recording_id: RECORDING_ID.into(),
+        },
+    ] {
+        let fixture = fixture().await?;
+        open(&fixture).await?;
+        fixture
+            .client
+            .send(AppCommand::Daemon(Box::new(Command::MeetingDelete {
+                recording_id: OTHER_ID.into(),
+            })))
+            .await?;
+        assert!(
+            fixture
+                .client
+                .composed_snapshot()
+                .notes
+                .unwrap()
+                .open
+                .is_some(),
+            "another meeting's deletion leaves this note open"
+        );
+        fixture
+            .client
+            .send(AppCommand::Daemon(Box::new(order.clone())))
+            .await?;
+        assert!(fixture.orders.lock().unwrap().contains(&order));
+        let notes = fixture.client.composed_snapshot().notes.unwrap();
+        assert!(notes.open.is_none(), "{order:?} leaves the note");
+        let read = notes.open_read.unwrap();
+        assert_eq!((read.state, read.detail), (NoteReadState::Gone, None));
+
+        let details = fixture.detail_reads.load(Ordering::SeqCst);
+        let lists = fixture.list_reads.load(Ordering::SeqCst);
+        let mut head = notes::Value::default();
+        head.touch_recording(RECORDING_ID);
+        fixture.notes_topic.send_replace(head_frame(2, head));
+        reads_until(&fixture, || {
+            fixture.list_reads.load(Ordering::SeqCst) > lists
+        })
+        .await?;
+        assert_eq!(
+            fixture.detail_reads.load(Ordering::SeqCst),
+            details,
+            "{order:?}: nothing reads the meeting again"
+        );
+    }
     Ok(())
 }

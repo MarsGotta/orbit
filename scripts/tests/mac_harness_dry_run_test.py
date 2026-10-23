@@ -260,3 +260,59 @@ def test_a_meeting_is_gone_only_from_a_list_read_whole():
     assert mac_controls.gone(state, "r1") is None
     assert "still at «recording»" in state["seen"]
     assert mac_controls.gone({"read": {"items": [other]}}, "r1") == {"gone": "r1", "listed": 1}
+
+
+SCREENS = ROOT / "scripts" / "e2e-mac" / "dry-run-examples"
+FIRST, SECOND = "Reunión 16/10/26, 10:00", "Reunión 16/10/26, 10:20"
+# A list still being read from the hub: its heading and «Actualizar», then
+# «Leyendo tus reuniones del hub…» where the rows go (MeetingsColumn.tsx).
+LOADING = """- [0] AXWindow "Orbit"
+  - [1] AXWebArea (Orbit)
+    - [8] AXLink "Reuniones" [actions=[press]]
+    - [15] AXHeading "Reuniones"
+      - [16] AXStaticText = "Reuniones"
+    - [17] AXButton "Actualizar" (Actualizar) [actions=[press]]
+    - [18] AXStaticText = "Leyendo tus reuniones del hub…"
+"""
+
+
+def screen(name: str) -> dict:
+    return {"trees": {"meetings": (SCREENS / name).read_text(encoding="utf-8")}}
+
+
+def test_the_list_of_meetings_is_recognised_as_macos_shows_it():
+    # WebKit gives macOS no group named after the list's label («Lista de
+    # reuniones»; real run of 2026-10-23): the list is the «Reuniones»
+    # heading, «Actualizar», a heading per day and a link per meeting.
+    gone = meeting_control_checks._gone_from_list
+    # One meeting left, its note open beside the list (tree 040).
+    after_discard = screen("good/screens/meetings-after-discard.md")
+    assert gone(after_discard, "meetings", SECOND) is None
+    assert "still" in (gone(after_discard, "meetings", FIRST) or "")
+    # Nothing left: the list is read, and empty, with or without the deleted
+    # meeting's note still open beside it (tree 055).
+    for name in ("good/screens/meetings-empty.md", "deleted-note-open/screens/meetings-empty.md"):
+        assert gone(screen(name), "meetings", FIRST) is None, name
+    # A list not read yet, or no list at all, never says a meeting is gone.
+    assert "does not show" in (gone({"trees": {"meetings": LOADING}}, "meetings", FIRST) or "")
+    assert "does not show" in (gone(screen("good/screens/discarded.md"), "meetings", FIRST) or "")
+
+
+def test_the_deleted_meeting_s_note_is_seen_still_open_beside_the_list():
+    def still_open(name: str) -> bool:
+        nodes = interface.ax_tree.parse(screen(name)["trees"]["meetings"])
+        return meeting_control_checks.note_still_open(nodes, FIRST)
+
+    assert still_open("deleted-note-open/screens/meetings-empty.md")
+    assert not still_open("good/screens/meetings-empty.md")
+
+
+def test_a_deleted_meeting_whose_note_stays_open_fails_only_its_check(tmp_path):
+    results, _ = dry_run.run("deleted-note-open", tmp_path)
+    assert statuses(results) == {
+        **{n: "pass" for n in ALL if n != 15},
+        15: "fail",
+        **SKIPPED,
+    }, json.dumps(results, ensure_ascii=False, indent=1)
+    detail = next(r["detail"] for r in results if r["number"] == 15)
+    assert "still open" in detail, detail

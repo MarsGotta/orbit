@@ -247,10 +247,19 @@ class Interface:
         rather than reading once, keeps the result from depending on which of
         the two came first. The last reading is the evidence either way.
         Returns the seconds it took."""
+        return self.read_nodes_until(
+            window, label, query, lambda nodes: condition(ax_tree.all_text(nodes)), bound_s
+        )
+
+    def read_nodes_until(
+        self, window: Window, label: str, query: str | None, condition, bound_s: float
+    ) -> float:
+        """read_until with `condition` on the nodes read, for what only the
+        tree's structure tells (which rows belong to the list of meetings)."""
         start = time.monotonic()
         while True:
-            text = ax_tree.all_text(self.read(window, label, query))
-            if condition(text) or time.monotonic() - start > bound_s:
+            nodes = self.read(window, label, query)
+            if condition(nodes) or time.monotonic() - start > bound_s:
                 return time.monotonic() - start
             time.sleep(1)
 

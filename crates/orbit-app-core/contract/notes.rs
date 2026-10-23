@@ -367,6 +367,10 @@ app_type! {
         Loading,
         Available,
         Failed,
+        /// The meeting no longer exists: deleted or thrown away here, or the
+        /// hub answered that it has no such recording (deleted on another
+        /// Mac). Not a failed read, and nothing reads it again.
+        Gone,
     }
 }
 
