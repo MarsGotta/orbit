@@ -60,8 +60,9 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     private var privacyEpoch: UInt64 = 0
     private var playbackEpoch: UInt64 = 0
     private var microphonePurpose: NativeMicrophonePurpose?
-    /// The microphone feeds a meeting: it was opened for one or told it is
-    /// one. A voice note dictated over it does not end the meeting.
+    /// The microphone feeds a meeting, as the daemon last said who holds it
+    /// (`audio_start`, `audio_purpose`). A voice note dictated over a meeting
+    /// does not end it; a note that outlived its meeting is a note alone.
     private var microphoneMeeting = false
     /// How the system's audio was opened, to open it again after a failure.
     private var systemAudioScope: (captureScope: String, applicationPID: Int32?)?
@@ -533,7 +534,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
                 throw NativeFailure("stream_not_found")
             }
             microphonePurpose = wire.fields.purpose
-            if wire.fields.purpose == .meeting { microphoneMeeting = true }
+            microphoneMeeting = wire.fields.purpose == .meeting
             return ["stream_id": wire.fields.stream_id, "purpose": wire.fields.purpose.rawValue]
         case .audioWakePhrase(let wire):
             // «Oye Deimos» goes with the meeting recording, on the

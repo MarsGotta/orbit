@@ -239,6 +239,59 @@ final class WakePhraseTests: XCTestCase {
         XCTAssertTrue(levels(&policy, from: 2.5, to: 6, speaking: false).isEmpty)
     }
 
+    /// The greeted phrase anywhere in a result, for a phrase already heard.
+    func testThePhraseJoinedToEarlierWordsIsStillFoundAfterItsGreeting() {
+        let cases: [(String, String)] = [
+            ("y bueno oye Deimos, ¿de qué estamos hablando?", "¿de qué estamos hablando?"),
+            ("Vale gracias oye, Demos, resume lo último", "resume lo último"),
+            ("eso es todo hola Deimos qué se decidió", "qué se decidió"),
+            ("y bueno oye Deimos", ""),
+        ]
+        for (heard, question) in cases {
+            XCTAssertEqual(WakePhrase.question(joinedTo: heard), question, heard)
+        }
+        for heard in ["y entonces Deimos, resume", "y bueno oye, demos por cerrado",
+                      "oye, una cosa", "y bueno oye Demos qué tal"] {
+            XCTAssertNil(WakePhrase.question(joinedTo: heard), heard)
+        }
+    }
+
+    /// Wake-phrase runs of 2026-10-20 heard the phrase and abandoned it 1.8 s
+    /// later, which fits `phrase_revised`. One way the policy allowed it,
+    /// read from the code: the transcription joins what was said just before
+    /// the phrase into its result and drops the mark between them, so the
+    /// phrase is still there, only no longer at the start of a phrase. The
+    /// question goes on and is asked.
+    func testARevisionThatJoinsEarlierWordsToThePhraseKeepsTheQuestion() {
+        var policy = SpokenQuestionPolicy()
+        _ = levels(&policy, from: 8, to: 12, speaking: true)
+        XCTAssertNil(policy.heard(volatile("Oye Deimos, ¿de qué", 10, 11)))
+        XCTAssertEqual(policy.step, .heard)
+        XCTAssertNil(policy.heard(volatile("y bueno oye Deimos, ¿de qué estamos hablando?", 8, 12)))
+        XCTAssertTrue(policy.listening, "the phrase is still in what was heard")
+        XCTAssertNil(policy.step, "nothing was abandoned")
+        XCTAssertNil(policy.heard(final("Y bueno, oye Deimos, ¿de qué estamos hablando?", 8, 12)))
+        XCTAssertTrue(policy.listening)
+        let sent = levels(&policy, from: 12.01, to: 14, speaking: false)
+        XCTAssertEqual(sent, [SpokenQuestion(text: "¿de qué estamos hablando?", start: 10, end: 12)])
+    }
+
+    /// Joined to earlier words, a bare name is a name in the middle of a
+    /// sentence, and «demos» without its pause is ordinary speech: the
+    /// phrase is abandoned as before, and says so.
+    func testAJoinedRevisionWithoutTheGreetedPhraseStillCancelsIt() {
+        for (first, joined) in [("Deimos, resume lo último", "y entonces Deimos, resume lo último"),
+                                ("Oye, Demos,", "y bueno oye, demos por cerrado esto")] {
+            var policy = SpokenQuestionPolicy()
+            XCTAssertNil(policy.heard(volatile(first, 10, 11.5)))
+            XCTAssertTrue(policy.listening, first)
+            XCTAssertNil(policy.heard(volatile(joined, 8, 11.5)))
+            XCTAssertFalse(policy.listening, joined)
+            XCTAssertEqual(policy.step, .abandoned(.init(cause: .phraseRevised, elapsed_ms: 0, silent_ms: 0)),
+                           joined)
+        }
+    }
+
     func testTheSameWordsNeverAskTwice() {
         var policy = SpokenQuestionPolicy()
         XCTAssertNil(policy.heard(volatile("Deimos, resume lo último.", 0, 2)))

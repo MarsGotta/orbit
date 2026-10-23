@@ -1,5 +1,6 @@
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { BriefingNextSnapshot } from "../../bridge/generated/BriefingNextSnapshot";
+import type { VoiceStatusSnapshot } from "../../bridge/generated/VoiceStatusSnapshot";
 import { Button } from "../../design/Button";
 import { es } from "../../i18n/es";
 import { mmss } from "../../time-format";
@@ -80,10 +81,15 @@ export function RecordingCard({ meeting, event, send, timezone }: Props) {
         ) : (
           <span />
         )}
-        <DuringMeeting listening={meeting.voice_trigger?.state === "listening"} />
+        <DuringMeeting listening={listens(meeting.voice_trigger)} />
       </div>
     </section>
   );
+}
+
+/** «Oye Deimos» listens, also right after a phrase it heard was left without a question. */
+function listens(status: VoiceStatusSnapshot | undefined): boolean {
+  return status?.state === "listening" || status?.state === "abandoned";
 }
 
 /** «Durante la reunión»: how to ask Deimos and how to finish from any app. */

@@ -49,6 +49,8 @@ export function voiceStatusText(status: VoiceStatusSnapshot | undefined, copy = 
       return copy.meetingQuestion.voice.downloading(status.percent ?? 0);
     case "not_listening":
       return copy.meetingQuestion.voice.off(offText(status.why));
+    case "abandoned":
+      return copy.meetingQuestion.voice.abandoned[status.cause];
   }
 }
 
@@ -56,6 +58,7 @@ export function voiceStatusText(status: VoiceStatusSnapshot | undefined, copy = 
 export function voiceStatusShort(status: VoiceStatusSnapshot, copy = es): string | null {
   switch (status.state) {
     case "listening":
+    case "abandoned":
       return copy.meetingQuestion.voice.short.listening;
     case "starting":
       return null;

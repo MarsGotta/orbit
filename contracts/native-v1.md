@@ -499,10 +499,13 @@ privacy stop stays latched even if pending audio can no longer be delivered.
 The microphone uses the macOS default device without changing global settings.
 Sleep/logout stop capture (`capture_stopped`) without latching. A microphone
 `audio_start` carries `purpose`, `meeting` or `voice_note`; absent means unknown.
-`audio_purpose {stream_id,purpose}` updates it while both share the microphone:
-`voice_note` while a voice note is active and, when it ends, `meeting` if the
-meeting goes on. It does not depend on the wake phrase. It is an urgent order
-that neither opens nor reconfigures devices.
+`audio_purpose {stream_id,purpose}` updates it while both share the microphone.
+The purpose names who holds it: `meeting` while a meeting records, also with a
+voice note dictated over it, and also when the meeting starts while a note
+already runs; `voice_note` when the note holds it alone, also after the meeting
+under it pauses or ends. A note over a meeting changes nothing. It does not
+depend on the wake phrase. It is an urgent order that neither opens nor
+reconfigures devices.
 
 Every configuration notification is logged by the helper as
 `audio_configuration_changed`, with the previous and current input/output device

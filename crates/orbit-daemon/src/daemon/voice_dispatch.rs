@@ -11,7 +11,7 @@ use serde_json::json;
 
 impl Runtime {
     pub(super) async fn dispatch_voice_transcription(&mut self) -> Result<()> {
-        if self.capture.audio.submit_voice {
+        if self.capture.audio.voice.submit {
             self.prepend_joined_call_turn();
         }
         let Some(voice) = self.capture.buffer.voice.as_ref() else {
@@ -22,7 +22,7 @@ impl Runtime {
             self.say(NoticeCode::VoiceNoteEmpty);
             return Ok(());
         }
-        let cancelled = self.state.privacy_stopped() || !self.capture.audio.submit_voice;
+        let cancelled = self.state.privacy_stopped() || !self.capture.audio.voice.submit;
         let duration_ms = voice_duration_ms(voice);
         // A call's turns have their own detector, which already asks for
         // this much speech.

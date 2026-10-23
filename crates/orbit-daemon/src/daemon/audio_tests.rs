@@ -1,4 +1,13 @@
 use super::*;
+// What these tests (and the ones declared inside them) used through
+// `audio.rs`'s own imports, before it split into one module per lifecycle.
+pub(in crate::daemon) use super::super::{Runtime, now};
+pub(in crate::daemon) use anyhow::{Result, bail};
+pub(in crate::daemon) use orbit_core::{CapturePhase, Event};
+pub(in crate::daemon) use orbit_store::{Job, JobState};
+pub(in crate::daemon) use serde_json::{Value, json};
+pub(in crate::daemon) use std::time::Duration;
+pub(in crate::daemon) use tokio::time::Instant;
 // What these tests used through `audio.rs` before its voice-note code moved
 // to `voice_notes.rs` and `voice_dispatch.rs`.
 pub(in crate::daemon) use super::super::WorkResult;
@@ -302,7 +311,7 @@ async fn failed_seal_preserves_close_and_seals_once_after_destination_recovers()
         bail!("the invalid destination should have prevented the seal")
     };
     assert!(failure.to_string().contains("directorio"), "{failure}");
-    assert_eq!(runtime.capture.audio.recording_end, Some(true));
+    assert_eq!(runtime.capture.audio.meeting.recording_end, Some(true));
     assert_eq!(
         runtime.state.notice_code(),
         Some(NoticeCode::RecordingSealFailed),
@@ -497,7 +506,7 @@ async fn voice_source_is_durable_before_credentials_or_provider_are_needed() -> 
         crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
     }
     runtime.capture.buffer.begin_voice()?;
-    runtime.capture.audio.submit_voice = true;
+    runtime.capture.audio.voice.submit = true;
     runtime
         .capture
         .buffer
@@ -558,7 +567,7 @@ async fn a_voice_note_is_not_uploaded_as_a_recording() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime.capture.buffer.begin_voice()?;
-    runtime.capture.audio.submit_voice = true;
+    runtime.capture.audio.voice.submit = true;
     runtime
         .capture
         .buffer
@@ -593,7 +602,7 @@ async fn occupied_voice_worker_returns_typed_capacity_with_numbers() -> Result<(
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime.token = Some("synthetic".into());
     runtime.capture.buffer.begin_voice()?;
-    runtime.capture.audio.submit_voice = true;
+    runtime.capture.audio.voice.submit = true;
     runtime
         .capture
         .buffer
@@ -804,7 +813,7 @@ async fn interrupt_before_voice_finish_preserves_source_without_submitting() -> 
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime.capture.buffer.begin_voice()?;
-    runtime.capture.audio.submit_voice = true;
+    runtime.capture.audio.voice.submit = true;
     runtime.capture.buffer.ingest(&frame("voice", 0, 100), 5)?;
     runtime
         .cancel_voice_transcription(VoiceCancellationCause::Authority(
@@ -1805,6 +1814,12 @@ async fn pending_audio_warns_only_during_exit() -> Result<()> {
     Ok(())
 }
 
+/// The helper knows who holds a shared microphone: the meeting while it
+/// records, also under a voice note dictated over it, and the note once the
+/// meeting under it pauses. A note begun first is taken over by the meeting
+/// that starts while it runs. (Until this wave a note over a meeting marked
+/// the stream `voice_note`, and a meeting over a note marked nothing, so
+/// AirPods connecting stopped the whole meeting.)
 #[tokio::test]
 async fn helper_knows_who_uses_a_shared_microphone() -> Result<()> {
     let directory = tempfile::tempdir()?;
@@ -1831,13 +1846,14 @@ async fn helper_knows_who_uses_a_shared_microphone() -> Result<()> {
     runtime.apply(Event::VoiceStart).await?;
     let playback = helper.try_recv().context("playback stop absent")?;
     assert_eq!(playback["command"], "playback_stop");
-    let shared = take_helper_command(&mut helper, "audio_purpose")?;
-    assert_eq!(shared["stream_id"], stream);
-    assert_eq!(shared["purpose"], "voice_note");
+    assert_no_helper_command(&mut helper)?;
+    runtime.apply(Event::PauseMeeting).await?;
+    let note = take_helper_command(&mut helper, "audio_purpose")?;
+    assert_eq!(note["stream_id"], stream);
+    assert_eq!(note["purpose"], "voice_note");
     runtime.apply(Event::VoiceEnd).await?;
-    let resumed = take_helper_command(&mut helper, "audio_purpose")?;
-    assert_eq!(resumed["stream_id"], stream);
-    assert_eq!(resumed["purpose"], "meeting");
+    let stop = take_helper_command(&mut helper, "audio_stop")?;
+    assert_eq!(stop["stream_id"], stream, "nobody holds it any more");
 
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
@@ -1857,13 +1873,16 @@ async fn helper_knows_who_uses_a_shared_microphone() -> Result<()> {
             audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
         })
         .await?;
+    let taken = take_helper_command(&mut helper, "audio_purpose")?;
+    assert_eq!(taken["stream_id"], note["stream_id"]);
+    assert_eq!(taken["purpose"], "meeting");
     runtime.apply(Event::PauseMeeting).await?;
-    while let Ok(command) = helper.try_recv() {
-        assert_eq!(
-            command["command"], "status",
-            "the note keeps its purpose and microphone"
-        );
-    }
+    let back = take_helper_command(&mut helper, "audio_purpose")?;
+    assert_eq!(
+        back["purpose"], "voice_note",
+        "the note keeps its microphone"
+    );
+    assert_no_helper_command(&mut helper)?;
     Ok(())
 }
 

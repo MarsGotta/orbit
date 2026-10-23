@@ -238,6 +238,29 @@ fn the_voice_status_reaches_the_app_and_its_absence_says_nothing() {
     assert_eq!(unknown.voice_trigger, None);
 }
 
+/// «Oye Deimos» heard and its question abandoned reaches the panel with the
+/// helper's cause, so its line can say why and what to do.
+#[test]
+fn an_abandoned_phrase_reaches_the_app_with_its_cause() {
+    use orbit_app_core::PhraseAbandonedCause as App;
+    use orbit_core::wire::native::WakePhraseAbandonmentCause as Core;
+    for (core, app) in [
+        (Core::PhraseRevised, App::PhraseRevised),
+        (Core::QuestionWaitExpired, App::QuestionWaitExpired),
+        (Core::QuestionTooLong, App::QuestionTooLong),
+    ] {
+        let meeting = view(vec![recording_head(
+            CapturePhase::Recording,
+            None,
+            Some(VoiceStatus::Abandoned { cause: core }),
+        )]);
+        assert_eq!(
+            meeting.voice_trigger,
+            Some(VoiceStatusSnapshot::Abandoned { cause: app })
+        );
+    }
+}
+
 /// The app knows whether the question ever reached Deimos.
 #[test]
 fn the_app_knows_whether_the_question_reached_deimos() {

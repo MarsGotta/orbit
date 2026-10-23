@@ -299,6 +299,7 @@ async fn paused_meeting_is_not_kept_live_by_shared_ptt_microphone() -> Result<()
     let before = runtime
         .capture
         .audio
+        .meeting
         .signal
         .as_ref()
         .context("monitor absent")?
@@ -310,6 +311,7 @@ async fn paused_meeting_is_not_kept_live_by_shared_ptt_microphone() -> Result<()
         runtime
             .capture
             .audio
+            .meeting
             .signal
             .as_ref()
             .context("monitor absent")?
@@ -407,6 +409,7 @@ async fn replaced_epoch_or_recording_identity_cannot_borrow_old_measurements() -
     let epoch = runtime
         .capture
         .audio
+        .meeting
         .signal
         .as_ref()
         .context("monitor absent")?
@@ -415,6 +418,7 @@ async fn replaced_epoch_or_recording_identity_cannot_borrow_old_measurements() -
     runtime
         .capture
         .audio
+        .meeting
         .signal
         .as_mut()
         .context("monitor absent")?
@@ -426,6 +430,7 @@ async fn replaced_epoch_or_recording_identity_cannot_borrow_old_measurements() -
         runtime
             .capture
             .audio
+            .meeting
             .signal
             .as_ref()
             .context("monitor absent")?
@@ -437,6 +442,7 @@ async fn replaced_epoch_or_recording_identity_cannot_borrow_old_measurements() -
     runtime
         .capture
         .audio
+        .meeting
         .signal
         .as_mut()
         .context("monitor absent")?
@@ -444,6 +450,7 @@ async fn replaced_epoch_or_recording_identity_cannot_borrow_old_measurements() -
     runtime
         .capture
         .audio
+        .meeting
         .signal
         .as_mut()
         .context("monitor absent")?
@@ -499,6 +506,7 @@ async fn impossible_receive_time_is_not_presented_as_a_current_observation() -> 
     let origin = runtime
         .capture
         .audio
+        .meeting
         .signal
         .as_ref()
         .context("monitor absent")?

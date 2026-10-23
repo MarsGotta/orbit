@@ -255,6 +255,10 @@ async fn voice_first_then_system_recording_refused_keeps_voice_source() -> Resul
             audio: orbit_core::protocol::MeetingAudio::System,
         })
         .await?;
+    // The meeting takes the note's microphone, then opens the system's audio.
+    let taken = receive_helper_command(&mut receiver, "audio_purpose").await?;
+    assert_eq!(taken["stream_id"], microphone["stream_id"]);
+    assert_eq!(taken["purpose"], "meeting");
     let remote = receive_helper_command(&mut receiver, "audio_start").await?;
     assert_eq!(remote["source"], "remote_app");
     runtime

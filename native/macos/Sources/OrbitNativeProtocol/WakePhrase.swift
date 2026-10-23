@@ -88,6 +88,31 @@ public enum WakePhrase {
         return nil
     }
 
+    /// What follows «Oye {nombre}» or «Hola {nombre}» anywhere in `text`: how
+    /// a phrase already heard reads once the transcription joined the words
+    /// said before it into its result and dropped the mark between them
+    /// («Bueno. Oye Deimos, …» rewritten as «bueno oye Deimos, …»). Only the
+    /// greeted phrase: a bare name in the middle of a sentence calls nobody.
+    /// Never for a phrase not heard yet: by itself, «Le pregunté: oye Ares, …»
+    /// opens nothing.
+    public static func question(joinedTo text: String, assistantName: String = "Deimos") -> String? {
+        let tokens = tokenize(text)
+        let name = tokenize(assistantName)
+        guard !name.isEmpty else { return nil }
+        let acceptsHeardName = fold(assistantName.trimmingCharacters(in: .whitespacesAndNewlines)) == "deimos"
+        for position in tokens.indices {
+            guard case .word(let word, _) = tokens[position], greetings.contains(word) else { continue }
+            var index = position + 1
+            if index < tokens.count, case .mark(",", _) = tokens[index] { index += 1 }
+            if let end = nameEnd(tokens, from: index, name: name,
+                                 acceptsHeardName: acceptsHeardName, greeted: true) {
+                let from = end < tokens.count ? tokens[end].range.lowerBound : text.endIndex
+                return String(text[from...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        return nil
+    }
+
     /// Where the question starts when the phrase starts at `start`.
     private static func phraseEnd(_ tokens: [Token], from start: Int,
                                   name: [Token], acceptsHeardName: Bool) -> Int? {
@@ -408,7 +433,15 @@ public struct SpokenQuestionPolicy {
         let opening = covering ?? segments.first(where: {
             abs($0.start - phrase.segmentStart) < 0.05
         })
-        guard let opening, let first = WakePhrase.question(after: opening.text, assistantName: phrase.name) else { return nil }
+        guard let opening else { return nil }
+        var first = WakePhrase.question(after: opening.text, assistantName: phrase.name)
+        if first == nil, opening.start < phrase.segmentStart - 0.05 {
+            // The result now starts earlier: the transcription joined words
+            // said before the phrase and dropped the mark between them. The
+            // phrase's own audio is the same, so it is still the phrase.
+            first = WakePhrase.question(joinedTo: opening.text, assistantName: phrase.name)
+        }
+        guard let first else { return nil }
         let rest = segments.filter({ $0.start > opening.start + 0.05 })
             .map({ $0.text.trimmingCharacters(in: .whitespacesAndNewlines) })
             .filter({ !$0.isEmpty })

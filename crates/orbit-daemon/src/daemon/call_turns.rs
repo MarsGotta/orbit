@@ -246,7 +246,7 @@ impl Runtime {
             )
         });
         let voice = self.capture.buffer.voice.take();
-        let submit = self.capture.audio.submit_voice;
+        let submit = self.capture.audio.voice.submit;
         self.apply(Event::Interrupt).await?;
         if let (Some(call), Some((detector, preroll, preroll_ns, joined, carried, over))) =
             (self.capture.call_runtime.as_mut(), kept)
@@ -259,7 +259,7 @@ impl Runtime {
             call.capturing_over_answer = over;
         }
         self.capture.buffer.voice = voice;
-        self.capture.audio.submit_voice = submit;
+        self.capture.audio.voice.submit = submit;
         Ok(())
     }
 

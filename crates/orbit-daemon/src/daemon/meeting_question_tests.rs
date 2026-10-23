@@ -813,3 +813,76 @@ async fn hub_name_reaches_status_and_live_wake_orders_and_survives_restart() -> 
     assert_eq!(restarted.assistant_name.as_deref(), Some("Atlas"));
     Ok(())
 }
+
+fn abandoned(cause: &str) -> Value {
+    json!({"v": 1, "event": "notice", "code": "wake_phrase_abandoned",
+        "abandonment": {"cause": cause, "elapsed_ms": 7_000, "silent_ms": 7_000}})
+}
+
+/// «Oye Deimos» heard and its question abandoned by the helper used to be a
+/// line in `daemon.log` only. The panel now says why, for as long as it says
+/// a failure; the phrase heard again, or a question that arrives, ends it.
+#[tokio::test]
+async fn an_abandoned_phrase_is_said_in_the_panel_with_its_cause() -> Result<()> {
+    let (_directory, mut runtime, _hub_frames, _helper) = meeting_with_hub().await?;
+    runtime.features.question.helper_listens = true;
+    runtime.maintain_meeting_question().await?;
+    runtime
+        .native_event(json!({"v": 1, "event": "voice_trigger", "state": "listening"}))
+        .await?;
+    for cause in [
+        "phrase_revised",
+        "question_wait_expired",
+        "question_too_long",
+    ] {
+        runtime.native_event(abandoned(cause)).await?;
+        assert_eq!(
+            recording_topic(&runtime)?["voice_trigger"],
+            json!({"state": "abandoned", "cause": cause})
+        );
+    }
+    runtime.features.question.clock_ms = Some(NOW + FAILURE_SHOWN_MS - 1);
+    assert_eq!(
+        recording_topic(&runtime)?["voice_trigger"]["state"],
+        "abandoned"
+    );
+    runtime.features.question.clock_ms = Some(NOW + FAILURE_SHOWN_MS);
+    assert_eq!(
+        recording_topic(&runtime)?["voice_trigger"]["state"],
+        "listening",
+        "gone once a failure would be"
+    );
+
+    runtime.features.question.clock_ms = Some(NOW);
+    runtime.native_event(abandoned("phrase_revised")).await?;
+    runtime
+        .native_event(json!({"v": 1, "event": "notice", "code": "wake_phrase_heard"}))
+        .await?;
+    assert_eq!(
+        recording_topic(&runtime)?["voice_trigger"]["state"],
+        "listening",
+        "the phrase heard again"
+    );
+    runtime
+        .native_event(abandoned("question_wait_expired"))
+        .await?;
+    runtime
+        .native_event(heard(MIC, "¿Qué se decidió sobre el presupuesto?"))
+        .await?;
+    assert_ne!(
+        recording_topic(&runtime)?["voice_trigger"]["state"],
+        "abandoned",
+        "a question came"
+    );
+
+    // An abandonment without its cause (an older helper) says nothing new.
+    runtime
+        .native_event(json!({"v": 1, "event": "notice",
+        "code": "wake_phrase_abandoned"}))
+        .await?;
+    assert_ne!(
+        recording_topic(&runtime)?["voice_trigger"]["state"],
+        "abandoned"
+    );
+    Ok(())
+}

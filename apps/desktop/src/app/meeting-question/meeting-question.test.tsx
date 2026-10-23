@@ -5,10 +5,11 @@ import type { AppCommand } from "../../bridge/generated";
 import type { MeetingAskSnapshot } from "../../bridge/generated/MeetingAskSnapshot";
 import type { MeetingQuestionCause } from "../../bridge/generated/MeetingQuestionCause";
 import type { MeetingQuestionSnapshot } from "../../bridge/generated/MeetingQuestionSnapshot";
+import type { PhraseAbandonedCause } from "../../bridge/generated/PhraseAbandonedCause";
 import type { VoiceOffCause } from "../../bridge/generated/VoiceOffCause";
 import { es } from "../../i18n/es";
 import { AskDeimos } from "./AskDeimos";
-import { causeText, voiceStatusText } from "./copy";
+import { causeText, voiceStatusShort, voiceStatusText } from "./copy";
 import { QuestionCard } from "./QuestionCard";
 
 /** What app-core publishes; the interface never writes these numbers. */
@@ -228,6 +229,27 @@ describe("what the panel says is true", () => {
       const said = voiceStatusText({ state: "not_listening", why });
       expect(said).toBe(voice.off(text));
       expect(said).not.toMatch(/otra|sin red|stream_not_found|15\.4/);
+    }
+  });
+
+  it("says why a phrase heard was left without a question, and what to do, without codes", () => {
+    const cases: [PhraseAbandonedCause, string][] = [
+      ["phrase_revised", "No entendí bien «Oye Deimos». Repítelo con la pregunta seguida."],
+      [
+        "question_wait_expired",
+        "Oí «Oye Deimos», pero no llegó ninguna pregunta. Dila justo después del nombre.",
+      ],
+      [
+        "question_too_long",
+        "Oí «Oye Deimos», pero no distinguí ninguna pregunta. Prueba con «Preguntar a Deimos».",
+      ],
+    ];
+    for (const [cause, text] of cases) {
+      expect(voiceStatusText({ state: "abandoned", cause })).toBe(text);
+      // The pill still says it listens: it does.
+      expect(voiceStatusShort({ state: "abandoned", cause })).toBe(
+        es.meetingQuestion.voice.short.listening,
+      );
     }
   });
 });

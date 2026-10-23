@@ -69,7 +69,7 @@ impl MeetingSignal {
 
 impl Runtime {
     pub(super) fn begin_recording_signal(&mut self, recording_id: String, epoch: String) {
-        self.capture.audio.signal = self.capture.mic_stream.as_ref().map(|microphone| {
+        self.capture.audio.meeting.signal = self.capture.mic_stream.as_ref().map(|microphone| {
             MeetingSignal::new(
                 recording_id,
                 epoch,
@@ -91,7 +91,7 @@ impl Runtime {
         let Some(observation) = observation else {
             return;
         };
-        let Some(monitor) = self.capture.audio.signal.as_mut() else {
+        let Some(monitor) = self.capture.audio.meeting.signal.as_mut() else {
             return;
         };
         if self.capture.buffer.recording_owner(observation.source) == Some(&monitor.recording_id)
@@ -116,7 +116,7 @@ impl Runtime {
         if self.state.privacy_stopped() || !self.recording_active() {
             return None;
         }
-        if let Some(monitor) = &self.capture.audio.signal
+        if let Some(monitor) = &self.capture.audio.meeting.signal
             && self
                 .state
                 .durable.recording

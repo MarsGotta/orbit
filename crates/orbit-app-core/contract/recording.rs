@@ -261,6 +261,22 @@ app_type! {
             percent: Option<u8>,
         },
         NotListening { why: VoiceOffCause },
+        /// It listens, and the phrase heard last was abandoned without a
+        /// question: the panel says why and what to do, for a few seconds.
+        Abandoned { cause: PhraseAbandonedCause },
+    }
+}
+
+app_type! {
+    /// Why «Oye Deimos» was heard and no question followed it.
+    #[serde(rename_all = "snake_case")]
+    pub enum PhraseAbandonedCause {
+        /// The words heard changed and no longer opened with the phrase.
+        PhraseRevised,
+        /// No word of a question came within four pauses.
+        QuestionWaitExpired,
+        /// The sound went on for 30 s without a word of a question.
+        QuestionTooLong,
     }
 }
 

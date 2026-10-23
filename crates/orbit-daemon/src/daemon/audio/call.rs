@@ -1,0 +1,280 @@
+//! The call's own audio: its voice turns on the call's microphone, and the
+//! stops owed to streams a late call start opened after the call was over.
+//! A call opens its own stream with voice processing; no meeting or note
+//! shares it (`validate_audio_transition`).
+use super::super::Runtime;
+use super::drain::{AUDIO_DRAIN_LIMIT, AUDIO_SILENCE_TIMEOUT, FullStop};
+use super::voice::VoiceCancellationCause;
+use crate::native;
+use anyhow::Result;
+use orbit_core::CapturePhase;
+use orbit_core::wire::native::NativeCommandHeader;
+use serde_json::{Value, json};
+use std::time::Duration;
+use tokio::time::Instant;
+
+/// Bounds the receipt ledger for selective stops after retired starts. The
+/// helper command channel holds 64 orders, so 64 unmatched stops already fill
+/// one channel's worth of debt; a 65th uses a whole-helper cut with its counts
+/// instead of losing an order. This is not a deadline or a capture limit.
+pub(in crate::daemon) const MAX_RETIRED_STOPS: usize = 64;
+
+#[derive(Clone, Copy)]
+pub(in crate::daemon) enum CallStopVoice {
+    KeepTranscription,
+    Cancel(VoiceCancellationCause),
+}
+
+pub(in crate::daemon) struct RetiredStreamStop {
+    pub(in crate::daemon) stream: String,
+    pub(in crate::daemon) sent: bool,
+    /// A superseded call stop still has a receipt to read, but only the new
+    /// selective stop may finish the late-started stream.
+    pub(in crate::daemon) may_finish_call: bool,
+}
+
+impl Runtime {
+    /// A late start can open a stream after its capture was drained. This
+    /// stop owns only that stream and its receipt; it must not pause the source
+    /// buffer or the microphone of the capture that followed it.
+    pub(in crate::daemon) async fn request_retired_stream_stop(
+        &mut self,
+        stream: &str,
+    ) -> Result<()> {
+        if self.capture.retired_stops.len() >= MAX_RETIRED_STOPS {
+            self.retired_stop_capacity_exhausted().await?;
+            return Ok(());
+        }
+        let command = native::command("audio_stop", json!({"stream_id":stream}))?;
+        let command_id = NativeCommandHeader::from_value(&command)?.id.to_owned();
+        self.capture.retired_stops.insert(
+            command_id.clone(),
+            RetiredStreamStop {
+                stream: stream.to_owned(),
+                sent: false,
+                may_finish_call: true,
+            },
+        );
+        self.send_retired_stream_stop(&command_id).await;
+        Ok(())
+    }
+
+    pub(in crate::daemon) async fn retired_stop_capacity_exhausted(&mut self) -> Result<()> {
+        let pending = self.capture.retired_stops.len();
+        self.log(
+            "retired_stop_capacity_exhausted",
+            &[
+                ("pending", &pending.to_string()),
+                ("max", &MAX_RETIRED_STOPS.to_string()),
+            ],
+        );
+        let cause = format!(
+            "retired_stop_capacity_exhausted: {pending} paradas selectivas pendientes; máximo {MAX_RETIRED_STOPS}. Se pide una parada completa al Mac."
+        );
+        self.contain_coded(
+            orbit_core::privacy_stop::StopCause::HelperIntegrityFailure,
+            "retired_stop_capacity_exhausted",
+            &cause,
+        )
+        .await;
+        if !self.state.privacy_stopped() && self.capture.audio.full_stop.is_none() {
+            self.request_full_audio_stop(FullStop::Cut).await?;
+        }
+        Ok(())
+    }
+
+    async fn send_retired_stream_stop(&mut self, command_id: &str) {
+        let Some(stream) = self
+            .capture
+            .retired_stops
+            .get(command_id)
+            .map(|stop| stop.stream.clone())
+        else {
+            return;
+        };
+        let command =
+            match native::command("audio_stop", json!({"id":command_id,"stream_id":stream})) {
+                Ok(command) => command,
+                Err(error) => {
+                    self.log(
+                        "retired_audio_stop_invalid",
+                        &[("id", command_id), ("error", &error.to_string())],
+                    );
+                    return;
+                }
+            };
+        self.record_pending_native(&command);
+        // The established 500 ms helper-channel budget protects the actor
+        // from backpressure. It does not prove the retired stream closed: only
+        // its matching drain receipt does, and an unsent stop stays owed.
+        match tokio::time::timeout(Duration::from_millis(500), self.native.send(command)).await {
+            Ok(Ok(())) => {
+                if let Some(stop) = self.capture.retired_stops.get_mut(command_id) {
+                    stop.sent = true;
+                }
+                self.log(
+                    "retired_audio_stop_sent",
+                    &[("id", command_id), ("stream_id", &stream)],
+                );
+            }
+            Ok(Err(_closed)) => {
+                self.capture.retired_stops.remove(command_id);
+                self.log("retired_audio_stop_helper_gone", &[("id", command_id)]);
+            }
+            Err(_elapsed) => {
+                self.log("retired_audio_stop_send_owed", &[("id", command_id)]);
+            }
+        }
+    }
+
+    pub(in crate::daemon) async fn retry_retired_stream_stops(&mut self) {
+        if !self.state.capabilities().native_helper() {
+            let retired_call_starts = self.capture.retired_call_starts.len();
+            let retired_stops = self.capture.retired_stops.len();
+            if retired_call_starts > 0 || retired_stops > 0 {
+                self.log(
+                    "retired_capture_debts_helper_unavailable",
+                    &[
+                        ("retired_call_starts", &retired_call_starts.to_string()),
+                        ("retired_stops", &retired_stops.to_string()),
+                    ],
+                );
+                self.capture.retired_call_starts.clear();
+                self.capture.retired_stops.clear();
+            }
+            return;
+        }
+        let owed = self
+            .capture
+            .retired_stops
+            .iter()
+            .find(|(_, stop)| !stop.sent)
+            .map(|(id, _)| id.clone());
+        if let Some(id) = owed {
+            self.send_retired_stream_stop(&id).await;
+        }
+    }
+
+    /// An audio_stop that preceded a call's audio_start may have returned
+    /// stream_not_found. Its matching late start needs a fresh selective stop;
+    /// the old pending receipt cannot stand for that later stream.
+    pub(in crate::daemon) async fn retire_pending_stream_stop(
+        &mut self,
+        stream: &str,
+        start_failed: bool,
+    ) -> Result<bool> {
+        let ids: Vec<String> = self
+            .capture
+            .audio
+            .stops
+            .iter()
+            .filter(|(_, stop)| stop.stream == stream)
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in ids {
+            let Some(stop) = self.capture.audio.stops.remove(&id) else {
+                continue;
+            };
+            if !stop.answered {
+                if self.capture.retired_stops.len() >= MAX_RETIRED_STOPS {
+                    self.retired_stop_capacity_exhausted().await?;
+                    return Ok(false);
+                }
+                self.capture.retired_stops.insert(
+                    id.clone(),
+                    RetiredStreamStop {
+                        stream: stream.to_owned(),
+                        sent: true,
+                        may_finish_call: false,
+                    },
+                );
+            }
+            self.log(
+                if start_failed {
+                    "call_stop_retired_after_failed_start"
+                } else {
+                    "call_stop_overtaken_by_late_start"
+                },
+                &[("id", &id), ("stream_id", stream)],
+            );
+        }
+        Ok(true)
+    }
+
+    pub(in crate::daemon) fn mark_overtaken_stop_answered(&mut self, command_id: &str) {
+        if let Some(stop) = self.capture.audio.stops.get_mut(command_id) {
+            stop.answered = true;
+        }
+    }
+
+    pub(in crate::daemon) fn call_stop_overtook_unanswered_start(&self, command_id: &str) -> bool {
+        self.capture
+            .audio
+            .stops
+            .get(command_id)
+            .is_some_and(|stop| {
+                stop.source == "mic_local"
+                    && self.closing_call_owns_stream(&stop.stream)
+                    && self
+                        .capture
+                        .retired_call_starts
+                        .values()
+                        .any(|stream| stream == &stop.stream)
+            })
+    }
+
+    pub(in crate::daemon) fn begin_call_voice(&mut self, preroll: &[(Value, i64)]) -> Result<()> {
+        self.capture.buffer.begin_voice()?;
+        self.capture.audio.voice.submit = true;
+        for (frame, time) in preroll {
+            self.capture.buffer.ingest_voice_frame(frame, *time)?;
+        }
+        Ok(())
+    }
+
+    pub(in crate::daemon) async fn finish_call_voice(&mut self, submit: bool) -> Result<()> {
+        if submit {
+            self.dispatch_voice_transcription().await
+        } else {
+            self.capture.buffer.voice = None;
+            Ok(())
+        }
+    }
+
+    /// A call whose drain reached its fifteen seconds while the helper still
+    /// speaks, with no meeting draining beside it: its stop is abandoned and
+    /// the audio received is kept.
+    pub(super) fn live_call_reached_drain_limit(&self) -> bool {
+        let now = Instant::now();
+        let hard_limit_reached = self
+            .capture
+            .audio
+            .started_at
+            .and_then(|started| started.checked_add(AUDIO_DRAIN_LIMIT))
+            .is_some_and(|limit| now >= limit);
+        let helper_is_live = self
+            .capture
+            .audio
+            .last_liveness
+            .and_then(|seen| seen.checked_add(AUDIO_SILENCE_TIMEOUT))
+            .is_some_and(|silent_at| now < silent_at);
+        let meeting_is_draining = self
+            .state
+            .durable
+            .recording
+            .as_ref()
+            .is_some_and(|recording| {
+                matches!(
+                    recording.phase,
+                    CapturePhase::Starting
+                        | CapturePhase::Recording
+                        | CapturePhase::Paused
+                        | CapturePhase::Finalizing
+                )
+            });
+        hard_limit_reached
+            && helper_is_live
+            && self.capture.call_runtime.is_some()
+            && !meeting_is_draining
+    }
+}

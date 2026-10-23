@@ -637,9 +637,8 @@ async fn voice_refusal_during_starting_recording_keeps_permission_cause() -> Res
     runtime.apply(Event::VoiceStart).await?;
     let playback_stop = receiver.try_recv().context("playback_stop absent")?;
     assert_eq!(playback_stop["command"], "playback_stop");
-    let purpose = receive_helper_command(&mut receiver, "audio_purpose").await?;
-    assert_eq!(purpose["stream_id"], start["stream_id"]);
-    assert_eq!(purpose["purpose"], "voice_note");
+    // The meeting holds the microphone: the note over it tells the helper
+    // nothing new (the last `try_recv` below checks no order followed).
     runtime
         .native_event(json!({"event":"response","id":start["id"],"ok":false,
             "error":{"code":"microphone_permission_required",

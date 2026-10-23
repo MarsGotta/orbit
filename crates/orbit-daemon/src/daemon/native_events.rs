@@ -1053,35 +1053,6 @@ impl Runtime {
         self.record(notice);
     }
 
-    /// A step the helper reports that answers no order. A code this
-    /// daemon does not know is the helper's error, never silence.
-    fn on_native_notice(&mut self, event: &Value) -> Result<()> {
-        let orbit_core::wire::native::NativeEvent::Notice {
-            code, abandonment, ..
-        } = serde_json::from_value(event.clone())?
-        else {
-            bail!("Evento notice incoherente");
-        };
-        match code.as_str() {
-            "wake_phrase_heard" => self.record(NoticeCode::WakePhraseHeard),
-            "wake_phrase_abandoned" => {
-                let mut notice = Notice::new(NoticeCode::WakePhraseAbandoned);
-                if let Some(abandonment) = abandonment {
-                    notice = notice
-                        .with_token(NoticeKey::Cause, abandonment.cause.as_str())
-                        .with(NoticeKey::ElapsedMs, abandonment.elapsed_ms)
-                        .with(NoticeKey::SilentMs, abandonment.silent_ms);
-                }
-                self.record(notice);
-            }
-            "wake_phrase_question_dropped" => self.record(NoticeCode::WakePhraseQuestionDropped),
-            other => {
-                self.say(Notice::new(NoticeCode::HelperError).with_token(NoticeKey::Code, other))
-            }
-        }
-        Ok(())
-    }
-
     async fn on_native_error(&mut self, event: &Value) -> Result<()> {
         let error = NativeErrorCode::deserialize(event)?;
         let mut notice =

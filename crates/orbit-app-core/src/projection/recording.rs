@@ -142,10 +142,18 @@ fn question_cause(cause: orbit_core::meeting_question::QuestionCause) -> Meeting
 
 fn voice_trigger(status: orbit_core::meeting_question::VoiceStatus) -> VoiceStatusSnapshot {
     use orbit_core::meeting_question::{NotListening as Off, VoiceStatus as Core};
+    use orbit_core::wire::native::WakePhraseAbandonmentCause as Cause;
     match status {
         Core::Listening => VoiceStatusSnapshot::Listening,
         Core::Starting => VoiceStatusSnapshot::Starting,
         Core::Downloading { percent } => VoiceStatusSnapshot::Downloading { percent },
+        Core::Abandoned { cause } => VoiceStatusSnapshot::Abandoned {
+            cause: match cause {
+                Cause::PhraseRevised => PhraseAbandonedCause::PhraseRevised,
+                Cause::QuestionWaitExpired => PhraseAbandonedCause::QuestionWaitExpired,
+                Cause::QuestionTooLong => PhraseAbandonedCause::QuestionTooLong,
+            },
+        },
         Core::NotListening { why } => VoiceStatusSnapshot::NotListening {
             why: match why {
                 Off::PrivacyStopped => VoiceOffCause::PrivacyStopped,

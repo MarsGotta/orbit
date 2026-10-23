@@ -74,6 +74,12 @@ export function meetingQuestionCopy(assistantName: string) {
         downloading: (percent: number) =>
           `«Oye ${assistantName}» aún no escucha: descargando el reconocimiento de voz (${percent} %)`,
         off: (why: string) => `«Oye ${assistantName}» no escucha: ${why}`,
+        // «Oye …» was heard and no question followed: why, and what to do.
+        abandoned: {
+          phrase_revised: `No entendí bien «Oye ${assistantName}». Repítelo con la pregunta seguida.`,
+          question_wait_expired: `Oí «Oye ${assistantName}», pero no llegó ninguna pregunta. Dila justo después del nombre.`,
+          question_too_long: `Oí «Oye ${assistantName}», pero no distinguí ninguna pregunta. Prueba con «Preguntar a ${assistantName}».`,
+        },
         short: {
           listening: `«Oye ${assistantName}» escucha`,
           downloading: (percent: number) => `«Oye ${assistantName}» ${percent} %`,

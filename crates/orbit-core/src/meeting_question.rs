@@ -33,7 +33,8 @@ pub const MAX_QUESTION_BYTES: usize = 1024;
 pub const ANSWER_SHOWN_MS: i64 = 45_000;
 
 /// How long a failure stays in the panel: enough to read its cause, short
-/// enough not to cover the call. Not a retry interval.
+/// enough not to cover the call. Not a retry interval. A phrase abandoned
+/// without a question is said as long.
 pub const FAILURE_SHOWN_MS: i64 = 8_000;
 
 /// The pause that ends a spoken question («Oye Deimos, …» and then silence).
@@ -358,6 +359,9 @@ pub struct VoiceFacts<'a> {
     pub requested: bool,
     /// The helper's last `voice_trigger`.
     pub report: Option<&'a VoiceTrigger>,
+    /// The phrase heard last was abandoned without a question, and why,
+    /// while the panel still says so.
+    pub abandoned: Option<crate::wire::native::WakePhraseAbandonmentCause>,
 }
 
 /// Why «Oye Deimos» does not listen during a recording, with its numbers.
@@ -404,6 +408,11 @@ pub enum VoiceStatus {
     NotListening {
         why: NotListening,
     },
+    /// It listens, and the phrase heard last was abandoned without a
+    /// question: the helper's cause, said in the panel for a few seconds.
+    Abandoned {
+        cause: crate::wire::native::WakePhraseAbandonmentCause,
+    },
 }
 
 /// Whether «Oye Deimos» listens, and why not. `None` outside a recording:
@@ -442,7 +451,10 @@ pub fn voice_status(facts: &VoiceFacts<'_>) -> Option<VoiceStatus> {
         return off(NotListening::NoMicrophone);
     }
     match facts.report {
-        Some(VoiceTrigger::Listening) => Some(VoiceStatus::Listening),
+        Some(VoiceTrigger::Listening) => Some(match facts.abandoned.clone() {
+            Some(cause) => VoiceStatus::Abandoned { cause },
+            None => VoiceStatus::Listening,
+        }),
         Some(VoiceTrigger::Downloading { percent }) => {
             Some(VoiceStatus::Downloading { percent: *percent })
         }

@@ -271,6 +271,7 @@ fn facts(report: Option<&VoiceTrigger>) -> VoiceFacts<'_> {
         helper_listens: true,
         requested: true,
         report,
+        abandoned: None,
     }
 }
 
@@ -381,6 +382,47 @@ fn the_voice_status_is_true_and_says_why_it_does_not_listen() {
             None
         );
     }
+}
+
+/// «Oye Deimos» heard and its question abandoned by the helper: while it
+/// listens, the status says why, for the panel's line; a status that does
+/// not listen keeps its own cause.
+#[test]
+fn an_abandoned_phrase_is_said_while_it_listens() {
+    use crate::wire::native::WakePhraseAbandonmentCause as Cause;
+    let listening = VoiceTrigger::Listening;
+    for cause in [
+        Cause::PhraseRevised,
+        Cause::QuestionWaitExpired,
+        Cause::QuestionTooLong,
+    ] {
+        let status = voice_status(&VoiceFacts {
+            abandoned: Some(cause.clone()),
+            ..facts(Some(&listening))
+        });
+        assert_eq!(status, Some(VoiceStatus::Abandoned { cause }));
+    }
+    assert_eq!(
+        serde_json::to_value(VoiceStatus::Abandoned {
+            cause: Cause::QuestionWaitExpired
+        })
+        .ok(),
+        Some(serde_json::json!({"state": "abandoned", "cause": "question_wait_expired"}))
+    );
+    assert_eq!(
+        voice_status(&VoiceFacts {
+            recording: Some(crate::CapturePhase::Paused),
+            abandoned: Some(Cause::PhraseRevised),
+            ..facts(Some(&listening))
+        }),
+        Some(VoiceStatus::NotListening {
+            why: NotListening::Paused
+        })
+    );
+    assert_eq!(
+        voice_status(&facts(Some(&listening))),
+        Some(VoiceStatus::Listening)
+    );
 }
 
 /// The transcription can write one phrase twice with other marks.

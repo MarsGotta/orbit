@@ -143,6 +143,20 @@ it("says why «Oye Deimos» does not listen instead of the hint", async () => {
   expect(screen.queryByText("Di «Oye Deimos» y tu pregunta")).toBeNull();
 });
 
+it("says why a phrase heard was left without a question instead of the hint", async () => {
+  const { port } = portWith({
+    ...recording,
+    voice_trigger: { state: "abandoned", cause: "question_wait_expired" },
+  });
+  render(<PanelApp port={port} />);
+  expect(
+    await screen.findByText(
+      "Oí «Oye Deimos», pero no llegó ninguna pregunta. Dila justo después del nombre.",
+    ),
+  ).toBeTruthy();
+  expect(screen.queryByText("Di «Oye Deimos» y tu pregunta")).toBeNull();
+});
+
 it("a paused recording says so", async () => {
   const { port } = portWith({ ...recording, phase: "paused" });
   render(<PanelApp port={port} />);
