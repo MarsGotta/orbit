@@ -291,6 +291,49 @@ describe("the permissions", () => {
   });
 });
 
+describe("back from System Settings", () => {
+  // The person opens System Settings for a permission and comes back to
+  // Orbit without granting it: the row never waits for ever.
+  const returnToOrbit = () =>
+    act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      await Promise.resolve();
+    });
+
+  it("reads the permissions again and, still refused, offers its button again", async () => {
+    const { sent } = show({ snapshot: snapshot(false, { ...unasked, calendars: "denied" }) });
+    press("Empezar");
+    press("Emparejar después");
+    const row = () => screen.getByText("Calendarios").closest("li") as HTMLElement;
+    fireEvent.click(within(row()).getByRole("button", { name: "Abrir Ajustes del Sistema" }));
+    expect(within(row()).getByText("Esperando a Ajustes del Sistema…")).toBeTruthy();
+    await returnToOrbit();
+    expect(sent).toContainEqual({ command: "permissions", request: [] });
+    expect(within(row()).queryByText("Esperando a Ajustes del Sistema…")).toBeNull();
+    expect(within(row()).getByText("Sin conceder")).toBeTruthy();
+    expect(within(row()).getByRole("button", { name: "Abrir Ajustes del Sistema" })).toBeTruthy();
+  });
+
+  it("accessibility not switched on offers «Abrir Ajustes» again", async () => {
+    show();
+    press("Empezar");
+    press("Emparejar después");
+    const row = () => screen.getByText("Accesibilidad").closest("li") as HTMLElement;
+    fireEvent.click(within(row()).getByRole("button", { name: "Abrir Ajustes" }));
+    expect(within(row()).getByText("Esperando a Ajustes del Sistema…")).toBeTruthy();
+    await returnToOrbit();
+    expect(within(row()).getByRole("button", { name: "Abrir Ajustes" })).toBeTruthy();
+  });
+
+  it("nothing is read again while no row waits for System Settings", async () => {
+    const { sent } = show();
+    press("Empezar");
+    press("Emparejar después");
+    await returnToOrbit();
+    expect(sent).not.toContainEqual({ command: "permissions", request: [] });
+  });
+});
+
 describe("all set", () => {
   it("shows the three shortcuts and starts using Orbit", () => {
     const { sent, onComplete } = show();

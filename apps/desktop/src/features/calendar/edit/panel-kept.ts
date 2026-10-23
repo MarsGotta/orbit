@@ -3,6 +3,7 @@ import { useLocalDraft } from "../../../state/local-drafts";
 import type { CalendarEvent } from "../eventLook";
 import { changesOf, type EventForm, hasChanges } from "./form";
 import type { CalendarSpan } from "../../../bridge/generated/CalendarSpan";
+import type { WriteOutcome } from "../../../bridge/generated/WriteOutcome";
 import type { WriteSettled } from "./usePendingWrites";
 import type { Current, Editing } from "./useEventEditor";
 
@@ -76,16 +77,47 @@ interface Created {
   form: EventForm;
 }
 
+/** How a new event's write ended, from the view's writes or the agenda head. */
+export type CreatedOutcome = { state: WriteSettled["state"] };
+
+function acceptCreated(raw: unknown): Created | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const { requestId, form } = raw as Record<string, unknown>;
+  return typeof requestId === "string" && isForm(form) ? { requestId, form } : null;
+}
+
+/**
+ * How the agenda head says the write `requestId` ended, if it says: what a
+ * view that opened after the write was sent reads, since the write is not
+ * one of its own. Absent from the head, it is not known yet.
+ */
+export function headOutcome(
+  writes: readonly WriteOutcome[] | undefined,
+  requestId: string,
+): CreatedOutcome | undefined {
+  const record = writes?.find((write) => write.request_id === requestId);
+  if (record?.stage === "refused" || record?.stage === "outcome_unknown")
+    return { state: "failed" };
+  if (record?.stage === "saved") return { state: "saved" };
+  return undefined;
+}
+
 /**
  * Saves what the panel holds, remembering the last new event sent: refused
  * or of unknown outcome, it is the panel's again, notes and place included.
+ * It is kept on this Mac until the calendar answers, so a view closed
+ * before the answer gives it back when it opens again, saying so.
  */
 export function useCreated(
   current: Current,
   replace: (next: Editing | null) => void,
   write: (span?: CalendarSpan) => string | null,
 ) {
-  const [created, setCreated] = useState<Created | null>(null);
+  const kept = useLocalDraft<Created | null>("calendar.created", null, acceptCreated);
+  const created = kept.value;
+  const setCreated = kept.set;
+  // The one this view found on its way when it opened: a closed view sent it.
+  const inherited = useRef(created?.requestId ?? null);
   const commit = (span?: CalendarSpan) => {
     const now = current.current;
     const requestId = write(span);
@@ -93,12 +125,13 @@ export function useCreated(
       setCreated({ requestId, form: now.form });
     return requestId;
   };
-  const settleCreated = (requestId: string, outcome: WriteSettled) => {
+  const settleCreated = (requestId: string, outcome: CreatedOutcome) => {
     if (created?.requestId !== requestId) return;
     setCreated(null);
     if (outcome.state !== "failed") return;
     commit();
-    replace({ base: created.form, event: null, form: created.form });
+    const recovered = requestId === inherited.current ? { recovered: true } : {};
+    replace({ base: created.form, event: null, form: created.form, ...recovered });
   };
   return { commit, created, settleCreated };
 }

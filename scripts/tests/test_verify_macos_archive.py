@@ -30,6 +30,9 @@ SPEC.loader.exec_module(verify)
 COMMIT = "a" * 40
 ENGINE_CONTENTS = verify.CONTENTS + "/Helpers/Orbit Engine.app/Contents"
 ENGINE_PLIST = ENGINE_CONTENTS + "/Info.plist"
+# The notice third-party-notices.py writes at build time, and its first line.
+NOTICES = verify.RESOURCES + "/third-party/NOTICES.txt"
+NOTICES_HEADER = b"Third-party software in Orbit\n"
 
 
 def engine_plist():
@@ -101,6 +104,8 @@ def entries(architecture="arm64", *, stapled=False):
             data = manifest(architecture, notarized="true" if stapled else "false")
         if name == verify.DRIVER_LICENSE:
             data = verify.DRIVER_LICENSE_BYTES
+        if name == NOTICES:
+            data = NOTICES_HEADER + b"====\n\nsynthetic fixture only\n"
         if name == verify.STAPLED_TICKET:
             data = TICKET
         mode = 0o755 if name in verify.EXECUTABLES else 0o644
@@ -220,8 +225,9 @@ class ArchiveVerificationTests(unittest.TestCase):
                 external = self.root / "build-manifest.txt"
                 external.write_bytes(manifest(architecture))
                 report = verify.verify_archive(path, **options, manifest=external)
-                # The nested engine app adds its plist and resource seal.
-                self.assertEqual(report["members"], 23)
+                # The nested engine app adds its plist and resource seal; the
+                # third-party notice is one more.
+                self.assertEqual(report["members"], 24)
                 self.assertEqual(report["source_commit"], COMMIT)
                 self.assertEqual(report["architecture"], architecture)
                 self.assertFalse(report["signature_verified"])
@@ -400,10 +406,26 @@ class ArchiveVerificationTests(unittest.TestCase):
             message="cua-driver's licence",
         )
 
+    def test_the_third_party_notice_is_required_as_its_generator_writes_it(self):
+        self.assertIn(NOTICES, verify.REQUIRED_FILES)
+        self.rejected(
+            [entry for entry in entries() if entry[0] != NOTICES],
+            message="required bundle files are missing",
+        )
+        self.rejected(
+            changed(entries(), NOTICES, data=b"synthetic fixture only\n"),
+            message="third-party notice",
+        )
+        # Large like a real one (about 1 MB): only its first line is kept.
+        path, options = self.fixture(
+            changed(entries(), NOTICES, data=NOTICES_HEADER + b"licence text\n" * 80_000)
+        )
+        verify.verify_archive(path, **options)
+
     def test_a_notarized_package_carries_its_stapled_ticket(self):
         path, options = self.fixture(entries(stapled=True))
         report = verify.verify_archive(path, **options)
-        self.assertEqual(report["members"], 24)
+        self.assertEqual(report["members"], 25)
         self.assertTrue(report["manifest_notarized"])
         self.assertTrue(report["stapled_ticket"])
         # Present and marked is not valid: nothing here talks to Apple.
@@ -443,7 +465,7 @@ class ArchiveVerificationTests(unittest.TestCase):
             if not entry[0].endswith("/") and entry[0] not in verify.OPTIONAL_FILES
         ]
         path, options = self.fixture(original)
-        self.assertEqual(verify.verify_archive(path, **options)["members"], 9)
+        self.assertEqual(verify.verify_archive(path, **options)["members"], 10)
 
     def test_duplicate_casefold_and_unicode_nfc_collisions(self):
         for first, second in (

@@ -53,7 +53,9 @@ impl DaemonClient {
                 | LocalCommand::UpdateCheck
                 | LocalCommand::UpdateInstall,
             )
-            | AppCommand::Status(StatusCommand::Quit | StatusCommand::OpenUrl { .. })
+            | AppCommand::Status(
+                StatusCommand::Quit | StatusCommand::Restart | StatusCommand::OpenUrl { .. },
+            )
             | AppCommand::Permissions(PermissionsCommand::OpenSystemPrivacy { .. }) => {
                 return Err(AppError::desktop_only());
             }

@@ -344,6 +344,64 @@ describe("a failure is reported when it appears, once", () => {
     expect(report.mock.calls.map(([line]) => line.code)).not.toContain("notes_index_failed");
   });
 
+  // Every read the orderly closure cuts (in flight, or asked after the
+  // daemon stopped) ends with the cause the app's channel gives it:
+  // `orbit_closing` (`LocalClient::stopped`, crates/orbit-ipc/src/ipc.rs),
+  // whether or not the closing notice reached this window first.
+  it("a read the orderly close cut is not reported, even before the closing notice", async () => {
+    const { port, report } = fakePort();
+    let listener: ((frame: FeatureFrame) => void) | undefined;
+    port.subscribeFrames = (next) => {
+      listener = next;
+      return Promise.resolve(() => undefined);
+    };
+    port.snapshot = () => Promise.resolve(bootstrap());
+    const store = createOrbitStore(port);
+    await store.getState().connect();
+    const cut = { list: [], index: { state: "failed", more: false, detail: "orbit_closing" } };
+    listener?.(frame("notes", cut, 2));
+    expect(report.mock.calls.map(([line]) => line.code)).not.toContain("notes_index_failed");
+  });
+
+  it("the library, the open note and the agenda cut by the orderly close are not failures", () => {
+    const cut = view({
+      calendar: { reading: { detail: "agenda_request_failed:orbit_closing" }, writes: [] },
+      notes: {
+        index: { state: "failed", more: false, detail: "orbit_closing" },
+        open_read: { recording_id: "rec-1", revision: 3, state: "failed", detail: "orbit_closing" },
+        library: { read: "failed", read_detail: "orbit_closing", refusals: [] },
+      },
+    });
+    expect(stateFailures(cut)).toEqual([]);
+    // A reread it cut keeps the note on screen with the cause beside it.
+    const reread = view({
+      notes: {
+        open_read: {
+          recording_id: "rec-1",
+          revision: 3,
+          state: "available",
+          detail: "orbit_closing",
+        },
+      },
+    });
+    expect(stateFailures(reread)).toEqual([]);
+    // Any other cause is still a failure.
+    const failing = view({
+      calendar: { reading: { detail: "agenda_request_failed:El helper no respondió" }, writes: [] },
+      notes: {
+        index: { state: "failed", more: false, detail: "El hub no respondió" },
+        open_read: { recording_id: "rec-1", revision: 3, state: "failed", detail: null },
+        library: { read: "failed", read_detail: null, refusals: [] },
+      },
+    });
+    expect(stateFailures(failing).map((failure) => failure.code)).toEqual([
+      "note_read_problem",
+      "notes_index_failed",
+      "library_read_failed",
+      "agenda_read_failed",
+    ]);
+  });
+
   it("the last session's closing notice does not hide this session's failures", async () => {
     const { port, report } = fakePort();
     let listener: ((frame: FeatureFrame) => void) | undefined;

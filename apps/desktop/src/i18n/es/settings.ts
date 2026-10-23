@@ -19,6 +19,8 @@ const base = {
     missing: (count: number) => (count === 1 ? "Falta 1" : `Faltan ${count}`),
     appVersion: (version: string) => `Orbit ${version}`,
     exit: "Salir de Orbit",
+    /** Closes Orbit in order and opens it again: the helper starts with it. */
+    restart: "Reiniciar Orbit",
 
     // General
     account: "Tu cuenta",

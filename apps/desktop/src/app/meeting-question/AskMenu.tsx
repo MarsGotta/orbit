@@ -11,7 +11,8 @@ import { AskAnswer } from "./AskAnswer";
 import { questionBytes, voiceStatusText } from "./copy";
 import styles from "./AskMenu.module.css";
 
-type Send = (command: AppCommand) => void;
+/** `false` when the daemon refused the order; anything else, it took it. */
+type Send = (command: AppCommand) => unknown;
 
 /** «Escucha los últimos 2 / 5 / 10 min»: the minutes app-core offers. */
 function WindowChoice({
@@ -48,10 +49,13 @@ function AskForm({
   ask,
   hint,
   onAsk,
+  sending,
 }: {
   ask: MeetingAskSnapshot;
   hint: string | null;
   onAsk: (question: string, minutes: number) => void;
+  /** The question is on its way: it stays here until the daemon takes it. */
+  sending: boolean;
 }) {
   const es = useSpanish();
   const field = useId();
@@ -63,7 +67,7 @@ function AskForm({
       className={styles.form}
       onSubmit={(event) => {
         event.preventDefault();
-        if (question.trim() !== "" && !tooLong) onAsk(question.trim(), minutes);
+        if (question.trim() !== "" && !tooLong && !sending) onAsk(question.trim(), minutes);
       }}
     >
       <label className={styles.visuallyHidden} htmlFor={field}>
@@ -85,7 +89,7 @@ function AskForm({
       <WindowChoice minutes={minutes} onChoose={setMinutes} windows={ask.windows} />
       <div className={styles.footer}>
         {hint !== null && <span className={styles.hint}>{hint}</span>}
-        <Button size={32} type="submit" variant="accent">
+        <Button disabled={sending} size={32} type="submit" variant="accent">
           {es.askMenu.send}
         </Button>
       </div>
@@ -97,6 +101,27 @@ interface Asked {
   question: string;
   /** The question the daemon showed before this one: its answer is not ours. */
   before: string | null;
+}
+
+/**
+ * The question asked from the menu. As in the chat, the form gives way to
+ * the answer only once the daemon took it; refused, it stays written and the
+ * refusal is said where the recording's are (`MeetingOverlays`).
+ */
+function useAsked(send: Send, current: MeetingQuestionSnapshot | undefined | null) {
+  const [asked, setAsked] = useState<Asked | null>(null);
+  const [sending, setSending] = useState(false);
+  const askNow = (question: string, minutes: number) => {
+    const before = current?.id ?? null;
+    setSending(true);
+    void Promise.resolve(send({ command: "meeting_ask", question, minutes }))
+      .then((accepted) => {
+        if (accepted !== false) setAsked({ question, before });
+      })
+      .catch(() => undefined)
+      .finally(() => setSending(false));
+  };
+  return { asked, askNow, clear: () => setAsked(null), sending };
 }
 
 function AskSteps({
@@ -111,9 +136,9 @@ function AskSteps({
   onClose: () => void;
 }) {
   const es = useSpanish();
-  const [asked, setAsked] = useState<Asked | null>(null);
-  const [kept, setKept] = useState<MeetingQuestionSnapshot | null>(null);
   const current = meeting.question;
+  const { asked, askNow, clear, sending } = useAsked(send, current);
+  const [kept, setKept] = useState<MeetingQuestionSnapshot | null>(null);
   const live = asked && current && current.id !== asked.before ? current : null;
   // The panel lets an answer go after a while; the menu keeps the last one.
   if (live && live !== kept) setKept(live);
@@ -123,19 +148,12 @@ function AskSteps({
     <div className={styles.menu}>
       <h2 className={styles.title}>{es.askMenu.title}</h2>
       {asked === null ? (
-        <AskForm
-          ask={ask}
-          hint={hint}
-          onAsk={(question, minutes) => {
-            send({ command: "meeting_ask", question, minutes });
-            setAsked({ question, before: current?.id ?? null });
-          }}
-        />
+        <AskForm ask={ask} hint={hint} onAsk={askNow} sending={sending} />
       ) : (
         <AskAnswer
           asked={asked.question}
           onAgain={() => {
-            setAsked(null);
+            clear();
             setKept(null);
           }}
           openUrl={(url) => send({ command: "open_url", url })}

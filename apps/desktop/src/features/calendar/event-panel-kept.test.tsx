@@ -146,6 +146,61 @@ describe("the event panel keeps what was written", () => {
     expect(screen.queryByRole("complementary", { name: "Detalles del evento" })).toBeNull();
   });
 
+  function createdRequestId(send: ReturnType<typeof setup>["send"]): string {
+    const create = send.mock.calls
+      .map(([command]) => command)
+      .find((command) => command.command === "calendar");
+    return create?.command === "calendar" && create.request.action === "save"
+      ? create.request.request_id
+      : "";
+  }
+
+  function opened(writes: WriteOutcome[]) {
+    const send = vi.fn<(command: AppCommand) => Promise<void>>().mockResolvedValue();
+    return render(<CalendarView error={null} send={send} snapshot={snapshot({ writes })} />);
+  }
+
+  it("a new event refused after the calendar was left comes back when it opens, and says so", () => {
+    const first = setup();
+    draftOnSaturday();
+    fireEvent.click(within(panel()).getByRole("button", { name: "Crear evento" }));
+    const requestId = createdRequestId(first.send);
+    expect(requestId).not.toBe("");
+    // The person goes to Notas before the calendar answers.
+    first.unmount();
+    const refused: WriteOutcome = {
+      request_id: requestId,
+      operation: "create",
+      stage: "refused",
+      code: "calendar_not_editable",
+      notice: "El calendario «Trabajo» no admite cambios desde este Mac.",
+    };
+    const again = opened([refused]);
+    expect(titleBox().value).toBe("Revisión con la gestoría");
+    expect(notesBox().value).toBe("Llevar los papeles del alquiler");
+    expect(within(panel()).getByRole("status").textContent).toContain(
+      "Recuperado lo que escribiste y no se llegó a guardar",
+    );
+    // Given back once: closing it on purpose lets it go.
+    fireEvent.keyDown(window, { key: "Delete" });
+    again.unmount();
+    opened([refused]);
+    expect(screen.queryByRole("complementary", { name: "Detalles del evento" })).toBeNull();
+  });
+
+  it("a new event the calendar saved after it was left is not brought back", () => {
+    const first = setup();
+    draftOnSaturday();
+    fireEvent.click(within(panel()).getByRole("button", { name: "Crear evento" }));
+    const requestId = createdRequestId(first.send);
+    first.unmount();
+    const again = opened([{ request_id: requestId, operation: "create", stage: "saved" }]);
+    expect(screen.queryByRole("complementary", { name: "Detalles del evento" })).toBeNull();
+    again.unmount();
+    opened([]);
+    expect(screen.queryByRole("complementary", { name: "Detalles del evento" })).toBeNull();
+  });
+
   it("a draft let go of on purpose is not brought back", () => {
     const first = setup();
     draftOnSaturday();

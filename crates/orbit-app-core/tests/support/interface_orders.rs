@@ -22,6 +22,7 @@ pub fn cases() -> Vec<(Value, FeatureId)> {
             FeatureId::Status,
         ),
         (json!({"command":"quit"}), FeatureId::Status),
+        (json!({"command":"restart"}), FeatureId::Status),
         (
             json!({"command":"permissions","request":[orbit_ipc::permissions::MICROPHONE]}),
             FeatureId::Permissions,

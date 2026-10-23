@@ -31,11 +31,28 @@ function present(text: string | null | undefined): text is string {
   return text != null && text !== "";
 }
 
+/**
+ * The cause of every read the daemon's orderly closure cut off: one in flight
+ * it let go of, or one asked once it had stopped. The app's channel to the
+ * daemon gives that cause and no other when the daemon closed in order
+ * (`LocalClient::stopped`, crates/orbit-ipc/src/ipc.rs), and the app keeps it
+ * as the read's detail (pinned by `orbit-app-core/tests/topics.rs`). Orbit
+ * closing is not a failed read; a daemon that fell says otherwise.
+ */
+const CLOSED_IN_ORDER = "orbit_closing";
+const AGENDA_FAILED = "agenda_request_failed:";
+
+function cutByClosing(detail: string | null | undefined): boolean {
+  return detail === CLOSED_IN_ORDER;
+}
+
 function noteFailures(view: AppView): StateFailure[] {
   const notes = view.notes;
   const failures: StateFailure[] = [];
   const read = notes?.open_read;
-  if (read?.state === "failed" || (read?.state === "available" && present(read.detail))) {
+  // A reread the closure cut keeps the note shown, with the cause as its detail.
+  const cut = cutByClosing(read?.detail);
+  if (!cut && (read?.state === "failed" || (read?.state === "available" && present(read.detail)))) {
     const stage = read.state === "failed" ? "failed" : "incomplete";
     failures.push({
       key: `note_read:${read.recording_id}:${read.revision}:${stage}`,
@@ -44,13 +61,13 @@ function noteFailures(view: AppView): StateFailure[] {
     });
   }
   const open = notes?.open;
-  if (present(open?.transcript?.error))
+  if (present(open?.transcript?.error) && !cutByClosing(open.transcript.error))
     failures.push({
       key: `transcript:${open.recording_id}`,
       code: "transcript_read_failed",
       data: {},
     });
-  if (notes?.index?.state === "failed")
+  if (notes?.index?.state === "failed" && !cutByClosing(notes.index.detail))
     failures.push({ key: "notes_index", code: "notes_index_failed", data: {} });
   return failures;
 }
@@ -59,7 +76,8 @@ function libraryFailures(view: AppView): StateFailure[] {
   const library = view.notes?.library;
   if (library == null) return [];
   const failures: StateFailure[] = [];
-  if (library.read === "failed" || library.templates?.state === "failed")
+  const cut = library.read === "failed" && cutByClosing(library.read_detail);
+  if (!cut && (library.read === "failed" || library.templates?.state === "failed"))
     failures.push({ key: "library_read", code: "library_read_failed", data: {} });
   for (const refusal of library.refusals ?? []) {
     failures.push({
@@ -89,7 +107,11 @@ function updateFailures(view: AppView): StateFailure[] {
 
 function calendarFailures(view: AppView): StateFailure[] {
   const failures: StateFailure[] = [];
-  if (view.calendar?.reading?.detail?.startsWith("agenda_request_failed:") === true)
+  const reading = view.calendar?.reading?.detail;
+  if (
+    reading?.startsWith(AGENDA_FAILED) === true &&
+    !cutByClosing(reading.slice(AGENDA_FAILED.length))
+  )
     failures.push({ key: "agenda_read", code: "agenda_read_failed", data: {} });
   for (const write of view.calendar?.writes ?? []) {
     if (write.stage !== "refused" && write.stage !== "outcome_unknown") continue;

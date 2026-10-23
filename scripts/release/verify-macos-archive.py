@@ -54,8 +54,9 @@ MAX_TOTAL_BYTES = 128 * 1024 * 1024
 # and only then does this move, because only then is a larger member ours.
 MAX_MEMBER_BYTES = 32 * 1024 * 1024
 # Central-directory entries parsed before zipfile allocates one object each.
-# The nested engine app brings the synthetic tree to 23 members (24 with a
-# stapled ticket); 128 leaves room for explicit directories an archiver adds.
+# The nested engine app and the third-party notice bring the synthetic tree to
+# 24 members (25 with a stapled ticket); 128 leaves room for explicit
+# directories an archiver adds.
 MAX_MEMBERS = 128
 # Info.plist, the build manifest and the driver's licence are kept in memory
 # and parsed; they measure under 4 KiB, and 64 KiB is sixteen times that.
@@ -93,6 +94,12 @@ DRIVER_LICENSE_BYTES = (
     / "cua-driver"
     / "LICENSE.md"
 ).read_bytes()
+# The notice of the interface's packages and the app's crates, written at
+# build time from what the build installed (scripts/release/third-party-notices.py).
+# It is generated, so only its first line is known here: that line, at the
+# start of the member, says it is that notice and not a stray file.
+NOTICES = RESOURCES + "/third-party/NOTICES.txt"
+NOTICES_HEADER = b"Third-party software in Orbit\n"
 # The daemon runs inside MacOS/Orbit; a Contents/Resources/orbit is an
 # unexpected file of an archive the old script built.
 MACHOS = {
@@ -107,6 +114,7 @@ REQUIRED_FILES = EXECUTABLES | {
     MANIFEST,
     RESOURCES + "/LICENSE",
     DRIVER_LICENSE,
+    NOTICES,
     RESOURCES + "/icon.icns",
 }
 # Where `stapler staple` leaves the notarization ticket for a bundle. Distinct
@@ -594,6 +602,10 @@ def verify_archive(path, *, architecture, commit, checksum_file, manifest=None):
     require(
         contents[DRIVER_LICENSE] == DRIVER_LICENSE_BYTES,
         "cua-driver's licence does not match the versioned text",
+    )
+    require(
+        contents[NOTICES].startswith(NOTICES_HEADER),
+        "the third-party notice does not start as third-party-notices.py writes it",
     )
     if manifest is not None:
         require(

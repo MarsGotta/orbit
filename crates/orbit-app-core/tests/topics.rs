@@ -57,6 +57,40 @@ async fn ordered_shutdown_keeps_the_closing_notice_and_ends_reads_explicitly()
     Ok(())
 }
 
+/// A list read the orderly closure cuts says so with the one cause the
+/// interface takes for «Orbit is closing», not a failure
+/// (`apps/desktop/src/state/state-failures.ts`, `CLOSED_IN_ORDER`).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_notes_read_cut_by_the_orderly_close_names_that_cause() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let paths = Paths::resolve(Some(directory.path().to_owned()))?;
+    let daemon = embedded_daemon::TestDaemon::start(directory.path(), None)?;
+    daemon.ready(RECOVERY_JAM_GUARD).await?;
+    let client = DaemonClient::connect(paths, daemon.client.clone());
+    let mut changes = client.watch_frames();
+    daemon
+        .client
+        .request_command(OrbitCommand::Shutdown)
+        .await?;
+    tokio::time::timeout(START_BUDGET, async {
+        while client.composed_snapshot().connection.daemon != DaemonConnection::Lost {
+            changes.changed().await?;
+        }
+        Ok::<_, Box<dyn Error>>(())
+    })
+    .await??;
+    let refresh: AppCommand =
+        serde_json::from_value(serde_json::json!({"command": "notes_refresh"}))?;
+    client.send(refresh).await?;
+    let index = client
+        .composed_snapshot()
+        .notes
+        .and_then(|notes| notes.index)
+        .ok_or("the list was not read")?;
+    assert_eq!(index.detail.as_deref(), Some("orbit_closing"));
+    Ok(())
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn real_topic_changes_reach_status_recording_control_and_assistant_frames()
 -> Result<(), Box<dyn Error>> {

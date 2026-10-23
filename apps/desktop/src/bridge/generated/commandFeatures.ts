@@ -50,6 +50,7 @@ export const commandFeature = {
   "quit": "status",
   "rearm": "status",
   "recording_keep": "recording",
+  "restart": "status",
   "session_open": "assistant",
   "speak": "assistant",
   "speak_stop": "assistant",

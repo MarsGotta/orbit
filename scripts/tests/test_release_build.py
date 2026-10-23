@@ -13,6 +13,7 @@ from pathlib import Path
 
 from scripts.tests import test_verify_macos_archive as archive_fixture
 from driver_fixture import verified_driver_version
+import notice_fixture
 
 ROOT = Path(__file__).resolve().parents[2]
 RELEASE = ROOT / "scripts/release"
@@ -644,6 +645,7 @@ class ReleaseBuildTests(unittest.TestCase):
             "apps/desktop/src-tauri/icons/icon.icns",
             "third-party/cua-driver/LICENSE.md",
             "LICENSE",
+            "scripts/release/third-party-notices.py",
         )
         for name in files:
             target = fixture / name
@@ -691,6 +693,7 @@ class ReleaseBuildTests(unittest.TestCase):
             "swift",
             f'#!/bin/sh\necho "swift $*" >> "$ORBIT_TEST_LOG"\nif [ "$1" = test ] && [ "{int(swift_fails)}" = 1 ]; then echo "swift broken" >&2; exit 46; fi\ncase "$*" in *--show-bin-path*) echo "{swift_bin}";; esac\n',
         )
+        pnpm, cargo = notice_fixture.listings(self.scratch / "listings")
         for tool in (
             "pnpm",
             "cargo",
@@ -700,7 +703,8 @@ class ReleaseBuildTests(unittest.TestCase):
             "security",
             "ditto",
         ):
-            self.tool(tool, f'#!/bin/sh\necho "{tool} $*" >> "$ORBIT_TEST_LOG"\n')
+            answer = notice_fixture.answering(tool, pnpm, cargo) if tool in ("pnpm", "cargo") else ""
+            self.tool(tool, f'#!/bin/sh\necho "{tool} $*" >> "$ORBIT_TEST_LOG"\n{answer}')
         self.tool(
             "codesign",
             '#!/bin/sh\necho "codesign $*" >> "$ORBIT_TEST_LOG"\n'

@@ -3,7 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "../bridge/generated";
 import type { MeetingSnapshot } from "../bridge/generated/MeetingSnapshot";
+import type { DaemonPort } from "../bridge/port";
+import { createOrbitStore } from "../state/orbit-store";
 import { RecordingCard } from "./RecordingCard";
+import { messageFor } from "./visible-error";
 
 // 11:45 in Madrid on 21 October 2026, an invented deadline.
 const ENDS = Date.UTC(2026, 9, 21, 9, 45);
@@ -229,5 +232,71 @@ describe("«Preguntar a Deimos» from the card", () => {
   it("is not offered while app-core does not offer it", () => {
     renderCard(meeting({ ask: undefined }));
     expect(screen.queryByRole("button", { name: "Preguntar a Deimos" })).toBeNull();
+  });
+});
+
+describe("«Preguntar a Deimos» keeps the question until the daemon takes it", () => {
+  // The chat's rule (`use-composer.ts`, `sendKeeping`): what is written goes
+  // only once the daemon accepted it; refused, it stays and the view says why.
+  function sending(value = meeting()) {
+    const sent: AppCommand[] = [];
+    let accept: (accepted: boolean) => void = () => undefined;
+    render(
+      <RecordingCard
+        meeting={value}
+        send={(command) => {
+          sent.push(command);
+          return new Promise<boolean>((resolve) => {
+            accept = resolve;
+          });
+        }}
+        timezone="Europe/Madrid"
+      />,
+    );
+    return { sent, accept: (accepted: boolean) => accept(accepted) };
+  }
+
+  const field = () => screen.getByRole("textbox", { name: "Tu pregunta" }) as HTMLInputElement;
+
+  it("the form and the question stay while the daemon has not accepted it", async () => {
+    const { sent, accept } = sending();
+    await userEvent.click(screen.getByRole("button", { name: "Preguntar a Deimos" }));
+    await userEvent.type(field(), "¿Quién lleva el acta?{Enter}");
+    expect(sent).toEqual([
+      { command: "meeting_ask", question: "¿Quién lleva el acta?", minutes: 2 },
+    ]);
+    expect(field().value).toBe("¿Quién lleva el acta?");
+    const menu = screen.getByRole("dialog", { name: "Pregunta sobre esta reunión" });
+    expect(menu.textContent).not.toContain("Deimos está pensando…");
+    // Pressed again while it is on its way, nothing more is sent.
+    await userEvent.click(within(menu).getByRole("button", { name: "Preguntar" }));
+    expect(sent).toHaveLength(1);
+    await act(async () => accept(true));
+    expect(menu.textContent).toContain("Deimos está pensando…");
+    expect(screen.queryByRole("textbox", { name: "Tu pregunta" })).toBeNull();
+  });
+
+  it("a question the daemon refuses stays written, and the refusal is said", async () => {
+    const port: DaemonPort = {
+      snapshot: () => Promise.reject(new Error("sin arranque en esta prueba")),
+      subscribeFrames: () => Promise.resolve(() => undefined),
+      send: () => Promise.reject({ refusal: { code: "busy", retry: { kind: "never" } } }),
+      report: () => Promise.resolve(),
+    };
+    const store = createOrbitStore(port);
+    render(
+      <RecordingCard
+        meeting={meeting()}
+        send={(command) => store.getState().send(command, "recording")}
+        timezone="Europe/Madrid"
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Preguntar a Deimos" }));
+    await userEvent.type(field(), "¿Y el presupuesto?{Enter}");
+    await act(async () => undefined);
+    expect(field().value).toBe("¿Y el presupuesto?");
+    expect(screen.getByRole("dialog").textContent).not.toContain("Deimos está pensando…");
+    // Said where a recording's refusals are said (`MeetingOverlays`).
+    expect(messageFor("recording", store.getState().messages)?.text).toBeTruthy();
   });
 });

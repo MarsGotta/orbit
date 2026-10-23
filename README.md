@@ -120,4 +120,7 @@ privately as described in [SECURITY.md](SECURITY.md), never in a public issue.
 
 Orbit is released under the [MIT License](LICENSE). The bundled `cua-driver`
 engine has its own license, in
-[third-party/cua-driver/LICENSE.md](third-party/cua-driver/LICENSE.md).
+[third-party/cua-driver/LICENSE.md](third-party/cua-driver/LICENSE.md). Each
+build writes the licences of the interface's packages and of the Rust crates
+compiled into the app to `Orbit.app/Contents/Resources/third-party/NOTICES.txt`
+(`scripts/release/third-party-notices.py`).

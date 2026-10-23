@@ -5,6 +5,7 @@ import { Button } from "../../design/Button";
 import { Loading } from "../../design/Spinner";
 import { useSpanish } from "../../i18n/AssistantCopy";
 import { permissionRows } from "../../i18n/es/permissions";
+import { useRereadOnReturn } from "../settings/permission-reread";
 import { Step } from "./OnboardingSteps";
 import styles from "./OnboardingView.module.css";
 
@@ -30,7 +31,8 @@ interface ActionProps {
  * Asking stays «Esperando a macOS…» until macOS answers, and a permission
  * macOS has not reported yet waits the same way: neither is a refusal.
  * Accessibility, which macOS never asks for, and anything refused are
- * changed in System Settings; once opened, the row waits for it there.
+ * changed in System Settings; once opened, the row waits for it there until
+ * Orbit's window has the focus again.
  */
 function PermissionAction({
   asked,
@@ -81,6 +83,16 @@ export function PermissionsStep({ error = null, permissions, send }: Props) {
   const failed = Object.keys(asked.keys).length > 0 && error !== null && error !== asked.before;
   const ask = (key: Key, how: "macos" | "settings") =>
     setAsked({ keys: { ...asked.keys, [key]: how }, before: error });
+  // Back from System Settings, macOS is asked again; one still not granted
+  // offers its button again instead of waiting for ever.
+  useRereadOnReturn(send, Object.values(asked.keys).includes("settings"), () =>
+    setAsked((now) => ({
+      ...now,
+      keys: Object.fromEntries(
+        Object.entries(now.keys).filter(([, how]) => how !== "settings"),
+      ) as typeof now.keys,
+    })),
+  );
   return (
     <Step lead={copy.permissionsBody} title={copy.permissions}>
       <ul className={styles.rows}>

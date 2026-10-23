@@ -60,6 +60,7 @@ const commands: Record<AppCommand["command"], string> = {
   quit: "salir de Orbit",
   rearm: "reactivar Orbit",
   recording_keep: "seguir grabando la llamada",
+  restart: "reiniciar Orbit",
   session_open: "abrir la conversación",
   speak: "leer la respuesta en voz alta",
   speak_stop: "parar la lectura",

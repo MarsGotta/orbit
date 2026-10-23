@@ -9,15 +9,18 @@ import type { OnboardingRequest } from "./Onboarding";
 import { ViewBoundary } from "./ViewBoundary";
 import { messageFor } from "./visible-error";
 
-export function useCommandDispatch(send: AppContentProps["send"]): (command: AppCommand) => void {
+/** The order sent, with the daemon's answer for whoever waits for it. */
+export function useCommandDispatch(
+  send: AppContentProps["send"],
+): (command: AppCommand) => Promise<unknown> {
   return useCallback(
     (command: AppCommand) => {
       if (command.command === "notes_open") {
         const [recordingId] = command.recording_id.split("?", 1);
-        if (recordingId) void send({ ...command, recording_id: recordingId });
-        return;
+        if (recordingId) return send({ ...command, recording_id: recordingId });
+        return Promise.resolve(false);
       }
-      void send(command);
+      return send(command);
     },
     [send],
   );

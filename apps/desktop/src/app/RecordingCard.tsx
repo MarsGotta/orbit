@@ -13,7 +13,8 @@ import { voiceStatusText } from "./meeting-question/copy";
 import { useRecordedTime } from "./recorded-time";
 import styles from "./SidebarCard.module.css";
 
-type Send = (command: AppCommand) => void;
+/** «Preguntar a Deimos» reads its answer: `false` when the daemon refused it. */
+type Send = (command: AppCommand) => unknown;
 type Copy = ReturnType<typeof useSpanish>;
 
 /** What it records and until when: «Audio del sistema · hasta las 12:00». */

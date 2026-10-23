@@ -9,6 +9,7 @@ import type { LaneEdit } from "./useLaneGestures";
 import { useCalendarWrites } from "./useCalendarWrites";
 import { drawn, isDirty, saveChoices, useEventEditor } from "./useEventEditor";
 import { useEditKeys } from "./useEditKeys";
+import { headOutcome } from "./panel-kept";
 
 type Send = (command: AppCommand) => Promise<unknown>;
 
@@ -144,13 +145,17 @@ export function useCalendarEditing(
   useEffect(() => {
     if (save !== undefined && outcome !== undefined) editor.settle(save.requestId, outcome);
   }, [save?.requestId, outcome]);
-  // A new event the calendar refused comes back to the panel.
+  // A new event the calendar refused comes back to the panel: one this view
+  // sent, or one a view closed before the answer left (`useCreated`).
   const created = editor.created;
-  const createdOutcome = created === null ? undefined : writes.outcomeOf(created.requestId);
+  const createdOutcome =
+    created === null
+      ? undefined
+      : (writes.outcomeOf(created.requestId) ?? headOutcome(calendar.writes, created.requestId));
   useEffect(() => {
     if (created !== null && createdOutcome !== undefined)
       editor.settleCreated(created.requestId, createdOutcome);
-  }, [created?.requestId, createdOutcome]);
+  }, [created?.requestId, createdOutcome?.state]);
   return {
     display: (events: CalendarEvent[]) => {
       const shown = writes.shown(events);

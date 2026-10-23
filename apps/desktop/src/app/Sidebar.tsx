@@ -16,7 +16,8 @@ export interface SidebarProps {
   view: ViewId;
   /** Opens «Nueva grabación». */
   onRecord: () => void;
-  send: (command: AppCommand) => void;
+  /** Its answer is the daemon's: `false` when it refused the order. */
+  send: (command: AppCommand) => unknown;
 }
 
 /** Meetings whose recording or note is on its way: recording, uploading, transcribing, writing. */

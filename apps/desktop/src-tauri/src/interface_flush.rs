@@ -1,5 +1,5 @@
 //! Before Orbit quits on an order of its own (the menu bar's «Salir», the
-//! window's quit, an update about to install), the main window hands over what
+//! window's quit or «Reiniciar Orbit», an update about to install), the main window hands over what
 //! it still holds: a template saved a second after the last key, say. Orbit
 //! asks it, waits for its answer within a bound, and only then closes the
 //! daemon in order. The window's side is `state/quit-flush.ts`.

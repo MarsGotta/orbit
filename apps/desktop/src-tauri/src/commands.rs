@@ -287,6 +287,10 @@ pub async fn orbit_send_desktop(
             quit(app, daemon.inner().clone());
             Ok(client.local_receipt())
         }
+        AppCommand::Status(orbit_app_core::features::status::StatusCommand::Restart) => {
+            restart(app, daemon.inner().clone());
+            Ok(client.local_receipt())
+        }
         command => client.send_as(command, op).await,
     };
     result.map_err(|error| CommandError::from_app_error(sent, error))
@@ -465,17 +469,37 @@ fn failed_install_snapshot(
 /// process ends.
 pub(crate) fn quit(app: AppHandle, daemon: EmbeddedDaemon) {
     tauri::async_runtime::spawn(async move {
-        let exit = app.clone();
-        crate::interface_flush::flush_then(
-            &app,
-            crate::interface_flush::INTERFACE_FLUSH_BOUND,
-            async move {
-                daemon.shutdown().await;
-                exit.exit(0);
-            },
-        )
-        .await;
+        closed_in_order(&app, &daemon, |app| app.exit(0)).await;
     });
+}
+
+/// «Reiniciar Orbit»: the same orderly way out as [`quit`], and then Tauri
+/// starts Orbit again. The restart is the app's own order: the daemon closes
+/// because it was asked to (`EmbeddedDaemon::quitting`), so its watcher in
+/// `lib.rs` never treats the closure as a fall, and a daemon that closes in
+/// order never relaunches the app by itself (`daemon_thread::relaunches`).
+pub(crate) fn restart(app: AppHandle, daemon: EmbeddedDaemon) {
+    tauri::async_runtime::spawn(async move {
+        closed_in_order(&app, &daemon, |app| app.request_restart()).await;
+    });
+}
+
+/// The window hands over what it holds, the daemon closes in order, and only
+/// then `end` runs: the process exits, or a new one takes its place.
+async fn closed_in_order<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    daemon: &EmbeddedDaemon,
+    end: impl FnOnce(&tauri::AppHandle<R>),
+) {
+    crate::interface_flush::flush_then(
+        app,
+        crate::interface_flush::INTERFACE_FLUSH_BOUND,
+        async move {
+            daemon.shutdown().await;
+            end(app);
+        },
+    )
+    .await;
 }
 
 #[cfg(test)]
@@ -565,6 +589,81 @@ mod report_forwarding_tests {
         drop(ended);
         drop(call);
         let _ = forwarding.await?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod orderly_end_tests {
+    use super::closed_in_order;
+    use crate::daemon_thread::{EmbeddedDaemon, Ended, Launch};
+    use crate::interface_flush::{FLUSH_EVENT, InterfaceFlush};
+    use std::sync::{Arc, Mutex};
+    use tauri::{Listener, Manager};
+
+    /// «Reiniciar Orbit» is Orbit's own order: the window hands over what it
+    /// holds, the daemon closes in order and only then the restart is asked.
+    /// The daemon's watcher in `lib.rs` sees the app quitting and lets the
+    /// restart be the app's (`daemon_thread::relaunches` never runs for it).
+    #[test]
+    fn a_restart_hands_over_closes_the_daemon_in_order_and_then_restarts()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let paths = orbit_ipc::Paths::resolve(Some(directory.path().to_path_buf()))?;
+        let daemon = tauri::async_runtime::block_on(async {
+            let daemon = EmbeddedDaemon::start(paths.clone(), Launch::development())
+                .await
+                .map_err(|error| error.to_string())?;
+            daemon
+                .wait_until_ready()
+                .await
+                .map_err(|error| error.to_string())?;
+            crate::daemon_thread::tests::recovered(&daemon)
+                .await
+                .map_err(|error| error.to_string())?;
+            Ok::<_, String>(daemon)
+        })?;
+        let app = tauri::test::mock_builder()
+            .manage(InterfaceFlush::default())
+            .manage(daemon.clone())
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))?;
+        let window =
+            tauri::WebviewWindowBuilder::new(&app, "main", tauri::WebviewUrl::default()).build()?;
+        let handle = app.handle().clone();
+        let steps = Arc::new(Mutex::new(Vec::<&str>::new()));
+        let answering = handle.clone();
+        let flushed = Arc::clone(&steps);
+        window.listen(FLUSH_EVENT, move |_| {
+            if let Ok(mut steps) = flushed.lock() {
+                steps.push("window handed over");
+            }
+            if let Some(flush) = answering.try_state::<InterfaceFlush>() {
+                flush.answered();
+            }
+        });
+        let ended = Arc::clone(&steps);
+        let watched = daemon.clone();
+        tauri::async_runtime::block_on(closed_in_order(&handle, &daemon, move |_| {
+            // The restart is asked only once the daemon's closure is over.
+            let closed = !paths.socket.exists() && watched.quitting();
+            if let Ok(mut steps) = ended.lock() {
+                steps.push(if closed {
+                    "restart after the closure"
+                } else {
+                    "restart before the closure"
+                });
+            }
+        }));
+        let steps = steps.lock().map_err(|_| "steps poisoned")?.clone();
+        assert_eq!(steps, ["window handed over", "restart after the closure"]);
+        assert!(
+            daemon.quitting(),
+            "the daemon's watcher would relaunch the app"
+        );
+        assert_eq!(
+            tauri::async_runtime::block_on(daemon.ended()),
+            Ended::Closed
+        );
         Ok(())
     }
 }

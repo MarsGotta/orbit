@@ -9,6 +9,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from notice_fixture import answering, listings
+
 ROOT = Path(__file__).resolve().parents[2]
 ENGINE = "Contents/Helpers/Orbit Engine.app"
 
@@ -29,6 +31,7 @@ class EngineBundleTests(unittest.TestCase):
                     "native/macos/Info.plist",
                     "third-party/cua-driver/LICENSE.md",
                     "LICENSE",
+                    "scripts/release/third-party-notices.py",
                 ):
                     target = root / name
                     target.parent.mkdir(parents=True, exist_ok=True)
@@ -54,8 +57,16 @@ class EngineBundleTests(unittest.TestCase):
                     '#!/bin/sh\nif [ "$1" = -m ]; then echo arm64; else echo Darwin; fi\n',
                 )
                 executable("swift", f'#!/bin/sh\necho "{root}/swift"\n')
-                for name in ("pnpm", "ditto", "shasum"):
+                for name in ("ditto", "shasum"):
                     executable(name, "#!/bin/sh\nexit 0\n")
+                pnpm, cargo = listings(root / "listings")
+                calls = root / "calls"
+                for name in ("pnpm", "cargo"):
+                    executable(
+                        name,
+                        f'#!/bin/sh\necho "{name} $*" >> "{calls}"\n'
+                        + answering(name, pnpm, cargo),
+                    )
                 executable("lipo", "#!/bin/sh\necho arm64\n")
                 executable(
                     "git",
@@ -138,4 +149,25 @@ with open(path, "wb") as target: plistlib.dump(info, target)
                 self.assertLess(signed.index(str(engine)), signed.index(str(bundle)))
                 checked = [args[-1] for args in commands if "-d" in args]
                 self.assertIn(str(engine), checked)
+                # The notice of what others wrote ships beside the licences,
+                # from the listings of this build's own install, offline.
+                notice = (bundle / "Contents/Resources/third-party/NOTICES.txt").read_text()
+                self.assertTrue(notice.startswith("Third-party software in Orbit\n"))
+                self.assertIn("ejemplo-ui 1.0.0 · MIT", notice)
+                self.assertIn("ejemplo-crate 1.0.0 · MIT", notice)
+                metadata = [
+                    line for line in calls.read_text().splitlines() if line.startswith("cargo ")
+                ]
+                feature = " --features orbit-core/pruebas" if pruebas else ""
+                self.assertEqual(
+                    metadata,
+                    [
+                        "cargo metadata --format-version 1 --locked --offline "
+                        f"--filter-platform aarch64-apple-darwin{feature}"
+                    ],
+                )
+                self.assertIn(
+                    "pnpm --dir apps/desktop licenses list --prod --json",
+                    calls.read_text().splitlines(),
+                )
                 self.assertIn(str(engine / "Contents/MacOS/cua-driver"), checked)

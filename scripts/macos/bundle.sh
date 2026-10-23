@@ -95,6 +95,12 @@ CUA_ENGINE_RELATIVE_PATH="Helpers/Orbit Engine.app/Contents/MacOS/cua-driver"
 orbit_engine_binary="$orbit_bundle/Contents/$CUA_ENGINE_RELATIVE_PATH"
 orbit_engine_bundle="${orbit_engine_binary%/Contents/MacOS/cua-driver}"
 orbit_arch="$(uname -m)"
+# The Rust target of this Mac, for the crates the third-party notice lists.
+case "$orbit_arch" in
+  arm64) orbit_rust_target=aarch64-apple-darwin ;;
+  x86_64) orbit_rust_target=x86_64-apple-darwin ;;
+  *) echo "Unknown Mac architecture: $orbit_arch" >&2; exit 1 ;;
+esac
 orbit_archive="$orbit_output/Orbit-$orbit_version-macos-$orbit_arch.zip"
 if [[ -e "$orbit_bundle" || -e "$orbit_archive" ]]; then
   echo "A package already exists in $orbit_output. Use ORBIT_OUTPUT_DIR for a new build." >&2
@@ -120,6 +126,19 @@ cp -- native/macos/Info.plist "$orbit_bundle/Contents/Info.plist"
 cp -- LICENSE "$orbit_bundle/Contents/Resources/LICENSE"
 cp -- third-party/cua-driver/LICENSE.md \
   "$orbit_bundle/Contents/Resources/third-party/cua-driver/LICENSE.md"
+# The licences of what others wrote and the app carries: the interface's
+# packages as pnpm installed them for this build, and the crates compiled into
+# the app, read from this checkout's lockfiles offline: nothing is fetched.
+orbit_notice_input="$(mktemp -d)"
+pnpm --dir apps/desktop licenses list --prod --json > "$orbit_notice_input/pnpm.json"
+cargo metadata --format-version 1 --locked --offline --filter-platform "$orbit_rust_target" \
+  ${orbit_features[@]+"${orbit_features[@]}"} > "$orbit_notice_input/cargo.json"
+python3 -B "$orbit_repo/scripts/release/third-party-notices.py" \
+  --pnpm-licenses "$orbit_notice_input/pnpm.json" \
+  --cargo-metadata "$orbit_notice_input/cargo.json" \
+  --root orbit-desktop \
+  --output "$orbit_bundle/Contents/Resources/third-party/NOTICES.txt"
+rm -rf -- "$orbit_notice_input"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $orbit_version" "$orbit_bundle/Contents/Info.plist"
 if [[ "${ORBIT_PRUEBAS:-}" == 1 ]]; then
   # Its own identity for macOS: its permissions, its WebView storage and its

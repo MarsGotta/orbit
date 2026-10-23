@@ -292,6 +292,46 @@ describe("Privacidad y permisos", () => {
     expect(send).toHaveBeenLastCalledWith({ command: "permissions", request: ["calendars"] });
   });
 
+  it("back from System Settings, reads the permissions again while one is missing", async () => {
+    const { send, rerender } = renderSettings({
+      section: "privacidad",
+      overrides: { permissions: { microphone: "denied" } },
+    });
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      await Promise.resolve();
+    });
+    expect(send).toHaveBeenCalledWith({ command: "permissions", request: [] });
+    send.mockClear();
+    rerender(
+      <SettingsView
+        error={null}
+        onReopenOnboarding={vi.fn()}
+        send={send}
+        section="privacidad"
+        snapshot={snapshot()}
+      />,
+    );
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      await Promise.resolve();
+    });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("without the Mac's helper, «Reiniciar Orbit» restarts Orbit, which starts it again", () => {
+    const { send } = renderSettings({
+      section: "privacidad",
+      overrides: { settings: { helper_connected: false } },
+    });
+    expect(
+      screen.getByText("Orbit.app no está en marcha. Ábrela para ver los permisos."),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar Orbit" }));
+    expect(send).toHaveBeenCalledWith({ command: "restart" });
+    expect(send).not.toHaveBeenCalledWith({ command: "quit" });
+  });
+
   it("does not paint a permission macOS has not reported as missing", () => {
     renderSettings({
       section: "privacidad",

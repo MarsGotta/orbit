@@ -7,6 +7,7 @@ import { useSpanish } from "../../i18n/AssistantCopy";
 import { es as base } from "../../i18n/es";
 import { permissionRows } from "../../i18n/es/permissions";
 import { Group, List, Row } from "./layout";
+import { useRereadOnReturn } from "./permission-reread";
 import styles from "./SettingsView.module.css";
 
 type Send = (command: AppCommand) => unknown;
@@ -147,6 +148,8 @@ function PermissionRow({
  */
 export function SystemPermissions({ send, settings }: { send: Send; settings: Settings }) {
   const known = permissionsKnown(settings);
+  // Back from System Settings, what is missing is read again from macOS.
+  useRereadOnReturn(send, missingPermissions(settings) > 0);
   return (
     <Group label={base.settings.systemPermissions}>
       <List busy={settings.helper_connected && !known}>
@@ -162,8 +165,8 @@ export function SystemPermissions({ send, settings }: { send: Send; settings: Se
         {!settings.helper_connected && (
           <Row
             aside={
-              <Button onClick={() => void send({ command: "quit" })} size={32}>
-                {base.settings.exit}
+              <Button onClick={() => void send({ command: "restart" })} size={32}>
+                {base.settings.restart}
               </Button>
             }
             title={base.settings.helperMissing}

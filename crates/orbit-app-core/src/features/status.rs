@@ -284,8 +284,13 @@ pub fn apply(view: &View, snapshot: &mut AppSnapshot) {
 #[serde(tag = "command", rename_all = "snake_case")]
 #[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
 pub enum StatusCommand {
-    OpenUrl { url: String },
+    OpenUrl {
+        url: String,
+    },
     Quit,
+    /// «Reiniciar Orbit»: the same orderly closure as `Quit`, and then a new
+    /// Orbit takes its place (`src-tauri/src/commands.rs`).
+    Restart,
 }
 
 #[cfg(test)]

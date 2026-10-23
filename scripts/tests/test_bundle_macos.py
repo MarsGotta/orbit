@@ -13,7 +13,8 @@ permission entitlements. Signing, notarization and archive contents are checked
 when the real package is built and verified on the Mac.
 
 What the finished archive contains — the app (with the daemon inside it), the
-helper, the driver, the icon and both licences, byte for byte — is
+helper, the driver, the icon, both licences byte for byte and the third-party
+notice — is
 not checked here: the
 archive verifier checks the real archive (`scripts/release/verify-macos-archive.py`,
 tested by `test_verify_macos_archive.py`).
