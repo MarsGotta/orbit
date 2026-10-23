@@ -616,6 +616,7 @@ mod tests {
     fn an_order_is_named_by_its_wire_name_and_never_by_its_content() {
         let chat = Command::Chat {
             attachments: Vec::new(),
+            primary: false,
             text: "SECRET_FIXTURE_CONVERSATION".into(),
         };
         for command in [

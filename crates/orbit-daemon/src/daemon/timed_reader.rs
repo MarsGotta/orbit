@@ -91,10 +91,18 @@ impl TimedReader {
     pub(super) fn refused_chunks(
         &self,
         recording: &str,
+        after: Option<&str>,
         limit: usize,
     ) -> Result<Vec<orbit_store::ChunkMetadata>> {
         self.timed(Location::caller(), |store| {
-            store.refused_chunks(recording, limit)
+            store.refused_chunks(recording, after, limit)
+        })
+    }
+
+    #[track_caller]
+    pub(super) fn refused_chunk_count(&self, recording: &str) -> Result<u64> {
+        self.timed(Location::caller(), |store| {
+            store.refused_chunk_count(recording)
         })
     }
 
