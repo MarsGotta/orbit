@@ -204,6 +204,13 @@ Calendar permission is the sole consent; there is no hub calendar copy, activati
 switch or change to the week currently visible in the app. Missing permissions
 are explicit refusals, never an empty calendar.
 
+Calendar work never runs on the helper's main thread, which reads the
+daemon's heartbeat and starts and stops audio: EventKit runs on its own actor,
+`CalendarController` on another, and `EKEventStoreChanged` on the controller's
+queue; the main thread only admits a command and reads the last published
+status. In the daemon a read EventKit holds is a pending request with a
+deadline, never a wait in the loop (`crates/orbit-daemon/tests/calendar_isolation.rs`).
+
 ### Agent configuration
 
 Ajustes › Agentes lists the agents of the status topic. Each read or order of

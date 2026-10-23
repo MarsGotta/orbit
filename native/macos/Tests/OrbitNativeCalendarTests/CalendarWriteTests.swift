@@ -256,7 +256,8 @@ private func stored() -> [CalendarOccurrenceTarget: CalendarStoredOccurrence] {
         let request = Task { try await value.perform(.save(CalendarSaveRequest(create: draft))) }
         await fulfillment(of: [started], timeout: 1)
         facts.update { $0.now += CalendarLimits.writeLifetimeNanoseconds }
-        XCTAssertTrue(value.status().physical_read_pending) // Runs the real expiry path.
+        let expiring = await value.status().physical_read_pending // Runs the real expiry path.
+        XCTAssertTrue(expiring)
         if case .failure(let error) = await request.result {
             XCTAssertEqual(error as? CalendarWriteRefusal, .outcomeUnknown(cause: "write_deadline"))
         } else { XCTFail("a late write was answered as done") }
@@ -272,7 +273,7 @@ private func stored() -> [CalendarOccurrenceTarget: CalendarStoredOccurrence] {
         let draft = CalendarEventDraft(title: "Café", start: start, end: start + hour)
         let request = Task { try await value.perform(.save(CalendarSaveRequest(create: draft))) }
         await fulfillment(of: [started], timeout: 1)
-        value.disconnect()
+        await value.disconnect()
         if case .failure(let error) = await request.result {
             XCTAssertEqual(error as? CalendarWriteRefusal, .outcomeUnknown(cause: "calendar_invalidated"))
         } else { XCTFail("a retired write was answered as done") }
@@ -299,12 +300,16 @@ private func stored() -> [CalendarOccurrenceTarget: CalendarStoredOccurrence] {
         let facts = WriteFactBox()
         let value = controller(backend, facts: facts)
         let result = try await value.perform(move(mine, span: .thisEvent))
-        XCTAssertNil(value.writeDeliveryRefusal(result))
+        let deliverable = await value.writeDeliveryRefusal(result)
+        XCTAssertNil(deliverable)
         facts.update { $0.permission = .denied }
-        XCTAssertEqual(value.writeDeliveryRefusal(result), "calendar_permission_required")
+        let withdrawn = await value.writeDeliveryRefusal(result)
+        XCTAssertEqual(withdrawn, "calendar_permission_required")
         facts.update { $0.permission = .fullAccess; $0.generation += 1 }
-        XCTAssertEqual(value.writeDeliveryRefusal(result), "privacy_generation_changed")
+        let renewed = await value.writeDeliveryRefusal(result)
+        XCTAssertEqual(renewed, "privacy_generation_changed")
         facts.update { $0.stopped = true }
-        XCTAssertEqual(value.writeDeliveryRefusal(result), "privacy_stopped")
+        let stopped = await value.writeDeliveryRefusal(result)
+        XCTAssertEqual(stopped, "privacy_stopped")
     }
 }

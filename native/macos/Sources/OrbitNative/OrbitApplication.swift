@@ -27,8 +27,8 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     private let microphoneActivity = MicrophoneActivityObserver()
     /// «Oye Deimos» on the meeting's microphone.
     private lazy var assistantTrigger = AssistantVoiceTrigger(channel: channel)
-    private var calendars: CalendarController?
-    private var calendarCommandInFlight = false
+    /// The calendar's commands, answered off this main thread.
+    private var calendars: CalendarHost?
     private lazy var applicationIdentities = ApplicationIdentityCatalog(nativeInstanceID: windowScreenshots.nativeInstanceID)
     private lazy var microphone = MicrophoneCapture(session: audioSession, channel: channel)
     private lazy var playback = AudioPlayback(session: audioSession, channel: channel)
@@ -90,6 +90,8 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         mainThreadWatch.start()
+        // Its first look at the permission runs off Main before the daemon's hello.
+        _ = calendarState()
         channel.receive = { [weak self] command in
             // Every command read from the pipe is the daemon answering, not
             // only a beat, and it revives a channel the watchdog gave up on
@@ -228,9 +230,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         if captureActivity.update(capturing: capturing) {
             diagnostics.recordOffMain(captureActivity.held ? "helper_activity_held" : "helper_activity_released")
         }
-        let calendar = MainActor.assumeIsolated {
-            calendars?.status() ?? CalendarStatus(authorization: calendarAuthorization())
-        }
+        let calendar = MainActor.assumeIsolated { calendarHost().status() }
         channel.send(.makeState(stopped: latch.stopped, connected: connected,
             instanceID: windowScreenshots.nativeInstanceID, generation: privacyEpoch,
             selectedTextAvailable: !launchOptions.isIsolatedFixture && AXIsProcessTrusted(),
@@ -268,14 +268,13 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         case .status:
             channel.respond(command, result: state().merging(["permissions": permissions()]) { _, rhs in rhs })
         case .calendarDisconnect:
-            invalidateCalendars(.invalidated)
-            channel.respond(command, result: calendarState())
+            MainActor.assumeIsolated { calendarHost().disconnect(command) }
         // `calendar_select` is gone; decoding refuses it by name.
         case .calendarSources, .calendarSnapshot:
-            receiveCalendar(command)
+            MainActor.assumeIsolated { calendarHost().read(command) }
         // Writes share the single EventKit slot and its admission.
         case .calendarSave, .calendarDelete:
-            receiveCalendar(command, writes: true)
+            MainActor.assumeIsolated { calendarHost().write(command) }
         case .privacyStop:
             respondAfterStop(command, reason: "daemon_requested", latches: true,
                 failureMessage: "Privacidad detenida; no se pudo confirmar todo el audio previo.")
@@ -465,7 +464,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
                 case .accessibility:
                     let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
                     _ = AXIsProcessTrustedWithOptions(options as CFDictionary)
-                case .calendars: _ = try await calendarController().perform(.requestAccess)
+                case .calendars: try await calendarHost().requestAccess()
                 }
             }
             return permissions()
@@ -715,142 +714,41 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         (privacyEpoch, latch.stopped || !connected || privacyCleanupInFlight > 0 || quitRequested)
     }
 
+    /// The permission as the calendar last saw it; EventKit is asked off Main.
     private func calendarAuthorization() -> CalendarAuthorization {
-        launchOptions.isIsolatedFixture ? .unavailable : EventKitCalendarReader.authorization()
+        MainActor.assumeIsolated { calendarHost().status().authorization }
     }
 
     private func calendarState() -> [String: Any] {
         // AppKit delegate, native channel delivery and this host's run-loop timers
-        // run on Main. Keep the existing unannotated host boundary explicit without
-        // moving any calendar work onto Main or changing unrelated callback types.
-        MainActor.assumeIsolated {
-            let value = calendars?.status() ?? CalendarStatus(authorization: calendarAuthorization())
-            return (try? CalendarBridge.fields(value)) ?? ["authorization": "unknown",
-                "physical_read_pending": calendars != nil, "failure": "calendar_read_failed"]
-        }
+        // run on Main. Keep the existing unannotated host boundary explicit; the
+        // calendar's own work runs on its actor.
+        MainActor.assumeIsolated { calendarHost().stateFields() }
     }
 
+    /// A stop, a lost daemon or quitting: the reply in flight is retired on
+    /// the calendar's actor; this thread does not wait for it.
     private func invalidateCalendars(_ reason: CalendarFailure) {
         MainActor.assumeIsolated { calendars?.invalidate(reason) }
     }
 
-    @MainActor private func calendarController() -> CalendarController {
+    @MainActor private func calendarHost() -> CalendarHost {
         if let calendars { return calendars }
-        let value = CalendarController(nativeInstanceID: windowScreenshots.nativeInstanceID,
-            backend: EventKitCalendarReader(), clock: { CaptureClock.currentHostNanoseconds() },
-            unixClock: { CalendarBridge.unixMilliseconds() },
-            authorization: { EventKitCalendarReader.authorization() },
-            host: { [weak self] in self?.screenAuthorization() ?? (generation: 0, stopped: true) })
-        value.invalidated = { [weak self] reason in
-            self?.channel.send(.makeCalendarInvalidated(code: reason.rawValue))
+        let facts: @MainActor @Sendable () -> CalendarHostFacts = { [weak self] in
+            self?.calendarFacts() ?? CalendarHostFacts(connected: false, generation: 0, stopped: true, latched: false)
         }
+        let controller = CalendarHost.controller(nativeInstanceID: windowScreenshots.nativeInstanceID,
+            isolatedFixture: launchOptions.isIsolatedFixture, channel: channel, facts: facts)
+        let value = CalendarHost(controller: controller, channel: channel, facts: facts,
+            changed: { [weak self] in self?.publishState() })
         calendars = value
         return value
     }
 
-    private func receiveCalendar(_ command: NativeWireCommand, writes: Bool = false) {
-        guard connected, !screenAuthorization().stopped else {
-            // The same code covers the user's latch and a stop still cleaning up;
-            // the message says which, and only the user's latch needs a rearm.
-            let message = latch.stopped
-                ? "Orbit está detenido por tu parada de privacidad; rearma para usar los calendarios."
-                : "Orbit está terminando de parar la captura o no está conectado; vuelve a intentarlo en unos segundos."
-            channel.reject(command, code: "privacy_stopped", message: message)
-            return
-        }
-        guard !calendarCommandInFlight,
-              MainActor.assumeIsolated({ calendars?.status().physical_read_pending != true }) else {
-            channel.reject(command, code: "calendar_busy", message: "La operación anterior de EventKit aún no ha terminado.")
-            return
-        }
-        // Capture the calendar generation synchronously, before scheduling work.
-        // A calendar-only disconnect does not increment the audio/privacy epoch.
-        let controller = MainActor.assumeIsolated { calendarController() }
-        let ticket = MainActor.assumeIsolated { controller.admitCommand() }
-        calendarCommandInFlight = true
-        let generation = privacyEpoch
-        // Its single physical slot is separate from audio's command queue. Status,
-        // disconnect and physical privacy stop never wait for EventKit to return.
-        Task { @MainActor in
-            defer { self.calendarCommandInFlight = false }
-            if writes {
-                await self.performCalendarWrite(command, controller: controller, ticket: ticket,
-                                                generation: generation)
-                self.publishState()
-                return
-            }
-            do {
-                guard self.connected, self.privacyEpoch == generation, !self.screenAuthorization().stopped else {
-                    throw CalendarFailure.invalidated
-                }
-                let result = try await controller.perform(CalendarBridge.operation(command), admitted: ticket)
-                guard self.connected, self.privacyEpoch == generation,
-                      controller.permitsCommand(ticket),
-                      controller.permitsDelivery(result) else { throw CalendarFailure.invalidated }
-                self.channel.respond(command, result: try CalendarBridge.fields(result))
-            } catch {
-                let code = (error as? CalendarFailure)?.rawValue ?? "calendar_read_failed"
-                self.channel.reject(command, code: code, message: "No se pudo leer el calendario; no se ha devuelto una agenda vacía.")
-            }
-            self.publishState()
-        }
-    }
-
-    /// One calendar write, answered with what EventKit did. A refusal travels
-    /// with its numbers in `error.detail`. Before the controller takes the
-    /// slot nothing was written, so a stop says `privacy_stopped`; once it
-    /// may have been, a withheld answer says the outcome is unknown.
-    @MainActor private func performCalendarWrite(_ command: NativeWireCommand, controller: CalendarController,
-                                                 ticket: CalendarCommandTicket, generation: UInt64) async {
-        let operation: CalendarOperation
-        do { operation = try CalendarBridge.operation(command) }
-        catch {
-            channel.reject(command, code: CalendarFailure.invalidRequest.rawValue,
-                message: "La orden de escritura del calendario no tiene la forma del protocolo; no se cambió nada.")
-            return
-        }
-        guard connected, privacyEpoch == generation, !screenAuthorization().stopped else {
-            channel.reject(command, code: "privacy_stopped",
-                message: "Orbit se detuvo antes de escribir; no se cambió nada.")
-            return
-        }
-        let result: CalendarResult
-        do {
-            result = try await controller.perform(operation, admitted: ticket)
-        } catch let refusal as CalendarWriteRefusal {
-            rejectCalendarWrite(command, refusal)
-            return
-        } catch {
-            // Refused before the slot was taken or any commit asked for.
-            let code = (error as? CalendarFailure)?.rawValue ?? CalendarFailure.invalidRequest.rawValue
-            channel.reject(command, code: code, message: "No se escribió en el calendario; no se cambió nada.")
-            return
-        }
-        // Each withheld answer names its own cause; the write is done.
-        if !connected {
-            rejectCalendarWrite(command, .outcomeUnknown(cause: "daemon_disconnected"))
-            return
-        }
-        if privacyEpoch != generation {
-            rejectCalendarWrite(command, .outcomeUnknown(cause: "privacy_generation_changed"))
-            return
-        }
-        if let cause = controller.writeDeliveryRefusal(result) {
-            rejectCalendarWrite(command, .outcomeUnknown(cause: cause))
-            return
-        }
-        guard let fields = try? CalendarBridge.fields(result) else {
-            rejectCalendarWrite(command, .outcomeUnknown(cause: "result_not_encodable"))
-            return
-        }
-        channel.respond(command, result: fields)
-    }
-
-    private func rejectCalendarWrite(_ command: NativeWireCommand, _ refusal: CalendarWriteRefusal) {
-        if !channel.send(.makeRejection(id: command.id, code: refusal.code, message: refusal.message,
-                                        detail: refusal.detail)) {
-            FileHandle.standardError.write(Data("native_rejection_not_admitted event=response\n".utf8))
-        }
+    private func calendarFacts() -> CalendarHostFacts {
+        let current = screenAuthorization()
+        return CalendarHostFacts(connected: connected, generation: current.generation,
+            stopped: current.stopped, latched: latch.stopped)
     }
 
     private func hotkey(action: String, phase: String) {

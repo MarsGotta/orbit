@@ -120,10 +120,11 @@ private actor FakeCalendarBackend: CalendarBackend {
     }
     private func settle(_ controller: CalendarController) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(1))
-        while controller.status().physical_read_pending && ContinuousClock.now < deadline {
+        while await controller.status().physical_read_pending && ContinuousClock.now < deadline {
             try await Task.sleep(nanoseconds: 1_000_000)
         }
-        XCTAssertFalse(controller.status().physical_read_pending)
+        let pending = await controller.status().physical_read_pending
+        XCTAssertFalse(pending)
     }
     private func page(_ controller: CalendarController, _ query: CalendarReadQuery) async throws -> CalendarReadPage {
         guard case .page(let value) = try await controller.perform(.read(query)) else {
@@ -135,8 +136,9 @@ private actor FakeCalendarBackend: CalendarBackend {
     func testInitializationAndStatusDoNotReadOrRequestPermission() async {
         let backend = FakeCalendarBackend(); let facts = FactBox()
         let value = controller(backend, facts: facts)
-        XCTAssertFalse(value.status().physical_read_pending)
-        value.disconnect()
+        let pending = await value.status().physical_read_pending
+        XCTAssertFalse(pending)
+        await value.disconnect()
         let reads = await backend.reads; let prompts = await backend.permissionRequests
         XCTAssertEqual(reads, 0); XCTAssertEqual(prompts, 0)
     }
@@ -297,11 +299,12 @@ private actor FakeCalendarBackend: CalendarBackend {
         let value = controller(backend, facts: facts)
         let request = Task { try await value.perform(.sources(afterIndex: 0)) }
         await fulfillment(of: [started], timeout: 1)
-        value.disconnect()
+        await value.disconnect()
         let result = await request.result
         if case .failure(let error) = result { XCTAssertEqual(error as? CalendarFailure, .invalidated) }
         else { XCTFail("revoked result delivered") }
-        XCTAssertTrue(value.status().physical_read_pending)
+        let held = await value.status().physical_read_pending
+        XCTAssertTrue(held)
         do { _ = try await value.perform(.sources(afterIndex: 0)); XCTFail("physical slot reused") }
         catch { XCTAssertEqual(error as? CalendarFailure, .busy) }
         await backend.release(); try await settle(value)
@@ -316,7 +319,8 @@ private actor FakeCalendarBackend: CalendarBackend {
         let request = Task { try await value.perform(.sources(afterIndex: 0)) }
         await fulfillment(of: [started], timeout: 1)
         facts.update { $0.now += CalendarLimits.readLifetimeNanoseconds }
-        XCTAssertTrue(value.status().physical_read_pending) // Also runs the real expiry path.
+        let expiring = await value.status().physical_read_pending // Also runs the real expiry path.
+        XCTAssertTrue(expiring)
         if case .failure(let error) = await request.result { XCTAssertEqual(error as? CalendarFailure, .expired) }
         else { XCTFail("expired read delivered") }
         await backend.release(); try await settle(value)
@@ -335,8 +339,8 @@ private actor FakeCalendarBackend: CalendarBackend {
         let request = Task { try await value.perform(.requestAccess) }
         await fulfillment(of: [started], timeout: 1)
         facts.update { $0.now += CalendarLimits.readLifetimeNanoseconds }
-        XCTAssertTrue(value.status().physical_read_pending,
-                      "the request expired while the dialog was still on screen")
+        let onScreen = await value.status().physical_read_pending
+        XCTAssertTrue(onScreen, "the request expired while the dialog was still on screen")
         await backend.release()
         guard case .success(.authorization(let granted)) = await request.result else {
             return XCTFail("the dialog's answer was discarded")
@@ -354,7 +358,8 @@ private actor FakeCalendarBackend: CalendarBackend {
         let request = Task { try await value.perform(.requestAccess) }
         await fulfillment(of: [started], timeout: 1)
         facts.update { $0.now += CalendarLimits.permissionLifetimeNanoseconds }
-        XCTAssertTrue(value.status().physical_read_pending) // Runs the real expiry path.
+        let expiring = await value.status().physical_read_pending // Runs the real expiry path.
+        XCTAssertTrue(expiring)
         if case .failure(let error) = await request.result {
             XCTAssertEqual(error as? CalendarFailure, .expired)
         } else { XCTFail("expired permission delivered") }
@@ -372,7 +377,8 @@ private actor FakeCalendarBackend: CalendarBackend {
         facts.update { $0.permission = .denied }
         do { _ = try await page(value, window); XCTFail("a read without permission delivered events") }
         catch { XCTAssertEqual(error as? CalendarFailure, .permissionRequired) }
-        XCTAssertEqual(value.status().authorization, .denied)
+        let authorization = await value.status().authorization
+        XCTAssertEqual(authorization, .denied)
         let windows = await backend.windows; XCTAssertEqual(windows, 1)
     }
 
@@ -381,21 +387,25 @@ private actor FakeCalendarBackend: CalendarBackend {
         let value = controller(backend, facts: facts)
         do { _ = try await value.perform(.sources(afterIndex: 0)); XCTFail("error became empty success") }
         catch { XCTAssertEqual(error as? CalendarFailure, .limitExceeded) }
-        XCTAssertFalse(value.status().physical_read_pending)
-        XCTAssertEqual(value.status().failure, .limitExceeded)
+        let status = await value.status()
+        XCTAssertFalse(status.physical_read_pending)
+        XCTAssertEqual(status.failure, .limitExceeded)
     }
 
     func testStopBetweenWorkerResultAndTransportSerializationRejectsDelivery() async throws {
         let backend = FakeCalendarBackend(); let facts = FactBox()
         let value = controller(backend, facts: facts)
         let result = try await value.perform(.read(window))
-        XCTAssertTrue(value.permitsDelivery(result))
+        let delivered = await value.permitsDelivery(result)
+        XCTAssertTrue(delivered)
         facts.update { $0.stopped = true }
-        XCTAssertFalse(value.permitsDelivery(result))
+        let stopped = await value.permitsDelivery(result)
+        XCTAssertFalse(stopped)
         facts.update { $0.stopped = false }
         let fresh = try await value.perform(.sources(afterIndex: 0))
         facts.update { $0.generation += 1 }
-        XCTAssertFalse(value.permitsDelivery(fresh))
+        let changed = await value.permitsDelivery(fresh)
+        XCTAssertFalse(changed)
     }
 
     func testDisconnectBeforeDeferredTaskStartsRevokesAdmissionWithoutReading() async throws {
@@ -404,13 +414,14 @@ private actor FakeCalendarBackend: CalendarBackend {
         // These two synchronous turns model native admission followed by
         // calendar_disconnect, before the host's deferred Task can start.
         let admitted = value.admitCommand()
-        value.disconnect()
+        await value.disconnect()
         let deferred = Task { try await value.perform(.read(window), admitted: admitted) }
         if case .failure(let error) = await deferred.result {
             XCTAssertEqual(error as? CalendarFailure, .invalidated)
         } else { XCTFail("disconnected queued command delivered a page") }
         let windows = await backend.windows; XCTAssertEqual(windows, 0)
-        XCTAssertFalse(value.status().physical_read_pending)
+        let pending = await value.status().physical_read_pending
+        XCTAssertFalse(pending)
         XCTAssertFalse(value.permitsCommand(admitted))
 
         let fresh = value.admitCommand()
@@ -427,9 +438,10 @@ private actor FakeCalendarBackend: CalendarBackend {
         let value = controller(backend, facts: facts)
         let completed = value.admitCommand()
         let result = try await value.perform(.read(window), admitted: completed)
-        XCTAssertTrue(value.permitsCommand(completed)); XCTAssertTrue(value.permitsDelivery(result))
+        let delivered = await value.permitsDelivery(result)
+        XCTAssertTrue(value.permitsCommand(completed)); XCTAssertTrue(delivered)
         let deferred = value.admitCommand()
-        value.invalidate(.invalidated) // Same transition as the EventKit change observer.
+        await value.invalidate(.invalidated) // Same transition as the EventKit change observer.
         do { _ = try await value.perform(.read(window), admitted: deferred); XCTFail("changed calendar admitted old work") }
         catch { XCTAssertEqual(error as? CalendarFailure, .invalidated) }
         XCTAssertFalse(value.permitsCommand(completed))
@@ -443,10 +455,11 @@ private actor FakeCalendarBackend: CalendarBackend {
         let admitted = value.admitCommand()
         let pending = Task { try await value.perform(.sources(afterIndex: 0), admitted: admitted) }
         await fulfillment(of: [started], timeout: 1)
-        value.disconnect()
+        await value.disconnect()
         if case .failure(let error) = await pending.result { XCTAssertEqual(error as? CalendarFailure, .invalidated) }
         else { XCTFail("revoked physical read delivered") }
-        XCTAssertTrue(value.status().physical_read_pending)
+        let held = await value.status().physical_read_pending
+        XCTAssertTrue(held)
         do { _ = try await value.perform(.sources(afterIndex: 0), admitted: value.admitCommand()); XCTFail("SDK slot released early") }
         catch { XCTAssertEqual(error as? CalendarFailure, .busy) }
         let other = controller(FakeCalendarBackend(), facts: facts)

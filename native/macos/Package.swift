@@ -41,6 +41,7 @@ let package = Package(
         ),
         .testTarget(name: "OrbitNativeProtocolTests", dependencies: [
             "OrbitNativeHost", "OrbitNativeProtocol", "OrbitNativeTransport", "OrbitAudioRing",
+            "OrbitNativeCalendar",
         ]),
         .testTarget(name: "OrbitNativeTransportTests", dependencies: ["OrbitNativeTransport", "OrbitNativeProtocol"]),
         .testTarget(name: "OrbitNativeStateTests", dependencies: ["OrbitNativeState"]),
