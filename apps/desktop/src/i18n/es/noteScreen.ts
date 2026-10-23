@@ -28,6 +28,14 @@ const base = {
           : [dictionaries === 1 ? "1 diccionario" : `${dictionaries} diccionarios`]),
       ].join(" · "),
     howTitle: "Cómo escribe Orbit esta nota",
+    // «Borrar reunión», in the note's menu, confirmed in place.
+    meetingMenu: "Más",
+    meetingMenuTitle: "Esta reunión",
+    deleteMeeting: "Borrar reunión",
+    deleteQuestion: "¿Borrar esta reunión?",
+    deleteDetail:
+      "Se borran el audio, la transcripción y la nota, en este Mac y en el hub. No se puede deshacer.",
+    deleteWhenClosed: "Se borrará al terminar de cerrarse",
     template: "Plantilla",
     language: "Idioma de la reunión",
     dictionaries: "Diccionarios de palabras",

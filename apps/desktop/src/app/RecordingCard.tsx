@@ -8,6 +8,7 @@ import { settingsRoute } from "../state/ui";
 import { mmss } from "../time-format";
 import { useNow } from "../use-now";
 import { endingLabel } from "./call-countdown";
+import { DiscardButton, DiscardQuestion, useDiscardQuestion } from "./DiscardRecording";
 import { AskMenu } from "./meeting-question/AskMenu";
 import { voiceStatusText } from "./meeting-question/copy";
 import { useRecordedTime } from "./recorded-time";
@@ -58,7 +59,11 @@ function stateLabel(meeting: MeetingSnapshot, es: Copy): string {
 
 function Controls({ meeting, send }: { meeting: MeetingSnapshot; send: Send }) {
   const es = useSpanish();
+  const discard = useDiscardQuestion(meeting);
   if (meeting.phase === "finishing") return null;
+  if (discard.asking && meeting.recording_id !== null) {
+    return <DiscardQuestion onKeep={discard.keep} recordingId={meeting.recording_id} send={send} />;
+  }
   return (
     <>
       <AskMenu meeting={meeting} send={send} />
@@ -77,6 +82,7 @@ function Controls({ meeting, send }: { meeting: MeetingSnapshot; send: Send }) {
           {es.recordingCard.finish}
         </Button>
       </div>
+      {discard.offered && <DiscardButton onAsk={discard.ask} />}
     </>
   );
 }

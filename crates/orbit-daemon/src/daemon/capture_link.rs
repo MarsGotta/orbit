@@ -81,6 +81,7 @@ impl Runtime {
             token: self.token.clone(),
             hub_url: self.settings.hub_url.clone(),
             development: self.development,
+            discarded: self.features.notes.outbox.discarded(),
         }
     }
 

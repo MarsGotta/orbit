@@ -68,9 +68,11 @@ fn classify(event: &Event) -> (usize, bool) {
         Event::VoiceTooShort(_) => (48, false),
         Event::VoiceDiscard { .. } => (50, false),
         Event::VoiceUnheard { .. } => (51, false),
+        // «Terminar sin guardar» stops the capture; it never latches.
+        Event::DiscardMeeting { .. } => (52, false),
     }
 }
-const VARIANTS: usize = 52;
+const VARIANTS: usize = 53;
 
 #[test]
 fn voice_transcription_retires_with_authority_but_survives_hub_link_changes() {
@@ -187,6 +189,9 @@ fn samples() -> Vec<Event> {
         Event::PauseMeeting,
         Event::ResumeMeeting,
         Event::FinishMeeting,
+        Event::DiscardMeeting {
+            recording_id: "r".into(),
+        },
         Event::ChunkSealed,
         Event::CaptureGap,
         Event::VoiceStart,

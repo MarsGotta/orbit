@@ -300,3 +300,40 @@ describe("«Preguntar a Deimos» keeps the question until the daemon takes it", 
     expect(messageFor("recording", store.getState().messages)?.text).toBeTruthy();
   });
 });
+
+describe("«Terminar sin guardar»", () => {
+  it("only asks on the first click, in the card, and «Seguir grabando» goes back", async () => {
+    const { sent } = renderCard();
+    await userEvent.click(screen.getByRole("button", { name: "Terminar sin guardar" }));
+    expect(sent).toEqual([]);
+    const question = screen.getByRole("group", { name: "¿Terminar sin guardar?" });
+    expect(question.textContent).toContain("Se borra lo grabado y no se escribe nota.");
+    expect(screen.queryByRole("button", { name: "Pausar" })).toBeNull();
+    await userEvent.click(within(question).getByRole("button", { name: "Seguir grabando" }));
+    expect(sent).toEqual([]);
+    expect(screen.getByRole("button", { name: "Pausar" })).toBeTruthy();
+  });
+
+  it("«Borrar y terminar» throws away the recording it asked about, also paused", async () => {
+    const { sent } = renderCard(meeting({ phase: "paused" }));
+    await userEvent.click(screen.getByRole("button", { name: "Terminar sin guardar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Borrar y terminar" }));
+    expect(sent).toEqual([{ command: "meeting_discard", recording_id: "rec-1" }]);
+  });
+
+  it("is not offered while the recording starts or is being saved", () => {
+    for (const phase of ["starting", "finishing"] as const) {
+      const { view } = renderCard(meeting({ phase }));
+      expect(screen.queryByRole("button", { name: "Terminar sin guardar" })).toBeNull();
+      view.unmount();
+    }
+  });
+
+  it("forgets the question when another recording takes the card", async () => {
+    const { rerender } = renderCard();
+    await userEvent.click(screen.getByRole("button", { name: "Terminar sin guardar" }));
+    rerender(meeting({ recording_id: "rec-2" }));
+    expect(screen.queryByRole("group", { name: "¿Terminar sin guardar?" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Terminar sin guardar" })).toBeTruthy();
+  });
+});

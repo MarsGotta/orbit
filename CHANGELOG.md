@@ -7,6 +7,21 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Added
+
+- **«Terminar sin guardar»**, next to «Terminar» in the «Grabando» card, the
+  floating panel and the menu bar, while it records or is paused: after
+  «¿Terminar sin guardar? Se borra lo grabado y no se escribe nota.» and
+  «Borrar y terminar», the recording stops, nothing of it is kept on the Mac
+  or the hub, no note is written, and «Reunión descartada» says so. With the
+  hub away it is deleted there when the hub returns, also after a restart.
+- **«Borrar reunión»** in a note's «Más» menu, after «¿Borrar esta reunión?»:
+  the audio, the transcript and the note leave the Mac and the hub, with its
+  tasks, speakers and corrections; the series' dictionaries stay. A meeting
+  still closing says «Se borrará al terminar de cerrarse». The hub must be of
+  this version (`DELETE /v1/recordings/{id}`): an older one deletes nothing
+  and the Mac says «Actualiza el hub para borrar reuniones».
+
 ### Fixed
 
 - **A voice note that waits on the Mac shows only in its own conversation.**

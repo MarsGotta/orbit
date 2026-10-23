@@ -146,6 +146,10 @@ pub fn cases() -> Vec<(Value, FeatureId)> {
             FeatureId::Note,
         ),
         (
+            json!({"command":"meeting_delete","recording_id":"recording-1"}),
+            FeatureId::Note,
+        ),
+        (
             json!({"command":"meeting_start","title":"Daily","audio":null}),
             FeatureId::Recording,
         ),
@@ -178,6 +182,10 @@ pub fn cases() -> Vec<(Value, FeatureId)> {
         (json!({"command":"meeting_pause"}), FeatureId::Recording),
         (json!({"command":"meeting_resume"}), FeatureId::Recording),
         (json!({"command":"meeting_finish"}), FeatureId::Recording),
+        (
+            json!({"command":"meeting_discard","recording_id":"recording-1"}),
+            FeatureId::Recording,
+        ),
         (
             json!({"command":"call_record","call_id":"call-1"}),
             FeatureId::Recording,

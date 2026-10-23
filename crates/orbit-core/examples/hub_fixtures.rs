@@ -133,6 +133,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     max_session_bytes: 256 * 1024 * 1024,
                 }),
                 storage: Some(storage),
+                recording_delete: Some(true),
                 device_id: Some("device-1".into()),
                 hub_protocol: Some(1),
                 hub_version: Some("0.3.12".into()),

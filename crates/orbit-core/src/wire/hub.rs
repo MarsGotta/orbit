@@ -217,6 +217,10 @@ pub struct ReadyData {
         deserialize_with = "lenient_storage"
     )]
     pub storage: Option<HubStorage>,
+    /// The hub deletes recordings (`DELETE /v1/recordings/{id}`); absent
+    /// from a 0.11 hub, to which the Mac sends no delete.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recording_delete: Option<bool>,
     #[serde(default)]
     pub device_id: Option<String>,
     #[serde(default)]

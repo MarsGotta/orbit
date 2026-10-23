@@ -9,6 +9,7 @@ import hashlib
 import json
 import sqlite3
 
+from ..meetings.deletion import refuse_if_deleted
 from ..protocol import HubError
 
 _MISMATCH = "Recuento o secuencias no coinciden; faltan fragmentos confirmados"
@@ -43,6 +44,7 @@ class RecordingRepository:
                     db, device, chunk_id, row, (digest, recording, track, sequence), metadata
                 )
             else:
+                refuse_if_deleted(db, device, recording)
                 if db.execute(
                     "SELECT 1 FROM recording_manifests WHERE device_id=? AND recording=?",
                     (device, recording),
@@ -144,6 +146,7 @@ class RecordingRepository:
             if previous:
                 self._same_manifest(device, recording, previous, manifest)
             else:
+                refuse_if_deleted(db, device, recording)
                 self._check_tracks(db, device, recording, tracks)
                 self._insert_manifest(db, device, recording, manifest, final_pass, final_pass_error)
         transcript = self.store.groups.capture(device, recording)

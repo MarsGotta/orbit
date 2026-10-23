@@ -165,3 +165,49 @@ fn the_orders_on_this_mac_lay_over_the_hubs_document() -> Result<(), serde_json:
     assert!(document.pending_changes.is_empty());
     Ok(())
 }
+
+/// «Borrar reunión» is one order per meeting, set again as often as it is
+/// asked, and the meeting's capture thrown away stays thrown away.
+#[test]
+fn a_delete_is_one_order_of_its_meeting_and_a_discard_stays_one() -> Result<(), serde_json::Error> {
+    let asked = NoteOrder::of_command(Command::MeetingDelete {
+        recording_id: RECORDING.into(),
+    });
+    assert_eq!(
+        asked,
+        Some((RECORDING.to_owned(), NoteOrder::Delete { discarded: false }))
+    );
+    let asked = meeting(NoteOrder::Delete { discarded: false });
+    assert_eq!(asked.target().as_deref(), Some("delete"));
+    assert!(asked.repeatable(), "deleting twice deletes once");
+    assert_eq!(asked.deletes(), Some((RECORDING, false)));
+    let thrown = meeting(NoteOrder::Delete { discarded: true });
+    assert_eq!(
+        thrown.clone().superseded_by(asked.clone()).deletes(),
+        Some((RECORDING, true))
+    );
+    assert_eq!(
+        asked.superseded_by(thrown).deletes(),
+        Some((RECORDING, true))
+    );
+    assert_eq!(meeting(NoteOrder::Retranscribe).deletes(), None);
+    // An order written without `discarded` reads as a plain delete.
+    let older: QueuedOrder = serde_json::from_value(json!({
+        "lane": "meeting", "recording_id": RECORDING, "order": {"order": "delete"}
+    }))?;
+    assert_eq!(older.deletes(), Some((RECORDING, false)));
+    Ok(())
+}
+
+#[test]
+fn a_meeting_waiting_to_be_deleted_says_so_in_its_document() -> Result<(), serde_json::Error> {
+    let mut document: MeetingDocument = serde_json::from_value(json!({
+        "recording_id": RECORDING, "title": "Revisión de Lumen", "started_at_ms": 1,
+        "duration_ms": 2, "capture": "closed", "language": null, "speakers": [],
+        "transcript": {"state": "ready", "pending_chunks": 0, "failed_groups": []},
+        "note": null,
+    }))?;
+    lay_over(&mut document, [&NoteOrder::Delete { discarded: false }]);
+    assert_eq!(document.pending_changes, vec!["delete".to_owned()]);
+    Ok(())
+}

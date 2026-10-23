@@ -884,14 +884,57 @@ Device bearer authentication; errors include `code`, numbered `refusal` and `op`
   `{ids,max_ids}`). The language is not a property of the
   series: it stays the recording's (`PUT …/language`). A hub before this route
   answers 404 without a code; the Mac names it `hub_route_missing`.
+- `DELETE /v1/recordings/{uuid}` → `{recording_id,deleted:true}`: «Borrar
+  reunión» and «Terminar sin guardar». See [Deleting a recording](#deleting-a-recording).
 - WebSocket `recording.changed {recording_id}` reaches only the owning device's
   connections after closure, group completion/failure, note state/edit changes,
-  names, private notes, title or language changes; retranscribed groups notify
-  on return. Fixture: `contracts/fixtures/hub/events/recording.changed.json`,
+  names, private notes, title or language changes, or its deletion;
+  retranscribed groups notify on return. Fixture: `contracts/fixtures/hub/events/recording.changed.json`,
   consumed as `HubEventKind::RecordingChanged`.
 
 Unknown or cross-device recordings yield `404 recording_not_found`.
 Template content never enters logs.
+
+### Deleting a recording
+
+`DELETE /v1/recordings/{uuid}` deletes one recording of the authenticated
+device and everything made from it, in one transaction: its chunks, their
+transcription jobs and receipts, its transcription groups and their text, the
+manifest, the final pass, its transcript and voices, the note with its tasks
+and edits, the speakers' names and per-turn corrections, the private notes,
+the title, the language and the meeting's own choice of dictionaries. The
+device's dictionaries themselves stay, the series' among them, and so do its
+templates, their links to series, its profile and its conversations. The hub
+keeps meeting audio in its database, so no file is removed; the nightly copy
+keeps the database from before the delete for its retention
+([self-hosting](../docs/self-hosting.md)). The log line `recording_deleted`
+carries counts only.
+
+- Answer `200 {recording_id, deleted: true}`, also for a recording deleted
+  before or never received: the Mac may have thrown one away before any chunk
+  reached the hub. Another device's recording of the same id is not touched.
+- The hub keeps the identity (`deleted_recordings`: device, recording, time;
+  no content), so nothing of it comes back: a later `PUT /v1/chunks/{id}` or
+  `POST …/finalize` for it is refused `409 recording_deleted`, and the other
+  meeting routes answer it `404`, as a recording the device does not hold. A
+  final pass or a note that was being written when it was deleted ends
+  without writing anything.
+- Refusals: `400 invalid_parameters` `{field:"recording_id"}`,
+  `401 unauthorized`, `403 revoked`. Nothing else refuses a delete.
+- The owning device's connections get `recording.changed {recording_id}`, and
+  read the list again without it.
+- **`ready`** adds `recording_delete: true`. A 0.11 hub sends no such field
+  and answers the route `405 invalid_request` (FastAPI's answer to an unknown
+  method on a known path). A Mac that saw a `ready` without it refuses both
+  orders at once and changes nothing; one that queued an order without
+  knowing reads the 405, or a 404 without a code, as a missing route: it
+  keeps everything of a saved meeting (the meeting is listed again) and says
+  «Actualiza el hub para borrar reuniones»; a recording it already threw away
+  keeps its order until a hub can take it.
+
+On the Mac the order waits in the notes outbox (`NoteOrder::Delete`, one per
+meeting, before the meeting's other orders) until the hub answers, also across
+restarts; see [storage](../docs/architecture/storage.md).
 
 ### Recording context (retired)
 

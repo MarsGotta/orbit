@@ -122,6 +122,20 @@ it("recording a call: its time, its event, asking Deimos, stopping and the voice
   expect(sent).toEqual([{ command: "meeting_finish" }]);
 });
 
+it("«Terminar sin guardar» asks in the panel first and then names the recording", async () => {
+  const { port, sent } = portWith({ ...recording, call_panel: null });
+  render(<PanelApp port={port} />);
+  await userEvent.click(await screen.findByRole("button", { name: "Terminar sin guardar" }));
+  expect(sent).toEqual([]);
+  const question = screen.getByRole("group", { name: "¿Terminar sin guardar?" });
+  expect(question.textContent).toContain("Se borra lo grabado y no se escribe nota.");
+  await userEvent.click(screen.getByRole("button", { name: "Seguir grabando" }));
+  expect(screen.getByRole("button", { name: "Parar" })).toBeTruthy();
+  await userEvent.click(screen.getByRole("button", { name: "Terminar sin guardar" }));
+  await userEvent.click(screen.getByRole("button", { name: "Borrar y terminar" }));
+  expect(sent).toEqual([{ command: "meeting_discard", recording_id: "rec-1" }]);
+});
+
 it("offers «Preguntar a Deimos» during a recording started by hand, with no call", async () => {
   const { port } = portWith({ ...recording, call_panel: null });
   render(<PanelApp port={port} />);

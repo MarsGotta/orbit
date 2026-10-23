@@ -3,6 +3,7 @@ import type { AppCommand } from "../../bridge/generated";
 import type { CallPanelSnapshot } from "../../bridge/generated/CallPanelSnapshot";
 import type { MeetingSnapshot } from "../../bridge/generated/MeetingSnapshot";
 import { secondsLeft } from "../../app/call-countdown";
+import { DiscardButton, DiscardQuestion, useDiscardQuestion } from "../../app/DiscardRecording";
 import { Button } from "../../design/Button";
 import { useFeedback } from "../../design/feedback";
 import { useSpanish } from "../../i18n/AssistantCopy";
@@ -101,9 +102,9 @@ export function RecordingCard({
   send: PanelSend;
   voice: string | null;
 }) {
-  const copy = useSpanish();
   const now = useNow(1_000);
   const stop = useFeedback();
+  const discard = useDiscardQuestion(meeting);
   const elapsed = mmss(now - (meeting.started_at_ms ?? now));
   const paused = meeting.phase === "paused";
   const what =
@@ -121,6 +122,31 @@ export function RecordingCard({
         </span>
       </p>
       {what != null && what !== "" && <p className={styles.sub}>{what}</p>}
+      {discard.asking && meeting.recording_id !== null ? (
+        <DiscardQuestion onKeep={discard.keep} recordingId={meeting.recording_id} send={send} />
+      ) : (
+        <PanelControls discard={discard} onAsk={onAsk} send={send} stop={stop} />
+      )}
+      {voice !== null && <p className={styles.hint}>{voice}</p>}
+    </div>
+  );
+}
+
+/** «Preguntar a Deimos», «Parar» and, under them, «Terminar sin guardar». */
+function PanelControls({
+  discard,
+  onAsk,
+  send,
+  stop,
+}: {
+  discard: ReturnType<typeof useDiscardQuestion>;
+  onAsk?: () => void;
+  send: PanelSend;
+  stop: ReturnType<typeof useFeedback>;
+}) {
+  const copy = useSpanish();
+  return (
+    <>
       <div className={styles.actions}>
         {onAsk && (
           <Button className={styles.grow} onClick={onAsk} size={32}>
@@ -138,8 +164,8 @@ export function RecordingCard({
           {es.callDetection.stop}
         </Button>
       </div>
-      {voice !== null && <p className={styles.hint}>{voice}</p>}
-    </div>
+      {discard.offered && <DiscardButton onAsk={discard.ask} />}
+    </>
   );
 }
 

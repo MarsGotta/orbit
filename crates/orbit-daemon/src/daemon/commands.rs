@@ -380,6 +380,8 @@ impl Runtime {
             Command::MeetingPause => self.apply(Event::PauseMeeting).await?,
             Command::MeetingResume => self.apply(Event::ResumeMeeting).await?,
             Command::MeetingFinish => self.apply(Event::FinishMeeting).await?,
+            Command::MeetingDiscard { recording_id } => self.discard_meeting(recording_id).await?,
+            Command::MeetingDelete { recording_id } => self.delete_meeting(recording_id).await?,
             Command::Approval { approved, choice } => {
                 let approval = self
                     .state

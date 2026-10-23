@@ -382,7 +382,7 @@ impl Store {
         Ok(report)
     }
 
-    fn chunk_path(&self, id: &str) -> PathBuf {
+    pub(crate) fn chunk_path(&self, id: &str) -> PathBuf {
         self.blobs.join(format!("{id}.orbit"))
     }
 

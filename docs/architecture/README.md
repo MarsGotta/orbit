@@ -137,6 +137,14 @@ one lane per meeting, so a meeting the hub refuses or does not answer never
 holds another one back (`daemon/recording_notes/outbox.rs`). All transcript consumers, including assistant
 tools and note generation, use `server/orbit_hub/meetings/turns.py`.
 
+«Terminar sin guardar», while recording or paused, stops the capture without
+closing it: what drains is dropped, no chunk of it goes up, its audio leaves
+the Mac and no note is written. «Borrar reunión» deletes a saved meeting.
+Both go to the hub as `DELETE /v1/recordings/{id}` from the notes outbox,
+also after the hub was away or the Mac restarted, and the hub deletes the
+recording and all made from it in one transaction ([storage](storage.md),
+[hub protocol](../../contracts/hub-v1.md#deleting-a-recording)).
+
 ### Voice note and call
 
 Holding `⌃⌥Space` captures a voice note. In the chat, the composer's microphone

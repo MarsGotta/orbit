@@ -101,6 +101,9 @@ impl Runtime {
             self.features.notes.outbox.failed(&key, now_ms);
             return Ok(());
         }
+        if sent.order.deletes().is_some() {
+            return self.delete_answered(lane, sent, outcome, now_ms).await;
+        }
         let (lane_key, target, sequence) = (lane.key(), sent.target.clone(), sent.sequence);
         self.store_actor
             .run(move |store| Ok(store.remove_note_order(&lane_key, &target, sequence)?))

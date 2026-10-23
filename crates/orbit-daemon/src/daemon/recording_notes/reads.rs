@@ -82,7 +82,10 @@ impl Runtime {
                     | CapturePhase::Finalizing
             )
         });
-        if let Some(recording) = active {
+        // One being thrown away is not a meeting any more.
+        if let Some(recording) = active
+            .filter(|recording| self.state.durable.discarding() != Some(recording.id.as_str()))
+        {
             rows.push(MeetingRow {
                 recording_id: recording.id.clone(),
                 title: recording.title.clone(),
@@ -230,6 +233,7 @@ impl Runtime {
             // until it closes as a `voice_call`.
             call: self.state.durable.call.as_ref().map(|call| call.id.clone()),
             titles: self.features.notes.outbox.pending_titles(),
+            deleting: self.features.notes.outbox.deleting(),
         };
         Box::pin(list_page(hub, before, first, listed, revision))
     }
@@ -299,6 +303,8 @@ struct Listed {
     rows: Vec<MeetingRow>,
     call: Option<String>,
     titles: std::collections::BTreeMap<String, String>,
+    /// Meetings waiting to be deleted: gone from the list at once.
+    deleting: std::collections::BTreeSet<String>,
 }
 
 async fn list_page(
@@ -309,10 +315,12 @@ async fn list_page(
     revision: u64,
 ) -> Knowledge<Page<Value>> {
     let Listed {
-        rows: local,
+        rows: mut local,
         call,
         titles,
+        deleting,
     } = listed;
+    local.retain(|row| !deleting.contains(&row.recording_id));
     let listed = match hub {
         Ok(hub) => hub
             .list(before.as_ref(), orbit_core::notes::LIST_PAGE)
@@ -345,6 +353,7 @@ async fn list_page(
         .into_iter()
         .filter(|row| {
             call.as_deref() != Some(row.recording_id.as_str())
+                && !deleting.contains(&row.recording_id)
                 && !local
                     .iter()
                     .any(|mine| mine.recording_id == row.recording_id)

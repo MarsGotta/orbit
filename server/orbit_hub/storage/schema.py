@@ -16,6 +16,7 @@ from ..assistant.handover import SCHEMA as HANDOVER_SCHEMA
 from ..assistant.roster import SCHEMA as ROSTER_SCHEMA
 from ..attachments import SCHEMA as ATTACHMENTS_SCHEMA
 from ..group_storage import SCHEMA as GROUP_SCHEMA
+from ..meetings.deletion import SCHEMA as DELETIONS_SCHEMA
 from ..meetings.dictionaries import SCHEMA as DICTIONARIES_SCHEMA
 from ..meetings.dictionaries import migrate as migrate_dictionaries
 from ..meetings.repository import SCHEMA as MEETINGS_SCHEMA
@@ -127,6 +128,8 @@ def migrate(db, encrypt: Callable[[bytes, str], bytes]) -> None:
         db.execute("ALTER TABLE recording_final_passes ADD COLUMN kept_draft TEXT")
     db.executescript(DICTIONARIES_SCHEMA)
     migrate_dictionaries(db)
+    # The recordings each device deleted, so that none comes back half.
+    db.executescript(DELETIONS_SCHEMA)
     # Each agent's personality, skills and access groups.
     db.executescript(AGENT_CONFIG_SCHEMA)
     # Each agent's profile, the primary, the agents added from Orbit,

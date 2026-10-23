@@ -660,6 +660,11 @@ pub struct DurableState {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pending_voice: Vec<crate::PendingVoiceNote>,
     pub recording: Option<Recording>,
+    /// «Terminar sin guardar»: the recording whose capture is draining to
+    /// be thrown away, never closed, uploaded or written up
+    /// (`transition/discard.rs`). Absent in every other state.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) discarding: Option<String>,
     pub voice_active: bool,
     #[serde(default)]
     pub call: Option<crate::voice::CallState>,
@@ -690,6 +695,7 @@ impl Default for DurableState {
             turn: None,
             pending_voice: Vec::new(),
             recording: None,
+            discarding: None,
             voice_active: false,
             call: None,
             pending_approval: None,
@@ -719,6 +725,10 @@ impl DurableState {
     }
     pub fn agent_id(&self) -> Option<&str> {
         self.agent_id.as_deref()
+    }
+    /// The recording being thrown away while its capture drains.
+    pub fn discarding(&self) -> Option<&str> {
+        self.discarding.as_deref()
     }
     pub fn capabilities(&self) -> &Capabilities {
         &self.capabilities
@@ -778,6 +788,15 @@ impl DurableState {
         self.pending_approval = None;
         if self.active_request.take().is_some() {
             self.set_notice(NoticeCode::AssistantTurnLostByRestart);
+        }
+        // A recording being thrown away is gone: it never resumes or closes.
+        if let Some(discarded) = self.discarding.take()
+            && self
+                .recording
+                .as_ref()
+                .is_some_and(|recording| recording.id == discarded)
+        {
+            self.recording = None;
         }
         if let Some(recording) = self.recording.as_mut()
             && recording.phase.interrupted_on_recovery()

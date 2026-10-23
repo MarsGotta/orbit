@@ -7,6 +7,7 @@ import { Icon } from "../../design/Icon";
 import { Spinner } from "../../design/Spinner";
 import { useSpanish } from "../../i18n/AssistantCopy";
 import { es } from "../../i18n/es";
+import { MeetingMenu } from "./MeetingMenu";
 import { isRecording } from "./note-progress";
 import { NoteSettingsMenu } from "./NoteSettingsMenu";
 import { formatClock, formatDay, formatLength } from "./notes-format";
@@ -120,6 +121,8 @@ export function NoteHeader({
           onRewrite={rewriting.start}
           send={send}
         />
+        {/* The meeting being recorded is thrown away from its card instead. */}
+        {blocked === undefined && <MeetingMenu note={note} send={send} />}
       </div>
       <HeadStatus note={note} template={rewriting.template} />
     </header>

@@ -116,6 +116,7 @@ fn panel_accepts_its_recording_orders_and_explicit_focus_only()
         serde_json::json!({"command":"call_dismiss","call_id":"c"}),
         serde_json::json!({"command":"recording_keep","recording_id":"r"}),
         serde_json::json!({"command":"meeting_finish"}),
+        serde_json::json!({"command":"meeting_discard","recording_id":"r"}),
         serde_json::json!({"command":"meeting_ask","question":"¿Qué dijo?","minutes":5}),
         serde_json::json!({"command":"meeting_question_close","id":"q"}),
     ] {
@@ -130,6 +131,7 @@ fn panel_accepts_its_recording_orders_and_explicit_focus_only()
         serde_json::json!({"command":"meeting_start","event_id":"e"}),
         serde_json::json!({"command":"meeting_pause"}),
         serde_json::json!({"command":"meeting_resume"}),
+        serde_json::json!({"command":"meeting_delete","recording_id":"r"}),
         serde_json::json!({"command":"call_preference","preference":"nothing"}),
         serde_json::json!({"command":"audio_sources_refresh"}),
         serde_json::json!({"command":"privacy_stop"}),

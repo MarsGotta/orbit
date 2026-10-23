@@ -14,7 +14,11 @@ use std::time::{Duration, Instant};
 pub(super) const OPPORTUNISTIC_RECEIPT_WAIT: Duration = Duration::ZERO;
 
 impl Runtime {
-    pub(super) fn seal(&mut self, segments: Vec<crate::capture::Segment>) -> Result<()> {
+    pub(super) fn seal(&mut self, mut segments: Vec<crate::capture::Segment>) -> Result<()> {
+        // «Terminar sin guardar»: what drains of it is never kept.
+        if let Some(discarded) = self.state.durable.discarding() {
+            segments.retain(|segment| segment.metadata.recording_id != discarded);
+        }
         let sealed = self.seal_segments(segments);
         // The cause goes with the notice its caller says (`say_failure`).
         if let Err(error) = &sealed {

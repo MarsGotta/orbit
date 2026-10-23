@@ -6,6 +6,7 @@ export const panelOrders = {
   "call_record": true,
   "clarify": true,
   "meeting_ask": true,
+  "meeting_discard": true,
   "meeting_finish": true,
   "meeting_question_close": true,
   "open_url": true,

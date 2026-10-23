@@ -92,6 +92,11 @@ pub async fn orbit_panel_send(
         PanelOrder::MeetingFinish => {
             AppCommand::Daemon(Box::new(orbit_core::protocol::Command::MeetingFinish))
         }
+        PanelOrder::MeetingDiscard { recording_id } => {
+            AppCommand::Daemon(Box::new(orbit_core::protocol::Command::MeetingDiscard {
+                recording_id,
+            }))
+        }
         PanelOrder::MeetingAsk { question, minutes } => {
             AppCommand::Daemon(Box::new(orbit_core::protocol::Command::MeetingAsk {
                 question,

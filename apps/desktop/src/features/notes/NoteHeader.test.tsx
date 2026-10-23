@@ -395,3 +395,15 @@ describe("«Rehacer resumen»", () => {
     expect(screen.queryByRole("button", { name: "Rehacer resumen" })).toBeNull();
   });
 });
+
+describe("the meeting's menu", () => {
+  it("offers «Borrar reunión» on a meeting, never on the one being recorded", () => {
+    const { view } = header(written());
+    expect(screen.getByRole("button", { name: "Más" })).toBeTruthy();
+    view.unmount();
+    const recording = written();
+    recording.progress.upload = { state: "active", cause: { kind: "recording" } };
+    header(recording);
+    expect(screen.queryByRole("button", { name: "Más" })).toBeNull();
+  });
+});

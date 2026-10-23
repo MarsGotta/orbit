@@ -56,6 +56,16 @@ export const recording = {
     saved: "Reunión guardada",
     savedDetail: "Te avisamos cuando la nota esté lista.",
   },
+  // «Terminar sin guardar», next to «Terminar» in the «Grabando» card and the
+  // floating panel; the first click only asks, in place.
+  discard: {
+    action: "Terminar sin guardar",
+    question: "¿Terminar sin guardar?",
+    detail: "Se borra lo grabado y no se escribe nota.",
+    confirm: "Borrar y terminar",
+    keep: "Seguir grabando",
+    pending: "Borrando…",
+  },
   // The floating panel and «Al detectar una llamada».
   callDetection: {
     panelLabel: "Aviso de llamada",

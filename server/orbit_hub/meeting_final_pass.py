@@ -193,6 +193,13 @@ class FinalPassRepository:
             self.store, text, f"recording-final-transcript:{device}:{recording}"
         )
         with self.store.transaction() as db:
+            running = db.execute(
+                "SELECT 1 FROM recording_final_passes WHERE device_id=? AND recording=? "
+                "AND state='running'",
+                (device, recording),
+            ).fetchone()
+            if running is None:
+                return  # The recording was deleted meanwhile: nothing comes back.
             chosen = repository.language(db, device, recording)
             if chosen is not None and chosen[0] != job["language"]:
                 return  # A language change already queued its replacement.

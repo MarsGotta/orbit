@@ -62,6 +62,14 @@ pub enum NoteOrder {
     Title {
         title: String,
     },
+    /// «Borrar reunión», or «Terminar sin guardar» (`discarded`: its audio
+    /// already left this Mac): the hub deletes the recording and all made
+    /// from it. It goes before anything else of its meeting, which it makes
+    /// moot, and waits while the meeting is still closing.
+    Delete {
+        #[serde(default)]
+        discarded: bool,
+    },
 }
 
 impl NoteOrder {
@@ -105,6 +113,9 @@ impl NoteOrder {
                 recording_id,
                 title,
             } => (recording_id, Self::Title { title }),
+            Command::MeetingDelete { recording_id } => {
+                (recording_id, Self::Delete { discarded: false })
+            }
             _ => return None,
         })
     }
@@ -120,6 +131,7 @@ impl NoteOrder {
             Self::Retranscribe => "retranscribe",
             Self::Language { .. } => "language",
             Self::Title { .. } => "title",
+            Self::Delete { .. } => "delete",
         }
     }
 
@@ -141,7 +153,8 @@ impl NoteOrder {
             | Self::RetryTranscript
             | Self::Retranscribe
             | Self::Language { .. }
-            | Self::Title { .. }) => other.name().to_owned(),
+            | Self::Title { .. }
+            | Self::Delete { .. }) => other.name().to_owned(),
         }
     }
 
@@ -160,7 +173,8 @@ impl NoteOrder {
             | Self::RetryTranscript
             | Self::Retranscribe
             | Self::Language { .. }
-            | Self::Title { .. }) => vec![other.name().to_owned()],
+            | Self::Title { .. }
+            | Self::Delete { .. }) => vec![other.name().to_owned()],
         }
     }
 }
@@ -252,7 +266,35 @@ impl QueuedOrder {
                     },
                 }
             }
+            // A meeting thrown away stays thrown away: its audio is gone.
+            (
+                Self::Meeting {
+                    order: NoteOrder::Delete { discarded: older },
+                    ..
+                },
+                Self::Meeting {
+                    recording_id,
+                    order: NoteOrder::Delete { discarded },
+                },
+            ) => Self::Meeting {
+                recording_id,
+                order: NoteOrder::Delete {
+                    discarded: older || discarded,
+                },
+            },
             (_, newer) => newer,
+        }
+    }
+
+    /// The meeting this order deletes, and whether its capture was thrown
+    /// away; `None` for any other order.
+    pub fn deletes(&self) -> Option<(&str, bool)> {
+        match self {
+            Self::Meeting {
+                recording_id,
+                order: NoteOrder::Delete { discarded },
+            } => Some((recording_id, *discarded)),
+            Self::Meeting { .. } | Self::Library { .. } => None,
         }
     }
 
@@ -324,7 +366,8 @@ pub fn lay_over<'a>(
             | NoteOrder::Write { .. }
             | NoteOrder::RestoreSuperseded
             | NoteOrder::RetryTranscript
-            | NoteOrder::Retranscribe => {}
+            | NoteOrder::Retranscribe
+            | NoteOrder::Delete { .. } => {}
         }
     }
     document.pending_changes = pending.into_iter().collect();

@@ -92,4 +92,10 @@ describe("a meeting being opened", () => {
     view(notesSnapshot());
     expect(screen.getByRole("heading", { name: "Elige una reunión" })).toBeTruthy();
   });
+
+  it("leaves a meeting being deleted for the choice of another", () => {
+    view(notesSnapshot({ open: { ...writtenNote(), pending_changes: ["delete"] } }));
+    expect(screen.queryByRole("textbox", { name: "Título de la reunión" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Elige una reunión" })).toBeTruthy();
+  });
 });

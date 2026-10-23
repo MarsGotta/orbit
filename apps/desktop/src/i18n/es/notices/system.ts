@@ -114,6 +114,7 @@ export const system = {
   },
   transcript_retry_requested: worded("done", "Reintentando la transcripción."),
   note_change_unsent: worded("fixable", "No se guardó el cambio: no hay conexión con el hub."),
+  meeting_delete_needs_hub_update: worded("fixable", "Actualiza el hub para borrar reuniones"),
   turn_no_longer_exists: {
     class: "fixable",
     text: (data) => {

@@ -38,7 +38,7 @@ non-macOS development requires that mode. There is no production fallback.
 |---|---|---|---|
 | `DurableState`: privacy latch/requester, generation, connection, selected session ID, current turn, recording/call, pending approval and notices | `settings`, `snapshot` | Actor writes/coalesces; startup reads | Replaced on change |
 | Durable queue and receipts | `jobs` | Daemon | Rows remain; terminal states do not revert |
-| Audio | `chunks` receipts and `store/chunks/` | Actor seals/prunes; uploader and local playback read | Meeting chunks removed after authenticated durable hub ACK; unconfirmed audio retained; voice-note audio retained until the note is discarded or nothing was heard in it |
+| Audio | `chunks` receipts and `store/chunks/` | Actor seals/prunes; uploader and local playback read | Meeting chunks removed after authenticated durable hub ACK, or when the meeting is deleted or thrown away; unconfirmed audio retained; voice-note audio retained until the note is discarded or nothing was heard in it |
 | Temporary capture receipts without audio | `records`, `uploaded_chunks:<recording>` | Actor writes on audio release; finalization/recovery read | Until hub confirms closure; not added after closure |
 | Private notes awaiting hub | `records`, `recording_notes`, `note-private-<recording>` | Actor writes, hub upload reads | Until the hub confirms that text |
 | Note and library orders awaiting hub (edits, ticked tasks, titles, speaker names, languages, rewrites, templates, series, dictionary orders) | `note_outbox`, one row per lane (`meeting:<recording>` or `library`) and target | Actor writes; the daemon keeps a copy to schedule | Until the hub answers; a newer order on the same target replaces the row |
@@ -67,6 +67,28 @@ and read by identity. Pending states are `queued`, `running`, `retry_wait` and
 `unknown`; terminal states are `succeeded`, `blocked` and `cancelled`.
 `unknown` requires reconciliation, never repetition of the effect.
 `upload_allowed:false` (voice notes) cancels upload instead of sending audio.
+
+### Deleting a meeting
+
+«Borrar reunión» and «Terminar sin guardar» first write a `NoteOrder::Delete`
+to `note_outbox` (lane `meeting:<recording>`, target `delete`), so a restart
+finishes what was asked (`daemon/recording_notes/deletion.rs`). The order goes
+before the meeting's other orders and its private notes, which wait behind
+it; a meeting still closing (its capture or its `recording_finalize`
+pending) is sent once closed. The meeting leaves the Notes list at once.
+
+`Store::delete_recording` removes what the Mac keeps of one meeting by its
+identity only: chunk rows (by `recording_id`) and their files, 256 a step,
+unlinked before each commit; their upload jobs; the upload receipts of audio
+already released (found by id range, kept unless their authenticated payload
+names the recording); the manifest, closure and capture-epoch jobs; and the
+`uploaded_chunks:<recording>` records. With `Everything` it also removes the
+meeting's outbox lane and its pending private notes. A voice note or a voice
+call is refused. A thrown-away recording drops what drains after the stop
+(`sealing::seal`), is skipped by the uploads (`UploadView::discarded`), and
+loses its audio as soon as its capture is over; everything else goes when the
+hub confirmed the delete. A hub without the route (0.11) keeps a saved
+meeting whole on this Mac.
 
 ### Ephemeral sources and migrations
 

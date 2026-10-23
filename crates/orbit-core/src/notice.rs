@@ -133,6 +133,8 @@ notice_codes! {
     RecordingPaused => Silent,
     RecordingFinishing => Silent,
     RecordingFinished => Done,
+    /// «Terminar sin guardar» finished: nothing recorded stays.
+    RecordingDiscarded => Done,
     /// The recording will reach the safety ceiling soon: said once, with
     /// the minutes left, those recorded and the ceiling.
     RecordingCeilingNear => Fixable,
@@ -373,6 +375,10 @@ notice_codes! {
     /// The hub refused a change of a note (`step` the order, `status` and
     /// `code` the hub's).
     NoteChangeRefused => Failed,
+    /// The hub cannot delete recordings (0.11 and before): this Mac deleted
+    /// nothing of the meeting it was asked to delete, or keeps the order of
+    /// one it already threw away until the hub can take it.
+    MeetingDeleteNeedsHubUpdate => Fixable,
     /// The hub replaced the transcript after the selected turn was read.
     TurnNoLongerExists => Fixable,
     /// The meeting was not transcribed again in another language

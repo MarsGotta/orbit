@@ -24,6 +24,9 @@ pub(in crate::daemon) struct UploadView {
     pub(in crate::daemon) token: Option<String>,
     pub(in crate::daemon) hub_url: Option<String>,
     pub(in crate::daemon) development: bool,
+    /// Recordings thrown away («Terminar sin guardar»): none of their
+    /// chunks goes up, and one deleted under a transfer is no failure.
+    pub(in crate::daemon) discarded: std::collections::BTreeSet<String>,
 }
 
 /// What one chunk's transfer leaves for the loop.
@@ -177,9 +180,28 @@ fn blocking_read<T: Send + 'static>(
 
 impl Transfer {
     async fn run(self, lane: &CaptureLane) -> Result<Option<UploadReport>> {
+        let discarded = |recording: &str| lane.lock().upload.discarded.contains(recording);
         let Some((job, receipt, forbidden)) = next_job(&self.reader, &self.cursor).await? else {
             return Ok(None);
         };
+        let recording = receipt.metadata.recording_id.clone();
+        if discarded(&recording) {
+            return Ok(None);
+        }
+        match self.transfer(lane, job, receipt, forbidden).await {
+            // Its chunks were deleted under this transfer: nothing to say.
+            Err(_) if discarded(&recording) => Ok(None),
+            other => other,
+        }
+    }
+
+    async fn transfer(
+        self,
+        lane: &CaptureLane,
+        job: Job,
+        receipt: ChunkReceipt,
+        forbidden: bool,
+    ) -> Result<Option<UploadReport>> {
         let job_id = job.id.clone();
         if forbidden {
             self.port

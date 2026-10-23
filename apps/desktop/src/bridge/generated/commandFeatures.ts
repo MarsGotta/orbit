@@ -23,6 +23,8 @@ export const commandFeature = {
   "interrupt": "assistant",
   "login_item": "local",
   "meeting_ask": "recording",
+  "meeting_delete": "note",
+  "meeting_discard": "recording",
   "meeting_finish": "recording",
   "meeting_language": "note",
   "meeting_pause": "recording",

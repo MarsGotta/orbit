@@ -33,6 +33,8 @@ const commands: Record<AppCommand["command"], string> = {
   interrupt: "detener la respuesta",
   login_item: "cambiar si Orbit se abre al iniciar sesión",
   meeting_ask: "mandar la pregunta",
+  meeting_delete: "borrar la reunión",
+  meeting_discard: "terminar sin guardar",
   meeting_finish: "terminar la grabación",
   meeting_language: "cambiar el idioma",
   meeting_pause: "pausar la grabación",

@@ -10,11 +10,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..errors import HubError
 from ..identifiers import canonical_uuid
-from ..log import in_store
+from ..log import current_op, get_logger, in_store
 from ..notes.http import parse
 from ..notes.models import MAX_PRIVATE_NOTES_CHARS, MAX_SPEAKERS, TemplateId
 from ..notes.series_key import SeriesKeyError, valid_series_key
-from . import dictionaries, repository, series, turns, views
+from . import deletion, dictionaries, repository, series, turns, views
+
+logger = get_logger(__name__)
 
 # Bodies of the small requests: one name (≤ 128 characters), a few voices'
 # names, a meeting's title (≤ 256) or a language code. Each character
@@ -252,6 +254,30 @@ def mount(
                 )
             )
         )
+
+    @app.delete("/v1/recordings/{recording_id}")
+    async def delete_recording(recording_id: str, request: Request):
+        """«Borrar reunión» and «Terminar sin guardar»: the recording and all
+        that was made from it; done again, or never held, is done too."""
+        device, recording = identity(request), recording_of(recording_id)
+        removed = await run(lambda: deletion.delete(store, device, recording, now()))
+        # Counts only: never the title nor anything of the meeting.
+        logger.info(
+            "recording_deleted",
+            extra={
+                "event": "recording_deleted",
+                "code": "recording_deleted",
+                "op": current_op(),
+                "device": device,
+                "numbers": {
+                    "chunks": removed["chunks"],
+                    "groups": removed["transcription_groups"],
+                    "notes": removed["recording_notes"],
+                },
+            },
+        )
+        recording_changed(device, recording)
+        return JSONResponse({"recording_id": recording, "deleted": True})
 
     @app.get("/v1/recordings/{recording_id}/turns")
     async def read_turns(recording_id: str, request: Request, offset: str | None = None):

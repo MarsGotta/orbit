@@ -1,0 +1,33 @@
+/* «Terminar sin guardar» in the «Grabando» card and the floating panel. */
+.ask {
+  width: 100%;
+  margin-top: var(--o-space-6);
+  color: var(--o-ink2);
+}
+
+.question {
+  margin-top: var(--o-space-8);
+}
+
+.text {
+  margin: 0;
+  color: var(--o-ink2);
+  font: var(--o-text-meta);
+}
+
+.text strong {
+  color: var(--o-ink);
+  font-weight: 600;
+}
+
+.answers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: var(--o-space-6);
+  margin-top: var(--o-space-8);
+}
+
+.answers > * {
+  width: 100%;
+  padding: 0 var(--o-space-8);
+}

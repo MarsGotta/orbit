@@ -208,7 +208,7 @@ impl NoteHub {
         .await
     }
 
-    fn endpoint(&self, segments: &[&str]) -> Result<reqwest::Url, &'static str> {
+    pub(crate) fn endpoint(&self, segments: &[&str]) -> Result<reqwest::Url, &'static str> {
         let mut url = self.base.clone();
         url.path_segments_mut()
             .map_err(|_| "la URL del hub no admite rutas")?
@@ -223,7 +223,7 @@ impl NoteHub {
         self.endpoint(&segments)
     }
 
-    async fn send<T: DeserializeOwned>(
+    pub(crate) async fn send<T: DeserializeOwned>(
         &self,
         method: reqwest::Method,
         url: Result<reqwest::Url, &'static str>,

@@ -179,6 +179,8 @@ function opened({
   }
   const note = notes.open;
   if (!note || (routeId !== "" && note.recording_id !== routeId)) return null;
+  // A meeting being deleted is left as soon as it was asked.
+  if (routeId === "" && note.pending_changes?.includes("delete") === true) return null;
   return (
     <NoteDetail
       error={error}

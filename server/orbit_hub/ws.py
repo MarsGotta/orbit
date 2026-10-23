@@ -140,6 +140,9 @@ def ready(services: Services, socket: Socket) -> dict:
             # Absent from a 0.10.1 hub: what the hub's storage uses, its limit
             # and what is left (contracts/hub-v1.md).
             "storage": services.store.space.status(),
+            # Absent from a 0.11 hub, which cannot delete a recording: the Mac
+            # then deletes nothing and says so (contracts/hub-v1.md).
+            "recording_delete": True,
         },
     )
 

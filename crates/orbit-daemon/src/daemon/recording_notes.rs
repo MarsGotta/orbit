@@ -19,6 +19,9 @@ use tokio::sync::mpsc;
 
 mod answers;
 mod commands;
+mod deletion;
+#[cfg(test)]
+mod deletion_tests;
 mod delivery;
 #[cfg(test)]
 mod fake_hub;
@@ -39,10 +42,10 @@ pub(super) use outbox::{Lane, Outbox};
 #[cfg(test)]
 use owner::read_account_name;
 
-/// Answers waiting for the daemon loop: at most one owner name, one profile
-/// and [`outbox::MAX_LANES_IN_FLIGHT`] lanes are in flight (eight), so eight
-/// never makes a task wait. Not a queue of notes.
-pub(super) const NOTE_EVENTS: usize = 2 + outbox::MAX_LANES_IN_FLIGHT;
+/// Answers waiting for the daemon loop: at most one owner name, one profile,
+/// one deletion on this Mac and [`outbox::MAX_LANES_IN_FLIGHT`] lanes are in
+/// flight (nine), so nine never makes a task wait. Not a queue of notes.
+pub(super) const NOTE_EVENTS: usize = 3 + outbox::MAX_LANES_IN_FLIGHT;
 /// Conflicts kept from one correction's answer, and corrections whose
 /// conflicts are kept, newest last. The hub lists one per pair of a
 /// dictionary written and another of the meeting that hears the form
@@ -63,6 +66,12 @@ pub(super) enum NoteEvent {
         ticket: WorkTicket,
         outcome: Outcome,
     },
+    /// A deleted meeting's remains left this Mac, or why not.
+    Purged {
+        recording: String,
+        scope: orbit_store::DeletionScope,
+        outcome: std::result::Result<orbit_store::Deleted, String>,
+    },
 }
 
 impl NoteEvent {
@@ -71,6 +80,7 @@ impl NoteEvent {
             Self::Owner { .. } => "note_owner",
             Self::Profile { .. } => "note_profile",
             Self::Lane { .. } => "note_lane",
+            Self::Purged { .. } => "note_purged",
         }
     }
 }
@@ -137,6 +147,7 @@ pub(super) struct NotesRuntime {
     profile_owed: bool,
     profile_due_ms: i64,
     pub(super) outbox: Outbox,
+    pub(super) deletions: deletion::Deletions,
     pub(super) library: LibraryRuntime,
     /// Tests pin the clock the commands read; production reads the wall.
     pub(super) pinned_now: Option<i64>,
@@ -153,6 +164,7 @@ impl NotesRuntime {
             profile_owed: false,
             profile_due_ms: i64::MIN,
             outbox: Outbox::default(),
+            deletions: deletion::Deletions::default(),
             library: LibraryRuntime::default(),
             pinned_now: None,
         }
@@ -264,6 +276,7 @@ impl Runtime {
     /// Starts whatever is due. Returns how many requests went out.
     pub(super) fn maintain_recording_notes_at(&mut self, now_ms: i64) -> usize {
         self.start_owner_lookup();
+        self.start_due_purge(now_ms);
         let Some(hub) = self.note_hub() else {
             return 0;
         };
@@ -295,6 +308,11 @@ impl Runtime {
                 ticket,
                 outcome,
             } => self.lane_answer(lane, ticket, outcome, now_ms).await?,
+            NoteEvent::Purged {
+                recording,
+                scope,
+                outcome,
+            } => self.purge_answer(recording, scope, outcome, now_ms),
         }
         Ok(())
     }

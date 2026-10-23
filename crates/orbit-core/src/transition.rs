@@ -7,6 +7,8 @@ use crate::privacy_stop::StopRequester;
 use crate::protocol::MeetingAudio;
 use crate::refusal::Refusal;
 
+#[path = "transition/discard.rs"]
+mod discard;
 #[path = "transition/voice_notes.rs"]
 mod voice_notes;
 use voice_notes::{
@@ -118,6 +120,11 @@ pub enum Event {
     PauseMeeting,
     ResumeMeeting,
     FinishMeeting,
+    /// «Terminar sin guardar» on the recording `recording_id`, recording or
+    /// paused: its capture stops and nothing of it is kept or closed.
+    DiscardMeeting {
+        recording_id: String,
+    },
     ChunkSealed,
     CaptureGap,
     VoiceStart,
@@ -384,6 +391,7 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
         | Event::PauseMeeting
         | Event::ResumeMeeting
         | Event::FinishMeeting
+        | Event::DiscardMeeting { .. }
         | Event::CaptureFinalized
         | Event::EmptyCaptureClosed
         | Event::CutRecordingClosed { .. }
@@ -464,6 +472,7 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
             effects.extend([Effect::Interrupt, Effect::CancelNetwork]);
         }
     }
+    discard::settle(&mut next);
     Ok(Decision {
         state: next,
         effects,
@@ -766,6 +775,10 @@ fn decide_capture(
         Event::PauseMeeting => decide_capture_pause(next, effects),
         Event::ResumeMeeting => decide_capture_resume(state, next, effects, now_ms),
         Event::FinishMeeting => decide_capture_finish(state, next, effects, now_ms),
+        Event::DiscardMeeting { recording_id } => {
+            discard::decide_discard(state, next, effects, &recording_id, now_ms)
+        }
+        Event::CaptureFinalized if discard::drained(next) => Ok(()),
         Event::CaptureFinalized => decide_capture_finalized(next, now_ms),
         Event::EmptyCaptureClosed => {
             let recording = next
@@ -1273,6 +1286,7 @@ fn decide_privacy_rearm(state: &State, next: &mut State) -> Result<(), Refusal> 
 }
 
 fn decide_tick(state: &State, next: &mut State, effects: &mut Vec<Effect>, now_ms: i64) {
+    discard::drain_timed_out(next, now_ms);
     let _ = state;
     if next
         .durable

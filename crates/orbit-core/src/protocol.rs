@@ -112,6 +112,11 @@ pub enum Command {
         recording_id: String,
         title: String,
     },
+    /// «Borrar reunión», confirmed: the meeting and all made from it leave
+    /// this Mac and the hub; its series' dictionaries stay.
+    MeetingDelete {
+        recording_id: String,
+    },
     /// The user's templates and their assignment to a series. Allowed
     /// while recording.
     NoteLibrary {
@@ -307,6 +312,11 @@ pub enum Command {
     MeetingPause,
     MeetingResume,
     MeetingFinish,
+    /// «Terminar sin guardar», confirmed: the recording ends, recording or
+    /// paused, and nothing of it stays here or on the hub.
+    MeetingDiscard {
+        recording_id: String,
+    },
     Approval {
         approved: bool,
         /// Which of the request's choices; absent, `once` or `deny`.
@@ -343,7 +353,8 @@ impl Command {
             | Self::NoteRestoreSuperseded { .. }
             | Self::SpeakerRename { .. }
             | Self::MeetingLanguage { .. }
-            | Self::MeetingRename { .. } => Some(FeatureId::Note),
+            | Self::MeetingRename { .. }
+            | Self::MeetingDelete { .. } => Some(FeatureId::Note),
             Self::NoteLibrary { .. } | Self::ReminderWrite { .. } => Some(FeatureId::Notes),
             Self::AudioSourcesRefresh
             | Self::CallRecord { .. }
@@ -356,7 +367,8 @@ impl Command {
             | Self::MeetingStart { .. }
             | Self::MeetingPause
             | Self::MeetingResume
-            | Self::MeetingFinish => Some(FeatureId::Recording),
+            | Self::MeetingFinish
+            | Self::MeetingDiscard { .. } => Some(FeatureId::Recording),
             Self::Calendar { .. } => Some(FeatureId::Agenda),
             Self::AssistantFolderAdd | Self::AssistantFolderRemove { .. } => {
                 Some(FeatureId::Control)

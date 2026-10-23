@@ -721,7 +721,9 @@ SQLite's online backup API (consistent with the WAL while the hub runs):
   mount point looks like when the other machine's disk is not mounted, and a
   copy there would not survive the disk it is meant to replace. The
   destination needs room for eleven copies of the database: the audio is
-  encrypted and does not compress.
+  encrypted and does not compress. A meeting deleted from Orbit («Borrar
+  reunión», «Terminar sin guardar») stays in the copies taken before the
+  delete until they leave that retention of 7 daily and 4 weekly copies.
 - **Before each activation, on the server.** `scripts/hub/activate.sh` copies
   the database and its key into `ORBIT_HUB_BASE/backups/activation` before it
   moves anything (see [Upgrades](#upgrades)).

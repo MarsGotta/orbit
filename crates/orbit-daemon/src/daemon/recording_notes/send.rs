@@ -110,6 +110,7 @@ pub(super) async fn send_note_order(hub: &NoteHub, recording: &str, order: &Note
         NoteOrder::Language { language } => hub.language(recording, language).await.into(),
         NoteOrder::Title { title } => hub.title(recording, title).await.into(),
         NoteOrder::Retranscribe => hub.final_pass(recording).await.into(),
+        NoteOrder::Delete { .. } => super::deletion::send_delete(hub, recording).await,
         NoteOrder::RetryTranscript => match hub.retry_transcript(recording).await {
             Answer::Value(value) => Outcome::Done {
                 requeued: value.get("requeued").and_then(serde_json::Value::as_u64),

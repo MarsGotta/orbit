@@ -79,7 +79,7 @@ impl Outbox {
         self.orders.values().map(Vec::len).sum()
     }
 
-    fn in_flight(&self) -> usize {
+    pub(super) fn in_flight(&self) -> usize {
         self.lanes
             .values()
             .filter(|lane| lane.in_flight.active().is_some())
@@ -125,6 +125,46 @@ impl Outbox {
                 QueuedOrder::Meeting { .. } | QueuedOrder::Library { .. } => None,
             })
             .collect()
+    }
+
+    /// The meetings waiting to be deleted (`NoteOrder::Delete`).
+    pub(in crate::daemon) fn deleting(&self) -> BTreeSet<String> {
+        self.deletes().map(|(recording, _)| recording).collect()
+    }
+
+    /// The recordings thrown away while recording, whose audio is gone or
+    /// going: none of it goes up.
+    pub(in crate::daemon) fn discarded(&self) -> BTreeSet<String> {
+        self.deletes()
+            .filter(|(_, discarded)| *discarded)
+            .map(|(recording, _)| recording)
+            .collect()
+    }
+
+    fn deletes(&self) -> impl Iterator<Item = (String, bool)> + '_ {
+        self.orders
+            .values()
+            .flatten()
+            .filter_map(|waiting| waiting.order.deletes())
+            .map(|(recording, discarded)| (recording.to_owned(), discarded))
+    }
+
+    /// The meeting's delete still on this Mac.
+    pub(super) fn meeting_delete(&self, recording: &str) -> Option<WaitingOrder> {
+        self.orders
+            .get(&OrderLane::Meeting(recording.to_owned()))?
+            .iter()
+            .find(|waiting| waiting.order.deletes().is_some())
+            .cloned()
+    }
+
+    /// The meeting left this Mac: nothing of it is owed any more.
+    pub(super) fn forget_meeting(&mut self, recording: &str) {
+        let lane = OrderLane::Meeting(recording.to_owned());
+        self.orders.remove(&lane);
+        self.lanes.remove(&Lane::Orders(lane));
+        self.private.remove(recording);
+        self.lanes.remove(&Lane::Private(recording.to_owned()));
     }
 
     /// Every lane with something to send, in a fixed order.
@@ -268,6 +308,16 @@ impl Runtime {
     /// Keeps `order` until the hub takes it, and sends it now if its lane is
     /// free. Refused when the outbox is full, with both numbers.
     pub(super) async fn queue_order(&mut self, order: QueuedOrder) -> Result<()> {
+        let lane = self.keep_order(order).await?;
+        if let Some(hub) = self.note_hub() {
+            let now_ms = self.notes_now();
+            self.start_lane(&hub, Lane::Orders(lane), now_ms);
+        }
+        Ok(())
+    }
+
+    /// Keeps `order` in the store and in the outbox, without sending it.
+    pub(in crate::daemon) async fn keep_order(&mut self, order: QueuedOrder) -> Result<OrderLane> {
         let lane = order.lane();
         let target = order
             .target()
@@ -299,10 +349,7 @@ impl Runtime {
             OrderLane::Library => notes.head.touch_library(),
             OrderLane::Meeting(recording) => notes.head.touch_recording(recording),
         }
-        if let Some(hub) = self.note_hub() {
-            self.start_lane(&hub, Lane::Orders(lane), now_ms);
-        }
-        Ok(())
+        Ok(lane)
     }
 
     pub(in crate::daemon) async fn note_private_save(
@@ -353,7 +400,23 @@ impl Runtime {
         if busy || outbox.in_flight() >= MAX_LANES_IN_FLIGHT {
             return false;
         }
+        let deleting = match &lane {
+            Lane::Private(recording) | Lane::Orders(OrderLane::Meeting(recording)) => {
+                outbox.meeting_delete(recording).is_some()
+            }
+            Lane::Orders(OrderLane::Library) => false,
+        };
         let sent = match &lane {
+            // A meeting being deleted sends nothing else: its delete goes
+            // first, and takes the rest with it.
+            Lane::Private(_) if deleting => None,
+            Lane::Orders(order_lane) if deleting => outbox
+                .orders
+                .get(order_lane)
+                .and_then(|orders| orders.iter().find(|kept| kept.order.deletes().is_some()))
+                .cloned()
+                .map(Sent::Order)
+                .filter(|sent| self.delete_due(sent)),
             Lane::Private(recording) => match self.reader.private_notes(recording) {
                 Ok(Some(pending)) => Some(Sent::Private(pending)),
                 Ok(None) => {
@@ -376,6 +439,16 @@ impl Runtime {
                 .map(Sent::Order),
         };
         let Some(sent) = sent else {
+            let purging = self.features.notes.deletions.purging.as_deref();
+            if let Lane::Orders(OrderLane::Meeting(recording)) = &lane
+                && deleting
+                && purging != Some(recording.as_str())
+            {
+                // A meeting still closing: its delete is looked at again in
+                // a while, not on every turn of the loop.
+                let state = self.features.notes.outbox.lanes.entry(lane).or_default();
+                state.due_ms = now_ms.saturating_add(orbit_core::note_outbox::FIRST_RETRY_MS);
+            }
             return false;
         };
         self.send_lane(hub, lane, sent);

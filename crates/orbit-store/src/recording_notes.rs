@@ -51,7 +51,7 @@ pub struct PendingPrivateNotes {
     pub base_revision: u64,
 }
 
-fn id_of(recording: &str) -> String {
+pub(crate) fn id_of(recording: &str) -> String {
     format!("{PRIVATE_PREFIX}{recording}")
 }
 

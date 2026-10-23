@@ -4,7 +4,6 @@ use std::sync::{Mutex, PoisonError};
 use std::time::Duration;
 use tauri::{
     Manager,
-    image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{TrayIcon, TrayIconBuilder},
 };
@@ -12,6 +11,10 @@ use tauri::{
 const OPEN: &str = "open";
 const RECORD: &str = "record";
 const FINISH_RECORDING: &str = "finish_recording";
+const DISCARD_RECORDING: &str = "discard_recording";
+const DISCARD_QUESTION: &str = "discard_question";
+const CONFIRM_DISCARD: &str = "confirm_discard";
+const KEEP_RECORDING: &str = "keep_recording";
 const STOP: &str = "stop";
 const QUIT: &str = "quit";
 const UPDATE: &str = "update";
@@ -26,6 +29,11 @@ struct TrayState {
     /// A recording that «Terminar grabación» can finish, timed as the
     /// sidebar's card times it.
     recording: Option<RecordedClock>,
+    /// The recording can be thrown away now: it records or is paused.
+    discardable: bool,
+    /// «Terminar sin guardar…» was chosen and waits for its answer, in the
+    /// menu itself: the first click only asks.
+    asking_discard: bool,
     /// An assistant waits for the user: an approval or a question.
     needs_you: bool,
     /// The system's appearance, which the menu bar follows.
@@ -71,6 +79,15 @@ impl RecordedClock {
 
 impl TrayState {
     fn follow_meeting(&mut self, meeting: &MeetingSnapshot, now_ms: i64) {
+        let same = self
+            .recording
+            .as_ref()
+            .is_some_and(|clock| clock.recording_id == meeting.recording_id);
+        self.discardable = matches!(
+            meeting.phase,
+            MeetingPhase::Recording | MeetingPhase::Paused
+        );
+        self.asking_discard &= same && self.discardable;
         if !finishable(&meeting.phase) {
             self.recording = None;
             return;
@@ -102,116 +119,32 @@ impl TrayState {
     fn follow_chat(&mut self, chat: &ChatSnapshot) {
         self.needs_you = chat.pending_contract.is_some();
     }
-}
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-enum Appearance {
-    #[default]
-    Dark,
-    Light,
-}
+    fn ask_discard(&mut self) {
+        self.asking_discard = self.discardable;
+    }
 
-impl From<tauri::Theme> for Appearance {
-    fn from(theme: tauri::Theme) -> Self {
-        match theme {
-            tauri::Theme::Light => Self::Light,
-            _ => Self::Dark,
-        }
+    fn keep_recording(&mut self) {
+        self.asking_discard = false;
     }
 }
 
-/// The brand's menu bar images (`icons/menu-bar`, from the brand pack's
-/// `3-barra-de-menus`), embedded in the binary. Each is the pack's `@2x`
-/// file, 36 px: the status item draws its image 18 points high
-/// (tray-icon 0.24, `set_icon_for_ns_status_item_button`), sharp at the
-/// Mac's 2× density. Tauri takes one bitmap per icon, so the pack's 18 px
-/// files have nowhere to go.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum MarkImage {
-    /// The small symbol in black on clear: macOS tints it as the bar's other
-    /// marks, in light and dark.
-    Template,
-    /// The moon in red. With colour it cannot be a template: one file for a
-    /// dark bar, one for a light bar.
-    RecordingOnDark,
-    RecordingOnLight,
-    /// The moon in amber.
-    NeedsYouOnDark,
-    NeedsYouOnLight,
+/// «Borrar y terminar»: the order for the recording the menu asked about.
+fn discard_command(state: &TrayState) -> Option<AppCommand> {
+    let recording_id = state.recording.as_ref()?.recording_id.clone()?;
+    state.asking_discard.then(|| {
+        AppCommand::Daemon(Box::new(orbit_core::protocol::Command::MeetingDiscard {
+            recording_id,
+        }))
+    })
 }
 
-impl MarkImage {
-    fn is_template(self) -> bool {
-        self == Self::Template
-    }
-
-    fn pixels(self) -> Image<'static> {
-        match self {
-            Self::Template => tauri::include_image!("icons/menu-bar/orbitTemplate@2x.png"),
-            Self::RecordingOnDark => {
-                tauri::include_image!("icons/menu-bar/orbit-grabando-barra-oscuro@2x.png")
-            }
-            Self::RecordingOnLight => {
-                tauri::include_image!("icons/menu-bar/orbit-grabando-barra-claro@2x.png")
-            }
-            Self::NeedsYouOnDark => {
-                tauri::include_image!("icons/menu-bar/orbit-aviso-barra-oscuro@2x.png")
-            }
-            Self::NeedsYouOnLight => {
-                tauri::include_image!("icons/menu-bar/orbit-aviso-barra-claro@2x.png")
-            }
-        }
-    }
-}
-
-/// The status item: its image, and the text beside it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Look {
-    image: MarkImage,
-    /// Only the time recorded, while it records; empty otherwise.
-    title: String,
-}
-
-/// «00:42», «12:04», «1:02:03».
-fn elapsed_text(ms: i64) -> String {
-    let seconds = ms.max(0) / 1_000;
-    let (hours, minutes, seconds) = (seconds / 3_600, seconds / 60 % 60, seconds % 60);
-    if hours > 0 {
-        format!("{hours}:{minutes:02}:{seconds:02}")
-    } else {
-        format!("{minutes:02}:{seconds:02}")
-    }
-}
-
-/// The brand manual's three marks. A recording goes first: while it
-/// records, something listens, and the time beside the mark says so. An
-/// assistant that waits keeps its amber moon until the user answers, and
-/// shows it again when a recording ends first.
-fn look(state: &TrayState, now_ms: i64) -> Look {
-    let dark = state.appearance == Appearance::Dark;
-    if let Some(clock) = &state.recording {
-        return Look {
-            image: if dark {
-                MarkImage::RecordingOnDark
-            } else {
-                MarkImage::RecordingOnLight
-            },
-            title: clock
-                .recorded_ms(now_ms)
-                .map(elapsed_text)
-                .unwrap_or_default(),
-        };
-    }
-    let image = match (state.needs_you, dark) {
-        (false, _) => MarkImage::Template,
-        (true, true) => MarkImage::NeedsYouOnDark,
-        (true, false) => MarkImage::NeedsYouOnLight,
-    };
-    Look {
-        image,
-        title: String::new(),
-    }
-}
+mod look;
+#[cfg(test)]
+use look::MarkImage;
+use look::{Appearance, Look, look};
+#[cfg(test)]
+use tauri::image::Image;
 
 #[derive(Debug, PartialEq, Eq)]
 enum Entry {
@@ -232,9 +165,10 @@ fn item(id: &'static str, label: impl Into<String>, enabled: bool) -> Entry {
 }
 
 /// The menu, grouped as the window is: open Orbit; record or finish, only
-/// the one that can be done now enabled; stop everything and the update on
-/// offer; quit. Recording here starts at once, as ⌃⌥M does («Grabar
-/// reunión» in the window opens «Nueva grabación» instead).
+/// the one that can be done now enabled, and «Terminar sin guardar…», which
+/// asks in the menu itself before it throws the recording away; stop
+/// everything and the update on offer; quit. Recording here starts at once,
+/// as ⌃⌥M does («Grabar reunión» in the window opens «Nueva grabación»).
 fn entries(state: &TrayState) -> Vec<Entry> {
     let recording = state.recording.is_some();
     let mut entries = vec![
@@ -242,9 +176,26 @@ fn entries(state: &TrayState) -> Vec<Entry> {
         Entry::Separator,
         item(RECORD, "Grabar reunión ahora", !recording),
         item(FINISH_RECORDING, "Terminar grabación", recording),
-        Entry::Separator,
-        item(STOP, "Parar todo", true),
     ];
+    if state.asking_discard {
+        entries.extend([
+            item(
+                DISCARD_QUESTION,
+                "¿Terminar sin guardar? Se borra lo grabado y no se escribe nota.",
+                false,
+            ),
+            item(CONFIRM_DISCARD, "Borrar y terminar", true),
+            item(KEEP_RECORDING, "Seguir grabando", true),
+        ]);
+    } else {
+        let discardable = recording && state.discardable;
+        entries.push(item(
+            DISCARD_RECORDING,
+            "Terminar sin guardar…",
+            discardable,
+        ));
+    }
+    entries.extend([Entry::Separator, item(STOP, "Parar todo", true)]);
     if let Some(offer) = &state.update {
         entries.push(item(
             UPDATE,
@@ -440,6 +391,23 @@ fn handle_menu(app: &tauri::AppHandle, event: tauri::menu::MenuEvent) {
             app,
             AppCommand::Daemon(Box::new(orbit_core::protocol::Command::MeetingFinish)),
         ),
+        DISCARD_RECORDING => redraw(app, TrayState::ask_discard),
+        KEEP_RECORDING => redraw(app, TrayState::keep_recording),
+        CONFIRM_DISCARD => {
+            let Some(tray) = app.try_state::<Tray<tauri::Wry>>() else {
+                return;
+            };
+            let state = tray
+                .shown
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .state
+                .clone();
+            redraw(app, TrayState::keep_recording);
+            if let Some(command) = discard_command(&state) {
+                send_meeting_command(app, command);
+            }
+        }
         STOP => stop_privacy(app),
         QUIT => quit(app),
         UPDATE => {
@@ -456,6 +424,13 @@ fn handle_menu(app: &tauri::AppHandle, event: tauri::menu::MenuEvent) {
             });
         }
         _ => {}
+    }
+}
+
+/// A change of the menu alone, from a click on it.
+fn redraw(app: &tauri::AppHandle, change: fn(&mut TrayState)) {
+    if let Err(error) = refresh(app, |state, _| change(state)) {
+        eprintln!("Orbit: no se pudo cambiar el menú de la barra de menús: {error}");
     }
 }
 
@@ -520,281 +495,4 @@ fn quit(app: &tauri::AppHandle) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn tray_recording_delegates_its_automatic_title_to_app_core() {
-        let AppCommand::Recording(
-            orbit_app_core::features::recording::RecordingCommand::MeetingStart { title },
-        ) = recording_command()
-        else {
-            panic!("the tray did not start a recording");
-        };
-        assert!(title.is_empty(), "only app-core reads the local clock");
-    }
-
-    fn labels(state: &TrayState) -> Vec<(String, bool)> {
-        entries(state)
-            .into_iter()
-            .map(|entry| match entry {
-                Entry::Item { label, enabled, .. } => (label, enabled),
-                Entry::Separator => ("—".to_owned(), false),
-            })
-            .collect()
-    }
-
-    fn owned(rows: &[(&str, bool)]) -> Vec<(String, bool)> {
-        rows.iter()
-            .map(|(label, on)| ((*label).to_owned(), *on))
-            .collect()
-    }
-
-    /// The menu bar's menu, grouped as the window is: open it; record or
-    /// finish, only the one that can be done now; stop everything; quit.
-    #[test]
-    fn the_menu_offers_only_what_can_be_done_now() {
-        assert_eq!(
-            labels(&TrayState::default()),
-            owned(&[
-                ("Abrir Orbit", true),
-                ("—", false),
-                ("Grabar reunión ahora", true),
-                ("Terminar grabación", false),
-                ("—", false),
-                ("Parar todo", true),
-                ("—", false),
-                ("Salir de Orbit", true),
-            ])
-        );
-        let mut recording = TrayState::default();
-        recording.follow_meeting(&meeting(MeetingPhase::Recording, "rec-1", START), START);
-        let rows = labels(&recording);
-        assert_eq!(rows[2], ("Grabar reunión ahora".to_owned(), false));
-        assert_eq!(rows[3], ("Terminar grabación".to_owned(), true));
-    }
-
-    #[test]
-    fn a_new_version_sits_beside_parar_todo_and_says_when_it_cannot_install() {
-        let mut offered = TrayState {
-            update: Some(UpdateOffer {
-                version: "0.10.2".to_owned(),
-                installable: false,
-            }),
-            ..TrayState::default()
-        };
-        offered.follow_meeting(&meeting(MeetingPhase::Recording, "rec-1", START), START);
-        let rows = labels(&offered);
-        assert_eq!(rows[5], ("Parar todo".to_owned(), true));
-        assert_eq!(rows[6], ("Actualizar a la 0.10.2".to_owned(), false));
-        assert_eq!(rows.last(), Some(&("Salir de Orbit".to_owned(), true)));
-    }
-
-    #[test]
-    fn a_recording_can_be_finished_while_it_starts_or_is_paused_but_not_while_it_saves() {
-        assert!(finishable(&MeetingPhase::Starting));
-        assert!(finishable(&MeetingPhase::Recording));
-        assert!(finishable(&MeetingPhase::Paused));
-        assert!(!finishable(&MeetingPhase::Finishing));
-        assert!(!finishable(&MeetingPhase::Idle));
-    }
-
-    fn meeting(phase: MeetingPhase, id: &str, started_at_ms: i64) -> MeetingSnapshot {
-        let mut meeting =
-            orbit_app_core::AppSnapshot::empty(1, orbit_app_core::DaemonConnection::Ready).meeting;
-        meeting.phase = phase;
-        meeting.recording_id = Some(id.to_owned());
-        meeting.started_at_ms = Some(started_at_ms);
-        meeting
-    }
-
-    fn chat(pending: Option<orbit_app_core::ChatPending>) -> ChatSnapshot {
-        let mut chat =
-            orbit_app_core::AppSnapshot::empty(1, orbit_app_core::DaemonConnection::Ready).chat;
-        chat.pending_contract = pending;
-        chat
-    }
-
-    fn approval() -> orbit_app_core::ChatPending {
-        orbit_app_core::ChatPending::Approval {
-            id: "approval-1".to_owned(),
-            text: "Borrar un borrador".to_owned(),
-            choices: vec!["once".to_owned(), "deny".to_owned()],
-            deletes: None,
-        }
-    }
-
-    fn rest() -> Look {
-        Look {
-            image: MarkImage::Template,
-            title: String::new(),
-        }
-    }
-
-    const START: i64 = 1_800_000_000_000;
-
-    /// At rest the bar shows the brand's small symbol as a template, which
-    /// macOS tints like its own marks, with nothing beside it.
-    #[test]
-    fn at_rest_the_mark_is_the_template_symbol_with_nothing_beside_it() {
-        for appearance in [Appearance::Dark, Appearance::Light] {
-            let state = TrayState {
-                appearance,
-                ..TrayState::default()
-            };
-            assert_eq!(look(&state, START), rest());
-        }
-        assert!(MarkImage::Template.is_template());
-    }
-
-    /// A recording turns the moon red, in the file for the bar's appearance,
-    /// with the time recorded beside it: «mm:ss», then «h:mm:ss».
-    #[test]
-    fn a_recording_turns_the_moon_red_and_shows_its_time() {
-        let mut state = TrayState::default();
-        state.follow_meeting(&meeting(MeetingPhase::Recording, "rec-1", START), START);
-        assert_eq!(
-            look(&state, START + 42_000),
-            Look {
-                image: MarkImage::RecordingOnDark,
-                title: "00:42".to_owned(),
-            }
-        );
-        assert_eq!(look(&state, START + 724_000).title, "12:04");
-        assert_eq!(look(&state, START + 3_723_000).title, "1:02:03");
-        assert!(!MarkImage::RecordingOnDark.is_template());
-        state.appearance = Appearance::Light;
-        assert_eq!(
-            look(&state, START + 42_000).image,
-            MarkImage::RecordingOnLight
-        );
-        assert!(!MarkImage::RecordingOnLight.is_template());
-    }
-
-    /// The time stops in a pause and goes on from there, as the sidebar's
-    /// card counts it.
-    #[test]
-    fn a_pause_stops_the_time_beside_the_mark() {
-        let mut state = TrayState::default();
-        state.follow_meeting(&meeting(MeetingPhase::Recording, "rec-1", START), START);
-        state.follow_meeting(
-            &meeting(MeetingPhase::Paused, "rec-1", START),
-            START + 60_000,
-        );
-        assert_eq!(look(&state, START + 600_000).title, "01:00");
-        state.follow_meeting(
-            &meeting(MeetingPhase::Recording, "rec-1", START),
-            START + 120_000,
-        );
-        assert_eq!(look(&state, START + 130_000).title, "01:10");
-        // Another recording starts its own count.
-        state.follow_meeting(
-            &meeting(MeetingPhase::Recording, "rec-2", START + 200_000),
-            START + 200_000,
-        );
-        assert_eq!(look(&state, START + 205_000).title, "00:05");
-    }
-
-    /// An assistant that waits for an approval or an answer turns the moon
-    /// amber until the user answers.
-    #[test]
-    fn an_assistant_waiting_for_you_turns_the_moon_amber_until_you_answer() {
-        let mut state = TrayState::default();
-        state.follow_chat(&chat(Some(approval())));
-        assert_eq!(
-            look(&state, START),
-            Look {
-                image: MarkImage::NeedsYouOnDark,
-                title: String::new(),
-            }
-        );
-        state.appearance = Appearance::Light;
-        assert_eq!(look(&state, START).image, MarkImage::NeedsYouOnLight);
-        state.follow_chat(&chat(Some(orbit_app_core::ChatPending::Clarify {
-            id: "clarify-1".to_owned(),
-            text: "¿Qué calendario?".to_owned(),
-            choices: Vec::new(),
-            questions: Vec::new(),
-        })));
-        assert_eq!(look(&state, START).image, MarkImage::NeedsYouOnLight);
-        assert!(!MarkImage::NeedsYouOnLight.is_template());
-        state.follow_chat(&chat(None));
-        assert_eq!(look(&state, START), rest());
-    }
-
-    /// When the recording ends the bar goes back to the template, or to the
-    /// amber moon of an assistant still waiting.
-    #[test]
-    fn the_mark_goes_back_when_the_recording_ends() {
-        let mut state = TrayState::default();
-        state.follow_meeting(&meeting(MeetingPhase::Recording, "rec-1", START), START);
-        state.follow_meeting(
-            &meeting(MeetingPhase::Finishing, "rec-1", START),
-            START + 5_000,
-        );
-        assert_eq!(look(&state, START + 6_000), rest());
-        state.follow_meeting(&meeting(MeetingPhase::Recording, "rec-2", START), START);
-        state.follow_chat(&chat(Some(approval())));
-        assert_eq!(look(&state, START).image, MarkImage::RecordingOnDark);
-        state.follow_meeting(&meeting(MeetingPhase::Idle, "rec-2", START), START);
-        assert_eq!(
-            look(&state, START),
-            Look {
-                image: MarkImage::NeedsYouOnDark,
-                title: String::new(),
-            }
-        );
-    }
-
-    fn opaque(image: &Image<'_>) -> Vec<[u8; 3]> {
-        image
-            .rgba()
-            .chunks(4)
-            .filter(|pixel| pixel[3] > 200)
-            .map(|pixel| [pixel[0], pixel[1], pixel[2]])
-            .collect()
-    }
-
-    /// The embedded files are the pack's, 18 points at 2×: the template
-    /// carries its shape only in its alpha; the recording one has a red
-    /// moon and the warning one an amber moon, with the symbol in white for
-    /// a dark bar and in near black for a light one.
-    #[test]
-    fn each_mark_is_the_brand_image_it_names() {
-        let red = |[r, g, b]: [u8; 3]| r > 200 && g < 100 && b < 100;
-        let amber = |[r, g, b]: [u8; 3]| r > 200 && (120..200).contains(&g) && b < 40;
-        let white = |[r, g, b]: [u8; 3]| r > 240 && g > 240 && b > 240;
-        let ink = |[r, g, b]: [u8; 3]| r < 40 && g < 40 && b < 40;
-        for (mark, moon, symbol) in [
-            (
-                MarkImage::RecordingOnDark,
-                &red as &dyn Fn([u8; 3]) -> bool,
-                &white as &dyn Fn([u8; 3]) -> bool,
-            ),
-            (MarkImage::RecordingOnLight, &red, &ink),
-            (MarkImage::NeedsYouOnDark, &amber, &white),
-            (MarkImage::NeedsYouOnLight, &amber, &ink),
-        ] {
-            let image = mark.pixels();
-            assert_eq!((image.width(), image.height()), (36, 36), "{mark:?}");
-            let pixels = opaque(&image);
-            assert!(pixels.iter().any(|pixel| moon(*pixel)), "{mark:?}: no moon");
-            assert!(
-                pixels.iter().any(|pixel| symbol(*pixel)),
-                "{mark:?}: no symbol"
-            );
-        }
-        let template = MarkImage::Template.pixels();
-        assert_eq!((template.width(), template.height()), (36, 36));
-        assert!(
-            template.rgba().chunks(4).any(|pixel| pixel[3] > 0),
-            "no ink"
-        );
-        assert!(
-            template
-                .rgba()
-                .chunks(4)
-                .all(|pixel| pixel[3] == 0 || pixel[..3] == [0, 0, 0])
-        );
-    }
-}
+mod tests;

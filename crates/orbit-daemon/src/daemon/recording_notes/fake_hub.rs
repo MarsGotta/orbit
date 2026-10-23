@@ -61,6 +61,9 @@ pub(crate) struct Hub {
     pub reminders: BTreeMap<String, Value>,
     /// A hub up to 0.11: the reminder routes are not there.
     pub without_reminder_routes: bool,
+    /// A hub of 0.11 or earlier: no `DELETE /v1/recordings/{id}`, which
+    /// FastAPI answers as it answers a known path's other method.
+    pub without_recording_delete: bool,
 }
 
 pub(crate) type Shared = Arc<Mutex<Hub>>;
@@ -301,6 +304,17 @@ impl Hub {
                 (200, json!({"owner_name": name}))
             }
             ("GET", ["v1", "recordings"]) => self.list(query),
+            ("DELETE", ["v1", "recordings", _]) if self.without_recording_delete => (
+                405,
+                json!({"detail": "Method Not Allowed", "message": "Solicitud fuera de contrato",
+                    "code": "invalid_request",
+                    "refusal": {"code": "invalid_request", "retry": {"kind": "never"}}}),
+            ),
+            ("DELETE", ["v1", "recordings", id]) => {
+                self.documents.remove(*id);
+                self.turns.remove(*id);
+                (200, json!({"recording_id": id, "deleted": true}))
+            }
             ("GET", ["v1", "recordings", id]) => match self.documents.get(*id) {
                 Some(document) => (200, document.clone()),
                 None => refusal(404, "recording_not_found", "Grabación no disponible"),

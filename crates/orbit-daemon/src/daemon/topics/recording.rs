@@ -52,7 +52,13 @@ impl ProjectTopic for Projector {
         );
         TopicData::Recording(Knowledge::Present {
             value: Value {
-                recording: state.durable.recording.clone().map(Box::new),
+                // One being thrown away is gone for the person at once.
+                recording: state
+                    .durable
+                    .recording
+                    .clone()
+                    .filter(|recording| state.durable.discarding() != Some(recording.id.as_str()))
+                    .map(Box::new),
                 recording_signal: recording_signal.map(Box::new),
                 pending_jobs: state.durable.pending_jobs,
                 offline: !matches!(state.connection(), Connection::Online),

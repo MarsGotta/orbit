@@ -378,6 +378,7 @@ impl Runtime {
                     self.send_wake_order(stream, true).await;
                 }
             }
+            self.features.notes.deletions.hub_deletes = Some(data.recording_delete == Some(true));
             self.notes_hub_ready();
             self.apply(Event::Connect(Connection::Online)).await?;
             if let Some(storage) = &data.storage {
