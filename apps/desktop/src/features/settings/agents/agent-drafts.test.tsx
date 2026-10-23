@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentAnswer } from "../../../bridge/generated/AgentAnswer";
 import type { AgentCall } from "../../../bridge/generated/AgentCall";
 import type { AgentConfig } from "../../../bridge/generated/AgentConfig";
-import { AgentSettings } from "./AgentSettings";
+import { AgentCards } from "./AgentCards";
 
 // A personality or a skill written and not saved yet stays on this Mac when
 // the person goes to another view, and comes back where it was written.
@@ -26,7 +26,7 @@ vi.mock("./PersonalityEditor", () => ({
   ),
 }));
 
-const AGENTS = [{ id: "vega", name: "Vega" }];
+const VEGA = { id: "vega", name: "Vega" };
 const SKILL_TEXT = "---\nname: resumen-diario\ndescription: Resume el día.\n---\n\nPasos.";
 
 function config(): AgentConfig {
@@ -76,8 +76,8 @@ beforeEach(() => {
 afterEach(cleanup);
 
 async function openSettings() {
-  const view = render(<AgentSettings agents={AGENTS} agent={agent} defaultAgentId="vega" />);
-  await screen.findByText("Vega se configura desde aquí. Los cambios se guardan en el hub.");
+  const view = render(<AgentCards agent={agent} target={VEGA} />);
+  await screen.findByRole("switch", { name: "Pantalla" });
   return view;
 }
 

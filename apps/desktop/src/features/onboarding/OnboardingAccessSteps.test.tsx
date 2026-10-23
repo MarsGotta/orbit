@@ -7,10 +7,11 @@ import { PermissionsStep } from "./OnboardingAccessSteps";
 afterEach(cleanup);
 
 // A permission macOS has not reported yet is awaited, never read as a
-// refusal (nothing blank: it says it waits for macOS); denied and not granted
-// read the same to the person, «Sin permiso». The actions stay distinct:
-// nothing is invented for an unknown.
-it("unknown waits for macOS, denied and not granted read «Sin permiso», without invented actions", () => {
+// refusal (nothing blank: it says it waits for macOS); one refused reads
+// «Sin conceder». Accessibility, which macOS never asks for, only opens
+// System Settings. The actions stay distinct: nothing is invented for an
+// unknown.
+it("unknown waits for macOS, a refusal reads «Sin conceder», without invented actions", () => {
   const send = vi.fn(async () => undefined);
   render(
     <PermissionsStep
@@ -27,10 +28,13 @@ it("unknown waits for macOS, denied and not granted read «Sin permiso», withou
   const microphone = row(macPermissions.microphone.label);
   expect(within(microphone).getByText(es.controls.waitingForMacos)).toBeTruthy();
   expect(within(microphone).queryByRole("button")).toBeNull();
-  expect(within(microphone).queryByText(es.permissions.notGranted)).toBeNull();
-  expect(screen.getAllByText(es.permissions.notGranted)).toHaveLength(2);
+  expect(within(microphone).queryByText(es.onboarding.notGranted)).toBeNull();
+  expect(screen.getAllByText(es.onboarding.notGranted)).toHaveLength(1);
+  expect(
+    within(row(macPermissions.screen_recording.label)).getByText(es.onboarding.notGranted),
+  ).toBeTruthy();
   expect(screen.queryByText(/Desconocido|Denegado|No concedido/)).toBeNull();
-  expect(within(row(macPermissions.calendar.label)).getByText("✓ Permitido")).toBeTruthy();
+  expect(within(row(macPermissions.calendar.label)).getByText("✓ Concedido")).toBeTruthy();
   fireEvent.click(
     within(row(es.onboarding.accessibility)).getByRole("button", {
       name: es.onboarding.openSettings,

@@ -1,6 +1,4 @@
-import type { ReactNode } from "react";
 import type { Agent } from "../../../bridge/generated/Agent";
-import type { AgentConfig } from "../../../bridge/generated/AgentConfig";
 import { Button } from "../../../design/Button";
 import { useFeedback } from "../../../design/feedback";
 import { Skeleton } from "../../../design/Skeleton";
@@ -29,18 +27,11 @@ function Loading({ name }: { name: string }) {
 
 /**
  * One agent's personality, what it may use and its skills, read from the hub
- * and changed there; `lead` goes above them once the configuration is read.
- * Ajustes › Asistente and each assistant's own settings (its gear) show it.
+ * and changed there. Each assistant's own settings (its gear) show it. A
+ * switch is configuration, not a confirmation: it is sent as it is flipped,
+ * and what the agent's kind does not allow is shown with its cause.
  */
-export function AgentCards({
-  agent,
-  target,
-  lead,
-}: {
-  agent: AgentPort;
-  target: Agent;
-  lead?: (config: AgentConfig) => ReactNode;
-}) {
+export function AgentCards({ agent, target }: { agent: AgentPort; target: Agent }) {
   const { view, feedback, busy, reload, order, skill, say } = useAgentConfig(agent, target.id);
   const personalitySave = useFeedback();
   if (view.state === "loading") return <Loading name={target.name} />;
@@ -63,7 +54,6 @@ export function AgentCards({
   const props = { agentId: target.id, busy, feedback, order, explained };
   return (
     <div className={styles.panel}>
-      {lead?.(config)}
       <PersonalityCard
         // A new text from the hub replaces the editor; one unchanged keeps
         // what the user is writing.

@@ -1,6 +1,10 @@
 import { useId, type FormEvent, type ReactNode } from "react";
+import type { PermissionSnapshot } from "../../bridge/generated/PermissionSnapshot";
 import { Field } from "../../design/Field";
 import { useSpanish } from "../../i18n/AssistantCopy";
+import { permissionRows } from "../../i18n/es/permissions";
+import { readyAgents, type Cast } from "./cast";
+import type { PairingState } from "./OnboardingView";
 import styles from "./OnboardingView.module.css";
 
 /** One step: a region named by its title, with the one line under it. */
@@ -25,9 +29,13 @@ export function Step({
   );
 }
 
-export function WelcomeStep() {
-  const es = useSpanish();
-  const copy = es.onboarding;
+/** What Orbit does, the steps to come and that everything stops at once. */
+export function WelcomeStep({ cast }: { cast: Cast }) {
+  const copy = useSpanish().onboarding;
+  const plan = copy.plan(
+    cast.hubName,
+    cast.others.map((agent) => agent.name),
+  );
   return (
     <Step lead={copy.welcomeBody} title={copy.welcome}>
       <ul className={styles.points}>
@@ -38,6 +46,17 @@ export function WelcomeStep() {
           </li>
         ))}
       </ul>
+      <ol aria-label={copy.planLabel} className={styles.plan}>
+        {plan.map((item, index) => (
+          <li className={styles.planRow} key={item.title}>
+            <span aria-hidden="true" className={styles.planNumber}>
+              {index + 2}
+            </span>
+            <span className={styles.planTitle}>{item.title}</span>
+            <span className={styles.planBody}>{item.body}</span>
+          </li>
+        ))}
+      </ol>
       <p className={styles.quiet}>{copy.welcomeControl}</p>
     </Step>
   );
@@ -49,24 +68,23 @@ export interface PairFormProps {
   deviceName: string;
   hubUrl: string;
   formId: string;
+  hubName: string;
   onCode: (value: string) => void;
   onDeviceName: (value: string) => void;
   onHubUrl: (value: string) => void;
   onPair: () => void;
-  /** The failure's words, or the hub this Mac is paired with. */
-  failure: string | null;
-  pairedWith: string | null;
+  pairing: PairingState;
 }
 
 export function PairStep(props: PairFormProps) {
-  const es = useSpanish();
-  const copy = es.onboarding;
+  const copy = useSpanish().onboarding;
+  const { pairing } = props;
   const submit = (event: FormEvent) => {
     event.preventDefault();
     props.onPair();
   };
   return (
-    <Step lead={copy.pairBody} title={copy.pairTitle}>
+    <Step lead={copy.pairBody(props.hubName)} title={copy.pairTitle}>
       <form className={styles.form} id={props.formId} onSubmit={submit}>
         <Field
           autoComplete="url"
@@ -78,9 +96,10 @@ export function PairStep(props: PairFormProps) {
           value={props.hubUrl}
         />
         <Field
+          aria-invalid={pairing.shortCode ? true : undefined}
           autoComplete="one-time-code"
           className={styles.code}
-          help={copy.codeHelp}
+          help={pairing.shortCode ? copy.codeDigits(props.code.length) : copy.codeHelp}
           inputMode="numeric"
           label={copy.code}
           maxLength={6}
@@ -98,27 +117,81 @@ export function PairStep(props: PairFormProps) {
           value={props.deviceName}
         />
       </form>
-      {props.failure !== null && (
-        <p className={`${styles.result} ${styles.failed}`} role="alert">
-          {props.failure}
-        </p>
+      {pairing.failed && (
+        <div className={styles.failure} role="alert">
+          <span aria-hidden="true" className={styles.failureDot} />
+          <span className={styles.failureText}>
+            <strong>{copy.pairFailed}</strong>
+            <span>{pairing.refusal ?? copy.pairFailedHint}</span>
+          </span>
+        </div>
       )}
-      {props.pairedWith !== null && (
+      {pairing.pairedWith !== null && (
         <p className={`${styles.result} ${styles.paired}`} role="status">
-          {copy.paired(props.pairedWith)}
+          {copy.paired(pairing.pairedWith, props.hubName)}
         </p>
       )}
     </Step>
   );
 }
 
-export function ReadyStep() {
-  const es = useSpanish();
-  const copy = es.onboarding;
+interface ReadyProps {
+  cast: Cast;
+  deviceName: string | null;
+  host: string;
+  paired: boolean;
+  permissions: PermissionSnapshot;
+}
+
+/** What is set up, in green, and what is missing, in amber, with what to do about it. */
+function useSummary({ cast, deviceName, host, paired, permissions }: ReadyProps) {
+  const copy = useSpanish().onboarding;
+  const missing = permissionRows
+    .filter(([key]) => permissions[key] !== "granted")
+    .map(([, permission]) => permission.label);
+  const granted = permissionRows.length - missing.length;
+  const ready = readyAgents(cast, paired).map((agent) =>
+    agent.id === cast.primaryId ? copy.asPrimary(agent.name) : agent.name,
+  );
+  return [
+    {
+      key: copy.summaryHub,
+      ok: paired,
+      value: paired ? copy.hubPaired(host, deviceName) : copy.hubUnpaired,
+    },
+    {
+      key: copy.summaryPermissions,
+      ok: missing.length === 0,
+      value: missing.length === 0 ? copy.allGranted : copy.someGranted(granted, missing),
+    },
+    {
+      key: copy.summaryAssistants,
+      ok: ready.length > 0,
+      value: ready.length > 0 ? copy.assistantsReady(ready) : copy.noAssistants,
+    },
+  ];
+}
+
+export function ReadyStep(props: ReadyProps) {
+  const copy = useSpanish().onboarding;
+  const summary = useSummary(props);
+  const shortcutsTitle = useId();
   return (
     <Step lead={copy.readyBody} title={copy.ready}>
-      <ul className={styles.rows}>
-        {copy.shortcuts.map((shortcut) => (
+      <ul aria-label={copy.summaryLabel} className={styles.rows}>
+        {summary.map((row) => (
+          <li className={styles.summaryRow} data-tone={row.ok ? "ok" : "warn"} key={row.key}>
+            <span aria-hidden="true" className={styles.summaryDot} />
+            <span className={styles.summaryKey}>{row.key}</span>
+            <span className={styles.summaryValue}>{row.value}</span>
+          </li>
+        ))}
+      </ul>
+      <h2 className={styles.subtitle} id={shortcutsTitle}>
+        {copy.shortcutsTitle}
+      </h2>
+      <ul aria-labelledby={shortcutsTitle} className={styles.rows}>
+        {copy.shortcuts(props.cast.primaryName).map((shortcut) => (
           <li className={styles.shortcutRow} key={shortcut.keys}>
             <kbd className={styles.keys}>{shortcut.keys}</kbd>
             <span className={styles.rowText}>

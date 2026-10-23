@@ -410,6 +410,13 @@
 }
 
 /* Reuniones › Diccionarios. */
+/* Several dictionaries: one card each, a little apart. */
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--o-space-12);
+}
+
 .dictionaryHead {
   display: flex;
   min-height: 48px;
@@ -450,4 +457,100 @@
 .inlineInput:focus {
   border-color: var(--o-accText);
   outline: none;
+}
+
+/* Ajustes › Asistentes: one row per assistant, the primary's selector. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.assistantRows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assistantRows > li + li {
+  border-top: 1px solid var(--o-line);
+}
+
+.assistantRow {
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-14);
+  padding: var(--o-space-14) 18px;
+}
+
+.pill {
+  flex: none;
+  padding: 1px 8px;
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-pill);
+  color: var(--o-ink2);
+  font: 500 12px/1.4 var(--o-font-sans);
+}
+
+.rowWarn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  color: var(--o-warn);
+  font: 500 13px/1.5 var(--o-font-sans);
+  white-space: nowrap;
+}
+
+.assistantRow > .meta {
+  flex: none;
+  white-space: nowrap;
+}
+
+.select {
+  position: relative;
+  display: flex;
+  width: 220px;
+  flex: none;
+  align-items: center;
+  height: var(--o-control-lg);
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-md);
+  color: var(--o-ink3);
+  transition: border-color var(--o-dur-fast);
+}
+
+.select:focus-within {
+  border-color: var(--o-accText);
+}
+
+.select select {
+  min-width: 0;
+  height: 100%;
+  flex: 1;
+  padding: 0 32px 0 12px;
+  border: 0;
+  appearance: none;
+  background: transparent;
+  color: var(--o-ink);
+  font: var(--o-text-body);
+  cursor: pointer;
+}
+
+.select select:focus-visible {
+  outline: none;
+}
+
+.select select:disabled {
+  color: var(--o-ink3);
+  cursor: not-allowed;
+}
+
+.select > svg {
+  position: absolute;
+  right: 10px;
+  pointer-events: none;
 }

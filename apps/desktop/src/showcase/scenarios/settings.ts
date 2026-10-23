@@ -1,3 +1,4 @@
+import { ARES, PHOBOS, withAgent } from "../data/assistants";
 import type { Scenario, Step, Views } from "../scenario";
 import { privacyStopped } from "./edit";
 
@@ -87,57 +88,46 @@ export const settingsScenarios: Scenario[] = [
     steps: [open("Grabación y llamadas")],
   }),
   settings({
-    id: "ajustes-asistente",
-    state: "Asistente · Deimos, de Hermes",
+    id: "ajustes-asistentes",
+    state: "Asistentes",
     description:
-      "Deimos funciona con Hermes: su personalidad, lo que puede usar y sus habilidades se ven tal como están.",
-    steps: [open("Asistente"), { wait: "text=funciona con Hermes" }],
-  }),
-  settings({
-    id: "ajustes-agente-editable",
-    state: "Asistente · uno que se configura",
-    description:
-      "Ares se configura desde aquí: personalidad con su tamaño, interruptores y habilidades.",
-    steps: [
-      open("Asistente"),
-      { click: "role=tab[name='Ares']" },
-      { wait: "text=se configura desde aquí" },
-    ],
-  }),
-  settings({
-    id: "ajustes-nueva-habilidad",
-    state: "Asistente · nueva habilidad",
-    description: "«Nueva habilidad»: escribirla desde cero o importar una carpeta con su SKILL.md.",
-    steps: [
-      open("Asistente"),
-      { click: "role=tab[name='Ares']" },
-      { wait: "text=se configura desde aquí" },
-      { scroll: region("Habilidades") },
-      { click: "role=button[name='Nueva habilidad']" },
-    ],
-  }),
-  settings({
-    id: "ajustes-habilidad",
-    state: "Asistente · editor de una habilidad",
-    description: "El SKILL.md de una habilidad en su ventana, con su nombre y su tamaño.",
-    steps: [
-      open("Asistente"),
-      { click: "role=tab[name='Ares']" },
-      { click: "role=button[name='Editar revisar-pr']" },
-      { wait: "role=textbox[name='Contenido del SKILL.md']" },
-    ],
+      "El resumen: cada asistente con su servicio y su estado («Principal», «72 % del uso de la semana», «● La sesión caducó») y «Sus ajustes»; «Añadir asistente», el principal en un selector, las carpetas de todos y lo que han hecho en este Mac.",
+    size: { width: 1440, height: 1500 },
+    views: (base) => ({
+      ...base,
+      ...withAgent(base, PHOBOS.id, { usage: { used_percent: 72, window: "seven_day" } }),
+    }),
+    steps: [open("Asistentes"), { wait: "role=combobox[name='Principal']" }],
   }),
   settings({
     id: "ajustes-carpetas",
-    state: "Asistente · carpetas, una con error",
+    state: "Asistentes · carpetas, una con error",
     description:
-      "Las carpetas que pueden leer los asistentes, «3 de 8»; macOS no deja abrir una y la fila dice qué hacer. Debajo, lo que ha hecho Deimos en este Mac.",
-    steps: [
-      open("Asistente"),
-      { wait: "text=funciona con Hermes" },
-      { scroll: region("Carpetas que puede leer") },
-    ],
+      "Las carpetas que pueden leer todos los asistentes, «3 de 8»; macOS no deja abrir una y la fila dice qué hacer. Debajo, lo que han hecho en este Mac, sin avatar: el hub aún no dice quién.",
+    steps: [open("Asistentes"), { scroll: region("Carpetas que pueden leer") }],
   }),
+  // A skill is written in an assistant's own settings, behind its gear.
+  {
+    id: "ajustes-nueva-habilidad",
+    view: "Asistente",
+    state: "Ajustes de Ares · nueva habilidad",
+    description: "«Nueva habilidad»: escribirla desde cero o importar una carpeta con su SKILL.md.",
+    route: `#/assistant/${ARES.id}/settings`,
+    ready: "role=region[name='Habilidades']",
+    steps: [{ scroll: region("Habilidades") }, { click: "role=button[name='Nueva habilidad']" }],
+  },
+  {
+    id: "ajustes-habilidad",
+    view: "Asistente",
+    state: "Ajustes de Ares · editor de una habilidad",
+    description: "El SKILL.md de una habilidad en su ventana, con su nombre y su tamaño.",
+    route: `#/assistant/${ARES.id}/settings`,
+    ready: "role=region[name='Habilidades']",
+    steps: [
+      { click: "role=button[name='Editar revisar-pr']" },
+      { wait: "role=textbox[name='Contenido del SKILL.md']" },
+    ],
+  },
   settings({
     id: "ajustes-reuniones",
     state: "Reuniones · plantillas",
@@ -149,7 +139,7 @@ export const settingsScenarios: Scenario[] = [
     id: "ajustes-diccionarios",
     state: "Reuniones · diccionarios",
     description:
-      "Cada palabra que corrige la transcripción, «en lugar de…», con «Quitar», y cómo añadir otra.",
+      "Una tarjeta por diccionario, que una reunión o una serie puede usar a la vez: sus palabras «en lugar de…» con «Quitar» y las series que lo usan siempre.",
     steps: [open("Reuniones"), { scroll: region("Diccionarios") }],
   }),
   settings({

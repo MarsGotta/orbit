@@ -118,9 +118,9 @@ function addReason(
 }
 
 /**
- * «Carpetas que puede leer · 3 de 8». «Añadir carpeta» opens the macOS panel;
- * the folder chosen there is the assistants' to read, and «Quitar» forgets
- * it. Nothing else asks, expires or switches it off. Each error is said
+ * «Carpetas que pueden leer · 3 de 8», the same for every assistant.
+ * «Añadir carpeta» opens the macOS panel; the folder chosen there is the
+ * assistants' to read, and «Quitar» forgets it. Nothing else asks, expires or switches it off. Each error is said
  * inside its row, with what fixes it.
  */
 export function AssistantFolders({

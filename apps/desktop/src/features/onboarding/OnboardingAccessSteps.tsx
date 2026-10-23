@@ -18,42 +18,54 @@ interface Props {
 }
 
 interface ActionProps {
-  asking: boolean;
+  /** macOS was asked, or System Settings opened, for this one. */
+  asked: "macos" | "settings" | null;
   onAsk: () => void;
-  pane: string;
+  onOpenSettings: () => void;
   permission: PermissionSnapshot[Key];
   permissionKey: Key;
-  send: Props["send"];
 }
 
 /**
  * Asking stays «Esperando a macOS…» until macOS answers, and a permission
  * macOS has not reported yet waits the same way: neither is a refusal.
- * Accessibility, and anything already refused, is changed in System Settings.
+ * Accessibility, which macOS never asks for, and anything refused are
+ * changed in System Settings; once opened, the row waits for it there.
  */
-function PermissionAction({ asking, onAsk, pane, permission, permissionKey, send }: ActionProps) {
+function PermissionAction({
+  asked,
+  onAsk,
+  onOpenSettings,
+  permission,
+  permissionKey,
+}: ActionProps) {
   const es = useSpanish();
   const copy = es.onboarding;
   if (permission === "granted") return <span className={styles.granted}>{copy.allowed}</span>;
-  if (permission === "unknown" || (permission === "not_determined" && asking))
+  if (permission === "unknown" || (permission === "not_determined" && asked === "macos"))
     return <Loading size={12}>{es.controls.waitingForMacos}</Loading>;
+  if (asked === "settings") return <Loading size={12}>{copy.waitingForSettings}</Loading>;
   if (permission === "not_determined" && permissionKey !== "accessibility")
     return (
       <Button onClick={onAsk} size={32} variant="outline">
         {copy.allow}
       </Button>
     );
+  // Accessibility not granted yet is what macOS says before it was ever switched on.
+  if (permissionKey === "accessibility" && permission !== "denied")
+    return (
+      <Button onClick={onOpenSettings} size={32} variant="outline">
+        {copy.openSettings}
+      </Button>
+    );
   return (
     <span className={styles.rowActions}>
-      {permission !== "not_determined" && (
-        <span className={styles.missing}>{es.permissions.notGranted}</span>
-      )}
-      <Button
-        onClick={() => void send({ command: "open_system_privacy", pane })}
-        size={32}
-        variant="outline"
-      >
-        {copy.openSettings}
+      <span className={styles.missing}>
+        <span aria-hidden="true" className={styles.missingDot} />
+        {copy.notGranted}
+      </span>
+      <Button onClick={onOpenSettings} size={28} variant="outline">
+        {copy.openSystemSettings}
       </Button>
     </span>
   );
@@ -62,11 +74,13 @@ function PermissionAction({ asking, onAsk, pane, permission, permissionKey, send
 export function PermissionsStep({ error = null, permissions, send }: Props) {
   const copy = useSpanish().onboarding;
   // What was asked, and the failure on screen when it was: a new one is this step's.
-  const [asked, setAsked] = useState<{ keys: Key[]; before: string | null }>({
-    keys: [],
-    before: error,
-  });
-  const failed = asked.keys.length > 0 && error !== null && error !== asked.before;
+  const [asked, setAsked] = useState<{
+    keys: Partial<Record<Key, "macos" | "settings">>;
+    before: string | null;
+  }>({ keys: {}, before: error });
+  const failed = Object.keys(asked.keys).length > 0 && error !== null && error !== asked.before;
+  const ask = (key: Key, how: "macos" | "settings") =>
+    setAsked({ keys: { ...asked.keys, [key]: how }, before: error });
   return (
     <Step lead={copy.permissionsBody} title={copy.permissions}>
       <ul className={styles.rows}>
@@ -77,15 +91,17 @@ export function PermissionsStep({ error = null, permissions, send }: Props) {
               <span>{copy.permissionWhy[key]}</span>
             </span>
             <PermissionAction
-              asking={asked.keys.includes(key) && !failed}
+              asked={failed ? null : (asked.keys[key] ?? null)}
               onAsk={() => {
-                setAsked({ keys: [...asked.keys, key], before: error });
+                ask(key, "macos");
                 void send({ command: "permissions", request: [key] });
               }}
-              pane={pane}
+              onOpenSettings={() => {
+                ask(key, "settings");
+                void send({ command: "open_system_privacy", pane });
+              }}
               permission={permissions[key]}
               permissionKey={key}
-              send={send}
             />
           </li>
         ))}

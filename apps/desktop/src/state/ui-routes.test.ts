@@ -22,13 +22,18 @@ describe("the routes of Ajustes", () => {
       "general",
       "privacidad",
       "grabacion",
-      "asistente",
+      "asistentes",
       "reuniones",
     ]);
     for (const section of ui.SETTINGS_SECTIONS) {
       expect(ui.settingsRoute(section)).toBe(`#/settings/${section}`);
       expect(openedAt(`#/settings/${section}`)).toEqual({ view: "settings", section });
     }
+  });
+
+  it("the old route of «Asistente» opens «Asistentes» and the address says so", () => {
+    expect(openedAt("#/settings/asistente")).toEqual({ view: "settings", section: "asistentes" });
+    expect(window.location.hash).toBe("#/settings/asistentes");
   });
 
   it("opens General without a section, and with one it does not know", () => {

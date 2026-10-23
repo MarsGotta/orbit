@@ -18,7 +18,11 @@ export const dictionary = {
     insteadOf: (wrong: string) => `en lugar de ${wrong}`,
     rename: "Cambiar nombre",
     renameLabel: (name: string) => `Cambiar el nombre de ${name}`,
-    addHint: "Para añadir una palabra, selecciónala en una transcripción y pulsa «Corregir».",
+    // Above the cards: several per meeting, and how words get in.
+    several:
+      "Una reunión o una serie puede usar varios diccionarios a la vez. Las palabras se añaden al corregirlas en una transcripción: pulsa una palabra y elige «Corregir».",
+    words: (count: number) => (count === 1 ? "1 palabra" : `${count} palabras`),
+    seeAll: (count: number) => `Ver las ${count} palabras`,
     removeEntry: "Quitar",
     remove: (term: string) => `Quitar ${term}`,
     refused: (code: string, detail: string, numbers: Record<string, number>) => {

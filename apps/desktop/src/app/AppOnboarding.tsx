@@ -4,7 +4,7 @@ import { Onboarding, type OnboardingRequest } from "./Onboarding";
 
 interface Props {
   done: boolean;
-  props: Pick<AppContentProps, "error" | "send" | "snapshot">;
+  props: Pick<AppContentProps, "agent" | "error" | "send" | "snapshot">;
   requested: OnboardingRequest;
   setDone: Dispatch<SetStateAction<boolean>>;
   setRequested: Dispatch<SetStateAction<OnboardingRequest>>;
@@ -15,6 +15,7 @@ export function AppOnboarding({ done, props, requested, setDone, setRequested }:
   if (!visible) return null;
   return (
     <Onboarding
+      agent={props.agent}
       error={props.error}
       onDone={() => {
         setDone(true);

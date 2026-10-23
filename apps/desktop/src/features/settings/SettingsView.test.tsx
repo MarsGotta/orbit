@@ -91,7 +91,7 @@ describe("the index", () => {
       "General",
       "Privacidad y permisos",
       "Grabación y llamadas",
-      "Asistente",
+      "Asistentes",
       "Reuniones",
     ]);
     expect(
@@ -388,10 +388,10 @@ describe("Grabación y llamadas", () => {
   });
 });
 
-describe("Asistente", () => {
-  it("lists what an agent did on this Mac, by day", () => {
+describe("Asistentes", () => {
+  it("lists what the assistants did on this Mac, by day", () => {
     renderSettings({
-      section: "asistente",
+      section: "asistentes",
       overrides: {
         control: {
           engine: { state: "ready", tools: 3 },
@@ -417,14 +417,14 @@ describe("Asistente", () => {
         },
       },
     });
-    const history = screen.getByRole("region", { name: "Lo que ha hecho en este Mac" });
+    const history = screen.getByRole("region", { name: "Lo que han hecho en este Mac" });
     expect(history.textContent).toContain("NumbersAbrir el informeHoy, 9:52Hecho");
     expect(history.textContent).toContain("SafariCopiar la tablaAyer, 18:05Falló");
   });
 
   it("shows the history's shape while the daemon has not said it", () => {
-    renderSettings({ section: "asistente" });
-    const history = screen.getByRole("region", { name: "Lo que ha hecho en este Mac" });
+    renderSettings({ section: "asistentes" });
+    const history = screen.getByRole("region", { name: "Lo que han hecho en este Mac" });
     expect(history.querySelector("[aria-busy='true']")).toBeTruthy();
   });
 });

@@ -10,7 +10,8 @@ const base = {
       general: "Tu cuenta, este Mac y el aspecto de Orbit.",
       privacidad: "Qué puede ver y oír Orbit en este Mac, y cómo pararlo todo.",
       grabacion: "Qué hace Orbit cuando empiezas una videollamada.",
-      asistente: "Cómo es cada agente, qué puede usar y qué carpetas puede leer.",
+      asistentes:
+        "Cada asistente se edita desde su conversación: el lápiz cambia su nombre, descripción y color; el engranaje abre el resto de sus ajustes.",
       reuniones:
         "Cómo se escriben las notas de tus reuniones y qué palabras corrige la transcripción.",
     },
@@ -96,8 +97,17 @@ const base = {
     lastsUpTo: (minutes: number) => `hasta ${duration(minutes)}`,
     shortcuts: "Atajos desde cualquier app",
 
-    // Asistente
-    controlHistory: "Lo que ha hecho en este Mac",
+    // Asistentes: a summary; each one's own settings are behind its gear.
+    yourAssistants: "Tus asistentes",
+    theirSettings: "Sus ajustes",
+    theirSettingsLabel: (name: string) => `Ajustes de ${name}`,
+    sessionExpired: "La sesión caducó",
+    usage: (percent: number, window: string) => `${percent} % del uso ${window}`,
+    primaryHelp:
+      "Responde en el panel flotante, en «Preguntar» de las notas y cuando dices «Oye…» sin nombre. A los demás les llamas por su nombre.",
+    primaryLabel: "Principal",
+    primarySaving: "Guardando en el hub…",
+    controlHistory: "Lo que han hecho en este Mac",
     historyUnreadable: "No se pudo leer lo que ha hecho en este Mac.",
     today: "Hoy",
     yesterday: "Ayer",

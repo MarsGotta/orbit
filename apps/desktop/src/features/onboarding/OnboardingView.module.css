@@ -1,5 +1,5 @@
-/* The first run (prototype Bienvenida.dc.html): the whole window, a 64 px
-   header and one 520 px column. */
+/* The first run (annex prototype Bienvenida*.dc.html): the whole window, a
+   64 px header and one 560 px column. */
 .overlay {
   position: fixed;
   z-index: 40;
@@ -41,13 +41,13 @@
 }
 
 .column {
-  /* 520 of content between the 16 px gutters. */
-  width: min(552px, 100%);
+  /* 560 of content between the 16 px gutters. */
+  width: min(592px, 100%);
   min-height: 0;
   display: flex;
   flex: 1;
   flex-direction: column;
-  padding: 56px var(--o-space-16) var(--o-space-48);
+  padding: var(--o-space-48) var(--o-space-16) 44px;
   box-sizing: border-box;
 }
 
@@ -59,7 +59,7 @@
 
 .bars {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--o-space-6);
   margin: var(--o-space-8) 0 0;
   padding: 0;
@@ -87,7 +87,7 @@
 
 .body {
   flex: 1;
-  margin-top: var(--o-space-40);
+  margin-top: 36px;
 }
 
 .step {
@@ -159,6 +159,94 @@
   letter-spacing: 0.4em;
 }
 
+/* A code without its six digits: the field in red. */
+.code input[aria-invalid="true"] {
+  border-color: var(--o-recText);
+}
+
+/* «No se pudo emparejar»: what to check, or the daemon's own words. */
+.failure {
+  display: flex;
+  gap: var(--o-space-10);
+  margin: var(--o-space-16) 0 0;
+  padding: var(--o-space-10) var(--o-space-12);
+  border-radius: var(--o-radius-md);
+  background: var(--o-recSoft);
+  font: var(--o-text-control);
+  font-weight: 400;
+}
+
+.failureDot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--o-recText);
+}
+
+.failureText {
+  display: flex;
+  flex-direction: column;
+}
+
+.failureText strong {
+  font-weight: 600;
+}
+
+.failureText span {
+  color: var(--o-ink2);
+}
+
+/* The welcome's list of the steps to come. */
+.plan {
+  margin: 28px 0 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-xl);
+  background: var(--o-surface);
+  list-style: none;
+}
+
+.planRow {
+  display: flex;
+  align-items: center;
+  gap: var(--o-space-12);
+  padding: var(--o-space-10) var(--o-space-16);
+  font: var(--o-text-control);
+  font-weight: 400;
+}
+
+.planRow + .planRow {
+  border-top: 1px solid var(--o-line);
+}
+
+.planNumber {
+  display: flex;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--o-raised);
+  color: var(--o-ink2);
+  font: 600 12px/1 var(--o-font-sans);
+}
+
+.planTitle {
+  width: 96px;
+  flex: none;
+  font-weight: 500;
+}
+
+.planBody {
+  min-width: 0;
+  flex: 1;
+  color: var(--o-ink2);
+}
+
 .result {
   margin: var(--o-space-16) 0 0;
   padding: var(--o-space-10) var(--o-space-12);
@@ -186,7 +274,9 @@
 }
 
 .permissionRow,
-.shortcutRow {
+.shortcutRow,
+.assistantLine,
+.summaryRow {
   display: flex;
   align-items: center;
   gap: var(--o-space-14);
@@ -198,26 +288,136 @@
 }
 
 .permissionRow + .permissionRow,
-.shortcutRow + .shortcutRow {
+.shortcutRow + .shortcutRow,
+.assistantRow + .assistantRow,
+.summaryRow + .summaryRow {
   border-top: 1px solid var(--o-line);
 }
 
-.permissionRow .rowText {
+.permissionRow .rowText,
+.assistantLine .rowText {
   min-width: 0;
   flex: 1;
 }
 
+/* Something missing: the amber word above the button that fixes it. */
 .rowActions {
   display: flex;
   flex: none;
-  align-items: center;
-  gap: var(--o-space-10);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--o-space-4);
 }
 
 .missing {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: var(--o-warn);
   font: var(--o-text-meta);
+  font-weight: 500;
   white-space: nowrap;
+}
+
+.missingDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--o-warn);
+}
+
+/* «Tus asistentes»: a row, with the sign-in's wait or its end below it. */
+.assistantLine .rowText strong {
+  font-weight: 600;
+}
+
+.rowText .account {
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.signInWait,
+.signInEnded {
+  display: flex;
+  flex-direction: column;
+  gap: var(--o-space-6);
+  padding: 0 var(--o-space-16) var(--o-space-14) 66px;
+  color: var(--o-ink2);
+  font: var(--o-text-meta);
+}
+
+.subtitle {
+  margin: var(--o-space-24) 0 2px;
+  color: var(--o-ink2);
+  font: var(--o-text-control);
+  font-weight: 600;
+}
+
+.subtitleHelp {
+  margin: 0 0 var(--o-space-10);
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}
+
+.primaries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--o-space-8);
+}
+
+.primary {
+  display: flex;
+  height: 38px;
+  align-items: center;
+  gap: var(--o-space-8);
+  padding: 0 14px 0 var(--o-space-8);
+  border: 1.5px solid var(--o-line2);
+  border-radius: var(--o-radius-pill);
+  background: transparent;
+  color: var(--o-ink2);
+  font: var(--o-text-control);
+  cursor: pointer;
+}
+
+.primary[aria-checked="true"] {
+  border-color: var(--o-accText);
+  background: var(--o-accSoft);
+  color: var(--o-ink);
+}
+
+.primary:disabled {
+  cursor: default;
+}
+
+/* «Todo listo»: what is set up in green, what is missing in amber. */
+.summaryRow {
+  padding-block: 11px;
+  font: var(--o-text-control);
+  font-weight: 400;
+}
+
+.summaryDot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--o-ok);
+}
+
+.summaryRow[data-tone="warn"] .summaryDot {
+  background: var(--o-warn);
+}
+
+.summaryKey {
+  width: 96px;
+  flex: none;
+  font-weight: 500;
+}
+
+.summaryValue {
+  min-width: 0;
+  flex: 1;
+  color: var(--o-ink2);
 }
 
 .granted {
@@ -263,4 +463,8 @@
   .column {
     padding-top: var(--o-space-24);
   }
+}
+
+.subtitle + .rows {
+  margin-top: var(--o-space-8);
 }

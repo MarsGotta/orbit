@@ -16,7 +16,7 @@ import { NoteTemplates } from "./templates/NoteTemplates";
 import styles from "./SettingsView.module.css";
 
 export interface SettingsViewProps {
-  /** Ajustes › Asistente's call to the hub; absent where it cannot be made. */
+  /** The assistants' call to the hub (the primary); absent where it cannot be made. */
   agent?: AgentPort;
   error: string | null;
   onReopenOnboarding: (mode?: "pair") => void;
@@ -45,7 +45,7 @@ function Section({
       return <PrivacySection send={send} snapshot={snapshot} />;
     case "grabacion":
       return <RecordingSection send={send} snapshot={snapshot} />;
-    case "asistente":
+    case "asistentes":
       return <AssistantSection agent={agent} send={send} snapshot={snapshot} />;
     case "reuniones":
       return (

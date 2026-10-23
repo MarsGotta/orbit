@@ -35,7 +35,7 @@ afterEach(cleanup);
 function renderSettings(folders: unknown, send = vi.fn()) {
   render(
     <SettingsView
-      section="asistente"
+      section="asistentes"
       snapshot={snapshot(folders)}
       send={send}
       error={null}
@@ -62,7 +62,7 @@ it("lists each folder by name and place, with whether it opens, and sends add an
       { id: "c", path: "/Users/ejemplo/Fotos", access: { state: "unknown" } },
     ],
   });
-  const section = screen.getByRole("region", { name: "Carpetas que puede leer" });
+  const section = screen.getByRole("region", { name: "Carpetas que pueden leer" });
   expect(within(section).getByText("3 de 8")).toBeTruthy();
   expect(section.textContent).toContain("ProyectosDocumentos › ProyectosSe puede leer");
   // The error is said inside its row, with what fixes it.
@@ -100,7 +100,7 @@ it("shows a list it could not read as unreadable, never as empty", () => {
 
 it("shows the folders' shape while the daemon has not reported them", () => {
   renderSettings({ state: "unknown", max: 8, folders: [] });
-  const section = screen.getByRole("region", { name: "Carpetas que puede leer" });
+  const section = screen.getByRole("region", { name: "Carpetas que pueden leer" });
   expect(section.querySelector("[aria-busy='true']")).toBeTruthy();
   expect(screen.queryByText(/Todavía no hay carpetas/)).toBeNull();
 });

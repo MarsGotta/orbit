@@ -6,7 +6,7 @@ import type { AgentConfig } from "../../../bridge/generated/AgentConfig";
 import type { AgentOutcome } from "../../../bridge/generated/AgentOutcome";
 import type { AppView } from "../../../state/app-view";
 import SettingsView from "../SettingsView";
-import { AgentSettings } from "./AgentSettings";
+import { AgentCards } from "./AgentCards";
 
 // The Markdown editor is tested on its own (PersonalityEditor, MarkdownEditor);
 // here a text box stands in for it so the orders can be typed.
@@ -31,14 +31,13 @@ vi.mock("./PersonalityEditor", () => ({
   ),
 }));
 
-// Ajustes › Agentes: the agents from the status topic, each one's
-// configuration read from the hub, every order sent as given and every
+// An assistant's personality, what it may use and its skills, as its gear
+// shows them: read from the hub, every order sent as given and every
 // refusal said with its numbers. Names and contents are invented.
 
-const AGENTS = [
-  { id: "vega", name: "Vega" },
-  { id: "atlas", name: "Atlas" },
-];
+const VEGA = { id: "vega", name: "Vega" };
+const ATLAS = { id: "atlas", name: "Atlas" };
+const AGENTS = [VEGA, ATLAS];
 
 function vegaConfig(): AgentConfig {
   return {
@@ -124,22 +123,18 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+/** Its cards once the configuration is read: the switches are there. */
+const loaded = () => screen.findByRole("switch", { name: "Pantalla" });
+
 async function renderVega() {
-  render(<AgentSettings agents={AGENTS} defaultAgentId="vega" agent={agent} />);
-  await screen.findByText("Vega se configura desde aquí. Los cambios se guardan en el hub.");
+  render(<AgentCards agent={agent} target={VEGA} />);
+  await loaded();
 }
 
-const ATLAS_KIND =
-  "Atlas funciona con Hermes: su personalidad y lo que puede usar se cambian en su perfil de Hermes. Aquí lo ves tal como está.";
-
-describe("Ajustes › Asistente", () => {
+describe("an assistant's cards", () => {
   it("reads the default agent's configuration and says what each group lets it do", async () => {
     await renderVega();
     expect(calls[0]).toEqual({ call: "config", agent_id: "vega" });
-    const tabs = screen.getByRole("tablist", { name: "Agentes" });
-    expect(within(tabs).getByRole("tab", { name: "Vega" }).getAttribute("aria-selected")).toBe(
-      "true",
-    );
     expect(screen.getByRole("switch", { name: "Pantalla" }).getAttribute("aria-checked")).toBe(
       "true",
     );
@@ -175,9 +170,9 @@ describe("Ajustes › Asistente", () => {
     expect((await screen.findByRole("status")).textContent).toBe("✓ Guardado en el hub");
   });
 
-  it("shows a Hermes agent as it is, everything disabled, and says where it is changed", async () => {
-    render(<AgentSettings agents={AGENTS} defaultAgentId="atlas" agent={agent} />);
-    await screen.findByText(ATLAS_KIND);
+  it("shows a Hermes agent as it is, everything disabled", async () => {
+    render(<AgentCards agent={agent} target={ATLAS} />);
+    await loaded();
     for (const group of ["Pantalla", "Usar el Mac", "Calendario", "Reuniones y notas"]) {
       expect(screen.getByRole("switch", { name: group }).hasAttribute("disabled")).toBe(true);
     }
@@ -211,10 +206,11 @@ describe("Ajustes › Asistente", () => {
     expect(screen.getByRole("switch", { name: "Pantalla" }).hasAttribute("disabled")).toBe(true);
   });
 
-  it("changes to another agent and reads its own configuration", async () => {
-    await renderVega();
-    fireEvent.click(screen.getByRole("tab", { name: "Atlas" }));
-    await screen.findByText(ATLAS_KIND);
+  it("another assistant's cards read its own configuration", async () => {
+    const view = render(<AgentCards agent={agent} key={VEGA.id} target={VEGA} />);
+    await loaded();
+    view.rerender(<AgentCards agent={agent} key={ATLAS.id} target={ATLAS} />);
+    await screen.findByRole("textbox", { name: "Personalidad de Atlas" });
     expect(calls.at(-1)).toEqual({ call: "config", agent_id: "atlas" });
   });
 
@@ -396,22 +392,22 @@ describe("Ajustes › Asistente", () => {
 
   it("shows why the Mac could not ask the hub, and offers to read again", async () => {
     replies.set("config:vega", { outcome: "failed", refusal: { code: "not_paired" } });
-    render(<AgentSettings agents={AGENTS} defaultAgentId="vega" agent={agent} />);
+    render(<AgentCards agent={agent} target={VEGA} />);
     expect((await screen.findByRole("alert")).textContent).toBe(
       "Este Mac no está emparejado con el hub. Emparéjalo en Ajustes.",
     );
     replies.delete("config:vega");
     fireEvent.click(screen.getByRole("button", { name: "Volver a leer" }));
-    await screen.findByText("Vega se configura desde aquí. Los cambios se guardan en el hub.");
+    await loaded();
   });
 
   it("shows the shape of the configuration while it is read", () => {
-    render(<AgentSettings agents={AGENTS} defaultAgentId="vega" agent={agent} />);
+    render(<AgentCards agent={agent} target={VEGA} />);
     expect(screen.getByRole("status").textContent).toBe("Leyendo la configuración de Vega…");
     expect(document.querySelector("[aria-busy='true']")).toBeTruthy();
   });
 
-  it("Ajustes › Asistente shows the agents the status topic lists, from its default one", async () => {
+  it("Ajustes › Asistentes lists the agents the status topic lists and reads no configuration", () => {
     const snapshot = {
       connection: { daemon: "ready" },
       meeting: { call_preference: null },
@@ -431,17 +427,42 @@ describe("Ajustes › Asistente", () => {
         agent={agent}
         error={null}
         onReopenOnboarding={() => undefined}
-        section="asistente"
+        section="asistentes"
         send={() => undefined}
         snapshot={snapshot}
       />,
     );
-    await screen.findByText(ATLAS_KIND);
-    expect(calls[0]).toEqual({ call: "config", agent_id: "atlas" });
+    const list = screen.getByRole("list", { name: "Tus asistentes" });
+    expect(within(list).getByText("Vega")).toBeTruthy();
+    expect(within(list).getByText("Atlas")).toBeTruthy();
+    expect(calls).toHaveLength(0);
   });
 
   it("says no agent is known yet instead of an empty list", () => {
-    render(<AgentSettings agents={[]} defaultAgentId={undefined} agent={agent} />);
+    render(
+      <SettingsView
+        agent={agent}
+        error={null}
+        onReopenOnboarding={() => undefined}
+        section="asistentes"
+        send={() => undefined}
+        snapshot={
+          {
+            connection: { daemon: "ready" },
+            meeting: { call_preference: null },
+            settings: {
+              agents: [],
+              permissions: {},
+              hub: { paired: true, url: null },
+              helper_connected: false,
+              versions: { app: "test" },
+              update: { state: "idle" },
+              privacy_stopped: false,
+            },
+          } as unknown as AppView
+        }
+      />,
+    );
     expect(
       screen.getByText("Todavía no se conocen los agentes del hub: aparecen al conectar con él."),
     ).toBeTruthy();
@@ -452,7 +473,7 @@ describe("Ajustes › Asistente", () => {
 describe("reading a configuration that answers something else", () => {
   it("is a failed read with its cause, never «Leyendo…» for ever", async () => {
     replies.set("config:vega", { outcome: "done" });
-    render(<AgentSettings agents={AGENTS} defaultAgentId="vega" agent={agent} />);
+    render(<AgentCards agent={agent} target={VEGA} />);
     expect(
       await screen.findByText("La respuesta del hub no cumple el contrato (campo outcome)."),
     ).toBeTruthy();

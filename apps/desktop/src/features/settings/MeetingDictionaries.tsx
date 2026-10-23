@@ -58,7 +58,13 @@ function RenameForm({
   );
 }
 
-/** The dictionary's name and the series that always use it; «Cambiar nombre» renames it. */
+/**
+ * How many words a card shows before «Ver las N palabras»: enough to see
+ * what the dictionary is about, while three cards still fit on one screen.
+ */
+const WORDS_SHOWN = 5;
+
+/** The dictionary's name, its words and the series that always use it; «Cambiar nombre» renames it. */
 function DictionaryName({ item, send }: { item: DictionarySnapshot; send: Send }) {
   const { dictionary, pending } = item;
   const [name, setName] = useState<string | null>(null);
@@ -69,7 +75,8 @@ function DictionaryName({ item, send }: { item: DictionarySnapshot; send: Send }
   return (
     <div className={styles.dictionaryHead}>
       <span className={styles.dictionaryName}>{dictionary.name}</span>
-      <span className={styles.meta}>
+      <span className={styles.meta}>{es.dictionary.words(dictionary.terms.length)}</span>
+      <span className={`${styles.meta} ${styles.push}`}>
         {series ? es.dictionary.series(series) : es.dictionary.noSeries}
       </span>
       {pending && (
@@ -79,7 +86,6 @@ function DictionaryName({ item, send }: { item: DictionarySnapshot; send: Send }
       )}
       <Button
         aria-label={es.dictionary.renameLabel(dictionary.name)}
-        className={styles.push}
         disabled={pending}
         onClick={() => setName(dictionary.name)}
         size={28}
@@ -91,13 +97,16 @@ function DictionaryName({ item, send }: { item: DictionarySnapshot; send: Send }
   );
 }
 
+/** One dictionary's card: its first words, and the rest on asking. */
 function Dictionary({ item, send }: { item: DictionarySnapshot; send: Send }) {
   const { dictionary, pending } = item;
+  const [all, setAll] = useState(false);
+  const terms = all ? dictionary.terms : dictionary.terms.slice(0, WORDS_SHOWN);
   return (
-    <>
+    <div aria-label={dictionary.name} className={styles.list} role="group">
       <DictionaryName item={item} send={send} />
       {dictionary.terms.length === 0 && <p className={styles.empty}>{es.dictionary.emptyTerms}</p>}
-      {dictionary.terms.map((entry) => (
+      {terms.map((entry) => (
         <div className={styles.term} key={entry.id}>
           <span className={styles.rowTitle}>{entry.correct}</span>
           <span className={styles.meta}>{es.dictionary.insteadOf(entry.wrong.join(", "))}</span>
@@ -119,12 +128,20 @@ function Dictionary({ item, send }: { item: DictionarySnapshot; send: Send }) {
           </Button>
         </div>
       ))}
-    </>
+      {terms.length < dictionary.terms.length && (
+        <div className={styles.term}>
+          <Button onClick={() => setAll(true)} size={28} variant="ghost">
+            {es.dictionary.seeAll(dictionary.terms.length)}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 
 /**
- * Ajustes › Reuniones › Diccionarios: each term with what it replaces
+ * Ajustes › Reuniones › Diccionarios: a card per dictionary, since a
+ * meeting or a series can use several, each term with what it replaces
  * («en lugar de…») and «Quitar». Terms are added from a transcript;
  * here they are only renamed and removed.
  */
@@ -138,25 +155,29 @@ export function MeetingDictionaries({
   const state = library?.dictionaries?.state;
   const items = library?.dictionary_items ?? [];
   return (
-    <Group label={es.settings.dictionaries}>
+    <Group
+      count={state === "available" && items.length > 0 ? String(items.length) : undefined}
+      help={es.dictionary.several}
+      label={es.settings.dictionaries}
+    >
       <DictionaryFeedback library={library} />
       {(state === undefined || state === "unknown") && <SkeletonRows rows={3} />}
-      {state === "available" && (
-        <List>
-          {items.length > 0 ? (
-            items.map((item) => (
+      {state === "available" &&
+        (items.length > 0 ? (
+          <div className={styles.cards}>
+            {items.map((item) => (
               <Dictionary
                 item={item}
                 key={`${item.dictionary.id}:${item.dictionary.name}`}
                 send={send}
               />
-            ))
-          ) : (
+            ))}
+          </div>
+        ) : (
+          <List>
             <p className={styles.empty}>{es.dictionary.empty}</p>
-          )}
-          <p className={styles.empty}>{es.dictionary.addHint}</p>
-        </List>
-      )}
+          </List>
+        ))}
     </Group>
   );
 }

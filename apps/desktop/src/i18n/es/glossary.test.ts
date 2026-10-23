@@ -74,13 +74,12 @@ describe("the glossary", () => {
       "Archivos",
     ]);
     for (const { description } of accessGroups) expect(description).not.toMatch(/orbit_/);
-    expect(es.agents.kind("hermes", "Atlas")).toBe(
-      "Atlas funciona con Hermes: su personalidad y lo que puede usar se cambian en su perfil de Hermes. Aquí lo ves tal como está.",
+    // Each one is changed from its conversation; Ajustes › Asistentes sums them up.
+    expect(es.settings.leads.asistentes).toBe(
+      "Cada asistente se edita desde su conversación: el lápiz cambia su nombre, descripción y color; el engranaje abre el resto de sus ajustes.",
     );
-    expect(es.agents.kind("acp", "Vega")).toBe(
-      "Vega se configura desde aquí. Los cambios se guardan en el hub.",
-    );
-    expect(es.settings.controlHistory).toBe("Lo que ha hecho en este Mac");
+    expect(es.shell.settingsSections.asistentes).toBe("Asistentes");
+    expect(es.settings.controlHistory).toBe("Lo que han hecho en este Mac");
   });
 
   it("calls the meeting's own note a personal reminder, and the open items what was left", () => {
@@ -93,7 +92,7 @@ describe("the glossary", () => {
     expect(es.settings.exit).toBe("Salir de Orbit");
     expect(es.onboarding.welcome).toBe("Te damos la bienvenida a Orbit");
     expect(es.onboarding.skipAll).toBe("Configurarlo más tarde");
-    expect(es.onboarding.skipStep).toBe("Hacerlo después");
+    expect(es.onboarding.skipStep).toBe("Emparejar después");
   });
 
   it("says what could not be done, what to do, and the code to share", () => {

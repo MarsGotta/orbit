@@ -6,8 +6,8 @@ export const settingsLists = {
   // The assistant's folders: choosing one in the macOS panel is the whole
   // permission; nothing here switches it on or off.
   folders: {
-    section: "Carpetas que puede leer",
-    help: "Los asistentes pueden leer estos archivos, nunca cambiarlos.",
+    section: "Carpetas que pueden leer",
+    help: "Las mismas para todos tus asistentes. Pueden leer estos archivos, nunca cambiarlos.",
     count: (count: number, max: number) => `${count} de ${max}`,
     add: "Añadir carpeta",
     opening: "Abriendo…",

@@ -43,8 +43,8 @@ interface FrameProps {
 
 /**
  * Around every step: Orbit's name and «Configurarlo más tarde» above,
- * «Paso N de 4» with its bars (a bar goes back to a step already seen),
- * and «Atrás» below.
+ * «Paso N de 5 · {paso}» with its bars (a bar goes back to a step already
+ * seen; one not reached yet is closed), and «Atrás» below.
  */
 export function OnboardingFrame({ action, children, goTo, onSkipAll, step, steps }: FrameProps) {
   const es = useSpanish();
@@ -65,7 +65,9 @@ export function OnboardingFrame({ action, children, goTo, onSkipAll, step, steps
         )}
       </header>
       <main className={styles.column}>
-        <div className={styles.progress}>{copy.stepOf(step, steps)}</div>
+        <div className={styles.progress}>
+          {copy.stepOf(step, steps, copy.stepNames[step - 1] ?? "")}
+        </div>
         <ol aria-label={copy.stepsLabel} className={styles.bars}>
           {copy.stepNames.map((name, index) => {
             const number = index + 1;
@@ -105,10 +107,11 @@ interface ActionProps {
   onComplete: () => void;
   pairing: PairingState;
   step: number;
+  steps: number;
 }
 
-/** «Empezar», «Emparejar» (or «Hacerlo después»), «Continuar» or «Empezar a usar Orbit». */
-export function StepAction({ formId, next, onComplete, pairing, step }: ActionProps) {
+/** «Empezar», «Emparejar» (or «Emparejar después»), «Continuar» or «Empezar a usar Orbit». */
+export function StepAction({ formId, next, onComplete, pairing, step, steps }: ActionProps) {
   const copy = useSpanish().onboarding;
   if (step === 1)
     return (
@@ -134,7 +137,7 @@ export function StepAction({ formId, next, onComplete, pairing, step }: ActionPr
         </Button>
       </>
     );
-  if (step === 4)
+  if (step === steps)
     return (
       <Button onClick={onComplete} size={40} variant="accent">
         {copy.start}

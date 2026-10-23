@@ -129,18 +129,10 @@ export function agentFailureText(refusal: Record<string, unknown>): string {
 
 export const agents = {
   agents: {
-    tabs: "Agentes",
     none: "Todavía no se conocen los agentes del hub: aparecen al conectar con él.",
     unavailable: "Esta ventana no puede leer los agentes.",
     loading: (name: string) => `Leyendo la configuración de ${name}…`,
     readAgain: "Volver a leer",
-    // How the agent is configured, by its kind (hub-v1 «Agents»).
-    kind: (kind: string, name: string) =>
-      kind === "hermes"
-        ? `${name} funciona con Hermes: su personalidad y lo que puede usar se cambian en su perfil de Hermes. Aquí lo ves tal como está.`
-        : kind === "openai" || kind === "acp"
-          ? `${name} se configura desde aquí. Los cambios se guardan en el hub.`
-          : `${name} es de un tipo que esta versión de Orbit no conoce (${kind}).`,
     notEditable: (cause: string | null | undefined) =>
       cause
         ? `No se puede cambiar desde Orbit: ${cause}`

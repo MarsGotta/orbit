@@ -21,7 +21,7 @@ it("«Configurarlo más tarde» on the welcome leaves the whole first run", () =
   expect(onComplete).toHaveBeenCalledTimes(1);
 });
 
-it("«Hacerlo después» on the hub step goes on to the next step", () => {
+it("«Emparejar después» on the hub step goes on to the next step", () => {
   const onComplete = vi.fn();
   render(
     <OnboardingView
@@ -32,7 +32,7 @@ it("«Hacerlo después» on the hub step goes on to the next step", () => {
       startAtPair
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Hacerlo después" }));
+  fireEvent.click(screen.getByRole("button", { name: "Emparejar después" }));
   expect(onComplete).not.toHaveBeenCalled();
   expect(screen.getByRole("region", { name: "Elige qué puede usar Orbit" })).toBeTruthy();
 });

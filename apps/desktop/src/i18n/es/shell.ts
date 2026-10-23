@@ -36,7 +36,7 @@ function sidebarCopy(assistantName: string) {
         general: "General",
         privacidad: "Privacidad y permisos",
         grabacion: "Grabación y llamadas",
-        asistente: "Asistente",
+        asistentes: "Asistentes",
         reuniones: "Reuniones",
       },
     },
