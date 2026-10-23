@@ -935,3 +935,65 @@ async def test_foreign_device_does_not_connect_or_resume(environment):
     assert error.value.code == "session_not_found"
     assert adapter.connections == []
     assert store.chat.session(owner, session_id)["status"] == "idle"
+
+
+async def test_one_hermes_connection_reopens_one_conversation_at_a_time(environment, monkeypatch):
+    """Two conversations of one Mac reopen together on one Hermes connection.
+
+    Hermes's resume path has races of its own (4007 «session no longer live;
+    retry resume», 4009) and was only ever driven one resume at a time per
+    connection: the second `session.resume` is sent only once the first is
+    answered. Both turns then go through."""
+    _, store, _ = environment
+    adapter = ResumableAdapter()
+    adapter.resume_hydrating = False
+    adapter.resume_progress = None
+    owner = device(store)["device_id"]
+    runtime = DeviceRuntime(owner, store, only(adapter), lambda: 1001)
+    first_id = await sent(runtime, "primera conversación")
+    second_id = await sent(runtime, "segunda conversación")
+    adapter.connections[0].connected = False
+    adapter.connections[0].live_sessions.clear()
+    await runtime.on_event("default", ConnectionLost())
+    connection = await runtime.connect("default")
+    release = asyncio.Event()
+    unanswered: list[str] = []
+    # How many resumes were already unanswered as each one was sent.
+    alongside: list[int] = []
+    original = ResumableConnection.rpc
+
+    async def held(self, method, params):
+        if method != "session.resume":
+            return await original(self, method, params)
+        alongside.append(len(unanswered))
+        unanswered.append(params["session_id"])
+        try:
+            if len(alongside) == 1:
+                await release.wait()
+            return await original(self, method, params)
+        finally:
+            unanswered.remove(params["session_id"])
+
+    monkeypatch.setattr(ResumableConnection, "rpc", held)
+    first = asyncio.create_task(sent(runtime, "mensaje uno", first_id))
+    second = asyncio.create_task(sent(runtime, "mensaje dos", second_id))
+    try:
+        async with asyncio.timeout(5):
+            while not unanswered:
+                await asyncio.sleep(0)
+        # Every step of the second turn up to its resume runs without real
+        # waits: these turns of the loop take it there, unless it waits.
+        for _ in range(50):
+            await asyncio.sleep(0)
+        assert alongside == [0], "a second session.resume went out before the first was answered"
+        release.set()
+        async with asyncio.timeout(5):
+            assert await first == first_id
+            assert await second == second_id
+        assert alongside == [0, 0]
+        methods = [method for method, _ in connection.calls]
+        assert methods.count("session.resume") == 2 and methods.count("prompt.submit") == 2
+    finally:
+        release.set()
+        await asyncio.gather(first, second, return_exceptions=True)
+        await runtime.close()

@@ -175,6 +175,11 @@ class HermesConnection:
         self._closing = False
         # Sessions whose turn has published a plan: its next update is progress.
         self._planned: set[str] = set()
+        # One `session.resume` at a time on this connection: Hermes's resume
+        # path has races of its own (4007, 4009) and was only ever driven one
+        # at a time. Only resumes wait for it: turns, controls and the other
+        # backends never do.
+        self._resuming = asyncio.Lock()
 
     @property
     def connected(self) -> bool:
@@ -609,20 +614,19 @@ class HermesConnection:
         return OpenedSession(result["session_id"], result["stored_session_id"])
 
     async def resume_session(self, stored_id: str) -> ResumedSession:
+        params = {
+            "profile": self.backend.profile,
+            "session_id": stored_id,
+            "source": "orbit",
+            "close_on_disconnect": False,
+            # Bound the WS reply while Hermes hydrates model history.
+            # omit_messages=True would load only the tip segment.
+            "defer_history": True,
+            "omit_messages": False,
+        }
         try:
-            result = await self.rpc(
-                "session.resume",
-                {
-                    "profile": self.backend.profile,
-                    "session_id": stored_id,
-                    "source": "orbit",
-                    "close_on_disconnect": False,
-                    # Bound the WS reply while Hermes hydrates model history.
-                    # omit_messages=True would load only the tip segment.
-                    "defer_history": True,
-                    "omit_messages": False,
-                },
-            )
+            async with self._resuming:
+                result = await self.rpc("session.resume", params)
         except HubError as exc:
             if exc.code == "outcome_unknown":
                 raise HubError(

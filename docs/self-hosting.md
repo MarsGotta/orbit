@@ -199,6 +199,16 @@ read-aloud; an `acp` agent has no voice. Without one, the hub refuses the
 request with `speech_not_configured`, naming the agent and why, and `ready`
 does not list `voice` among that agent's capabilities.
 
+Each agent starts on its own: a slow or broken one holds only the turn that
+asked for it, never another agent or another conversation. A start (the
+agent's connection, or a session opening or reopening) still running after
+10 s is logged once as `agent_start_slow`; one that fails is logged as
+`agent_start_failed` with the refusal's code and `task` `agent:<id>`, and one
+still running after 300 s is cut and refused as `agent_start_timeout`. Until
+a start succeeds again, `ready` and `agents.changed` list the agent with
+`backend: {"state": "failed", "code": …, "at_ms": …}`
+([the protocol](../contracts/hub-v1.md#assistants-from-orbit)).
+
 `allow_insecure_localhost` permits the loopback Hermes URL; it does not permit
 plaintext public access. `allowed_hosts` must include the hostname the Mac uses.
 The hub does not trust forwarded proxy headers. The transcription table is
