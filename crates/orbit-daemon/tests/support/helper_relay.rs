@@ -302,6 +302,52 @@ pub fn last_logged(path: &Path, event: &str) -> Option<serde_json::Value> {
         .map(|line| line["fields"].clone())
 }
 
+/// Strict mode for the daemon's loop, as Home Assistant's `block_async_io`
+/// is strict in its tests: a capture test fails when one loop turn took
+/// longer than this, and names the turn's source, step and wait.
+///
+/// What it catches: a new blocking call on the loop (a synchronous wait with
+/// no bound, a sleep, a lock held across the disk) in the paths these tests
+/// drive. Why 5 s: the daemon only logs turns over its 1 s threshold; on
+/// Linux the capture lifecycle's slowest turns were 499 ms at load 34 (six
+/// runs) and a single awaited snapshot reached 972 ms in a unit test at load
+/// 60–90. Five seconds is five times that worst, so the machine's load does
+/// not decide the result; a hold this long in a test is a call that waits on
+/// something that never answers fast. It bounds nothing in the daemon.
+pub const STRICT_TURN_BOUND: Duration = Duration::from_secs(5);
+
+/// The fields of every `daemon_turn_slow` line in the daemon's log: the
+/// loop turns that took longer than the daemon's 1 s threshold.
+pub fn slow_turns(path: &Path) -> Vec<serde_json::Value> {
+    daemon_log(path)
+        .into_iter()
+        .filter(|line| line["event"] == "daemon_turn_slow")
+        .map(|line| line["fields"].clone())
+        .collect()
+}
+
+/// Fails when a loop turn of the daemon at `path` took longer than
+/// [`STRICT_TURN_BOUND`], with what held it.
+pub fn assert_no_held_turn(path: &Path) -> Result<()> {
+    let bound = STRICT_TURN_BOUND.as_millis();
+    let held: Vec<_> = slow_turns(path)
+        .into_iter()
+        .filter(|fields| {
+            fields["took_ms"]
+                .as_str()
+                .and_then(|took| took.parse::<u128>().ok())
+                .is_none_or(|took| took > bound)
+        })
+        .collect();
+    if !held.is_empty() {
+        bail!(
+            "a loop turn held the daemon for more than {STRICT_TURN_BOUND:?}: {}",
+            serde_json::to_string(&held)?
+        );
+    }
+    Ok(())
+}
+
 fn quotable(path: &Path) -> Result<()> {
     let text = path.to_str().context("test path that is not UTF-8")?;
     if text.contains('\'') || text.contains('\n') {

@@ -207,19 +207,25 @@ impl Runtime {
     /// parts: a failing vertical is said and never keeps the capture's upkeep
     /// from running, and only the capture's own failure cuts what is live.
     pub(super) async fn run_maintenance(&mut self) {
+        // Each part is a named step of the tick's turn (`daemon_turn_slow`).
+        let watch = self.turn_watch.clone();
         if self.privacy_retirement_owed && self.state.privacy_stopped() && !self.closing {
             // A writer blocked past the user's stop budget cannot erase the work
             // that followed it. Retry only the durable tail: a new hub or
             // other live authority is never retired by a later tick.
-            if tokio::time::timeout(
-                RETIREMENT_RETRY_SLICE,
-                self.retire_authority_durable(
-                    retire(AuthorityChange::UserStop),
-                    AuthorityChange::UserStop,
-                ),
-            )
-            .await
-            .is_ok()
+            if watch
+                .time(
+                    "privacy_retirement",
+                    tokio::time::timeout(
+                        RETIREMENT_RETRY_SLICE,
+                        self.retire_authority_durable(
+                            retire(AuthorityChange::UserStop),
+                            AuthorityChange::UserStop,
+                        ),
+                    ),
+                )
+                .await
+                .is_ok()
             {
                 self.privacy_retirement_owed = false;
                 if let Err(error) = self.store_actor.defer_snapshot(&self.state) {
@@ -230,30 +236,49 @@ impl Runtime {
                 }
             }
         }
+        // The verticals name their own steps, one per vertical.
         if let Err(error) = Box::pin(self.maintain_verticals()).await {
-            self.contain(
-                StopCause::VerticalMaintenanceFailed,
-                &format!(
-                    "Fallo en el mantenimiento de Orbit, no de la captura: {error}. No se corta nada."
-                ),
-            )
-            .await;
+            watch
+                .time(
+                    "maintain_verticals.contain",
+                    self.contain(
+                        StopCause::VerticalMaintenanceFailed,
+                        &format!(
+                            "Fallo en el mantenimiento de Orbit, no de la captura: {error}. No se corta nada."
+                        ),
+                    ),
+                )
+                .await;
         }
-        if let Err(error) = Box::pin(self.maintain_capture()).await {
-            self.contain(
-                StopCause::CaptureMaintenanceFailed,
-                &format!("Fallo en el mantenimiento de la captura: {error}."),
-            )
-            .await;
+        if let Err(error) = watch
+            .time("maintain_capture", Box::pin(self.maintain_capture()))
+            .await
+        {
+            watch
+                .time(
+                    "maintain_capture.contain",
+                    self.contain(
+                        StopCause::CaptureMaintenanceFailed,
+                        &format!("Fallo en el mantenimiento de la captura: {error}."),
+                    ),
+                )
+                .await;
         }
-        if let Err(error) = Box::pin(self.maintain_state()).await {
-            self.contain(
-                StopCause::VerticalMaintenanceFailed,
-                &format!(
-                    "Fallo al guardar el estado o la cola de subida de Orbit: {error}. No se corta nada."
-                ),
-            )
-            .await;
+        if let Err(error) = watch
+            .time("maintain_state", Box::pin(self.maintain_state()))
+            .await
+        {
+            watch
+                .time(
+                    "maintain_state.contain",
+                    self.contain(
+                        StopCause::VerticalMaintenanceFailed,
+                        &format!(
+                            "Fallo al guardar el estado o la cola de subida de Orbit: {error}. No se corta nada."
+                        ),
+                    ),
+                )
+                .await;
         }
     }
 

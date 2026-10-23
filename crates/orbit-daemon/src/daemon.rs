@@ -570,10 +570,12 @@ mod startup;
 mod stops;
 mod store_actor;
 pub(crate) mod ticketed;
+mod timed_reader;
 mod topics;
 mod track_gaps;
 mod track_signal;
 mod turn;
+mod turn_watch;
 mod window_attachment;
 use turn::refusal_notice;
 mod work;
@@ -627,6 +629,8 @@ pub(crate) mod authority_fixture;
 mod authority_retirement_tests;
 #[cfg(test)]
 mod store_actor_tests;
+#[cfg(test)]
+mod turn_watch_tests;
 
 #[cfg(test)]
 mod test_store;
@@ -691,22 +695,29 @@ impl WorkResult {
 }
 
 async fn deliver_work(sender: &mpsc::Sender<WorkResult>, result: WorkResult) {
-    let kind = match &result {
-        WorkResult::Control(ControlWork::Computer { .. }) => "computer",
-        WorkResult::Capture(CaptureWork::VoiceProblem { .. }) => "voice_problem",
-        WorkResult::Capture(CaptureWork::Transcribed { .. }) => "transcription",
-        WorkResult::Store(StoreWork::Uploaded { .. }) => "upload",
-        WorkResult::Store(StoreWork::UploadSettled { .. }) => "upload_settlement",
-        WorkResult::Store(StoreWork::ChunkPruned { .. }) => "chunk_cleanup",
-        WorkResult::Store(StoreWork::Sealed { .. }) => "seal",
-        WorkResult::Store(StoreWork::StoreProblem { .. }) => "store_problem",
-        WorkResult::Problem { .. } => "problem",
-        WorkResult::SpeechAvailability { .. } => "speech_availability",
-        WorkResult::BridgeCaptureUpload { .. } => "bridge_capture_upload",
-        WorkResult::PhotoJpeg { .. } => "photo_jpeg",
-    };
+    let kind = result.kind();
     if sender.send(result).await.is_err() {
         eprintln!("work_result_receiver_closed kind={kind}");
+    }
+}
+
+impl WorkResult {
+    /// What kind of result this is, as a code for the logs.
+    fn kind(&self) -> &'static str {
+        match self {
+            WorkResult::Control(ControlWork::Computer { .. }) => "computer",
+            WorkResult::Capture(CaptureWork::VoiceProblem { .. }) => "voice_problem",
+            WorkResult::Capture(CaptureWork::Transcribed { .. }) => "transcription",
+            WorkResult::Store(StoreWork::Uploaded { .. }) => "upload",
+            WorkResult::Store(StoreWork::UploadSettled { .. }) => "upload_settlement",
+            WorkResult::Store(StoreWork::ChunkPruned { .. }) => "chunk_cleanup",
+            WorkResult::Store(StoreWork::Sealed { .. }) => "seal",
+            WorkResult::Store(StoreWork::StoreProblem { .. }) => "store_problem",
+            WorkResult::Problem { .. } => "problem",
+            WorkResult::SpeechAvailability { .. } => "speech_availability",
+            WorkResult::BridgeCaptureUpload { .. } => "bridge_capture_upload",
+            WorkResult::PhotoJpeg { .. } => "photo_jpeg",
+        }
     }
 }
 
@@ -766,7 +777,10 @@ struct Runtime {
     settings: Settings,
     development: bool,
     state: State,
-    reader: orbit_store::ReadOnlyStore,
+    /// The loop's synchronous reads, each timed into `turn_watch`.
+    reader: timed_reader::TimedReader,
+    /// Times every loop turn, its steps and its waits (`daemon_turn_slow`).
+    turn_watch: turn_watch::TurnWatch,
     /// Reads voice-note audio off the actor; see `reads::VoiceAudioReader`.
     voice_audio_reader: reads::VoiceAudioReader,
     store_actor: store_actor::StoreActor,
@@ -1107,7 +1121,7 @@ async fn run_with_helper_inner(
         started: startup_started,
     };
     let (work_events, mut work_rx) = mpsc::channel(WORK_EVENTS_CAPACITY);
-    let store_actor = store_actor::StoreActor::spawn_with_diagnostics(
+    let mut store_actor = store_actor::StoreActor::spawn_with_diagnostics(
         store,
         work_events.clone(),
         crate::diagnostics::DiagnosticLog::in_root(&paths.root),
@@ -1157,7 +1171,12 @@ async fn run_with_helper_inner(
     let durable_snapshot = DurableSnapshot::from(&state);
     #[cfg(test)]
     let fixture_store = test_store::open_existing(&paths.store, recovery_storage_key)?;
-    let store_reader = store_actor.runtime_reader(&paths.store, recovery_storage_key)?;
+    let turn_watch = turn_watch::TurnWatch::default();
+    store_actor.report_waits_to(turn_watch.clone());
+    let store_reader = timed_reader::TimedReader::new(
+        store_actor.runtime_reader(&paths.store, recovery_storage_key)?,
+        turn_watch.clone(),
+    );
     let voice_audio_reader = std::sync::Arc::new(std::sync::Mutex::new(
         store_actor.runtime_reader(&paths.store, recovery_storage_key)?,
     ));
@@ -1170,6 +1189,7 @@ async fn run_with_helper_inner(
         development,
         state,
         reader: store_reader,
+        turn_watch,
         voice_audio_reader,
         #[cfg(test)]
         fixture_store,
@@ -1331,6 +1351,7 @@ async fn run_with_helper_inner(
             tokio::select! {
                 name = signals.next() => {
                     loop_turns[0] += 1;
+                    runtime.turn_watch.begin(turn_watch::TurnSource::signal());
                     runtime.begin_fresh_turn(orbit_core::notice::ReportSource::Daemon);
                     // SIGTERM (launchd at logout, `kill`) and SIGINT (a
                     // terminal) are one request: the complete closure the IPC
@@ -1364,6 +1385,7 @@ async fn run_with_helper_inner(
                 },
                 Some(call) = calls.recv() => {
                     loop_turns[1] += 1;
+                    runtime.turn_watch.begin(turn_watch::TurnSource::command(&call.request.body));
                     // The order's op, or a new one for a client that sent
                     // none: everything this turn says carries it.
                     runtime.begin_turn(
@@ -1442,6 +1464,7 @@ async fn run_with_helper_inner(
                 }
                 Some(event) = native_events.recv() => {
                     loop_turns[2] += 1;
+                    runtime.turn_watch.begin(turn_watch::TurnSource::native(&event));
                     runtime.begin_fresh_turn(orbit_core::notice::ReportSource::Daemon);
                     if closing.allows_native_event(&event) {
                         topic_board.state_changed();
@@ -1450,6 +1473,7 @@ async fn run_with_helper_inner(
                 }
                 Some((generation, event)) = hub_rx.recv() => {
                     loop_turns[3] += 1;
+                    runtime.turn_watch.begin(turn_watch::TurnSource::hub(&event));
                     let op = runtime.hub_event_op(&event);
                     runtime.begin_turn(op, orbit_core::notice::ReportSource::Hub);
                     if generation == runtime.state.generation() {
@@ -1461,6 +1485,7 @@ async fn run_with_helper_inner(
                 }
                 Some(event) = work_rx.recv() => {
                     loop_turns[4] += 1;
+                    runtime.turn_watch.begin(turn_watch::TurnSource::work(event.kind()));
                     let op = event.op();
                     runtime.begin_turn(op, orbit_core::notice::ReportSource::Daemon);
                     topic_board.state_changed();
@@ -1470,6 +1495,7 @@ async fn run_with_helper_inner(
                 },
                 Some(event) = notes_rx.recv() => {
                     loop_turns[5] += 1;
+                    runtime.turn_watch.begin(turn_watch::TurnSource::note_answer());
                     runtime.begin_fresh_turn(orbit_core::notice::ReportSource::Daemon);
                     topic_board.state_changed();
                     if let Err(error) = runtime.note_answer(event).await {
@@ -1480,42 +1506,65 @@ async fn run_with_helper_inner(
                     if let Some(due) = topic_due {
                         tokio::time::sleep_until(due).await;
                     }
-                }, if topic_due.is_some() => { loop_turns[6] += 1; },
+                }, if topic_due.is_some() => {
+                    loop_turns[6] += 1;
+                    runtime.turn_watch.begin(turn_watch::TurnSource::topics());
+                },
                 _ = tick.tick() => {
                     loop_turns[7] += 1;
                     let tick_started = std::time::Instant::now();
+                    // Before this turn begins: the slowest turn since the
+                    // last tick is what held a late one.
+                    let slowest = runtime.turn_watch.take_slowest_since_tick();
+                    runtime.turn_watch.begin(turn_watch::TurnSource::tick());
                     runtime.begin_fresh_turn(orbit_core::notice::ReportSource::Daemon);
                     if let Some(late) = loop_lag.observe(tick_started, tick.period()) {
-                        // Codes and numbers only: how long, and how much the
-                        // helper had sent meanwhile that is still unread.
-                        runtime.log(
-                            "daemon_loop_stalled",
-                            &[
-                                ("stalled_ms", &late.as_millis().to_string()),
-                                ("queued_native_events", &native_events.len().to_string()),
-                                ("recording", if runtime.state.durable.recording.is_some() { "true" } else { "false" }),
-                            ],
-                        );
+                        // Codes and numbers only: how long, how much the
+                        // helper had sent meanwhile that is still unread, and
+                        // the slowest turn of the period with its step and wait.
+                        let mut fields = vec![
+                            ("stalled_ms", late.as_millis().to_string()),
+                            ("queued_native_events", native_events.len().to_string()),
+                            ("recording", runtime.state.durable.recording.is_some().to_string()),
+                        ];
+                        fields.extend(slowest.iter().flat_map(turn_watch::SlowTurn::stall_fields));
+                        let fields: Vec<(&str, &str)> =
+                            fields.iter().map(|(name, value)| (*name, value.as_str())).collect();
+                        runtime.log("daemon_loop_stalled", &fields);
                     }
                     // The call's health is judged with what the loop has not
                     // read yet: after a held loop, frames waiting here are
                     // audio that arrived, not silence.
                     runtime.note_loop_tick(native_events.len(), last_tick);
                     topic_board.state_changed();
-                    runtime.handle_audio_timeout().await;
+                    let watch = runtime.turn_watch.clone();
+                    watch.time("audio_timeout", runtime.handle_audio_timeout()).await;
                     runtime.run_maintenance().await;
-                    runtime.error_reports.send_due(std::time::Instant::now());
+                    watch.time_sync("error_reports", || {
+                        runtime.error_reports.send_due(std::time::Instant::now());
+                    });
                     last_tick = tick_started.elapsed();
                 }
             }
             runtime.reads.tasks.retain(|task| !task.is_finished());
-            runtime.report_notices();
-            let source = topics::TopicSource {
-                state: &runtime.state,
-                runtime: Some(&runtime),
-                now_ms: u64::try_from(topics_started.elapsed().as_millis()).unwrap_or(u64::MAX),
-            };
-            topic_board.publish(&source);
+            let watch = runtime.turn_watch.clone();
+            watch.time_sync("report_notices", || runtime.report_notices());
+            watch.time_sync("publish", || {
+                let source = topics::TopicSource {
+                    state: &runtime.state,
+                    runtime: Some(&runtime),
+                    now_ms: u64::try_from(topics_started.elapsed().as_millis()).unwrap_or(u64::MAX),
+                };
+                topic_board.publish(&source);
+            });
+            if let Some(slow) = watch.end() {
+                // Codes and numbers only: which arm, what it served, its
+                // slowest step and wait, and whether a meeting was recording.
+                let fields = slow.fields(runtime.state.durable.recording.is_some());
+                let fields: Vec<(&str, &str)> =
+                    fields.iter().map(|(name, value)| (*name, value.as_str())).collect();
+                runtime.log("daemon_turn_slow", &fields);
+            }
             if closing.exit_now(std::time::Instant::now()) {
                 let _ = runtime.declare_bounded_exit().await;
                 break;

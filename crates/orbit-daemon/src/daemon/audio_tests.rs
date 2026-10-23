@@ -46,9 +46,17 @@ pub(in crate::daemon) fn fixture(
     // drain against the real bound, not a coincidental twin.
     let (work_events, _) = mpsc::channel(crate::daemon::WORK_EVENTS_CAPACITY);
     let (notes_events, _) = mpsc::channel(crate::daemon::recording_notes::NOTE_EVENTS);
-    let store_actor = crate::daemon::store_actor::StoreActor::spawn(store, work_events.clone())?;
+    let mut store_actor =
+        crate::daemon::store_actor::StoreActor::spawn(store, work_events.clone())?;
     let fixture_store = crate::daemon::test_store::open_existing(&paths.store, [0x42; 32])?;
-    let reader = crate::daemon::store_actor::open_reader(&paths.store, [0x42; 32])?;
+    // The production wiring: the writer's waits and the loop's reads report
+    // into the same turns.
+    let turn_watch = crate::daemon::turn_watch::TurnWatch::default();
+    store_actor.report_waits_to(turn_watch.clone());
+    let reader = crate::daemon::timed_reader::TimedReader::new(
+        crate::daemon::store_actor::open_reader(&paths.store, [0x42; 32])?,
+        turn_watch.clone(),
+    );
     let voice_audio_reader = std::sync::Arc::new(std::sync::Mutex::new(
         crate::daemon::store_actor::open_reader(&paths.store, [0x42; 32])?,
     ));
@@ -82,6 +90,7 @@ pub(in crate::daemon) fn fixture(
             turn: crate::daemon::turn::Turn::fresh(orbit_core::notice::ReportSource::Daemon),
             state,
             reader,
+            turn_watch,
             voice_audio_reader,
             fixture_store,
             store_actor,

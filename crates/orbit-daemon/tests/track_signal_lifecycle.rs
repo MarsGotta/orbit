@@ -591,6 +591,7 @@ async fn lifecycle(path: &Path) -> Result<()> {
         "recovery must not start another producer"
     );
     assert_eq!(effects.stops, 0);
+    helper_relay::assert_no_held_turn(path)?;
     Ok(())
 }
 
@@ -686,5 +687,6 @@ async fn managed_daemon_seals_audio_and_exits_when_its_parent_disappears() -> Re
     ipc::request_async(path, IpcCommand::Shutdown).await?;
     let effects = recovered.finish().await?;
     assert_eq!(effects.starts, 0, "a closing is not resumed");
+    helper_relay::assert_no_held_turn(path)?;
     Ok(())
 }

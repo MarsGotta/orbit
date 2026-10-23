@@ -139,6 +139,8 @@ pub(super) struct StoreActor {
     completions: Arc<Mutex<VecDeque<StoreCompletion>>>,
     thread: Option<thread::JoinHandle<()>>,
     startup_guard_active: Arc<std::sync::atomic::AtomicBool>,
+    /// Where the loop's waits on this writer are reported, by call site.
+    waits: super::turn_watch::TurnWatch,
 }
 
 #[derive(Clone)]
@@ -291,6 +293,7 @@ impl StoreActor {
             completions,
             thread: Some(thread),
             startup_guard_active,
+            waits: super::turn_watch::TurnWatch::default(),
         })
     }
 
@@ -375,47 +378,93 @@ impl StoreActor {
         Ok(())
     }
 
-    pub(super) async fn snapshot(&self, state: &State) -> Result<()> {
-        let (receipt, response) = tokio::sync::oneshot::channel();
-        self.admit_snapshot(StoreOp::Snapshot {
-            state: Box::new(state.clone()),
-            receipt: Some(receipt),
-        })?;
-        receive(response).await?.map_err(anyhow::Error::msg)
+    /// Report every wait on this writer to `watch`, the loop's turns.
+    pub(super) fn report_waits_to(&mut self, watch: super::turn_watch::TurnWatch) {
+        self.waits = watch;
+    }
+
+    /// Awaits `wait` and reports how long it took, named by `at`.
+    async fn timed<T>(
+        &self,
+        at: &'static std::panic::Location<'static>,
+        wait: impl std::future::Future<Output = Result<T>>,
+    ) -> Result<T> {
+        let started = Instant::now();
+        let result = wait.await;
+        self.waits.store_waited(at, started.elapsed());
+        result
+    }
+
+    #[track_caller]
+    pub(super) fn snapshot<'a>(
+        &'a self,
+        state: &'a State,
+    ) -> impl std::future::Future<Output = Result<()>> + 'a {
+        let at = std::panic::Location::caller();
+        self.timed(at, async move {
+            let (receipt, response) = tokio::sync::oneshot::channel();
+            self.admit_snapshot(StoreOp::Snapshot {
+                state: Box::new(state.clone()),
+                receipt: Some(receipt),
+            })?;
+            receive(response).await?.map_err(anyhow::Error::msg)
+        })
     }
 
     /// An ordered, non-coalesced snapshot with its own durable receipt. Exit
     /// declarations use this lane so the 250 ms coalescing interval cannot
     /// leave their loss notice unwritten when the process detaches the writer.
-    pub(super) async fn critical_snapshot(&self, state: &State) -> Result<()> {
-        let (receipt, response) = tokio::sync::oneshot::channel();
-        self.admit_snapshot(StoreOp::CriticalSnapshot {
-            state: Box::new(state.clone()),
-            receipt,
-        })?;
-        receive(response).await?.map_err(anyhow::Error::msg)
+    #[track_caller]
+    pub(super) fn critical_snapshot<'a>(
+        &'a self,
+        state: &'a State,
+    ) -> impl std::future::Future<Output = Result<()>> + 'a {
+        let at = std::panic::Location::caller();
+        self.timed(at, async move {
+            let (receipt, response) = tokio::sync::oneshot::channel();
+            self.admit_snapshot(StoreOp::CriticalSnapshot {
+                state: Box::new(state.clone()),
+                receipt,
+            })?;
+            receive(response).await?.map_err(anyhow::Error::msg)
+        })
     }
 
-    pub(super) async fn snapshot_with_job(&self, state: &State, job: Job) -> Result<()> {
-        let (receipt, response) = tokio::sync::oneshot::channel();
-        self.admit_snapshot(StoreOp::SnapshotWithJob {
-            state: Box::new(state.clone()),
-            job,
-            receipt,
-        })?;
-        receive(response).await?.map_err(anyhow::Error::msg)
+    #[track_caller]
+    pub(super) fn snapshot_with_job<'a>(
+        &'a self,
+        state: &'a State,
+        job: Job,
+    ) -> impl std::future::Future<Output = Result<()>> + 'a {
+        let at = std::panic::Location::caller();
+        self.timed(at, async move {
+            let (receipt, response) = tokio::sync::oneshot::channel();
+            self.admit_snapshot(StoreOp::SnapshotWithJob {
+                state: Box::new(state.clone()),
+                job,
+                receipt,
+            })?;
+            receive(response).await?.map_err(anyhow::Error::msg)
+        })
     }
 
     /// Run one typed store operation on the dedicated writer connection.
     ///
     /// The type erasure lives only in the queued closure: its oneshot keeps the
     /// caller's result type, including domain admissions and durable receipts.
-    pub(super) async fn run<T, F>(&self, operation: F) -> Result<T>
+    ///
+    /// The wait is reported to the loop's turn under the caller's call site.
+    #[track_caller]
+    pub(super) fn run<T, F>(
+        &self,
+        operation: F,
+    ) -> impl std::future::Future<Output = Result<T>> + '_
     where
         T: Send + 'static,
         F: FnOnce(&mut Store) -> Result<T> + Send + 'static,
     {
-        self.begin_run(operation)?.wait().await
+        let at = std::panic::Location::caller();
+        self.timed(at, async move { self.begin_run(operation)?.wait().await })
     }
 
     /// Admit one typed operation now and return its future durable receipt.

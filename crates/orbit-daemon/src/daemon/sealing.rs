@@ -243,19 +243,48 @@ impl Runtime {
 
     /// The verticals' timers: notes, the meeting question, calendars, an
     /// answer to the agent, sources, control and call detection. A failure here is a data fault of
-    /// that vertical, never the capture's.
+    /// that vertical, never the capture's. Each is a named step of the tick's
+    /// turn, so a slow one is named in `daemon_turn_slow`.
     pub(super) fn maintain_verticals(
         &mut self,
     ) -> impl std::future::Future<Output = Result<()>> + '_ {
         Box::pin(async move {
-            self.maintain_recording_notes();
-            Box::pin(self.maintain_meeting_question()).await?;
-            self.maintain_calendar();
-            Box::pin(self.expire_interaction_response()).await?;
-            Box::pin(self.check_source_timeout()).await?;
-            self.check_files_timeout();
-            Box::pin(self.maintain_computer()).await?;
-            Box::pin(self.maintain_call_detection()).await
+            let watch = self.turn_watch.clone();
+            watch.time_sync("maintain_verticals.recording_notes", || {
+                self.maintain_recording_notes()
+            });
+            watch
+                .time(
+                    "maintain_verticals.meeting_question",
+                    Box::pin(self.maintain_meeting_question()),
+                )
+                .await?;
+            watch.time_sync("maintain_verticals.calendar", || self.maintain_calendar());
+            watch
+                .time(
+                    "maintain_verticals.interaction_response",
+                    Box::pin(self.expire_interaction_response()),
+                )
+                .await?;
+            watch
+                .time(
+                    "maintain_verticals.sources",
+                    Box::pin(self.check_source_timeout()),
+                )
+                .await?;
+            watch.time_sync("maintain_verticals.files", || self.check_files_timeout());
+            watch
+                .time(
+                    "maintain_verticals.computer",
+                    Box::pin(self.maintain_computer()),
+                )
+                .await?;
+            watch
+                .time(
+                    "maintain_verticals.call_detection",
+                    Box::pin(self.maintain_call_detection()),
+                )
+                .await
         })
     }
 

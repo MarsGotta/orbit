@@ -14,6 +14,9 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     private let latch: PrivacyLatch
     private let launchOptions: NativeLaunchOptions
     private let diagnostics: DiagnosticLog
+    /// Watches this main thread from a queue of its own and logs
+    /// `helper_main_thread_stalled` with the command it had started.
+    private let mainThreadWatch: MainThreadHangDetector
     private let audioSession = SharedAudioSession()
     private let hotkeys = GlobalHotkeys()
     private lazy var windowScreenshots = WindowScreenshots(diagnostics: diagnostics)
@@ -77,12 +80,16 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         self.latch = latch
         self.launchOptions = launchOptions
         self.diagnostics = diagnostics
+        self.mainThreadWatch = MainThreadHangDetector(report: { stall in
+            diagnostics.recordOffMain("helper_main_thread_stalled", stall.fields)
+        })
         // Only the daemon's own child leaves when its daemon is gone.
         self.quitPolicy = NativeQuitPolicy()
         super.init()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        mainThreadWatch.start()
         channel.receive = { [weak self] command in
             // Every command read from the pipe is the daemon answering, not
             // only a beat, and it revives a channel the watchdog gave up on
@@ -216,7 +223,9 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     }
 
     private func publishState() {
-        if captureActivity.update(capturing: microphone.slot.isActive || systemAudio.slot.isActive) {
+        let capturing = microphone.slot.isActive || systemAudio.slot.isActive
+        mainThreadWatch.captureChanged(capturing)
+        if captureActivity.update(capturing: capturing) {
             diagnostics.recordOffMain(captureActivity.held ? "helper_activity_held" : "helper_activity_released")
         }
         let calendar = MainActor.assumeIsolated {
@@ -247,6 +256,8 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     }
 
     private func receive(_ command: NativeWireCommand) {
+        // Its kind only: what the main thread was doing if it is held next.
+        mainThreadWatch.commandStarted(command.command)
         guard launchOptions.permits(command: command.command) else {
             channel.reject(command, code: "isolated_fixture_scope", message: "Operación no permitida en el fixture aislado.")
             return
