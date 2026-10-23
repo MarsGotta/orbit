@@ -84,7 +84,7 @@ In `apps/desktop/src-tauri/src/daemon_thread.rs` and `src/lib.rs`:
   one too.
 - **Crash:** memory-only audio is lost. Next startup marks the recording
   interrupted and reports how many chunks were saved
-  (`RecordingInterruptedByRestart` in `orbit-core/src/model.rs`); once the new
+  (`RecordingInterruptedByRestart` in `orbit-core/src/transition/capture.rs`); once the new
   helper is ready, the same recording resumes in a new segment
   (`orbit-daemon/src/daemon/cut_recovery.rs`).
 - **Cut:** a recording cut by anything but the person («Terminar», the privacy

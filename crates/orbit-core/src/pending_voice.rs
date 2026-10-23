@@ -1,6 +1,7 @@
 //! The voice notes waiting on this Mac and the conversation each was spoken
-//! in (`DurableState::pending_voice`).
-use crate::model::{DurableState, Message};
+//! in (`AssistantState::pending_voice`).
+use crate::model::Message;
+use crate::transition::AssistantState;
 use serde::{Deserialize, Serialize};
 
 /// A voice note the hub has not taken yet, with the conversation it was
@@ -28,29 +29,18 @@ pub struct VoiceNoteConversation {
 }
 
 impl PendingVoiceNote {
-    /// Whether this note belongs to the conversation open in `durable`.
-    pub fn belongs_to(&self, durable: &DurableState) -> bool {
+    /// Whether this note belongs to the conversation open in `assistant`.
+    pub fn belongs_to(&self, assistant: &AssistantState) -> bool {
         match &self.conversation {
             Some(VoiceNoteConversation {
                 session_id: Some(session),
                 ..
-            }) => durable.session_id.as_deref() == Some(session.as_str()),
+            }) => assistant.session_id.as_deref() == Some(session.as_str()),
             Some(VoiceNoteConversation {
                 session_id: None,
                 agent_id,
-            }) => durable.session_id.is_none() && durable.agent_id == *agent_id,
-            None => durable.session_id.is_none(),
+            }) => assistant.session_id.is_none() && assistant.agent_id == *agent_id,
+            None => assistant.session_id.is_none(),
         }
-    }
-}
-
-impl DurableState {
-    /// The waiting voice notes of the open conversation, oldest first: what
-    /// it shows after its messages. Another conversation's are not here.
-    pub fn open_conversation_pending_voice(&self) -> impl Iterator<Item = &Message> {
-        self.pending_voice
-            .iter()
-            .filter(|note| note.belongs_to(self))
-            .map(|note| &note.message)
     }
 }

@@ -49,6 +49,7 @@ pub(super) fn phase(runtime: &Runtime) -> Option<orbit_core::CapturePhase> {
     runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .map(|recording| recording.phase.clone())
@@ -138,6 +139,7 @@ async fn a_cut_meeting_is_resumed_or_closed_without_anyone_acting() -> Result<()
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .map_or(0, |recording| recording.sealed_chunks),
@@ -170,6 +172,7 @@ async fn a_finished_meeting_whose_drain_is_late_is_still_closed() -> Result<()> 
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?,
@@ -241,6 +244,7 @@ async fn a_meeting_cut_by_the_mac_going_to_sleep_is_closed_and_said() -> Result<
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;
@@ -284,6 +288,7 @@ async fn a_meeting_at_the_safety_ceiling_is_closed_not_resumed() -> Result<()> {
     runtime
         .state
         .durable
+        .capture
         .recording
         .as_mut()
         .context("recording absent")?
@@ -315,6 +320,7 @@ async fn a_meeting_at_the_safety_ceiling_is_closed_not_resumed() -> Result<()> {
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;
@@ -347,7 +353,7 @@ async fn a_meeting_live_when_the_daemon_died_goes_on_after_the_restart() -> Resu
     // nothing of the old process's capture.
     let saved = runtime.state.durable.clone();
     runtime.capture.recovery =
-        crate::daemon::cut_recovery::recovery_after_restart(saved.recording.as_ref(), true);
+        crate::daemon::cut_recovery::recovery_after_restart(saved.capture.recording.as_ref(), true);
     runtime.state.durable = saved.recovered();
     runtime.capture.buffer.reset();
     runtime.capture.mic_stream = None;
@@ -376,6 +382,7 @@ async fn a_meeting_live_when_the_daemon_died_goes_on_after_the_restart() -> Resu
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .map(|recording| recording.id.as_str()),
@@ -436,6 +443,7 @@ async fn a_cut_before_the_first_chunk_resumes_the_recording() -> Result<()> {
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;
@@ -453,6 +461,7 @@ async fn a_cut_before_the_first_chunk_resumes_the_recording() -> Result<()> {
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .map(|recording| recording.id.as_str()),
@@ -498,6 +507,7 @@ async fn a_recording_that_keeps_failing_at_its_start_closes_empty_after_three_tr
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;

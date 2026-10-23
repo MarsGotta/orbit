@@ -8,8 +8,8 @@ import { AssistantComposer } from "./AssistantComposer";
 
 // What the person writes in the chat is never lost on its way to the daemon,
 // nor by leaving the view, nor by Orbit closing before it was sent. The port
-// refuses as the daemon does (`orbit-core/src/transition.rs`,
-// `decide_chat_submit`): busy while a turn is in flight, and a text past
+// refuses as the daemon does (`orbit-core/src/transition/assistant/chat.rs`,
+// `submit`): busy while a turn is in flight, and a text past
 // `MAX_TEXT_BYTES` (32 KiB).
 
 const idle: ChatSnapshot = {

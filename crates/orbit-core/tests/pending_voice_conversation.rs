@@ -62,7 +62,11 @@ fn shown(state: &State) -> Vec<String> {
 fn a_waiting_note_shows_only_in_the_conversation_it_was_spoken_in() {
     let first = failed_note(&open(&online(), "conversacion-a"), "nota-a");
     let second = open(&first, "conversacion-b");
-    assert_eq!(second.durable.pending_voice.len(), 1, "the note is kept");
+    assert_eq!(
+        second.durable.assistant.pending_voice.len(),
+        1,
+        "the note is kept"
+    );
     assert!(
         shown(&second).is_empty(),
         "another conversation shows no note"
@@ -161,7 +165,10 @@ fn a_note_of_another_conversation_is_not_retried_here() {
     )
     .unwrap()
     .state;
-    assert_eq!(retried.durable.turn.as_ref().unwrap().user.id, "nota-a");
+    assert_eq!(
+        retried.durable.assistant.turn.as_ref().unwrap().user.id,
+        "nota-a"
+    );
 }
 
 #[test]
@@ -176,8 +183,8 @@ fn discarding_removes_a_failed_note_and_refuses_one_still_transcribed() {
     )
     .unwrap()
     .state;
-    assert!(discarded.durable.turn.is_none());
-    assert!(discarded.durable.pending_voice.is_empty());
+    assert!(discarded.durable.assistant.turn.is_none());
+    assert!(discarded.durable.assistant.pending_voice.is_empty());
 
     let waiting = open(&failed, "conversacion-b");
     let gone = decide(
@@ -189,7 +196,10 @@ fn discarding_removes_a_failed_note_and_refuses_one_still_transcribed() {
     )
     .unwrap()
     .state;
-    assert!(gone.durable.pending_voice.is_empty(), "a waiting note too");
+    assert!(
+        gone.durable.assistant.pending_voice.is_empty(),
+        "a waiting note too"
+    );
 
     let in_course = decide(
         &open(&online(), "conversacion-a"),
@@ -229,8 +239,8 @@ fn an_unheard_note_leaves_without_a_trace() {
     let unheard = decide(&in_course, Event::VoiceUnheard { id: "ruido".into() }, 3)
         .unwrap()
         .state;
-    assert!(unheard.durable.turn.is_none());
-    assert!(unheard.durable.pending_voice.is_empty());
+    assert!(unheard.durable.assistant.turn.is_none());
+    assert!(unheard.durable.assistant.pending_voice.is_empty());
     assert!(shown(&unheard).is_empty());
 }
 

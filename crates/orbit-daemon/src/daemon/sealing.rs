@@ -42,7 +42,7 @@ impl Runtime {
     fn declare_reserve_overflow(&mut self, overflow: &[crate::capture::Segment]) {
         for segment in overflow {
             self.note_call_gap(&segment.metadata.recording_id);
-            if let Some(recording) = self.state.durable.recording.as_mut()
+            if let Some(recording) = self.state.durable.capture.recording.as_mut()
                 && recording.id == segment.metadata.recording_id
             {
                 recording.gaps = recording.gaps.saturating_add(1);
@@ -145,6 +145,7 @@ impl Runtime {
         if let Some(active) = self
             .state
             .durable
+            .capture
             .recording
             .as_mut()
             .filter(|active| active.id == receipt.recording)
@@ -279,12 +280,13 @@ impl Runtime {
             let before_tick = self
                 .state
                 .durable
+                .capture
                 .recording
                 .as_ref()
                 .map(|recording| (recording.id.clone(), recording.phase.clone()));
             let tick_result = Box::pin(self.apply(orbit_core::Event::Tick)).await;
             let tick_cause = before_tick.and_then(|(id, phase)| {
-                let recording = self.state.durable.recording.as_ref()?;
+                let recording = self.state.durable.capture.recording.as_ref()?;
                 if recording.id != id
                     || recording.phase != orbit_core::CapturePhase::Interrupted
                     || recording.ended_at_ms.is_some()
@@ -366,7 +368,7 @@ impl Runtime {
             // nothing else comes back for it: its seal is retried like a
             // recording's. A failure is said, never a cut of the meeting.
             if self.capture.buffer.voice.is_some()
-                && !self.state.durable.voice_active
+                && !self.state.durable.voice.voice_active
                 && self.capture.call_runtime.is_none()
                 && !self.audio_is_draining()
                 && !self.stopped_audio_owed()

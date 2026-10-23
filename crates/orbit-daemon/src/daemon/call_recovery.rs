@@ -37,7 +37,7 @@ impl Runtime {
     /// page, including completed manifests older than the presentation snapshot.
     /// A failure aborts startup; a later startup reconciles immutable boundaries.
     pub(super) async fn recover_call_closures(&mut self, recovered_at_ms: i64) -> Result<usize> {
-        if self.state.durable.call.is_some()
+        if self.state.durable.voice.call.is_some()
             || self.capture.call_runtime.is_some()
             || self.capture.mic_stream.is_some()
             || self.capture.remote_stream.is_some()
@@ -70,7 +70,8 @@ impl Runtime {
                     // used to lean on the stop every restart invented; now a
                     // restart invents none, and the guarantee is the helper's
                     // absence itself.
-                    if self.state.capabilities().native_helper() || self.state.durable.voice_active
+                    if self.state.capabilities().native_helper()
+                        || self.state.durable.voice.voice_active
                     {
                         bail!(
                             "call recovery runs at startup, before the helper connects; the helper or voice is active now"

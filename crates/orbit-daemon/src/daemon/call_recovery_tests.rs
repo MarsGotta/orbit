@@ -40,7 +40,9 @@ async fn restart_closes_the_original_without_recapture_or_prompt_replay() -> Res
     let (mut recovered, mut native) = reopen(directory.path()).await?;
     // The restart invents no stop; nothing recaptures either.
     assert!(!recovered.state.privacy_stopped());
-    assert!(recovered.state.durable.call.is_none() && recovered.capture.call_runtime.is_none());
+    assert!(
+        recovered.state.durable.voice.call.is_none() && recovered.capture.call_runtime.is_none()
+    );
     assert!(recovered.capture.mic_stream.is_none() && recovered.capture.buffer.voice.is_none());
     // Review (c): the notice says what is true after a restart nobody stopped.
     assert!(
@@ -60,7 +62,7 @@ async fn restart_closes_the_original_without_recapture_or_prompt_replay() -> Res
         recovered.state.durable.notice_log
     );
     assert!(
-        recovered.state.durable.active_request.is_none()
+        recovered.state.durable.assistant.active_request.is_none()
             && recovered.conversation.voice_task.active().is_none()
     );
     assert!(
@@ -168,6 +170,7 @@ async fn call_stop_snapshot_cannot_orphan_original_before_drain_after_restart() 
             .load_snapshot::<State>()?
             .context("snapshot absent")?
             .durable
+            .voice
             .call
             .is_none()
     );
@@ -375,7 +378,7 @@ async fn manifest_before_first_native_ack_recovers_an_explicitly_empty_original(
             .get_job("call-processing-synthetic-call")?
             .is_none()
     );
-    assert!(runtime.state.durable.call.is_none() && native.try_recv().is_err());
+    assert!(runtime.state.durable.voice.call.is_none() && native.try_recv().is_err());
     Ok(())
 }
 
@@ -394,7 +397,7 @@ async fn failed_recovery_snapshot_cannot_restore_capture_or_rewrite_a_sealed_clo
         .fixture_store
         .get_job("finalize-snapshot-fault")?
         .context("closure absent")?;
-    assert!(!runtime.state.privacy_stopped() && runtime.state.durable.call.is_none());
+    assert!(!runtime.state.privacy_stopped() && runtime.state.durable.voice.call.is_none());
     drop(runtime);
     fault.execute_batch("DROP TRIGGER fail_recovery_snapshot;")?;
     let (runtime, mut native) = reopen(directory.path()).await?;
@@ -406,7 +409,7 @@ async fn failed_recovery_snapshot_cannot_restore_capture_or_rewrite_a_sealed_clo
             .payload,
         closure.payload
     );
-    assert!(!runtime.state.privacy_stopped() && runtime.state.durable.call.is_none());
+    assert!(!runtime.state.privacy_stopped() && runtime.state.durable.voice.call.is_none());
     assert!(native.try_recv().is_err());
     Ok(())
 }

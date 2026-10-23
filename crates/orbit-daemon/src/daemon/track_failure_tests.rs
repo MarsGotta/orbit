@@ -67,6 +67,7 @@ fn phase(runtime: &Runtime) -> Option<CapturePhase> {
     runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .map(|recording| recording.phase.clone())
@@ -164,7 +165,10 @@ async fn a_device_change_under_a_voice_note_cancels_the_note_and_keeps_the_meeti
         .native_event(frame("mic_local", &microphone, 0, 1_000))
         .await?;
     runtime.apply(Event::VoiceStart).await?;
-    assert!(runtime.state.durable.voice_active, "the voice note started");
+    assert!(
+        runtime.state.durable.voice.voice_active,
+        "the voice note started"
+    );
     runtime
         .native_event(frame("mic_local", &microphone, 1, 2_000))
         .await?;
@@ -175,7 +179,7 @@ async fn a_device_change_under_a_voice_note_cancels_the_note_and_keeps_the_meeti
         .native_event(frame("mic_local", &microphone, 0, 9_000))
         .await?;
     assert!(
-        !runtime.state.durable.voice_active,
+        !runtime.state.durable.voice.voice_active,
         "the voice note under the device change is cancelled"
     );
     assert!(said::has(

@@ -36,7 +36,7 @@ impl Runtime {
         if self.recording_active() {
             bail!("Mientras se graba una reunión, Orbit no lee respuestas en voz alta");
         }
-        if self.state.durable.call.is_some() {
+        if self.state.durable.voice.call.is_some() {
             bail!("Durante una llamada, Orbit no lee otras respuestas en voz alta");
         }
         if self.token.is_none() {
@@ -89,6 +89,7 @@ impl Runtime {
         let Some(text) = self
             .state
             .durable
+            .assistant
             .turn
             .as_ref()
             .and_then(|turn| turn.answer.as_ref())
@@ -181,7 +182,7 @@ mod tests {
                 fixture_value,
             );
         }
-        runtime.state.durable.turn = Some(Turn {
+        runtime.state.durable.assistant.turn = Some(Turn {
             user: Message {
                 attachments: Vec::new(),
                 id: "synthetic".into(),
@@ -351,7 +352,7 @@ mod tests {
         );
         crate::daemon::authority_fixture::set(&mut runtime.state, "privacy_stopped", json!(false));
         // A call speaks its own answers; another one would talk over it.
-        runtime.state.durable.call = Some(orbit_core::CallState {
+        runtime.state.durable.voice.call = Some(orbit_core::CallState {
             id: "call-speak".into(),
             phase: orbit_core::CallPhase::Listening,
             started_at_ms: 1,

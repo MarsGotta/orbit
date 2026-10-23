@@ -48,6 +48,7 @@ fn failure_code(runtime: &Runtime) -> Option<String> {
     runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .and_then(|turn| turn.user.voice.as_ref())
@@ -61,8 +62,11 @@ async fn esc_cancels_the_note_without_transcribing_or_sending_it() -> Result<()>
     let (mut runtime, mut helper) = fixture(directory.path())?;
     runtime.token = Some(TOKEN.into());
     record(&mut runtime, &mut helper, 8_000, Command::VoiceCancel).await?;
-    assert!(!runtime.state.durable.voice_active);
-    assert!(runtime.state.durable.turn.is_none(), "no message was made");
+    assert!(!runtime.state.durable.voice.voice_active);
+    assert!(
+        runtime.state.durable.assistant.turn.is_none(),
+        "no message was made"
+    );
     assert!(runtime.conversation.voice_task.active().is_none());
     assert!(said::has(&runtime.state, NoticeCode::VoiceTurnCancelled));
     assert!(!said::has(&runtime.state, NoticeCode::VoiceTranscribing));
@@ -87,7 +91,10 @@ async fn a_note_under_the_minimum_is_not_sent_and_keeps_its_numbers() -> Result<
         runtime.state.notice_code(),
         Some(NoticeCode::VoiceNoteTooShort)
     );
-    assert!(runtime.state.durable.turn.is_none(), "no message was made");
+    assert!(
+        runtime.state.durable.assistant.turn.is_none(),
+        "no message was made"
+    );
     assert!(runtime.conversation.voice_task.active().is_none());
     assert!(!said::has(&runtime.state, NoticeCode::VoiceTranscribing));
     assert!(
@@ -119,6 +126,7 @@ async fn retry_sends_the_stored_audio_again_and_completes_the_note() -> Result<(
     let message_id = runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .context("note absent")?
@@ -151,6 +159,7 @@ async fn retry_sends_the_stored_audio_again_and_completes_the_note() -> Result<(
     let user = &runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .context("note absent")?

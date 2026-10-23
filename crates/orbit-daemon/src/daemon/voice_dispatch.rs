@@ -27,7 +27,7 @@ impl Runtime {
         // A call's turns have their own detector, which already asks for
         // this much speech.
         if !cancelled
-            && self.state.durable.call.is_none()
+            && self.state.durable.voice.call.is_none()
             && let Some(short) = orbit_core::voice::short_voice_note(duration_ms)
         {
             self.capture.buffer.voice = None;
@@ -120,6 +120,7 @@ impl Runtime {
         let in_turn = self
             .state
             .durable
+            .assistant
             .turn
             .as_ref()
             .is_some_and(|turn| turn.user.id == source.message_id);
@@ -176,7 +177,7 @@ impl Runtime {
             kind: orbit_store::QueueKind::RecordingManifest.into(),
             payload: json!({"recording_id":source.recording_id,
                 "recording_kind":"voice_turn", "session_id":source.session_id,
-                "call_id":self.state.durable.call.as_ref().map(|call| &call.id),
+                "call_id":self.state.durable.voice.call.as_ref().map(|call| &call.id),
                 "message_id":source.message_id, "source_chunk_id":source.chunk_id,
                 // A voice note goes to `/v1/audio/transcribe` and
                 // stays on this Mac for playback; nothing on the hub reads

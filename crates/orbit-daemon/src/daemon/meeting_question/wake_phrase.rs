@@ -41,25 +41,20 @@ impl Runtime {
             None => Some(roster.default_agent_id().to_owned()),
             Some(name) => roster.named(name).map(|agent| agent.id.clone()),
         };
+        let recording = self.state.durable.capture.recording.as_ref();
         let ignored = if self.state.privacy_stopped() {
             Some("privacy_stopped")
         } else if self.capture.mic_stream.as_deref() != Some(stream_id.as_str()) {
             Some("other_stream")
-        } else if !self
-            .state
-            .durable
-            .recording
-            .as_ref()
-            .is_some_and(|recording| {
-                recording.phase == CapturePhase::Recording && recording.ended_at_ms.is_none()
-            })
-        {
+        } else if !recording.is_some_and(|recording| {
+            recording.phase == CapturePhase::Recording && recording.ended_at_ms.is_none()
+        }) {
             Some("not_recording")
         } else if self.meeting_microphone_muted() {
             // The helper sends silence while muted; a question that still
             // arrives began before, and «Silenciar» means she is not asking.
             Some("microphone_muted")
-        } else if self.state.durable.voice_active || self.capture.buffer.voice.is_some() {
+        } else if self.state.durable.voice.voice_active || self.capture.buffer.voice.is_some() {
             Some("dictating")
         } else if agent.is_none() {
             Some("agent_not_listed")
@@ -176,6 +171,7 @@ impl Runtime {
         let live = self
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .is_some_and(|recording| {
@@ -306,6 +302,7 @@ impl Runtime {
             recording: self
                 .state
                 .durable
+                .capture
                 .recording
                 .as_ref()
                 .filter(|recording| recording.ended_at_ms.is_none())

@@ -238,7 +238,13 @@ impl Runtime {
     }
 
     async fn on_work_problem(&mut self, message: String) -> Result<()> {
-        let call_id = self.state.durable.call.as_ref().map(|call| call.id.clone());
+        let call_id = self
+            .state
+            .durable
+            .voice
+            .call
+            .as_ref()
+            .map(|call| call.id.clone());
         if call_id.is_none() || self.conversation.speech_notice_call_id.as_ref() != call_id.as_ref()
         {
             self.say_failure(NoticeCode::SpeechFailed, &message);

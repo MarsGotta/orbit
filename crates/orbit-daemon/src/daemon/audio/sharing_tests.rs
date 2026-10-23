@@ -111,7 +111,7 @@ async fn interlude(
                 ended.is_err() == matches!(what, Interlude::VoiceNoteUnpaired),
                 "{what:?}: {ended:?}"
             );
-            ensure!(!runtime.state.durable.voice_active);
+            ensure!(!runtime.state.durable.voice.voice_active);
             Ok(())
         }
         Interlude::QuestionSent | Interlude::QuestionNotSent | Interlude::QuestionAbandoned => {
@@ -164,6 +164,7 @@ async fn record(what: Interlude) -> Result<Vec<Chunk>> {
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("the meeting goes on")?;

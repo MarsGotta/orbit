@@ -80,6 +80,7 @@ async fn projection_requires_each_requested_tracks_current_owner() -> Result<()>
             runtime
                 .state
                 .durable
+                .capture
                 .recording
                 .as_ref()
                 .context("recording absent")?
@@ -172,6 +173,7 @@ async fn low_signal_is_independent_per_track_and_original_pcm_is_unchanged() -> 
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -290,6 +292,7 @@ async fn paused_meeting_is_not_kept_live_by_shared_ptt_microphone() -> Result<()
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -362,6 +365,7 @@ async fn stopping_preserves_late_tail_without_presenting_it_as_live() -> Result<
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?

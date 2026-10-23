@@ -70,6 +70,7 @@ impl Runtime {
         let duration_ms = self
             .state
             .durable
+            .assistant
             .turn
             .iter()
             .map(|turn| &turn.user)
@@ -160,10 +161,10 @@ impl Runtime {
         if self.state.privacy_stopped()
             || self.state.connection() != orbit_core::Connection::Online
             || self.token.is_none()
-            || durable.active_request.is_some()
-            || durable.voice_active
-            || durable.call.is_some()
-            || durable.pending_approval.is_some()
+            || durable.assistant.active_request.is_some()
+            || durable.voice.voice_active
+            || durable.voice.call.is_some()
+            || durable.assistant.pending_approval.is_some()
             || self.conversation.voice_task.active().is_some()
             || self.capture.buffer.voice.is_some()
         {
@@ -179,6 +180,7 @@ impl Runtime {
             })
         };
         let Some(message_id) = durable
+            .assistant
             .turn
             .iter()
             .map(|turn| &turn.user)

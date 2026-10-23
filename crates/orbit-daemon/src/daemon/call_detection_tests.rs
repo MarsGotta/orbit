@@ -129,7 +129,7 @@ async fn a_call_is_offered_recorded_with_its_event_and_ends_after_the_countdown(
     assert_eq!(application, "zoom.us");
     assert_eq!(event_title.as_deref(), Some("Comité de producto"));
     assert!(
-        runtime.state.durable.recording.is_none(),
+        runtime.state.durable.capture.recording.is_none(),
         "«Avisarme» never records alone"
     );
 
@@ -145,6 +145,7 @@ async fn a_call_is_offered_recorded_with_its_event_and_ends_after_the_countdown(
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .clone()
         .context("no recording started")?;
@@ -189,6 +190,7 @@ async fn a_call_is_offered_recorded_with_its_event_and_ends_after_the_countdown(
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .map(|r| r.phase.clone()),
@@ -199,6 +201,7 @@ async fn a_call_is_offered_recorded_with_its_event_and_ends_after_the_countdown(
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .map(|r| r.phase.clone()),
@@ -238,6 +241,7 @@ async fn record_without_asking_starts_alone_and_keep_recording_makes_it_manual()
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .clone()
         .context("«Grabar sin preguntar» did not start")?;
@@ -260,6 +264,7 @@ async fn record_without_asking_starts_alone_and_keep_recording_makes_it_manual()
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .map(|r| r.phase.clone()),
@@ -287,6 +292,7 @@ async fn the_call_app_closing_during_the_countdown_ends_with_what_was_recorded()
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .clone()
         .context("not started")?;
@@ -303,6 +309,7 @@ async fn the_call_app_closing_during_the_countdown_ends_with_what_was_recorded()
     let closed = runtime
         .state
         .durable
+        .capture
         .recording
         .clone()
         .context("recording gone")?;
@@ -338,7 +345,7 @@ async fn nothing_is_offered_before_the_helper_says_who_holds_the_microphone() ->
     for second in 0..30 {
         at(&mut runtime, NOW + second * 1_000).await?;
     }
-    assert!(runtime.state.durable.recording.is_none());
+    assert!(runtime.state.durable.capture.recording.is_none());
     assert_eq!(panel(&runtime), None);
     assert!(ack_starts(&mut runtime, &mut helper).await?.is_empty());
     Ok(())
@@ -430,6 +437,7 @@ async fn record_on_an_event_during_a_call_captures_the_call_and_links_the_event(
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .clone()
         .context("not started")?;
@@ -450,6 +458,7 @@ async fn record_on_an_event_during_a_call_captures_the_call_and_links_the_event(
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .map(|r| r.phase.clone()),
@@ -497,6 +506,7 @@ async fn a_call_during_a_manual_recording_offers_and_starts_nothing() -> Result<
             runtime
                 .state
                 .durable
+                .capture
                 .recording
                 .as_ref()
                 .map(|r| r.title.as_str()),
@@ -532,6 +542,7 @@ async fn the_call_app_closing_with_its_track_declared_stopped_ends_the_recording
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .clone()
         .context("not started")?;
@@ -547,6 +558,7 @@ async fn the_call_app_closing_with_its_track_declared_stopped_ends_the_recording
     let closed = runtime
         .state
         .durable
+        .capture
         .recording
         .clone()
         .context("recording gone")?;

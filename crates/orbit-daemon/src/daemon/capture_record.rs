@@ -29,6 +29,7 @@ impl Runtime {
         let Some(id) = self
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .map(|recording| recording.id.clone())
@@ -36,7 +37,7 @@ impl Runtime {
             return Ok(());
         };
         let tracks = self.chunk_record(&id)?;
-        let Some(recording) = self.state.durable.recording.as_mut() else {
+        let Some(recording) = self.state.durable.capture.recording.as_mut() else {
             return Ok(());
         };
         let sealed: u64 = tracks.values().map(|track| track.sealed_chunks).sum();

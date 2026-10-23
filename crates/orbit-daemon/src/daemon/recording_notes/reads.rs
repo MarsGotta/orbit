@@ -73,15 +73,21 @@ impl Runtime {
     fn local_rows(&self) -> Result<Vec<MeetingRow>, Refusal> {
         let now_ms = self.notes_now();
         let mut rows = Vec::new();
-        let active = self.state.durable.recording.as_ref().filter(|recording| {
-            matches!(
-                recording.phase,
-                CapturePhase::Starting
-                    | CapturePhase::Recording
-                    | CapturePhase::Paused
-                    | CapturePhase::Finalizing
-            )
-        });
+        let active = self
+            .state
+            .durable
+            .capture
+            .recording
+            .as_ref()
+            .filter(|recording| {
+                matches!(
+                    recording.phase,
+                    CapturePhase::Starting
+                        | CapturePhase::Recording
+                        | CapturePhase::Paused
+                        | CapturePhase::Finalizing
+                )
+            });
         // One being thrown away is not a meeting any more.
         if let Some(recording) = active
             .filter(|recording| self.state.durable.discarding() != Some(recording.id.as_str()))
@@ -231,7 +237,13 @@ impl Runtime {
             rows,
             // The call in progress is on the hub as an open recording
             // until it closes as a `voice_call`.
-            call: self.state.durable.call.as_ref().map(|call| call.id.clone()),
+            call: self
+                .state
+                .durable
+                .voice
+                .call
+                .as_ref()
+                .map(|call| call.id.clone()),
             titles: self.features.notes.outbox.pending_titles(),
             deleting: self.features.notes.outbox.deleting(),
         };

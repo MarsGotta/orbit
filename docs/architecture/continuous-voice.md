@@ -5,7 +5,7 @@ See the [overview](README.md#voice-note-and-call) for the hub/Hermes flow.
 ## Authorization and processing
 
 `CallStart` (`⌃⌥D`) is explicit local authorization for 1–60 minutes
-(`orbit-core/src/transition.rs`). A call from the app lasts `CALL_MINUTES` (60)
+(`orbit-core/src/transition/voice_call.rs`). A call from the app lasts `CALL_MINUTES` (60)
 unless the order names a length; one from `⌃⌥D` lasts `HOTKEY_CALL_MINUTES` (15).
 The call keeps its origin (`app` or `hotkey`), and the app's call snapshot
 carries its deadline (`expires_at_ms`), origin, agent and the idle hang-up

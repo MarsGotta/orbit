@@ -194,18 +194,19 @@ impl Runtime {
         // core decision below latches it.
         let privacy_already_stopped = self.state.privacy_stopped();
         let before_closure = self.state.clone();
-        let interrupted_request = self.state.durable.active_request.clone();
+        let interrupted_request = self.state.durable.assistant.active_request.clone();
         if !privacy_already_stopped {
             if self.capture.interruption.is_none() {
-                let earlier = self
-                    .state
-                    .durable
-                    .recording
-                    .as_ref()
-                    .is_some_and(|recording| {
-                        recording.phase == CapturePhase::Interrupted
-                            && recording.ended_at_ms.is_none()
-                    });
+                let earlier =
+                    self.state
+                        .durable
+                        .capture
+                        .recording
+                        .as_ref()
+                        .is_some_and(|recording| {
+                            recording.phase == CapturePhase::Interrupted
+                                && recording.ended_at_ms.is_none()
+                        });
                 self.capture.interruption = Some(if earlier {
                     unsaved_interruption_cause()
                 } else {
@@ -417,7 +418,7 @@ impl Runtime {
     /// that arrived is kept locally.
     async fn halt(&mut self, decision: orbit_core::Decision, voice: CallStopVoice) {
         self.state = decision.state.clone();
-        let interrupted_request = self.state.durable.active_request.clone();
+        let interrupted_request = self.state.durable.assistant.active_request.clone();
         let persisted_before_effects = self.state.clone();
         let snapshot_failed = if let Err(error) = self.store_actor.snapshot(&self.state).await {
             self.log("stop_snapshot_failed", &[("error", &error.to_string())]);

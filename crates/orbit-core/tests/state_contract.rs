@@ -10,7 +10,7 @@ const GOLDEN_RESPONSE: &str = include_str!("fixtures/golden_response_with_two_vi
 /// permissions in the model; snapshots retain legacy permission fields.
 fn state_with_new_fields() -> State {
     let mut state = State::default();
-    state.durable.turn = Some(Turn {
+    state.durable.assistant.turn = Some(Turn {
         user: Message {
             attachments: Vec::new(),
             id: "voice-turn".into(),
@@ -71,7 +71,7 @@ fn a_snapshot_without_additive_fields_loads_with_defaults() {
         served = removed(served, pointer, key);
     }
     let older: State = serde_json::from_value(served).unwrap();
-    let turn = older.durable.turn.as_ref().unwrap();
+    let turn = older.durable.assistant.turn.as_ref().unwrap();
     let answer = turn.answer.as_ref().unwrap();
     assert_eq!(turn.user.at_ms, 0);
     assert!(turn.user.voice.is_none());
@@ -102,7 +102,7 @@ fn an_old_state_fixture_loads_in_the_new_daemon_with_defaults() {
     let restored: State = serde_json::from_value(golden["state"].clone()).unwrap();
     // A state saved with its messages loads without a turn; the
     // conversation is the hub's.
-    assert!(restored.durable.turn.is_none());
+    assert!(restored.durable.assistant.turn.is_none());
     assert!(restored.views.account.is_none());
 }
 
@@ -112,13 +112,13 @@ fn an_old_state_fixture_loads_in_the_new_daemon_with_defaults() {
 #[test]
 fn the_turn_in_progress_survives_a_restart() {
     let mut state = state_with_new_fields();
-    if let Some(turn) = state.durable.turn.as_mut() {
+    if let Some(turn) = state.durable.assistant.turn.as_mut() {
         // A typed question: a voice note without its transcript is marked
         // interrupted on restart, which the voice note contract tests cover.
         turn.user.voice = None;
         turn.answer = None;
     }
-    state.durable.active_request = Some("voice-turn".into());
+    state.durable.assistant.active_request = Some("voice-turn".into());
     let saved = serde_json::to_value(&state.durable).unwrap();
     assert!(
         saved.get("messages").is_none(),
@@ -126,8 +126,11 @@ fn the_turn_in_progress_survives_a_restart() {
     );
     let loaded: orbit_core::DurableState = serde_json::from_value(saved).unwrap();
     let recovered = State::from(loaded.recovered());
-    assert_eq!(recovered.durable.turn, state.durable.turn);
-    assert!(recovered.durable.active_request.is_none());
+    assert_eq!(
+        recovered.durable.assistant.turn,
+        state.durable.assistant.turn
+    );
+    assert!(recovered.durable.assistant.active_request.is_none());
     assert_eq!(
         recovered.notice_code(),
         Some(orbit_core::notice::NoticeCode::AssistantTurnLostByRestart)

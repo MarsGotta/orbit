@@ -56,6 +56,7 @@ impl ProjectTopic for Projector {
                 // muted spans travel with the closure, not the topic.
                 recording: state
                     .durable
+                    .capture
                     .recording
                     .clone()
                     .filter(|recording| state.durable.discarding() != Some(recording.id.as_str()))
@@ -75,6 +76,7 @@ impl ProjectTopic for Projector {
                 voice_trigger: source.runtime.and_then(|runtime| runtime.voice_status()),
                 microphone_muted: state
                     .durable
+                    .capture
                     .recording
                     .as_ref()
                     .is_some_and(orbit_core::microphone_mute::recording_muted),
@@ -98,7 +100,7 @@ mod tests {
 
     fn starting_state() -> State {
         let mut state = State::default();
-        state.durable.recording = Some(Recording {
+        state.durable.capture.recording = Some(Recording {
             id: "recording-1".into(),
             title: "Prueba".into(),
             started_at_ms: 10,

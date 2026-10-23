@@ -86,7 +86,7 @@ fn sources_and_tracks_are_additive_on_the_golden_contract() {
         application_name: "Chrome".into(),
         bundle_id: "com.google.Chrome".into(),
     }];
-    state.durable.recording = Some(Recording {
+    state.durable.capture.recording = Some(Recording {
         id: "sources-round-trip".into(),
         title: "Reunión sintética".into(),
         started_at_ms: 1_700_000_000_000,

@@ -44,7 +44,7 @@ fn cancelled_source(runtime: &Runtime, frames: u64) -> Result<String> {
         runtime.conversation.voice_task.active().is_none()
             && runtime.conversation.voice_operation.is_none()
     );
-    assert!(runtime.state.durable.turn.is_none());
+    assert!(runtime.state.durable.assistant.turn.is_none());
     Ok(chunks[0].metadata.id.clone())
 }
 
@@ -99,7 +99,7 @@ async fn helper_loss_preserves_the_voice_prefix_without_provider_submission() ->
     settle_seal_receipts(&mut runtime).await?;
     cancelled_source(&runtime, 100)?;
     assert!(!runtime.state.privacy_stopped());
-    assert!(!runtime.state.durable.voice_active);
+    assert!(!runtime.state.durable.voice.voice_active);
     assert!(runtime.capture.mic_stream.is_none());
     Ok(())
 }
@@ -226,17 +226,17 @@ async fn expected_ptt_busy_refusal_is_local_and_does_not_stop_a_meeting() -> Res
 async fn ptt_refuses_an_active_assistant_turn_before_starting_capture() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
-    runtime.state.durable.active_request = Some("assistant-turn".into());
+    runtime.state.durable.assistant.active_request = Some("assistant-turn".into());
     let before = runtime.state.generation();
     runtime
         .native_event(json!({"event":"hotkey","action":"ptt","phase":"pressed"}))
         .await?;
     assert_eq!(
-        runtime.state.durable.active_request.as_deref(),
+        runtime.state.durable.assistant.active_request.as_deref(),
         Some("assistant-turn")
     );
     assert_eq!(runtime.state.generation(), before);
-    assert!(!runtime.state.durable.voice_active && !runtime.state.privacy_stopped());
+    assert!(!runtime.state.durable.voice.voice_active && !runtime.state.privacy_stopped());
     assert!(runtime.capture.buffer.voice.is_none() && runtime.capture.mic_stream.is_none());
     assert!(receiver.try_recv().is_err());
     Ok(())
@@ -282,6 +282,7 @@ async fn replacing_an_interrupted_meeting_persists_its_closure_with_a_gap() -> R
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("new recording absent")?
@@ -327,6 +328,7 @@ async fn pending_old_pcm_blocks_replacement_without_overwriting_its_identity() -
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("old recording absent")?
@@ -404,6 +406,7 @@ async fn a_gap_during_privacy_drain_remains_attached_to_the_interrupted_recordin
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -426,6 +429,7 @@ async fn a_gap_during_privacy_drain_remains_attached_to_the_interrupted_recordin
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -463,6 +467,7 @@ async fn ptt_only_mic_gap_does_not_corrupt_a_paused_recording() -> Result<()> {
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -488,6 +493,7 @@ async fn abandoning_an_unconfirmed_stop_declares_missing_tail_before_finalizatio
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?

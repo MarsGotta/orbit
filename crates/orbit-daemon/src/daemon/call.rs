@@ -194,12 +194,8 @@ impl Runtime {
             .await;
             anyhow::bail!(cause);
         }
-        let authorization = self
-            .state
-            .durable
-            .call
-            .clone()
-            .context("Llamada sin autorización local")?;
+        let authorization = self.state.durable.voice.call.clone();
+        let authorization = authorization.context("Llamada sin autorización local")?;
         if self.capture.call_runtime.is_some()
             || self.capture.mic_stream.is_some()
             || self.capture.remote_stream.is_some()
@@ -386,7 +382,7 @@ impl Runtime {
         if call.start_request != command_id {
             return Ok(false);
         }
-        if call.closing_at_ms.is_some() || self.state.durable.call.is_none() {
+        if call.closing_at_ms.is_some() || self.state.durable.voice.call.is_none() {
             // The start can open after a stop overtook it. Let the retired
             // start path close the stream identified by this late receipt.
             return Ok(false);
@@ -481,7 +477,7 @@ impl Runtime {
             call.carried = None;
             call.capturing_over_answer = false;
             self.capture.buffer.voice = None;
-            if let Some(state) = self.state.durable.call.as_mut() {
+            if let Some(state) = self.state.durable.voice.call.as_mut() {
                 state.phase = CallPhase::Listening;
             }
         }
@@ -495,7 +491,7 @@ impl Runtime {
         let Some(call) = self.capture.call_runtime.as_ref() else {
             return Ok(TurnAction::None);
         };
-        if call.closing_at_ms.is_some() || self.state.durable.call.is_none() {
+        if call.closing_at_ms.is_some() || self.state.durable.voice.call.is_none() {
             return Ok(TurnAction::None);
         }
         let Some(expected_pipeline) = call.pipeline_id.as_deref() else {
@@ -518,11 +514,11 @@ impl Runtime {
         let policy = VoicePolicy::default();
         let responding = facts.playback_active || self.conversation.speech_task.active().is_some();
         let waiting = self.conversation.voice_task.active().is_some()
-            || self.state.durable.active_request.is_some();
+            || self.state.durable.assistant.active_request.is_some();
         let response_active = responding || waiting;
         let observation = VoiceObservation {
             generation: self.state.generation(),
-            authorized: !self.state.privacy_stopped() && self.state.durable.call.is_some(),
+            authorized: !self.state.privacy_stopped() && self.state.durable.voice.call.is_some(),
             processing_observed: true,
             monotonic_ns: facts.monotonic_ns,
             duration_ns,
@@ -627,6 +623,7 @@ impl Runtime {
         if self
             .state
             .durable
+            .voice
             .call
             .as_ref()
             .is_some_and(|call| call.phase != phase)
@@ -640,7 +637,7 @@ impl Runtime {
     pub(super) async fn finish_call_frame(&mut self, action: TurnAction) -> Result<()> {
         if let TurnAction::Finish { submit } = action {
             self.finish_call_voice(submit).await?;
-            if let Some(call) = self.state.durable.call.as_mut() {
+            if let Some(call) = self.state.durable.voice.call.as_mut() {
                 call.phase = if submit {
                     CallPhase::Waiting
                 } else {

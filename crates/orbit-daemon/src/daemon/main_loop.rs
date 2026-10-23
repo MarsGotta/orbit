@@ -218,7 +218,7 @@ impl MainLoop<'_> {
         if let Some(slow) = watch.end() {
             // Codes and numbers only: which arm, what it served, its
             // slowest step and wait, and whether a meeting was recording.
-            let fields = slow.fields(self.runtime.state.durable.recording.is_some());
+            let fields = slow.fields(self.runtime.state.durable.capture.recording.is_some());
             let fields: Vec<(&str, &str)> = fields
                 .iter()
                 .map(|(name, value)| (*name, value.as_str()))
@@ -407,6 +407,7 @@ impl MainLoop<'_> {
     /// meanwhile that is still unread, and the slowest turn of the period
     /// with its step and wait.
     fn log_stall(&self, late: Duration, slowest: Option<&turn_watch::SlowTurn>) {
+        let recording = self.runtime.state.durable.capture.recording.is_some();
         let mut fields = vec![
             ("stalled_ms", late.as_millis().to_string()),
             (
@@ -415,10 +416,7 @@ impl MainLoop<'_> {
                     .unserved_native_events(self.channels.native_events.len())
                     .to_string(),
             ),
-            (
-                "recording",
-                self.runtime.state.durable.recording.is_some().to_string(),
-            ),
+            ("recording", recording.to_string()),
         ];
         fields.extend(
             slowest

@@ -48,6 +48,7 @@ async fn drained_idle_with_insert_fault(
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -58,6 +59,7 @@ async fn drained_idle_with_insert_fault(
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -164,6 +166,7 @@ async fn replacement_after_insert_failure(
     let ended = runtime
         .state
         .durable
+        .capture
         .recording
         .clone()
         .context("old recording absent")?;
@@ -290,6 +293,7 @@ async fn replacement_insert_failure_keeps_owner_snapshot_and_effects_unchanged()
             .load_snapshot::<State>()?
             .context("snapshot")?
             .durable
+            .capture
             .recording
             .context("recording")?
             .id,
@@ -374,7 +378,7 @@ async fn removing_the_snapshot_owner_preserves_its_closure_atomically() -> Resul
     let database = drained_idle_with_insert_fault(&mut runtime, &mut receiver).await?;
     let previous = runtime.state.clone();
     let mut removed = previous.clone();
-    removed.durable.recording = None;
+    removed.durable.capture.recording = None;
     // Exercise the existing decision boundary; no new public action is introduced.
     let decision = || Decision {
         state: removed.clone(),
@@ -390,13 +394,14 @@ async fn removing_the_snapshot_owner_preserves_its_closure_atomically() -> Resul
     assert!(runtime.fixture_store.get_job("finalize-old")?.is_none());
     database.execute_batch("DROP TRIGGER synthetic_close_failure")?;
     runtime.execute_decision(decision()).await?;
-    assert!(runtime.state.durable.recording.is_none());
+    assert!(runtime.state.durable.capture.recording.is_none());
     assert!(
         runtime
             .fixture_store
             .load_snapshot::<State>()?
             .context("snapshot absent")?
             .durable
+            .capture
             .recording
             .is_none()
     );

@@ -533,11 +533,11 @@ impl Runtime {
                     // absence) cannot advance the phase.
                     if command_kind == "audio_start" {
                         let refused_voice =
-                            self.state.durable.voice_active
-                                && !self.state.durable.recording.as_ref().is_some_and(
+                            self.state.durable.voice.voice_active
+                                && !self.state.durable.capture.recording.as_ref().is_some_and(
                                     |recording| recording.phase.interrupted_on_recovery(),
                                 );
-                        let empty_voice = self.state.durable.voice_active
+                        let empty_voice = self.state.durable.voice.voice_active
                             && self
                                 .capture
                                 .buffer
@@ -740,7 +740,7 @@ impl Runtime {
             "helper_disconnected",
             &[(
                 "recording",
-                if self.state.durable.recording.is_some() {
+                if self.state.durable.capture.recording.is_some() {
                     "true"
                 } else {
                     "false"
@@ -795,7 +795,7 @@ impl Runtime {
                         .await
                 }
                 "call_toggle" if pressed => {
-                    self.apply(if self.state.durable.call.is_some() {
+                    self.apply(if self.state.durable.voice.call.is_some() {
                         Event::CallStop
                     } else {
                         Event::CallStart {
@@ -912,8 +912,13 @@ impl Runtime {
             // stop).
             match orbit_core::failure::classify_gap(&self.state) {
                 Outcome::Degraded { kind, .. } => {
-                    let recording_attributable =
-                        self.state.durable.recording.as_ref().is_some_and(|r| {
+                    let recording_attributable = self
+                        .state
+                        .durable
+                        .capture
+                        .recording
+                        .as_ref()
+                        .is_some_and(|r| {
                             matches!(
                                 r.phase,
                                 CapturePhase::Recording
@@ -949,14 +954,9 @@ impl Runtime {
                             }
                             if !self.state.privacy_stopped()
                                 && !self.audio_is_draining()
-                                && self
-                                    .state
-                                    .durable
-                                    .recording
-                                    .as_ref()
-                                    .is_some_and(|recording| {
-                                        recording.phase == CapturePhase::Recording
-                                    })
+                                && self.state.durable.capture.recording.as_ref().is_some_and(
+                                    |recording| recording.phase == CapturePhase::Recording,
+                                )
                             {
                                 self.say(notice);
                             }
@@ -1090,6 +1090,7 @@ mod result_fixture_tests {
                 runtime
                     .state
                     .durable
+                    .capture
                     .recording
                     .as_ref()
                     .context("shortcut recording")?

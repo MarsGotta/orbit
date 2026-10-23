@@ -131,6 +131,7 @@ impl Runtime {
         let end = self
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .is_none_or(|recording| recording.phase != CapturePhase::Paused);
@@ -157,6 +158,7 @@ impl Runtime {
             && self
                 .state
                 .durable
+                .capture
                 .recording
                 .as_ref()
                 .is_some_and(|r| r.phase == CapturePhase::Starting)
@@ -224,6 +226,7 @@ impl Runtime {
             && self
                 .state
                 .durable
+                .capture
                 .recording
                 .as_ref()
                 .is_some_and(|r| r.phase == CapturePhase::Finalizing)
@@ -252,6 +255,7 @@ impl Runtime {
         if let Some(recording) = self
             .state
             .durable
+            .capture
             .recording
             .as_mut()
             .filter(|recording| recording.id == owner)
@@ -281,6 +285,7 @@ impl Runtime {
         let Some(track) = self
             .state
             .durable
+            .capture
             .recording
             .as_mut()
             .filter(|recording| recording.id == owner)

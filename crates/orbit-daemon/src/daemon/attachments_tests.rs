@@ -86,7 +86,13 @@ async fn chat_send_names_the_files_of_a_hub_that_takes_them() -> Result<()> {
     assert_eq!(frame["method"], "chat.send");
     assert_eq!(frame["params"]["attachments"], json!([PICTURE, NOTES]));
     // The open turn shows the files before the hub's page is read again.
-    let turn = runtime.state.durable.turn.as_ref().context("no turn")?;
+    let turn = runtime
+        .state
+        .durable
+        .assistant
+        .turn
+        .as_ref()
+        .context("no turn")?;
     assert_eq!(turn.user.attachments, sent);
     Ok(())
 }
@@ -1241,7 +1247,7 @@ async fn a_turn_refused_for_its_files_keeps_the_numbers() -> Result<()> {
     assert_eq!(notice["data"]["bytes"], "120");
     assert_eq!(notice["data"]["max_bytes"], "268435456");
     assert_eq!(notice["data"]["stored"], "268435400");
-    assert!(runtime.state.durable.active_request.is_none());
+    assert!(runtime.state.durable.assistant.active_request.is_none());
     Ok(())
 }
 

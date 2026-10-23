@@ -203,6 +203,7 @@ impl Runtime {
     pub(super) fn active_recording_id(&self) -> Option<&str> {
         self.state
             .durable
+            .capture
             .recording
             .as_ref()
             .filter(|recording| {

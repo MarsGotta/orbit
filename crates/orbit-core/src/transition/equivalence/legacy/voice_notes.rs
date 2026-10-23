@@ -1,3 +1,4 @@
+// main's `transition/voice_notes.rs`, copied verbatim; only imports differ. Test-only.
 //! Voice notes in the core: a sealed note becomes the turn's message or
 //! waits on this Mac in the conversation it was spoken in, and is retried,
 //! discarded or dropped when nothing was heard in it.
@@ -5,6 +6,7 @@ use super::{ensure_active, observed_at_ms};
 use crate::model::*;
 use crate::notice::NoticeCode;
 use crate::refusal::Refusal;
+use crate::transition::equivalence::legacy::model::State;
 
 /// The new conversation of the open agent has just been named `id`: the
 /// notes spoken in it before it existed are now that conversation's.
@@ -194,7 +196,7 @@ pub(super) fn decide_voice_retry(state: &State, next: &mut State, id: &str) -> R
     }
     if let Some(at) = next.durable.pending_voice.iter().position(|note| {
         note.message.id == id
-            && note.belongs_to(&next.durable)
+            && crate::transition::equivalence::legacy::model::belongs_to(note, &next.durable)
             && note
                 .message
                 .voice

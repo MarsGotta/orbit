@@ -3,6 +3,6 @@
 use crate::State;
 
 pub(crate) fn stopped_state(mut state: State) -> State {
-    state.durable.privacy_stopped = true;
+    state.durable.privacy.stopped = true;
     state
 }

@@ -337,7 +337,7 @@ async fn thrown_away(runtime: &mut Runtime, helper: &mut mpsc::Receiver<Value>) 
     settle_seal_receipts(runtime).await?;
     // What drained after the stop was never sealed.
     assert_eq!(runtime.reader.list_chunks(LIVE, None, 10)?.len(), 2);
-    assert_eq!(runtime.state.durable.recording, None);
+    assert_eq!(runtime.state.durable.capture.recording, None);
     assert_eq!(
         runtime.state.notice_code(),
         Some(NoticeCode::RecordingDiscarded)
@@ -446,7 +446,13 @@ async fn a_hub_that_cannot_delete_refuses_ending_without_saving() -> Result<()> 
         format!("{refused:#}").contains("Actualiza el hub"),
         "{refused:#}"
     );
-    let recording = runtime.state.durable.recording.as_ref().context("gone")?;
+    let recording = runtime
+        .state
+        .durable
+        .capture
+        .recording
+        .as_ref()
+        .context("gone")?;
     assert_eq!(recording.phase, CapturePhase::Recording);
     assert!(runtime.reader.note_orders()?.is_empty());
     assert_eq!(runtime.reader.list_chunks(LIVE, None, 10)?.len(), 1);

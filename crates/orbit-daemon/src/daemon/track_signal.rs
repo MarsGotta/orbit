@@ -99,6 +99,7 @@ impl Runtime {
             && self
                 .state
                 .durable
+                .capture
                 .recording
                 .as_ref()
                 .map(|recording| recording.id.as_str())
@@ -119,7 +120,7 @@ impl Runtime {
         if let Some(monitor) = &self.capture.audio.meeting.signal
             && self
                 .state
-                .durable.recording
+                .durable.capture.recording
                 .as_ref()
                 .map(|recording| recording.id.as_str())
                 == Some(&monitor.recording_id)

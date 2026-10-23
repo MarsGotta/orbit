@@ -103,7 +103,7 @@ impl Runtime {
 
     pub(super) fn ensure_conversation_can_change(&self) -> Result<()> {
         use orbit_core::refusal::{Operation, Refusal};
-        let operation = if self.state.durable.active_request.is_some() {
+        let operation = if self.state.durable.assistant.active_request.is_some() {
             Some(Operation::Chat)
         } else if self.capture.buffer.voice.is_some() {
             Some(Operation::Audio)
@@ -387,6 +387,7 @@ impl Runtime {
                 let approval = self
                     .state
                     .durable
+                    .assistant
                     .pending_approval
                     .as_ref()
                     .context("No hay ninguna aprobación pendiente")?;
@@ -425,6 +426,7 @@ impl Runtime {
                 let approval = self
                     .state
                     .durable
+                    .assistant
                     .pending_approval
                     .as_ref()
                     .context("No hay ninguna aclaración pendiente")?;

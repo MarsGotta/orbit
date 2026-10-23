@@ -69,7 +69,7 @@ async fn new_and_open_session_retire_the_same_local_verticals() -> Result<()> {
             let fixture_value = serde_json::json!(fixture_source);
             crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
         }
-        runtime.state.durable.pending_approval = Some(Approval {
+        runtime.state.durable.assistant.pending_approval = Some(Approval {
             request_id: "approval".into(),
             description: "fixture".into(),
             clarification: false,
@@ -91,7 +91,7 @@ async fn new_and_open_session_retire_the_same_local_verticals() -> Result<()> {
                 .await?;
             assert!(runtime.state.session_id().is_none());
         }
-        assert!(runtime.state.durable.pending_approval.is_none());
+        assert!(runtime.state.durable.assistant.pending_approval.is_none());
     }
     Ok(())
 }
@@ -110,7 +110,7 @@ async fn each_session_blocker_names_its_cause() -> Result<()> {
             let directory = tempfile::tempdir()?;
             let (mut runtime, _native) = fixture(directory.path())?;
             match cause {
-                "turn" => runtime.state.durable.active_request = Some("turn".into()),
+                "turn" => runtime.state.durable.assistant.active_request = Some("turn".into()),
                 "buffer" => runtime.capture.buffer.begin_voice()?,
                 "transcription" => {
                     runtime.conversation.voice_task.attach_test(
@@ -318,6 +318,7 @@ async fn assert_failed_decision_snapshot_keeps_decision_pending(command: Command
         runtime
             .state
             .durable
+            .voice
             .call
             .as_mut()
             .context("call missing before the source listing")?
@@ -334,7 +335,7 @@ async fn assert_failed_decision_snapshot_keeps_decision_pending(command: Command
         crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
     }
     if interrupt {
-        runtime.state.durable.active_request = Some("turn".into());
+        runtime.state.durable.assistant.active_request = Some("turn".into());
     }
     runtime.store_actor.snapshot(&runtime.state).await?;
     runtime.work.durable_snapshot = DurableSnapshot::from(&runtime.state);
@@ -342,6 +343,7 @@ async fn assert_failed_decision_snapshot_keeps_decision_pending(command: Command
     if interrupt {
         previous
             .durable
+            .voice
             .call
             .as_mut()
             .context("call missing")?
@@ -379,17 +381,21 @@ async fn assert_failed_decision_snapshot_keeps_decision_pending(command: Command
         "{name}: fixture failed before cancel_sources"
     );
     assert_eq!(
-        runtime.state.durable.active_request, previous.durable.active_request,
+        runtime.state.durable.assistant.active_request, previous.durable.assistant.active_request,
         "{name}"
     );
     assert_eq!(runtime.state.session_id(), previous.session_id(), "{name}");
-    assert_eq!(runtime.state.durable.turn, previous.durable.turn, "{name}");
     assert_eq!(
-        runtime.state.durable.pending_approval, previous.durable.pending_approval,
+        runtime.state.durable.assistant.turn, previous.durable.assistant.turn,
         "{name}"
     );
     assert_eq!(
-        runtime.state.durable.call, previous.durable.call,
+        runtime.state.durable.assistant.pending_approval,
+        previous.durable.assistant.pending_approval,
+        "{name}"
+    );
+    assert_eq!(
+        runtime.state.durable.voice.call, previous.durable.voice.call,
         "{name}: failed snapshot lost the post-cancellation call state"
     );
     if interrupt {
@@ -397,6 +403,7 @@ async fn assert_failed_decision_snapshot_keeps_decision_pending(command: Command
             runtime
                 .state
                 .durable
+                .voice
                 .call
                 .as_ref()
                 .context("call lost")?
@@ -491,8 +498,8 @@ async fn interrupt_snapshot_failure_keeps_the_post_predecision_state() -> Result
         native.try_recv().context("source listing")?["command"],
         "screen_sources"
     );
-    runtime.state.durable.active_request = Some("turn-in-flight".into());
-    runtime.state.durable.pending_approval = Some(Approval {
+    runtime.state.durable.assistant.active_request = Some("turn-in-flight".into());
+    runtime.state.durable.assistant.pending_approval = Some(Approval {
         request_id: "turn-in-flight".into(),
         description: "Permiso pendiente".into(),
         clarification: false,
@@ -528,12 +535,12 @@ async fn interrupt_snapshot_failure_keeps_the_post_predecision_state() -> Result
         "fixture failed before the decision snapshot: {error}"
     );
     assert_eq!(
-        runtime.state.durable.active_request,
-        previous.durable.active_request
+        runtime.state.durable.assistant.active_request,
+        previous.durable.assistant.active_request
     );
     assert_eq!(
-        runtime.state.durable.pending_approval,
-        previous.durable.pending_approval
+        runtime.state.durable.assistant.pending_approval,
+        previous.durable.assistant.pending_approval
     );
     let source = runtime
         .state

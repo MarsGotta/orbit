@@ -14,7 +14,7 @@ const UNGRANTED: [PermissionState; 4] = [
 fn assert_fixable(runtime: &Runtime, expected: NoticeCode) {
     assert_eq!(runtime.state.notice_code(), Some(expected));
     assert_eq!(expected.class(), NoticeClass::Fixable);
-    assert!(runtime.state.durable.recording.is_none());
+    assert!(runtime.state.durable.capture.recording.is_none());
     assert!(!runtime.state.privacy_stopped());
 }
 
@@ -32,7 +32,7 @@ async fn voice_note_shortcut_names_the_microphone_permission() -> Result<()> {
             .native_event(json!({"event":"hotkey","action":"ptt","phase":"pressed"}))
             .await?;
         assert_fixable(&runtime, NoticeCode::MicrophonePermissionMissing);
-        assert!(!runtime.state.durable.voice_active);
+        assert!(!runtime.state.durable.voice.voice_active);
         while let Ok(command) = helper.try_recv() {
             assert_ne!(command["command"], "audio_start");
         }

@@ -19,7 +19,7 @@ async fn restarted_with(
     runtime.handle_native_event(frame(&stream, 1, 8_000)).await;
     crate::daemon::audio::tests::settle_seal_receipts(&mut runtime).await?;
     let mut saved = runtime.state.durable.clone();
-    let recording = saved.recording.as_mut().context("recording")?;
+    let recording = saved.capture.recording.as_mut().context("recording")?;
     let last_audio = recording
         .tracks
         .iter()
@@ -29,7 +29,7 @@ async fn restarted_with(
     assert!(last_audio > recording.started_at_ms || recording.sealed_chunks == 2);
     edit(recording);
     runtime.capture.recovery =
-        crate::daemon::cut_recovery::recovery_after_restart(saved.recording.as_ref(), true);
+        crate::daemon::cut_recovery::recovery_after_restart(saved.capture.recording.as_ref(), true);
     runtime.state.durable = saved.recovered();
     runtime.capture.buffer.reset();
     runtime.capture.mic_stream = None;
@@ -49,6 +49,7 @@ fn closed_at(runtime: &Runtime) -> Option<i64> {
     runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .and_then(|recording| recording.ended_at_ms)
@@ -86,6 +87,7 @@ async fn an_interrupted_recording_whose_snapshot_lost_its_counts_is_closed_at_it
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording")?;

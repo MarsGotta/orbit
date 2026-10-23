@@ -258,20 +258,21 @@ impl Runtime {
             .last_liveness
             .and_then(|seen| seen.checked_add(AUDIO_SILENCE_TIMEOUT))
             .is_some_and(|silent_at| now < silent_at);
-        let meeting_is_draining = self
-            .state
-            .durable
-            .recording
-            .as_ref()
-            .is_some_and(|recording| {
-                matches!(
-                    recording.phase,
-                    CapturePhase::Starting
-                        | CapturePhase::Recording
-                        | CapturePhase::Paused
-                        | CapturePhase::Finalizing
-                )
-            });
+        let meeting_is_draining =
+            self.state
+                .durable
+                .capture
+                .recording
+                .as_ref()
+                .is_some_and(|recording| {
+                    matches!(
+                        recording.phase,
+                        CapturePhase::Starting
+                            | CapturePhase::Recording
+                            | CapturePhase::Paused
+                            | CapturePhase::Finalizing
+                    )
+                });
         hard_limit_reached
             && helper_is_live
             && self.capture.call_runtime.is_some()

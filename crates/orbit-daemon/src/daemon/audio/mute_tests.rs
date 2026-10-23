@@ -241,6 +241,7 @@ async fn a_mute_the_helper_does_not_confirm_is_never_shown() -> Result<()> {
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording")?;
@@ -269,6 +270,7 @@ async fn the_next_recording_starts_unmuted() -> Result<()> {
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .map(|r| r.phase.clone()),
@@ -341,11 +343,11 @@ async fn oye_deimos_is_not_heard_while_muted_and_no_note_is_dictated() -> Result
     let told = said::told(&runtime);
     assert!(told.contains(r#""ignored":"microphone_muted""#), "{told}");
     assert!(
-        runtime.state.durable.active_request.is_none(),
+        runtime.state.durable.assistant.active_request.is_none(),
         "no turn left"
     );
     assert!(runtime.apply(Event::VoiceStart).await.is_err());
-    assert!(!runtime.state.durable.voice_active);
+    assert!(!runtime.state.durable.voice.voice_active);
     assert_no_helper_command(&mut helper)?;
     Ok(())
 }

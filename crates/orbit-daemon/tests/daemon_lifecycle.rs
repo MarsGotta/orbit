@@ -107,7 +107,7 @@ fn a_restart_nobody_stopped_comes_back_working() -> anyhow::Result<()> {
     let mut snapshot = store
         .load_snapshot::<State>()?
         .ok_or_else(|| anyhow::anyhow!("the first daemon left no snapshot"))?;
-    snapshot.durable.recording = Some(Recording {
+    snapshot.durable.capture.recording = Some(Recording {
         id: "crashed-recording".into(),
         title: "Reunión sintética".into(),
         started_at_ms: 1_000,
@@ -187,7 +187,7 @@ fn real_restart_closes_a_user_stopped_empty_recording_before_ready() -> anyhow::
         .load_snapshot::<State>()?
         .ok_or_else(|| anyhow::anyhow!("the first daemon left no snapshot"))?;
     assert!(snapshot.privacy_stopped(), "the fixture lost Alina's stop");
-    snapshot.durable.recording = Some(Recording {
+    snapshot.durable.capture.recording = Some(Recording {
         id: "user-interrupted-empty".into(),
         title: "Reunión de Alina".into(),
         started_at_ms: 1_000,
@@ -248,7 +248,7 @@ fn real_restart_closes_a_user_stopped_empty_recording_before_ready() -> anyhow::
         },
         2_000,
     )?;
-    assert!(call.state.durable.call.is_some());
+    assert!(call.state.durable.voice.call.is_some());
     Ok(())
 }
 
@@ -273,7 +273,7 @@ fn real_restart_names_a_capture_that_was_live_in_the_snapshot() -> anyhow::Resul
     let mut snapshot = store
         .load_snapshot::<State>()?
         .ok_or_else(|| anyhow::anyhow!("the first daemon left no snapshot"))?;
-    snapshot.durable.recording = Some(Recording {
+    snapshot.durable.capture.recording = Some(Recording {
         id: "live-before-restart".into(),
         title: "Reunión activa".into(),
         started_at_ms: 1_000,
@@ -354,7 +354,7 @@ fn real_startup_recovers_a_durable_call_lifecycle_without_restoring_authority() 
     let store_path = path.join("store");
     let mut store = Store::open(&store_path, key)?;
     let mut snapshot = store.load_snapshot::<State>()?.unwrap();
-    snapshot.durable.call = Some(CallState {
+    snapshot.durable.voice.call = Some(CallState {
         id: "crashed-call".into(),
         phase: CallPhase::Listening,
         started_at_ms: 10,
@@ -362,7 +362,7 @@ fn real_startup_recovers_a_durable_call_lifecycle_without_restoring_authority() 
         turns: 0,
         origin: orbit_core::CallOrigin::App,
     });
-    snapshot.durable.active_request = Some("uncertain-do-not-replay".into());
+    snapshot.durable.assistant.active_request = Some("uncertain-do-not-replay".into());
     store.save_snapshot(&snapshot)?;
     store.enqueue_job(&Job {
         id: "recording-crashed-call".into(),

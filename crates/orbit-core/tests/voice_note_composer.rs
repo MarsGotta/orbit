@@ -60,6 +60,7 @@ fn failed_note(id: &str, code: &str) -> State {
 fn note_failure(state: &State) -> Option<String> {
     state
         .durable
+        .assistant
         .turn
         .as_ref()
         .and_then(|turn| turn.user.voice.as_ref())
@@ -85,9 +86,9 @@ fn the_new_orders_have_their_wire_names_and_belong_to_the_assistant() {
 #[test]
 fn esc_ends_the_note_without_finishing_it_for_sending() {
     let recording = decide(&ready(), Event::VoiceStart, 1).unwrap().state;
-    assert!(recording.durable.voice_active);
+    assert!(recording.durable.voice.voice_active);
     let cancelled = decide(&recording, Event::VoiceCancel, 2).unwrap();
-    assert!(!cancelled.state.durable.voice_active);
+    assert!(!cancelled.state.durable.voice.voice_active);
     assert_eq!(cancelled.effects, vec![Effect::CancelVoice]);
     // With no note recording there is nothing to cancel.
     let idle = decide(&ready(), Event::VoiceCancel, 3).unwrap();

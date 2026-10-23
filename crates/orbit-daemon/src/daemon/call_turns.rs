@@ -57,7 +57,8 @@ impl Runtime {
     ) -> Result<()> {
         // Over Deimos's answer (he speaks, or works on one) a turn
         // stops nothing yet: it is heard first (`hear_over_answer`).
-        let over_answer = interrupt && (responding || self.state.durable.active_request.is_some());
+        let over_answer =
+            interrupt && (responding || self.state.durable.assistant.active_request.is_some());
         let joined = if interrupt {
             self.joinable_turn()
         } else {
@@ -73,13 +74,9 @@ impl Runtime {
             // The joined turn goes on in this one: its own note,
             // whose audio this turn now carries, leaves the
             // conversation instead of staying as «Va junto…».
+            let open_turn = self.state.durable.assistant.turn.as_ref();
             if let Some(joined) = joined.as_ref()
-                && self
-                    .state
-                    .durable
-                    .turn
-                    .as_ref()
-                    .is_some_and(|turn| turn.user.id == joined.operation_id)
+                && open_turn.is_some_and(|turn| turn.user.id == joined.operation_id)
             {
                 self.drop_unheard_voice_note(&joined.operation_id, "joined_next_turn")
                     .await?;
@@ -135,7 +132,7 @@ impl Runtime {
     fn joinable_turn(&mut self) -> Option<CallTurnAudio> {
         self.conversation.voice_task.active()?;
         let operation = self.conversation.voice_operation.clone()?;
-        let answered = self.state.durable.active_request.is_some();
+        let answered = self.state.durable.assistant.active_request.is_some();
         let call = self.capture.call_runtime.as_mut()?;
         // A turn spoken over Deimos's answer never reached him: whatever he
         // is doing, the user's next words carry it.
@@ -225,7 +222,7 @@ impl Runtime {
     /// user may be saying meanwhile survives the interrupt, which retires
     /// the call's turn in course.
     pub(in crate::daemon) async fn interrupt_for_accepted_turn(&mut self) -> Result<()> {
-        let answering = self.state.durable.active_request.is_some()
+        let answering = self.state.durable.assistant.active_request.is_some()
             || self.conversation.speech_task.active().is_some()
             || self
                 .capture

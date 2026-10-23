@@ -174,7 +174,7 @@ async fn a_failed_seal_retry_does_not_skip_the_rest_of_the_turn() -> Result<()> 
     std::fs::create_dir(&blocked)?;
     runtime.capture.seal_retry_at = None;
     // Old enough that the finalize deadline fires on this very turn.
-    if let Some(recording) = runtime.state.durable.recording.as_mut() {
+    if let Some(recording) = runtime.state.durable.capture.recording.as_mut() {
         recording.finalizing_since_ms = recording
             .finalizing_since_ms
             .map(|since| since.saturating_sub(orbit_core::FINALIZING_TIMEOUT_MS + 1_000));
@@ -192,6 +192,7 @@ async fn a_failed_seal_retry_does_not_skip_the_rest_of_the_turn() -> Result<()> 
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording")?
@@ -252,7 +253,7 @@ async fn a_failed_stopped_audio_flush_does_not_skip_the_rest_of_the_turn() -> Re
     // hand with the phase: the natural FinishMeeting path is unavailable
     // here (the user's latched stop closes the recording locally instead of
     // parking it in `Finalizing`).
-    if let Some(recording) = runtime.state.durable.recording.as_mut() {
+    if let Some(recording) = runtime.state.durable.capture.recording.as_mut() {
         recording.phase = orbit_core::CapturePhase::Finalizing;
         recording.finalizing_since_ms = Some(0);
     }
@@ -269,6 +270,7 @@ async fn a_failed_stopped_audio_flush_does_not_skip_the_rest_of_the_turn() -> Re
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording")?

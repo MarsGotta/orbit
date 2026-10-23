@@ -268,7 +268,13 @@ fn live_recording() -> State {
     .unwrap()
     .state;
     let mut recording = decide(&started, Event::CaptureStarted, 1).unwrap().state;
-    recording.durable.recording.as_mut().unwrap().sealed_chunks = 7;
+    recording
+        .durable
+        .capture
+        .recording
+        .as_mut()
+        .unwrap()
+        .sealed_chunks = 7;
     recording
 }
 
@@ -396,7 +402,7 @@ fn a_cut_interrupts_the_capture_says_why_and_latches_nothing() {
     .unwrap();
     assert!(!decision.state.privacy_stopped());
     assert_eq!(decision.state.privacy_stop_by(), None);
-    let recording = decision.state.durable.recording.as_ref().unwrap();
+    let recording = decision.state.durable.capture.recording.as_ref().unwrap();
     assert_eq!(recording.phase, CapturePhase::Interrupted);
     assert_eq!(recording.sealed_chunks, 7);
     assert_eq!(
@@ -446,7 +452,14 @@ fn closing_cuts_and_retires_network_without_latching() {
     .unwrap();
     assert!(!decision.state.privacy_stopped());
     assert_eq!(
-        decision.state.durable.recording.as_ref().unwrap().phase,
+        decision
+            .state
+            .durable
+            .capture
+            .recording
+            .as_ref()
+            .unwrap()
+            .phase,
         CapturePhase::Interrupted
     );
     assert_eq!(decision.state.generation(), state.generation() + 1);

@@ -209,6 +209,7 @@ async fn a_loop_held_fifteen_seconds_keeps_sealing_and_uploading_on_schedule() -
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording")?;

@@ -212,13 +212,16 @@ async fn two_startup_stops_do_not_replace_a_user_stopped_runtime_snapshot() -> R
         serde_json::json!(orbit_core::privacy_stop::StopRequester::User),
     );
     crate::daemon::authority_fixture::set(&mut runtime, "generation", serde_json::json!(1));
-    runtime.durable.active_request = Some("runtime-recovered-request".into());
+    runtime.durable.assistant.active_request = Some("runtime-recovered-request".into());
     actor.critical_snapshot(&runtime).await?;
     let saved = Store::open_existing(&path, key)?
         .load_snapshot::<DurableState>()?
         .context("runtime snapshot absent")?;
     assert_eq!(saved.generation(), runtime.generation());
-    assert_eq!(saved.active_request, runtime.durable.active_request);
+    assert_eq!(
+        saved.assistant.active_request,
+        runtime.durable.assistant.active_request
+    );
     assert_eq!(saved.privacy_stop_by(), runtime.privacy_stop_by());
     Ok(())
 }
@@ -441,6 +444,7 @@ async fn status_does_not_wait_for_forty_slow_seals() -> Result<()> {
             runtime
                 .state
                 .durable
+                .capture
                 .recording
                 .as_ref()
                 .context("recording absent")?
@@ -455,6 +459,7 @@ async fn status_does_not_wait_for_forty_slow_seals() -> Result<()> {
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -497,6 +502,7 @@ async fn upload_scheduler_does_not_await_behind_admitted_seals() -> Result<()> {
     runtime
         .state
         .durable
+        .capture
         .recording
         .as_mut()
         .context("recording absent")?
@@ -952,6 +958,7 @@ async fn sealed_chunks_wait_for_the_durable_receipt() -> Result<()> {
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -974,6 +981,7 @@ async fn sealed_chunks_wait_for_the_durable_receipt() -> Result<()> {
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -991,6 +999,7 @@ async fn sealed_chunks_wait_for_the_durable_receipt() -> Result<()> {
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -1031,6 +1040,7 @@ async fn exhausting_the_64mib_reserve_still_declares_the_loss() -> Result<()> {
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;

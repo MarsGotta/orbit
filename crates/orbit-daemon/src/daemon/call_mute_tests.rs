@@ -41,6 +41,7 @@ async fn a_muted_call_opens_no_turn_never_hangs_up_for_silence_and_listens_again
     let started = runtime
         .state
         .durable
+        .voice
         .call
         .as_ref()
         .context("call absent")?
@@ -61,7 +62,7 @@ async fn a_muted_call_opens_no_turn_never_hangs_up_for_silence_and_listens_again
         .await?;
     assert_eq!(action, orbit_core::voice::TurnAction::None);
     assert!(
-        runtime.state.durable.call.is_some(),
+        runtime.state.durable.voice.call.is_some(),
         "three minutes muted are not silence that hangs up"
     );
     set_muted(&mut runtime, &mut helper, &stream, false).await?;

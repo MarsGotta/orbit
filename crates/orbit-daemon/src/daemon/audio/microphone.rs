@@ -37,7 +37,7 @@ impl Runtime {
         self.capture.call_runtime.is_none()
             && match holder {
                 Holder::Meeting => self.recording_active(),
-                Holder::VoiceNote => self.state.durable.voice_active,
+                Holder::VoiceNote => self.state.durable.voice.voice_active,
             }
     }
 

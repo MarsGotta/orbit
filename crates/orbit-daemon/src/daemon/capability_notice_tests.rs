@@ -111,6 +111,7 @@ async fn voice_wav_is_readable_by_message_id_and_transcript_is_optional() -> Res
     let pending = &runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .context("nota ausente")?
@@ -145,6 +146,7 @@ async fn voice_wav_is_readable_by_message_id_and_transcript_is_optional() -> Res
     let completed = &runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .context("nota ausente")?
@@ -207,6 +209,7 @@ async fn failed_hub_transcription_replaces_pending_note_with_cause() -> Result<(
     let message_id = runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .context("nota ausente")?
@@ -229,6 +232,7 @@ async fn failed_hub_transcription_replaces_pending_note_with_cause() -> Result<(
         &runtime
             .state
             .durable
+            .assistant
             .turn
             .as_ref()
             .context("nota perdida")?
@@ -252,6 +256,7 @@ async fn failed_hub_transcription_replaces_pending_note_with_cause() -> Result<(
     let saved_note = Some(
         &saved
             .durable
+            .assistant
             .turn
             .as_ref()
             .context("note not persisted")?
@@ -346,7 +351,7 @@ async fn speech_unavailable_is_specific_and_once_per_call() -> Result<()> {
 
     let directory = tempfile::tempdir()?;
     let (mut runtime, _helper) = fixture(directory.path())?;
-    runtime.state.durable.call = Some(CallState {
+    runtime.state.durable.voice.call = Some(CallState {
         id: "call-speech".into(),
         phase: CallPhase::Responding,
         started_at_ms: 1,
@@ -407,7 +412,7 @@ async fn speech_refusal_reaches_the_assistant_topic_as_a_code() -> Result<()> {
             fixture_value,
         );
     }
-    runtime.state.durable.turn = Some(orbit_core::Turn {
+    runtime.state.durable.assistant.turn = Some(orbit_core::Turn {
         user: orbit_core::Message {
             attachments: Vec::new(),
             id: "speech-refusal".into(),

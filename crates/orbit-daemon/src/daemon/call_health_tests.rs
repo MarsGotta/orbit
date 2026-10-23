@@ -21,7 +21,7 @@ fn last_logged(directory: &std::path::Path, event: &str) -> Result<Value> {
 }
 
 fn call_alive(runtime: &Runtime) -> bool {
-    runtime.state.durable.call.is_some()
+    runtime.state.durable.voice.call.is_some()
         && runtime
             .capture
             .call_runtime
@@ -127,6 +127,7 @@ async fn deimos_speaking_a_minute_after_the_users_last_turn_keeps_the_call() -> 
     let started = runtime
         .state
         .durable
+        .voice
         .call
         .as_ref()
         .context("call absent")?

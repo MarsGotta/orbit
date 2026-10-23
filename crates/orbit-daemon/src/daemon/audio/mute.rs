@@ -72,12 +72,14 @@ impl Runtime {
             return self
                 .state
                 .durable
+                .voice
                 .call
                 .as_ref()
                 .map(|call| Holder::Call(call.id.clone()));
         }
         self.state
             .durable
+            .capture
             .recording
             .as_ref()
             .filter(|recording| recording.ended_at_ms.is_none())
@@ -92,6 +94,7 @@ impl Runtime {
                 == self
                     .state
                     .durable
+                    .voice
                     .call
                     .as_ref()
                     .map(|call| call.id.as_str())
@@ -101,6 +104,7 @@ impl Runtime {
     pub(in crate::daemon) fn meeting_microphone_muted(&self) -> bool {
         self.state
             .durable
+            .capture
             .recording
             .as_ref()
             .is_some_and(microphone_mute::recording_muted)
@@ -125,12 +129,14 @@ impl Runtime {
             Holder::Meeting(_) => self
                 .state
                 .durable
+                .capture
                 .recording
                 .as_ref()
                 .is_some_and(|recording| recording.phase == CapturePhase::Recording),
             Holder::Call(_) => self
                 .state
                 .durable
+                .voice
                 .call
                 .as_ref()
                 .is_some_and(|call| call.phase != CallPhase::Starting),
@@ -138,7 +144,7 @@ impl Runtime {
         if !listening {
             anyhow::bail!("El micrófono aún no graba: espera a que empiece para silenciarlo");
         }
-        if matches!(holder, Holder::Meeting(_)) && self.state.durable.voice_active {
+        if matches!(holder, Holder::Meeting(_)) && self.state.durable.voice.voice_active {
             anyhow::bail!("Termina la nota de voz antes de silenciar el micrófono");
         }
         if self.capture.audio.mute.order.is_some() {
@@ -153,7 +159,7 @@ impl Runtime {
         }
         if muted
             && matches!(holder, Holder::Meeting(_))
-            && let Some(recording) = self.state.durable.recording.as_ref()
+            && let Some(recording) = self.state.durable.capture.recording.as_ref()
         {
             microphone_mute::may_mute(&recording.muted_spans)?;
         }
@@ -233,7 +239,7 @@ impl Runtime {
         match holder {
             Holder::Call(id) => self.capture.audio.mute.call = muted.then(|| id.clone()),
             Holder::Meeting(_) => {
-                let Some(recording) = self.state.durable.recording.as_mut() else {
+                let Some(recording) = self.state.durable.capture.recording.as_mut() else {
                     return;
                 };
                 let at_ms = now().saturating_sub(recording.started_at_ms);
@@ -277,6 +283,7 @@ impl Runtime {
     ) -> Option<Vec<microphone_mute::MutedSpan>> {
         self.state
             .durable
+            .capture
             .recording
             .as_ref()
             .filter(|recording| recording.id == recording_id && !recording.muted_spans.is_empty())

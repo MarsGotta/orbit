@@ -125,6 +125,7 @@ async fn engine_capture_returns_to_actor_while_upload_is_held() -> Result<()> {
         h.runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("no recording")?

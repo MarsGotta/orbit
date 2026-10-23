@@ -54,7 +54,7 @@ async fn a_long_title_refusal_names_the_title_its_length_and_the_maximum() -> Re
     );
     // Nothing started: no helper order and no recording.
     crate::daemon::audio::tests::assert_no_helper_command(&mut receiver)?;
-    assert!(runtime.state.durable.recording.is_none());
+    assert!(runtime.state.durable.capture.recording.is_none());
     // The neighbouring gates keep their own causes, not the title's numbers.
     let empty = runtime
         .command(Command::MeetingStart {
@@ -83,6 +83,7 @@ async fn a_long_title_refusal_names_the_title_its_length_and_the_maximum() -> Re
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -111,6 +112,7 @@ async fn every_recording_runs_to_the_one_safety_ceiling() -> Result<()> {
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;

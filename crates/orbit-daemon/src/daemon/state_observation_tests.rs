@@ -87,7 +87,7 @@ async fn chat_send_declares_an_active_call() -> Result<()> {
     let (mut runtime, _helper) = fixture(directory.path())?;
     let (hub, mut hub_frames) = mpsc::channel(16);
     runtime.hub.install(hub);
-    runtime.state.durable.call = Some(CallState {
+    runtime.state.durable.voice.call = Some(CallState {
         id: "20000000-0000-4000-8000-000000000006".into(),
         phase: CallPhase::Listening,
         started_at_ms: 1_000,
@@ -132,6 +132,7 @@ async fn chat_turn_messages_carry_increasing_at_ms() -> Result<()> {
     let turn = runtime
         .state
         .durable
+        .assistant
         .active_request
         .clone()
         .context("turno activo ausente")?;
@@ -151,6 +152,7 @@ async fn chat_turn_messages_carry_increasing_at_ms() -> Result<()> {
     let turn = runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .context("turno ausente")?;
@@ -309,6 +311,7 @@ async fn helper_permissions_feed_the_state_and_capture() -> Result<()> {
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .is_some_and(|recording| recording.phase == CapturePhase::Starting)

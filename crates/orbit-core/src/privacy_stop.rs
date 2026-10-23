@@ -104,22 +104,28 @@ pub fn latches(code: &str) -> bool {
 /// one nobody can attribute. The hub's revocation stops capture in the helper
 /// without writing it, because it is not carried across a restart.
 pub fn latches_helper(state: &State) -> bool {
-    state.durable.privacy_stopped
-        && state.durable.privacy_stop_by != Some(StopRequester::Revocation)
+    state.durable.privacy.stopped
+        && state.durable.privacy.stop_by != Some(StopRequester::Revocation)
 }
 
 /// True while something can still be capturing: a recording that has not
 /// been interrupted, paused or closed, a call or a push-to-talk note.
 pub fn capture_live(state: &State) -> bool {
-    state.durable.recording.as_ref().is_some_and(|recording| {
-        matches!(
-            recording.phase,
-            crate::CapturePhase::Starting
-                | crate::CapturePhase::Recording
-                | crate::CapturePhase::Finalizing
-        )
-    }) || state.durable.call.is_some()
-        || state.durable.voice_active
+    state
+        .durable
+        .capture
+        .recording
+        .as_ref()
+        .is_some_and(|recording| {
+            matches!(
+                recording.phase,
+                crate::CapturePhase::Starting
+                    | crate::CapturePhase::Recording
+                    | crate::CapturePhase::Finalizing
+            )
+        })
+        || state.durable.voice.call.is_some()
+        || state.durable.voice.voice_active
 }
 
 /// What one former automatic stop does now.

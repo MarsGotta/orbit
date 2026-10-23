@@ -73,6 +73,7 @@ fn failure_marks_only_the_pending_note_and_cannot_replace_a_transcript() {
         failed
             .state
             .durable
+            .assistant
             .turn
             .as_ref()
             .expect("turn")
@@ -96,6 +97,7 @@ fn failure_marks_only_the_pending_note_and_cannot_replace_a_transcript() {
         unrelated
             .state
             .durable
+            .assistant
             .turn
             .as_ref()
             .expect("turn")
@@ -108,6 +110,7 @@ fn failure_marks_only_the_pending_note_and_cannot_replace_a_transcript() {
     let mut complete = failed.state;
     complete
         .durable
+        .assistant
         .turn
         .as_mut()
         .expect("turn")
@@ -136,6 +139,7 @@ fn failure_marks_only_the_pending_note_and_cannot_replace_a_transcript() {
     assert_eq!(
         late.state
             .durable
+            .assistant
             .turn
             .as_ref()
             .expect("turn")
@@ -199,6 +203,7 @@ fn restart_marks_a_pending_voice_note_as_interrupted_instead_of_in_progress() {
     assert_eq!(
         recovered
             .durable
+            .assistant
             .turn
             .as_ref()
             .expect("turn")
@@ -233,6 +238,7 @@ fn a_voice_note_is_stored_without_the_hub() {
     assert_eq!(
         state
             .durable
+            .assistant
             .turn
             .as_ref()
             .map(|turn| turn.user.id.as_str()),
@@ -276,6 +282,7 @@ fn a_replaced_voice_note_waits_on_the_mac_and_can_be_retried() {
     assert_eq!(
         chatted
             .durable
+            .assistant
             .pending_voice
             .iter()
             .map(|note| note.message.id.as_str())
@@ -289,12 +296,12 @@ fn a_replaced_voice_note_waits_on_the_mac_and_can_be_retried() {
     .recovered()
     .into();
     assert_eq!(
-        restarted.durable.pending_voice.len(),
+        restarted.durable.assistant.pending_voice.len(),
         1,
         "kept across a restart"
     );
     let mut answered = chatted.clone();
-    answered.durable.active_request = None;
+    answered.durable.assistant.active_request = None;
     let retried = decide(
         &answered,
         Event::VoiceRetry {
@@ -304,8 +311,8 @@ fn a_replaced_voice_note_waits_on_the_mac_and_can_be_retried() {
     )
     .unwrap()
     .state;
-    assert!(retried.durable.pending_voice.is_empty());
-    let turn = retried.durable.turn.as_ref().unwrap();
+    assert!(retried.durable.assistant.pending_voice.is_empty());
+    let turn = retried.durable.assistant.turn.as_ref().unwrap();
     assert_eq!(turn.user.id, "nota-fallida");
     assert_eq!(turn.user.voice.as_ref().unwrap().failure, None);
 }
@@ -343,7 +350,7 @@ fn a_full_list_of_waiting_voice_notes_refuses_the_next_with_its_count() {
         }),
         attachments: Vec::new(),
     };
-    state.durable.pending_voice = (0..orbit_core::MAX_PENDING_VOICE_NOTES)
+    state.durable.assistant.pending_voice = (0..orbit_core::MAX_PENDING_VOICE_NOTES)
         .map(|index| orbit_core::PendingVoiceNote {
             message: Message {
                 id: format!("nota-{index}"),

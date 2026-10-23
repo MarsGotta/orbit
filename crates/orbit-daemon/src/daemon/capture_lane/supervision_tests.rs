@@ -123,6 +123,7 @@ impl Meeting {
         self.runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .map(|recording| recording.gaps)

@@ -52,7 +52,7 @@ async fn event_sequence_preserves_frames_revisions_and_recomputation() -> anyhow
                 runtime.hub_event(event).await?;
             }
             3 => {
-                runtime.state.durable.turn = Some(Turn {
+                runtime.state.durable.assistant.turn = Some(Turn {
                     user: Message {
                         attachments: Vec::new(),
                         id: "question".into(),
@@ -271,8 +271,8 @@ async fn decoded_chat_events_publish_their_facts_and_pong_keeps_the_revision() -
                 serde_json::json!(SESSION),
             );
         }
-        runtime.state.durable.active_request = Some(REQUEST.into());
-        runtime.state.durable.turn = Some(Turn {
+        runtime.state.durable.assistant.active_request = Some(REQUEST.into());
+        runtime.state.durable.assistant.turn = Some(Turn {
             user: Message {
                 attachments: Vec::new(),
                 id: REQUEST.into(),
@@ -346,7 +346,7 @@ fn a_short_recording_does_not_publish_an_intermediate_notes_head_before_its_cade
         now_ms: 0,
     });
     let recording_id = "00000000-0000-4000-8000-000000000001";
-    runtime.state.durable.recording = Some(orbit_core::Recording {
+    runtime.state.durable.capture.recording = Some(orbit_core::Recording {
         id: recording_id.into(),
         title: "Prueba".into(),
         started_at_ms: 0,
@@ -373,7 +373,7 @@ fn a_short_recording_does_not_publish_an_intermediate_notes_head_before_its_cade
         1,
         "a recording command must keep the Notes cadence"
     );
-    runtime.state.durable.recording = None;
+    runtime.state.durable.capture.recording = None;
     runtime.features.notes.head.touch_recording(recording_id);
     board.state_changed();
     board.publish(&TopicSource {

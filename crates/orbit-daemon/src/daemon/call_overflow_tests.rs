@@ -19,7 +19,7 @@ async fn emergency_queue_overflow_marks_the_continuous_original_incomplete() -> 
             origin: orbit_core::CallOrigin::App,
         })
         .await?;
-    assert!(runtime.state.durable.recording.is_none());
+    assert!(runtime.state.durable.capture.recording.is_none());
     let metadata = orbit_store::ChunkMetadata {
         capture_epoch_id: None,
         id: "overflow-call-mic-0".into(),

@@ -87,6 +87,7 @@ async fn reconnect_restores_only_the_selected_sessions_unanswered_questions() ->
         runtime
             .state
             .durable
+            .assistant
             .pending_approval
             .as_ref()
             .context("missing pending")?
@@ -94,30 +95,31 @@ async fn reconnect_restores_only_the_selected_sessions_unanswered_questions() ->
         "question-one"
     );
     assert_eq!(
-        runtime.state.durable.active_request.as_deref(),
+        runtime.state.durable.assistant.active_request.as_deref(),
         Some("10000000-0000-0000-0000-000000000001")
     );
     runtime
         .reconcile_snapshot(&snapshot(1, "selected", json!([])))
         .await?;
-    assert!(runtime.state.durable.pending_approval.is_some());
+    assert!(runtime.state.durable.assistant.pending_approval.is_some());
     runtime
         .reconcile_snapshot(&snapshot(3, "another-session", json!([])))
         .await?;
-    assert!(runtime.state.durable.pending_approval.is_some());
+    assert!(runtime.state.durable.assistant.pending_approval.is_some());
     runtime
         .reconcile_snapshot(&snapshot(4, "selected", json!([])))
         .await?;
-    assert!(runtime.state.durable.pending_approval.is_none());
-    runtime.state.durable.active_request = Some("20000000-0000-0000-0000-000000000002".into());
+    assert!(runtime.state.durable.assistant.pending_approval.is_none());
+    runtime.state.durable.assistant.active_request =
+        Some("20000000-0000-0000-0000-000000000002".into());
     runtime
         .reconcile_snapshot(&snapshot(5, "selected", json!([question()])))
         .await?;
     assert_eq!(
-        runtime.state.durable.active_request.as_deref(),
+        runtime.state.durable.assistant.active_request.as_deref(),
         Some("20000000-0000-0000-0000-000000000002")
     );
-    assert!(runtime.state.durable.pending_approval.is_none());
+    assert!(runtime.state.durable.assistant.pending_approval.is_none());
     assert!(
         runtime.hub.is_none(),
         "reconciliation does not invoke or resume Hermes"
@@ -145,7 +147,7 @@ async fn response_is_not_applied_optimistically_and_expired_is_not_success() -> 
             choice: None,
         })
         .await?;
-    assert!(runtime.state.durable.pending_approval.is_some());
+    assert!(runtime.state.durable.assistant.pending_approval.is_some());
     assert_eq!(runtime.state.notice_code(), Some(NoticeCode::ApprovalSent));
     assert!(
         runtime
@@ -162,7 +164,7 @@ async fn response_is_not_applied_optimistically_and_expired_is_not_success() -> 
         "10000000-0000-0000-0000-000000000001"
     );
     runtime.interaction_result("interaction.expired", &json!({"id":command["id"],"data":{"status":"expired","applied":false,"request_id":"question-one","session_id":"selected"}})).await?;
-    assert!(runtime.state.durable.pending_approval.is_none());
+    assert!(runtime.state.durable.assistant.pending_approval.is_none());
     assert_eq!(
         runtime.state.notice_code(),
         Some(NoticeCode::ApprovalExpired)
@@ -202,7 +204,7 @@ async fn malformed_or_misbound_receipts_cannot_claim_an_approval_was_applied() -
                 &json!({"id":"response","data":data}),
             )
             .await?;
-        assert!(runtime.state.durable.pending_approval.is_some());
+        assert!(runtime.state.durable.assistant.pending_approval.is_some());
         assert_eq!(
             runtime.state.notice_code(),
             Some(NoticeCode::ApprovalOutcomeUnknown)
@@ -260,6 +262,7 @@ async fn historical_receipt_cannot_clear_a_new_snapshot_question_with_the_same_i
         let pending = runtime
             .state
             .durable
+            .assistant
             .pending_approval
             .as_ref()
             .context("replacement lost")?;
@@ -275,8 +278,8 @@ async fn historical_receipt_cannot_clear_a_new_snapshot_question_with_the_same_i
             .load_snapshot()?
             .context("snapshot absent")?;
         assert_eq!(
-            durable.durable.pending_approval,
-            runtime.state.durable.pending_approval
+            durable.durable.assistant.pending_approval,
+            runtime.state.durable.assistant.pending_approval
         );
         assert_eq!(runtime.snapshot_revision, Some(2));
         assert!(runtime.hub.is_none());
@@ -302,7 +305,7 @@ async fn historical_expiration_does_not_expire_a_replacement_question() -> Resul
         .interaction_result("interaction.expired", &historical_receipt(false))
         .await?;
     assert!(runtime.conversation.interaction_response.is_none());
-    assert!(runtime.state.durable.pending_approval.is_some());
+    assert!(runtime.state.durable.assistant.pending_approval.is_some());
     assert_eq!(
         runtime.state.notice_code(),
         Some(NoticeCode::ApprovalReceiptStale)
@@ -330,8 +333,8 @@ async fn historical_receipt_does_not_resurrect_a_terminal_snapshot() -> Result<(
         .interaction_result("interaction.resolved", &historical_receipt(true))
         .await?;
     assert!(runtime.conversation.interaction_response.is_none());
-    assert!(runtime.state.durable.pending_approval.is_none());
-    assert!(runtime.state.durable.active_request.is_none());
+    assert!(runtime.state.durable.assistant.pending_approval.is_none());
+    assert!(runtime.state.durable.assistant.active_request.is_none());
     assert_eq!(runtime.snapshot_revision, Some(2));
     assert_eq!(
         runtime.state.notice_code(),
@@ -365,7 +368,7 @@ async fn current_receipt_still_resolves_approval_and_clarification() -> Result<(
             .interaction_result("interaction.resolved", &receipt)
             .await?;
         assert!(runtime.conversation.interaction_response.is_none());
-        assert!(runtime.state.durable.pending_approval.is_none());
+        assert!(runtime.state.durable.assistant.pending_approval.is_none());
         assert_eq!(
             runtime.state.notice_code(),
             Some(NoticeCode::ApprovalApplied)
@@ -437,7 +440,7 @@ async fn submitting_snapshot_keeps_new_turn_and_discards_interrupted_reply() -> 
         })))
         .await?;
     assert_eq!(
-        runtime.state.durable.active_request.as_deref(),
+        runtime.state.durable.assistant.active_request.as_deref(),
         Some(new_turn.as_str())
     );
 
@@ -466,10 +469,11 @@ async fn submitting_snapshot_keeps_new_turn_and_discards_interrupted_reply() -> 
         })))
         .await?;
 
-    assert!(runtime.state.durable.active_request.is_none());
+    assert!(runtime.state.durable.assistant.active_request.is_none());
     let turn = runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .context("turno ausente")?;
@@ -538,7 +542,7 @@ async fn stop_writes_interrupt_to_the_hub_socket_before_retiring_it() -> Result<
         let fixture_value = serde_json::json!(fixture_source);
         crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
     }
-    runtime.state.durable.active_request = Some(TURN.into());
+    runtime.state.durable.assistant.active_request = Some(TURN.into());
     runtime
         .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
@@ -701,7 +705,7 @@ async fn a_hub_socket_that_cannot_open_is_reported_as_an_unconfirmed_interrupt()
         let fixture_value = serde_json::json!(fixture_source);
         crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
     }
-    runtime.state.durable.active_request = Some(TURN.into());
+    runtime.state.durable.assistant.active_request = Some(TURN.into());
     runtime
         .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
@@ -751,7 +755,7 @@ async fn failed_hub_drain_reports_both_unsent_frames() -> Result<()> {
         let fixture_value = serde_json::json!(fixture_source);
         crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
     }
-    runtime.state.durable.active_request = Some(TURN.into());
+    runtime.state.durable.assistant.active_request = Some(TURN.into());
     runtime
         .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
         .await;
@@ -808,7 +812,7 @@ async fn privacy_stop_interrupts_the_live_turn_and_keeps_it_hidden() -> Result<(
         let fixture_value = serde_json::json!(fixture_source);
         crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
     }
-    runtime.state.durable.active_request = Some(TURN.into());
+    runtime.state.durable.assistant.active_request = Some(TURN.into());
 
     runtime
         .privacy_stop(orbit_core::privacy_stop::UserStop::Order)
@@ -827,7 +831,7 @@ async fn privacy_stop_interrupts_the_live_turn_and_keeps_it_hidden() -> Result<(
         .reconcile_snapshot(&turn_snapshot(1, "selected", TURN, "streaming", json!([])))
         .await?;
     assert!(
-        runtime.state.durable.active_request.is_none(),
+        runtime.state.durable.assistant.active_request.is_none(),
         "a stale hub turn revived on rearm"
     );
     Ok(())
@@ -849,20 +853,20 @@ async fn assert_interrupted_snapshot_stays_out(status: &str) -> Result<()> {
         let fixture_value = serde_json::json!(fixture_source);
         crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
     }
-    runtime.state.durable.active_request = Some(TURN.into());
+    runtime.state.durable.assistant.active_request = Some(TURN.into());
 
     runtime.command(Command::Interrupt).await?;
     let interruption = hub_frames.recv().await.context("chat.interrupt absent")?;
     assert_eq!(interruption["method"], "chat.interrupt");
     assert_eq!(interruption["params"]["turn_id"], TURN);
-    assert!(runtime.state.durable.active_request.is_none());
+    assert!(runtime.state.durable.assistant.active_request.is_none());
 
     for (revision, live) in [(1, "submitting"), (2, "streaming")] {
         runtime
             .reconcile_snapshot(&turn_snapshot(revision, "selected", TURN, live, json!([])))
             .await?;
         assert!(
-            runtime.state.durable.active_request.is_none(),
+            runtime.state.durable.assistant.active_request.is_none(),
             "interrupted turn revived from {live}"
         );
         assert!(
@@ -895,7 +899,7 @@ async fn assert_interrupted_snapshot_stays_out(status: &str) -> Result<()> {
         .reconcile_snapshot(&turn_snapshot(4, "selected", NEW_TURN, status, json!([])))
         .await?;
     assert_eq!(
-        runtime.state.durable.active_request.as_deref(),
+        runtime.state.durable.assistant.active_request.as_deref(),
         Some(NEW_TURN),
         "new turn was hidden with hub status {status}"
     );
@@ -948,10 +952,10 @@ async fn undelivered_interrupt_keeps_the_turn_visible_to_interrupt_again() -> Re
         let fixture_value = serde_json::json!(fixture_source);
         crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
     }
-    runtime.state.durable.active_request = Some(TURN.into());
+    runtime.state.durable.assistant.active_request = Some(TURN.into());
 
     runtime.command(Command::Interrupt).await?;
-    assert!(runtime.state.durable.active_request.is_none());
+    assert!(runtime.state.durable.assistant.active_request.is_none());
     assert!(
         !runtime
             .conversation
@@ -972,7 +976,7 @@ async fn undelivered_interrupt_keeps_the_turn_visible_to_interrupt_again() -> Re
         .reconcile_snapshot(&turn_snapshot(1, "selected", TURN, "streaming", json!([])))
         .await?;
     assert_eq!(
-        runtime.state.durable.active_request.as_deref(),
+        runtime.state.durable.assistant.active_request.as_deref(),
         Some(TURN),
         "the hub still streams the turn but Orbit kept it hidden"
     );
@@ -996,7 +1000,7 @@ async fn hub_rejected_interrupt_returns_the_turn_and_unrelated_errors_do_not() -
         let fixture_value = serde_json::json!(fixture_source);
         crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
     }
-    runtime.state.durable.active_request = Some(TURN.into());
+    runtime.state.durable.assistant.active_request = Some(TURN.into());
 
     runtime.command(Command::Interrupt).await?;
     let interruption = hub_frames.recv().await.context("chat.interrupt absent")?;
@@ -1050,7 +1054,7 @@ async fn hub_rejected_interrupt_returns_the_turn_and_unrelated_errors_do_not() -
         .reconcile_snapshot(&turn_snapshot(1, "selected", TURN, "streaming", json!([])))
         .await?;
     assert_eq!(
-        runtime.state.durable.active_request.as_deref(),
+        runtime.state.durable.assistant.active_request.as_deref(),
         Some(TURN),
         "the hub still streams the turn but Orbit kept it hidden"
     );
@@ -1073,7 +1077,7 @@ async fn reconnect_forgets_the_interrupt_ack_that_can_no_longer_arrive() -> Resu
         let fixture_value = serde_json::json!(fixture_source);
         crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
     }
-    runtime.state.durable.active_request = Some(TURN.into());
+    runtime.state.durable.assistant.active_request = Some(TURN.into());
 
     runtime.command(Command::Interrupt).await?;
     let interruption = hub_frames.recv().await.context("chat.interrupt absent")?;
@@ -1109,12 +1113,12 @@ async fn assert_snapshot_turn_state(status: &str, expected_live: bool) -> Result
         let fixture_value = serde_json::json!(fixture_source);
         crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
     }
-    runtime.state.durable.active_request = (!expected_live).then(|| TURN.into());
+    runtime.state.durable.assistant.active_request = (!expected_live).then(|| TURN.into());
     runtime
         .reconcile_snapshot(&turn_snapshot(1, "selected", TURN, status, json!([])))
         .await?;
     assert_eq!(
-        runtime.state.durable.active_request.as_deref(),
+        runtime.state.durable.assistant.active_request.as_deref(),
         expected_live.then_some(TURN),
         "wrong live-turn decision for hub status {status}"
     );
@@ -1146,7 +1150,7 @@ async fn outcome_unknown_says_the_answer_is_uncertain_instead_of_thinking() -> R
         let fixture_value = serde_json::json!(fixture_source);
         crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
     }
-    runtime.state.durable.active_request = Some(TURN.into());
+    runtime.state.durable.assistant.active_request = Some(TURN.into());
     runtime.state.set_notice(NoticeCode::AssistantThinking);
     runtime
         .reconcile_snapshot(&turn_snapshot(
@@ -1157,7 +1161,7 @@ async fn outcome_unknown_says_the_answer_is_uncertain_instead_of_thinking() -> R
             json!([]),
         ))
         .await?;
-    assert!(runtime.state.durable.active_request.is_none());
+    assert!(runtime.state.durable.assistant.active_request.is_none());
     assert_eq!(
         runtime.state.notice_code(),
         Some(NoticeCode::AssistantOutcomeUnknown),
@@ -1176,7 +1180,7 @@ async fn unknown_snapshot_state_is_named_and_changes_nothing() -> Result<()> {
         let fixture_value = serde_json::json!(fixture_source);
         crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", fixture_value);
     }
-    runtime.state.durable.active_request = Some(TURN.into());
+    runtime.state.durable.assistant.active_request = Some(TURN.into());
     runtime
         .reconcile_snapshot(&turn_snapshot(
             1,
@@ -1186,7 +1190,10 @@ async fn unknown_snapshot_state_is_named_and_changes_nothing() -> Result<()> {
             json!([]),
         ))
         .await?;
-    assert_eq!(runtime.state.durable.active_request.as_deref(), Some(TURN));
+    assert_eq!(
+        runtime.state.durable.assistant.active_request.as_deref(),
+        Some(TURN)
+    );
     assert_eq!(
         runtime.snapshot_revision, None,
         "an unknown state was applied"
@@ -1215,7 +1222,7 @@ async fn a_chat_rejection_keeps_its_code_and_op_without_logging_content() -> Res
                 agent_id: None,
             })
             .await?;
-        runtime.state.durable.active_request = Some("rejected-turn".into());
+        runtime.state.durable.assistant.active_request = Some("rejected-turn".into());
         runtime.begin_turn(
             orbit_core::notice::Op::parse("op-chat-rejected").context("op")?,
             orbit_core::notice::ReportSource::Daemon,
@@ -1256,7 +1263,7 @@ async fn a_chat_rejection_keeps_its_code_and_op_without_logging_content() -> Res
                 Some("foreign-session")
             );
         }
-        assert!(runtime.state.durable.active_request.is_none());
+        assert!(runtime.state.durable.assistant.active_request.is_none());
         assert!(
             frames.try_recv().is_err(),
             "a rejected turn must never be replayed"
@@ -1285,7 +1292,7 @@ async fn hub_rejection_diagnostics_keep_the_code_without_text() -> Result<()> {
         let directory = tempfile::tempdir()?;
         let (mut runtime, _helper) = fixture(directory.path())?;
         logging(&mut runtime, directory.path());
-        runtime.state.durable.active_request = request_id.map(str::to_owned);
+        runtime.state.durable.assistant.active_request = request_id.map(str::to_owned);
         runtime.begin_turn(
             orbit_core::notice::Op::parse("op-rejection-code").context("op")?,
             orbit_core::notice::ReportSource::Daemon,
@@ -1358,7 +1365,7 @@ async fn a_failed_turn_keeps_its_numbers_and_stop_reason_in_the_notice() -> Resu
     ] {
         let directory = tempfile::tempdir()?;
         let (mut runtime, _helper) = fixture(directory.path())?;
-        runtime.state.durable.active_request = Some("failed-turn".into());
+        runtime.state.durable.assistant.active_request = Some("failed-turn".into());
         let code = refusal["code"].clone();
         runtime
             .hub_event(HubEvent::Frame(
@@ -1381,8 +1388,8 @@ async fn a_failed_turn_keeps_its_numbers_and_stop_reason_in_the_notice() -> Resu
 /// The selected conversation with a turn in flight, its question sent at 1 s.
 fn in_turn(runtime: &mut Runtime) {
     crate::daemon::authority_fixture::set(&mut runtime.state, "session_id", json!("selected"));
-    runtime.state.durable.active_request = Some(TURN.into());
-    runtime.state.durable.turn = Some(orbit_core::Turn {
+    runtime.state.durable.assistant.active_request = Some(TURN.into());
+    runtime.state.durable.assistant.turn = Some(orbit_core::Turn {
         user: orbit_core::Message {
             id: TURN.into(),
             role: "user".into(),
@@ -1429,6 +1436,7 @@ async fn the_agents_choices_reach_the_pending_question() -> Result<()> {
     let pending = runtime
         .state
         .durable
+        .assistant
         .pending_approval
         .clone()
         .context("missing pending")?;
@@ -1459,7 +1467,7 @@ async fn a_command_that_deletes_is_pending_with_what_it_deletes() -> Result<()> 
         (json!({"paths":"dos"}), deleting(None)),
         (json!({"paths":2}), deleting(Some(2))),
     ] {
-        runtime.state.durable.pending_approval = None;
+        runtime.state.durable.assistant.pending_approval = None;
         let mut event = deletes(sent.clone());
         event["session_id"] = json!("selected");
         runtime
@@ -1467,18 +1475,18 @@ async fn a_command_that_deletes_is_pending_with_what_it_deletes() -> Result<()> 
                 json!({"v":1,"id":TURN,"event":"approval.required","data":event}),
             ))
             .await?;
-        let pending = runtime.state.durable.pending_approval.clone();
+        let pending = runtime.state.durable.assistant.pending_approval.clone();
         assert_eq!(
             pending.context("pending from the event")?.deletes,
             kept,
             "{sent}"
         );
 
-        runtime.state.durable.pending_approval = None;
+        runtime.state.durable.assistant.pending_approval = None;
         runtime
             .reconcile_snapshot(&snapshot(1, "selected", json!([deletes(sent.clone())])))
             .await?;
-        let pending = runtime.state.durable.pending_approval.clone();
+        let pending = runtime.state.durable.assistant.pending_approval.clone();
         assert_eq!(
             pending.context("pending from the snapshot")?.deletes,
             kept,
@@ -1522,6 +1530,7 @@ async fn a_live_approval_is_pending_from_its_event_alone() -> Result<()> {
     let pending = runtime
         .state
         .durable
+        .assistant
         .pending_approval
         .clone()
         .context("the question is pending from its event")?;
@@ -1541,6 +1550,7 @@ async fn a_snapshot_restores_each_readable_question_with_its_choices() -> Result
     let pending = runtime
         .state
         .durable
+        .assistant
         .pending_approval
         .clone()
         .context("missing pending")?;
@@ -1644,6 +1654,7 @@ async fn answering_one_of_several_questions_names_it_and_keeps_the_rest_open() -
     let pending = runtime
         .state
         .durable
+        .assistant
         .pending_approval
         .clone()
         .context("the other question stays open")?;

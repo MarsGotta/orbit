@@ -157,6 +157,7 @@ impl Runtime {
     pub(super) fn recording_active(&self) -> bool {
         self.state
             .durable
+            .capture
             .recording
             .as_ref()
             .is_some_and(|r| matches!(r.phase, CapturePhase::Recording | CapturePhase::Starting))

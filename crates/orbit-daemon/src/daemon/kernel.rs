@@ -20,15 +20,15 @@ pub(super) struct DurableSnapshot {
 impl From<&State> for DurableSnapshot {
     fn from(state: &State) -> Self {
         Self {
-            recording: state.durable.recording.clone(),
+            recording: state.durable.capture.recording.clone(),
             privacy_stopped: state.privacy_stopped(),
             privacy_stop_by: state.privacy_stop_by(),
             generation: state.generation(),
             connection: state.connection().clone(),
             session_id: state.session_id().clone(),
             agent_id: state.agent_id().map(str::to_owned),
-            pending_approval: state.durable.pending_approval.clone(),
-            call: state.durable.call.clone(),
+            pending_approval: state.durable.assistant.pending_approval.clone(),
+            call: state.durable.voice.call.clone(),
         }
     }
 }
@@ -92,6 +92,7 @@ impl Runtime {
             && self
                 .state
                 .durable
+                .voice
                 .call
                 .as_ref()
                 .is_some_and(|call| call.expires_at_ms <= at_ms)
@@ -148,7 +149,7 @@ impl Runtime {
                     | AuthorityChange::HubLinkOffline
                     | AuthorityChange::HubDisconnected
             )
-            && self.state.durable.call.is_some()
+            && self.state.durable.voice.call.is_some()
             && decision
                 .effects
                 .iter()
@@ -206,7 +207,8 @@ impl Runtime {
         // Detect that transition before the snapshot overwrites the prior
         // state and mirror the path the existing CaptureFinalized drain
         // already takes: enqueue the closure so `finalize-<id>` exists.
-        let previous_was_closed = self.state.durable.recording.as_ref().is_some_and(|r| {
+        let previous = self.state.durable.capture.recording.as_ref();
+        let previous_was_closed = previous.is_some_and(|r| {
             r.ended_at_ms.is_some()
                 && matches!(r.phase, CapturePhase::Idle | CapturePhase::Interrupted)
         });
@@ -215,7 +217,7 @@ impl Runtime {
             .preserve_replaced_recording(&decision.state)?
             .or(self.empty_interrupted_closure(&decision.state)?);
         let closure_committed = closure.is_some();
-        let interrupted_request = self.state.durable.active_request.clone();
+        let interrupted_request = self.state.durable.assistant.active_request.clone();
         let orbit_core::Decision {
             mut state, effects, ..
         } = *decision;
@@ -257,7 +259,11 @@ impl Runtime {
                     // Those local cancellations also change published state:
                     // the decision was computed before they ran, so retain
                     // their settled call phase when adopting it.
-                    state.durable.call.clone_from(&self.state.durable.call);
+                    state
+                        .durable
+                        .voice
+                        .call
+                        .clone_from(&self.state.durable.voice.call);
                     state
                         .durable
                         .notice_log
@@ -285,7 +291,7 @@ impl Runtime {
         // A turn no longer in flight has ended, however it did: interrupted,
         // lost with the hub's link or stopped. Its work says when.
         if let Some(turn) = interrupted_request.as_deref()
-            && self.state.durable.active_request.as_deref() != Some(turn)
+            && self.state.durable.assistant.active_request.as_deref() != Some(turn)
         {
             self.end_work(turn);
         }
@@ -356,7 +362,8 @@ impl Runtime {
                 return Err(error);
             }
         }
-        let now_closed = self.state.durable.recording.as_ref().is_some_and(|r| {
+        let now = self.state.durable.capture.recording.as_ref();
+        let now_closed = now.is_some_and(|r| {
             r.ended_at_ms.is_some()
                 && matches!(r.phase, CapturePhase::Idle | CapturePhase::Interrupted)
         });
@@ -429,7 +436,7 @@ impl Runtime {
                 let params = serde_json::to_value(orbit_core::wire::hub::ChatSendParams {
                     text,
                     session_id: self.state.session_id().clone(),
-                    call_active: Some(self.state.durable.call.is_some()),
+                    call_active: Some(self.state.durable.voice.call.is_some()),
                     client_id: Some(id.clone()),
                     voice,
                     meeting,
@@ -445,7 +452,7 @@ impl Runtime {
                 self.send(hub::command(&id, "chat.send", params)?).await?
             }
             Effect::Interrupt => {
-                let turn = self.state.durable.active_request.clone();
+                let turn = self.state.durable.assistant.active_request.clone();
                 self.interrupt_turn(turn.as_deref(), false).await;
             }
             Effect::StartCapture {

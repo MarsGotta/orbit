@@ -23,14 +23,14 @@ fn worst_case(runtime: &mut Runtime) -> anyhow::Result<()> {
         at_ms: u64::MAX,
         voice: None,
     };
-    runtime.state.durable.turn = Some(Turn {
+    runtime.state.durable.assistant.turn = Some(Turn {
         user: message("user", "\"".repeat(orbit_core::MAX_TEXT_BYTES)),
         answer: Some(message(
             "assistant",
             "\n".repeat(3 * orbit_core::MAX_TEXT_BYTES),
         )),
     });
-    runtime.state.durable.pending_approval = Some(Approval {
+    runtime.state.durable.assistant.pending_approval = Some(Approval {
         request_id: "request-measured".into(),
         description: "\"".repeat(16_000),
         clarification: false,
@@ -38,7 +38,7 @@ fn worst_case(runtime: &mut Runtime) -> anyhow::Result<()> {
         questions: Vec::new(),
         deletes: None,
     });
-    runtime.state.durable.recording = Some(Recording {
+    runtime.state.durable.capture.recording = Some(Recording {
         id: "00000000-0000-4000-8000-000000000000".into(),
         title: "😀".repeat(orbit_core::MAX_MANIFEST_TITLE_CHARACTERS),
         started_at_ms: 0,
@@ -186,6 +186,7 @@ async fn measure_worst_case_projections() -> anyhow::Result<()> {
     let turn = runtime
         .state
         .durable
+        .assistant
         .turn
         .as_mut()
         .ok_or_else(|| anyhow::anyhow!("missing turn"))?;

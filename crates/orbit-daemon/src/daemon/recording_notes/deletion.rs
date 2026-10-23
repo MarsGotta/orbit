@@ -89,6 +89,7 @@ impl Runtime {
         if self
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .is_some_and(|recording| {
@@ -171,6 +172,7 @@ impl Runtime {
         if self
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .is_some_and(|active| active.id == recording && active.ended_at_ms.is_none())
@@ -308,6 +310,7 @@ impl Runtime {
         let draining = self
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .map(|recording| recording.id.clone());

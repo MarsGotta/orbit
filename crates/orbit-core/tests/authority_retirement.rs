@@ -24,10 +24,10 @@ fn stop_and_close_set_the_connection_offline_in_the_decision()
 fn a_lost_hub_closes_the_turn_in_the_same_retirement_decision()
 -> Result<(), Box<dyn std::error::Error>> {
     let mut state = decide(&State::default(), Event::Connect(Connection::Online), 0)?.state;
-    state.durable.active_request = Some("pending".into());
+    state.durable.assistant.active_request = Some("pending".into());
     let decision = decide(&state, Event::HubDisconnected, 1)?;
     assert_eq!(decision.state.connection(), Connection::Offline);
-    assert!(decision.state.durable.active_request.is_none());
+    assert!(decision.state.durable.assistant.active_request.is_none());
     assert_eq!(
         decision.state.notice_code(),
         Some(orbit_core::notice::NoticeCode::AssistantTurnLostByDisconnect)
@@ -236,7 +236,7 @@ fn explicit_conversation_events_clear_the_turn_and_pending_approval()
         0,
     )?
     .state;
-    state.durable.turn = Some(orbit_core::Turn {
+    state.durable.assistant.turn = Some(orbit_core::Turn {
         user: orbit_core::Message {
             attachments: Vec::new(),
             id: "message".into(),
@@ -248,7 +248,7 @@ fn explicit_conversation_events_clear_the_turn_and_pending_approval()
         },
         answer: None,
     });
-    state.durable.pending_approval = Some(orbit_core::Approval {
+    state.durable.assistant.pending_approval = Some(orbit_core::Approval {
         request_id: "approval".into(),
         description: "fixture".into(),
         clarification: false,
@@ -272,8 +272,8 @@ fn explicit_conversation_events_clear_the_turn_and_pending_approval()
             Some(AuthorityChange::Conversation)
         );
         assert_eq!(decision.state.session_id().as_deref(), expected);
-        assert!(decision.state.durable.turn.is_none());
-        assert!(decision.state.durable.pending_approval.is_none());
+        assert!(decision.state.durable.assistant.turn.is_none());
+        assert!(decision.state.durable.assistant.pending_approval.is_none());
     }
     Ok(())
 }

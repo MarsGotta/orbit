@@ -188,7 +188,7 @@ async fn unknown_hub_events_preserve_the_live_state() -> Result<()> {
             .hub_event(HubEvent::Frame(json!({"v":1,"event":"ready",
             "data":{"device_id":"synthetic-device","hub_protocol":protocol}})))
             .await?;
-        runtime.state.durable.active_request = Some("live-turn".into());
+        runtime.state.durable.assistant.active_request = Some("live-turn".into());
         let before = runtime.state.clone();
         for _ in 0..2 {
             runtime
@@ -213,7 +213,7 @@ async fn a_malformed_delta_does_not_replace_the_active_turn() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
-    runtime.state.durable.active_request = Some("turn-1".into());
+    runtime.state.durable.assistant.active_request = Some("turn-1".into());
     {
         let fixture_source: Option<String> = Some("session-1".into());
         let fixture_value = serde_json::json!(fixture_source);
@@ -226,10 +226,10 @@ async fn a_malformed_delta_does_not_replace_the_active_turn() -> Result<()> {
         })))
         .await?;
     assert_eq!(
-        runtime.state.durable.active_request.as_deref(),
+        runtime.state.durable.assistant.active_request.as_deref(),
         Some("turn-1")
     );
-    assert!(runtime.state.durable.turn.is_none());
+    assert!(runtime.state.durable.assistant.turn.is_none());
     assert_eq!(
         diagnostic_fields(directory.path(), "hub_event_invalid")?,
         vec![
@@ -337,7 +337,7 @@ async fn missing_approval_description_is_not_invented() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
-    runtime.state.durable.active_request = Some("turn-1".into());
+    runtime.state.durable.assistant.active_request = Some("turn-1".into());
     {
         let fixture_source: Option<String> = Some("session-1".into());
         let fixture_value = serde_json::json!(fixture_source);
@@ -349,9 +349,9 @@ async fn missing_approval_description_is_not_invented() -> Result<()> {
             "data":{"session_id":"session-1","request_id":"approval-1"}
         })))
         .await?;
-    assert!(runtime.state.durable.pending_approval.is_none());
+    assert!(runtime.state.durable.assistant.pending_approval.is_none());
     assert_eq!(
-        runtime.state.durable.active_request.as_deref(),
+        runtime.state.durable.assistant.active_request.as_deref(),
         Some("turn-1")
     );
     assert_eq!(
@@ -741,6 +741,7 @@ async fn another_device_ready_latches_privacy_and_cancels_live_work() -> Result<
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -836,7 +837,7 @@ async fn turn_frames_without_session_id_do_not_change_selected_session() -> Resu
                 agent_id: None,
             })
             .await?;
-        let before = runtime.state.durable.turn.clone();
+        let before = runtime.state.durable.assistant.turn.clone();
         runtime
             .hub_event(HubEvent::Frame(json!({
                 "event": event,
@@ -844,9 +845,9 @@ async fn turn_frames_without_session_id_do_not_change_selected_session() -> Resu
                 "data": {"text": "INJECTED", "status": "completed"}
             })))
             .await?;
-        assert_eq!(runtime.state.durable.turn, before, "{event}");
+        assert_eq!(runtime.state.durable.assistant.turn, before, "{event}");
         assert_eq!(
-            runtime.state.durable.active_request.as_deref(),
+            runtime.state.durable.assistant.active_request.as_deref(),
             Some("active-request"),
             "{event}"
         );
@@ -891,7 +892,7 @@ async fn unrelated_error_ids_cannot_finish_the_active_request() -> Result<()> {
             "data":{"message":"SYNTHETIC UNRELATED ERROR"}})))
             .await?;
         assert_eq!(
-            runtime.state.durable.active_request.as_deref(),
+            runtime.state.durable.assistant.active_request.as_deref(),
             Some("active-request")
         );
         assert!(runtime.conversation.speak_next);
@@ -899,6 +900,7 @@ async fn unrelated_error_ids_cannot_finish_the_active_request() -> Result<()> {
             !runtime
                 .state
                 .durable
+                .assistant
                 .turn
                 .as_ref()
                 .and_then(|turn| turn.answer.as_ref())
@@ -912,7 +914,7 @@ async fn unrelated_error_ids_cannot_finish_the_active_request() -> Result<()> {
         "data":{"message":"SYNTHETIC ACTIVE ERROR"}}),
         ))
         .await?;
-    assert!(runtime.state.durable.active_request.is_none());
+    assert!(runtime.state.durable.assistant.active_request.is_none());
     assert!(!runtime.conversation.speak_next);
     // The hub's message is free text: logged, never said.
     assert_eq!(
@@ -923,6 +925,7 @@ async fn unrelated_error_ids_cannot_finish_the_active_request() -> Result<()> {
         !runtime
             .state
             .durable
+            .assistant
             .turn
             .as_ref()
             .and_then(|turn| turn.answer.as_ref())
@@ -1225,7 +1228,7 @@ async fn a_playback_rejection_during_a_live_call_is_a_notice_not_a_privacy_stop(
             "result":call_readback(&audio_start)
         }))
         .await?;
-    assert!(runtime.state.durable.call.is_some());
+    assert!(runtime.state.durable.voice.call.is_some());
     // A spoken answer in flight: its playback order is already with the helper.
     runtime
         .native_send(
@@ -1249,7 +1252,7 @@ async fn a_playback_rejection_during_a_live_call_is_a_notice_not_a_privacy_stop(
         "a rejected playback order must not brake privacy"
     );
     assert!(
-        runtime.state.durable.call.is_some(),
+        runtime.state.durable.voice.call.is_some(),
         "the live call must survive a playback rejection"
     );
     assert!(
@@ -1306,6 +1309,7 @@ async fn a_backpressured_permissions_answer_during_a_recording_is_a_notice_not_a
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -1446,6 +1450,7 @@ async fn an_audio_start_integrity_failure_cuts_the_recording_without_latching() 
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -1516,6 +1521,7 @@ async fn a_helper_gap_in_a_live_recording_is_declared_and_the_recording_continue
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;
@@ -1576,7 +1582,7 @@ async fn a_rejected_clip_during_a_live_call_keeps_the_call_and_records_degradati
             "result":call_readback(&audio_start)
         }))
         .await?;
-    assert!(runtime.state.durable.call.is_some());
+    assert!(runtime.state.durable.voice.call.is_some());
     runtime
         .native_send(
             "playback_clip",
@@ -1596,7 +1602,7 @@ async fn a_rejected_clip_during_a_live_call_keeps_the_call_and_records_degradati
     tokio::task::yield_now().await;
 
     assert!(
-        runtime.state.durable.call.is_some(),
+        runtime.state.durable.voice.call.is_some(),
         "the live call must survive a rejected playback"
     );
     assert!(
@@ -1650,6 +1656,7 @@ async fn a_permission_refusal_of_audio_start_interrupts_the_recording_without_la
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;
@@ -1695,6 +1702,7 @@ async fn a_later_privacy_stop_does_not_relabel_a_refused_audio_start() -> Result
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -1749,6 +1757,7 @@ async fn an_incomplete_drain_with_pending_audio_cuts_without_latching() -> Resul
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -2662,6 +2671,7 @@ async fn helper_capture_returns_to_actor_while_upload_is_held() -> Result<()> {
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("no recording")?
@@ -3223,6 +3233,7 @@ async fn audio_drain_incomplete_without_bridge_command_cuts_capture() -> Result<
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -3275,7 +3286,7 @@ async fn bridge_tagged_clip_rejection_names_the_cause_and_keeps_the_call() -> Re
     .await;
     tokio::task::yield_now().await;
     assert!(!runtime.state.privacy_stopped());
-    assert!(runtime.state.durable.call.is_some());
+    assert!(runtime.state.durable.voice.call.is_some());
     assert!(
         said::mentions(&runtime.state, "playback_backpressure"),
         "{:?}",

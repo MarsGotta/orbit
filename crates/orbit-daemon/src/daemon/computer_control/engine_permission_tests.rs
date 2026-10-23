@@ -69,9 +69,9 @@ async fn with_both_permissions_the_engine_starts_by_itself_without_the_hub() -> 
         PermissionState::Granted,
     );
     runtime.state.set_notice(NoticeCode::SessionOpened);
-    runtime.state.durable.voice_active = true;
+    runtime.state.durable.voice.voice_active = true;
     let calendar = runtime.features.calendar.view.clone();
-    let turn = runtime.state.durable.turn.clone();
+    let turn = runtime.state.durable.assistant.turn.clone();
     let notice = runtime.state.durable.notice.clone();
     let (work, mut events) = mpsc::channel(4);
     runtime.work.work_events = work;
@@ -95,9 +95,9 @@ async fn with_both_permissions_the_engine_starts_by_itself_without_the_hub() -> 
     assert!(view.detail.contains("MacOS/cua-driver"), "{}", view.detail);
     assert_eq!(view.stage, ComputerStage::Failed);
     assert_eq!(runtime.features.calendar.view, calendar);
-    assert_eq!(runtime.state.durable.turn, turn);
+    assert_eq!(runtime.state.durable.assistant.turn, turn);
     assert_eq!(runtime.state.durable.notice, notice);
-    assert!(runtime.state.durable.voice_active);
+    assert!(runtime.state.durable.voice.voice_active);
     Ok(())
 }
 
@@ -116,9 +116,9 @@ async fn unbundled_daemon_maintenance_refuses_before_starting_a_worker() -> Resu
         PermissionState::Granted,
     );
     runtime.state.set_notice(NoticeCode::SessionOpened);
-    runtime.state.durable.voice_active = true;
+    runtime.state.durable.voice.voice_active = true;
     let calendar = runtime.features.calendar.view.clone();
-    let turn = runtime.state.durable.turn.clone();
+    let turn = runtime.state.durable.assistant.turn.clone();
     let notice = runtime.state.durable.notice.clone();
     let (work, mut events) = mpsc::channel(4);
     runtime.work.work_events = work;
@@ -136,9 +136,9 @@ async fn unbundled_daemon_maintenance_refuses_before_starting_a_worker() -> Resu
     assert!(runtime.features.computer.work.active().is_none());
     assert!(events.try_recv().is_err(), "something was launched");
     assert_eq!(runtime.features.calendar.view, calendar);
-    assert_eq!(runtime.state.durable.turn, turn);
+    assert_eq!(runtime.state.durable.assistant.turn, turn);
     assert_eq!(runtime.state.durable.notice, notice);
-    assert!(runtime.state.durable.voice_active);
+    assert!(runtime.state.durable.voice.voice_active);
     Ok(())
 }
 

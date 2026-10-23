@@ -93,6 +93,7 @@ async fn ask(runtime: &mut Runtime, frames: &mut mpsc::Receiver<Value>) -> Resul
     let turn = runtime
         .state
         .durable
+        .assistant
         .active_request
         .clone()
         .context("no turn")?;
@@ -107,7 +108,7 @@ async fn ask(runtime: &mut Runtime, frames: &mut mpsc::Receiver<Value>) -> Resul
     ] {
         runtime.hub_event(HubEvent::Frame(frame)).await?;
     }
-    if runtime.state.durable.active_request.is_some() {
+    if runtime.state.durable.assistant.active_request.is_some() {
         bail!("the turn did not end");
     }
     Ok(params)
@@ -331,6 +332,7 @@ async fn the_spoken_question_goes_to_the_agent_named() -> Result<()> {
     let turn = runtime
         .state
         .durable
+        .assistant
         .active_request
         .clone()
         .context("no turn")?;
@@ -381,7 +383,7 @@ async fn a_name_no_longer_listed_asks_nobody() -> Result<()> {
     meeting(&mut runtime);
     runtime.native_event(heard(Some("Vega"))).await?;
     assert!(hub_frames.try_recv().is_err(), "nothing reached the hub");
-    assert!(runtime.state.durable.active_request.is_none());
+    assert!(runtime.state.durable.assistant.active_request.is_none());
     Ok(())
 }
 
@@ -655,6 +657,7 @@ async fn turn_in(
     let turn = runtime
         .state
         .durable
+        .assistant
         .active_request
         .clone()
         .context("no turn")?;
@@ -718,6 +721,7 @@ async fn a_new_turn_does_not_carry_the_previous_turns_work() -> Result<()> {
     let second = runtime
         .state
         .durable
+        .assistant
         .active_request
         .clone()
         .context("no turn")?;
@@ -768,6 +772,7 @@ async fn an_interrupted_turns_work_ends() -> Result<()> {
     let turn = runtime
         .state
         .durable
+        .assistant
         .active_request
         .clone()
         .context("no turn")?;
@@ -780,7 +785,7 @@ async fn an_interrupted_turns_work_ends() -> Result<()> {
         runtime.hub_event(HubEvent::Frame(frame)).await?;
     }
     runtime.command(Command::Interrupt).await?;
-    assert!(runtime.state.durable.active_request.is_none());
+    assert!(runtime.state.durable.assistant.active_request.is_none());
     let work = runtime.conversation.work.as_ref().context("no work")?;
     assert!(
         work.ended_at_ms.is_some(),

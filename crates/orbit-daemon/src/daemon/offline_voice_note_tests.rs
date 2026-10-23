@@ -65,6 +65,7 @@ async fn a_voice_note_spoken_while_the_hub_is_offline_is_kept_and_shown() -> Res
     let voice = runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .and_then(|turn| turn.user.voice.as_ref());
@@ -100,6 +101,7 @@ async fn an_offline_voice_note_is_sent_when_the_hub_is_back() -> Result<()> {
     let message_id = runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .context("note absent")?
@@ -125,6 +127,7 @@ async fn an_offline_voice_note_is_sent_when_the_hub_is_back() -> Result<()> {
     let voice = runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .and_then(|turn| turn.user.voice.as_ref())
@@ -230,6 +233,7 @@ async fn a_failed_voice_note_survives_the_next_message() -> Result<()> {
     let message_id = runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .context("note absent")?
@@ -248,6 +252,7 @@ async fn a_failed_voice_note_survives_the_next_message() -> Result<()> {
     let turn = runtime
         .state
         .durable
+        .assistant
         .active_request
         .clone()
         .context("no turn")?;
@@ -262,6 +267,7 @@ async fn a_failed_voice_note_survives_the_next_message() -> Result<()> {
         runtime
             .state
             .durable
+            .assistant
             .pending_voice
             .iter()
             .any(|note| note.message.id == message_id),
@@ -275,6 +281,7 @@ async fn a_failed_voice_note_survives_the_next_message() -> Result<()> {
     let still_named = runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .is_some_and(|turn| turn.user.id == message_id);
@@ -408,6 +415,7 @@ async fn a_waiting_note_is_sent_only_into_its_own_conversation() -> Result<()> {
     let note = runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .context("note absent")?
@@ -447,6 +455,7 @@ async fn discarding_a_failed_note_removes_it_and_its_audio() -> Result<()> {
     let note = runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .context("note absent")?
@@ -459,8 +468,8 @@ async fn discarding_a_failed_note_removes_it_and_its_audio() -> Result<()> {
             message_id: note.clone(),
         })
         .await?;
-    assert!(runtime.state.durable.turn.is_none());
-    assert!(runtime.state.durable.pending_voice.is_empty());
+    assert!(runtime.state.durable.assistant.turn.is_none());
+    assert!(runtime.state.durable.assistant.pending_voice.is_empty());
     assert_eq!(
         voice_manifests(&runtime)?,
         0,

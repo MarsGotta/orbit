@@ -32,7 +32,7 @@ fn manifest_muted(
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     if !muted.is_empty() {
-        runtime.state.durable.recording = Some(orbit_core::Recording {
+        runtime.state.durable.capture.recording = Some(orbit_core::Recording {
             id: MANIFEST_RECORDING.into(),
             title: "Reunión con silencio".into(),
             started_at_ms: 1_700_000_000_000,
@@ -269,6 +269,7 @@ async fn admit_call_after_empty_capture(runtime: &mut Runtime, id: &str) -> Resu
         runtime
             .state
             .durable
+            .voice
             .call
             .as_ref()
             .map(|call| call.id.as_str()),
@@ -313,6 +314,7 @@ async fn empty_privacy_interruption_closes_before_rearm_and_admits_call() -> Res
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;
@@ -352,6 +354,7 @@ async fn empty_privacy_interruption_closes_before_rearm_and_admits_call() -> Res
         runtime
             .state
             .durable
+            .voice
             .call
             .as_ref()
             .map(|call| call.id.as_str()),
@@ -375,6 +378,7 @@ async fn helper_loss_keeps_an_empty_recording_and_closes_it_when_the_helper_neve
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .and_then(|recording| recording.ended_at_ms),
@@ -387,6 +391,7 @@ async fn helper_loss_keeps_an_empty_recording_and_closes_it_when_the_helper_neve
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;
@@ -432,6 +437,7 @@ async fn helper_loss_keeps_an_empty_recording_and_closes_it_when_the_helper_neve
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .map(|r| r.id.as_str()),
@@ -506,6 +512,7 @@ async fn permission_refusal_closes_empty_capture_and_admits_call_immediately() -
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;
@@ -568,6 +575,7 @@ async fn remote_start_refusal_stops_the_started_microphone_before_closing() -> R
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .and_then(|r| r.ended_at_ms),
@@ -588,6 +596,7 @@ async fn remote_start_refusal_stops_the_started_microphone_before_closing() -> R
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;
@@ -670,6 +679,7 @@ async fn retired_start_refusal_does_not_touch_the_next_call() -> Result<()> {
         runtime
             .state
             .durable
+            .voice
             .call
             .as_ref()
             .map(|call| call.id.as_str()),
@@ -723,7 +733,7 @@ async fn voice_refusal_during_starting_recording_keeps_permission_cause() -> Res
         runtime.state.durable.notice_log
     );
     assert!(!said::has(&runtime.state, NoticeCode::VoiceNoteEmpty));
-    assert!(!runtime.state.durable.voice_active);
+    assert!(!runtime.state.durable.voice.voice_active);
     assert!(runtime.capture.buffer.voice.is_none());
     assert!(runtime.capture.audio.full_stop.is_none());
     assert!(
@@ -817,7 +827,7 @@ async fn expiry_closes_empty_capture_and_admits_call() -> Result<()> {
         let fixture_value = serde_json::json!(orbit_core::Connection::Offline);
         crate::daemon::authority_fixture::set(&mut runtime.state, "connection", fixture_value);
     }
-    runtime.state.durable.recording = Some(orbit_core::Recording {
+    runtime.state.durable.capture.recording = Some(orbit_core::Recording {
         id: "expired".into(),
         title: "Expired".into(),
         started_at_ms: 0,
@@ -838,6 +848,7 @@ async fn expiry_closes_empty_capture_and_admits_call() -> Result<()> {
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;
@@ -887,6 +898,7 @@ async fn live_expiry_closes_after_the_empty_audio_drain() -> Result<()> {
     runtime
         .state
         .durable
+        .capture
         .recording
         .as_mut()
         .context("recording absent")?
@@ -898,6 +910,7 @@ async fn live_expiry_closes_after_the_empty_audio_drain() -> Result<()> {
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .and_then(|r| r.ended_at_ms),
@@ -912,6 +925,7 @@ async fn live_expiry_closes_after_the_empty_audio_drain() -> Result<()> {
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .and_then(|r| r.ended_at_ms)
@@ -938,7 +952,7 @@ async fn finalize_deadline_closes_empty_capture_and_admits_call() -> Result<()> 
         let fixture_value = serde_json::json!(orbit_core::Connection::Offline);
         crate::daemon::authority_fixture::set(&mut runtime.state, "connection", fixture_value);
     }
-    runtime.state.durable.recording = Some(orbit_core::Recording {
+    runtime.state.durable.capture.recording = Some(orbit_core::Recording {
         id: "finalize-deadline".into(),
         title: "Finalize deadline".into(),
         started_at_ms: 0,
@@ -959,6 +973,7 @@ async fn finalize_deadline_closes_empty_capture_and_admits_call() -> Result<()> 
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;
@@ -1016,6 +1031,7 @@ async fn legacy_empty_interruption_is_closed_during_recovery() -> Result<()> {
         let recording = runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?;
@@ -1057,6 +1073,7 @@ async fn interrupted_recording_with_a_sealed_chunk_keeps_its_audio() -> Result<(
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;
@@ -1076,7 +1093,7 @@ async fn interrupted_recording_with_a_sealed_chunk_keeps_its_audio() -> Result<(
 async fn recovery_keeps_an_existing_closure_and_continues() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
-    runtime.state.durable.recording = Some(orbit_core::Recording {
+    runtime.state.durable.capture.recording = Some(orbit_core::Recording {
         id: "already-closed".into(),
         title: "Already closed".into(),
         started_at_ms: 1_000,
@@ -1121,6 +1138,7 @@ async fn recovery_keeps_an_existing_closure_and_continues() -> Result<()> {
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -1134,7 +1152,7 @@ async fn recovery_keeps_an_existing_closure_and_continues() -> Result<()> {
 async fn later_stop_keeps_the_earlier_empty_interruption_cause() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
-    runtime.state.durable.recording = Some(orbit_core::Recording {
+    runtime.state.durable.capture.recording = Some(orbit_core::Recording {
         id: "earlier-cut".into(),
         title: "Earlier cut".into(),
         started_at_ms: 1_000,
@@ -1174,7 +1192,7 @@ async fn later_stop_keeps_the_earlier_empty_interruption_cause() -> Result<()> {
 async fn later_cut_closes_an_earlier_empty_interruption_without_relabeling() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
-    runtime.state.durable.recording = Some(orbit_core::Recording {
+    runtime.state.durable.capture.recording = Some(orbit_core::Recording {
         id: "earlier-refusal".into(),
         title: "Earlier refusal".into(),
         started_at_ms: 1_000,
@@ -1213,6 +1231,7 @@ async fn later_cut_closes_an_earlier_empty_interruption_without_relabeling() -> 
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -1269,7 +1288,7 @@ async fn live_cut_keeps_the_first_typed_interruption() -> Result<()> {
 async fn recovery_does_not_call_a_stale_zero_count_no_audio() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
-    runtime.state.durable.recording = Some(orbit_core::Recording {
+    runtime.state.durable.capture.recording = Some(orbit_core::Recording {
         id: "stale-count".into(),
         title: "Stale count".into(),
         started_at_ms: 1_000,
@@ -1312,6 +1331,7 @@ async fn recovery_does_not_call_a_stale_zero_count_no_audio() -> Result<()> {
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -1355,6 +1375,7 @@ async fn interrupted(runtime: &mut Runtime, receiver: &mut mpsc::Receiver<Value>
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -1494,6 +1515,7 @@ async fn existing_closure_fences_resume_after_snapshot_failure_and_restart() -> 
         let old = runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("old identity absent")?
@@ -1651,6 +1673,7 @@ async fn finish_under_privacy_stop_rearm_and_new_meeting_leaves_a_durable_closur
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?

@@ -17,16 +17,16 @@ impl ProjectTopic for Projector {
         let value = Value {
             session_id: state.session_id(),
             agent_id: state.agent_id().map(str::to_owned),
-            turn: state.durable.turn.clone().map(Box::new),
+            turn: state.durable.assistant.turn.clone().map(Box::new),
             // Only the open conversation's, never every conversation's.
             pending_voice: state
                 .durable
                 .open_conversation_pending_voice()
                 .cloned()
                 .collect(),
-            pending: state.durable.pending_approval.clone(),
-            voice_active: state.durable.voice_active,
-            turn_in_flight: state.durable.active_request.is_some(),
+            pending: state.durable.assistant.pending_approval.clone(),
+            voice_active: state.durable.voice.voice_active,
+            turn_in_flight: state.durable.assistant.active_request.is_some(),
             activity: activity(source),
             // The voice that reads this conversation's answers, as its
             // last reading left it; another agent's voice says nothing here.
@@ -53,7 +53,7 @@ impl ProjectTopic for Projector {
                     .map(|read| read.message_id.clone())
             }),
             call: Knowledge::Present {
-                value: state.durable.call.clone(),
+                value: state.durable.voice.call.clone(),
                 as_of_ms: None,
             },
             short_voice_note: state.views.short_voice_note.clone(),
@@ -96,10 +96,17 @@ fn activity(source: &TopicSource<'_>) -> Option<Activity> {
     {
         return Some(Activity::Transcribing);
     }
-    let request_id = source.state.durable.active_request.as_ref()?;
-    let responding = source.state.durable.turn.as_ref().is_some_and(|turn| {
-        &turn.user.id == request_id && turn.answer.as_ref().is_some_and(|answer| !answer.complete)
-    });
+    let request_id = source.state.durable.assistant.active_request.as_ref()?;
+    let responding = source
+        .state
+        .durable
+        .assistant
+        .turn
+        .as_ref()
+        .is_some_and(|turn| {
+            &turn.user.id == request_id
+                && turn.answer.as_ref().is_some_and(|answer| !answer.complete)
+        });
     Some(if responding {
         Activity::Responding
     } else {
@@ -150,8 +157,8 @@ mod tests {
             "session_id",
             serde_json::json!("session-topic"),
         );
-        state.durable.active_request = Some("request-topic".into());
-        state.durable.turn = Some(Turn {
+        state.durable.assistant.active_request = Some("request-topic".into());
+        state.durable.assistant.turn = Some(Turn {
             user: message("request-topic", "user", user_text, true, 5),
             answer: Some(message(
                 "request-topic:assistant",
@@ -167,6 +174,7 @@ mod tests {
     fn answer_mut(state: &mut State) -> &mut Message {
         state
             .durable
+            .assistant
             .turn
             .as_mut()
             .unwrap()
@@ -204,7 +212,7 @@ mod tests {
         // Same facts, unrelated notices: the topic must not move with the
         // notices, and must not need them to name the activity.
         let mut thinking = turn_state("Pregunta", "");
-        thinking.durable.turn.as_mut().unwrap().answer = None;
+        thinking.durable.assistant.turn.as_mut().unwrap().answer = None;
         thinking.set_notice(orbit_core::notice::NoticeCode::AssistantThinking);
         let data = assistant_frame(&thinking);
         assert_eq!(
@@ -213,7 +221,7 @@ mod tests {
         );
 
         let mut quiet = turn_state("Pregunta", "");
-        quiet.durable.turn.as_mut().unwrap().answer = None;
+        quiet.durable.assistant.turn.as_mut().unwrap().answer = None;
         quiet.set_notice(orbit_core::notice::NoticeCode::AudioGap);
         let quiet_data = assistant_frame(&quiet);
         assert_eq!(
@@ -222,7 +230,7 @@ mod tests {
         );
 
         let mut idle = turn_state("Pregunta", "Lista");
-        idle.durable.active_request = None;
+        idle.durable.assistant.active_request = None;
         answer_mut(&mut idle).complete = true;
         let idle_data = assistant_frame(&idle);
         assert_eq!(
@@ -241,7 +249,7 @@ mod tests {
     #[test]
     fn an_incomplete_old_turn_does_not_mark_the_new_turn_responding() {
         let mut state = turn_state("Pregunta anterior", "Respuesta interrumpida");
-        state.durable.active_request = Some("new-request".into());
+        state.durable.assistant.active_request = Some("new-request".into());
         let data = assistant_frame(&state);
         assert_eq!(data["knowledge"]["value"]["activity"], "thinking");
     }
@@ -285,7 +293,7 @@ mod tests {
             &"\"".repeat(orbit_core::MAX_TEXT_BYTES),
             &"\n".repeat(orbit_core::MAX_TEXT_BYTES * 3),
         );
-        state.durable.pending_approval = Some(orbit_core::Approval {
+        state.durable.assistant.pending_approval = Some(orbit_core::Approval {
             request_id: "request-topic".into(),
             description: "\"".repeat(16_000),
             clarification: false,
@@ -298,7 +306,7 @@ mod tests {
         eprintln!("a turn at its ceilings is {bytes} topic bytes");
         assert_eq!(data["knowledge"]["state"], "present", "{bytes} bytes");
         assert!(bytes <= TopicId::Assistant.max_bytes());
-        let turn = state.durable.turn.as_ref().unwrap();
+        let turn = state.durable.assistant.turn.as_ref().unwrap();
         assert_eq!(
             data["knowledge"]["value"]["turn"]["user"]["text"],
             turn.user.text
@@ -323,8 +331,8 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let (mut runtime, _native) =
             crate::daemon::audio::tests::fixture(directory.path()).unwrap();
-        runtime.state.durable.active_request = None;
-        runtime.state.durable.turn = Some(Turn {
+        runtime.state.durable.assistant.active_request = None;
+        runtime.state.durable.assistant.turn = Some(Turn {
             user: Message {
                 voice: Some(orbit_core::VoiceNote {
                     duration_ms: 2_000,
@@ -364,7 +372,7 @@ mod tests {
         let (mut runtime, _native) =
             crate::daemon::audio::tests::fixture(directory.path()).unwrap();
         let generation = runtime.state.generation();
-        runtime.state.durable.turn = Some(Turn {
+        runtime.state.durable.assistant.turn = Some(Turn {
             user: Message {
                 voice: Some(orbit_core::VoiceNote {
                     duration_ms: 2_000,
@@ -500,7 +508,7 @@ mod tests {
             &"\"".repeat(orbit_core::MAX_TEXT_BYTES),
             &"\n".repeat(orbit_core::MAX_TEXT_BYTES * 3),
         );
-        runtime.state.durable.pending_approval = Some(orbit_core::Approval {
+        runtime.state.durable.assistant.pending_approval = Some(orbit_core::Approval {
             request_id: "request-topic".into(),
             description: "\"".repeat(16_000),
             clarification: false,

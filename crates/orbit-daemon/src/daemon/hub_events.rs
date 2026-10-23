@@ -237,8 +237,8 @@ impl Runtime {
                 | HubEventKind::ChatItem(_)
         );
         if is_turn_event
-            && (self.state.durable.active_request.is_none()
-                || frame_id != self.state.durable.active_request.as_deref())
+            && (self.state.durable.assistant.active_request.is_none()
+                || frame_id != self.state.durable.assistant.active_request.as_deref())
         {
             return Ok(());
         }
@@ -486,7 +486,7 @@ impl Runtime {
     }
 
     async fn on_hub_chat_delta(&mut self, data: DeltaData) -> Result<()> {
-        if let Some(request_id) = self.state.durable.active_request.clone() {
+        if let Some(request_id) = self.state.durable.assistant.active_request.clone() {
             self.apply(Event::Delta {
                 request_id,
                 text: data.text,
@@ -500,7 +500,7 @@ impl Runtime {
     /// here (`on_hub_decoded_frame`), and a kind or phase this Mac does not
     /// know is recorded once by name and left out.
     fn on_hub_chat_item(&mut self, data: &ItemData) {
-        let Some(turn_id) = self.state.durable.active_request.clone() else {
+        let Some(turn_id) = self.state.durable.assistant.active_request.clone() else {
             return;
         };
         let Some(item) = orbit_core::agent_work::WorkItem::from_wire(data) else {
@@ -525,6 +525,7 @@ impl Runtime {
         let started_at_ms = self
             .state
             .durable
+            .assistant
             .turn
             .as_ref()
             .filter(|turn| turn.user.id == turn_id)
@@ -549,7 +550,7 @@ impl Runtime {
     }
 
     async fn on_hub_chat_completed(&mut self, data: &CompletedData) -> Result<()> {
-        if let Some(request_id) = self.state.durable.active_request.clone() {
+        if let Some(request_id) = self.state.durable.assistant.active_request.clone() {
             self.end_work(&request_id);
             if data.status.as_deref() == Some("error") {
                 self.conversation.speak_next = false;
@@ -583,7 +584,7 @@ impl Runtime {
         let Some(turn_id) = turn_id else {
             return Ok(());
         };
-        if self.state.durable.pending_approval.is_some() {
+        if self.state.durable.assistant.pending_approval.is_some() {
             return Ok(());
         }
         let Some(description) = data.description.as_deref().or(data.question.as_deref()) else {
@@ -621,6 +622,7 @@ impl Runtime {
         if let Some(request_id) = self
             .state
             .durable
+            .assistant
             .active_request
             .clone()
             .filter(|active| frame_id == Some(active.as_str()))

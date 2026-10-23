@@ -31,7 +31,7 @@ fn state(phase: CapturePhase) -> State {
     let mut state = State::default();
     state.durable.capabilities.native_helper = true;
     state.durable.capabilities.microphone_state = PermissionState::Granted;
-    state.durable.recording = Some(recording(phase));
+    state.durable.capture.recording = Some(recording(phase));
     state
 }
 
@@ -56,11 +56,11 @@ fn a_recording_or_paused_meeting_drains_and_then_is_gone_without_being_saved() {
     for phase in [CapturePhase::Recording, CapturePhase::Paused] {
         let asked = decide(&state(phase.clone()), discard(ID), 5_000).unwrap();
         assert!(asked.effects.contains(&Effect::StopCapture), "{phase:?}");
-        let draining = asked.state.durable.recording.as_ref().unwrap();
+        let draining = asked.state.durable.capture.recording.as_ref().unwrap();
         assert_eq!(draining.phase, CapturePhase::Finalizing, "{phase:?}");
         assert_eq!(asked.state.durable.discarding(), Some(ID));
         let drained = decide(&asked.state, Event::CaptureFinalized, 6_000).unwrap();
-        assert_eq!(drained.state.durable.recording, None, "{phase:?}");
+        assert_eq!(drained.state.durable.capture.recording, None, "{phase:?}");
         assert_eq!(drained.state.durable.discarding(), None);
         assert_eq!(
             drained.state.notice_code(),
@@ -100,7 +100,7 @@ fn only_the_named_recording_while_it_records_or_pauses_is_thrown_away() {
 fn under_a_privacy_stop_nothing_drains_and_it_is_gone_at_once() {
     let stopped = crate::authority_fixture::stopped_state(state(CapturePhase::Paused));
     let decision = decide(&stopped, discard(ID), 5_000).unwrap();
-    assert_eq!(decision.state.durable.recording, None);
+    assert_eq!(decision.state.durable.capture.recording, None);
     assert!(!decision.effects.contains(&Effect::StopCapture));
     assert_eq!(
         decision.state.notice_code(),
@@ -113,7 +113,7 @@ fn a_drain_that_never_confirms_does_not_close_it_as_a_meeting() {
     let asked = decide(&state(CapturePhase::Recording), discard(ID), 5_000).unwrap();
     let late = 5_000 + crate::FINALIZING_TIMEOUT_MS + 1;
     let decision = decide(&asked.state, Event::Tick, late).unwrap();
-    assert_eq!(decision.state.durable.recording, None);
+    assert_eq!(decision.state.durable.capture.recording, None);
     assert_eq!(
         decision.state.notice_code(),
         Some(NoticeCode::RecordingDiscarded)
@@ -132,7 +132,7 @@ fn a_cut_while_it_drains_never_leaves_it_to_resume() {
         5_500,
     )
     .unwrap();
-    assert_eq!(cut.state.durable.recording, None);
+    assert_eq!(cut.state.durable.capture.recording, None);
     assert_eq!(cut.state.durable.discarding(), None);
 }
 
@@ -140,7 +140,7 @@ fn a_cut_while_it_drains_never_leaves_it_to_resume() {
 fn a_restart_while_it_drains_forgets_it() {
     let asked = decide(&state(CapturePhase::Recording), discard(ID), 5_000).unwrap();
     let restored = asked.state.recovered();
-    assert_eq!(restored.durable.recording, None);
+    assert_eq!(restored.durable.capture.recording, None);
     assert_eq!(restored.durable.discarding(), None);
 }
 
@@ -148,7 +148,7 @@ fn a_restart_while_it_drains_forgets_it() {
 fn a_finished_meeting_still_closes_as_before() {
     let asked = decide(&state(CapturePhase::Recording), Event::FinishMeeting, 5_000).unwrap();
     let closed = decide(&asked.state, Event::CaptureFinalized, 6_000).unwrap();
-    let recording = closed.state.durable.recording.as_ref().unwrap();
+    let recording = closed.state.durable.capture.recording.as_ref().unwrap();
     assert_eq!(recording.phase, CapturePhase::Idle);
     assert_eq!(recording.ended_at_ms, Some(6_000));
     assert_eq!(

@@ -106,7 +106,7 @@ impl Call {
     }
 
     fn alive(&self) -> bool {
-        self.runtime.state.durable.call.is_some()
+        self.runtime.state.durable.voice.call.is_some()
             && self
                 .runtime
                 .capture
@@ -144,13 +144,18 @@ async fn speaking_while_a_turn_is_transcribed_keeps_the_call_and_both_turns() ->
     // continuación», shown in every conversation).
     let state = &call.runtime.state.durable;
     assert!(
-        state.turn.as_ref().is_none_or(|turn| turn.user.id != first)
+        state
+            .assistant
+            .turn
+            .as_ref()
+            .is_none_or(|turn| turn.user.id != first)
             && state
+                .assistant
                 .pending_voice
                 .iter()
                 .all(|note| note.message.id != first),
         "the joined turn left a note: {:?}",
-        state.turn
+        state.assistant.turn
     );
     call.frames(2, true).await?;
     call.frames(8, false).await?;
@@ -177,7 +182,7 @@ async fn speaking_while_a_turn_is_transcribed_keeps_the_call_and_both_turns() ->
 #[tokio::test]
 async fn a_turn_that_interrupts_deimos_ends_and_is_sent() -> Result<()> {
     let mut call = Call::open().await?;
-    call.runtime.state.durable.active_request = Some("answer-in-course".into());
+    call.runtime.state.durable.assistant.active_request = Some("answer-in-course".into());
     call.frames(2, true).await?;
     assert!(
         call.capturing(),
@@ -203,6 +208,7 @@ async fn noise_over_deimos_answer_stops_nothing_and_leaves_nothing() -> Result<(
         .runtime
         .state
         .durable
+        .voice
         .call
         .as_ref()
         .map(|call| call.turns);
@@ -217,7 +223,7 @@ async fn noise_over_deimos_answer_stops_nothing_and_leaves_nothing() -> Result<(
         "Deimos was cut off before anything was heard"
     );
     assert!(
-        call.runtime.state.durable.turn.is_none(),
+        call.runtime.state.durable.assistant.turn.is_none(),
         "a turn was created"
     );
     // The hub hears no words in it.
@@ -229,13 +235,18 @@ async fn noise_over_deimos_answer_stops_nothing_and_leaves_nothing() -> Result<(
             .any(|order| order == "playback_stop")
     );
     let state = &call.runtime.state.durable;
-    assert!(state.turn.is_none(), "a turn was created: {:?}", state.turn);
-    assert!(state.pending_voice.is_empty(), "a note was left");
+    assert!(
+        state.assistant.turn.is_none(),
+        "a turn was created: {:?}",
+        state.assistant.turn
+    );
+    assert!(state.assistant.pending_voice.is_empty(), "a note was left");
     assert!(failed_since(&call.runtime, before).is_empty());
     assert_eq!(
         call.runtime
             .state
             .durable
+            .voice
             .call
             .as_ref()
             .map(|call| call.turns),
@@ -272,6 +283,7 @@ async fn words_over_deimos_answer_stop_him_and_are_sent() -> Result<()> {
         .runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .context("no turn")?;
@@ -282,7 +294,12 @@ async fn words_over_deimos_answer_stop_him_and_are_sent() -> Result<()> {
         "its audio is kept"
     );
     assert!(
-        call.runtime.state.durable.active_request.is_some(),
+        call.runtime
+            .state
+            .durable
+            .assistant
+            .active_request
+            .is_some(),
         "not sent"
     );
     Ok(())
@@ -300,11 +317,11 @@ async fn a_turn_without_words_waits_for_the_next_one() -> Result<()> {
     call.transcribed("").await?;
     let state = &call.runtime.state.durable;
     assert!(
-        state.turn.is_none(),
+        state.assistant.turn.is_none(),
         "the silent turn stayed: {:?}",
-        state.turn
+        state.assistant.turn
     );
-    assert!(state.pending_voice.is_empty());
+    assert!(state.assistant.pending_voice.is_empty());
     assert!(failed_since(&call.runtime, before).is_empty());
     assert!(
         call.voice_pcm(&first).is_err(),

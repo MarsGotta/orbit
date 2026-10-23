@@ -66,11 +66,12 @@ fn a_recording_that_was_running_stays_interrupted_with_its_fragments() {
         CapturePhase::Finalizing,
     ] {
         let mut running = DurableState::default();
-        running.recording = Some(recording(phase.clone()));
-        running.voice_active = true;
+        running.capture.recording = Some(recording(phase.clone()));
+        running.voice.voice_active = true;
         let recovered = running.recovered();
         assert!(!recovered.privacy_stopped(), "{phase:?}");
         let recording = recovered
+            .capture
             .recording
             .as_ref()
             .expect("the recording survives");
@@ -79,7 +80,7 @@ fn a_recording_that_was_running_stays_interrupted_with_its_fragments() {
             recording.sealed_chunks, 12,
             "{phase:?}: the saved fragments stay"
         );
-        assert!(!recovered.voice_active, "{phase:?}");
+        assert!(!recovered.voice.voice_active, "{phase:?}");
         assert!(
             said(&recovered).contains(&Notice {
                 sequence: Some(1),
@@ -127,9 +128,13 @@ fn recovery_does_not_relabel_a_phase_that_was_not_live() {
         CapturePhase::Interrupted,
     ] {
         let mut running = DurableState::default();
-        running.recording = Some(recording(phase.clone()));
+        running.capture.recording = Some(recording(phase.clone()));
         let recovered = running.recovered();
-        let recording = recovered.recording.as_ref().expect("recording survives");
+        let recording = recovered
+            .capture
+            .recording
+            .as_ref()
+            .expect("recording survives");
         assert_eq!(recording.phase, phase);
         assert_eq!(recording.gaps, 0);
         assert_ne!(

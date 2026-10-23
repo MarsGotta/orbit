@@ -59,7 +59,7 @@ fn pending_recording_refusal_names_identity_phase_and_numbers() {
     let state = decide(&state, Event::ChunkSealed, 1_500).unwrap().state;
     let state = decide(&state, Event::ChunkSealed, 1_501).unwrap().state;
     let mut state = decide(&state, Event::CaptureGap, 1_502).unwrap().state;
-    state.durable.recording.as_mut().unwrap().phase = CapturePhase::Interrupted;
+    state.durable.capture.recording.as_mut().unwrap().phase = CapturePhase::Interrupted;
     let refusal = decide(
         &state,
         Event::CallStart {
@@ -107,7 +107,13 @@ fn empty_capture_closure_keeps_the_capture_cut_cause_in_notice_history() {
         .unwrap()
         .state;
     assert_eq!(
-        state.durable.recording.as_ref().unwrap().ended_at_ms,
+        state
+            .durable
+            .capture
+            .recording
+            .as_ref()
+            .unwrap()
+            .ended_at_ms,
         Some(2_001)
     );
     // The cut is said with what it cut, then the empty close.
@@ -231,7 +237,7 @@ fn refused_voice_start_ends_the_voice_without_naming_a_recording() {
     )
     .unwrap()
     .state;
-    assert!(!refused.durable.voice_active);
+    assert!(!refused.durable.voice.voice_active);
     // A missing permission is the fixable notice, whether for a voice note
     // or a recording; it names no recording.
     assert_eq!(
@@ -322,7 +328,7 @@ fn a_cut_recording_that_cannot_go_on_is_closed_at_its_last_audio() {
     )
     .unwrap()
     .state;
-    let recording = closed.durable.recording.as_ref().unwrap();
+    let recording = closed.durable.capture.recording.as_ref().unwrap();
     assert_eq!(recording.ended_at_ms, Some(2_500));
     assert_eq!(recording.phase, CapturePhase::Idle);
     let notice = closed.durable.notice.as_ref().unwrap();
@@ -342,7 +348,10 @@ fn a_cut_recording_that_cannot_go_on_is_closed_at_its_last_audio() {
     )
     .unwrap()
     .state;
-    assert_eq!(early.durable.recording.unwrap().ended_at_ms, Some(1_000));
+    assert_eq!(
+        early.durable.capture.recording.unwrap().ended_at_ms,
+        Some(1_000)
+    );
     // Only an interrupted recording still open is closed this way.
     assert!(
         decide(

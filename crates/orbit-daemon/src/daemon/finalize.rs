@@ -54,15 +54,11 @@ impl Runtime {
         &self,
         next: &orbit_core::State,
     ) -> Result<Option<Job>> {
-        let Some(previous) = self.state.durable.recording.as_ref() else {
+        let Some(previous) = self.state.durable.capture.recording.as_ref() else {
             return Ok(None);
         };
-        if next
-            .durable
-            .recording
-            .as_ref()
-            .is_some_and(|recording| recording.id == previous.id)
-        {
+        let replacing = next.durable.capture.recording.as_ref();
+        if replacing.is_some_and(|recording| recording.id == previous.id) {
             return Ok(None);
         }
         let (ended_at_ms, gaps) = match (&previous.phase, previous.ended_at_ms) {
@@ -97,14 +93,15 @@ impl Runtime {
         &self,
         next: &orbit_core::State,
     ) -> Result<Option<Job>> {
-        let Some(previous) = self.state.durable.recording.as_ref().filter(|recording| {
+        let previous = self.state.durable.capture.recording.as_ref();
+        let Some(previous) = previous.filter(|recording| {
             recording.phase == CapturePhase::Interrupted
                 && recording.sealed_chunks == 0
                 && recording.ended_at_ms.is_none()
         }) else {
             return Ok(None);
         };
-        let Some(recording) = next.durable.recording.as_ref().filter(|recording| {
+        let Some(recording) = next.durable.capture.recording.as_ref().filter(|recording| {
             recording.id == previous.id && recording.phase == CapturePhase::Interrupted
         }) else {
             return Ok(None);
@@ -131,7 +128,7 @@ impl Runtime {
     }
 
     pub(super) async fn queue_finalize(&mut self) -> Result<()> {
-        let Some(recording) = self.state.durable.recording.as_ref().filter(|r| {
+        let Some(recording) = self.state.durable.capture.recording.as_ref().filter(|r| {
             r.ended_at_ms.is_some()
                 && matches!(r.phase, CapturePhase::Idle | CapturePhase::Interrupted)
         }) else {
@@ -151,7 +148,8 @@ impl Runtime {
         &mut self,
         interruption: orbit_core::RecordingInterruption,
     ) -> Result<()> {
-        let Some(recording) = self.state.durable.recording.as_ref().filter(|recording| {
+        let recording = self.state.durable.capture.recording.as_ref();
+        let Some(recording) = recording.filter(|recording| {
             recording.phase == CapturePhase::Interrupted
                 && recording.ended_at_ms.is_none()
                 && recording.sealed_chunks == 0
@@ -231,6 +229,7 @@ impl Runtime {
         let title = if let Some(recording) = self
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .filter(|recording| recording.id == recording_id)

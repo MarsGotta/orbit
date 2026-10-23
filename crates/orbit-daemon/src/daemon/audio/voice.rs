@@ -136,6 +136,7 @@ impl Runtime {
             if let Some(voice) = self
                 .state
                 .durable
+                .assistant
                 .turn
                 .as_mut()
                 .and_then(|turn| turn.untranscribed_voice_mut(operation_id))

@@ -342,6 +342,7 @@ async fn failed_seal_preserves_close_and_seals_once_after_destination_recovers()
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -362,6 +363,7 @@ async fn finish_waits_for_ack_and_preserves_the_final_native_frames() -> Result<
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -382,6 +384,7 @@ async fn finish_waits_for_ack_and_preserves_the_final_native_frames() -> Result<
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -523,6 +526,7 @@ async fn voice_source_is_durable_before_credentials_or_provider_are_needed() -> 
     let note = &runtime
         .state
         .durable
+        .assistant
         .turn
         .as_ref()
         .context("voice note absent")?
@@ -661,11 +665,11 @@ async fn an_empty_transcription_leaves_the_voice_note_without_a_failure() -> Res
         ))
         .await?;
     assert!(
-        runtime.state.durable.turn.is_none(),
+        runtime.state.durable.assistant.turn.is_none(),
         "the silent note stayed: {:?}",
-        runtime.state.durable.turn
+        runtime.state.durable.assistant.turn
     );
-    assert!(runtime.state.durable.pending_voice.is_empty());
+    assert!(runtime.state.durable.assistant.pending_voice.is_empty());
     assert_eq!(
         runtime.state.durable.notice_code(),
         Some(orbit_core::notice::NoticeCode::VoiceNotRecognized)
@@ -681,7 +685,7 @@ async fn late_transcript_after_privacy_stop_is_not_submitted() -> Result<()> {
         let fixture_value = serde_json::json!(true);
         crate::daemon::authority_fixture::set(&mut runtime.state, "privacy_stopped", fixture_value);
     }
-    let original_turn = runtime.state.durable.turn.clone();
+    let original_turn = runtime.state.durable.assistant.turn.clone();
     let ticket = pending_work(
         &mut runtime.conversation.voice_task,
         runtime.state.generation(),
@@ -702,7 +706,7 @@ async fn late_transcript_after_privacy_stop_is_not_submitted() -> Result<()> {
             },
         ))
         .await?;
-    assert_eq!(runtime.state.durable.turn, original_turn);
+    assert_eq!(runtime.state.durable.assistant.turn, original_turn);
     assert!(runtime.conversation.voice_task.active().is_none());
     assert!(!runtime.conversation.speak_next);
     Ok(())
@@ -739,6 +743,7 @@ async fn generation_change_marks_the_pending_note_instead_of_leaving_it_in_progr
         runtime
             .state
             .durable
+            .assistant
             .turn
             .as_ref()
             .context("turn absent")?
@@ -784,6 +789,7 @@ async fn interrupt_invalidates_an_already_queued_voice_result_without_stopping_m
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -805,7 +811,7 @@ async fn interrupt_invalidates_an_already_queued_voice_result_without_stopping_m
             },
         ))
         .await?;
-    assert!(runtime.state.durable.turn.is_none());
+    assert!(runtime.state.durable.assistant.turn.is_none());
     Ok(())
 }
 
@@ -874,6 +880,7 @@ async fn system_scope_starts_remote_app_without_pid_and_marks_the_epoch() -> Res
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -912,6 +919,7 @@ fn track_progress<'a>(runtime: &'a Runtime, name: &str) -> Result<&'a orbit_core
     runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?
@@ -961,6 +969,7 @@ async fn tracks_report_sealed_chunks_and_gaps_per_track() -> Result<()> {
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?
@@ -1027,6 +1036,7 @@ async fn tracks_report_sealed_chunks_and_gaps_per_track() -> Result<()> {
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -1356,6 +1366,7 @@ async fn privacy_stop_marks_pending_voice_transcription_as_failed() -> Result<()
         runtime
             .state
             .durable
+            .assistant
             .turn
             .as_ref()
             .context("turn absent")?
@@ -1388,6 +1399,7 @@ async fn assert_voice_retirement_cause(
         runtime
             .state
             .durable
+            .assistant
             .turn
             .as_ref()
             .context("turn absent")?
@@ -1453,6 +1465,7 @@ async fn voice_cancellation_cause_is_persisted_by_each_entry_point() -> Result<(
         assert_eq!(
             saved
                 .durable
+                .assistant
                 .turn
                 .as_ref()
                 .context("turn absent")?
@@ -1509,6 +1522,7 @@ async fn session_device_and_revocation_retire_the_pending_voice_note() -> Result
         assert_eq!(
             saved
                 .durable
+                .assistant
                 .turn
                 .as_ref()
                 .context("turn absent")?
@@ -1565,6 +1579,7 @@ async fn hub_link_flicker_keeps_the_pending_voice_worker_and_note() -> Result<()
                 runtime
                     .state
                     .durable
+                    .assistant
                     .turn
                     .as_ref()
                     .context("turn absent")?
@@ -1601,7 +1616,7 @@ async fn hub_link_change_cancels_a_call_turn_but_keeps_a_saved_voice_note() -> R
             runtime.state.generation(),
             (),
         )?;
-        runtime.state.durable.call = Some(orbit_core::CallState {
+        runtime.state.durable.voice.call = Some(orbit_core::CallState {
             id: "call-link".into(),
             phase: orbit_core::CallPhase::Listening,
             started_at_ms: 1,
@@ -1610,7 +1625,7 @@ async fn hub_link_change_cancels_a_call_turn_but_keeps_a_saved_voice_note() -> R
             origin: orbit_core::CallOrigin::App,
         });
         runtime.apply(event.clone()).await?;
-        assert!(runtime.state.durable.call.is_none(), "{event:?}");
+        assert!(runtime.state.durable.voice.call.is_none(), "{event:?}");
         assert!(
             runtime.conversation.voice_task.active().is_none(),
             "{event:?}"
@@ -1624,6 +1639,7 @@ async fn hub_link_change_cancels_a_call_turn_but_keeps_a_saved_voice_note() -> R
             runtime
                 .state
                 .durable
+                .assistant
                 .turn
                 .as_ref()
                 .context("turn absent")?
@@ -1675,6 +1691,7 @@ async fn hub_link_change_cancels_a_call_turn_but_keeps_a_saved_voice_note() -> R
             note_runtime
                 .state
                 .durable
+                .assistant
                 .turn
                 .as_ref()
                 .context("turn absent")?
@@ -1705,7 +1722,7 @@ async fn meeting_capture_cut_keeps_a_saved_voice_note_transcription() -> Result<
         runtime.state.generation(),
         (),
     )?;
-    runtime.state.durable.recording = Some(orbit_core::Recording {
+    runtime.state.durable.capture.recording = Some(orbit_core::Recording {
         id: "meeting-capture".into(),
         title: "Reunión sintética".into(),
         started_at_ms: now(),
@@ -1721,7 +1738,7 @@ async fn meeting_capture_cut_keeps_a_saved_voice_note_transcription() -> Result<
         ceiling_notice_given: false,
         muted_spans: Vec::new(),
     });
-    assert!(runtime.state.durable.call.is_none());
+    assert!(runtime.state.durable.voice.call.is_none());
     runtime
         .cut_capture(
             orbit_core::privacy_stop::StopCause::HelperLost,
@@ -1738,6 +1755,7 @@ async fn meeting_capture_cut_keeps_a_saved_voice_note_transcription() -> Result<
         runtime
             .state
             .durable
+            .assistant
             .turn
             .as_ref()
             .context("turn absent")?
@@ -1771,7 +1789,7 @@ async fn refused_voice_start_keeps_the_permission_cause() -> Result<()> {
         runtime.state.durable.notice
     );
     assert!(!said::has(&runtime.state, NoticeCode::VoiceNoteEmpty));
-    assert!(!runtime.state.durable.voice_active);
+    assert!(!runtime.state.durable.voice.voice_active);
     assert!(runtime.capture.buffer.voice.is_none());
     Ok(())
 }
@@ -1911,6 +1929,7 @@ async fn a_backlog_delivered_after_a_stall_is_sealed_whole_without_a_gap() -> Re
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("the recording goes on")?

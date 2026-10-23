@@ -1261,6 +1261,7 @@ async fn obsolete_answers_do_not_consume_a_new_read_or_stop_audio() -> Result<()
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .map(|recording| &recording.phase),

@@ -23,12 +23,13 @@ fn gate_inputs(state: &State) -> GateInputs {
     (
         state
             .durable
+            .capture
             .recording
             .as_ref()
             .map(|recording| (recording.id.clone(), recording.phase.clone())),
         state.privacy_stopped(),
-        state.durable.call.is_some(),
-        state.durable.voice_active,
+        state.durable.voice.call.is_some(),
+        state.durable.voice.voice_active,
     )
 }
 
@@ -40,9 +41,9 @@ impl Runtime {
         !self.closing
             && self.recording_active()
             && !self.state.privacy_stopped()
-            && self.state.durable.call.is_none()
+            && self.state.durable.voice.call.is_none()
             && self.capture.call_runtime.is_none()
-            && !self.state.durable.voice_active
+            && !self.state.durable.voice.voice_active
             && self.capture.buffer.voice.is_none()
             && !self.audio_is_draining()
             && !self.stopped_audio_owed()

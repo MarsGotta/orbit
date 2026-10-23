@@ -75,6 +75,7 @@ impl Runtime {
     fn meeting_in_progress(&self) -> Option<Meeting> {
         self.state
             .durable
+            .capture
             .recording
             .as_ref()
             .filter(|recording| {
@@ -94,17 +95,17 @@ impl Runtime {
     /// `dictated`: the question is the voice note itself, so the voice note
     /// and its transcription are not in the way.
     fn busy_turn(&self, dictated: bool) -> Option<BusyTurn> {
-        if self.state.durable.pending_approval.is_some() {
+        if self.state.durable.assistant.pending_approval.is_some() {
             Some(BusyTurn::PendingApproval)
-        } else if self.state.durable.active_request.is_some() {
+        } else if self.state.durable.assistant.active_request.is_some() {
             Some(BusyTurn::AssistantTurn)
         } else if !dictated
-            && (self.state.durable.voice_active || self.capture.buffer.voice.is_some())
+            && (self.state.durable.voice.voice_active || self.capture.buffer.voice.is_some())
         {
             Some(BusyTurn::VoiceNote)
         } else if !dictated && self.conversation.voice_task.active().is_some() {
             Some(BusyTurn::VoiceTranscription)
-        } else if self.state.durable.call.is_some() {
+        } else if self.state.durable.voice.call.is_some() {
             Some(BusyTurn::Call)
         } else {
             None
@@ -357,7 +358,8 @@ impl Runtime {
             .as_ref()
             .is_some_and(|question| {
                 question.stage == QuestionStage::Thinking
-                    && self.state.durable.active_request.as_deref() == Some(question.id.as_str())
+                    && self.state.durable.assistant.active_request.as_deref()
+                        == Some(question.id.as_str())
             })
     }
 
@@ -371,11 +373,13 @@ impl Runtime {
         if question.stage != QuestionStage::Thinking {
             return;
         }
-        let in_flight = self.state.durable.active_request.as_deref() == Some(question.id.as_str());
+        let in_flight =
+            self.state.durable.assistant.active_request.as_deref() == Some(question.id.as_str());
         // The answer is the turn's, while it is still the question's.
         let answer = self
             .state
             .durable
+            .assistant
             .turn
             .as_ref()
             .filter(|turn| turn.user.id == question.id)

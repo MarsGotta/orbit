@@ -281,6 +281,7 @@ async fn a_returning_helper_restores_the_capability_and_resumes_the_cut_recordin
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;
@@ -342,6 +343,7 @@ async fn a_returning_helper_restores_the_capability_and_resumes_the_cut_recordin
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;
@@ -494,6 +496,7 @@ async fn a_capture_stop_stalled_once_is_retried_and_the_next_meeting_can_start()
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;
@@ -559,6 +562,7 @@ async fn a_synthetic_backpressure_gap_for_a_live_stream_is_a_degradation() -> Re
     let gaps_before = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?
@@ -580,6 +584,7 @@ async fn a_synthetic_backpressure_gap_for_a_live_stream_is_a_degradation() -> Re
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent after gap")?;
@@ -626,6 +631,7 @@ async fn malformed_audio_bridge_loss_cuts_capture_with_the_field_visible() -> Re
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -640,6 +646,7 @@ async fn malformed_audio_bridge_loss_cuts_capture_with_the_field_visible() -> Re
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?
@@ -689,6 +696,7 @@ async fn audio_route_recovery_seals_the_tail_and_keeps_the_timeline() -> Result<
         let recording = runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording absent")?;
@@ -860,6 +868,7 @@ async fn a_start_refused_behind_a_held_main_thread_is_a_refused_start_not_a_cut(
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording absent")?;

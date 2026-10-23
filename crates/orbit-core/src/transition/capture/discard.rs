@@ -6,22 +6,20 @@
 //! what drains and deletes what it had kept (`daemon/discard.rs`). Once the
 //! drain ends, or cannot end, the recording leaves the state and the person
 //! is told «Reunión descartada».
-use super::Effect;
-use crate::model::*;
+use super::CaptureState;
+use crate::model::CapturePhase;
 use crate::notice::NoticeCode;
 use crate::refusal::{Expected, Parameter, Refusal};
+use crate::transition::{Effect, Step};
 
 /// The recording `recording_id`, recording or paused, is thrown away.
 /// Under a privacy stop nothing is left to drain: it is gone at once.
-pub(super) fn decide_discard(
-    state: &State,
-    next: &mut State,
-    effects: &mut Vec<Effect>,
+pub(in crate::transition) fn discard(
+    capture: &mut CaptureState,
     recording_id: &str,
-    now_ms: i64,
+    cx: &mut Step,
 ) -> Result<(), Refusal> {
-    let recording = next
-        .durable
+    let recording = capture
         .recording
         .as_mut()
         .filter(|recording| {
@@ -36,73 +34,72 @@ pub(super) fn decide_discard(
             parameter: Parameter::Request,
             expected: Expected::OpenRecording,
         })?;
-    if state.durable.privacy_stopped {
-        next.durable.recording = None;
-        next.set_notice(NoticeCode::RecordingDiscarded);
+    if cx.before.privacy.stopped() {
+        capture.recording = None;
+        cx.say(NoticeCode::RecordingDiscarded);
         return Ok(());
     }
     recording.phase = CapturePhase::Finalizing;
-    recording.finalizing_since_ms = Some(now_ms);
-    next.durable.discarding = Some(recording_id.to_owned());
-    effects.push(Effect::StopCapture);
+    recording.finalizing_since_ms = Some(cx.now_ms);
+    capture.discarding = Some(recording_id.to_owned());
+    cx.effect(Effect::StopCapture);
     Ok(())
 }
 
 /// The capture of the recording being thrown away is over, drained or
 /// given up on: the recording leaves the state, and that is said. False
 /// when nothing is being thrown away, so the caller goes on as before.
-pub(super) fn drained(next: &mut State) -> bool {
-    let Some(discarded) = next.durable.discarding.take() else {
+pub(super) fn drained(capture: &mut CaptureState, cx: &mut Step) -> bool {
+    let Some(discarded) = capture.discarding.take() else {
         return false;
     };
-    if next
-        .durable
+    if capture
         .recording
         .as_ref()
         .is_some_and(|recording| recording.id == discarded)
     {
-        next.durable.recording = None;
+        capture.recording = None;
     }
-    next.set_notice(NoticeCode::RecordingDiscarded);
+    cx.say(NoticeCode::RecordingDiscarded);
     true
 }
 
 /// The wait for the drain of a recording being thrown away is over: it has
 /// nothing to close, so it is gone, never «not confirmed».
-pub(super) fn drain_timed_out(next: &mut State, now_ms: i64) {
-    let timed_out = next.durable.recording.as_ref().is_some_and(|recording| {
+pub(in crate::transition) fn drain_timed_out(capture: &mut CaptureState, cx: &mut Step) {
+    let now_ms = cx.now_ms;
+    let timed_out = capture.recording.as_ref().is_some_and(|recording| {
         recording.phase == CapturePhase::Finalizing
             && recording
                 .finalizing_since_ms
                 .is_some_and(|since| now_ms > since.saturating_add(crate::FINALIZING_TIMEOUT_MS))
     });
     if timed_out {
-        drained(next);
+        drained(capture, cx);
     }
 }
 
 /// After every decision: a recording being thrown away that something else
 /// cut or replaced (a privacy stop, a revocation, a close) is gone too; it
 /// never resumes or closes as a meeting.
-pub(super) fn settle(next: &mut State) {
-    let Some(discarded) = next.durable.discarding.as_deref() else {
+pub(in crate::transition) fn settle(capture: &mut CaptureState) {
+    let Some(discarded) = capture.discarding.as_deref() else {
         return;
     };
-    let draining = next.durable.recording.as_ref().is_some_and(|recording| {
+    let draining = capture.recording.as_ref().is_some_and(|recording| {
         recording.id == discarded && recording.phase == CapturePhase::Finalizing
     });
     if draining {
         return;
     }
-    if next
-        .durable
+    if capture
         .recording
         .as_ref()
         .is_some_and(|recording| recording.id == discarded)
     {
-        next.durable.recording = None;
+        capture.recording = None;
     }
-    next.durable.discarding = None;
+    capture.discarding = None;
 }
 
 #[cfg(test)]

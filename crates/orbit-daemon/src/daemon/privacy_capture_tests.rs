@@ -177,7 +177,14 @@ async fn start_recording(runtime: &mut Runtime, helper: &mut mpsc::Receiver<Valu
             "result":{"stream_id":start["stream_id"]}}))
         .await;
     assert_eq!(
-        runtime.state.durable.recording.as_ref().unwrap().phase,
+        runtime
+            .state
+            .durable
+            .capture
+            .recording
+            .as_ref()
+            .unwrap()
+            .phase,
         CapturePhase::Recording
     );
     start["stream_id"].as_str().unwrap().to_owned()
@@ -409,7 +416,7 @@ async fn audio_that_cannot_be_kept_whole_cuts_the_recording_not_orbit() {
     runtime.handle_native_event(frame(&stream, 1, 16_000)).await;
 
     assert!(!runtime.state.privacy_stopped(), "{:?}", said(&runtime));
-    let recording = runtime.state.durable.recording.as_ref().unwrap();
+    let recording = runtime.state.durable.capture.recording.as_ref().unwrap();
     assert_eq!(recording.phase, CapturePhase::Interrupted);
     let notice = said(&runtime).join(" | ");
     assert!(notice.contains("Formato de pista cambiado"), "{notice}");
@@ -430,7 +437,14 @@ async fn audio_that_cannot_be_kept_whole_cuts_the_recording_not_orbit() {
     }
     assert!(!names(&sent(&mut helper)).contains(&"audio_start".to_owned()));
     assert_eq!(
-        runtime.state.durable.recording.as_ref().unwrap().phase,
+        runtime
+            .state
+            .durable
+            .capture
+            .recording
+            .as_ref()
+            .unwrap()
+            .phase,
         CapturePhase::Interrupted
     );
 }
@@ -449,7 +463,14 @@ async fn a_sleeping_mac_cuts_the_recording_and_orbit_comes_back_working() {
         .await;
     assert!(!runtime.state.privacy_stopped(), "{:?}", said(&runtime));
     assert_eq!(
-        runtime.state.durable.recording.as_ref().unwrap().phase,
+        runtime
+            .state
+            .durable
+            .capture
+            .recording
+            .as_ref()
+            .unwrap()
+            .phase,
         CapturePhase::Interrupted,
         "the recording is cut, not left running on a sleeping Mac"
     );
@@ -648,7 +669,14 @@ async fn a_fault_of_another_vertical_is_said_and_the_recording_goes_on() {
             .await;
         runtime.run_maintenance().await;
         assert_eq!(
-            runtime.state.durable.recording.as_ref().unwrap().phase,
+            runtime
+                .state
+                .durable
+                .capture
+                .recording
+                .as_ref()
+                .unwrap()
+                .phase,
             CapturePhase::Recording,
             "{:?}",
             said(&runtime)
@@ -672,7 +700,14 @@ async fn a_fault_of_another_vertical_is_said_and_the_recording_goes_on() {
         )
         .await;
     assert_eq!(
-        runtime.state.durable.recording.as_ref().unwrap().phase,
+        runtime
+            .state
+            .durable
+            .capture
+            .recording
+            .as_ref()
+            .unwrap()
+            .phase,
         CapturePhase::Recording
     );
     assert!(!names(&sent(&mut helper)).contains(&"capture_stop".to_owned()));
@@ -714,7 +749,14 @@ async fn a_fault_of_the_capture_itself_cuts_the_recording() {
     runtime.capture.seal_retry_at = None;
     runtime.run_maintenance().await;
     assert_eq!(
-        runtime.state.durable.recording.as_ref().unwrap().phase,
+        runtime
+            .state
+            .durable
+            .capture
+            .recording
+            .as_ref()
+            .unwrap()
+            .phase,
         CapturePhase::Interrupted,
         "{:?}",
         said(&runtime)
@@ -824,6 +866,7 @@ async fn tick_expiry_with_a_stalled_audio_stop_closes_the_microphone() {
     runtime
         .state
         .durable
+        .capture
         .recording
         .as_mut()
         .unwrap()

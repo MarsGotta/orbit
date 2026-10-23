@@ -192,6 +192,7 @@ impl Runtime {
         let nothing_kept = self
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .is_some_and(|recording| {

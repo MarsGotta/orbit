@@ -106,7 +106,7 @@ async fn the_phrase_on_the_calls_track_starts_nothing() -> Result<()> {
     }
     assert!(hub_frames.try_recv().is_err(), "nothing went to Deimos");
     assert!(runtime.features.question.current.is_none());
-    assert!(runtime.state.durable.active_request.is_none());
+    assert!(runtime.state.durable.assistant.active_request.is_none());
 
     // Paused: the microphone is not the meeting's any more.
     recording(&mut runtime, "paused");
@@ -143,6 +143,7 @@ async fn the_button_and_the_shortcut_ask_with_the_same_context() -> Result<()> {
     let turn = runtime
         .state
         .durable
+        .assistant
         .active_request
         .clone()
         .context("turn")?;
@@ -181,6 +182,7 @@ async fn the_button_and_the_shortcut_ask_with_the_same_context() -> Result<()> {
     let turn = runtime
         .state
         .durable
+        .assistant
         .active_request
         .clone()
         .context("turn")?;
@@ -203,6 +205,7 @@ async fn the_button_and_the_shortcut_ask_with_the_same_context() -> Result<()> {
     let turn = runtime
         .state
         .durable
+        .assistant
         .active_request
         .clone()
         .context("turn")?;
@@ -235,6 +238,7 @@ async fn each_failure_of_the_turn_reaches_the_panel_with_its_cause() -> Result<(
     let turn = runtime
         .state
         .durable
+        .assistant
         .active_request
         .clone()
         .context("turn")?;
@@ -265,6 +269,7 @@ async fn each_failure_of_the_turn_reaches_the_panel_with_its_cause() -> Result<(
     let turn = runtime
         .state
         .durable
+        .assistant
         .active_request
         .clone()
         .context("turn")?;
@@ -303,6 +308,7 @@ async fn each_failure_of_the_turn_reaches_the_panel_with_its_cause() -> Result<(
     let turn = runtime
         .state
         .durable
+        .assistant
         .active_request
         .clone()
         .context("turn")?;

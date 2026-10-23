@@ -155,6 +155,7 @@ async fn silent_meeting_drain_cuts_the_recording_and_preserves_audio() -> Result
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording missing")?
@@ -224,6 +225,7 @@ async fn meeting_awaiting_only_its_finish(
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording")?
@@ -239,7 +241,7 @@ async fn meeting_awaiting_only_its_finish(
 }
 
 fn finalizing_for(runtime: &mut Runtime, millis: i64) {
-    if let Some(recording) = runtime.state.durable.recording.as_mut() {
+    if let Some(recording) = runtime.state.durable.capture.recording.as_mut() {
         recording.finalizing_since_ms = recording
             .finalizing_since_ms
             .map(|since| since.saturating_sub(millis));
@@ -272,6 +274,7 @@ async fn a_finish_owed_only_to_the_daemon_is_paid_before_the_deadline_judges_it(
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("recording")?;
@@ -332,6 +335,7 @@ async fn a_finish_still_waiting_on_a_seal_is_not_forced_and_still_times_out() ->
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording")?
@@ -348,6 +352,7 @@ async fn a_finish_still_waiting_on_a_seal_is_not_forced_and_still_times_out() ->
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .context("recording")?

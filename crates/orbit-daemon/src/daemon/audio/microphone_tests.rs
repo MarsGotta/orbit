@@ -48,6 +48,7 @@ fn phase(runtime: &Runtime) -> Option<CapturePhase> {
     runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .map(|recording| recording.phase.clone())
@@ -135,7 +136,10 @@ async fn a_device_change_over_a_note_begun_before_the_meeting_only_cancels_the_n
             .native_event(frame_at(&stream, sequence, monotonic_ns))
             .await?;
     }
-    assert!(!runtime.state.durable.voice_active, "the note is cancelled");
+    assert!(
+        !runtime.state.durable.voice.voice_active,
+        "the note is cancelled"
+    );
     assert!(said::has(
         &runtime.state,
         NoticeCode::VoiceNoteCancelledByAudioRoute
@@ -155,6 +159,7 @@ async fn a_device_change_over_a_note_begun_before_the_meeting_only_cancels_the_n
     let recording = runtime
         .state
         .durable
+        .capture
         .recording
         .as_ref()
         .context("the meeting goes on")?;

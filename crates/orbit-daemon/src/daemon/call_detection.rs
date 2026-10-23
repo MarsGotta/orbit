@@ -65,18 +65,15 @@ impl Runtime {
             now_ms: self.call_now(),
             preference: self.features.call.preference(),
             privacy_stopped: self.state.privacy_stopped(),
-            recording_live: self
-                .state
-                .durable
-                .recording
-                .as_ref()
-                .is_some_and(|recording| {
+            recording_live: self.state.durable.capture.recording.as_ref().is_some_and(
+                |recording| {
                     recording.ended_at_ms.is_none()
                         && !matches!(
                             recording.phase,
                             CapturePhase::Idle | CapturePhase::Interrupted
                         )
-                }),
+                },
+            ),
         }
     }
 
@@ -169,6 +166,7 @@ impl Runtime {
             let open = self
                 .state
                 .durable
+                .capture
                 .recording
                 .as_ref()
                 .is_some_and(|recording| recording.id == owned && recording.ended_at_ms.is_none());
@@ -326,6 +324,7 @@ impl Runtime {
         let open = self
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .is_some_and(|recording| {

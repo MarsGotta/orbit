@@ -90,7 +90,8 @@ impl Runtime {
     /// remember whether the recording goes on. A cut while «Terminar» was
     /// finishing it never resumes: the person asked for the end.
     pub(super) fn note_cut(&mut self, cause: orbit_core::privacy_stop::StopCause, code: &str) {
-        let Some(recording) = self.state.durable.recording.as_ref().filter(|recording| {
+        let recording = self.state.durable.capture.recording.as_ref();
+        let Some(recording) = recording.filter(|recording| {
             matches!(
                 recording.phase,
                 CapturePhase::Recording | CapturePhase::Starting | CapturePhase::Finalizing
@@ -119,7 +120,7 @@ impl Runtime {
     /// The capture's upkeep, once a second: resume a cut recording whose
     /// capture is back, or close one that cannot go on.
     pub(super) async fn recover_cut_recording(&mut self) -> Result<()> {
-        let Some(recording) = self.state.durable.recording.clone() else {
+        let Some(recording) = self.state.durable.capture.recording.clone() else {
             self.capture.recovery = None;
             return Ok(());
         };
@@ -228,6 +229,7 @@ impl Runtime {
         let closed = self
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .is_some_and(|recording| recording.ended_at_ms.is_some());
@@ -260,7 +262,7 @@ impl Runtime {
         recovery.resumable
             && recovery.resumes < MAX_RESUMES_IN_A_ROW
             && !self.state.privacy_stopped()
-            && self.state.durable.call.is_none()
+            && self.state.durable.voice.call.is_none()
     }
 
     async fn try_resume(&mut self, recovery: &CutRecovery) -> Resume {
@@ -333,7 +335,8 @@ impl Runtime {
     /// and that may resume is left to `recover_cut_recording`, which resumes
     /// it once the helper is back or closes it after the wait.
     pub(super) async fn close_cut_recording_at_start(&mut self) -> Result<()> {
-        let Some(recording) = self.state.durable.recording.clone().filter(|recording| {
+        let recording = self.state.durable.capture.recording.clone();
+        let Some(recording) = recording.filter(|recording| {
             recording.phase == CapturePhase::Interrupted
                 && recording.ended_at_ms.is_none()
                 && recording.sealed_chunks > 0

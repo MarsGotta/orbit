@@ -80,13 +80,13 @@ fn assistant_call_is_known_and_missing_wire_defaults_to_unknown() {
         turns: 0,
         origin: orbit_core::CallOrigin::App,
     };
-    state.durable.call = Some(call.clone());
+    state.durable.voice.call = Some(call.clone());
     let active = serde_json::to_value(project(TopicId::Assistant, &source(&state))).unwrap();
     assert_eq!(
         active["knowledge"]["value"]["call"]["value"]["phase"],
         "starting"
     );
-    state.durable.call = None;
+    state.durable.voice.call = None;
     let stopped = serde_json::to_value(project(TopicId::Assistant, &source(&state))).unwrap();
     assert_eq!(
         stopped["knowledge"]["value"]["call"]["value"],
@@ -102,12 +102,12 @@ fn assistant_call_is_known_and_missing_wire_defaults_to_unknown() {
     let receiver = board.channels()[&TopicId::Assistant].subscribe();
     board.publish(&source(&state));
     let initial_revision = receiver.borrow().revision;
-    state.durable.call = Some(call);
+    state.durable.voice.call = Some(call);
     board.state_changed();
     board.publish_command(&source(&state));
     assert!(receiver.borrow().revision > initial_revision);
     let active_revision = receiver.borrow().revision;
-    state.durable.call = None;
+    state.durable.voice.call = None;
     board.state_changed();
     board.publish_command(&source(&state));
     assert!(receiver.borrow().revision > active_revision);
@@ -149,7 +149,7 @@ fn meeting_and_privacy_frames_match_command_receipt_revisions() -> anyhow::Resul
         runtime: Some(&runtime),
         now_ms: 0,
     });
-    runtime.state.durable.recording = Some(Recording {
+    runtime.state.durable.capture.recording = Some(Recording {
         id: "synthetic-recording".into(),
         title: "Prueba".into(),
         started_at_ms: 10,

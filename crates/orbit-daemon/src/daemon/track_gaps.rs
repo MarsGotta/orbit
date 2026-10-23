@@ -20,7 +20,9 @@ impl Runtime {
             // The helper moved a meeting's microphone to the new device under
             // a voice note: the note, which would join two devices, is
             // cancelled and kept unsent; the meeting goes on.
-            ("mic_local", Some("audio_device_changed")) if self.state.durable.voice_active => {
+            ("mic_local", Some("audio_device_changed"))
+                if self.state.durable.voice.voice_active =>
+            {
                 self.apply(Event::VoiceCancel).await?;
                 self.say(NoticeCode::VoiceNoteCancelledByAudioRoute);
             }

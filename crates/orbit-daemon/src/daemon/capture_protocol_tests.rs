@@ -120,6 +120,7 @@ async fn retired_success_stops_only_its_stream_and_waits_for_receipt() -> Result
         runtime
             .state
             .durable
+            .voice
             .call
             .as_ref()
             .map(|call| call.id.as_str()),
@@ -136,6 +137,7 @@ async fn retired_success_stops_only_its_stream_and_waits_for_receipt() -> Result
         runtime
             .state
             .durable
+            .voice
             .call
             .as_ref()
             .map(|call| call.id.as_str()),
@@ -194,6 +196,7 @@ async fn retired_integrity_code_does_not_cut_a_new_recording(code: &str) -> Resu
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .map(|r| r.phase.clone()),
@@ -359,6 +362,7 @@ async fn retired_stop_with_call(
         runtime
             .state
             .durable
+            .voice
             .call
             .as_ref()
             .map(|call| call.id.as_str()),
@@ -446,6 +450,7 @@ async fn retired_stop_without_receipt_blocks_nothing() -> Result<()> {
         runtime
             .state
             .durable
+            .capture
             .recording
             .as_ref()
             .map(|r| r.phase.clone()),
@@ -637,6 +642,7 @@ async fn call_start_after_stop_receipt_does_not_touch_next_call() -> Result<()> 
         runtime
             .state
             .durable
+            .voice
             .call
             .as_ref()
             .map(|call| call.id.as_str()),
@@ -1323,7 +1329,7 @@ async fn seventy_overtaken_hangups_do_not_cut_capture() -> Result<()> {
             "round {round}: {:?}",
             runtime.state.durable.notice
         );
-        runtime.state.durable.call = None;
+        runtime.state.durable.voice.call = None;
     }
     Ok(())
 }

@@ -156,11 +156,11 @@ fn load_saved(store: &Store, settings: &Settings) -> Result<Saved> {
     let saved_state = store.load_snapshot::<DurableState>()?;
     let restart_interrupted_live_capture = saved_state
         .as_ref()
-        .and_then(|saved| saved.recording.as_ref())
+        .and_then(|saved| saved.capture.recording.as_ref())
         .is_some_and(|recording| recording.phase.interrupted_on_recovery());
     let restart_recording = saved_state
         .as_ref()
-        .and_then(|saved| saved.recording.clone());
+        .and_then(|saved| saved.capture.recording.clone());
     let startup_op = orbit_ipc::new_op();
     let reported_sequence = saved_state
         .as_ref()

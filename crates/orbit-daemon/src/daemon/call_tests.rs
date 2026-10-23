@@ -68,7 +68,7 @@ async fn expired_call_tick_does_not_claim_the_user_interrupted_its_voice_note() 
         runtime.state.generation(),
         (),
     )?;
-    runtime.state.durable.call = Some(orbit_core::CallState {
+    runtime.state.durable.voice.call = Some(orbit_core::CallState {
         id: "expired-call".into(),
         phase: CallPhase::Listening,
         started_at_ms: 0,
@@ -84,6 +84,7 @@ async fn expired_call_tick_does_not_claim_the_user_interrupted_its_voice_note() 
     assert_eq!(
         saved
             .durable
+            .assistant
             .turn
             .as_ref()
             .context("turn absent")?
@@ -114,7 +115,7 @@ async fn helper_cut_does_not_claim_the_user_interrupted_its_voice_note() -> Resu
         runtime.state.generation(),
         (),
     )?;
-    runtime.state.durable.call = Some(orbit_core::CallState {
+    runtime.state.durable.voice.call = Some(orbit_core::CallState {
         id: "call-helper-cut".into(),
         phase: CallPhase::Listening,
         started_at_ms: 1,
@@ -135,6 +136,7 @@ async fn helper_cut_does_not_claim_the_user_interrupted_its_voice_note() -> Resu
     assert_eq!(
         saved
             .durable
+            .assistant
             .turn
             .as_ref()
             .context("turn absent")?
@@ -167,7 +169,7 @@ async fn assert_automatic_stop_reason(
         runtime.state.generation(),
         (),
     )?;
-    runtime.state.durable.call = Some(orbit_core::CallState {
+    runtime.state.durable.voice.call = Some(orbit_core::CallState {
         id: "call-stop-reason".into(),
         phase: CallPhase::Listening,
         started_at_ms: 1,
@@ -187,6 +189,7 @@ async fn assert_automatic_stop_reason(
     assert_eq!(
         saved
             .durable
+            .assistant
             .turn
             .as_ref()
             .context("turn absent")?
@@ -241,6 +244,7 @@ async fn expired_detector_frame_routes_its_reason_into_the_voice_snapshot() -> R
     let expires_at_ms = runtime
         .state
         .durable
+        .voice
         .call
         .as_ref()
         .context("call absent")?
@@ -259,6 +263,7 @@ async fn expired_detector_frame_routes_its_reason_into_the_voice_snapshot() -> R
     assert_eq!(
         saved
             .durable
+            .assistant
             .turn
             .as_ref()
             .context("turn absent")?
@@ -292,6 +297,7 @@ async fn new_call_turn_names_the_turn_instead_of_a_user_interrupt() -> Result<()
     let at = runtime
         .state
         .durable
+        .voice
         .call
         .as_ref()
         .context("call absent")?
@@ -314,6 +320,7 @@ async fn new_call_turn_names_the_turn_instead_of_a_user_interrupt() -> Result<()
     assert_eq!(
         saved
             .durable
+            .assistant
             .turn
             .as_ref()
             .context("turn absent")?
@@ -364,6 +371,7 @@ async fn request_call_for(
         runtime
             .state
             .durable
+            .voice
             .call
             .as_ref()
             .context("call absent")?
@@ -396,6 +404,7 @@ async fn start_call_for(
         runtime
             .state
             .durable
+            .voice
             .call
             .as_ref()
             .context("call absent")?
@@ -416,11 +425,12 @@ async fn interrupt_snapshot_failure_keeps_the_call_listening() -> Result<()> {
     runtime
         .state
         .durable
+        .voice
         .call
         .as_mut()
         .context("call missing before interrupt")?
         .phase = CallPhase::UserSpeaking;
-    runtime.state.durable.active_request = Some("call-turn".into());
+    runtime.state.durable.assistant.active_request = Some("call-turn".into());
     runtime.conversation.voice_operation = Some("call-turn".into());
     runtime.conversation.voice_task.attach_test(
         runtime.state.generation(),
@@ -449,7 +459,7 @@ async fn interrupt_snapshot_failure_keeps_the_call_listening() -> Result<()> {
         "fixture failed before the decision snapshot: {error}"
     );
     assert_eq!(
-        runtime.state.durable.active_request.as_deref(),
+        runtime.state.durable.assistant.active_request.as_deref(),
         Some("call-turn")
     );
     assert!(runtime.conversation.voice_task.active().is_none());
@@ -458,6 +468,7 @@ async fn interrupt_snapshot_failure_keeps_the_call_listening() -> Result<()> {
         runtime
             .state
             .durable
+            .voice
             .call
             .as_ref()
             .context("call lost")?
@@ -492,7 +503,7 @@ async fn invalid_native_processing_ack_never_authorizes_derived_voice() -> Resul
             "Synthetic invalid processing readback",
         )
         .await;
-    assert!(runtime.state.durable.call.is_none() && !runtime.state.privacy_stopped());
+    assert!(runtime.state.durable.voice.call.is_none() && !runtime.state.privacy_stopped());
     assert!(
         runtime
             .fixture_store
@@ -537,7 +548,7 @@ async fn explicit_call_stop_preserves_silence_and_cancelled_utterance_in_origina
             .native_event(call_frame(&stream, sequence, false))
             .await?;
     }
-    assert!(runtime.state.durable.call.is_some() && runtime.capture.mic_stream.is_some());
+    assert!(runtime.state.durable.voice.call.is_some() && runtime.capture.mic_stream.is_some());
     assert!(runtime.conversation.voice_task.active().is_none());
     runtime.apply(Event::CallStop).await?;
     let stop = loop {
@@ -611,6 +622,7 @@ async fn barge_in_invalidates_stt_operation_without_stopping_original_capture() 
         runtime
             .state
             .durable
+            .voice
             .call
             .as_ref()
             .context("call stopped")?
@@ -641,7 +653,7 @@ async fn barge_in_invalidates_stt_operation_without_stopping_original_capture() 
             },
         ))
         .await?;
-    assert!(runtime.state.durable.turn.is_none());
+    assert!(runtime.state.durable.assistant.turn.is_none());
     assert_eq!(
         runtime.capture.buffer.recording_owner("mic_local"),
         Some("synthetic-call")
@@ -678,7 +690,13 @@ async fn a_hotkey_call_and_an_app_call_carry_their_origin_and_length() -> Result
                 .command(serde_json::from_value(json!({"command": "call_start"}))?)
                 .await?;
         }
-        let call = runtime.state.durable.call.as_ref().context("call absent")?;
+        let call = runtime
+            .state
+            .durable
+            .voice
+            .call
+            .as_ref()
+            .context("call absent")?;
         assert_eq!(call.origin, origin, "hotkey: {hotkey}");
         assert_eq!(
             call.expires_at_ms - call.started_at_ms,

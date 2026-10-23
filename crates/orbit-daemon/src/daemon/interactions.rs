@@ -301,6 +301,7 @@ impl Runtime {
         let turn = self
             .state
             .durable
+            .assistant
             .active_request
             .as_deref()
             .context("El turno pendiente necesita reconciliarse con el hub")?;
@@ -397,6 +398,7 @@ impl Runtime {
             if let Some(approval) = self
                 .state
                 .durable
+                .assistant
                 .pending_approval
                 .as_mut()
                 .filter(|approval| approval.request_id == request_id)
@@ -407,7 +409,7 @@ impl Runtime {
                     .questions
                     .retain(|question| remaining.contains(&question.qid));
                 if !applied || approval.questions.is_empty() {
-                    self.state.durable.pending_approval = None;
+                    self.state.durable.assistant.pending_approval = None;
                 }
             }
             self.say(if applied {
@@ -448,6 +450,7 @@ impl Runtime {
         if self
             .state
             .durable
+            .assistant
             .active_request
             .as_deref()
             .is_some_and(|active| session.turn_id.as_deref() != Some(active))
@@ -485,14 +488,14 @@ impl Runtime {
                 pending.len()
             );
         }
-        next.durable.pending_approval = None;
+        next.durable.assistant.pending_approval = None;
         if turn_state.keeps_response_visible() && !was_interrupted {
             let turn_id = session
                 .turn_id
                 .as_deref()
                 .context("Turno activo sin identidad")?;
             uuid::Uuid::parse_str(turn_id).context("Identidad de turno incompatible")?;
-            next.durable.active_request = Some(turn_id.into());
+            next.durable.assistant.active_request = Some(turn_id.into());
             if let Some(question) = pending.first() {
                 let request_id = question.request_id.as_str();
                 if request_id.is_empty() || request_id.len() > 160 {
@@ -519,7 +522,7 @@ impl Runtime {
                 }
                 let (choices, questions) =
                     offered(question.choices.as_ref(), question.questions.as_ref());
-                next.durable.pending_approval = Some(Approval {
+                next.durable.assistant.pending_approval = Some(Approval {
                     request_id: request_id.into(),
                     description: description.into(),
                     clarification: question.kind == "clarify",
@@ -535,12 +538,14 @@ impl Runtime {
                 );
             }
         } else {
-            if turn_state == TurnState::OutcomeUnknown && next.durable.active_request.is_some() {
+            if turn_state == TurnState::OutcomeUnknown
+                && next.durable.assistant.active_request.is_some()
+            {
                 // Otherwise the last thing said would stay «Deimos está
                 // pensando…» for a turn the hub will never finish.
                 next.set_notice(self.scoped(NoticeCode::AssistantOutcomeUnknown));
             }
-            next.durable.active_request = None;
+            next.durable.assistant.active_request = None;
         }
         self.store_actor.snapshot(&next).await?;
         if !turn_state.keeps_response_visible()
