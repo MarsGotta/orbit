@@ -33,6 +33,7 @@ public final class NativeChannel: Sendable {
         var pendingBytes = 0
         var pendingAudioBytes = 0
         var pendingCommands = 0
+        var pendingStops = 0
         var droppedAudioFrames = [AudioTrack: Int]()
         var gapWriteScheduled = false
         var receive: Receiver?
@@ -42,6 +43,23 @@ public final class NativeChannel: Sendable {
 
     private enum Admission: Sendable {
         case accepted, discardedAudio, closed, overloaded
+    }
+
+    /// Which of the main thread's bounds a command waiting for it holds.
+    private enum CommandSlot: Sendable {
+        case general, stop
+    }
+
+    /// What the reader does with a command it read.
+    private enum CommandAdmission: Sendable {
+        case queued(CommandSlot)
+        /// A beat past the bound: reading it was its answer (`commandRead`).
+        case beatNotQueued
+        /// Refused at once, off main, with how many commands wait for it.
+        case busy(pending: Int)
+        case closed
+        /// A stop past its own room: the channel fails closed.
+        case overloaded
     }
 
     private enum GapWrite: Sendable {
@@ -68,7 +86,24 @@ public final class NativeChannel: Sendable {
     /// 2.5 MiB all events shared before audio got its own room (ten seconds
     /// of two-track audio). Neither kind can take the other's room.
     private static let maximumPendingBytes = 10 * 2 * (48_000 * 2 * 4 / 3) + 65_536
-    private static let maximumPendingCommands = 64
+    /// Commands waiting for the main thread to run them. Commands still run on
+    /// main, and a modal or a slow AppKit call holds it while the daemon keeps
+    /// sending: this bounds that backlog's memory. Past it a command is refused
+    /// at once from the reader's queue with `mainThreadBusyCode` and these
+    /// numbers, and the channel stays open. It used to close at the 65th, and
+    /// the helper then left, cutting a recording. 64 is the bound the channel
+    /// always had. It limits neither how long main may be held nor the stops
+    /// below. A beat past it is neither queued nor refused: reading it was its
+    /// answer, and a refused beat every 2 s would only flood the daemon.
+    static let maximumPendingCommands = 64
+    /// Room past that bound for the daemon's stops (`stopCommands`): refusing
+    /// one would leave capture running after the person or the daemon stopped
+    /// it. The daemon keeps one whole-capture stop and one stop per track in
+    /// flight, plus its `shutdown`, so 16 is ample. A stop past this room
+    /// still fails the channel closed, which makes the helper stop capture.
+    static let maximumPendingStops = 16
+    static let mainThreadBusyCode = "native_main_thread_busy"
+    private static let stopCommands: Set<String> = ["privacy_stop", "capture_stop", "audio_stop", "shutdown"]
     private let state = Mutex(State())
     private let input: FileHandle
     private let writeOutput: @Sendable (Data) throws -> Void
@@ -322,21 +357,77 @@ public final class NativeChannel: Sendable {
         // behind a held main thread is the daemon answering, not silence.
         let observer = state.withLock { $0.failed ? nil : $0.commandRead }
         observer?()
-        let admission = state.withLock { current -> Admission in
-            guard !current.failed else { return .closed }
-            guard current.pendingCommands < Self.maximumPendingCommands else {
-                current.failed = true
-                return .overloaded
+        let name = command.command
+        let admission = state.withLock { current -> CommandAdmission in
+            let decided = Self.admission(of: name, in: &current)
+            if case .queued(let slot) = decided {
+                DispatchQueue.main.async { self.deliver(command, slot: slot) }
             }
-            current.pendingCommands += 1
-            DispatchQueue.main.async { self.deliver(command) }
-            return .accepted
+            return decided
         }
-        return finishAdmission(admission, reason: "native_command_backpressure")
+        switch admission {
+        case .queued, .beatNotQueued:
+            return true
+        case .busy(let pending):
+            refuseBusy(command, pending: pending)
+            return true
+        case .closed:
+            return false
+        case .overloaded:
+            // Latched in the admission transaction; notified after the lock.
+            notifyFailure("native_command_backpressure")
+            return false
+        }
     }
 
-    @MainActor private func deliver(_ command: NativeWireCommand) {
-        defer { state.withLock { $0.pendingCommands -= 1 } }
+    /// The main thread's bounds, decided under the channel's lock.
+    private static func admission(of name: String, in current: inout State) -> CommandAdmission {
+        guard !current.failed else { return .closed }
+        if current.pendingCommands < maximumPendingCommands {
+            current.pendingCommands += 1
+            return .queued(.general)
+        }
+        if name == "heartbeat" {
+            return .beatNotQueued
+        }
+        guard stopCommands.contains(name) else {
+            return .busy(pending: current.pendingCommands)
+        }
+        guard current.pendingStops < maximumPendingStops else {
+            current.failed = true
+            return .overloaded
+        }
+        current.pendingStops += 1
+        return .queued(.stop)
+    }
+
+    private static func release(_ slot: CommandSlot, in current: inout State) {
+        switch slot {
+        case .general:
+            current.pendingCommands -= 1
+        case .stop:
+            current.pendingStops -= 1
+        }
+    }
+
+    /// Answered from the reader's queue, never waiting for main: the daemon
+    /// hears at once that this order did not run, and why.
+    private func refuseBusy(_ command: NativeWireCommand, pending: Int) {
+        let detail: [String: Any] = [
+            "pending_commands": pending,
+            "max_pending_commands": Self.maximumPendingCommands
+        ]
+        let message = "El hilo principal de Orbit en este Mac tiene \(pending) órdenes pendientes; "
+            + "\(command.command) no se ejecutó."
+        let event = NativeEvent.makeRejection(id: command.id, code: Self.mainThreadBusyCode,
+            message: message, detail: detail)
+        if !send(event) {
+            FileHandle.standardError.write(Data("native_rejection_not_admitted event=response\n".utf8))
+        }
+    }
+
+    @MainActor private func deliver(_ command: NativeWireCommand, slot: CommandSlot) {
+        defer { state.withLock { current in Self.release(slot, in: &current) } }
         let callback = state.withLock { current -> Receiver? in
             guard !current.failed else { return nil }
             return current.receive
@@ -362,20 +453,6 @@ public final class NativeChannel: Sendable {
         }
         // A concurrent failure cannot undo bytes already written. The budget
         // remains reserved until this real write returns, including on error.
-    }
-
-    private func finishAdmission(_ admission: Admission, reason: String) -> Bool {
-        switch admission {
-        case .accepted, .discardedAudio:
-            return true
-        case .closed:
-            return false
-        case .overloaded:
-            // The failure was latched in the admission transaction. Schedule
-            // its one notification only after releasing that non-recursive lock.
-            notifyFailure(reason)
-            return false
-        }
     }
 
     private func fail(_ reason: String) {

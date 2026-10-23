@@ -42,6 +42,17 @@ wait in the helper, in order, and what does not fit is one `gap`
 sleep stop a capture. Any later command from the daemon, a heartbeat or any
 other, restores channel health; it never resumes a stopped activity.
 
+Commands run on the helper's main thread, which a modal or a slow AppKit call
+can hold. At most 64 wait for it. Past them a command is refused at once, from
+the reader, with `native_main_thread_busy` and
+`error.detail:{pending_commands,max_pending_commands}`; it did not run, and
+the channel stays open. A beat past them is neither queued nor refused:
+reading it was its answer. `privacy_stop`, `capture_stop`, `audio_stop` and `shutdown` are
+never refused this way; 16 more of them may wait, and a stop past those still
+fails the channel closed, so the helper stops capture. The daemon takes the
+code as a refused order (`Refused`), never as a cut, and a read Deimos asked
+for as `busy`.
+
 **Only explicit user privacy stop writes the durable latch.** Latching reasons
 are `local_hotkey` (`⌃⌥Esc`) and `daemon_requested` (the daemon relays its stop).
 Swift `StopPolicy.latchingReasons` and Rust `LATCHING_HELPER_CODES` are compared

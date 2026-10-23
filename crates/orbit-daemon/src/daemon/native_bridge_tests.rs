@@ -834,3 +834,63 @@ async fn audio_route_recovery_during_privacy_drain_never_announces_continuation(
     );
     Ok(())
 }
+
+/// The helper refused a meeting's start because its main thread was holding a
+/// full backlog: that start did not run. The recording is interrupted as a
+/// refused start, with the helper's code; nothing is cut, nothing latches.
+#[tokio::test]
+async fn a_start_refused_behind_a_held_main_thread_is_a_refused_start_not_a_cut() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut commands) = fixture(directory.path())?;
+    runtime
+        .apply(Event::StartMeeting {
+            id: "meeting-held-main".into(),
+            title: "Reunión sintética".into(),
+            audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
+        })
+        .await?;
+    let audio_start = commands.recv().await.context("start command absent")?;
+    assert_eq!(audio_start["command"], "audio_start");
+    runtime
+        .handle_native_event(json!({"event":"response","id":audio_start["id"],"ok":false,
+            "error":{"code":"native_main_thread_busy",
+                "message":"El hilo principal de Orbit en este Mac tiene 64 órdenes pendientes",
+                "detail":{"pending_commands":64,"max_pending_commands":64}}}))
+        .await;
+    let recording = runtime
+        .state
+        .durable
+        .recording
+        .as_ref()
+        .context("recording absent")?;
+    assert_eq!(recording.phase, orbit_core::CapturePhase::Interrupted);
+    let closure = runtime
+        .fixture_store
+        .get_job("finalize-meeting-held-main")?
+        .context("closure absent")?;
+    assert_eq!(
+        closure.payload["interruption"]["cause"],
+        "capture_start_refused"
+    );
+    assert_eq!(
+        closure.payload["interruption"]["detail"],
+        "native_main_thread_busy"
+    );
+    assert!(!runtime.state.privacy_stopped());
+    assert!(
+        said::mentions(&runtime.state, "native_main_thread_busy"),
+        "{:?}",
+        runtime.state.durable.notice
+    );
+    let mut sent = Vec::new();
+    while let Ok(command) = commands.try_recv() {
+        sent.push(command["command"].as_str().unwrap_or_default().to_owned());
+    }
+    assert!(
+        !sent
+            .iter()
+            .any(|name| name == "capture_stop" || name == "privacy_stop"),
+        "a refused start is not a cut: {sent:?}"
+    );
+    Ok(())
+}

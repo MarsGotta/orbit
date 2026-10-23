@@ -65,8 +65,25 @@ final class NativeChannelTests: XCTestCase {
         NativeChannel(input: input.fileHandleForReading, writeOutput: { try probe.write($0) })
     }
 
-    private func command(_ id: String) -> Data {
-        Data("{\"v\":1,\"id\":\"\(id)\",\"command\":\"heartbeat\"}\n".utf8)
+    private func command(_ id: String, kind: String = "heartbeat") -> Data {
+        Data("{\"v\":1,\"id\":\"\(id)\",\"command\":\"\(kind)\"}\n".utf8)
+    }
+
+    /// `count` commands of one kind, numbered from `first`, as one write.
+    private func commands(_ kind: String, count: Int, first: Int = 0) -> Data {
+        var batch = Data()
+        for index in first..<(first + count) {
+            batch.append(command("\(kind)-\(index)", kind: kind))
+        }
+        return batch
+    }
+
+    private func decodedChunks(_ probe: OutputProbe) throws -> [[String: Any]] {
+        var messages = [[String: Any]]()
+        for data in probe.chunks.withLock({ $0 }) {
+            messages.append(try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any]))
+        }
+        return messages
     }
 
     private func audioEvent(sequence: Int, streamID: String, frames: Int,
@@ -536,30 +553,193 @@ final class NativeChannelTests: XCTestCase {
         XCTAssertEqual(deliveries.withLock { $0 }, 0)
     }
 
-    func testCommandOverloadDiscardsTheAlreadyAdmittedMainQueueBacklog() async throws {
+    /// A main thread held past the backlog's bound refuses what does not fit,
+    /// from the reader's queue and while main is still held, with its code and
+    /// its numbers. The channel stays open: once main returns, everything
+    /// admitted runs in order and the next command still arrives.
+    func testCommandsPastTheMainThreadBacklogAreRefusedBusyAndTheChannelStaysOpen() async throws {
+        let input = Pipe()
+        defer { try? input.fileHandleForWriting.close() }
+        let probe = OutputProbe()
+        let channel = channel(probe, input: input)
+        let reasons = Mutex<[String]>([])
+        let delivered = Mutex<[String]>([])
+        let limit = NativeChannel.maximumPendingCommands
+        let extra = 3
+        let backlog = expectation(description: "the admitted backlog once main returns")
+        backlog.expectedFulfillmentCount = limit
+        let after = expectation(description: "a command after main returns")
+        channel.disconnected = { (reason: String) in reasons.withLock { $0.append(reason) } }
+        channel.receive = { (command: NativeWireCommand) in
+            delivered.withLock { $0.append(command.id) }
+            if command.id == "after" { after.fulfill() } else { backlog.fulfill() }
+        }
+        channel.start()
+        let batch = commands("status", count: limit + extra)
+        // Main is held from the write until every refusal has been written,
+        // off main: none of the admitted commands can run meanwhile.
+        let refused = try await MainActor.run { () throws -> Int in
+            try input.fileHandleForWriting.write(contentsOf: batch)
+            var written = 0
+            while written < extra, probe.entered.wait(timeout: .now() + 2) == .success {
+                written += 1
+            }
+            XCTAssertEqual(delivered.withLock { $0.count }, 0)
+            return written
+        }
+        XCTAssertEqual(refused, extra)
+        await fulfillment(of: [backlog], timeout: 2)
+        try input.fileHandleForWriting.write(contentsOf: command("after", kind: "status"))
+        await fulfillment(of: [after], timeout: 2)
+        let flushed = await channel.flush()
+        XCTAssertTrue(flushed)
+        XCTAssertEqual(reasons.withLock { $0 }, [])
+        var expected = [String]()
+        for index in 0..<limit { expected.append("status-\(index)") }
+        expected.append("after")
+        XCTAssertEqual(delivered.withLock { $0 }, expected)
+        let messages = try decodedChunks(probe)
+        var refusedIDs = [String]()
+        for message in messages { refusedIDs.append(message["id"] as? String ?? "") }
+        XCTAssertEqual(refusedIDs, ["status-\(limit)", "status-\(limit + 1)", "status-\(limit + 2)"])
+        for message in messages {
+            XCTAssertEqual(message["ok"] as? Bool, false)
+            let error = try XCTUnwrap(message["error"] as? [String: Any])
+            XCTAssertEqual(error["code"] as? String, NativeChannel.mainThreadBusyCode)
+            let detail = try XCTUnwrap(error["detail"] as? [String: Any])
+            XCTAssertEqual(detail["pending_commands"] as? Int, limit)
+            XCTAssertEqual(detail["max_pending_commands"] as? Int, limit)
+        }
+    }
+
+    /// A beat is a probe, and reading it is its answer (`commandRead`): past
+    /// the backlog's bound beats are neither queued nor refused, so a long
+    /// hold never floods the daemon with refusals or closes the channel.
+    func testHeartbeatsPastTheMainThreadBacklogAreNeverRefused() async throws {
+        let input = Pipe()
+        defer { try? input.fileHandleForWriting.close() }
+        let probe = OutputProbe()
+        let channel = channel(probe, input: input)
+        let beats = NativeChannel.maximumPendingCommands * 3
+        let reads = Mutex(0)
+        let allRead = DispatchSemaphore(value: 0)
+        let delivered = Mutex<[String]>([])
+        let limit = NativeChannel.maximumPendingCommands
+        let backlog = expectation(description: "the admitted beats once main returns")
+        backlog.expectedFulfillmentCount = limit
+        let after = expectation(description: "a beat after main returns")
+        let reasons = Mutex<[String]>([])
+        channel.commandRead = { () -> Void in
+            let count = reads.withLock { value -> Int in
+                value += 1
+                return value
+            }
+            if count == beats { allRead.signal() }
+        }
+        channel.disconnected = { (reason: String) in reasons.withLock { $0.append(reason) } }
+        channel.receive = { (command: NativeWireCommand) in
+            delivered.withLock { $0.append(command.id) }
+            if command.id == "after" { after.fulfill() } else { backlog.fulfill() }
+        }
+        channel.start()
+        let batch = commands("heartbeat", count: beats)
+        let seen = try await MainActor.run { () throws -> DispatchTimeoutResult in
+            try input.fileHandleForWriting.write(contentsOf: batch)
+            return allRead.wait(timeout: .now() + 2)
+        }
+        XCTAssertEqual(seen, .success)
+        // Only once the admitted beats ran is there room for the next one.
+        await fulfillment(of: [backlog], timeout: 2)
+        try input.fileHandleForWriting.write(contentsOf: command("after"))
+        await fulfillment(of: [after], timeout: 2)
+        let flushed = await channel.flush()
+        XCTAssertTrue(flushed)
+        var expected = [String]()
+        for index in 0..<limit { expected.append("heartbeat-\(index)") }
+        expected.append("after")
+        XCTAssertEqual(delivered.withLock { $0 }, expected)
+        XCTAssertEqual(probe.attempts.withLock { $0 }, 0, "no beat is refused")
+        XCTAssertEqual(reasons.withLock { $0 }, [])
+    }
+
+    /// The daemon's stops never get a busy refusal: past the backlog they
+    /// wait for main in a room of their own, and run once main returns.
+    func testStopsPastTheBacklogWaitForMainInTheirOwnRoom() async throws {
+        let input = Pipe()
+        defer { try? input.fileHandleForWriting.close() }
+        let probe = OutputProbe()
+        let channel = channel(probe, input: input)
+        let limit = NativeChannel.maximumPendingCommands
+        var batch = commands("status", count: limit)
+        let stops = ["privacy_stop", "capture_stop", "audio_stop", "shutdown"]
+        for stop in stops {
+            // `audio_stop` names the stream it stops.
+            let fields = stop == "audio_stop" ? ",\"stream_id\":\"stream-1\"" : ""
+            batch.append(Data("{\"v\":1,\"id\":\"\(stop)\",\"command\":\"\(stop)\"\(fields)}\n".utf8))
+        }
+        let total = limit + stops.count
+        let reads = Mutex(0)
+        let allRead = DispatchSemaphore(value: 0)
+        let delivered = Mutex<[String]>([])
+        let all = expectation(description: "every command after main returns")
+        all.expectedFulfillmentCount = total
+        let reasons = Mutex<[String]>([])
+        channel.commandRead = { () -> Void in
+            let count = reads.withLock { value -> Int in
+                value += 1
+                return value
+            }
+            if count == total { allRead.signal() }
+        }
+        channel.disconnected = { (reason: String) in reasons.withLock { $0.append(reason) } }
+        channel.receive = { (command: NativeWireCommand) in
+            delivered.withLock { $0.append(command.id) }
+            all.fulfill()
+        }
+        channel.start()
+        let seen = try await MainActor.run { () throws -> DispatchTimeoutResult in
+            try input.fileHandleForWriting.write(contentsOf: batch)
+            return allRead.wait(timeout: .now() + 2)
+        }
+        XCTAssertEqual(seen, .success)
+        await fulfillment(of: [all], timeout: 2)
+        let flushed = await channel.flush()
+        XCTAssertTrue(flushed)
+        XCTAssertEqual(Array(delivered.withLock { $0 }.suffix(stops.count)), stops)
+        XCTAssertEqual(probe.attempts.withLock { $0 }, 0, "no stop is refused")
+        XCTAssertEqual(reasons.withLock { $0 }, [])
+    }
+
+    /// Past the stops' own room the channel still fails closed, as every
+    /// command past the backlog once did: the helper then stops capture and
+    /// leaves, and the backlog main had not run is discarded.
+    func testAStopPastItsOwnRoomStillFailsTheChannelClosed() async throws {
         let input = Pipe()
         defer { try? input.fileHandleForWriting.close() }
         let channel = channel(OutputProbe(), input: input)
-        let failure = expectation(description: "command budget")
+        let failure = expectation(description: "stop room")
         let reasons = Mutex<[String]>([])
         let deliveries = Mutex(0)
-        channel.receive = { _ in deliveries.withLock { $0 += 1 } }
-        channel.disconnected = { reason in reasons.withLock { $0.append(reason) }; failure.fulfill() }
+        channel.receive = { (_: NativeWireCommand) in deliveries.withLock { $0 += 1 } }
+        channel.disconnected = { (reason: String) in
+            reasons.withLock { $0.append(reason) }
+            failure.fulfill()
+        }
         channel.start()
         let terminalObserved = DispatchSemaphore(value: 0)
-        let observing = Task.detached {
+        let observing = Task.detached { () async -> Void in
             let deadline = ContinuousClock.now.advanced(by: .seconds(2))
             while ContinuousClock.now < deadline {
                 if !(await channel.flush()) { terminalObserved.signal(); return }
                 await Task.yield()
             }
         }
-        let batch = (0..<65).reduce(into: Data()) { $0.append(command(String($1))) }
+        var batch = commands("status", count: NativeChannel.maximumPendingCommands)
+        batch.append(commands("privacy_stop", count: NativeChannel.maximumPendingStops + 1))
         // Deliberately hold the fixture's MainActor briefly so the real reader
-        // fills its 64 pending slots. The production callback never blocks main.
-        // Model a synchronous main-thread stall explicitly, outside an async
-        // context. This is a bounded fixture, not a production wait strategy.
-        let observed = try await MainActor.run {
+        // fills its pending slots and the stops' room. The production callback
+        // never blocks main. This is a bounded fixture, not a production wait.
+        let observed = try await MainActor.run { () throws -> DispatchTimeoutResult in
             // No suspension between writing the batch and holding main: even
             // an executor hop into this fixture cannot drain its backlog early.
             try input.fileHandleForWriting.write(contentsOf: batch)

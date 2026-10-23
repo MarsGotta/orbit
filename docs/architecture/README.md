@@ -71,8 +71,10 @@ Boundary limits have their purposes in source:
   the largest plus envelope. Voice-note audio replies allow 12 MiB for Base64
   (`orbit-ipc/src/ipc/budget.rs`). Producer limits also apply in memory;
   `Absent { TooLarge }` preserves its counts.
-- Helper lines: 6 MiB; 64 pending commands and 2 MiB pending output. Heartbeat
-  every 2 seconds; capture stops after 6 seconds without one.
+- Helper lines: 6 MiB; 64 commands waiting for the helper's main thread (past
+  them a command is refused `native_main_thread_busy` and the channel stays
+  open; stops have 16 more) and 2 MiB pending output. Heartbeat every 2
+  seconds; capture stops after 6 seconds without one.
 - Engine frames: 1 MiB; daemon requests normally have a 5-second timeout.
 - Hub: Mac outgoing JSON frames are at most 128 KiB; the Mac's incoming hub
   JSON frame/ordinary HTTP response bound is 1 MiB. Audio has separate limits.

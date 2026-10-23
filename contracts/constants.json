@@ -1274,7 +1274,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-daemon/src/daemon/bridge.rs",
+        "file": "crates/orbit-daemon/src/daemon/bridge/refusals.rs",
         "name": "MAX_BRIDGE_CODE_BYTES",
         "unit": "bytes"
       },
@@ -1298,7 +1298,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-daemon/src/daemon/bridge.rs",
+        "file": "crates/orbit-daemon/src/daemon/bridge/refusals.rs",
         "name": "MAX_BRIDGE_DETAIL_CHARS",
         "unit": "characters"
       },

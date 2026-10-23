@@ -238,6 +238,9 @@ const TABLE: &[(&str, CodeClass)] = &[
         "native_backpressure",
         CodeClass::Degraded(DegradedKind::Backpressure),
     ),
+    // NativeChannel.swift: the main thread held a full backlog and this one
+    // order never ran. Refused, never a cut: what already runs is untouched.
+    ("native_main_thread_busy", CodeClass::Refused),
     // The helper refuses with this while its latch is set and also while a
     // capture stop is still cleaning up. Only its `state` says which, so a
     // refusal is shown and never taken for the user's stop.
@@ -475,5 +478,27 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    /// The helper's main thread held its backlog and the order never ran: a
+    /// refusal of that one order, never a cut of what is already recording.
+    #[test]
+    fn an_order_refused_behind_a_held_main_thread_is_refused_not_a_cut() {
+        let live = live_recording();
+        for command in [
+            "audio_start",
+            "status",
+            "permissions",
+            "screenshot",
+            "rearm",
+        ] {
+            assert!(
+                matches!(
+                    classify_native_response(command, "native_main_thread_busy", &live),
+                    Outcome::Refused { ref reason } if reason == "native_main_thread_busy"
+                ),
+                "{command}"
+            );
+        }
     }
 }
