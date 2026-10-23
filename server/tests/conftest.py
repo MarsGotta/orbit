@@ -40,6 +40,15 @@ def unit_stt():
 
 
 @pytest.fixture(autouse=True)
+def ample_disk(monkeypatch):
+    """The hub measures its free disk to set its limit and say when it is
+    nearly full. In tests that disk is this machine's, which fills with builds:
+    a nearly full host made the hub announce `storage.status` in the middle of
+    unrelated tests. Tests of the limit give the store their own `free_space`."""
+    monkeypatch.setattr("orbit_hub.storage.disk_free", lambda _path: 1 << 40)
+
+
+@pytest.fixture(autouse=True)
 def only_ports_this_process_bound():
     """Fail the test that tried to reach a port it did not open, even if swallowed."""
     mark = FENCE.refusals()

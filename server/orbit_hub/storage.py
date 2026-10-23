@@ -161,6 +161,12 @@ def initialize(data_dir: Path, key_file: Path) -> None:
         os.close(directory)
 
 
+def disk_free(path: Path) -> int:
+    """What the disk holding `path` has free: what sets the hub's limit when no
+    quota does. The tests replace it, so the host's own disk never decides one."""
+    return shutil.disk_usage(path).free
+
+
 class Store:
     def __init__(
         self,
@@ -183,7 +189,7 @@ class Store:
         self._fingerprint_key = hmac.digest(key, b"orbit.operation.fingerprint.v1", "sha256")
         self._lock = RLock()
         self._quota = quota_bytes
-        self._free_space = free_space or (lambda: shutil.disk_usage(data_dir).free)
+        self._free_space = free_space or (lambda: disk_free(data_dir))
         # One query per delta flooded the loop with `SELECT revoked` against
         # SQLite. A short TTL absorbs bursts without outliving an explicit revoke.
         self._active_ttl = 1.0
