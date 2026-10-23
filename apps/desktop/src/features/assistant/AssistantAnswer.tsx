@@ -78,6 +78,24 @@ function ListenButton({
   );
 }
 
+/** «Responder a esto»: quotes the selected part of the answer in the composer. */
+function ReplyToThis({ fragment, onDone }: { fragment: string; onDone: () => void }) {
+  return (
+    <Button
+      onClick={() => {
+        insertIntoComposer(quoteFragment(fragment));
+        onDone();
+      }}
+      // Keeps the selection: a press on a button would otherwise clear it.
+      onMouseDown={(event) => event.preventDefault()}
+      size={28}
+      variant="ghost"
+    >
+      {es.chatActions.replyToThis}
+    </Button>
+  );
+}
+
 /**
  * An answer of the assistant with what can be done with it, as icons with
  * their tooltip: copy its Markdown, hear it, ask again and open it in the
@@ -118,18 +136,7 @@ export function AssistantAnswer({ busy, listenable, message, retry, send, speaki
             size={28}
           />
           {fragment !== null && (
-            <Button
-              onClick={() => {
-                insertIntoComposer(quoteFragment(fragment));
-                setFragment(null);
-              }}
-              // Keeps the selection: a press on a button would otherwise clear it.
-              onMouseDown={(event) => event.preventDefault()}
-              size={28}
-              variant="ghost"
-            >
-              {es.chatActions.replyToThis}
-            </Button>
+            <ReplyToThis fragment={fragment} onDone={() => setFragment(null)} />
           )}
         </div>
       )}
