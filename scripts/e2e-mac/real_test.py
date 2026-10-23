@@ -722,6 +722,12 @@ class RealTest:
             self.ev.setdefault("cua", {}).update(self.mac.engine_stop(self.bounds["close"][0]))
         with self.step("close Orbit Pruebas and give the audio input back", critical=False):
             self.ev["restored"] = self.mac.restore(self.bounds["close"][0])
+            came_back = self.ev["restored"]["orbit_pruebas"].get("came_back", 0)
+            if came_back:
+                raise StepFailed(
+                    f"Orbit Pruebas came back after closing ({came_back} processes); "
+                    "they were stopped"
+                )
         with self.step("collect the Mac's logs", (10, 12), critical=False):
             collected = self.mac.logs()
             logs = collected["logs"]

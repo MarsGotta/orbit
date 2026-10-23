@@ -105,6 +105,9 @@ class Paths:
 
 
 CUA_ENGINE_RELATIVE_PATH = "Helpers/Orbit Engine.app/Contents/MacOS/cua-driver"
+# How long a closed Orbit Pruebas is watched for a relaunch: the app's own
+# relaunch, after its daemon ended, takes about a second.
+RELAUNCH_WATCH_S = 5
 MEMBERS = (
     "Contents/MacOS/Orbit",
     "Contents/MacOS/OrbitNative",
@@ -683,7 +686,15 @@ class Mac:
         left = self.system.wait_exit(pids, max_s)
         for pid in left:
             self.system.signal(pid, signal.SIGKILL)
-        return {"closed": len(pids), "forced": len(left)}
+        # Orbit Pruebas must stay closed. On 2026-10-23 an orderly SIGTERM
+        # relaunched it, and it ran all night against a test hub that was
+        # gone; the step still said «ok». Whatever came back is stopped and
+        # counted, so the step can say so.
+        self.system.pause(RELAUNCH_WATCH_S)
+        back = self._ours()
+        for pid in back:
+            self.system.signal(pid, signal.SIGKILL)
+        return {"closed": len(pids), "forced": len(left), "came_back": len(back)}
 
     def _restore_input(self) -> str | None:
         if not self.paths.previous_input.exists():
