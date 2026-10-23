@@ -41,6 +41,51 @@ impl Call {
         Ok(())
     }
 
+    /// `count` frames while Deimos's answer plays, as the helper sends them.
+    async fn frames_over_answer(&mut self, count: u64, voiced: bool) -> Result<()> {
+        for _ in 0..count {
+            let mut frame = call_frame(&self.stream, self.sequence, voiced);
+            frame["playback_active"] = json!(true);
+            self.sequence += 1;
+            self.runtime.native_event(frame).await?;
+        }
+        Ok(())
+    }
+
+    /// The helper orders sent since the last look: their command names.
+    fn helper_orders(&mut self) -> Vec<String> {
+        let mut orders = Vec::new();
+        while let Ok(order) = self.helper.try_recv() {
+            orders.push(order["command"].as_str().unwrap_or_default().to_owned());
+        }
+        orders
+    }
+
+    /// The hub's answer to the transcription in course: `text`.
+    async fn transcribed(&mut self, text: &str) -> Result<String> {
+        let operation = self.operation().context("no transcription in course")?;
+        let ticket = self
+            .runtime
+            .conversation
+            .voice_task
+            .ticket()
+            .cloned()
+            .context("worker ticket")?;
+        let result = crate::daemon::CaptureWork::Transcribed {
+            ticket,
+            source: crate::daemon::audio::VoiceSource {
+                recording_id: operation.clone(),
+                chunk_id: format!("{operation}-mic_local-0"),
+                session_id: None,
+                message_id: operation.clone(),
+                duration_ms: 1_000,
+            },
+            text: text.into(),
+        };
+        self.runtime.work_event(WorkResult::Capture(result)).await?;
+        Ok(operation)
+    }
+
     /// A turn: 400 ms of the user's voice, then the 800 ms of silence that end it.
     async fn turn(&mut self) -> Result<()> {
         self.frames(4, true).await?;
@@ -94,16 +139,18 @@ async fn speaking_while_a_turn_is_transcribed_keeps_the_call_and_both_turns() ->
     // The user speaks again while it is transcribed: 200 ms of voice begin a turn.
     call.frames(2, true).await?;
     assert!(call.capturing(), "the new turn began and was cut at once");
-    assert_eq!(
-        call.runtime
-            .state
-            .durable
-            .turn
-            .as_ref()
-            .and_then(|turn| turn.user.voice.as_ref())
-            .and_then(|voice| voice.failure.as_ref())
-            .map(|failure| failure.code.as_str()),
-        Some("voice_transcription_joined_next_turn")
+    // The first turn goes on in this one: it leaves no note of its own
+    // (Orbit 0.11.0 left one reading «Va junto con lo que dijiste a
+    // continuación», shown in every conversation).
+    let state = &call.runtime.state.durable;
+    assert!(
+        state.turn.as_ref().is_none_or(|turn| turn.user.id != first)
+            && state
+                .pending_voice
+                .iter()
+                .all(|note| note.message.id != first),
+        "the joined turn left a note: {:?}",
+        state.turn
     );
     call.frames(2, true).await?;
     call.frames(8, false).await?;
@@ -141,6 +188,134 @@ async fn a_turn_that_interrupts_deimos_ends_and_is_sent() -> Result<()> {
     assert!(call.operation().is_some(), "the barge-in turn never ended");
     call.frames(4, true).await?;
     assert!(call.alive());
+    Ok(())
+}
+
+/// Deimos is speaking and the microphone hears a second of noise: his answer
+/// goes on, no turn is created and nothing is left in the conversation
+/// (2026-10-23: such clips cut him off and stayed as failed notes).
+#[tokio::test]
+async fn noise_over_deimos_answer_stops_nothing_and_leaves_nothing() -> Result<()> {
+    let mut call = Call::open().await?;
+    call.helper_orders();
+    let before = call.runtime.state.durable.notice_log.records().len();
+    let turns = call
+        .runtime
+        .state
+        .durable
+        .call
+        .as_ref()
+        .map(|call| call.turns);
+    // A second of sound loud enough to open a turn, then the silence that ends it.
+    call.frames_over_answer(10, true).await?;
+    call.frames_over_answer(8, false).await?;
+    assert!(
+        !call
+            .helper_orders()
+            .iter()
+            .any(|order| order == "playback_stop"),
+        "Deimos was cut off before anything was heard"
+    );
+    assert!(
+        call.runtime.state.durable.turn.is_none(),
+        "a turn was created"
+    );
+    // The hub hears no words in it.
+    call.transcribed("").await?;
+    assert!(
+        !call
+            .helper_orders()
+            .iter()
+            .any(|order| order == "playback_stop")
+    );
+    let state = &call.runtime.state.durable;
+    assert!(state.turn.is_none(), "a turn was created: {:?}", state.turn);
+    assert!(state.pending_voice.is_empty(), "a note was left");
+    assert!(failed_since(&call.runtime, before).is_empty());
+    assert_eq!(
+        call.runtime
+            .state
+            .durable
+            .call
+            .as_ref()
+            .map(|call| call.turns),
+        turns,
+        "the noise counted as a turn of the call"
+    );
+    assert!(call.alive());
+    Ok(())
+}
+
+/// Words said over Deimos's answer stop him once they are known, and are
+/// the turn that is sent.
+#[tokio::test]
+async fn words_over_deimos_answer_stop_him_and_are_sent() -> Result<()> {
+    let mut call = Call::open().await?;
+    let _hub_commands = call.runtime.hub.open(16);
+    call.helper_orders();
+    call.frames_over_answer(4, true).await?;
+    call.frames_over_answer(8, false).await?;
+    assert!(
+        !call
+            .helper_orders()
+            .iter()
+            .any(|order| order == "playback_stop")
+    );
+    let operation = call.transcribed("Espera un momento").await?;
+    assert!(
+        call.helper_orders()
+            .iter()
+            .any(|order| order == "playback_stop"),
+        "the words did not stop Deimos"
+    );
+    let turn = call
+        .runtime
+        .state
+        .durable
+        .turn
+        .as_ref()
+        .context("no turn")?;
+    assert_eq!(turn.user.id, operation);
+    assert_eq!(turn.user.text, "Espera un momento");
+    assert!(
+        call.runtime.voice_note_audio(&operation).is_ok(),
+        "its audio is kept"
+    );
+    assert!(
+        call.runtime.state.durable.active_request.is_some(),
+        "not sent"
+    );
+    Ok(())
+}
+
+/// A turn in which the hub heard no words leaves no note, and its audio goes
+/// first in what the user says next: they had not finished.
+#[tokio::test]
+async fn a_turn_without_words_waits_for_the_next_one() -> Result<()> {
+    let mut call = Call::open().await?;
+    call.turn().await?;
+    let first = call.operation().context("the first turn was not sent")?;
+    let first_pcm = call.voice_pcm(&first)?;
+    let before = call.runtime.state.durable.notice_log.records().len();
+    call.transcribed("").await?;
+    let state = &call.runtime.state.durable;
+    assert!(
+        state.turn.is_none(),
+        "the silent turn stayed: {:?}",
+        state.turn
+    );
+    assert!(state.pending_voice.is_empty());
+    assert!(failed_since(&call.runtime, before).is_empty());
+    assert!(
+        call.voice_pcm(&first).is_err(),
+        "its audio stayed on the Mac"
+    );
+    call.turn().await?;
+    let second = call.operation().context("the second turn was not sent")?;
+    assert!(
+        call.voice_pcm(&second)?.starts_with(&first_pcm),
+        "the silent turn's audio is not in the next one"
+    );
     Ok(())
 }
 

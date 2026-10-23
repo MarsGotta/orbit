@@ -287,6 +287,9 @@ pub(super) struct ConversationRuntime {
     /// One voice turn worker; a second turn cannot start while one runs.
     pub(super) voice_task: ticketed::Ticketed<()>,
     pub(super) voice_operation: Option<String>,
+    /// Voice turns left without a trace since the daemon started (nothing
+    /// heard, or carried by the next turn): the count the log carries.
+    pub(super) dropped_voice_turns: u64,
     /// One playback at a time; a replay replaces the current one.
     pub(super) speech_task: ticketed::Ticketed<()>,
     /// What the last reading in each voice said, by the agent whose voice

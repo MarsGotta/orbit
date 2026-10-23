@@ -7,6 +7,28 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A voice note that waits on the Mac shows only in its own conversation.**
+  0.11.0 showed every waiting note at the end of every conversation with the
+  assistant, days-old ones included, and could send one into the conversation
+  open when the hub came back. A note spoken in a new conversation belongs to
+  the conversation that new one becomes; notes kept by 0.11.0, whose
+  conversation is unknown, show only in a new conversation.
+- **«Descartar» on a voice note that was not transcribed**, next to
+  «Reintentar transcripción», with a question in place: the note leaves the
+  conversation and its audio leaves the Mac.
+- **Noise during a call no longer cuts the assistant off or leaves failed
+  notes.** While the assistant answers, what the microphone hears stops him
+  only once its words are known; a clip with no words leaves nothing. A turn
+  in which the hub hears no words is dropped without a word in any case, and
+  in a call it goes on in what the user says next. The hub answers a clip
+  under 3 s that the speech-to-text behind Hermes refuses as no speech; a
+  longer one refused says «El servicio de transcripción no aceptó este audio»
+  and is not offered «Reintentar», which could not work.
+- **A note that could not be transcribed says so calmly**, with what to do;
+  its codes and numbers are its detail, not the line.
+
 ## [0.11.0] - 2026-10-23
 
 ### Upgrading

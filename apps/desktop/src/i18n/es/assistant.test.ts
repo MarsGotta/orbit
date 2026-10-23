@@ -10,8 +10,8 @@ describe("voice note failures", () => {
     ).not.toContain("Vuelve a grabarla");
   });
 
-  it("carries the hub's numbers when the transcription failed", () => {
-    const text = es.assistant.voiceFailure({
+  it("says a failed transcription calmly and keeps the hub's numbers in its detail", () => {
+    const failure = {
       code: "provider_timeout",
       hub_status: 504,
       provider_status: null,
@@ -19,9 +19,20 @@ describe("voice note failures", () => {
       bytes: null,
       max_bytes: null,
       attempts: 2,
-    });
-    expect(text).toBe(
-      "No se pudo transcribir la nota de voz (código provider_timeout, hub 504, límite 30 s, 2 intentos). Vuelve a grabarla.",
+    };
+    expect(es.assistant.voiceFailure(failure)).toBe(
+      "No se pudo transcribir. La nota sigue guardada en el Mac: reinténtalo o descártala.",
+    );
+    expect(es.assistant.voiceFailureDetail(failure)).toBe(
+      "código provider_timeout, hub 504, límite 30 s, 2 intentos",
+    );
+  });
+
+  it("says the provider did not accept the audio instead of offering what cannot work", () => {
+    expect(
+      es.assistant.voiceFailure({ code: "transcription_provider_refused", provider_status: 400 }),
+    ).toBe(
+      "El servicio de transcripción no aceptó este audio. Escúchala y, si hace falta, dilo otra vez o descártala.",
     );
   });
 });

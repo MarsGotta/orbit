@@ -72,16 +72,34 @@ a delayed loop from misclassifying queued audio.
 
 The producer remains open during a response. Sustained onset of 200 ms opens
 an interrupting turn (`TurnAction::Begin {interrupt:true}`).
-`prepare_call_frame`/`joinable_turn` decide what happens to the previous turn:
+
+While Deimos answers (his voice plays, or a turn awaits him), that turn stops
+nothing yet: energy cannot tell speech from noise, a cough or his own voice
+coming back. It is captured and its words are asked for from memory
+(`hear_over_answer`, `daemon/audio.rs`); it is not stored, shown or counted
+as a turn. Words stop him and become the turn (`accept_over_answer`); no
+words leave nothing (`voice_turn_dropped`, `no_words`, in the log). A
+transcription failure keeps the turn as a failed note without stopping him.
+Stopping him therefore waits for the end of the user's sentence and its
+transcription. Before 2026-10-23 the onset stopped him at once, and noise
+clips of 1–2 s were left as failed notes.
+
+A turn the hub hears no words in leaves no note in any case; in a call its
+audio waits for what the user says next, which carries it (`carried`), within
+the bounds of a join.
+
+When the user's own previous turn is still transcribing,
+`prepare_call_frame`/`joinable_turn` decide what happens to it:
 
 - If it is still transcribing and has not reached Hermes, cancel its old STT
   with `CallTurnJoined` and prepend its audio to the new turn
   (`prepend_joined_call_turn`). Frames already counted are not counted twice.
+  Its own note leaves the conversation: the new turn carries its audio.
   If the combined turn exceeds 60 seconds/the encrypted chunk ceiling or changes
   format, discard the old audio and report numbers in `call_turn_join_refused`.
 - Otherwise the new turn replaces it (`CallTurnReplaced`).
-- Both paths interrupt the remote turn and stop playback without changing global
-  generation or restarting the microphone. Queued stale results are rejected.
+- Both paths stop playback without changing global generation or restarting
+  the microphone. Queued stale results are rejected.
   The frame opening the interruption remains owned by the detector.
 
 Esc cancels the derived turn and requires a silence boundary before the next,

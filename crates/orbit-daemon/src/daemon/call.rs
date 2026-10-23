@@ -68,22 +68,58 @@ pub(super) struct CallRuntime {
     /// captured now carries.
     submitted: Option<CallTurnAudio>,
     joined: Option<CallTurnAudio>,
+    /// A turn in which nothing was heard (the hub found no words in it),
+    /// waiting for what the user says next: they may not have finished.
+    /// The next turn carries it, within the same bounds as a join.
+    carried: Option<CallTurnAudio>,
+    /// The turn being captured began while Deimos answered: it interrupts
+    /// him only once its words are known (`hear_over_answer`).
+    capturing_over_answer: bool,
+    /// The turn spoken over Deimos's answer whose words are being asked for.
+    over_answer: Option<OverAnswerTurn>,
     /// What the main loop knew when the current tick began: the
     /// helper events it had not read yet, and how long the tick before took.
     queued_native_events: usize,
     last_tick: Duration,
 }
 
-/// A call turn's voice, kept while its transcription is in course so that
-/// what the user says next, before it reaches Deimos, can carry it.
-pub(super) struct CallTurnAudio {
-    operation_id: String,
-    sample_rate: u32,
-    channels: u16,
-    started_at_ms: i64,
-    monotonic_ns: u64,
-    last_sequence: Option<u64>,
-    pcm: Vec<u8>,
+/// What one call frame did to the turn detector: its action, the preroll a
+/// turn that begins starts with, and the detector as that frame left it.
+type ObservedFrame = (TurnAction, Vec<(Value, i64)>, Option<TurnDetector>);
+
+impl CallRuntime {
+    /// A call just authorized, whose microphone start is `request`.
+    fn new(generation: u64, authorization: CallState, request: String) -> Self {
+        Self {
+            detector: TurnDetector::authorized(
+                generation,
+                authorization.started_at_ms,
+                authorization.expires_at_ms,
+            ),
+            authorization,
+            start_request: request,
+            pipeline_id: None,
+            preroll: VecDeque::new(),
+            preroll_ns: 0,
+            started: Instant::now(),
+            last_audio: Instant::now(),
+            closing_at_ms: None,
+            gaps: 0,
+            frames_heard: 0,
+            loudest_rms: 0,
+            voiced_frames: 0,
+            voiced_run_ns: 0,
+            longest_voiced_run_ns: 0,
+            playback_active: false,
+            submitted: None,
+            joined: None,
+            carried: None,
+            capturing_over_answer: false,
+            over_answer: None,
+            queued_native_events: 0,
+            last_tick: Duration::ZERO,
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -128,6 +164,10 @@ struct ProcessingEvidence<'a> {
 #[cfg(test)]
 #[path = "call_overflow_tests.rs"]
 mod overflow_tests;
+
+#[path = "call_turns.rs"]
+mod turns;
+pub(super) use turns::{CallTurnAudio, OverAnswerTurn, call_turn_audio};
 
 impl Runtime {
     pub(super) fn note_call_gap(&mut self, recording_id: &str) {
@@ -210,32 +250,11 @@ impl Runtime {
             "stream_id":stream,"processing":"voice_processing"}),
         )?;
         let request = NativeCommandHeader::from_value(&command)?.id.to_owned();
-        self.capture.call_runtime = Some(CallRuntime {
-            detector: TurnDetector::authorized(
-                self.state.generation(),
-                authorization.started_at_ms,
-                authorization.expires_at_ms,
-            ),
+        self.capture.call_runtime = Some(CallRuntime::new(
+            self.state.generation(),
             authorization,
-            start_request: request.clone(),
-            pipeline_id: None,
-            preroll: VecDeque::new(),
-            preroll_ns: 0,
-            started: Instant::now(),
-            last_audio: Instant::now(),
-            closing_at_ms: None,
-            gaps: 0,
-            frames_heard: 0,
-            loudest_rms: 0,
-            voiced_frames: 0,
-            voiced_run_ns: 0,
-            longest_voiced_run_ns: 0,
-            playback_active: false,
-            submitted: None,
-            joined: None,
-            queued_native_events: 0,
-            last_tick: Duration::ZERO,
-        });
+            request.clone(),
+        ));
         self.capture.pending_starts.push(request);
         self.capture.mic_stream = Some(stream);
         self.record_pending_native(&command);
@@ -459,6 +478,8 @@ impl Runtime {
             call.preroll.clear();
             call.preroll_ns = 0;
             call.joined = None;
+            call.carried = None;
+            call.capturing_over_answer = false;
             self.capture.buffer.voice = None;
             if let Some(state) = self.state.durable.call.as_mut() {
                 state.phase = CallPhase::Listening;
@@ -509,86 +530,17 @@ impl Runtime {
             voiced: energy_exceeds(&pcm, policy.rms_threshold),
             response_active,
         };
-        let (action, preroll, began) = {
-            let call = self
-                .capture
-                .call_runtime
-                .as_mut()
-                .context("Llamada ausente")?;
-            call.last_audio = Instant::now();
-            call.playback_active = facts.playback_active;
-            call.frames_heard = call.frames_heard.saturating_add(1);
-            call.loudest_rms = call.loudest_rms.max(orbit_core::voice::rms(&pcm));
-            if observation.voiced {
-                call.voiced_frames = call.voiced_frames.saturating_add(1);
-                call.voiced_run_ns = call.voiced_run_ns.saturating_add(duration_ns);
-                call.longest_voiced_run_ns = call.longest_voiced_run_ns.max(call.voiced_run_ns);
-            } else {
-                call.voiced_run_ns = 0;
-            }
-            let (detector, action) = call.detector.observe(policy, observation);
-            call.detector = detector;
-            let began = matches!(action, TurnAction::Begin { .. }).then(|| call.detector.clone());
-            let preroll: Vec<_> = if matches!(action, TurnAction::Begin { .. }) {
-                call.preroll
-                    .iter()
-                    .map(|(frame, time, _)| (frame.clone(), *time))
-                    .collect()
-            } else {
-                Vec::new()
-            };
-            call.preroll
-                .push_back((frame.clone(), received_at_ms, duration_ns));
-            call.preroll_ns = call.preroll_ns.saturating_add(duration_ns);
-            while call.preroll_ns > policy.preroll_ms * 1_000_000 {
-                let Some((_, _, duration)) = call.preroll.pop_front() else {
-                    break;
-                };
-                call.preroll_ns = call.preroll_ns.saturating_sub(duration);
-            }
-            (action, preroll, began)
-        };
+        let (action, preroll, began) = self.observe_call_audio(
+            frame,
+            received_at_ms,
+            observation,
+            &pcm,
+            facts.playback_active,
+        )?;
         match action {
             TurnAction::Begin { interrupt } => {
-                let joined = if interrupt {
-                    self.joinable_turn()
-                } else {
-                    None
-                };
-                if interrupt {
-                    self.cancel_voice_transcription(if joined.is_some() {
-                        VoiceCancellationCause::CallTurnJoined
-                    } else {
-                        VoiceCancellationCause::CallTurnReplaced
-                    })
+                self.begin_call_turn(interrupt, responding, began, preroll)
                     .await?;
-                    self.capture.buffer.voice = None;
-                    self.apply(Event::Interrupt).await?;
-                    // The interrupt retires the turn in course, as Esc does,
-                    // and that reset the detector this frame just opened a
-                    // turn in: the turn never ended and the next one found
-                    // its buffer taken.
-                    if let (Some(call), Some(began)) = (self.capture.call_runtime.as_mut(), began) {
-                        call.detector = began;
-                    }
-                }
-                // Frames already in the carried turn are not heard twice.
-                let carried = joined.as_ref().and_then(|turn| turn.last_sequence);
-                let preroll: Vec<_> = preroll
-                    .into_iter()
-                    .filter(|(frame, _)| {
-                        carried.is_none_or(|last| {
-                            frame["sequence"]
-                                .as_u64()
-                                .is_some_and(|sequence| sequence > last)
-                        })
-                    })
-                    .collect();
-                self.begin_call_voice(&preroll)?;
-                if let Some(call) = self.capture.call_runtime.as_mut() {
-                    call.joined = joined;
-                }
-                self.apply(Event::CallTurnStarted).await?;
             }
             TurnAction::Stop(reason) => {
                 if reason == StopReason::Idle {
@@ -603,26 +555,84 @@ impl Runtime {
                     .as_ref()
                     .is_some_and(|call| call.detector.is_capturing()) =>
             {
-                let phase = if responding {
-                    CallPhase::Responding
-                } else if waiting {
-                    CallPhase::Waiting
-                } else {
-                    CallPhase::Listening
-                };
-                if self
-                    .state
-                    .durable
-                    .call
-                    .as_ref()
-                    .is_some_and(|call| call.phase != phase)
-                {
-                    self.apply(Event::CallPhase(phase)).await?;
-                }
+                self.update_call_phase(responding, waiting).await?;
             }
             TurnAction::None | TurnAction::Finish { .. } => {}
         }
         Ok(action)
+    }
+
+    /// One call frame through the turn detector: the call's counters, the
+    /// detector's action, and for a turn that begins, the preroll it starts
+    /// with and the detector as that frame left it.
+    fn observe_call_audio(
+        &mut self,
+        frame: &Value,
+        received_at_ms: i64,
+        observation: VoiceObservation,
+        pcm: &[u8],
+        playback_active: bool,
+    ) -> Result<ObservedFrame> {
+        let policy = VoicePolicy::default();
+        let duration_ns = observation.duration_ns;
+        let call = self
+            .capture
+            .call_runtime
+            .as_mut()
+            .context("Llamada ausente")?;
+        call.last_audio = Instant::now();
+        call.playback_active = playback_active;
+        call.frames_heard = call.frames_heard.saturating_add(1);
+        call.loudest_rms = call.loudest_rms.max(orbit_core::voice::rms(pcm));
+        if observation.voiced {
+            call.voiced_frames = call.voiced_frames.saturating_add(1);
+            call.voiced_run_ns = call.voiced_run_ns.saturating_add(duration_ns);
+            call.longest_voiced_run_ns = call.longest_voiced_run_ns.max(call.voiced_run_ns);
+        } else {
+            call.voiced_run_ns = 0;
+        }
+        let (detector, action) = call.detector.observe(policy, observation);
+        call.detector = detector;
+        let began = matches!(action, TurnAction::Begin { .. }).then(|| call.detector.clone());
+        let preroll: Vec<_> = if matches!(action, TurnAction::Begin { .. }) {
+            call.preroll
+                .iter()
+                .map(|(frame, time, _)| (frame.clone(), *time))
+                .collect()
+        } else {
+            Vec::new()
+        };
+        call.preroll
+            .push_back((frame.clone(), received_at_ms, duration_ns));
+        call.preroll_ns = call.preroll_ns.saturating_add(duration_ns);
+        while call.preroll_ns > policy.preroll_ms * 1_000_000 {
+            let Some((_, _, duration)) = call.preroll.pop_front() else {
+                break;
+            };
+            call.preroll_ns = call.preroll_ns.saturating_sub(duration);
+        }
+        Ok((action, preroll, began))
+    }
+
+    /// The call's phase while no turn is being captured.
+    async fn update_call_phase(&mut self, responding: bool, waiting: bool) -> Result<()> {
+        let phase = if responding {
+            CallPhase::Responding
+        } else if waiting {
+            CallPhase::Waiting
+        } else {
+            CallPhase::Listening
+        };
+        if self
+            .state
+            .durable
+            .call
+            .as_ref()
+            .is_some_and(|call| call.phase != phase)
+        {
+            self.apply(Event::CallPhase(phase)).await?;
+        }
+        Ok(())
     }
 
     /// Runs after the current frame has reached both original and derived buffers.
@@ -639,92 +649,6 @@ impl Runtime {
             self.store_actor.snapshot(&self.state).await?;
         }
         Ok(())
-    }
-
-    /// The turn whose transcription is still in course, when the user speaks
-    /// again before it reached Deimos: their new words continue it, so its
-    /// voice goes first in the new turn instead of being cancelled and lost.
-    /// A turn already sent to Deimos is not carried: he has it.
-    fn joinable_turn(&mut self) -> Option<CallTurnAudio> {
-        if self.state.durable.active_request.is_some()
-            || self.conversation.voice_task.active().is_none()
-        {
-            return None;
-        }
-        let operation = self.conversation.voice_operation.as_deref()?;
-        self.capture
-            .call_runtime
-            .as_mut()?
-            .submitted
-            .take()
-            .filter(|turn| turn.operation_id == operation)
-    }
-
-    /// Keeps a call turn's voice while it is transcribed (see `joinable_turn`).
-    pub(super) fn keep_submitted_call_turn(
-        &mut self,
-        operation_id: &str,
-        voice: crate::capture::VoiceBuffer,
-    ) {
-        if let Some(call) = self
-            .capture
-            .call_runtime
-            .as_mut()
-            .filter(|call| call.closing_at_ms.is_none())
-        {
-            call.submitted = Some(CallTurnAudio {
-                operation_id: operation_id.to_owned(),
-                sample_rate: voice.sample_rate,
-                channels: voice.channels,
-                started_at_ms: voice.started_at_ms,
-                monotonic_ns: voice.monotonic_ns,
-                last_sequence: voice.last_sequence(),
-                pcm: voice.pcm,
-            });
-        }
-    }
-
-    /// Puts the carried turn's voice before the turn about to be sent, when
-    /// both are the same format and the whole still fits one voice turn's
-    /// bounds (60 s, and the encrypted chunk). Otherwise the carried voice is
-    /// dropped with its numbers in the log.
-    pub(super) fn prepend_joined_call_turn(&mut self) {
-        let Some(joined) = self
-            .capture
-            .call_runtime
-            .as_mut()
-            .and_then(|call| call.joined.take())
-        else {
-            return;
-        };
-        let Some(voice) = self.capture.buffer.voice.as_mut() else {
-            return;
-        };
-        let bytes = joined.pcm.len().saturating_add(voice.pcm.len());
-        let max_bytes = (voice.sample_rate as usize)
-            .saturating_mul(2 * 60)
-            .min(orbit_store::MAX_CHUNK_BYTES - 44);
-        if joined.sample_rate != voice.sample_rate
-            || joined.channels != voice.channels
-            || bytes > max_bytes
-        {
-            let (rate, channels) = (voice.sample_rate, voice.channels);
-            self.log(
-                "call_turn_join_refused",
-                &[
-                    ("bytes", &bytes.to_string()),
-                    ("max_bytes", &max_bytes.to_string()),
-                    ("sample_rate", &format!("{}/{rate}", joined.sample_rate)),
-                    ("channels", &format!("{}/{channels}", joined.channels)),
-                ],
-            );
-            return;
-        }
-        let mut pcm = joined.pcm;
-        pcm.append(&mut voice.pcm);
-        voice.pcm = pcm;
-        voice.started_at_ms = joined.started_at_ms;
-        voice.monotonic_ns = joined.monotonic_ns;
     }
 
     /// The main loop's facts at the start of a tick, before maintenance runs.

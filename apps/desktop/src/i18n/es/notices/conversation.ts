@@ -22,6 +22,10 @@ const base = {
   voice_note_empty: worded("fixable", "No se grabó audio. Comprueba el micrófono."),
   voice_transcribing: worded("working", "Transcribiendo tu voz…"),
   voice_not_recognized: worded("fixable", "No se oyó nada. Vuelve a intentarlo."),
+  voice_transcription_failed: worded(
+    "fixable",
+    "No se pudo transcribir tu nota de voz. Sigue guardada: la tienes en la conversación.",
+  ),
   assistant_session_not_found: worded(
     "fixable",
     "Esa conversación no está en este Mac. Escribe en una nueva.",

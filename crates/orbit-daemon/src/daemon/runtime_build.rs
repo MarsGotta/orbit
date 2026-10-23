@@ -43,6 +43,7 @@ impl ConversationRuntime {
             interrupted_turns: Default::default(),
             voice_task: ticketed::Ticketed::logical(),
             voice_operation: None,
+            dropped_voice_turns: 0,
             speech_task: ticketed::Ticketed::logical(),
             speech_voices: BTreeMap::new(),
             speak_next: false,

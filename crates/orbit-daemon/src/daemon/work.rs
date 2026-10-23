@@ -193,14 +193,37 @@ impl Runtime {
     ) -> Result<()> {
         self.conversation.voice_operation = None;
         self.conversation.speak_next = !self.recording_active();
+        let over_answer = self.take_over_answer_turn(&source.message_id);
         if text.trim().is_empty() {
-            self.apply(Event::VoiceFailed {
-                id: source.message_id,
-                failure: orbit_core::VoiceTranscriptionFailure::local("voice_transcription_empty"),
-            })
-            .await?;
-            self.say(NoticeCode::VoiceNotRecognized);
-        } else if !self
+            // Nothing was heard: noise, silence, or a person who had not
+            // finished. Never a failure: the turn leaves no note, and in a
+            // call its audio waits for what the user says next.
+            let in_call = self.capture.call_runtime.is_some();
+            if let Some(turn) = over_answer {
+                self.carry_into_next_turn(call::call_turn_audio(turn.operation_id, turn.voice));
+                self.note_dropped_voice("no_words");
+            } else {
+                if let Some(audio) = self.take_submitted_call_turn(&source.message_id) {
+                    self.carry_into_next_turn(audio);
+                }
+                self.drop_unheard_voice_note(&source.message_id, "no_words")
+                    .await?;
+            }
+            // A voice note pressed for, and silent, is said in a small line;
+            // in a call nothing is said.
+            self.say(if in_call {
+                NoticeCode::VoiceNotHeard
+            } else {
+                NoticeCode::VoiceNotRecognized
+            });
+            return Ok(());
+        }
+        if let Some(turn) = over_answer
+            && !self.accept_over_answer(turn, None).await?
+        {
+            return Ok(());
+        }
+        if !self
             .ask_meeting_by_dictation(source.message_id.clone(), text.clone(), source.duration_ms)
             .await?
         {
@@ -256,6 +279,15 @@ impl Runtime {
         let current = self.conversation.voice_operation.as_deref() == Some(operation_id.as_str());
         if current {
             self.conversation.voice_operation = None;
+        }
+        // A turn spoken over Deimos's answer that could not be heard does
+        // not stop him; it is kept as a note that says why.
+        if let Some(turn) = self.take_over_answer_turn(&operation_id) {
+            self.accept_over_answer(turn, Some(failure)).await?;
+            if current {
+                self.say(NoticeCode::VoiceTranscriptionFailed);
+            }
+            return Ok(());
         }
         self.apply(orbit_core::Event::VoiceFailed {
             id: operation_id,

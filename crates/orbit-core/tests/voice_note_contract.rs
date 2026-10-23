@@ -278,7 +278,7 @@ fn a_replaced_voice_note_waits_on_the_mac_and_can_be_retried() {
             .durable
             .pending_voice
             .iter()
-            .map(|message| message.id.as_str())
+            .map(|note| note.message.id.as_str())
             .collect::<Vec<_>>(),
         ["nota-fallida"]
     );
@@ -344,9 +344,12 @@ fn a_full_list_of_waiting_voice_notes_refuses_the_next_with_its_count() {
         attachments: Vec::new(),
     };
     state.durable.pending_voice = (0..orbit_core::MAX_PENDING_VOICE_NOTES)
-        .map(|index| Message {
-            id: format!("nota-{index}"),
-            ..waiting.clone()
+        .map(|index| orbit_core::PendingVoiceNote {
+            message: Message {
+                id: format!("nota-{index}"),
+                ..waiting.clone()
+            },
+            conversation: None,
         })
         .collect();
     let refused = decide(&state, Event::VoiceStart, 2).unwrap_err();

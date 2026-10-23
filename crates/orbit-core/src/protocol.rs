@@ -247,6 +247,11 @@ pub enum Command {
     VoiceRetry {
         message_id: String,
     },
+    /// «Descartar», confirmed: a voice note whose transcription failed
+    /// leaves the conversation, and its audio leaves this Mac.
+    VoiceDiscard {
+        message_id: String,
+    },
     /// «Escuchar» on an answer: the hub's voice reads `text`, the answer
     /// `message_id` as shown, through the Mac's speaker. One at a time: a new
     /// one replaces what is being read.
@@ -353,6 +358,7 @@ impl Command {
             | Self::VoiceEnd
             | Self::VoiceCancel
             | Self::VoiceRetry { .. }
+            | Self::VoiceDiscard { .. }
             | Self::Speak { .. }
             | Self::SpeakStop
             | Self::VoiceNoteAudio { .. }

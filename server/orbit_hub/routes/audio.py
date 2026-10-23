@@ -5,7 +5,11 @@ from fastapi.responses import Response
 from pydantic import ValidationError
 
 from ..errors import HubError
+from ..log import current_op, get_logger
 from ..protocol import SpeechRequest
+from ..transcription_failure import dictation_refusal, wav_duration_ms
+
+logger = get_logger(__name__)
 
 
 def mount(
@@ -23,10 +27,33 @@ def mount(
         agents.default.voice()
         body = await bounded_body(request, settings.max_audio_bytes, "audio")
         validate_wav(body)
-        text = await transcriptions.transcribe(device, body)
+        try:
+            text = await transcriptions.transcribe(device, body)
+        except HubError as error:
+            refusal = dictation_refusal(error, wav_duration_ms(body))
+            if refusal is not None:
+                raise refusal from error
+            # A short clip the provider refused holds no speech: no words,
+            # which the Mac drops without a failure. Not a failure here
+            # either: an info line with its numbers, never its audio.
+            logger.info(
+                "dictation_no_speech",
+                extra={
+                    "event": "dictation_no_speech",
+                    "code": "provider_refused_short_clip",
+                    "op": current_op(),
+                    "device": device,
+                    "numbers": {
+                        "provider_status": (error.numbers or {}).get("provider_status"),
+                        "duration_ms": wav_duration_ms(body),
+                    },
+                },
+            )
+            text = ""
         if not store.devices.is_active(device):
             raise HubError("revoked", "Dispositivo revocado")
-        turn_inputs.mark_transcribed(device, text)
+        if text:
+            turn_inputs.mark_transcribed(device, text)
         return {"text": text}
 
     @app.post("/v1/audio/speech")

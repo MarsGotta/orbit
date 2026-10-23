@@ -1,8 +1,23 @@
 """Redacted causes for both transcription transports."""
 
+import io
+import wave
+
 import httpx
 
 from .errors import HubError
+
+# A dictated clip shorter than this that the provider refuses (Hermes answers
+# 400 for whatever its speech-to-text refused) is heard as no speech, not as a
+# failure. Why 3 s: every call turn carries 300 ms of preroll and 700 ms of
+# closing silence (orbit-core `VoicePolicy`), so under 3 s holds under 2 s of
+# voice, a word or two at most; the refused clips of 2026-10-23 were 1-2 s of
+# noise during a call. A longer clip refused is a real failure and is named
+# (`transcription_provider_refused`). It does not limit how long a clip is.
+NO_SPEECH_REFUSAL_MAX_MS = 3_000
+# What Hermes's `/api/audio/transcribe` answers when its speech-to-text
+# refuses the audio; other statuses keep `transcription_http_error`.
+PROVIDER_REFUSED_STATUS = 400
 
 
 def from_provider(error: Exception, *, timeout_ms: int, connect_timeout_ms: int) -> HubError:
@@ -79,3 +94,26 @@ def durable_details(code: str | None) -> dict[str, int | str]:
         if timeout.isdecimal():
             return {"cause": "transcription_connection_timeout", "timeout_ms": int(timeout)}
     return {"cause": code}
+
+
+def wav_duration_ms(body: bytes) -> int:
+    """The length of a WAV the route has already validated."""
+    with wave.open(io.BytesIO(body), "rb") as audio:
+        return audio.getnframes() * 1000 // audio.getframerate()
+
+
+def dictation_refusal(error: HubError, duration_ms: int) -> HubError | None:
+    """What a dictated clip's refusal means: `None` when it is heard as no
+    speech (a short clip the provider refused), otherwise the error to answer,
+    with the provider's refusal of a longer clip named as such."""
+    status = (error.numbers or {}).get("provider_status")
+    if error.code != "transcription_http_error" or status != PROVIDER_REFUSED_STATUS:
+        return error
+    if duration_ms < NO_SPEECH_REFUSAL_MAX_MS:
+        return None
+    return HubError(
+        "transcription_provider_refused",
+        f"El servicio de transcripción no aceptó {duration_ms} ms de audio (HTTP {status})",
+        http_status=502,
+        numbers={"provider_status": status, "duration_ms": duration_ms},
+    )

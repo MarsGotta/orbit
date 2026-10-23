@@ -1,22 +1,18 @@
 //! Audio lifecycle commands complete only after the native reader drains the
 //! preceding frames and delivers the matching response in the same stream.
-use super::{Runtime, WorkResult, id, now};
-use crate::{hub, native};
+use super::{Runtime, id, now};
+use crate::native;
 use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
 
 #[cfg(test)]
 #[path = "audio_tests.rs"]
 pub(super) mod tests;
-use anyhow::{Context, Result, bail};
-use base64::{Engine, engine::general_purpose::STANDARD};
+use anyhow::{Result, bail};
 use orbit_core::wire::native::{
     NativeAudioIdentityRef, NativeCommandHeader, NativeEventHeader, decode_result_body,
 };
-use orbit_core::{
-    CapturePhase, Event, MAX_VOICE_NOTE_BYTES, decide,
-    protocol::{MeetingAudio, VoiceNoteAudio},
-};
-use orbit_store::{ChunkMetadata, Job, JobState};
+use orbit_core::{CapturePhase, Event, decide, protocol::MeetingAudio};
+use orbit_store::{Job, JobState};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, time::Duration};
@@ -104,7 +100,7 @@ pub(super) struct AudioLifecycle {
     stops: BTreeMap<String, PendingStop>,
     recording_end: Option<bool>,
     voice_end: bool,
-    submit_voice: bool,
+    pub(super) submit_voice: bool,
     /// The whole-helper stop still waiting for its drain, by command id.
     pub(super) full_stop: Option<(String, FullStop)>,
     /// A whole-helper stop timed out before entering the bounded channel.
@@ -194,142 +190,6 @@ impl Runtime {
                         .unwrap_or(started_at),
                 ),
         );
-    }
-
-    /// A voice note of any conversation, by its message's id, which
-    /// is its recording's; the conversation itself is read from the hub.
-    pub(super) fn voice_note_audio(&self, message_id: &str) -> Result<VoiceNoteAudio> {
-        let Some((_, wav)) = self.stored_voice_note(message_id)? else {
-            bail!("voice_note_missing");
-        };
-        Ok(VoiceNoteAudio {
-            message_id: message_id.to_owned(),
-            format: "wav".into(),
-            bytes_base64: STANDARD.encode(wav),
-        })
-    }
-
-    /// The chunk id and WAV of the voice note `message_id`, while this Mac
-    /// still holds them; what playback and «Reintentar transcripción» read.
-    fn stored_voice_note(&self, message_id: &str) -> Result<Option<(String, Vec<u8>)>> {
-        let Ok(chunks) = self.reader.list_chunks(message_id, None, 2) else {
-            return Ok(None);
-        };
-        let Some(chunk) = voice_note_chunk(chunks) else {
-            return Ok(None);
-        };
-        if chunk.bytes > MAX_VOICE_NOTE_BYTES as u64 {
-            bail!("voice_note_too_large");
-        }
-        let wav = self.reader.read_chunk(&chunk.metadata.id)?;
-        if wav.len() > MAX_VOICE_NOTE_BYTES {
-            bail!("voice_note_too_large");
-        }
-        Ok(Some((chunk.metadata.id, wav)))
-    }
-
-    /// «Reintentar transcripción»: the open turn's voice note whose
-    /// transcription failed goes again to the hub, from the WAV this Mac
-    /// kept. Without that WAV there is nothing to send, and the refusal
-    /// says it is the audio that is missing.
-    pub(super) async fn retry_voice_transcription(&mut self, message_id: String) -> Result<()> {
-        if self.conversation.voice_task.active().is_some() || self.capture.buffer.voice.is_some() {
-            return Err(orbit_core::refusal::Refusal::Busy {
-                operation: orbit_core::refusal::Operation::Interaction,
-                retry_after_ms: None,
-            }
-            .into());
-        }
-        let retry = Event::VoiceRetry {
-            id: message_id.clone(),
-        };
-        // The pure decision first, so a note that cannot be retried is
-        // refused for that before its audio is looked for.
-        decide(&self.state, retry.clone(), now())?;
-        let Some(token) = self.token.clone() else {
-            return Err(orbit_core::refusal::Refusal::NotPaired.into());
-        };
-        let Some((chunk_id, wav)) = self.stored_voice_note(&message_id)? else {
-            return Err(orbit_core::refusal::Refusal::NotFound {
-                resource: orbit_core::refusal::Resource::Audio,
-            }
-            .into());
-        };
-        let duration_ms = self
-            .state
-            .durable
-            .turn
-            .iter()
-            .map(|turn| &turn.user)
-            .chain(self.state.durable.pending_voice.iter())
-            .find(|message| message.id == message_id)
-            .and_then(|message| message.voice.as_ref())
-            .map_or(0, |voice| voice.duration_ms);
-        self.apply(retry).await?;
-        let source = VoiceSource {
-            recording_id: message_id.clone(),
-            chunk_id,
-            session_id: self.state.session_id().clone(),
-            message_id,
-            duration_ms,
-        };
-        self.spawn_voice_transcription(source, wav, token).await
-    }
-
-    /// The hub is back and nothing else is in flight: the oldest voice note
-    /// that never reached it (spoken offline, unpaired, or behind another
-    /// turn) is sent, one per tick. A note the hub did try waits for
-    /// «Reintentar transcripción»: sending it again by itself could loop.
-    pub(super) async fn send_waiting_voice_note(&mut self) -> Result<()> {
-        let durable = &self.state.durable;
-        if self.state.privacy_stopped()
-            || self.state.connection() != orbit_core::Connection::Online
-            || self.token.is_none()
-            || durable.active_request.is_some()
-            || durable.voice_active
-            || durable.call.is_some()
-            || durable.pending_approval.is_some()
-            || self.conversation.voice_task.active().is_some()
-            || self.capture.buffer.voice.is_some()
-        {
-            return Ok(());
-        }
-        let waits = |message: &&orbit_core::Message| {
-            message.voice.as_ref().is_some_and(|voice| {
-                voice.transcript.is_none()
-                    && voice
-                        .failure
-                        .as_ref()
-                        .is_some_and(|failure| orbit_core::voice_note_waits_for_hub(&failure.code))
-            })
-        };
-        let Some(message_id) = durable
-            .turn
-            .iter()
-            .map(|turn| &turn.user)
-            .filter(waits)
-            .chain(durable.pending_voice.iter().filter(waits))
-            .map(|message| message.id.clone())
-            .next()
-        else {
-            return Ok(());
-        };
-        self.log("waiting_voice_note_sent", &[]);
-        if let Err(error) = self.retry_voice_transcription(message_id.clone()).await {
-            // Not sent again by itself: its WAV is gone or the hub refused
-            // the retry. It stays listed, with «Reintentar».
-            self.log(
-                "waiting_voice_note_failed",
-                &[("error", &error.to_string())],
-            );
-            self.apply(Event::VoiceFailed {
-                id: message_id,
-                failure: orbit_core::VoiceTranscriptionFailure::local("voice_resend_failed"),
-            })
-            .await?;
-            self.store_actor.snapshot(&self.state).await?;
-        }
-        Ok(())
     }
 
     /// Attribute a safety fact to the actual producer owner, not the UI phase.
@@ -426,6 +286,9 @@ impl Runtime {
         self.conversation.voice_task.cancel();
         let pending = self.conversation.voice_operation.take();
         if let Some(operation_id) = pending.as_ref() {
+            // A turn spoken over Deimos's answer reached no one and was never
+            // stored: the change that stops its transcription retires it.
+            let _ = self.take_over_answer_turn(operation_id);
             let code = match cause {
                 VoiceCancellationCause::Authority(change) => match change {
                     orbit_core::authority::AuthorityChange::UserStop => {
@@ -1135,254 +998,6 @@ impl Runtime {
         Ok(())
     }
 
-    pub(super) async fn dispatch_voice_transcription(&mut self) -> Result<()> {
-        if self.capture.audio.submit_voice {
-            self.prepend_joined_call_turn();
-        }
-        let Some(voice) = self.capture.buffer.voice.as_ref() else {
-            return Ok(());
-        };
-        if voice.pcm.is_empty() {
-            self.capture.buffer.voice = None;
-            self.say(NoticeCode::VoiceNoteEmpty);
-            return Ok(());
-        }
-        let cancelled = self.state.privacy_stopped() || !self.capture.audio.submit_voice;
-        let duration_ms = (voice.pcm.len() as u64)
-            .saturating_div(u64::from(voice.channels).saturating_mul(2))
-            .saturating_mul(1_000)
-            .saturating_div(u64::from(voice.sample_rate));
-        // A call's turns have their own detector, which already asks for
-        // this much speech.
-        if !cancelled
-            && self.state.durable.call.is_none()
-            && let Some(short) = orbit_core::voice::short_voice_note(duration_ms)
-        {
-            self.capture.buffer.voice = None;
-            let decision = decide(&self.state, Event::VoiceTooShort(short), now())?;
-            self.store_actor.snapshot(&decision.state).await?;
-            self.state = decision.state;
-            return Ok(());
-        }
-        let wav = native::wav(&voice.pcm, voice.sample_rate, voice.channels)?;
-        let message_id = id();
-        let recording_id = message_id.clone();
-        let source = VoiceSource {
-            chunk_id: format!("{recording_id}-mic_local-0"),
-            recording_id,
-            session_id: self.state.session_id().clone(),
-            message_id,
-            duration_ms,
-        };
-        let metadata = ChunkMetadata {
-            capture_epoch_id: voice.capture_epoch_id.clone(),
-            id: source.chunk_id.clone(),
-            recording_id: source.recording_id.clone(),
-            track: "mic_local".into(),
-            sequence: 0,
-            sample_rate: voice.sample_rate,
-            channels: voice.channels,
-            frames: voice.pcm.len() as u64 / (u64::from(voice.channels) * 2),
-            monotonic_ns: voice.monotonic_ns,
-            first_sample: 0,
-            started_at_ms: voice.started_at_ms,
-        };
-        // Persist policy before the first blob exists. Orphan recovery may
-        // reconstruct its upload job, but must never override this quarantine.
-        // Until this succeeds the original VoiceBuffer remains owned in RAM.
-        let job = Job {
-            id: format!("recording-{}", source.recording_id),
-            kind: orbit_store::QueueKind::RecordingManifest.into(),
-            payload: json!({"recording_id":source.recording_id,
-                "recording_kind":"voice_turn", "session_id":source.session_id,
-                "call_id":self.state.durable.call.as_ref().map(|call| &call.id),
-                "message_id":source.message_id, "source_chunk_id":source.chunk_id,
-                // A voice note goes to `/v1/audio/transcribe` and
-                // stays on this Mac for playback; nothing on the hub reads
-                // its audio, which it listed as a meeting never closed.
-                "source_metadata":metadata, "upload_allowed":false,
-                "voice_state":if cancelled {"cancelled"} else {"submitted"},
-                "capture_complete":!cancelled,
-                "local_audio_receipt_required":true,
-                "ended_at_ms":now()}),
-            // A durable manifest is not proof of audio durability or STT success:
-            // the authenticated chunk receipt is the separate audio boundary.
-            state: JobState::Succeeded,
-            created_at: now(),
-        };
-        self.store_actor
-            .run(move |store| Ok(store.enqueue_job(&job)?))
-            .await?;
-        if cancelled {
-            let voice = self
-                .capture
-                .buffer
-                .voice
-                .take()
-                .context("Fuente de voz perdida")?;
-            // Privacy/shutdown keeps the established retry queue: if the
-            // destination is unavailable, this PCM remains owned there until
-            // an authenticated WAV receipt exists.
-            self.seal(vec![crate::capture::Segment {
-                metadata,
-                pcm: voice.pcm,
-            }])?;
-            let job_id = format!("upload-{}", source.chunk_id);
-            self.store_actor
-                .run(move |store| Ok(store.update_job(&job_id, JobState::Cancelled)?))
-                .await?;
-            self.say(NoticeCode::VoiceTurnCancelled);
-            return Ok(());
-        }
-        // Keep the original PCM owned by the capture buffer until the encrypted
-        // WAV and its authenticated receipt are durable. The returned WAV is
-        // the exact same bounded value later sent to STT.
-        let upload = format!("upload-{}", source.chunk_id);
-        let wav = self
-            .store_actor
-            .run(move |store| {
-                store.seal_chunk(&metadata, &wav)?;
-                store.update_job(&upload, JobState::Cancelled)?;
-                Ok(wav)
-            })
-            .await?;
-        // The WAV and its receipt are durable: from here they are the note's
-        // copy, and the PCM in memory is never sealed a second time (a later
-        // stop once stored it again, under another id, as cancelled).
-        let voice = self.capture.buffer.voice.take();
-        let decision = decide(
-            &self.state,
-            Event::VoiceStored {
-                id: source.message_id.clone(),
-                duration_ms: source.duration_ms,
-            },
-            now(),
-        )?;
-        self.store_actor.snapshot(&decision.state).await?;
-        self.state = decision.state;
-        let in_turn = self
-            .state
-            .durable
-            .turn
-            .as_ref()
-            .is_some_and(|turn| turn.user.id == source.message_id);
-        if !in_turn {
-            // Another turn was in flight: the note waits on the Mac and is
-            // sent when that turn ends (`send_waiting_voice_note`).
-            return Ok(());
-        }
-        if let Some(voice) = voice {
-            self.keep_submitted_call_turn(&source.message_id, voice);
-        }
-        if self.state.connection() != orbit_core::Connection::Online && self.token.is_some() {
-            // Spoken with the hub away: kept and shown, sent when it is back.
-            let decision = decide(
-                &self.state,
-                Event::VoiceFailed {
-                    id: source.message_id,
-                    failure: orbit_core::VoiceTranscriptionFailure::local(
-                        orbit_core::VOICE_HUB_UNREACHABLE,
-                    ),
-                },
-                now(),
-            )?;
-            self.store_actor.snapshot(&decision.state).await?;
-            self.work.durable_snapshot = crate::daemon::DurableSnapshot::from(&decision.state);
-            self.state = decision.state;
-            return Ok(());
-        }
-        let Some(token) = self.token.clone() else {
-            let decision = decide(
-                &self.state,
-                Event::VoiceFailed {
-                    id: source.message_id,
-                    failure: orbit_core::VoiceTranscriptionFailure::local(
-                        orbit_core::VOICE_PAIRING_REQUIRED,
-                    ),
-                },
-                now(),
-            )?;
-            self.store_actor.snapshot(&decision.state).await?;
-            self.work.durable_snapshot = crate::daemon::DurableSnapshot::from(&decision.state);
-            self.state = decision.state;
-            return Err(orbit_core::refusal::Refusal::NotPaired.into());
-        };
-        self.spawn_voice_transcription(source, wav, token).await
-    }
-
-    /// Sends one voice note's WAV to the hub on the single voice worker; its
-    /// result returns as a work event for that note.
-    async fn spawn_voice_transcription(
-        &mut self,
-        source: VoiceSource,
-        wav: Vec<u8>,
-        token: String,
-    ) -> Result<()> {
-        let settings = self.settings.clone();
-        let development = self.development;
-        let generation = self.state.generation();
-        let events = self.work.work_events.clone();
-        self.say(NoticeCode::VoiceTranscribing);
-        let operation_id = source.message_id.clone();
-        self.conversation.voice_operation = Some(operation_id.clone());
-        let worker_operation_id = operation_id.clone();
-        // One voice turn at a time; the guard above keeps a second turn out.
-        // It is not a limit on stored voice messages.
-        let started = self.conversation.voice_task.start_logical(
-            generation,
-            self.turn.op.clone(),
-            (),
-            move |ticket| {
-                tokio::spawn(async move {
-                    let event =
-                        match hub::transcribe(&settings, &token, development, wav, ticket.op())
-                            .await
-                        {
-                            Ok(text) => {
-                                WorkResult::Capture(crate::daemon::CaptureWork::Transcribed {
-                                    ticket,
-                                    source,
-                                    text,
-                                })
-                            }
-                            Err(failure) => {
-                                WorkResult::Capture(crate::daemon::CaptureWork::VoiceProblem {
-                                    ticket,
-                                    operation_id: worker_operation_id,
-                                    failure,
-                                })
-                            }
-                        };
-                    crate::daemon::deliver_work(&events, event).await;
-                })
-            },
-        );
-        if started.is_none() {
-            self.conversation.voice_operation = None;
-            let decision = decide(
-                &self.state,
-                Event::VoiceFailed {
-                    id: operation_id,
-                    failure: orbit_core::VoiceTranscriptionFailure::local(
-                        "voice_transcription_slot_unavailable",
-                    ),
-                },
-                now(),
-            )?;
-            self.store_actor.snapshot(&decision.state).await?;
-            self.work.durable_snapshot = crate::daemon::DurableSnapshot::from(&decision.state);
-            self.state = decision.state;
-            // One slot protects the active voice transcription worker: a second
-            // note cannot replace its receipt. This is not an audio size limit.
-            return Err(orbit_core::refusal::Refusal::WorkInFlight {
-                in_flight: 1,
-                max: 1,
-            }
-            .into());
-        }
-        Ok(())
-    }
-
     /// Stops every capture source in the helper and waits for its drain: the
     /// user's latching stop, or a cut that leaves the latch as it was.
     pub(super) async fn request_full_audio_stop(&mut self, kind: FullStop) -> Result<()> {
@@ -1646,17 +1261,5 @@ impl Runtime {
             "remote_app" => self.capture.remote_stream.as_deref() == Some(audio.stream_id),
             _ => false,
         }
-    }
-}
-
-/// The one mono chunk a voice note's recording holds, while this Mac still
-/// has it: what `voice_note_audio` plays and what a conversation's page says
-/// with `audio_available`.
-pub(super) fn voice_note_chunk(
-    chunks: Vec<orbit_store::ChunkReceipt>,
-) -> Option<orbit_store::ChunkReceipt> {
-    match <[orbit_store::ChunkReceipt; 1]>::try_from(chunks) {
-        Ok([chunk]) if chunk.metadata.channels == 1 => Some(chunk),
-        _ => None,
     }
 }

@@ -7,6 +7,13 @@ use crate::privacy_stop::StopRequester;
 use crate::protocol::MeetingAudio;
 use crate::refusal::Refusal;
 
+#[path = "transition/voice_notes.rs"]
+mod voice_notes;
+use voice_notes::{
+    adopt_new_conversation_notes, decide_voice_discard, decide_voice_failed, decide_voice_retry,
+    decide_voice_stored, forget_voice_note, retire_turn, set_turn,
+};
+
 #[derive(Debug, Clone)]
 pub enum Event {
     Connect(Connection),
@@ -34,6 +41,18 @@ pub enum Event {
     /// The user asked again for the transcription of the open turn's voice
     /// note `id`, which failed («Reintentar transcripción»).
     VoiceRetry {
+        id: String,
+    },
+    /// The user discards a voice note that failed («Descartar»): the open
+    /// turn's, or one waiting on this Mac. One still being transcribed is
+    /// refused; the daemon deletes its audio once this is decided.
+    VoiceDiscard {
+        id: String,
+    },
+    /// Nothing was heard in the voice note `id`: the hub answered its audio
+    /// with no words, or what the user said next carried it. It leaves the
+    /// conversation without a trace: it was noise, or part of the next turn.
+    VoiceUnheard {
         id: String,
     },
     /// A finished voice note was too short to send; the daemon measured it.
@@ -256,6 +275,9 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
             if state.durable.session_id.is_none() && next.durable.agent_id.is_none() {
                 next.durable.agent_id = agent_id;
             }
+            if state.durable.session_id.is_none() {
+                adopt_new_conversation_notes(&mut next, &id);
+            }
             next.durable.session_id = Some(id);
         }
         Event::NewSession { agent_id } => {
@@ -322,6 +344,8 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
             decide_voice_stored(state, &mut next, id, duration_ms, now_ms)?
         }
         Event::VoiceRetry { id } => decide_voice_retry(state, &mut next, &id)?,
+        Event::VoiceDiscard { id } => decide_voice_discard(&mut next, &id)?,
+        Event::VoiceUnheard { id } => forget_voice_note(&mut next, &id),
         Event::VoiceTooShort(short) => {
             next.set_notice(
                 Notice::new(NoticeCode::VoiceNoteTooShort)
@@ -330,24 +354,7 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
             );
             next.views.short_voice_note = Some(short);
         }
-        Event::VoiceFailed { id, failure } => {
-            if let Some(voice) = next
-                .durable
-                .turn
-                .as_mut()
-                .and_then(|turn| turn.untranscribed_voice_mut(&id))
-                .or_else(|| {
-                    next.durable
-                        .pending_voice
-                        .iter_mut()
-                        .find(|message| message.id == id)
-                        .and_then(|message| message.voice.as_mut())
-                        .filter(|voice| voice.transcript.is_none())
-                })
-            {
-                voice.failure = Some(failure);
-            }
-        }
+        Event::VoiceFailed { id, failure } => decide_voice_failed(&mut next, &id, failure),
         Event::Delta { request_id, text } => decide_chat_delta(&mut next, request_id, text, now_ms),
         Event::Completed { request_id, text } => {
             decide_chat_completed(&mut next, request_id, text, now_ms)
@@ -465,8 +472,10 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
 }
 
 fn decide_new_session(next: &mut State) {
-    next.durable.session_id = None;
+    // The turn is retired while its conversation is still the open one, so
+    // a note it keeps stays that conversation's.
     retire_turn(next);
+    next.durable.session_id = None;
     next.durable.pending_approval = None;
 }
 
@@ -566,148 +575,6 @@ fn decide_chat_submit(
             .map(|attachment| attachment.id)
             .collect(),
     });
-    Ok(())
-}
-
-/// A voice note sealed on this Mac becomes a message, with the hub or
-/// without it: the WAV is kept, and its transcription can wait. With a turn
-/// still in flight it waits in `pending_voice` instead of replacing it.
-fn decide_voice_stored(
-    state: &State,
-    next: &mut State,
-    id: String,
-    duration_ms: u64,
-    now_ms: i64,
-) -> Result<(), Refusal> {
-    ensure_active(state)?;
-    let known = next
-        .durable
-        .turn
-        .iter()
-        .map(|turn| &turn.user)
-        .chain(next.durable.pending_voice.iter())
-        .any(|message| message.id == id);
-    if known {
-        return Err(Refusal::Busy {
-            operation: crate::refusal::Operation::Interaction,
-            retry_after_ms: None,
-        });
-    }
-    let busy = state.durable.active_request.is_some();
-    let message = Message {
-        attachments: Vec::new(),
-        id,
-        role: "user".into(),
-        text: String::new(),
-        complete: true,
-        at_ms: observed_at_ms(now_ms),
-        voice: Some(VoiceNote {
-            duration_ms,
-            transcript: None,
-            failure: busy.then(|| VoiceTranscriptionFailure::local(VOICE_WAITING_TURN)),
-            audio_available: true,
-        }),
-    };
-    if busy {
-        keep_pending_voice(next, message);
-    } else {
-        set_turn(
-            next,
-            Turn {
-                user: message,
-                answer: None,
-            },
-        );
-    }
-    next.set_notice(NoticeCode::VoiceNoteSaved);
-    Ok(())
-}
-
-/// The turn becomes `turn`. A voice note the hub never took that it
-/// replaces stays on the Mac, in `pending_voice`, instead of being dropped.
-fn set_turn(next: &mut State, turn: Turn) {
-    retire_turn(next);
-    next.durable.turn = Some(turn);
-}
-
-/// The turn ends without another (a new or another conversation). Its
-/// voice note the hub never took is kept, as when a turn replaces it.
-fn retire_turn(next: &mut State) {
-    if let Some(message) = next
-        .durable
-        .turn
-        .take()
-        .and_then(|turn| turn.untranscribed_voice_message().cloned())
-    {
-        keep_pending_voice(next, message);
-    }
-}
-
-fn keep_pending_voice(next: &mut State, message: Message) {
-    let pending = &mut next.durable.pending_voice;
-    if pending.iter().all(|kept| kept.id != message.id) {
-        pending.push(message);
-    }
-}
-
-/// A voice note's transcription asked for again: the open turn's note `id`
-/// that failed, while nothing else uses the microphone or the turn. Its
-/// failure is cleared so the note reads as being transcribed; the daemon has
-/// already checked that this Mac still holds its audio.
-fn decide_voice_retry(state: &State, next: &mut State, id: &str) -> Result<(), Refusal> {
-    ensure_active(state)?;
-    if state.durable.connection != Connection::Online {
-        return Err(Refusal::HubUnreachable { since_ms: None });
-    }
-    if state.durable.call.is_some() {
-        return Err(Refusal::Busy {
-            operation: crate::refusal::Operation::AudioSession,
-            retry_after_ms: None,
-        });
-    }
-    if state.durable.voice_active
-        || state.durable.active_request.is_some()
-        || state.durable.pending_approval.is_some()
-    {
-        return Err(Refusal::Busy {
-            operation: crate::refusal::Operation::Interaction,
-            retry_after_ms: None,
-        });
-    }
-    if let Some(at) = next.durable.pending_voice.iter().position(|message| {
-        message.id == id
-            && message
-                .voice
-                .as_ref()
-                .is_some_and(|voice| voice.transcript.is_none())
-    }) {
-        // A note a later turn replaced becomes the turn again, so its
-        // transcript is sent as it would have been.
-        let mut message = next.durable.pending_voice.remove(at);
-        if let Some(voice) = message.voice.as_mut() {
-            voice.failure = None;
-        }
-        set_turn(
-            next,
-            Turn {
-                user: message,
-                answer: None,
-            },
-        );
-        next.set_notice(NoticeCode::VoiceTranscribing);
-        return Ok(());
-    }
-    let voice = next
-        .durable
-        .turn
-        .as_mut()
-        .and_then(|turn| turn.untranscribed_voice_mut(id))
-        .filter(|voice| voice.failure.is_some())
-        .ok_or(Refusal::NotFound {
-            resource: crate::refusal::Resource::Message,
-        })?;
-    voice.failure = None;
-    next.set_notice(NoticeCode::VoiceTranscribing);
     Ok(())
 }
 

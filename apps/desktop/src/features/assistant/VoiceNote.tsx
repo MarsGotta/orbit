@@ -3,9 +3,11 @@ import type { AppCommand } from "../../bridge/generated/AppCommand";
 import type { VoiceNote as VoiceNoteSnapshot } from "../../bridge/generated/VoiceNote";
 import type { VoiceNoteAudioSnapshot } from "../../bridge/generated/VoiceNoteAudioSnapshot";
 import { Button } from "../../design/Button";
+import { ConfirmCard } from "../../design/ConfirmCard";
 import { Icon } from "../../design/Icon";
 import { mmss } from "../../time-format";
 import { es } from "../../i18n/es";
+import { providerRefusedAudio } from "../../i18n/es/voice-failures";
 import styles from "./AssistantView.module.css";
 
 export interface VoiceNoteProps {
@@ -31,25 +33,61 @@ function voiceTranscript(voice: VoiceNoteSnapshot): string {
 }
 
 /**
- * The note's transcript, or why there is none. A failed transcription can be
- * asked for again from the audio this Mac keeps; without that audio there is
- * nothing to send again.
+ * The note's transcript, or why there is none, in a calm line whose codes are
+ * its detail (`title`). A failed transcription can be asked for again from the
+ * audio this Mac keeps, unless the provider refused that audio: the same
+ * audio would be refused again. A failed note can always be discarded, after
+ * a question in place.
  */
 function VoiceTranscript({ messageId, send, voice }: Omit<VoiceNoteProps, "audio">) {
-  const retry = voice.failure != null && voice.transcript == null && voice.audio_available;
+  const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
+  const [asking, setAsking] = useState(false);
+  const failure = voice.transcript == null ? voice.failure : null;
+  const retry = failure != null && voice.audio_available === true && !providerRefusedAudio(failure);
   return (
     <>
-      <p className={styles.voiceTranscript} data-failed={voice.failure != null || undefined}>
+      <p
+        className={styles.voiceTranscript}
+        data-failed={failure != null || undefined}
+        title={failure != null ? es.assistant.voiceFailureDetail(failure) : undefined}
+      >
         {voiceTranscript(voice)}
       </p>
-      {retry === true && (
-        <Button
-          onClick={() => send({ command: "voice_retry", message_id: messageId })}
-          size={28}
-          variant="ghost"
+      {failure != null && (
+        <span className={styles.voiceActions}>
+          {retry && (
+            <Button
+              onClick={() => send({ command: "voice_retry", message_id: messageId })}
+              size={28}
+              variant="ghost"
+            >
+              {es.assistant.retryTranscription}
+            </Button>
+          )}
+          <Button
+            aria-expanded={asking}
+            onClick={() => setAsking(!asking)}
+            ref={setAnchor}
+            size={28}
+            variant="ghost"
+          >
+            {es.assistant.discardVoiceNote}
+          </Button>
+        </span>
+      )}
+      {asking && (
+        <ConfirmCard
+          anchor={anchor}
+          confirmLabel={es.assistant.discardVoiceNote}
+          onClose={() => setAsking(false)}
+          onConfirm={() => {
+            setAsking(false);
+            send({ command: "voice_discard", message_id: messageId });
+          }}
+          title={es.assistant.discardVoiceNoteTitle}
         >
-          {es.assistant.retryTranscription}
-        </Button>
+          {es.assistant.discardVoiceNoteText}
+        </ConfirmCard>
       )}
     </>
   );

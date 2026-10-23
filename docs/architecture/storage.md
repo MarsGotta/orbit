@@ -38,7 +38,7 @@ non-macOS development requires that mode. There is no production fallback.
 |---|---|---|---|
 | `DurableState`: privacy latch/requester, generation, connection, selected session ID, current turn, recording/call, pending approval and notices | `settings`, `snapshot` | Actor writes/coalesces; startup reads | Replaced on change |
 | Durable queue and receipts | `jobs` | Daemon | Rows remain; terminal states do not revert |
-| Audio | `chunks` receipts and `store/chunks/` | Actor seals/prunes; uploader and local playback read | Meeting chunks removed after authenticated durable hub ACK; unconfirmed and voice-note audio retained |
+| Audio | `chunks` receipts and `store/chunks/` | Actor seals/prunes; uploader and local playback read | Meeting chunks removed after authenticated durable hub ACK; unconfirmed audio retained; voice-note audio retained until the note is discarded or nothing was heard in it |
 | Temporary capture receipts without audio | `records`, `uploaded_chunks:<recording>` | Actor writes on audio release; finalization/recovery read | Until hub confirms closure; not added after closure |
 | Private notes awaiting hub | `records`, `recording_notes`, `note-private-<recording>` | Actor writes, hub upload reads | Until the hub confirms that text |
 | Note and library orders awaiting hub (edits, ticked tasks, titles, speaker names, languages, rewrites, templates, series, dictionary orders) | `note_outbox`, one row per lane (`meeting:<recording>` or `library`) and target | Actor writes; the daemon keeps a copy to schedule | Until the hub answers; a newer order on the same target replaces the row |

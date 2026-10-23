@@ -651,10 +651,11 @@ pub struct DurableState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub turn: Option<Turn>,
     /// Voice notes the hub has not taken yet that a later turn replaced,
-    /// oldest first, at most [`MAX_PENDING_VOICE_NOTES`]: shown, and sent
+    /// oldest first, at most [`MAX_PENDING_VOICE_NOTES`] across every
+    /// conversation: each shown in its own conversation, and sent there
     /// again from the WAV this Mac keeps.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub pending_voice: Vec<Message>,
+    pub pending_voice: Vec<crate::PendingVoiceNote>,
     pub recording: Option<Recording>,
     pub voice_active: bool,
     #[serde(default)]
@@ -759,7 +760,7 @@ impl DurableState {
             .turn
             .iter_mut()
             .map(|turn| &mut turn.user)
-            .chain(self.pending_voice.iter_mut())
+            .chain(self.pending_voice.iter_mut().map(|note| &mut note.message))
             .filter_map(|message| message.voice.as_mut())
             .filter(|voice| voice.transcript.is_none() && voice.failure.is_none())
         {

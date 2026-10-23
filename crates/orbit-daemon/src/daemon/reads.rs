@@ -226,7 +226,7 @@ impl HubReadContext {
                 .filter(|id| {
                     store
                         .list_chunks(id, None, 2)
-                        .is_ok_and(|chunks| super::audio::voice_note_chunk(chunks).is_some())
+                        .is_ok_and(|chunks| super::voice_notes::voice_note_chunk(chunks).is_some())
                 })
                 .collect::<std::collections::BTreeSet<_>>()
         })

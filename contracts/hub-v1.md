@@ -351,6 +351,12 @@ instead of shipping a capability that refuses every call, as `calendar_read`
 did throughout 0.3.11.
 
 `POST /v1/audio/transcribe` accepts bounded WAV binary, returns `{text}`.
+An empty `text` is no speech, not a failure: the Mac drops the clip without a
+note. A clip under 3 s (`NO_SPEECH_REFUSAL_MAX_MS`) that the speech-to-text
+behind Hermes refuses (HTTP 400) is answered that way too. A longer clip it
+refuses yields `502 transcription_provider_refused` with `provider_status` and
+`duration_ms`, which the Mac does not offer to retry; any other provider
+status keeps `transcription_http_error` with `provider_status`.
 `POST /v1/audio/speech` accepts `{text, agent_id?}` and returns the complete clip
 (at most 4 MiB), retaining `Content-Type` and declaring
 `X-Orbit-Speech-Kind: clip`/`X-Orbit-Speech-Provider`. Failures yield

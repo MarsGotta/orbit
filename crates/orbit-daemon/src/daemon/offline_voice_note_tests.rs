@@ -264,7 +264,7 @@ async fn a_failed_voice_note_survives_the_next_message() -> Result<()> {
             .durable
             .pending_voice
             .iter()
-            .any(|message| message.id == message_id),
+            .any(|note| note.message.id == message_id),
         "the replaced note is kept and listed"
     );
     let retry = runtime
@@ -324,6 +324,208 @@ async fn after_an_offline_voice_note_the_next_one_can_start() -> Result<()> {
     assert!(
         next.is_ok(),
         "the first note's VoiceEnd answered {ended}; the next note is refused: {next:?}"
+    );
+    Ok(())
+}
+
+/// The ids of the waiting voice notes the app is given for the open
+/// conversation, as the assistant topic publishes them.
+fn published_pending_voice(runtime: &Runtime) -> Result<Vec<String>> {
+    use orbit_core::topics::TopicId;
+    let mut board = crate::daemon::topics::TopicBoard::new("pending-voice".into());
+    let receiver = board.channels()[&TopicId::Assistant].subscribe();
+    board.publish(&crate::daemon::topics::TopicSource {
+        state: &runtime.state,
+        runtime: Some(runtime),
+        now_ms: 0,
+    });
+    let value = serde_json::to_value(&receiver.borrow().data)?;
+    Ok(value["knowledge"]["value"]["pending_voice"]
+        .as_array()
+        .map(|notes| {
+            notes
+                .iter()
+                .filter_map(|note| note["id"].as_str().map(str::to_owned))
+                .collect()
+        })
+        .unwrap_or_default())
+}
+
+async fn open_conversation(runtime: &mut Runtime, id: &str) -> Result<()> {
+    runtime
+        .apply(Event::OpenSession {
+            id: id.into(),
+            agent_id: None,
+        })
+        .await
+}
+
+/// Orbit 0.11.0 (2026-10-23): three failed notes of one conversation were
+/// shown at the end of every conversation, days-old ones included. A note
+/// waiting on the Mac is shown only in the conversation it was spoken in.
+#[tokio::test]
+async fn a_waiting_note_is_shown_in_its_conversation_and_not_in_another() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _helper) = fixture(directory.path())?;
+    open_conversation(&mut runtime, "conversacion-a").await?;
+    runtime
+        .apply(Event::VoiceStored {
+            id: "nota-de-a".into(),
+            duration_ms: 1_500,
+        })
+        .await?;
+    runtime
+        .apply(Event::VoiceFailed {
+            id: "nota-de-a".into(),
+            failure: orbit_core::VoiceTranscriptionFailure::local("transcription_http_error"),
+        })
+        .await?;
+    open_conversation(&mut runtime, "conversacion-b").await?;
+    assert_eq!(
+        published_pending_voice(&runtime)?,
+        Vec::<String>::new(),
+        "conversation B shows the note of conversation A"
+    );
+    open_conversation(&mut runtime, "conversacion-a").await?;
+    assert_eq!(published_pending_voice(&runtime)?, ["nota-de-a"]);
+    Ok(())
+}
+
+/// A note spoken offline in one conversation is sent when the hub is back
+/// only while that conversation is open: never into another.
+#[tokio::test]
+async fn a_waiting_note_is_sent_only_into_its_own_conversation() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut helper) = fixture(directory.path())?;
+    runtime.token = Some(TOKEN.into());
+    open_conversation(&mut runtime, "conversacion-a").await?;
+    crate::daemon::authority_fixture::set(
+        &mut runtime.state,
+        "connection",
+        json!(orbit_core::Connection::Offline),
+    );
+    record(&mut runtime, &mut helper, 8_000, Command::VoiceEnd).await?;
+    let note = runtime
+        .state
+        .durable
+        .turn
+        .as_ref()
+        .context("note absent")?
+        .user
+        .id
+        .clone();
+    open_conversation(&mut runtime, "conversacion-b").await?;
+    crate::daemon::authority_fixture::set(
+        &mut runtime.state,
+        "connection",
+        json!(orbit_core::Connection::Online),
+    );
+    runtime.run_maintenance().await;
+    assert_eq!(
+        runtime.conversation.voice_operation, None,
+        "the note of conversation A was sent into conversation B"
+    );
+    open_conversation(&mut runtime, "conversacion-a").await?;
+    runtime.run_maintenance().await;
+    assert_eq!(runtime.conversation.voice_operation, Some(note));
+    Ok(())
+}
+
+/// «Descartar», confirmed: the failed note leaves the conversation and its
+/// audio leaves this Mac.
+#[tokio::test]
+async fn discarding_a_failed_note_removes_it_and_its_audio() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut helper) = fixture(directory.path())?;
+    runtime.token = Some(TOKEN.into());
+    crate::daemon::authority_fixture::set(
+        &mut runtime.state,
+        "connection",
+        json!(orbit_core::Connection::Offline),
+    );
+    record(&mut runtime, &mut helper, 8_000, Command::VoiceEnd).await?;
+    let note = runtime
+        .state
+        .durable
+        .turn
+        .as_ref()
+        .context("note absent")?
+        .user
+        .id
+        .clone();
+    assert_eq!(voice_manifests(&runtime)?, 1);
+    runtime
+        .command(Command::VoiceDiscard {
+            message_id: note.clone(),
+        })
+        .await?;
+    assert!(runtime.state.durable.turn.is_none());
+    assert!(runtime.state.durable.pending_voice.is_empty());
+    assert_eq!(
+        voice_manifests(&runtime)?,
+        0,
+        "its audio is still on the Mac"
+    );
+    assert!(runtime.voice_note_audio(&note).is_err());
+    Ok(())
+}
+
+/// A voice note during a recording never touches the recording's lane:
+/// discarding a failed note or dropping one in which nothing was heard
+/// changes no input of the lane's arming (the microphone stays the
+/// recording's), so the capture task keeps serving the meeting, and only
+/// the note's own audio is deleted, through the same store actor that
+/// writes the lane's seals.
+#[tokio::test]
+async fn a_note_discarded_during_a_recording_leaves_the_lane_armed() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut helper) = fixture(directory.path())?;
+    start(&mut runtime, &mut helper).await?;
+    runtime.settle_capture_lane().await;
+    assert!(
+        runtime.capture.lane.lock().gate.armed,
+        "the lane never armed"
+    );
+    let meeting_jobs = |runtime: &Runtime| -> Result<usize> {
+        Ok(runtime
+            .fixture_store
+            .list_jobs(100)?
+            .iter()
+            .filter(|job| job.payload["recording_id"] == "reunion-sintetica")
+            .count())
+    };
+    let before = meeting_jobs(&runtime)?;
+    assert!(before > 0, "the meeting left no job to compare");
+    for id in ["nota-descartada", "nota-sin-voz"] {
+        runtime
+            .apply(Event::VoiceStored {
+                id: id.into(),
+                duration_ms: 1_500,
+            })
+            .await?;
+    }
+    runtime
+        .apply(Event::VoiceFailed {
+            id: "nota-descartada".into(),
+            failure: orbit_core::VoiceTranscriptionFailure::local("transcription_http_error"),
+        })
+        .await?;
+    runtime
+        .command(Command::VoiceDiscard {
+            message_id: "nota-descartada".into(),
+        })
+        .await?;
+    runtime
+        .drop_unheard_voice_note("nota-sin-voz", "no_words")
+        .await?;
+    assert!(
+        runtime.capture.lane.lock().gate.armed,
+        "a voice note's discard disarmed the recording's lane"
+    );
+    assert_eq!(
+        meeting_jobs(&runtime)?,
+        before,
+        "the meeting's jobs went with the note"
     );
     Ok(())
 }

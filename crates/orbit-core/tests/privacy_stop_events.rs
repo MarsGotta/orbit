@@ -66,9 +66,11 @@ fn classify(event: &Event) -> (usize, bool) {
         Event::VoiceCancel => (46, false),
         Event::VoiceRetry { .. } => (47, false),
         Event::VoiceTooShort(_) => (48, false),
+        Event::VoiceDiscard { .. } => (50, false),
+        Event::VoiceUnheard { .. } => (51, false),
     }
 }
-const VARIANTS: usize = 50;
+const VARIANTS: usize = 52;
 
 #[test]
 fn voice_transcription_retires_with_authority_but_survives_hub_link_changes() {
@@ -195,6 +197,8 @@ fn samples() -> Vec<Event> {
             duration_ms: 90,
             minimum_ms: 160,
         }),
+        Event::VoiceDiscard { id: "v".into() },
+        Event::VoiceUnheard { id: "v".into() },
         Event::CallStart {
             id: "c".into(),
             duration_ms: 600_000,

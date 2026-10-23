@@ -18,7 +18,12 @@ impl ProjectTopic for Projector {
             session_id: state.session_id(),
             agent_id: state.agent_id().map(str::to_owned),
             turn: state.durable.turn.clone().map(Box::new),
-            pending_voice: state.durable.pending_voice.clone(),
+            // Only the open conversation's, never every conversation's.
+            pending_voice: state
+                .durable
+                .open_conversation_pending_voice()
+                .cloned()
+                .collect(),
             pending: state.durable.pending_approval.clone(),
             voice_active: state.durable.voice_active,
             turn_in_flight: state.durable.active_request.is_some(),

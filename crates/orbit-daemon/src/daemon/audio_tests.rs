@@ -1,9 +1,13 @@
 use super::*;
+// What these tests used through `audio.rs` before its voice-note code moved
+// to `voice_notes.rs` and `voice_dispatch.rs`.
+pub(in crate::daemon) use super::super::WorkResult;
 use crate::config::{Paths, Settings};
 use crate::daemon::turn::said;
 use crate::daemon::{
     CaptureRuntime, ConversationRuntime, DurableSnapshot, FeatureRuntime, WorkRuntime,
 };
+pub(in crate::daemon) use anyhow::Context;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use orbit_core::notice::NoticeCode;
 use orbit_core::{Connection, State};
@@ -117,6 +121,7 @@ pub(in crate::daemon) fn fixture(
                 interrupted_turns: Default::default(),
                 voice_task: crate::daemon::ticketed::Ticketed::logical(),
                 voice_operation: None,
+                dropped_voice_turns: 0,
                 speech_task: crate::daemon::ticketed::Ticketed::logical(),
                 speech_voices: BTreeMap::new(),
                 speak_next: false,
@@ -611,8 +616,11 @@ async fn occupied_voice_worker_returns_typed_capacity_with_numbers() -> Result<(
     Ok(())
 }
 
+/// No words in a voice note is silence, not a failure (2026-10-23): the
+/// note leaves the conversation, and the composer's small line says that
+/// nothing was heard.
 #[tokio::test]
-async fn an_empty_transcription_fails_the_voice_note() -> Result<()> {
+async fn an_empty_transcription_leaves_the_voice_note_without_a_failure() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime
@@ -642,19 +650,15 @@ async fn an_empty_transcription_fails_the_voice_note() -> Result<()> {
             },
         ))
         .await?;
+    assert!(
+        runtime.state.durable.turn.is_none(),
+        "the silent note stayed: {:?}",
+        runtime.state.durable.turn
+    );
+    assert!(runtime.state.durable.pending_voice.is_empty());
     assert_eq!(
-        runtime
-            .state
-            .durable
-            .turn
-            .as_ref()
-            .context("turn absent")?
-            .user
-            .voice
-            .as_ref()
-            .and_then(|voice| voice.failure.as_ref())
-            .map(|failure| failure.code.as_str()),
-        Some("voice_transcription_empty")
+        runtime.state.durable.notice_code(),
+        Some(orbit_core::notice::NoticeCode::VoiceNotRecognized)
     );
     Ok(())
 }

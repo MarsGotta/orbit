@@ -145,6 +145,13 @@ WAV locally with `upload_allowed:false`, sends it for interactive dictation to
 `POST /v1/audio/transcribe`, then sends `chat.send` with `client_id` and duration.
 A note shorter than `MINIMUM_SPEECH_MS` (160 ms, the speech a call turn needs)
 is neither stored nor sent; the composer says its length and that minimum.
+A note in which the hub hears no words leaves the conversation and its audio
+the Mac, with a small line in the composer; it is not a failure. A note that
+waits on the Mac (`DurableState::pending_voice`) belongs to the conversation
+it was spoken in and is shown and sent only there; one spoken in a new
+conversation belongs to the conversation that new one becomes. A failed note
+can be discarded («Descartar», after a question in place), which deletes its
+audio (`Store::discard_voice_note`).
 The hub asks Hermes; text events return to the Mac. `POST /v1/audio/speech` gets
 the spoken response for native playback, and «Escuchar» reads an answer the same
 way. The request names the conversation's agent (`agent_id`, to a hub that lists

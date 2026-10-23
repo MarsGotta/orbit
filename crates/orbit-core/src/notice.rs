@@ -203,6 +203,9 @@ notice_codes! {
     VoiceNoteSaved => Silent,
     VoiceTranscribing => Working,
     VoiceTurnCancelled => Silent,
+    /// Nothing was heard in a call's turn (the hub found no words): it was
+    /// dropped without a word to the user, or waits for what they say next.
+    VoiceNotHeard => Silent,
     AssistantThinking => Silent,
     AssistantResponding => Silent,
     AssistantProgress => Silent,
@@ -323,7 +326,10 @@ notice_codes! {
     /// Audio was lost for lack of memory: keep Orbit open while it saves.
     AudioReserveExhausted => Fixable,
     VoiceNotRecognized => Fixable,
-    VoiceTranscriptionFailed => Failed,
+    /// A voice note was not transcribed. It loses nothing: the note stays in
+    /// the conversation with its audio, its cause and what to do, so the
+    /// notice is a small line, not a failure with a code to share.
+    VoiceTranscriptionFailed => Fixable,
     /// Deimos's spoken answer could not be played.
     SpeechFailed => Failed,
     UploadRetrying => Silent,

@@ -519,8 +519,14 @@
   text-align: right;
 }
 
+/* A note that was not transcribed loses nothing: a calm line, not an alarm. */
 .voiceTranscript[data-failed] {
-  color: var(--o-recText);
+  color: var(--o-ink2);
+}
+
+.voiceActions {
+  display: flex;
+  gap: 4px;
 }
 
 /* What the agent waits for: a card in the thread. */

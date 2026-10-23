@@ -196,6 +196,55 @@ impl Store {
         Ok(Some(bytes))
     }
 
+    /// «Descartar», or a voice note in which nothing was heard: its audio,
+    /// receipts and jobs leave this Mac. Only a recording whose manifest says
+    /// it is a voice note that never uploads (`voice_turn`,
+    /// `upload_allowed:false`) is deleted; anything else is refused. Returns
+    /// the chunks deleted; none left is not an error.
+    pub fn discard_voice_note(&mut self, recording_id: &str) -> Result<u64> {
+        validate_id(recording_id)?;
+        let manifest_id = format!("recording-{recording_id}");
+        let Some(manifest) = self.get_job(&manifest_id)? else {
+            return Ok(0);
+        };
+        if manifest.kind != "recording_manifest"
+            || manifest.payload["recording_kind"] != "voice_turn"
+            || manifest.payload["upload_allowed"] != false
+        {
+            return Err(Error::Invalid("not a voice note"));
+        }
+        // A voice note is one chunk; two is enough to see one too many,
+        // which a voice note never has and is deleted all the same.
+        let chunks: Vec<String> = self
+            .list_chunks(recording_id, None, 2)?
+            .into_iter()
+            .map(|receipt| receipt.metadata.id)
+            .collect();
+        let paths: Vec<PathBuf> = chunks.iter().map(|id| self.chunk_path(id)).collect();
+        let transaction = self
+            .connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        for id in &chunks {
+            transaction.execute("DELETE FROM chunks WHERE id=?1", [id])?;
+            transaction.execute("DELETE FROM jobs WHERE id=?1", [format!("upload-{id}")])?;
+        }
+        transaction.execute("DELETE FROM jobs WHERE id=?1", [&manifest_id])?;
+        // Unlink before the commit, as a prune does: a crash leaves rows
+        // without files, which discarding again removes; never a file no row
+        // names, which recovery would take for audio to keep.
+        for path in &paths {
+            regular_file_if_exists(path)?;
+            match fs::remove_file(path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+            }
+        }
+        File::open(&self.blobs)?.sync_all()?;
+        transaction.commit()?;
+        Ok(chunks.len() as u64)
+    }
+
     /// One old confirmation per maintenance turn, so cleanup cannot occupy
     /// the writer for a whole historical recording. No audio is read here.
     pub fn next_uploaded_chunk(&self) -> Result<Option<String>> {
