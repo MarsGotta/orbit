@@ -500,22 +500,28 @@ async fn upload_scheduler_does_not_await_behind_admitted_seals() -> Result<()> {
         .as_mut()
         .context("recording absent")?
         .phase = CapturePhase::Finalizing;
+    // The chunks go up from the capture task, whose admission waits for the
+    // held writer on its own thread.
+    let (mut task, _bridge) = crate::daemon::capture_lane::test_support::spawn_task(&runtime)?;
     let outcome = {
         let mut scheduling = std::pin::pin!(runtime.schedule_upload());
         let mut context = std::task::Context::from_waker(std::task::Waker::noop());
         scheduling.as_mut().poll(&mut context)
     };
-    let worker = runtime.work.worker.take();
-    if let Some(worker) = &worker {
-        worker.abort();
-    }
     release_store_writer(&probe)?;
     await_seal_receipts(&mut runtime)?;
     assert!(
         matches!(outcome, std::task::Poll::Ready(Ok(()))),
         "the upload scheduler held the daemon turn behind admitted seals: {outcome:?}"
     );
-    assert!(worker.is_some(), "the actor receipt needs a worker");
+    // Its transfer was tried once the writer let it: nothing listens there.
+    crate::daemon::capture_lane::test_support::job_reaches(
+        &runtime,
+        "upload-schedule-seals-mic_local-0",
+        JobState::RetryWait,
+    )
+    .await?;
+    task.stop();
     Ok(())
 }
 
@@ -730,21 +736,26 @@ async fn upload_admission_waits_off_loop_after_the_last_seal() -> Result<()> {
     runtime.settings.hub_url = Some("http://127.0.0.1:1".into());
 
     let release = hold_the_actor(&runtime)?;
+    // The capture task admits the upload while the writer is held, on its
+    // own thread; the loop's turn ends at once.
+    let (mut task, _bridge) = crate::daemon::capture_lane::test_support::spawn_task(&runtime)?;
     let outcome = {
         let mut scheduling = std::pin::pin!(runtime.schedule_upload());
         let mut context = std::task::Context::from_waker(std::task::Waker::noop());
         scheduling.as_mut().poll(&mut context)
     };
-    let worker = runtime.work.worker.take();
-    if let Some(worker) = &worker {
-        worker.abort();
-    }
     release.send(())?;
     assert!(
         matches!(outcome, std::task::Poll::Ready(Ok(()))),
         "upload admission held the loop after the last seal: {outcome:?}"
     );
-    assert!(worker.is_some(), "the actor receipt needs a worker");
+    crate::daemon::capture_lane::test_support::job_reaches(
+        &runtime,
+        "upload-last-seal-admission-mic_local-0",
+        JobState::RetryWait,
+    )
+    .await?;
+    task.stop();
     Ok(())
 }
 

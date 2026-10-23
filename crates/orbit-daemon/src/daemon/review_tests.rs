@@ -120,8 +120,20 @@ async fn failed_source_write_retains_pcm_and_policy_until_a_receipt() -> Result<
     std::fs::write(&chunks, b"synthetic write obstacle")?;
     assert!(runtime.flush_stopped_audio().await.is_err());
     assert_eq!(runtime.capture.pending_seals.len(), 1);
-    assert_eq!(runtime.capture.pending_seals[0].pcm, vec![1; 200]);
-    let recording = runtime.capture.pending_seals[0]
+    assert_eq!(
+        runtime
+            .capture
+            .pending_seals
+            .get(0)
+            .context("no seal owed")?
+            .pcm,
+        vec![1; 200]
+    );
+    let recording = runtime
+        .capture
+        .pending_seals
+        .get(0)
+        .context("no seal owed")?
         .metadata
         .recording_id
         .clone();

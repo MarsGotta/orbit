@@ -12,6 +12,9 @@ import OrbitNativeProtocol
 public final class NativeChannel: Sendable {
     public typealias Receiver = @MainActor @Sendable (NativeWireCommand) -> Void
     public typealias Disconnection = @MainActor @Sendable (String) -> Void
+    /// Called on the reader's queue for every command read, before the main
+    /// thread runs it: the daemon answered, whatever main is doing.
+    public typealias Observer = @Sendable () -> Void
 
     private struct RejectedCommandHeader: Decodable {
         let v: Int
@@ -34,6 +37,7 @@ public final class NativeChannel: Sendable {
         var gapWriteScheduled = false
         var receive: Receiver?
         var disconnected: Disconnection?
+        var commandRead: Observer?
     }
 
     private enum Admission: Sendable {
@@ -81,6 +85,12 @@ public final class NativeChannel: Sendable {
     public var disconnected: Disconnection? {
         get { state.withLock { $0.disconnected } }
         set { state.withLock { $0.disconnected = newValue } }
+    }
+
+    /// Set before `start`. Runs on the reader's queue, never on main.
+    public var commandRead: Observer? {
+        get { state.withLock { $0.commandRead } }
+        set { state.withLock { $0.commandRead = newValue } }
     }
 
     public convenience init(input: FileHandle, output: FileHandle) {
@@ -308,6 +318,10 @@ public final class NativeChannel: Sendable {
     }
 
     private func admit(_ command: NativeWireCommand) -> Bool {
+        // Observed before the main thread can run it: a command waiting
+        // behind a held main thread is the daemon answering, not silence.
+        let observer = state.withLock { $0.failed ? nil : $0.commandRead }
+        observer?()
         let admission = state.withLock { current -> Admission in
             guard !current.failed else { return .closed }
             guard current.pendingCommands < Self.maximumPendingCommands else {

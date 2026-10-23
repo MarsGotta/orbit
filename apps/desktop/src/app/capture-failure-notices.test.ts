@@ -22,6 +22,11 @@ describe("a cut or unsaved recording says what happened", () => {
     ["capture_cut", { cause: "helper_lost", recording: true, fragments: 3 }],
     ["capture_cut", { cause: "algo_que_esta_version_no_conoce" }],
     ["recording_seal_failed", {}],
+    ["recording_seal_failed", { cause: "disk_full", fragments: 2 }],
+    ["recording_close_unconfirmed", { fragments: true }],
+    ["recording_close_unconfirmed", { fragments: false }],
+    ["audio_start_refused", { code: "microphone_unavailable" }],
+    ["audio_start_refused", {}],
     ["recording_interrupted_by_restart", { fragments: 12 }],
     ["store_recovery_lost_files", { recovered: 1, invalid: 1, missing: 2, incomplete: 0 }],
     ["closed_with_pending_work", { audio_unsaved: true, reserve_exhausted: false }],
@@ -44,6 +49,32 @@ describe("a cut or unsaved recording says what happened", () => {
     expect(shown("capture_cut", { cause: "algo_que_esta_version_no_conoce" })).toContain(
       "algo_que_esta_version_no_conoce",
     );
+  });
+
+  it("a seal that failed says why, what is still waiting and what to do", () => {
+    const text = shown("recording_seal_failed", { cause: "disk_full", fragments: 2 });
+    expect(text).toContain("el disco de este Mac está lleno");
+    expect(text).toContain("2 fragmentos");
+    expect(text).toContain("Libera espacio");
+    expect(shown("recording_seal_failed", { cause: "otra_causa_nueva" })).toContain(
+      "otra_causa_nueva",
+    );
+  });
+
+  it("a close the Mac never confirmed says what was kept and that the note is written", () => {
+    const kept = shown("recording_close_unconfirmed", { fragments: true });
+    expect(kept).toContain("no confirmó a tiempo el final de la grabación");
+    expect(kept).toContain("el hub escribe su nota");
+    expect(shown("recording_close_unconfirmed", { fragments: false })).toContain(
+      "No llegó a guardarse audio",
+    );
+  });
+
+  it("a microphone that could not open names the helper's code and what to do", () => {
+    const text = shown("audio_start_refused", { code: "microphone_unavailable" });
+    expect(text).toContain("no pudo abrir el micrófono");
+    expect(text).toContain("microphone_unavailable");
+    expect(text).toContain("Ajustes del Sistema");
   });
 
   it("a recovery that lost files counts them", () => {

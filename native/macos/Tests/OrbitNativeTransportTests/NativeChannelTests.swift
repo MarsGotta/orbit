@@ -461,6 +461,32 @@ final class NativeChannelTests: XCTestCase {
         XCTAssertEqual(ids.withLock { $0 }, ["first", "second"])
     }
 
+    /// The daemon's beat is observed on the reader's queue while the main
+    /// thread is held: before main has run any of the commands.
+    func testACommandIsObservedOffMainBeforeTheMainThreadRunsIt() async throws {
+        let input = Pipe()
+        defer { try? input.fileHandleForWriting.close() }
+        let channel = channel(OutputProbe(), input: input)
+        let observed = DispatchSemaphore(value: 0)
+        let observedOnMain = Mutex<Bool?>(nil)
+        let deliveries = Mutex(0)
+        channel.commandRead = {
+            observedOnMain.withLock { $0 = Thread.isMainThread }
+            observed.signal()
+        }
+        channel.receive = { _ in deliveries.withLock { $0 += 1 } }
+        channel.start()
+        let seen = try await MainActor.run {
+            // Main is held from the write until the beat is observed.
+            try input.fileHandleForWriting.write(contentsOf: command("beat"))
+            let seen = observed.wait(timeout: .now() + 2)
+            XCTAssertEqual(deliveries.withLock { $0 }, 0)
+            return seen
+        }
+        XCTAssertEqual(seen, .success)
+        XCTAssertEqual(observedOnMain.withLock { $0 }, false)
+    }
+
     func testFailureBeforeReaderAdmissionPreventsReceivingFurtherCommands() async throws {
         let input = Pipe()
         let channel = channel(OutputProbe(), input: input)

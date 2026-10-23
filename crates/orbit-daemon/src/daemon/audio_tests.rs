@@ -1,11 +1,8 @@
 use super::*;
+use crate::config::{Paths, Settings};
 use crate::daemon::turn::said;
 use crate::daemon::{
     CaptureRuntime, ConversationRuntime, DurableSnapshot, FeatureRuntime, WorkRuntime,
-};
-use crate::{
-    capture::CaptureBuffer,
-    config::{Paths, Settings},
 };
 use base64::{Engine, engine::general_purpose::STANDARD};
 use orbit_core::notice::NoticeCode;
@@ -107,10 +104,8 @@ pub(in crate::daemon) fn fixture(
             token: None,
             work: WorkRuntime {
                 worker: crate::daemon::ticketed::Ticketed::logical(),
-                retry_gate: crate::retry::RetryGate::default(),
-                upload_cursor: None,
+                retry_gate: Default::default(),
                 finalize_cursor: None,
-                prefer_finalize: true,
                 work_events,
                 durable_snapshot,
                 force_snapshot_once: false,
@@ -132,21 +127,7 @@ pub(in crate::daemon) fn fixture(
                 speech_notice_call_id: None,
                 work: None,
             },
-            capture: CaptureRuntime {
-                buffer: CaptureBuffer::default(),
-                pending_seals: Default::default(),
-                reserve_exhausted: false,
-                seal_retry_at: None,
-                audio: AudioLifecycle::default(),
-                call_runtime: None,
-                mic_stream: None,
-                remote_stream: None,
-                pending_starts: Vec::new(),
-                retired_call_starts: BTreeMap::new(),
-                retired_stops: BTreeMap::new(),
-                interruption: None,
-                recovery: None,
-            },
+            capture: CaptureRuntime::new(None),
             features: FeatureRuntime {
                 sources: Default::default(),
                 calendar: Default::default(),
@@ -240,11 +221,11 @@ pub(in crate::daemon) fn await_seal_receipts(runtime: &mut Runtime) -> Result<()
     runtime.collect_ready_seals(SEAL_RECEIPT_GUARD, true)?;
     let waited = started.elapsed();
     if !runtime.capture.pending_seals.is_empty() {
-        let missing: Vec<&str> = runtime
+        let missing: Vec<String> = runtime
             .capture
             .pending_seals
             .iter()
-            .map(|segment| segment.metadata.id.as_str())
+            .map(|segment| segment.metadata.id.clone())
             .collect();
         bail!(
             "expected the durable receipt of {} pending seal(s) [{}]; the queue did not empty in {waited:?}",
@@ -322,6 +303,18 @@ async fn failed_seal_preserves_close_and_seals_once_after_destination_recovers()
         Some(NoticeCode::RecordingSealFailed),
         "{:?}",
         runtime.state.durable.notice
+    );
+    // It says why: the destination is not a folder.
+    assert_eq!(
+        runtime
+            .state
+            .durable
+            .notice
+            .as_ref()
+            .and_then(|notice| notice.data.get(&orbit_core::notice::NoticeKey::Cause)),
+        Some(&orbit_core::notice::DataValue::Token(
+            orbit_core::notice::Token::new("destination_invalid").context("token")?
+        ))
     );
     std::fs::remove_file(&chunks_path)?;
     std::fs::create_dir(&chunks_path)?;
@@ -978,11 +971,12 @@ async fn tracks_report_sealed_chunks_and_gaps_per_track() -> Result<()> {
         "the last sealed chunk carries its wall clock"
     );
 
-    // A later seal of the same track advances that track's clock alone.
+    // A later seal of the same track advances that track's clock alone: a
+    // chunk starts when its audio was captured, one second after the first.
     tokio::time::sleep(Duration::from_millis(25)).await;
-    runtime
-        .native_event(frame(&microphone_stream, 1, 8000))
-        .await?;
+    let mut second = frame(&microphone_stream, 1, 8000);
+    second["monotonic_ns"] = json!(1_000_000_000_u64);
+    runtime.native_event(second).await?;
     settle_seal_receipts(&mut runtime).await?;
     let microphone_second = track_progress(&runtime, "mic_local")?.last_chunk_at_ms;
     assert_eq!(track_progress(&runtime, "mic_local")?.sealed_chunks, 2);

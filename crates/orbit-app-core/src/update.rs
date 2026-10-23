@@ -1,9 +1,11 @@
+mod blocker;
 mod download;
-
-use crate::{
-    AppCommand, AppError, InstallResultSnapshot,
-    topics::{TopicCache, TopicFreshness},
+mod records;
+use records::{
+    install_log_refusal, installer_io, migrate_install_record, storage_error, write_update_log,
 };
+
+use crate::{AppCommand, AppError, InstallResultSnapshot};
 use download::Updater;
 use orbit_core::{
     refusal::{InstallLogIssue, Operation, Refusal, UpdateCause},
@@ -64,100 +66,6 @@ pub struct UpdateInstallOutcome {
 }
 
 impl UpdateService {
-    pub fn installation_blocker(topics: &TopicCache) -> Option<String> {
-        use orbit_core::topics::{Knowledge, TopicData, TopicId};
-        for (id, name) in [
-            (TopicId::Recording, "la grabación"),
-            (TopicId::Assistant, "la llamada"),
-        ] {
-            let Some(topic) = topics.topic(id) else {
-                return Some(format!(
-                    "Aún no se conoce el estado de {name}; espera antes de actualizar."
-                ));
-            };
-            if !matches!(topic.freshness, TopicFreshness::Current) {
-                return Some(format!(
-                    "El estado de {name} está desactualizado; espera antes de actualizar."
-                ));
-            }
-        }
-        let Some(TopicData::Recording(recording)) = topics
-            .topic(TopicId::Recording)
-            .map(|topic| &topic.knowledge)
-        else {
-            return Some("No se conoce si hay una grabación; espera antes de actualizar.".into());
-        };
-        let value = match recording {
-            Knowledge::Present { value, .. } => value,
-            Knowledge::Unknown { why } => {
-                return Some(format!(
-                    "El estado de la grabación está pendiente ({}); espera antes de actualizar.",
-                    pending_update_state(why)
-                ));
-            }
-            Knowledge::Absent { refusal } => {
-                return Some(format!(
-                    "No se pudo conocer el estado de la grabación: {refusal}"
-                ));
-            }
-        };
-        if value.recording.is_some() {
-            return Some("Termina la grabación antes de actualizar.".into());
-        }
-        if value.call.as_ref().is_some_and(|call| call.panel.is_some()) {
-            return Some("Termina la llamada antes de actualizar.".into());
-        }
-        let Some(TopicData::Assistant(assistant)) = topics
-            .topic(TopicId::Assistant)
-            .map(|topic| &topic.knowledge)
-        else {
-            return Some("No se conoce si hay una llamada; espera antes de actualizar.".into());
-        };
-        let value = match assistant {
-            Knowledge::Present { value, .. } => value,
-            Knowledge::Unknown { why } => {
-                return Some(format!(
-                    "El estado de la llamada está pendiente ({}); espera antes de actualizar.",
-                    pending_update_state(why)
-                ));
-            }
-            Knowledge::Absent { refusal } => {
-                return Some(format!(
-                    "No se pudo conocer el estado de la llamada: {refusal}"
-                ));
-            }
-        };
-        match &value.call {
-            Knowledge::Present { value: None, .. } => None,
-            Knowledge::Present { value: Some(_), .. } => {
-                Some("Termina la llamada antes de actualizar.".into())
-            }
-            Knowledge::Unknown { why } => Some(format!(
-                "El estado de la llamada está pendiente ({}); espera antes de actualizar.",
-                pending_update_state(why)
-            )),
-            Knowledge::Absent { refusal } => Some(format!(
-                "No se pudo conocer el estado de la llamada: {refusal}"
-            )),
-        }
-    }
-
-    pub async fn check_automatically(
-        &self,
-        log: &orbit_ipc::report::LogFile,
-    ) -> Option<UpdateState> {
-        match self.check_configured().await {
-            UpdateState::Refused { refusal } => {
-                write_update_log(log, format!("Comprobación automática de Orbit: {refusal}"));
-                None
-            }
-            state @ (UpdateState::Disabled
-            | UpdateState::Available { .. }
-            | UpdateState::UpToDate
-            | UpdateState::NotNewer { .. }) => Some(state),
-        }
-    }
-
     pub fn last_installation_at(home: &Path) -> Result<Option<InstallResultSnapshot>, Refusal> {
         let record = migrate_install_record(home).map_err(storage_error)?;
         let log = home.join("Library/Logs/Orbit/instalador.log");
@@ -488,25 +396,6 @@ impl UpdateService {
     }
 }
 
-fn pending_update_state(why: &orbit_core::topics::Pending) -> String {
-    use orbit_core::topics::Pending;
-    match why {
-        Pending::NotObservedYet => "aún no observado".into(),
-        Pending::HelperStarting => "el ayudante del Mac está arrancando".into(),
-        Pending::Reading { since_ms } => format!("se está leyendo desde {since_ms} ms"),
-        Pending::Transcription {
-            completed,
-            pending,
-            failed,
-            queued,
-        } => format!(
-            "transcripción: {completed} terminados, {pending} pendientes, {failed} fallidos, en cola: {}",
-            if *queued { "sí" } else { "no" }
-        ),
-        Pending::DaemonStarting => "el servicio de Orbit está arrancando".into(),
-    }
-}
-
 fn retire_previous_from_listing(
     home: &Path,
     current: &Path,
@@ -592,59 +481,6 @@ fn retire_previous_from_listing(
         }
     }
     Ok(())
-}
-
-fn write_update_log(log: &orbit_ipc::report::LogFile, message: String) {
-    eprintln!("{message}");
-    if let Err(error) = log.append(format!("{message}\n").as_bytes()) {
-        eprintln!("No se pudo escribir {}: {error}", log.path().display());
-    }
-}
-
-fn migrate_install_record(home: &Path) -> std::io::Result<std::path::PathBuf> {
-    use orbit_core::orbit_bundle::{INSTALL_DATA_DIRECTORY, INSTALL_RECORD, USER_APPLICATIONS};
-    let record = home.join(INSTALL_DATA_DIRECTORY).join(INSTALL_RECORD);
-    match std::fs::metadata(&record) {
-        Ok(_) => return Ok(record),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => return Err(error),
-    }
-    let legacy = home.join(USER_APPLICATIONS).join(INSTALL_RECORD);
-    match std::fs::metadata(&legacy) {
-        Ok(_) => {
-            std::fs::create_dir_all(home.join(INSTALL_DATA_DIRECTORY))?;
-            std::fs::rename(legacy, &record)?;
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => return Err(error),
-    }
-    Ok(record)
-}
-
-fn install_log_refusal(bytes: Option<u64>, reason: InstallLogIssue) -> Refusal {
-    Refusal::Update {
-        cause: UpdateCause::InstallLog {
-            bytes,
-            max_bytes: MAX_INSTALL_LOG_BYTES,
-            reason,
-        },
-    }
-}
-
-fn storage_error(error: std::io::Error) -> Refusal {
-    Refusal::Update {
-        cause: UpdateCause::InstallerIo {
-            cause: error.to_string(),
-        },
-    }
-}
-
-fn installer_io(error: std::io::Error) -> Refusal {
-    Refusal::Update {
-        cause: UpdateCause::InstallerIo {
-            cause: error.to_string(),
-        },
-    }
 }
 
 #[cfg(test)]

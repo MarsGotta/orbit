@@ -317,17 +317,19 @@ pub fn last_logged(path: &Path, event: &str) -> Option<serde_json::Value> {
 pub const STRICT_TURN_BOUND: Duration = Duration::from_secs(5);
 
 /// The fields of every `daemon_turn_slow` line in the daemon's log: the
-/// loop turns that took longer than the daemon's 1 s threshold.
+/// loop turns that took longer than the daemon's 1 s threshold, and of every
+/// `capture_turn_slow` line: the capture task's turns over the same
+/// threshold, which hold the recording itself.
 pub fn slow_turns(path: &Path) -> Vec<serde_json::Value> {
     daemon_log(path)
         .into_iter()
-        .filter(|line| line["event"] == "daemon_turn_slow")
+        .filter(|line| line["event"] == "daemon_turn_slow" || line["event"] == "capture_turn_slow")
         .map(|line| line["fields"].clone())
         .collect()
 }
 
-/// Fails when a loop turn of the daemon at `path` took longer than
-/// [`STRICT_TURN_BOUND`], with what held it.
+/// Fails when a loop turn, or a turn of the capture task, of the daemon at
+/// `path` took longer than [`STRICT_TURN_BOUND`], with what held it.
 pub fn assert_no_held_turn(path: &Path) -> Result<()> {
     let bound = STRICT_TURN_BOUND.as_millis();
     let held: Vec<_> = slow_turns(path)

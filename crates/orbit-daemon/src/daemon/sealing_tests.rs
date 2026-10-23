@@ -88,9 +88,35 @@ async fn a_repeated_attempt_never_advances_or_replaces_pending_identity() -> Res
     for _ in 0..3 {
         assert!(runtime.retry_seals().is_err());
     }
-    assert_eq!(runtime.capture.pending_seals[0].metadata.sequence, 0);
-    assert_eq!(runtime.capture.pending_seals[0].metadata.first_sample, 0);
-    assert_eq!(runtime.capture.pending_seals[0].pcm, vec![7; 16000]);
+    assert_eq!(
+        runtime
+            .capture
+            .pending_seals
+            .get(0)
+            .context("no seal owed")?
+            .metadata
+            .sequence,
+        0
+    );
+    assert_eq!(
+        runtime
+            .capture
+            .pending_seals
+            .get(0)
+            .context("no seal owed")?
+            .metadata
+            .first_sample,
+        0
+    );
+    assert_eq!(
+        runtime
+            .capture
+            .pending_seals
+            .get(0)
+            .context("no seal owed")?
+            .pcm,
+        vec![7; 16000]
+    );
     assert!(
         runtime
             .command(orbit_core::protocol::Command::Shutdown)

@@ -1,21 +1,11 @@
 //! PCM ownership ends at a durable store receipt, never at an attempted write.
-//! This emergency queue is volatile: it survives a recoverable I/O failure, not
-//! process death or power loss. Capture is stopped on failure, never expanded.
-use super::{
-    Runtime,
-    store_actor::{SEAL_RETRY_DELAY, StoreCompletion},
-};
+//! The seals the recording owes live in the capture lane (`capture_lane`),
+//! shared with the capture task; this is the loop's side of them.
+use super::{Runtime, store_actor::SEAL_RETRY_DELAY};
 use anyhow::{Result, bail};
 use orbit_core::notice::NoticeCode;
-use std::{
-    collections::VecDeque,
-    ops::Index,
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
-const MAX_PENDING_BYTES: usize = 64 * 1024 * 1024;
-const MAX_PENDING_SEGMENTS: usize = 4096;
 // `seal` never waits on the writer: the receipt returns through
 // `WorkResult::Sealed` and the select loop stays free. The collector only
 // takes a receipt that is already there. Tests run this same value:
@@ -23,101 +13,62 @@ const MAX_PENDING_SEGMENTS: usize = 4096;
 // before an earlier `Seal`.
 pub(super) const OPPORTUNISTIC_RECEIPT_WAIT: Duration = Duration::ZERO;
 
-#[derive(Default)]
-pub(super) struct PendingSeals(VecDeque<Arc<crate::capture::Segment>>);
-
-impl PendingSeals {
-    pub(super) fn push_back(&mut self, segment: crate::capture::Segment) {
-        self.0.push_back(Arc::new(segment));
-    }
-
-    pub(super) fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub(super) fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub(super) fn iter(&self) -> impl Iterator<Item = &crate::capture::Segment> {
-        self.0.iter().map(AsRef::as_ref)
-    }
-
-    pub(super) fn shared(&self) -> impl Iterator<Item = &Arc<crate::capture::Segment>> {
-        self.0.iter()
-    }
-
-    pub(super) fn remove(&mut self, position: usize) -> Option<Arc<crate::capture::Segment>> {
-        self.0.remove(position)
-    }
-}
-
-impl Index<usize> for PendingSeals {
-    type Output = crate::capture::Segment;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        self.0[index].as_ref()
-    }
-}
-
 impl Runtime {
     pub(super) fn seal(&mut self, segments: Vec<crate::capture::Segment>) -> Result<()> {
-        let mut bytes: usize = self
-            .capture
-            .pending_seals
-            .iter()
-            .map(|segment| segment.pcm.len())
-            .sum();
-        let mut overflow = false;
-        // Admit the entire multipista flush before attempting its first write.
-        // An error on that write must not drop the remaining tracks.
-        for segment in segments {
-            if segment.pcm.len() > MAX_PENDING_BYTES.saturating_sub(bytes)
-                || self.capture.pending_seals.len() == MAX_PENDING_SEGMENTS
-            {
-                overflow = true;
-                self.note_call_gap(&segment.metadata.recording_id);
-                if let Some(recording) = self.state.durable.recording.as_mut()
-                    && recording.id == segment.metadata.recording_id
-                {
-                    recording.gaps = recording.gaps.saturating_add(1);
-                    if let Some(track) = recording
-                        .tracks
-                        .iter_mut()
-                        .find(|track| track.name == segment.metadata.track)
-                    {
-                        track.gaps = track.gaps.saturating_add(1);
-                    }
-                }
-                continue;
-            }
-            bytes += segment.pcm.len();
-            self.capture.pending_seals.push_back(segment);
+        let sealed = self.seal_segments(segments);
+        // The cause goes with the notice its caller says (`say_failure`).
+        if let Err(error) = &sealed {
+            self.capture.seal_cause = Some(super::capture_lane::seal_cause(error));
         }
-        if overflow {
-            self.capture.reserve_exhausted = true;
-            self.say(NoticeCode::AudioReserveExhausted);
-            self.work.durable_snapshot = super::DurableSnapshot::from(&self.state);
-            let _ = self.store_actor.defer_snapshot(&self.state);
-            bail!(
-                "Se agotó la reserva de audio; los fragmentos anteriores siguen pendientes y la pérdida adicional está declarada"
-            );
+        sealed
+    }
+
+    fn seal_segments(&mut self, segments: Vec<crate::capture::Segment>) -> Result<()> {
+        let overflow = self.capture.lane.lock().admit(segments);
+        if !overflow.is_empty() {
+            self.declare_reserve_overflow(&overflow);
+            return Err(super::capture_lane::ReserveExhausted.into());
         }
-        self.validate_seal_destinations()?;
         self.dispatch_pending_seals()?;
         self.collect_ready_seals(OPPORTUNISTIC_RECEIPT_WAIT, false)
     }
 
+    /// Segments that did not fit in the reserve are lost: each one is a gap
+    /// of its recording and its track, and the notice says so.
+    fn declare_reserve_overflow(&mut self, overflow: &[crate::capture::Segment]) {
+        for segment in overflow {
+            self.note_call_gap(&segment.metadata.recording_id);
+            if let Some(recording) = self.state.durable.recording.as_mut()
+                && recording.id == segment.metadata.recording_id
+            {
+                recording.gaps = recording.gaps.saturating_add(1);
+                if let Some(track) = recording
+                    .tracks
+                    .iter_mut()
+                    .find(|track| track.name == segment.metadata.track)
+                {
+                    track.gaps = track.gaps.saturating_add(1);
+                }
+            }
+        }
+        self.capture.reserve_exhausted = true;
+        self.say(NoticeCode::AudioReserveExhausted);
+        self.work.durable_snapshot = super::DurableSnapshot::from(&self.state);
+        let _ = self.store_actor.defer_snapshot(&self.state);
+    }
+
     pub(super) fn retry_seals(&mut self) -> Result<()> {
         self.store_actor.retry_seals()?;
-        self.validate_seal_destinations()?;
         self.dispatch_pending_seals()?;
         self.collect_ready_seals(OPPORTUNISTIC_RECEIPT_WAIT, true)
     }
 
     fn dispatch_pending_seals(&mut self) -> Result<()> {
-        for segment in self.capture.pending_seals.shared() {
-            self.store_actor.seal(Arc::clone(segment))?;
+        let port = self.store_actor.capture_port();
+        {
+            let core = self.capture.lane.lock();
+            core.validate_destinations(&self.paths.store)?;
+            core.dispatch(&port)?;
         }
         self.capture.seal_retry_at = None;
         Ok(())
@@ -129,23 +80,10 @@ impl Runtime {
         report_failure: bool,
     ) -> Result<()> {
         let deadline = Instant::now() + wait;
+        let port = self.store_actor.capture_port();
         loop {
-            let mut failure = None;
-            let mut applied = false;
-            for completion in self.store_actor.take_completions() {
-                match completion {
-                    StoreCompletion::Sealed {
-                        id,
-                        recording,
-                        sequence,
-                        queue_wait_us: _,
-                    } => applied |= self.apply_sealed_receipt(&id, &recording, sequence),
-                    StoreCompletion::SealFailed { message } => failure = Some(message),
-                }
-            }
-            if applied {
-                self.defer_sealed_snapshot()?;
-            }
+            self.capture.lane.lock().collect(&port);
+            let failure = self.absorb_seal_receipts()?;
             // The reserve-loss cause belongs to outstanding audio from the
             // capture that overflowed. Once it has ended and every retained
             // fragment is sealed, a later exit must not report that old 64 MiB
@@ -158,11 +96,17 @@ impl Runtime {
             {
                 self.capture.reserve_exhausted = false;
             }
-            if let Some(message) = failure {
+            if let Some(failure) = failure {
                 self.capture.seal_retry_at = Some(Instant::now() + SEAL_RETRY_DELAY);
-                self.say_failure(NoticeCode::RecordingSealFailed, &message);
+                let notice = orbit_core::notice::Notice::new(NoticeCode::RecordingSealFailed)
+                    .with_token(orbit_core::notice::NoticeKey::Cause, failure.cause)
+                    .with(
+                        orbit_core::notice::NoticeKey::Fragments,
+                        failure.owed as u64,
+                    );
+                self.say_failure(notice, &failure.message);
                 if report_failure {
-                    bail!(message);
+                    bail!(failure.message);
                 }
                 return Ok(());
             }
@@ -173,62 +117,45 @@ impl Runtime {
         }
     }
 
-    fn validate_seal_destinations(&self) -> Result<()> {
-        let chunks = self.paths.store.join("chunks");
-        if !std::fs::symlink_metadata(&chunks)?.file_type().is_dir() {
-            bail!("La ruta de fragmentos no es un directorio privado");
+    /// Counts the receipts the lane took, whoever took them, on the recording
+    /// they belong to, and returns the writer's latest refusal if any.
+    fn absorb_seal_receipts(&mut self) -> Result<Option<super::capture_lane::SealFailure>> {
+        let (receipts, failure) = {
+            let mut core = self.capture.lane.lock();
+            (
+                std::mem::take(&mut core.outbox.receipts),
+                core.outbox.seal_failure.take(),
+            )
+        };
+        let applied = !receipts.is_empty();
+        for receipt in receipts {
+            self.count_sealed_receipt(&receipt);
         }
-        for segment in self.capture.pending_seals.iter() {
-            let destination = chunks.join(format!("{}.orbit", segment.metadata.id));
-            match std::fs::symlink_metadata(destination) {
-                Ok(metadata) if !metadata.file_type().is_file() => {
-                    bail!("El destino del fragmento no es un archivo regular")
-                }
-                Ok(_) => {}
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-                Err(error) => return Err(error.into()),
-            }
+        if applied {
+            self.defer_sealed_snapshot()?;
         }
-        Ok(())
+        Ok(failure)
     }
 
-    pub(super) fn apply_sealed_receipt(
-        &mut self,
-        id: &str,
-        recording: &str,
-        sequence: u64,
-    ) -> bool {
-        let position = self.capture.pending_seals.iter().position(|segment| {
-            segment.metadata.id == id
-                && segment.metadata.recording_id == recording
-                && segment.metadata.sequence == sequence
-        });
-        if let Some(position) = position
-            && let Some(segment) = self.capture.pending_seals.remove(position)
+    fn count_sealed_receipt(&mut self, receipt: &super::capture_lane::Receipt) {
+        if let Some(active) = self
+            .state
+            .durable
+            .recording
+            .as_mut()
+            .filter(|active| active.id == receipt.recording)
         {
-            self.store_actor.acknowledge_seal(&segment.metadata.id);
-            if let Some(active) = self
-                .state
-                .durable
-                .recording
-                .as_mut()
-                .filter(|active| active.id == recording)
+            active.sealed_chunks = active.sealed_chunks.saturating_add(1);
+            if let Some(track) = active
+                .tracks
+                .iter_mut()
+                .find(|track| track.name == receipt.track)
             {
-                active.sealed_chunks = active.sealed_chunks.saturating_add(1);
-                if let Some(track) = active
-                    .tracks
-                    .iter_mut()
-                    .find(|track| track.name == segment.metadata.track)
-                {
-                    track.sealed_chunks = track.sealed_chunks.saturating_add(1);
-                    track.last_chunk_at_ms =
-                        track.last_chunk_at_ms.max(segment.metadata.started_at_ms);
-                }
+                track.sealed_chunks = track.sealed_chunks.saturating_add(1);
+                track.last_chunk_at_ms = track.last_chunk_at_ms.max(receipt.started_at_ms);
             }
-            self.work.finalize_ready.remove(recording);
-            return true;
         }
-        false
+        self.work.finalize_ready.remove(&receipt.recording);
     }
 
     /// Admit the coalesced projection snapshot without waiting for its disk

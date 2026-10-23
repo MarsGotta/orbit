@@ -9,10 +9,13 @@ import Foundation
 /// message. Evidence decides liveness in both directions: silence takes the
 /// channel down, and a later beat brings it back.
 ///
-/// Silence is only counted while this process is running. Beats are read on
-/// the main thread, the same thread the watchdog ticks on; when that thread is
-/// held, the beats wait in its queue and the first tick after it is released
-/// used to read them as silence (2026-10-22: a recording cut 25 minutes in).
+/// Silence is only counted while this process is running. Beats used to be
+/// read on the main thread, the same thread the watchdog ticked on; when that
+/// thread was held, the beats waited in its queue and the first tick after it
+/// was released read them as silence (2026-10-22: a recording cut 25 minutes
+/// in). `DaemonLivenessWatch` now observes them on the channel's reader queue
+/// and ticks on a queue of its own, so a late tick only means this whole
+/// process was suspended.
 public struct DaemonChannelHealth: Equatable, Sendable {
     /// The daemon beats every two seconds; three missed beats is silence.
     public static let beatTimeout: TimeInterval = 6

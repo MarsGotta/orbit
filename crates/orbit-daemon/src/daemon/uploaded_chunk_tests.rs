@@ -1,5 +1,6 @@
 use super::*;
 use crate::daemon::audio::tests::{fixture, pending_work};
+use crate::daemon::capture_lane::test_support;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use orbit_store::ChunkMetadata;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -148,6 +149,8 @@ async fn failed_deletion_is_logged_as_cleanup_and_retried_without_failing_the_up
     Ok(())
 }
 
+/// The chunks go up from the capture task: it reads the job, sends it and
+/// settles it on its own thread.
 #[tokio::test]
 async fn an_ack_with_wrong_identity_hash_or_durability_keeps_the_audio() -> Result<()> {
     for invalid in ["chunk_id", "sha256", "durable"] {
@@ -158,9 +161,7 @@ async fn an_ack_with_wrong_identity_hash_or_durability_keeps_the_audio() -> Resu
         runtime.token = Some("synthetic-not-a-credential".into());
         let metadata = chunk("invalid");
         let receipt = runtime.fixture_store.seal_chunk(&metadata, b"synthetic")?;
-        let (events, mut outcomes) = mpsc::channel(8);
-        runtime.work.work_events = events;
-        runtime.schedule_chunk_upload().await?;
+        let (mut task, _bridge) = test_support::spawn_task(&runtime)?;
         let (mut stream, _) = listener.accept().await?;
         read_request(&mut stream).await?;
         let mut ack = json!({"durable":true, "chunk_id":metadata.id, "sha256":receipt.sha256});
@@ -175,30 +176,26 @@ async fn an_ack_with_wrong_identity_hash_or_durability_keeps_the_audio() -> Resu
                 .as_bytes(),
             )
             .await?;
-        runtime
-            .work_event(
-                outcomes
-                    .recv()
-                    .await
-                    .context("invalid ACK outcome absent")?,
-            )
-            .await?;
+        let job = format!("upload-{}", metadata.id);
+        test_support::job_reaches(&runtime, &job, JobState::RetryWait).await?;
+        task.stop();
         assert_eq!(
             runtime.fixture_store.read_chunk(&metadata.id)?,
             b"synthetic",
             "{invalid}"
         );
-        assert_eq!(
-            runtime
-                .reader
-                .get_job(&format!("upload-{}", metadata.id))?
-                .context("job lost")?
-                .state,
-            JobState::RetryWait,
-            "{invalid}"
-        );
     }
     Ok(())
+}
+
+/// A request without its `x-orbit-op` line: the op names one attempt.
+fn without_op(request: &[u8]) -> Vec<u8> {
+    let text = String::from_utf8_lossy(request);
+    text.split("\r\n")
+        .filter(|line| !line.to_ascii_lowercase().starts_with("x-orbit-op:"))
+        .collect::<Vec<_>>()
+        .join("\r\n")
+        .into_bytes()
 }
 
 async fn read_request(stream: &mut tokio::net::TcpStream) -> Result<Vec<u8>> {
@@ -234,33 +231,24 @@ async fn lost_response_preserves_audio_and_retry_sends_the_same_chunk_before_del
     runtime.token = Some("synthetic-not-a-credential".into());
     let metadata = chunk("lost");
     let receipt = runtime.fixture_store.seal_chunk(&metadata, b"synthetic")?;
-    let (events, mut outcomes) = mpsc::channel(8);
-    runtime.work.work_events = events;
-    runtime.schedule_chunk_upload().await?;
+    let job = format!("upload-{}", metadata.id);
+    let (mut task, _bridge) = test_support::spawn_task(&runtime)?;
     let (mut first, _) = listener.accept().await?;
     let original = read_request(&mut first).await?;
     first.shutdown().await?;
     drop(first);
-    let outcome = outcomes
-        .recv()
-        .await
-        .context("lost response outcome absent")?;
-    runtime.work_event(outcome).await?;
+    test_support::job_reaches(&runtime, &job, JobState::RetryWait).await?;
     assert_eq!(
         runtime.fixture_store.read_chunk(&metadata.id)?,
         b"synthetic"
     );
+    // The retry, once the gate's backoff has passed, sends the same chunk:
+    // the same body and headers, under the op of its own attempt.
+    let (mut second, _) = tokio::time::timeout(test_support::TASK_JAM, listener.accept()).await??;
     assert_eq!(
-        runtime
-            .reader
-            .get_job(&format!("upload-{}", metadata.id))?
-            .context("job lost")?
-            .state,
-        JobState::RetryWait
+        without_op(&read_request(&mut second).await?),
+        without_op(&original)
     );
-    runtime.schedule_chunk_upload().await?;
-    let (mut second, _) = listener.accept().await?;
-    assert_eq!(read_request(&mut second).await?, original);
     let body = json!({"durable":true,"chunk_id":metadata.id,"sha256":receipt.sha256}).to_string();
     second
         .write_all(
@@ -271,11 +259,10 @@ async fn lost_response_preserves_audio_and_retry_sends_the_same_chunk_before_del
             .as_bytes(),
         )
         .await?;
-    let outcome = outcomes
-        .recv()
-        .await
-        .context("confirmed response outcome absent")?;
-    runtime.work_event(outcome).await?;
+    test_support::job_reaches(&runtime, &job, JobState::Succeeded).await?;
+    // A storage barrier: the pruning is part of the same writer operation.
+    runtime.store_actor.run(|_| Ok(())).await?;
+    task.stop();
     assert!(
         !runtime
             .paths

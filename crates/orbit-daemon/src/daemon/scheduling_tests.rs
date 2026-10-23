@@ -31,9 +31,12 @@ fn pending_worker(runtime: &mut Runtime, generation: u64) -> Result<WorkTicket> 
         .context("worker slot")
 }
 
+/// Closures go up one at a time from the loop's worker; chunks go up from
+/// the capture task. Neither waits for the other: an eligible closure
+/// progresses amid unrelated uploads, and the next closure follows the first
+/// without a chunk taking its turn.
 #[tokio::test]
-async fn an_eligible_closure_progresses_amid_unrelated_uploads_with_fair_alternation() -> Result<()>
-{
+async fn an_eligible_closure_progresses_amid_unrelated_uploads() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     runtime.settings.hub_url = Some("http://127.0.0.1:9".into());
@@ -53,45 +56,37 @@ async fn an_eligible_closure_progresses_amid_unrelated_uploads_with_fair_alterna
     runtime
         .fixture_store
         .seal_chunk(&source("new"), b"synthetic")?;
+    let state = |runtime: &Runtime, id: &str| -> Result<JobState> {
+        Ok(runtime
+            .fixture_store
+            .get_job(id)?
+            .with_context(|| format!("missing {id}"))?
+            .state)
+    };
     runtime.schedule_upload().await?;
     runtime.work.worker.cancel();
-    assert_eq!(
-        runtime
-            .fixture_store
-            .get_job("finalize-old-a")?
-            .context("missing close")?
-            .state,
-        JobState::Running
-    );
-    assert_eq!(
-        runtime
-            .fixture_store
-            .get_job("upload-new-mic_local-0")?
-            .context("missing upload")?
-            .state,
-        JobState::Queued
-    );
+    assert_eq!(state(&runtime, "finalize-old-a")?, JobState::Running);
+    // The loop's scheduling leaves the chunk to the capture task.
+    assert_eq!(state(&runtime, "upload-new-mic_local-0")?, JobState::Queued);
+    let (mut task, _bridge) = crate::daemon::capture_lane::test_support::spawn_task(&runtime)?;
+    crate::daemon::capture_lane::test_support::job_reaches(
+        &runtime,
+        "upload-new-mic_local-0",
+        JobState::RetryWait,
+    )
+    .await?;
+    task.stop();
     runtime
         .fixture_store
         .update_job("finalize-old-a", JobState::Succeeded)?;
+    // The chunk's failure held the shared gate: the next closure waits for
+    // it, and then goes, with no chunk taking its turn.
+    while !runtime.work.retry_gate.ready(std::time::Instant::now()) {
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
     runtime.schedule_upload().await?;
     runtime.work.worker.cancel();
-    assert_eq!(
-        runtime
-            .fixture_store
-            .get_job("upload-new-mic_local-0")?
-            .context("missing upload")?
-            .state,
-        JobState::Running
-    );
-    assert_eq!(
-        runtime
-            .fixture_store
-            .get_job("finalize-old-b")?
-            .context("missing close")?
-            .state,
-        JobState::Queued
-    );
+    assert_eq!(state(&runtime, "finalize-old-b")?, JobState::Running);
     Ok(())
 }
 

@@ -327,6 +327,37 @@ impl Runtime {
         .await
     }
 
+    /// At start: a recording an earlier run left cut (interrupted, or still
+    /// closing when it stopped) that will not go on is closed now, at the end
+    /// of the audio it kept, so the hub writes its note. One this restart cut
+    /// and that may resume is left to `recover_cut_recording`, which resumes
+    /// it once the helper is back or closes it after the wait.
+    pub(super) async fn close_cut_recording_at_start(&mut self) -> Result<()> {
+        let Some(recording) = self.state.durable.recording.clone().filter(|recording| {
+            recording.phase == CapturePhase::Interrupted
+                && recording.ended_at_ms.is_none()
+                && recording.sealed_chunks > 0
+        }) else {
+            return Ok(());
+        };
+        if self.cut_owns(&recording.id) {
+            return Ok(());
+        }
+        let mut recovery = match self.capture.recovery.take() {
+            Some(recovery) if recovery.recording_id == recording.id => recovery,
+            _ => CutRecovery::new(
+                &recording.id,
+                &self.unattributed_cut_cause(),
+                false,
+                last_audio_at_ms(&recording),
+            ),
+        };
+        // The counts were rebuilt from the sealed chunks after this cut was
+        // read from the snapshot: the end is the later of the two.
+        recovery.cut_at_ms = recovery.cut_at_ms.max(last_audio_at_ms(&recording));
+        self.close_cut_recording(recovery).await
+    }
+
     /// The code a closure says when no cut was recorded for it: the typed
     /// interruption the daemon kept, or that the cause is unknown.
     fn unattributed_cut_cause(&self) -> String {

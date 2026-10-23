@@ -349,7 +349,7 @@ async fn a_meeting_live_when_the_daemon_died_goes_on_after_the_restart() -> Resu
     runtime.capture.recovery =
         crate::daemon::cut_recovery::recovery_after_restart(saved.recording.as_ref(), true);
     runtime.state.durable = saved.recovered();
-    runtime.capture.buffer = crate::capture::CaptureBuffer::default();
+    runtime.capture.buffer.reset();
     runtime.capture.mic_stream = None;
     runtime.capture.pending_starts.clear();
     while receiver.try_recv().is_ok() {}

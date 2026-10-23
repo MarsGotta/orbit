@@ -515,6 +515,63 @@ fn installation_waits_for_recording_call_and_known_state() -> Result<(), Box<dyn
     Ok(())
 }
 
+/// Only a live capture holds an update back: one that is being recorded,
+/// starting or still draining. A recording a cut left interrupted, a paused
+/// one or a closed one is not lost by restarting Orbit, and once blocked the
+/// update for as long as it stayed in the state.
+#[test]
+fn only_a_live_capture_holds_the_update() -> Result<(), Box<dyn Error>> {
+    use orbit_app_core::topics::TopicCache;
+    use orbit_core::CapturePhase;
+    use serde_json::json;
+    let (mut recording, assistant) = idle_update_facts();
+    let mut topics = TopicCache::default();
+    let mut revision = 0;
+    let mut observe =
+        |topics: &mut TopicCache, data: &serde_json::Value| -> Result<(), Box<dyn Error>> {
+            revision += 1;
+            topics.observe_at(
+                serde_json::from_value(json!({"epoch":"update","revision":revision,"data":data}))?,
+                Some(1),
+            );
+            Ok(())
+        };
+    observe(&mut topics, &assistant)?;
+    for (phase, ended_at_ms, blocks) in [
+        (CapturePhase::Starting, None, true),
+        (CapturePhase::Recording, None, true),
+        (CapturePhase::Finalizing, None, true),
+        (CapturePhase::Interrupted, None, false),
+        (CapturePhase::Paused, None, false),
+        (CapturePhase::Idle, Some(2), false),
+        (CapturePhase::Interrupted, Some(2), false),
+    ] {
+        recording["knowledge"]["value"]["recording"] =
+            serde_json::to_value(orbit_core::Recording {
+                id: "reunion-inventada".into(),
+                title: "Prueba".into(),
+                started_at_ms: 1,
+                ended_at_ms,
+                expires_at_ms: 2,
+                application_pid: None,
+                audio: orbit_core::protocol::MeetingAudio::System,
+                phase: phase.clone(),
+                sealed_chunks: 3,
+                gaps: 0,
+                tracks: vec![],
+                finalizing_since_ms: None,
+                ceiling_notice_given: false,
+            })?;
+        observe(&mut topics, &recording)?;
+        let blocker = UpdateService::installation_blocker(&topics);
+        assert_eq!(blocker.is_some(), blocks, "{phase:?}: {blocker:?}");
+        if blocks {
+            assert!(blocker.is_some_and(|reason| reason.contains("grabación")));
+        }
+    }
+    Ok(())
+}
+
 #[tokio::test]
 async fn no_update_origin_disables_checks_without_writing_failure_logs()
 -> Result<(), Box<dyn Error>> {

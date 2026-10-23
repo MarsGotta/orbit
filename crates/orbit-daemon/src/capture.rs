@@ -4,9 +4,8 @@ use anyhow::{Context, Result, bail};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use orbit_core::audio_signal::{PcmSignal, measure_s16le};
 use orbit_core::wire::native::NativeAudioFrameRef;
-use orbit_store::{ChunkMetadata, MAX_CHUNK_BYTES};
+use orbit_store::ChunkMetadata;
 use serde_json::Value;
-use std::collections::{BTreeMap, BTreeSet};
 
 pub struct Segment {
     pub metadata: ChunkMetadata,
@@ -27,179 +26,53 @@ pub struct IngestedAudio {
     pub signal: Option<ObservedPcmSignal>,
 }
 
-struct Track {
-    pcm: Vec<u8>,
-    rate: u32,
-    channels: u16,
-    sequence: u64,
-    native_sequence: Option<u64>,
-    native_stream: Option<String>,
-    last_monotonic_ns: Option<u64>,
-    first_sample: u64,
-    start_ms: i64,
-    monotonic_ns: u64,
-}
-
-impl Track {
-    fn new(rate: u32, channels: u16) -> Self {
-        Self {
-            pcm: Vec::new(),
-            rate,
-            channels,
-            sequence: 0,
-            native_sequence: None,
-            native_stream: None,
-            last_monotonic_ns: None,
-            first_sample: 0,
-            start_ms: 0,
-            monotonic_ns: 0,
-        }
-    }
-}
+mod tracks;
+mod voice;
+pub use tracks::RecordingTracks;
+use tracks::TrackFrame;
+pub use voice::VoiceBuffer;
 
 #[derive(Default)]
 pub struct CaptureBuffer {
-    recording_id: Option<String>,
-    capture_epoch_id: Option<String>,
-    recording_sources: BTreeSet<String>,
-    tracks: BTreeMap<String, Track>,
+    pub tracks: RecordingTracks,
     pub voice: Option<VoiceBuffer>,
-}
-
-pub struct VoiceBuffer {
-    pub pcm: Vec<u8>,
-    pub sample_rate: u32,
-    pub channels: u16,
-    /// Estimated wall clock at receipt of the first native frame.
-    pub started_at_ms: i64,
-    /// The first native timestamp, never reconstructed from wall time.
-    pub monotonic_ns: u64,
-    /// Optional producer epoch observed in the first frame. Independent of the
-    /// recording scope so PTT can share a producer across a meeting boundary.
-    pub capture_epoch_id: Option<String>,
-    native_stream: Option<String>,
-    native_sequence: Option<u64>,
-    last_monotonic_ns: Option<u64>,
-}
-
-impl VoiceBuffer {
-    /// The helper's sequence of the last frame in this turn.
-    pub fn last_sequence(&self) -> Option<u64> {
-        self.native_sequence
-    }
 }
 
 impl CaptureBuffer {
     /// Includes the incomplete tail that has not become a sealed segment yet.
     pub fn has_pending_audio(&self) -> bool {
-        self.voice.is_some() || self.tracks.values().any(|track| !track.pcm.is_empty())
+        self.voice.is_some() || self.tracks.has_unsealed()
     }
 
     /// Recording PCM received and not sealed yet (a voice turn aside).
     pub fn has_unsealed_recording_audio(&self) -> bool {
-        self.tracks.values().any(|track| !track.pcm.is_empty())
+        self.tracks.has_unsealed()
     }
 
-    /// Ownership lasts through native drain, regardless of the UI capture
-    /// phase. A mic used only by PTT must not affect a paused/closed recording.
     pub fn recording_owner(&self, source: &str) -> Option<&str> {
-        self.recording_sources
-            .contains(source)
-            .then_some(self.recording_id.as_deref())
-            .flatten()
+        self.tracks.recording_owner(source)
     }
 
     /// Legacy callers have unknown epoch; no timestamp or identity is invented.
     #[cfg(test)]
     pub fn begin_recording(&mut self, id: String) -> Result<()> {
-        self.begin_recording_epoch(id, None)
+        self.tracks.begin_recording_epoch(id, None)
     }
 
-    /// Begin an explicitly identified capture scope after prior producers have
-    /// drained. Recording tails must be sealed before changing their epoch.
-    /// Independent PTT retains its own producer epoch and is not relabeled.
     pub fn begin_recording_with_epoch(&mut self, id: String, epoch: String) -> Result<()> {
-        validate_epoch_id(&epoch)?;
-        self.begin_recording_epoch(id, Some(epoch))
+        self.tracks.begin_recording_with_epoch(id, epoch)
     }
 
     pub fn recording_epoch(&self) -> Option<&str> {
-        self.recording_id.as_ref()?;
-        self.capture_epoch_id.as_deref()
+        self.tracks.recording_epoch()
     }
 
-    fn begin_recording_epoch(&mut self, id: String, epoch: Option<String>) -> Result<()> {
-        if self
-            .recording_id
-            .as_ref()
-            .is_some_and(|current| current != &id)
-        {
-            bail!("Finaliza la grabación anterior antes de cambiar su identidad");
-        }
-        if self.capture_epoch_id != epoch {
-            if self.tracks.values().any(|track| !track.pcm.is_empty()) {
-                bail!("Sella el audio pendiente antes de cambiar la época de captura");
-            }
-            for track in self.tracks.values_mut() {
-                track.native_sequence = None;
-                track.native_stream = None;
-                track.last_monotonic_ns = None;
-            }
-        }
-        self.recording_id = Some(id);
-        self.capture_epoch_id = epoch;
-        self.recording_sources
-            .extend(["mic_local".into(), "remote_app".into()]);
-        Ok(())
-    }
-
-    /// Rebuild counters from authenticated durable manifests after a daemon restart.
-    /// Calling this for every page uses constant memory (one cursor per track).
     pub fn restore_position(&mut self, metadata: &ChunkMetadata) -> Result<()> {
-        if self.recording_id.as_deref() != Some(&metadata.recording_id) {
-            bail!("El fragmento pertenece a otra grabación");
-        }
-        let track = self
-            .tracks
-            .entry(metadata.track.clone())
-            .or_insert_with(|| Track::new(metadata.sample_rate, metadata.channels));
-        if !track.pcm.is_empty() {
-            bail!("No se puede restaurar una pista mientras recibe audio");
-        }
-        if track.rate != metadata.sample_rate || track.channels != metadata.channels {
-            bail!("La pista guardada contiene formatos incompatibles");
-        }
-        track.sequence = track.sequence.max(
-            metadata
-                .sequence
-                .checked_add(1)
-                .context("Secuencia agotada")?,
-        );
-        track.first_sample = track.first_sample.max(
-            metadata
-                .first_sample
-                .checked_add(metadata.frames)
-                .context("Contador de muestras agotado")?,
-        );
-        Ok(())
+        self.tracks.restore_position(metadata)
     }
 
     pub fn begin_voice(&mut self) -> Result<()> {
-        if self.voice.is_some() {
-            bail!("El turno de voz anterior aún está finalizando");
-        }
-        self.voice = Some(VoiceBuffer {
-            pcm: Vec::new(),
-            sample_rate: 0,
-            channels: 1,
-            started_at_ms: 0,
-            monotonic_ns: 0,
-            capture_epoch_id: None,
-            native_stream: None,
-            native_sequence: None,
-            last_monotonic_ns: None,
-        });
-        Ok(())
+        begin_voice(&mut self.voice)
     }
 
     /// Older fixtures need only segments; production consumes the observation too.
@@ -212,152 +85,17 @@ impl CaptureBuffer {
     /// Observations leave this boundary only after the original was admitted.
     /// Voice-only frames and replayed preroll do not represent new original PCM.
     pub fn ingest_observed(&mut self, frame: &Value, now_ms: i64) -> Result<IngestedAudio> {
-        self.ingest_selected(frame, now_ms, true)
+        ingest(&mut self.tracks, &mut self.voice, frame, now_ms, true)
     }
 
     /// Preroll belongs only to the derived utterance. The continuous original
     /// was already recorded when these frames first arrived and is not replayed.
     pub fn ingest_voice_frame(&mut self, frame: &Value, now_ms: i64) -> Result<()> {
-        self.ingest_selected(frame, now_ms, false).map(|_| ())
+        ingest(&mut self.tracks, &mut self.voice, frame, now_ms, false).map(|_| ())
     }
 
-    fn ingest_selected(
-        &mut self,
-        frame: &Value,
-        now_ms: i64,
-        record: bool,
-    ) -> Result<IngestedAudio> {
-        let decoded = NativeAudioFrameRef::from_value(frame)
-            .context("Evento audio con campo o tipo inválido")?;
-        let source = match decoded.source {
-            "mic_local" => "mic_local",
-            "remote_app" => "remote_app",
-            _ => bail!("Pista de audio no válida"),
-        };
-        let stream = Some(decoded.stream_id)
-            .filter(|s| !s.is_empty() && s.len() <= 128)
-            .context("Identidad de audio ausente")?;
-        let rate = decoded.sample_rate;
-        let channels = u16::from(decoded.channels);
-        let frames = u64::from(decoded.frames);
-        let native_sequence = decoded.sequence;
-        let monotonic_ns = decoded.monotonic_ns;
-        if !(8_000..=192_000).contains(&rate)
-            || channels != 1
-            || frames == 0
-            || frames > u64::from(rate)
-        {
-            bail!("Formato de audio fuera de límites");
-        }
-        let pcm = frame_pcm_decoded(&decoded)?;
-        let capture_epoch_id = frame_epoch(decoded.capture_epoch_id)?;
-
-        let recording =
-            record && self.recording_id.is_some() && self.recording_sources.contains(source);
-        if recording && let Some(track) = self.tracks.get(source) {
-            if track.rate != rate || track.channels != channels {
-                bail!("Formato de pista cambiado; inicia una grabación nueva");
-            }
-            if track
-                .native_sequence
-                .is_some_and(|previous| previous.checked_add(1) != Some(native_sequence))
-                || track
-                    .native_stream
-                    .as_deref()
-                    .is_some_and(|previous| previous != stream)
-                || track
-                    .last_monotonic_ns
-                    .is_some_and(|previous| monotonic_ns < previous)
-            {
-                bail!("Discontinuidad en la secuencia o reloj de audio");
-            }
-        }
-        if source == "mic_local"
-            && let Some(voice) = self.voice.as_mut()
-        {
-            if !voice.pcm.is_empty() && voice.capture_epoch_id.as_deref() != capture_epoch_id {
-                bail!("La época del productor cambió durante el turno de voz");
-            }
-            if voice.sample_rate != 0 && (voice.sample_rate != rate || voice.channels != channels) {
-                bail!("El micrófono cambió de formato durante el turno");
-            }
-            if voice
-                .native_sequence
-                .is_some_and(|previous| previous.checked_add(1) != Some(native_sequence))
-                || voice
-                    .native_stream
-                    .as_deref()
-                    .is_some_and(|previous| previous != stream)
-                || voice
-                    .last_monotonic_ns
-                    .is_some_and(|previous| monotonic_ns < previous)
-            {
-                bail!("El turno de voz contiene una discontinuidad");
-            }
-            if voice.pcm.len() + pcm.len() > rate as usize * 2 * 60 {
-                bail!("El turno de voz alcanzó el límite de 60 segundos");
-            }
-            if voice.pcm.len() + pcm.len() > MAX_CHUNK_BYTES - 44 {
-                bail!("El turno de voz alcanzó el límite de almacenamiento cifrado de 8 MiB");
-            }
-            if voice.pcm.is_empty() {
-                voice.started_at_ms = now_ms;
-                voice.monotonic_ns = monotonic_ns;
-                voice.capture_epoch_id = capture_epoch_id.map(str::to_owned);
-            }
-            voice.sample_rate = rate;
-            voice.channels = channels;
-            voice.native_stream = Some(stream.into());
-            voice.native_sequence = Some(native_sequence);
-            voice.last_monotonic_ns = Some(monotonic_ns);
-            voice.pcm.extend_from_slice(&pcm);
-        }
-        if !recording {
-            return Ok(IngestedAudio {
-                segments: Vec::new(),
-                signal: None,
-            });
-        }
-        // Never decode base64 again or trust separately declared native levels.
-        // Measurement is optional; a missing level must not discard valid audio.
-        let signal = measure_s16le(&pcm).map(|level| ObservedPcmSignal {
-            source,
-            stream_id: stream.to_owned(),
-            sample_rate: rate,
-            level,
-        });
-        let recording_id = self
-            .recording_id
-            .as_deref()
-            .context("Identidad de grabación ausente")?;
-        let track = self
-            .tracks
-            .entry(source.into())
-            .or_insert_with(|| Track::new(rate, channels));
-        track.native_sequence = Some(native_sequence);
-        track.native_stream = Some(stream.into());
-        track.last_monotonic_ns = Some(monotonic_ns);
-        if track.pcm.is_empty() {
-            track.start_ms = now_ms;
-            track.monotonic_ns = monotonic_ns;
-        }
-        track.pcm.extend_from_slice(&pcm);
-        let segments = if track.pcm.len() >= rate as usize * usize::from(channels) * 2 {
-            vec![seal(
-                recording_id,
-                self.capture_epoch_id.as_deref(),
-                source,
-                track,
-            )?]
-        } else {
-            Vec::new()
-        };
-        Ok(IngestedAudio { segments, signal })
-    }
-
-    /// The sample rate a recording track was opened with, if any.
     pub fn track_rate(&self, source: &str) -> Option<u32> {
-        self.tracks.get(source).map(|track| track.rate)
+        self.tracks.track_rate(source)
     }
 
     /// A producer declared a hole (a new route, or audio it dropped on
@@ -366,55 +104,111 @@ impl CaptureBuffer {
     /// counters, and the stream identity and clock are still checked. A voice
     /// turn on the same microphone skips the hole the same way.
     pub fn restart_source(&mut self, source: &str) -> Result<Vec<Segment>> {
-        if source == "mic_local"
-            && let Some(voice) = self.voice.as_mut()
-        {
-            voice.native_sequence = None;
-        }
-        let mut segments = Vec::new();
-        if let (Some(id), Some(track)) = (self.recording_id.as_deref(), self.tracks.get_mut(source))
-        {
-            if !track.pcm.is_empty() {
-                segments.push(seal(id, self.capture_epoch_id.as_deref(), source, track)?);
-            }
-            track.native_sequence = None;
-        }
-        Ok(segments)
+        restart_source(&mut self.tracks, &mut self.voice, source)
     }
 
     /// End one recording source after native stop acknowledgment. Other sources
     /// can continue draining, and an independent voice turn can still use mic.
     pub fn pause_source(&mut self, source: &str) -> Result<Vec<Segment>> {
-        self.recording_sources.remove(source);
-        let mut result = Vec::new();
-        if let (Some(id), Some(track)) = (self.recording_id.as_deref(), self.tracks.get_mut(source))
-        {
-            if !track.pcm.is_empty() {
-                result.push(seal(id, self.capture_epoch_id.as_deref(), source, track)?);
-            }
-            track.native_sequence = None;
-            track.native_stream = None;
-            track.last_monotonic_ns = None;
-        }
-        Ok(result)
+        self.tracks.pause_source(source)
     }
 
     pub fn flush(&mut self, end: bool) -> Vec<Segment> {
-        let mut segments = Vec::new();
-        for source in ["mic_local", "remote_app"] {
-            // Counters are checked before ingest can advance them. Exhaustion
-            // cannot occur with bounded real capture; preserve buffers on error.
-            if let Ok(mut sealed) = self.pause_source(source) {
-                segments.append(&mut sealed);
-            }
-        }
-        if end && self.tracks.values().all(|track| track.pcm.is_empty()) {
-            self.recording_id = None;
-            self.capture_epoch_id = None;
-            self.tracks.clear();
-        }
-        segments
+        self.tracks.flush(end)
     }
+}
+
+/// A new voice turn, refused while the previous one is still finishing.
+pub fn begin_voice(voice: &mut Option<VoiceBuffer>) -> Result<()> {
+    if voice.is_some() {
+        bail!("El turno de voz anterior aún está finalizando");
+    }
+    *voice = Some(VoiceBuffer::new());
+    Ok(())
+}
+
+/// A declared hole on `source`: see [`CaptureBuffer::restart_source`].
+pub fn restart_source(
+    tracks: &mut RecordingTracks,
+    voice: &mut Option<VoiceBuffer>,
+    source: &str,
+) -> Result<Vec<Segment>> {
+    if source == "mic_local"
+        && let Some(voice) = voice.as_mut()
+    {
+        voice.skip_hole();
+    }
+    tracks.restart_source(source)
+}
+
+/// One frame into the recording (when `record` and its source feeds it) and
+/// into the voice turn on the microphone. Every check runs before anything is
+/// appended, the recording's first and the voice turn's next, so a refused
+/// frame changes neither.
+pub fn ingest(
+    tracks: &mut RecordingTracks,
+    voice: &mut Option<VoiceBuffer>,
+    frame: &Value,
+    now_ms: i64,
+    record: bool,
+) -> Result<IngestedAudio> {
+    let decoded =
+        NativeAudioFrameRef::from_value(frame).context("Evento audio con campo o tipo inválido")?;
+    let source = match decoded.source {
+        "mic_local" => "mic_local",
+        "remote_app" => "remote_app",
+        _ => bail!("Pista de audio no válida"),
+    };
+    let stream = Some(decoded.stream_id)
+        .filter(|s| !s.is_empty() && s.len() <= 128)
+        .context("Identidad de audio ausente")?;
+    let rate = decoded.sample_rate;
+    let channels = u16::from(decoded.channels);
+    let frames = u64::from(decoded.frames);
+    if !(8_000..=192_000).contains(&rate)
+        || channels != 1
+        || frames == 0
+        || frames > u64::from(rate)
+    {
+        bail!("Formato de audio fuera de límites");
+    }
+    let pcm = frame_pcm_decoded(&decoded)?;
+    let epoch = frame_epoch(decoded.capture_epoch_id)?;
+    let checked = TrackFrame {
+        source,
+        stream,
+        rate,
+        channels,
+        native_sequence: decoded.sequence,
+        monotonic_ns: decoded.monotonic_ns,
+        pcm: &pcm,
+    };
+    let recording = record && tracks.records(source);
+    if recording {
+        tracks.check(&checked)?;
+    }
+    if source == "mic_local"
+        && let Some(voice) = voice.as_mut()
+    {
+        voice.check(&checked, epoch)?;
+        voice.append(&checked, epoch, now_ms);
+    }
+    if !recording {
+        return Ok(IngestedAudio {
+            segments: Vec::new(),
+            signal: None,
+        });
+    }
+    // Never decode base64 again or trust separately declared native levels.
+    // Measurement is optional; a missing level must not discard valid audio.
+    let signal = measure_s16le(&pcm).map(|level| ObservedPcmSignal {
+        source,
+        stream_id: stream.to_owned(),
+        sample_rate: rate,
+        level,
+    });
+    let segments = tracks.append(&checked, now_ms)?;
+    Ok(IngestedAudio { segments, signal })
 }
 
 /// Decode a single observed mono frame with hard bounds before base64 allocation.
@@ -442,7 +236,7 @@ fn frame_pcm_decoded(frame: &NativeAudioFrameRef<'_>) -> Result<Vec<u8>> {
     Ok(pcm)
 }
 
-fn validate_epoch_id(epoch: &str) -> Result<()> {
+pub(crate) fn validate_epoch_id(epoch: &str) -> Result<()> {
     if epoch.is_empty()
         || epoch.len() > 128
         || matches!(epoch, "." | "..")
@@ -465,39 +259,6 @@ fn frame_epoch(epoch: Option<&str>) -> Result<Option<&str>> {
     }
 }
 
-fn seal(
-    recording_id: &str,
-    capture_epoch_id: Option<&str>,
-    source: &str,
-    track: &mut Track,
-) -> Result<Segment> {
-    let frames = track.pcm.len() as u64 / (u64::from(track.channels) * 2);
-    let next_sequence = track.sequence.checked_add(1).context("Secuencia agotada")?;
-    let next_sample = track
-        .first_sample
-        .checked_add(frames)
-        .context("Contador de muestras agotado")?;
-    let metadata = ChunkMetadata {
-        id: format!("{recording_id}-{source}-{}", track.sequence),
-        recording_id: recording_id.into(),
-        track: source.into(),
-        capture_epoch_id: capture_epoch_id.map(str::to_owned),
-        sequence: track.sequence,
-        sample_rate: track.rate,
-        channels: track.channels,
-        frames,
-        started_at_ms: track.start_ms,
-        monotonic_ns: track.monotonic_ns,
-        first_sample: track.first_sample,
-    };
-    track.sequence = next_sequence;
-    track.first_sample = next_sample;
-    Ok(Segment {
-        metadata,
-        pcm: std::mem::take(&mut track.pcm),
-    })
-}
-
 #[cfg(test)]
 #[path = "capture_observation_tests.rs"]
 mod observation_tests;
@@ -505,6 +266,7 @@ mod observation_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use orbit_store::MAX_CHUNK_BYTES;
     use serde_json::json;
 
     fn frame(sequence: u64, frames: usize) -> Value {
@@ -512,6 +274,40 @@ mod tests {
             "channels":1, "frames":frames, "sequence":sequence,
             "monotonic_ns":sequence.saturating_mul(1000),
             "pcm_s16le_base64":STANDARD.encode(vec![1; frames * 2])})
+    }
+
+    /// Audio read late, all at once after a held daemon, keeps the time it
+    /// was captured: each chunk starts at the stream's first wall time plus
+    /// the producer clock, not at the moment the backlog was read.
+    #[test]
+    fn a_backlog_read_at_once_keeps_its_capture_times() -> Result<()> {
+        let mut buffer = CaptureBuffer::default();
+        buffer.begin_recording("meeting".into())?;
+        let second = |sequence: u64| {
+            let mut frame = frame(sequence, 8000);
+            frame["monotonic_ns"] = json!(sequence * 1_000_000_000);
+            frame
+        };
+        let first = buffer.ingest(&second(0), 1_000)?;
+        let mut late = Vec::new();
+        for sequence in 1..4 {
+            late.extend(buffer.ingest(&second(sequence), 20_000)?);
+        }
+        let starts: Vec<i64> = first
+            .iter()
+            .chain(&late)
+            .map(|segment| segment.metadata.started_at_ms)
+            .collect();
+        assert_eq!(starts, [1_000, 2_000, 3_000, 4_000]);
+        // A new stream anchors its own clock again.
+        buffer.pause_source("mic_local")?;
+        buffer.begin_recording("meeting".into())?;
+        let mut resumed = frame(4, 8000);
+        resumed["stream_id"] = json!("mic-again");
+        resumed["monotonic_ns"] = json!(90_000_000_000_u64);
+        let resumed = buffer.ingest(&resumed, 30_000)?;
+        assert_eq!(resumed[0].metadata.started_at_ms, 30_000);
+        Ok(())
     }
 
     #[test]
@@ -741,7 +537,7 @@ mod tests {
             let voice = buffer.voice.as_ref().context("voice absent")?;
             assert_eq!(voice.capture_epoch_id.as_deref(), first.as_str());
             assert_eq!(voice.pcm, vec![1; 200]);
-            assert_eq!(voice.native_sequence, Some(0));
+            assert_eq!(voice.last_sequence(), Some(0));
         }
         Ok(())
     }

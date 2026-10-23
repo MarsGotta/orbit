@@ -179,6 +179,9 @@ impl Runtime {
         decision: orbit_core::Decision,
         voice: CallStopVoice,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>> {
+        // Before anything of it takes effect: the capture task stops
+        // serving frames alone when this changes what that depends on.
+        self.disarm_capture_for(&decision.state);
         Box::pin(self.execute_boxed_decision(Box::new(decision), voice))
     }
 

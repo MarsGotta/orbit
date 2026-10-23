@@ -83,7 +83,16 @@ impl Runtime {
     /// Says a failure the person cannot fix, keeping its cause, which may be
     /// a sentence, only in `daemon.log` under the same op.
     pub(super) fn say_failure(&mut self, notice: impl Into<Notice>, cause: &dyn std::fmt::Display) {
-        let notice = notice.into();
+        let mut notice = notice.into();
+        // A seal that failed says why: the cause its seal recorded.
+        if notice.code == orbit_core::notice::NoticeCode::RecordingSealFailed
+            && !notice
+                .data
+                .contains_key(&orbit_core::notice::NoticeKey::Cause)
+            && let Some(seal) = self.capture.seal_cause.take()
+        {
+            notice = notice.with_token(orbit_core::notice::NoticeKey::Cause, seal);
+        }
         let code = serde_json::to_value(notice.code).unwrap_or_default();
         self.log(
             "notice_cause",

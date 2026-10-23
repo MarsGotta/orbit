@@ -128,10 +128,7 @@ impl Runtime {
             // receipts still lagged behind. Preserve that coherence without
             // making Status wait on the writer: the live monitor stays in RAM
             // and becomes visible as soon as the admitted seals are receipted.
-            && !self
-                .capture.pending_seals
-                .iter()
-                .any(|segment| segment.metadata.recording_id == monitor.recording_id)
+            && !self.capture.pending_seals.any_for(&monitor.recording_id)
             && self.capture.buffer.recording_epoch() == Some(&monitor.capture_epoch_id)
             && self.capture.buffer.recording_owner("mic_local") == Some(&monitor.recording_id)
             && (monitor.remote_stream.is_none()

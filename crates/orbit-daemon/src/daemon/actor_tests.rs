@@ -1019,15 +1019,19 @@ async fn transient_upload_error_remains_retryable() -> Result<()> {
     Ok(())
 }
 
+/// The capture task's own clock is set longer than the test: the second
+/// chunk can only go up because the first one's success scheduled it.
 #[tokio::test]
 async fn successful_upload_schedules_the_next_chunk_without_a_timer_tick() -> Result<()> {
+    use crate::daemon::capture_lane::test_support;
     let directory = tempfile::tempdir()?;
     let (mut runtime, _) = fixture(directory.path())?;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     runtime.settings.hub_url = Some(format!("http://{}", listener.local_addr()?));
     runtime.token = Some("SYNTHETIC-TOKEN".into());
+    let mut receipts = Vec::new();
     for (sequence, chunk_id) in ["a", "b"].into_iter().enumerate() {
-        runtime.fixture_store.seal_chunk(
+        receipts.push(runtime.fixture_store.seal_chunk(
             &ChunkMetadata {
                 capture_epoch_id: None,
                 id: chunk_id.into(),
@@ -1042,47 +1046,21 @@ async fn successful_upload_schedules_the_next_chunk_without_a_timer_tick() -> Re
                 started_at_ms: 1,
             },
             &crate::native::wav(&[0; 8], 8000, 1)?,
-        )?;
+        )?);
     }
-    runtime
-        .fixture_store
-        .update_job("upload-a", JobState::Running)?;
+    let (mut task, _bridge) =
+        test_support::spawn_task_ticking(&runtime, Duration::from_secs(3600))?;
+    let (mut first, _) = test_support::accept_put(&listener).await?;
+    // A failure before held the gate; the success lifts it.
     runtime.work.retry_gate.finish(false, Instant::now());
-    let generation = runtime.state.generation();
-    let ticket = super::pending_work(&mut runtime.work.worker, generation, ())?;
-    runtime
-        .work_event(WorkResult::Store(crate::daemon::StoreWork::Uploaded {
-            ticket,
-            job_id: "upload-a".into(),
-            result: Ok(()),
-        }))
-        .await?;
-    assert_eq!(
-        runtime
-            .fixture_store
-            .get_job("upload-a")?
-            .context("first job absent")?
-            .state,
-        JobState::Succeeded
-    );
-    assert_eq!(
-        runtime
-            .fixture_store
-            .get_job("upload-b")?
-            .context("second job absent")?
-            .state,
-        JobState::Running
-    );
+    test_support::acknowledge(&mut first, "a", &receipts[0].sha256).await?;
+    let (mut second, request) = test_support::accept_put(&listener).await?;
+    assert!(String::from_utf8_lossy(&request).starts_with("PUT /v1/chunks/b "));
+    test_support::job_reaches(&runtime, "upload-a", JobState::Succeeded).await?;
     assert!(runtime.work.retry_gate.ready(Instant::now()));
-    // The actor has already scheduled work before any Tick. Stop the synthetic
-    // task before yielding; no production address is reachable from this fixture.
-    runtime
-        .work
-        .worker
-        .take()
-        .context("next worker absent")?
-        .abort();
-    drop(listener);
+    test_support::acknowledge(&mut second, "b", &receipts[1].sha256).await?;
+    test_support::job_reaches(&runtime, "upload-b", JobState::Succeeded).await?;
+    task.stop();
     Ok(())
 }
 

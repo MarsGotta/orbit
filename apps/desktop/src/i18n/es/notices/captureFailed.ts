@@ -64,6 +64,48 @@ function lostFilesText(data: NoticeData): string {
   return `Al abrirse, Orbit no pudo recuperar ${files} de este Mac${which}; recuperó ${count(data.recovered)}.`;
 }
 
+/** Why a seal failed, by the cause the daemon gives it (`seal_cause.rs`). */
+const sealCauses: Record<string, string> = {
+  disk_full: "el disco de este Mac está lleno",
+  not_writable: "macOS no deja a Orbit escribir en su carpeta",
+  disk_error: "el disco devolvió un error al escribir",
+  store_busy: "el almacén de Orbit estaba ocupado",
+  store_error: "el almacén de Orbit devolvió un error",
+  integrity: "el almacén cifrado de Orbit no se pudo verificar",
+  destination_invalid: "el destino del audio en este Mac no es una carpeta normal",
+  reserve_exhausted: "se llenó la reserva de memoria del audio",
+  writer_unavailable: "el almacén de Orbit no admitió más trabajo",
+};
+
+/** What to do about a cause the person can act on. */
+const sealActions: Record<string, string> = {
+  disk_full: " Libera espacio en el disco.",
+  not_writable: " Revisa los permisos de la carpeta de datos de Orbit.",
+};
+
+function sealText(data: NoticeData): string {
+  const code = data.cause;
+  if (typeof code !== "string" || code === "")
+    return "Parte del audio de la grabación no se pudo escribir en este Mac. Si el disco está lleno, libera espacio: Orbit lo vuelve a intentar mientras siga abierta.";
+  const why = sealCauses[code] ?? `el almacén falló (código ${code})`;
+  const owed = fragments(data.fragments);
+  const waiting = owed === null ? "" : ` ${owed} de audio esperan en la memoria de Orbit.`;
+  return `Parte del audio de la grabación no se pudo escribir en este Mac porque ${why}.${waiting} Orbit lo vuelve a intentar mientras siga abierta: no la cierres.${sealActions[code] ?? ""}`;
+}
+
+function closeUnconfirmedText(data: NoticeData): string {
+  const kept =
+    data.fragments === true
+      ? "Lo grabado hasta entonces está guardado en este Mac; Orbit cierra la grabación con ello y el hub escribe su nota."
+      : "No llegó a guardarse audio de esta grabación.";
+  return `El ayudante de audio no confirmó a tiempo el final de la grabación. ${kept} No hace falta que hagas nada.`;
+}
+
+function startRefusedText(data: NoticeData): string {
+  const code = typeof data.code === "string" && data.code !== "" ? ` (código ${data.code})` : "";
+  return `El ayudante de audio no pudo abrir el micrófono para la llamada${code}, así que no se grabó nada de ella. Vuelve a llamar; si se repite, revisa en Ajustes del Sistema que Orbit pueda usar el micrófono.`;
+}
+
 function closedText(data: NoticeData): string {
   if (data.audio_unsaved !== true)
     return "Orbit se cerró antes de terminar su trabajo pendiente; lo que ya estaba guardado en este Mac se retoma al abrirla.";
@@ -79,16 +121,16 @@ function closedText(data: NoticeData): string {
 export const captureFailed: Entries<
   | "capture_cut"
   | "recording_seal_failed"
+  | "recording_close_unconfirmed"
+  | "audio_start_refused"
   | "recording_interrupted_by_restart"
   | "store_recovery_lost_files"
   | "closed_with_pending_work"
 > = {
   capture_cut: { class: "failed", text: cutText },
-  recording_seal_failed: {
-    class: "failed",
-    text: () =>
-      "Parte del audio de la grabación no se pudo escribir en este Mac. Si el disco está lleno, libera espacio: Orbit lo vuelve a intentar mientras siga abierta.",
-  },
+  recording_seal_failed: { class: "failed", text: sealText },
+  recording_close_unconfirmed: { class: "failed", text: closeUnconfirmedText },
+  audio_start_refused: { class: "failed", text: startRefusedText },
   recording_interrupted_by_restart: {
     class: "failed",
     text: (data) => `Orbit se cerró en mitad de una grabación. ${kept(data.fragments)}`,

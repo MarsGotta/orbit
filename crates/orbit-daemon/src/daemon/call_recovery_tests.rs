@@ -331,7 +331,7 @@ async fn recovery_rejects_live_capture_and_conflicting_authenticated_lifecycle()
         .ingest(&frame("old-stream", 0, 100), 10)?;
     assert!(runtime.capture.buffer.has_pending_audio());
     assert!(runtime.recover_call_closures(30).await.is_err());
-    runtime.capture.buffer = CaptureBuffer::default();
+    runtime.capture.buffer.reset();
     runtime.fixture_store.enqueue_job(&Job {
         id: "finalize-conflict".into(),
         kind: "recording_finalize".into(),

@@ -34,10 +34,28 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     private lazy var playback = AudioPlayback(session: audioSession, channel: channel)
     private lazy var systemAudio = SystemAudioCapture(channel: channel)
     private var watchdog: Timer?
-    private var channelHealth = DaemonChannelHealth(now: ProcessInfo.processInfo.systemUptime)
+    /// The daemon's beats, observed on the channel's reader queue and judged
+    /// on a queue of its own: a held main thread is never its silence.
+    private lazy var liveness = DaemonLivenessWatch(
+        fellSilent: { [weak self, diagnostics = self.diagnostics] silence in
+            // On the liveness queue: a capture in progress goes on without
+            // the main thread, which is only asked when nothing is captured.
+            if silence.capturing {
+                diagnostics.recordOffMain("daemon_silent_capture_kept", [
+                    "microphone": silence.microphone ? "true" : "false",
+                    "system_audio": silence.systemAudio ? "true" : "false"
+                ])
+                return
+            }
+            Task { @MainActor in self?.daemonFellSilent() }
+        },
+        lateTick: { [diagnostics = self.diagnostics] gap in
+            // This process was held: the next incident says whose stall it was.
+            diagnostics.recordOffMain("helper_watchdog_late", ["tick_gap_ms": String(Int(gap * 1000))])
+        })
     /// Read-only on purpose: liveness is decided by observed traffic in
-    /// `channelHealth`, never by a caller flipping a flag one way.
-    private var connected: Bool { channelHealth.connected }
+    /// `liveness`, never by a caller flipping a flag one way.
+    private var connected: Bool { liveness.connected }
     private var commandRouter = NativeCommandRouter()
     private var privacyEpoch: UInt64 = 0
     private var playbackEpoch: UInt64 = 0
@@ -92,16 +110,15 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         mainThreadWatch.start()
         // Its first look at the permission runs off Main before the daemon's hello.
         _ = calendarState()
-        channel.receive = { [weak self] command in
-            // Every command read from the pipe is the daemon answering, not
-            // only a beat, and it revives a channel the watchdog gave up on
-            // (a beat used to only refresh the timestamp, so one late beat
-            // disabled rearming and every permission prompt for the rest of
-            // the run). A capture kept through the daemon's silence must take
-            // the `audio_stop` that ends it even before the next beat.
-            self?.channelHealth.observedBeat(at: ProcessInfo.processInfo.systemUptime)
-            self?.receive(command)
-        }
+        // Every command read from the pipe is the daemon answering, not only
+        // a beat, and it revives a channel the watchdog gave up on (a beat
+        // used to only refresh the timestamp, so one late beat disabled
+        // rearming and every permission prompt for the rest of the run). A
+        // capture kept through the daemon's silence must take the
+        // `audio_stop` that ends it even before the next beat. It is observed
+        // where it is read, before the main thread runs it.
+        channel.commandRead = { [liveness = self.liveness] in liveness.observedBeat() }
+        channel.receive = { [weak self] command in self?.receive(command) }
         channel.disconnected = { [weak self] reason in
             self?.daemonDisconnected(reason: reason)
         }
@@ -124,17 +141,9 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
                 workspaceObservers.append(observer)
             }
         }
+        liveness.start()
         let watchdog = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             guard let self else { return }
-            if self.channelHealth.tick(now: ProcessInfo.processInfo.systemUptime) {
-                self.daemonFellSilent()
-            }
-            if let gap = self.channelHealth.lateTickGap {
-                // This process was held: the next incident says whose stall it was.
-                self.diagnostics.recordOffMain("helper_watchdog_late", [
-                    "tick_gap_ms": String(Int(gap * 1000))
-                ])
-            }
             for rejection in self.commandRouter.watchdog(at: ProcessInfo.processInfo.systemUptime) {
                 self.channel.reject(rejection.command, code: rejection.code,
                     message: "La operación nativa anterior superó su plazo; vuelve a intentarlo.")
@@ -166,10 +175,13 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         publishState()
     }
 
-    /// The daemon stopped beating while this helper was awake. A recording or
-    /// a voice note in progress keeps capturing: the channel keeps on this Mac
-    /// what the daemon does not read and delivers it in order when it reads
-    /// again (2026-10-22: a stalled daemon cut a meeting 25 minutes in).
+    /// The daemon stopped beating while this helper was awake, and the
+    /// liveness queue found nothing being captured. A recording or a voice
+    /// note in progress keeps capturing, decided there without this thread:
+    /// the channel keeps on this Mac what the daemon does not read and
+    /// delivers it in order when it reads again (2026-10-22: a stalled daemon
+    /// cut a meeting 25 minutes in). The capture is checked once more here,
+    /// in case one started meanwhile.
     private func daemonFellSilent() {
         guard DaemonChannelHealth.silenceStopsCapture(microphone: microphone.slot,
                                                       systemAudio: systemAudio.slot) else {
@@ -183,7 +195,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     }
 
     private func daemonDisconnected(reason: String) {
-        channelHealth.disconnected()
+        liveness.disconnected()
         switch quitPolicy.disconnected(reason: reason) {
         case .stopThenTerminate:
             leaveWithoutDaemon(reason: reason)
@@ -227,6 +239,8 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     private func publishState() {
         let capturing = microphone.slot.isActive || systemAudio.slot.isActive
         mainThreadWatch.captureChanged(capturing)
+        liveness.captureChanged(microphone: microphone.slot.isActive,
+                                systemAudio: systemAudio.slot.isActive)
         if captureActivity.update(capturing: capturing) {
             diagnostics.recordOffMain(captureActivity.held ? "helper_activity_held" : "helper_activity_released")
         }

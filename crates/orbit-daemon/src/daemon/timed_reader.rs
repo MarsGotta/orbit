@@ -55,6 +55,9 @@ impl TimedReader {
         })
     }
 
+    /// The chunk uploads the store still owes; the capture task reads its
+    /// own, a test reads them here.
+    #[cfg(test)]
     #[track_caller]
     pub(super) fn pending_chunk_uploads(
         &self,
@@ -106,6 +109,7 @@ impl TimedReader {
         })
     }
 
+    #[cfg(test)]
     #[track_caller]
     pub(super) fn chunk_receipt(&self, id: &str) -> Result<Option<ChunkReceipt>> {
         self.timed(Location::caller(), |store| store.chunk_receipt(id))

@@ -144,11 +144,7 @@ fn failed_seal_returns_no_observation_and_retains_the_existing_pending_pcm() -> 
     buffer.ingest_observed(&frame("mic_local", "mic", 0, &first), 1)?;
     // Exhaustion is synthetic. Preserve the existing seal failure semantics:
     // valid bytes already appended stay pending, but there is no success result.
-    buffer
-        .tracks
-        .get_mut("mic_local")
-        .context("track absent")?
-        .sequence = u64::MAX;
+    buffer.tracks.set_sequence("mic_local", u64::MAX)?;
     let tail = vec![1; 15_800];
     assert!(
         buffer
@@ -157,8 +153,11 @@ fn failed_seal_returns_no_observation_and_retains_the_existing_pending_pcm() -> 
     );
     assert!(buffer.has_pending_audio());
     assert_eq!(
-        buffer.tracks.get("mic_local").context("track absent")?.pcm,
-        [first, tail].concat()
+        buffer
+            .tracks
+            .pending_pcm("mic_local")
+            .context("track absent")?,
+        [first, tail].concat().as_slice()
     );
     Ok(())
 }
@@ -214,7 +213,7 @@ fn preroll_updates_only_derived_voice_not_original_or_signal() -> Result<()> {
     // Exercise the exact internal branch used by the public preroll wrapper.
     buffer.voice = None;
     buffer.begin_voice()?;
-    let replay = buffer.ingest_selected(&first, 4, false)?;
+    let replay = ingest(&mut buffer.tracks, &mut buffer.voice, &first, 4, false)?;
     assert!(replay.signal.is_none());
     assert!(replay.segments.is_empty());
     assert_eq!(buffer.voice.as_ref().context("voice absent")?.pcm, pcm);

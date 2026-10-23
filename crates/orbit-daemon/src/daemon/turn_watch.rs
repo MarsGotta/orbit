@@ -175,6 +175,16 @@ impl TurnSource {
         Self::bare("tick")
     }
 
+    /// The capture's upkeep on the loop's own clock for it.
+    pub(super) const fn capture_tick() -> Self {
+        Self::bare("capture_tick")
+    }
+
+    /// Frames the capture task handed the loop to serve.
+    pub(super) const fn forwarded() -> Self {
+        Self::bare("forwarded")
+    }
+
     const fn bare(arm: &'static str) -> Self {
         Self { arm, kind: None }
     }

@@ -10,12 +10,47 @@ helper and the bundled control engine. There is no shipped standalone daemon.
 Orbit.app/Contents/MacOS/Orbit
  │  main thread: Tauri window, tray, panel and app-core
  │  orbit-daemon thread: daemon ← Call / watch → app-core
+ │  orbit-helper-bridge thread: the helper's pipes, its heartbeat and relaunches
+ │  orbit-capture thread: every frame, sealing and chunk uploads
+ │  orbit-store thread: every SQLite write and fsync
  ├─ Contents/MacOS/OrbitNative --stdio --managed
  ├─ Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver serve --socket <data>/cua/driver.sock
  └─ Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver mcp --embedded --socket <data>/cua/driver.sock
 ```
 
 See the [overview](README.md) for component boundaries.
+
+## Capture, apart from the loop
+
+The daemon's loop serves orders, the helper's other events, the hub, work
+results and every vertical's upkeep, one turn at a time. A recording does not
+wait for any of it (`crates/orbit-daemon/src/daemon/capture_lane/`):
+
+- The bridge numbers every helper event. `audio` and `gap` go to the capture
+  task's own channel; the rest go to the loop, each with a marker at its place
+  in the task's channel. The loop serves an event only once the task has
+  handled every frame before it, so the helper's order holds across both.
+- While a recording is in its plain steady state (nothing draining, no voice
+  note or call on the microphone, the writer well), the loop arms the lane and
+  the task sequences, seals and queues each frame itself. Any other frame, and
+  every one after a frame it could not serve, goes to the loop in order, which
+  serves it exactly as before.
+- The task's own clock reads seal receipts, retries owed seals and uploads the
+  chunks, one at a time, under the retry gate the loop's closures share. A
+  decision that retires uploads (a privacy stop, Orbit closing) aborts the one
+  in flight before it takes effect.
+- A recording's chunk counters are a projection of the chunks it sealed: at
+  start they are rebuilt from the store, so a recording an older version left
+  cut is closed at its last audio and the hub writes its note.
+- The loop's own part of the capture's upkeep (a drain's deadline, a cut's
+  recovery, a call's health) runs on its own clock, never behind the other
+  verticals'.
+
+In the helper, the daemon's beats are observed on the channel's reader queue
+and its silence is judged on a queue of its own
+(`native/macos/Sources/OrbitNativeState/DaemonLivenessWatch.swift`): a held main
+thread is never the daemon's silence, and a capture in progress goes on
+without it.
 
 ## Lifecycle
 

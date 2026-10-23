@@ -1,7 +1,7 @@
 //! Background work completion and scheduling.
 use super::ticketed::Settlement;
 use super::*;
-use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
+use orbit_core::notice::NoticeCode;
 
 #[cfg(test)]
 #[path = "uploaded_chunk_tests.rs"]
@@ -10,17 +10,7 @@ mod tests;
 impl Runtime {
     pub(super) async fn work_event(&mut self, event: WorkResult) -> Result<()> {
         match event {
-            WorkResult::Store(crate::daemon::StoreWork::ChunkPruned { ticket, result }) => {
-                let settlement = self.work.worker.settle(&ticket, self.state.generation());
-                if self.settled_value("chunk_cleanup", settlement).is_some()
-                    && let Err(error) = result
-                {
-                    self.log(
-                        "uploaded_chunk_delete_failed",
-                        &[("error", &error.to_string())],
-                    );
-                }
-            }
+            WorkResult::Store(store) => Box::pin(self.store_work(store)).await?,
             WorkResult::BridgeCaptureUpload {
                 ticket,
                 request_id,
@@ -33,27 +23,7 @@ impl Runtime {
             WorkResult::Control(crate::daemon::ControlWork::Computer { ticket, event }) => {
                 self.on_work_computer(ticket, event).await?;
             }
-            WorkResult::Capture(crate::daemon::CaptureWork::VoiceProblem {
-                ticket,
-                operation_id,
-                failure,
-            }) => {
-                if self.settle_voice(&ticket, &operation_id, "voice").await? {
-                    self.on_work_voice_problem(operation_id, failure).await?;
-                }
-            }
-            WorkResult::Capture(crate::daemon::CaptureWork::Transcribed {
-                ticket,
-                source,
-                text,
-            }) => {
-                if self
-                    .settle_voice(&ticket, &source.message_id, "voice_transcription")
-                    .await?
-                {
-                    self.on_work_transcribed(source, text).await?;
-                }
-            }
+            WorkResult::Capture(capture) => Box::pin(self.capture_work(capture)).await?,
             WorkResult::Problem { ticket, message } => {
                 let settlement = self
                     .conversation
@@ -70,60 +40,7 @@ impl Runtime {
                 voice,
                 available,
             } => {
-                let settlement = self
-                    .conversation
-                    .speech_task
-                    .settle(&ticket, self.state.generation());
-                if self.settled_value("speech", settlement).is_some() {
-                    // The voice that did not arrive is the one that was reading.
-                    let agent_name = crate::speech::agent_name(&self.settings, Some(&voice));
-                    self.conversation.speech_voices.insert(voice, available);
-                    if !available {
-                        self.conversation.read_aloud = None;
-                        self.on_work_problem(
-                            crate::speech::SpeechUnavailable { agent_name }.to_string(),
-                        )
-                        .await?;
-                    }
-                }
-            }
-            WorkResult::Store(crate::daemon::StoreWork::Uploaded {
-                ticket,
-                job_id,
-                result,
-            }) => {
-                let settlement = self.work.worker.settle(&ticket, self.state.generation());
-                if self.settled_value("upload", settlement).is_some()
-                    && !self.state.privacy_stopped()
-                {
-                    self.on_work_uploaded(job_id, result).await?;
-                }
-            }
-            WorkResult::Store(crate::daemon::StoreWork::UploadSettled {
-                ticket,
-                succeeded,
-                error,
-                notice,
-                result,
-            }) => {
-                let settlement = self.work.worker.settle(&ticket, self.state.generation());
-                if self
-                    .settled_value("upload_settlement", settlement)
-                    .is_some()
-                    && !self.state.privacy_stopped()
-                {
-                    self.on_work_upload_settled(succeeded, error, notice, result)
-                        .await?;
-                }
-            }
-            WorkResult::Store(crate::daemon::StoreWork::Sealed {
-                recording,
-                sequence,
-            }) => {
-                self.on_work_sealed(recording, sequence).await?;
-            }
-            WorkResult::Store(crate::daemon::StoreWork::StoreProblem { message }) => {
-                self.on_work_store_problem(message).await?;
+                Box::pin(self.on_speech_availability(ticket, voice, available)).await?;
             }
             WorkResult::PhotoJpeg {
                 source_path,
@@ -138,6 +55,56 @@ impl Runtime {
                         orbit_core::refusal::Operation::Files,
                     ));
                 }
+            }
+        }
+        Ok(())
+    }
+
+    async fn capture_work(&mut self, work: crate::daemon::CaptureWork) -> Result<()> {
+        match work {
+            crate::daemon::CaptureWork::VoiceProblem {
+                ticket,
+                operation_id,
+                failure,
+            } => {
+                if self.settle_voice(&ticket, &operation_id, "voice").await? {
+                    self.on_work_voice_problem(operation_id, failure).await?;
+                }
+            }
+            crate::daemon::CaptureWork::Transcribed {
+                ticket,
+                source,
+                text,
+            } => {
+                if self
+                    .settle_voice(&ticket, &source.message_id, "voice_transcription")
+                    .await?
+                {
+                    self.on_work_transcribed(source, text).await?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    async fn on_speech_availability(
+        &mut self,
+        ticket: ticketed::WorkTicket,
+        voice: String,
+        available: bool,
+    ) -> Result<()> {
+        let settlement = self
+            .conversation
+            .speech_task
+            .settle(&ticket, self.state.generation());
+        if self.settled_value("speech", settlement).is_some() {
+            // The voice that did not arrive is the one that was reading.
+            let agent_name = crate::speech::agent_name(&self.settings, Some(&voice));
+            self.conversation.speech_voices.insert(voice, available);
+            if !available {
+                self.conversation.read_aloud = None;
+                self.on_work_problem(crate::speech::SpeechUnavailable { agent_name }.to_string())
+                    .await?;
             }
         }
         Ok(())
@@ -219,197 +186,6 @@ impl Runtime {
         }
     }
 
-    pub(super) async fn schedule_upload(&mut self) -> Result<()> {
-        if !self.state.privacy_stopped()
-            && self.state.connection() != Connection::Online
-            && self.work.worker.active().is_none()
-        {
-            self.schedule_chunk_cleanup()?;
-        }
-        // While seals are pending, only a chunk upload may enter the
-        // ordered actor. Its durable admission waits on the worker, so prior
-        // seals keep their order without holding the daemon loop; the
-        // closure path retains its own eligibility rules once sealing is
-        // caught up. This is not a second audio queue or an upload-rate limit.
-        if !self.capture.pending_seals.is_empty() {
-            if self.state.privacy_stopped()
-                || self.state.connection() != Connection::Online
-                || self.work.worker.active().is_some()
-                || !self.work.retry_gate.ready(std::time::Instant::now())
-            {
-                return Ok(());
-            }
-            self.schedule_chunk_upload().await?;
-            return Ok(());
-        }
-        self.queue_finalize().await?;
-        if self.state.privacy_stopped()
-            || self.state.connection() != Connection::Online
-            || self.work.worker.active().is_some()
-            || !self.work.retry_gate.ready(std::time::Instant::now())
-        {
-            return Ok(());
-        }
-        // Alternate closure and upload: neither can monopolize the worker.
-        if self.work.prefer_finalize && self.schedule_finalize().await? {
-            self.work.prefer_finalize = false;
-            return Ok(());
-        }
-        if self.schedule_chunk_upload().await? {
-            self.work.prefer_finalize = true;
-            return Ok(());
-        }
-        if self.schedule_finalize().await? {
-            self.work.prefer_finalize = false;
-        } else {
-            self.schedule_chunk_cleanup()?;
-        }
-        Ok(())
-    }
-
-    fn schedule_chunk_cleanup(&mut self) -> Result<()> {
-        let Some(id) = self.reader.next_uploaded_chunk()? else {
-            return Ok(());
-        };
-        let root = self.paths.root.clone();
-        let cleanup = self.store_actor.begin_run(move |store| {
-            prune_uploaded_audio(store, &id, &root);
-            Ok(())
-        })?;
-        let events = self.work.work_events.clone();
-        self.work
-            .worker
-            .start_logical(
-                self.state.generation(),
-                self.turn.op.clone(),
-                (),
-                move |ticket| {
-                    tokio::spawn(async move {
-                        let result = cleanup.wait().await;
-                        crate::daemon::deliver_work(
-                            &events,
-                            WorkResult::Store(crate::daemon::StoreWork::ChunkPruned {
-                                ticket,
-                                result,
-                            }),
-                        )
-                        .await;
-                    })
-                },
-            )
-            .context("No se pudo reservar el borrado del audio confirmado")?;
-        Ok(())
-    }
-
-    /// Consume at most one upload candidate, including a locally quarantined
-    /// source. This bound prevents cancellation cleanup from monopolizing actor
-    /// time; the other classes receive their turn on the next admission.
-    pub(super) async fn schedule_chunk_upload(&mut self) -> Result<bool> {
-        let mut jobs = self
-            .reader
-            .pending_chunk_uploads(self.work.upload_cursor.as_deref(), 1)?;
-        if jobs.is_empty() {
-            self.work.upload_cursor = None;
-            jobs = self.reader.pending_chunk_uploads(None, 1)?;
-        }
-        let Some(job) = jobs.pop() else {
-            return Ok(false);
-        };
-        self.work.upload_cursor = Some(job.id.clone());
-        let chunk_id = job.payload["metadata"]["id"]
-            .as_str()
-            .context("Trabajo sin chunk_id")?;
-        let receipt = self
-            .reader
-            .chunk_receipt(chunk_id)?
-            .context("Fragmento pendiente sin recibo local")?;
-        if let Some(manifest) = self
-            .reader
-            .get_job(&format!("recording-{}", receipt.metadata.recording_id))?
-            && manifest.kind == "recording_manifest"
-            && manifest.payload["upload_allowed"] == false
-        {
-            let job_id = job.id.clone();
-            self.store_actor
-                .run(move |store| Ok(store.update_job(&job_id, JobState::Cancelled)?))
-                .await?;
-            return Ok(true);
-        }
-        let bytes = self.reader.read_chunk(chunk_id)?;
-        let token = self.token.clone().context("Sin credencial")?;
-        let base = crate::config::validate_hub_url(
-            self.settings.hub_url.as_deref().context("Sin hub")?,
-            self.development,
-        )?;
-        let generation = self.state.generation();
-        let events = self.work.work_events.clone();
-        let job_id = job.id.clone();
-        let admission = if self.recording_active() || !self.capture.pending_seals.is_empty() {
-            Some(
-                self.store_actor
-                    .begin_run(move |store| Ok(store.update_job(&job_id, JobState::Running)?))?,
-            )
-        } else {
-            self.store_actor
-                .run(move |store| Ok(store.update_job(&job_id, JobState::Running)?))
-                .await?;
-            None
-        };
-        self.work
-            .worker
-            .start_logical(generation, self.turn.op.clone(), (), move |ticket| {
-                tokio::spawn(async move {
-                    let result: Result<()> = async {
-                        if let Some(receipt) = admission {
-                            receipt.wait().await?;
-                        }
-                        let mut request = hub::request(
-                            reqwest::Method::PUT,
-                            base.join(&format!("v1/chunks/{}", receipt.metadata.id))?,
-                            Some(&token),
-                            ticket.op(),
-                        )?
-                        .header("Content-Type", "audio/wav")
-                        .header("X-Orbit-Recording", &receipt.metadata.recording_id)
-                        .header("X-Orbit-Track", &receipt.metadata.track)
-                        .header("X-Orbit-Sequence", receipt.metadata.sequence)
-                        .header("X-Orbit-Started-At-Ms", receipt.metadata.started_at_ms)
-                        .header("X-Orbit-Monotonic-Ns", receipt.metadata.monotonic_ns)
-                        .header("X-Orbit-First-Sample", receipt.metadata.first_sample)
-                        .header("X-Orbit-Frames", receipt.metadata.frames)
-                        .header("X-Orbit-Sample-Rate", receipt.metadata.sample_rate)
-                        .header("X-Orbit-Channels", receipt.metadata.channels)
-                        .header("X-Orbit-SHA256", &receipt.sha256);
-                        if let Some(epoch) = &receipt.metadata.capture_epoch_id {
-                            request = request.header("X-Orbit-Capture-Epoch-Id", epoch);
-                        }
-                        let response =
-                            crate::retry::check_response(request.body(bytes).send().await?).await?;
-                        let ack = hub::bounded_json(response).await?;
-                        if ack["durable"] != true
-                            || ack["sha256"] != receipt.sha256
-                            || ack["chunk_id"] != receipt.metadata.id
-                        {
-                            bail!("El servidor no confirmó un recibo durable válido");
-                        }
-                        Ok(())
-                    }
-                    .await;
-                    crate::daemon::deliver_work(
-                        &events,
-                        WorkResult::Store(crate::daemon::StoreWork::Uploaded {
-                            ticket,
-                            job_id: job.id,
-                            result,
-                        }),
-                    )
-                    .await;
-                })
-            })
-            .context("No se pudo reservar la subida del fragmento")?;
-        Ok(true)
-    }
-
     async fn on_work_transcribed(
         &mut self,
         source: audio::VoiceSource,
@@ -448,180 +224,21 @@ impl Runtime {
         Ok(())
     }
 
-    async fn on_work_uploaded(&mut self, job_id: String, result: Result<()>) -> Result<()> {
-        // This transfer has delivered its outcome; the settle above already
-        // released the single worker before any fallible local receipt
-        // write: a finished handle must not block the queue after a
-        // recoverable disk error. Running/Unknown durable jobs remain
-        // eligible for idempotent PUT/finalize reconciliation; no prompt is
-        // replayed here.
-        let succeeded = result.is_ok();
-        self.work
-            .retry_gate
-            .finish(succeeded, std::time::Instant::now());
-        let stored_job = self
-            .reader
-            .get_job(&job_id)?
-            .context("Recibo sin trabajo local")?;
-        let failure = result.as_ref().err().map(UploadFailure::of);
-        if let Some(UploadFailure::OutOfSpace(_)) = &failure {
-            self.work
-                .retry_gate
-                .hold(HUB_FULL_RETRY, std::time::Instant::now());
-        }
-        let notice = failure
-            .as_ref()
-            .and_then(|failure| failure.notice(&stored_job.kind));
-        if stored_job.kind == "chunk_upload"
-            && let Some(recording) = stored_job.payload["metadata"]["recording_id"].as_str()
-        {
-            self.work.finalize_ready.remove(recording);
-        }
-        let next_state = match &failure {
-            None => JobState::Succeeded,
-            // Kept on the Mac and never sent again: the hub's answer to the
-            // same bytes would not change. A refused chunk no longer holds
-            // its meeting's closure (`finalize_is_ready`).
-            Some(UploadFailure::Refused { .. }) => JobState::Blocked,
-            Some(_) => JobState::RetryWait,
-        };
-        let chunk_id = (succeeded && stored_job.kind == "chunk_upload")
-            .then(|| {
-                stored_job.payload["metadata"]["id"]
-                    .as_str()
-                    .map(str::to_owned)
-            })
-            .flatten();
-        let root = self.paths.root.clone();
-        if stored_job.kind == "chunk_upload"
-            && (self.recording_active() || !self.capture.pending_seals.is_empty())
-        {
-            let error = result.as_ref().err().map(|error| format!("{error:#}"));
-            let updated_job = job_id.clone();
-            let settlement = self.store_actor.begin_run(move |store| {
-                store.update_job(&updated_job, next_state)?;
-                if let Some(id) = chunk_id {
-                    prune_uploaded_audio(store, &id, &root);
-                }
-                Ok(())
-            })?;
-            let events = self.work.work_events.clone();
-            self.work
-                .worker
-                .start_logical(
-                    self.state.generation(),
-                    self.turn.op.clone(),
-                    (),
-                    move |ticket| {
-                        tokio::spawn(async move {
-                            let result = settlement.wait().await.map(|_| ()).with_context(|| {
-                                format!("No se pudo guardar el resultado de subida {job_id}")
-                            });
-                            // This send waits off the daemon loop, on a
-                            // worker, so a slow actor cannot hold IPC. Its failure
-                            // has no local recovery to check: it only happens when
-                            // the receiver that owns the runtime is gone, the
-                            // settlement above is already durable, and there is no
-                            // loop left to wake.
-                            crate::daemon::deliver_work(
-                                &events,
-                                WorkResult::Store(crate::daemon::StoreWork::UploadSettled {
-                                    ticket,
-                                    succeeded,
-                                    error,
-                                    notice,
-                                    result,
-                                }),
-                            )
-                            .await;
-                        })
-                    },
-                )
-                .context("No se pudo reservar la espera del resultado de subida")?;
-            return Ok(());
-        }
-        if succeeded && stored_job.kind == "recording_finalize" {
-            let recording = stored_job.payload["recording_id"]
-                .as_str()
-                .context("Cierre sin identidad")?;
-            // The hub has it whole and asks for its note itself;
-            // the list reads it from there.
-            self.recording_uploaded(recording);
-        }
-        let updated_job = job_id.clone();
-        self.store_actor
-            .run(move |store| {
-                store.update_job(&updated_job, next_state)?;
-                if let Some(id) = chunk_id {
-                    prune_uploaded_audio(store, &id, &root);
-                }
-                Ok(())
-            })
-            .await?;
-        if let Err(error) = result {
-            self.log("upload_failed", &[("error", &format!("{error:#}"))]);
-            self.say_upload_failure(notice);
-        }
-        if succeeded {
-            self.schedule_upload().await?;
-        }
-        Ok(())
-    }
-
-    async fn on_work_upload_settled(
-        &mut self,
-        succeeded: bool,
-        error: Option<String>,
-        notice: Option<Notice>,
-        result: Result<()>,
-    ) -> Result<()> {
-        result?;
-        if succeeded {
-            self.schedule_upload().await?;
-        } else if let Some(error) = error {
-            self.log("upload_failed", &[("error", &error)]);
-            self.say_upload_failure(notice);
-        }
-        Ok(())
-    }
-
-    /// A failed transfer is said once while it lasts: the same refusal on
-    /// every retry would push everything else out of the notices. A
-    /// transient one (network, timeout, the hub's 5xx) stays silent.
-    fn say_upload_failure(&mut self, notice: Option<Notice>) {
-        match notice {
-            Some(notice) => {
-                self.say_once(notice);
-            }
-            None => self.say(NoticeCode::UploadRetrying),
-        }
-    }
-
-    async fn on_work_sealed(&mut self, recording: String, sequence: u64) -> Result<()> {
-        let id = self
-            .capture
-            .pending_seals
-            .iter()
-            .find(|segment| {
-                segment.metadata.recording_id == recording && segment.metadata.sequence == sequence
-            })
-            .map(|segment| segment.metadata.id.clone());
-        if let Some(id) = id
-            && self.apply_sealed_receipt(&id, &recording, sequence)
-        {
-            self.defer_sealed_snapshot()?;
-        }
-        // Outside the `if`. This used to be the only place that
-        // resumed a deferred finish, and it only ran when this path was
-        // the one that applied the receipt. When `collect_ready_seals`
-        // had already taken the same completion there was no `id`, the
-        // resume never happened, and the recording was interrupted
-        // fifteen seconds later for a confirmation it had already had.
+    pub(super) async fn on_work_sealed(&mut self) -> Result<()> {
+        // The receipt is counted whoever took it from the writer first: this
+        // wake-up, the collector of a later seal or the capture task.
+        self.collect_ready_seals(sealing::OPPORTUNISTIC_RECEIPT_WAIT, false)?;
+        // Outside any condition. This used to be the only place that resumed
+        // a deferred finish, and it only ran when this path was the one that
+        // applied the receipt. When the collector had already taken the same
+        // completion the resume never happened, and the recording was
+        // interrupted fifteen seconds later for a confirmation it had
+        // already had.
         self.resume_deferred_drain().await?;
         Ok(())
     }
 
-    async fn on_work_store_problem(&mut self, message: String) -> Result<()> {
+    pub(super) async fn on_work_store_problem(&mut self, message: String) -> Result<()> {
         // Said once while it lasts: the age the message carries changes on
         // every report, the problem does not.
         self.log("store_problem", &[("message", &message)]);
@@ -661,112 +278,5 @@ impl Runtime {
     ) -> Result<()> {
         self.computer_event(&ticket, *event).await?;
         Ok(())
-    }
-}
-
-fn prune_uploaded_audio(store: &mut Store, id: &str, root: &std::path::Path) {
-    let log = crate::diagnostics::DiagnosticLog::in_root(root);
-    match store.prune_uploaded_chunk(id) {
-        Ok(Some(bytes)) => log.record(
-            "uploaded_chunk_deleted",
-            &[("chunks", "1"), ("bytes", &bytes.to_string())],
-        ),
-        Ok(None) => {}
-        Err(error) => log.record(
-            "uploaded_chunk_delete_failed",
-            &[
-                ("chunks", "0"),
-                ("pending_chunks", "1"),
-                ("error", &error.to_string()),
-            ],
-        ),
-    }
-}
-
-/// How long uploads wait after the hub said it has no room (507). Space does
-/// not come back in seconds: someone frees or grows the hub's storage. One
-/// try every five minutes keeps the Mac from sending a one-second chunk every
-/// minute to a full disk all day, and still resumes within five minutes of
-/// space returning. The audio stays on the Mac meanwhile; nothing is dropped.
-const HUB_FULL_RETRY: std::time::Duration = std::time::Duration::from_secs(300);
-
-/// What a failed transfer means for its job and for the person.
-enum UploadFailure {
-    /// The network, a timeout or the hub's 5xx: retried with the gate's
-    /// backoff, silently, as before.
-    Transient,
-    /// The hub refuses until something is fixed on this side: 401 (pair
-    /// this Mac again), 404 (a proxy or a hub mid-deploy without the route).
-    /// Retried with the gate's backoff, and said with its status.
-    UntilFixed { status: u16, code: Option<String> },
-    /// The hub can never take these bytes: 409 (`recording_finalized`,
-    /// `chunk_conflict`: the hub keeps an identical copy idempotently, so a
-    /// 409 is never a lost receipt), 403 (this Mac revoked), 400, 413, 415,
-    /// 422. Kept on the Mac, said, and declared lost in the closure.
-    Refused { status: u16, code: Option<String> },
-    /// The hub has no room (507): said with its numbers, retried slowly.
-    OutOfSpace(crate::retry::OutOfSpace),
-}
-
-impl UploadFailure {
-    fn of(error: &anyhow::Error) -> Self {
-        if let Some(full) = error.downcast_ref::<crate::retry::OutOfSpace>() {
-            return Self::OutOfSpace(full.clone());
-        }
-        let Some(crate::retry::Refused(status)) = error.downcast_ref::<crate::retry::Refused>()
-        else {
-            return Self::Transient;
-        };
-        let code = error
-            .downcast_ref::<crate::retry::HubCode>()
-            .map(|code| code.0.clone());
-        match status {
-            401 | 404 => Self::UntilFixed {
-                status: *status,
-                code,
-            },
-            _ => Self::Refused {
-                status: *status,
-                code,
-            },
-        }
-    }
-
-    /// The notice for a job of `kind` (`chunk_upload`, `recording_finalize`).
-    fn notice(&self, kind: &str) -> Option<Notice> {
-        let step = |notice: Notice| notice.with_token(NoticeKey::Step, kind);
-        let coded = |notice: Notice, status: u16, code: &Option<String>| {
-            let notice = step(notice).with(NoticeKey::Status, status);
-            match code {
-                Some(code) => notice.with_token(NoticeKey::Code, code),
-                None => notice,
-            }
-        };
-        match self {
-            Self::Transient => None,
-            Self::UntilFixed { status, code } => Some(coded(
-                Notice::new(NoticeCode::UploadRefusedRetrying),
-                *status,
-                code,
-            )),
-            Self::Refused { status, code } => {
-                Some(coded(Notice::new(NoticeCode::UploadRefused), *status, code))
-            }
-            Self::OutOfSpace(full) => {
-                let mut notice = step(Notice::new(NoticeCode::HubStorageFull))
-                    .with_token(NoticeKey::Code, &full.code)
-                    .with(NoticeKey::Status, 507_u16);
-                if let Some(used) = full.used_bytes {
-                    notice = notice.with(NoticeKey::Bytes, used);
-                }
-                if let Some(max) = full.max_bytes {
-                    notice = notice.with(NoticeKey::MaxBytes, max);
-                }
-                if let Some(free) = full.free_bytes {
-                    notice = notice.with(NoticeKey::Remaining, free);
-                }
-                Some(notice)
-            }
-        }
     }
 }
