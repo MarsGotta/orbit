@@ -1,0 +1,25 @@
+/* A command that deletes: what it deletes, on the warning colour. */
+.deletes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--o-radius-md);
+  background: var(--o-warnSoft);
+  font-size: 13px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--o-warn);
+}
+
+/* Why it offers only «Permitir una vez», beside it. */
+.oneAtATime {
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+}

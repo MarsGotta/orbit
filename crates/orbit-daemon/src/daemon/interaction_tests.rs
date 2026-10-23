@@ -388,6 +388,7 @@ async fn submitting_snapshot_keeps_new_turn_and_discards_interrupted_reply() -> 
         .command(Command::Chat {
             attachments: Vec::new(),
             text: "E2E_SLOW".into(),
+            primary: false,
         })
         .await?;
     let old_send = hub_frames.recv().await.context("old chat.send absent")?;
@@ -413,6 +414,7 @@ async fn submitting_snapshot_keeps_new_turn_and_discards_interrupted_reply() -> 
         .command(Command::Chat {
             attachments: Vec::new(),
             text: "E2E_NEW".into(),
+            primary: false,
         })
         .await?;
     let new_send = hub_frames.recv().await.context("new chat.send absent")?;
@@ -1426,6 +1428,72 @@ async fn the_agents_choices_reach_the_pending_question() -> Result<()> {
         .context("missing pending")?;
     assert_eq!(pending.choices, ["once", "deny", "session", "always"]);
     assert!(pending.questions.is_empty());
+    Ok(())
+}
+
+/// A command that deletes: the hub offers it once or no and says what it
+/// deletes. The Mac keeps that, from the event and from a snapshot alone,
+/// and refuses a wider answer before anything leaves. What it cannot read
+/// of `deletes` is not known, never «deletes nothing».
+#[tokio::test]
+async fn a_command_that_deletes_is_pending_with_what_it_deletes() -> Result<()> {
+    let deletes = |value: Value| {
+        json!({"request_id":"borrar","kind":"approval","state":"pending","expires_at":null,
+            "description":"rm semana-41.csv semana-42.csv","choices":["once","deny"],
+            "deletes":value})
+    };
+    let deleting = |paths| Some(orbit_core::Deletion { paths });
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _) = fixture(directory.path())?;
+    in_turn(&mut runtime);
+    for (sent, kept) in [
+        (json!(null), None),
+        (json!({}), deleting(None)),
+        (json!({"paths":-1}), deleting(None)),
+        (json!({"paths":"dos"}), deleting(None)),
+        (json!({"paths":2}), deleting(Some(2))),
+    ] {
+        runtime.state.durable.pending_approval = None;
+        let mut event = deletes(sent.clone());
+        event["session_id"] = json!("selected");
+        runtime
+            .hub_event(HubEvent::Frame(
+                json!({"v":1,"id":TURN,"event":"approval.required","data":event}),
+            ))
+            .await?;
+        let pending = runtime.state.durable.pending_approval.clone();
+        assert_eq!(
+            pending.context("pending from the event")?.deletes,
+            kept,
+            "{sent}"
+        );
+
+        runtime.state.durable.pending_approval = None;
+        runtime
+            .reconcile_snapshot(&snapshot(1, "selected", json!([deletes(sent.clone())])))
+            .await?;
+        let pending = runtime.state.durable.pending_approval.clone();
+        assert_eq!(
+            pending.context("pending from the snapshot")?.deletes,
+            kept,
+            "{sent}"
+        );
+    }
+    let (sender, mut commands) = tokio::sync::mpsc::channel(4);
+    runtime.hub.install(sender);
+    for choice in ["session", "always"] {
+        let refused = runtime
+            .command(orbit_core::protocol::Command::Approval {
+                approved: true,
+                choice: Some(choice.into()),
+            })
+            .await;
+        assert!(refused.is_err(), "{choice}");
+    }
+    assert!(
+        commands.try_recv().is_err(),
+        "nothing refused reached the hub"
+    );
     Ok(())
 }
 

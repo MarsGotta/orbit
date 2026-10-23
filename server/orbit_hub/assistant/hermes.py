@@ -53,6 +53,7 @@ from .backend import (
     UnreadableReceipt,
     UnreadableUpdate,
 )
+from .deletion import command_deletion
 from .speech import MAX_SPEECH_CLIP_BYTES, SpeechClip
 
 if TYPE_CHECKING:
@@ -304,9 +305,16 @@ class HermesConnection:
                     or payload.get("command")
                     or "Hermes solicita autorización"
                 )
+                command = payload.get("command")
                 await self.on_event(
                     PermissionRequested(
-                        session_id, PermissionRequest(request_id, description, _choices(payload))
+                        session_id,
+                        PermissionRequest(
+                            request_id,
+                            description,
+                            _choices(payload),
+                            command_deletion(command) if isinstance(command, str) else None,
+                        ),
                     )
                 )
         elif kind == "clarify.request":

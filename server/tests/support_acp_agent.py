@@ -155,6 +155,17 @@ class InventedAgent:
             ],
         )
 
+    async def ask_to_run(self, session_id, tool_call):
+        return await self.client.request_permission(
+            session_id=session_id,
+            tool_call=tool_call,
+            options=[
+                PermissionOption(option_id="si-una-vez", name="Permitir", kind="allow_once"),
+                PermissionOption(option_id="siempre", name="Siempre", kind="allow_always"),
+                PermissionOption(option_id="no", name="Rechazar", kind="reject_once"),
+            ],
+        )
+
     async def refused(self, kind, call):
         try:
             await call
@@ -190,6 +201,29 @@ class InventedAgent:
             if block.type == "image"
         ]
         self.record("session/prompt", session_id=session_id, text=text, images=images)
+        if "borra" in text:
+            # As claude-agent-acp asks for Bash, then as codex-acp for its shell.
+            for call_id, command in (
+                ("llamada-bash", "rm semana-41.csv semana-42.csv"),
+                ("llamada-shell", ["bash", "-lc", "rm semana-40.csv"]),
+            ):
+                answer = await self.ask_to_run(
+                    session_id,
+                    ToolCallUpdate(
+                        tool_call_id=call_id,
+                        title="Borrar archivos",
+                        kind="execute",
+                        raw_input={"command": command},
+                    ),
+                )
+                self.record(
+                    "permission",
+                    call=call_id,
+                    outcome=answer.outcome.model_dump(
+                        mode="json", by_alias=True, exclude_none=True
+                    ),
+                )
+            return PromptResponse(stop_reason="end_turn")
         if "nota" in text:
             await self.refused(
                 "fs/read_text_file",

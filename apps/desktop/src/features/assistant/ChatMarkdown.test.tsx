@@ -23,21 +23,35 @@ describe("code blocks", () => {
     copied.texts = [];
     render(<ChatMarkdown source={`Mira:\n\n${CODE}\n\nListo.`} />);
     const block = screen.getByRole("figure");
-    expect(within(block).getByText("ts")).toBeTruthy();
+    expect(within(block).getByText("TypeScript")).toBeTruthy();
     expect(block.querySelector("pre code")?.textContent).toBe(
       "const total = 3;\nconsole.log(total);",
     );
     await userEvent.click(within(block).getByRole("button", { name: "Copiar código" }));
     expect(copied.texts).toEqual(["const total = 3;\nconsole.log(total);"]);
-    expect(await within(block).findByText("✓ Copiado")).toBeTruthy();
+    expect(await within(block).findByRole("button", { name: "Copiado" })).toBeTruthy();
   });
 
   it("keeps a block's state when the answer is drawn again unchanged", async () => {
     const { rerender } = render(<ChatMarkdown source={CODE} />);
     await userEvent.click(screen.getByRole("button", { name: "Copiar código" }));
-    expect(await screen.findByText("✓ Copiado")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Copiado" })).toBeTruthy();
     rerender(<ChatMarkdown source={CODE} />);
-    expect(screen.getByText("✓ Copiado")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Copiado" })).toBeTruthy();
+  });
+
+  it("names the file the fence names, after its language", () => {
+    for (const fence of [
+      "```python exportar_tarifas.py",
+      "```python:exportar_tarifas.py",
+      '```python title="exportar_tarifas.py"',
+    ]) {
+      const { unmount } = render(<ChatMarkdown source={`${fence}\nimport csv\n\`\`\``} />);
+      const caption = screen.getByRole("figure").querySelector("figcaption") as HTMLElement;
+      expect(within(caption).getByText("Python"), fence).toBeTruthy();
+      expect(within(caption).getByText("exportar_tarifas.py"), fence).toBeTruthy();
+      unmount();
+    }
   });
 
   it("colours a block with a known language once the highlighter loads", async () => {
@@ -62,6 +76,48 @@ describe("code blocks", () => {
     expect(container.querySelector("blockquote")?.textContent).toContain("Citado");
     expect(container.querySelector("hr")).not.toBeNull();
     expect(screen.queryByRole("figure")).toBeNull();
+  });
+});
+
+describe("a command for you to run", () => {
+  it("shows its $ and copies the command without it", async () => {
+    copied.texts = [];
+    render(
+      <ChatMarkdown source={"Ejecuta:\n\n```sh\n$ python3 exportar_tarifas.py --semana 43\n```"} />,
+    );
+    const block = screen.getByRole("figure", { name: "Comando" });
+    expect(within(block).getByText("$").getAttribute("aria-hidden")).toBe("true");
+    expect(within(block).getByText("python3 exportar_tarifas.py --semana 43")).toBeTruthy();
+    await userEvent.click(within(block).getByRole("button", { name: "Copiar comando" }));
+    expect(copied.texts).toEqual(["python3 exportar_tarifas.py --semana 43"]);
+    expect(await within(block).findByRole("button", { name: "Copiado" })).toBeTruthy();
+  });
+
+  it("puts the $ before a one-line shell block, and before each of several commands", async () => {
+    copied.texts = [];
+    const { unmount } = render(<ChatMarkdown source={"```bash\npnpm test\n```"} />);
+    let block = screen.getByRole("figure", { name: "Comando" });
+    expect(within(block).getAllByText("$")).toHaveLength(1);
+    await userEvent.click(within(block).getByRole("button", { name: "Copiar comando" }));
+    unmount();
+    render(<ChatMarkdown source={"```zsh\n$ cd Piloto\n$ pnpm test\n```"} />);
+    block = screen.getByRole("figure", { name: "Comando" });
+    expect(within(block).getAllByText("$")).toHaveLength(2);
+    await userEvent.click(within(block).getByRole("button", { name: "Copiar comando" }));
+    expect(copied.texts).toEqual(["pnpm test", "cd Piloto\npnpm test"]);
+  });
+
+  it("leaves a shell script, or output after a $, as code", () => {
+    for (const source of [
+      "```sh\nfor f in *.csv; do\n  echo $f\ndone\n```",
+      "```bash\ncd Piloto\npnpm test\n```",
+      "```console\n$ ls\nnotas.md\n```",
+    ]) {
+      const { unmount } = render(<ChatMarkdown source={source} />);
+      expect(screen.queryByRole("figure", { name: "Comando" }), source).toBeNull();
+      expect(screen.getByRole("button", { name: "Copiar código" }), source).toBeTruthy();
+      unmount();
+    }
   });
 });
 

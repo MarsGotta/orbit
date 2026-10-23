@@ -65,6 +65,7 @@ fn chat(text: &str, attachments: Vec<Attachment>) -> Command {
     Command::Chat {
         text: text.into(),
         attachments,
+        primary: false,
     }
 }
 

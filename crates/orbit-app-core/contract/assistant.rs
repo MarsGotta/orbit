@@ -121,6 +121,10 @@ app_type! {
             id: String,
             text: String,
             choices: Vec<String>,
+            /// What runs deletes files: it is offered one at a time.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            #[ts(optional)]
+            deletes: Option<ChatDeletion>,
         },
         Clarify {
             id: String,
@@ -128,6 +132,15 @@ app_type! {
             choices: Vec<String>,
             questions: Vec<ChatQuestion>,
         },
+    }
+}
+
+app_type! {
+    /// A command that deletes; `paths`, how many files it names, when known.
+    pub struct ChatDeletion {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub paths: Option<u32>,
     }
 }
 

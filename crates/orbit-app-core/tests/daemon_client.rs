@@ -1821,6 +1821,7 @@ async fn real_daemon_publishes_chat_deltas_and_resolves_pending_interactions()
             orbit_core::protocol::Command::Chat {
                 attachments: Vec::new(),
                 text: "Prepárame la daily".into(),
+                primary: false,
             },
         )))
         .await?;
@@ -1888,6 +1889,7 @@ async fn real_daemon_publishes_chat_deltas_and_resolves_pending_interactions()
             orbit_core::protocol::Command::Chat {
                 attachments: Vec::new(),
                 text: "Actualiza la agenda".into(),
+                primary: false,
             },
         )))
         .await?;
@@ -1915,6 +1917,7 @@ async fn real_daemon_publishes_chat_deltas_and_resolves_pending_interactions()
             orbit_core::protocol::Command::Chat {
                 attachments: Vec::new(),
                 text: "Añade el bloque".into(),
+                primary: false,
             },
         )))
         .await?;

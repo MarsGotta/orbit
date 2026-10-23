@@ -40,6 +40,7 @@ from orbit_hub.assistant.backend import (
     TextBlock,
     TurnFailed,
 )
+from orbit_hub.assistant.deletion import Deletion
 from orbit_hub.errors import HubError
 
 AGENT = Path(__file__).with_name("support_acp_agent.py")
@@ -437,6 +438,34 @@ async def test_an_acp_permission_offers_the_agents_options_and_answers_the_chose
     assert receipt.applied is True
     [permission] = records(tmp_path, "permission")
     assert permission["outcome"] == {"outcome": "selected", "optionId": "siempre"}
+
+
+async def test_an_acp_command_that_deletes_says_so_with_its_permission(environment, tmp_path):
+    settings, _store, _speech = environment
+    events = Events()
+    connection = backend_for(settings, tmp_path).connection("equipo-1", "Mac", events)
+    await connection.open()
+    try:
+        opened = await connection.create_session()
+        await connection.prompt(opened.session_id, [TextBlock("borra las semanas viejas")])
+        asked = []
+        for _ in range(2):
+            request = await events.wait_for(
+                lambda e: isinstance(e, PermissionRequested) and e not in asked
+            )
+            asked.append(request)
+            await connection.respond_permission(
+                opened.session_id, request.request.request_id, choice="once"
+            )
+        await events.wait_for(completed)
+    finally:
+        await connection.close()
+    assert [request.request.deletes for request in asked] == [
+        Deletion(paths=2),
+        Deletion(paths=None),
+    ]
+    # The adapter tells what the agent offers; the runtime narrows it.
+    assert asked[0].request.choices == ("once", "always", "deny")
 
 
 async def test_a_cancelled_turn_ends_interrupted_and_retires_its_permission(environment, tmp_path):

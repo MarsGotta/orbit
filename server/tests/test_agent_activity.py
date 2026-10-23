@@ -198,8 +198,9 @@ async def test_an_approval_offers_hermes_real_choices_and_answers_the_one_chosen
         "approval.request",
         {
             "request_id": "aprobar-1",
-            "command": "rm -r /tmp/prueba",
-            "description": "Borrar la carpeta de pruebas",
+            # A command that deletes is offered once or no (test_approval_deletes).
+            "command": "mkdir -p /tmp/prueba",
+            "description": "Crear la carpeta de pruebas",
             "choices": ["once", "deny", "session", "always"],
         },
     )

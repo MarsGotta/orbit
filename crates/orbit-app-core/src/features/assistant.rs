@@ -96,6 +96,9 @@ pub fn project(input: &FeatureInput<'_>) -> View {
                 id: pending.request_id.clone(),
                 text: pending.description.clone(),
                 choices: pending.choices.clone(),
+                deletes: pending.deletes.map(|deletes| crate::ChatDeletion {
+                    paths: deletes.paths,
+                }),
             }
         }
     });

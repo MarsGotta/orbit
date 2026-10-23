@@ -36,6 +36,7 @@ fn worst_case(runtime: &mut Runtime) -> anyhow::Result<()> {
         clarification: false,
         choices: Vec::new(),
         questions: Vec::new(),
+        deletes: None,
     });
     runtime.state.durable.recording = Some(Recording {
         id: "00000000-0000-4000-8000-000000000000".into(),

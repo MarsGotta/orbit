@@ -30,8 +30,9 @@ fn the_turn_and_approval_are_projected_without_assuming_unknown_roles() {
             request_id: "approval-1".into(),
             description: "Permitir la acción".into(),
             clarification: false,
-            choices: Vec::new(),
+            choices: vec!["once".into(), "deny".into()],
             questions: Vec::new(),
+            deletes: Some(orbit_core::Deletion { paths: Some(2) }),
         }),
         voice_active: false,
         pending_voice: Vec::new(),
@@ -78,7 +79,8 @@ fn the_turn_and_approval_are_projected_without_assuming_unknown_roles() {
         Some(ChatPending::Approval {
             id: "approval-1".into(),
             text: "Permitir la acción".into(),
-            choices: Vec::new(),
+            choices: vec!["once".into(), "deny".into()],
+            deletes: Some(crate::ChatDeletion { paths: Some(2) }),
         })
     );
 }
@@ -110,6 +112,7 @@ fn the_agents_questions_and_its_work_are_projected_as_they_came() {
                 choices: vec!["Norte".into(), "Sur".into()],
                 multi_select: false,
             }],
+            deletes: None,
         }),
         voice_active: false,
         pending_voice: Vec::new(),

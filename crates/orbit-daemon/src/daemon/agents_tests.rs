@@ -86,6 +86,7 @@ async fn ask(runtime: &mut Runtime, frames: &mut mpsc::Receiver<Value>) -> Resul
         .command(Command::Chat {
             attachments: Vec::new(),
             text: "pregunta sintética".into(),
+            primary: false,
         })
         .await?;
     let params = chat_send(frames).await?;
@@ -349,9 +350,10 @@ async fn the_spoken_question_goes_to_the_agent_named() -> Result<()> {
     Ok(())
 }
 
-/// A question from a helper that knows one name goes to the open conversation.
+/// A question that names nobody goes to the primary, whoever the open
+/// conversation is with: a helper that knows one name heard the primary's.
 #[tokio::test]
-async fn a_question_without_a_name_stays_in_the_open_conversation() -> Result<()> {
+async fn a_question_without_a_name_goes_to_the_primary() -> Result<()> {
     let (_directory, mut runtime, mut hub_frames, _helper) = with_hub()?;
     ready(&mut runtime, two_agents()).await?;
     meeting(&mut runtime);
@@ -363,8 +365,75 @@ async fn a_question_without_a_name_stays_in_the_open_conversation() -> Result<()
         .await?;
     runtime.native_event(heard(None)).await?;
     let params = chat_send(&mut hub_frames).await?;
-    assert_eq!(params["agent_id"], "atlas");
-    assert_eq!(params["session_id"], SESSION);
+    assert_eq!(params["agent_id"], "deimos");
+    assert!(params.get("session_id").is_none(), "{params}");
+    assert_eq!(runtime.state.agent_id(), Some("deimos"));
+    Ok(())
+}
+
+/// A name the hub no longer lists (renamed or removed while the phrase was
+/// heard) asks nobody: neither the open conversation nor the primary, which
+/// was not called. Only its cause is recorded.
+#[tokio::test]
+async fn a_name_no_longer_listed_asks_nobody() -> Result<()> {
+    let (_directory, mut runtime, mut hub_frames, _helper) = with_hub()?;
+    ready(&mut runtime, two_agents()).await?;
+    meeting(&mut runtime);
+    runtime.native_event(heard(Some("Vega"))).await?;
+    assert!(hub_frames.try_recv().is_err(), "nothing reached the hub");
+    assert!(runtime.state.durable.active_request.is_none());
+    Ok(())
+}
+
+/// The floating panel's «Preguntar a {principal}» names nobody: it goes to
+/// the primary even while the open conversation is another agent's.
+#[tokio::test]
+async fn the_panels_question_goes_to_the_primary() -> Result<()> {
+    let (_directory, mut runtime, mut hub_frames, _helper) = with_hub()?;
+    ready(&mut runtime, two_agents()).await?;
+    meeting(&mut runtime);
+    runtime
+        .command(Command::SessionOpen {
+            id: SESSION.into(),
+            agent_id: Some("atlas".into()),
+        })
+        .await?;
+    runtime
+        .command(Command::MeetingAsk {
+            question: "¿Qué se decidió?".into(),
+            minutes: 5,
+        })
+        .await?;
+    let params = chat_send(&mut hub_frames).await?;
+    assert_eq!(params["agent_id"], "deimos");
+    assert_eq!(params["meeting"]["recording_id"], RECORDING);
+    Ok(())
+}
+
+/// «Preguntar» in a note names nobody: the turn goes to the primary, in a
+/// conversation of its own when the open one is another agent's, and in the
+/// open one when it is the primary's.
+#[tokio::test]
+async fn a_turn_for_the_primary_opens_its_conversation_only_when_needed() -> Result<()> {
+    let (_directory, mut runtime, mut hub_frames, _helper) = with_hub()?;
+    ready(&mut runtime, two_agents()).await?;
+    runtime
+        .command(Command::SessionOpen {
+            id: SESSION.into(),
+            agent_id: Some("atlas".into()),
+        })
+        .await?;
+    runtime
+        .command(Command::Chat {
+            attachments: Vec::new(),
+            text: "Quiero preguntar sobre la nota «Revisión sintética».".into(),
+            primary: true,
+        })
+        .await?;
+    let params = chat_send(&mut hub_frames).await?;
+    assert_eq!(params["agent_id"], "deimos");
+    assert!(params.get("session_id").is_none(), "{params}");
+    assert_eq!(runtime.state.agent_id(), Some("deimos"));
     Ok(())
 }
 
@@ -579,6 +648,7 @@ async fn turn_in(
         .command(Command::Chat {
             attachments: Vec::new(),
             text: "pregunta sintética".into(),
+            primary: false,
         })
         .await?;
     let params = chat_send(frames).await?;
@@ -641,6 +711,7 @@ async fn a_new_turn_does_not_carry_the_previous_turns_work() -> Result<()> {
         .command(Command::Chat {
             attachments: Vec::new(),
             text: "otra pregunta sintética".into(),
+            primary: false,
         })
         .await?;
     chat_send(&mut frames).await?;
@@ -690,6 +761,7 @@ async fn an_interrupted_turns_work_ends() -> Result<()> {
         .command(Command::Chat {
             attachments: Vec::new(),
             text: "pregunta sintética".into(),
+            primary: false,
         })
         .await?;
     chat_send(&mut frames).await?;

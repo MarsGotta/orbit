@@ -36,6 +36,7 @@ from .assistant.backend import (
     UnreadableReceipt,
     UnreadableUpdate,
 )
+from .assistant.deletion import one_at_a_time
 from .attachments import Stored, turn_parts
 from .errors import render
 from .interactions import pending_data, public_receipt
@@ -575,6 +576,10 @@ class DeviceRuntime:
                 else ("clarify", "clarify.required")
             )
             request = event.request
+            if isinstance(request, PermissionRequest) and request.deletes is not None:
+                # One command that deletes at a time: no `session` or
+                # `always`, here where the answer is checked.
+                request = replace(request, choices=one_at_a_time(request.choices))
             request_id = self.new_request_key(session_id, request.request_id)
             self.pending[request_id] = (session_id, kind, request)
             await self.publish(

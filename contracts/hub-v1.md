@@ -242,7 +242,16 @@ the hub's vocabulary: `once`, `session` (this conversation), `always`,
 `deny`. Hermes offers `once` and `deny` and, when allowed, `session` and
 `always`; an ACP agent's options are `once` (`allow_once`), `always`
 (`allow_always`) and `deny` (`reject_once`, else `reject_always`). `choices`
-absent means `once` and `deny`. The Mac answers with `approval.respond`
+absent means `once` and `deny`. A request whose command deletes files
+(`server/orbit_hub/assistant/deletion.py`: `rm`, `unlink`, `rmdir`, `shred`,
+`trash`, `git rm`/`git clean`, `find -delete`, also behind `sudo`, `xargs`,
+`sh -c` or in a chain; for ACP, also a tool call of kind `delete`) is approved
+one at a time: the hub offers only `once` and `deny` of what the agent
+offered, refuses `session` and `always` with `approval_not_allowed`, and adds
+`deletes` to `approval.required` and to its snapshot item, with `paths`, the
+number of files, when the command is one plain `rm` or `unlink` that names
+them (`{"paths":2}`; `{}` when not known). A 0.10 Mac ignores `deletes` and
+shows the two choices. The Mac answers with `approval.respond`
 `choice`; `approved` must agree with it (`deny` is the only refusal, since
 `approved:false` is what reaches the safety ledger), else the frame is
 refused with `approval_choice_mismatch` before anything else. A choice the

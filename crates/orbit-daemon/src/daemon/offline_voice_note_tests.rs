@@ -241,6 +241,7 @@ async fn a_failed_voice_note_survives_the_next_message() -> Result<()> {
         .command(Command::Chat {
             attachments: Vec::new(),
             text: "Otra pregunta sintética".into(),
+            primary: false,
         })
         .await?;
     // The hub answers that turn, as it does, so the next order is admitted.

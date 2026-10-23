@@ -229,17 +229,23 @@ impl Runtime {
             Command::Report { report } => self
                 .error_reports
                 .report(&report, std::time::Instant::now()),
+            // The panel's «Preguntar a {principal}» names nobody: the primary answers.
             Command::MeetingAsk { question, minutes } => {
+                let primary = self.settings.roster().default_agent_id().to_owned();
                 self.ask_meeting(
                     question,
                     minutes,
                     orbit_core::meeting_question::QuestionOrigin::Typed,
-                    None,
+                    Some(primary),
                 )
                 .await?
             }
             Command::MeetingQuestionClose { id } => self.close_meeting_question(&id),
-            Command::Chat { text, attachments } => {
+            Command::Chat {
+                text,
+                attachments,
+                primary,
+            } => {
                 if self.capture.buffer.voice.is_some()
                     || self.conversation.voice_task.active().is_some()
                 {
@@ -251,6 +257,16 @@ impl Runtime {
                     self.conversation.hub_attachments.as_ref(),
                     &attachments,
                 )?;
+                // Nobody named: the primary answers, in a conversation of its
+                // own when the open one is another agent's.
+                let default = self.settings.roster().default_agent_id().to_owned();
+                if primary && default != self.conversation_agent_id() {
+                    self.ensure_conversation_can_change()?;
+                    self.apply(Event::NewSession {
+                        agent_id: Some(default),
+                    })
+                    .await?;
+                }
                 self.apply(Event::Submit {
                     id: id(),
                     text,

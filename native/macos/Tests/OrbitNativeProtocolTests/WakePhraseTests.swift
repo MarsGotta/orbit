@@ -108,6 +108,62 @@ final class WakePhraseTests: XCTestCase {
         XCTAssertEqual(policy.voice(at: 13.5, speaking: false)?.name, "Deimos")
     }
 
+    /// «Oye» always carries a name: in any meeting one says «oye, una cosa…».
+    func testOyeWithoutANameOpensNothing() {
+        let names = ["Deimos", "Phobos", "Ares"]
+        for text in ["Oye, una cosa, ¿quién lleva el presupuesto?", "Oye.", "Oye", "Oye…",
+                     "¡Oye! ¿Lo apuntas?", "Hola, buenos días a todos.", "Oye, oye, espera.",
+                     "Oye, ¿y si lo dejamos para el martes?"] {
+            XCTAssertNil(WakePhrase.match(after: text, assistantNames: names), text)
+        }
+        var policy = SpokenQuestionPolicy(assistantNames: names)
+        XCTAssertNil(policy.heard(final("Oye, una cosa, ¿qué decidió Ana Pérez?", 0, 3)))
+        XCTAssertFalse(policy.listening)
+    }
+
+    /// Each assistant by its own name, and the match says which one.
+    func testEachAssistantIsCalledByItsName() {
+        let names = ["Deimos", "Phobos", "Ares"]
+        let cases: [(String, String, String)] = [
+            ("Oye Phobos, ¿cuántas filas tiene el CSV?", "Phobos", "¿cuántas filas tiene el CSV?"),
+            ("Oye, Ares: revisa la cláusula tres", "Ares", "revisa la cláusula tres"),
+            ("Hola Ares qué opinas", "Ares", "qué opinas"),
+            ("Vale. Oye, Phobos, resume lo último.", "Phobos", "resume lo último."),
+            ("Oye, Demos, ¿qué dijo Lucía?", "Deimos", "¿qué dijo Lucía?"),
+            ("Oye Deimos, resume", "Deimos", "resume"),
+            // Spanish writes the moon «Fobos»: the same name.
+            ("Oye, Fobos, resume", "Phobos", "resume"),
+            ("OYE FOBOS resume", "Phobos", "resume"),
+        ]
+        for (text, name, question) in cases {
+            XCTAssertEqual(WakePhrase.match(after: text, assistantNames: names),
+                           WakePhraseMatch(name: name, question: question), text)
+        }
+        XCTAssertEqual(WakePhrase.match(after: "Oye Fobos, resume", assistantNames: ["Fobos"]),
+                       WakePhraseMatch(name: "Fobos", question: "resume"))
+        XCTAssertEqual(WakePhrase.match(after: "Oye Phobos, resume", assistantNames: ["Fobos"]),
+                       WakePhraseMatch(name: "Fobos", question: "resume"))
+    }
+
+    /// A name said in the middle of a sentence, or inside another word, calls nobody.
+    func testANameInTheMiddleOfASentenceOrInsideAWordCallsNobody() {
+        let names = ["Deimos", "Phobos", "Ares"]
+        for text in [
+            "Te digo que oye, Phobos no lo sabe.",
+            "Y entonces Ares, que es el de los contratos, dijo que no.",
+            "Le pregunté: oye Ares, ¿lo firmas?",
+            "Oye, Phobosito, resume.",
+            "Oye Aresano, resume.",
+            "Oye, Deimosa, resume.",
+            "Oye, demos por cerrado esto.",
+            "Oye, fobia a las reuniones largas.",
+            "Oye Pares, resume.",
+            "Mares, resume.",
+        ] {
+            XCTAssertNil(WakePhrase.match(after: text, assistantNames: names), text)
+        }
+    }
+
     // MARK: - The question, from results and the microphone's level
 
     private func final(_ text: String, _ start: Double, _ end: Double) -> HeardSegment {

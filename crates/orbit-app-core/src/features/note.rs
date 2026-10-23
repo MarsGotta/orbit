@@ -137,6 +137,8 @@ pub(crate) fn map_command(
             Ok(DaemonCommand::Chat {
                 attachments: Vec::new(),
                 text: format!("Quiero preguntar sobre la nota «{title}» ({recording_id})."),
+                // Nobody named: the primary answers.
+                primary: true,
             })
         }
         NoteCommand::SpeakerRename {
@@ -193,6 +195,20 @@ mod mapping_tests {
             }))?),
             ..AppSnapshot::default()
         })
+    }
+
+    /// «Preguntar» in a note names nobody: the primary answers it.
+    #[test]
+    fn asking_about_a_note_goes_to_the_primary() -> Result<(), serde_json::Error> {
+        let mapped = map_command(
+            NoteCommand::AskOrbitAbout {
+                recording_id: RECORDING.into(),
+            },
+            &snapshot()?,
+        );
+        assert!(matches!(mapped,
+            Ok(Command::Chat { text, primary: true, .. }) if text.contains("«Comité»")));
+        Ok(())
     }
 
     #[test]

@@ -401,6 +401,7 @@ mod ipc_tests {
             &Command::Chat {
                 attachments: Vec::new(),
                 text: "SECRET_FIXTURE_CONVERSATION".into(),
+                primary: false,
             },
             Some(&diagnostics),
         );

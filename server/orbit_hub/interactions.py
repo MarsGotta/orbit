@@ -23,6 +23,8 @@ def pending_data(
     }
     if isinstance(request, PermissionRequest):
         result["description"] = request.description[:2048]
+        if request.deletes is not None:
+            result["deletes"] = request.deletes.public()
     else:
         result["question"] = request.question[:2048]
         questions = request.questions

@@ -5,6 +5,7 @@ import { useSpanish } from "../../i18n/AssistantCopy";
 import { es } from "../../i18n/es";
 import { Clarify, useAnswer, type Send } from "./Clarification";
 import styles from "./AssistantView.module.css";
+import own from "./PendingCard.module.css";
 
 // The design's order: the main choice first, the wider ones after, refusing last.
 const ORDER = ["once", "session", "always"];
@@ -14,13 +15,21 @@ function choiceLabel(choice: string): string {
   return (es.chat.choices as Record<string, string>)[choice] ?? choice;
 }
 
-/** The agent's choices in the design's order, «deny» apart. */
-function ordered(choices: string[]): { allow: string[]; deny: boolean } {
+/**
+ * The agent's choices in the design's order, «deny» apart. A command that
+ * deletes keeps only «once»: the hub already offers no other, and the card
+ * never shows a wider one.
+ */
+function ordered(choices: string[], deletes: boolean): { allow: string[]; deny: boolean } {
   // The agent named no choices: allow once or refuse, as a 0.9.0 Mac does.
   if (choices.length === 0) return { allow: [], deny: true };
   const known = ORDER.filter((choice) => choices.includes(choice));
   const other = choices.filter((choice) => choice !== "deny" && !ORDER.includes(choice));
-  return { allow: [...known, ...other], deny: choices.includes("deny") };
+  const allow = [...known, ...other];
+  return {
+    allow: deletes ? allow.filter((choice) => choice === "once") : allow,
+    deny: choices.includes("deny"),
+  };
 }
 
 function Approval({
@@ -33,7 +42,8 @@ function Approval({
   pending: Extract<ChatPending, { kind: "approval" }>;
   answer: (approved: boolean, choice?: string) => void;
 }) {
-  const { allow, deny } = ordered(pending.choices);
+  const deletes = pending.deletes !== undefined;
+  const { allow, deny } = ordered(pending.choices, deletes);
   const bare = pending.choices.length === 0;
   return (
     <div className={styles.choices}>
@@ -54,6 +64,7 @@ function Approval({
           </Button>
         ))
       )}
+      {deletes && <span className={own.oneAtATime}>{es.chatActions.deletesOneAtATime}</span>}
       {deny && (
         <Button
           className={styles.deny}
@@ -72,7 +83,8 @@ function Approval({
 /**
  * What the agent waits for, as a card in the thread (and in the floating
  * panel): an approval with what it wants to do and its choices, «Permitir
- * una vez» first and «No permitir» apart; a clarification one question at a
+ * una vez» first and «No permitir» apart (a command that deletes, only
+ * those two, with why and what it deletes); a clarification one question at a
  * time, with its suggestions and free text. No countdown: the hub sends no
  * expiry.
  */
@@ -108,6 +120,12 @@ export function PendingCard({
       {pending.kind === "approval" ? (
         <>
           <p className={styles.approvalText}>{pending.text}</p>
+          {pending.deletes !== undefined && (
+            <p className={own.deletes}>
+              <span aria-hidden="true" className={own.dot} />
+              {es.chatActions.deletes(pending.deletes.paths)}
+            </p>
+          )}
           <Approval answer={answer} answered={answered} pending={pending} />
         </>
       ) : (

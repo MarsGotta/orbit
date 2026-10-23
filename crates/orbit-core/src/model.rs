@@ -289,6 +289,32 @@ pub struct Approval {
     /// ones already answered have left.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub questions: Vec<Question>,
+    /// What runs deletes files: the hub then offers it one at a time
+    /// (hub-v1 «Choices and questions»). `None`: the hub did not say so.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deletes: Option<Deletion>,
+}
+
+/// A request whose command deletes files; `paths`, how many it names, when
+/// the hub could count them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Deletion {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub paths: Option<u32>,
+}
+
+impl Deletion {
+    /// The hub's `deletes`, read leniently: an object is a deletion, and a
+    /// count it cannot read is not known. Anything else says nothing.
+    pub fn from_wire(value: Option<&serde_json::Value>) -> Option<Self> {
+        let value = value?.as_object()?;
+        Some(Self {
+            paths: value
+                .get("paths")
+                .and_then(serde_json::Value::as_u64)
+                .and_then(|paths| u32::try_from(paths).ok()),
+        })
+    }
 }
 
 /// One of several questions the agent asks at once (hub-v1 `questions`).

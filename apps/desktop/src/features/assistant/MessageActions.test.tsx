@@ -84,7 +84,7 @@ describe("copying", () => {
     const question = (await screen.findByText("¿Y el código?")).closest("article") as HTMLElement;
     await userEvent.click(within(question).getByRole("button", { name: "Copiar mensaje" }));
     expect(copied.texts).toEqual([newest[1]!.text, "¿Y el código?"]);
-    expect(within(last).getByText("✓ Copiado")).toBeTruthy();
+    expect(within(last).getByRole("button", { name: "Copiado" })).toBeTruthy();
   });
 
   it("copies the whole conversation from the hub, older pages too", async () => {
@@ -107,6 +107,39 @@ describe("copying", () => {
     await answer("Sur");
     fireEvent.keyDown(window, { key: "c", code: "KeyC", metaKey: true, shiftKey: true });
     await waitFor(() => expect(copied.texts).toEqual(["pnpm test"]));
+  });
+});
+
+describe("under an answer", () => {
+  it("only icons, each named by the tooltip it shows on hover and on focus", async () => {
+    show();
+    const last = await answer("Sur");
+    const tools = ["Copiar", "Escuchar", "Volver a preguntar", "Editar y copiar"];
+    const buttons = tools.map(
+      (tip) =>
+        within(last).getByRole("button", {
+          name: tip === "Copiar" ? "Copiar respuesta" : tip,
+        }) as HTMLElement,
+    );
+    for (const [index, button] of buttons.entries()) {
+      expect(button.textContent, tools[index]).toBe("");
+      expect(button.querySelector("svg"), tools[index]).not.toBeNull();
+      fireEvent.mouseEnter(button.parentElement as HTMLElement);
+      expect(within(last).getByText(tools[index]!, { selector: "[data-tooltip]" })).toBeTruthy();
+      fireEvent.mouseLeave(button.parentElement as HTMLElement);
+    }
+    fireEvent.focus(buttons[3]!);
+    expect(within(last).getByText("Editar y copiar", { selector: "[data-tooltip]" })).toBeTruthy();
+  });
+
+  it("Copiar turns to ✓ «Copiado» and says it once", async () => {
+    copied.texts = [];
+    show();
+    const last = await answer("Sur");
+    await userEvent.click(within(last).getByRole("button", { name: "Copiar respuesta" }));
+    const done = within(last).getByRole("button", { name: "Copiado" });
+    expect(done.getAttribute("data-echo")).toBe("done");
+    expect(within(done).getByRole("status").textContent).toBe("Copiado");
   });
 });
 

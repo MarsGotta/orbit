@@ -33,6 +33,7 @@ fn projects_pending_call_and_voice_note_from_topic_frames() {
         clarification: false,
         choices: Vec::new(),
         questions: Vec::new(),
+        deletes: None,
     });
     assert_eq!(
         projected_json(approval, PermissionState::Unknown)["chat"]["pending"],

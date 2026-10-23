@@ -82,31 +82,71 @@
 }
 
 .code {
-  margin: 0 0 10px;
+  margin: 10px 0;
   border: 1px solid var(--o-line);
   border-radius: var(--o-radius-10);
   background: var(--o-bg);
   overflow: hidden;
 }
 
+/* «Python · exportar_tarifas.py» and its copy icon. */
 .code figcaption {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 2px 4px 2px 12px;
+  gap: 8px;
+  height: 36px;
+  padding: 0 6px 0 12px;
   border-bottom: 1px solid var(--o-line);
   color: var(--o-ink3);
+  font-size: 12px;
+}
+
+.file {
+  color: var(--o-ink2);
   font-family: var(--o-font-mono);
-  font-size: var(--o-font-11);
+}
+
+.spacer {
+  flex: 1;
 }
 
 .code pre {
   margin: 0;
-  padding: 10px 12px;
+  padding: 12px 14px;
   overflow-x: auto;
   font-family: var(--o-font-mono);
   font-size: var(--o-font-12-5);
-  line-height: 1.55;
+  line-height: 1.7;
+}
+
+/* A command for the person to run: its `$`, the command, its copy icon. */
+.command {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  margin: 8px 0 10px;
+  padding: 0 6px 0 14px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-10);
+  background: var(--o-bg);
+}
+
+.command pre {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 0;
+  overflow-x: auto;
+  font-family: var(--o-font-mono);
+  font-size: var(--o-font-12-5);
+  line-height: 1.7;
+}
+
+.prompt {
+  margin-right: 10px;
+  color: var(--o-ink3);
+  user-select: none;
 }
 
 /* Shiki gives each piece both themes' colours; the app's theme picks one. */

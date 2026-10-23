@@ -81,6 +81,7 @@ fn a_question_from_the_agent_in_the_background_is_said_once_by_its_kind() {
         id: "permiso-1".into(),
         text: "Borrar la carpeta de pruebas".into(),
         choices: vec!["once".into(), "deny".into()],
+        deletes: None,
     });
     let notice = watcher.observe(&asking, true, 2_000);
     assert_eq!(
@@ -117,6 +118,7 @@ fn a_question_asked_while_orbit_is_in_front_is_not_said_later() {
         id: "permiso-1".into(),
         text: "Permiso".into(),
         choices: Vec::new(),
+        deletes: None,
     });
     assert_eq!(watcher.observe(&asking, false, 2_000), None);
     assert_eq!(watcher.observe(&asking, true, 3_000), None);

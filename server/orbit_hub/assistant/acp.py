@@ -39,6 +39,7 @@ import asyncio
 import base64
 import json
 import os
+import shlex
 import signal
 import sys
 from collections.abc import Sequence
@@ -100,6 +101,7 @@ from .backend import (
     TurnFailed,
     UnreadableUpdate,
 )
+from .deletion import Deletion, command_deletion
 
 if TYPE_CHECKING:
     from ..config import Settings
@@ -829,7 +831,10 @@ class _AgentProcess:
         )
         description = tool_call.title or f"El agente «{self.name}» pide permiso"
         await self.connection.emit(
-            PermissionRequested(session_id, PermissionRequest(request_id, description, choices))
+            PermissionRequested(
+                session_id,
+                PermissionRequest(request_id, description, choices, _tool_deletion(tool_call)),
+            )
         )
         return await answer
 
@@ -1016,6 +1021,20 @@ TOOL_PHASES = {
     "completed": "completed",
     "failed": "failed",
 }
+
+
+def _tool_deletion(tool_call: Any) -> Deletion | None:
+    """What a tool call deletes: ACP's own `delete` kind (with a path per
+    location), or a command line in its input (`command`, a string or the
+    words of one, as claude-agent-acp and codex-acp send it)."""
+    if getattr(tool_call, "kind", None) == "delete":
+        locations = getattr(tool_call, "locations", None) or []
+        return Deletion(paths=len(locations) or None)
+    raw = getattr(tool_call, "raw_input", None)
+    command = raw.get("command") if isinstance(raw, dict) else None
+    if isinstance(command, list) and all(isinstance(word, str) for word in command):
+        command = shlex.join(command)
+    return command_deletion(command) if isinstance(command, str) else None
 
 
 def _tool_name(title: str, meta: dict | None) -> str:

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { copyText } from "../../bridge/clipboard";
-import { Button } from "../../design/Button";
+import { IconButton } from "../../design/IconButton";
 import { es } from "../../i18n/es";
 import styles from "./CopyButton.module.css";
 
@@ -31,22 +31,33 @@ export function copyStatus(state: CopyState): string | null {
   return null;
 }
 
-/** A «Copiar» button named for what it copies, that confirms «✓ Copiado». */
-export function CopyButton({ label, text }: { label: string; text: () => string }) {
+/**
+ * Copiar as an icon: its tooltip says what it does (`tip`, «Copiar» by
+ * default) and its name what it copies (`label`, «Copiar respuesta»). Once
+ * copied it turns to ✓ with «Copiado»; a failure is said beside it.
+ */
+export function CopyButton({
+  label,
+  tip = es.chatActions.copy,
+  text,
+}: {
+  label: string;
+  tip?: string;
+  text: () => string;
+}) {
   const { copy, state } = useCopy();
   const failure = copyStatus(state);
-  const copied = state.kind === "copied";
   return (
     <>
-      <Button
+      <IconButton
         aria-label={label}
-        className={copied ? styles.copied : undefined}
+        doneLabel={es.chatActions.copiedTip}
+        feedback={state.kind === "copied" ? "done" : "idle"}
+        icon="copy"
+        label={tip}
         onClick={() => void copy(text())}
         size={28}
-        variant="ghost"
-      >
-        <span aria-live="polite">{copied ? es.chatActions.copied : es.chatActions.copy}</span>
-      </Button>
+      />
       {failure !== null && (
         <span className={styles.failure} role="alert">
           {failure}

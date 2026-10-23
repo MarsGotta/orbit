@@ -380,6 +380,9 @@ pub struct PendingInteraction {
     pub choices: Option<Vec<String>>,
     #[serde(default)]
     pub questions: Option<Vec<Value>>,
+    /// A command that deletes (`orbit_core::Deletion::from_wire`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deletes: Option<Value>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SnapshotSession {
@@ -414,6 +417,9 @@ pub struct RequiredData {
     pub choices: Option<Vec<String>>,
     #[serde(default)]
     pub questions: Option<Vec<Value>>,
+    /// A command that deletes (`orbit_core::Deletion::from_wire`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deletes: Option<Value>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InteractionData {

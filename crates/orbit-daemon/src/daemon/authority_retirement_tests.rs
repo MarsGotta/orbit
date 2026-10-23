@@ -75,6 +75,7 @@ async fn new_and_open_session_retire_the_same_local_verticals() -> Result<()> {
             clarification: false,
             choices: Vec::new(),
             questions: Vec::new(),
+            deletes: None,
         });
         if open {
             runtime
@@ -497,6 +498,7 @@ async fn interrupt_snapshot_failure_keeps_the_post_predecision_state() -> Result
         clarification: false,
         choices: Vec::new(),
         questions: Vec::new(),
+        deletes: None,
     });
     runtime.store_actor.snapshot(&runtime.state).await?;
     runtime.work.durable_snapshot = DurableSnapshot::from(&runtime.state);

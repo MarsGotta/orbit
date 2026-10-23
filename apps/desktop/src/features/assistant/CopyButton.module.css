@@ -1,7 +1,3 @@
-.copied.copied {
-  color: var(--o-ok);
-}
-
 .failure {
   color: var(--o-recText);
   font: var(--o-text-meta);

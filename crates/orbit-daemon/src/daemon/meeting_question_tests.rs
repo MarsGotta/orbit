@@ -281,6 +281,7 @@ async fn each_failure_of_the_turn_reaches_the_panel_with_its_cause() -> Result<(
         .command(Command::Chat {
             attachments: Vec::new(),
             text: "Otra cosa".into(),
+            primary: false,
         })
         .await?;
     next_frame(&mut hub_frames).await.context("chat.send")?;

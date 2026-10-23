@@ -596,6 +596,7 @@ fn the_client_refuses_an_oversized_command_before_sending_it_with_its_numbers() 
         body: Command::Chat {
             attachments: Vec::new(),
             text: "x".repeat(MAX_IPC_LINE_BYTES),
+            primary: false,
         },
     };
     let bytes = serde_json::to_vec(&request).unwrap().len() + 1;

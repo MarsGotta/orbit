@@ -602,6 +602,7 @@ impl Runtime {
                 clarification,
                 choices,
                 questions,
+                deletes: orbit_core::Deletion::from_wire(data.deletes.as_ref()),
             },
         })
         .await?;

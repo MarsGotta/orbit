@@ -68,6 +68,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         expires_at: None,
         choices: None,
         questions: None,
+        deletes: None,
     };
     let interaction = InteractionData {
         session_id: session.into(),

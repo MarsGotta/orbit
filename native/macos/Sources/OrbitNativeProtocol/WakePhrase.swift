@@ -1,7 +1,9 @@
 import Foundation
 
-/// «Oye Deimos». The product decision (2026-10-15): «Oye Deimos», also
-/// «Hola Deimos» and «Deimos,» at the start of a phrase. macOS's on-device
+/// «Oye {nombre}», for each assistant by its own name; «Oye» alone opens
+/// nothing («oye, una cosa…» is said in any meeting). The product decision
+/// (2026-10-15): «Oye Deimos», also «Hola Deimos» and «Deimos,» at the start
+/// of a phrase. macOS's on-device
 /// Spanish transcription writes «Deimos» as «Demos» every time
 /// so «Demos» is accepted too, but only at
 /// the start of a phrase and followed by a pause or a comma: «Oye, demos
@@ -151,9 +153,13 @@ public enum WakePhrase {
         return tokens
     }
 
+    /// Case and accents aside, and «ph» as «f»: Spanish writes Phobos
+    /// «Fobos», so the transcription may write either for the same name.
+    /// Not measured on a Mac; it only makes the two spellings one name.
     static func fold(_ word: String) -> String {
         word.folding(options: [.caseInsensitive, .diacriticInsensitive],
                      locale: Locale(identifier: "es_ES"))
+            .replacingOccurrences(of: "ph", with: "f")
     }
 }
 

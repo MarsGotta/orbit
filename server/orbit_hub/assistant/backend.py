@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from ..errors import HubError
+from .deletion import Deletion
 
 
 @dataclass(frozen=True)
@@ -115,6 +116,9 @@ class PermissionRequest:
     # The answers the backend admits, in the Mac's vocabulary (`once`,
     # `deny`…). None: the backend named none, so `once` and `deny`.
     choices: tuple[str, ...] | None
+    # What it deletes, when what it runs deletes files (`deletion`): the
+    # runtime then offers it one at a time.
+    deletes: Deletion | None = None
 
 
 @dataclass(frozen=True)

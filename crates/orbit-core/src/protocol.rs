@@ -119,7 +119,9 @@ pub enum Command {
     },
     /// A turn to the open conversation's agent. `attachments`: the files
     /// the hub already holds for it (`AttachmentAdd`), sent by their ids;
-    /// with them the text may be empty.
+    /// with them the text may be empty. `primary`: asked where nobody is
+    /// named («Preguntar» in a note), so it goes to the primary agent: in
+    /// the open conversation when it is the primary's, else in a new one.
     Chat {
         text: String,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -128,6 +130,9 @@ pub enum Command {
             ts(as = "Option<Vec<crate::attachments::Attachment>>", optional)
         )]
         attachments: Vec<crate::attachments::Attachment>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        #[cfg_attr(feature = "ts", ts(as = "Option<bool>", optional))]
+        primary: bool,
     },
     /// «Adjuntar», a file dropped on the window or a pasted image or text:
     /// the daemon reads it (by path) and uploads it to the hub, off its loop,

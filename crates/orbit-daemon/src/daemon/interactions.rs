@@ -525,6 +525,7 @@ impl Runtime {
                     clarification: question.kind == "clarify",
                     choices,
                     questions,
+                    deletes: orbit_core::Deletion::from_wire(question.deletes.as_ref()),
                 });
                 next.set_notice(
                     self.scoped(

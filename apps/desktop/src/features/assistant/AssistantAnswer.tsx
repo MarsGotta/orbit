@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useRef, useState, type RefObject } from "rea
 import type { AppCommand } from "../../bridge/generated";
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import { Button } from "../../design/Button";
+import { IconButton } from "../../design/IconButton";
 import { es } from "../../i18n/es";
 import { ChatMarkdown } from "./ChatMarkdown";
 import { insertIntoComposer } from "./composer-insert";
@@ -48,7 +49,7 @@ function useFragment(content: RefObject<HTMLDivElement | null>) {
   return { fragment, observe: () => setFragment(fragmentIn(content.current)), setFragment };
 }
 
-/** «Escuchar», and while the answer sounds, its bars moving and «Parar». */
+/** «Escuchar», which turns to «Parar», in the accent, while the answer sounds. */
 function ListenButton({
   id,
   speaking,
@@ -62,33 +63,26 @@ function ListenButton({
 }) {
   const playing = speaking === id;
   return (
-    <Button
+    <IconButton
+      active={playing ? { icon: "stop", label: es.chatActions.stopListening } : undefined}
       aria-pressed={playing}
-      className={playing ? styles.playing : undefined}
+      icon="listen"
+      label={es.chatActions.listen}
       onClick={() =>
         send(
           playing ? { command: "speak_stop" } : { command: "speak", message_id: id, text: text() },
         )
       }
       size={28}
-      variant="ghost"
-    >
-      {playing && (
-        <span aria-hidden="true" className={styles.sound}>
-          <i />
-          <i />
-          <i />
-        </span>
-      )}
-      {playing ? es.chatActions.stopListening : es.chatActions.listen}
-    </Button>
+    />
   );
 }
 
 /**
- * An answer of the assistant with what can be done with it: copy its
- * Markdown, ask again, hear it, open it in the editor and quote a fragment
- * of it in the composer. None of these sends anything by itself.
+ * An answer of the assistant with what can be done with it, as icons with
+ * their tooltip: copy its Markdown, hear it, ask again and open it in the
+ * editor; and, while part of it is selected, quote that in the composer.
+ * None of these sends anything by itself.
  */
 export function AssistantAnswer({ busy, listenable, message, retry, send, speaking }: AnswerProps) {
   const content = useRef<HTMLDivElement>(null);
@@ -110,17 +104,19 @@ export function AssistantAnswer({ busy, listenable, message, retry, send, speaki
               text={() => (content.current === null ? message.text : spokenText(content.current))}
             />
           )}
-          <Button
+          <IconButton
             disabled={busy || retry === null}
+            icon="refresh"
+            label={es.assistant.askAgain}
             onClick={() => retry !== null && send({ command: "chat", text: retry })}
             size={28}
-            variant="ghost"
-          >
-            {es.assistant.askAgain}
-          </Button>
-          <Button onClick={() => setEditing(true)} size={28} variant="ghost">
-            {es.chatActions.openEditor}
-          </Button>
+          />
+          <IconButton
+            icon="edit"
+            label={es.chatActions.openEditor}
+            onClick={() => setEditing(true)}
+            size={28}
+          />
           {fragment !== null && (
             <Button
               onClick={() => {

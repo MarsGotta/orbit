@@ -141,7 +141,7 @@ export const chatScenarios: Scenario[] = [
   chat({
     id: "chat-escuchar",
     state: "Escuchar una respuesta",
-    description: "Una respuesta que suena: «Escuchar» pasa a barras que se mueven y «Parar».",
+    description: "Una respuesta que suena: el icono de Escuchar pasa a «Parar», en violeta.",
     views: withChat({ speaking: "m6", work: undefined }),
     ready: "role=button[name='Parar']",
   }),

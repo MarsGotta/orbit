@@ -171,6 +171,7 @@ fn samples() -> Vec<Event> {
                 clarification: false,
                 choices: Vec::new(),
                 questions: Vec::new(),
+                deletes: None,
             },
         },
         Event::Interrupt,

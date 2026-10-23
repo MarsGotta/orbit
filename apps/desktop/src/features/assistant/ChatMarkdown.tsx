@@ -57,17 +57,24 @@ function textOf(node: HastNode | HastNode["children"][number]): string {
   return "";
 }
 
-function codeOf(node: HastNode | undefined): { code: string; language: string | null } {
+function codeOf(node: HastNode | undefined): {
+  code: string;
+  language: string | null;
+  meta: string | null;
+} {
   const code = node?.children.find((child) => child.type === "element" && child.tagName === "code");
-  if (code?.type !== "element") return { code: "", language: null };
+  if (code?.type !== "element") return { code: "", language: null, meta: null };
   const classes = code.properties.className;
   const language = Array.isArray(classes)
     ? classes.map(String).find((name) => name.startsWith("language-"))
     : undefined;
+  // What follows the language on the fence's line (its file name), as the parser keeps it.
+  const meta = (code.data as { meta?: unknown } | undefined)?.meta;
   // The fence's last newline is the parser's, not the code's.
   return {
     code: textOf(code).replace(/\n$/, ""),
     language: language === undefined ? null : language.slice("language-".length),
+    meta: typeof meta === "string" ? meta : null,
   };
 }
 
@@ -80,8 +87,8 @@ const Answer = createContext({ source: "", streaming: false });
 
 function Pre({ node }: ExtraProps) {
   const { streaming } = useContext(Answer);
-  const { code, language } = codeOf(node);
-  return <CodeBlock code={code} colour={!streaming} language={language} />;
+  const { code, language, meta } = codeOf(node);
+  return <CodeBlock code={code} colour={!streaming} language={language} meta={meta} />;
 }
 
 function Table({ children, node }: ComponentProps<"table"> & ExtraProps) {
@@ -156,8 +163,9 @@ const COMPONENTS: Components = {
 };
 
 /**
- * An answer's Markdown, GFM included: code blocks with their language and
- * «Copiar» (coloured once complete), tables that scroll and copy as Markdown,
+ * An answer's Markdown, GFM included: code blocks with their language, the
+ * file they name and «Copiar» (coloured once complete), a shell command as a
+ * `$` line copied without it, tables that scroll and copy as Markdown,
  * quotes, rules and inline code. Text is text: no HTML from the model, only
  * web links and Orbit's own views are links, and no image is loaded.
  */

@@ -283,6 +283,7 @@ mod tests {
             clarification: false,
             choices: Vec::new(),
             questions: Vec::new(),
+            deletes: None,
         });
         let data = assistant_frame(&state);
         let bytes = serde_json::to_vec(&data).unwrap().len();
@@ -497,6 +498,7 @@ mod tests {
             clarification: false,
             choices: Vec::new(),
             questions: Vec::new(),
+            deletes: None,
         });
         let wide = |count: usize| "𝔸".repeat(count);
         let item = |index: usize, kind: WorkKind| WorkItem {

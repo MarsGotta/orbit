@@ -183,7 +183,7 @@ impl Runtime {
     }
 
     /// The agent the open conversation is with: its own, or the default one.
-    fn conversation_agent_id(&self) -> String {
+    pub(super) fn conversation_agent_id(&self) -> String {
         self.state.agent_id().map_or_else(
             || self.settings.roster().default_agent_id().to_owned(),
             str::to_owned,
@@ -371,7 +371,7 @@ impl Runtime {
         ));
     }
 
-    /// The helper heard «Oye Deimos, …» on the user's microphone. Taken only
+    /// The helper heard «Oye {nombre}, …» on the user's microphone. Taken only
     /// from the microphone stream of the recording in progress, with the
     /// user's stop off and no voice note being dictated (the dictation is
     /// then the question).
@@ -387,6 +387,15 @@ impl Runtime {
         } = decoded
         else {
             bail!("Evento assistant_question incoherente");
+        };
+        // The agent whose name was heard; a helper that knows one name heard
+        // the primary's. A name no longer listed (renamed or removed while it
+        // was said) was nobody's: neither the primary nor the open
+        // conversation was called.
+        let roster = self.settings.roster();
+        let agent = match &assistant_name {
+            None => Some(roster.default_agent_id().to_owned()),
+            Some(name) => roster.named(name).map(|agent| agent.id.clone()),
         };
         let ignored = if self.state.privacy_stopped() {
             Some("privacy_stopped")
@@ -404,6 +413,8 @@ impl Runtime {
             Some("not_recording")
         } else if self.state.durable.voice_active || self.capture.buffer.voice.is_some() {
             Some("dictating")
+        } else if agent.is_none() {
+            Some("agent_not_listed")
         } else {
             None
         };
@@ -430,14 +441,6 @@ impl Runtime {
             return Ok(());
         }
         self.record(NoticeCode::WakePhraseQuestionReceived);
-        // The agent whose name was heard; a helper that knows one name, or
-        // a name no longer listed, asks in the open conversation.
-        let agent = assistant_name.and_then(|name| {
-            self.settings
-                .roster()
-                .named(&name)
-                .map(|agent| agent.id.clone())
-        });
         self.ask_meeting(
             text,
             u16::from(DEFAULT_WINDOW_MINUTES),

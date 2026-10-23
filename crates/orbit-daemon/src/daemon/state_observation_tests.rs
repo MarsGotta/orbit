@@ -100,6 +100,7 @@ async fn chat_send_declares_an_active_call() -> Result<()> {
         .command(Command::Chat {
             attachments: Vec::new(),
             text: "pregunta durante la llamada".into(),
+            primary: false,
         })
         .await?;
 
@@ -123,6 +124,7 @@ async fn chat_turn_messages_carry_increasing_at_ms() -> Result<()> {
         .command(Command::Chat {
             attachments: Vec::new(),
             text: "pregunta sintética".into(),
+            primary: false,
         })
         .await?;
     let sent = hub_frames.recv().await.context("chat.send ausente")?;
