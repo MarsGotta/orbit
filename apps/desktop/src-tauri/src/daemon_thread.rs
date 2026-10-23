@@ -64,9 +64,12 @@ const _: () = assert!(
 /// most once a minute. It is not a limit on recordings or on relaunches.
 pub const DAEMON_RELAUNCH_MIN_UPTIME: Duration = Duration::from_secs(60);
 
-/// Whether a daemon that ended unasked after `uptime` relaunches the app.
-pub fn relaunches_after(uptime: Duration) -> bool {
-    uptime >= DAEMON_RELAUNCH_MIN_UPTIME
+/// Whether a daemon that ended, without the app asking, relaunches the app.
+/// Only a fall does: a panic or a run that failed. A daemon that closed in
+/// order (a SIGTERM, a shutdown asked over its socket) was asked to end by
+/// whoever sent that, and the app ends with it.
+pub fn relaunches(ended: &Ended, uptime: Duration) -> bool {
+    !matches!(ended, Ended::Closed) && uptime >= DAEMON_RELAUNCH_MIN_UPTIME
 }
 
 /// The daemon's thread, by this name in a crash report and in `ps -T`.

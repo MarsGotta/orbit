@@ -236,10 +236,20 @@ async fn the_app_can_acknowledge_a_privacy_stop_during_startup_recovery()
 /// recording from its snapshot; one that falls in its start does not loop.
 #[test]
 fn a_daemon_that_falls_after_its_start_relaunches_the_app() {
-    assert!(!relaunches_after(Duration::from_secs(5)));
-    assert!(!relaunches_after(
+    let fell = Ended::Failed("el bucle falló".into());
+    assert!(!relaunches(&fell, Duration::from_secs(5)));
+    assert!(!relaunches(
+        &fell,
         DAEMON_RELAUNCH_MIN_UPTIME - Duration::from_millis(1)
     ));
-    assert!(relaunches_after(DAEMON_RELAUNCH_MIN_UPTIME));
-    assert!(relaunches_after(Duration::from_secs(25 * 60)));
+    assert!(relaunches(&fell, DAEMON_RELAUNCH_MIN_UPTIME));
+    assert!(relaunches(&Ended::Vanished, Duration::from_secs(25 * 60)));
+}
+
+/// A SIGTERM closes the daemon in order, and the app ends with it: a test
+/// harness or the system that sent it asked Orbit to end, and a relaunch
+/// would bring back an app nobody wanted (seen on the Mac, 2026-10-23).
+#[test]
+fn a_daemon_closed_in_order_ends_the_app_and_never_relaunches_it() {
+    assert!(!relaunches(&Ended::Closed, Duration::from_secs(25 * 60)));
 }
