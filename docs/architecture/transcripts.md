@@ -88,11 +88,14 @@ largest overlap or closest voice within 250 ms; more distant words are omitted.
 This filtering does not affect the local microphone.
 
 Before publishing both tracks atomically, the pass compares each track with its
-draft groups. Groups with at least six words must retain at least a quarter of
-their words by word-start time within the group's interval ±1000 ms. A missing
-draft is unknown, not proof of loss. A lost span or repetition over both 66 words
-and 223 permille fails `final_pass_incomplete`, retaining prior text/voices.
-The error exposes track phase, measured counts and every rule threshold. See the
+draft groups, span by span. A group with at least six words is lost when fewer
+than a quarter of its words start, in the new text, within the group's interval
+±1000 ms; a span loops when its new words repeat over both 66 words and 223
+permille. A lost or looping span keeps its draft words, spread evenly over it;
+the rest keeps the new words, and a track that loses every such span keeps its
+whole draft. A missing draft is unknown, not proof of loss. Remote voices are
+separated either way and applied to the words that remain. The pass completes
+with `kept_draft:{spans,duration_ms}` when it kept any draft span. See the
 [hub contract](../../contracts/hub-v1.md#final-pass-and-recording-voices) for all fields.
 
 `POST …/final-pass` queues another pass for a completed or failed recording.

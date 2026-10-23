@@ -476,6 +476,31 @@ describe("«Rehacer transcripción» (annex, change 7)", () => {
     ).toBe(false);
   });
 
+  it.each([
+    [1, "En 1 tramo se mantuvo la transcripción en vivo, que era mejor."],
+    [3, "En 3 tramos se mantuvo la transcripción en vivo, que era mejor."],
+  ])("says quietly, not as a failure, that %s spans kept the live transcript", (spans, text) => {
+    const value = note();
+    Object.assign(value.transcript, {
+      final_pass: {
+        state: "completed",
+        error: null,
+        kept_draft: { spans, duration_ms: spans * 20_000 },
+      },
+    });
+    render(<TranscriptTab note={value} send={vi.fn(send0)} />);
+    expect(screen.getByRole("status").textContent).toBe(text);
+    expect(screen.queryByRole("button", { name: "Cerrar" })).toBeNull();
+    expect(screen.getByText("Empezamos.")).toBeTruthy();
+  });
+
+  it("says nothing of the live transcript when the pass kept none of it", () => {
+    const value = note();
+    Object.assign(value.transcript, { final_pass: { state: "completed", error: null } });
+    render(<TranscriptTab note={value} send={vi.fn(send0)} />);
+    expect(screen.queryByText(/transcripción en vivo/)).toBeNull();
+  });
+
   it("is not offered while capture is open or unknown", () => {
     const value = note();
     for (const capture of ["open", undefined]) {

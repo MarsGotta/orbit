@@ -255,6 +255,10 @@ pub(crate) fn project_open_note(
                             total_ms: progress.total_ms,
                             remaining_ms: progress.remaining_ms,
                         }),
+                    kept_draft: final_pass.kept_draft.map(|kept| NoteKeptDraftSnapshot {
+                        spans: kept.spans,
+                        duration_ms: kept.duration_ms,
+                    }),
                 }),
             unmatched_speaker_names: (document.transcript.unmatched_speaker_names > 0)
                 .then_some(document.transcript.unmatched_speaker_names),

@@ -44,9 +44,12 @@ def status(db, device, recording):
     `done_ms` of `total_ms` of audio transcribed, and `remaining_ms` once a
     window is done (the time taken so far, scaled to the audio left). The
     queue gives no fraction or estimate: its wait depends on other passes.
+    A completed pass that kept draft spans carries `kept_draft`: how many,
+    and their summed length (`meeting_transcript_integrity.choose`).
     """
     row = db.execute(
-        "SELECT state,error,progress FROM recording_final_passes WHERE device_id=? AND recording=?",
+        "SELECT state,error,progress,kept_draft FROM recording_final_passes "
+        "WHERE device_id=? AND recording=?",
         (device, recording),
     ).fetchone()
     if row is None:
@@ -54,6 +57,8 @@ def status(db, device, recording):
     found = {"state": row["state"], "error": json.loads(row["error"]) if row["error"] else None}
     if row["state"] == "running" and row["progress"]:
         found["progress"] = json.loads(row["progress"])
+    if row["state"] == "completed" and row["kept_draft"]:
+        found["kept_draft"] = json.loads(row["kept_draft"])
     return found
 
 
@@ -201,10 +206,12 @@ class FinalPassRepository:
                 "ON CONFLICT(device_id,recording) DO UPDATE SET body=excluded.body",
                 (device, recording, transcript),
             )
+            # Absent when nothing of the draft was kept, as from every hub before.
+            kept = result.get("kept_draft") or {}
             db.execute(
-                "UPDATE recording_final_passes SET state='completed',error=NULL,progress=NULL "
-                "WHERE device_id=? AND recording=?",
-                (device, recording),
+                "UPDATE recording_final_passes SET state='completed',error=NULL,progress=NULL,"
+                "kept_draft=? WHERE device_id=? AND recording=?",
+                (json.dumps(kept) if kept.get("spans") else None, device, recording),
             )
 
     def voices(self, job):
@@ -226,12 +233,13 @@ class FinalPassRepository:
     def fail(self, job, error):
         with self.store.transaction() as db:
             db.execute(
-                "UPDATE recording_final_passes SET state='failed',error=?,progress=NULL "
-                "WHERE device_id=? AND recording=? AND state='running'",
+                "UPDATE recording_final_passes SET state='failed',error=?,progress=NULL,"
+                "kept_draft=NULL WHERE device_id=? AND recording=? AND state='running'",
                 (json.dumps(error), job["device_id"], job["recording"]),
             )
 
     def draft(self, job, track):
+        """The track's draft groups with text, `(start_ms, end_ms, text)` in track time."""
         device, recording = job["device_id"], job["recording"]
         with self.store.read_snapshot() as db:
             began = turns.started_at(self.store, db, device, recording)
@@ -250,11 +258,7 @@ class FinalPassRepository:
                 wall = group.get("started_at_ms")
                 at = max(0, wall - began) if type(wall) is int and type(began) is int else 0
                 groups.append(
-                    (
-                        at,
-                        at + open_recordings.length_ms(group),
-                        len(str(body.get("text") or "").split()),
-                    )
+                    (at, at + open_recordings.length_ms(group), str(body.get("text") or ""))
                 )
             return groups
 
@@ -536,6 +540,7 @@ class FinalPassWorker:
                 "words": [],
                 "audio_ms": 0,
                 "language": job["language"],
+                "kept_draft": {"spans": 0, "duration_ms": 0},
             }
             if existing is not None:
                 result.update(existing)
@@ -620,20 +625,12 @@ class FinalPassWorker:
                                 done_ms += window_ms
                                 await self.report_progress(job, started, done_ms, lengths)
                             groups = await self.run(self.repository.draft, job, track)
-                            metrics = integrity.measure(groups, words)
-                            if integrity.incomplete(metrics):
-                                raise HubError(
-                                    "final_pass_incomplete",
-                                    "La pasada final perdió tramos del borrador o repitió texto en bucle",
-                                    numbers={
-                                        **metrics,
-                                        "min_draft_words": integrity.MIN_DRAFT_WORDS,
-                                        "min_final_word_divisor": integrity.MIN_FINAL_WORD_DIVISOR,
-                                        "draft_margin_ms": integrity.DRAFT_MARGIN_MS,
-                                        "max_loop_words": integrity.MAX_LOOP_WORDS,
-                                        "max_loop_permille": integrity.MAX_LOOP_PERMILLE,
-                                    },
-                                )
+                            # Where the final lost a draft span or loops over
+                            # it, that span keeps its draft; voices then apply
+                            # to whichever words remain, by their times.
+                            words, kept = integrity.choose(groups, words)
+                            for key in ("spans", "duration_ms"):
+                                result["kept_draft"][key] += kept[key]
                             if track == "remote_app" and existing is None:
                                 phase = "diarization"
                                 result.update(

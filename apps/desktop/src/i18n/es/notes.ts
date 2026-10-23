@@ -82,6 +82,10 @@ export const notes = {
         durationMs === null ? "" : ` durante ${Math.max(1, Math.round(durationMs / 1_000))} s`;
       return `Falta el audio ${source}${from}${length}: no llegó al hub y esa parte no está en la transcripción.`;
     },
+    // A completed pass that kept spans of the live draft where the new text
+    // lost them or looped: not a failure, the better of the two was used.
+    keptDraft: (spans: number) =>
+      `En ${spans} ${spans === 1 ? "tramo" : "tramos"} se mantuvo la transcripción en vivo, que era mejor.`,
     unmatchedSpeakerNames: (value: number) =>
       `${value} ${value === 1 ? "nombre de una voz que ya no está no se trasladó" : "nombres de voces que ya no están no se trasladaron"} a otras voces.`,
     // The harness reads the transcript from this line on (scripts/e2e-mac/checks.py).

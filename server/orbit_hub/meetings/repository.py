@@ -14,7 +14,8 @@ from .bounds import MAX_PERSON_NAME_CHARS
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS recording_final_passes (
     device_id TEXT NOT NULL REFERENCES devices(id), recording TEXT NOT NULL,
-    state TEXT NOT NULL, error TEXT, progress TEXT, PRIMARY KEY(device_id,recording));
+    state TEXT NOT NULL, error TEXT, progress TEXT, kept_draft TEXT,
+    PRIMARY KEY(device_id,recording));
 CREATE TABLE IF NOT EXISTS recording_final_transcripts (
     device_id TEXT NOT NULL REFERENCES devices(id), recording TEXT NOT NULL,
     body BLOB NOT NULL, PRIMARY KEY(device_id,recording));

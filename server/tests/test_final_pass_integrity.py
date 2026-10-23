@@ -168,7 +168,15 @@ def word(at, text="Palabra."):
     return {"start": at, "end": at + 0.1, "word": text}
 
 
-async def test_a_draft_group_lost_by_the_final_pass_fails_with_numbers_and_draft_note(
+def stored(store, table):
+    return store._db.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
+
+
+def spoken(transcript, track):
+    return [(s.speaker_key, s.text) for s in transcript.segments if s.track == track]
+
+
+async def test_a_draft_group_lost_by_the_final_pass_keeps_its_draft_and_the_note_uses_it(
     environment, monkeypatch
 ):
     drafts = [
@@ -186,23 +194,28 @@ async def test_a_draft_group_lost_by_the_final_pass_fails_with_numbers_and_draft
         drafts=drafts,
         track="remote_app",
     )
-    assert state["state"] == "failed"
-    error = state["error"]
-    assert error["code"] == "final_pass_incomplete"
-    assert error["phase"] == "whisper_remote_app"
-    assert error["compared_groups"] == 2 and error["lost_groups"] == 1
-    assert error["lost_draft_words"] == 8 and error["first_lost_group_ms"] == 0
-    assert error["loop_words"] == 0
+    assert state == {
+        "state": "completed",
+        "error": None,
+        "kept_draft": {"spans": 1, "duration_ms": 20000},
+    }
     assert len(calls) == 1
-    assert store._db.execute("SELECT count(*) FROM recording_final_transcripts").fetchone()[0] == 0
-    assert store._db.execute("SELECT count(*) FROM recording_voices").fetchone()[0] == 0
-    assert drafts[0] in " ".join(s.text for s in transcript.segments)
+    assert stored(store, "recording_final_transcripts") == 1
+    assert stored(store, "recording_voices") == 1
+    # The lost span's draft, spread over it; the final's words elsewhere.
+    assert [text for _, text in spoken(transcript, "remote_app")] == [
+        *drafts[0].split(),
+        "Dos.",
+        "Tres.",
+        "Cuatro.",
+    ]
     note = await write_note(store, owner, identity)
-    assert note.repository.document(owner, identity)["note"]["final_pass_error"] == error
-    assert drafts[0] in note.client.calls[0]["messages"][-1]["content"]
+    assert note.repository.document(owner, identity)["note"]["final_pass_error"] is None
+    prompt = note.client.calls[0]["messages"][-1]["content"]
+    assert drafts[0] in prompt and "Una." not in prompt
 
 
-async def test_a_loop_fails_once_with_its_word_count(environment, monkeypatch):
+async def test_a_loop_over_draft_spans_takes_their_draft(environment, monkeypatch):
     phrase = ["de", "lectura", "es", "un", "proyecto", "de", "la", "sala", "de", "lectura"]
     words = [word(1 + i * 0.2, phrase[i % len(phrase)]) for i in range(130)]
     store, owner, identity, state, transcript, calls = await run_pass(
@@ -212,19 +225,165 @@ async def test_a_loop_fails_once_with_its_word_count(environment, monkeypatch):
         lambda _: words,
         drafts=["Borrador conservado."],
     )
-    assert state["state"] == "failed"
-    assert state["error"]["code"] == "final_pass_incomplete"
-    assert state["error"]["loop_words"] == 130
+    # The loop runs from the first group into the second, whose draft is empty.
+    assert state == {
+        "state": "completed",
+        "error": None,
+        "kept_draft": {"spans": 2, "duration_ms": 40000},
+    }
     assert len(calls) == 1
-    assert state["error"]["compared_groups"] == 0
-    assert state["error"]["lost_groups"] == 0
-    assert state["error"]["first_lost_group_ms"] is None
-    assert store._db.execute("SELECT count(*) FROM recording_final_transcripts").fetchone()[0] == 0
-    assert store._db.execute("SELECT count(*) FROM recording_voices").fetchone()[0] == 0
-    assert "Borrador conservado." in " ".join(s.text for s in transcript.segments)
+    assert stored(store, "recording_final_transcripts") == 1
+    assert spoken(transcript, "mic_local") == [
+        ("mic_local", "Borrador"),
+        ("mic_local", "conservado."),
+    ]
     note = await write_note(store, owner, identity)
-    assert note.repository.document(owner, identity)["note"]["final_pass_error"] == state["error"]
-    assert "Borrador conservado." in note.client.calls[0]["messages"][-1]["content"]
+    assert note.repository.document(owner, identity)["note"]["final_pass_error"] is None
+    prompt = note.client.calls[0]["messages"][-1]["content"]
+    assert "Borrador conservado." in prompt and "lectura" not in prompt
+
+
+# Invented meeting: a plant nursery's stock, read on both tracks.
+REMOTE = [
+    "Buenos días, revisamos el inventario del vivero.",
+    "El pedido de semillas llega el martes por la tarde.",
+    "Entonces cerramos la lista y la enviamos hoy.",
+]
+LOCAL = "Perfecto, yo apunto las cantidades ahora mismo."
+
+
+def both_tracks(remote):
+    """Fake Whisper by call: the microphone's two windows, then the remote's.
+
+    60 s with no pause cut at 45 s: calls 0–1 are mic_local, 2–3 remote_app.
+    """
+    local = LOCAL.split()
+
+    def answer(index):
+        if index == 0:
+            return [word(3 + i, text) for i, text in enumerate(local)]
+        if index == 1:
+            return []
+        return remote[index - 2]
+
+    return answer
+
+
+async def two_voice_pass(environment, monkeypatch, remote):
+    _, store, _ = environment
+    owner, identity = seed(
+        store,
+        {"mic_local": audio_bytes(60), "remote_app": audio_bytes(60)},
+        drafts={"mic_local": [LOCAL, "", ""], "remote_app": REMOTE},
+    )
+    transcriber, calls = fake_whisper(both_tracks(remote))
+    separated = []
+
+    async def separate(configuration, fd, duration):
+        separated.append(duration)
+        return {
+            "spans": [
+                {"start_ms": 0, "end_ms": 30_000, "voice": "voice_1"},
+                {"start_ms": 30_000, "end_ms": duration, "voice": "voice_2"},
+            ]
+        }
+
+    monkeypatch.setattr(final, "separate", separate)
+    assert await final_worker(store, transcriber, object()).run_once()
+    with store.read_snapshot() as db:
+        state = final.status(db, owner, identity)
+        transcript = turns.read(store, db, owner, identity)
+    assert len(calls) == 4 and separated == [60000]
+    return store, state, transcript
+
+
+async def test_a_remote_span_lost_in_the_middle_takes_the_draft_and_both_get_their_voices(
+    environment, monkeypatch
+):
+    first = [word(2 + i, text) for i, text in enumerate(REMOTE[0].split())]
+    last = REMOTE[2].split()
+    # The middle 20 s get no final word; the third group's words straddle the
+    # 45 s cut: four before it, four after it (window-relative).
+    remote = [
+        first + [word(41 + i, text) for i, text in enumerate(last[:4])],
+        [word(1 + i, text) for i, text in enumerate(last[4:])],
+    ]
+    store, state, transcript = await two_voice_pass(environment, monkeypatch, remote)
+    assert state == {
+        "state": "completed",
+        "error": None,
+        "kept_draft": {"spans": 1, "duration_ms": 20000},
+    }
+    assert stored(store, "recording_voices") == 1
+    middle = REMOTE[1].split()
+    # The draft's ten words spread over 20–40 s: two seconds each, so the
+    # first five fall in the first voice (to 30 s) and the rest in the second.
+    assert spoken(transcript, "remote_app") == [
+        *(("voice_1", text) for text in REMOTE[0].split()),
+        *(("voice_1", text) for text in middle[:5]),
+        *(("voice_2", text) for text in middle[5:]),
+        *(("voice_2", text) for text in last),
+    ]
+    assert spoken(transcript, "mic_local") == [("mic_local", text) for text in LOCAL.split()]
+    names = {s.key: s.name for s in transcript.speakers}
+    assert names["voice_1"] == "Persona 1" and names["voice_2"] == "Persona 2"
+
+
+async def test_a_complete_final_pass_uses_nothing_of_the_draft(environment, monkeypatch):
+    remote = [
+        [word(2 + i * 0.5, f"Uno{i}.") for i in range(4)]
+        + [word(21 + i * 0.5, f"Dos{i}.") for i in range(4)]
+        + [word(41 + i * 0.5, f"Tres{i}.") for i in range(4)],
+        [],
+    ]
+    _, state, transcript = await two_voice_pass(environment, monkeypatch, remote)
+    assert state == {"state": "completed", "error": None}
+    assert spoken(transcript, "remote_app") == [
+        *(("voice_1", f"Uno{i}.") for i in range(4)),
+        *(("voice_1", f"Dos{i}.") for i in range(4)),
+        *(("voice_2", f"Tres{i}.") for i in range(4)),
+    ]
+    assert spoken(transcript, "mic_local") == [("mic_local", text) for text in LOCAL.split()]
+
+
+@pytest.mark.parametrize("failure", ["timeout", "unreadable"])
+async def test_timeouts_and_unreadable_audio_keep_the_previous_transcript(
+    environment, monkeypatch, failure
+):
+    store, owner, identity, state, before, _ = await run_pass(
+        environment,
+        monkeypatch,
+        audio_bytes(20),
+        lambda _: [word(1, "Anterior."), word(2, "Final.")],
+        drafts=["Borrador previo."],
+    )
+    assert state == {"state": "completed", "error": None}
+    body = store._db.execute("SELECT body FROM recording_final_transcripts").fetchone()[0]
+    final.FinalPassRepository(store).request(owner, identity)
+    transcriber, calls = fake_whisper(lambda _: [word(1, "Nueva.")])
+    if failure == "timeout":
+
+        async def expired(*args, **kwargs):
+            raise TimeoutError
+
+        monkeypatch.setattr(transcriber, "transcribe", expired)
+    else:
+        with store.transaction() as db:
+            db.execute("UPDATE chunks SET sha256=?", ("0" * 64,))
+    assert await final_worker(store, transcriber, object()).run_once()
+    with store.read_snapshot() as db:
+        state = final.status(db, owner, identity)
+        after = turns.read(store, db, owner, identity)
+    assert state["state"] == "failed" and "kept_draft" not in state
+    if failure == "timeout":
+        assert state["error"]["code"] == "final_pass_timeout"
+        assert state["error"]["phase"] == "whisper_mic_local"
+    else:
+        assert state["error"] == {"code": "final_audio_invalid", "phase": "audio_mic_local"}
+    assert not calls
+    assert store._db.execute("SELECT body FROM recording_final_transcripts").fetchone()[0] == body
+    assert [s.text for s in after.segments] == [s.text for s in before.segments]
+    assert [s.text for s in after.segments] == ["Anterior.", "Final."]
 
 
 async def test_noise_with_no_draft_or_final_words_completes(environment, monkeypatch):
@@ -284,7 +443,7 @@ async def test_draft_times_use_recording_start_group_length_and_inclusive_one_se
     environment, monkeypatch, delta_ms
 ):
     words = [word(4 - delta_ms / 1000, "Borde."), word(26, "Final.")]
-    _, _, _, state, _, calls = await run_pass(
+    _, _, _, state, transcript, calls = await run_pass(
         environment,
         monkeypatch,
         audio_bytes(40),
@@ -295,27 +454,40 @@ async def test_draft_times_use_recording_start_group_length_and_inclusive_one_se
     assert len(calls) == 1
     if delta_ms == 0:  # Exactly two words out of eight, inclusive at both edges.
         assert state == {"state": "completed", "error": None}
+        assert [s.text for s in transcript.segments] == ["Borde.", "Final."]
     else:
-        assert state["state"] == "failed"
-        assert state["error"]["code"] == "final_pass_incomplete"
-        assert state["error"]["compared_groups"] == 1
-        assert state["error"]["first_lost_group_ms"] == 5000
-        assert state["error"]["lost_draft_words"] == 8
+        # The only group that can be lost is: the track keeps its whole draft,
+        # placed from the recording's start (5 s) over each group's length.
+        assert state == {
+            "state": "completed",
+            "error": None,
+            "kept_draft": {"spans": 2, "duration_ms": 40000},
+        }
+        assert [s.text for s in transcript.segments] == [
+            *["Tenemos", "ocho", "palabras", "grabadas", "aquí", "para", "este", "borrador."],
+            "Corto.",
+        ]
+        assert transcript.segments[0].at_ms == 5000
+        assert transcript.segments[-1].at_ms == 25000
 
 
 @pytest.mark.parametrize("count", [5, 6])
 async def test_only_drafts_with_at_least_six_words_can_be_lost(environment, monkeypatch, count):
     draft = ["uno", "dos", "tres", "cuatro", "cinco", "seis"][:count]
-    _, _, _, state, _, calls = await run_pass(
+    _, _, _, state, transcript, calls = await run_pass(
         environment, monkeypatch, audio_bytes(20), lambda _: [], drafts=[" ".join(draft)]
     )
     assert len(calls) == 1
     if count == 5:
         assert state == {"state": "completed", "error": None}
+        assert not transcript.segments
     else:
-        assert state["state"] == "failed"
-        assert state["error"]["lost_groups"] == 1
-        assert state["error"]["lost_draft_words"] == 6
+        assert state == {
+            "state": "completed",
+            "error": None,
+            "kept_draft": {"spans": 1, "duration_ms": 20000},
+        }
+        assert [s.text for s in transcript.segments] == draft
 
 
 @pytest.mark.parametrize(
@@ -328,10 +500,13 @@ async def test_repetition_needs_both_measured_limits(environment, monkeypatch, l
     )
     assert len(calls) == 1
     if failed:
-        assert state["state"] == "failed"
-        assert state["error"]["code"] == "final_pass_incomplete"
-        assert state["error"]["loop_words"] == loop
-        assert state["error"]["word_count"] == total
+        # The loop's span takes its draft, which heard nothing there.
+        assert state == {
+            "state": "completed",
+            "error": None,
+            "kept_draft": {"spans": 1, "duration_ms": 20000},
+        }
+        assert not transcript.segments
     else:
         assert state == {"state": "completed", "error": None}
         assert len(transcript.segments) == total

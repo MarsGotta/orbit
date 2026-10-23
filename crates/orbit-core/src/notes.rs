@@ -505,6 +505,18 @@ pub struct FinalPass {
     /// or a hub up to 0.10.1, which does not say.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub progress: Option<FinalPassProgress>,
+    /// The live draft's spans a completed pass kept, where the new text lost
+    /// them or looped. `None`: the new text throughout, as from every hub up
+    /// to 0.11.0, which never mixed the two.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kept_draft: Option<KeptDraft>,
+}
+
+/// How many draft spans a final pass kept, and their summed length.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct KeptDraft {
+    pub spans: u64,
+    pub duration_ms: u64,
 }
 
 /// `done_ms` of the `total_ms` of audio transcribed again; `remaining_ms`
@@ -942,6 +954,32 @@ mod tests {
         );
         assert!(speaker_name(Some(&"x".repeat(MAX_PERSON_NAME_CHARS))).is_ok());
         assert!(speaker_name(Some(&"x".repeat(MAX_PERSON_NAME_CHARS + 1))).is_err());
+    }
+
+    #[test]
+    fn a_completed_final_pass_reads_the_draft_it_kept_and_an_older_hub_none()
+    -> Result<(), serde_json::Error> {
+        let kept: FinalPass = serde_json::from_value(serde_json::json!({
+            "state": "completed", "error": null,
+            "kept_draft": {"spans": 3, "duration_ms": 52_000}
+        }))?;
+        assert_eq!(kept.state, FinalPassState::Completed);
+        assert_eq!(
+            kept.kept_draft,
+            Some(KeptDraft {
+                spans: 3,
+                duration_ms: 52_000,
+            })
+        );
+        let older: FinalPass =
+            serde_json::from_value(serde_json::json!({"state": "completed", "error": null}))?;
+        assert_eq!(older.kept_draft, None);
+        // A later hub's fields this Mac does not know leave a plain completed pass.
+        let later: FinalPass = serde_json::from_value(serde_json::json!({
+            "state": "completed", "error": null, "measured_later": {"n": 1}
+        }))?;
+        assert_eq!(later, older);
+        Ok(())
     }
 
     #[test]

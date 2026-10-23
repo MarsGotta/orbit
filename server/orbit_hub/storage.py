@@ -295,6 +295,9 @@ class Store:
         }
         if "progress" not in pass_columns:
             self._db.execute("ALTER TABLE recording_final_passes ADD COLUMN progress TEXT")
+        # What a completed pass kept of the draft (`meeting_final_pass.status`).
+        if "kept_draft" not in pass_columns:
+            self._db.execute("ALTER TABLE recording_final_passes ADD COLUMN kept_draft TEXT")
         self._db.executescript(DICTIONARIES_SCHEMA)
         migrate_dictionaries(self._db)
         # Each agent's personality, skills and access groups.

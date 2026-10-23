@@ -121,7 +121,8 @@ function measured(note: OpenNoteSnapshot) {
 
 /**
  * Under the toolbar: the pass in the queue or under way, its end with
- * «Rehacer resumen», or why it failed, the earlier transcript kept.
+ * «Rehacer resumen», or why it failed, the earlier transcript kept; and, in
+ * a quiet line, the spans where it kept the live draft, which was better.
  */
 export function RedoStatus({
   note,
@@ -136,6 +137,7 @@ export function RedoStatus({
 }) {
   const pass = note.transcript.final_pass;
   const unmatched = note.transcript.unmatched_speaker_names ?? 0;
+  const kept = pass?.state === "completed" ? (pass.kept_draft?.spans ?? 0) : 0;
   return (
     <>
       {(phase === "queued" || phase === "running" || phase === "failed") && (
@@ -167,6 +169,11 @@ export function RedoStatus({
               {es.noteScreen.redoSummary}
             </Button>
           )}
+        </p>
+      )}
+      {kept > 0 && (
+        <p className={styles.quiet} role="status">
+          {es.notes.keptDraft(kept)}
         </p>
       )}
       {unmatched > 0 && (

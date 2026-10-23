@@ -989,7 +989,12 @@ window is done, `remaining_ms`, the time taken so far scaled to the audio
 left. `total_ms` starts from the closing manifest (each track at most the
 recording's length) and becomes each track's measured length when the pass
 reads it. A queued pass carries no progress: its wait depends on other
-passes. Hubs up to 0.10.1 send no `progress`. `transcript.unmatched_speaker_names`
+passes. Hubs up to 0.10.1 send no `progress`. A `completed` pass that kept
+spans of the live draft, because the new text lost them or looped over them,
+carries `kept_draft:{spans,duration_ms}`: how many draft spans it kept and their
+summed length. Its absence means the new text was used throughout, as from every
+earlier hub, which never mixed the two; a Mac that does not know the field sees
+a normal `completed`. `transcript.unmatched_speaker_names`
 lists names whose voices no longer exist; they are not assigned to new voices.
 The microphone track name is retained.
 
@@ -998,9 +1003,10 @@ Before queueing, refusals are `400 recording_still_open`,
 `409 diarization_not_configured`. Unknown/cross-device IDs remain
 `404 recording_not_found`. Failures retain prior text and carry code, phase and
 the cause's measured numbers: `final_pass_timeout` `{timeout_ms}` (it took
-longer than the hub allows), `final_pass_incomplete` (the new text lost parts
-of the previous one, numbers below), and any other code for a pass that could
-not complete.
+longer than the hub allows), `final_audio_invalid` (audio the hub cannot read),
+and any other code for a pass that could not complete. Hubs up to 0.11.0 also
+failed `final_pass_incomplete` when the new text lost parts of the previous
+one; this hub keeps those parts from the draft instead (below).
 
 ## Final pass and recording voices
 
@@ -1034,25 +1040,26 @@ even for brief voices. Only the user merges them by renaming.
 A remote word uses maximum overlap, otherwise the nearest voice within 250 ms;
 more distant words are discarded. This does not filter the local microphone.
 
-Before attribution/publication, each track is compared with its own draft,
-including groups with text awaiting retranscription. Timing matches
-`meetings/turns.py` (`started_at`, `_length_ms` and group manifest start).
-Only groups with at least six words count. If word-start times within the
-group interval ±1000 ms inclusive contain fewer than one quarter of its draft
-words, that span is lost. Groups without text do not count: absence is not proof
-of loss. Sound is not used to infer missing speech; the pass does not retry ASR.
+Before attribution/publication, each track is compared with its own draft, span
+by span (`meeting_transcript_integrity.choose`), including groups with text
+awaiting retranscription. Timing matches `meetings/turns.py` (`started_at`,
+`_length_ms` and group manifest start). Only groups with at least six words can
+be lost: if word-start times within the group interval ±1000 ms inclusive
+contain fewer than one quarter of its draft words, that span is lost. A span
+loops when the new words starting inside it repeat over both 66 words and 223
+permille of them; a repetition that runs on into the next spans loops over them
+too. Loop counting ignores punctuation and case. Groups without text do not
+count: absence is not proof of loss. Sound is not used to infer missing speech;
+the pass does not retry ASR.
 
-A lost span, or a repetition loop over both 66 words and 223 permille of words,
-fails `final_pass_incomplete` without publishing either track or new voices.
-`phase=whisper_mic_local|whisper_remote_app` identifies the track.
-Fields are `compared_groups`, `lost_groups`, `lost_draft_words` (sum of draft
-words in lost spans, not a WER difference), `first_lost_group_ms` (null if none),
-`loop_words` and `word_count`. The response also states
-`min_draft_words=6`, `min_final_word_divisor=4`, `draft_margin_ms=1000`,
-`max_loop_words=66` and `max_loop_permille=223`.
-Loop counting ignores punctuation and case. Windowing failures use
-`windows_<track>` and preserve ffmpeg causes/numbers.
-These checks guarantee neither WER nor semantic accuracy.
+A lost or looping span takes its draft words, spread evenly over the span
+(drafts carry no word times); every other span, and any word outside all draft
+spans, keeps the new words. A track whose every span that can be lost is lost
+keeps its whole draft. Voices are separated for `remote_app` whatever was
+kept, and attribution applies to the words that remain, by their times, so
+kept draft words get their “Persona N” too. The pass completes and reports
+`kept_draft` (above). Windowing failures use `windows_<track>` and preserve
+ffmpeg causes/numbers. These checks guarantee neither WER nor semantic accuracy.
 
 The note waits for the final job. On failure it waits for the draft to finish and
 uses it, including terminally failed groups, preserving `final_pass_error` and

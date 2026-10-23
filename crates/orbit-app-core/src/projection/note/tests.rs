@@ -233,6 +233,35 @@ fn a_running_final_pass_brings_its_progress_to_the_open_transcript() {
     );
 }
 
+/// A completed pass that kept spans of the live draft says how many, for
+/// the transcript's quiet line; one that kept none, or an older hub, says nothing.
+#[test]
+fn a_completed_final_pass_brings_the_draft_spans_it_kept_to_the_open_transcript() {
+    let mut raw = serde_json::to_value(hub_document()).unwrap();
+    raw["transcript"]["final_pass"] = serde_json::json!({
+        "state": "completed", "error": null,
+        "kept_draft": {"spans": 2, "duration_ms": 41_000}
+    });
+    let document = serde_json::from_value(raw).unwrap();
+    let projected = serde_json::to_value(project_open_note(document, Ok(vec![]), None)).unwrap();
+    assert_eq!(
+        projected["transcript"]["final_pass"],
+        serde_json::json!({
+            "state": "completed", "error": null,
+            "kept_draft": {"spans": 2, "duration_ms": 41_000}
+        })
+    );
+    let mut raw = serde_json::to_value(hub_document()).unwrap();
+    raw["transcript"]["final_pass"] = serde_json::json!({"state": "completed", "error": null});
+    let document = serde_json::from_value(raw).unwrap();
+    let projected = serde_json::to_value(project_open_note(document, Ok(vec![]), None)).unwrap();
+    assert!(
+        projected["transcript"]["final_pass"]
+            .get("kept_draft")
+            .is_none()
+    );
+}
+
 #[test]
 fn final_pass_timeout_projects_its_budget_without_other_diagnostics() {
     let mut raw = serde_json::to_value(hub_document()).unwrap();

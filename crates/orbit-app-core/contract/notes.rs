@@ -430,6 +430,21 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub progress: Option<NoteFinalPassProgressSnapshot>,
+        /// The live draft's spans a completed pass kept because they were
+        /// better; absent when it kept none, or from a hub up to 0.11.0.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub kept_draft: Option<NoteKeptDraftSnapshot>,
+    }
+}
+
+app_type! {
+    /// How many draft spans the final pass kept, and their summed length.
+    pub struct NoteKeptDraftSnapshot {
+        #[ts(type = "number")]
+        pub spans: u64,
+        #[ts(type = "number")]
+        pub duration_ms: u64,
     }
 }
 
