@@ -7,21 +7,106 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-23
+
+### Upgrading
+
+- **Upgrade the hub first, then the Macs.** A 0.10 Mac keeps working with a
+  0.11.0 hub, and a 0.11.0 Mac with a 0.10 hub, without the new features that
+  need both: several dictionaries, assistants added from Orbit, the hub's
+  storage numbers and a declared missing chunk.
+- **`activate.sh` now copies the database and its key before it activates a
+  release**, under `$ORBIT_HUB_BASE/backups/activation`. Going back with
+  `activate.sh anterior` puts that copy back when the schema changed, and sets
+  the newer database aside without deleting it. The copy needs room for one
+  more database on the same disk, and `python3` 3.11 or newer on the server.
+- **The hub's storage limit is no longer a fixed 10 GiB.** Without
+  `storage_quota_bytes`, it is what the disk allows: half of the database and
+  the disk's free space together, after keeping 5 GiB for the rest of the
+  server, so a copy of the database always fits beside it. Set
+  `storage_quota_bytes` to cap it lower. Nothing is ever deleted on its own.
+- **A nightly copy of the database ships** as `orbit-hub backup` with a
+  systemd service and timer; it is not installed by the upgrade. See
+  `docs/self-hosting.md` («Backups»).
+- **Assistants added from Orbit need `[acp_adapters]`** in `orbit.toml`, with
+  the adapters' installed paths. See «Assistants added from Orbit».
+
+### Added
+
+- **A new interface.** A sidebar with names (Hoy, Calendario, Reuniones,
+  Asistente, Ajustes) replaces the rail; while recording or in a call, a card
+  with its clock and controls takes the button's place. The top bar shows
+  Orbit's notices one at a time, each with its fix. Every screen is redrawn:
+  Hoy, the calendar's day, three days, week, month and agenda, Nueva
+  grabación and the floating panel, Reuniones with its list column and the
+  note, the Asistente, Ajustes in five sections, the first run and the command
+  palette. Nothing is shown blank while it loads.
+- **«Notas» is now «Reuniones».**
+- **One Markdown editor for every note:** private notes, the summary's
+  sections, «Editar la respuesta», an assistant's personality and a
+  template's context. It stores exactly what was typed and shows it
+  formatted on every line but the cursor's, with «/», «[[», «@», a format bar
+  and ⌘/ for the raw text.
+- **Correcting a word under the pointer**, in a menu beside it, every time it
+  is heard, into several dictionaries at once, with «Deshacer».
+- **Several dictionaries for a meeting or a series**; the first one wins when
+  two disagree, and the hub says so.
+- **«Rehacer transcripción» asks first and shows its progress**, and no
+  longer rewrites the note by itself; «Rehacer resumen» sits in the summary.
+- **Several assistants:** «Tus asistentes» in the Asistente's column, each
+  with its own page, a pencil for its name, description, colour and whether
+  it is the primary, and a gear for the rest. Claude Code and Codex
+  assistants can be added from Orbit, signed in through the vendor's own
+  tool (the token stays on the hub), and removed. A plan's limit keeps the
+  question and offers to go on with the primary. «Oye {nombre}» calls each
+  assistant; «Oye» alone calls nobody.
+- **Answers:** icons under each one (Copiar, Escuchar, Volver a preguntar,
+  Editar y copiar), code blocks with their language and file, and shell
+  commands copied without the `$`.
+
+### Changed
+
+- **No recording stops because of the calendar.** Every recording runs to one
+  safety ceiling of four hours, announced ten minutes before.
+- **A command that deletes files is approved once at a time**; the hub
+  refuses a wider choice before the agent hears it.
+
 ### Fixed
 
-- **A recording no longer stops at its calendar event's end:** a recording
-  started from Hoy or the calendar stopped fifteen minutes after the event, and
-  one started by hand, from the menu bar or with ⌃⌥M after an hour. Every
-  recording now runs until it is finished, with one safety ceiling of four
-  hours against a forgotten recording, whatever started it.
-- **Ten minutes before that ceiling, Orbit says so once**, with how long the
-  recording has run and what is left. «Nueva grabación», the recording card
-  and Hoy say the same ceiling («Graba hasta 4 h»), and Ajustes › «Cuánto dura
-  cada cosa» says what lasts how long: a recording up to 4 h, a call from the
-  app up to 1 h, one begun with ⌃⌥D up to 15 min.
-- **A hub that stops answering during a recording does not stop it:** the
-  recording goes on, its audio waits on the Mac and reaches the hub once,
-  whole, when the hub answers again (now covered by an end-to-end test).
+- **A recording is no longer cut by a silent daemon:** the helper keeps
+  capturing and holds up to five minutes of audio for it; the daemon's
+  heartbeat runs on its own thread; a late watchdog tick is the helper's own
+  stall. macOS no longer naps Orbit.
+- **A declared gap no longer cuts the recording**; a meeting cut by anything
+  but the person resumes by itself as a new segment, or is closed at its last
+  audio so its note is written; «Terminar» with a late drain still closes; a
+  daemon that falls relaunches Orbit and the recording goes on.
+- **One track's failure stops only that track**, and a device change under a
+  voice note during a meeting cancels only the note.
+- **Delivery:** a chunk the hub refuses is said with its code and, if it
+  cannot be delivered, declared missing so the meeting still closes and the
+  note says which part is missing; a hub out of space is said with its
+  numbers and retried, keeping the audio on the Mac; the backlog uploads in
+  capture order.
+- **Voice notes** spoken with the hub away, or whose transcription failed,
+  wait on the Mac, survive a restart and are sent when the hub is back; they
+  no longer block the next recording.
+- **What is written is not lost:** the chat box empties only once the message
+  is accepted; drafts survive leaving the view, ⌘Q and a crash; Orbit hands
+  over pending saves before it quits; the personal reminder says «Guardado»
+  only when it was; capture failures say their cause instead of a generic
+  text.
+- **The hub:** a full disk is said as `storage_full`; a refused chat message
+  can be sent again with its id; `init` refuses an existing database; a
+  second regeneration keeps the corrections the first set aside; the hub
+  refuses to start with more than 32 agents.
+- **A slow turn of the daemon's loop, or a held helper main thread, is logged
+  with its cause.**
+
+### Compatibility
+
+- The hub migrates its dictionary assignments to lists and adds a progress
+  column; `activate.sh anterior` restores the pre-activation copy for that.
 
 ## [0.10.1] - 2026-10-22
 
