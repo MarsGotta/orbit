@@ -48,7 +48,11 @@ export function TopBar({ onOpenPalette, snapshot, send, onPair }: TopBarProps) {
   const notices = topBarNotices(snapshot, useSettledHub(snapshot));
   return (
     <header className={styles.topBar}>
-      <div className={styles.leading} ref={slots?.setLeading} />
+      <div
+        className={styles.leading}
+        data-claimed={slots?.leadingClaims ? true : undefined}
+        ref={slots?.setLeading}
+      />
       {!slots?.leadingClaims && (
         <button className={styles.search} onClick={onOpenPalette} type="button">
           <Icon name="search" size={14} />
@@ -56,7 +60,8 @@ export function TopBar({ onOpenPalette, snapshot, send, onPair }: TopBarProps) {
           <kbd className={styles.shortcut}>{es.shell.searchShortcut}</kbd>
         </button>
       )}
-      <span className={styles.spacer} />
+      {/* A view's own header fills the bar up to the notices: it ends where it wants. */}
+      {!slots?.leadingClaims && <span className={styles.spacer} />}
       <TopBarNotices actions={{ send, onPair }} notices={notices} />
       <ThemeToggle />
     </header>

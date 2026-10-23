@@ -41,7 +41,7 @@ describe("a conversation's first page", () => {
       />,
     );
     expect(await screen.findByText("Leyendo la conversación…")).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Pregúntale a Deimos" })).toBeNull();
+    expect(screen.queryByRole("heading", { level: 1, name: "Deimos" })).toBeNull();
   });
 
   it("an answer that says nothing is a failed read, not an empty conversation", async () => {
@@ -55,7 +55,7 @@ describe("a conversation's first page", () => {
       />,
     );
     expect(await screen.findByText("No se pudieron cargar los mensajes.")).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Pregúntale a Deimos" })).toBeNull();
+    expect(screen.queryByRole("heading", { level: 1, name: "Deimos" })).toBeNull();
   });
 
   it("a failed first page can be read again", async () => {
@@ -76,8 +76,8 @@ describe("a conversation's first page", () => {
       />,
     );
     await userEvent.click(await screen.findByRole("button", { name: "Reintentar" }));
-    // The empty conversation invites to write to its agent.
-    expect(await screen.findByRole("heading", { name: "Pregúntale a Deimos" })).toBeTruthy();
+    // The empty conversation invites to write to its agent: its own page.
+    expect(await screen.findByRole("heading", { level: 1, name: "Deimos" })).toBeTruthy();
     expect(read).toHaveBeenCalledTimes(2);
   });
 
@@ -95,8 +95,8 @@ describe("a conversation's first page", () => {
         snapshot={snapshot()}
       />,
     );
-    // The empty conversation invites to write to its agent.
-    expect(await screen.findByRole("heading", { name: "Pregúntale a Deimos" })).toBeTruthy();
+    // The empty conversation invites to write to its agent: its own page.
+    expect(await screen.findByRole("heading", { level: 1, name: "Deimos" })).toBeTruthy();
     expect(screen.queryByText("Leyendo la conversación…")).toBeNull();
   });
 });

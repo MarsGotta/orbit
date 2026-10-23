@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
@@ -109,7 +109,7 @@ function Toolbar({ controls, reasonId }: { controls: Controls; reasonId: string 
  * While a voice note records, the box becomes its strip: the time, «Cancelar»
  * and «Enviar nota de voz».
  */
-export function AssistantComposer(props: ComposerProps) {
+export function AssistantComposer(props: ComposerProps & { talkingTo?: ReactNode }) {
   const es = useSpanish();
   const controls = useComposer(props, es);
   const reasonId = useId();
@@ -130,6 +130,7 @@ export function AssistantComposer(props: ComposerProps) {
         )}
         <div className={styles.composer} data-recording={recording || undefined}>
           <div className={styles.writing} hidden={recording}>
+            {props.talkingTo}
             <AttachmentChips
               drafts={controls.attachments.drafts}
               onRemove={controls.attachments.remove}

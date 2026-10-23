@@ -88,6 +88,7 @@ function AppContent(props: AppContentProps) {
               onRecord={onRecord}
               onReopenOnboarding={(mode) => setRequested(mode ?? "full")}
               readSessionMessages={props.readSessionMessages}
+              readSessionsPage={props.readSessionsPage}
               send={props.send}
               settingsSection={props.settingsSection}
               snapshot={props.snapshot}

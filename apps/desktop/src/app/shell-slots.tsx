@@ -78,12 +78,16 @@ export function ListColumn({
   );
 }
 
-/** What a view puts at the start of the top bar instead of the search box. */
+/**
+ * What a view puts at the start of the top bar instead of the search box.
+ * A view drawn outside the window's shell keeps it where the view puts it.
+ */
 export function TopBarLeading({ children }: { children: ReactNode }) {
   const slots = useShellSlots();
   const claim = slots?.claimLeading;
   useLayoutEffect(() => claim?.(), [claim]);
-  if (!slots?.leading) return null;
+  if (slots === null) return children;
+  if (!slots.leading) return null;
   return createPortal(children, slots.leading);
 }
 

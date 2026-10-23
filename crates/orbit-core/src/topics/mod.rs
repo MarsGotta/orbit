@@ -131,10 +131,12 @@ topics! {
     Control => control: 80 * 1024, 0;
     // One typed notice: a code, an op of at most 64 bytes and data
     // from a closed set of keys whose values are numbers, booleans or
-    // tokens of at most 64 bytes, so every key filled stays near 2 KiB
-    // (`notices_frame_fits_with_every_key_at_its_longest`). 8 KiB bounds one
-    // frame; it is not a limit on how many notices are said.
-    Notices => notices: 8 * 1024, 0;
+    // tokens of at most 64 bytes; the frame carries it as the notice of the
+    // moment and in the log. With all 51 keys filled at their longest it
+    // measured 8,348 bytes (`notices_frame_fits_with_every_key_at_its_longest`),
+    // about 160 bytes per key added. 12 KiB leaves room for some twenty more
+    // keys; it bounds one frame, not how many notices are said.
+    Notices => notices: 12 * 1024, 0;
 }
 
 /// Four per second protects the actor from ~94 audio events per second on two

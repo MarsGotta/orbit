@@ -130,7 +130,13 @@ function handler(daemon: Daemon, scenario: Scenario, connected: () => void) {
       scenario.stall === true
         ? new Promise(() => undefined)
         : page(daemon.hub.messages[String(args.sessionId)] ?? []),
-    orbit_agent: (args) => agentAnswer(daemon.hub, args.call as AgentCall),
+    orbit_agent: (args) => {
+      const call = args.call as AgentCall;
+      const answered = scenario.agent?.(call, daemon.views) ?? null;
+      if (answered === null) return agentAnswer(daemon.hub, call);
+      if (answered.views) void publish(daemon, answered.views);
+      return { call, outcome: answered.outcome } satisfies AgentAnswer;
+    },
     orbit_attachment_content: (args) => attachmentBytes(String(args.attachmentId)),
     orbit_attachment_add: (args) => added(args.source as AttachmentSource, (uploads += 1)),
     "plugin:dialog|open": () => [

@@ -1,68 +1,88 @@
+/* The Asistente's column: «Tus asistentes» first, then «Conversaciones» by day. */
+
 .list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.newButton {
+  margin-left: auto;
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  padding: 8px 6px 4px 10px;
+}
+
 .group {
+  flex: 1;
   margin: 0;
-  padding: 12px 10px 4px;
+  padding: 16px 10px 2px;
   color: var(--o-ink3);
   font: var(--o-text-meta);
   font-weight: 500;
 }
 
-.row {
-  width: 100%;
-  display: block;
-  padding: 8px 10px;
-  border: 0;
-  border-radius: var(--o-radius-md);
-  background: transparent;
-  color: var(--o-ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+.groupHead .group {
+  padding: 0;
+}
+
+.add {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--o-ink2);
   transition: background var(--o-dur-fast);
 }
 
-button.row:hover {
+.add:hover {
   background: var(--o-hover);
 }
 
+.add:focus-visible,
+.assistant:focus-visible,
 .row:focus-visible {
   outline: 2px solid var(--o-accText);
   outline-offset: -2px;
 }
 
-.row[data-open] {
-  background: var(--o-raised);
-  cursor: default;
-}
-
-.top {
+/* One assistant: its avatar, name and service, and what is wrong at the right. */
+.assistant {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--o-radius-md);
+  color: var(--o-ink);
+  text-decoration: none;
+  transition: background var(--o-dur-fast);
 }
 
-.when {
+.assistant:hover {
+  background: var(--o-hover);
+}
+
+.assistant[aria-current="page"] {
+  background: var(--o-raised);
+}
+
+.assistantText {
   flex: 1;
-  font-size: 13px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
+  min-width: 0;
 }
 
-.row[data-open] .when {
+.assistantName {
+  display: block;
+  font-size: 13px;
   font-weight: 600;
 }
 
-.agent {
-  flex: none;
-  color: var(--o-ink3);
-  font: var(--o-text-meta);
-}
-
-.line {
+.assistantService {
   display: block;
   overflow: hidden;
   color: var(--o-ink3);
@@ -71,8 +91,85 @@ button.row:hover {
   white-space: nowrap;
 }
 
-.row[data-open] .line {
-  color: var(--o-ink2);
+.warning {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  color: var(--o-warn);
+  font: var(--o-text-meta);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.warningDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--o-warn);
+}
+
+/* The day the conversations under it began. */
+.day {
+  margin: 0;
+  padding: 8px 10px 2px;
+  color: var(--o-ink3);
+  font: var(--o-text-tiny);
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--o-radius-md);
+  color: var(--o-ink);
+  text-decoration: none;
+  transition: background var(--o-dur-fast);
+}
+
+.row:hover {
+  background: var(--o-hover);
+}
+
+.row[data-open] {
+  background: var(--o-raised);
+}
+
+.rowAvatar {
+  margin-top: 1px;
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+}
+
+.top {
+  display: flex;
+  gap: 8px;
+}
+
+.line {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.time {
+  flex: none;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.agent {
+  display: block;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
 }
 
 .skeleton {

@@ -15,10 +15,10 @@
     - [6] AXTextArea = "Escribe a Deimos…" (Mensaje para Deimos) [actions=[confirm]]
     - [7] AXButton (Grabar nota de voz) [actions=[press]]
     - [8] AXButton (Enviar) [actions=[press]]
-    - AXGroup (Conversaciones)
-      - AXStaticText = "Conversaciones"
+    - AXGroup (Asistentes y conversaciones)
+      - AXStaticText = "Asistente"
       - [31] AXButton (Nueva conversación) [actions=[press]]
       - AXHeading
-        - AXStaticText = "Recientes"
-      - [32] AXButton "16 oct 2025, 10:01 4 mensajes" [actions=[press]]
-      - [33] AXButton "15 oct 2025, 03:46 2 mensajes" [actions=[press]]
+        - AXStaticText = "Conversaciones"
+      - [32] AXLink "4 mensajes · 16 oct 2025, 10:01" [actions=[press]]
+      - [33] AXLink "2 mensajes · 15 oct 2025, 03:46" [actions=[press]]

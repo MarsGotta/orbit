@@ -1,15 +1,11 @@
 import type { AppCommand } from "../../bridge/generated";
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import { Button } from "../../design/Button";
-import { EmptyState } from "../../design/EmptyState";
-import { Segmented } from "../../design/Segmented";
 import { Skeleton } from "../../design/Skeleton";
 import { useSpanish } from "../../i18n/AssistantCopy";
 import { noticesForAssistant } from "../../i18n/es/notices";
 import { waits } from "../../i18n/es/waits";
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import { useHeldChoice } from "../../state/use-held-choice";
-import { agentFor, agentsOf } from "./agents";
 import styles from "./AssistantView.module.css";
 
 type Send = (command: AppCommand) => unknown;
@@ -49,6 +45,12 @@ export function turnFailure(
   return text ?? es.assistant.turnFailed;
 }
 
+/** The cause of the last turn's failure (`agent_limit_reached`…), as the hub named it. */
+export function turnFailureCode(snapshot: AppSnapshot): string | undefined {
+  const code = snapshot.notice?.data?.code;
+  return typeof code === "string" ? code : undefined;
+}
+
 /** «Deimos está pensando…», with its three dots. */
 export function ActivityLine({ activity }: { activity: AppSnapshot["chat"]["activity"] }) {
   const es = useSpanish();
@@ -85,34 +87,6 @@ export function ThreadSkeleton() {
         <Skeleton widths={["100%"]} />
       </span>
       <Skeleton widths={["24%", "88%", "52%"]} />
-    </div>
-  );
-}
-
-/** A conversation without messages: what to do and, before the first one, with whom. */
-export function EmptyConversation({ send, snapshot }: { send: Send; snapshot: AppSnapshot }) {
-  const es = useSpanish();
-  const agents = agentsOf(snapshot);
-  const current = agentFor(snapshot, snapshot.chat.agent_id);
-  // The agent chosen stays shown until the new conversation says it.
-  const agent = useHeldChoice(current?.id, send);
-  const choose = snapshot.chat.session_id === null && agents.length > 1 && current !== undefined;
-  return (
-    <div className={styles.empty}>
-      <EmptyState icon="assistant" title={es.assistant.emptyTitle}>
-        {es.assistant.emptyText}
-      </EmptyState>
-      {choose && (
-        <div className={styles.agentChoice}>
-          <span aria-hidden="true">{es.assistant.agentPicker}</span>
-          <Segmented
-            label={es.assistant.agentPicker}
-            onChange={(id) => agent.choose(id, { command: "new_session", agent_id: id })}
-            options={agents.map((each) => ({ value: each.id, label: each.name }))}
-            value={agent.shown ?? current.id}
-          />
-        </div>
-      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "../../bridge/generated";
@@ -181,10 +181,12 @@ describe("the list and the voice notes", () => {
       </ShellSlots>,
     );
     const open = await openRow();
-    expect(open.textContent).toContain(sessionWhen(1_789_000_000_000, Date.now()));
-    const [older] = within(screen.getByRole("list", { name: "Recientes" })).getAllByRole("button");
-    expect(older?.textContent).toContain(sessionWhen(1_788_000_000_000, Date.now()));
-    await userEvent.click(older as HTMLElement);
+    expect(open.getAttribute("aria-label")).toContain(sessionWhen(1_789_000_000_000, Date.now()));
+    const older = screen.getByRole("link", {
+      name: new RegExp(sessionWhen(1_788_000_000_000, Date.now())),
+    });
+    expect(older.getAttribute("aria-current")).toBeNull();
+    await userEvent.click(older);
     expect(sent).toEqual([{ command: "session_open", id: "b" }]);
   });
 

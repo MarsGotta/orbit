@@ -656,6 +656,7 @@ impl Runtime {
                         (NoticeKey::AcpCode, signed(refusal.acp_code)),
                         (NoticeKey::ExitStatus, signed(refusal.exit_status)),
                         (NoticeKey::StopReason, refusal.stop_reason.clone()),
+                        (NoticeKey::ResetsAtMs, unsigned(refusal.resets_at_ms)),
                     ]
                     .into_iter()
                     .filter_map(|(key, value)| value.map(|value| (key, value)))

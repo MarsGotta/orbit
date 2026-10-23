@@ -1,25 +1,16 @@
 import type { AppCommand } from "../../bridge/generated";
 import type { DaemonPort } from "../../bridge/port";
-import { Button } from "../../design/Button";
-import { Loading } from "../../design/Spinner";
 import { useSpanish } from "../../i18n/AssistantCopy";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { StepWait } from "./AgentWork";
 import { ConversationHeader } from "./ConversationHeader";
 import { ConversationTools } from "./ConversationTools";
 import { turnInFlight } from "./conversation";
-import { retryText } from "./conversation-markdown";
 import { MessageList } from "./MessageList";
 import { PendingCard } from "./PendingCard";
-import {
-  ActivityLine,
-  EmptyConversation,
-  ThreadSkeleton,
-  TurnFailure,
-  turnFailure,
-  turnQuestion,
-} from "./ThreadParts";
+import { ActivityLine, turnFailure, turnQuestion } from "./ThreadParts";
 import { readsAloud } from "./agents";
+import { ThreadHead, TurnEnd, type With } from "./thread-extras";
 import { useConversation } from "./useConversation";
 import styles from "./AssistantView.module.css";
 
@@ -54,12 +45,17 @@ function Tail({
   onDecided,
   send,
   snapshot,
+  with: talk,
+  empty,
 }: {
   decision: string | null;
   history: History;
   onDecided: (choice: string) => void;
   send: Send;
   snapshot: AppSnapshot;
+  with: With;
+  /** The thread is empty: the assistant's page already says what its session needs. */
+  empty: boolean;
 }) {
   const es = useSpanish();
   const { chat } = snapshot;
@@ -76,37 +72,21 @@ function Tail({
       {decision !== null && chat.pending === null && (
         <p className={styles.decision}>{es.assistant.decided[decision]}</p>
       )}
-      {failure !== null && (
-        <TurnFailure retry={retryText(messages, messages.length)} send={send} text={failure} />
-      )}
+      <TurnEnd
+        empty={empty}
+        failure={failure}
+        messages={messages}
+        send={send}
+        snapshot={snapshot}
+        with={talk}
+      />
     </>
   );
 }
 
-/** «Cargar mensajes anteriores», while they load, or why they could not. */
-function OlderMessages({ history }: { history: History }) {
-  const es = useSpanish();
-  return (
-    <>
-      {history.hasOlder && (
-        <Button className={styles.older} onClick={history.loadOlder} size={28} variant="ghost">
-          {es.assistant.loadOlder}
-        </Button>
-      )}
-      {history.loading && <Loading size={12}>{es.assistant.loadingOlder}</Loading>}
-      {history.error !== null && (
-        <p className={styles.historyError} role="alert">
-          {history.error}
-        </p>
-      )}
-      {history.error !== null && history.firstPage === "failed" && (
-        <Button className={styles.older} onClick={history.retry} size={28}>
-          {es.retry}
-        </Button>
-      )}
-    </>
-  );
-}
+/** Nothing in the thread once its first page is read, and nothing under way. */
+const isEmpty = (history: History, chat: AppSnapshot["chat"]) =>
+  history.firstPage === "read" && history.messages.length === 0 && chat.activity === undefined;
 
 /** The thread, hanging from the bottom: older pages above, the turn and what it waits for below. */
 function Thread({
@@ -115,20 +95,21 @@ function Thread({
   onDecided,
   send,
   snapshot,
+  with: talk,
 }: {
   decision: Decision | null;
   history: History;
   onDecided: (choice: string) => void;
   send: Send;
   snapshot: AppSnapshot;
+  with: With;
 }) {
   const es = useSpanish();
   const { chat } = snapshot;
   const { messages } = history;
   const inFlight = turnInFlight(chat);
   const { decided, wait } = waitOf(chat, decision);
-  const empty =
-    history.firstPage === "read" && messages.length === 0 && chat.activity === undefined;
+  const empty = isEmpty(history, chat);
   return (
     <div
       className={styles.scroller}
@@ -142,9 +123,7 @@ function Thread({
         className={styles.thread}
         role="log"
       >
-        <OlderMessages history={history} />
-        {history.firstPage === "reading" && <ThreadSkeleton />}
-        {empty && <EmptyConversation send={send} snapshot={snapshot} />}
+        <ThreadHead empty={empty} history={history} send={send} snapshot={snapshot} with={talk} />
         <MessageList
           busy={inFlight}
           listenable={readsAloud(snapshot, chat.agent_id)}
@@ -161,7 +140,9 @@ function Thread({
             history={history}
             onDecided={onDecided}
             send={send}
+            empty={empty}
             snapshot={snapshot}
+            with={talk}
           />
         </MessageList>
       </div>
@@ -185,6 +166,7 @@ export function Conversation({
   readMessages?: DaemonPort["readSessionMessages"];
   send: Send;
   snapshot: AppSnapshot;
+  with: With;
 }) {
   const { chat } = thread.snapshot;
   const history = useConversation(chat, readMessages);
@@ -194,10 +176,18 @@ export function Conversation({
   return (
     <>
       <ConversationHeader
+        agent={thread.with.agent}
         began={began}
         calling={calling}
         canCall={canCall}
+        choosing={
+          thread.with.empty === "choose" &&
+          history.messages.length === 0 &&
+          thread.snapshot.chat.activity === undefined
+        }
+        handedFrom={thread.with.handedFrom}
         onCall={onCall}
+        port={thread.with.port}
         send={thread.send}
         snapshot={thread.snapshot}
       >

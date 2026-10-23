@@ -19,13 +19,15 @@ function ColumnHost() {
   return <div ref={useShellSlots()?.setColumn} />;
 }
 
-// The list of conversations: «+ Nueva», the open one on top, then «Recientes»,
-// each named by when it began, its agent on the right and its first sentence
-// below, never its date again nor «Conversación nueva».
+// The list of conversations: «+ Nueva», then each one under the day it began
+// («Hoy», «Ayer», «18 oct»), with its time, its agent below and its first
+// sentence, never its date again nor «Conversación nueva». A row's name keeps
+// «Hoy, 09:31», as the real-test harness finds it.
 
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  window.location.hash = "";
 });
 
 /** The open conversation's row: marked current, not a button to press again. */
@@ -121,30 +123,30 @@ describe("when a conversation began", () => {
 });
 
 describe("the list of conversations", () => {
-  it("puts the open one on top, then the recent ones with their date and agent", async () => {
+  it("puts each one under the day it began, the open one marked, with its agent", async () => {
     list({ session_id: "s-open", agent_id: "deimos" });
     const open = await openRow();
-    expect(open.textContent).toContain("Hoy, 09:31");
-    expect(open.textContent).toContain("Deimos");
-    const recent = screen.getByRole("list", { name: "Recientes" });
-    const rows = within(recent).getAllByRole("button");
-    expect(rows.map((row) => row.textContent)).toEqual([
+    expect(open.getAttribute("aria-label")).toContain("Hoy, 09:31");
+    expect(open.getAttribute("aria-label")).toContain("con Deimos");
+    expect(within(screen.getByRole("list", { name: "Hoy" })).getAllByRole("link")).toEqual([open]);
+    const yesterday = within(screen.getByRole("list", { name: "Ayer" })).getAllByRole("link");
+    expect(yesterday.map((row) => row.getAttribute("aria-label"))).toEqual([
       expect.stringContaining("Ayer, 16:00"),
-      expect.stringContaining("18 oct, 18:02"),
     ]);
-    expect(rows[0]?.textContent).toContain("Claude Code");
+    expect(yesterday[0]?.textContent).toContain("Claude Code");
+    expect(screen.getByRole("list", { name: "18 oct" }).textContent).toContain("18:02");
   });
 
   it("shows each conversation's first sentence, never its date twice", async () => {
     rememberFirstLine("s-code", "Revisa el cambio del calendario semanal. Y dime si rompe algo.");
     list({ session_id: "s-open" });
-    const recent = await screen.findByRole("list", { name: "Recientes" });
-    const [code, old] = within(recent).getAllByRole("button");
+    const [code] = within(await screen.findByRole("list", { name: "Ayer" })).getAllByRole("link");
     expect(code?.textContent).toContain("Revisa el cambio del calendario semanal.");
     expect(code?.textContent).not.toContain("Y dime si rompe algo");
     // Not read yet: how many messages it holds, not its title again.
+    const [old] = within(screen.getByRole("list", { name: "18 oct" })).getAllByRole("link");
     expect(old?.textContent).toContain("1 mensaje");
-    expect(old?.textContent?.match(/18 oct/g)).toHaveLength(1);
+    expect(old?.textContent).not.toContain("18 oct");
   });
 
   it("names a conversation in progress by its question, never «Conversación nueva»", async () => {
@@ -160,30 +162,31 @@ describe("the list of conversations", () => {
     // Begun a moment ago: the hub does not list it yet.
     list({ session_id: "s-new", turn: [question], activity: "thinking" });
     const open = await openRow();
-    expect(open.textContent).toContain("Hoy, 11:58");
+    expect(open.getAttribute("aria-label")).toContain("Hoy, 11:58");
     expect(open.textContent).toContain("Prepárame la llamada con Ribera.");
     expect(screen.queryByText(/Conversación nueva/)).toBeNull();
     // The list is read while the turn is in flight, not only once it ends.
-    expect(await screen.findByRole("list", { name: "Recientes" })).toBeTruthy();
+    expect(await screen.findByRole("list", { name: "Ayer" })).toBeTruthy();
   });
 
-  it("opens a recent conversation with its agent", async () => {
+  it("opens a conversation with its agent", async () => {
     const { sent } = list({ session_id: "s-open" });
-    const recent = await screen.findByRole("list", { name: "Recientes" });
-    await userEvent.click(within(recent).getAllByRole("button")[0] as HTMLElement);
+    const yesterday = await screen.findByRole("list", { name: "Ayer" });
+    await userEvent.click(within(yesterday).getAllByRole("link")[0] as HTMLElement);
     expect(sent).toEqual([{ command: "session_open", id: "s-code", agent_id: "claude-code" }]);
   });
 
-  it("starts a new conversation from «Nueva»", async () => {
-    const { sent } = list({ session_id: "s-open" });
+  it("«Nueva» asks with whom to talk", async () => {
+    list({ session_id: "s-open" });
     await userEvent.click(screen.getByRole("button", { name: "Nueva conversación" }));
-    expect(sent).toEqual([{ command: "new_session" }]);
+    expect(window.location.hash).toBe("#/assistant/new");
   });
 
   it("names no agent on the rows when the hub has one", async () => {
     list({ session_id: "s-open" }, undefined, [{ id: "default", name: "Vega" }]);
-    const recent = await screen.findByRole("list", { name: "Recientes" });
-    expect(recent.textContent).not.toContain("Vega");
+    const yesterday = await screen.findByRole("list", { name: "Ayer" });
+    expect(yesterday.textContent).not.toContain("Vega");
+    expect(within(yesterday).getByRole("link").getAttribute("aria-label")).not.toContain("Vega");
   });
 
   it("shows the shape of the rows while the first page loads, and says nothing is missing", async () => {
@@ -204,6 +207,6 @@ describe("the list of conversations", () => {
     list({ session_id: null }, read);
     expect(await screen.findByText("No se pudieron cargar las conversaciones.")).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
-    expect(await screen.findByRole("list", { name: "Recientes" })).toBeTruthy();
+    expect(await screen.findByRole("list", { name: "Ayer" })).toBeTruthy();
   });
 });

@@ -48,6 +48,7 @@ export interface MainProps {
   send: (command: AppCommand) => Promise<unknown>;
   snapshot: AppSnapshot;
   readSessionMessages?: DaemonPort["readSessionMessages"];
+  readSessionsPage?: DaemonPort["readSessionsPage"];
   agent?: DaemonPort["agent"];
   view: ViewId;
   settingsSection: SettingsSection;
@@ -64,6 +65,7 @@ function View({
   send,
   snapshot,
   readSessionMessages,
+  readSessionsPage,
   agent,
   view,
   settingsSection,
@@ -81,15 +83,10 @@ function View({
   if (view === "notes") {
     return <NotesView error={error} onRecord={onRecord} send={send} snapshot={snapshot} />;
   }
-  if (view === "assistant")
-    return (
-      <AssistantView
-        error={error}
-        readMessages={readSessionMessages}
-        send={send}
-        snapshot={snapshot}
-      />
-    );
+  if (view === "assistant") {
+    const reads = { readMessages: readSessionMessages, readSessions: readSessionsPage };
+    return <AssistantView agent={agent} error={error} send={send} snapshot={snapshot} {...reads} />;
+  }
   if (view === "settings") {
     // SettingsView shows the section the route names (`#/settings/{section}`).
     // SettingsView's index opens a section through the router, so the URL and the index agree.

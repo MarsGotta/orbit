@@ -52,6 +52,6 @@
   "click:Nueva conversación": "assistant-new"
  },
  "assistant-new": {
-  "click:16 oct 2025, 10:01 4 mensajes": "assistant-reopened"
+  "click:4 mensajes · 16 oct 2025, 10:01": "assistant-reopened"
  }
 }

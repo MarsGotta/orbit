@@ -17,6 +17,11 @@ export interface ComposerProps {
   hub: HubLinkConnection;
   paired: boolean;
   send: VoiceSend;
+  /**
+   * Why the conversation's assistant cannot answer now (its session, its
+   * plan's limit): nothing is sent, what is written stays.
+   */
+  agentBlocked?: string | null;
 }
 
 type Copy = ReturnType<typeof useSpanish>;
@@ -37,7 +42,7 @@ function blockedReason(props: ComposerProps, uploading: boolean, es: Copy): stri
   if (chat.activity === "transcribing") return blocked.transcribing;
   if (turnInFlight(chat)) return blocked.answering;
   if (uploading) return blocked.uploading;
-  return null;
+  return props.agentBlocked ?? null;
 }
 
 type Attachments = ReturnType<typeof useAttachmentDrafts>;
@@ -87,7 +92,8 @@ export function useComposer(props: ComposerProps, es: Copy) {
     [setDraft],
   );
   useComposerInsert(insert);
-  const unavailable = !daemonReady || !paired || hub !== "online";
+  const unavailable =
+    !daemonReady || !paired || hub !== "online" || (props.agentBlocked ?? null) !== null;
   const attachments = useAttachmentDrafts(attachmentLimits);
   // A message on its way: the box keeps it until the daemon has taken it.
   const [sending, setSending] = useState(false);

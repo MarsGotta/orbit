@@ -1,6 +1,11 @@
 import type { AccessGroups } from "../../bridge/generated/AccessGroups";
 import type { AgentRefusal } from "../../bridge/generated/AgentRefusal";
 import type { RefusalNumber } from "../../bridge/generated/RefusalNumber";
+import { assistantRefusals } from "./assistantRefusals";
+import { count, text, type Numbers } from "./refusalNumbers";
+
+/** A count as the person reads it: «16.384». */
+const figure = new Intl.NumberFormat("es-ES").format;
 
 /**
  * The groups of Orbit's tools an agent may use, in the order Ajustes shows
@@ -26,21 +31,6 @@ export const accessGroups: ReadonlyArray<{
   },
   { group: "files", label: "Archivos", description: "Leer las carpetas que elijas aquí abajo" },
 ];
-
-type Numbers = AgentRefusal["numbers"];
-
-/** A count as the person reads it: «16.384». */
-const figure = new Intl.NumberFormat("es-ES").format;
-
-function text(numbers: Numbers, key: string): string | undefined {
-  const value = numbers[key];
-  return typeof value === "string" ? value : undefined;
-}
-
-function count(numbers: Numbers, key: string): number | undefined {
-  const value = numbers[key];
-  return typeof value === "number" ? value : undefined;
-}
 
 /** Every number as `key: value`, for a refusal this screen has no words for. */
 function listed(numbers: Numbers): string {
@@ -90,6 +80,7 @@ const refusals: Record<string, (numbers: Numbers) => string | undefined> = {
     if (bytes === undefined || max === undefined) return undefined;
     return `La personalidad ocupa ${figure(bytes)} bytes; el máximo es ${figure(max)}.`;
   },
+  ...assistantRefusals,
   assistant_admin_refused: (n) => {
     const route = text(n, "route");
     const status = count(n, "status");

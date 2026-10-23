@@ -6,11 +6,46 @@ import { ZONE } from "./time";
 export const OWNER = "Lucía Ferrer";
 export const OWNER_FIRST = "Lucía";
 
-export const AGENTS: Agent[] = [
-  { id: "deimos", name: "Deimos", voice: true },
-  { id: "claude-code", name: "Claude Code", voice: false },
-  { id: "codex", name: "Codex", voice: false },
-];
+/**
+ * The annex's three assistants: Deimos with Hermes through the hub, Phobos
+ * with Codex on a ChatGPT subscription, and Ares with Claude, whose session
+ * expired. Codex reports no usage, so Phobos has no bar.
+ */
+export const DEIMOS: Agent = {
+  id: "deimos",
+  name: "Deimos",
+  voice: true,
+  service: "hermes",
+  description: "Tu día, tus reuniones y usar este Mac por ti",
+  color: "c1",
+  removable: false,
+};
+export const PHOBOS: Agent = {
+  id: "codex",
+  name: "Phobos",
+  voice: false,
+  service: "codex",
+  description: "Código, scripts y datos",
+  color: "c2",
+  removable: true,
+  account: "signed_in",
+  account_email: "lucia.ferrer@nubaria.example",
+  plan: "ChatGPT Plus",
+};
+export const ARES: Agent = {
+  id: "claude-code",
+  name: "Ares",
+  voice: false,
+  service: "claude-code",
+  description: "Redactar, revisar contratos y documentos largos",
+  color: "c3",
+  removable: true,
+  account: "expired",
+  account_email: "lucia.ferrer@nubaria.example",
+  plan: "Claude Pro",
+};
+
+export const AGENTS: Agent[] = [DEIMOS, PHOBOS, ARES];
 
 export const status: Views["status"] = {
   availability: { state: "current" },
@@ -21,6 +56,7 @@ export const status: Views["status"] = {
     assistant_name: "Deimos",
     agents: AGENTS,
     default_agent_id: "deimos",
+    addable_agents: ["claude-code", "codex"],
     attachments: {
       max_file_bytes: 20_971_520,
       max_message_files: 10,

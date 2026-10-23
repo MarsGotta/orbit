@@ -35,26 +35,111 @@
 
 /* ── The header ─────────────────────────────────────────── */
 
+/* It lives in the window's top bar (`TopBarLeading`): one bar of 52 px, not two. */
 .header {
-  height: 52px;
-  flex: none;
+  min-width: 0;
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 20px 0 32px;
-  border-bottom: 1px solid var(--o-line);
 }
 
 .header h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.identity {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.identity > h2 {
+  margin: 0 4px 0 5px;
+}
+
+.servicePill {
+  margin-right: 4px;
+  padding: 1px 8px;
+  border: 1px solid var(--o-line);
+  border-radius: var(--o-radius-pill);
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  white-space: nowrap;
+}
+
+.identity [data-open] {
+  background: var(--o-raised);
+}
+
+.savedEcho {
+  color: var(--o-ok);
+  font: var(--o-text-meta);
+  white-space: nowrap;
+}
+
+.savedEcho:not(:empty) {
+  margin-left: 6px;
 }
 
 .headerState {
+  margin-left: 6px;
+  overflow: hidden;
   color: var(--o-ink3);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerState[data-tone="warn"] {
+  color: var(--o-warn);
+  font-weight: 500;
+}
+
+/* «Hablar con [Deimos]» above the box while the assistant is being chosen. */
+.talkingTo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  font-size: 13px;
+}
+
+.talkingChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px 2px 4px;
+  border: 1px solid var(--o-line2);
+  border-radius: var(--o-radius-pill);
+  color: var(--o-ink);
+  font-weight: 500;
+}
+
+/* «Sigues con Deimos · le hemos pasado esta conversación», a line across the thread. */
+.handover {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: var(--o-ink3);
+  font: var(--o-text-meta);
+  font-size: 13px;
+}
+
+.handover::before,
+.handover::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--o-line);
 }
 
 .status {
@@ -82,9 +167,10 @@
   flex-direction: column-reverse;
 }
 
+/* Before the first message its page starts at the top, as the annex draws it. */
 .scroller[data-empty] {
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .thread {
@@ -124,21 +210,6 @@
   padding: 12px 14px;
   border-radius: var(--o-radius-14);
   background: var(--o-raised);
-}
-
-.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-.agentChoice {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--o-ink2);
-  font: var(--o-text-control);
 }
 
 .activity {

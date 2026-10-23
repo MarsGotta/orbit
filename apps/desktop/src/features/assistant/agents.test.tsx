@@ -81,7 +81,10 @@ describe("the agent of a conversation", () => {
     view(snapshot({}), sent);
     const picker = screen.getByRole("radiogroup", { name: "Hablar con" });
     const options = within(picker).getAllByRole("radio");
-    expect(options.map((option) => option.textContent)).toEqual(["Deimos", "Atlas"]);
+    expect(options).toEqual([
+      within(picker).getByRole("radio", { name: "Deimos" }),
+      within(picker).getByRole("radio", { name: "Atlas" }),
+    ]);
     expect(options[0]?.getAttribute("aria-checked")).toBe("true");
     await userEvent.click(within(picker).getByRole("radio", { name: "Atlas" }));
     expect(sent).toEqual([{ command: "new_session", agent_id: "atlas" }]);
@@ -165,9 +168,10 @@ describe("the list of conversations", () => {
         />
       </ShellSlots>,
     );
-    const recent = within(await screen.findByRole("list", { name: "Recientes" })).getAllByRole(
-      "button",
-    );
+    await screen.findAllByRole("link", { name: /mensaje/ });
+    const recent = screen
+      .getAllByRole("link", { name: /mensaje/ })
+      .filter((row) => row.getAttribute("aria-current") !== "page");
     expect(recent.map((row) => row.textContent)).toEqual([
       expect.stringContaining("Atlas"),
       expect.stringContaining("Deimos"),
@@ -191,8 +195,11 @@ describe("the list of conversations", () => {
         />
       </ShellSlots>,
     );
-    const recent = await screen.findByRole("list", { name: "Recientes" });
-    expect(recent.textContent).not.toContain("Vega");
+    const rows = await screen.findAllByRole("link", { name: /mensaje/ });
+    for (const row of rows) {
+      expect(row.textContent).not.toContain("Vega");
+      expect(row.getAttribute("aria-label")).not.toContain("Vega");
+    }
   });
 });
 

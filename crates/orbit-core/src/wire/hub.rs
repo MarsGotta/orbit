@@ -505,6 +505,10 @@ pub struct RefusalData {
     pub exit_status: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_reason: Option<String>,
+    /// When an agent's plan comes back from its limit
+    /// (`agent_limit_reached`), when its adapter said.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resets_at_ms: Option<u64>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]

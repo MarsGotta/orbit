@@ -681,7 +681,8 @@ class RealTest:
                     "the hub lists, with its start date"
                 )
             ui.press(self.main, "Nueva conversación", ("AXButton",), contains=True, first=True)
-            ui.press(self.main, earlier["app_title"], ("AXButton",), contains=True, first=True)
+            # Each conversation of the list is a link named by its start («Hoy, 09:31»).
+            ui.press(self.main, earlier["app_title"], ("AXLink",), contains=True, first=True)
             self.wait_mac("session", done["session"])
             self.measure(
                 "screen",

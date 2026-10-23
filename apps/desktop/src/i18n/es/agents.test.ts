@@ -62,6 +62,82 @@ describe("a hub refusal of an agent's configuration", () => {
   });
 });
 
+describe("a hub refusal of an assistant's profile, its adding or its sign-in", () => {
+  it.each([
+    [
+      refusal("agent_profile_invalid", 422, {
+        field: "name",
+        rule: "too_long",
+        characters: 31,
+        max_characters: 24,
+      }),
+      "El nombre tiene 31 caracteres; el máximo es 24.",
+    ],
+    [
+      refusal("agent_profile_invalid", 422, { field: "description", rule: "control_characters" }),
+      "La descripción lleva caracteres de control; escríbela en una línea.",
+    ],
+    [
+      refusal("agent_profile_invalid", 422, { field: "name", rule: "empty" }),
+      "Ponle un nombre: es como le llamas.",
+    ],
+    [
+      refusal("agent_name_taken", 409, { field: "name", agent_id: "atlas" }),
+      "Ya tienes otro asistente que se llama así.",
+    ],
+    [
+      refusal("agent_primary_required", 409, { agent_id: "atlas" }),
+      "Siempre hay un asistente principal: haz principal a otro para que este deje de serlo.",
+    ],
+    [
+      refusal("agent_add_unsupported", 403, { service: "hermes" }),
+      "Este tipo no se añade desde Orbit. Pídeselo a quien gestiona tu hub.",
+    ],
+    [
+      refusal("agent_adapter_missing", 409, { service: "codex" }),
+      "Tu hub no tiene el adaptador de codex instalado o no arranca. Pídeselo a quien gestiona tu hub.",
+    ],
+    [
+      refusal("too_many_agents", 409, { count: 32, max: 32 }),
+      "Tu hub ya tiene 32 asistentes; el máximo es 32.",
+    ],
+    [
+      refusal("agent_not_removable", 403, { agent_id: "atlas" }),
+      "Este asistente lo da tu hub: solo quien lo gestiona puede quitarlo.",
+    ],
+    [
+      refusal("agent_folder_not_removed", 500, { agent_id: "codex-1a2b3c4d", errno: 13 }),
+      "El hub no pudo borrar la carpeta del asistente (errno 13), así que sigue aquí. Avisa a quien gestiona tu hub.",
+    ],
+    [
+      refusal("sign_in_code_invalid", 422, { agent_id: "claude-1", characters: 3000 }),
+      "Ese código no es el de la página (3000 caracteres). Cópialo entero, con su «#».",
+    ],
+    [
+      refusal("sign_in_not_waiting_for_code", 409, { agent_id: "claude-1" }),
+      "El inicio de sesión ya no espera un código. Vuelve a empezarlo.",
+    ],
+    [
+      refusal("sign_in_not_found", 404, { agent_id: "claude-1" }),
+      "El hub ya no tiene ese inicio de sesión: caducó o terminó. Vuelve a empezarlo.",
+    ],
+    [
+      refusal("sign_in_unsupported", 409, { agent_id: "atlas", kind: "hermes" }),
+      "Este asistente no inicia sesión desde Orbit: lo configura quien gestiona tu hub.",
+    ],
+    [
+      refusal("sign_out_failed", 502, { agent_id: "codex-1", exit_status: 1 }),
+      "La herramienta del proveedor no cerró la sesión (código de salida 1). Vuelve a intentarlo.",
+    ],
+    [
+      refusal("sign_out_timeout", 504, { agent_id: "codex-1", timeout_ms: 30000 }),
+      "La herramienta del proveedor no cerró la sesión en 30 s. Vuelve a intentarlo.",
+    ],
+  ])("says %o with its numbers", (given, text) => {
+    expect(agentRefusalText(given)).toBe(text);
+  });
+});
+
 describe("a call the Mac could not make", () => {
   it.each([
     [{ code: "not_paired" }, "Este Mac no está emparejado con el hub. Emparéjalo en Ajustes."],

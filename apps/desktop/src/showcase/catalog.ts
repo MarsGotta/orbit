@@ -1,3 +1,7 @@
+import { assistantsScenarios } from "./scenarios/assistants";
+import { assistantsGearScenarios } from "./scenarios/assistants-gear";
+import { assistantsLimitScenarios } from "./scenarios/assistants-limit";
+import { assistantsSignInScenarios } from "./scenarios/assistants-sign-in";
 import { calendarScenarios } from "./scenarios/calendar";
 import { chatScenarios } from "./scenarios/chat";
 import { chatAnswerScenarios } from "./scenarios/chat-answers";
@@ -35,6 +39,10 @@ export const scenarios: Scenario[] = [
   ...chatAnswerScenarios,
   ...chatMediaScenarios,
   ...chatCallScenarios,
+  ...assistantsScenarios,
+  ...assistantsSignInScenarios,
+  ...assistantsLimitScenarios,
+  ...assistantsGearScenarios,
   ...grabarScenarios,
   ...panelScenarios,
   ...settingsScenarios,

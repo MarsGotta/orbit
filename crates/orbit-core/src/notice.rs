@@ -512,6 +512,7 @@ notice_keys! {
     AcpCode,
     ExitStatus,
     StopReason,
+    ResetsAtMs,
 }
 
 /// A short machine value: a code a component already speaks (`privacy_stopped`,

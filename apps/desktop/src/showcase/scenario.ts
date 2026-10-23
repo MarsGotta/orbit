@@ -1,5 +1,7 @@
 import type { FeatureFrame, FeatureId } from "../bridge/generated";
+import type { AgentCall } from "../bridge/generated/AgentCall";
 import type { AgentConfig } from "../bridge/generated/AgentConfig";
+import type { AgentOutcome } from "../bridge/generated/AgentOutcome";
 import type { AppCommand } from "../bridge/generated/AppCommand";
 import type { ChatMessage } from "../bridge/generated/ChatMessage";
 import type { ChatSessionSummary } from "../bridge/generated/ChatSessionSummary";
@@ -82,6 +84,15 @@ export interface Scenario {
    * goes from under way to done.
    */
   react?: (views: Views, command: AppCommand) => Partial<Views> | Partial<Views>[] | null;
+  /**
+   * What the hub answers an assistant's call (profile, add, sign in…) and
+   * what the daemon publishes after it; `null` leaves it to the showcase's
+   * reading of the agents' configuration.
+   */
+  agent?: (
+    call: AgentCall,
+    views: Views,
+  ) => { outcome: AgentOutcome; views?: Partial<Views> } | null;
   /** The orders the daemon never answers, to show them under way. */
   hold?: (command: AppCommand) => boolean;
   /** The browser storage the app reads at start, beyond onboarding done. */

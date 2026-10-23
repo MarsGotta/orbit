@@ -104,7 +104,9 @@ describe("the header", () => {
         { agents: TWO },
       ),
     );
-    const header = screen.getByRole("heading", { name: "Atlas" }).closest("header") as HTMLElement;
+    const header = screen
+      .getByRole("heading", { name: "Atlas" })
+      .closest("[data-conversation-header]") as HTMLElement;
     expect(within(header).getByRole("heading", { name: "Atlas" })).toBeTruthy();
     expect(header.textContent).toContain("espera tu permiso");
     expect(within(header).getByRole("button", { name: "Llamar a Atlas" })).toBeTruthy();
@@ -128,7 +130,8 @@ describe("the thread", () => {
 
   it("an empty new conversation invites to write to its agent", () => {
     show(snapshot({ session_id: null }));
-    expect(screen.getByRole("heading", { name: "Pregúntale a Deimos" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1, name: "Deimos" })).toBeTruthy();
+    expect(screen.getByRole("group", { name: "Para empezar" })).toBeTruthy();
     expect(screen.queryByRole("radiogroup")).toBeNull();
   });
 

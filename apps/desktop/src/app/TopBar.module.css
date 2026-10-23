@@ -18,6 +18,10 @@
   gap: var(--o-space-10);
 }
 
+.leading[data-claimed] {
+  flex: 1;
+}
+
 .leading:empty {
   display: none;
 }

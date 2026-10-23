@@ -97,10 +97,10 @@ export const settingsScenarios: Scenario[] = [
     id: "ajustes-agente-editable",
     state: "Asistente · uno que se configura",
     description:
-      "Claude Code se configura desde aquí: personalidad con su tamaño, interruptores y habilidades.",
+      "Ares se configura desde aquí: personalidad con su tamaño, interruptores y habilidades.",
     steps: [
       open("Asistente"),
-      { click: "role=tab[name='Claude Code']" },
+      { click: "role=tab[name='Ares']" },
       { wait: "text=se configura desde aquí" },
     ],
   }),
@@ -110,7 +110,7 @@ export const settingsScenarios: Scenario[] = [
     description: "«Nueva habilidad»: escribirla desde cero o importar una carpeta con su SKILL.md.",
     steps: [
       open("Asistente"),
-      { click: "role=tab[name='Claude Code']" },
+      { click: "role=tab[name='Ares']" },
       { wait: "text=se configura desde aquí" },
       { scroll: region("Habilidades") },
       { click: "role=button[name='Nueva habilidad']" },
@@ -122,7 +122,7 @@ export const settingsScenarios: Scenario[] = [
     description: "El SKILL.md de una habilidad en su ventana, con su nombre y su tamaño.",
     steps: [
       open("Asistente"),
-      { click: "role=tab[name='Claude Code']" },
+      { click: "role=tab[name='Ares']" },
       { click: "role=button[name='Editar revisar-pr']" },
       { wait: "role=textbox[name='Contenido del SKILL.md']" },
     ],
