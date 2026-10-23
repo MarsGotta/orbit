@@ -1,0 +1,16 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Principal)
+      - [1] AXButton "Grabar reunión" [actions=[press]]
+      - AXLink "Hoy"
+      - AXLink "Calendario"
+      - [3] AXLink "Reuniones" [actions=[press]]
+      - [4] AXLink "Asistente" [actions=[press]]
+      - AXLink "Ajustes"
+    - AXGroup (Lista de reuniones)
+      - AXHeading
+        - AXStaticText = "Reuniones"
+      - [6] AXButton "Actualizar" [actions=[press]]
+    - AXHeading
+      - AXStaticText = "Aún no hay reuniones"
+    - AXStaticText = "Graba tu primera reunión y Orbit escribirá la nota por ti."

@@ -1,0 +1,14 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Principal)
+      - [1] AXButton "Grabar reunión" [actions=[press]]
+      - AXLink "Hoy"
+      - AXLink "Calendario"
+      - [3] AXLink "Reuniones" [actions=[press]]
+      - [4] AXLink "Asistente" [actions=[press]]
+      - AXLink "Ajustes"
+    - AXHeading
+      - AXStaticText = "Asistente"
+    - AXGroup (Aviso de Orbit)
+      - AXStaticText = "Reunión descartada"
+      - [9] AXButton (Cerrar aviso) [actions=[press]]

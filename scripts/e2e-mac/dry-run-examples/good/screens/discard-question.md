@@ -1,0 +1,22 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Principal)
+      - AXGroup (Grabación en curso)
+        - AXStaticText = "Grabando"
+        - AXStaticText = "00:09"
+        - AXStaticText = "Reunión 16/10/26, 10:20"
+        - AXStaticText = "Solo tu micrófono · hasta las 11:20"
+        - AXStaticText = "«Oye Deimos» te escucha"
+        - AXGroup (¿Terminar sin guardar?)
+          - AXStaticText = "¿Terminar sin guardar?"
+          - AXStaticText = "Se borra lo grabado y no se escribe nota."
+          - [24] AXButton "Borrar y terminar" [actions=[press]]
+          - [25] AXButton "Seguir grabando" [actions=[press]]
+      - AXLink "Hoy"
+      - AXLink "Calendario"
+      - [3] AXLink "Reuniones" [actions=[press]]
+      - [4] AXLink "Asistente" [actions=[press]]
+      - AXLink "Ajustes"
+    - AXHeading
+      - AXStaticText = "Reuniones"
+    - [7] AXButton "R Reunión 16/10/26, 10:20 Grabando 16 oct, 10:20" [actions=[press]]

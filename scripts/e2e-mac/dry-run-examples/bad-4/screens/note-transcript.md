@@ -20,6 +20,7 @@
       - [9] AXRadioButton "Acciones" [actions=[press]]
       - [10] AXRadioButton "Transcripción" [actions=[press]]
     - AXGroup
+      - AXStaticText = "Micrófono silenciado · 01:24 – 01:38"
       - AXStaticText = "Pulsa un nombre para cambiar quién habla. Pasa el ratón por una palabra y púlsala para corregirla: la corrección se guarda en los diccionarios de esta reunión."
       - [11] AXButton "Copiar transcripción" [actions=[press]]
       - AXGroup
@@ -38,26 +39,23 @@
         - AXGroup
           - AXStaticText = "El arquitecto confirmó esa fecha, pero necesita los planos firmados antes del veintiocho de octubre. ¿Y el permiso de obras? La última vez el ayuntamiento tardó casi un mes en contestar. Ya está concedido. Llegó el martes por correo y lo tengo guardado en la carpeta del proyecto. Oye Deimos, ¿de qué estamos hablando?"
       - AXGroup
-        - AXStaticText = "01:03"
-        - [15] AXButton "Alina Pérez" [actions=[press]]
+        - AXStaticText = "00:52"
+        - [18] AXButton "Alina Pérez" [actions=[press]]
         - AXGroup
           - AXStaticText = "El arquitecto confirmó esa fecha, pero necesita los planos firmados antes del veintiocho de octubre. ¿Y el permiso de obras? La última vez el ayuntamiento tardó casi un mes en contestar. Ya está concedido. Llegó el martes por correo y lo tengo guardado en la carpeta del proyecto. Oye Deimos, ¿de qué estamos hablando?"
       - AXGroup
-        - AXStaticText = "01:24"
-        - [16] AXButton "Alina Pérez" [actions=[press]]
-      - AXGroup
         - AXStaticText = "01:03"
-        - [17] AXButton "Alina Pérez" [actions=[press]]
+        - [15] AXButton "Alina Pérez" [actions=[press]]
         - AXGroup
           - AXStaticText = "Gracias. Sigamos. Decidimos mantener la fecha del tres de noviembre para empezar las obras. Me parece bien. Yo me encargo de enviar los planos firmados al arquitecto el lunes. Queda un tema abierto: la mudanza de los libros durante las obras. Todavía no sabemos dónde guardarlos."
       - AXGroup
-        - AXStaticText = "01:24"
-        - [18] AXButton "Alina Pérez" [actions=[press]]
+        - AXStaticText = "01:39"
+        - [16] AXButton "Alina Pérez" [actions=[press]]
         - AXGroup
-          - AXStaticText = "Podemos preguntar al ayuntamiento si nos deja el almacén del polideportivo. Buena idea. Pedro, escribe al ayuntamiento esta semana para pedir el almacén. Apuntado. También conviene avisar a los usuarios de la biblioteca con un cartel en la entrada. De acuerdo, el cartel lo preparamos la semana que viene."
+          - AXStaticText = "De acuerdo, el cartel lo preparamos la semana que viene."
       - AXGroup
         - AXStaticText = "01:45"
-        - [19] AXButton "Alina Pérez" [actions=[press]]
+        - [17] AXButton "Alina Pérez" [actions=[press]]
         - AXGroup
           - AXStaticText = "Y la próxima reunión la hacemos el martes que viene a las diez. Perfecto. Resumen: Laura llama al proveedor, Pedro escribe al ayuntamiento y los planos salen el lunes. Gracias a todos. Hasta el martes."
     - AXGroup (Aviso de Orbit)

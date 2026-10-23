@@ -1,11 +1,14 @@
-"""The twelve checks of the real test on the Mac, as pure functions.
+"""The checks of the real test on the Mac, as pure functions.
 
-Each one reads the evidence the run collected — the accessibility trees of
-what was on screen, what the daemon said over its socket, the report logs of
-the Mac and the log of the test hub — and says «pass», «fail» with its cause,
-or «unchecked» when the run never got to it, naming the step that stopped
-it. No check is ever softened to pass: one that fails on the Mac is an Orbit
-defect.
+The first twelve are here; those of the recording's controls («Silenciar»,
+«Terminar sin guardar», «Borrar reunión», the menu bar) are in
+meeting_control_checks.py. Each one reads the evidence the run collected —
+the accessibility trees of what was on screen, what the daemon said over its
+socket, the report logs of the Mac and the log of the test hub — and says
+«pass», «fail» with its cause, «unchecked» when the run never got to it,
+naming the step that stopped it, or «skipped» when the harness cannot see
+what it checks at all, with that reason (skipped is not passed). No check is
+ever softened to pass: one that fails on the Mac is an Orbit defect.
 """
 
 from __future__ import annotations
@@ -134,12 +137,18 @@ FAILURE_CLASSES = ("failed", "fixable")
 FAILURE_LEVELS = ("ERROR", "CRITICAL")
 
 
-def result(number: int, status: str, detail: str) -> dict:
-    return {"number": number, "name": NAMES[number], "status": status, "detail": detail}
+def result(number: int, status: str, detail: str, names: dict[int, str] = NAMES) -> dict:
+    return {"number": number, "name": names[number], "status": status, "detail": detail}
 
 
 class Unchecked(Exception):
     """The evidence a check needs was never collected."""
+
+
+def passed(results: list[dict]) -> bool:
+    """Whether the run passed: no check failed or was left unchecked. A
+    skipped check is said in the report as such; it neither passes nor fails."""
+    return all(r["status"] in ("pass", "skipped") for r in results)
 
 
 def _tree(ev: dict, label: str) -> list[ax_tree.Node]:
@@ -594,26 +603,31 @@ CHECKS = {
 
 
 def run_checks(ev: dict) -> list[dict]:
-    """The twelve results. A step that failed fails the check it serves; the
+    """Every result. A step that failed fails the check it serves; the
     checks it left without evidence say which step stopped them."""
+    import meeting_control_checks
+
+    names = {**NAMES, **meeting_control_checks.NAMES}
     failed_steps = [s for s in ev.get("steps", []) if not s.get("ok", True)]
     failures = failure_lines(ev)
     results = []
-    for number, check in CHECKS.items():
+    for number, check in {**CHECKS, **meeting_control_checks.CHECKS}.items():
         own = next((s for s in failed_steps if number in s.get("checks", ())), None)
         if own is not None:
-            res = result(number, "fail", f"step «{own['name']}»: {own['cause']}")
+            res = result(number, "fail", f"step «{own['name']}»: {own['cause']}", names)
         else:
             try:
                 ok, detail = check(ev)
-                res = result(number, "pass" if ok else "fail", detail)
+                res = result(number, "pass" if ok else "fail", detail, names)
+            except meeting_control_checks.Skipped as cause:
+                res = result(number, "skipped", str(cause), names)
             except Unchecked as cause:
                 stop = failed_steps[0] if failed_steps else None
                 reason = (
                     f"the test stopped at «{stop['name']}»: {stop['cause']}" if stop else str(cause)
                 )
-                res = result(number, "unchecked", reason)
-        if res["status"] != "pass" and number != 10:
+                res = result(number, "unchecked", reason, names)
+        if res["status"] not in ("pass", "skipped") and number != 10:
             # What the logs said while this check's steps ran.
             windows = [s for s in ev.get("steps", []) if number in s.get("checks", ())]
             res["log"] = [

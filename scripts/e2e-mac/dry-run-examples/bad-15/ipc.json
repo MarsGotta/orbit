@@ -1,0 +1,35 @@
+{
+ "waits": {
+  "deleted": {
+   "frames": [
+    {
+     "topic": "notes",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "revision": 7,
+       "recordings": {}
+      },
+      "as_of_ms": null
+     }
+    }
+   ],
+   "reads": [
+    [
+     {
+      "recording_id": "9f1c2d3e-0000-4000-8000-000000000001",
+      "title": "Reunión 16/10/26, 10:00",
+      "started_at_ms": 1760608800000,
+      "duration_ms": 131000,
+      "capture": "closed",
+      "transcript": "ready",
+      "note": {
+       "state": "ready",
+       "short_summary": "Presupuesto y calendario de obras de la biblioteca."
+      }
+     }
+    ]
+   ]
+  }
+ }
+}

@@ -20,6 +20,7 @@
       - [9] AXRadioButton "Acciones" [actions=[press]]
       - [10] AXRadioButton "Transcripción" [actions=[press]]
     - AXGroup
+      - AXStaticText = "Micrófono silenciado · 01:24 – 01:38"
       - AXStaticText = "Pulsa un nombre para cambiar quién habla. Pasa el ratón por una palabra y púlsala para corregirla: la corrección se guarda en los diccionarios de esta reunión."
       - [11] AXButton "Copiar transcripción" [actions=[press]]
       - AXGroup
@@ -43,10 +44,10 @@
         - AXGroup
           - AXStaticText = "Gracias. Sigamos. Decidimos mantener la fecha del tres de noviembre para empezar las obras. Me parece bien. Yo me encargo de enviar los planos firmados al arquitecto el lunes. Queda un tema abierto: la mudanza de los libros durante las obras. Todavía no sabemos dónde guardarlos."
       - AXGroup
-        - AXStaticText = "497801:09:24"
+        - AXStaticText = "497801:09:39"
         - [16] AXButton "Alina Pérez" [actions=[press]]
         - AXGroup
-          - AXStaticText = "Podemos preguntar al ayuntamiento si nos deja el almacén del polideportivo. Buena idea. Pedro, escribe al ayuntamiento esta semana para pedir el almacén. Apuntado. También conviene avisar a los usuarios de la biblioteca con un cartel en la entrada. De acuerdo, el cartel lo preparamos la semana que viene."
+          - AXStaticText = "De acuerdo, el cartel lo preparamos la semana que viene."
       - AXGroup
         - AXStaticText = "497801:09:45"
         - [17] AXButton "Alina Pérez" [actions=[press]]

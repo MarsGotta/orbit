@@ -1,0 +1,24 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Principal)
+      - [1] AXButton "Grabar reunión" [actions=[press]]
+      - AXLink "Hoy"
+      - AXLink "Calendario"
+      - [3] AXLink "Reuniones" [actions=[press]]
+      - [4] AXLink "Asistente" [actions=[press]]
+      - AXLink "Ajustes"
+    - AXGroup (Lista de reuniones)
+      - AXHeading
+        - AXStaticText = "Reuniones"
+      - [7] AXButton "R Reunión 16/10/26, 10:00 Se revisó el presupuesto y el calendario de obras 16 oct, 10:00" [actions=[press]]
+    - AXHeading
+      - [8] AXTextField = "Reunión 16/10/26, 10:00" (Título de la reunión) [actions=[confirm]]
+    - AXStaticText = "Se revisó el presupuesto y el calendario de obras."
+    - AXGroup
+      - [30] AXButton "Preguntar a Deimos" [actions=[press]]
+      - [31] AXButton "Plantilla: General · Español" [actions=[press]]
+      - [32] AXButton "Más" [actions=[press]]
+    - AXGroup (Esta reunión)
+      - AXHeading
+        - AXStaticText = "Esta reunión"
+      - [33] AXButton "Borrar reunión" [actions=[press]]

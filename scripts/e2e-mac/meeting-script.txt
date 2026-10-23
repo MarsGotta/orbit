@@ -9,6 +9,10 @@
 #
 # It carries actions with an owner and a date, and a decision, so that the
 # note has something to write its summary and its actions from.
+#
+# The fourth to sixth lines of the second half, from «Podemos preguntar…» to
+# «Apuntado…», are said with «Silenciar» on (mac.py MUTED_LINES): their words
+# must not come back, so most of them are said nowhere else.
 
 A: Buenos días. Empezamos la reunión de seguimiento del proyecto de la biblioteca municipal.
 B: Buenos días. Yo traigo el estado del presupuesto y del calendario de obras.

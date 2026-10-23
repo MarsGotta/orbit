@@ -9,9 +9,11 @@
 of Hermes and the test hub here, prepares the Mac over SSH (ORBIT_MAC_HOST,
 ORBIT_MAC_SSH_KEY, as the release scripts), records a synthetic meeting in
 Orbit Pruebas clicking and reading its interface through CuaDriver — started
-bounded to Orbit Pruebas and stopped again — sends Deimos a voice note and
-opens a call with it over Orbit Pruebas's socket, runs the twelve checks and
-cleans up, also when something fails. `dry-run` walks the same orchestrator
+bounded to Orbit Pruebas and stopped again — with three lines of it muted
+(«Silenciar»), sends Deimos a voice note and opens a call with it over Orbit
+Pruebas's socket, throws a second recording away («Terminar sin guardar»),
+deletes the first meeting («Borrar reunión»), runs the checks and cleans up,
+also when something fails. `dry-run` walks the same orchestrator
 and the same checks on Linux, against the example states in
 scripts/e2e-mac/dry-run-examples/, with the real test hub on loopback and
 nothing else real: it proves the logic of the checks, never Orbit, and it is
@@ -41,8 +43,12 @@ DIRECTORY = Path(__file__).resolve().parent
 sys.path.insert(0, str(DIRECTORY))
 
 import checks
+import hub_traces
 import isolated_hub
 import mac as mac_side
+import mac_controls
+import meeting_control_checks
+import meeting_controls
 from interface import CuaBridge, Interface, StepFailed
 
 ROOT = DIRECTORY.parents[1]
@@ -159,6 +165,7 @@ def bounds() -> dict[str, tuple[float, str]]:
             30,
             "the same bound the production hub's unit gives to stop (TimeoutStopSec=30)",
         ),
+        **meeting_controls.BOUNDS,
     }
 
 
@@ -192,6 +199,7 @@ READS: dict[str, str | None] = {
     "final": "AXStaticText",
     # The call panel is a card of a handful of rows: read whole too.
     "panel": None,
+    **meeting_controls.READS,
 }
 
 
@@ -231,6 +239,7 @@ class RemoteMac:
                 "-q",
                 *self.options,
                 str(DIRECTORY / "mac.py"),
+                str(DIRECTORY / "mac_controls.py"),
                 str(DIRECTORY / "meeting-script.txt"),
                 str(DIRECTORY / "windows.swift"),
                 f"{self.host}:{REMOTE}/",
@@ -362,12 +371,21 @@ class RealTest:
         self.providers = providers
         self.bounds = bounds()
         self.script = mac_side.script_parts(mac_side.SCRIPT.read_text(encoding="utf-8"))
+        span = mac_controls.muted_span(self.script)
         self.ev: dict = {
             "steps": [],
             "waits": [],
             "trees": {},
-            "script": [said for part in self.script for _, said in part],
+            # What the recording hears: every line but those said with
+            # «Silenciar» on, which check 13 looks for apart.
+            "script": [
+                said for part in self.script for _, said in part if said not in span["muted"]
+            ],
+            "muted_script": span,
         }
+        database = hub_traces.database(paths.hub)
+        # What the test hub keeps of a recording (the dry run replays it).
+        self.hub_kept = lambda recording: hub_traces.kept(database, recording)
         self.processes: list[isolated_hub.Process] = []
         # The codes that are failures though they are silent on screen,
         # read from the one place that decides it (NoticeCode::is_failure).
@@ -542,8 +560,7 @@ class RealTest:
                     ),
                 )
 
-        with self.step("second half of the script"):
-            self.mac.say("part2")
+        meeting_controls.second_half(self)
 
         with self.step("end the recording from the interface", (1, 2, 3, 4, 5, 6)):
             # «Terminar» is always in sight on the sidebar's recording card
@@ -718,6 +735,10 @@ class RealTest:
         with self.step("final screen", (9,), critical=False):
             ui.read(self.main, "final", READS["final"])
 
+        # With every check of the first meeting's evidence collected.
+        meeting_controls.discard_second_recording(self)
+        meeting_controls.delete_first_meeting(self)
+
     def clean_up(self) -> None:
         with self.step("stop CuaDriver", critical=False):
             # Always, and first: nothing may keep acting on the Mac.
@@ -773,7 +794,7 @@ class RealTest:
             self.ev["reads"] = self.ui.reads
         results = checks.run_checks(self.ev)
         write_report(self.directory, self.ev, results)
-        if any(r["status"] != "pass" for r in results) and self.paths.hub.exists():
+        if not checks.passed(results) and self.paths.hub.exists():
             # The hub's data (the synthetic meeting's audio, its transcript, its
             # final pass) is wiped by the next run. A transcript that lost words
             # in 2 of 6 real runs (2026-10-20) could not be examined afterwards:
@@ -796,6 +817,8 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
         "restored": ev.get("restored"),
         "reads": ev.get("reads"),
         "cua": ev.get("cua"),
+        "discard": ev.get("discard"),
+        "delete": ev.get("delete"),
     }
     (directory / "report.json").write_text(
         json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -807,7 +830,8 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
         for row in r.get("log", []):
             lines.append(f"    log {row['log']}: code {row['code']}, op {row['op']}")
     lines += ["", "Not covered:"]
-    lines += [f"  {text}" for text in checks.NOT_COVERED]
+    not_covered = checks.NOT_COVERED + meeting_control_checks.NOT_COVERED
+    lines += [f"  {text}" for text in not_covered]
     lines += ["", "Steps:"]
     for s in ev["steps"]:
         status = "ok" if s.get("ok", True) else f"FAILED: {s.get('cause')}"
@@ -879,7 +903,7 @@ def run_real() -> int:
     signal.signal(signal.SIGHUP, interrupt)
     results = test.run()
     print((directory / "report.txt").read_text(encoding="utf-8"))
-    return 0 if all(r["status"] == "pass" for r in results) else 1
+    return 0 if checks.passed(results) else 1
 
 
 def main(argv: list[str]) -> int:
@@ -903,7 +927,7 @@ def main(argv: list[str]) -> int:
 
     results, directory = dry_run.run(options.example, options.directory)
     print((directory / "report.txt").read_text(encoding="utf-8"))
-    return 0 if all(r["status"] == "pass" for r in results) else 1
+    return 0 if checks.passed(results) else 1
 
 
 if __name__ == "__main__":

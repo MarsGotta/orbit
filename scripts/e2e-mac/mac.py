@@ -1,14 +1,14 @@
 """The Mac side of the real test: what runs on the test Mac, over SSH.
 
-The orchestrator on the test server copies this file and the meeting script to
-`~/.orbit-pruebas/harness/` on the Mac and calls one subcommand at a time; each
+The orchestrator on the test server copies this file, mac_controls.py (which it
+imports) and the meeting script to `~/.orbit-pruebas/harness/` on the Mac and calls one subcommand at a time; each
 prints one JSON object and exits 0, or prints `{"error": …}` and exits 1.
 
     prepare --max S           checks, BlackHole as the default input, clean data, opens Orbit Pruebas
     pair URL CODE NAME
     wait WHAT [ARG] --max S   waits on a fact Orbit Pruebas publishes or answers on its socket
     read detail ID | read sessions
-    say PART                  says one part of the script into BlackHole
+    say PART                  says one part of the script into BlackHole (PARTS)
     voice-note                a voice note to Deimos: voice_start, one phrase into BlackHole, voice_end
     command call_start|call_stop  starts or stops a call with Deimos
     restore --max S           closes Orbit Pruebas and puts the previous input back
@@ -50,6 +50,8 @@ import sys
 import time
 import uuid
 from pathlib import Path
+
+from mac_controls import CONTROL_WAITS, PARTS, notes_list
 
 BUNDLE_ID = "app.orbit.companion.pruebas"
 # The last part of orbit_bundle::DATA_DIRECTORY with the feature `pruebas`
@@ -572,10 +574,6 @@ def call_listening(state: dict, _arg):
     return None
 
 
-def _notes_list(_arg) -> dict:
-    return {"kind": "notes_page", "cursor": None}
-
-
 # What each wait subscribes to, its predicate, and, for a fact only a read
 # says, the read it repeats (on a change of the `notes` head and at least
 # every READ_INTERVAL_S).
@@ -584,12 +582,13 @@ WAITS = {
     "recording": (("recording",), recording, None),
     "listening": (("recording",), listening, None),
     "answer": (("recording", "assistant"), answer, None),
-    "saved": (("recording", "notes"), saved, _notes_list),
-    "note": (("notes",), note, _notes_list),
+    "saved": (("recording", "notes"), saved, notes_list),
+    "note": (("notes",), note, notes_list),
     "chat": (("assistant",), chat, None),
     "session": (("assistant",), session, None),
     "voice-note": (("assistant",), voice_note, None),
     "call-listening": (("assistant",), call_listening, None),
+    **CONTROL_WAITS,
 }
 
 
@@ -643,9 +642,6 @@ def script_parts(text: str) -> list[list[tuple[str, str]]]:
             f"the script must have three parts separated by «---» and has {len(parts)}"
         )
     return parts
-
-
-PARTS = {"part1": 0, "question": 1, "part2": 2}
 
 
 def spanish_voices(listing: str) -> list[str]:
@@ -838,7 +834,8 @@ class Mac:
         return found
 
     def say(self, part: str) -> dict:
-        lines = script_parts(SCRIPT.read_text(encoding="utf-8"))[PARTS[part]]
+        number, lines_of = PARTS[part]
+        lines = script_parts(SCRIPT.read_text(encoding="utf-8"))[number][lines_of]
         voices = spanish_voices(self.system.run_checked("say", "-v", "?"))
         if not voices:
             raise MacFailure("macOS has no Spanish voice for «say»")

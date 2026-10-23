@@ -1,12 +1,13 @@
 """The dry run of the real test on the Mac, and its parts.
 
-The dry run walks the orchestrator of scripts/e2e-mac and its twelve checks
+The dry run walks the orchestrator of scripts/e2e-mac and its checks
 against the example states in scripts/e2e-mac/dry-run-examples/, with the real
 test hub started on loopback (fake Whisper and note model that are never
 called, no Hermes) and the Mac and its interface replaced by replays. It
 proves the logic of the checks and that each one can fail: every check fails
-against one example spoiled on purpose and passes against the good one. It is
-not the real test and says nothing about Orbit on a Mac.
+against one example spoiled on purpose and passes against the good one, but
+the menu bar's, which the harness cannot read and always says so. It is not
+the real test and says nothing about Orbit on a Mac.
 
 A pytest module that needs the hub's own environment (server/.venv): the gate
 runs it in its hub zone. Its name ends in `_test.py` so that the guards'
@@ -15,6 +16,8 @@ not import it.
 """
 
 import json
+import re
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -29,10 +32,14 @@ sys.path.insert(0, str(ROOT / "server" / "tests"))
 import dry_run
 import interface
 import mac as mac_side
+import mac_controls
+import meeting_control_checks
 from support_network_fence import install
 
 FENCE = install()
-ALL = list(range(1, 13))
+# Every check that can pass or fail; 16, the menu bar's, is always skipped.
+ALL = list(range(1, 16))
+SKIPPED = {16: "skipped"}
 
 
 @pytest.fixture(autouse=True)
@@ -54,14 +61,17 @@ def statuses(results):
     return {r["number"]: r["status"] for r in results}
 
 
-def test_the_good_example_passes_all_twelve_checks(good):
+def test_the_good_example_passes_every_check_but_the_skipped_one(good):
     results, directory = good
-    assert statuses(results) == {n: "pass" for n in ALL}, json.dumps(
+    assert statuses(results) == {**{n: "pass" for n in ALL}, **SKIPPED}, json.dumps(
         results, ensure_ascii=False, indent=1
     )
     report = (directory / "report.txt").read_text(encoding="utf-8")
     for number in ALL:
         assert f"{number:>2}. [pass]" in report
+    # The menu bar is said unread, with why, never passed.
+    assert "16. [skipped]" in report
+    assert "cannot read Orbit Pruebas's menu bar item" in report
     # Every wait of the run is in the report with what it took.
     data = json.loads((directory / "report.json").read_text(encoding="utf-8"))
     names = {w["wait"] for w in data["waits"]}
@@ -74,6 +84,12 @@ def test_the_good_example_passes_all_twelve_checks(good):
         "chat",
         "voice-note",
         "call-listening",
+        "muted",
+        "unmuted",
+        "hub-chunks",
+        "discarded",
+        "deleted",
+        "hub-deleted",
     } <= names
     assert all("seconds" in w for w in data["waits"])
     # What the run does not cover is said in the report, every time.
@@ -101,7 +117,8 @@ def test_each_check_fails_against_its_spoiled_example(number, tmp_path):
     seen = statuses(results)
     assert seen[number] == "fail", json.dumps(results, ensure_ascii=False, indent=1)
     assert {n: s for n, s in seen.items() if n != number} == {
-        n: "pass" for n in ALL if n != number
+        **{n: "pass" for n in ALL if n != number},
+        **SKIPPED,
     }, json.dumps(results, ensure_ascii=False, indent=1)
     detail = next(r["detail"] for r in results if r["number"] == number)
     assert detail, "a failure without a cause"
@@ -166,3 +183,80 @@ def test_the_note_s_language_is_read_before_its_dictionaries():
     assert checks.language_of("Plantilla: General · English · 1 diccionario") == "English"
     assert checks.language_of("Plantilla: General") is None
     assert checks.language_of(None) is None
+
+
+def test_the_texts_the_controls_look_for_are_the_app_s():
+    # The checks of «Silenciar», «Terminar sin guardar» and «Borrar reunión»
+    # press and read the app's own Spanish texts: a change there must not
+    # leave the harness looking for an old one.
+    sources = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted((ROOT / "apps" / "desktop" / "src" / "i18n" / "es").rglob("*.ts"))
+        if not path.name.endswith(".test.ts")
+    )
+    texts = dict(meeting_control_checks.TEXTS)
+    prefix = texts.pop("muted_line")
+    for name, text in texts.items():
+        assert f'"{text}"' in sources, f"{name}: «{text}» is not a text of the app"
+    line = re.search(rf"`({re.escape(prefix)}\$\{{[^}}]+\}} – \$\{{[^}}]+\}})`", sources)
+    assert line is not None, "the transcript's «Micrófono silenciado · … – …» changed"
+
+
+def test_what_the_hub_keeps_is_counted_in_every_table_that_names_it(tmp_path):
+    import hub_traces
+
+    database = tmp_path / "hub.sqlite3"
+    connection = sqlite3.connect(database)
+    connection.executescript(
+        """
+        CREATE TABLE chunks (id TEXT, device_id TEXT, recording TEXT);
+        CREATE TABLE transcription_groups (id TEXT, device_id TEXT, recording TEXT);
+        CREATE TABLE transcription_group_chunks (device_id TEXT, group_id TEXT, chunk_id TEXT);
+        CREATE TABLE recording_notes (device_id TEXT, recording TEXT);
+        CREATE TABLE deleted_recordings (device_id TEXT, recording TEXT);
+        CREATE TABLE devices (id TEXT);
+        INSERT INTO devices VALUES ('d1');
+        INSERT INTO chunks VALUES ('c1', 'd1', 'kept'), ('c2', 'd1', 'kept'), ('c3', 'd1', 'other');
+        INSERT INTO transcription_groups VALUES ('g1', 'd1', 'kept');
+        INSERT INTO transcription_group_chunks VALUES ('d1', 'g1', 'c1'), ('d1', 'g1', 'c2');
+        INSERT INTO recording_notes VALUES ('d1', 'kept'), ('d1', 'other');
+        INSERT INTO deleted_recordings VALUES ('d1', 'gone');
+        """
+    )
+    connection.commit()
+    connection.close()
+
+    assert hub_traces.kept(database, "kept") == {
+        "rows": {
+            "chunks": 2,
+            "transcription_groups": 1,
+            # Each row once, though it names the recording by chunk and group.
+            "transcription_group_chunks": 2,
+            "recording_notes": 1,
+        },
+        "deleted": False,
+    }
+    assert hub_traces.kept(database, "gone") == {"rows": {}, "deleted": True}
+
+
+def test_a_meeting_is_gone_only_from_a_list_read_whole():
+    # Absence read from a list the daemon or the hub could not give would
+    # pass «Terminar sin guardar» and «Borrar reunión» on nothing.
+    other = {"recording_id": "r2"}
+    for read in (
+        {"refusal": {"code": "hub_unreachable"}},
+        {"items": [other, {"hub_refusal": {"code": "hub_unreachable"}}]},
+        {"items": [other, {"recording_id": "r1"}]},
+        {},
+    ):
+        state = {"read": read}
+        assert mac_controls.gone(state, "r1") is None, read
+        assert state["seen"]
+    recording = {
+        "state": "present",
+        "value": {"recording": {"id": "r1", "phase": "recording"}},
+    }
+    state = {"recording": recording, "read": {"items": [other]}}
+    assert mac_controls.gone(state, "r1") is None
+    assert "still at «recording»" in state["seen"]
+    assert mac_controls.gone({"read": {"items": [other]}}, "r1") == {"gone": "r1", "listed": 1}

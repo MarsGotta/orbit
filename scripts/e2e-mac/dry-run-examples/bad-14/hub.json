@@ -1,0 +1,43 @@
+{
+ "9f1c2d3e-0000-4000-8000-000000000001": [
+  {
+   "rows": {
+    "chunks": 131,
+    "chunk_receipts": 131,
+    "transcription_jobs": 131,
+    "transcripts": 131,
+    "transcription_groups": 5,
+    "transcription_group_chunks": 131,
+    "group_transcripts": 5,
+    "recording_manifests": 1,
+    "recording_final_passes": 1,
+    "recording_final_transcripts": 1,
+    "recording_titles": 1,
+    "recording_notes": 1
+   },
+   "deleted": false
+  },
+  {
+   "rows": {},
+   "deleted": true
+  }
+ ],
+ "9f1c2d3e-0000-4000-8000-000000000002": [
+  {
+   "rows": {
+    "chunks": 3,
+    "chunk_receipts": 3,
+    "transcription_jobs": 3
+   },
+   "deleted": false
+  },
+  {
+   "rows": {
+    "chunks": 3,
+    "chunk_receipts": 3,
+    "transcription_jobs": 3
+   },
+   "deleted": false
+  }
+ ]
+}

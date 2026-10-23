@@ -3,17 +3,19 @@ states, never against Orbit.
 
 What is real: the orchestrator (real_test.py), the Mac-side steps and waits
 (mac.py) with their predicates, the reading of the trees and the search for
-what to click (interface.py, ax_tree.py), the twelve checks, the report, and
-the test hub itself — started from this tree on loopback with a Whisper and a
-note model that do not exist and are never called, and stopped again.
+what to click (interface.py, ax_tree.py), the checks, the report, the
+reading of the test hub's database (hub_traces.py), and the test hub itself —
+started from this tree on loopback with a Whisper and a note model that do
+not exist and are never called, and stopped again.
 
 What is replayed from scripts/e2e-mac/dry-run-examples/<example>/: the system
 commands of the Mac (say, SwitchAudioSource, open, ps), Orbit Pruebas's socket
 (the frames each wait sees, the reads, the commands), its logs, and
 CuaDriver's command line (`status`, `call`, `stop`: the windows, the tree of
 each screen, which screen a click leads to, and a refusal when the example
-says so). An example other than «good» holds only the files that differ from
-«good».
+says so), and what the test hub keeps of each recording (hub.json: the dry
+run's hub never has one). An example other than «good» holds only the files
+that differ from «good».
 
 A dry run that passes says the logic of the test holds. It is not the real
 test and does not count as one.
@@ -379,6 +381,24 @@ class DryRunCua:
         return {"ok": True}
 
 
+class DryRunHub:
+    """What the test hub keeps of a recording. The real reading runs first,
+    against the dry run's own hub, which never has a recording; the answer is
+    then the example's hub.json, in order for each recording, the last one
+    staying."""
+
+    def __init__(self, example: Example, read):
+        self.answers = {k: list(v) for k, v in example.json("hub.json").items()}
+        self.read = read
+
+    def __call__(self, recording: str) -> dict:
+        real = self.read(recording)
+        if real["rows"] or real["deleted"]:
+            raise StepFailed(f"the dry run's hub keeps something of {recording}: {real}")
+        answers = self.answers.get(recording) or [real]
+        return answers.pop(0) if len(answers) > 1 else answers[0]
+
+
 def free_port() -> int:
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
@@ -420,6 +440,10 @@ def run(name: str, directory: Path | None = None) -> tuple[list[dict], Path]:
         hermes=False,
         providers=providers,
     )
-    # A replayed screen never changes: reading it again could not help.
+    # A replayed screen never changes: reading it again could not help. Nor
+    # does a replayed hub.
     test.bounds["screen"] = (0, "in the dry run the screens never change by themselves")
+    for wait in ("hub-chunks", "hub-deleted"):
+        test.bounds[wait] = (0, "in the dry run the test hub's answers are replayed")
+    test.hub_kept = DryRunHub(example, test.hub_kept)
     return test.run(), run_directory

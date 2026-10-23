@@ -14,6 +14,8 @@
      }
     }
    }
-  }
+  },
+  "click:Silenciar": "recording-muted",
+  "click:Terminar sin guardar": "discard-question"
  }
 }

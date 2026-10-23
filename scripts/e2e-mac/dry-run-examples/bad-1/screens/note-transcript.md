@@ -20,6 +20,7 @@
       - [9] AXRadioButton "Acciones" [actions=[press]]
       - [10] AXRadioButton "Transcripción" [actions=[press]]
     - AXGroup
+      - AXStaticText = "Micrófono silenciado · 01:24 – 01:38"
       - AXStaticText = "Pulsa un nombre para cambiar quién habla. Pasa el ratón por una palabra y púlsala para corregirla: la corrección se guarda en los diccionarios de esta reunión."
       - [11] AXButton "Copiar transcripción" [actions=[press]]
       - AXGroup
@@ -41,16 +42,16 @@
         - AXStaticText = "01:03"
         - [15] AXButton "Alina Pérez" [actions=[press]]
         - AXGroup
-          - AXStaticText = "Item number 3 of the agenda was reviewed by the team today."
+          - AXStaticText = "Gracias. Sigamos. Decidimos mantener la fecha del tres de noviembre para empezar las obras. Me parece bien. Yo me encargo de enviar los planos firmados al arquitecto el lunes. Queda un tema abierto: la mudanza de los libros durante las obras. Todavía no sabemos dónde guardarlos."
       - AXGroup
-        - AXStaticText = "01:24"
+        - AXStaticText = "01:39"
         - [16] AXButton "Alina Pérez" [actions=[press]]
         - AXGroup
-          - AXStaticText = "Item number 4 of the agenda was reviewed by the team today."
+          - AXStaticText = "De acuerdo, el cartel lo preparamos la semana que viene."
       - AXGroup
         - AXStaticText = "01:45"
         - [17] AXButton "Alina Pérez" [actions=[press]]
         - AXGroup
-          - AXStaticText = "Item number 5 of the agenda was reviewed by the team today."
+          - AXStaticText = "Y la próxima reunión la hacemos el martes que viene a las diez. Perfecto. Resumen: Laura llama al proveedor, Pedro escribe al ayuntamiento y los planos salen el lunes. Gracias a todos. Hasta el martes."
     - AXGroup (Aviso de Orbit)
       - [40] AXButton "R Reunión 16/10/26, 10:00 › Se revisó el presupuesto y el calendario de obras 16 oct" [actions=[press]]

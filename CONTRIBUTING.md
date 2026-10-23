@@ -134,8 +134,10 @@ SSH:
 
 - `prepare` creates, once, the test's private credentials under `~/.orbit-pruebas/`.
 - `run` is the real test: it records a synthetic meeting in Orbit Pruebas by
-  clicking and reading its interface, sends a voice note, opens a call, runs the
-  checks and cleans up, also when something fails. The speech is synthesized
+  clicking and reading its interface, with part of it muted, sends a voice
+  note, opens a call, throws a second recording away, deletes the first
+  meeting, runs the checks and cleans up, also when something fails. It reads
+  the test hub's database to check that a deleted recording left nothing there. The speech is synthesized
   with `say` into the BlackHole 2ch virtual input, so the Mac needs
   `blackhole-2ch`, `switchaudio-osx` and a Spanish system voice; the run
   switches the audio input and restores it afterwards. Orbit itself must be

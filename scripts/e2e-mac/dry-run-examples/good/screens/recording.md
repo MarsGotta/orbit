@@ -8,7 +8,9 @@
         - AXStaticText = "Solo tu micrófono · hasta las 11:02"
         - AXStaticText = "«Oye Deimos» te escucha"
         - [20] AXButton "Pausar" [actions=[press]]
+        - [22] AXButton "Silenciar" [actions=[press]]
         - [21] AXButton "Terminar" [actions=[press]]
+        - [23] AXButton "Terminar sin guardar" [actions=[press]]
       - AXLink "Hoy"
       - AXLink "Calendario"
       - [3] AXLink "Reuniones" [actions=[press]]

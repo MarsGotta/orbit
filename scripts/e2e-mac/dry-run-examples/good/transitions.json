@@ -12,7 +12,9 @@
   "click:Empezar a grabar": "recording"
  },
  "recording": {
-  "click:Terminar": "saved"
+  "click:Terminar": "saved",
+  "click:Silenciar": "recording-muted",
+  "click:Terminar sin guardar": "discard-question"
  },
  "saved": {
   "click:Abrir": "note-summary"
@@ -53,5 +55,30 @@
  },
  "assistant-new": {
   "click:4 mensajes · 16 oct 2025, 10:01": "assistant-reopened"
+ },
+ "recording-muted": {
+  "click:Reactivar micrófono": "recording"
+ },
+ "assistant-reopened": {
+  "click:Grabar reunión": "dialog"
+ },
+ "discard-question": {
+  "click:Borrar y terminar": "discarded"
+ },
+ "discarded": {
+  "click:Reuniones": "meetings-after-discard"
+ },
+ "meetings-after-discard": {
+  "click:Reuniones": "meetings-after-discard",
+  "click:R Reunión 16/10/26, 10:00 Se revisó el presupuesto y el calendario de obras 16 oct, 10:00": "note-to-delete"
+ },
+ "note-to-delete": {
+  "click:Más": "note-menu"
+ },
+ "note-menu": {
+  "click:Borrar reunión": "note-delete-question"
+ },
+ "note-delete-question": {
+  "click:Borrar reunión": "meetings-empty"
  }
 }
