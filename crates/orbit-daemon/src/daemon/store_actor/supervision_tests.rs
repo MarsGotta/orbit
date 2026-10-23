@@ -105,6 +105,12 @@ async fn a_writer_past_its_budget_stops_and_refuses_every_write() -> Result<()> 
     for _ in 0..=RESTART_BUDGET {
         assert!(actor.begin_run(panicking)?.wait().await.is_err());
     }
+    // The caller's wait ends as the panic unwinds; the writer counts it just
+    // after, on its own thread.
+    let deadline = tokio::time::Instant::now() + JAM;
+    while supervision.exhausted().is_none() && tokio::time::Instant::now() < deadline {
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
     assert_eq!(
         supervision.exhausted(),
         Some(Exhausted {
