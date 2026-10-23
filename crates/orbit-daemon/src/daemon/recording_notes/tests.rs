@@ -714,8 +714,10 @@ async fn a_language_or_title_the_hub_refuses_is_refused_here() -> Result<()> {
     Ok(())
 }
 
-/// A note order the hub refuses is said, with the hub's code; one that
-/// cannot reach the hub is refused at once, with its cause.
+/// A note order the hub refuses is said, with the hub's code. One given
+/// while the hub cannot be reached is kept on this Mac, owed, and nothing
+/// goes; one that is not sent twice and whose request found no hub is said
+/// as not sent, with its step.
 #[tokio::test]
 async fn a_refused_or_unsent_order_is_said() -> Result<()> {
     let directory = tempfile::tempdir()?;
@@ -738,20 +740,37 @@ async fn a_refused_or_unsent_order_is_said() -> Result<()> {
     let data = serde_json::to_value(&notice)?;
     assert_eq!(data["data"]["status"], 422);
     assert_eq!(data["data"]["code"], "synthetic_failure");
+    // The refused order left the outbox.
+    assert!(runtime.reader.note_orders()?.is_empty());
 
     crate::daemon::authority_fixture::set(&mut runtime.state, "connection", json!("offline"));
-    let refused = runtime
+    let sent_before = lock(&hub).received.len();
+    runtime
         .command(Command::SpeakerRename {
             recording_id: RECORDING.into(),
             key: "remote_app".into(),
             name: Some("Lucía".into()),
             scope: orbit_core::notes::SpeakerRenameScope::Voice,
         })
-        .await;
-    assert!(refused.is_err_and(|error| matches!(
-        error.downcast_ref::<orbit_core::refusal::Refusal>(),
-        Some(orbit_core::refusal::Refusal::HubUnreachable { .. })
-    )));
+        .await?;
+    assert_eq!(lock(&hub).received.len(), sent_before);
+    assert_eq!(runtime.reader.note_orders()?.len(), 1);
+
+    // The hub's address answers nothing: a rewrite is said as not sent.
+    let unused = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    runtime.settings.hub_url = Some(format!("http://{}", unused.local_addr()?));
+    drop(unused);
+    crate::daemon::authority_fixture::set(&mut runtime.state, "connection", json!("online"));
+    runtime
+        .command(Command::NoteRegenerate {
+            recording_id: OLDER.into(),
+            template_id: "general".into(),
+        })
+        .await?;
+    answer(&mut runtime, &mut events, START).await?;
+    let notice = serde_json::to_value(runtime.state.durable.notice.clone().context("no notice")?)?;
+    assert_eq!(notice["code"], "note_change_unsent");
+    assert_eq!(notice["data"]["step"], "write");
     Ok(())
 }
 

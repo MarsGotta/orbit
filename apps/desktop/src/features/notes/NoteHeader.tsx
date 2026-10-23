@@ -126,11 +126,19 @@ export function NoteHeader({
   );
 }
 
-/** What the hub is doing with the note now: writing it, or transcribing it again. */
+/**
+ * What the hub is doing with the note now: writing it, or transcribing it
+ * again; and what this Mac changed that the hub has not taken yet.
+ */
 function HeadStatus({ note, template }: { note: OpenNoteSnapshot; template: string | null }) {
   const again = note.transcript.retranscribing;
   return (
     <>
+      {(note.pending_changes?.length ?? 0) > 0 && (
+        <p className={styles.headStatus} role="status">
+          {es.noteScreen.changesOnMac}
+        </p>
+      )}
       {template !== null && (
         <p className={styles.headStatus} role="status">
           <Spinner size={14} />

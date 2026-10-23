@@ -163,67 +163,10 @@ impl Runtime {
         let hub = self.hub_for_read();
         let head = &self.features.notes.head;
         let answer: RemoteRead = match read {
-            ReadRequest::NotesPage { cursor } => {
-                let first = cursor.is_none();
-                let before = match cursor_value(cursor.as_ref(), |cursor| {
-                    if let Cursor::DescendingDateAndId { date_ms, id } = cursor {
-                        Some((*date_ms, id.clone()))
-                    } else {
-                        None
-                    }
-                }) {
-                    Ok(before) => before,
-                    Err(refusal) => return Some(Box::pin(async move { absent(refusal) })),
-                };
-                let local = match self.local_rows() {
-                    Ok(local) => local,
-                    Err(refusal) => return Some(Box::pin(async { absent(refusal) })),
-                };
-                let revision = head.revision;
-                // The call in progress is on the hub as an open recording
-                // until it closes as a `voice_call`.
-                let call = self.state.durable.call.as_ref().map(|call| call.id.clone());
-                Box::pin(list_page(hub, before, first, local, call, revision))
-            }
-            ReadRequest::NoteDetail { id, .. } => {
-                let local = self
-                    .local_rows()
-                    .ok()
-                    .and_then(|rows| rows.into_iter().find(|row| row.recording_id == *id));
-                let private = match self.reader.private_notes(id) {
-                    Ok(private) => private,
-                    Err(error) => {
-                        let refusal = storage(error);
-                        return Some(Box::pin(async { absent(refusal) }));
-                    }
-                };
-                let local = LocalNote {
-                    row: local,
-                    event: self.recording_event(id),
-                    private,
-                };
-                let revision = head.changed_at(id);
-                Box::pin(detail(hub, id.clone(), local, revision))
-            }
+            ReadRequest::NotesPage { cursor } => self.notes_page(hub, cursor.as_ref()),
+            ReadRequest::NoteDetail { id, .. } => self.note_detail(hub, id),
             ReadRequest::NoteTranscript { id, cursor } => {
-                let offset = match cursor_value(cursor.as_ref(), |cursor| {
-                    if let Cursor::Index { index } = cursor {
-                        Some(*index)
-                    } else {
-                        None
-                    }
-                }) {
-                    Ok(offset) => offset.unwrap_or(0),
-                    Err(refusal) => return Some(Box::pin(async move { absent(refusal) })),
-                };
-                let local = self
-                    .active_recording_id()
-                    .is_some_and(|active| active == id)
-                    || self
-                        .local_rows()
-                        .is_ok_and(|rows| rows.iter().any(|row| row.recording_id == *id));
-                let revision = head.changed_at(id);
-                Box::pin(transcript(hub, id.clone(), offset, local, revision))
+                self.note_transcript(hub, id, cursor.as_ref())
             }
             ReadRequest::NoteLibrary { cursor } => {
                 let skip = match cursor_value(cursor.as_ref(), |cursor| {
@@ -238,13 +181,13 @@ impl Runtime {
                 };
                 let state = self.library_state();
                 let revision = head.library_revision;
-                Box::pin(library(hub, skip, state, revision))
+                Box::pin(super::lists::library(hub, skip, state, revision))
             }
             ReadRequest::SeriesPrevious {
                 calendar_item_id,
                 before_ms,
                 ..
-            } => Box::pin(series_previous(
+            } => Box::pin(super::lists::series_previous(
                 hub,
                 calendar_item_id.clone(),
                 *before_ms,
@@ -259,6 +202,81 @@ impl Runtime {
         };
         Some(answer)
     }
+
+    fn notes_page(&self, hub: Result<NoteHub, Refusal>, cursor: Option<&Cursor>) -> RemoteRead {
+        let first = cursor.is_none();
+        let before = match cursor_value(cursor, |cursor| {
+            if let Cursor::DescendingDateAndId { date_ms, id } = cursor {
+                Some((*date_ms, id.clone()))
+            } else {
+                None
+            }
+        }) {
+            Ok(before) => before,
+            Err(refusal) => return Box::pin(async move { absent(refusal) }),
+        };
+        let rows = match self.local_rows() {
+            Ok(rows) => rows,
+            Err(refusal) => return Box::pin(async { absent(refusal) }),
+        };
+        let revision = self.features.notes.head.revision;
+        let listed = Listed {
+            rows,
+            // The call in progress is on the hub as an open recording
+            // until it closes as a `voice_call`.
+            call: self.state.durable.call.as_ref().map(|call| call.id.clone()),
+            titles: self.features.notes.outbox.pending_titles(),
+        };
+        Box::pin(list_page(hub, before, first, listed, revision))
+    }
+
+    fn note_detail(&self, hub: Result<NoteHub, Refusal>, id: &str) -> RemoteRead {
+        let row = self
+            .local_rows()
+            .ok()
+            .and_then(|rows| rows.into_iter().find(|row| row.recording_id == id));
+        let private = match self.reader.private_notes(id) {
+            Ok(private) => private,
+            Err(error) => {
+                let refusal = storage(error);
+                return Box::pin(async { absent(refusal) });
+            }
+        };
+        let local = LocalNote {
+            row,
+            event: self.recording_event(id),
+            private,
+            orders: self.features.notes.outbox.meeting_orders(id),
+        };
+        let revision = self.features.notes.head.changed_at(id);
+        Box::pin(detail(hub, id.to_owned(), local, revision))
+    }
+
+    fn note_transcript(
+        &self,
+        hub: Result<NoteHub, Refusal>,
+        id: &str,
+        cursor: Option<&Cursor>,
+    ) -> RemoteRead {
+        let offset = match cursor_value(cursor, |cursor| {
+            if let Cursor::Index { index } = cursor {
+                Some(*index)
+            } else {
+                None
+            }
+        }) {
+            Ok(offset) => offset.unwrap_or(0),
+            Err(refusal) => return Box::pin(async move { absent(refusal) }),
+        };
+        let local = self
+            .active_recording_id()
+            .is_some_and(|active| active == id)
+            || self
+                .local_rows()
+                .is_ok_and(|rows| rows.iter().any(|row| row.recording_id == id));
+        let revision = self.features.notes.head.changed_at(id);
+        Box::pin(transcript(hub, id.to_owned(), offset, local, revision))
+    }
 }
 
 /// The hub's order (`views.rows`): newest first, equal starts by id.
@@ -271,14 +289,26 @@ fn newest_first(left: &MeetingRow, right: &MeetingRow) -> std::cmp::Ordering {
 
 /// One page of the hub's list; the first also carries this Mac's own
 /// recordings, which replace the hub's row of the same recording.
+/// What this Mac adds to the hub's list: its own recordings, the call in
+/// progress (left out), and the titles it gave that the hub has not taken.
+struct Listed {
+    rows: Vec<MeetingRow>,
+    call: Option<String>,
+    titles: std::collections::BTreeMap<String, String>,
+}
+
 async fn list_page(
     hub: Result<NoteHub, Refusal>,
     before: Option<(i64, String)>,
     first: bool,
-    local: Vec<MeetingRow>,
-    call: Option<String>,
+    listed: Listed,
     revision: u64,
 ) -> Knowledge<Page<Value>> {
+    let Listed {
+        rows: local,
+        call,
+        titles,
+    } = listed;
     let listed = match hub {
         Ok(hub) => hub
             .list(before.as_ref(), orbit_core::notes::LIST_PAGE)
@@ -319,6 +349,11 @@ async fn list_page(
     if first {
         rows.extend(local);
     }
+    for row in &mut rows {
+        if let Some(title) = titles.get(&row.recording_id) {
+            row.title.clone_from(title);
+        }
+    }
     rows.sort_by(newest_first);
     let total = rows.len() as u64;
     let items = rows.into_iter().map(ListItem::Meeting).collect::<Vec<_>>();
@@ -330,6 +365,8 @@ struct LocalNote {
     row: Option<MeetingRow>,
     event: Option<MeetingEvent>,
     private: Option<orbit_store::PendingPrivateNotes>,
+    /// The orders about it still on this Mac, oldest first.
+    orders: Vec<orbit_core::note_outbox::NoteOrder>,
 }
 
 async fn detail(
@@ -376,6 +413,7 @@ async fn detail(
                 local: None,
                 event: None,
                 hub_refusal: Some(refusal),
+                pending_changes: Vec::new(),
             },
             None => return absent(refusal),
         },
@@ -398,6 +436,8 @@ async fn detail(
             pending: true,
         };
     }
+    // What the user changed and the hub has not taken yet, as they wrote it.
+    orbit_core::note_outbox::lay_over(&mut document, &local.orders);
     bounded_page(&[document], None, 1, revision, ReadId::NoteDetail)
 }
 
@@ -426,104 +466,4 @@ async fn transcript(
         }
         Err(refusal) => absent(refusal),
     }
-}
-
-/// The earlier meeting of a series and its note's tasks, as the hub gives
-/// them; `previous: null` is the hub's fact that there is none.
-async fn series_previous(
-    hub: Result<NoteHub, Refusal>,
-    calendar_item_id: String,
-    before_ms: i64,
-    revision: u64,
-) -> Knowledge<Page<Value>> {
-    let read = match hub {
-        Ok(hub) => match hub.previous_meeting(&calendar_item_id, before_ms).await {
-            // The route names no recording, so its 404 is a hub that does
-            // not have it (0.10 and earlier): unknown, never «none».
-            crate::hub_notes::Answer::Refused { status: 404, .. } => Err(Refusal::UpstreamFailed {
-                service: orbit_core::refusal::Service::Hub,
-                status: Some(404),
-            }),
-            answer @ (crate::hub_notes::Answer::Value(_)
-            | crate::hub_notes::Answer::Refused { .. }
-            | crate::hub_notes::Answer::Unreachable(_)) => answer.into_result(),
-        },
-        Err(refusal) => Err(refusal),
-    };
-    match read {
-        Ok(answer)
-            if answer.calendar_item_id == calendar_item_id && answer.before_ms == before_ms =>
-        {
-            bounded_page(&[answer], None, 1, revision, ReadId::SeriesPrevious)
-        }
-        Ok(_) => absent(Refusal::HubReplyInvalid {
-            field: "calendar_item_id".into(),
-            received_bytes: None,
-        }),
-        Err(refusal) => absent(refusal),
-    }
-}
-
-async fn library(
-    hub: Result<NoteHub, Refusal>,
-    skip: usize,
-    state: Vec<orbit_core::notes::LibraryItem>,
-    revision: u64,
-) -> Knowledge<Page<Value>> {
-    use orbit_core::notes::{LibraryItem, LibraryList};
-    let mut items = Vec::new();
-    match &hub {
-        Ok(hub) => {
-            let dictionaries = match hub.dictionaries().await {
-                crate::hub_notes::Answer::Refused { status, .. } => Err(Refusal::UpstreamFailed {
-                    service: orbit_core::refusal::Service::Hub,
-                    status: Some(status),
-                }),
-                answer @ (crate::hub_notes::Answer::Value(_)
-                | crate::hub_notes::Answer::Unreachable(_)) => answer.into_result(),
-            };
-            match dictionaries {
-                Ok(list) => {
-                    items.extend(list.dictionaries.into_iter().map(LibraryItem::Dictionary))
-                }
-                Err(refusal) => items.push(LibraryItem::Unavailable {
-                    list: LibraryList::Dictionaries,
-                    refusal,
-                }),
-            }
-            match hub.templates().await.into_result() {
-                Ok(list) => items.extend(list.templates.into_iter().map(LibraryItem::Template)),
-                Err(refusal) => items.push(LibraryItem::Unavailable {
-                    list: LibraryList::Templates,
-                    refusal,
-                }),
-            }
-            match hub.links().await.into_result() {
-                Ok(links) => items.extend(links.links.into_iter().map(LibraryItem::Link)),
-                Err(refusal) => items.push(LibraryItem::Unavailable {
-                    list: LibraryList::Links,
-                    refusal,
-                }),
-            }
-        }
-        Err(refusal) => {
-            for list in [
-                LibraryList::Templates,
-                LibraryList::Links,
-                LibraryList::Dictionaries,
-            ] {
-                items.push(LibraryItem::Unavailable {
-                    list,
-                    refusal: refusal.clone(),
-                });
-            }
-        }
-    }
-    items.extend(state);
-    super::super::reads::page(
-        &items,
-        Some(Cursor::Index { index: skip as u64 }),
-        ReadId::NoteLibrary,
-        revision,
-    )
 }

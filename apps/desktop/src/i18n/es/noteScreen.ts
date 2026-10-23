@@ -9,6 +9,7 @@ const base = {
   noteScreen: {
     titleLabel: "Título de la reunión",
     titleNotOnHub: "Podrás renombrarla cuando la grabación termine de subirse al hub.",
+    changesOnMac: "Hay cambios guardados en este Mac que el hub aún no tiene. Se envían solos.",
     whileRecording: "La nota se escribe al terminar la grabación.",
     withPeople: (names: string[]) => listOf([...names, "tú"]),
     minutes: (value: number) => `${value} min`,

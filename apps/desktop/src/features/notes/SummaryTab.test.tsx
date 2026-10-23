@@ -65,6 +65,27 @@ it("sends a section as typed, and says it is saved once the note carries it", as
   expect(screen.getByText("✓ Guardado")).toBeTruthy();
 });
 
+it("says an edit the daemon kept is on this Mac until the hub has it, then that it is saved", async () => {
+  const send = vi.fn(() => Promise.resolve(true));
+  const note = writtenNote();
+  const { rerender } = render(<SummaryTab note={note} rewriting={idle} send={send} />);
+  fireEvent.click(screen.getByRole("button", { name: "Editar «Próximos pasos»" }));
+  const editor = editorNamed("Texto de «Próximos pasos»");
+  focusAt(editor);
+  typeText(editor, "\nLlamar al proveedor");
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1_000);
+  });
+  const typed = "1. Pedir las estanterías.\n2. Llamar al proveedor";
+  // The daemon kept it and laid it over the note; the hub does not have it yet.
+  const kept = { ...withSection(note, 1, typed), pending_changes: ["sections"] };
+  rerender(<SummaryTab note={kept} rewriting={idle} send={send} />);
+  expect(screen.getByText("Guardado en este Mac · el hub aún no lo tiene")).toBeTruthy();
+  expect(screen.queryByText("✓ Guardado")).toBeNull();
+  rerender(<SummaryTab note={withSection(note, 1, typed)} rewriting={idle} send={send} />);
+  expect(screen.getByText("✓ Guardado")).toBeTruthy();
+});
+
 it("sends at once when the section's text loses the focus", () => {
   const send = vi.fn(() => Promise.resolve(true));
   render(<SummaryTab note={writtenNote()} rewriting={idle} send={send} />);

@@ -24,6 +24,9 @@ impl ReadOnlyStore {
     pub fn pending_private_notes(&self) -> Result<Vec<String>> {
         self.store.pending_private_notes()
     }
+    pub fn note_orders(&self) -> Result<Vec<crate::WaitingOrder>> {
+        self.store.note_orders()
+    }
     pub fn load_snapshot<T: serde::de::DeserializeOwned>(&self) -> Result<Option<T>> {
         self.store.load_snapshot()
     }

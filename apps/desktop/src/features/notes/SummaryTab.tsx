@@ -127,6 +127,7 @@ export function SummaryTab({
           key={`${section.name}-${index}`}
           onChange={(markdown) => change(index, markdown)}
           onDone={flush}
+          onMac={note.pending_changes?.includes("sections") ?? false}
           saving={unsaved(index)}
           section={{ ...section, markdown: sections[index]?.markdown ?? section.markdown }}
           writing={writing}

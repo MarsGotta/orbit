@@ -33,4 +33,9 @@ private_notes: string, private_notes_revision: number, progress: NoteProgressSna
 /**
  * The series of the note's event, when it has one.
  */
-series?: NoteSeriesLinkSnapshot, };
+series?: NoteSeriesLinkSnapshot, 
+/**
+ * What this Mac changed and the hub has not taken yet: `sections`,
+ * `action:{id}`, `title`, `language`, `speaker:{key}`, `write`…
+ */
+pending_changes?: Array<string>, };

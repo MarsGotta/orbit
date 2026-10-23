@@ -314,3 +314,24 @@ fn a_speaker_wears_one_of_the_four_calendar_colours_and_keeps_it() {
         .collect();
     assert_eq!(four.len(), 4);
 }
+
+/// What this Mac changed and the hub has not taken yet reaches the screen
+/// by name, and a section edit still on this Mac marks the sections as
+/// edited even before the hub says so.
+#[test]
+fn the_changes_still_on_this_mac_reach_the_open_note() {
+    let mut document = hub_document();
+    if let Some(note) = document.note.as_mut() {
+        note.edited.sections = false;
+    }
+    let plain = crate::projection::note::project_open_note(document.clone(), Ok(Vec::new()), None);
+    assert!(plain.pending_changes.is_empty());
+    assert!(!plain.summary.expect("a summary").sections[0].edited);
+    document.pending_changes = vec!["action:a0123456789ab".into(), "sections".into()];
+    let pending = crate::projection::note::project_open_note(document, Ok(Vec::new()), None);
+    assert_eq!(
+        pending.pending_changes,
+        ["action:a0123456789ab", "sections"]
+    );
+    assert!(pending.summary.expect("a summary").sections[0].edited);
+}

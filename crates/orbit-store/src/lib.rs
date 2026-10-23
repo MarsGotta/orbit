@@ -17,6 +17,8 @@ mod call_preference;
 pub use blobs::RecoveryScan;
 mod reader;
 pub use reader::ReadOnlyStore;
+mod note_outbox;
+pub use note_outbox::WaitingOrder;
 mod recording_notes;
 pub use recording_notes::{MAX_PRIVATE_NOTES_BYTES, PendingPrivateNotes};
 pub use store::Store;

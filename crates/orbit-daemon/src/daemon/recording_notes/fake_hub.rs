@@ -50,6 +50,12 @@ pub(crate) struct Hub {
     /// FastAPI answers them as it answered then (`{"detail":"Not Found"}`,
     /// measured against 0.10.1's code).
     pub without_series_routes: bool,
+    /// Recordings this hub refuses with this status, whatever is asked of
+    /// them: a recording made under an earlier pairing is a 404 for ever
+    /// (`meetings/repository.require`).
+    pub refusing: BTreeMap<String, u16>,
+    /// Recordings whose requests this hub takes and never answers.
+    pub silent: std::collections::BTreeSet<String>,
 }
 
 pub(crate) type Shared = Arc<Mutex<Hub>>;
@@ -213,6 +219,14 @@ impl Hub {
         });
         if let Some(status) = self.failing {
             return refusal(status, "synthetic_failure", "Fallo sintético");
+        }
+        if let Some(status) = self
+            .refusing
+            .iter()
+            .find(|(recording, _)| path.contains(recording.as_str()))
+            .map(|(_, status)| *status)
+        {
+            return refusal(status, "recording_not_found", "Grabación no disponible");
         }
         let segments = path.trim_start_matches('/').split('/').collect::<Vec<_>>();
         let series_route = matches!(
@@ -485,7 +499,24 @@ async fn serve_one(hub: Shared, mut socket: tokio::net::TcpStream) -> Result<()>
         serde_json::from_slice(&request[header_end..header_end + length])?
     };
     let (path, query) = target.split_once('?').unwrap_or((target.as_str(), ""));
-    let hold = lock(&hub).hold.clone();
+    let (hold, silent) = {
+        let hub = lock(&hub);
+        let silent = hub
+            .silent
+            .iter()
+            .any(|recording| path.contains(recording.as_str()));
+        (hub.hold.clone(), silent)
+    };
+    if silent {
+        lock(&hub).received.push(Received {
+            method,
+            path: path.into(),
+            query: query.into(),
+            body,
+        });
+        std::future::pending::<()>().await;
+        return Ok(());
+    }
     if let Some(hold) = hold {
         hold.notified().await;
     }

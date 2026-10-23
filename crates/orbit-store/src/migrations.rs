@@ -61,12 +61,18 @@ pub(crate) fn initialize(connection: &mut Connection, verifier: &[u8]) -> Result
     Ok(())
 }
 
-/// v3 is the oldest schema any installed Mac uses. Remove only retired
-/// namespaces and settings; pending audio, private notes and unknown data stay.
+/// v3 is the oldest schema any installed Mac uses: it is retired to v4.
+/// Every store then gains the notes outbox (`add_note_outbox`).
 pub(crate) fn migrate(connection: &mut Connection, version: i64) -> Result<()> {
-    if version == SCHEMA_VERSION {
-        return Ok(());
+    if version != SCHEMA_VERSION {
+        retire_version_three(connection)?;
     }
+    add_note_outbox(connection)
+}
+
+/// Remove only retired namespaces and settings; pending audio, private notes
+/// and unknown data stay.
+fn retire_version_three(connection: &mut Connection) -> Result<()> {
     let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
     // Retire their triggers before their counters: otherwise the history
     // triggers left by older versions would reject future audio job writes.
@@ -201,6 +207,39 @@ pub(crate) fn retire_meeting_mirror(connection: &mut Connection) -> Result<()> {
     transaction.execute(
         &format!("DELETE FROM settings WHERE {settings}"),
         rusqlite::params_from_iter(SETTINGS.iter()),
+    )?;
+    transaction.commit()?;
+    Ok(())
+}
+
+/// The notes outbox (`note_outbox`): what the user wrote about a meeting or
+/// the library, until the hub took it (`crate::note_outbox`).
+///
+/// Why it does not raise `user_version`: the table is new and an older
+/// release neither reads nor removes it, so that release still opens the
+/// store (the orders wait there until this one runs again); a version would
+/// lock it out of the store it wrote. A store that has the table only reads.
+pub(crate) fn add_note_outbox(connection: &mut Connection) -> Result<()> {
+    let exists: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='note_outbox')",
+        [],
+        |row| row.get(0),
+    )?;
+    if exists {
+        return Ok(());
+    }
+    let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    transaction.execute_batch(
+        "
+CREATE TABLE IF NOT EXISTS note_outbox (
+    lane TEXT NOT NULL,
+    target TEXT NOT NULL,
+    sequence INTEGER NOT NULL UNIQUE,
+    created_at INTEGER NOT NULL,
+    payload BLOB NOT NULL,
+    PRIMARY KEY(lane,target)
+);
+",
     )?;
     transaction.commit()?;
     Ok(())

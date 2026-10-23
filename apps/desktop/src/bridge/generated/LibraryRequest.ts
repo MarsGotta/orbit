@@ -4,7 +4,7 @@ import type { TemplateDraft } from "./TemplateDraft";
 
 /**
  * The user's orders about templates and series (`Command::NoteLibrary`). Each
- * goes to the hub as they give it; nothing is queued on the Mac.
+ * waits in this Mac's notes outbox until the hub answers it (`note_outbox`).
  */
 export type LibraryRequest = { "action": "dictionary", request: DictionaryRequest, } | { "action": "save_template", template_id: string, draft: TemplateDraft, } | { "action": "delete_template", template_id: string, } | { "action": "restore_template", 
 /**

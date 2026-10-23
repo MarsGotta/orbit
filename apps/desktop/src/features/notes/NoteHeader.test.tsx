@@ -89,6 +89,16 @@ describe("the opened note's title", () => {
   });
 });
 
+describe("what this Mac changed and the hub does not have yet", () => {
+  it("is said under the title, and only while there is some", () => {
+    const { view } = header({ ...written(), pending_changes: ["title"] });
+    expect(screen.getByText(es.noteScreen.changesOnMac)).toBeTruthy();
+    view.unmount();
+    header(written());
+    expect(screen.queryByText(es.noteScreen.changesOnMac)).toBeNull();
+  });
+});
+
 describe("renaming the meeting", () => {
   it("sends Alina's name, trimmed, when she leaves the field or presses Enter", () => {
     const { send } = header(written());

@@ -120,8 +120,50 @@ pub(crate) fn project_open_note(
         Ok(turns) => (turns, None),
         Err(cause) => (Vec::new(), Some(cause)),
     };
+    let speakers = project_speakers(&document, &turns);
+    let owner_name = owner_name(&document);
+    let series = project_series(&document, library);
+    let note_revision = document.note.as_ref().map(|note| note.revision);
+    let pending_sections = document
+        .pending_changes
+        .iter()
+        .any(|change| change == "sections");
+    let seen = project_seen(document.note, pending_sections);
+    let transcript = project_transcript(document.transcript, document.language, turns, error);
+    OpenNoteSnapshot {
+        dictionary: document.dictionary,
+        capture: Some(document.capture),
+        recording_id: document.recording_id,
+        title: document.title,
+        owner_name,
+        started_at_ms: document.started_at_ms,
+        ended_at_ms: document
+            .started_at_ms
+            .saturating_add(document.duration_ms.max(0)),
+        event: document.event.map(|event| NoteEventSnapshot {
+            attendees: event.attendees,
+            title: event.title,
+            start_ms: event.starts_at_ms,
+            end_ms: event.ends_at_ms,
+        }),
+        summary: seen.summary,
+        note_revision,
+        actions: seen.actions,
+        decisions: seen.decisions,
+        open_topics: seen.open_topics,
+        private_notes: document.private_notes.text,
+        private_notes_revision: document.private_notes.revision,
+        progress,
+        transcript,
+        speakers,
+        series,
+        pending_changes: document.pending_changes,
+    }
+}
+
+fn project_speakers(document: &MeetingDocument, turns: &[Turn]) -> Vec<NoteSpeakerSnapshot> {
     let total = turns.len();
-    let speakers = document
+    document
         .speakers
         .iter()
         .map(|speaker| {
@@ -138,16 +180,26 @@ pub(crate) fn project_open_note(
                     .unwrap_or(100),
             }
         })
-        .collect::<Vec<_>>();
-    let owner_name = document
+        .collect()
+}
+
+/// The name of the user's microphone, or «Yo».
+fn owner_name(document: &MeetingDocument) -> String {
+    document
         .speakers
         .iter()
         .find(|speaker| speaker.track.as_deref() == Some("mic_local"))
         .map_or_else(
             || DEFAULT_OWNER_NAME.to_owned(),
             |speaker| speaker.name.clone(),
-        );
-    let series = document.event.as_ref().map(|event| NoteSeriesLinkSnapshot {
+        )
+}
+
+fn project_series(
+    document: &MeetingDocument,
+    library: Option<&NoteLibrarySnapshot>,
+) -> Option<NoteSeriesLinkSnapshot> {
+    document.event.as_ref().map(|event| NoteSeriesLinkSnapshot {
         calendar_item_id: event.calendar_item_id.clone(),
         assigned: match library {
             Some(library) if library.links.state == NoteTemplatesState::Available => {
@@ -166,138 +218,129 @@ pub(crate) fn project_open_note(
             }
             Some(_) | None => NoteSeriesAssignedSnapshot::Unknown {},
         },
-    });
-    let note_revision = document.note.as_ref().map(|note| note.revision);
-    let edited_sections = document
-        .note
-        .as_ref()
-        .is_some_and(|note| note.edited.sections);
-    let superseded = document
-        .note
-        .as_ref()
-        .is_some_and(|note| note.superseded_available);
-    let seen = document.note.and_then(|note| note.note);
-    let (summary, actions, decisions, open_topics) = match seen {
-        Some(seen) => (
-            Some(NoteSummarySnapshot {
-                short_summary: seen.short_summary,
-                sections: seen
-                    .sections
-                    .into_iter()
-                    .map(|section| NoteSectionSnapshot {
-                        name: section.name,
-                        markdown: section.markdown,
-                        edited: edited_sections,
-                    })
-                    .collect(),
-                template_id: seen.template_id,
-                template_name: seen.template_name,
-                generated_at_ms: seen.generated_at_ms,
-                model: seen.model,
-                superseded_available: superseded,
-                template_source: seen.template_source,
-            }),
-            seen.action_items
-                .into_iter()
-                .map(|action| NoteActionSnapshot {
-                    id: action.id,
-                    owner: action.owner,
-                    text: action.text,
-                    due: action.due,
-                    done: action.done,
-                })
-                .collect(),
-            seen.decisions,
-            seen.open_topics,
-        ),
-        None => (None, Vec::new(), Vec::new(), Vec::new()),
+    })
+}
+
+/// What the note says: its summary, tasks, decisions and open topics.
+struct Seen {
+    summary: Option<NoteSummarySnapshot>,
+    actions: Vec<NoteActionSnapshot>,
+    decisions: Vec<String>,
+    open_topics: Vec<String>,
+}
+
+/// The note as the user sees it. Its sections are edited when the hub kept
+/// an edit of them or this Mac holds one the hub has not taken yet.
+fn project_seen(note: Option<NoteDocument>, pending_sections: bool) -> Seen {
+    let edited_sections =
+        pending_sections || note.as_ref().is_some_and(|note| note.edited.sections);
+    let superseded = note.as_ref().is_some_and(|note| note.superseded_available);
+    let Some(seen) = note.and_then(|note| note.note) else {
+        return Seen {
+            summary: None,
+            actions: Vec::new(),
+            decisions: Vec::new(),
+            open_topics: Vec::new(),
+        };
     };
-    OpenNoteSnapshot {
-        dictionary: document.dictionary,
-        capture: Some(document.capture),
-        recording_id: document.recording_id,
-        title: document.title,
-        owner_name,
-        started_at_ms: document.started_at_ms,
-        ended_at_ms: document
-            .started_at_ms
-            .saturating_add(document.duration_ms.max(0)),
-        event: document.event.map(|event| NoteEventSnapshot {
-            attendees: event.attendees,
-            title: event.title,
-            start_ms: event.starts_at_ms,
-            end_ms: event.ends_at_ms,
-        }),
-        summary,
-        note_revision,
-        actions,
-        decisions,
-        open_topics,
-        private_notes: document.private_notes.text,
-        private_notes_revision: document.private_notes.revision,
-        progress,
-        transcript: NoteTranscriptSnapshot {
-            final_pass: document
-                .transcript
-                .final_pass
-                .map(|final_pass| NoteFinalPassSnapshot {
-                    state: final_pass.state,
-                    timeout_ms: final_pass
-                        .error
-                        .as_ref()
-                        .and_then(|cause| cause.details.get("timeout_ms"))
-                        .and_then(serde_json::Value::as_u64),
-                    error: final_pass.error.map(|cause| cause.code),
-                    progress: final_pass
-                        .progress
-                        .map(|progress| NoteFinalPassProgressSnapshot {
-                            done_ms: progress.done_ms,
-                            total_ms: progress.total_ms,
-                            remaining_ms: progress.remaining_ms,
-                        }),
-                    kept_draft: final_pass.kept_draft.map(|kept| NoteKeptDraftSnapshot {
-                        spans: kept.spans,
-                        duration_ms: kept.duration_ms,
-                    }),
-                }),
-            unmatched_speaker_names: (document.transcript.unmatched_speaker_names > 0)
-                .then_some(document.transcript.unmatched_speaker_names),
-            language: document.language,
-            turns: turns
+    Seen {
+        summary: Some(NoteSummarySnapshot {
+            short_summary: seen.short_summary,
+            sections: seen
+                .sections
                 .into_iter()
-                .enumerate()
-                .map(|(index, turn)| NoteTurnSnapshot {
-                    index,
-                    at_ms: turn.at_ms,
-                    speaker_key: turn.speaker_key,
-                    text: turn.text,
+                .map(|section| NoteSectionSnapshot {
+                    name: section.name,
+                    markdown: section.markdown,
+                    edited: edited_sections,
                 })
                 .collect(),
-            pending_chunks: document.transcript.pending_chunks,
-            failed_groups: document.transcript.failed_groups.len() as u64,
-            error,
-            missing_audio: (!document.transcript.missing_audio.is_empty()).then(|| {
-                document
-                    .transcript
-                    .missing_audio
-                    .iter()
-                    .map(|hole| crate::NoteMissingAudioSnapshot {
-                        track: hole.track.clone(),
-                        at_ms: hole.at_ms,
-                        duration_ms: hole.duration_ms,
-                    })
-                    .collect()
+            template_id: seen.template_id,
+            template_name: seen.template_name,
+            generated_at_ms: seen.generated_at_ms,
+            model: seen.model,
+            superseded_available: superseded,
+            template_source: seen.template_source,
+        }),
+        actions: seen
+            .action_items
+            .into_iter()
+            .map(|action| NoteActionSnapshot {
+                id: action.id,
+                owner: action.owner,
+                text: action.text,
+                due: action.due,
+                done: action.done,
+            })
+            .collect(),
+        decisions: seen.decisions,
+        open_topics: seen.open_topics,
+    }
+}
+
+fn project_transcript(
+    transcript: orbit_core::notes::TranscriptProgress,
+    language: Option<String>,
+    turns: Vec<Turn>,
+    error: Option<String>,
+) -> NoteTranscriptSnapshot {
+    NoteTranscriptSnapshot {
+        final_pass: transcript
+            .final_pass
+            .map(|final_pass| NoteFinalPassSnapshot {
+                state: final_pass.state,
+                timeout_ms: final_pass
+                    .error
+                    .as_ref()
+                    .and_then(|cause| cause.details.get("timeout_ms"))
+                    .and_then(serde_json::Value::as_u64),
+                error: final_pass.error.map(|cause| cause.code),
+                progress: final_pass
+                    .progress
+                    .map(|progress| NoteFinalPassProgressSnapshot {
+                        done_ms: progress.done_ms,
+                        total_ms: progress.total_ms,
+                        remaining_ms: progress.remaining_ms,
+                    }),
+                kept_draft: final_pass.kept_draft.map(|kept| NoteKeptDraftSnapshot {
+                    spans: kept.spans,
+                    duration_ms: kept.duration_ms,
+                }),
             }),
-            retranscribing: document.transcript.retranscribing.map(|repeating| {
-                NoteRetranscribingSnapshot {
-                    language: repeating.language,
-                    done: repeating.done,
-                    total: repeating.total,
-                }
+        unmatched_speaker_names: (transcript.unmatched_speaker_names > 0)
+            .then_some(transcript.unmatched_speaker_names),
+        language,
+        turns: turns
+            .into_iter()
+            .enumerate()
+            .map(|(index, turn)| NoteTurnSnapshot {
+                index,
+                at_ms: turn.at_ms,
+                speaker_key: turn.speaker_key,
+                text: turn.text,
+            })
+            .collect(),
+        pending_chunks: transcript.pending_chunks,
+        failed_groups: transcript.failed_groups.len() as u64,
+        error,
+        missing_audio: (!transcript.missing_audio.is_empty()).then(|| {
+            transcript
+                .missing_audio
+                .iter()
+                .map(|hole| crate::NoteMissingAudioSnapshot {
+                    track: hole.track.clone(),
+                    at_ms: hole.at_ms,
+                    duration_ms: hole.duration_ms,
+                })
+                .collect()
+        }),
+        retranscribing: transcript
+            .retranscribing
+            .map(|repeating| NoteRetranscribingSnapshot {
+                language: repeating.language,
+                done: repeating.done,
+                total: repeating.total,
             }),
-        },
-        speakers,
-        series,
     }
 }
 

@@ -113,8 +113,8 @@ app, not an individual browser tab. Record participants only with their consent.
 
 After recording, the Mac uploads audio, the hub transcribes it and writes the
 note, and the app reads it back. Recording stopped does not mean the note is
-ready. Offline audio waits on the Mac. Private notes wait durably until the hub
-confirms them.
+ready. Offline audio waits on the Mac. Private notes and changes to a note
+wait durably until the hub confirms them.
 
 Privacy stop cuts capture, playback and transfers locally and survives quitting.
 **Ajustes › Privacidad › Rearmar** clears it locally. Rearming does not resume
@@ -159,7 +159,7 @@ Quit Orbit and delete `/Applications/Orbit.app` to remove the app. This leaves
 its local data and Keychain entries intact. The actual data directory and
 Keychain service are defined in `crates/orbit-core/src/orbit_bundle.rs` and
 `crates/orbit-ipc/src/paths.rs`; use those for the identity of your own build.
-Delete local data only after confirming that pending audio and private notes
-have reached the hub. Removing a storage key makes remaining encrypted data
+Delete local data only after confirming that pending audio, private notes and
+note changes have reached the hub. Removing a storage key makes remaining encrypted data
 unreadable. Deleting the app does not delete hub data or revoke its token; ask
 the hub administrator to revoke the device when retiring it.

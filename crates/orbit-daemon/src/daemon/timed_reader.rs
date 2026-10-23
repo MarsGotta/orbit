@@ -158,6 +158,11 @@ impl TimedReader {
         self.timed(Location::caller(), ReadOnlyStore::pending_private_notes)
     }
 
+    #[track_caller]
+    pub(super) fn note_orders(&self) -> Result<Vec<orbit_store::WaitingOrder>> {
+        self.timed(Location::caller(), ReadOnlyStore::note_orders)
+    }
+
     #[cfg(test)]
     pub(super) fn decryption_count(&self) -> u64 {
         self.store.decryption_count()

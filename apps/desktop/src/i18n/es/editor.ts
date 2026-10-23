@@ -64,6 +64,7 @@ export const editorCopy = {
     saving: "Guardando…",
     savedHere: "Guardado en este Mac · solo lo ves tú",
     savedHub: "✓ Guardado",
+    savedMac: "Guardado en este Mac · el hub aún no lo tiene",
     onlyHere: "Los cambios solo están aquí hasta que copies o mandes",
     notSaved: (why: string) => `No se ha guardado: ${why} Lo escrito sigue aquí.`,
     notSavedUnknown: "No se ha guardado. Lo escrito sigue aquí.",

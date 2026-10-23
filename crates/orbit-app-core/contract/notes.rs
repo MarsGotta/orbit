@@ -313,6 +313,11 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub series: Option<NoteSeriesLinkSnapshot>,
+        /// What this Mac changed and the hub has not taken yet: `sections`,
+        /// `action:{id}`, `title`, `language`, `speaker:{key}`, `write`…
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        #[ts(as = "Option<Vec<String>>", optional)]
+        pub pending_changes: Vec<String>,
     }
 }
 

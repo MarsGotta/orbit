@@ -129,7 +129,10 @@ uploaded when the hub answers again.
    worker process the stored audio/transcript; later changes emit the same event.
 
 Recording works offline. Private notes stay in a local durable queue until
-`PUT …/private-notes` is confirmed. All transcript consumers, including assistant
+`PUT …/private-notes` is confirmed, and note edits, titles, speaker names,
+languages and template orders wait in the notes outbox until the hub answers:
+one lane per meeting, so a meeting the hub refuses or does not answer never
+holds another one back (`daemon/recording_notes/outbox.rs`). All transcript consumers, including assistant
 tools and note generation, use `server/orbit_hub/meetings/turns.py`.
 
 ### Voice note and call
@@ -243,7 +246,7 @@ See [local storage](storage.md) for encryption, retention and recovery.
 
 | Location | Data and lifetime |
 |---|---|
-| Mac store | Durable current state/turn, jobs, encrypted pending audio, upload receipts, pending private notes, call preference and the assistant's folders with their bookmarks; no hub history cache |
+| Mac store | Durable current state/turn, jobs, encrypted pending audio, upload receipts, pending private notes and note orders, call preference and the assistant's folders with their bookmarks; no hub history cache |
 | Mac data directory | Configuration without tokens, instance lock, engine socket/temporary screenshot, bounded control history and logs |
 | Keychain | Storage key and revocable device token |
 | Helper | Durable local privacy latch and content-free native diagnostics |

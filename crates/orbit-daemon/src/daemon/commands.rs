@@ -1,5 +1,4 @@
 //! Local command dispatch.
-use super::recording_notes::NoteOrder;
 use super::*;
 use orbit_core::MAX_MANIFEST_TITLE_CHARACTERS;
 
@@ -151,12 +150,6 @@ impl Runtime {
                 self.pair_device(hub_url, code, device_name).await?;
             }
             Command::SessionOpen { id, agent_id } => self.open_session(id, agent_id).await?,
-            Command::TranscriptRetranscribe { recording_id } => {
-                self.note_order(recording_id, NoteOrder::Retranscribe)?
-            }
-            Command::TranscriptRetry { recording_id } => {
-                self.note_order(recording_id, NoteOrder::RetryTranscript)?
-            }
             Command::NotePrivateSave {
                 recording_id,
                 markdown,
@@ -165,41 +158,15 @@ impl Runtime {
                 self.note_private_save(recording_id, markdown, base_revision)
                     .await?
             }
-            Command::NoteEdit {
-                recording_id,
-                sections,
-                done,
-                base_revision,
-            } => self.note_order(
-                recording_id,
-                NoteOrder::Edit {
-                    sections,
-                    done,
-                    base_revision,
-                },
-            )?,
-            Command::NoteRegenerate {
-                recording_id,
-                template_id,
-            } => self.note_order(recording_id, NoteOrder::Write { template_id })?,
-            Command::NoteRestoreSuperseded { recording_id } => {
-                self.note_order(recording_id, NoteOrder::RestoreSuperseded)?
-            }
-            Command::SpeakerRename {
-                recording_id,
-                key,
-                name,
-                scope,
-            } => self.note_order(recording_id, NoteOrder::Rename { key, name, scope })?,
-            Command::MeetingLanguage {
-                recording_id,
-                language,
-            } => self.note_order(recording_id, NoteOrder::Language { language })?,
-            Command::MeetingRename {
-                recording_id,
-                title,
-            } => self.note_order(recording_id, NoteOrder::Title { title })?,
-            Command::NoteLibrary { request } => self.note_library(request),
+            Command::NoteLibrary { request } => self.note_library(request).await?,
+            command @ (Command::TranscriptRetranscribe { .. }
+            | Command::TranscriptRetry { .. }
+            | Command::NoteEdit { .. }
+            | Command::NoteRegenerate { .. }
+            | Command::NoteRestoreSuperseded { .. }
+            | Command::SpeakerRename { .. }
+            | Command::MeetingLanguage { .. }
+            | Command::MeetingRename { .. }) => self.note_command(command).await?,
             Command::Status => {
                 // Apply receipts that already exist, but never wait here for a
                 // future disk receipt: this command runs inside the select loop

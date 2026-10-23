@@ -8,32 +8,40 @@ import { MarkdownView } from "./MarkdownView";
 import type { NoteWriting } from "./note-writing";
 import styles from "./Note.module.css";
 
-/** «Guardando…» until the note carries the edit, then «✓ Guardado». */
-function SectionSaving({ saving }: { saving: boolean }) {
-  if (!saving) return <>{es.editor.savedHub}</>;
-  return (
-    <>
-      <Spinner size={12} />
-      {es.editor.saving}
-    </>
-  );
+/**
+ * «Guardando…» until the note carries the edit; then «Guardado en este Mac»
+ * while the hub has not taken it, and «✓ Guardado» once it has.
+ */
+function SectionSaving({ onMac, saving }: { onMac: boolean; saving: boolean }) {
+  if (saving) {
+    return (
+      <>
+        <Spinner size={12} />
+        {es.editor.saving}
+      </>
+    );
+  }
+  return <>{onMac ? es.editor.savedMac : es.editor.savedHub}</>;
 }
 
 /**
  * One section of the summary: read as formatted text, edited in place in
  * the notes' editor. Each change goes to `onChange`; the tab saves them a
  * second after a pause, and at once when the text loses the focus
- * (`onDone`). «Guardando…» until the note carries the edit, then «✓ Guardado».
+ * (`onDone`). Its status says where the edit is (`SectionSaving`).
  */
 export function SummarySection({
   onChange,
   onDone,
+  onMac,
   saving,
   section,
   writing,
 }: {
   onChange: (markdown: string) => void;
   onDone: () => void;
+  /** An edit of the sections this Mac keeps and the hub has not taken yet. */
+  onMac: boolean;
   /** An edit of this section the note does not carry yet. */
   saving: boolean;
   section: NoteSectionSnapshot;
@@ -70,7 +78,7 @@ export function SummarySection({
             onChange(markdown);
           }}
           people={writing?.people}
-          status={edited && <SectionSaving saving={saving} />}
+          status={(edited || onMac) && <SectionSaving onMac={onMac} saving={saving} />}
           value={section.markdown}
         />
       ) : (

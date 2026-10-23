@@ -21,6 +21,7 @@ pub mod limits;
 pub mod meeting_audio;
 pub mod meeting_question;
 pub mod model;
+pub mod note_outbox;
 pub mod notes;
 pub mod notice;
 pub mod orbit_bundle;

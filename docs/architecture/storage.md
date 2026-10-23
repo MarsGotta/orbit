@@ -41,6 +41,7 @@ non-macOS development requires that mode. There is no production fallback.
 | Audio | `chunks` receipts and `store/chunks/` | Actor seals/prunes; uploader and local playback read | Meeting chunks removed after authenticated durable hub ACK; unconfirmed and voice-note audio retained |
 | Temporary capture receipts without audio | `records`, `uploaded_chunks:<recording>` | Actor writes on audio release; finalization/recovery read | Until hub confirms closure; not added after closure |
 | Private notes awaiting hub | `records`, `recording_notes`, `note-private-<recording>` | Actor writes, hub upload reads | Until the hub confirms that text |
+| Note and library orders awaiting hub (edits, ticked tasks, titles, speaker names, languages, rewrites, templates, series, dictionary orders) | `note_outbox`, one row per lane (`meeting:<recording>` or `library`) and target | Actor writes; the daemon keeps a copy to schedule | Until the hub answers; a newer order on the same target replaces the row |
 | Call-detection preference | `settings`, `call_preference_v1` | Daemon | Until changed |
 | Key check | `settings`, `key_check` | Creation/open | Permanent |
 
@@ -76,7 +77,9 @@ A late reply, privacy stop, changed session or generation does not repeat a read
 Legacy `max_source_intents`/`max_source_bytes` configuration is accepted but no
 longer used and disappears on save.
 
-The obsolete `messages` table is removed on open. Hub meeting/transcript/note
+Every open adds the `note_outbox` table when it is missing, without raising
+the schema version: an older release still opens the store and leaves the
+table alone. The obsolete `messages` table is removed on open. Hub meeting/transcript/note
 copies are retired; pending private notes remain. Schema 3→4 removes ten unused
 vertical namespaces and their known keys/triggers, `action_journal`,
 `calendar_copies`, `source_intents` and `sources`. Unknown keys/namespaces are
