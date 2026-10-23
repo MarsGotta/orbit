@@ -7,8 +7,32 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-24
+
+### Upgrading
+
+- **Upgrade the hub first, then the Macs.** The hub's changes are additive: a
+  0.11 Mac keeps working with a 0.12.0 hub, and a 0.12.0 Mac with a 0.11 hub,
+  without what needs both: deleting meetings, the personal reminder on both
+  Macs, each answer's «Trabajó…» and the muted stretches in the transcript.
+- **The hub's schema gains tables and columns and loses nothing**, so going
+  back with `activate.sh anterior` keeps working.
+
 ### Added
 
+- **«Silenciar»** in the «Grabando» card, the floating panels, the call view
+  and the menu bar. In a recording only the microphone goes silent and the
+  other side keeps recording; in a call the assistant stops hearing you. The
+  helper replaces the samples with silence before they leave it, so nothing
+  said is stored, transcribed or heard by «Oye Deimos», and the recording
+  keeps its time. The note marks each stretch («Micrófono silenciado · 12:04
+  – 12:30»); muted time never hangs a call up.
+- **A new brand: the two-moon symbol.** The app icon, the menu bar mark (a
+  template at rest, a red moon with the time while recording, an amber one
+  while an assistant waits for you), the sidebar's logo, whose moon turns
+  while an assistant works, and the README's logotype. The Orbit name, logo,
+  app icon, menu bar icons and assistant avatars are not covered by the MIT
+  License.
 - **«Terminar sin guardar»**, next to «Terminar» in the «Grabando» card, the
   floating panel and the menu bar, while it records or is paused: after
   «¿Terminar sin guardar? Se borra lo grabado y no se escribe nota.» and
@@ -20,9 +44,60 @@ is in Spanish; the labels quoted below are the ones it shows.
   tasks, speakers and corrections; the series' dictionaries stay. A meeting
   still closing says «Se borrará al terminar de cerrarse». The hub must be of
   this version (`DELETE /v1/recordings/{id}`): an older one deletes nothing
-  and the Mac says «Actualiza el hub para borrar reuniones».
+  and the Mac says «Actualiza el hub para borrar reuniones». A meeting that
+  no longer exists says «Esta reunión ya no existe».
+
+### Changed
+
+- **The final pass keeps the better of the two transcripts, span by span**,
+  instead of keeping the live draft whole when the final pass lost a span;
+  voices are always separated, so the other side reads «Persona 1» and
+  «Persona 2».
+- **The floating panel's answer stays while the pointer is over it**, and
+  goes five seconds after it leaves.
+- **The personal reminder is kept in the hub**, so both Macs show it: «Solo
+  lo ves tú. No va a la nota.» Without the hub it stays on the Mac and is sent
+  later.
+- **Each answer keeps its «Trabajó…» summary** after later messages and after
+  reopening the conversation.
+- **Wording from the brand guide:** «Todo está parado» and «Reactivar»
+  instead of the privacy stop and rearm; «Rehacer el resumen» and «Rehacer la
+  transcripción».
+- **Inside, Orbit is split by domain.** Recording runs apart from the
+  daemon's loop, on its own task and clock: with the loop held for 15 s a
+  recording keeps sealing and uploading. Calendar work leaves the helper's
+  main thread. The core's state and decisions, the daemon's runtime, its
+  bridge, its catalogues of refusals and notices, and the hub's storage and
+  runtime each have one module per domain. A panic in one of the daemon's
+  actors relaunches only that actor. The gate holds 500 lines per file and
+  80 per function, with a ratchet for what is over, and the boundaries
+  between domains.
 
 ### Fixed
+
+- **An update was blocked by a recording an older version left open.** Only
+  a live capture blocks it now, and such a recording is closed when Orbit
+  starts, at its last audio, so its note is written.
+- **Audio that arrives late after a stall keeps its real times.**
+- **A failed seal says its cause**; an unconfirmed close or a refused start
+  has its own words.
+- **Headphones connecting while a voice note runs and a meeting starts**
+  cancel only the voice note, not the meeting.
+- **«Oye Deimos» is heard when the recognizer joins earlier words** to the
+  phrase, and when a question is still abandoned the panel says why.
+- **A helper whose main thread is held no longer drops its channel** and cuts
+  the recording: past 64 waiting commands they are refused as busy.
+- **Stop, approve or clarify no longer wait for another conversation**, a
+  slow agent no longer holds the others, and an agent that fails to start
+  shows it.
+- **A hub restart in the middle of an answer no longer closes that
+  conversation for ever**, and a transcription group left running by a
+  stopped worker is transcribed again.
+- **«Pendiente de la última vez»** also finds the previous meeting by its
+  title when the recording had no calendar link.
+- **A question asked about a meeting keeps its form until it is taken**, a
+  new event refused with the view closed gives its text back, and «Reiniciar
+  Orbit» restarts it.
 
 - **A voice note that waits on the Mac shows only in its own conversation.**
   0.11.0 showed every waiting note at the end of every conversation with the
