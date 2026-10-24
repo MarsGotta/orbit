@@ -20,6 +20,7 @@ from orbit_hub.meetings_bridge import PROTOCOL as MEETINGS_PROTOCOL
 from orbit_hub.private_auth import canonical, sign_request
 
 from . import calendar as agenda
+from . import meeting_replies as replies
 from .bridge import (
     MAX_BRIDGE_DETAIL_CHARS,
     MAX_TOOL_NAME_BYTES,
@@ -469,11 +470,9 @@ class HubClient:
         if before_ms is not None:
             request["before_ms"] = before_ms
         payload = await self._meetings_call(LIST_PATH, request, device_id)
-        meetings = payload.get("meetings")
-        more = payload.get("more")
-        if not isinstance(meetings, list) or not isinstance(more, bool):
+        if not replies.listing_valid(payload):
             raise HubClientError("invalid_response")
-        return {"meetings": meetings, "more": more}
+        return {"meetings": payload["meetings"], "more": payload["more"]}
 
     async def transcript(
         self, device_id: str, recording_id: str, format: str, after_index: int = 0
@@ -487,31 +486,8 @@ class HubClient:
         if after_index:
             request["after_index"] = after_index
         payload = await self._meetings_call(TRANSCRIPT_PATH, request, device_id)
-        text = payload.get("text")
-        total = payload.get("total_chars")
-        following = payload.get("next_after_index")
-        groups = payload.get("incomplete_groups", [])
-        if (
-            not isinstance(text, str)
-            or payload.get("after_index") != after_index
-            or (following is not None and (type(following) is not int or following <= after_index))
-            or (total is not None and type(total) is not int)
-            or not isinstance(groups, list)
-            or payload.get("capture", "closed") not in {"open", "closed"}
-        ):
+        if not replies.transcript_valid(payload, after_index):
             raise HubClientError("invalid_response")
-        for group in groups:
-            if (
-                not isinstance(group, dict)
-                or not isinstance(group.get("track"), str)
-                or not group["track"]
-                or type(group.get("first_index")) is not int
-                or type(group.get("last_index")) is not int
-                or not isinstance(group.get("cause"), str)
-                or not group["cause"]
-                or type(group.get("attempts")) is not int
-            ):
-                raise HubClientError("invalid_response")
         return payload
 
     async def note(self, device_id: str, recording_id: str) -> dict:
@@ -519,13 +495,7 @@ class HubClient:
         payload = await self._meetings_call(
             NOTE_PATH, {"device_id": device_id, "recording_id": recording_id}, device_id
         )
-        note = payload.get("note")
-        if (
-            not isinstance(note, dict)
-            or not isinstance(payload.get("state"), str)
-            or not isinstance(payload.get("private_notes"), str)
-            or not isinstance(payload.get("edited"), dict)
-        ):
+        if not replies.note_valid(payload):
             raise HubClientError("invalid_response")
         return payload
 
@@ -535,19 +505,7 @@ class HubClient:
         if after_index:
             request["after_index"] = after_index
         payload = await self._meetings_call(ATTACHMENT_PATH, request, device_id)
-        attachment = payload.get("attachment")
-        if not isinstance(attachment, dict) or not all(
-            isinstance(attachment.get(key), str) for key in ("id", "name", "kind", "mime")
-        ):
-            raise HubClientError("invalid_response")
-        if attachment["kind"] == "image":
-            if not isinstance(payload.get("data_base64"), str):
-                raise HubClientError("invalid_response")
-        elif (
-            not isinstance(payload.get("text"), str)
-            or payload.get("after_index") != after_index
-            or type(payload.get("total_chars")) is not int
-        ):
+        if not replies.attachment_valid(payload, after_index):
             raise HubClientError("invalid_response")
         return payload
 

@@ -15,7 +15,7 @@ from orbit_hub.bridge_outcomes import action_outcome
 from orbit_hub.bridge_route import PATH
 from orbit_mcp.hub import HubClientError
 from orbit_mcp.refusals import error_result
-from orbit_mcp.server import _general_action
+from orbit_mcp.tools.control import general_action
 
 pytestmark = pytest.mark.anyio
 
@@ -30,9 +30,9 @@ def test_translator_action_boundary_carries_size_and_ceiling():
         assert len(json.dumps(action, separators=(",", ":")).encode()) == size
         return action
 
-    assert _general_action(action_of_size(16_384))
+    assert general_action(action_of_size(16_384))
     with pytest.raises(HubClientError) as refusal:
-        _general_action(action_of_size(16_385))
+        general_action(action_of_size(16_385))
     text = error_result(refusal.value).content[0].text
     assert "16385" in text and "16384" in text
 

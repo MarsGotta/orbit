@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from ..secret_file import read_secret
 from ..urls import protected_url
 
 
@@ -125,3 +126,27 @@ def parse_settings(raw: Mapping[str, Any]) -> OpenAIAgentSettings:
         images=images,
         speech=_speech(raw["speech"]) if "speech" in raw else None,
     )
+
+
+# One API key per file. What it protects: the hub's memory against a key path
+# that names some other, large file. Why 4 KiB: provider keys are under 200
+# bytes; this is far above any. It is not a bound on anything else.
+MAX_API_KEY_BYTES = 4 * 1024
+
+
+def read_api_key(label: str, key: str, path: Path) -> str:
+    """The key in `path`, refused with the cause; the key itself is never in it."""
+    try:
+        value = read_secret(path, MAX_API_KEY_BYTES).decode("utf-8").strip()
+    except FileNotFoundError:
+        raise ValueError(f"{label}.{key}: {path} does not exist") from None
+    except PermissionError:
+        raise ValueError(f"{label}.{key}: {path} cannot be read by the hub's user") from None
+    except UnicodeDecodeError:
+        raise ValueError(f"{label}.{key}: {path} is not UTF-8 text") from None
+    except (OSError, ValueError) as exc:
+        cause = exc.strerror if isinstance(exc, OSError) and exc.strerror else str(exc)
+        raise ValueError(f"{label}.{key}: {path}: {cause}") from None
+    if not value:
+        raise ValueError(f"{label}.{key}: {path} is empty")
+    return value

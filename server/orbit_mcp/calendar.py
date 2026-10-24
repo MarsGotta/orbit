@@ -20,6 +20,7 @@ from datetime import UTC, datetime, tzinfo
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .bridge import MAX_READ_ID_BYTES
+from .calendar_invitees import written_invitees
 
 # How many times a walk starts over when the Mac says the read it was paging
 # was lost (``calendar_read_restarted``: its reader restarted mid-walk). Protects:
@@ -247,30 +248,6 @@ _STATUS = {
     "none": "sin estado",
     "unknown": "estado desconocido",
 }
-_ROLE = {
-    "required": "",
-    "optional": "opcional",
-    "chair": "organiza",
-    "non_participant": "no participa",
-    "unknown": "rol desconocido",
-}
-_RESPONSE = {
-    "accepted": "acepta",
-    "declined": "rechaza",
-    "tentative": "provisional",
-    "pending": "pendiente",
-    "delegated": "delega",
-    "completed": "completado",
-    "in_process": "en curso",
-    "unknown": "respuesta desconocida",
-}
-_KIND = {
-    "person": "",
-    "room": "sala",
-    "resource": "recurso",
-    "group": "grupo",
-    "unknown": "tipo desconocido",
-}
 _FIELD = {
     "title": "el título",
     "location": "la ubicación",
@@ -319,54 +296,6 @@ def _short(unix_ms, zone: tzinfo) -> str:
     if moment is None:
         return str(unix_ms)
     return f"{moment.day} {_MONTHS[moment.month - 1]} {moment.year} {moment:%H:%M}"
-
-
-def _invitee(value: dict) -> tuple[str | None, str]:
-    """(domain, how the guest is written inside it) — no word of it dropped.
-
-    A guest with an email is written by the part before the @ under its
-    domain, with the name in front only when it is not that part; the rest by
-    their address. The parenthesis says «tú», the role unless required, the
-    response, the kind unless a person, and an address that is not the email.
-    """
-    email = value.get("email") if isinstance(value.get("email"), str) else None
-    address = value.get("participant_url") if isinstance(value.get("participant_url"), str) else ""
-    domain = None
-    who = address
-    if email and "@" in email:
-        local, domain = email.rsplit("@", 1)
-        who = local
-    elif email:
-        who = email
-    notes = []
-    if value.get("is_current_user") is True:
-        notes.append("tú")
-    role = value.get("role")
-    notes.append(_ROLE.get(role, str(role)) if isinstance(role, str) else "")
-    response = value.get("response_status")
-    notes.append(_RESPONSE.get(response, str(response)) if isinstance(response, str) else "")
-    kind = value.get("participant_type")
-    notes.append(_KIND.get(kind, str(kind)) if isinstance(kind, str) else "")
-    if email and address and address.lower() != f"mailto:{email}".lower():
-        notes.append(address)
-    name = value.get("name") if isinstance(value.get("name"), str) else None
-    if name and name != who:
-        who = f"{name} <{who}>"
-    said = [note for note in notes if note]
-    return domain, f"{who} ({', '.join(said)})" if said else who
-
-
-def _invitees(values: list) -> str:
-    """The guests grouped by email domain, in the order they came."""
-    groups: dict = {}
-    for value in values:
-        if isinstance(value, dict):
-            domain, written = _invitee(value)
-            groups.setdefault(domain, []).append(written)
-    return "; ".join(
-        ", ".join(written) if domain is None else f"@{domain}: {', '.join(written)}"
-        for domain, written in groups.items()
-    )
 
 
 _AVAILABILITY = {
@@ -420,22 +349,22 @@ def _repetition(rule: dict, zone: tzinfo) -> str:
     return text
 
 
-def _event_line(event: dict, zone: tzinfo, zone_name: str, aliases: dict) -> str:
+def _event_time(event: dict, zone: tzinfo) -> str:
     start = _moment(event.get("start_unix_ms"), zone)
     end = _moment(event.get("end_unix_ms"), zone)
     if event.get("is_all_day") is True:
-        when = "todo el día"
         if start and end and (end - start).days > 1:
-            when = f"todo el día hasta el {_day(end)}"
-    elif start and end:
-        when = f"{start:%H:%M}–{end:%H:%M}"
+            return f"todo el día hasta el {_day(end)}"
+        return "todo el día"
+    if start and end:
         if end.date() != start.date():
-            when = f"{start:%H:%M}–{_day(end)} {end:%H:%M}"
-    else:
-        when = "sin hora legible"
-    calendar = event.get("calendar") or {}
-    alias = aliases.get((calendar.get("calendar_id"), calendar.get("source_id")), "?")
-    line = f"{when} [{alias}] {event.get('title', '')}"
+            return f"{start:%H:%M}–{_day(end)} {end:%H:%M}"
+        return f"{start:%H:%M}–{end:%H:%M}"
+    return "sin hora legible"
+
+
+def _time_details(event: dict, zone: tzinfo, zone_name: str) -> list[str]:
+    """Its status, its time zone, the series it belongs to and its link."""
     extra = []
     status = event.get("status")
     if isinstance(status, str) and _STATUS.get(status, status):
@@ -457,7 +386,12 @@ def _event_line(event: dict, zone: tzinfo, zone_name: str, aliases: dict) -> str
         )
     if isinstance(event.get("event_url"), str):
         extra.append(event["event_url"])
-    # What the Mac reads of each event besides, said only when it says something.
+    return extra
+
+
+def _meeting_details(event: dict, zone: tzinfo) -> list[str]:
+    """What the Mac reads of each event besides, said only when it says something."""
+    extra = []
     if isinstance(event.get("location"), str) and event["location"]:
         extra.append(f"en {event['location']}")
     availability = event.get("availability")
@@ -483,10 +417,13 @@ def _event_line(event: dict, zone: tzinfo, zone_name: str, aliases: dict) -> str
         extra.append(f"{event['alarms_not_editable']} avisos más que Orbit no edita")
     invitees = event.get("invitees")
     if isinstance(invitees, list):
-        if invitees:
-            extra.append(f"con {_invitees(invitees)}")
-        else:
-            extra.append("sin invitados")
+        extra.append(f"con {written_invitees(invitees)}" if invitees else "sin invitados")
+    return extra
+
+
+def _record_details(event: dict, zone: tzinfo) -> list[str]:
+    """When it last changed, its ids, and its notes last."""
+    extra = []
     if _integer(event.get("last_modified_unix_ms")):
         extra.append(f"mod. {_short(event['last_modified_unix_ms'], zone)}")
     identifiers = event.get("calendar_item_id", "")
@@ -505,6 +442,18 @@ def _event_line(event: dict, zone: tzinfo, zone_name: str, aliases: dict) -> str
             f"notas de {left_out['bytes']} bytes, más de las {left_out.get('limit')} que viajan: "
             "están en Calendar"
         )
+    return extra
+
+
+def _event_line(event: dict, zone: tzinfo, zone_name: str, aliases: dict) -> str:
+    calendar = event.get("calendar") or {}
+    alias = aliases.get((calendar.get("calendar_id"), calendar.get("source_id")), "?")
+    line = f"{_event_time(event, zone)} [{alias}] {event.get('title', '')}"
+    extra = [
+        *_time_details(event, zone, zone_name),
+        *_meeting_details(event, zone),
+        *_record_details(event, zone),
+    ]
     return " · ".join([line, *extra])
 
 

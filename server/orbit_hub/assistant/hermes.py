@@ -1,8 +1,9 @@
 """Hermes as the hub's assistant and voice. Device credentials never reach Hermes.
 
 The chat goes over Hermes's gateway WebSocket (`/api/ws`, JSON-RPC); this
-module turns its methods and events into the typed interface of `backend`.
-Dictation and read-aloud go over the same Hermes's HTTP audio endpoints.
+module calls its methods and names their refusals, and `hermes_events` turns
+its events into the typed interface of `backend`. Dictation and read-aloud go
+over the same Hermes's HTTP audio endpoints (`hermes_speech`).
 Each agent of kind `hermes` is one Hermes profile on the hub's one Hermes
 (`hermes_url`, `hermes_credential_file`).
 """
@@ -20,52 +21,31 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode
 from uuid import uuid4
 
-import httpx
 from websockets.asyncio.client import connect
 
-from ..log import clear_op, logger, report
+from ..log import clear_op, report
 from ..protocol import HubError
-from ..secret_file import read_secret
-from ..transcription_failure import from_provider
 from .backend import (
-    ActivityItem,
     Capabilities,
     ClarificationReceipt,
-    ClarificationRequest,
-    ClarificationRequested,
     ConnectionLost,
     ContentBlock,
     EventSink,
-    HistoryLoaded,
     ImageBlock,
-    MessageChunk,
-    MessageComplete,
     OpenedSession,
     PermissionReceipt,
-    PermissionRequest,
-    PermissionRequested,
-    PlanStep,
-    RequestExpired,
     ResumedSession,
-    StatusNotice,
     TextBlock,
-    TurnError,
     UnreadableReceipt,
-    UnreadableUpdate,
 )
-from .deletion import command_deletion
-from .speech import MAX_SPEECH_CLIP_BYTES, SpeechClip
+from .hermes_credential import credential
+from .hermes_events import RESUME_HISTORY_ERROR_PREFIX, HermesEvents
+from .hermes_speech import HermesSpeech
 
 if TYPE_CHECKING:
     from ..config import Settings
     from .agents import AgentConfiguration
 
-# How Hermes begins the error of a resume whose stored transcript it could not
-# read; the rest of its message is Hermes's detail and is never relayed.
-RESUME_HISTORY_ERROR_PREFIX = "Could not reopen that session (its transcript could not be read)."
-# Hermes errors that end a turn before the agent ran, without a message.complete.
-TERMINAL_ERRORS = {'Context injection refused.', 'Turn cancelled before the agent was ready', 'Session no longer running before the agent was ready'}  # fmt: skip
-MAX_SPEECH_RESPONSE_BYTES = 6 * 1024 * 1024
 # What Hermes's `image.attach_bytes` refusals mean (tui_gateway/
 # prompt_attachments.py and methods_prompt.py, read 2026-10-22).
 HERMES_IMAGE_REFUSALS = {
@@ -73,51 +53,102 @@ HERMES_IMAGE_REFUSALS = {
     4017: "no pudo decodificarla",
     4018: "pasa de su techo de 25 MiB por imagen",
 }
-# Existing 180 s provider and 10 s connection budgets, shared with the
-# refusal's millisecond numbers. They bound one dictation call, not meeting
-# ASR, queue wait, or an automatic retry.
-TRANSCRIPTION_TIMEOUT_SECONDS = 180
-TRANSCRIPTION_CONNECT_TIMEOUT_SECONDS = 10
 
 
-def credential(settings: Settings) -> str:
-    value = read_secret(settings.hermes_credential_file, 64 * 1024).decode().strip()
-    if not value or len(value) > 4096:
-        raise HubError("configuration", "Credencial Hermes ausente o no válida")
-    return value
+# The gateway methods the hub calls; any other is refused before it is sent.
+RPC_METHODS = {
+    "session.create",
+    "session.resume",
+    "session.status",
+    "prompt.submit",
+    # A turn's images, queued on the session before its prompt.submit,
+    # and taken back when one of them is refused (tui_gateway's
+    # methods_prompt.py; the gateway stages and returns the path).
+    "image.attach_bytes",
+    "image.detach",
+    "session.interrupt",
+    "approval.respond",
+    "clarify.respond",
+}
+# Existing RPC receipt budget; it bounds one acknowledgement, not a model turn.
+RPC_TIMEOUT_SECONDS = 30
 
 
-# Hermes's subagent outcomes that mean the delegated task did not finish.
-SUBAGENT_FAILED = {"failed", "error", "timeout", "interrupted", "cancelled"}
-PLAN_STATUSES = {"pending", "in_progress", "completed", "cancelled"}
+def _rpc_failure(method: str, error: dict) -> HubError:
+    """What a Hermes RPC error means, by method and code."""
+    code = error.get("code")
+    if method == "image.attach_bytes" and code in {4016, 4017, 4018}:
+        # 4016 an extension it does not take, 4017 bytes it cannot
+        # decode, 4018 over its 25 MiB ceiling.
+        return HubError(
+            "attachment_refused",
+            f"Hermes no aceptó una imagen del mensaje (código {code})",
+            numbers={"upstream_code": code},
+        )
+    if method in {"prompt.submit", "image.attach_bytes"} and code == 4001:
+        return HubError(
+            "session_runtime_not_found",
+            "Hermes no encontró la sesión activa (código 4001); "
+            "el mensaje no se aceptó y puedes volver a enviarlo tras reanudar",
+        )
+    if method == "session.resume":
+        refusal = _resume_failure(code, error.get("message"))
+        if refusal is not None:
+            return refusal
+    return HubError("upstream_rejected", f"Hermes rechazó la operación (código {code})")
 
 
-def _plan(todos: object) -> tuple[PlanStep, ...] | None:
-    """Hermes's task list (`todo.updated`, the `todo` tool's result) as plan steps."""
-    if not isinstance(todos, list):
-        return None
-    steps = []
-    for todo in todos:
-        if isinstance(todo, dict) and isinstance(content := todo.get("content"), str):
-            status = todo.get("status")
-            steps.append(PlanStep(content, status if status in PLAN_STATUSES else "pending"))
-    return tuple(steps)
-
-
-def _todos_of(result: object) -> object:
-    if isinstance(result, str):
-        try:
-            result = json.loads(result)
-        except ValueError:
-            return None
-    return result.get("todos") if isinstance(result, dict) else None
-
-
-def _choices(payload: dict) -> tuple[str, ...] | None:
-    choices = payload.get("choices")
-    if not isinstance(choices, list):
-        return None
-    return tuple(choice for choice in choices if isinstance(choice, str))
+def _resume_failure(code: object, reason: object) -> HubError | None:
+    """Why Hermes refused a `session.resume`, when its code and message say."""
+    if code == -32601:
+        return HubError(
+            "session_resume_unsupported",
+            "Esta versión de Hermes no permite reanudar sesiones guardadas (código -32601)",
+        )
+    if code == 4007 and reason == "session not found":
+        return HubError(
+            "session_resume_not_found",
+            "Hermes no conserva la conversación guardada (código 4007); "
+            "el historial local sigue disponible",
+        )
+    if code == 4007 and reason == "session no longer live; retry resume":
+        return HubError(
+            "session_resume_race",
+            "Hermes cerró la sesión durante la reanudación (código 4007); vuelve a intentarlo",
+        )
+    if code == 4130:
+        numbers = (
+            re.search(r"\((\d+) messages; limit (\d+)\)", reason)
+            if isinstance(reason, str)
+            else None
+        )
+        if numbers is not None:
+            return HubError(
+                "session_resume_too_large",
+                f"Hermes no puede reanudar {numbers[1]} mensajes; "
+                f"límite {numbers[2]} (código 4130)",
+            )
+        return HubError(
+            "session_resume_too_large",
+            "Hermes rechazó reanudar por tamaño (código 4130); no entregó cuenta y límite",
+        )
+    if code == 4009 and reason == "session disconnect interrupt settling":
+        return HubError(
+            "session_resume_busy",
+            "Hermes sigue cerrando el turno anterior (código 4009); espera",
+        )
+    if code == 5000 and isinstance(reason, str):
+        if reason.startswith("Session storage is unavailable:"):
+            return HubError(
+                "session_resume_storage_unavailable",
+                "Hermes no puede abrir su almacén de sesiones (código 5000)",
+            )
+        if reason.startswith(RESUME_HISTORY_ERROR_PREFIX):
+            return HubError(
+                "session_resume_history_unreadable",
+                "Hermes no pudo leer el historial guardado (código 5000); no se envió el mensaje",
+            )
+    return None
 
 
 @dataclass(frozen=True)
@@ -173,8 +204,7 @@ class HermesConnection:
         self._pending: dict[str, asyncio.Future] = {}
         self._ready = asyncio.Event()
         self._closing = False
-        # Sessions whose turn has published a plan: its next update is progress.
-        self._planned: set[str] = set()
+        self._events = HermesEvents(on_event, device)
         # One `session.resume` at a time on this connection: Hermes's resume
         # path has races of its own (4007, 4009) and was only ever driven one
         # at a time. Only resumes wait for it: turns, controls and the other
@@ -249,338 +279,26 @@ class HermesConnection:
 
     async def receive(self, params: dict) -> None:
         """One Hermes event, as the typed event it means; the rest is dropped."""
-        kind = params.get("type")
-        session_id = params.get("session_id")
-        if not isinstance(session_id, str):
-            return
-        payload = params.get("payload")
-        if payload is not None and type(payload) is not dict:
-            # A non-object upstream payload is a transport-level warning,
-            # never a turn event. It must not propagate: a protocol mistake
-            # cannot be allowed to falsely retire every live session.
-            await self.on_event(
-                UnreadableUpdate(
-                    session_id, "Hermes envió un payload que no es un objeto JSON; se ignoró"
-                )
-            )
-            return
-        payload = payload or {}
-        if kind == "session.resume_progress":
-            if payload.get("phase") == "history" and payload.get("status") in {
-                "complete",
-                "failed",
-            }:
-                await self.on_event(HistoryLoaded(session_id, payload["status"] == "complete"))
-            return
-        if kind == "error":
-            message = payload.get("message")
-            if isinstance(message, str) and message.startswith(RESUME_HISTORY_ERROR_PREFIX):
-                cause = "history_unreadable"
-            elif isinstance(message, str) and message in TERMINAL_ERRORS:
-                cause = "terminal"
-            else:
-                cause = "unconfirmed"
-            await self.on_event(TurnError(session_id, cause))
-        elif kind == "message.delta":
-            if isinstance(text := payload.get("text"), str):
-                await self.on_event(MessageChunk(session_id, text))
-        elif kind == "message.complete":
-            self._planned.discard(session_id)
-            text = payload.get("text")
-            status = str(payload.get("status") or "completed")
-            history_error = payload.get("error") or payload.get("text")
-            await self.on_event(
-                MessageComplete(
-                    session_id,
-                    text if isinstance(text, str) else "",
-                    status,
-                    history_unreadable=(
-                        status == "error"
-                        and isinstance(surface := payload.get("error_surface"), dict)
-                        and surface.get("code") == "agent_init_failed"
-                        and isinstance(history_error, str)
-                        and history_error.startswith(RESUME_HISTORY_ERROR_PREFIX)
-                    ),
-                )
-            )
-        elif kind == "approval.request":
-            if isinstance(request_id := payload.get("request_id"), str):
-                description = str(
-                    payload.get("description")
-                    or payload.get("command")
-                    or "Hermes solicita autorización"
-                )
-                command = payload.get("command")
-                await self.on_event(
-                    PermissionRequested(
-                        session_id,
-                        PermissionRequest(
-                            request_id,
-                            description,
-                            _choices(payload),
-                            command_deletion(command) if isinstance(command, str) else None,
-                        ),
-                    )
-                )
-        elif kind == "clarify.request":
-            if isinstance(request_id := payload.get("request_id"), str):
-                question = str(payload.get("question") or "Responde a las preguntas de Hermes")
-                await self.on_event(
-                    ClarificationRequested(
-                        session_id,
-                        ClarificationRequest(
-                            request_id, question, self._questions(kind, payload), _choices(payload)
-                        ),
-                    )
-                )
-        elif kind in {"clarify.expire", "approval.expire"}:
-            request_id = payload.get("request_id")
-            if not isinstance(request_id, str):
-                report(
-                    event="hermes_field_invalid",
-                    code=f"{kind}.request_id:{type(request_id).__name__}",
-                    device=self.device,
-                    exc_info=False,
-                )
-                return
-            await self.on_event(RequestExpired(session_id, request_id))
-        elif kind in {"tool.start", "tool.complete"}:
-            await self._tool(session_id, kind, payload)
-        elif kind == "todo.updated":
-            await self._plan_update(session_id, _plan(payload.get("todos")))
-        elif kind == "reasoning.available":
-            # The reasoning's summary, when the profile shows reasoning. Its
-            # deltas (`reasoning.delta`) are the thought itself and
-            # `thinking.delta` a spinner's text: neither is shown.
-            if isinstance(text := payload.get("text"), str) and text.strip():
-                await self.on_event(
-                    ActivityItem(
-                        session_id, f"reasoning-{uuid4()}", "reasoning", "completed", text=text
-                    )
-                )
-        elif isinstance(kind, str) and kind.startswith("subagent."):
-            await self._subagent(session_id, kind, payload)
-        elif kind == "status.update":
-            await self.on_event(
-                StatusNotice(
-                    session_id,
-                    str(payload.get("kind") or "status"),
-                    str(payload.get("text") or ""),
-                )
-            )
-
-    async def _tool(self, session_id: str, kind: str, payload: dict) -> None:
-        call_id = payload.get("tool_id") or payload.get("tool_call_id")
-        name = payload.get("name") or payload.get("tool_name")
-        if not isinstance(call_id, str) or not call_id or not isinstance(name, str):
-            report(
-                event="hermes_field_invalid",
-                code=f"{kind}.tool_id:{type(call_id).__name__}",
-                device=self.device,
-                exc_info=False,
-            )
-            return
-        arguments = payload.get("args") if isinstance(payload.get("args"), dict) else None
-        if name == "todo":
-            # Hermes's task list is the turn's plan, not a step of its own
-            # (and «Usó todo» would read as «used everything»).
-            if kind == "tool.complete" and payload.get("is_error") is not True:
-                # A turn that is not a local viewer's gets no `todo.updated`:
-                # the todo tool's own result carries the list.
-                await self._plan_update(session_id, _plan(_todos_of(payload.get("result"))))
-            return
-        if kind == "tool.start":
-            phase, cause = "started", None
-        elif payload.get("is_error") is True:
-            phase, cause = "failed", payload.get("result")
-            cause = cause if isinstance(cause, str) else None
-        else:
-            phase, cause = "completed", None
-        await self.on_event(
-            ActivityItem(session_id, call_id, "tool", phase, name, arguments, cause=cause)
-        )
-
-    async def _plan_update(self, session_id: str, steps: tuple[PlanStep, ...] | None) -> None:
-        if not steps:
-            return
-        if all(step.status in {"completed", "cancelled"} for step in steps):
-            phase = "completed"
-        else:
-            phase = "progress" if session_id in self._planned else "started"
-        self._planned.add(session_id)
-        await self.on_event(ActivityItem(session_id, "plan", "plan", phase, steps=steps))
-
-    async def _subagent(self, session_id: str, kind: str, payload: dict) -> None:
-        phases = {
-            "subagent.spawn_requested": "started",
-            "subagent.start": "started",
-            "subagent.progress": "progress",
-            "subagent.tool": "progress",
-            "subagent.complete": "completed",
-        }
-        if (phase := phases.get(kind)) is None:
-            return
-        identity = payload.get("subagent_id")
-        if not isinstance(identity, str) or not identity:
-            index = payload.get("task_index")
-            identity = f"subagent-{index if type(index) is int else 0}"
-        cause = None
-        status = payload.get("status")
-        if phase == "completed" and status in SUBAGENT_FAILED:
-            phase = "failed"
-            summary = payload.get("summary")
-            cause = summary if isinstance(summary, str) and summary.strip() else status
-        goal = payload.get("goal")
-        await self.on_event(
-            ActivityItem(
-                session_id,
-                identity,
-                "subagent",
-                phase,
-                text=goal if isinstance(goal, str) else "",
-                cause=cause,
-            )
-        )
-
-    def _questions(self, event: str, payload: dict) -> tuple[dict, ...] | None:
-        questions = payload.get("questions")
-        if questions is None:
-            return None
-        if not isinstance(questions, list):
-            report(
-                event="hermes_field_invalid",
-                code=f"{event}.questions:{type(questions).__name__}",
-                device=self.device,
-                exc_info=False,
-            )
-            return ()
-        valid = []
-        for index, question in enumerate(questions):
-            if not isinstance(question, dict):
-                field, value = "item", question
-            elif not isinstance(question.get("qid"), str):
-                field, value = "qid", question.get("qid")
-            elif not isinstance(question.get("question"), str):
-                field, value = "question", question.get("question")
-            else:
-                valid.append(question)
-                continue
-            report(
-                event="hermes_field_invalid",
-                code=f"{event}.questions[{index}].{field}:{type(value).__name__}",
-                device=self.device,
-                exc_info=False,
-            )
-        return tuple(valid)
+        await self._events.receive(params)
 
     async def rpc(self, method: str, params: dict) -> dict:
         if not self.connected:
             raise HubError("upstream_unavailable", "Hermes no está conectado")
-        if method not in {
-            "session.create",
-            "session.resume",
-            "session.status",
-            "prompt.submit",
-            # A turn's images, queued on the session before its prompt.submit,
-            # and taken back when one of them is refused (tui_gateway's
-            # methods_prompt.py; the gateway stages and returns the path).
-            "image.attach_bytes",
-            "image.detach",
-            "session.interrupt",
-            "approval.respond",
-            "clarify.respond",
-        }:
+        if method not in RPC_METHODS:
             raise HubError("method_forbidden", "Método Hermes fuera de contrato")
         request_id = str(uuid4())
         future = asyncio.get_running_loop().create_future()
         self._pending[request_id] = future
-        # Existing RPC receipt budget; it bounds one acknowledgement, not a model turn.
-        rpc_timeout_seconds = 30
         try:
             await self._ws.send(
                 json.dumps({"jsonrpc": "2.0", "id": request_id, "method": method, "params": params})
             )
-            frame = await asyncio.wait_for(future, rpc_timeout_seconds)
+            frame = await asyncio.wait_for(future, RPC_TIMEOUT_SECONDS)
             if "error" in frame:
                 error = frame["error"] if isinstance(frame["error"], dict) else {}
-                code = error.get("code")
-                if method == "image.attach_bytes" and code in {4016, 4017, 4018}:
-                    # 4016 an extension it does not take, 4017 bytes it cannot
-                    # decode, 4018 over its 25 MiB ceiling.
-                    raise HubError(
-                        "attachment_refused",
-                        f"Hermes no aceptó una imagen del mensaje (código {code})",
-                        numbers={"upstream_code": code},
-                    )
-                if method in {"prompt.submit", "image.attach_bytes"} and code == 4001:
+                if method in {"prompt.submit", "image.attach_bytes"} and error.get("code") == 4001:
                     self.live_sessions.discard(params.get("session_id"))
-                    raise HubError(
-                        "session_runtime_not_found",
-                        "Hermes no encontró la sesión activa (código 4001); "
-                        "el mensaje no se aceptó y puedes volver a enviarlo tras reanudar",
-                    )
-                if method == "session.resume":
-                    reason = error.get("message")
-                    if code == -32601:
-                        raise HubError(
-                            "session_resume_unsupported",
-                            "Esta versión de Hermes no permite reanudar sesiones guardadas "
-                            "(código -32601)",
-                        )
-                    if code == 4007 and reason == "session not found":
-                        raise HubError(
-                            "session_resume_not_found",
-                            "Hermes no conserva la conversación guardada (código 4007); "
-                            "el historial local sigue disponible",
-                        )
-                    if code == 4007 and reason == "session no longer live; retry resume":
-                        raise HubError(
-                            "session_resume_race",
-                            "Hermes cerró la sesión durante la reanudación (código 4007); "
-                            "vuelve a intentarlo",
-                        )
-                    if code == 4130:
-                        numbers = (
-                            re.search(r"\((\d+) messages; limit (\d+)\)", reason)
-                            if isinstance(reason, str)
-                            else None
-                        )
-                        if numbers is not None:
-                            raise HubError(
-                                "session_resume_too_large",
-                                f"Hermes no puede reanudar {numbers[1]} mensajes; "
-                                f"límite {numbers[2]} (código 4130)",
-                            )
-                        raise HubError(
-                            "session_resume_too_large",
-                            "Hermes rechazó reanudar por tamaño (código 4130); "
-                            "no entregó cuenta y límite",
-                        )
-                    if code == 4009 and reason == "session disconnect interrupt settling":
-                        raise HubError(
-                            "session_resume_busy",
-                            "Hermes sigue cerrando el turno anterior (código 4009); espera",
-                        )
-                    if (
-                        code == 5000
-                        and isinstance(reason, str)
-                        and reason.startswith("Session storage is unavailable:")
-                    ):
-                        raise HubError(
-                            "session_resume_storage_unavailable",
-                            "Hermes no puede abrir su almacén de sesiones (código 5000)",
-                        )
-                    if (
-                        code == 5000
-                        and isinstance(reason, str)
-                        and reason.startswith(RESUME_HISTORY_ERROR_PREFIX)
-                    ):
-                        raise HubError(
-                            "session_resume_history_unreadable",
-                            "Hermes no pudo leer el historial guardado (código 5000); "
-                            "no se envió el mensaje",
-                        )
-                raise HubError("upstream_rejected", f"Hermes rechazó la operación (código {code})")
+                raise _rpc_failure(method, error)
             if not isinstance(result := frame.get("result"), dict):
                 raise HubError("upstream_protocol", "Respuesta Hermes no válida")
             return result
@@ -588,7 +306,7 @@ class HermesConnection:
             if method == "session.resume":
                 raise HubError(
                     "session_resume_timeout",
-                    f"Hermes no confirmó la reanudación; plazo de {rpc_timeout_seconds} segundos; "
+                    f"Hermes no confirmó la reanudación; plazo de {RPC_TIMEOUT_SECONDS} segundos; "
                     "no se envió el mensaje",
                 ) from exc
             raise HubError(
@@ -775,125 +493,3 @@ class HermesBackend:
 
     def connection(self, device: str, device_name: str, on_event: EventSink) -> HermesConnection:
         return HermesConnection(self, on_event, device, device_name)
-
-
-class HermesSpeech:
-    """Dictation and read-aloud by the Hermes profile `profile`."""
-
-    def __init__(self, settings: Settings, profile: str):
-        self.settings, self.profile = settings, profile
-
-    async def transcribe(self, audio: bytes) -> str:
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(
-                TRANSCRIPTION_TIMEOUT_SECONDS, connect=TRANSCRIPTION_CONNECT_TIMEOUT_SECONDS
-            ),
-            follow_redirects=False,
-        ) as client:
-            try:
-                response = await client.post(
-                    self.settings.hermes_url.rstrip("/") + "/api/audio/transcribe",
-                    params={"profile": self.profile},
-                    headers={"X-Hermes-Session-Token": credential(self.settings)},
-                    json={
-                        "data_url": "data:audio/wav;base64," + base64.b64encode(audio).decode(),
-                        "mime_type": "audio/wav",
-                    },
-                )
-                response.raise_for_status()
-                payload = response.json()
-                if payload.get("ok") is not True or not isinstance(payload.get("transcript"), str):
-                    raise ValueError("Invalid transcription response")
-                return payload["transcript"]
-            except Exception as exc:
-                report(event="hermes_transcription_failed", code="transcription_failed")
-                raise from_provider(
-                    exc,
-                    timeout_ms=TRANSCRIPTION_TIMEOUT_SECONDS * 1000,
-                    connect_timeout_ms=TRANSCRIPTION_CONNECT_TIMEOUT_SECONDS * 1000,
-                ) from exc
-
-    async def synthesize(self, text: str) -> SpeechClip:
-        try:
-            # 10 s to connect to Hermes and 180 s for each read, write or pooled
-            # connection, as for dictation: it protects the request from a
-            # Hermes that stops answering. It is not a total: a slow stream is
-            # bounded by its 6 MiB, not by time. The Mac gives up on this route
-            # after 90 s (HUB_HTTP_TIMEOUT in orbit-daemon's hub.rs), so past
-            # that the hub waits for nobody; 180 s was not measured for speech.
-            async with (
-                httpx.AsyncClient(
-                    timeout=httpx.Timeout(180, connect=10), follow_redirects=False
-                ) as client,
-                client.stream(
-                    "POST",
-                    self.settings.hermes_url.rstrip("/") + "/api/audio/speak",
-                    headers={"X-Hermes-Session-Token": credential(self.settings)},
-                    json={"text": text, "profile": self.profile},
-                ) as response,
-            ):
-                response.raise_for_status()
-                body = bytearray()
-                async for chunk in response.aiter_bytes():
-                    if len(chunk) > MAX_SPEECH_RESPONSE_BYTES - len(body):
-                        # Hermes's whole answer (JSON around the base64 clip),
-                        # cut while it streams: `bytes` is what had arrived.
-                        raise HubError(
-                            "speech_too_large",
-                            "La respuesta de voz de Hermes supera el límite de 6 MiB",
-                            numbers={
-                                "bytes": len(body) + len(chunk),
-                                "max_bytes": MAX_SPEECH_RESPONSE_BYTES,
-                            },
-                        )
-                    body.extend(chunk)
-            payload = json.loads(body)
-            mime_type = payload.get("mime_type")
-            provider = payload.get("provider")
-            data_url = payload.get("data_url")
-            if (
-                payload.get("ok") is not True
-                or not isinstance(mime_type, str)
-                or not 1 <= len(mime_type) <= 128
-                or any(ord(character) < 33 or ord(character) > 126 for character in mime_type)
-                or not isinstance(provider, str)
-                or not 1 <= len(provider) <= 128
-                or any(ord(character) < 32 or ord(character) > 126 for character in provider)
-                or not isinstance(data_url, str)
-            ):
-                raise ValueError("Invalid speech response")
-            prefix, separator, encoded = data_url.partition(",")
-            if separator != "," or prefix != f"data:{mime_type};base64":
-                raise ValueError("Invalid speech data URL")
-            maximum_encoded = 4 * ((MAX_SPEECH_CLIP_BYTES + 2) // 3)
-            if len(encoded) > maximum_encoded:
-                # The clip's size from its base64 length, before decoding it.
-                raise HubError(
-                    "speech_too_large",
-                    "El clip de voz supera el límite de 4 MiB",
-                    numbers={
-                        "bytes": len(encoded) // 4 * 3 - (len(encoded) - len(encoded.rstrip("="))),
-                        "max_bytes": MAX_SPEECH_CLIP_BYTES,
-                    },
-                )
-            audio = base64.b64decode(encoded, validate=True)
-            if not audio:
-                raise ValueError("Empty speech clip")
-            if len(audio) > MAX_SPEECH_CLIP_BYTES:
-                raise HubError(
-                    "speech_too_large",
-                    "El clip de voz supera el límite de 4 MiB",
-                    numbers={"bytes": len(audio), "max_bytes": MAX_SPEECH_CLIP_BYTES},
-                )
-            logger.info(
-                "hermes_speech_clip",
-                extra={"event": "hermes_speech_clip", "code": f"{provider}|{mime_type}"},
-            )
-            return SpeechClip(mime_type, provider, audio)
-        except HubError:
-            raise
-        except Exception as exc:
-            report(event="hermes_speech_clip_failed", code="speech_unavailable")
-            raise HubError(
-                "speech_unavailable", "Hermes no entregó el clip de voz configurado"
-            ) from exc

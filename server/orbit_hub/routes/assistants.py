@@ -63,6 +63,18 @@ class NewAgent(Strict):
     access: Groups
 
 
+def _body(model, raw: bytes, what: str):
+    return parse_body(raw, model, "invalid_agent_config", what)
+
+
+async def _stop_processes(runtimes: dict, agent_id: str) -> None:
+    """Every device's connection to the agent, and so its processes."""
+    for runtime in list(runtimes.values()):
+        connection = runtime.connections.pop(agent_id, None)
+        if connection is not None:
+            await connection.close()
+
+
 def mount(
     app,
     settings,
@@ -74,9 +86,6 @@ def mount(
     bounded_body,
     now=time.time,
 ):
-    def body(model, raw: bytes, what: str):
-        return parse_body(raw, model, "invalid_agent_config", what)
-
     @app.get("/v1/agents")
     async def listing(request: Request):
         identity(request)
@@ -85,7 +94,7 @@ def mount(
     @app.put("/v1/agents/{agent_id}/profile")
     async def write_profile(agent_id: str, request: Request):
         identity(request)
-        sent = body(ProfileBody, await bounded_body(request, BODY_BYTES), "Perfil")
+        sent = _body(ProfileBody, await bounded_body(request, BODY_BYTES), "Perfil")
         agents.set_profile(
             agent_id, Profile(sent.name.strip(), sent.description.strip(), sent.color), sent.primary
         )
@@ -94,7 +103,7 @@ def mount(
     @app.post("/v1/agents")
     async def add(request: Request):
         identity(request)
-        sent = body(NewAgent, await bounded_body(request, BODY_BYTES), "Asistente")
+        sent = _body(NewAgent, await bounded_body(request, BODY_BYTES), "Asistente")
         if sent.service not in SERVICE_NAMES:
             raise HubError(
                 "agent_add_unsupported",
@@ -112,13 +121,6 @@ def mount(
         )
         return JSONResponse({"agent_id": agent.id, **agents.listing()}, status_code=201)
 
-    async def stop_processes(agent_id: str) -> None:
-        """Every device's connection to the agent, and so its processes."""
-        for runtime in list(runtimes.values()):
-            connection = runtime.connections.pop(agent_id, None)
-            if connection is not None:
-                await connection.close()
-
     @app.delete("/v1/agents/{agent_id}")
     async def remove(agent_id: str, request: Request):
         identity(request)
@@ -128,10 +130,16 @@ def mount(
         await sign_ins.cancel(agent.id)
         sign_ins.attempts.pop(agent.id, None)
         # Its processes stop before its folder goes.
-        await stop_processes(agent.id)
+        await _stop_processes(runtimes, agent.id)
         remove_folder(settings.data_dir / "agents", agent.id)
         agents.remove(agent.id)
         return JSONResponse(agents.listing())
+
+    _mount_sign_in(app, agents, runtimes, sign_ins, identity, bounded_body)
+
+
+def _mount_sign_in(app, agents: Agents, runtimes: dict, sign_ins, identity, bounded_body):
+    """Signing an agent in with its vendor's own tool, and out."""
 
     @app.post("/v1/agents/{agent_id}/sign-in")
     async def sign_in(agent_id: str, request: Request):
@@ -146,7 +154,7 @@ def mount(
     @app.post("/v1/agents/{agent_id}/sign-in/code")
     async def sign_in_code(agent_id: str, request: Request):
         identity(request)
-        sent = body(PastedCode, await bounded_body(request, BODY_BYTES), "Código")
+        sent = _body(PastedCode, await bounded_body(request, BODY_BYTES), "Código")
         return JSONResponse(await sign_ins.submit_code(agents.get(agent_id).id, sent.code))
 
     @app.delete("/v1/agents/{agent_id}/sign-in")
@@ -164,7 +172,7 @@ def mount(
         agent = agents.get(agent_id)
         await sign_ins.sign_out(agent.id)
         # A session open on the old account does not outlive it.
-        await stop_processes(agent.id)
+        await _stop_processes(runtimes, agent.id)
         return JSONResponse(agents.listing())
 
 

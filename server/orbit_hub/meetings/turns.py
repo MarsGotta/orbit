@@ -323,6 +323,54 @@ def read(
     so the meeting never reads emptier while it is repeated.
     """
     started = started_at(store, db, device, recording)
+    groups, segments, keys, end = _draft(store, db, device, recording, started, default_language)
+    final = db.execute(
+        "SELECT body FROM recording_final_transcripts WHERE device_id=? AND recording=?",
+        (device, recording),
+    ).fetchone()
+    if final is not None:
+        segments, keys, end = _final(store, db, device, recording, final, default_language)
+    changes = repository.speaker_changes(store, db, device, recording)
+    segments, keys = _changed(segments, keys, changes)
+    tracks = {
+        item["track"]
+        for item in db.execute(
+            "SELECT DISTINCT track FROM chunks WHERE device_id=? AND recording=?",
+            (device, recording),
+        ).fetchall()
+    }
+    for track in tracks:
+        if final is None or track == "mic_local":
+            keys.setdefault(track, track)
+    renames = changes["names"]
+    owner = repository.owner_name(store, db, device)
+    in_order = sorted(segments, key=lambda s: (s.at_ms, s.track))
+    chosen = repository.language(db, device, recording)
+    vocabularies, _ = dictionaries.resolve(store, db, device, recording)
+    terms = dictionaries.combined(vocabularies)
+    return Transcript(
+        started_at_ms=started,
+        segments=tuple(in_order),
+        turns=tuple(
+            Turn(t.at_ms, t.speaker_key, dictionaries.substitute(t.text, terms))
+            for t in merge(in_order)
+        ),
+        dictionary_terms=tuple(terms),
+        speakers=_speakers(keys, renames, owner),
+        # The user's choice; else what the groups are in; else the configured one.
+        language=(chosen[0] if chosen else None) or language_of(in_order) or default_language,
+        groups=groups,
+        audio_ms=end,
+        local_name=speaker_name("mic_local", "mic_local", renames, owner),
+        final=final is not None,
+        missing=missing_audio(store, db, device, recording, started),
+        muted=mute.read(store, db, device, recording),
+    )
+
+
+def _draft(store, db, device, recording, started, default_language):
+    """The draft groups with text as segments: how many groups were read, the
+    segments, every voice by its track, and where the last group ends."""
     rows = db.execute(
         """SELECT g.id, g.track, g.first_sequence, g.last_sequence, g.manifest, g.language,
         t.body FROM transcription_groups g
@@ -357,36 +405,38 @@ def read(
                 end_ms=at_ms + length_ms(group),
             )
         )
-    final = db.execute(
-        "SELECT body FROM recording_final_transcripts WHERE device_id=? AND recording=?",
-        (device, recording),
-    ).fetchone()
-    if final is not None:
-        result = repository._open(
-            store, final["body"], f"recording-final-transcript:{device}:{recording}"
-        )
-        segments, keys = [], {}
-        end = result["audio_ms"]
-        chosen = repository.language(db, device, recording)
-        for word in result["words"]:
-            key, track = word["voice"], word["track"]
-            keys.setdefault(key, track)
-            text = " ".join(word["text"].split())
-            if text:
-                segments.append(
-                    Segment(
-                        word["start_ms"],
-                        track,
-                        key,
-                        text,
-                        0,
-                        0,
-                        chosen[0] if chosen else result.get("language") or default_language,
-                        word["end_ms"],
-                    )
-                )
-    changes = repository.speaker_changes(store, db, device, recording)
+    return len(rows), segments, keys, end
 
+
+def _final(store, db, device, recording, final, default_language):
+    """The final pass's words as segments, which replace the draft's."""
+    result = repository._open(
+        store, final["body"], f"recording-final-transcript:{device}:{recording}"
+    )
+    segments, keys = [], {}
+    chosen = repository.language(db, device, recording)
+    for word in result["words"]:
+        key, track = word["voice"], word["track"]
+        keys.setdefault(key, track)
+        text = " ".join(word["text"].split())
+        if text:
+            segments.append(
+                Segment(
+                    word["start_ms"],
+                    track,
+                    key,
+                    text,
+                    0,
+                    0,
+                    chosen[0] if chosen else result.get("language") or default_language,
+                    word["end_ms"],
+                )
+            )
+    return segments, keys, result["audio_ms"]
+
+
+def _changed(segments, keys, changes):
+    """The segments and voices with the user's merges and named turns applied."""
     changed = []
     for segment in segments:
         key = repository.canonical_speaker_key(changes, segment.speaker_key)
@@ -408,22 +458,14 @@ def read(
                 segment.end_ms,
             )
         )
-    segments = changed
     keys = {repository.canonical_speaker_key(changes, key): track for key, track in keys.items()}
-    for segment in segments:
+    for segment in changed:
         keys.setdefault(segment.speaker_key, segment.track)
-    tracks = {
-        item["track"]
-        for item in db.execute(
-            "SELECT DISTINCT track FROM chunks WHERE device_id=? AND recording=?",
-            (device, recording),
-        ).fetchall()
-    }
-    for track in tracks:
-        if final is None or track == "mic_local":
-            keys.setdefault(track, track)
-    renames = changes["names"]
-    owner = repository.owner_name(store, db, device)
+    return changed, keys
+
+
+def _speakers(keys, renames, owner):
+    """Every voice with its name: the tracks first, then the separated voices."""
     ordered = sorted(
         keys.items(),
         key=lambda item: (
@@ -432,28 +474,6 @@ def read(
             item[0],
         ),
     )
-    speakers = tuple(
+    return tuple(
         Speaker(key, track, speaker_name(key, track, renames, owner)) for key, track in ordered
-    )
-    in_order = sorted(segments, key=lambda s: (s.at_ms, s.track))
-    chosen = repository.language(db, device, recording)
-    vocabularies, _ = dictionaries.resolve(store, db, device, recording)
-    terms = dictionaries.combined(vocabularies)
-    return Transcript(
-        started_at_ms=started,
-        segments=tuple(in_order),
-        turns=tuple(
-            Turn(t.at_ms, t.speaker_key, dictionaries.substitute(t.text, terms))
-            for t in merge(in_order)
-        ),
-        dictionary_terms=tuple(terms),
-        speakers=speakers,
-        # The user's choice; else what the groups are in; else the configured one.
-        language=(chosen[0] if chosen else None) or language_of(in_order) or default_language,
-        groups=len(rows),
-        audio_ms=end,
-        local_name=speaker_name("mic_local", "mic_local", renames, owner),
-        final=final is not None,
-        missing=missing_audio(store, db, device, recording, started),
-        muted=mute.read(store, db, device, recording),
     )

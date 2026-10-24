@@ -1,20 +1,17 @@
 """Durable final transcription: publish both tracks and voices in one transaction."""
 
 import asyncio
-import hashlib
-import io
 import json
-import os
-import subprocess
 import time
 import wave
-from contextlib import contextmanager
+from dataclasses import dataclass, field
 
 from . import meeting_transcript_integrity as integrity
+from .final_pass_audio import encode_window, memory_file, prepare_track, silence_report
 from .group_storage import GroupRepository
 from .log import report, supervised
 from .meeting_diarization import separate
-from .meeting_transcription import MAX_AUDIO_BYTES, REQUEST_TIMEOUT_SECONDS
+from .meeting_transcription import REQUEST_TIMEOUT_SECONDS
 from .meetings import muted, open_recordings, repository, turns
 from .protocol import HubError
 
@@ -25,7 +22,6 @@ from .protocol import HubError
 # no draft groups on nine real tracks from six meetings.
 WINDOW_SECONDS = 45
 MIN_WINDOW_SECONDS = 15
-OPUS_BITRATE = 24_000
 # Worst CPU separation measured in October 2026: 382 s for 7.4 min (444 s),
 # on a loaded host.
 # This is a measured worst case, not a p99 of the new complete pipeline.
@@ -297,156 +293,6 @@ class FinalPassRepository:
                 )
 
 
-@contextmanager
-def memory_file():
-    # Linux hub only: memfd has no directory entry or plaintext fallback.
-    descriptor = os.memfd_create("orbit-final-audio", os.MFD_CLOEXEC)
-    with os.fdopen(descriptor, "w+b") as handle:
-        yield handle
-
-
-def ffmpeg(arguments, descriptors, capture_stderr=False):
-    try:
-        completed = subprocess.run(
-            ["ffmpeg", "-nostdin", "-v", "error", "-y", *arguments],
-            pass_fds=descriptors,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE if capture_stderr else subprocess.DEVNULL,
-            check=True,
-            timeout=REQUEST_TIMEOUT_SECONDS,
-        )
-        return completed.stderr
-    except subprocess.TimeoutExpired as exc:
-        raise HubError(
-            "final_audio_timeout",
-            "La conversión de audio agotó su plazo",
-            numbers={"timeout_ms": REQUEST_TIMEOUT_SECONDS * 1000},
-        ) from exc
-    except (OSError, subprocess.CalledProcessError) as exc:
-        raise HubError(
-            "final_audio_conversion_failed",
-            "No se pudo convertir el audio",
-            numbers={
-                "exit_status": getattr(exc, "returncode", 0),
-                "errno": getattr(exc, "errno", 0) or 0,
-            },
-        ) from exc
-
-
-def prepare_track(repo, job, track, target):
-    """Verify original chunks and preserve each wall-clock gap in the final timeline."""
-    started, expected = None, None
-    with repo.store.read_snapshot() as db:
-        row = db.execute(
-            "SELECT body FROM recording_manifests WHERE device_id=? AND recording=?",
-            (job["device_id"], job["recording"]),
-        ).fetchone()
-        manifest = repository._open(
-            repo.store, row["body"], f"manifest:{job['device_id']}:{job['recording']}"
-        )
-        # A closed manifest declares exactly which tracks were uploaded.
-        # A remote-only recording must not try to build an empty microphone WAV.
-        if not any(item["track"] == track for item in manifest["tracks"]):
-            return False
-        began = manifest["started_at_ms"]
-    with memory_file() as source:
-        with wave.open(source, "wb") as output:
-            for body, metadata, checksum in repo.chunks(job, track):
-                if hashlib.sha256(body).hexdigest() != checksum:
-                    raise ValueError("Corrupt audio")
-                with wave.open(io.BytesIO(body), "rb") as audio:
-                    shape = (audio.getnchannels(), audio.getsampwidth(), audio.getframerate())
-                    if shape[0] not in (1, 2) or shape[1] != 2 or not 8000 <= shape[2] <= 192000:
-                        raise ValueError("Invalid PCM format")
-                    if started is None:
-                        started, expected = began, shape
-                        output.setnchannels(shape[0])
-                        output.setsampwidth(shape[1])
-                        output.setframerate(shape[2])
-                    if shape != expected or metadata["frames"] != audio.getnframes():
-                        raise ValueError("Inconsistent audio")
-                    wall = metadata.get("started_at_ms")
-                    if type(wall) is int:
-                        if not began <= wall <= manifest["finalized_at_ms"]:
-                            raise HubError(
-                                "final_audio_time_out_of_range",
-                                "El inicio del fragmento queda fuera de la grabación",
-                                numbers={
-                                    "started_at_ms": wall,
-                                    "recording_start_ms": began,
-                                    "recording_end_ms": manifest["finalized_at_ms"],
-                                },
-                            )
-                        gap = max(0, (wall - began) * shape[2] // 1000 - output.getnframes())
-                        # Write gaps in second-sized pieces, never one giant allocation.
-                        while gap:
-                            frames = min(gap, shape[2])
-                            output.writeframesraw(bytes(frames * shape[0] * 2))
-                            gap -= frames
-                    pcm = audio.readframes(audio.getnframes())
-                    if len(pcm) != audio.getnframes() * shape[0] * 2:
-                        raise ValueError("Truncated PCM")
-                    output.writeframesraw(pcm)
-        if started is None:
-            return False
-        source.seek(0)
-        ffmpeg(
-            [
-                "-i",
-                f"/proc/self/fd/{source.fileno()}",
-                "-ac",
-                "1",
-                "-ar",
-                "16000",
-                "-c:a",
-                "pcm_s16le",
-                "-f",
-                "wav",
-                f"/proc/self/fd/{target.fileno()}",
-            ],
-            (source.fileno(), target.fileno()),
-        )
-    target.seek(0)
-    return True
-
-
-def encode_window(pcm):
-    with memory_file() as source, memory_file() as target:
-        source.write(pcm)
-        source.seek(0)
-        ffmpeg(
-            [
-                "-f",
-                "s16le",
-                "-ar",
-                "16000",
-                "-ac",
-                "1",
-                "-i",
-                f"/proc/self/fd/{source.fileno()}",
-                "-c:a",
-                "libopus",
-                "-b:a",
-                str(OPUS_BITRATE),
-                "-vbr",
-                "off",
-                "-f",
-                "ogg",
-                f"/proc/self/fd/{target.fileno()}",
-            ],
-            (source.fileno(), target.fileno()),
-        )
-        target.seek(0)
-        audio = target.read(MAX_AUDIO_BYTES + 1)
-        if len(audio) > MAX_AUDIO_BYTES:
-            raise HubError(
-                "final_window_too_large",
-                "La ventana Opus supera el límite de Whisper",
-                numbers={"bytes": len(audio), "max_bytes": MAX_AUDIO_BYTES},
-            )
-        return audio
-
-
 def window_ends(frames, diagnostics):
     """Cut each window at the midpoint of its longest silence, on exact PCM sample boundaries."""
     quiet = integrity.silences(diagnostics)
@@ -485,6 +331,41 @@ def attribute(words, spans, track):
                 continue
         result.append({**word, "track": track, "voice": voice})
     return result
+
+
+def _in_track_time(words, offset, window_ms):
+    """A window's words moved to track time, refused when one falls outside it."""
+    placed = []
+    for word in words:
+        if not 0 <= word["start_ms"] <= word["end_ms"] <= window_ms:
+            raise HubError(
+                "transcription_word_out_of_range",
+                "Tiempo de palabra fuera de su ventana",
+                numbers={
+                    "start_ms": word["start_ms"],
+                    "end_ms": word["end_ms"],
+                    "window_ms": window_ms,
+                },
+            )
+        placed.append(
+            {**word, "start_ms": word["start_ms"] + offset, "end_ms": word["end_ms"] + offset}
+        )
+    return placed
+
+
+@dataclass
+class _Pass:
+    """One pass under way: where it is, for its failure, and what it has so far."""
+
+    job: dict
+    started: float
+    lengths: dict
+    done_ms: int = 0
+    phase: str = "prepare"
+    budget: float = 0
+    existing: dict | None = None
+    result: dict = field(default_factory=dict)
+    vocabulary: str | None = None
 
 
 class FinalPassWorker:
@@ -534,149 +415,130 @@ class FinalPassWorker:
         job = await self.run(self.repository.claim)
         if job is None:
             return False
-        started = self.clock()
-        lengths, done_ms = dict(job["lengths"]), 0
+        run = _Pass(job, self.clock(), dict(job["lengths"]))
         self.changed(job["device_id"], job["recording"])
         job["language"] = job["language"] or self.transcriber.configuration.language
-        phase = "prepare"
-        budget = 0
         try:
-            if self.configuration is None:
-                raise HubError(
-                    "diarization_not_configured", "Falta la configuración local de separación"
-                )
-            existing = await self.run(self.repository.voices, job)
-            result = {
-                "spans": [],
-                "words": [],
-                "audio_ms": 0,
-                "language": job["language"],
-                "kept_draft": {"spans": 0, "duration_ms": 0},
-            }
-            if existing is not None:
-                result.update(existing)
-            from .meetings.dictionaries import prompt, terms_for
-
-            vocabulary = prompt(
-                await self.run(terms_for, self.repository.store, job["device_id"], job["recording"])
-            )
-            for track in TRACKS:
-                phase = f"audio_{track}"
-                with memory_file() as audio:
-                    if not await self.run(prepare_track, self.repository, job, track, audio):
-                        lengths.pop(track, None)
-                        continue
-                    with wave.open(audio, "rb") as wav:
-                        frames = wav.getnframes()
-                        duration_ms = frames * 1000 // 16000
-                        lengths[track] = duration_ms
-                        if not frames:
-                            continue
-                        phase = f"windows_{track}"
-                        diagnostics = await self.run(
-                            ffmpeg,
-                            [
-                                "-v",
-                                "info",
-                                "-i",
-                                f"/proc/self/fd/{audio.fileno()}",
-                                "-af",
-                                (
-                                    f"silencedetect=noise={integrity.SILENCE_NOISE_DB}dB:"
-                                    f"d={integrity.SILENCE_DURATION_MS / 1000}"
-                                ),
-                                "-f",
-                                "null",
-                                "-",
-                            ],
-                            (audio.fileno(),),
-                            True,
-                        )
-                        ends = window_ends(frames, diagnostics)
-                        # CPU worst observed, encode/request budgets for the
-                        # ACTUAL number of windows, and lock/model startup.
-                        # Diagnostic ffmpeg has its own existing 300 s budget.
-                        budget = (
-                            duration_ms / 1000 * CPU_SECONDS_PER_AUDIO_SECOND
-                            + (2 * len(ends) + 1) * REQUEST_TIMEOUT_SECONDS
-                        )
-                        async with asyncio.timeout(budget):
-                            words, offset = [], 0
-                            phase = f"whisper_{track}"
-                            for end in ends:
-                                pcm = wav.readframes(end - wav.tell())
-                                window_ms = len(pcm) * 1000 // 32000
-                                encoded = await self.run(encode_window, pcm)
-                                text = await self.transcriber.transcribe(
-                                    encoded,
-                                    job["language"],
-                                    final=True,
-                                    **({"prompt": vocabulary} if vocabulary else {}),
-                                )
-                                result["language"] = text.language or result["language"]
-                                for word in text.words:
-                                    if not 0 <= word["start_ms"] <= word["end_ms"] <= window_ms:
-                                        raise HubError(
-                                            "transcription_word_out_of_range",
-                                            "Tiempo de palabra fuera de su ventana",
-                                            numbers={
-                                                "start_ms": word["start_ms"],
-                                                "end_ms": word["end_ms"],
-                                                "window_ms": window_ms,
-                                            },
-                                        )
-                                    words.append(
-                                        {
-                                            **word,
-                                            "start_ms": word["start_ms"] + offset,
-                                            "end_ms": word["end_ms"] + offset,
-                                        }
-                                    )
-                                offset = end * 1000 // 16000
-                                done_ms += window_ms
-                                await self.report_progress(job, started, done_ms, lengths)
-                            groups = await self.run(self.repository.draft, job, track)
-                            # Where the final lost a draft span or loops over
-                            # it, that span keeps its draft; voices then apply
-                            # to whichever words remain, by their times.
-                            words, kept = integrity.choose(groups, words)
-                            for key in ("spans", "duration_ms"):
-                                result["kept_draft"][key] += kept[key]
-                            if track == "remote_app" and existing is None:
-                                phase = "diarization"
-                                result.update(
-                                    await separate(self.configuration, audio.fileno(), duration_ms)
-                                )
-                            result["words"].extend(attribute(words, result["spans"], track))
-                            result["audio_ms"] = max(result["audio_ms"], duration_ms)
-            phase = "persist"
-            if not result["audio_ms"]:
-                raise HubError(
-                    "final_audio_empty",
-                    "La grabación no tiene audio legible",
-                    numbers={"audio_ms": 0},
-                )
-            await self.run(self.repository.complete, job, result)
+            await self._transcribe(run)
         except TimeoutError:
             await self.run(
                 self.repository.fail,
                 job,
-                {"code": "final_pass_timeout", "phase": phase, "timeout_ms": round(budget * 1000)},
+                {
+                    "code": "final_pass_timeout",
+                    "phase": run.phase,
+                    "timeout_ms": round(run.budget * 1000),
+                },
             )
         except (wave.Error, EOFError, ValueError, KeyError):
             # Values are never quoted: the phase identifies the corrupt track.
             await self.run(
-                self.repository.fail, job, {"code": "final_audio_invalid", "phase": phase}
+                self.repository.fail, job, {"code": "final_audio_invalid", "phase": run.phase}
             )
         except HubError as exc:
             await self.run(
-                self.repository.fail, job, {"code": exc.code, "phase": phase, **(exc.numbers or {})}
+                self.repository.fail,
+                job,
+                {"code": exc.code, "phase": run.phase, **(exc.numbers or {})},
             )
         except Exception:  # noqa: BLE001 - no audio, names, paths or provider diagnostics in evidence
             report(event="final_pass_failed", code="final_pass_internal_error")
             await self.run(
-                self.repository.fail, job, {"code": "final_pass_internal_error", "phase": phase}
+                self.repository.fail, job, {"code": "final_pass_internal_error", "phase": run.phase}
             )
         self.signal.set()
         self.changed(job["device_id"], job["recording"])
         return True
+
+    async def _transcribe(self, run):
+        """Both tracks, then the voices, persisted together."""
+        job = run.job
+        if self.configuration is None:
+            raise HubError(
+                "diarization_not_configured", "Falta la configuración local de separación"
+            )
+        run.existing = await self.run(self.repository.voices, job)
+        run.result = {
+            "spans": [],
+            "words": [],
+            "audio_ms": 0,
+            "language": job["language"],
+            "kept_draft": {"spans": 0, "duration_ms": 0},
+        }
+        if run.existing is not None:
+            run.result.update(run.existing)
+        from .meetings.dictionaries import prompt, terms_for
+
+        run.vocabulary = prompt(
+            await self.run(terms_for, self.repository.store, job["device_id"], job["recording"])
+        )
+        for track in TRACKS:
+            run.phase = f"audio_{track}"
+            with memory_file() as audio:
+                if not await self.run(prepare_track, self.repository, job, track, audio):
+                    run.lengths.pop(track, None)
+                    continue
+                with wave.open(audio, "rb") as wav:
+                    await self._track(run, track, audio, wav)
+        run.phase = "persist"
+        if not run.result["audio_ms"]:
+            raise HubError(
+                "final_audio_empty",
+                "La grabación no tiene audio legible",
+                numbers={"audio_ms": 0},
+            )
+        await self.run(self.repository.complete, job, run.result)
+
+    async def _track(self, run, track, audio, wav):
+        """One prepared track: its windows through Whisper, the draft it keeps,
+        and the voices of the remote one."""
+        result = run.result
+        frames = wav.getnframes()
+        duration_ms = frames * 1000 // 16000
+        run.lengths[track] = duration_ms
+        if not frames:
+            return
+        run.phase = f"windows_{track}"
+        ends = window_ends(frames, await self.run(silence_report, audio.fileno()))
+        # CPU worst observed, encode/request budgets for the
+        # ACTUAL number of windows, and lock/model startup.
+        # Diagnostic ffmpeg has its own existing 300 s budget.
+        run.budget = (
+            duration_ms / 1000 * CPU_SECONDS_PER_AUDIO_SECOND
+            + (2 * len(ends) + 1) * REQUEST_TIMEOUT_SECONDS
+        )
+        async with asyncio.timeout(run.budget):
+            run.phase = f"whisper_{track}"
+            words = await self._words(run, wav, ends)
+            groups = await self.run(self.repository.draft, run.job, track)
+            # Where the final lost a draft span or loops over
+            # it, that span keeps its draft; voices then apply
+            # to whichever words remain, by their times.
+            words, kept = integrity.choose(groups, words)
+            for key in ("spans", "duration_ms"):
+                result["kept_draft"][key] += kept[key]
+            if track == "remote_app" and run.existing is None:
+                run.phase = "diarization"
+                result.update(await separate(self.configuration, audio.fileno(), duration_ms))
+            result["words"].extend(attribute(words, result["spans"], track))
+            result["audio_ms"] = max(result["audio_ms"], duration_ms)
+
+    async def _words(self, run, wav, ends):
+        """The track's words, window by window, in track time."""
+        words, offset = [], 0
+        for end in ends:
+            pcm = wav.readframes(end - wav.tell())
+            window_ms = len(pcm) * 1000 // 32000
+            encoded = await self.run(encode_window, pcm)
+            text = await self.transcriber.transcribe(
+                encoded,
+                run.job["language"],
+                final=True,
+                **({"prompt": run.vocabulary} if run.vocabulary else {}),
+            )
+            run.result["language"] = text.language or run.result["language"]
+            words.extend(_in_track_time(text.words, offset, window_ms))
+            offset = end * 1000 // 16000
+            run.done_ms += window_ms
+            await self.report_progress(run.job, run.started, run.done_ms, run.lengths)
+        return words

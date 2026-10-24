@@ -12,7 +12,7 @@ from uuid import uuid4
 from conftest import device
 from support_app import client
 
-# What the daemon reads (`crates/orbit-daemon/src/hub.rs`): pages of at most
+# What the daemon reads (`crates/orbit-daemon/src/hub/conversations.rs`): pages of at most
 # 128 entries, each with a non-empty id of at most 121 bytes and its times.
 PUBLISHED_DAEMON_MAX_SESSIONS = 128
 CONVERSATIONS = 500

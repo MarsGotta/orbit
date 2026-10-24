@@ -384,7 +384,7 @@ async def test_transcription_contract_is_json_not_multipart(environment, tmp_pat
 
     original = httpx.AsyncClient
     monkeypatch.setattr(
-        "orbit_hub.assistant.hermes.httpx.AsyncClient",
+        "orbit_hub.assistant.hermes_speech.httpx.AsyncClient",
         lambda **kwargs: original(transport=httpx.MockTransport(reply), **kwargs),
     )
     assert await HermesSpeech(configured, configured.profile).transcribe(b"fixture") == ""
@@ -402,7 +402,7 @@ async def test_http_failure_names_provider_status(environment, tmp_path, monkeyp
     configured = replace(settings, hermes_credential_file=credential(tmp_path))
     original = httpx.AsyncClient
     monkeypatch.setattr(
-        "orbit_hub.assistant.hermes.httpx.AsyncClient",
+        "orbit_hub.assistant.hermes_speech.httpx.AsyncClient",
         lambda **kwargs: original(
             transport=httpx.MockTransport(
                 lambda _request: httpx.Response(503, text="private body")
@@ -427,7 +427,7 @@ async def test_connect_timeout_uses_connection_budget(environment, tmp_path, mon
 
     original = httpx.AsyncClient
     monkeypatch.setattr(
-        "orbit_hub.assistant.hermes.httpx.AsyncClient",
+        "orbit_hub.assistant.hermes_speech.httpx.AsyncClient",
         lambda **kwargs: original(transport=httpx.MockTransport(expire), **kwargs),
     )
     with pytest.raises(HubError) as failure:

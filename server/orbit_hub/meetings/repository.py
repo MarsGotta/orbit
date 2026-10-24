@@ -175,81 +175,9 @@ def rename(
         transcript = turns.read(store, db, device, recording)
         current = speaker_changes(store, db, device, recording)
         if turn is not None:
-            selected = next(
-                (
-                    item
-                    for item in turns.merge_segments(list(transcript.segments))
-                    if item.at_ms == turn.at_ms and item.speaker_key == turn.speaker_key
-                ),
-                None,
-            )
-            if selected is None:
-                raise HubError(
-                    "turn_no_longer_exists",
-                    "El turno ya no existe en la transcripción",
-                    http_status=409,
-                    numbers={"at_ms": turn.at_ms, "turns": len(transcript.turns)},
-                )
-            if len(clean) != 1:
-                raise HubError(
-                    "invalid_parameters",
-                    "Un turno admite un solo nombre",
-                    numbers={"names": len(clean), "max": 1},
-                )
-            track = selected.track
-            end = selected.end_ms or selected.at_ms + 1
-            target, name = next(iter(clean.items()))
-            identity = f"turn_{track}_{selected.at_ms}_{end}"
-            current["turns"] = [
-                item
-                for item in current["turns"]
-                if not (
-                    item["track"] == track
-                    and item["start_ms"] == selected.at_ms
-                    and item["end_ms"] == end
-                )
-            ]
-            if name is not None:
-                existing = next(
-                    (s.key for s in transcript.speakers if s.name == name and s.track == track),
-                    None,
-                )
-                target = existing or identity
-                current["names"][target] = name
-                current["turns"].append(
-                    {
-                        "track": track,
-                        "start_ms": selected.at_ms,
-                        "end_ms": end,
-                        "speaker_key": target,
-                    }
-                )
-            clean = {}
+            _name_turn(current, transcript, turn, clean)
         else:
-            live_keys = {s.key for s in transcript.speakers}
-            if not set(clean) <= live_keys:
-                raise HubError(
-                    "unknown_speaker",
-                    "El hablante ya no existe en la transcripción",
-                    numbers={"speakers": len(live_keys)},
-                )
-        for key, name in clean.items():
-            if name is None:
-                current["names"].pop(key, None)
-                current["same_as"].pop(key, None)
-            else:
-                track = next(s.track for s in transcript.speakers if s.key == key)
-                existing = next(
-                    (
-                        s.key
-                        for s in transcript.speakers
-                        if s.key != key and s.name == name and s.track == track
-                    ),
-                    None,
-                )
-                if existing is not None:
-                    current["same_as"][key] = existing
-                current["names"][key] = name
+            _name_voices(current, transcript, clean)
         sealed = _seal(store, current, f"recording-speakers:{device}:{recording}")
         store.ensure_capacity(len(sealed))
         db.execute(
@@ -258,6 +186,83 @@ def rename(
             "updated=excluded.updated",
             (device, recording, sealed, now),
         )
+
+
+def _name_turn(current: dict, transcript, turn, clean: dict) -> None:
+    """Name one turn alone: its voice joins a same-named one of its track, or
+    becomes a voice of its own; without a name it returns to its voice's."""
+    from . import turns
+
+    selected = next(
+        (
+            item
+            for item in turns.merge_segments(list(transcript.segments))
+            if item.at_ms == turn.at_ms and item.speaker_key == turn.speaker_key
+        ),
+        None,
+    )
+    if selected is None:
+        raise HubError(
+            "turn_no_longer_exists",
+            "El turno ya no existe en la transcripción",
+            http_status=409,
+            numbers={"at_ms": turn.at_ms, "turns": len(transcript.turns)},
+        )
+    if len(clean) != 1:
+        raise HubError(
+            "invalid_parameters",
+            "Un turno admite un solo nombre",
+            numbers={"names": len(clean), "max": 1},
+        )
+    track = selected.track
+    end = selected.end_ms or selected.at_ms + 1
+    target, name = next(iter(clean.items()))
+    identity = f"turn_{track}_{selected.at_ms}_{end}"
+    current["turns"] = [
+        item
+        for item in current["turns"]
+        if not (
+            item["track"] == track and item["start_ms"] == selected.at_ms and item["end_ms"] == end
+        )
+    ]
+    if name is not None:
+        existing = next(
+            (s.key for s in transcript.speakers if s.name == name and s.track == track),
+            None,
+        )
+        target = existing or identity
+        current["names"][target] = name
+        current["turns"].append(
+            {"track": track, "start_ms": selected.at_ms, "end_ms": end, "speaker_key": target}
+        )
+
+
+def _name_voices(current: dict, transcript, clean: dict) -> None:
+    """Name whole voices: a name another voice of the track has merges them."""
+    live_keys = {s.key for s in transcript.speakers}
+    if not set(clean) <= live_keys:
+        raise HubError(
+            "unknown_speaker",
+            "El hablante ya no existe en la transcripción",
+            numbers={"speakers": len(live_keys)},
+        )
+    for key, name in clean.items():
+        if name is None:
+            current["names"].pop(key, None)
+            current["same_as"].pop(key, None)
+        else:
+            track = next(s.track for s in transcript.speakers if s.key == key)
+            existing = next(
+                (
+                    s.key
+                    for s in transcript.speakers
+                    if s.key != key and s.name == name and s.track == track
+                ),
+                None,
+            )
+            if existing is not None:
+                current["same_as"][key] = existing
+            current["names"][key] = name
 
 
 # The user's private notes of one recording, with the revision they were saved at.

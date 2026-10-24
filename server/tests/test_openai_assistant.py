@@ -45,6 +45,7 @@ from test_attachments import PNG, uploaded
 
 from orbit_hub.app import create_app
 from orbit_hub.assistant import openai as backend_module
+from orbit_hub.assistant import openai_tools
 from orbit_hub.assistant.backend import (
     ActivityItem,
     ImageBlock,
@@ -435,7 +436,7 @@ async def test_a_tool_that_never_answers_fails_the_turn_with_its_name(
 ):
     """orbit-mcp is reached, but the hub behind it holds every request."""
     settings, _, _ = environment
-    monkeypatch.setattr(backend_module, "TOOL_CALL_TIMEOUT_SECONDS", 1)
+    monkeypatch.setattr(openai_tools, "TOOL_CALL_TIMEOUT_SECONDS", 1)
     silent_hub = FastAPI()
 
     @silent_hub.api_route("/{path:path}", methods=["GET", "POST"])

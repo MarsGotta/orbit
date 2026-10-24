@@ -31,7 +31,7 @@ def credential(tmp_path):
 
 def install_http(monkeypatch, reply):
     monkeypatch.setattr(
-        "orbit_hub.assistant.hermes.httpx.AsyncClient",
+        "orbit_hub.assistant.hermes_speech.httpx.AsyncClient",
         lambda **kwargs: ORIGINAL_ASYNC_CLIENT(transport=httpx.MockTransport(reply), **kwargs),
     )
 

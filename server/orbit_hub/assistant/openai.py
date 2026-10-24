@@ -18,41 +18,27 @@ The API key is read from a 0600 file and never logged, nor is any message.
 """
 
 import asyncio
-import base64
 import logging
 import re
-import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-import httpx
 from anthropic import AsyncAnthropic
-from mcp import ClientSession, StdioServerParameters, stdio_client
-from mcp.shared.exceptions import MCPError
-from mcp.types import CONNECTION_CLOSED, REQUEST_TIMEOUT, CallToolResult, ImageContent, TextContent
 from openai import AsyncOpenAI, Timeout
 from pydantic_ai import (
     Agent,
     AgentRunResultEvent,
     BinaryContent,
     FunctionToolCallEvent,
-    FunctionToolResultEvent,
     ModelRequest,
     ModelResponse,
     PartDeltaEvent,
     PartStartEvent,
-    RetryPromptPart,
-    RunContext,
     TextPart,
     TextPartDelta,
-    ThinkingPart,
-    ThinkingPartDelta,
-    ToolDefinition,
-    ToolFailed,
     UsageLimitExceeded,
     UserPromptPart,
 )
@@ -68,18 +54,13 @@ from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.toolsets import AbstractToolset
-from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_ai.usage import UsageLimits
-from pydantic_core import SchemaValidator, core_schema
 
 from ..log import clear_op, report
 from ..meeting_transcription import MeetingTranscriber
 from ..protocol import HubError
-from ..secret_file import read_secret
 from .agent_config import instructions_text, no_instructions
 from .backend import (
-    ActivityItem,
     Capabilities,
     ClarificationReceipt,
     ContentBlock,
@@ -95,8 +76,10 @@ from .backend import (
     TextBlock,
     TurnFailed,
 )
-from .openai_settings import OpenAIAgentSettings
-from .speech import MAX_SPEECH_CLIP_BYTES, SpeechClip
+from .openai_settings import OpenAIAgentSettings, read_api_key
+from .openai_speech import OpenAISpeech
+from .openai_steps import TurnSteps
+from .openai_tools import OrbitTools, ToolTransportFailed
 
 if TYPE_CHECKING:
     from ..config import Settings
@@ -110,10 +93,6 @@ KIND = "openai"
 for _sdk in ("openai", "anthropic"):
     logging.getLogger(_sdk).setLevel(logging.WARNING)
 
-# One API key per file. What it protects: the hub's memory against a key path
-# that names some other, large file. Why 4 KiB: provider keys are under 200
-# bytes; this is far above any. It is not a bound on anything else.
-MAX_API_KEY_BYTES = 4 * 1024
 # Sent as the bearer of an OpenAI-compatible server that needs no key (a local
 # Ollama or vLLM): the OpenAI SDK refuses to start without one.
 NO_API_KEY = "orbit-sin-clave"
@@ -143,19 +122,6 @@ MAX_MODEL_REQUESTS_PER_TURN = 50
 # a bound on the whole turn, which streams for as long as the model writes.
 MODEL_CONNECT_TIMEOUT_SECONDS = 10
 MODEL_READ_TIMEOUT_SECONDS = 120
-# orbit-mcp's start: launching Python and answering `initialize` and
-# `tools/list`, about one second on the hub's server. 30 s keeps a slow disk
-# from failing the first message without holding it for ever.
-TOOLS_START_TIMEOUT_SECONDS = 30
-# One Orbit tool call. orbit-mcp's longest own wait is the Mac's answer through
-# the device bridge (`BRIDGE_TIMEOUT_SECONDS`, 35 s); 60 s leaves it room to
-# return its own refusal first. A call that outlives it fails the turn, and its
-# outcome stays unknown: it is never repeated.
-TOOL_CALL_TIMEOUT_SECONDS = 60
-# Read-aloud: the same 180 s provider and 10 s connection budgets as Hermes's.
-SPEECH_TIMEOUT_SECONDS = 180
-SPEECH_CONNECT_TIMEOUT_SECONDS = 10
-
 INSTRUCTIONS = (
     "You are {name}, the user's assistant in Orbit, a companion for their Mac. "
     "Each user message begins with a line such as «[Orbit · <device> · <input>]»: "
@@ -165,34 +131,6 @@ INSTRUCTIONS = (
     "device, pass that name. Answer in the language the user writes in."
 )
 
-# Arguments arrive as the model's JSON object; orbit-mcp validates them itself
-# and answers a refusal the model can read.
-_ARGUMENTS = SchemaValidator(
-    core_schema.dict_schema(core_schema.str_schema(), core_schema.any_schema())
-)
-
-
-# ---------------------------------------------------------------- settings
-
-
-def read_api_key(label: str, key: str, path: Path) -> str:
-    """The key in `path`, refused with the cause; the key itself is never in it."""
-    try:
-        value = read_secret(path, MAX_API_KEY_BYTES).decode("utf-8").strip()
-    except FileNotFoundError:
-        raise ValueError(f"{label}.{key}: {path} does not exist") from None
-    except PermissionError:
-        raise ValueError(f"{label}.{key}: {path} cannot be read by the hub's user") from None
-    except UnicodeDecodeError:
-        raise ValueError(f"{label}.{key}: {path} is not UTF-8 text") from None
-    except (OSError, ValueError) as exc:
-        cause = exc.strerror if isinstance(exc, OSError) and exc.strerror else str(exc)
-        raise ValueError(f"{label}.{key}: {path}: {cause}") from None
-    if not value:
-        raise ValueError(f"{label}.{key}: {path} is empty")
-    return value
-
-
 # ---------------------------------------------------------------- failures
 
 
@@ -201,14 +139,6 @@ def provider_url(settings: OpenAIAgentSettings) -> str:
     The configuration admits no credentials or query in it anyway."""
     url = urlsplit(settings.base_url or "https://api.anthropic.com")
     return f"{url.scheme}://{url.netloc}{url.path}"
-
-
-class ToolTransportFailed(Exception):
-    """An Orbit tool call that orbit-mcp never answered: the turn ends with it."""
-
-    def __init__(self, tool: str, message: str, numbers: dict[str, int] | None = None):
-        super().__init__(message)
-        self.tool, self.message, self.numbers = tool, message, numbers
 
 
 _CONTEXT_NUMBERS = re.compile(
@@ -257,48 +187,59 @@ def image_refusal(
     )
 
 
-def describe_failure(
-    error: BaseException, settings: OpenAIAgentSettings, history_chars: int
-) -> HubError:
-    """The cause of a turn that ended with `error`: code, Spanish message, numbers."""
-    error = _leaf(error)
-    url = provider_url(settings)
-    if isinstance(error, ToolTransportFailed):
-        return HubError("assistant_tool_failed", error.message, numbers=error.numbers)
-    if isinstance(error, UsageLimitExceeded):
+def _timeout_failure(error: ModelTimeoutError, url: str) -> HubError:
+    if error.phase == "connect":
+        milliseconds = round(MODEL_CONNECT_TIMEOUT_SECONDS * 1000)
         return HubError(
-            "assistant_turn_too_long",
-            f"El asistente hizo {MAX_MODEL_REQUESTS_PER_TURN} peticiones al modelo en este "
-            "turno sin terminar; se detuvo",
-            numbers={"max_requests": MAX_MODEL_REQUESTS_PER_TURN},
+            "assistant_connect_timeout",
+            f"El proveedor del asistente ({url}) no aceptó la conexión en {milliseconds} ms",
+            numbers={"connect_timeout_ms": milliseconds},
         )
-    if isinstance(error, ModelTimeoutError):
-        if error.phase == "connect":
-            milliseconds = round(MODEL_CONNECT_TIMEOUT_SECONDS * 1000)
-            return HubError(
-                "assistant_connect_timeout",
-                f"El proveedor del asistente ({url}) no aceptó la conexión en {milliseconds} ms",
-                numbers={"connect_timeout_ms": milliseconds},
-            )
-        milliseconds = round(MODEL_READ_TIMEOUT_SECONDS * 1000)
+    milliseconds = round(MODEL_READ_TIMEOUT_SECONDS * 1000)
+    return HubError(
+        "assistant_timeout",
+        f"El proveedor del asistente ({url}) dejó de contestar durante {milliseconds} ms",
+        numbers={"timeout_ms": milliseconds},
+    )
+
+
+def _connection_failure(error: ModelConnectionError, url: str) -> HubError:
+    if error.phase in {"connect", "pool"}:
         return HubError(
-            "assistant_timeout",
-            f"El proveedor del asistente ({url}) dejó de contestar durante {milliseconds} ms",
-            numbers={"timeout_ms": milliseconds},
+            "assistant_unreachable",
+            f"No se pudo conectar con el proveedor del asistente ({url}); "
+            f"plazo de conexión de {MODEL_CONNECT_TIMEOUT_SECONDS * 1000} ms",
+            numbers={"connect_timeout_ms": MODEL_CONNECT_TIMEOUT_SECONDS * 1000},
         )
-    if isinstance(error, ModelConnectionError):
-        if error.phase in {"connect", "pool"}:
-            return HubError(
-                "assistant_unreachable",
-                f"No se pudo conectar con el proveedor del asistente ({url}); "
-                f"plazo de conexión de {MODEL_CONNECT_TIMEOUT_SECONDS * 1000} ms",
-                numbers={"connect_timeout_ms": MODEL_CONNECT_TIMEOUT_SECONDS * 1000},
-            )
-        return HubError(
-            "assistant_connection_lost",
-            f"Se cortó la conexión con el proveedor del asistente ({url}) antes de terminar "
-            "la respuesta",
-        )
+    return HubError(
+        "assistant_connection_lost",
+        f"Se cortó la conexión con el proveedor del asistente ({url}) antes de terminar "
+        "la respuesta",
+    )
+
+
+def _rate_limited(error: BaseException, url: str) -> HubError:
+    numbers: dict[str, int] = {"provider_status": 429}
+    message = f"El proveedor del asistente ({url}) limitó las peticiones (HTTP 429)"
+    if isinstance(error, ModelAPIError) and error.retry_after is not None:
+        numbers["retry_after_ms"] = round(error.retry_after * 1000)
+        message += f"; pide esperar {numbers['retry_after_ms']} ms"
+    else:
+        message += "; no dijo cuánto esperar"
+    return HubError("assistant_rate_limited", message, numbers=numbers)
+
+
+def _context_exceeded(detail: str, history_chars: int) -> HubError:
+    numbers = {"history_chars": history_chars, "max_history_chars": HISTORY_MAX_CHARS}
+    message = f"El modelo no admite tanto contexto ({history_chars} caracteres de historial"
+    if (tokens := _CONTEXT_NUMBERS.search(detail)) is not None:
+        numbers["max_tokens"], numbers["tokens"] = int(tokens[1]), int(tokens[2])
+        message += f"; {tokens[2]} tokens de un máximo de {tokens[1]}"
+    return HubError("assistant_context_exceeded", message + ")", numbers=numbers)
+
+
+def _provider_failure(error: BaseException, url: str, history_chars: int) -> HubError:
+    """What the provider answered, or failed to: its status, limits and context."""
     status = error.status_code if isinstance(error, ModelHTTPError) else None
     if status in {401, 403}:
         return HubError(
@@ -308,24 +249,12 @@ def describe_failure(
             numbers={"provider_status": status},
         )
     if isinstance(error, ModelRateLimitError) or status == 429:
-        numbers: dict[str, int] = {"provider_status": 429}
-        message = f"El proveedor del asistente ({url}) limitó las peticiones (HTTP 429)"
-        if isinstance(error, ModelAPIError) and error.retry_after is not None:
-            numbers["retry_after_ms"] = round(error.retry_after * 1000)
-            message += f"; pide esperar {numbers['retry_after_ms']} ms"
-        else:
-            message += "; no dijo cuánto esperar"
-        return HubError("assistant_rate_limited", message, numbers=numbers)
+        return _rate_limited(error, url)
     detail = str(error.body) if isinstance(error, ModelAPIError) else ""
     if isinstance(error, ModelContextWindowExceededError) or (
         status == 400 and _CONTEXT_WORDS.search(detail)
     ):
-        numbers = {"history_chars": history_chars, "max_history_chars": HISTORY_MAX_CHARS}
-        message = f"El modelo no admite tanto contexto ({history_chars} caracteres de historial"
-        if (tokens := _CONTEXT_NUMBERS.search(detail)) is not None:
-            numbers["max_tokens"], numbers["tokens"] = int(tokens[1]), int(tokens[2])
-            message += f"; {tokens[2]} tokens de un máximo de {tokens[1]}"
-        return HubError("assistant_context_exceeded", message + ")", numbers=numbers)
+        return _context_exceeded(detail, history_chars)
     if status is not None:
         return HubError(
             "assistant_http_error",
@@ -343,171 +272,26 @@ def describe_failure(
     )
 
 
-# ---------------------------------------------------------------- Orbit's tools
-
-
-class OrbitTools(AbstractToolset[None]):
-    """orbit-mcp, launched over stdio from this hub's own environment.
-
-    One process per device connection. A task of its own owns the stdio
-    client: the `mcp` client runs in task groups that must be entered and
-    left by the same task, and the connection opens and closes from others.
-    """
-
-    def __init__(self, agent: "AgentConfiguration"):
-        self.agent, self.settings = agent, agent.settings
-        self._session: ClientSession | None = None
-        self._tools: dict[str, ToolsetTool[None]] = {}
-        self._owner: asyncio.Task | None = None
-        self._stop = asyncio.Event()
-
-    @property
-    def id(self) -> str:
-        return "orbit"
-
-    @property
-    def alive(self) -> bool:
-        return self._session is not None and self._owner is not None and not self._owner.done()
-
-    def parameters(self) -> StdioServerParameters:
-        return StdioServerParameters(
-            command=sys.executable,
-            args=["-m", "orbit_mcp.cli"],
-            # Added to the `mcp` client's short list of safe variables (PATH,
-            # HOME…): nothing else of the hub's environment reaches it.
-            env={
-                "ORBIT_MCP_CONFIG": str(self.settings.orbit_mcp_config),
-                # Which agent asks, so orbit-mcp can offer each its own tools;
-                # the same variable an ACP agent's orbit-mcp receives.
-                "ORBIT_MCP_AGENT": self.agent.id,
-            },
+def describe_failure(
+    error: BaseException, settings: OpenAIAgentSettings, history_chars: int
+) -> HubError:
+    """The cause of a turn that ended with `error`: code, Spanish message, numbers."""
+    error = _leaf(error)
+    url = provider_url(settings)
+    if isinstance(error, ToolTransportFailed):
+        return HubError("assistant_tool_failed", error.message, numbers=error.numbers)
+    if isinstance(error, UsageLimitExceeded):
+        return HubError(
+            "assistant_turn_too_long",
+            f"El asistente hizo {MAX_MODEL_REQUESTS_PER_TURN} peticiones al modelo en este "
+            "turno sin terminar; se detuvo",
+            numbers={"max_requests": MAX_MODEL_REQUESTS_PER_TURN},
         )
-
-    async def start(self) -> None:
-        ready: asyncio.Future[None] = asyncio.get_running_loop().create_future()
-        self._owner = asyncio.create_task(self._own(ready))
-        try:
-            await asyncio.wait_for(asyncio.shield(ready), TOOLS_START_TIMEOUT_SECONDS)
-        except TimeoutError:
-            await self.stop()
-            raise HubError(
-                "assistant_tools_unavailable",
-                f"orbit-mcp no arrancó en {TOOLS_START_TIMEOUT_SECONDS * 1000} ms; "
-                "el asistente no tiene las herramientas de Orbit",
-                numbers={"timeout_ms": TOOLS_START_TIMEOUT_SECONDS * 1000},
-            ) from None
-        except Exception as exc:
-            await self.stop()
-            report(event="orbit_tools_start_failed", code="assistant_tools_unavailable")
-            raise HubError(
-                "assistant_tools_unavailable",
-                "orbit-mcp terminó al arrancar (su causa queda en el registro del hub); "
-                "el asistente no tiene las herramientas de Orbit",
-            ) from exc
-
-    async def _own(self, ready: asyncio.Future) -> None:
-        clear_op()
-        try:
-            async with (
-                stdio_client(self.parameters()) as (read_stream, write_stream),
-                ClientSession(read_stream, write_stream) as session,
-            ):
-                await session.initialize()
-                listing = await session.list_tools()
-                self._tools = {
-                    tool.name: ToolsetTool(
-                        toolset=self,
-                        tool_def=ToolDefinition(
-                            name=tool.name,
-                            description=tool.description or "",
-                            parameters_json_schema=tool.input_schema,
-                        ),
-                        max_retries=1,
-                        args_validator=_ARGUMENTS,
-                    )
-                    for tool in listing.tools
-                }
-                self._session = session
-                ready.set_result(None)
-                await self._stop.wait()
-        except Exception as exc:  # noqa: BLE001 - the start reports it, or `alive` turns false
-            if not ready.done():
-                ready.set_exception(exc)
-            else:
-                report(event="orbit_tools_lost", code="assistant_tools_lost")
-        finally:
-            self._session = None
-            if not ready.done():
-                ready.set_exception(RuntimeError("orbit-mcp stopped before it was ready"))
-
-    async def stop(self) -> None:
-        """Close orbit-mcp's stdin and wait for it; 5 s, then cancel its owner."""
-        self._stop.set()
-        owner = self._owner
-        if owner is None:
-            return
-        done, _ = await asyncio.wait({owner}, timeout=5)
-        if not done:
-            owner.cancel()
-            await asyncio.gather(owner, return_exceptions=True)
-
-    async def get_tools(self, ctx: RunContext[None]) -> dict[str, ToolsetTool[None]]:
-        return self._tools
-
-    async def call_tool(
-        self, name: str, tool_args: dict[str, Any], ctx: RunContext[None], tool: ToolsetTool[None]
-    ) -> Any:
-        session = self._session
-        if session is None or not self.alive:
-            raise ToolTransportFailed(
-                name, f"La herramienta {name} no se pudo usar: orbit-mcp ya no está en marcha"
-            )
-        try:
-            result = await session.call_tool(
-                name, tool_args, read_timeout_seconds=TOOL_CALL_TIMEOUT_SECONDS
-            )
-        except MCPError as exc:
-            if exc.code == REQUEST_TIMEOUT:
-                milliseconds = round(TOOL_CALL_TIMEOUT_SECONDS * 1000)
-                raise ToolTransportFailed(
-                    name,
-                    f"La herramienta {name} no contestó en {milliseconds} ms; su resultado es "
-                    "incierto y no se repetirá",
-                    {"timeout_ms": milliseconds},
-                ) from exc
-            if exc.code == CONNECTION_CLOSED or not self.alive:
-                raise ToolTransportFailed(
-                    name, f"La herramienta {name} falló: orbit-mcp terminó durante la llamada"
-                ) from exc
-            raise ToolTransportFailed(
-                name,
-                f"orbit-mcp rechazó la llamada a {name} (código {exc.code})",
-                {"mcp_code": exc.code},
-            ) from exc
-        if not isinstance(result, CallToolResult):
-            raise ToolTransportFailed(
-                name, f"La herramienta {name} pidió datos que este asistente no sabe dar"
-            )
-        parts: list[str | BinaryContent] = []
-        for block in result.content:
-            if isinstance(block, TextContent):
-                parts.append(block.text)
-            elif isinstance(block, ImageContent) and self.settings.images:
-                parts.append(
-                    BinaryContent(data=base64.b64decode(block.data), media_type=block.mime_type)
-                )
-            elif isinstance(block, ImageContent):
-                parts.append(
-                    "[Orbit: la imagen de esta herramienta no se envía porque este modelo no "
-                    "admite imágenes (images = false)]"
-                )
-        text_only = all(isinstance(part, str) for part in parts)
-        if result.is_error:
-            # orbit-mcp's refusals are written for the model to read and correct.
-            raise ToolFailed("\n".join(part for part in parts if isinstance(part, str)))
-        if text_only:
-            return "\n".join(parts)
-        return parts
+    if isinstance(error, ModelTimeoutError):
+        return _timeout_failure(error, url)
+    if isinstance(error, ModelConnectionError):
+        return _connection_failure(error, url)
+    return _provider_failure(error, url, history_chars)
 
 
 # ---------------------------------------------------------------- sessions
@@ -551,76 +335,34 @@ class _Session:
         return messages, size
 
 
-class _Work:
-    """One turn's steps as `ActivityItem`s, from pydantic-ai's stream: a tool
-    call from its call to its result, and a thought from its first piece to
-    the start of the next part or the end of the run, with the whole thought."""
-
-    def __init__(self, session_id: str, on_event: EventSink):
-        self.session_id, self.on_event = session_id, on_event
-        # This turn's calls by id: the name and arguments only the call carries.
-        self.calls: dict[str, tuple[str, dict | None]] = {}
-        self.thought: list[str] = []
-        self.thought_id: str | None = None
-
-    async def on(self, event: object) -> None:
-        if isinstance(event, PartStartEvent):
-            await self.end_thought()
-            if isinstance(event.part, ThinkingPart):
-                self.thought_id = f"reasoning-{uuid4()}"
-                self.thought = [event.part.content]
-                await self.on_event(
-                    ActivityItem(self.session_id, self.thought_id, "reasoning", "started")
-                )
-        elif isinstance(event, PartDeltaEvent) and isinstance(event.delta, ThinkingPartDelta):
-            if self.thought_id is not None and event.delta.content_delta:
-                self.thought.append(event.delta.content_delta)
-        elif isinstance(event, FunctionToolCallEvent):
-            await self.end_thought()
-            part = event.part
-            try:
-                arguments: dict | None = part.args_as_dict(raise_if_invalid=True)
-            except (ValueError, AssertionError):
-                # Arguments that are not a JSON object: pydantic-ai answers the
-                # model with a retry, which ends this step as failed.
-                arguments = None
-            self.calls[part.tool_call_id] = (part.tool_name, arguments)
-            await self.on_event(
-                ActivityItem(
-                    self.session_id, part.tool_call_id, "tool", "started", part.tool_name, arguments
-                )
-            )
-        elif isinstance(event, FunctionToolResultEvent):
-            part = event.part
-            name, arguments = self.calls.pop(part.tool_call_id, (part.tool_name or "", None))
-            if isinstance(part, RetryPromptPart):
-                phase, cause = "failed", _retry_cause(part)
-            elif part.outcome != "success":
-                # orbit-mcp's refusals (`ToolFailed`) arrive as a failed return.
-                phase, cause = "failed", part.model_response_str(wrap_if_error=False)
-            else:
-                phase, cause = "completed", None
-            await self.on_event(
-                ActivityItem(
-                    self.session_id, part.tool_call_id, "tool", phase, name, arguments, cause=cause
-                )
-            )
-
-    async def end_thought(self) -> None:
-        if self.thought_id is None:
-            return
-        item_id, text = self.thought_id, "".join(self.thought)
-        self.thought, self.thought_id = [], None
-        await self.on_event(
-            ActivityItem(self.session_id, item_id, "reasoning", "completed", text=text)
-        )
+def _prompt(text: str, images: list[ImageBlock]) -> tuple[str | list[str | BinaryContent], str]:
+    """The user prompt: the text, then each image whole; and what the
+    conversation keeps of it: the text and a line naming each image's
+    attachment, so a later turn never sends its bytes again."""
+    if not images:
+        return text, text
+    prompt = [text, *(BinaryContent(data=image.data, media_type=image.mime) for image in images)]
+    said = "\n".join(
+        [
+            text,
+            *(
+                f"[Orbit · la imagen «{image.name}» (adjunto {image.attachment_id}) iba "
+                "en este mensaje y no se vuelve a enviar; para verla otra vez, "
+                "orbit_attachment con ese id]"
+                for image in images
+            ),
+        ]
+    )
+    return prompt, said
 
 
-def _retry_cause(part: RetryPromptPart) -> str:
-    """Why pydantic-ai asked the model to try again, in its words."""
-    if isinstance(part.content, str):
-        return part.content
-    return "; ".join(str(error.get("msg", "")) for error in part.content)
+def _text_piece(event: object) -> str:
+    """The answer's text an event of the stream carries, if any."""
+    if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
+        return event.part.content
+    if isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
+        return event.delta.content_delta
+    return ""
 
 
 class OpenAIConnection:
@@ -691,43 +433,13 @@ class OpenAIConnection:
         chunks: list[str] = []
         separate = False
         history_chars = 0
-        work = _Work(session_id, self.on_event)
-        # The user prompt: the text, then each image whole. What the
-        # conversation keeps of it is `said`: the text and a line naming each
-        # image's attachment, so a later turn never sends its bytes again.
-        prompt: str | list[str | BinaryContent] = text
-        said = text
-        if images:
-            prompt = [
-                text,
-                *(BinaryContent(data=image.data, media_type=image.mime) for image in images),
-            ]
-            said = "\n".join(
-                [
-                    text,
-                    *(
-                        f"[Orbit · la imagen «{image.name}» (adjunto {image.attachment_id}) iba "
-                        "en este mensaje y no se vuelve a enviar; para verla otra vez, "
-                        "orbit_attachment con ese id]"
-                        for image in images
-                    ),
-                ]
-            )
+        steps = TurnSteps(session_id, self.on_event)
+        prompt, said = _prompt(text, images)
         # Whether the provider answered anything: only its first answer can be
         # a refusal of the turn's images.
         answered = False
         try:
-            history, history_chars = session.history()
-            if session.left_out:
-                await self.on_event(
-                    StatusNotice(
-                        session_id,
-                        "warning",
-                        f"El asistente no recibe los {session.left_out} mensajes más antiguos "
-                        f"de esta conversación: su historial llega a {HISTORY_MAX_CHARS} "
-                        "caracteres como mucho",
-                    )
-                )
+            history, history_chars = await self._history(session_id, session)
             output = ""
             # Read at each turn: a personality or skill changed in Settings
             # reaches the next turn of every conversation.
@@ -741,18 +453,12 @@ class OpenAIConnection:
                 usage_limits=UsageLimits(request_limit=MAX_MODEL_REQUESTS_PER_TURN),
             ) as events:
                 async for event in events:
-                    piece = ""
                     answered = answered or isinstance(
                         event, PartStartEvent | PartDeltaEvent | FunctionToolCallEvent
                     )
-                    await work.on(event)
-                    if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
-                        piece = event.part.content
-                    elif isinstance(event, PartDeltaEvent) and isinstance(
-                        event.delta, TextPartDelta
-                    ):
-                        piece = event.delta.content_delta
-                    elif isinstance(event, FunctionToolCallEvent):
+                    await steps.on(event)
+                    piece = _text_piece(event)
+                    if isinstance(event, FunctionToolCallEvent):
                         separate = bool(chunks)
                     elif isinstance(event, AgentRunResultEvent):
                         output = event.result.output
@@ -762,14 +468,14 @@ class OpenAIConnection:
                             piece, separate = "\n\n" + piece, False
                         chunks.append(piece)
                         await self.on_event(MessageChunk(session_id, piece))
-            await work.end_thought()
+            await steps.end_thought()
             answer = "".join(chunks) or output
             session.held += [("user", said), ("assistant", answer)]
             await self.on_event(MessageComplete(session_id, answer, "completed"))
         except asyncio.CancelledError:
             if self._closing:
                 raise
-            await work.end_thought()
+            await steps.end_thought()
             answer = "".join(chunks)
             session.held.append(("user", said))
             if answer:
@@ -781,7 +487,7 @@ class OpenAIConnection:
             report(
                 event="assistant_turn_failed", code=failure.code, device=self.device, exc_info=False
             )
-            await work.end_thought()
+            await steps.end_thought()
             # Kept for the next turn unless its image was refused: then the
             # model never read it, as Hermes never receives such a prompt.
             if refused is None:
@@ -789,6 +495,23 @@ class OpenAIConnection:
             await self.on_event(
                 TurnFailed(session_id, failure.code, failure.message, failure.numbers)
             )
+
+    async def _history(
+        self, session_id: str, session: _Session
+    ) -> tuple[list[ModelRequest | ModelResponse], int]:
+        """What the model is sent of the conversation, saying so when some is left out."""
+        history, history_chars = session.history()
+        if session.left_out:
+            await self.on_event(
+                StatusNotice(
+                    session_id,
+                    "warning",
+                    f"El asistente no recibe los {session.left_out} mensajes más antiguos "
+                    f"de esta conversación: su historial llega a {HISTORY_MAX_CHARS} "
+                    "caracteres como mucho",
+                )
+            )
+        return history, history_chars
 
     async def cancel(self, session_id: str) -> None:
         session = self._session(session_id)
@@ -877,107 +600,6 @@ def build_backend(
 
 
 # ---------------------------------------------------------------- voice
-
-
-class OpenAISpeech:
-    """Dictation by the hub's meeting transcriber; read-aloud by `speech`, if any."""
-
-    def __init__(self, agent: "AgentConfiguration", transcriber: MeetingTranscriber):
-        self.agent, self.settings, self.transcriber = agent, agent.settings, transcriber
-
-    async def transcribe(self, audio: bytes) -> str:
-        return (await self.transcriber.transcribe(audio)).text
-
-    async def synthesize(self, text: str) -> SpeechClip:
-        speech = self.settings.speech
-        if speech is None:
-            raise HubError(
-                "speech_not_configured",
-                f"{self.agent.name} («{self.agent.id}») no tiene voz para leer en voz alta: "
-                "falta [agents.speech] en su configuración",
-                http_status=503,
-                numbers={"agent_id": self.agent.id},
-            )
-        headers = {}
-        if speech.api_key_file is not None:
-            key = read_api_key(
-                f'agent "{self.agent.id}".speech', "api_key_file", speech.api_key_file
-            )
-            headers["Authorization"] = f"Bearer {key}"
-        try:
-            async with (
-                httpx.AsyncClient(
-                    timeout=httpx.Timeout(
-                        SPEECH_TIMEOUT_SECONDS, connect=SPEECH_CONNECT_TIMEOUT_SECONDS
-                    ),
-                    follow_redirects=False,
-                ) as client,
-                client.stream(
-                    "POST",
-                    speech.base_url + "/audio/speech",
-                    headers=headers,
-                    json={
-                        "model": speech.model,
-                        "voice": speech.voice,
-                        "input": text,
-                        "response_format": "mp3",
-                    },
-                ) as response,
-            ):
-                if response.status_code != 200:
-                    raise HubError(
-                        "speech_http_error",
-                        f"El servicio de voz ({speech.base_url}) devolvió HTTP "
-                        f"{response.status_code}",
-                        http_status=502,
-                        numbers={"provider_status": response.status_code},
-                    )
-                mime_type = response.headers.get("content-type", "").split(";")[0].strip()
-                if not mime_type.startswith("audio/") or len(mime_type) > 128:
-                    raise HubError(
-                        "speech_not_audio",
-                        f"El servicio de voz ({speech.base_url}) no devolvió audio",
-                        http_status=502,
-                    )
-                body = bytearray()
-                async for chunk in response.aiter_bytes():
-                    if len(chunk) > MAX_SPEECH_CLIP_BYTES - len(body):
-                        raise HubError(
-                            "speech_too_large",
-                            "El clip de voz supera el límite de 4 MiB",
-                            numbers={
-                                "bytes": len(body) + len(chunk),
-                                "max_bytes": MAX_SPEECH_CLIP_BYTES,
-                            },
-                        )
-                    body.extend(chunk)
-        except HubError:
-            raise
-        except httpx.TimeoutException as exc:
-            report(event="assistant_speech_failed", code="speech_timeout")
-            connecting = isinstance(exc, httpx.ConnectTimeout)
-            seconds = SPEECH_CONNECT_TIMEOUT_SECONDS if connecting else SPEECH_TIMEOUT_SECONDS
-            raise HubError(
-                "speech_timeout",
-                f"El servicio de voz ({speech.base_url}) no "
-                f"{'aceptó la conexión' if connecting else 'contestó'} en {seconds * 1000} ms",
-                http_status=504,
-                numbers={"timeout_ms": seconds * 1000},
-            ) from exc
-        except httpx.HTTPError as exc:
-            report(event="assistant_speech_failed", code="speech_unreachable")
-            raise HubError(
-                "speech_unreachable",
-                f"No se pudo conectar con el servicio de voz ({speech.base_url})",
-                http_status=503,
-            ) from exc
-        if not body:
-            raise HubError(
-                "speech_empty", "El servicio de voz entregó un clip vacío", http_status=502
-            )
-        # The Mac shows where a clip came from: the speech model, as printable ASCII.
-        provider = "".join(c if " " <= c <= "~" else "?" for c in speech.model)[:128]
-        return SpeechClip(mime_type, provider, bytes(body))
 
 
 def build_speech(hub: "Settings", agent: "AgentConfiguration") -> OpenAISpeech:

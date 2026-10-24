@@ -257,7 +257,7 @@ def atlas_voice(tmp_path, monkeypatch) -> tuple[list, object]:
         )
 
     monkeypatch.setattr(
-        "orbit_hub.assistant.hermes.httpx.AsyncClient",
+        "orbit_hub.assistant.hermes_speech.httpx.AsyncClient",
         lambda **kwargs: ORIGINAL_ASYNC_CLIENT(transport=httpx.MockTransport(reply), **kwargs),
     )
     token = tmp_path / "token"

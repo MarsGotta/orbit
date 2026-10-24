@@ -39,69 +39,47 @@ import asyncio
 import base64
 import json
 import os
-import shlex
 import signal
 import sys
 from collections.abc import Sequence
 from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from uuid import uuid4
 
 import acp
 from acp.core import ClientSideConnection
 from acp.schema import (
-    AgentMessageChunk,
-    AgentPlanUpdate,
-    AgentThoughtChunk,
-    AllowedOutcome,
     ClientCapabilities,
-    DeniedOutcome,
     EnvVariable,
     FileSystemCapabilities,
     ImageContentBlock,
     Implementation,
     McpServerStdio,
     PermissionOption,
-    RequestPermissionResponse,
-    SessionNotification,
     TextContentBlock,
-    ToolCallProgress,
-    ToolCallStart,
-    UsageUpdate,
 )
-from pydantic import ValidationError
 
 from ..errors import HubError
 from ..log import clear_op, report
+from .acp_client import AcpClient
+from .acp_connection import AcpConnection
+from .acp_instructions import write_instructions
 from .acp_settings import HOME_FOLDERS, AcpAgentSettings
+from .acp_transport import LineTransport
 from .agent_config import (
     MAX_INSTRUCTIONS_TEXT_BYTES,
-    AgentInstructions,
     instructions_text,
     no_instructions,
 )
 from .backend import (
-    ActivityItem,
     Capabilities,
-    ClarificationReceipt,
     ContentBlock,
     EventSink,
     ImageBlock,
-    MessageChunk,
     MessageComplete,
-    OpenedSession,
-    PermissionReceipt,
-    PermissionRequest,
-    PermissionRequested,
-    PlanStep,
-    RequestExpired,
-    ResumedSession,
     TextBlock,
     TurnFailed,
-    UnreadableUpdate,
 )
-from .deletion import Deletion, command_deletion
 
 if TYPE_CHECKING:
     from ..config import Settings
@@ -133,8 +111,6 @@ STOP_GRACE_SECONDS = 2
 MAX_AGENT_REASON_CHARS = 300
 
 AUTH_REQUIRED = acp.RequestError.auth_required().code
-# JSON-RPC's "method not found", for what the hub does not offer an agent.
-NOT_OFFERED = -32601
 # ACP's stop reasons for a turn the agent ended before finishing its answer.
 UNFINISHED = {
     "max_tokens": "llegó a su máximo de tokens de respuesta antes de terminar",
@@ -184,7 +160,7 @@ class AcpBackend:
 
     # Images go as ACP image blocks to an agent that declares
     # `promptCapabilities.image`; to one that does not, the turn names them
-    # for `orbit_attachment` instead (`_AgentProcess.turn_prompt`). Resume is
+    # for `orbit_attachment` instead (`AgentProcess.turn_prompt`). Resume is
     # `session/load`, refused with its cause by an agent that lacks it. History:
     # the agent keeps each conversation and replays it itself on load, which is
     # over when it answers, so the resume says so and no `HistoryLoaded` follows.
@@ -200,7 +176,7 @@ class AcpBackend:
         self.folder = hub.data_dir / "agents" / agent.id
         self.config_dir = self.folder / HOME_FOLDERS[self.settings.agent]
         # Every running process, the one used longest ago first.
-        self.processes: list[_AgentProcess] = []
+        self.processes: list[AgentProcess] = []
         self._admission = asyncio.Lock()
         # What the agent's processes learn of its account goes to the
         # registry (`Agents.observe`), which sets this.
@@ -272,7 +248,7 @@ class AcpBackend:
                 # mkdir's mode passes through the umask; the folder is private.
                 path.chmod(0o700)
 
-    async def start(self, connection: "AcpConnection") -> "_AgentProcess":
+    async def start(self, connection: "AcpConnection") -> "AgentProcess":
         """A started, initialized process, retiring an idle one at the ceiling."""
         async with self._admission:
             if len(self.processes) >= MAX_AGENT_PROCESSES:
@@ -289,7 +265,7 @@ class AcpBackend:
             self.prepare_folder()
             if self.settings.agent == "codex":
                 write_instructions(self.folder, self.instructions())
-            process = _AgentProcess(self, connection)
+            process = AgentProcess(self, connection)
             self.processes.append(process)
         try:
             await process.start()
@@ -298,121 +274,17 @@ class AcpBackend:
             raise
         return process
 
-    def used(self, process: "_AgentProcess") -> None:
+    def used(self, process: "AgentProcess") -> None:
         if process in self.processes:
             self.processes.remove(process)
             self.processes.append(process)
-
-
-# What Codex reads from its folder, its `cwd`: every AGENTS.md from the
-# project root down to it, concatenated (Codex 0.160.1, `agents_md.rs`).
-INSTRUCTIONS_FILE = "AGENTS.md"
-
-
-def write_instructions(folder: Path, current: AgentInstructions) -> None:
-    """Write what Codex is told into its folder's AGENTS.md, or remove it.
-
-    No skills folder is written: Codex lists a folder's skills by path and
-    opens them with its shell, which the lock-down removes, so each skill
-    reaches it through `orbit_skill` instead. The file is written whole or
-    not at all (a temporary file, synced, then renamed over the old one), and
-    a symbolic link in its place is refused rather than followed. The folder
-    is the hub's alone.
-
-    The agent's folder is private (`0700`, see `prepare_folder`); the file
-    is `0644`, so an agent run as a separate system user with access to its
-    folder can read it (docs/self-hosting.md).
-    """
-    path = folder / INSTRUCTIONS_FILE
-    told = instructions_text(current)
-    if told is not None:
-        _write_whole(path, told)
-    elif path.is_symlink() or path.exists():
-        path.unlink()
-
-
-def _write_whole(path: Path, text: str) -> None:
-    if path.is_symlink():
-        raise HubError("agent_folder_invalid", f"{path} es un enlace: no se escribe")
-    temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
-    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
-    try:
-        with os.fdopen(descriptor, "wb") as handle:
-            # The umask may have narrowed the mode; the agent's user must read it.
-            os.fchmod(handle.fileno(), 0o644)
-            handle.write(text.encode("utf-8"))
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    except BaseException:
-        with suppress(FileNotFoundError):
-            temporary.unlink()
-        raise
-
-
-class _LineTransport:
-    """ACP's newline-delimited JSON over an agent's stdio, with a ceiling per message.
-
-    The SDK's own transport reads a line of any length; this one stops at
-    `MAX_AGENT_MESSAGE_BYTES` (the stream's limit) and ends the connection,
-    recording why.
-
-    It also drops a `session/update` the SDK could not read (a kind newer than
-    its schema): the SDK would log the validation error on the root logger,
-    and that error quotes the update, which is what the agent said. Here it is
-    counted by its code alone.
-    """
-
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-        self.reader, self.writer = reader, writer
-        self.overrun = False
-        self._sending = asyncio.Lock()
-
-    async def send(self, message: dict[str, Any]) -> None:
-        data = (json.dumps(message, separators=(",", ":")) + "\n").encode()
-        async with self._sending:
-            self.writer.write(data)
-            await self.writer.drain()
-
-    async def receive(self) -> dict[str, Any] | None:
-        while True:
-            try:
-                line = await self.reader.readuntil(b"\n")
-            except asyncio.LimitOverrunError:
-                self.overrun = True
-                return None
-            except asyncio.IncompleteReadError as exc:
-                line = exc.partial
-                if not line.strip():
-                    return None
-            if not line.strip():
-                continue
-            try:
-                message = json.loads(line)
-            except ValueError:
-                report("acp_message_unreadable", "upstream_protocol", exc_info=False)
-                continue
-            if not isinstance(message, dict):
-                continue
-            if message.get("method") == "session/update" and "id" not in message:
-                try:
-                    SessionNotification.model_validate(message.get("params"))
-                except ValidationError:
-                    report("acp_update_unreadable", "upstream_protocol", exc_info=False)
-                    continue
-            return message
-
-    async def close(self) -> None:
-        with suppress(OSError, RuntimeError):
-            if not self.writer.is_closing():
-                self.writer.close()
 
 
 def _ignore(fact: str, **values: Any) -> None:
     return None
 
 
-class _AgentProcess:
+class AgentProcess(AcpClient):
     """One adapter process holding one ACP session; the SDK's `Client` for it."""
 
     def __init__(self, backend: AcpBackend, connection: "AcpConnection"):
@@ -420,7 +292,7 @@ class _AgentProcess:
         # When the plan's limit resets, if the adapter said in this turn.
         self.limit_resets_ms: int | None = None
         self.process: asyncio.subprocess.Process | None = None
-        self.transport: _LineTransport | None = None
+        self.transport: LineTransport | None = None
         self.peer: ClientSideConnection | None = None
         self.watcher: asyncio.Task | None = None
         self.can_load = False
@@ -439,10 +311,6 @@ class _AgentProcess:
         # Permission requests the agent waits on: request id -> (answer, options).
         self.permissions: dict[str, tuple[asyncio.Future, list[PermissionOption]]] = {}
         self.stopped = False
-
-    @property
-    def name(self) -> str:
-        return self.backend.agent_name
 
     @property
     def idle(self) -> bool:
@@ -474,7 +342,7 @@ class _AgentProcess:
             raise self.refusal("agent_start_failed", "no arranca: sin permiso de ejecución") from exc  # fmt: skip
         except OSError as exc:
             raise self.refusal("agent_start_failed", f"no arranca: {exc.strerror}") from exc
-        self.transport = _LineTransport(self.process.stdout, self.process.stdin)
+        self.transport = LineTransport(self.process.stdout, self.process.stdin)
         self.peer = ClientSideConnection(self, self.transport)
         self.watcher = asyncio.create_task(self.watch())
         try:
@@ -684,33 +552,6 @@ class _AgentProcess:
         # ACP: the client answers each pending permission of a cancelled turn `cancelled`.
         await self.expire_permissions()
 
-    async def expire_permissions(self) -> None:
-        pending, self.permissions = self.permissions, {}
-        for request_id, (answer, _options) in pending.items():
-            if not answer.done():
-                answer.set_result(_cancelled())
-                await self.connection.emit(RequestExpired(self.session_id, request_id))
-
-    def answer_permission(self, request_id: str, choice: str) -> PermissionReceipt:
-        entry = self.permissions.get(request_id)
-        if entry is None or entry[0].done():
-            self.permissions.pop(request_id, None)
-            return PermissionReceipt(applied=False)
-        answer, options = entry
-        option = _option(options, CHOICES.get(choice, ()))
-        if option is None:
-            raise HubError(
-                "permission_choice_unavailable",
-                f"El agente «{self.name}» no ofrece «{choice[:64]}» en esta petición",
-            )
-        del self.permissions[request_id]
-        answer.set_result(
-            RequestPermissionResponse(
-                outcome=AllowedOutcome(outcome="selected", option_id=option.option_id)
-            )
-        )
-        return PermissionReceipt(applied=True)
-
     async def stop(self) -> None:
         if self.stopped:
             return
@@ -740,348 +581,6 @@ class _AgentProcess:
             if task is not None and task is not current:
                 await asyncio.gather(task, return_exceptions=True)
 
-    # The SDK's `Client`: what the agent may ask of the hub.
-
-    async def session_update(self, session_id: str, update: Any, **_meta: Any) -> None:
-        # Outside a turn (a load's replay included) an update belongs to no turn.
-        if self.turn is None or session_id != self.session_id:
-            return
-        if isinstance(update, UsageUpdate):
-            self.rate_limit(update.field_meta)
-            return
-        if not isinstance(update, AgentThoughtChunk):
-            await self.end_thought(session_id)
-        if isinstance(update, AgentMessageChunk):
-            if isinstance(update.content, TextContentBlock):
-                self.text.append(update.content.text)
-                await self.connection.emit(MessageChunk(session_id, update.content.text))
-            else:
-                ignored = "El agente envió contenido que no es texto; se ignoró"
-                await self.connection.emit(UnreadableUpdate(session_id, ignored))
-        elif isinstance(update, ToolCallStart):
-            name = _tool_name(update.title, update.field_meta)
-            arguments = update.raw_input if isinstance(update.raw_input, dict) else None
-            self.tools[update.tool_call_id] = (name, arguments)
-            phase = TOOL_PHASES.get(update.status or "pending", "started")
-            await self.connection.emit(
-                ActivityItem(
-                    session_id,
-                    update.tool_call_id,
-                    "tool",
-                    "started" if phase == "progress" else phase,
-                    name,
-                    arguments,
-                    cause=_tool_cause(update) if phase == "failed" else None,
-                )
-            )
-        elif isinstance(update, ToolCallProgress):
-            name, arguments = self.tools.get(update.tool_call_id, (None, None))
-            if name is None:
-                name = _tool_name(update.title or "", update.field_meta)
-            phase = TOOL_PHASES.get(update.status or "in_progress", "progress")
-            await self.connection.emit(
-                ActivityItem(
-                    session_id,
-                    update.tool_call_id,
-                    "tool",
-                    phase,
-                    name,
-                    arguments,
-                    cause=_tool_cause(update) if phase == "failed" else None,
-                )
-            )
-        elif isinstance(update, AgentPlanUpdate):
-            steps = tuple(PlanStep(entry.content, entry.status) for entry in update.entries)
-            if steps and all(step.status == "completed" for step in steps):
-                phase = "completed"
-            else:
-                phase = "progress" if self.planned else "started"
-            self.planned = True
-            await self.connection.emit(ActivityItem(session_id, "plan", "plan", phase, steps=steps))
-        elif isinstance(update, AgentThoughtChunk) and isinstance(update.content, TextContentBlock):
-            if self.thought_id is None:
-                self.thought_id = f"reasoning-{uuid4()}"
-                await self.connection.emit(
-                    ActivityItem(session_id, self.thought_id, "reasoning", "started")
-                )
-            self.thought.append(update.content.text)
-
-    async def end_thought(self, session_id: str) -> None:
-        """A streamed thought ends when anything else arrives: its whole text
-        is the reasoning item's summary, folded in the chat."""
-        if self.thought_id is None:
-            return
-        item_id, text = self.thought_id, "".join(self.thought)
-        self.thought, self.thought_id = [], None
-        await self.connection.emit(
-            ActivityItem(session_id, item_id, "reasoning", "completed", text=text)
-        )
-
-    async def request_permission(
-        self, session_id: str, tool_call: Any, options: list[PermissionOption], **_meta: Any
-    ) -> RequestPermissionResponse:
-        if session_id != self.session_id or self.turn is None:
-            return _cancelled()
-        await self.end_thought(session_id)
-        request_id = str(uuid4())
-        answer = asyncio.get_running_loop().create_future()
-        self.permissions[request_id] = (answer, options)
-        choices = tuple(
-            choice for choice, kinds in CHOICES.items() if _option(options, kinds) is not None
-        )
-        description = tool_call.title or f"El agente «{self.name}» pide permiso"
-        await self.connection.emit(
-            PermissionRequested(
-                session_id,
-                PermissionRequest(request_id, description, choices, _tool_deletion(tool_call)),
-            )
-        )
-        return await answer
-
-    async def read_text_file(self, **_params: Any) -> None:
-        raise _not_offered("fs/read_text_file", "fs")
-
-    async def write_text_file(self, **_params: Any) -> None:
-        raise _not_offered("fs/write_text_file", "fs")
-
-    async def create_terminal(self, **_params: Any) -> None:
-        raise _not_offered("terminal/create", "terminal")
-
-    async def terminal_output(self, **_params: Any) -> None:
-        raise _not_offered("terminal/output", "terminal")
-
-    async def release_terminal(self, **_params: Any) -> None:
-        raise _not_offered("terminal/release", "terminal")
-
-    async def wait_for_terminal_exit(self, **_params: Any) -> None:
-        raise _not_offered("terminal/wait_for_exit", "terminal")
-
-    async def kill_terminal(self, **_params: Any) -> None:
-        raise _not_offered("terminal/kill", "terminal")
-
-    async def create_elicitation(self, **_params: Any) -> None:
-        raise _not_offered("elicitation/create", "elicitation")
-
-    async def ext_method(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
-        raise _not_offered(f"_{method}", "extensiones")
-
-    async def ext_notification(self, method: str, params: dict[str, Any]) -> None:
-        # Both adapters say which account they run with after starting, at
-        # each session and at each turn: `{authStatus: {kind, label,
-        # account: {email, plan}}}`. Nothing else of it is kept.
-        if method != "auth/status_update" or not isinstance(params, dict):
-            return
-        status = params.get("authStatus")
-        if not isinstance(status, dict) or not isinstance(status.get("kind"), str):
-            return
-        account = status.get("account") if isinstance(status.get("account"), dict) else {}
-        self.backend.observe(
-            "status",
-            kind=status["kind"],
-            email=_short_text(account.get("email"), MAX_ACCOUNT_EMAIL_BYTES),
-            plan=_short_text(account.get("plan"), MAX_PLAN_BYTES)
-            or _short_text(status.get("label"), MAX_PLAN_BYTES),
-        )
-        return
-
-    def rate_limit(self, meta: Any) -> None:
-        """Claude Code's report of its plan's limit (`_claude/rateLimit`, the
-        Agent SDK's `SDKRateLimitInfo`): the share used of a window, as a
-        fraction, and when it resets, in seconds. Sent when it changes, and
-        only for a claude.ai subscription. Codex sends nothing of the kind."""
-        info = meta.get("_claude/rateLimit") if isinstance(meta, dict) else None
-        if not isinstance(info, dict):
-            return
-        resets = info.get("resetsAt")
-        resets_ms = round(resets * 1000) if isinstance(resets, int | float) else None
-        if info.get("status") == "rejected":
-            self.limit_resets_ms = resets_ms
-        used = info.get("utilization")
-        if isinstance(used, int | float) and not isinstance(used, bool) and 0 <= used <= 1:
-            window = info.get("rateLimitType")
-            self.backend.observe(
-                "usage",
-                used_percent=round(used * 100),
-                window=window if isinstance(window, str) and len(window) <= 64 else None,
-                resets_at_ms=resets_ms,
-            )
-
-
-class AcpConnection:
-    """One device's sessions with the agent, each in a process of its own.
-
-    No connection is shared, so none is lost: a process that ends takes only
-    its session, whose id leaves `live_sessions`; the next turn reloads it.
-    """
-
-    def __init__(self, backend: AcpBackend, on_event: EventSink):
-        self.backend, self.on_event = backend, on_event
-        self.epoch = ""
-        self.live_sessions: set[str] = set()
-        self._sessions: dict[str, _AgentProcess] = {}
-        self._open = False
-
-    @property
-    def connected(self) -> bool:
-        return self._open
-
-    async def open(self) -> None:
-        self.epoch = uuid4().hex
-        self._open = True
-
-    async def close(self) -> None:
-        self._open = False
-        mine = [process for process in self.backend.processes if process.connection is self]
-        for process in [*self._sessions.values(), *mine]:
-            await process.stop()
-
-    async def emit(self, event) -> None:
-        await self.on_event(event)
-
-    def forget(self, process: _AgentProcess) -> None:
-        if process.session_id is not None and self._sessions.get(process.session_id) is process:
-            del self._sessions[process.session_id]
-            self.live_sessions.discard(process.session_id)
-
-    async def create_session(self) -> OpenedSession:
-        process = await self.backend.start(self)
-        try:
-            session_id = await process.new_session()
-        except BaseException:
-            await process.stop()
-            raise
-        self._hold(process)
-        return OpenedSession(session_id, session_id)
-
-    async def resume_session(self, stored_id: str) -> ResumedSession:
-        if (held := self._sessions.get(stored_id)) is not None:
-            await held.stop()
-        process = await self.backend.start(self)
-        try:
-            await process.load_session(stored_id)
-        except BaseException:
-            await process.stop()
-            raise
-        self._hold(process)
-        return ResumedSession(stored_id, stored_id, None, False)
-
-    def _hold(self, process: _AgentProcess) -> None:
-        self._sessions[process.session_id] = process
-        self.live_sessions.add(process.session_id)
-
-    def _live(self, session_id: str) -> _AgentProcess:
-        process = self._sessions.get(session_id)
-        if process is None:
-            raise HubError(
-                "session_runtime_not_found",
-                f"El agente «{self.backend.agent_name}» ya no tiene esa sesión activa; "
-                "el mensaje no se aceptó y puedes volver a enviarlo",
-            )
-        return process
-
-    async def prompt(self, session_id: str, blocks: Sequence[ContentBlock]) -> None:
-        process = self._live(session_id)
-        process.start_turn(process.turn_prompt(blocks))
-
-    async def cancel(self, session_id: str) -> None:
-        await self._live(session_id).cancel()
-
-    async def respond_permission(
-        self, session_id: str, request_id: str, *, choice: str
-    ) -> PermissionReceipt:
-        return self._live(session_id).answer_permission(request_id, choice)
-
-    async def respond_clarification(
-        self, session_id: str, request_id: str, answer: str, question_id: str | None
-    ) -> ClarificationReceipt:
-        raise HubError(
-            "clarification_unsupported",
-            f"El agente «{self.backend.agent_name}» no pide aclaraciones: ACP v1 no las tiene",
-        )
-
-    async def turn_stopped(self, session_id: str) -> bool:
-        # A session without a process runs nothing; one with a process, only its task.
-        process = self._sessions.get(session_id)
-        return process is None or process.turn is None
-
-
-# The Mac's choices (contracts/hub-v1.md) and the ACP option kinds each
-# answers with, the first the agent offers. `always` is the agent's own
-# remembered permission for that tool (Claude Code keeps it in its session);
-# `deny` refuses this once, never for good.
-CHOICES: dict[str, tuple[str, ...]] = {
-    "once": ("allow_once",),
-    "always": ("allow_always",),
-    "deny": ("reject_once", "reject_always"),
-}
-# ACP's tool call status as a `chat.item` phase.
-TOOL_PHASES = {
-    "pending": "started",
-    "in_progress": "progress",
-    "completed": "completed",
-    "failed": "failed",
-}
-
-
-def _tool_deletion(tool_call: Any) -> Deletion | None:
-    """What a tool call deletes: ACP's own `delete` kind (with a path per
-    location), or a command line in its input (`command`, a string or the
-    words of one, as claude-agent-acp and codex-acp send it)."""
-    if getattr(tool_call, "kind", None) == "delete":
-        locations = getattr(tool_call, "locations", None) or []
-        return Deletion(paths=len(locations) or None)
-    raw = getattr(tool_call, "raw_input", None)
-    command = raw.get("command") if isinstance(raw, dict) else None
-    if isinstance(command, list) and all(isinstance(word, str) for word in command):
-        command = shlex.join(command)
-    return command_deletion(command) if isinstance(command, str) else None
-
-
-def _tool_name(title: str, meta: dict | None) -> str:
-    """The tool a call runs. claude-agent-acp names it in `_meta.claudeCode.toolName`;
-    otherwise the title, which the adapters set to the tool's name for MCP tools."""
-    claude = meta.get("claudeCode") if isinstance(meta, dict) else None
-    named = claude.get("toolName") if isinstance(claude, dict) else None
-    return named if isinstance(named, str) and named else title
-
-
-def _tool_cause(update: Any) -> str | None:
-    """A failed call's text content, else its raw output, as the agent said it."""
-    texts = [
-        item.content.text
-        for item in update.content or []
-        if getattr(item, "type", None) == "content"
-        and isinstance(getattr(item, "content", None), TextContentBlock)
-    ]
-    if texts:
-        return " ".join(texts)
-    output = update.raw_output
-    if isinstance(output, str):
-        return output
-    return json.dumps(output, ensure_ascii=False) if output is not None else None
-
-
-def _option(options: list[PermissionOption], kinds: tuple[str, ...]) -> PermissionOption | None:
-    for kind in kinds:
-        for option in options:
-            if option.kind == kind:
-                return option
-    return None
-
-
-def _cancelled() -> RequestPermissionResponse:
-    return RequestPermissionResponse(outcome=DeniedOutcome(outcome="cancelled"))
-
-
-def _not_offered(method: str, capability: str) -> acp.RequestError:
-    report("acp_client_method_refused", method, exc_info=False)
-    return acp.RequestError(
-        NOT_OFFERED,
-        f"Orbit no ofrece {method}: el hub no declara la capacidad «{capability}»; "
-        "usa las herramientas de Orbit",
-        {"method": method},
-    )
-
 
 # What tells a plan's limit apart from other refusals of a turn: Codex's
 # `codexErrorInfo` and Claude Code's `errorKind`, in the `-32603` refusal's
@@ -1105,27 +604,6 @@ def _limit_reason(exc: acp.RequestError) -> str:
     if len(text) <= MAX_AGENT_REASON_CHARS:
         return text
     return text[: MAX_AGENT_REASON_CHARS - 1] + "…"
-
-
-# What the adapter says of its account, kept and published to every Mac in
-# `ready` and `agents.changed`. What they protect: each Mac's status topic,
-# which carries every agent (orbit-core `TopicId::Status`). Why these sizes:
-# an address of 128 bytes and a plan's name of 64 hold any real one
-# («ChatGPT Plus», «Claude Pro»); a longer one is dropped, not cut.
-MAX_ACCOUNT_EMAIL_BYTES = 128
-MAX_PLAN_BYTES = 64
-
-
-def _short_text(value: Any, max_bytes: int) -> str | None:
-    """A label the adapter gives, kept if it is printable text within `max_bytes`."""
-    if (
-        isinstance(value, str)
-        and value
-        and value.isprintable()
-        and len(value.encode("utf-8")) <= max_bytes
-    ):
-        return value
-    return None
 
 
 def _reason(exc: acp.RequestError) -> str:

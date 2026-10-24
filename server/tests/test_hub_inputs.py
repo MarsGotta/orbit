@@ -5,7 +5,7 @@ from pydantic import ValidationError
 from support_review_regressions import reviewed as reviewed  # noqa: PLC0414
 from support_review_regressions import runtime_fixture
 
-import orbit_hub.assistant.hermes as hermes_module
+from orbit_hub.assistant import hermes_events
 
 
 def test_omitted_screenshot_filters_are_absent():
@@ -44,7 +44,7 @@ async def test_malformed_hermes_interaction_preserves_live_reader_and_snapshots(
 ):
     runtime, session, _, upstream = await runtime_fixture(reviewed)
     logged = []
-    monkeypatch.setattr(hermes_module, "report", lambda *args, **kwargs: logged.append(kwargs))
+    monkeypatch.setattr(hermes_events, "report", lambda *args, **kwargs: logged.append(kwargs))
     queue = runtime.subscribe()
     assert queue.get_nowait()["event"] == "state.snapshot"
     await runtime.connections["default"].receive(
@@ -69,10 +69,10 @@ async def test_malformed_hermes_interaction_preserves_live_reader_and_snapshots(
 @pytest.mark.parametrize("tool", ["á", "工具", "x" * 129])
 def test_action_tool_name_uses_the_macs_ascii_byte_contract(tool):
     from orbit_mcp.hub import HubClientError
-    from orbit_mcp.server import _general_action
+    from orbit_mcp.tools.control import general_action
 
     with pytest.raises(HubClientError) as error:
-        _general_action({"tool": tool, "arguments": {}})
+        general_action({"tool": tool, "arguments": {}})
     assert error.value.code == "invalid_parameters"
     assert error.value.detail["refusal"]["bytes"] == len(tool.encode("utf-8"))
     assert error.value.detail["refusal"]["max_bytes"] == 128

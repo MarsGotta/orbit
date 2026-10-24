@@ -248,10 +248,10 @@ async def test_missing_hermes_history_has_a_specific_refusal(environment):
 async def test_deferred_resume_history_failure_is_reported_and_next_turn_reopens(
     environment, monkeypatch
 ):
-    from orbit_hub.assistant import hermes as hermes_module
+    from orbit_hub.assistant import hermes_events
 
     monkeypatch.setattr(
-        hermes_module, "RESUME_HISTORY_ERROR_PREFIX", "Synthetic unreadable transcript."
+        hermes_events, "RESUME_HISTORY_ERROR_PREFIX", "Synthetic unreadable transcript."
     )
     _, store, _ = environment
     adapter = ResumableAdapter()
