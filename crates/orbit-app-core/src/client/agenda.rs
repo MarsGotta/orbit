@@ -259,21 +259,8 @@ pub(super) async fn hydrate_agenda(
     daemon: &LocalClient,
     topics: &RwLock<crate::topics::TopicCache>,
 ) {
-    let (revision, window) = {
-        let cache = topics.read().await;
-        let Some(head) = cache.topic(TopicId::Agenda) else {
-            return;
-        };
-        let TopicData::Agenda(Knowledge::Present { value, .. }) = &head.knowledge else {
-            return;
-        };
-        if value.read_id.is_none() {
-            return;
-        }
-        let Some(window) = value.read_window else {
-            return;
-        };
-        (head.revision, window)
+    let Some((revision, window)) = read_agenda_window(topics).await else {
+        return;
     };
     let mut cursor = None;
     let mut visited = Vec::new();
@@ -283,66 +270,34 @@ pub(super) async fn hydrate_agenda(
             end_ms: window.end_unix_ms,
             cursor,
         };
-        let response = match daemon.read_topic(request.clone()).await {
-            Ok(response) => response,
-            Err(error) => {
-                refuse_agenda_read(
-                    topics,
-                    &request,
-                    revision,
-                    format!("AgendaRange: no se pudo leer la ventana: {error}"),
-                )
-                .await;
-                return;
-            }
+        let page = AgendaPage {
+            name: "AgendaRange",
+            subject: "la ventana",
+            revision,
         };
-        if response.revisions.get(&TopicId::Agenda) != Some(&revision) {
-            return;
-        }
-        if response.read != Some(request.id()) {
-            refuse_agenda_read(
-                topics,
-                &request,
-                revision,
-                format!(
-                    "AgendaRange: respuesta para {:?}, se pidió {:?}",
-                    response.read,
-                    request.id()
-                ),
-            )
-            .await;
-            return;
-        }
-        let Some(answer) = response.answer else {
-            refuse_agenda_read(
-                topics,
-                &request,
-                revision,
-                "AgendaRange: falta la respuesta del daemon".into(),
-            )
-            .await;
+        let Some(next) = page.read(daemon, topics, &request).await else {
             return;
         };
-        let next = match &answer {
-            Knowledge::Present { value, .. } => value.next.clone(),
-            Knowledge::Absent { .. } | Knowledge::Unknown { .. } => None,
-        };
-        if !topics
-            .write()
-            .await
-            .remember_read(&request, TopicId::Agenda, answer)
-        {
+        if visited.contains(&next) {
             return;
         }
-        match next {
-            Some(next) if !visited.contains(&next) => {
-                visited.push(next.clone());
-                cursor = Some(next);
-            }
-            Some(_) => return,
-            None => return,
-        }
+        visited.push(next.clone());
+        cursor = Some(next);
     }
+}
+
+/// The revision and window of the agenda the daemon last read, when it has
+/// read one: the window whose events are worth hydrating.
+async fn read_agenda_window(
+    topics: &RwLock<crate::topics::TopicCache>,
+) -> Option<(u64, CalendarWindow)> {
+    let cache = topics.read().await;
+    let head = cache.topic(TopicId::Agenda)?;
+    let TopicData::Agenda(Knowledge::Present { value, .. }) = &head.knowledge else {
+        return None;
+    };
+    value.read_id.as_ref()?;
+    Some((head.revision, value.read_window?))
 }
 
 pub(super) async fn hydrate_agenda_calendars(
@@ -365,45 +320,67 @@ pub(super) async fn hydrate_agenda_calendars(
         let request = ReadRequest::AgendaCalendars {
             cursor: cursor.clone(),
         };
+        let page = AgendaPage {
+            name: "AgendaCalendars",
+            subject: "la lista",
+            revision,
+        };
+        let Some(next) = page.read(daemon, topics, &request).await else {
+            return;
+        };
+        if !matches!(next, orbit_core::topics::Cursor::Id { .. }) || visited.contains(&next) {
+            return;
+        }
+        visited.push(next.clone());
+        cursor = Some(next);
+    }
+}
+
+/// One page of an agenda read made at the agenda's `revision`.
+struct AgendaPage {
+    /// The read's name in a refusal (`AgendaRange`).
+    name: &'static str,
+    /// What the read reads, in a refusal (`la ventana`).
+    subject: &'static str,
+    revision: u64,
+}
+
+impl AgendaPage {
+    /// Reads and remembers one page, returning the cursor of the next one.
+    /// `None` ends the read: the agenda moved past the revision, the cache
+    /// refused the answer, the reply was unusable (remembered as a refusal),
+    /// or there is no next page.
+    async fn read(
+        &self,
+        daemon: &LocalClient,
+        topics: &RwLock<crate::topics::TopicCache>,
+        request: &ReadRequest,
+    ) -> Option<orbit_core::topics::Cursor> {
+        let (name, revision) = (self.name, self.revision);
         let response = match daemon.read_topic(request.clone()).await {
             Ok(response) => response,
             Err(error) => {
-                refuse_agenda_read(
-                    topics,
-                    &request,
-                    revision,
-                    format!("AgendaCalendars: no se pudo leer la lista: {error}"),
-                )
-                .await;
-                return;
+                let cause = format!("{name}: no se pudo leer {}: {error}", self.subject);
+                refuse_agenda_read(topics, request, revision, cause).await;
+                return None;
             }
         };
         if response.revisions.get(&TopicId::Agenda) != Some(&revision) {
-            return;
+            return None;
         }
         if response.read != Some(request.id()) {
-            refuse_agenda_read(
-                topics,
-                &request,
-                revision,
-                format!(
-                    "AgendaCalendars: respuesta para {:?}, se pidió {:?}",
-                    response.read,
-                    request.id()
-                ),
-            )
-            .await;
-            return;
+            let cause = format!(
+                "{name}: respuesta para {:?}, se pidió {:?}",
+                response.read,
+                request.id()
+            );
+            refuse_agenda_read(topics, request, revision, cause).await;
+            return None;
         }
         let Some(answer) = response.answer else {
-            refuse_agenda_read(
-                topics,
-                &request,
-                revision,
-                "AgendaCalendars: falta la respuesta del daemon".into(),
-            )
-            .await;
-            return;
+            let cause = format!("{name}: falta la respuesta del daemon");
+            refuse_agenda_read(topics, request, revision, cause).await;
+            return None;
         };
         let next = match &answer {
             Knowledge::Present { value, .. } => value.next.clone(),
@@ -412,17 +389,11 @@ pub(super) async fn hydrate_agenda_calendars(
         if !topics
             .write()
             .await
-            .remember_read(&request, TopicId::Agenda, answer)
+            .remember_read(request, TopicId::Agenda, answer)
         {
-            return;
+            return None;
         }
-        match next {
-            Some(next @ orbit_core::topics::Cursor::Id { .. }) if !visited.contains(&next) => {
-                visited.push(next.clone());
-                cursor = Some(next);
-            }
-            Some(_) | None => return,
-        }
+        next
     }
 }
 

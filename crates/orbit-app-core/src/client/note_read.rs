@@ -172,6 +172,10 @@ fn settled(document: &MeetingDocument) -> Option<(orbit_core::notes::TranscriptS
     .then_some((transcript.state, transcript.failed_groups.len()))
 }
 
+/// A note's read: its document with its turns or why they were not read,
+/// or why the note was not read at all.
+type NoteRead = Result<(MeetingDocument, Result<Vec<Turn>, String>), Unread>;
+
 impl DaemonClient {
     /// The change counter the Notes topic gives this note now.
     pub(super) async fn note_changed_at(&self, recording_id: &str) -> u64 {
@@ -205,51 +209,12 @@ impl DaemonClient {
     }
 
     async fn read_note(&self, recording_id: String, opened: bool) -> Result<AppSnapshot, AppError> {
-        let ticket = {
-            let mut target = self.inner.note_target.lock().await;
-            if target.0 != recording_id {
-                target.0.clone_from(&recording_id);
-            }
-            target.1 = target.1.wrapping_add(1);
-            target.1
-        };
+        let ticket = self.target_note(&recording_id).await;
         let revision = self.note_changed_at(&recording_id).await;
         if opened {
             self.show_loading(&recording_id, revision);
         }
-        let mut reading = self.inner.note_io.lock().await;
-        let read = match read_document(&self.inner.daemon, &recording_id).await {
-            Ok(document) => {
-                let shape = settled(&document);
-                let kept = reading
-                    .as_ref()
-                    .filter(|kept| {
-                        !opened && kept.recording_id == recording_id && Some(kept.shape) == shape
-                    })
-                    .map(|kept| kept.turns.clone());
-                let turns = match kept {
-                    Some(turns) => Ok(turns),
-                    None => read_turns(&self.inner.daemon, &recording_id).await,
-                };
-                *reading = match (&turns, shape) {
-                    (Ok(turns), Some(shape)) => Some(SettledTurns {
-                        recording_id: recording_id.clone(),
-                        shape,
-                        turns: turns.clone(),
-                    }),
-                    _ => None,
-                };
-                // Turns that failed still show the document; a meeting
-                // gone between the two reads is gone.
-                match turns {
-                    Ok(turns) => Ok((document, Ok(turns))),
-                    Err(Unread::Failed(cause)) => Ok((document, Err(cause))),
-                    Err(Unread::Gone) => Err(Unread::Gone),
-                }
-            }
-            Err(unread) => Err(unread),
-        };
-        drop(reading);
+        let read = self.fetch_note(&recording_id, opened).await;
         let library = self
             .local_snapshot()
             .notes
@@ -303,6 +268,55 @@ impl DaemonClient {
                     read.detail = Some(cause);
                 }
             })),
+        }
+    }
+
+    /// Makes `recording_id` the note being read and returns this read's
+    /// ticket: a read whose ticket is no longer the target lands nowhere.
+    async fn target_note(&self, recording_id: &str) -> u64 {
+        let mut target = self.inner.note_target.lock().await;
+        if target.0 != recording_id {
+            target.0 = recording_id.to_owned();
+        }
+        target.1 = target.1.wrapping_add(1);
+        target.1
+    }
+
+    /// Reads the note's document and its turns, one note read at a time.
+    /// The turns of a settled transcript are kept from the last read of the
+    /// same note, unless the user opened it again.
+    async fn fetch_note(&self, recording_id: &str, opened: bool) -> NoteRead {
+        let mut reading = self.inner.note_io.lock().await;
+        match read_document(&self.inner.daemon, recording_id).await {
+            Ok(document) => {
+                let shape = settled(&document);
+                let kept = reading
+                    .as_ref()
+                    .filter(|kept| {
+                        !opened && kept.recording_id == recording_id && Some(kept.shape) == shape
+                    })
+                    .map(|kept| kept.turns.clone());
+                let turns = match kept {
+                    Some(turns) => Ok(turns),
+                    None => read_turns(&self.inner.daemon, recording_id).await,
+                };
+                *reading = match (&turns, shape) {
+                    (Ok(turns), Some(shape)) => Some(SettledTurns {
+                        recording_id: recording_id.to_owned(),
+                        shape,
+                        turns: turns.clone(),
+                    }),
+                    _ => None,
+                };
+                // Turns that failed still show the document; a meeting
+                // gone between the two reads is gone.
+                match turns {
+                    Ok(turns) => Ok((document, Ok(turns))),
+                    Err(Unread::Failed(cause)) => Ok((document, Err(cause))),
+                    Err(Unread::Gone) => Err(Unread::Gone),
+                }
+            }
+            Err(unread) => Err(unread),
         }
     }
 

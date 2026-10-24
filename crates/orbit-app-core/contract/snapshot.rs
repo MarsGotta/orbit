@@ -55,13 +55,6 @@ impl Default for AppSnapshot {
             calendars: PermissionState::Unknown,
             availability: None,
         };
-        let hub = SettingsHubSnapshot {
-            url: None,
-            paired: false,
-            device_name: None,
-            device_id_short: None,
-            connection: None,
-        };
         Self {
             revision: 0,
             system_timezone: String::new(),
@@ -74,108 +67,134 @@ impl Default for AppSnapshot {
             status_availability: None,
             privacy_stopped: false,
             permissions: permissions.clone(),
-            meeting: MeetingSnapshot {
-                phase: MeetingPhase::Idle,
-                recording_id: None,
-                title: None,
-                started_at_ms: None,
-                ends_at_ms: None,
-                limit_minutes: orbit_core::RECORDING_CEILING_MINUTES,
-                audio: MeetingAudioKind::System,
-                tracks: Vec::new(),
-                upload: MeetingUploadSnapshot {
-                    pending_chunks: 0,
-                    offline: true,
-                },
-                call_panel: None,
-                call_preference: None,
-                call_preference_unreadable: None,
-                question: None,
-                ask: None,
-                voice_trigger: None,
-                microphone_muted: false,
-                recent: Vec::new(),
-                applications: Vec::new(),
-                applications_state: MeetingApplicationsState::Unavailable,
-                applications_detail: None,
-            },
+            meeting: idle_meeting(),
             recording_availability: None,
             call_availability: None,
-            chat: ChatSnapshot {
-                availability: None,
-                session_id: None,
-                agent_id: None,
-                turn: Vec::new(),
-                pending_voice: None,
-                voice_audio: None,
-                pending_contract: None,
-                voice: VoiceSnapshot {
-                    state: VoiceState::Unknown,
-                    level: 0,
-                    availability: None,
-                    too_short: None,
-                },
-                activity: None,
-                speaking: None,
-                work: None,
-            },
+            chat: empty_chat(),
             call: None,
-            calendar: CalendarSnapshot {
-                authorization: CalendarAuthorizationSnapshot::Unknown,
-                calendars: Vec::new(),
-                window: CalendarWindowSnapshot {
-                    start_ms: 0,
-                    end_ms: 0,
-                    timezone: String::new(),
-                },
-                range: CalendarRangeSnapshot::default(),
-                events: Vec::new(),
-                reading: CalendarReadingSnapshot {
-                    state: CalendarReadingState::Unknown,
-                    blocker: None,
-                    detail: None,
-                },
-                stale: true,
-                writes: Vec::new(),
-            },
-            notes: Some(NotesSnapshot {
-                list: Vec::new(),
-                projection_clock: None,
-                series_previous: None,
-                reminder: None,
-                // Not read yet: on its way, never «no notes». The first read
-                // (`client::notes`) replaces it with what it found.
-                index: Some(Box::new(NotesIndexSnapshot {
-                    state: NotesIndexState::Loading,
-                    more: false,
-                    detail: None,
-                })),
-                open: None,
-                open_read: None,
-                library: None,
-                ready: None,
-            }),
+            calendar: unread_calendar(),
+            notes: Some(unread_notes()),
             notice: None,
             notice_availability: None,
-            settings: SettingsSnapshot {
-                assistant_name: None,
-                hub,
-                permissions,
-                helper_connected: false,
-                calendars: CalendarSettingsSnapshot { total: None },
-                login_item: LoginItemState::Unknown,
-                versions: VersionSettingsSnapshot {
-                    app: env!("CARGO_PKG_VERSION").into(),
-                },
-                update: UpdateSnapshot::default(),
-                privacy_stopped: false,
-                onboarding_done: false,
-                profile: Some(ProfileSettingsSnapshot { name: None }),
-                error_reports: None,
-            },
+            settings: initial_settings(permissions),
             computer_control: None,
             briefing: None,
         }
+    }
+}
+
+fn idle_meeting() -> MeetingSnapshot {
+    MeetingSnapshot {
+        phase: MeetingPhase::Idle,
+        recording_id: None,
+        title: None,
+        started_at_ms: None,
+        ends_at_ms: None,
+        limit_minutes: orbit_core::RECORDING_CEILING_MINUTES,
+        audio: MeetingAudioKind::System,
+        tracks: Vec::new(),
+        upload: MeetingUploadSnapshot {
+            pending_chunks: 0,
+            offline: true,
+        },
+        call_panel: None,
+        call_preference: None,
+        call_preference_unreadable: None,
+        question: None,
+        ask: None,
+        voice_trigger: None,
+        microphone_muted: false,
+        recent: Vec::new(),
+        applications: Vec::new(),
+        applications_state: MeetingApplicationsState::Unavailable,
+        applications_detail: None,
+    }
+}
+
+fn empty_chat() -> ChatSnapshot {
+    ChatSnapshot {
+        availability: None,
+        session_id: None,
+        agent_id: None,
+        turn: Vec::new(),
+        pending_voice: None,
+        voice_audio: None,
+        pending_contract: None,
+        voice: VoiceSnapshot {
+            state: VoiceState::Unknown,
+            level: 0,
+            availability: None,
+            too_short: None,
+        },
+        activity: None,
+        speaking: None,
+        work: None,
+    }
+}
+
+fn unread_calendar() -> CalendarSnapshot {
+    CalendarSnapshot {
+        authorization: CalendarAuthorizationSnapshot::Unknown,
+        calendars: Vec::new(),
+        window: CalendarWindowSnapshot {
+            start_ms: 0,
+            end_ms: 0,
+            timezone: String::new(),
+        },
+        range: CalendarRangeSnapshot::default(),
+        events: Vec::new(),
+        reading: CalendarReadingSnapshot {
+            state: CalendarReadingState::Unknown,
+            blocker: None,
+            detail: None,
+        },
+        stale: true,
+        writes: Vec::new(),
+    }
+}
+
+fn unread_notes() -> NotesSnapshot {
+    NotesSnapshot {
+        list: Vec::new(),
+        projection_clock: None,
+        series_previous: None,
+        reminder: None,
+        // Not read yet: on its way, never «no notes». The first read
+        // (`client::notes`) replaces it with what it found.
+        index: Some(Box::new(NotesIndexSnapshot {
+            state: NotesIndexState::Loading,
+            more: false,
+            detail: None,
+        })),
+        open: None,
+        open_read: None,
+        library: None,
+        ready: None,
+    }
+}
+
+fn initial_settings(permissions: PermissionSnapshot) -> SettingsSnapshot {
+    SettingsSnapshot {
+        assistant_name: None,
+        hub: SettingsHubSnapshot {
+            url: None,
+            paired: false,
+            device_name: None,
+            device_id_short: None,
+            connection: None,
+        },
+        permissions,
+        helper_connected: false,
+        calendars: CalendarSettingsSnapshot { total: None },
+        login_item: LoginItemState::Unknown,
+        versions: VersionSettingsSnapshot {
+            app: env!("CARGO_PKG_VERSION").into(),
+        },
+        update: UpdateSnapshot::default(),
+        privacy_stopped: false,
+        onboarding_done: false,
+        profile: Some(ProfileSettingsSnapshot { name: None }),
+        error_reports: None,
     }
 }
 

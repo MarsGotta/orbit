@@ -43,209 +43,232 @@ pub(crate) fn project_with_read(input: &FeatureInput<'_>) -> (View, bool) {
     };
     if let TopicData::Agenda(knowledge) = &topic.knowledge {
         match knowledge {
-            Knowledge::Unknown { why } => {
-                if view.authorization != crate::CalendarAuthorizationSnapshot::NotDetermined {
-                    view.authorization = crate::CalendarAuthorizationSnapshot::Unknown;
-                }
-                view.reading.state = crate::CalendarReadingState::Unknown;
-                view.reading.blocker = None;
-                view.reading.detail = Some(
-                    if view.authorization == crate::CalendarAuthorizationSnapshot::NotDetermined {
-                        "agenda_not_determined".into()
-                    } else {
-                        match why {
-                            orbit_core::topics::Pending::NotObservedYet => {
-                                "agenda_not_observed_yet".into()
-                            }
-                            orbit_core::topics::Pending::HelperStarting => {
-                                "agenda_helper_starting".into()
-                            }
-                            orbit_core::topics::Pending::Reading { since_ms } => {
-                                format!("agenda_reading_since:{since_ms}")
-                            }
-                            orbit_core::topics::Pending::Transcription {
-                                completed,
-                                pending,
-                                failed,
-                                queued,
-                            } => {
-                                format!(
-                                    "transcription_pending:{completed}:{pending}:{failed}:{queued}"
-                                )
-                            }
-                            orbit_core::topics::Pending::DaemonStarting => {
-                                "agenda_daemon_starting".into()
-                            }
-                        }
-                    },
-                );
-                view.calendars.clear();
-                view.events.clear();
-            }
-            Knowledge::Absent { refusal } => {
-                view.events.clear();
-                view.calendars.clear();
-                view.reading.state = crate::CalendarReadingState::Unavailable;
-                view.reading.detail = Some(refusal.to_string());
-                if matches!(
-                    refusal,
-                    orbit_core::refusal::Refusal::PermissionDenied { .. }
-                ) {
-                    if view.authorization != crate::CalendarAuthorizationSnapshot::NotDetermined {
-                        view.authorization = crate::CalendarAuthorizationSnapshot::Denied;
-                    }
-                    view.reading.blocker = Some(crate::CalendarReadingBlocker::CalendarPermission);
-                } else if matches!(refusal, orbit_core::refusal::Refusal::PrivacyStopped { .. }) {
-                    view.authorization = crate::CalendarAuthorizationSnapshot::Unknown;
-                    view.reading.blocker = Some(crate::CalendarReadingBlocker::PrivacyStopped);
-                } else if matches!(refusal, orbit_core::refusal::Refusal::HelperNotRunning) {
-                    view.authorization = crate::CalendarAuthorizationSnapshot::Unknown;
-                    view.reading.blocker = Some(crate::CalendarReadingBlocker::HelperNotRunning);
-                } else {
-                    view.authorization = crate::CalendarAuthorizationSnapshot::Unknown;
-                    view.reading.blocker = None;
-                }
-            }
+            Knowledge::Unknown { why } => show_unknown_agenda(&mut view, why),
+            Knowledge::Absent { refusal } => show_refused_agenda(&mut view, refusal),
             Knowledge::Present { value, .. } => {
-                view.writes = value.writes.clone();
-                let request_failed = view.reading.state == crate::CalendarReadingState::Unavailable
-                    && view.reading.detail.as_deref().is_some_and(|detail| {
-                        detail.starts_with(crate::calendar::AGENDA_REQUEST_FAILED_PREFIX)
-                    });
-                view.authorization = crate::CalendarAuthorizationSnapshot::Granted;
-                if !request_failed
-                    && !matches!(
-                        view.reading.blocker,
-                        Some(
-                            crate::CalendarReadingBlocker::NotPaired
-                                | crate::CalendarReadingBlocker::MacDisconnected
-                        )
-                    )
-                {
-                    view.reading.state = crate::CalendarReadingState::Available;
-                    view.reading.blocker = None;
-                    view.reading.detail = None;
-                }
-                if let Some(window) = value.read_window {
-                    view.window.start_ms = window.start_unix_ms;
-                    view.window.end_ms = window.end_unix_ms;
-                }
-                if let Some(timezone) = &value.timezone {
-                    view.window.timezone.clone_from(timezone);
-                }
-                let listing = cached_calendars(input);
-                if let Ok(Some(calendars)) = &listing
-                    && value.calendars == u32::try_from(calendars.len()).ok()
-                {
-                    view.calendars.clone_from(calendars);
-                }
-                match cached_events(input, value) {
-                    Ok(Some(events)) => {
-                        page_loaded = true;
-                        view.events = events;
-                        for event in &mut view.events {
-                            event.recording = super::recording::event_recording(event, input);
-                        }
-                        view.stale = false;
-                        if request_failed {
-                            view.reading.state = crate::CalendarReadingState::Available;
-                            view.reading.detail = None;
-                        }
-                    }
-                    Ok(None) => {
-                        view.events.clear();
-                        view.stale = !request_failed;
-                    }
-                    Err(refusal) => {
-                        view.events.clear();
-                        view.stale = false;
-                        view.reading.state = crate::CalendarReadingState::Unavailable;
-                        view.reading.blocker = None;
-                        view.reading.detail = Some(refusal.to_string());
-                    }
-                }
-                if let Err(cause) = listing {
-                    view.reading.state = crate::CalendarReadingState::Unavailable;
-                    view.reading.detail = Some(match view.reading.detail.take() {
-                        Some(other) => format!("{other}; {cause}"),
-                        None => cause,
-                    });
-                }
-                if view.reading.state == crate::CalendarReadingState::Available {
-                    match input
-                        .topics
-                        .topic(TopicId::Status)
-                        .map(|topic| &topic.knowledge)
-                    {
-                        Some(TopicData::Status(Knowledge::Present { value, .. })) => {
-                            if value.privacy_stopped {
-                                view.reading.state = crate::CalendarReadingState::Unavailable;
-                                view.reading.blocker =
-                                    Some(crate::CalendarReadingBlocker::PrivacyStopped);
-                            } else if value.hub == Connection::Revoked
-                                || value
-                                    .account
-                                    .as_ref()
-                                    .and_then(|account| account.device_id_short.as_ref())
-                                    .is_none()
-                            {
-                                view.reading.state = crate::CalendarReadingState::Unavailable;
-                                view.reading.blocker =
-                                    Some(crate::CalendarReadingBlocker::NotPaired);
-                            } else if value.hub != Connection::Online {
-                                view.reading.state = crate::CalendarReadingState::Unavailable;
-                                view.reading.blocker =
-                                    Some(crate::CalendarReadingBlocker::MacDisconnected);
-                            }
-                        }
-                        Some(TopicData::Status(Knowledge::Absent { refusal })) => {
-                            view.reading.state = crate::CalendarReadingState::Unknown;
-                            view.reading.detail = Some(format!("status: {refusal}"));
-                        }
-                        Some(TopicData::Status(Knowledge::Unknown { why })) => {
-                            view.reading.state = crate::CalendarReadingState::Unknown;
-                            view.reading.detail = Some(match why {
-                                orbit_core::topics::Pending::NotObservedYet => {
-                                    "status_not_observed_yet".into()
-                                }
-                                orbit_core::topics::Pending::HelperStarting => {
-                                    "status_helper_starting".into()
-                                }
-                                orbit_core::topics::Pending::Reading { since_ms } => {
-                                    format!("status_reading_since:{since_ms}")
-                                }
-                                orbit_core::topics::Pending::Transcription {
-                                    completed,
-                                    pending,
-                                    failed,
-                                    queued,
-                                } => format!(
-                                    "status_transcription_pending:{completed}:{pending}:{failed}:{queued}"
-                                ),
-                                orbit_core::topics::Pending::DaemonStarting => {
-                                    "status_daemon_starting".into()
-                                }
-                            });
-                        }
-                        None => {
-                            view.reading.state = crate::CalendarReadingState::Unknown;
-                            view.reading.detail = Some("status_not_observed_yet".into());
-                        }
-                        Some(
-                            TopicData::Agenda(_)
-                            | TopicData::Permissions(_)
-                            | TopicData::Recording(_)
-                            | TopicData::Notes(_)
-                            | TopicData::Assistant(_)
-                            | TopicData::Control(_)
-                            | TopicData::Notices(_),
-                        ) => {}
-                    }
-                }
+                page_loaded = show_read_agenda(&mut view, input, value);
             }
         }
     }
     (view, page_loaded)
+}
+
+/// The agenda is not known yet: nothing of an old read is shown, and the
+/// detail says what it waits for.
+fn show_unknown_agenda(view: &mut View, why: &orbit_core::topics::Pending) {
+    if view.authorization != crate::CalendarAuthorizationSnapshot::NotDetermined {
+        view.authorization = crate::CalendarAuthorizationSnapshot::Unknown;
+    }
+    view.reading.state = crate::CalendarReadingState::Unknown;
+    view.reading.blocker = None;
+    view.reading.detail = Some(
+        if view.authorization == crate::CalendarAuthorizationSnapshot::NotDetermined {
+            "agenda_not_determined".into()
+        } else {
+            agenda_pending_detail(why)
+        },
+    );
+    view.calendars.clear();
+    view.events.clear();
+}
+
+fn agenda_pending_detail(why: &orbit_core::topics::Pending) -> String {
+    match why {
+        orbit_core::topics::Pending::NotObservedYet => "agenda_not_observed_yet".into(),
+        orbit_core::topics::Pending::HelperStarting => "agenda_helper_starting".into(),
+        orbit_core::topics::Pending::Reading { since_ms } => {
+            format!("agenda_reading_since:{since_ms}")
+        }
+        orbit_core::topics::Pending::Transcription {
+            completed,
+            pending,
+            failed,
+            queued,
+        } => {
+            format!("transcription_pending:{completed}:{pending}:{failed}:{queued}")
+        }
+        orbit_core::topics::Pending::DaemonStarting => "agenda_daemon_starting".into(),
+    }
+}
+
+/// The daemon refused the agenda: no events, the refusal as the detail, and
+/// the blocker the refusal names.
+fn show_refused_agenda(view: &mut View, refusal: &orbit_core::refusal::Refusal) {
+    view.events.clear();
+    view.calendars.clear();
+    view.reading.state = crate::CalendarReadingState::Unavailable;
+    view.reading.detail = Some(refusal.to_string());
+    if matches!(
+        refusal,
+        orbit_core::refusal::Refusal::PermissionDenied { .. }
+    ) {
+        if view.authorization != crate::CalendarAuthorizationSnapshot::NotDetermined {
+            view.authorization = crate::CalendarAuthorizationSnapshot::Denied;
+        }
+        view.reading.blocker = Some(crate::CalendarReadingBlocker::CalendarPermission);
+    } else if matches!(refusal, orbit_core::refusal::Refusal::PrivacyStopped { .. }) {
+        view.authorization = crate::CalendarAuthorizationSnapshot::Unknown;
+        view.reading.blocker = Some(crate::CalendarReadingBlocker::PrivacyStopped);
+    } else if matches!(refusal, orbit_core::refusal::Refusal::HelperNotRunning) {
+        view.authorization = crate::CalendarAuthorizationSnapshot::Unknown;
+        view.reading.blocker = Some(crate::CalendarReadingBlocker::HelperNotRunning);
+    } else {
+        view.authorization = crate::CalendarAuthorizationSnapshot::Unknown;
+        view.reading.blocker = None;
+    }
+}
+
+/// The agenda head is present: its window, zone, calendars and events, and
+/// what still blocks reading it. Returns whether its events were read.
+fn show_read_agenda(view: &mut View, input: &FeatureInput<'_>, value: &Value) -> bool {
+    view.writes = value.writes.clone();
+    let request_failed = view.reading.state == crate::CalendarReadingState::Unavailable
+        && view.reading.detail.as_deref().is_some_and(|detail| {
+            detail.starts_with(crate::calendar::AGENDA_REQUEST_FAILED_PREFIX)
+        });
+    view.authorization = crate::CalendarAuthorizationSnapshot::Granted;
+    if !request_failed
+        && !matches!(
+            view.reading.blocker,
+            Some(
+                crate::CalendarReadingBlocker::NotPaired
+                    | crate::CalendarReadingBlocker::MacDisconnected
+            )
+        )
+    {
+        view.reading.state = crate::CalendarReadingState::Available;
+        view.reading.blocker = None;
+        view.reading.detail = None;
+    }
+    if let Some(window) = value.read_window {
+        view.window.start_ms = window.start_unix_ms;
+        view.window.end_ms = window.end_unix_ms;
+    }
+    if let Some(timezone) = &value.timezone {
+        view.window.timezone.clone_from(timezone);
+    }
+    let listing = cached_calendars(input);
+    if let Ok(Some(calendars)) = &listing
+        && value.calendars == u32::try_from(calendars.len()).ok()
+    {
+        view.calendars.clone_from(calendars);
+    }
+    let page_loaded = show_events(view, input, value, request_failed);
+    if let Err(cause) = listing {
+        view.reading.state = crate::CalendarReadingState::Unavailable;
+        view.reading.detail = Some(match view.reading.detail.take() {
+            Some(other) => format!("{other}; {cause}"),
+            None => cause,
+        });
+    }
+    if view.reading.state == crate::CalendarReadingState::Available {
+        block_by_status(view, input);
+    }
+    page_loaded
+}
+
+/// The events of the head's read, each with its recording; a read that
+/// arrived clears an earlier failed request. Returns whether they were read.
+fn show_events(
+    view: &mut View,
+    input: &FeatureInput<'_>,
+    value: &Value,
+    request_failed: bool,
+) -> bool {
+    match cached_events(input, value) {
+        Ok(Some(events)) => {
+            view.events = events;
+            for event in &mut view.events {
+                event.recording = super::recording::event_recording(event, input);
+            }
+            view.stale = false;
+            if request_failed {
+                view.reading.state = crate::CalendarReadingState::Available;
+                view.reading.detail = None;
+            }
+            true
+        }
+        Ok(None) => {
+            view.events.clear();
+            view.stale = !request_failed;
+            false
+        }
+        Err(refusal) => {
+            view.events.clear();
+            view.stale = false;
+            view.reading.state = crate::CalendarReadingState::Unavailable;
+            view.reading.blocker = None;
+            view.reading.detail = Some(refusal.to_string());
+            false
+        }
+    }
+}
+
+/// A readable agenda is still unavailable when the Mac stopped for privacy,
+/// is not paired or is not online, and unknown while the status is.
+fn block_by_status(view: &mut View, input: &FeatureInput<'_>) {
+    match input
+        .topics
+        .topic(TopicId::Status)
+        .map(|topic| &topic.knowledge)
+    {
+        Some(TopicData::Status(Knowledge::Present { value, .. })) => {
+            if value.privacy_stopped {
+                view.reading.state = crate::CalendarReadingState::Unavailable;
+                view.reading.blocker = Some(crate::CalendarReadingBlocker::PrivacyStopped);
+            } else if value.hub == Connection::Revoked
+                || value
+                    .account
+                    .as_ref()
+                    .and_then(|account| account.device_id_short.as_ref())
+                    .is_none()
+            {
+                view.reading.state = crate::CalendarReadingState::Unavailable;
+                view.reading.blocker = Some(crate::CalendarReadingBlocker::NotPaired);
+            } else if value.hub != Connection::Online {
+                view.reading.state = crate::CalendarReadingState::Unavailable;
+                view.reading.blocker = Some(crate::CalendarReadingBlocker::MacDisconnected);
+            }
+        }
+        Some(TopicData::Status(Knowledge::Absent { refusal })) => {
+            view.reading.state = crate::CalendarReadingState::Unknown;
+            view.reading.detail = Some(format!("status: {refusal}"));
+        }
+        Some(TopicData::Status(Knowledge::Unknown { why })) => {
+            view.reading.state = crate::CalendarReadingState::Unknown;
+            view.reading.detail = Some(status_pending_detail(why));
+        }
+        None => {
+            view.reading.state = crate::CalendarReadingState::Unknown;
+            view.reading.detail = Some("status_not_observed_yet".into());
+        }
+        Some(
+            TopicData::Agenda(_)
+            | TopicData::Permissions(_)
+            | TopicData::Recording(_)
+            | TopicData::Notes(_)
+            | TopicData::Assistant(_)
+            | TopicData::Control(_)
+            | TopicData::Notices(_),
+        ) => {}
+    }
+}
+
+fn status_pending_detail(why: &orbit_core::topics::Pending) -> String {
+    match why {
+        orbit_core::topics::Pending::NotObservedYet => "status_not_observed_yet".into(),
+        orbit_core::topics::Pending::HelperStarting => "status_helper_starting".into(),
+        orbit_core::topics::Pending::Reading { since_ms } => {
+            format!("status_reading_since:{since_ms}")
+        }
+        orbit_core::topics::Pending::Transcription {
+            completed,
+            pending,
+            failed,
+            queued,
+        } => format!("status_transcription_pending:{completed}:{pending}:{failed}:{queued}"),
+        orbit_core::topics::Pending::DaemonStarting => "status_daemon_starting".into(),
+    }
 }
 
 fn cached_calendars(

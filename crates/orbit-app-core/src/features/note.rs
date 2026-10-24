@@ -122,49 +122,61 @@ pub(crate) fn map_command(
             sections: None,
             done: [(action_id, done)].into(),
         }),
-        NoteCommand::AskOrbitAbout { recording_id } => {
-            let notes = snapshot.notes.as_ref();
-            let title = open_note(snapshot, &recording_id)
-                .map(|note| note.title.as_str())
-                .or_else(|| {
-                    notes?
-                        .list
-                        .iter()
-                        .find(|note| note.recording_id == recording_id)
-                        .map(|note| note.title.as_str())
-                })
-                .unwrap_or(recording_id.as_str());
-            Ok(DaemonCommand::Chat {
-                attachments: Vec::new(),
-                text: format!("Quiero preguntar sobre la nota «{title}» ({recording_id})."),
-                // Nobody named: the primary answers.
-                primary: true,
-            })
-        }
+        NoteCommand::AskOrbitAbout { recording_id } => Ok(ask_about(snapshot, &recording_id)),
         NoteCommand::SpeakerRename {
             speaker_key,
             name,
             scope,
-        } => {
-            let recording_id = snapshot
-                .notes
-                .as_ref()
-                .and_then(|notes| notes.open.as_ref())
-                .filter(|note| {
-                    note.speakers
-                        .iter()
-                        .any(|speaker| speaker.key == speaker_key)
-                })
-                .map(|note| note.recording_id.clone())
-                .ok_or_else(crate::AppError::note_unavailable)?;
-            Ok(DaemonCommand::SpeakerRename {
-                recording_id,
-                key: speaker_key,
-                name,
-                scope,
-            })
-        }
+        } => speaker_rename(snapshot, speaker_key, name, scope),
     }
+}
+
+/// «Preguntar a Orbit» about a note: a chat message that names it by its
+/// title, the open note's or the list's, or by its id when neither has it.
+fn ask_about(snapshot: &AppSnapshot, recording_id: &str) -> orbit_core::protocol::Command {
+    let notes = snapshot.notes.as_ref();
+    let title = open_note(snapshot, recording_id)
+        .map(|note| note.title.as_str())
+        .or_else(|| {
+            notes?
+                .list
+                .iter()
+                .find(|note| note.recording_id == recording_id)
+                .map(|note| note.title.as_str())
+        })
+        .unwrap_or(recording_id);
+    orbit_core::protocol::Command::Chat {
+        attachments: Vec::new(),
+        text: format!("Quiero preguntar sobre la nota «{title}» ({recording_id})."),
+        // Nobody named: the primary answers.
+        primary: true,
+    }
+}
+
+/// A speaker's name, in the open note that has that speaker.
+fn speaker_rename(
+    snapshot: &AppSnapshot,
+    speaker_key: String,
+    name: Option<String>,
+    scope: orbit_core::notes::SpeakerRenameScope,
+) -> Result<orbit_core::protocol::Command, crate::AppError> {
+    let recording_id = snapshot
+        .notes
+        .as_ref()
+        .and_then(|notes| notes.open.as_ref())
+        .filter(|note| {
+            note.speakers
+                .iter()
+                .any(|speaker| speaker.key == speaker_key)
+        })
+        .map(|note| note.recording_id.clone())
+        .ok_or_else(crate::AppError::note_unavailable)?;
+    Ok(orbit_core::protocol::Command::SpeakerRename {
+        recording_id,
+        key: speaker_key,
+        name,
+        scope,
+    })
 }
 
 #[cfg(test)]

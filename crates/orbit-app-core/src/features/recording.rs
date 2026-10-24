@@ -56,78 +56,56 @@ pub fn project(input: &FeatureInput<'_>) -> View {
                     availability = FeatureAvailability::Absent {
                         cause: refusal.to_string(),
                     };
-                    meeting.call_panel = None;
-                    meeting.call_preference = None;
-                    meeting.call_preference_unreadable = None;
-                    meeting.applications.clear();
-                    meeting.applications_state = MeetingApplicationsState::Unavailable;
-                    meeting.applications_detail = Some(refusal.to_string());
+                    forget_call_and_applications(&mut meeting, refusal.to_string());
                 }
                 Knowledge::Unknown { why } => {
                     availability = FeatureAvailability::unknown_pending(why);
-                    meeting.call_panel = None;
-                    meeting.call_preference = None;
-                    meeting.call_preference_unreadable = None;
-                    meeting.applications.clear();
-                    meeting.applications_state = MeetingApplicationsState::Unavailable;
-                    meeting.applications_detail =
-                        Some(crate::projection::pending_inventory_detail(why));
+                    forget_call_and_applications(
+                        &mut meeting,
+                        crate::projection::pending_inventory_detail(why),
+                    );
                 }
             }
         }
     } else {
-        meeting.call_panel = None;
-        meeting.call_preference = None;
-        meeting.call_preference_unreadable = None;
-        meeting.applications.clear();
-        meeting.applications_state = MeetingApplicationsState::Unavailable;
-        meeting.applications_detail = Some(crate::projection::pending_inventory_detail(
-            &orbit_core::topics::Pending::NotObservedYet,
-        ));
+        forget_call_and_applications(
+            &mut meeting,
+            crate::projection::pending_inventory_detail(
+                &orbit_core::topics::Pending::NotObservedYet,
+            ),
+        );
     }
-    let (call, call_availability) = match input.topics.topic(TopicId::Assistant) {
+    let (call, call_availability) = project_call(input);
+    join_answer(&mut meeting, input);
+    RecordingView {
+        availability,
+        call_availability,
+        meeting,
+        call,
+        freshness,
+    }
+}
+
+/// Without a recording head nothing is known of the call panel or the
+/// meeting applications: none is shown, and `detail` says why.
+fn forget_call_and_applications(meeting: &mut MeetingSnapshot, detail: String) {
+    meeting.call_panel = None;
+    meeting.call_preference = None;
+    meeting.call_preference_unreadable = None;
+    meeting.applications.clear();
+    meeting.applications_state = MeetingApplicationsState::Unavailable;
+    meeting.applications_detail = Some(detail);
+}
+
+/// The call with Orbit, from the assistant topic, and whether it is known.
+fn project_call(input: &FeatureInput<'_>) -> (Option<CallSnapshot>, FeatureAvailability) {
+    match input.topics.topic(TopicId::Assistant) {
         Some(topic) => match &topic.knowledge {
             TopicData::Assistant(Knowledge::Present { value, .. }) => match &value.call {
-                Knowledge::Present { value: call, .. } => {
-                    let last_line = value
-                        .turn
-                        .as_ref()
-                        .and_then(|turn| turn.answer.as_ref())
-                        .map(|message| message.text.clone());
-                    let screen_granted = matches!(
-                        input.topics.topic(TopicId::Permissions).map(|cell| &cell.knowledge),
-                        Some(TopicData::Permissions(Knowledge::Present { value, .. }))
-                            if value.screen_recording == orbit_core::PermissionState::Granted
-                    );
-                    let privacy_armed = matches!(
-                        input.topics.topic(TopicId::Status).map(|cell| &cell.knowledge),
-                        Some(TopicData::Status(Knowledge::Present { value, .. }))
-                            if !value.privacy_stopped
-                    );
-                    let voice_unavailable = matches!(
-                        value.voice,
-                        orbit_core::topics::assistant::VoiceAvailability::Absent { .. }
-                    );
-                    (
-                        call.as_ref().map(|call| CallSnapshot {
-                            started_at_ms: call.started_at_ms,
-                            seeing_screen: screen_granted && privacy_armed,
-                            last_line,
-                            speaking: call.phase == orbit_core::voice::CallPhase::Responding,
-                            voice_unavailable,
-                            expires_at_ms: call.expires_at_ms,
-                            origin: match call.origin {
-                                orbit_core::CallOrigin::App => crate::CallOrigin::App,
-                                orbit_core::CallOrigin::Hotkey => crate::CallOrigin::Hotkey,
-                            },
-                            agent_id: value.agent_id.clone(),
-                            idle_hangup_ms: orbit_core::voice::VoicePolicy::default()
-                                .idle_timeout_ms,
-                            microphone_muted: value.microphone_muted,
-                        }),
-                        FeatureAvailability::Current,
-                    )
-                }
+                Knowledge::Present { value: call, .. } => (
+                    call.as_ref().map(|call| call_snapshot(input, value, call)),
+                    FeatureAvailability::Current,
+                ),
                 Knowledge::Unknown { why } => (None, FeatureAvailability::unknown_pending(why)),
                 Knowledge::Absent { refusal } => (
                     None,
@@ -159,14 +137,49 @@ pub fn project(input: &FeatureInput<'_>) -> View {
             ),
         },
         None => (None, FeatureAvailability::missing(input.topics)),
-    };
-    join_answer(&mut meeting, input);
-    RecordingView {
-        availability,
-        call_availability,
-        meeting,
-        call,
-        freshness,
+    }
+}
+
+/// A call in progress: its last line, whether Orbit sees the screen (the
+/// permission granted and no privacy stop) and whether its voice can speak.
+fn call_snapshot(
+    input: &FeatureInput<'_>,
+    value: &orbit_core::topics::assistant::Value,
+    call: &orbit_core::voice::CallState,
+) -> CallSnapshot {
+    let last_line = value
+        .turn
+        .as_ref()
+        .and_then(|turn| turn.answer.as_ref())
+        .map(|message| message.text.clone());
+    let screen_granted = matches!(
+        input.topics.topic(TopicId::Permissions).map(|cell| &cell.knowledge),
+        Some(TopicData::Permissions(Knowledge::Present { value, .. }))
+            if value.screen_recording == orbit_core::PermissionState::Granted
+    );
+    let privacy_armed = matches!(
+        input.topics.topic(TopicId::Status).map(|cell| &cell.knowledge),
+        Some(TopicData::Status(Knowledge::Present { value, .. }))
+            if !value.privacy_stopped
+    );
+    let voice_unavailable = matches!(
+        value.voice,
+        orbit_core::topics::assistant::VoiceAvailability::Absent { .. }
+    );
+    CallSnapshot {
+        started_at_ms: call.started_at_ms,
+        seeing_screen: screen_granted && privacy_armed,
+        last_line,
+        speaking: call.phase == orbit_core::voice::CallPhase::Responding,
+        voice_unavailable,
+        expires_at_ms: call.expires_at_ms,
+        origin: match call.origin {
+            orbit_core::CallOrigin::App => crate::CallOrigin::App,
+            orbit_core::CallOrigin::Hotkey => crate::CallOrigin::Hotkey,
+        },
+        agent_id: value.agent_id.clone(),
+        idle_hangup_ms: orbit_core::voice::VoicePolicy::default().idle_timeout_ms,
+        microphone_muted: value.microphone_muted,
     }
 }
 

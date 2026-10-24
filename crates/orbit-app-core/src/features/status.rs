@@ -113,89 +113,14 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         privacy_stopped: false,
         system_timezone,
         system_timezone_error,
-        settings: StatusSettingsView {
-            attachments: None,
-            assistant_name: None,
-            agents: Vec::new(),
-            default_agent_id: None,
-            addable_agents: None,
-            hub: SettingsHubSnapshot {
-                url: None,
-                paired: false,
-                device_name: None,
-                device_id_short: None,
-                connection: None,
-            },
-            helper_connected: false,
-            calendars: CalendarSettingsSnapshot {
-                total: calendar_total,
-            },
-            versions: VersionSettingsSnapshot {
-                app: env!("CARGO_PKG_VERSION").into(),
-            },
-            privacy_stopped: false,
-            error_reports: None,
-            call_minutes: orbit_core::voice::CALL_MINUTES,
-        },
+        settings: unread_settings(calendar_total),
         stale_since_ms: None,
     };
     if let Some(topic) = input.topics.topic(TopicId::Status)
         && let TopicData::Status(knowledge) = &topic.knowledge
     {
         match knowledge {
-            Knowledge::Present { value, .. } => {
-                view.availability = match &topic.freshness {
-                    TopicFreshness::Current => FeatureAvailability::Current,
-                    TopicFreshness::Stale { since_ms } => {
-                        view.stale_since_ms = *since_ms;
-                        FeatureAvailability::Stale {
-                            since_ms: *since_ms,
-                        }
-                    }
-                };
-                view.connection.hub = match value.hub {
-                    Connection::Online => HubConnection::Paired,
-                    Connection::Connecting => HubConnection::Connecting,
-                    Connection::Offline | Connection::Revoked => HubConnection::Offline,
-                };
-                view.privacy_stopped = value.privacy_stopped;
-                view.settings.privacy_stopped = view.privacy_stopped;
-                view.settings.helper_connected = value.helper_connected;
-                view.settings.hub = SettingsHubSnapshot {
-                    url: value
-                        .account
-                        .as_ref()
-                        .and_then(|account| account.hub_url.as_deref())
-                        .map(ToString::to_string),
-                    paired: value
-                        .account
-                        .as_ref()
-                        .and_then(|account| account.device_id_short.as_deref())
-                        .is_some(),
-                    device_name: value
-                        .account
-                        .as_ref()
-                        .and_then(|account| account.device_name.as_deref())
-                        .map(ToString::to_string),
-                    device_id_short: value
-                        .account
-                        .as_ref()
-                        .and_then(|account| account.device_id_short.as_deref())
-                        .map(ToString::to_string),
-                    connection: Some(match value.hub {
-                        Connection::Online => HubLinkConnection::Online,
-                        Connection::Connecting => HubLinkConnection::Connecting,
-                        Connection::Offline => HubLinkConnection::Offline,
-                        Connection::Revoked => HubLinkConnection::Revoked,
-                    }),
-                };
-                view.settings.assistant_name = value.assistant_name.clone();
-                view.settings.agents = value.agents.clone();
-                view.settings.default_agent_id = value.default_agent_id.clone();
-                view.settings.addable_agents = value.addable_agents.clone();
-                view.settings.attachments = value.attachments;
-                view.settings.error_reports = value.error_reports;
-            }
+            Knowledge::Present { value, .. } => show_status(&mut view, &topic.freshness, value),
             Knowledge::Unknown { why } => {
                 view.availability = FeatureAvailability::unknown_pending(why);
             }
@@ -207,6 +132,100 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         }
     }
     view
+}
+
+/// The settings before the status topic says anything: only this build's
+/// facts and the agenda's calendar count.
+fn unread_settings(calendar_total: Option<u32>) -> StatusSettingsView {
+    StatusSettingsView {
+        attachments: None,
+        assistant_name: None,
+        agents: Vec::new(),
+        default_agent_id: None,
+        addable_agents: None,
+        hub: SettingsHubSnapshot {
+            url: None,
+            paired: false,
+            device_name: None,
+            device_id_short: None,
+            connection: None,
+        },
+        helper_connected: false,
+        calendars: CalendarSettingsSnapshot {
+            total: calendar_total,
+        },
+        versions: VersionSettingsSnapshot {
+            app: env!("CARGO_PKG_VERSION").into(),
+        },
+        privacy_stopped: false,
+        error_reports: None,
+        call_minutes: orbit_core::voice::CALL_MINUTES,
+    }
+}
+
+/// The status head as the view shows it: its freshness, the hub link, the
+/// privacy stop and the settings it carries.
+fn show_status(
+    view: &mut StatusView,
+    freshness: &TopicFreshness,
+    value: &orbit_core::topics::status::Value,
+) {
+    view.availability = match freshness {
+        TopicFreshness::Current => FeatureAvailability::Current,
+        TopicFreshness::Stale { since_ms } => {
+            view.stale_since_ms = *since_ms;
+            FeatureAvailability::Stale {
+                since_ms: *since_ms,
+            }
+        }
+    };
+    view.connection.hub = match value.hub {
+        Connection::Online => HubConnection::Paired,
+        Connection::Connecting => HubConnection::Connecting,
+        Connection::Offline | Connection::Revoked => HubConnection::Offline,
+    };
+    view.privacy_stopped = value.privacy_stopped;
+    view.settings.privacy_stopped = view.privacy_stopped;
+    view.settings.helper_connected = value.helper_connected;
+    view.settings.hub = settings_hub(value);
+    view.settings.assistant_name = value.assistant_name.clone();
+    view.settings.agents = value.agents.clone();
+    view.settings.default_agent_id = value.default_agent_id.clone();
+    view.settings.addable_agents = value.addable_agents.clone();
+    view.settings.attachments = value.attachments;
+    view.settings.error_reports = value.error_reports;
+}
+
+/// The hub this Mac is paired with, as Ajustes shows it.
+fn settings_hub(value: &orbit_core::topics::status::Value) -> SettingsHubSnapshot {
+    SettingsHubSnapshot {
+        url: value
+            .account
+            .as_ref()
+            .and_then(|account| account.hub_url.as_deref())
+            .map(ToString::to_string),
+        paired: value
+            .account
+            .as_ref()
+            .and_then(|account| account.device_id_short.as_deref())
+            .is_some(),
+        device_name: value
+            .account
+            .as_ref()
+            .and_then(|account| account.device_name.as_deref())
+            .map(ToString::to_string),
+        device_id_short: value
+            .account
+            .as_ref()
+            .and_then(|account| account.device_id_short.as_deref())
+            .map(ToString::to_string),
+        connection: Some(match value.hub {
+            Connection::Online => HubLinkConnection::Online,
+            Connection::Connecting => HubLinkConnection::Connecting,
+            Connection::Offline => HubLinkConnection::Offline,
+            Connection::Revoked => HubLinkConnection::Revoked,
+        }),
+    }
 }
 
 /// The current notice, the recent ones and whether they are known.

@@ -13,33 +13,9 @@ impl DaemonClient {
         command: AppCommand,
         op: orbit_core::notice::Op,
     ) -> Result<CommandReceipt, AppError> {
-        use crate::{
-            AssistantCommand, LocalCommand, NoteCommand, PermissionsCommand, StatusCommand,
-        };
+        use crate::{AssistantCommand, NoteCommand, PermissionsCommand, StatusCommand};
         let command = match command {
-            AppCommand::Notes(crate::NotesCommand::NotesRefresh) => {
-                self.refresh_notes().await?;
-                return Ok(self.local_receipt());
-            }
-            AppCommand::Notes(crate::NotesCommand::NotesMore) => {
-                self.read_more_notes().await?;
-                return Ok(self.local_receipt());
-            }
-            AppCommand::Notes(crate::NotesCommand::ReminderRead { series_key }) => {
-                self.read_reminder(series_key).await;
-                return Ok(self.local_receipt());
-            }
-            AppCommand::Notes(crate::NotesCommand::ReminderSave {
-                series_key,
-                text,
-                edited_at_ms,
-            }) => {
-                let order = Self::reminder_write(&series_key, text, edited_at_ms)?;
-                let receipt = self.send_daemon(order, op).await?;
-                // What the hub kept now: this edit, or a later one.
-                self.read_reminder(series_key).await;
-                return Ok(receipt);
-            }
+            AppCommand::Notes(command) => return self.send_notes(command, op).await,
             AppCommand::Assistant(AssistantCommand::VoiceNoteAudio { message_id }) => {
                 self.send_voice_note_audio(&message_id).await?;
                 return Ok(self.local_receipt());
@@ -55,50 +31,82 @@ impl DaemonClient {
                 self.send_calendar(command).await?;
                 return Ok(self.local_receipt());
             }
-            AppCommand::Local(LocalCommand::OnboardingDone) => {
-                self.complete_onboarding();
-                return Ok(self.local_receipt());
-            }
-            AppCommand::Local(LocalCommand::ProfileSet { name }) => {
-                self.set_profile_name(name)?;
-                return Ok(self.local_receipt());
-            }
-            AppCommand::Local(
-                LocalCommand::LoginItem { .. }
-                | LocalCommand::UpdateCheck
-                | LocalCommand::UpdateInstall,
-            )
-            | AppCommand::Status(
+            AppCommand::Local(command) => return self.send_local(command),
+            AppCommand::Status(
                 StatusCommand::Quit | StatusCommand::Restart | StatusCommand::OpenUrl { .. },
             )
             | AppCommand::Permissions(PermissionsCommand::OpenSystemPrivacy { .. }) => {
                 return Err(AppError::desktop_only());
             }
-            AppCommand::Recording(command) => {
-                let local = self.local_snapshot();
-                let topics = self.inner.topics.read().await;
-                let clock = self.inner.calendar.lock().await.local_clock();
-                let calendar = crate::features::agenda::project_with_read(
-                    &crate::features::FeatureInput::with_clock(&local, &topics, clock.clone()),
-                )
-                .0;
-                crate::features::recording::map_command(command, &calendar, &clock)?
-            }
+            AppCommand::Recording(command) => self.recording_order(command).await?,
             AppCommand::Daemon(command) => *command,
         };
-        if command.feature().is_none() {
-            let value = serde_json::to_value(&command)
-                .map_err(|error| AppError::daemon(error.to_string()))?;
-            let name = value["command"]
-                .as_str()
-                .ok_or_else(|| AppError::daemon("La orden interna no lleva su nombre"))?;
-            return Err(AppError {
-                code: "internal_command".into(),
-                message: format!("La interfaz no puede enviar la orden interna «{name}»."),
-                refusal: None,
-            });
-        }
+        refuse_internal(&command)?;
         self.send_and_follow(command, op).await
+    }
+
+    /// The notes list and the «Recordatorio personal»: reads the app makes,
+    /// and a reminder edit the daemon takes and the app then reads again.
+    async fn send_notes(
+        &self,
+        command: crate::NotesCommand,
+        op: orbit_core::notice::Op,
+    ) -> Result<CommandReceipt, AppError> {
+        use crate::NotesCommand;
+        match command {
+            NotesCommand::NotesRefresh => {
+                self.refresh_notes().await?;
+            }
+            NotesCommand::NotesMore => {
+                self.read_more_notes().await?;
+            }
+            NotesCommand::ReminderRead { series_key } => {
+                self.read_reminder(series_key).await;
+            }
+            NotesCommand::ReminderSave {
+                series_key,
+                text,
+                edited_at_ms,
+            } => {
+                let order = Self::reminder_write(&series_key, text, edited_at_ms)?;
+                let receipt = self.send_daemon(order, op).await?;
+                // What the hub kept now: this edit, or a later one.
+                self.read_reminder(series_key).await;
+                return Ok(receipt);
+            }
+        }
+        Ok(self.local_receipt())
+    }
+
+    /// The orders this client answers itself; the ones only the desktop
+    /// shell can carry out are refused here.
+    fn send_local(&self, command: crate::LocalCommand) -> Result<CommandReceipt, AppError> {
+        use crate::LocalCommand;
+        match command {
+            LocalCommand::OnboardingDone => {
+                self.complete_onboarding();
+            }
+            LocalCommand::ProfileSet { name } => {
+                self.set_profile_name(name)?;
+            }
+            LocalCommand::LoginItem { .. }
+            | LocalCommand::UpdateCheck
+            | LocalCommand::UpdateInstall => return Err(AppError::desktop_only()),
+        }
+        Ok(self.local_receipt())
+    }
+
+    /// A recording order, translated against the agenda as the app shows it
+    /// now and the client's clock.
+    async fn recording_order(&self, command: crate::RecordingCommand) -> Result<Command, AppError> {
+        let local = self.local_snapshot();
+        let topics = self.inner.topics.read().await;
+        let clock = self.inner.calendar.lock().await.local_clock();
+        let calendar = crate::features::agenda::project_with_read(
+            &crate::features::FeatureInput::with_clock(&local, &topics, clock.clone()),
+        )
+        .0;
+        crate::features::recording::map_command(command, &calendar, &clock)
     }
 
     /// A daemon order, and what the app does once it is taken: the library
@@ -248,6 +256,23 @@ impl DaemonClient {
         )
         .await;
     }
+}
+
+/// An order only the daemon's own machinery sends: the interface may not.
+fn refuse_internal(command: &Command) -> Result<(), AppError> {
+    if command.feature().is_some() {
+        return Ok(());
+    }
+    let value =
+        serde_json::to_value(command).map_err(|error| AppError::daemon(error.to_string()))?;
+    let name = value["command"]
+        .as_str()
+        .ok_or_else(|| AppError::daemon("La orden interna no lleva su nombre"))?;
+    Err(AppError {
+        code: "internal_command".into(),
+        message: format!("La interfaz no puede enviar la orden interna «{name}»."),
+        refusal: None,
+    })
 }
 
 #[cfg(test)]

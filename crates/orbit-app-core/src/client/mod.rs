@@ -111,6 +111,92 @@ use agenda::*;
 mod local;
 use local::*;
 
+/// The snapshot a new client starts from: the agenda's first window, the
+/// clock's instant and zone, and the profile name saved on this Mac.
+fn initial_snapshot(
+    paths: &Paths,
+    clock: &LocalClock,
+    coordinator: &CalendarCoordinator,
+) -> AppSnapshot {
+    let (start_ms, end_ms) = coordinator.read_window();
+    let mut initial = AppSnapshot {
+        briefing_clock_ms: clock.now_ms,
+        ..AppSnapshot::default()
+    };
+    initial.calendar.window.start_ms = start_ms;
+    initial.calendar.window.end_ms = end_ms;
+    initial.calendar.range = coordinator.range();
+    match &clock.timezone_name {
+        Ok(name) => {
+            initial.system_timezone.clone_from(name);
+            initial.system_timezone_error = None;
+        }
+        Err(cause) => {
+            initial.system_timezone.clear();
+            initial.system_timezone_error = Some(cause.clone());
+        }
+    }
+    apply_profile_name(&mut initial, load_profile_name(paths));
+    initial
+}
+
+/// Follows the published notes head for as long as the client lives.
+///
+/// This client belongs to one daemon lifetime. Read the list and library
+/// again only when their published heads change.
+async fn follow_notes(weak: std::sync::Weak<ClientInner>, mut changes: watch::Receiver<()>) {
+    let mut seen: Option<(u64, Option<String>)> = None;
+    let mut seen_library = None;
+    let mut seen_series: Option<(Option<series::SeriesTarget>, u64)> = None;
+    while changes.changed().await.is_ok() {
+        changes.borrow_and_update();
+        let Some(inner) = weak.upgrade() else { break };
+        let Some(head) = current_notes_head(&inner).await else {
+            continue;
+        };
+        let client = DaemonClient { inner };
+        let list = (head.revision, head.recording.clone());
+        if seen.as_ref() != Some(&list) {
+            seen = Some(list);
+            // The read stores its cause in `notes.index`.
+            if let Err(error) = client.refresh_notes().await {
+                drop(error);
+            }
+        }
+        if seen_library != Some(head.library_revision) {
+            seen_library = Some(head.library_revision);
+            client.read_library().await;
+        }
+        // Hoy's next meeting: its series is read again when the
+        // meeting changes or any recording does (a task marked done).
+        let target = client.next_series().await;
+        let series = (target.clone(), head.revision);
+        if seen_series.as_ref() != Some(&series) {
+            seen_series = Some(series);
+            client.read_series_previous(target).await;
+        }
+        client.reread_changed_open_note(&head).await;
+    }
+}
+
+/// The notes head, when it is present and current; `None` otherwise.
+async fn current_notes_head(inner: &ClientInner) -> Option<orbit_core::topics::notes::Value> {
+    let topics = inner.topics.read().await;
+    match topics
+        .topic(orbit_core::topics::TopicId::Notes)
+        .map(|cell| (&cell.knowledge, &cell.freshness))
+    {
+        Some((
+            orbit_core::topics::TopicData::Notes(orbit_core::topics::Knowledge::Present {
+                value,
+                ..
+            }),
+            crate::topics::TopicFreshness::Current,
+        )) => Some(value.clone()),
+        _ => None,
+    }
+}
+
 impl DaemonClient {
     pub fn connect(paths: Paths, daemon: LocalClient) -> Self {
         Self::connect_with_clock(paths, Arc::new(SystemCalendarClock::default()), daemon)
@@ -123,26 +209,7 @@ impl DaemonClient {
     ) -> Self {
         let initial_clock = LocalClock::read(clock.as_ref());
         let coordinator = CalendarCoordinator::new(Arc::clone(&clock));
-        let now_ms = initial_clock.now_ms;
-        let (start_ms, end_ms) = coordinator.read_window();
-        let mut initial = AppSnapshot {
-            briefing_clock_ms: now_ms,
-            ..AppSnapshot::default()
-        };
-        initial.calendar.window.start_ms = start_ms;
-        initial.calendar.window.end_ms = end_ms;
-        initial.calendar.range = coordinator.range();
-        match &initial_clock.timezone_name {
-            Ok(name) => {
-                initial.system_timezone.clone_from(name);
-                initial.system_timezone_error = None;
-            }
-            Err(cause) => {
-                initial.system_timezone.clear();
-                initial.system_timezone_error = Some(cause.clone());
-            }
-        }
-        apply_profile_name(&mut initial, load_profile_name(&paths));
+        let initial = initial_snapshot(&paths, &initial_clock, &coordinator);
         let frames = Arc::new(StdMutex::new(FramePublisher::with_clock(
             initial.clone(),
             &initial_clock,
@@ -179,71 +246,10 @@ impl DaemonClient {
                 topics,
             }),
         };
-        let weak = Arc::downgrade(&client.inner);
-        let mut changes = client.watch_frames();
-        let task = tokio::spawn(async move {
-            // This client belongs to one daemon lifetime. Read the list and
-            // library again only when their published heads change.
-            let mut seen: Option<(u64, Option<String>)> = None;
-            let mut seen_library = None;
-            let mut seen_series: Option<(Option<series::SeriesTarget>, u64)> = None;
-            while changes.changed().await.is_ok() {
-                changes.borrow_and_update();
-                let Some(inner) = weak.upgrade() else { break };
-                let head = {
-                    let topics = inner.topics.read().await;
-                    match topics
-                        .topic(orbit_core::topics::TopicId::Notes)
-                        .map(|cell| (&cell.knowledge, &cell.freshness))
-                    {
-                        Some((
-                            orbit_core::topics::TopicData::Notes(
-                                orbit_core::topics::Knowledge::Present { value, .. },
-                            ),
-                            crate::topics::TopicFreshness::Current,
-                        )) => Some(value.clone()),
-                        _ => None,
-                    }
-                };
-                let Some(head) = head else { continue };
-                let client = DaemonClient { inner };
-                let list = (head.revision, head.recording.clone());
-                if seen.as_ref() != Some(&list) {
-                    seen = Some(list);
-                    // The read stores its cause in `notes.index`.
-                    if let Err(error) = client.refresh_notes().await {
-                        drop(error);
-                    }
-                }
-                if seen_library != Some(head.library_revision) {
-                    seen_library = Some(head.library_revision);
-                    client.read_library().await;
-                }
-                // Hoy's next meeting: its series is read again when the
-                // meeting changes or any recording does (a task marked done).
-                let target = client.next_series().await;
-                let series = (target.clone(), head.revision);
-                if seen_series.as_ref() != Some(&series) {
-                    seen_series = Some(series);
-                    client.read_series_previous(target).await;
-                }
-                // An open note is read again when the hub says it
-                // changed (`recording.changed`).
-                let open = client.local_snapshot().notes.and_then(|notes| {
-                    let read = notes.open_read?;
-                    (notes.open.is_some() && read.state == crate::NoteReadState::Available)
-                        .then_some((read.recording_id, read.revision))
-                });
-                if let Some((recording_id, revision)) = open
-                    && head.changed_at(&recording_id) > revision
-                {
-                    // The read stores its cause in `open_read`.
-                    if let Err(error) = client.reread_open_note(recording_id).await {
-                        drop(error);
-                    }
-                }
-            }
-        });
+        let task = tokio::spawn(follow_notes(
+            Arc::downgrade(&client.inner),
+            client.watch_frames(),
+        ));
         if let Ok(mut slot) = client.inner.note_refresh_abort.lock() {
             *slot = Some(task.abort_handle());
         }
@@ -255,6 +261,24 @@ impl DaemonClient {
             *slot = Some(day_task.abort_handle());
         }
         client
+    }
+
+    /// An open note is read again when the hub says it changed
+    /// (`recording.changed`).
+    async fn reread_changed_open_note(&self, head: &orbit_core::topics::notes::Value) {
+        let open = self.local_snapshot().notes.and_then(|notes| {
+            let read = notes.open_read?;
+            (notes.open.is_some() && read.state == crate::NoteReadState::Available)
+                .then_some((read.recording_id, read.revision))
+        });
+        if let Some((recording_id, revision)) = open
+            && head.changed_at(&recording_id) > revision
+        {
+            // The read stores its cause in `open_read`.
+            if let Err(error) = self.reread_open_note(recording_id).await {
+                drop(error);
+            }
+        }
     }
 
     fn local_snapshot(&self) -> AppSnapshot {

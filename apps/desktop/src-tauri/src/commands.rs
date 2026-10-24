@@ -56,80 +56,60 @@ pub async fn orbit_panel_send(
     app: AppHandle,
     client: State<'_, DaemonClient>,
 ) -> Result<CommandReceipt, CommandError> {
+    use orbit_core::protocol::Command as DaemonCommand;
     let op = order_op(op);
-    let command = match command {
+    let order = match command {
         PanelOrder::PanelFocus { focus } => {
             crate::panel::focus(&app, focus);
             return Ok(client.local_receipt());
         }
-        PanelOrder::OpenUrl { url } => {
-            return open_url(&app, &client, &url)
-                .map(|_| client.local_receipt())
-                .map_err(|error| {
-                    CommandError::from_app_error(
-                        AppCommand::Status(
-                            orbit_app_core::features::status::StatusCommand::OpenUrl { url },
-                        ),
-                        error,
-                    )
-                });
-        }
-        PanelOrder::CallRecord { call_id } => {
-            AppCommand::Daemon(Box::new(orbit_core::protocol::Command::CallRecord {
-                call_id,
-            }))
-        }
-        PanelOrder::CallDismiss { call_id } => {
-            AppCommand::Daemon(Box::new(orbit_core::protocol::Command::CallDismiss {
-                call_id,
-            }))
-        }
-        PanelOrder::RecordingKeep { recording_id } => {
-            AppCommand::Daemon(Box::new(orbit_core::protocol::Command::RecordingKeep {
-                recording_id,
-            }))
-        }
-        PanelOrder::MeetingFinish => {
-            AppCommand::Daemon(Box::new(orbit_core::protocol::Command::MeetingFinish))
-        }
+        PanelOrder::OpenUrl { url } => return open_panel_url(&app, &client, url),
+        PanelOrder::CallRecord { call_id } => DaemonCommand::CallRecord { call_id },
+        PanelOrder::CallDismiss { call_id } => DaemonCommand::CallDismiss { call_id },
+        PanelOrder::RecordingKeep { recording_id } => DaemonCommand::RecordingKeep { recording_id },
+        PanelOrder::MeetingFinish => DaemonCommand::MeetingFinish,
         PanelOrder::MeetingDiscard { recording_id } => {
-            AppCommand::Daemon(Box::new(orbit_core::protocol::Command::MeetingDiscard {
-                recording_id,
-            }))
+            DaemonCommand::MeetingDiscard { recording_id }
         }
-        PanelOrder::MicrophoneMute { muted } => {
-            AppCommand::Daemon(Box::new(orbit_core::protocol::Command::MicrophoneMute {
-                muted,
-            }))
-        }
+        PanelOrder::MicrophoneMute { muted } => DaemonCommand::MicrophoneMute { muted },
         PanelOrder::MeetingAsk { question, minutes } => {
-            AppCommand::Daemon(Box::new(orbit_core::protocol::Command::MeetingAsk {
-                question,
-                minutes,
-            }))
+            DaemonCommand::MeetingAsk { question, minutes }
         }
-        PanelOrder::MeetingQuestionClose { id } => AppCommand::Daemon(Box::new(
-            orbit_core::protocol::Command::MeetingQuestionClose { id },
-        )),
-        PanelOrder::Approval { approved, choice } => {
-            AppCommand::Daemon(Box::new(orbit_core::protocol::Command::Approval {
-                approved,
-                choice,
-            }))
-        }
+        PanelOrder::MeetingQuestionClose { id } => DaemonCommand::MeetingQuestionClose { id },
+        PanelOrder::Approval { approved, choice } => DaemonCommand::Approval { approved, choice },
         PanelOrder::Clarify {
             answer,
             question_id,
-        } => AppCommand::Daemon(Box::new(orbit_core::protocol::Command::Clarify {
+        } => DaemonCommand::Clarify {
             answer,
             question_id,
-        })),
+        },
     };
+    let command = AppCommand::Daemon(Box::new(order));
     let sent = command.clone();
     client
         .send_as(command, op)
         .await
         .map_err(|error| CommandError::from_app_error(sent, error))
+}
+
+/// A link the panel opens; a refusal names it as the `OpenUrl` order the
+/// window sends.
+fn open_panel_url(
+    app: &AppHandle,
+    client: &DaemonClient,
+    url: String,
+) -> Result<CommandReceipt, CommandError> {
+    open_url(app, client, &url)
+        .map(|_| client.local_receipt())
+        .map_err(|error| {
+            CommandError::from_app_error(
+                AppCommand::Status(orbit_app_core::features::status::StatusCommand::OpenUrl {
+                    url,
+                }),
+                error,
+            )
+        })
 }
 
 /// The app's local report log, in the daemon's data directory, and

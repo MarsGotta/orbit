@@ -23,7 +23,18 @@ fn action(name: &str) -> NoteLibraryAction {
 
 /// The library from the items of its read, in their order.
 pub(crate) fn project_library(items: Vec<LibraryItem>) -> NoteLibrarySnapshot {
-    let mut library = NoteLibrarySnapshot {
+    let mut library = available_library();
+    let mut pending = BTreeSet::new();
+    for item in items {
+        add_item(&mut library, item, &mut pending);
+    }
+    mark_pending(&mut library, &pending);
+    library
+}
+
+/// Every list available and empty, with the hub's bounds for templates.
+fn available_library() -> NoteLibrarySnapshot {
+    NoteLibrarySnapshot {
         dictionaries: Some(known()),
         dictionary_items: Vec::new(),
         dictionary_failures: Vec::new(),
@@ -44,76 +55,82 @@ pub(crate) fn project_library(items: Vec<LibraryItem>) -> NoteLibrarySnapshot {
             max_instructions_chars: orbit_core::notes::MAX_INSTRUCTIONS_CHARS,
             max_custom_templates: orbit_core::notes::MAX_CUSTOM_TEMPLATES,
         },
-    };
-    let mut pending = BTreeSet::new();
-    for item in items {
-        match item {
-            LibraryItem::Dictionary(dictionary) => {
-                library.dictionary_items.push(DictionarySnapshot {
-                    dictionary,
-                    pending: false,
-                })
-            }
-            LibraryItem::DictionaryRefused { failure } => library.dictionary_failures.push(failure),
-            LibraryItem::DictionaryConflicts { target, conflicts } => library
-                .dictionary_conflicts
-                .get_or_insert_with(Vec::new)
-                .push(NoteDictionaryConflictsSnapshot { target, conflicts }),
-            LibraryItem::Template(template) => library.items.push(NoteTemplateDetailSnapshot {
-                id: template.id,
-                name: template.name,
-                context: template.context,
-                sections: template.sections,
-                builtin: template.builtin,
-                forked_from: template
-                    .forked_from
-                    .map(|origin| NoteTemplateOriginSnapshot {
-                        id: origin.id,
-                        name: origin.name,
-                    }),
-                pending: false,
-            }),
-            LibraryItem::Link(link) => library.assignments.push(NoteTemplateLinkSnapshot {
-                calendar_item_id: link.calendar_item_id,
-                template_id: link.template_id,
-                template_name: None,
-                pending: false,
-            }),
-            LibraryItem::Unavailable { list, refusal } => {
-                let failed = NoteLibraryListSnapshot {
-                    state: if refusal.needs_the_hub() {
-                        NoteTemplatesState::NeedsHub
-                    } else {
-                        NoteTemplatesState::Failed
-                    },
-                    detail: Some(refusal.to_string()),
-                };
-                match list {
-                    LibraryList::Dictionaries => library.dictionaries = Some(failed),
-                    LibraryList::Templates => library.templates = failed,
-                    LibraryList::Links => library.links = failed,
-                }
-            }
-            LibraryItem::Pending { target } => {
-                pending.insert(target);
-            }
-            LibraryItem::Refused(refused) => library.refusals.push(NoteLibraryRefusalSnapshot {
-                target_kind: refused.target_kind,
-                target_id: refused.target_id,
-                action: action(&refused.action),
-                status: refused.status,
-                code: refused.code,
-                numbers: (!refused.numbers.is_empty()).then_some(refused.numbers),
-            }),
-            LibraryItem::Restored {
-                request_id,
-                template_id,
-            } => library.restores.push(NoteTemplateRestoreSnapshot {
-                request_id,
-                template_id,
-            }),
-        }
     }
+}
+
+/// One item of the read in its list; a pending order's target goes to
+/// `pending`.
+fn add_item(library: &mut NoteLibrarySnapshot, item: LibraryItem, pending: &mut BTreeSet<String>) {
+    match item {
+        LibraryItem::Dictionary(dictionary) => library.dictionary_items.push(DictionarySnapshot {
+            dictionary,
+            pending: false,
+        }),
+        LibraryItem::DictionaryRefused { failure } => library.dictionary_failures.push(failure),
+        LibraryItem::DictionaryConflicts { target, conflicts } => library
+            .dictionary_conflicts
+            .get_or_insert_with(Vec::new)
+            .push(NoteDictionaryConflictsSnapshot { target, conflicts }),
+        LibraryItem::Template(template) => library.items.push(NoteTemplateDetailSnapshot {
+            id: template.id,
+            name: template.name,
+            context: template.context,
+            sections: template.sections,
+            builtin: template.builtin,
+            forked_from: template
+                .forked_from
+                .map(|origin| NoteTemplateOriginSnapshot {
+                    id: origin.id,
+                    name: origin.name,
+                }),
+            pending: false,
+        }),
+        LibraryItem::Link(link) => library.assignments.push(NoteTemplateLinkSnapshot {
+            calendar_item_id: link.calendar_item_id,
+            template_id: link.template_id,
+            template_name: None,
+            pending: false,
+        }),
+        LibraryItem::Unavailable { list, refusal } => {
+            let failed = NoteLibraryListSnapshot {
+                state: if refusal.needs_the_hub() {
+                    NoteTemplatesState::NeedsHub
+                } else {
+                    NoteTemplatesState::Failed
+                },
+                detail: Some(refusal.to_string()),
+            };
+            match list {
+                LibraryList::Dictionaries => library.dictionaries = Some(failed),
+                LibraryList::Templates => library.templates = failed,
+                LibraryList::Links => library.links = failed,
+            }
+        }
+        LibraryItem::Pending { target } => {
+            pending.insert(target);
+        }
+        LibraryItem::Refused(refused) => library.refusals.push(NoteLibraryRefusalSnapshot {
+            target_kind: refused.target_kind,
+            target_id: refused.target_id,
+            action: action(&refused.action),
+            status: refused.status,
+            code: refused.code,
+            numbers: (!refused.numbers.is_empty()).then_some(refused.numbers),
+        }),
+        LibraryItem::Restored {
+            request_id,
+            template_id,
+        } => library.restores.push(NoteTemplateRestoreSnapshot {
+            request_id,
+            template_id,
+        }),
+    }
+}
+
+/// The orders not yet confirmed: the dictionary ones, and the pending mark
+/// of each dictionary, template and series assignment they touch. A link
+/// also takes its template's name.
+fn mark_pending(library: &mut NoteLibrarySnapshot, pending: &BTreeSet<String>) {
     library.dictionary_pending = pending
         .iter()
         .filter(|target| {
@@ -138,7 +155,6 @@ pub(crate) fn project_library(items: Vec<LibraryItem>) -> NoteLibrarySnapshot {
         link.template_name = names.get(&link.template_id).cloned();
         link.pending = pending.contains(&format!("series:{}", link.calendar_item_id));
     }
-    library
 }
 
 #[cfg(test)]

@@ -121,15 +121,28 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         log: orbit_ipc::report::ReportLog::app(&paths.root),
         client: transport,
     });
-    // A daemon that falls without anyone asking (a panic, or its run failed)
-    // relaunches the whole app: a fresh process starts a fresh daemon and
-    // helper from the saved state, and a recording that was live goes on
-    // (`cut_recovery`). A daemon that falls soon after its start is not
-    // relaunched (`daemon_thread::relaunches`): the app ends and the log says
-    // why. A SIGTERM ends here too, after the daemon's orderly closure, and
-    // the app ends with it: that closure was asked for.
-    let watched = daemon.clone();
-    let exits = app.handle().clone();
+    relaunch_when_the_daemon_falls(app.handle().clone(), daemon.clone());
+    app.manage(daemon);
+    client.set_login_item(login_item(app));
+    show_last_installation(&client);
+    app.manage(client.clone());
+    let updater = update_service();
+    app.manage(updater.clone());
+    tray::install(app.handle())?;
+    events::forward_frames(app.handle().clone(), client.clone());
+    panel_hover::watch(app.handle().clone(), client.clone());
+    tauri::async_runtime::spawn(follow_updates(paths, executable, client, updater));
+    Ok(())
+}
+
+/// A daemon that falls without anyone asking (a panic, or its run failed)
+/// relaunches the whole app: a fresh process starts a fresh daemon and
+/// helper from the saved state, and a recording that was live goes on
+/// (`cut_recovery`). A daemon that falls soon after its start is not
+/// relaunched (`daemon_thread::relaunches`): the app ends and the log says
+/// why. A SIGTERM ends here too, after the daemon's orderly closure, and
+/// the app ends with it: that closure was asked for.
+fn relaunch_when_the_daemon_falls(exits: tauri::AppHandle, watched: EmbeddedDaemon) {
     let started = std::time::Instant::now();
     tauri::async_runtime::spawn(async move {
         let ended = watched.ended().await;
@@ -153,9 +166,11 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             exits.exit(ended.exit_code());
         }
     });
-    app.manage(daemon);
-    let login_item = app
-        .autolaunch()
+}
+
+/// Whether Orbit opens at login, as macOS's login items say.
+fn login_item(app: &tauri::App) -> LoginItemState {
+    app.autolaunch()
         .is_enabled()
         .map_or(LoginItemState::Unknown, |enabled| {
             if enabled {
@@ -163,60 +178,63 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 LoginItemState::Off
             }
-        });
-    client.set_login_item(login_item);
-    if let Ok(home) = std::env::var("HOME") {
-        match UpdateService::last_installation_at(std::path::Path::new(&home)) {
-            Ok(Some(last_installation)) => {
-                client.set_update(UpdateSnapshot {
-                    last_installation: Some(last_installation),
-                    ..UpdateSnapshot::default()
-                });
-            }
-            Ok(None) => {}
-            Err(refusal) => {
-                client.set_update(UpdateSnapshot {
-                    state: SettingsUpdateState::Failed,
-                    refusal: Some(refusal),
-                    ..UpdateSnapshot::default()
-                });
-            }
+        })
+}
+
+/// Ajustes shows the last installation's result, or why it cannot be read.
+fn show_last_installation(client: &DaemonClient) {
+    let Ok(home) = std::env::var("HOME") else {
+        return;
+    };
+    match UpdateService::last_installation_at(std::path::Path::new(&home)) {
+        Ok(Some(last_installation)) => {
+            client.set_update(UpdateSnapshot {
+                last_installation: Some(last_installation),
+                ..UpdateSnapshot::default()
+            });
+        }
+        Ok(None) => {}
+        Err(refusal) => {
+            client.set_update(UpdateSnapshot {
+                state: SettingsUpdateState::Failed,
+                refusal: Some(refusal),
+                ..UpdateSnapshot::default()
+            });
         }
     }
-    app.manage(client.clone());
-    let updater = update_service();
-    app.manage(updater.clone());
-    tray::install(app.handle())?;
-    events::forward_frames(app.handle().clone(), client.clone());
-    panel_hover::watch(app.handle().clone(), client.clone());
-    tauri::async_runtime::spawn(async move {
-        let log = orbit_ipc::report::LogFile::new(
-            paths.root.join("logs/updates.log"),
-            orbit_ipc::report::MAX_BYTES,
-        );
-        // Status was accepted above, after open_bootstrap and load_snapshot.
-        if let Ok(home) = std::env::var("HOME")
-            && let Some(bundle) = orbit_core::orbit_bundle::bundle_of(
-                &executable,
-                orbit_core::orbit_bundle::Member::App,
-            )
-            && let Err(error) =
-                UpdateService::retire_previous(std::path::Path::new(&home), &bundle, &log).await
+}
+
+/// Retires the copies an update left behind, then checks for a new version
+/// every `AUTOMATIC_CHECK_INTERVAL` unless one is being checked or installed.
+async fn follow_updates(
+    paths: Paths,
+    executable: std::path::PathBuf,
+    client: DaemonClient,
+    updater: UpdateService,
+) {
+    let log = orbit_ipc::report::LogFile::new(
+        paths.root.join("logs/updates.log"),
+        orbit_ipc::report::MAX_BYTES,
+    );
+    // Status was accepted in `setup`, after open_bootstrap and load_snapshot.
+    if let Ok(home) = std::env::var("HOME")
+        && let Some(bundle) =
+            orbit_core::orbit_bundle::bundle_of(&executable, orbit_core::orbit_bundle::Member::App)
+        && let Err(error) =
+            UpdateService::retire_previous(std::path::Path::new(&home), &bundle, &log).await
+    {
+        eprintln!("Orbit: se conservan las copias anteriores: {error}");
+    }
+    loop {
+        if !matches!(
+            client.composed_snapshot().settings.update.state,
+            SettingsUpdateState::Installing | SettingsUpdateState::Checking
+        ) && let Some(result) = updater.check_automatically(&log).await
         {
-            eprintln!("Orbit: se conservan las copias anteriores: {error}");
+            client.set_update_result(result);
         }
-        loop {
-            if !matches!(
-                client.composed_snapshot().settings.update.state,
-                SettingsUpdateState::Installing | SettingsUpdateState::Checking
-            ) && let Some(result) = updater.check_automatically(&log).await
-            {
-                client.set_update_result(result);
-            }
-            tokio::time::sleep(orbit_app_core::AUTOMATIC_CHECK_INTERVAL).await;
-        }
-    });
-    Ok(())
+        tokio::time::sleep(orbit_app_core::AUTOMATIC_CHECK_INTERVAL).await;
+    }
 }
 
 fn update_service() -> UpdateService {

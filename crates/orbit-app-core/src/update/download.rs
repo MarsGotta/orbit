@@ -94,11 +94,23 @@ impl Updater {
 
     pub async fn fetch(&self, download: &Download) -> Result<String, Refusal> {
         let origin = reqwest::Url::parse(&self.origin).map_err(|_| invalid_origin(&self.origin))?;
-        let mut url = reqwest::Url::parse(&format!("{}/{}", self.origin, download.file))
+        let url = reqwest::Url::parse(&format!("{}/{}", self.origin, download.file))
             .map_err(|_| invalid_origin(&self.origin))?;
         let started = Instant::now();
+        let (response, url) = self.follow_redirects(&origin, url, started).await?;
+        self.read_body(download, response, &url, started).await
+    }
+
+    /// The response to a GET of `url` once it stops redirecting, and the URL
+    /// that gave it. Every hop shares the one timeout that began at `started`.
+    async fn follow_redirects(
+        &self,
+        origin: &reqwest::Url,
+        mut url: reqwest::Url,
+        started: Instant,
+    ) -> Result<(reqwest::Response, reqwest::Url), Refusal> {
         let mut followed = 0;
-        let mut response = loop {
+        loop {
             let remaining = self.timeout.saturating_sub(started.elapsed());
             if remaining.is_zero() {
                 return Err(deadline(url.as_str(), started, self.timeout));
@@ -111,45 +123,23 @@ impl Updater {
                 .await
                 .map_err(|error| network_error(url.as_str(), started, self.timeout, &error))?;
             if !matches!(response.status().as_u16(), 301 | 302 | 303 | 307 | 308) {
-                break response;
+                return Ok((response, url));
             }
-            let location = response
-                .headers()
-                .get(reqwest::header::LOCATION)
-                .ok_or_else(|| invalid_redirect(url.as_str(), "falta Location"))?
-                .to_str()
-                .map_err(|_| invalid_redirect(url.as_str(), "Location no es texto HTTP válido"))?;
-            let target = url
-                .join(location)
-                .map_err(|_| invalid_redirect(url.as_str(), "Location no es una URL válida"))?;
-            if !target.username().is_empty() || target.password().is_some() {
-                return Err(invalid_redirect(
-                    url.as_str(),
-                    "Location contiene credenciales",
-                ));
-            }
-            let from_origin = origin.origin().ascii_serialization();
-            let target_origin = target.origin().ascii_serialization();
-            if origin.scheme() != target.scheme() || origin.host_str() != target.host_str() {
-                return Err(Refusal::Update {
-                    cause: UpdateCause::RedirectOutsideOrigin {
-                        from_origin,
-                        target_origin,
-                    },
-                });
-            }
-            if followed == MAX_REDIRECTS {
-                return Err(Refusal::Update {
-                    cause: UpdateCause::RedirectLimit {
-                        url: url.to_string(),
-                        followed,
-                        max_redirects: MAX_REDIRECTS,
-                    },
-                });
-            }
+            url = redirect_target(origin, &url, &response, followed)?;
             followed += 1;
-            url = target;
-        };
+        }
+    }
+
+    /// The body of the final response: refused for a status that is not a
+    /// success, a size over the download's ceiling, declared or observed, and
+    /// text that is not UTF-8.
+    async fn read_body(
+        &self,
+        download: &Download,
+        mut response: reqwest::Response,
+        url: &reqwest::Url,
+        started: Instant,
+    ) -> Result<String, Refusal> {
         if !response.status().is_success() {
             return Err(Refusal::Update {
                 cause: UpdateCause::HttpStatus {
@@ -226,6 +216,52 @@ impl Updater {
         }
         Ok((script, true))
     }
+}
+
+/// Where a redirect from `url` leads, after `followed` others: refused
+/// without a valid Location, with credentials in it, outside the origin's
+/// scheme and host, or past `MAX_REDIRECTS`.
+fn redirect_target(
+    origin: &reqwest::Url,
+    url: &reqwest::Url,
+    response: &reqwest::Response,
+    followed: usize,
+) -> Result<reqwest::Url, Refusal> {
+    let location = response
+        .headers()
+        .get(reqwest::header::LOCATION)
+        .ok_or_else(|| invalid_redirect(url.as_str(), "falta Location"))?
+        .to_str()
+        .map_err(|_| invalid_redirect(url.as_str(), "Location no es texto HTTP válido"))?;
+    let target = url
+        .join(location)
+        .map_err(|_| invalid_redirect(url.as_str(), "Location no es una URL válida"))?;
+    if !target.username().is_empty() || target.password().is_some() {
+        return Err(invalid_redirect(
+            url.as_str(),
+            "Location contiene credenciales",
+        ));
+    }
+    let from_origin = origin.origin().ascii_serialization();
+    let target_origin = target.origin().ascii_serialization();
+    if origin.scheme() != target.scheme() || origin.host_str() != target.host_str() {
+        return Err(Refusal::Update {
+            cause: UpdateCause::RedirectOutsideOrigin {
+                from_origin,
+                target_origin,
+            },
+        });
+    }
+    if followed == MAX_REDIRECTS {
+        return Err(Refusal::Update {
+            cause: UpdateCause::RedirectLimit {
+                url: url.to_string(),
+                followed,
+                max_redirects: MAX_REDIRECTS,
+            },
+        });
+    }
+    Ok(target)
 }
 
 fn invalid_origin(value: &str) -> Refusal {

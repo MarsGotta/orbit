@@ -26,56 +26,6 @@
 "server/orbit_mcp/refusals.py" = 507
 "server/orbit_mcp/server.py" = 649
 
-[functions."apps/desktop/src-tauri/src/commands.rs"]
-"orbit_panel_send" = 81
-
-[functions."apps/desktop/src-tauri/src/lib.rs"]
-"setup" = 109
-
-[functions."crates/orbit-app-core/contract/snapshot.rs"]
-"<AppSnapshot as Default>::default" = 128
-
-[functions."crates/orbit-app-core/src/client/agenda.rs"]
-"hydrate_agenda" = 89
-
-[functions."crates/orbit-app-core/src/client/mod.rs"]
-"DaemonClient::connect_with_clock" = 132
-
-[functions."crates/orbit-app-core/src/client/note_read.rs"]
-"DaemonClient::read_note" = 97
-
-[functions."crates/orbit-app-core/src/client/send.rs"]
-"DaemonClient::send_as" = 91
-
-[functions."crates/orbit-app-core/src/features/agenda.rs"]
-"project_with_read" = 214
-
-[functions."crates/orbit-app-core/src/features/assistant.rs"]
-"project" = 113
-
-[functions."crates/orbit-app-core/src/features/briefing.rs"]
-"project" = 197
-
-[functions."crates/orbit-app-core/src/features/note.rs"]
-"map_command" = 83
-
-[functions."crates/orbit-app-core/src/features/recording.rs"]
-"project" = 139
-
-[functions."crates/orbit-app-core/src/features/status.rs"]
-"project" = 130
-
-[functions."crates/orbit-app-core/src/projection/library.rs"]
-"project_library" = 118
-
-[functions."crates/orbit-app-core/src/update.rs"]
-"UpdateService::last_installation_at" = 105
-"UpdateService::run_installer" = 94
-"retire_previous_from_listing" = 82
-
-[functions."crates/orbit-app-core/src/update/download.rs"]
-"Updater::fetch" = 94
-
 [functions."crates/orbit-control/src/cua.rs"]
 "inspect_previous_listener" = 217
 "start_engine_after_inspection" = 110

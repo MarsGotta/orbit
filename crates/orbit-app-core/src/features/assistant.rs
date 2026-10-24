@@ -11,24 +11,7 @@ use ts_rs::TS;
 pub type View = crate::ChatSnapshot;
 
 pub fn project(input: &FeatureInput<'_>) -> View {
-    let mut view = View {
-        availability: Some(FeatureAvailability::missing(input.topics)),
-        session_id: None,
-        agent_id: None,
-        turn: Vec::new(),
-        pending_voice: None,
-        voice_audio: input.local.voice_audio.clone(),
-        pending_contract: None,
-        voice: VoiceSnapshot {
-            state: VoiceState::Unknown,
-            level: 0,
-            availability: Some(FeatureAvailability::missing(input.topics)),
-            too_short: None,
-        },
-        activity: None,
-        speaking: None,
-        work: None,
-    };
+    let mut view = unobserved(input);
     let Some(cell) = input.topics.topic(TopicId::Assistant) else {
         return view;
     };
@@ -74,34 +57,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
             .map(|message| chat_message(message, false))
             .collect()
     });
-    view.pending_contract = value.pending.as_ref().map(|pending| {
-        if pending.clarification {
-            ChatPending::Clarify {
-                id: pending.request_id.clone(),
-                text: pending.description.clone(),
-                choices: pending.choices.clone(),
-                questions: pending
-                    .questions
-                    .iter()
-                    .map(|question| crate::ChatQuestion {
-                        qid: question.qid.clone(),
-                        question: question.question.clone(),
-                        choices: question.choices.clone(),
-                        multi_select: question.multi_select,
-                    })
-                    .collect(),
-            }
-        } else {
-            ChatPending::Approval {
-                id: pending.request_id.clone(),
-                text: pending.description.clone(),
-                choices: pending.choices.clone(),
-                deletes: pending.deletes.map(|deletes| crate::ChatDeletion {
-                    paths: deletes.paths,
-                }),
-            }
-        }
-    });
+    view.pending_contract = value.pending.as_ref().map(pending_contract);
     view.work = value.work.as_deref().cloned();
     // Voice input is the daemon's microphone. Whether the hub's voice can
     // read an answer aloud (`value.voice`, unknown until something is read)
@@ -125,6 +81,60 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         Activity::Responding => AssistantActivity::Responding,
     });
     view
+}
+
+/// The chat before the assistant topic says anything: only the voice note
+/// audio the app kept.
+fn unobserved(input: &FeatureInput<'_>) -> View {
+    View {
+        availability: Some(FeatureAvailability::missing(input.topics)),
+        session_id: None,
+        agent_id: None,
+        turn: Vec::new(),
+        pending_voice: None,
+        voice_audio: input.local.voice_audio.clone(),
+        pending_contract: None,
+        voice: VoiceSnapshot {
+            state: VoiceState::Unknown,
+            level: 0,
+            availability: Some(FeatureAvailability::missing(input.topics)),
+            too_short: None,
+        },
+        activity: None,
+        speaking: None,
+        work: None,
+    }
+}
+
+/// What the assistant waits for from the user: an answer to its questions,
+/// or an approval.
+fn pending_contract(pending: &orbit_core::Approval) -> ChatPending {
+    if pending.clarification {
+        ChatPending::Clarify {
+            id: pending.request_id.clone(),
+            text: pending.description.clone(),
+            choices: pending.choices.clone(),
+            questions: pending
+                .questions
+                .iter()
+                .map(|question| crate::ChatQuestion {
+                    qid: question.qid.clone(),
+                    question: question.question.clone(),
+                    choices: question.choices.clone(),
+                    multi_select: question.multi_select,
+                })
+                .collect(),
+        }
+    } else {
+        ChatPending::Approval {
+            id: pending.request_id.clone(),
+            text: pending.description.clone(),
+            choices: pending.choices.clone(),
+            deletes: pending.deletes.map(|deletes| crate::ChatDeletion {
+                paths: deletes.paths,
+            }),
+        }
+    }
 }
 
 pub fn apply(view: &View, snapshot: &mut AppSnapshot) {

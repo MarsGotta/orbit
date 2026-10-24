@@ -20,121 +20,9 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         .map(|_| &input.clock.zone);
     let now_ms = input.clock.now_ms;
     let (calendar, page_loaded) = super::agenda::project_with_read(input);
-    let agenda_cell = input.topics.topic(TopicId::Agenda);
-    let agenda_topic = agenda_cell.and_then(|cell| {
-        if let TopicData::Agenda(knowledge) = &cell.knowledge {
-            Some(knowledge)
-        } else {
-            None
-        }
-    });
-    let agenda_state = if let Some(stale) = stale_state(agenda_cell) {
-        stale
-    } else {
-        match agenda_topic {
-            Some(Knowledge::Present { .. }) if published_zone.is_none() => {
-                BriefingSourceState::Unknown {
-                    cause: "local_zone_unavailable".into(),
-                }
-            }
-            Some(Knowledge::Present { value, .. })
-                if page_loaded
-                    && (calendar.reading.state != CalendarReadingState::Unavailable
-                        || matches!(
-                            calendar.reading.blocker,
-                            Some(
-                                crate::CalendarReadingBlocker::NotPaired
-                                    | crate::CalendarReadingBlocker::MacDisconnected
-                            )
-                        )) =>
-            {
-                published_zone.map_or_else(
-                    || BriefingSourceState::Unknown {
-                        cause: "local_zone_unavailable".into(),
-                    },
-                    |zone| {
-                        let day = zone.day(now_ms);
-                        let today_start = zone.start_of_day(day);
-                        let today_end = zone.start_of_day(day.saturating_add(1));
-                        match value.read_window {
-                            Some(window)
-                                if window.start_unix_ms <= today_start
-                                    && window.end_unix_ms >= today_end =>
-                            {
-                                BriefingSourceState::Present
-                            }
-                            Some(window) => BriefingSourceState::Unknown {
-                                cause: format!(
-                                    "agenda_window_excludes_today:window_start_ms={}:window_end_ms={}:today_start_ms={today_start}:today_end_ms={today_end}",
-                                    window.start_unix_ms, window.end_unix_ms
-                                ),
-                            },
-                            None => BriefingSourceState::Unknown {
-                                cause: "agenda_window_missing".into(),
-                            },
-                        }
-                    },
-                )
-            }
-            Some(Knowledge::Present { .. }) => {
-                let cause = if page_loaded || calendar.reading.state == CalendarReadingState::Unavailable {
-                    calendar.reading.detail.clone().unwrap_or_else(|| "agenda_page_pending".into())
-                } else {
-                    "agenda_page_pending".into()
-                };
-                if calendar.reading.state == CalendarReadingState::Unavailable {
-                    BriefingSourceState::Absent { cause }
-                } else {
-                    BriefingSourceState::Unknown { cause }
-                }
-            }
-            Some(knowledge) => source_state(knowledge),
-            None => unknown_topic(),
-        }
-    };
-    let notes_cell = input.topics.topic(TopicId::Notes);
-    let notes_topic = notes_cell.and_then(|cell| {
-        if let TopicData::Notes(knowledge) = &cell.knowledge {
-            Some(knowledge)
-        } else {
-            None
-        }
-    });
-    // The notes list is the hub's, read by the client into the
-    // local snapshot (`client::notes`).
-    let notes_list = input.local.notes.as_ref().and_then(|notes| {
-        notes
-            .index
-            .as_ref()
-            .filter(|index| index.state == crate::NotesIndexState::Available)
-            .map(|_| notes.list.as_slice())
-    });
-    let notes_state = if let Some(stale) = stale_state(notes_cell) {
-        stale
-    } else {
-        match notes_topic {
-            Some(Knowledge::Present { .. }) if notes_list.is_some() => BriefingSourceState::Present,
-            Some(Knowledge::Present { .. }) => match input
-                .local
-                .notes
-                .as_ref()
-                .and_then(|notes| notes.index.as_ref())
-                .filter(|index| index.state == crate::NotesIndexState::Failed)
-            {
-                Some(index) => BriefingSourceState::Absent {
-                    cause: index
-                        .detail
-                        .clone()
-                        .unwrap_or_else(|| "notes_list_failed".into()),
-                },
-                None => BriefingSourceState::Unknown {
-                    cause: "notes_list_pending".into(),
-                },
-            },
-            Some(knowledge) => source_state(knowledge),
-            None => unknown_topic(),
-        }
-    };
+    let agenda_state = agenda_source_state(input, &calendar, page_loaded, published_zone);
+    let notes_list = available_notes(input);
+    let notes_state = notes_source_state(input, notes_list.is_some());
     let recording_cell = input.topics.topic(TopicId::Recording);
     let recording_topic = recording_cell.and_then(|cell| {
         if let TopicData::Recording(knowledge) = &cell.knowledge {
@@ -147,20 +35,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         .unwrap_or_else(|| recording_topic.map_or_else(unknown_topic, source_state));
     let note_lookup = notes_list.map(NoteLookup::new);
     let events = if agenda_state == BriefingSourceState::Present {
-        published_zone.map_or_else(Vec::new, |zone| {
-            let day = zone.day(now_ms);
-            let mut events = calendar
-                .events
-                .iter()
-                .filter(|event| {
-                    event.all_day != Some(true)
-                        && event.status != Some(CalendarEventStatus::Cancelled)
-                        && zone.day(event.start_ms) == day
-                })
-                .collect::<Vec<_>>();
-            events.sort_by_key(|event| event.start_ms);
-            events
-        })
+        published_zone.map_or_else(Vec::new, |zone| todays_events(&calendar, zone, now_ms))
     } else {
         Vec::new()
     };
@@ -210,6 +85,167 @@ pub fn project(input: &FeatureInput<'_>) -> View {
             recording: recording_state,
         }),
     })
+}
+
+/// Whether the agenda can say what today holds: a current head whose read
+/// arrived, in a known local zone, over a window that covers today.
+fn agenda_source_state(
+    input: &FeatureInput<'_>,
+    calendar: &crate::CalendarSnapshot,
+    page_loaded: bool,
+    published_zone: Option<&LocalZone>,
+) -> BriefingSourceState {
+    let agenda_cell = input.topics.topic(TopicId::Agenda);
+    if let Some(stale) = stale_state(agenda_cell) {
+        return stale;
+    }
+    let agenda_topic = agenda_cell.and_then(|cell| {
+        if let TopicData::Agenda(knowledge) = &cell.knowledge {
+            Some(knowledge)
+        } else {
+            None
+        }
+    });
+    match agenda_topic {
+        Some(Knowledge::Present { .. }) if published_zone.is_none() => {
+            BriefingSourceState::Unknown {
+                cause: "local_zone_unavailable".into(),
+            }
+        }
+        Some(Knowledge::Present { value, .. })
+            if page_loaded
+                && (calendar.reading.state != CalendarReadingState::Unavailable
+                    || matches!(
+                        calendar.reading.blocker,
+                        Some(
+                            crate::CalendarReadingBlocker::NotPaired
+                                | crate::CalendarReadingBlocker::MacDisconnected
+                        )
+                    )) =>
+        {
+            published_zone.map_or_else(
+                || BriefingSourceState::Unknown {
+                    cause: "local_zone_unavailable".into(),
+                },
+                |zone| today_coverage(value.read_window, zone, input.clock.now_ms),
+            )
+        }
+        Some(Knowledge::Present { .. }) => {
+            let cause =
+                if page_loaded || calendar.reading.state == CalendarReadingState::Unavailable {
+                    calendar
+                        .reading
+                        .detail
+                        .clone()
+                        .unwrap_or_else(|| "agenda_page_pending".into())
+                } else {
+                    "agenda_page_pending".into()
+                };
+            if calendar.reading.state == CalendarReadingState::Unavailable {
+                BriefingSourceState::Absent { cause }
+            } else {
+                BriefingSourceState::Unknown { cause }
+            }
+        }
+        Some(knowledge) => source_state(knowledge),
+        None => unknown_topic(),
+    }
+}
+
+/// Present when the read window holds all of today in `zone`; otherwise
+/// unknown, with the window and today's bounds.
+fn today_coverage(
+    window: Option<orbit_core::calendar::CalendarWindow>,
+    zone: &LocalZone,
+    now_ms: i64,
+) -> BriefingSourceState {
+    let day = zone.day(now_ms);
+    let today_start = zone.start_of_day(day);
+    let today_end = zone.start_of_day(day.saturating_add(1));
+    match window {
+        Some(window) if window.start_unix_ms <= today_start && window.end_unix_ms >= today_end => {
+            BriefingSourceState::Present
+        }
+        Some(window) => BriefingSourceState::Unknown {
+            cause: format!(
+                "agenda_window_excludes_today:window_start_ms={}:window_end_ms={}:today_start_ms={today_start}:today_end_ms={today_end}",
+                window.start_unix_ms, window.end_unix_ms
+            ),
+        },
+        None => BriefingSourceState::Unknown {
+            cause: "agenda_window_missing".into(),
+        },
+    }
+}
+
+/// The notes list is the hub's, read by the client into the local snapshot
+/// (`client::notes`); `None` until a read made it available.
+fn available_notes<'a>(input: &FeatureInput<'a>) -> Option<&'a [crate::NoteListItem]> {
+    input.local.notes.as_ref().and_then(|notes| {
+        notes
+            .index
+            .as_ref()
+            .filter(|index| index.state == crate::NotesIndexState::Available)
+            .map(|_| notes.list.as_slice())
+    })
+}
+
+/// Whether the notes can say which meetings have a previous one: the
+/// topic, and the list the client read.
+fn notes_source_state(input: &FeatureInput<'_>, list_available: bool) -> BriefingSourceState {
+    let notes_cell = input.topics.topic(TopicId::Notes);
+    if let Some(stale) = stale_state(notes_cell) {
+        return stale;
+    }
+    let notes_topic = notes_cell.and_then(|cell| {
+        if let TopicData::Notes(knowledge) = &cell.knowledge {
+            Some(knowledge)
+        } else {
+            None
+        }
+    });
+    match notes_topic {
+        Some(Knowledge::Present { .. }) if list_available => BriefingSourceState::Present,
+        Some(Knowledge::Present { .. }) => match input
+            .local
+            .notes
+            .as_ref()
+            .and_then(|notes| notes.index.as_ref())
+            .filter(|index| index.state == crate::NotesIndexState::Failed)
+        {
+            Some(index) => BriefingSourceState::Absent {
+                cause: index
+                    .detail
+                    .clone()
+                    .unwrap_or_else(|| "notes_list_failed".into()),
+            },
+            None => BriefingSourceState::Unknown {
+                cause: "notes_list_pending".into(),
+            },
+        },
+        Some(knowledge) => source_state(knowledge),
+        None => unknown_topic(),
+    }
+}
+
+/// Today's timed meetings that go ahead, in `zone`, by start.
+fn todays_events<'a>(
+    calendar: &'a crate::CalendarSnapshot,
+    zone: &LocalZone,
+    now_ms: i64,
+) -> Vec<&'a CalendarEventSnapshot> {
+    let day = zone.day(now_ms);
+    let mut events = calendar
+        .events
+        .iter()
+        .filter(|event| {
+            event.all_day != Some(true)
+                && event.status != Some(CalendarEventStatus::Cancelled)
+                && zone.day(event.start_ms) == day
+        })
+        .collect::<Vec<_>>();
+    events.sort_by_key(|event| event.start_ms);
+    events
 }
 
 fn unknown_topic() -> BriefingSourceState {
