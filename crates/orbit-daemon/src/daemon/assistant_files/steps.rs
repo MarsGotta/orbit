@@ -424,9 +424,9 @@ impl Runtime {
         orbit_core::sources::validate_png(&png, width, height).map_err(|_| invalid())?;
         let Some(ask) = self
             .assistant
-            .bridge_request
-            .clone()
+            .bridge_ask(crate::daemon::BridgeKind::Files)
             .filter(|ask| ask.id == request.ask_id)
+            .cloned()
         else {
             return Ok(());
         };

@@ -39,7 +39,7 @@ impl Runtime {
                     } else {
                         Event::CallStart {
                             id: id(),
-                            duration_ms: i64::from(orbit_core::voice::HOTKEY_CALL_MINUTES) * 60_000,
+                            duration_ms: i64::from(orbit_core::voice::CALL_MINUTES) * 60_000,
                             origin: orbit_core::CallOrigin::Hotkey,
                         }
                     })

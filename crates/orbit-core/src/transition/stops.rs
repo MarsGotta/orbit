@@ -112,10 +112,13 @@ pub(super) fn call_stop(n: &mut DurableState, cx: &mut Step) {
     }
 }
 
-/// The clock: a discard that will not drain, a call at its end, then the
-/// recording's ceiling and its unconfirmed close.
+/// The clock: a discard that will not drain, a call near or at its end,
+/// then the recording's ceiling and its unconfirmed close.
 pub(super) fn tick(n: &mut DurableState, cx: &mut Step) {
     capture::drain_timed_out(&mut n.capture, cx);
+    if let Some(notice) = n.voice.ceiling_near(cx.now_ms) {
+        cx.say(notice);
+    }
     if n.voice.expire_call(cx.now_ms) {
         n.assistant.retire_request();
         cx.effects([Effect::StopCall, Effect::StopPlayback, Effect::Interrupt]);

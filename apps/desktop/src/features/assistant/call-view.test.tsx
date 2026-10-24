@@ -88,6 +88,13 @@ describe("the limits of a call", () => {
       "tras 1 min 30 s sin que hables",
     );
   });
+
+  it("says the hours left of a call that has them", () => {
+    expect(callLimits(call({ expires_at_ms: NOW + 239 * 60_000 }), NOW)).toMatch(
+      /^Quedan 3 h 59 min · /,
+    );
+    expect(callLimits(call({ expires_at_ms: NOW + 240 * 60_000 }), NOW)).toMatch(/^Quedan 4 h · /);
+  });
 });
 
 describe("the call view", () => {

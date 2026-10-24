@@ -34,6 +34,12 @@ describe("the call card", () => {
     expect(card.textContent).toContain("Ve tu pantalla · quedan 55 min");
   });
 
+  it("says the hours left of a call that has them", () => {
+    renderCard(call({ expires_at_ms: Date.now() + 239 * 60_000 + 30_000 }));
+    const card = screen.getByRole("region", { name: "Llamada en curso" });
+    expect(card.textContent).toContain("Ve tu pantalla · quedan 3 h 59 min");
+  });
+
   it("names the agent of the call and what it cannot see", () => {
     renderCard(call({ seeing_screen: false, expires_at_ms: Date.now() + 30_000 }), "Vega");
     const card = screen.getByRole("region", { name: "Llamada en curso" });

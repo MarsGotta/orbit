@@ -64,9 +64,11 @@ impl Runtime {
         let duration_ns = frames * 1_000_000_000 / rate;
         let policy = VoicePolicy::default();
         let responding = facts.playback_active || self.assistant.speech_task.active().is_some();
-        let waiting = self.assistant.voice_task.active().is_some()
-            || self.state.durable.assistant.active_request.is_some();
-        let response_active = responding || waiting;
+        // A turn's words being asked for is not Deimos at work: noise
+        // transcribed into nothing must not keep a forgotten call open.
+        let transcribing = self.assistant.voice_task.active().is_some();
+        let working = self.state.durable.assistant.active_request.is_some();
+        let waiting = transcribing || working;
         let observation = VoiceObservation {
             generation: self.state.generation(),
             authorized: !self.state.privacy_stopped() && self.state.durable.voice.call.is_some(),
@@ -75,7 +77,8 @@ impl Runtime {
             duration_ns,
             received_at_ms,
             voiced: energy_exceeds(&pcm, policy.rms_threshold),
-            response_active,
+            response_active: responding || working,
+            transcribing,
             muted: self.microphone_muted(),
         };
         let (action, preroll, began) = self.audio.observe_call_audio(

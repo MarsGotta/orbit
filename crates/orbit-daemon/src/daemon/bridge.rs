@@ -1,8 +1,9 @@
 //! Remote device bridge requests and replies: a router.
 //!
 //! A `device.request` enters through `admission`, which checks it and makes
-//! it the one request being served (`BridgeAsk`). The router hands it to its
-//! domain, which owns its start, its waits and its reply:
+//! it the request being served of its kind (`BridgeAsk` in `BridgeSlots`).
+//! The router hands it to its domain, which owns its start, its waits and
+//! its reply:
 //!
 //! - `screen` and `screen_sources`: the windows, a screenshot and the selected
 //!   text, through the engine or the helper;
@@ -12,7 +13,7 @@
 //! - the assistant's folders, in `assistant_files.rs`.
 //!
 //! `refusals` names what each helper code and each ending says; `release`
-//! frees the slot when the operation ended without the helper's answer.
+//! frees a slot when the operation ended without the helper's answer.
 use super::{Runtime, hub_link};
 use orbit_core::device_bridge::Capability;
 use orbit_core::notice::{Notice, NoticeCode};
@@ -63,6 +64,100 @@ pub(super) struct BridgeAsk {
     /// as a `device.reply` (`window_attachment`), and Orbit's own windows,
     /// in front while the user presses the button, are never the one taken.
     pub(super) for_attachment: bool,
+}
+
+/// The kind of work a remote request occupies on this Mac. Each kind has a
+/// slot of its own and serves one request at a time, so a slow folder read
+/// never makes a screenshot asked from another conversation wait or be
+/// refused as busy (it once did, for up to 20 s).
+///
+/// The kinds are what the Mac serializes on its own: the folders run apart
+/// from the helper's general lane (`OrbitApplication.swift`), the screen and
+/// the selected text go through that lane or the engine, the computer's
+/// tools and actions through the engine, which runs one work at a time and
+/// refuses a second (`require_computer_idle`), and the calendar through its
+/// own reader. A screen read that finds the engine busy falls back to the
+/// helper.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum BridgeKind {
+    Files = 0,
+    Screen = 1,
+    Control = 2,
+    Calendar = 3,
+}
+
+impl BridgeKind {
+    pub(super) const ALL: [Self; 4] = [Self::Files, Self::Screen, Self::Control, Self::Calendar];
+
+    pub(super) fn of(capability: Capability) -> Self {
+        match capability {
+            Capability::FilesList | Capability::FilesSearch | Capability::FilesRead => Self::Files,
+            Capability::Screenshot | Capability::ScreenSources | Capability::SelectedText => {
+                Self::Screen
+            }
+            Capability::ControlTools | Capability::PerformAction => Self::Control,
+            Capability::CalendarRead => Self::Calendar,
+        }
+    }
+}
+
+impl BridgeAsk {
+    pub(super) fn kind(&self) -> BridgeKind {
+        BridgeKind::of(self.capability)
+    }
+}
+
+/// One slot per `BridgeKind`: the request being served of each kind, or
+/// what it holds while it is served (its capture's upload).
+pub(super) struct BridgeSlots<T> {
+    slots: [Option<T>; 4],
+}
+
+impl<T> Default for BridgeSlots<T> {
+    fn default() -> Self {
+        Self {
+            slots: [None, None, None, None],
+        }
+    }
+}
+
+impl<T> BridgeSlots<T> {
+    pub(super) fn get(&self, kind: BridgeKind) -> Option<&T> {
+        self.slots[kind as usize].as_ref()
+    }
+
+    pub(super) fn get_mut(&mut self, kind: BridgeKind) -> Option<&mut T> {
+        self.slots[kind as usize].as_mut()
+    }
+
+    pub(super) fn insert(&mut self, kind: BridgeKind, value: T) {
+        self.slots[kind as usize] = Some(value);
+    }
+
+    pub(super) fn take(&mut self, kind: BridgeKind) -> Option<T> {
+        self.slots[kind as usize].take()
+    }
+
+    #[cfg(test)]
+    pub(super) fn is_empty(&self) -> bool {
+        self.slots.iter().all(Option::is_none)
+    }
+}
+
+impl BridgeSlots<BridgeAsk> {
+    /// `ask` becomes the request being served of its kind.
+    pub(super) fn put(&mut self, ask: BridgeAsk) {
+        self.insert(ask.kind(), ask);
+    }
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for BridgeSlots<T> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_list()
+            .entries(self.slots.iter().flatten())
+            .finish()
+    }
 }
 
 fn result_payload(request_id: &str, result: BridgeResult) -> Value {

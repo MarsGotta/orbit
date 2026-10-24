@@ -144,20 +144,23 @@ async fn other_revocation_answers_remote_action_with_its_cause() -> Result<()> {
     h.start_general_action().await?;
     let (sender, mut frames) = mpsc::channel(4);
     h.runtime.link.outbound.install(sender);
-    h.runtime.assistant.bridge_request = Some(super::super::BridgeAsk {
-        for_attachment: false,
-        id: "remote-revocation".into(),
-        capability: orbit_core::device_bridge::Capability::PerformAction,
-        application: None,
-        title: None,
-        full_screen: false,
-        source_id: None,
-        tool_call: None,
-        catalogue_after: 0,
-        calendar_window: None,
-        calendar_cursor: None,
-        files: None,
-    });
+    h.runtime
+        .assistant
+        .bridge_requests
+        .put(super::super::BridgeAsk {
+            for_attachment: false,
+            id: "remote-revocation".into(),
+            capability: orbit_core::device_bridge::Capability::PerformAction,
+            application: None,
+            title: None,
+            full_screen: false,
+            source_id: None,
+            tool_call: None,
+            catalogue_after: 0,
+            calendar_window: None,
+            calendar_cursor: None,
+            files: None,
+        });
     h.runtime
         .revoke_computer(&orbit_core::refusal::Refusal::PermissionDenied {
             permission: orbit_core::refusal::Permission::Accessibility,
@@ -183,20 +186,23 @@ async fn computer_retirement_keeps_non_control_bridge_requests() -> Result<()> {
         let mut h = Mac::new(false).await?;
         let (sender, mut frames) = mpsc::channel(4);
         h.runtime.link.outbound.install(sender);
-        h.runtime.assistant.bridge_request = Some(super::super::BridgeAsk {
-            for_attachment: false,
-            id: "unrelated-reading".into(),
-            capability,
-            application: None,
-            title: None,
-            full_screen: false,
-            source_id: None,
-            tool_call: None,
-            catalogue_after: 0,
-            calendar_window: None,
-            calendar_cursor: None,
-            files: None,
-        });
+        h.runtime
+            .assistant
+            .bridge_requests
+            .put(super::super::BridgeAsk {
+                for_attachment: false,
+                id: "unrelated-reading".into(),
+                capability,
+                application: None,
+                title: None,
+                full_screen: false,
+                source_id: None,
+                tool_call: None,
+                catalogue_after: 0,
+                calendar_window: None,
+                calendar_cursor: None,
+                files: None,
+            });
         h.runtime
             .revoke_computer(&orbit_core::refusal::Refusal::ReadInterrupted {
                 cause: orbit_core::refusal::ReadInterruption::ComputerRevoked,
@@ -204,7 +210,7 @@ async fn computer_retirement_keeps_non_control_bridge_requests() -> Result<()> {
             .await;
         assert!(frames.try_recv().is_err(), "{capability:?}");
         assert!(
-            h.runtime.assistant.bridge_request.is_some(),
+            !h.runtime.assistant.bridge_requests.is_empty(),
             "{capability:?}"
         );
     }
@@ -231,20 +237,23 @@ async fn each_authority_revocation_answers_deimos_with_its_cause() -> Result<()>
         h.start_general_action().await?;
         let (sender, mut frames) = mpsc::channel(4);
         h.runtime.link.outbound.install(sender);
-        h.runtime.assistant.bridge_request = Some(super::super::BridgeAsk {
-            for_attachment: false,
-            id: "authority-change".into(),
-            capability: orbit_core::device_bridge::Capability::PerformAction,
-            application: None,
-            title: None,
-            full_screen: false,
-            source_id: None,
-            tool_call: None,
-            catalogue_after: 0,
-            calendar_window: None,
-            calendar_cursor: None,
-            files: None,
-        });
+        h.runtime
+            .assistant
+            .bridge_requests
+            .put(super::super::BridgeAsk {
+                for_attachment: false,
+                id: "authority-change".into(),
+                capability: orbit_core::device_bridge::Capability::PerformAction,
+                application: None,
+                title: None,
+                full_screen: false,
+                source_id: None,
+                tool_call: None,
+                catalogue_after: 0,
+                calendar_window: None,
+                calendar_cursor: None,
+                files: None,
+            });
         h.runtime
             .revoke_computer_with_cause(
                 super::super::retire::computer_reason(change),
@@ -293,7 +302,7 @@ async fn engine_refusal_reports_full_and_retired_hub() -> Result<()> {
     let (sender, mut frames) = mpsc::channel(1);
     sender.try_send(json!({"fixture":"occupied"}))?;
     h.runtime.link.outbound.install(sender);
-    h.runtime.assistant.bridge_request = Some(ask.clone());
+    h.runtime.assistant.bridge_requests.put(ask.clone());
     h.runtime.refuse_remote_engine_action("fixture", None).await;
     // Not delivered, with its cause (the full channel) in daemon.log.
     assert_eq!(
@@ -309,7 +318,7 @@ async fn engine_refusal_reports_full_and_retired_hub() -> Result<()> {
         .link
         .outbound
         .retire(crate::daemon::hub_link::Retirement::NetworkCancelled);
-    h.runtime.assistant.bridge_request = Some(ask);
+    h.runtime.assistant.bridge_requests.put(ask);
     h.runtime.refuse_remote_engine_action("fixture", None).await;
     assert!(
         said::told(&h.runtime).contains("cancelación de red"),
@@ -736,7 +745,7 @@ async fn unknown_capture_filter_is_refused_before_window_selection() -> Result<(
             json!(["application", "title"])
         };
         assert_eq!(expected["allowed"], allowed);
-        assert!(h.runtime.assistant.bridge_request.is_none());
+        assert!(h.runtime.assistant.bridge_requests.is_empty());
     }
     Ok(())
 }
@@ -850,20 +859,23 @@ async fn real_engine_failure_handler_never_replies_with_system_text() -> Result<
     let mut h = Mac::new(false).await?;
     let (sender, mut hub) = mpsc::channel(16);
     h.runtime.link.outbound.install(sender);
-    h.runtime.assistant.bridge_request = Some(super::super::BridgeAsk {
-        for_attachment: false,
-        id: "engine-error".into(),
-        capability: orbit_core::device_bridge::Capability::PerformAction,
-        application: None,
-        title: None,
-        full_screen: false,
-        source_id: None,
-        tool_call: None,
-        catalogue_after: 0,
-        calendar_window: None,
-        calendar_cursor: None,
-        files: None,
-    });
+    h.runtime
+        .assistant
+        .bridge_requests
+        .put(super::super::BridgeAsk {
+            for_attachment: false,
+            id: "engine-error".into(),
+            capability: orbit_core::device_bridge::Capability::PerformAction,
+            application: None,
+            title: None,
+            full_screen: false,
+            source_id: None,
+            tool_call: None,
+            catalogue_after: 0,
+            calendar_window: None,
+            calendar_cursor: None,
+            files: None,
+        });
     h.runtime
         .computer_failed(&anyhow::anyhow!(
             "engine failed at /Users/sample/private/key and $HOME"
@@ -891,20 +903,23 @@ async fn failed_active_action_replies_with_uncertain_outcome() -> Result<()> {
                 .map_err(anyhow::Error::msg)?;
         h.runtime.upsert_control_history(entry.clone())?;
         h.runtime.computer.active_general = Some(entry);
-        h.runtime.assistant.bridge_request = Some(super::super::BridgeAsk {
-            for_attachment: false,
-            id: "11111111-1111-4111-8111-111111111111".into(),
-            capability: orbit_core::device_bridge::Capability::PerformAction,
-            application: None,
-            title: None,
-            full_screen: false,
-            source_id: None,
-            tool_call: None,
-            catalogue_after: 0,
-            calendar_window: None,
-            calendar_cursor: None,
-            files: None,
-        });
+        h.runtime
+            .assistant
+            .bridge_requests
+            .put(super::super::BridgeAsk {
+                for_attachment: false,
+                id: "11111111-1111-4111-8111-111111111111".into(),
+                capability: orbit_core::device_bridge::Capability::PerformAction,
+                application: None,
+                title: None,
+                full_screen: false,
+                source_id: None,
+                tool_call: None,
+                catalogue_after: 0,
+                calendar_window: None,
+                calendar_cursor: None,
+                files: None,
+            });
         h.runtime
             .computer_failed(&anyhow::anyhow!("engine lost its receipt"))
             .await;
@@ -938,7 +953,7 @@ async fn failed_active_action_replies_with_uncertain_outcome() -> Result<()> {
             h.runtime.control_history()?[0].outcome,
             ControlOutcome::Unknown
         );
-        assert!(h.runtime.assistant.bridge_request.is_none());
+        assert!(h.runtime.assistant.bridge_requests.is_empty());
         assert!(hub.try_recv().is_err(), "the action got another reply");
     }
     Ok(())
@@ -960,20 +975,23 @@ async fn an_engine_failure_leaves_its_cause_and_a_report_line() -> Result<()> {
         tool: "get_window_state".into(),
         arguments: json!({"pid": 11, "window_id": 22, "query": ENORMOUS_TREE}),
     };
-    h.runtime.assistant.bridge_request = Some(super::super::BridgeAsk {
-        for_attachment: false,
-        id: "whole-window-read".into(),
-        capability: orbit_core::device_bridge::Capability::PerformAction,
-        application: None,
-        title: None,
-        full_screen: false,
-        source_id: None,
-        tool_call: Some(call.clone()),
-        catalogue_after: 0,
-        calendar_window: None,
-        calendar_cursor: None,
-        files: None,
-    });
+    h.runtime
+        .assistant
+        .bridge_requests
+        .put(super::super::BridgeAsk {
+            for_attachment: false,
+            id: "whole-window-read".into(),
+            capability: orbit_core::device_bridge::Capability::PerformAction,
+            application: None,
+            title: None,
+            full_screen: false,
+            source_id: None,
+            tool_call: Some(call.clone()),
+            catalogue_after: 0,
+            calendar_window: None,
+            calendar_cursor: None,
+            files: None,
+        });
     h.runtime.begin_turn(
         orbit_core::notice::Op::parse("op-engine-0001").context("op")?,
         orbit_core::notice::ReportSource::Daemon,

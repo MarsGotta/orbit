@@ -190,7 +190,7 @@ transcripción» sends the stored WAV again; if this Mac no longer holds it, the
 refusal says the audio is missing. During a meeting, dictation becomes
 a question about that meeting; it does not play the response aloud.
 
-`⌃⌥D` authorizes a 1–60 minute call. The helper starts VoiceProcessing; the daemon
+`⌃⌥D` authorizes a call of up to 4 hours, a recording's ceiling. The helper starts VoiceProcessing; the daemon
 validates its ACK and every frame's provenance. A pure detector segments turns.
 Derived turn audio stays local, while the continuous `voice_call` original is
 uploaded; it is not listed as a meeting and gets no meeting note. Barge-in joins
@@ -225,6 +225,12 @@ a previously delivered full-screen capture; coordinates map back to screen pixel
 An action is recorded as `unknown` before execution. A lost receipt never
 authorizes repeating input. The bridge returns `in_progress` and an operation ID,
 then a separate read retrieves the outcome.
+
+The daemon serves one bridge request at a time of each kind: the folders, the
+screen (windows, screenshots, selected text), the computer's tools and actions,
+and the calendar. A second request of a kind in course is refused as busy; one
+of another kind, from any conversation, is served meanwhile. A capture's upload
+belongs to its request's kind.
 
 ### Calendar
 

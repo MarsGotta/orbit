@@ -1,7 +1,7 @@
 //! The upload's outcome answers the request it was started for: the folder
 //! image or the screenshot, once the hub holds it, or the refusal that says
 //! why it never got there.
-use super::super::{BridgeAsk, BridgeReleaseReason, bridge_refused, result_payload};
+use super::super::{BridgeAsk, BridgeKind, BridgeReleaseReason, bridge_refused, result_payload};
 use super::{CAPTURE_UPLOAD_TIMEOUT, CaptureUploadOutcome, PendingCapture};
 use crate::daemon::ticketed::{Settlement, WorkTicket};
 use crate::daemon::{Runtime, hub};
@@ -20,7 +20,7 @@ impl Runtime {
         if !self.capture_upload_is_current(&ticket, &request_id, &capture) {
             return Ok(());
         }
-        let Some(ask) = self.assistant.bridge_request.clone() else {
+        let Some(ask) = self.assistant.bridge_requests.get(capture.kind()).cloned() else {
             return Ok(());
         };
         let from_engine = matches!(&capture, PendingCapture::Engine { .. });
@@ -35,7 +35,7 @@ impl Runtime {
         let Some(screenshot) = self.uploaded_screenshot(&ask, capture, outcome).await? else {
             return Ok(());
         };
-        self.sources.bridge_upload.take();
+        self.sources.bridge_uploads.take(BridgeKind::Screen);
         let subject = if from_engine {
             format!(
                 "the engine observation: {} · {}",
@@ -53,7 +53,7 @@ impl Runtime {
             result_payload(&ask.id, BridgeResult::Screenshot(screenshot)),
         ));
         self.note_bridge_send(&sent, &subject);
-        self.assistant.bridge_request = None;
+        self.assistant.bridge_requests.take(BridgeKind::Screen);
         Ok(())
     }
 
@@ -67,7 +67,8 @@ impl Runtime {
         capture: &PendingCapture,
     ) -> bool {
         let generation = self.state.generation();
-        let Some(upload) = self.sources.bridge_upload.as_mut() else {
+        let kind = capture.kind();
+        let Some(upload) = self.sources.bridge_uploads.get_mut(kind) else {
             return false;
         };
         match upload.work.settle(ticket, generation) {
@@ -97,15 +98,15 @@ impl Runtime {
         } else {
             Capability::Screenshot
         };
-        let stale_cause = match self.assistant.bridge_request.as_ref() {
+        let stale_cause = match self.assistant.bridge_requests.get(kind) {
             None => Some("request_released"),
             Some(ask) if ask.id != request_id => Some("request_replaced"),
             Some(ask) if ask.capability != wanted => Some("capability_changed"),
             Some(_)
                 if self
                     .sources
-                    .bridge_upload
-                    .as_ref()
+                    .bridge_uploads
+                    .get(kind)
                     .is_none_or(|upload| upload.capture_id != capture.id()) =>
             {
                 Some("upload_replaced")
@@ -140,14 +141,14 @@ impl Runtime {
             capture_id.clone_into(id);
             sha256.clone_into(digest);
         }
-        self.sources.bridge_upload.take();
+        self.sources.bridge_uploads.take(BridgeKind::Files);
         let sent = self.send_frame(hub::command(
             &ask.id,
             "device.reply",
             result_payload(&ask.id, BridgeResult::FilesRead(result)),
         ));
         self.note_bridge_send(&sent, "the folder image");
-        self.assistant.bridge_request = None;
+        self.assistant.bridge_requests.take(BridgeKind::Files);
     }
 
     /// The screenshot an upload's outcome answers with; `None` when the
@@ -160,10 +161,13 @@ impl Runtime {
     ) -> Result<Option<ScreenshotResult>> {
         Ok(Some(match (capture, outcome) {
             (_, CaptureUploadOutcome::TimedOut { waited_ms }) => {
-                self.release_bridge_request(BridgeReleaseReason::CaptureUploadTimeout {
-                    waited_ms,
-                    deadline_ms: CAPTURE_UPLOAD_TIMEOUT.duration().as_millis() as u64,
-                });
+                self.release_bridge_request(
+                    ask.kind(),
+                    BridgeReleaseReason::CaptureUploadTimeout {
+                        waited_ms,
+                        deadline_ms: CAPTURE_UPLOAD_TIMEOUT.duration().as_millis() as u64,
+                    },
+                );
                 return Ok(None);
             }
             (_, CaptureUploadOutcome::Failed(error)) => {
@@ -206,8 +210,8 @@ impl Runtime {
             (PendingCapture::Helper { source_id }, CaptureUploadOutcome::Uploaded(sha256)) => {
                 let Some(screenshot) = self
                     .sources
-                    .bridge_upload
-                    .as_ref()
+                    .bridge_uploads
+                    .get(BridgeKind::Screen)
                     .and_then(|upload| upload.screenshot.as_ref())
                     .filter(|screenshot| {
                         ask.source_id.as_deref() == Some(source_id.as_str())
@@ -230,7 +234,7 @@ impl Runtime {
         ask: &BridgeAsk,
         error: Option<&anyhow::Error>,
     ) -> Result<()> {
-        if let Some(mut upload) = self.sources.bridge_upload.take() {
+        if let Some(mut upload) = self.sources.bridge_uploads.take(ask.kind()) {
             upload.work.cancel();
         }
         let refusal = error
@@ -238,7 +242,7 @@ impl Runtime {
             .cloned()
             .unwrap_or_else(|| Self::bridge_refusal_code("capture_upload_failed"));
         self.say(bridge_refused(&refusal));
-        self.assistant.bridge_request = None;
+        self.assistant.bridge_requests.take(ask.kind());
         self.send(hub::command(
             &ask.id,
             "device.reply",

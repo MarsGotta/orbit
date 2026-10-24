@@ -271,8 +271,8 @@ app_type! {
 }
 
 app_type! {
-    /// How a call began. Each has its own length (orbit-core's
-    /// `CALL_MINUTES` and `HOTKEY_CALL_MINUTES`), already in `expires_at_ms`.
+    /// How a call began. Both last orbit-core's `CALL_MINUTES` at most,
+    /// already in `expires_at_ms`.
     #[serde(rename_all = "snake_case")]
     pub enum CallOrigin {
         App,

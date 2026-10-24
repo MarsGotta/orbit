@@ -1579,6 +1579,7 @@ async fn hub_link_change_cancels_a_call_turn_but_keeps_a_saved_voice_note() -> R
             expires_at_ms: i64::MAX,
             turns: 0,
             origin: orbit_core::CallOrigin::App,
+            ceiling_notice_given: false,
         });
         runtime.apply(event.clone()).await?;
         assert!(runtime.state.durable.voice.call.is_none(), "{event:?}");

@@ -144,6 +144,13 @@ impl crate::daemon::audio::AudioHandle {
         }
     }
 
+    /// A call turn's words were heard: the user's silence starts again.
+    pub(super) fn note_call_words(&mut self) {
+        if let Some(call) = self.call.as_mut() {
+            call.detector.heard_words();
+        }
+    }
+
     pub(super) fn mark_call_stopping(&mut self) {
         if let Some(call) = self.call.as_mut() {
             call.closing_at_ms.get_or_insert_with(now);

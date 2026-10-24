@@ -13,23 +13,6 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("the saved meeting says so, and that the note follows, without opening it half-written", () => {
-  const props = {
-    error: null,
-    onErrorDismiss: vi.fn(),
-    launcherOpen: false,
-    onLauncherClose: vi.fn(),
-    send: vi.fn(),
-  };
-  const view = render(<MeetingOverlays {...props} snapshot={snapshot("recording")} />);
-  view.rerender(<MeetingOverlays {...props} snapshot={snapshot("idle")} />);
-  const notice = screen.getByRole("status");
-  expect(notice.textContent).toContain("Reunión guardada");
-  expect(notice.textContent).toContain("Te avisamos cuando la nota esté lista.");
-  expect(screen.queryByRole("link")).toBeNull();
-  expect(screen.getByRole("button", { name: "Cerrar aviso" })).toBeTruthy();
-});
-
 it("the recording failure is shown and closing it discards its message", () => {
   const dismiss = vi.fn();
   render(

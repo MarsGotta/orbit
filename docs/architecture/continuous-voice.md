@@ -4,9 +4,11 @@ See the [overview](README.md#voice-note-and-call) for the hub/Hermes flow.
 
 ## Authorization and processing
 
-`CallStart` (`⌃⌥D`) is explicit local authorization for 1–60 minutes
-(`orbit-core/src/transition/voice_call.rs`). A call from the app lasts `CALL_MINUTES` (60)
-unless the order names a length; one from `⌃⌥D` lasts `HOTKEY_CALL_MINUTES` (15).
+`CallStart` (`⌃⌥D`) is explicit local authorization for 1 minute to 4 hours
+(`orbit-core/src/transition/voice_call.rs`). A call lasts `CALL_MINUTES`, which is
+a recording's ceiling (`RECORDING_CEILING_MINUTES`, 240), from the app unless the
+order names a length and always from `⌃⌥D`. Ten minutes before it ends the call
+says so once (`call_ceiling_near`, as `recording_ceiling_near`).
 The call keeps its origin (`app` or `hotkey`), and the app's call snapshot
 carries its deadline (`expires_at_ms`), origin, agent and the idle hang-up
 (`idle_hangup_ms`) to every view. An open recording yields `PendingRecording`;
@@ -48,11 +50,15 @@ agent has no voice of its own. Transcription stays the default agent's.
 `generation_changed`, `processing_lost`, `discontinuity`, `expired`, `idle` and
 `no_audio`.
 
-- **`idle`:** 60 seconds of user silence (`VoicePolicy::idle_timeout_ms`).
-  It runs only when the assistant is neither working nor speaking. Active
-  playback, speech generation, transcription or a turn awaiting the assistant
-  advances activity on each frame, so the minute begins after the response ends.
-  It closes a microphone left open after the conversation.
+- **`idle`:** 60 seconds without the user's words (`VoicePolicy::idle_timeout_ms`).
+  Words, not energy: a turn's transcription with text restarts the minute
+  (`TurnDetector::heard_words`); a turn the hub finds no words in (noise, a
+  television) does not. Active playback, speech generation or a request the
+  assistant works on advances activity on each frame, so the minute begins
+  after the response ends, and muted time never counts. A turn in course
+  (captured, or its words asked for) holds the hang-up for at most one turn's
+  length (`maximum_turn_ms`), so unbroken noise cannot keep a call open. It
+  closes a microphone left open after the conversation.
 - **`no_audio`:** three seconds with no microphone frames
   (`CALL_AUDIO_SILENCE_LIMIT`, `daemon/call.rs`). This measures producer health,
   not user silence, which still generates audio. Maintenance judges it only

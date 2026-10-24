@@ -79,6 +79,7 @@ fn assistant_call_is_known_and_missing_wire_defaults_to_unknown() {
         expires_at_ms: 60_012,
         turns: 0,
         origin: orbit_core::CallOrigin::App,
+        ceiling_notice_given: false,
     };
     state.durable.voice.call = Some(call.clone());
     let active = serde_json::to_value(project(TopicId::Assistant, &source(&state))).unwrap();

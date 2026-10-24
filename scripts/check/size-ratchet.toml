@@ -63,7 +63,7 @@
 "project" = 139
 
 [functions."crates/orbit-app-core/src/features/status.rs"]
-"project" = 131
+"project" = 130
 
 [functions."crates/orbit-app-core/src/projection/library.rs"]
 "project_library" = 118

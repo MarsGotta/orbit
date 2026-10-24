@@ -49,6 +49,7 @@ fn projects_pending_call_and_voice_note_from_topic_frames() {
             expires_at_ms: 1_700_003_600_000,
             turns: 2,
             origin: orbit_core::CallOrigin::App,
+            ceiling_notice_given: false,
         }),
         as_of_ms: None,
     };

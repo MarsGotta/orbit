@@ -604,7 +604,7 @@ async fn a_helper_step_that_never_answers_frees_the_bridge_with_both_numbers() -
         reply["refusal"]["deadline_ms"],
         orbit_core::assistant_files::HELPER_REQUEST_TIMEOUT_MS
     );
-    assert!(mac.runtime.assistant.bridge_request.is_none());
+    assert!(mac.runtime.assistant.bridge_requests.is_empty());
     Ok(())
 }
 
@@ -702,3 +702,99 @@ async fn the_shared_request_contract_starts_the_folders_step() -> Result<()> {
 }
 
 mod lifecycle;
+
+/// A folder read of one conversation that the helper takes its time over,
+/// and a look at the screen from another: each kind of request has its own
+/// place on the Mac, so the screen request goes to the helper at once
+/// instead of being told the Mac is busy, and both are answered. Within one
+/// kind it is still one at a time.
+#[tokio::test]
+async fn a_held_file_read_and_a_screen_request_are_both_answered() -> Result<()> {
+    let (mut mac, id) = mac_with_projects().await?;
+    crate::daemon::authority_fixture::set(
+        &mut mac.runtime.state,
+        "capabilities.screen_state",
+        json!(orbit_core::PermissionState::Granted),
+    );
+    let plan = "/Users/ejemplo/Proyectos/plan.md";
+    mac.request("leer-plan", "files_read", json!({"path":plan}))
+        .await?;
+    let check = mac.helper_command("assistant_folders")?;
+
+    mac.request("ver-ventanas", "screen_sources", json!({}))
+        .await?;
+    let listing = mac.helper_command("screen_sources")?;
+    if let Ok(early) = mac.reply("ver-ventanas") {
+        bail!("the screen request was answered before the helper: {early}");
+    }
+    mac.request("otro-fichero", "files_list", json!({})).await?;
+    let busy = mac.reply("otro-fichero")?;
+    assert_eq!(
+        busy["refusal"]["code"], "busy",
+        "one file request at a time: {busy}"
+    );
+
+    let generation = mac.runtime.state.generation();
+    mac.answer(&listing, screen_listing(generation)).await?;
+    let windows = mac.reply("ver-ventanas")?;
+    assert_eq!(
+        windows["result"]["windows"][0]["application"], "Calculadora",
+        "{windows}"
+    );
+
+    mac.answer(
+        &check,
+        json!({"folders":[{"state":"accessible","id":id,"path":PROJECTS}],
+            "requested":found(plan, "file", 2_000)}),
+    )
+    .await?;
+    let read = mac.helper_command("assistant_files_read")?;
+    mac.answer(
+        &read,
+        json!({"content":"text","text":"El calendario del proyecto.","after_index":0,
+            "next_after_index":null,"size_bytes":2_000}),
+    )
+    .await?;
+    let file = mac.reply("leer-plan")?;
+    assert_eq!(
+        file["result"]["text"], "El calendario del proyecto.",
+        "{file}"
+    );
+    Ok(())
+}
+
+/// The helper's window listing with one window, for `generation`.
+fn screen_listing(generation: u64) -> Value {
+    const INSTANCE: &str = "11111111-1111-4111-8111-111111111111";
+    const INVENTORY: &str = "22222222-2222-4222-8222-222222222222";
+    json!({
+        "native_instance_id": INSTANCE,
+        "privacy_generation": generation,
+        "inventory_id": INVENTORY,
+        "clock_domain": "mach_absolute_time",
+        "observed_monotonic_ns": 1_000_000u64,
+        "expires_monotonic_ns": 1_000_000u64 + orbit_core::sources::INVENTORY_TTL_NS,
+        "selected_text_available": false,
+        "windows": [{
+            "binding": {
+                "native_instance_id": INSTANCE,
+                "privacy_generation": generation,
+                "inventory_id": INVENTORY,
+                "selection_token": "33333333-3333-4333-8333-333333333333",
+                "window_id": 11,
+                "application_pid": 4242,
+                "application_instance_id": "44444444-4444-4444-8444-444444444444",
+                "binding_quality": "observed_owner_and_window",
+                "descriptor_hash": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+            },
+            "window_id": 11,
+            "application_pid": 4242,
+            "application_name": "Calculadora",
+            "bundle_id": "com.apple.calculator",
+            "title": "Calculadora",
+            "title_truncated": false,
+            "unavailable_reason": null
+        }],
+        "omitted_count": 0u64
+    })
+}

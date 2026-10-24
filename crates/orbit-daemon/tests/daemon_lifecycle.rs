@@ -361,6 +361,7 @@ fn real_startup_recovers_a_durable_call_lifecycle_without_restoring_authority() 
         expires_at_ms: 60010,
         turns: 0,
         origin: orbit_core::CallOrigin::App,
+        ceiling_notice_given: false,
     });
     snapshot.durable.assistant.active_request = Some("uncertain-do-not-replay".into());
     store.save_snapshot(&snapshot)?;

@@ -36,7 +36,7 @@ pub(super) fn source_start_refusal(error: super::super::sources::SourceStartErro
     }
 }
 
-/// Why the bridge's single slot was freed outside the helper's own answer.
+/// Why a bridge slot was freed outside the helper's own answer.
 ///
 /// Each ending names the cause so the refusal the caller sees matches the same
 /// wire shape the rejection path already uses, and the person can tell which
@@ -102,12 +102,15 @@ fn general_code(code: &str) -> Option<Refusal> {
     Some(match code {
         "privacy_stopped" => Refusal::PrivacyStopped { since_ms: None },
         "helper_not_connected" | "helper_not_running" => Refusal::HelperNotRunning,
-        // The helper's main thread held a full backlog, or its general lane
-        // already queues as many orders as it admits: a busy Mac.
-        "busy" | "native_main_thread_busy" | "native_backpressure" => Refusal::Busy {
-            operation: Operation::Interaction,
-            retry_after_ms: None,
-        },
+        // The helper's main thread held a full backlog, its general lane
+        // already queues as many orders as it admits, or the order holding
+        // that lane passed its deadline: a busy Mac.
+        "busy" | "native_main_thread_busy" | "native_backpressure" | "native_command_stalled" => {
+            Refusal::Busy {
+                operation: Operation::Interaction,
+                retry_after_ms: None,
+            }
+        }
         "engine_unavailable" | "action_unavailable" => Refusal::EngineUnavailable {
             cause: EngineCause::Unhealthy,
         },
@@ -273,6 +276,20 @@ mod tests {
     fn a_read_refused_behind_a_full_general_lane_is_a_busy_mac() {
         assert_eq!(
             Runtime::bridge_refusal_code("native_backpressure"),
+            Refusal::Busy {
+                operation: Operation::Interaction,
+                retry_after_ms: None,
+            }
+        );
+    }
+
+    /// A read the helper refused because the order holding its general lane
+    /// passed its own deadline is a busy Mac as well: Deimos can ask again,
+    /// and nothing in the reply was unreadable.
+    #[test]
+    fn a_read_refused_behind_a_stalled_general_lane_is_a_busy_mac() {
+        assert_eq!(
+            Runtime::bridge_refusal_code("native_command_stalled"),
             Refusal::Busy {
                 operation: Operation::Interaction,
                 retry_after_ms: None,

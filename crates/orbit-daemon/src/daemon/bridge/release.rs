@@ -1,6 +1,6 @@
-//! The bridge's one slot, freed when the operation that served it ended
-//! outside the helper's own answer.
-use super::{BridgeAsk, BridgeReleaseReason};
+//! A bridge slot, freed when the operation that served it ended outside the
+//! helper's own answer.
+use super::{BridgeAsk, BridgeKind, BridgeReleaseReason};
 use crate::daemon::{Connection, Runtime, hub, hub_link};
 use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
 use orbit_core::refusal::Refusal;
@@ -8,20 +8,32 @@ use orbit_core::wire::bridge::DeviceReplyParams;
 use serde_json::json;
 
 impl Runtime {
-    /// Frees the bridge slot when the operation that served it ended outside
+    /// Frees every bridge slot, each with `reason`: an ending that concerns
+    /// every request being served.
+    pub(in crate::daemon) fn release_bridge_requests(&mut self, reason: BridgeReleaseReason<'_>) {
+        for kind in BridgeKind::ALL {
+            self.release_bridge_request(kind, reason);
+        }
+    }
+
+    /// Frees the `kind` slot when the operation that served it ended outside
     /// the helper's own answer.
     ///
     /// Every ending listed by the spec calls this: timeout, cancellation,
     /// privacy stop, hub disconnect, generation change. If the hub is still
     /// reachable the caller is told why with the same wire shape the
     /// rejection path already uses; if the hub is gone, the local notice names
-    /// the failed delivery. Either way the slot is left as `None` so the next remote
-    /// request is admitted rather than told the bridge is busy.
-    pub(in crate::daemon) fn release_bridge_request(&mut self, reason: BridgeReleaseReason<'_>) {
-        if let Some(mut upload) = self.sources.bridge_upload.take() {
+    /// the failed delivery. Either way the slot is left empty so the next remote
+    /// request of its kind is admitted rather than told the bridge is busy.
+    pub(in crate::daemon) fn release_bridge_request(
+        &mut self,
+        kind: BridgeKind,
+        reason: BridgeReleaseReason<'_>,
+    ) {
+        if let Some(mut upload) = self.sources.bridge_uploads.take(kind) {
             upload.work.cancel();
         }
-        let Some(ask) = self.assistant.bridge_request.take() else {
+        let Some(ask) = self.assistant.bridge_requests.take(kind) else {
             return;
         };
         let attempted_action = (ask.capability

@@ -724,7 +724,7 @@ async fn a_window_is_captured_as_the_assistant_s_and_kept_as_an_attachment() -> 
     while let Ok(frame) = frames.try_recv() {
         assert_ne!(frame["method"], "device.reply", "{frame}");
     }
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_requests.is_empty());
     assert!(runtime.assistant.window_attachment.is_none());
     Ok(())
 }
@@ -891,10 +891,10 @@ async fn a_hub_drop_during_attach_window_answers_the_app_and_frees_the_slot() ->
     let client = orbit_ipc::LocalClient::new(calls, &std::collections::BTreeMap::new(), ended);
     let (asked, _listing) =
         attach_window_started(&mut runtime, &client, &mut received, &mut helper).await?;
-    assert!(runtime.assistant.bridge_request.is_some());
+    assert!(!runtime.assistant.bridge_requests.is_empty());
 
     runtime.hub_event(HubEvent::Disconnected).await?;
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_requests.is_empty());
     assert!(runtime.assistant.window_attachment.is_none());
     let refused = tokio::time::timeout(std::time::Duration::from_secs(5), asked)
         .await

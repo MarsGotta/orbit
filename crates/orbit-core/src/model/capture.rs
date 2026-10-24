@@ -75,9 +75,10 @@ pub struct Recording {
 /// its calendar event: an event's end once stopped a meeting that ran over.
 /// Why four hours: meetings of two hours must be kept whole, and four leaves
 /// as much again for one that runs over. The app says it before a recording
-/// starts («Graba hasta 4 h») from the snapshot, never from a copy. It does
-/// not bound a voice call with the assistant (`voice::CALL_MINUTES`), the
-/// audio kept on the Mac or what the hub accepts.
+/// starts («Graba hasta 4 h») from the snapshot, never from a copy. A voice
+/// call with the assistant has the same ceiling (`voice::CALL_MINUTES` is
+/// this constant). It does not bound the audio kept on the Mac or what the
+/// hub accepts.
 pub const RECORDING_CEILING_MINUTES: u16 = 240;
 
 /// How long before [`RECORDING_CEILING_MINUTES`] the person is told, once,

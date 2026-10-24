@@ -64,8 +64,7 @@ export function RecordingSection({ send, snapshot }: { send: Send; snapshot: App
           {(
             [
               [base.settings.recordingLasts, snapshot.meeting.limit_minutes],
-              [base.settings.appCallLasts, snapshot.settings.call_minutes],
-              [base.settings.hotkeyCallLasts, snapshot.settings.hotkey_call_minutes],
+              [base.settings.callLasts, snapshot.settings.call_minutes],
             ] as const
           ).map(([title, minutes]) => (
             <Row

@@ -1,9 +1,10 @@
 //! Where a `device.request` enters: its capability admitted, its parameters
-//! checked, and the one request being served chosen, or refused with why.
+//! checked, and made the request being served of its kind, or refused with
+//! why.
 use super::parameters::{
     calendar_range_refusal, invalid_parameter_refusal, tool_call_refusal, unknown_capture_filter,
 };
-use super::{BridgeAsk, bridge_refused};
+use super::{BridgeAsk, BridgeKind, bridge_refused};
 use crate::daemon::{Runtime, hub};
 use anyhow::Result;
 use orbit_core::device_bridge::Capability;
@@ -211,7 +212,14 @@ impl Runtime {
                 return Ok(());
             }
         };
-        if self.assistant.bridge_request.is_some() {
+        // One at a time of each kind: another kind's request in course
+        // does not make this one wait.
+        if self
+            .assistant
+            .bridge_requests
+            .get(BridgeKind::of(capability))
+            .is_some()
+        {
             let refusal = Refusal::Busy {
                 operation: orbit_core::refusal::Operation::Interaction,
                 retry_after_ms: None,
@@ -232,7 +240,7 @@ impl Runtime {
             calendar_cursor: fields.calendar_cursor,
             files,
         };
-        self.assistant.bridge_request = Some(ask.clone());
+        self.assistant.bridge_requests.put(ask.clone());
         self.start_bridge_request(&ask).await
     }
 
@@ -254,7 +262,7 @@ impl Runtime {
                 );
             }
             Err(failure) => {
-                self.assistant.bridge_request = None;
+                self.assistant.bridge_requests.take(ask.kind());
                 self.log("bridge_start_failed", &[("code", failure.code().name())]);
                 self.say(
                     Notice::new(NoticeCode::BridgeRefused)

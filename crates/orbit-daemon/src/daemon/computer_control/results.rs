@@ -97,9 +97,12 @@ impl Runtime {
         service: ActionService,
         data: Value,
     ) -> Result<()> {
-        let bridge_windows = self.assistant.bridge_request.as_ref().is_some_and(|ask| {
-            ask.capability == orbit_core::device_bridge::Capability::ScreenSources
-        });
+        let bridge_windows = self
+            .assistant
+            .bridge_ask(crate::daemon::BridgeKind::Screen)
+            .is_some_and(|ask| {
+                ask.capability == orbit_core::device_bridge::Capability::ScreenSources
+            });
         self.engine_answered(service, data.clone());
         if bridge_windows && !self.answer_bridge_from_computer_windows(&data).await? {
             // The engine's list did not have the shape Deimos is
@@ -108,8 +111,7 @@ impl Runtime {
             self.source_windows().await?;
         } else if self
             .assistant
-            .bridge_request
-            .as_ref()
+            .bridge_ask(crate::daemon::BridgeKind::Screen)
             .is_some_and(|ask| ask.capability == orbit_core::device_bridge::Capability::Screenshot)
         {
             if let Some((pid, window_id, application, title)) =
@@ -151,7 +153,15 @@ impl Runtime {
     /// cause; a window read falls back on the helper; anything else is the
     /// engine's failure.
     pub(super) async fn on_engine_error(&mut self, service: ActionService, error: anyhow::Error) {
-        let bridge_observation = self.assistant.bridge_request.as_ref().is_some_and(|ask| {
+        // Only a screen read the engine failed is the screen request's: the
+        // engine also serves the computer's tools and actions, whose own
+        // request has a slot of its own.
+        let reading = self.engine_was_reading();
+        let screen = self
+            .assistant
+            .bridge_ask(crate::daemon::BridgeKind::Screen)
+            .filter(|_| reading);
+        let bridge_observation = screen.is_some_and(|ask| {
             matches!(
                 ask.capability,
                 orbit_core::device_bridge::Capability::ScreenSources
@@ -171,7 +181,7 @@ impl Runtime {
         // A full screen has nowhere else to come from: the helper
         // captures windows. It is refused by its cause, never
         // answered with some window.
-        let full_screen = self.assistant.bridge_request.as_ref().is_some_and(|ask| {
+        let full_screen = screen.is_some_and(|ask| {
             ask.capability == orbit_core::device_bridge::Capability::Screenshot && ask.full_screen
         });
         if full_screen {
@@ -283,8 +293,7 @@ impl Runtime {
     ) {
         let full_screen = self
             .assistant
-            .bridge_request
-            .as_ref()
+            .bridge_ask(crate::daemon::BridgeKind::Screen)
             .is_some_and(|ask| ask.full_screen);
         let part = match too_large.part {
             crate::cua::TooLargePart::Message => "message",
@@ -316,6 +325,15 @@ impl Runtime {
         self.refuse_bridge_capture(refusal);
     }
 
+    /// The engine's work in course was a read of the screen, not one of the
+    /// computer's tools or actions.
+    fn engine_was_reading(&self) -> bool {
+        self.computer
+            .view
+            .as_ref()
+            .is_some_and(|view| view.stage == ComputerStage::Reading)
+    }
+
     pub(in crate::daemon) async fn computer_failed(&mut self, error: &anyhow::Error) {
         let kind = if self
             .computer
@@ -337,8 +355,11 @@ impl Runtime {
             .unwrap_or_default();
         let request = self
             .assistant
-            .bridge_request
-            .as_ref()
+            .bridge_ask(if self.engine_was_reading() {
+                crate::daemon::BridgeKind::Screen
+            } else {
+                crate::daemon::BridgeKind::Control
+            })
             .map(|ask| ask.id.clone())
             .unwrap_or_default();
         let cause = format!("{error:#}");
@@ -381,8 +402,7 @@ impl Runtime {
     ) {
         let Some((ask, capability)) = self
             .assistant
-            .bridge_request
-            .as_ref()
+            .bridge_ask(crate::daemon::BridgeKind::Control)
             .filter(|ask| {
                 ask.capability == orbit_core::device_bridge::Capability::PerformAction
                     || ask.capability == orbit_core::device_bridge::Capability::ControlTools
@@ -391,7 +411,8 @@ impl Runtime {
         else {
             return;
         };
-        self.assistant.bridge_request = None;
+        self.assistant
+            .end_bridge_ask(crate::daemon::BridgeKind::Control);
         let uncertain = capability == orbit_core::device_bridge::Capability::PerformAction
             && operation_id.is_some();
         let refusal = if let Some(operation_id) = operation_id.filter(|_| uncertain) {

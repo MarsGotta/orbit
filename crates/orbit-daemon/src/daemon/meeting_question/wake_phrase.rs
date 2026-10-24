@@ -362,10 +362,14 @@ impl crate::daemon::meeting_question::QuestionHandle {
         self.helper_listens = true;
     }
 
-    /// The phrase abandoned last, while the panel still says so: as long as
-    /// a failure stays there.
+    /// The phrase abandoned last, while the panel says so: once it has not
+    /// been heard again for `ABANDONED_LINE_HELD_MS`, and then as long as a
+    /// failure stays there.
     fn abandoned_phrase(&self) -> Option<WakePhraseAbandonmentCause> {
         let (cause, at_ms) = self.abandoned.as_ref()?;
-        (self.question_now().saturating_sub(*at_ms) < FAILURE_SHOWN_MS).then(|| cause.clone())
+        let elapsed = self.question_now().saturating_sub(*at_ms);
+        (super::ABANDONED_LINE_HELD_MS..super::ABANDONED_LINE_HELD_MS + FAILURE_SHOWN_MS)
+            .contains(&elapsed)
+            .then(|| cause.clone())
     }
 }

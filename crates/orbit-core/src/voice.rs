@@ -24,11 +24,14 @@ pub struct CallState {
     /// no live call is ever named by that default.
     #[serde(default)]
     pub origin: CallOrigin,
+    /// The person was told the call nears its ceiling: said once.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ceiling_notice_given: bool,
 }
 
 /// How a call began: from the app («Llamar», «Llamar a Orbit») or with
-/// ⌃⌥D from any app. Each has its own length ([`CALL_MINUTES`],
-/// [`HOTKEY_CALL_MINUTES`]), and ⌃⌥D hangs up the call it started.
+/// ⌃⌥D from any app. Both last [`CALL_MINUTES`] at most, and ⌃⌥D hangs up
+/// the call it started.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CallOrigin {
@@ -37,22 +40,17 @@ pub enum CallOrigin {
     Hotkey,
 }
 
-/// How long a call started from the app may last, in minutes.
+/// How long a call may last, in minutes, from the app or with ⌃⌥D.
 ///
-/// Protects: a microphone left streaming to Orbit by a call nobody hangs up
-/// (the user's silence ends it sooner: `VoicePolicy::idle_timeout_ms`).
-/// Why an hour: the longest call the core admits (`decide_call`); the app
-/// says what is left («quedan 55 min»), so a longer conversation is a new
-/// call. It does not limit how many calls there are.
-pub const CALL_MINUTES: u16 = 60;
-
-/// How long a call started with ⌃⌥D may last, in minutes.
-///
-/// Protects the same as [`CALL_MINUTES`] for a call begun from another app,
-/// often without Orbit's window in sight: a quick question, so a quarter of
-/// an hour, after which ⌃⌥D starts another. It does not limit a call started
-/// from the app.
-pub const HOTKEY_CALL_MINUTES: u16 = 15;
+/// Protects: a microphone left streaming to Orbit by a call nobody hangs up.
+/// A forgotten call ends much sooner, a minute without the user's words
+/// (`VoicePolicy::idle_timeout_ms`); this is the bound behind that one. Why
+/// a recording's ceiling ([`crate::RECORDING_CEILING_MINUTES`], four hours),
+/// the same constant: one rule for whatever keeps the microphone open, with
+/// the same notice ten minutes before ([`crate::RECORDING_CEILING_NOTICE_MINUTES`]).
+/// Two lengths by origin (an hour, a quarter of an hour) had no reason of
+/// their own. It does not limit how many calls there are.
+pub const CALL_MINUTES: u16 = crate::RECORDING_CEILING_MINUTES;
 
 /// The shortest stretch of speech that can hold a word, a «sí» or a «no».
 /// A call turn needs this much speech to be submitted, and a voice note
@@ -89,11 +87,14 @@ pub struct VoicePolicy {
     pub release_ms: u64,
     pub minimum_speech_ms: u64,
     pub maximum_turn_ms: u64,
-    /// The user's silence that ends a call by itself: a minute in which they
-    /// say nothing and Deimos is neither working on an answer nor speaking it.
-    /// It protects the user from an open microphone streaming to Orbit after
-    /// the conversation is over. It is not the time Deimos takes (counted as
-    /// the user's, it cut a call 20 s into his spoken answer on 2026-10-18) and not the
+    /// The user's silence that ends a call by itself: a minute without a
+    /// word from them while Deimos is neither working on an answer nor
+    /// speaking it. Words, not sound: a turn the hub finds no words in (a
+    /// fan, a television) is silence too, or a forgotten call in a noisy room
+    /// would stay open until its ceiling. It protects the user from an open
+    /// microphone streaming to Orbit after the conversation is over. It is
+    /// not the time Deimos takes (counted as the user's, it cut a call 20 s
+    /// into his spoken answer on 2026-10-18), not muted time, and not the
     /// daemon's check that audio is still arriving (`CALL_AUDIO_SILENCE_LIMIT`).
     pub idle_timeout_ms: i64,
     pub rms_threshold: u16,
@@ -129,8 +130,8 @@ pub enum StopReason {
     ProcessingLost,
     Discontinuity,
     Expired,
-    /// The user silent for `idle_timeout_ms` with no answer from Deimos in
-    /// course.
+    /// No words from the user for `idle_timeout_ms` with no answer from
+    /// Deimos in course.
     Idle,
     /// No audio arriving from the Mac at all: the daemon's own check, not
     /// the user's silence (their silence is still audio).
@@ -146,7 +147,10 @@ pub struct VoiceObservation {
     pub duration_ns: u64,
     pub received_at_ms: i64,
     pub voiced: bool,
+    /// Deimos is working on an answer or speaking it.
     pub response_active: bool,
+    /// A turn of the user's is being transcribed: its words are not known yet.
+    pub transcribing: bool,
     /// The person muted the microphone («Silenciar»): the helper sends
     /// silence, which is neither a turn nor the user's silence.
     pub muted: bool,
@@ -157,6 +161,8 @@ pub struct TurnDetector {
     generation: u64,
     expires_at_ms: i64,
     last_activity_ms: i64,
+    /// When the last frame arrived, in the frames' received time.
+    last_frame_ms: i64,
     last_monotonic_ns: Option<u64>,
     candidate_ns: u64,
     captured_ns: u64,
@@ -175,6 +181,7 @@ impl TurnDetector {
             generation,
             expires_at_ms,
             last_activity_ms: started_at_ms,
+            last_frame_ms: started_at_ms,
             last_monotonic_ns: None,
             candidate_ns: 0,
             captured_ns: 0,
@@ -190,10 +197,17 @@ impl TurnDetector {
         self.capturing
     }
 
-    /// When the user last spoke, or Deimos last answered, in the frames'
-    /// received time: where their silence starts.
+    /// When the user's words were last heard, Deimos last worked or spoke,
+    /// or the microphone was last muted, in the frames' received time: where
+    /// their silence starts.
     pub fn last_activity_ms(&self) -> i64 {
         self.last_activity_ms
+    }
+
+    /// A turn's words were heard: the user's silence starts again from the
+    /// last frame.
+    pub fn heard_words(&mut self) {
+        self.last_activity_ms = self.last_activity_ms.max(self.last_frame_ms);
     }
 
     /// Esc discards the current derived turn and waits for a silence boundary;
@@ -207,8 +221,8 @@ impl TurnDetector {
         next
     }
 
-    /// Why `frame` stops the call, if it does. A muted microphone is never
-    /// the user's silence; the call's ceiling counts all the same.
+    /// Why `frame` stops the call, if it does. The call's ceiling counts
+    /// whatever happens in it.
     fn refusal(&self, policy: VoicePolicy, frame: &VoiceObservation) -> Option<StopReason> {
         if self.stopped || !frame.authorized {
             Some(StopReason::Unauthorized)
@@ -225,15 +239,30 @@ impl TurnDetector {
             Some(StopReason::Discontinuity)
         } else if frame.received_at_ms >= self.expires_at_ms {
             Some(StopReason::Expired)
-        } else if !self.capturing
-            && !frame.response_active
-            && !frame.muted
-            && frame.received_at_ms.saturating_sub(self.last_activity_ms) >= policy.idle_timeout_ms
-        {
+        } else if self.idle(policy, frame) {
             Some(StopReason::Idle)
         } else {
             None
         }
+    }
+
+    /// No words for `idle_timeout_ms`, Deimos neither working nor speaking,
+    /// the microphone not muted. A turn in course (being captured, or its
+    /// words asked for) may still bring words, so it holds the hang-up, but
+    /// for one turn's length at most (`maximum_turn_ms`): noise that keeps
+    /// opening turns cannot keep a forgotten call open.
+    fn idle(&self, policy: VoicePolicy, frame: &VoiceObservation) -> bool {
+        if frame.response_active || frame.muted {
+            return false;
+        }
+        let silent = frame.received_at_ms.saturating_sub(self.last_activity_ms);
+        let turn_in_course = self.capturing || frame.transcribing;
+        let held = if turn_in_course {
+            i64::try_from(policy.maximum_turn_ms).unwrap_or(i64::MAX)
+        } else {
+            0
+        };
+        silent >= policy.idle_timeout_ms.saturating_add(held)
     }
 
     /// Pure transition: the caller retains the previous value on adapter failure.
@@ -250,6 +279,7 @@ impl TurnDetector {
             ..frame
         };
         next.last_monotonic_ns = Some(frame.monotonic_ns);
+        next.last_frame_ms = frame.received_at_ms;
         if frame.response_active || frame.muted {
             // Deimos working or speaking is the conversation going on, and a
             // muted microphone is not the user's silence: it counts from
@@ -273,7 +303,6 @@ impl TurnDetector {
             if frame.voiced {
                 next.spoken_ns = next.spoken_ns.saturating_add(frame.duration_ns);
                 next.quiet_ns = 0;
-                next.last_activity_ms = frame.received_at_ms;
             } else {
                 next.quiet_ns = next.quiet_ns.saturating_add(frame.duration_ns);
             }
@@ -283,7 +312,6 @@ impl TurnDetector {
                 let submit = next.spoken_ns >= policy.minimum_speech_ms * 1_000_000;
                 next.capturing = false;
                 next.candidate_ns = 0;
-                next.last_activity_ms = frame.received_at_ms;
                 return (next, TurnAction::Finish { submit });
             }
         } else {
@@ -292,7 +320,10 @@ impl TurnDetector {
             } else {
                 0
             };
-            let threshold = if frame.response_active {
+            // Over Deimos, or over a turn still being heard, a turn needs
+            // the longer evidence of a barge-in.
+            let over_answer = frame.response_active || frame.transcribing;
+            let threshold = if over_answer {
                 policy.barge_in_ms
             } else {
                 policy.onset_ms
@@ -302,11 +333,10 @@ impl TurnDetector {
                 next.captured_ns = next.candidate_ns;
                 next.spoken_ns = next.candidate_ns;
                 next.quiet_ns = 0;
-                next.last_activity_ms = frame.received_at_ms;
                 return (
                     next,
                     TurnAction::Begin {
-                        interrupt: frame.response_active,
+                        interrupt: over_answer,
                     },
                 );
             }
@@ -364,4 +394,5 @@ pub fn energy_exceeds(pcm_s16le: &[u8], rms_threshold: u16) -> bool {
 
 #[cfg(test)]
 #[path = "voice_tests.rs"]
+#[allow(clippy::expect_used)]
 mod tests;

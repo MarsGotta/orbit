@@ -979,7 +979,8 @@ fn decide_call(
                     retry_after_ms: None,
                 });
             }
-            let allowed_duration_ms = 60_000..=3_600_000;
+            // Mirrors the one call ceiling, a recording's (it was an hour).
+            let allowed_duration_ms = 60_000..=i64::from(crate::voice::CALL_MINUTES) * 60_000;
             if !allowed_duration_ms.contains(&duration_ms) {
                 return Err(Refusal::InvalidParameter {
                     parameter: crate::refusal::Parameter::Duration,
@@ -997,6 +998,7 @@ fn decide_call(
                 expires_at_ms: now_ms.saturating_add(duration_ms),
                 turns: 0,
                 origin,
+                ceiling_notice_given: false,
             });
             effects.extend([Effect::StopPlayback, Effect::StartCall]);
             next.set_notice(NoticeCode::CallStarting);
@@ -1085,6 +1087,28 @@ fn decide_privacy_rearm(state: &State, next: &mut State) -> Result<(), Refusal> 
 fn decide_tick(state: &State, next: &mut State, effects: &mut Vec<Effect>, now_ms: i64) {
     discard::drain_timed_out(next, now_ms);
     let _ = state;
+    // Mirrors the call's notice ten minutes before its ceiling, a
+    // recording's, which came after the split.
+    if let Some(call) = next.durable.call.as_mut()
+        && !call.ceiling_notice_given
+        && now_ms < call.expires_at_ms
+        && call.expires_at_ms.saturating_sub(now_ms)
+            <= crate::RECORDING_CEILING_NOTICE_MINUTES * 60_000
+    {
+        call.ceiling_notice_given = true;
+        let remaining_ms = call.expires_at_ms.saturating_sub(now_ms);
+        let notice = Notice::new(NoticeCode::CallCeilingNear)
+            .with(NoticeKey::Remaining, (remaining_ms + 59_999) / 60_000)
+            .with(
+                NoticeKey::Minutes,
+                now_ms.saturating_sub(call.started_at_ms).max(0) / 60_000,
+            )
+            .with(
+                NoticeKey::Max,
+                call.expires_at_ms.saturating_sub(call.started_at_ms).max(0) / 60_000,
+            );
+        next.set_notice(notice);
+    }
     if next
         .durable
         .call

@@ -209,14 +209,10 @@ impl Runtime {
                     change,
                     AuthorityChange::HubDisconnected | AuthorityChange::Rearm
                 ) {
-                    let computer = self.assistant.bridge_request.as_ref().is_some_and(|ask| {
-                        matches!(
-                            ask.capability,
-                            orbit_core::device_bridge::Capability::PerformAction
-                                | orbit_core::device_bridge::Capability::ControlTools
-                        )
-                    });
-                    self.release_bridge_request(bridge_release_reason(change, computer));
+                    for kind in BridgeKind::ALL {
+                        let computer = kind == BridgeKind::Control;
+                        self.release_bridge_request(kind, bridge_release_reason(change, computer));
+                    }
                 }
             }
             RecordingNotes => self.retire_recording_notes(),
@@ -296,7 +292,7 @@ impl Runtime {
                 AuthorityChange::HubDisconnected | AuthorityChange::Rearm
             )
         {
-            self.release_bridge_request(BridgeReleaseReason::Cancelled);
+            self.release_bridge_requests(BridgeReleaseReason::Cancelled);
         }
     }
 

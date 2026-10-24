@@ -26,12 +26,7 @@ attachments?: AttachmentLimits, hub: SettingsHubSnapshot, helper_connected: bool
  */
 error_reports?: boolean, 
 /**
- * How long a call from the app lasts at most, in minutes, for
- * «Cuánto dura cada cosa»: orbit-core's `voice::CALL_MINUTES`.
+ * How long a call lasts at most, from the app or with ⌃⌥D, in
+ * minutes, for «Cuánto dura cada cosa»: orbit-core's `voice::CALL_MINUTES`.
  */
-call_minutes: number, 
-/**
- * How long a call begun with ⌃⌥D lasts at most, in minutes:
- * `voice::HOTKEY_CALL_MINUTES`.
- */
-hotkey_call_minutes: number, };
+call_minutes: number, };

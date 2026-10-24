@@ -166,7 +166,7 @@ async fn a_retina_full_screen_answer_is_refused_by_its_size_without_failing_the_
         "the helper was asked for a window instead of the screen"
     );
     assert_eq!(record.calls_of("get_desktop_state").len(), 1);
-    assert!(h.runtime.assistant.bridge_request.is_none());
+    assert!(h.runtime.assistant.bridge_requests.is_empty());
     Ok(())
 }
 
@@ -248,20 +248,23 @@ async fn an_engine_that_connects_while_the_helper_captures_fails_nothing() -> Re
         .service
         .take()
         .context("fixture service")?;
-    h.runtime.assistant.bridge_request = Some(crate::daemon::BridgeAsk {
-        for_attachment: false,
-        id: "full-screen-1".into(),
-        capability: orbit_core::device_bridge::Capability::Screenshot,
-        application: None,
-        title: None,
-        full_screen: true,
-        source_id: None,
-        tool_call: None,
-        catalogue_after: 0,
-        calendar_window: None,
-        calendar_cursor: None,
-        files: None,
-    });
+    h.runtime
+        .assistant
+        .bridge_requests
+        .put(crate::daemon::BridgeAsk {
+            for_attachment: false,
+            id: "full-screen-1".into(),
+            capability: orbit_core::device_bridge::Capability::Screenshot,
+            application: None,
+            title: None,
+            full_screen: true,
+            source_id: None,
+            tool_call: None,
+            catalogue_after: 0,
+            calendar_window: None,
+            calendar_cursor: None,
+            files: None,
+        });
     h.runtime.source_windows().await?;
     assert!(h.runtime.sources.source_operation_pending());
 
@@ -308,7 +311,7 @@ async fn the_front_window_is_not_the_cursor_overlay() -> Result<()> {
         calendar_cursor: None,
         files: None,
     };
-    runtime.assistant.bridge_request = Some(ask(None));
+    runtime.assistant.bridge_requests.put(ask(None));
     let front = runtime
         .assistant
         .bridge_screenshot_target(&listing)
@@ -318,7 +321,10 @@ async fn the_front_window_is_not_the_cursor_overlay() -> Result<()> {
         (11, 22, "Safari"),
         "{front:?}"
     );
-    runtime.assistant.bridge_request = Some(ask(Some("Reproductor")));
+    runtime
+        .assistant
+        .bridge_requests
+        .put(ask(Some("Reproductor")));
     let only = runtime
         .assistant
         .bridge_screenshot_target(&listing)

@@ -8,7 +8,10 @@ macro_rules! recording_notices {
             RecordingStarted = 1 => Silent,
             RecordingPaused = 2 => Silent,
             RecordingFinishing = 3 => Silent,
-            RecordingFinished = 4 => Done,
+            /// The recording is closed. The window says it once, with the
+            /// meeting's own notice («Reunión guardada» until its note is ready
+            /// or fails), so this code is only logged.
+            RecordingFinished = 4 => Silent,
             /// «Terminar sin guardar» finished: nothing recorded stays.
             RecordingDiscarded = 5 => Done,
             /// The recording will reach the safety ceiling soon: said once, with
@@ -65,7 +68,9 @@ macro_rules! recording_notices {
             /// Recording a call without asking, as the user chose.
             CallRecordingStartedAutomatically = 78 => Done,
             CallRecordingStarted = 79 => Silent,
-            CallRecordingFinished = 80 => Done,
+            /// A detected call ended and its recording was finished (`cause`).
+            /// Only logged: the meeting's own notice says it was saved.
+            CallRecordingFinished = 80 => Silent,
             CallStoppedAutomatically = 81 => Silent,
             CallsRecovered = 82 => Silent,
             /// The Mac stopped its capture with nothing recording: nothing was cut.

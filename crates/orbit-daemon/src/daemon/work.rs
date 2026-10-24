@@ -218,6 +218,8 @@ impl Runtime {
             });
             return Ok(());
         }
+        // Words keep a call going; sound alone does not (`idle_timeout_ms`).
+        self.audio.note_call_words();
         if let Some(turn) = over_answer
             && !self.accept_over_answer(turn, None).await?
         {

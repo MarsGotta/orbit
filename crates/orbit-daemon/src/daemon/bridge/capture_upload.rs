@@ -1,7 +1,7 @@
 //! An image Deimos asked for goes to the hub out of band, and its answer
 //! waits for the hub to hold it: a window or the desktop through the engine,
 //! a window through the helper, or an image from the assistant's folders.
-use super::BridgeAsk;
+use super::{BridgeAsk, BridgeKind};
 use crate::daemon::ticketed::{DeadlineKind, Ticketed};
 use crate::daemon::{Runtime, WorkResult, deliver_work, hub};
 use anyhow::Result;
@@ -54,6 +54,15 @@ pub(in crate::daemon) enum PendingCapture {
 }
 
 impl PendingCapture {
+    /// The kind of request whose capture this is: a folder image, or the
+    /// screen.
+    fn kind(&self) -> BridgeKind {
+        match self {
+            Self::File { .. } => BridgeKind::Files,
+            Self::Engine { .. } | Self::Helper { .. } => BridgeKind::Screen,
+        }
+    }
+
     fn id(&self) -> &str {
         match self {
             Self::Engine { capture_id, .. } | Self::File { capture_id, .. } => capture_id,
@@ -169,9 +178,10 @@ impl Runtime {
         else {
             return self.refuse_capture_upload(ask, None).await.map(|()| None);
         };
-        // A second capture replaces the first: its upload is aborted here, not
-        // left running to be discarded later as `upload_replaced`.
-        if let Some(mut previous) = self.sources.bridge_upload.take() {
+        // A second capture of the same kind replaces the first: its upload
+        // is aborted here, not left running to be discarded later as
+        // `upload_replaced`. Another kind's upload goes on.
+        if let Some(mut previous) = self.sources.bridge_uploads.take(capture.kind()) {
             previous.work.cancel();
         }
         let started = capture_id.clone();
@@ -188,7 +198,7 @@ impl Runtime {
     /// The helper's screenshot of the window Deimos named starts up as soon
     /// as its bytes arrive; its answer is staged next to the upload.
     pub(in crate::daemon) fn prepare_bridge_capture_upload(&mut self, event: &Value) {
-        let Some(ask) = self.assistant.bridge_request.as_ref() else {
+        let Some(ask) = self.assistant.bridge_requests.get(BridgeKind::Screen) else {
             return;
         };
         let Ok(response) = NativeResponseView::from_value(event) else {
@@ -197,7 +207,11 @@ impl Runtime {
         if ask.capability != Capability::Screenshot
             || ask.source_id.is_none()
             || !response.ok
-            || self.sources.bridge_upload.is_some()
+            || self
+                .sources
+                .bridge_uploads
+                .get(BridgeKind::Screen)
+                .is_some()
         {
             return;
         }
@@ -232,7 +246,7 @@ impl Runtime {
     }
 
     /// The upload runs on a task of its own and its outcome comes back as
-    /// work; this capture is the bridge's one upload from now on.
+    /// work; this capture is its kind's upload from now on.
     fn spawn_capture_upload(
         &mut self,
         target: UploadTarget,
@@ -246,6 +260,7 @@ impl Runtime {
             request_id,
         } = target;
         let upload_id = capture_id.clone();
+        let kind = capture.kind();
         let generation = self.state.generation();
         let development = self.development;
         let work = self.work_events.clone();
@@ -274,11 +289,14 @@ impl Runtime {
                 .await;
             })
         });
-        self.sources.bridge_upload = Some(crate::daemon::sources::BridgeUpload {
-            capture_id: upload_id,
-            screenshot: None,
-            work: upload_work,
-        });
+        self.sources.bridge_uploads.insert(
+            kind,
+            crate::daemon::sources::BridgeUpload {
+                capture_id: upload_id,
+                screenshot: None,
+                work: upload_work,
+            },
+        );
     }
 }
 

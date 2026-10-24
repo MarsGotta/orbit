@@ -30,6 +30,18 @@ use causes::{bounded, origin_label, submit_refusal_cause};
 /// orders sent.
 const MAX_WAKE_ORDERS: usize = 8;
 
+/// How long an abandoned «Oye Deimos» waits before the panel says so.
+///
+/// Protects: the panel from flashing «No entendí bien…» when the recognizer
+/// replaces the result that held the phrase with a final one of earlier
+/// words: the helper abandons, then hears the phrase again at once. Why
+/// 1.5 s: that second hearing comes with the recognizer's next result, and a
+/// phrase not heard again by then was really lost; the line still comes soon
+/// enough to be read while the person waits for an answer. It delays
+/// neither the log line, written when the helper reports it, nor how long
+/// the line stays once shown (`FAILURE_SHOWN_MS`).
+const ABANDONED_LINE_HELD_MS: i64 = 1_500;
+
 #[derive(Default)]
 pub(super) struct QuestionHandle {
     /// The last question and where its turn is; what the panel shows.

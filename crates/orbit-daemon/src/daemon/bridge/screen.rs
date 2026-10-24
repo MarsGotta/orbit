@@ -3,7 +3,7 @@
 //! answers are `screen_sources.rs`; the image's way to the hub is
 //! `capture_upload.rs`.
 use super::refusals::source_start_refusal;
-use super::{BridgeAsk, result_payload};
+use super::{BridgeAsk, BridgeKind, result_payload};
 use crate::daemon::{Runtime, hub};
 use anyhow::Result;
 use base64::Engine;
@@ -157,8 +157,8 @@ impl Runtime {
     ) -> Result<bool> {
         let Some(ask) = self
             .assistant
-            .bridge_request
-            .as_ref()
+            .bridge_requests
+            .get(BridgeKind::Screen)
             .filter(|ask| ask.capability == Capability::ScreenSources)
             .cloned()
         else {
@@ -186,7 +186,7 @@ impl Runtime {
             ),
         ));
         self.note_bridge_send(&sent, "the engine's windows reply");
-        self.assistant.bridge_request = None;
+        self.assistant.bridge_requests.take(BridgeKind::Screen);
         Ok(true)
     }
 
@@ -198,8 +198,8 @@ impl Runtime {
     ) -> Result<bool> {
         let Some(ask) = self
             .assistant
-            .bridge_request
-            .as_ref()
+            .bridge_requests
+            .get(BridgeKind::Screen)
             .filter(|ask| ask.capability == Capability::Screenshot)
             .cloned()
         else {
@@ -238,8 +238,8 @@ impl Runtime {
     ) -> Result<()> {
         let Some(ask) = self
             .assistant
-            .bridge_request
-            .as_ref()
+            .bridge_requests
+            .get(BridgeKind::Screen)
             .filter(|ask| ask.capability == Capability::Screenshot)
             .cloned()
         else {
@@ -295,8 +295,8 @@ impl crate::daemon::assistant::AssistantHandle {
         observation: &Value,
     ) -> Option<(i64, u64, String, String)> {
         let ask = self
-            .bridge_request
-            .as_ref()
+            .bridge_requests
+            .get(BridgeKind::Screen)
             .filter(|ask| ask.capability == Capability::Screenshot)?;
         let listing = ComputerWindows::deserialize(observation).ok()?;
         let matching = listing

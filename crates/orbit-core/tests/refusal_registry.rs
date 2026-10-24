@@ -382,7 +382,7 @@ fn decisions_preserve_actual_text_and_the_call_duration_bound() {
         &with_audio,
         Event::CallStart {
             id: "call".into(),
-            duration_ms: 3_600_001,
+            duration_ms: 14_400_001,
             origin: orbit_core::CallOrigin::App,
         },
         0,
@@ -393,16 +393,16 @@ fn decisions_preserve_actual_text_and_the_call_duration_bound() {
         Refusal::InvalidParameter {
             parameter: Parameter::Duration,
             expected: Expected::DurationRange {
-                actual_ms: 3_600_001,
+                actual_ms: 14_400_001,
                 min_ms: 60_000,
-                max_ms: 3_600_000
+                max_ms: 14_400_000
             },
         }
     );
     let call_wire = serde_json::to_value(call).unwrap();
     assert_eq!(
         call_wire["expected"],
-        json!({"kind":"duration_range","actual_ms":3_600_001,"min_ms":60_000,"max_ms":3_600_000})
+        json!({"kind":"duration_range","actual_ms":14_400_001,"min_ms":60_000,"max_ms":14_400_000})
     );
 }
 

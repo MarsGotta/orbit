@@ -41,6 +41,31 @@ impl Call {
         Ok(())
     }
 
+    /// `count` frames of voice or silence, 100 ms apart from `at_ms` on, as
+    /// they arrive: the call's own clock, not the wall's.
+    async fn frames_at(&mut self, at_ms: i64, count: u64, voiced: bool) -> Result<()> {
+        for index in 0..count {
+            let mut frame = call_frame(&self.stream, self.sequence, voiced);
+            self.sequence += 1;
+            self.runtime
+                .on_native_audio_at(&mut frame, at_ms + index as i64 * 100)
+                .await?;
+        }
+        Ok(())
+    }
+
+    fn started_at_ms(&self) -> Result<i64> {
+        Ok(self
+            .runtime
+            .state
+            .durable
+            .voice
+            .call
+            .as_ref()
+            .context("call absent")?
+            .started_at_ms)
+    }
+
     /// `count` frames while Deimos's answer plays, as the helper sends them.
     async fn frames_over_answer(&mut self, count: u64, voiced: bool) -> Result<()> {
         for _ in 0..count {
@@ -597,5 +622,58 @@ async fn a_call_transcription_always_closes_even_after_another_operations_notice
             "the result must close its own working notice even after another op spoke"
         );
     }
+    Ok(())
+}
+
+/// A forgotten call in a room with a fan that starts now and then: every
+/// burst of noise opens a turn, the hub finds no words in it, and the call
+/// still hangs up a minute after it began, as it would in silence. Its
+/// sound kept such a call open until its ceiling.
+#[tokio::test]
+async fn a_forgotten_call_whose_turns_hold_no_words_hangs_up_after_a_minute() -> Result<()> {
+    let mut call = Call::open().await?;
+    let started = call.started_at_ms()?;
+    for burst in 0..5 {
+        let at = started + burst * 10_000;
+        call.frames_at(at, 4, true).await?;
+        call.frames_at(at + 400, 8, false).await?;
+        call.transcribed("").await?;
+        assert!(call.alive(), "hung up {} s in", burst * 10);
+    }
+    call.frames_at(started + 59_900, 1, false).await?;
+    assert!(call.alive(), "hung up before a minute");
+    call.frames_at(started + 60_000, 1, false).await?;
+    assert!(
+        !call.alive(),
+        "a minute of noise without words kept the call"
+    );
+    assert!(crate::daemon::turn::said::mentions(
+        &call.runtime.state,
+        "idle"
+    ));
+    Ok(())
+}
+
+/// Words heard in a turn are what keeps a call going: the user's silence
+/// counts again from the frame the call had when they were known.
+#[tokio::test]
+async fn words_heard_in_a_call_turn_start_the_silence_again() -> Result<()> {
+    let mut call = Call::open().await?;
+    let _hub_commands = call.runtime.link.outbound.open(16);
+    let started = call.started_at_ms()?;
+    call.frames_at(started + 50_000, 4, true).await?;
+    call.frames_at(started + 50_400, 8, false).await?;
+    // Quiet while the turn is transcribed, past the minute.
+    call.frames_at(started + 51_200, 100, false).await?;
+    assert!(call.alive(), "hung up while a turn was being heard");
+    call.transcribed("¿Cómo va el informe trimestral?").await?;
+    let detector = &call
+        .runtime
+        .audio
+        .call
+        .as_ref()
+        .context("call absent")?
+        .detector;
+    assert_eq!(detector.last_activity_ms(), started + 61_100);
     Ok(())
 }

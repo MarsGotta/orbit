@@ -1,7 +1,7 @@
 //! Control of the Mac for Deimos: the engine's tool catalogue, one action at
 //! a time, the receipt of its single attempt, and every way the engine says
 //! no.
-use super::{BridgeAsk, result_payload};
+use super::{BridgeAsk, BridgeKind, result_payload};
 use crate::daemon::{Runtime, hub};
 use orbit_core::computer_control::engine::Status;
 use orbit_core::refusal::{EngineCause, Expected, Operation, Parameter, Refusal};
@@ -29,7 +29,7 @@ impl Runtime {
             total: page.total,
             next_after_index: page.next_after_index,
         });
-        self.assistant.bridge_request = None;
+        self.assistant.bridge_requests.take(BridgeKind::Control);
         self.send(
             hub::command(&ask.id, "device.reply", result_payload(&ask.id, result))
                 .map_err(|_| Refusal::HubUnreachable { since_ms: None })?,
@@ -132,8 +132,8 @@ impl Runtime {
     ) {
         let Some(ask) = self
             .assistant
-            .bridge_request
-            .as_ref()
+            .bridge_requests
+            .get(BridgeKind::Control)
             .filter(|ask| {
                 ask.capability == orbit_core::device_bridge::Capability::PerformAction
                     && ask.tool_call.is_some()
@@ -166,6 +166,6 @@ impl Runtime {
             ),
         ));
         self.note_bridge_send(&result, "the receipt of the engine's single attempt");
-        self.assistant.bridge_request = None;
+        self.assistant.bridge_requests.take(BridgeKind::Control);
     }
 }

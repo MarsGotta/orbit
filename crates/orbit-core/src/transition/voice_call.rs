@@ -38,6 +38,32 @@ impl VoiceState {
         std::mem::take(&mut self.voice_active)
     }
 
+    /// Said once, ten minutes before the call's ceiling, as a recording's:
+    /// what is left, what it has lasted and the ceiling.
+    pub(super) fn ceiling_near(&mut self, now_ms: i64) -> Option<Notice> {
+        let call = self.call.as_mut()?;
+        let remaining_ms = call.expires_at_ms.saturating_sub(now_ms);
+        if call.ceiling_notice_given
+            || remaining_ms <= 0
+            || remaining_ms > crate::RECORDING_CEILING_NOTICE_MINUTES * 60_000
+        {
+            return None;
+        }
+        call.ceiling_notice_given = true;
+        Some(
+            Notice::new(NoticeCode::CallCeilingNear)
+                .with(NoticeKey::Remaining, (remaining_ms + 59_999) / 60_000)
+                .with(
+                    NoticeKey::Minutes,
+                    now_ms.saturating_sub(call.started_at_ms).max(0) / 60_000,
+                )
+                .with(
+                    NoticeKey::Max,
+                    call.expires_at_ms.saturating_sub(call.started_at_ms).max(0) / 60_000,
+                ),
+        )
+    }
+
     /// The call reached its end: it is over.
     pub(super) fn expire_call(&mut self, now_ms: i64) -> bool {
         let expired = self
@@ -146,7 +172,7 @@ pub(super) fn call_start(
     if voice.in_call() || voice.voice_active || before.assistant.turn_in_flight() {
         return Err(busy(Operation::AudioSession));
     }
-    let allowed_duration_ms = 60_000..=3_600_000;
+    let allowed_duration_ms = 60_000..=i64::from(crate::voice::CALL_MINUTES) * 60_000;
     if !allowed_duration_ms.contains(&duration_ms) {
         return Err(Refusal::InvalidParameter {
             parameter: Parameter::Duration,
@@ -164,6 +190,7 @@ pub(super) fn call_start(
         expires_at_ms: cx.now_ms.saturating_add(duration_ms),
         turns: 0,
         origin,
+        ceiling_notice_given: false,
     });
     cx.effects([Effect::StopPlayback, Effect::StartCall]);
     cx.say(NoticeCode::CallStarting);

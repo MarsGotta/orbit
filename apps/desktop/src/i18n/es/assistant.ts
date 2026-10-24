@@ -1,4 +1,5 @@
 import { esAssistant } from "../es-assistant";
+import { duration } from "./duration";
 import { voiceFailureDetail, voiceFailureText } from "./voice-failures";
 
 const secondsFormat = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
@@ -110,7 +111,7 @@ function callCopy(assistantName: string) {
     seeConversation: "Ver la conversación",
     minimised: "Llamada minimizada",
     limits: (minutesLeft: number, silenceMs: number) =>
-      `${minutesLeft < 1 ? "Queda menos de 1 min" : `Quedan ${minutesLeft} min`} · se cuelga sola tras ${silenceText(silenceMs)} sin que hables · ⌃⌥D cuelga desde cualquier app`,
+      `${minutesLeft < 1 ? "Queda menos de 1 min" : `Quedan ${duration(minutesLeft)}`} · se cuelga sola tras ${silenceText(silenceMs)} sin que hables · ⌃⌥D cuelga desde cualquier app`,
   } as const;
 }
 

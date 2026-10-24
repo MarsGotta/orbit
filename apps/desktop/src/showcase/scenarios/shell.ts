@@ -38,10 +38,10 @@ export const shellScenarios: Scenario[] = [
     later: (views) =>
       notices(
         views,
-        { code: "recording_finished", data: { recording: "rec-daily-21", at_ms: at(0, 9, 14) } },
+        { code: "recording_discarded", data: { recording: "rec-daily-21", at_ms: at(0, 9, 14) } },
         { code: "meeting_audio_microphone_only" },
         { code: "contained_failure", data: { step: "upload_jobs" } },
       ),
-    ready: "text=Grabación guardada.",
+    ready: "text=Reunión descartada",
   },
 ];

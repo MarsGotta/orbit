@@ -125,6 +125,7 @@ fn projects_real_call_content_and_typed_voice_absence() {
             expires_at_ms: 1_700_003_600_000,
             turns: 1,
             origin: orbit_core::CallOrigin::App,
+            ceiling_notice_given: false,
         }),
         as_of_ms: None,
     };
@@ -185,7 +186,7 @@ fn voice_input_does_not_depend_on_read_aloud() {
 #[test]
 fn a_hotkey_call_says_when_it_ends_how_it_began_and_with_whom() {
     let started_at_ms = 1_700_000_000_000;
-    let expires_at_ms = started_at_ms + i64::from(orbit_core::voice::HOTKEY_CALL_MINUTES) * 60_000;
+    let expires_at_ms = started_at_ms + i64::from(orbit_core::voice::CALL_MINUTES) * 60_000;
     let mut value = assistant_topic::assistant_value();
     value.agent_id = Some("atlas".into());
     value.call = Knowledge::Present {
@@ -196,13 +197,14 @@ fn a_hotkey_call_says_when_it_ends_how_it_began_and_with_whom() {
             expires_at_ms,
             turns: 0,
             origin: orbit_core::CallOrigin::Hotkey,
+            ceiling_notice_given: false,
         }),
         as_of_ms: None,
     };
     let call = assistant_topic::snapshot(value, PermissionState::Granted)
         .call
         .expect("the hotkey call must be projected");
-    assert_eq!(call.expires_at_ms, started_at_ms + 15 * 60_000);
+    assert_eq!(call.expires_at_ms, started_at_ms + 240 * 60_000);
     assert_eq!(call.origin, orbit_app_core::CallOrigin::Hotkey);
     assert_eq!(call.agent_id.as_deref(), Some("atlas"));
     assert_eq!(
@@ -224,6 +226,7 @@ fn a_hotkey_call_says_when_it_ends_how_it_began_and_with_whom() {
             expires_at_ms: started_at_ms + 3_600_000,
             turns: 0,
             origin: orbit_core::CallOrigin::App,
+            ceiling_notice_given: false,
         }),
         as_of_ms: None,
     };

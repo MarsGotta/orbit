@@ -10,6 +10,7 @@ fn frame(index: u64, voiced: bool) -> VoiceObservation {
         received_at_ms: index as i64 * 20,
         voiced,
         response_active: false,
+        transcribing: false,
         muted: false,
     }
 }
@@ -191,5 +192,152 @@ fn a_muted_microphone_opens_no_turn_and_is_not_user_silence() {
         expiring.observe(policy, muted(1_000, false)).1,
         TurnAction::Stop(StopReason::Expired),
         "the call's ceiling counts while muted"
+    );
+}
+
+/// A 20 ms frame at `ms` of the call: voice or quiet, and whether a turn's
+/// words are being asked for.
+fn noise_at(ms: u64, voiced: bool, transcribing: bool) -> VoiceObservation {
+    VoiceObservation {
+        monotonic_ns: ms * 1_000_000,
+        received_at_ms: ms as i64,
+        transcribing,
+        ..frame(0, voiced)
+    }
+}
+
+/// What a stretch of a call did: when it stopped, if it did, and how many
+/// turns opened.
+struct Run {
+    detector: TurnDetector,
+    stopped_at_ms: Option<u64>,
+    turns: u32,
+}
+
+/// Frames from `from_ms` to `to_ms`: `voiced(ms)` says which are loud, and
+/// each turn is transcribed for `transcription_ms` after it ends, its words
+/// heard when `words(ms)` says so.
+fn run(
+    mut detector: TurnDetector,
+    (from_ms, to_ms): (u64, u64),
+    voiced: impl Fn(u64) -> bool,
+    transcription_ms: u64,
+    words: impl Fn(u64) -> bool,
+) -> Run {
+    let policy = VoicePolicy::default();
+    let mut transcribed_until = None;
+    let mut turns = 0;
+    let mut ms = from_ms;
+    while ms < to_ms {
+        if transcribed_until.is_some_and(|until| ms >= until) {
+            transcribed_until = None;
+            if words(ms) {
+                detector.heard_words();
+            }
+        }
+        let action;
+        (detector, action) = detector.observe(
+            policy,
+            noise_at(ms, voiced(ms), transcribed_until.is_some()),
+        );
+        match action {
+            TurnAction::Stop(StopReason::Idle) => {
+                return Run {
+                    detector,
+                    stopped_at_ms: Some(ms),
+                    turns,
+                };
+            }
+            TurnAction::Begin { .. } => turns += 1,
+            TurnAction::Finish { .. } => transcribed_until = Some(ms + transcription_ms),
+            TurnAction::Stop(other) => panic!("stopped as {other:?} at {ms} ms"),
+            TurnAction::None => {}
+        }
+        ms += 20;
+    }
+    Run {
+        detector,
+        stopped_at_ms: None,
+        turns,
+    }
+}
+
+/// A forgotten call in a room with a fan that starts now and then, or a
+/// television: the noise opens turns, the hub finds no words in them, and
+/// the call hangs up a minute after the last words as it would in silence.
+/// Energy alone kept such a call open until its ceiling.
+#[test]
+fn a_forgotten_call_with_noise_only_turns_hangs_up_after_a_minute_without_words() {
+    let idle = VoicePolicy::default().idle_timeout_ms as u64;
+    let run = run(
+        TurnDetector::authorized(5, 0, 4 * 3_600_000),
+        (0, 4 * idle),
+        // Every 5 s, 400 ms of noise.
+        |ms| ms % 5_000 < 400,
+        1_000,
+        |_| false,
+    );
+    assert!(run.turns >= 10, "the noise opened {} turns", run.turns);
+    let stopped = run
+        .stopped_at_ms
+        .expect("a call with only noise never hung up");
+    assert!(
+        (idle..idle + 5_000).contains(&stopped),
+        "hung up at {stopped} ms"
+    );
+}
+
+/// Noise that never stops opens turn after turn, each one heard before the
+/// next ends: a turn in course holds the hang-up, but only for as long as
+/// one turn can last, so even that call hangs up.
+#[test]
+fn unbroken_noise_holds_the_hang_up_for_one_turn_at_most() {
+    let policy = VoicePolicy::default();
+    let idle = policy.idle_timeout_ms as u64;
+    let run = run(
+        TurnDetector::authorized(5, 0, 4 * 3_600_000),
+        (0, 4 * idle),
+        |_| true,
+        1_000,
+        |_| false,
+    );
+    let stopped = run
+        .stopped_at_ms
+        .expect("unbroken noise kept the call open");
+    assert!(
+        (idle..=idle + policy.maximum_turn_ms).contains(&stopped),
+        "hung up at {stopped} ms"
+    );
+}
+
+/// The person speaks now and then, with the same noise around: their words
+/// keep the call going; once they stop, it hangs up a minute after the last
+/// ones, noise or not.
+#[test]
+fn words_keep_a_call_going_and_noise_does_not() {
+    let idle = VoicePolicy::default().idle_timeout_ms as u64;
+    // Words in the turns heard in the first five minutes, every half minute.
+    let talked = 5 * idle;
+    let speaking = run(
+        TurnDetector::authorized(5, 0, 4 * 3_600_000),
+        (0, talked),
+        |ms| ms % 5_000 < 400,
+        1_000,
+        |ms| ms % 30_000 < 5_000,
+    );
+    assert_eq!(speaking.stopped_at_ms, None, "a call with words hung up");
+    let last_words = speaking.detector.last_activity_ms() as u64;
+    assert!(talked - last_words < 30_000, "words at {last_words} ms");
+    let silent = run(
+        speaking.detector,
+        (talked, talked + 2 * idle),
+        |ms| ms % 5_000 < 400,
+        1_000,
+        |_| false,
+    );
+    let stopped = silent.stopped_at_ms.expect("noise kept the call open");
+    assert!(
+        (last_words + idle..last_words + idle + 5_000).contains(&stopped),
+        "hung up at {stopped} ms, words last at {last_words} ms"
     );
 }

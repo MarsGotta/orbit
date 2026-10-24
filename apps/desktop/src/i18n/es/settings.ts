@@ -94,8 +94,7 @@ const base = {
     whenCallLabel: "Al detectar una llamada",
     durations: "Cuánto dura cada cosa",
     recordingLasts: "Una grabación, la empiece quien la empiece",
-    appCallLasts: "Una llamada desde la app",
-    hotkeyCallLasts: `Una llamada con ${globalShortcuts.call}`,
+    callLasts: `Una llamada, desde la app o con ${globalShortcuts.call}`,
     lastsUpTo: (minutes: number) => `hasta ${duration(minutes)}`,
     shortcuts: "Atajos desde cualquier app",
 

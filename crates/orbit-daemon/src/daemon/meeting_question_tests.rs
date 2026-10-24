@@ -839,18 +839,20 @@ async fn an_abandoned_phrase_is_said_in_the_panel_with_its_cause() -> Result<()>
         "question_wait_expired",
         "question_too_long",
     ] {
+        runtime.question.clock_ms = Some(NOW);
         runtime.native_event(abandoned(cause)).await?;
+        runtime.question.clock_ms = Some(NOW + ABANDONED_LINE_HELD_MS);
         assert_eq!(
             recording_topic(&runtime)?["voice_trigger"],
             json!({"state": "abandoned", "cause": cause})
         );
     }
-    runtime.question.clock_ms = Some(NOW + FAILURE_SHOWN_MS - 1);
+    runtime.question.clock_ms = Some(NOW + ABANDONED_LINE_HELD_MS + FAILURE_SHOWN_MS - 1);
     assert_eq!(
         recording_topic(&runtime)?["voice_trigger"]["state"],
         "abandoned"
     );
-    runtime.question.clock_ms = Some(NOW + FAILURE_SHOWN_MS);
+    runtime.question.clock_ms = Some(NOW + ABANDONED_LINE_HELD_MS + FAILURE_SHOWN_MS);
     assert_eq!(
         recording_topic(&runtime)?["voice_trigger"]["state"],
         "listening",
@@ -888,5 +890,47 @@ async fn an_abandoned_phrase_is_said_in_the_panel_with_its_cause() -> Result<()>
         recording_topic(&runtime)?["voice_trigger"]["state"],
         "abandoned"
     );
+    Ok(())
+}
+
+/// The recognizer replaced the result that held «Oye Deimos» with a final
+/// one of earlier words: the helper abandons the phrase and hears it again
+/// at once. The panel waits before it says the phrase was abandoned, so a
+/// phrase heard again within that wait never flashes «No entendí bien…»;
+/// one not heard again is said once the wait is over. The log line is
+/// written when the helper reports it either way.
+#[tokio::test]
+async fn a_phrase_heard_again_at_once_never_shows_its_abandonment() -> Result<()> {
+    let (_directory, mut runtime, _hub_frames, _helper) = meeting_with_hub().await?;
+    runtime.question.helper_listens = true;
+    runtime.maintain_meeting_question().await?;
+    runtime
+        .native_event(json!({"v": 1, "event": "voice_trigger", "state": "listening"}))
+        .await?;
+    let state = |runtime: &Runtime| -> Result<Value> {
+        Ok(recording_topic(runtime)?["voice_trigger"]["state"].clone())
+    };
+
+    runtime.native_event(abandoned("phrase_revised")).await?;
+    assert_eq!(state(&runtime)?, "listening", "held back when it happens");
+    runtime.question.clock_ms = Some(NOW + ABANDONED_LINE_HELD_MS - 1);
+    assert_eq!(
+        state(&runtime)?,
+        "listening",
+        "held back until the wait ends"
+    );
+    runtime
+        .native_event(json!({"v": 1, "event": "notice", "code": "wake_phrase_heard"}))
+        .await?;
+    for after in [ABANDONED_LINE_HELD_MS, ABANDONED_LINE_HELD_MS + 1_000] {
+        runtime.question.clock_ms = Some(NOW + after);
+        assert_eq!(state(&runtime)?, "listening", "heard again: never said");
+    }
+
+    let later = NOW + 30_000;
+    runtime.question.clock_ms = Some(later);
+    runtime.native_event(abandoned("phrase_revised")).await?;
+    runtime.question.clock_ms = Some(later + ABANDONED_LINE_HELD_MS);
+    assert_eq!(state(&runtime)?, "abandoned", "not heard again: said");
     Ok(())
 }

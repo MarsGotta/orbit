@@ -87,7 +87,6 @@ export const capture = {
         ? "Tu micrófono dejó de grabarse y no se pudo recuperar; el audio de la reunión sigue grabándose."
         : "El audio de la otra app dejó de grabarse y no se pudo recuperar; tu micrófono sigue grabando.",
   },
-  recording_finished: worded("done", "Grabación guardada."),
   recording_discarded: worded("done", "Reunión descartada"),
   recording_ceiling_near: { class: "fixable", text: ceilingNear },
   recording_ceiling_reached: {

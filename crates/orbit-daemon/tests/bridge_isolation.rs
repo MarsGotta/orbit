@@ -11,9 +11,10 @@
 //!
 //! What it reads is the daemon's own turn instrumentation (`daemon_turn_slow`,
 //! `daemon_loop_stalled`), each order's answer time and each reply's. The
-//! second request is answered `busy`: the bridge serves one request at a time,
-//! and that is the behaviour this measures, not one it changes. Folders,
-//! bookmarks and permissions are fixture data, not macOS evidence.
+//! bridge serves one request at a time of each kind: a second folder request
+//! is answered `busy` at once, and a screen request goes to the helper at once
+//! (here the helper refuses it, which is its answer). Folders, bookmarks and
+//! permissions are fixture data, not macOS evidence.
 use anyhow::{Context, Result, bail, ensure};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use futures_util::{SinkExt, StreamExt};
@@ -118,6 +119,14 @@ async fn native_peer(
                     }
                     Some("playback_stop") => json!({}),
                     Some("shutdown") => json!({"drain_complete":true}),
+                    // The screen request reached the helper while the folder
+                    // was held; its refusal is the helper's answer.
+                    Some("screen_sources") => {
+                        send(&mut writer, json!({"v":1,"event":"response","id":request["id"],
+                            "ok":false,"error":{"code":"screen_permission_required",
+                            "message":"Pantalla sintética sin permiso."}})).await?;
+                        continue;
+                    }
                     other => bail!("native action outside this fixture: {other:?}"),
                 };
                 send(&mut writer, json!({"v":1,"event":"response","id":request["id"],
@@ -258,8 +267,22 @@ async fn scenario(path: &Path) -> Result<()> {
     let answered_at = since + HOLD;
     let to_helper = since.duration_since(asked_at);
 
-    // A second request from Deimos while the read is held.
+    // A second folder request from Deimos while the read is held: one of
+    // each kind at a time, so it is answered busy at once.
     let second_at = Instant::now();
+    outgoing
+        .send(device_request("files-meanwhile", "files_list", json!({})))
+        .await?;
+    let (second_replied, second) =
+        reply_to(&mut replies, "files-meanwhile", STRICT_TURN_BOUND).await?;
+    let second_took = second_replied.duration_since(second_at);
+    ensure!(
+        second["refusal"]["code"] == "busy",
+        "the second folder request was not answered busy: {second}"
+    );
+    // A screen request, of another kind, is served meanwhile: the helper is
+    // asked at once and its answer reaches the hub, not «busy».
+    let screen_at = Instant::now();
     outgoing
         .send(device_request(
             "windows-meanwhile",
@@ -267,12 +290,12 @@ async fn scenario(path: &Path) -> Result<()> {
             json!({}),
         ))
         .await?;
-    let (second_replied, second) =
+    let (screen_replied, screen) =
         reply_to(&mut replies, "windows-meanwhile", STRICT_TURN_BOUND).await?;
-    let second_took = second_replied.duration_since(second_at);
+    let screen_took = screen_replied.duration_since(screen_at);
     ensure!(
-        second["refusal"]["code"] == "busy",
-        "the second request was not answered busy: {second}"
+        screen["refusal"]["code"] == "permission_denied",
+        "the screen request was not the helper's to answer: {screen}"
     );
 
     let mut orders = Vec::new();
@@ -299,11 +322,12 @@ async fn scenario(path: &Path) -> Result<()> {
     let slowest = orders.iter().max().copied().unwrap_or_default();
     let (slow, stalled) = loop_lines(path);
     eprintln!(
-        "bridge_isolation held_ms={} to_helper_ms={} second_reply_ms={} orders={} \
-         slowest_order_ms={} files_reply_after_hold_ms={} slow_turns={} stalls={}",
+        "bridge_isolation held_ms={} to_helper_ms={} second_reply_ms={} screen_reply_ms={} \
+         orders={} slowest_order_ms={} files_reply_after_hold_ms={} slow_turns={} stalls={}",
         held_for.as_millis(),
         to_helper.as_millis(),
         second_took.as_millis(),
+        screen_took.as_millis(),
         orders.len(),
         slowest.as_millis(),
         files_replied.duration_since(answered_at).as_millis(),
@@ -323,6 +347,10 @@ async fn scenario(path: &Path) -> Result<()> {
     ensure!(
         second_took < STRICT_TURN_BOUND,
         "the second request waited {second_took:?} for its answer"
+    );
+    ensure!(
+        screen_took < STRICT_TURN_BOUND,
+        "the screen request waited {screen_took:?} for its answer"
     );
     helper_relay::assert_no_held_turn(path)?;
     let bridge_named = |fields: &&Value| fields.to_string().contains("hub:");

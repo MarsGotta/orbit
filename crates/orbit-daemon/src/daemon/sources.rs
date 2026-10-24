@@ -54,7 +54,9 @@ pub(super) struct SourcesHandle {
     operation: Option<Operation>,
     reply: Ticketed<()>,
     pub(super) last_failure: Option<SourceFailure>,
-    pub(super) bridge_upload: Option<BridgeUpload>,
+    /// The capture each kind of remote request is uploading: a screenshot
+    /// and a folder image can go up at once, each replacing only its own.
+    pub(super) bridge_uploads: crate::daemon::BridgeSlots<BridgeUpload>,
 }
 
 #[derive(Clone)]
@@ -378,14 +380,12 @@ impl Runtime {
     }
 
     pub(super) fn cancel_sources_volatile(&mut self) {
-        if let Some(mut upload) = self.sources.bridge_upload.take() {
-            upload.work.cancel();
-        }
         self.state.views.source_inventory = None;
         self.sources.inventory_deadline = None;
-        // Release the remote slot with the source's recorded cause, if one
-        // closed, or the explicit cancellation cause otherwise.
-        self.release_bridge_request(BridgeReleaseReason::Cancelled);
+        // Release the remote requests, and their uploads, with the source's
+        // recorded cause, if one closed, or the explicit cancellation cause
+        // otherwise: every kind, as when there was one slot for all.
+        self.release_bridge_requests(BridgeReleaseReason::Cancelled);
     }
 
     pub(super) async fn check_source_timeout(&mut self) -> Result<()> {
@@ -425,10 +425,13 @@ impl Runtime {
             // answer: a timeout is one of the endings the spec lists, and
             // the caller should hear `timeout` rather than wait for a reply
             // that will never come.
-            self.release_bridge_request(BridgeReleaseReason::Timeout {
-                waited_ms: operation.deadline.waited_ms(),
-                deadline_ms: operation.deadline.budget_ms(),
-            });
+            self.release_bridge_request(
+                crate::daemon::BridgeKind::Screen,
+                BridgeReleaseReason::Timeout {
+                    waited_ms: operation.deadline.waited_ms(),
+                    deadline_ms: operation.deadline.budget_ms(),
+                },
+            );
         }
         Ok(())
     }
@@ -453,17 +456,13 @@ fn capture_plan(format: SourceFormat) -> (&'static str, DeadlineKind, &'static s
 
 impl crate::daemon::assistant::AssistantHandle {
     fn source_is_remote(&self, operation_id: &str) -> bool {
-        self.bridge_request.as_ref().is_some_and(|ask| {
-            matches!(
-                ask.capability,
-                orbit_core::device_bridge::Capability::ScreenSources
-                    | orbit_core::device_bridge::Capability::Screenshot
-                    | orbit_core::device_bridge::Capability::SelectedText
-            ) && ask
-                .source_id
-                .as_deref()
-                .is_none_or(|source| source == operation_id)
-        })
+        self.bridge_requests
+            .get(crate::daemon::BridgeKind::Screen)
+            .is_some_and(|ask| {
+                ask.source_id
+                    .as_deref()
+                    .is_none_or(|source| source == operation_id)
+            })
     }
 }
 

@@ -225,7 +225,7 @@ async fn returning_online_keeps_the_bridge_and_the_detection() -> Result<()> {
         crate::daemon::authority_fixture::set(&mut runtime.state, "connection", fixture_value);
     }
     offer_a_call(&mut runtime);
-    runtime.assistant.bridge_request = Some(BridgeAsk {
+    runtime.assistant.bridge_requests.put(BridgeAsk {
         for_attachment: false,
         id: "still-pending".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -240,7 +240,7 @@ async fn returning_online_keeps_the_bridge_and_the_detection() -> Result<()> {
         files: None,
     });
     runtime.apply(Event::Connect(Connection::Online)).await?;
-    assert!(runtime.assistant.bridge_request.is_some());
+    assert!(!runtime.assistant.bridge_requests.is_empty());
     assert!(call_offered(&runtime), "Online retired the call on offer");
     Ok(())
 }
@@ -250,7 +250,7 @@ async fn a_lost_hub_still_retires_the_bridge_and_keeps_the_call() -> Result<()> 
     let directory = tempfile::tempdir()?;
     let (mut runtime, _native) = fixture(directory.path())?;
     offer_a_call(&mut runtime);
-    runtime.assistant.bridge_request = Some(BridgeAsk {
+    runtime.assistant.bridge_requests.put(BridgeAsk {
         for_attachment: false,
         id: "lost-link".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -265,7 +265,7 @@ async fn a_lost_hub_still_retires_the_bridge_and_keeps_the_call() -> Result<()> 
         files: None,
     });
     runtime.hub_event(HubEvent::Disconnected).await?;
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_requests.is_empty());
     // A call on this Mac does not depend on the hub.
     assert!(
         call_offered(&runtime),
@@ -286,7 +286,7 @@ async fn review_rearm_with_a_latch_closes_generation_bound_work() -> Result<()> 
         let fixture_value = serde_json::json!(true);
         crate::daemon::authority_fixture::set(&mut runtime.state, "privacy_stopped", fixture_value);
     }
-    runtime.assistant.bridge_request = Some(BridgeAsk {
+    runtime.assistant.bridge_requests.put(BridgeAsk {
         for_attachment: false,
         id: "old".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -303,7 +303,7 @@ async fn review_rearm_with_a_latch_closes_generation_bound_work() -> Result<()> 
 
     runtime.apply(Event::LocalRearm).await?;
     assert_eq!(runtime.state.generation(), 1);
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_requests.is_empty());
     Ok(())
 }
 

@@ -27,6 +27,9 @@ macro_rules! voice_notices {
             CallExpired = 73 => Fixable,
             CallClosed = 74 => Silent,
             CallDrainUnconfirmed = 75 => Failed,
+            /// The call hangs up in a few minutes, at its ceiling (`remaining`,
+            /// `minutes` it has lasted, its `max`): said once, as a recording's.
+            CallCeilingNear = 160 => Fixable,
             VoiceNotRecognized = 116 => Fixable,
             /// A voice note was not transcribed. It loses nothing: the note stays in
             /// the conversation with its audio, its cause and what to do, so the

@@ -4,7 +4,8 @@ use super::*;
 
 /// The conversation's runtime state, kept in memory only.
 pub(super) struct AssistantHandle {
-    pub(super) bridge_request: Option<BridgeAsk>,
+    /// The remote requests being served, one per kind (`BridgeKind`).
+    pub(super) bridge_requests: BridgeSlots<BridgeAsk>,
     pub(super) interaction_response: Option<interactions::PendingResponse>,
     pub(super) interrupted_turns: interactions::InterruptedTurns,
     /// One voice turn worker; a second turn cannot start while one runs.
@@ -41,9 +42,19 @@ pub(super) struct AssistantHandle {
 }
 
 impl AssistantHandle {
+    /// The remote request of `kind` being served, if any.
+    pub(super) fn bridge_ask(&self, kind: BridgeKind) -> Option<&BridgeAsk> {
+        self.bridge_requests.get(kind)
+    }
+
+    /// The remote request of `kind` ended: its slot is free for the next.
+    pub(super) fn end_bridge_ask(&mut self, kind: BridgeKind) -> Option<BridgeAsk> {
+        self.bridge_requests.take(kind)
+    }
+
     pub(super) fn new() -> Self {
         Self {
-            bridge_request: None,
+            bridge_requests: BridgeSlots::default(),
             interaction_response: None,
             interrupted_turns: Default::default(),
             voice_task: ticketed::Ticketed::logical(),

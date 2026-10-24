@@ -215,8 +215,7 @@ impl Runtime {
         };
         let with_text = self
             .assistant
-            .bridge_request
-            .as_ref()
+            .bridge_ask(crate::daemon::BridgeKind::Screen)
             .is_some_and(|ask| ask.for_attachment);
         let mut service = self
             .computer

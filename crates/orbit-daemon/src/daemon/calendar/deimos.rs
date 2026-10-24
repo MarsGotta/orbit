@@ -348,8 +348,7 @@ impl Runtime {
         };
         if self
             .assistant
-            .bridge_request
-            .as_ref()
+            .bridge_ask(crate::daemon::BridgeKind::Calendar)
             .is_some_and(|ask| ask.id == request_id)
         {
             self.send_bridge_now(
@@ -360,7 +359,8 @@ impl Runtime {
                 ),
                 refusal.code().name(),
             );
-            self.assistant.bridge_request = None;
+            self.assistant
+                .end_bridge_ask(crate::daemon::BridgeKind::Calendar);
         }
     }
 

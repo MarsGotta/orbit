@@ -1,3 +1,4 @@
+import { duration } from "../duration";
 import { openSettings, worded, type Entries, type NoticeData } from "./types";
 
 const asked: Record<string, string> = {
@@ -47,13 +48,27 @@ const base = {
   ),
 
   call_expired: worded("fixable", "La llamada llegó a su límite. Empieza otra si quieres seguir."),
+  // Ten minutes before a call's ceiling, as a recording's (`recording_ceiling_near`).
+  call_ceiling_near: {
+    class: "fixable",
+    text: (data) => {
+      const { remaining, minutes, max } = data;
+      if (typeof remaining !== "number") {
+        return "La llamada se colgará pronto: llega a su máximo. Si quieres seguir, empieza otra.";
+      }
+      const facts =
+        typeof minutes === "number" && typeof max === "number"
+          ? `: lleva ${duration(minutes)}, el máximo es ${duration(max)}`
+          : "";
+      return `La llamada se colgará en ${duration(remaining)}${facts}. Si quieres seguir, empieza otra.`;
+    },
+  },
   call_preference_unreadable: worded(
     "fixable",
     "No se pudo leer tu elección «Cuando empieces una videollamada». Elígela de nuevo en Ajustes.",
     openSettings,
   ),
   call_recording_started_automatically: worded("done", "Grabando la llamada, como elegiste."),
-  call_recording_finished: worded("done", "Llamada terminada: grabación guardada."),
 } satisfies Partial<Entries>;
 
 export function conversationCopy(assistantName: string) {

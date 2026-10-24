@@ -180,7 +180,11 @@ impl Runtime {
             self.state.connection(),
         ) {
             Err(refusal)
-        } else if self.assistant.bridge_request.is_some()
+        } else if self
+            .assistant
+            .bridge_requests
+            .get(crate::daemon::BridgeKind::Screen)
+            .is_some()
             || self.assistant.window_attachment.is_some()
         {
             // One capture at a time: the assistant's own, or another window.
@@ -209,7 +213,7 @@ impl Runtime {
             files: None,
             for_attachment: true,
         };
-        self.assistant.bridge_request = Some(ask.clone());
+        self.assistant.bridge_requests.put(ask.clone());
         self.assistant.window_attachment = Some(PendingWindow {
             ask_id: ask.id.clone(),
             request_id,
@@ -217,7 +221,7 @@ impl Runtime {
             text: WindowTextSource::Unknown,
         });
         if let Err(refusal) = self.serve_bridge_request(&ask).await {
-            self.assistant.bridge_request = None;
+            self.assistant.bridge_requests.take(ask.kind());
             self.assistant.refuse_window(refusal);
         }
     }

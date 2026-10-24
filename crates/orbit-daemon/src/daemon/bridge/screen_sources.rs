@@ -3,7 +3,7 @@
 //! every refusal on the way, with the inventory facts that explain it.
 use super::refusals::MAX_BRIDGE_DETAIL_CHARS;
 use super::screen::titled_first;
-use super::{BridgeAsk, bridge_refused, result_payload};
+use super::{BridgeAsk, BridgeKind, bridge_refused, result_payload};
 use crate::daemon::{Runtime, hub};
 use anyhow::{Context, Result};
 use orbit_core::device_bridge::Capability;
@@ -22,7 +22,7 @@ impl Runtime {
     /// A capture Deimos asked for, refused with its cause and its numbers,
     /// as fields the translator can act on.
     pub(in crate::daemon) fn refuse_bridge_capture(&mut self, refusal: Refusal) {
-        let Some(ask) = self.assistant.bridge_request.take() else {
+        let Some(ask) = self.assistant.bridge_requests.take(BridgeKind::Screen) else {
             return;
         };
         let mut said = bridge_refused(&refusal);
@@ -49,7 +49,12 @@ impl Runtime {
         &mut self,
         event: &Value,
     ) -> Result<()> {
-        let Some(ask) = self.assistant.bridge_request.clone() else {
+        let Some(ask) = self
+            .assistant
+            .bridge_requests
+            .get(BridgeKind::Screen)
+            .cloned()
+        else {
             return Ok(());
         };
         if ask.capability == Capability::ScreenSources {
@@ -88,7 +93,7 @@ impl Runtime {
         };
         let result = self.send_frame(hub::command(&ask.id, "device.reply", payload));
         self.note_bridge_send(&result, "the windows reply");
-        self.assistant.bridge_request = None;
+        self.assistant.bridge_requests.take(BridgeKind::Screen);
     }
 
     /// The listing came back: the window Deimos named is chosen from it and
@@ -166,7 +171,7 @@ impl Runtime {
                 .refuse_bridge_request(ask, "source_capture_failed")
                 .await;
         };
-        if let Some(current) = self.assistant.bridge_request.as_mut() {
+        if let Some(current) = self.assistant.bridge_requests.get_mut(BridgeKind::Screen) {
             current.source_id = Some(source_id);
         }
         Ok(())
@@ -242,7 +247,7 @@ impl Runtime {
             result_payload(&ask.id, result),
         ));
         self.note_bridge_send(&sent, &format!("the screen read: {application} · {title}"));
-        self.assistant.bridge_request = None;
+        self.assistant.bridge_requests.take(BridgeKind::Screen);
         Ok(())
     }
 
@@ -265,7 +270,7 @@ impl Runtime {
             }
         };
         self.prepare_bridge_capture_upload(event);
-        let Some(upload) = self.sources.bridge_upload.as_mut() else {
+        let Some(upload) = self.sources.bridge_uploads.get_mut(BridgeKind::Screen) else {
             return self.refuse_capture_upload(ask, None).await;
         };
         upload.screenshot = Some(ScreenshotResult {
@@ -286,7 +291,7 @@ impl Runtime {
         ask: &BridgeAsk,
         code: &str,
     ) -> Result<()> {
-        if let Some(mut upload) = self.sources.bridge_upload.take() {
+        if let Some(mut upload) = self.sources.bridge_uploads.take(ask.kind()) {
             upload.work.cancel();
         }
         let source_failure = self.sources.last_failure.clone().filter(|failure| {
@@ -300,7 +305,7 @@ impl Runtime {
             .or_else(|| self.selection_refusal(ask, code))
             .unwrap_or_else(|| Self::bridge_refusal_code(code));
         self.say(bridge_refused(&refusal));
-        self.assistant.bridge_request = None;
+        self.assistant.bridge_requests.take(ask.kind());
         let payload = self.bridge_refusal_frame(&ask.id, &refusal);
         self.send(hub::command(&ask.id, "device.reply", payload)?)
             .await

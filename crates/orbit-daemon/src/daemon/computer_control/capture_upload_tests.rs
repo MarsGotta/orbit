@@ -144,7 +144,7 @@ async fn engine_capture_returns_to_actor_while_upload_is_held() -> Result<()> {
         .context("the upload's reply did not arrive")?;
     assert_eq!(reply["params"]["request_id"], "engine-capture");
     assert!(reply["params"]["result"]["capture_id"].is_string());
-    assert!(h.runtime.assistant.bridge_request.is_none());
+    assert!(h.runtime.assistant.bridge_requests.is_empty());
     h.runtime
         .revoke_computer(&orbit_core::refusal::Refusal::ReadInterrupted {
             cause: orbit_core::refusal::ReadInterruption::ComputerRevoked,
@@ -294,7 +294,7 @@ async fn a_capture_that_never_fitted_now_arrives_by_the_upload() -> Result<()> {
     );
     assert_eq!(record.body, png, "the exact bytes were not uploaded");
 
-    assert!(h.runtime.assistant.bridge_request.is_none());
+    assert!(h.runtime.assistant.bridge_requests.is_empty());
     h.runtime
         .revoke_computer(&orbit_core::refusal::Refusal::ReadInterrupted {
             cause: orbit_core::refusal::ReadInterruption::ComputerRevoked,
@@ -337,7 +337,7 @@ async fn an_upload_that_fails_is_refused_by_name_and_not_by_silence() -> Result<
     assert_eq!(frame["params"]["refusal"]["code"], "upstream_failed");
     assert_eq!(frame["params"]["refusal"]["service"], "hub");
     assert!(frame["params"]["result"].is_null());
-    assert!(h.runtime.assistant.bridge_request.is_none());
+    assert!(h.runtime.assistant.bridge_requests.is_empty());
     h.runtime
         .revoke_computer(&orbit_core::refusal::Refusal::ReadInterrupted {
             cause: orbit_core::refusal::ReadInterruption::ComputerRevoked,
@@ -365,7 +365,11 @@ async fn engine_capture_capacity_reaches_device_reply_and_clears_pending_upload(
     h.finish().await?;
     h.finish().await?;
     assert!(
-        h.runtime.sources.bridge_upload.is_some(),
+        h.runtime
+            .sources
+            .bridge_uploads
+            .get(crate::daemon::BridgeKind::Screen)
+            .is_some(),
         "the real upload did not stay pending until the hub's answer was known"
     );
 
@@ -383,8 +387,8 @@ async fn engine_capture_capacity_reaches_device_reply_and_clears_pending_upload(
     assert_eq!(frame["params"]["refusal"]["resource"], "capture");
     assert_eq!(frame["params"]["refusal"]["count"], 5);
     assert_eq!(frame["params"]["refusal"]["max"], 4);
-    assert!(h.runtime.sources.bridge_upload.is_none());
-    assert!(h.runtime.assistant.bridge_request.is_none());
+    assert!(h.runtime.sources.bridge_uploads.is_empty());
+    assert!(h.runtime.assistant.bridge_requests.is_empty());
     h.runtime
         .revoke_computer(&orbit_core::refusal::Refusal::ReadInterrupted {
             cause: orbit_core::refusal::ReadInterruption::ComputerRevoked,
@@ -410,7 +414,7 @@ async fn a_png_above_the_ceiling_is_still_refused_and_never_uploaded() -> Result
         .await?
         .context("the refused PNG did not ask the helper for the fallback")?;
     assert_eq!(fallback["command"], "screen_sources");
-    assert!(h.runtime.sources.bridge_upload.is_none());
+    assert!(h.runtime.sources.bridge_uploads.is_empty());
     assert!(puts.try_recv().is_err(), "the refused PNG got uploaded");
     h.runtime
         .revoke_computer(&orbit_core::refusal::Refusal::ReadInterrupted {

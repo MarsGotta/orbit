@@ -21,13 +21,10 @@ impl Runtime {
         detail: &str,
         cause: ComputerRevocation,
     ) {
-        let retiring_remote_control = self.assistant.bridge_request.as_ref().is_some_and(|ask| {
-            matches!(
-                ask.capability,
-                orbit_core::device_bridge::Capability::PerformAction
-                    | orbit_core::device_bridge::Capability::ControlTools
-            )
-        });
+        let retiring_remote_control = self
+            .assistant
+            .bridge_ask(crate::daemon::BridgeKind::Control)
+            .is_some();
         if retiring_remote_control {
             match &cause {
                 ComputerRevocation::Authority(change) => {
@@ -38,10 +35,11 @@ impl Runtime {
                         } else {
                             super::super::BridgeReleaseReason::Authority(change)
                         };
-                    self.release_bridge_request(reason);
+                    self.release_bridge_request(crate::daemon::BridgeKind::Control, reason);
                 }
                 ComputerRevocation::Refusal(refusal) => {
                     self.release_bridge_request(
+                        crate::daemon::BridgeKind::Control,
                         super::super::BridgeReleaseReason::ComputerRevoked(refusal),
                     );
                 }

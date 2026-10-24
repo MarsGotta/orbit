@@ -75,6 +75,7 @@ async fn expired_call_tick_does_not_claim_the_user_interrupted_its_voice_note() 
         expires_at_ms: 1,
         turns: 0,
         origin: orbit_core::CallOrigin::App,
+        ceiling_notice_given: false,
     });
     runtime.apply(Event::Tick).await?;
     let saved = runtime
@@ -122,6 +123,7 @@ async fn helper_cut_does_not_claim_the_user_interrupted_its_voice_note() -> Resu
         expires_at_ms: i64::MAX,
         turns: 0,
         origin: orbit_core::CallOrigin::App,
+        ceiling_notice_given: false,
     });
     runtime
         .contain(
@@ -176,6 +178,7 @@ async fn assert_automatic_stop_reason(
         expires_at_ms: i64::MAX,
         turns: 0,
         origin: orbit_core::CallOrigin::App,
+        ceiling_notice_given: false,
     });
     runtime.stop_call_for_reason(reason).await?;
     assert!(
@@ -661,17 +664,15 @@ async fn barge_in_invalidates_stt_operation_without_stopping_original_capture() 
     Ok(())
 }
 
-/// ⌃⌥D starts a call of its own length and says it began there; a call
-/// from the app that names no length gets the app's. The app reads both
-/// from the call itself («quedan 12 min», «⌃⌥D cuelga»).
+/// ⌃⌥D and the app start a call of the same length, a recording's four
+/// hours, and each says where it began. The app reads both from the call
+/// itself («quedan 3 h 59 min», «⌃⌥D cuelga»).
 #[tokio::test]
 async fn a_hotkey_call_and_an_app_call_carry_their_origin_and_length() -> Result<()> {
-    use orbit_core::{
-        CallOrigin,
-        voice::{CALL_MINUTES, HOTKEY_CALL_MINUTES},
-    };
+    use orbit_core::{CallOrigin, voice::CALL_MINUTES};
+    assert_eq!(CALL_MINUTES, 240);
     for (hotkey, origin, minutes) in [
-        (true, CallOrigin::Hotkey, HOTKEY_CALL_MINUTES),
+        (true, CallOrigin::Hotkey, CALL_MINUTES),
         (false, CallOrigin::App, CALL_MINUTES),
     ] {
         let directory = tempfile::tempdir()?;

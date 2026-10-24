@@ -7,6 +7,29 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Changed
+
+- **A call lasts what a recording lasts, however it began.** From the app or
+  with ⌃⌥D, a call with the assistant may last up to 4 h, and ten minutes
+  before it hangs up it says so as a recording does («La llamada se colgará
+  en 10 min: lleva 3 h 50 min, el máximo es 4 h…»). The call view and the
+  sidebar card say the hours left («quedan 3 h 59 min»), and «Cuánto dura
+  cada cosa» shows one length for both.
+- **Words, not sound, keep a call going.** A turn the hub finds no words in
+  (a fan, a television) no longer counts as you speaking, so a forgotten call
+  in a noisy room hangs up a minute after your last words. A turn still being
+  heard holds the hang-up for one turn at most; muted time and the time the
+  assistant works or speaks still never count.
+- **One notice per meeting, from its end to its note.** «Reunión guardada»
+  now stays while the note is written, then becomes «Tu nota está lista ·
+  Abrir», or says «No se pudo escribir la nota» or «No se pudo transcribir»,
+  until you close it. «Grabación guardada.» and «Llamada terminada: grabación
+  guardada.» are no longer said beside it.
+- **The assistant's requests to the Mac wait only for their own kind.** A
+  slow read of your folders no longer makes a screenshot asked from another
+  conversation fail as busy: the folders, the screen, the computer's tools and
+  actions, and the calendar each serve one request at a time on their own.
+
 ### Fixed
 
 - **A voice note sounds only when you press it, and the same button stops
@@ -26,6 +49,13 @@ is in Spanish; the labels quoted below are the ones it shows.
 - **Tooltips stay inside the window.** At an edge they move in or go to the
   other side of their control, and no panel or header hides them, as «Añadir
   asistente» next to «Tus asistentes» was.
+- **A request the Mac's helper refused because its previous order passed its
+  deadline** (`native_command_stalled`) reaches the assistant as a busy Mac it
+  can ask again, not as a reply it could not read.
+- **«No entendí bien «Oye …»» no longer flashes** when the recognizer revises
+  the phrase and hears it again at once: the line waits 1.5 s, and appears
+  only if the phrase was not heard again. The daemon's log keeps every
+  abandonment as before.
 
 ## [0.12.0] - 2026-10-24
 

@@ -519,9 +519,9 @@ async fn a_helper_timeout_releases_the_remote_request_and_answers_the_hub() -> R
     runtime.check_source_timeout().await?;
 
     assert!(
-        runtime.assistant.bridge_request.is_none(),
+        runtime.assistant.bridge_requests.is_empty(),
         "the expiry left the bridge busy: {:?}",
-        runtime.assistant.bridge_request
+        runtime.assistant.bridge_requests
     );
     let reply = hub_rx.recv().await.context("the request got no answer")?;
     assert_eq!(reply["method"], "device.reply");
@@ -601,7 +601,7 @@ async fn a_remote_read_refusal_reaches_deimos_without_a_user_failure_notice() ->
         };
         assert_eq!(reply["params"]["refusal"], expected);
         assert!(!reply.to_string().contains("PRIVATE WINDOW TITLE"));
-        assert!(runtime.assistant.bridge_request.is_none());
+        assert!(runtime.assistant.bridge_requests.is_empty());
         assert!(receiver.try_recv().is_err(), "the read must not be retried");
         let failures: Vec<_> = runtime
             .state

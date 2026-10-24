@@ -10,7 +10,7 @@
 //! reaches the second step, which lists, searches or reads it. Read-only.
 //!
 //! Paths and file contents never enter the daemon's log: only codes.
-use super::{BridgeAsk, Runtime, hub};
+use super::{BridgeAsk, BridgeKind, Runtime, hub};
 use anyhow::{Context, Result};
 use orbit_core::assistant_files::{
     self as files, Admitted, Asked, ContentKind, Entry, EntryKind, Folder, FolderAccess,
@@ -211,8 +211,8 @@ impl Runtime {
     }
 
     /// A request the helper has not finished within its bound, both steps
-    /// counted from its start, is refused with both numbers, so the bridge's
-    /// single slot is free before the hub gives up.
+    /// counted from its start, is refused with both numbers, so the folders'
+    /// bridge slot is free before the hub gives up.
     pub(super) fn check_files_timeout(&mut self) {
         let expired = self
             .files
@@ -239,7 +239,7 @@ impl Runtime {
         if !self.assistant.still_asked(request_id) {
             return;
         }
-        self.assistant.bridge_request = None;
+        self.assistant.end_bridge_ask(BridgeKind::Files);
         let code = refusal.code().name();
         self.say(Notice::new(NoticeCode::BridgeRefused).with_token(NoticeKey::Code, code));
         let frame = json!(DeviceReplyParams::refused(
@@ -255,7 +255,7 @@ impl Runtime {
         if !self.assistant.still_asked(request_id) {
             return;
         }
-        self.assistant.bridge_request = None;
+        self.assistant.end_bridge_ask(BridgeKind::Files);
         let frame = json!(DeviceReplyParams::answered(request_id.to_owned(), result));
         let sent = self.send_frame(hub::command(request_id, "device.reply", frame));
         self.note_bridge_send(&sent, "the folder answer");
@@ -396,12 +396,11 @@ fn first_unavailable(saved: &[Folder], reports: &[FolderReport]) -> Refusal {
 }
 
 impl crate::daemon::assistant::AssistantHandle {
-    /// Whether `request_id` is still the bridge request being served: one the
+    /// Whether `request_id` is still the folder request being served: one the
     /// privacy stop, a disconnection or a timeout released is answered by
     /// whoever released it, never twice.
     fn still_asked(&self, request_id: &str) -> bool {
-        self.bridge_request
-            .as_ref()
+        self.bridge_ask(BridgeKind::Files)
             .is_some_and(|ask| ask.id == request_id)
     }
 }

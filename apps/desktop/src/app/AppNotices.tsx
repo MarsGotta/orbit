@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import type { NoticeAction } from "../i18n/es/notices";
 import type { AppContentProps } from "./App";
 import { ToastStack } from "../design/Toast";
-import { NoteReadyNotice } from "../features/notes/NoteReadyNotice";
+import { MeetingNoteNotice } from "../features/notes/MeetingNoteNotice";
 import { UnseenWriteOutcomes } from "../features/calendar/edit/UnseenWriteOutcomes";
 import { UpdateNotice } from "./UpdateNotice";
 import { NoticeBanner } from "./NoticeBanner";
@@ -26,7 +26,7 @@ export function AppNotices({ dismiss, messages, navigate, retry, send, snapshot,
     <>
       <ToastStack />
       <UpdateNotice update={snapshot.settings.update} send={send} />
-      <NoteReadyNotice ready={snapshot.notes?.ready} send={send} />
+      <MeetingNoteNotice meeting={snapshot.meeting} notes={snapshot.notes} send={send} />
       <UnseenWriteOutcomes
         calendarOpen={view === "calendar"}
         onOpenCalendar={() => navigate("calendar")}

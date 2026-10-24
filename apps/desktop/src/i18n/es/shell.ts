@@ -1,5 +1,6 @@
 // The window: the sidebar with its recording and call cards, the top bar
 // with its notices, and what the window says before Orbit answers.
+import { duration } from "./duration";
 
 /** «hasta las 12:00», and «hasta la 1:00» for one o'clock. */
 function until(time: string): string {
@@ -89,7 +90,7 @@ const callCopy = {
     elapsed: "Tiempo de llamada",
     seesScreen: "Ve tu pantalla",
     noScreen: "No ve tu pantalla",
-    left: (minutes: number) => (minutes <= 1 ? "queda 1 min" : `quedan ${minutes} min`),
+    left: (minutes: number) => (minutes <= 1 ? "queda 1 min" : `quedan ${duration(minutes)}`),
     hangUp: "Colgar",
   },
 } as const;

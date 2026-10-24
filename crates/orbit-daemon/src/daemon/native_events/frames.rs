@@ -17,6 +17,15 @@ struct NativeGapSource<'a> {
 
 impl Runtime {
     pub(super) async fn on_native_audio(&mut self, event: &mut Value) -> Result<()> {
+        self.on_native_audio_at(event, now()).await
+    }
+
+    /// A frame of audio as it arrived at `received_at_ms`.
+    pub(in crate::daemon) async fn on_native_audio_at(
+        &mut self,
+        event: &mut Value,
+        received_at_ms: i64,
+    ) -> Result<()> {
         if !self.accepts_audio(event) {
             return Ok(());
         }
@@ -27,7 +36,6 @@ impl Runtime {
             .as_object_mut()
             .context("Evento audio sin objeto")?
             .insert("capture_epoch_id".into(), Value::String(stream_id));
-        let received_at_ms = now();
         let turn_action = self.prepare_call_frame(event, received_at_ms).await?;
         let ingested = match self.capture.buffer.ingest_observed(event, received_at_ms) {
             Ok(ingested) => ingested,

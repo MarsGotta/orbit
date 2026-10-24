@@ -164,7 +164,7 @@ async fn malformed_screenshot_filter_cannot_select_an_unfiltered_window() -> Res
             helper.try_recv().is_err(),
             "a capture was asked for without a filter"
         );
-        assert!(runtime.assistant.bridge_request.is_none());
+        assert!(runtime.assistant.bridge_requests.is_empty());
     }
     Ok(())
 }
@@ -398,7 +398,7 @@ async fn remote_look_and_action_name_the_missing_permission_before_touching_the_
         // its reply (the refusal is silent on the Mac's screen).
         assert!(said::has(&runtime.state, NoticeCode::BridgeRefused));
         assert!(said::mentions(&runtime.state, "permission_denied"));
-        assert!(runtime.assistant.bridge_request.is_none());
+        assert!(runtime.assistant.bridge_requests.is_empty());
     }
     Ok(())
 }
@@ -430,7 +430,7 @@ async fn a_latched_privacy_stop_says_nothing_at_all_to_the_hub() -> Result<()> {
         "a Mac with privacy stopped looked at something"
     );
     // And nothing was accepted for service either.
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_requests.is_empty());
     Ok(())
 }
 
@@ -453,8 +453,8 @@ async fn an_admitted_request_tells_the_person_what_was_asked_for() -> Result<()>
     assert_eq!(
         runtime
             .assistant
-            .bridge_request
-            .as_ref()
+            .bridge_requests
+            .get(crate::daemon::BridgeKind::Screen)
             .map(|ask| ask.id.as_str()),
         Some("bridge-1")
     );
@@ -479,7 +479,7 @@ async fn a_request_without_an_identity_is_dropped_rather_than_answered() -> Resu
         })))
         .await?;
     assert!(hub.try_recv().is_err());
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_requests.is_empty());
     Ok(())
 }
 
@@ -561,7 +561,7 @@ async fn the_helpers_window_list_comes_back_as_the_answer_to_the_request() -> Re
     assert!(windows[0].get("window_id").is_none());
     assert!(windows[0].get("application_pid").is_none());
     // The slot is free again, so the next request is not told "ocupado".
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_requests.is_empty());
     runtime
         .hub_event(HubEvent::Frame(json!({
             "event": "device.request",
@@ -595,8 +595,8 @@ async fn a_privacy_stop_releases_the_in_flight_request_and_answers_the_hub() -> 
     assert_eq!(
         runtime
             .assistant
-            .bridge_request
-            .as_ref()
+            .bridge_requests
+            .get(crate::daemon::BridgeKind::Screen)
             .map(|ask| ask.id.as_str()),
         Some("bridge-1")
     );
@@ -609,9 +609,9 @@ async fn a_privacy_stop_releases_the_in_flight_request_and_answers_the_hub() -> 
 
     assert!(runtime.state.privacy_stopped());
     assert!(
-        runtime.assistant.bridge_request.is_none(),
+        runtime.assistant.bridge_requests.is_empty(),
         "the stop left the bridge busy: {:?}",
-        runtime.assistant.bridge_request
+        runtime.assistant.bridge_requests
     );
     let reply = hub
         .recv()
@@ -643,9 +643,9 @@ async fn a_hub_disconnect_releases_the_in_flight_request_without_answering() -> 
     runtime.hub_event(HubEvent::Disconnected).await?;
 
     assert!(
-        runtime.assistant.bridge_request.is_none(),
+        runtime.assistant.bridge_requests.is_empty(),
         "the disconnect left the bridge busy: {:?}",
-        runtime.assistant.bridge_request
+        runtime.assistant.bridge_requests
     );
     let sent_anyway = hub.try_recv();
     assert!(
@@ -672,9 +672,9 @@ async fn a_helper_restart_releases_the_in_flight_request_with_its_cause() -> Res
     runtime.native_event(json!({"event":"ready"})).await?;
 
     assert!(
-        runtime.assistant.bridge_request.is_none(),
+        runtime.assistant.bridge_requests.is_empty(),
         "the cancellation left the bridge busy: {:?}",
-        runtime.assistant.bridge_request
+        runtime.assistant.bridge_requests
     );
     let reply = hub
         .recv()
@@ -2250,7 +2250,7 @@ async fn bridge_picks_the_foreground_window_a_title_substring_or_refuses_by_name
     let reply = hub_reply(&mut hub).await?;
     assert_eq!(reply["params"]["result"]["application"], "Safari");
     assert_eq!(reply["params"]["result"]["title"], "Correo");
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_requests.is_empty());
 
     remote_request(
         &mut runtime,
@@ -2281,7 +2281,7 @@ async fn bridge_picks_the_foreground_window_a_title_substring_or_refuses_by_name
     finish_capture_upload(&mut runtime, &mut completions).await?;
     let reply = hub_reply(&mut hub).await?;
     assert_eq!(reply["params"]["result"]["application"], "TextEdit");
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_requests.is_empty());
 
     remote_request(
         &mut runtime,
@@ -2310,7 +2310,7 @@ async fn bridge_picks_the_foreground_window_a_title_substring_or_refuses_by_name
         helper.try_recv().is_err(),
         "a capture was asked for without matching any window"
     );
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_requests.is_empty());
     Ok(())
 }
 
@@ -2376,7 +2376,7 @@ async fn bridge_serves_the_selected_text_of_a_named_application() -> Result<()> 
         !said.contains(SELECTED_TEXT),
         "the notice shows the content of the selection: {said}"
     );
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_requests.is_empty());
     Ok(())
 }
 
@@ -2622,7 +2622,7 @@ async fn bridge_uploads_a_maximal_capture_by_http_before_replying_by_websocket()
         runtime.state.notice_code(),
         Some(NoticeCode::BridgeReplySent)
     );
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_requests.is_empty());
     Ok(())
 }
 
@@ -2700,7 +2700,7 @@ async fn helper_capture_returns_to_actor_while_upload_is_held() -> Result<()> {
     let reply = hub_reply(&mut hub).await?;
     assert_eq!(reply["params"]["request_id"], "held-upload-capture");
     assert!(reply["params"]["result"]["capture_id"].is_string());
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_requests.is_empty());
     Ok(())
 }
 
@@ -2719,11 +2719,14 @@ fn attach_pending_upload(
         |_| tokio::spawn(std::future::pending::<()>()),
     );
     let abort = work.task_handle().context("upload worker")?.abort_handle();
-    runtime.sources.bridge_upload = Some(crate::daemon::sources::BridgeUpload {
-        capture_id: capture_id.into(),
-        screenshot: None,
-        work,
-    });
+    runtime.sources.bridge_uploads.insert(
+        crate::daemon::BridgeKind::Screen,
+        crate::daemon::sources::BridgeUpload {
+            capture_id: capture_id.into(),
+            screenshot: None,
+            work,
+        },
+    );
     Ok((ticket, abort))
 }
 
@@ -2745,7 +2748,7 @@ async fn computer_revocation_keeps_an_unrelated_capture_and_its_upload() -> Resu
         hub.try_recv().is_err(),
         "computer retirement answered a capture"
     );
-    assert!(runtime.assistant.bridge_request.is_some());
+    assert!(!runtime.assistant.bridge_requests.is_empty());
     assert!(
         !abort.is_finished(),
         "computer retirement aborted the capture upload"
@@ -2769,7 +2772,7 @@ async fn computer_revocation_keeps_an_unrelated_capture_and_its_upload() -> Resu
     let reply = hub_reply(&mut hub).await?;
     assert_eq!(reply["params"]["request_id"], "unrelated-capture");
     assert_eq!(reply["params"]["result"]["capture_id"], "unrelated-source");
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_requests.is_empty());
     Ok(())
 }
 
@@ -2785,7 +2788,7 @@ async fn privacy_and_cancellation_abort_upload_and_answer_only_once() -> Result<
         if privacy {
             runtime.apply(Event::PrivacyStop).await?;
         } else {
-            runtime.release_bridge_request(crate::daemon::BridgeReleaseReason::Cancelled);
+            runtime.release_bridge_requests(crate::daemon::BridgeReleaseReason::Cancelled);
         }
         while !abort.is_finished() {
             tokio::task::yield_now().await;
@@ -2841,7 +2844,7 @@ async fn upload_timeout_names_wait_and_deadline_and_late_result_is_ignored() -> 
     assert_eq!(reply["params"]["refusal"]["deadline_ms"], 20_000);
     // The numbers are in the reply Deimos reads; the Mac records the code.
     assert!(said::mentions(&runtime.state, "capture_upload_timeout"));
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.assistant.bridge_requests.is_empty());
     runtime
         .work_event(WorkResult::BridgeCaptureUpload {
             ticket,
@@ -2907,8 +2910,8 @@ async fn old_generation_upload_cannot_answer_the_current_request() -> Result<()>
         hub.try_recv().is_err(),
         "a replaced upload answered the hub"
     );
-    assert!(runtime.assistant.bridge_request.is_some());
-    runtime.release_bridge_request(crate::daemon::BridgeReleaseReason::Cancelled);
+    assert!(!runtime.assistant.bridge_requests.is_empty());
+    runtime.release_bridge_requests(crate::daemon::BridgeReleaseReason::Cancelled);
     let reply = hub_reply(&mut hub).await?;
     assert_eq!(
         reply["params"]["refusal"]["code"], "read_interrupted",
@@ -2978,7 +2981,7 @@ async fn bridge_refuses_by_name_when_the_capture_upload_fails() -> Result<()> {
         "the refusal leaked a capture_id: {reply}"
     );
     assert!(
-        runtime.assistant.bridge_request.is_none(),
+        runtime.assistant.bridge_requests.is_empty(),
         "the upload failure left the slot occupied"
     );
     Ok(())
@@ -3027,8 +3030,8 @@ async fn helper_capture_capacity_reaches_device_reply_with_its_counts() -> Resul
     assert_eq!(reply["params"]["refusal"]["resource"], "capture");
     assert_eq!(reply["params"]["refusal"]["count"], 5);
     assert_eq!(reply["params"]["refusal"]["max"], 4);
-    assert!(runtime.sources.bridge_upload.is_none());
-    assert!(runtime.assistant.bridge_request.is_none());
+    assert!(runtime.sources.bridge_uploads.is_empty());
+    assert!(runtime.assistant.bridge_requests.is_empty());
     Ok(())
 }
 
@@ -3095,7 +3098,7 @@ async fn bridge_answers_a_helper_capture_failure_with_the_helpers_code() -> Resu
         }
         assert_ne!(reply["params"]["refusal"]["text"], "native_refused");
         assert!(
-            runtime.assistant.bridge_request.is_none(),
+            runtime.assistant.bridge_requests.is_empty(),
             "the helper failure left the slot occupied"
         );
         assert!(
