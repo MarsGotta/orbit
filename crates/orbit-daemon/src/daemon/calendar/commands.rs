@@ -29,9 +29,7 @@ impl Runtime {
             Request::RequestPermission | Request::Read { .. } => {}
         }
         request.validate()?;
-        if !self.state.capabilities().native_helper()
-            || !self.helper.host.calendar_backend_available()
-        {
+        if !self.state.capabilities().native_helper() || !self.helper.calendar_backend_available() {
             bail!("El lector de calendarios del Mac no está disponible ahora mismo");
         }
         let calendar = &mut self.calendar;

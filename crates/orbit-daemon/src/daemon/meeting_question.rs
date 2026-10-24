@@ -104,10 +104,10 @@ impl Runtime {
         } else if self.state.durable.assistant.active_request.is_some() {
             Some(BusyTurn::AssistantTurn)
         } else if !dictated
-            && (self.state.durable.voice.voice_active || self.capture.buffer.voice.is_some())
+            && (self.state.durable.voice.voice_active || self.capture.voice_capturing())
         {
             Some(BusyTurn::VoiceNote)
-        } else if !dictated && self.assistant.voice_task.active().is_some() {
+        } else if !dictated && self.assistant.voice_turn_running() {
             Some(BusyTurn::VoiceTranscription)
         } else if self.state.durable.voice.call.is_some() {
             Some(BusyTurn::Call)
@@ -286,7 +286,7 @@ impl Runtime {
             }
         }
         // No speech during a meeting: the call would hear it.
-        self.assistant.speak_next = false;
+        self.assistant.keep_next_reply_silent();
         self.question.failure = None;
         self.question.current = Some(MeetingQuestion::thinking(
             request_id,

@@ -43,7 +43,7 @@ impl Runtime {
         recording_id: String,
         audio: MeetingAudio,
     ) -> Result<()> {
-        self.capture.interruption = None;
+        self.capture.clear_interruption();
         self.start_recording_audio(recording_id, audio).await
     }
 
@@ -54,16 +54,13 @@ impl Runtime {
     ) -> Result<()> {
         let epoch = id();
         self.capture
-            .buffer
             .begin_recording_with_epoch(recording_id.clone(), epoch.clone())?;
         // Reserve exhaustion belongs to the recording whose unsealed PCM
         // overflowed. A later capture starts with a fresh 64 MiB reserve.
-        if self.capture.pending_seals.is_empty() && !self.capture.buffer.has_pending_audio() {
-            self.capture.reserve_exhausted = false;
-        }
+        self.capture.renew_reserve_when_drained();
         for track in ["mic_local", "remote_app"] {
             if let Some(receipt) = self.reader.latest_chunk_receipt(&recording_id, track)? {
-                self.capture.buffer.restore_position(&receipt.metadata)?;
+                self.capture.restore_position(&receipt.metadata)?;
             }
         }
         self.queue_capture_epoch(&recording_id, &epoch, audio)
@@ -149,7 +146,7 @@ impl Runtime {
         if let Some(stream) = self.audio.remote_stream.clone() {
             self.request_stream_stop("remote_app", stream).await?;
         } else {
-            let segments = self.capture.buffer.pause_source("remote_app")?;
+            let segments = self.capture.pause_source("remote_app")?;
             self.seal(segments)?;
         }
         let kept = self.release_microphone(Holder::Meeting).await?;
@@ -157,7 +154,7 @@ impl Runtime {
             // The native microphone stays live for the voice note (or there
             // is none). Recording stops at this explicit local boundary and
             // must not resume from later PCM.
-            let segments = self.capture.buffer.pause_source("mic_local")?;
+            let segments = self.capture.pause_source("mic_local")?;
             self.seal(segments)?;
         }
         self.complete_audio_drain().await
@@ -209,7 +206,7 @@ impl Runtime {
     pub(in crate::daemon) async fn resume_deferred_drain(&mut self) -> Result<()> {
         if self.audio.lifecycle.meeting.finish_owed()
             && !self.audio.lifecycle.pending()
-            && self.capture.pending_seals.is_empty()
+            && !self.capture.seals_pending()
         {
             self.complete_audio_drain().await?;
         }
@@ -223,12 +220,12 @@ impl Runtime {
         let Some(end) = self.audio.lifecycle.meeting.recording_end else {
             return Ok(true);
         };
-        let segments = self.capture.buffer.flush(end);
+        let segments = self.capture.flush(end);
         if let Err(error) = self.seal(segments) {
             self.say_failure(NoticeCode::RecordingSealFailed, &error);
             return Err(error);
         }
-        if !self.capture.pending_seals.is_empty() {
+        if self.capture.seals_pending() {
             return Ok(false);
         }
         self.audio.lifecycle.meeting.recording_end = None;
@@ -253,12 +250,7 @@ impl Runtime {
     /// Keep it in RAM even if persisting the snapshot fails; pretending no gap
     /// would be less safe than retaining this conservative monotonic counter.
     pub(in crate::daemon) fn note_bound_audio_gap(&mut self, source: &str) -> Result<()> {
-        let Some(owner) = self
-            .capture
-            .buffer
-            .recording_owner(source)
-            .map(str::to_owned)
-        else {
+        let Some(owner) = self.capture.recording_owner(source).map(str::to_owned) else {
             return Ok(());
         };
         self.audio.note_call_gap(&owner);
@@ -284,12 +276,7 @@ impl Runtime {
     }
 
     pub(in crate::daemon) fn note_bound_track_gap(&mut self, source: &str) -> Result<()> {
-        let Some(owner) = self
-            .capture
-            .buffer
-            .recording_owner(source)
-            .map(str::to_owned)
-        else {
+        let Some(owner) = self.capture.recording_owner(source).map(str::to_owned) else {
             return Ok(());
         };
         let Some(track) = self

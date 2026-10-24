@@ -107,7 +107,9 @@ impl Runtime {
         // The established 500 ms helper-channel budget protects the actor
         // from backpressure. It does not prove the retired stream closed: only
         // its matching drain receipt does, and an unsent stop stays owed.
-        match tokio::time::timeout(Duration::from_millis(500), self.helper.sender.send(command))
+        match self
+            .helper
+            .send_within(command, Duration::from_millis(500))
             .await
         {
             Ok(Ok(())) => {
@@ -204,10 +206,10 @@ impl Runtime {
     }
 
     pub(in crate::daemon) fn begin_call_voice(&mut self, preroll: &[(Value, i64)]) -> Result<()> {
-        self.capture.buffer.begin_voice()?;
+        self.capture.begin_voice()?;
         self.audio.lifecycle.voice.submit = true;
         for (frame, time) in preroll {
-            self.capture.buffer.ingest_voice_frame(frame, *time)?;
+            self.capture.ingest_voice_frame(frame, *time)?;
         }
         Ok(())
     }
@@ -216,7 +218,7 @@ impl Runtime {
         if submit {
             self.dispatch_voice_transcription().await
         } else {
-            self.capture.buffer.voice = None;
+            self.capture.discard_voice();
             Ok(())
         }
     }

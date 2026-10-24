@@ -2,10 +2,12 @@
 //! waiting for its reply and what the helper last said about itself.
 use super::MAX_PENDING_NATIVE;
 use super::helper_waits::HelperAnswer;
-use super::native_host::{HostUpdate, NativeHost};
+use super::native_host::{HostIdentity, HostUpdate, NativeHost};
 use orbit_core::wire::native::{NativeCommandHeader, NativeResponseFields};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::time::Duration;
+use tokio::sync::mpsc::error::{SendError, TrySendError};
 use tokio::sync::{mpsc, oneshot};
 
 pub(super) struct HelperHandle {
@@ -72,5 +74,53 @@ impl HelperHandle {
     /// Reduce once before dispatching revocation to independent consumers.
     pub(super) fn observe_host(&mut self, event: &Value) -> HostUpdate {
         self.host.observe(event)
+    }
+
+    /// Who the helper last said it is; `None` until it says so again.
+    pub(super) fn identity(&self) -> Option<&HostIdentity> {
+        self.host.identity()
+    }
+
+    /// Whether the helper running now has a calendar reader.
+    pub(super) fn calendar_backend_available(&self) -> bool {
+        self.host.calendar_backend_available()
+    }
+
+    /// Whether the order sent under `id` still waits for its reply.
+    pub(super) fn awaits_reply(&self, id: &str) -> bool {
+        self.pending.contains_key(id)
+    }
+
+    /// Gives up on the reply to the order sent under `id`.
+    pub(super) fn forget_reply(&mut self, id: &str) {
+        self.pending.remove(id);
+    }
+
+    /// Puts `command` on the helper's channel only if it has room now.
+    pub(super) fn try_send(&self, command: Value) -> Result<(), TrySendError<Value>> {
+        self.sender.try_send(command)
+    }
+
+    /// How many orders the helper's channel holds, for the line that says
+    /// it was full.
+    pub(super) fn channel_capacity(&self) -> usize {
+        self.sender.max_capacity()
+    }
+
+    /// Puts `command` on the helper's channel, waiting at most `budget` for
+    /// room: `Err` when the budget ran out, `Ok(Err)` when the channel is
+    /// closed.
+    pub(super) async fn send_within(
+        &self,
+        command: Value,
+        budget: Duration,
+    ) -> Result<Result<(), SendError<Value>>, tokio::time::error::Elapsed> {
+        tokio::time::timeout(budget, self.sender.send(command)).await
+    }
+
+    /// Holds a place on the helper's channel for an order still being
+    /// prepared; `None` while the channel is full or closed.
+    pub(super) fn reserve(&self) -> Option<mpsc::OwnedPermit<Value>> {
+        self.sender.clone().try_reserve_owned().ok()
     }
 }

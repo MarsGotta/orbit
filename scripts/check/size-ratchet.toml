@@ -5,8 +5,6 @@
 # `python3 scripts/check/sizes.py --shrink`; never add one or raise one.
 
 [files]
-"crates/orbit-daemon/src/daemon/startup.rs" = 607
-"crates/orbit-daemon/src/hub.rs" = 1057
 "server/orbit_hub/assistant/acp.py" = 846
 "server/orbit_hub/assistant/hermes.py" = 766
 "server/orbit_hub/assistant/openai.py" = 768
@@ -14,32 +12,6 @@
 "server/orbit_mcp/hub.py" = 528
 "server/orbit_mcp/refusals.py" = 507
 "server/orbit_mcp/server.py" = 649
-
-[functions."crates/orbit-daemon/src/daemon/commands.rs"]
-"Runtime::command" = 115
-
-[functions."crates/orbit-daemon/src/daemon/read_dispatch.rs"]
-"Runtime::serve_read" = 93
-
-[functions."crates/orbit-daemon/src/daemon/startup.rs"]
-"recover" = 84
-
-[functions."crates/orbit-daemon/src/error_reports.rs"]
-"scrub" = 84
-
-[functions."crates/orbit-daemon/src/hub.rs"]
-"connect" = 146
-"transcribe" = 104
-
-[functions."crates/orbit-daemon/src/hub_agents.rs"]
-"AgentHub::exchange" = 98
-
-[functions."crates/orbit-daemon/src/native.rs"]
-"bridge_inner" = 177
-"native_error_field" = 82
-
-[functions."crates/orbit-daemon/src/speech.rs"]
-"play" = 99
 
 [functions."server/orbit_hub/assistant/hermes.py"]
 "HermesConnection.receive" = 114

@@ -52,6 +52,28 @@ impl AssistantHandle {
         self.bridge_requests.take(kind)
     }
 
+    /// Whether a voice turn's transcription is running.
+    pub(super) fn voice_turn_running(&self) -> bool {
+        self.voice_task.active().is_some()
+    }
+
+    /// The op of the turn that started the voice transcription, if one runs.
+    pub(super) fn voice_turn_op(&self) -> Option<orbit_core::notice::Op> {
+        self.voice_task.ticket().map(|ticket| ticket.op().clone())
+    }
+
+    /// Stops the voice transcription, and returns the operation it was
+    /// serving, if one was waiting.
+    pub(super) fn cancel_voice_turn(&mut self) -> Option<String> {
+        self.voice_task.cancel();
+        self.voice_operation.take()
+    }
+
+    /// The next reply is not read aloud, whatever the settings say.
+    pub(super) fn keep_next_reply_silent(&mut self) {
+        self.speak_next = false;
+    }
+
     pub(super) fn new() -> Self {
         Self {
             bridge_requests: BridgeSlots::default(),

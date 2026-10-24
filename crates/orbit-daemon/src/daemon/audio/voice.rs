@@ -78,7 +78,7 @@ impl VoiceCancellationCause {
 
 impl Runtime {
     pub(in crate::daemon) async fn start_voice_audio(&mut self) -> Result<()> {
-        self.capture.buffer.begin_voice()?;
+        self.capture.begin_voice()?;
         self.audio.lifecycle.voice.submit = true;
         self.take_microphone(None).await
     }
@@ -109,7 +109,7 @@ impl Runtime {
     }
 
     pub(in crate::daemon) fn discard_refused_voice(&mut self) {
-        self.capture.buffer.voice = None;
+        self.capture.discard_voice();
         self.audio.lifecycle.voice.submit = false;
         self.audio.lifecycle.voice.end = false;
     }
@@ -122,13 +122,8 @@ impl Runtime {
     }
 
     fn mark_voice_transcription_cancelled(&mut self, cause: VoiceCancellationCause) -> bool {
-        let op = self
-            .assistant
-            .voice_task
-            .ticket()
-            .map(|ticket| ticket.op().clone());
-        self.assistant.voice_task.cancel();
-        let pending = self.assistant.voice_operation.take();
+        let op = self.assistant.voice_turn_op();
+        let pending = self.assistant.cancel_voice_turn();
         if let Some(operation_id) = pending.as_ref() {
             // A turn spoken over Deimos's answer reached no one and was never
             // stored: the change that stops its transcription retires it.

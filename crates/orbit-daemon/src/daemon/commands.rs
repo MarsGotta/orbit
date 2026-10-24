@@ -2,6 +2,101 @@
 use super::*;
 use orbit_core::MAX_MANIFEST_TITLE_CHARACTERS;
 
+/// The orders of each domain, as patterns. `Runtime::command` sends each
+/// group to its domain's routing function, which serves every order of its
+/// group and names the other groups as not its own. With no wildcard arm, an
+/// order added to the protocol does not compile until a group takes it, and
+/// a group's new order does not compile until its domain serves it.
+macro_rules! off_loop_orders {
+    () => {
+        Command::SubscribeTopics { .. }
+            | Command::Read { .. }
+            | Command::Agent { .. }
+            | Command::AttachmentAdd { .. }
+            | Command::AttachmentFetch { .. }
+            | Command::AttachmentSave { .. }
+            | Command::ReminderWrite { .. }
+            | Command::VoiceNoteAudio { .. }
+    };
+}
+
+macro_rules! device_orders {
+    () => {
+        Command::Pair { .. }
+            | Command::Status
+            | Command::ErrorReports { .. }
+            | Command::Report { .. }
+            | Command::PrivacyStop
+            | Command::Shutdown
+            | Command::Rearm
+            | Command::Permissions { .. }
+    };
+}
+
+macro_rules! assistant_orders {
+    () => {
+        Command::SessionOpen { .. }
+            | Command::Chat { .. }
+            | Command::NewSession { .. }
+            | Command::Handover { .. }
+            | Command::Interrupt
+            | Command::Approval { .. }
+            | Command::Clarify { .. }
+            | Command::Speak { .. }
+            | Command::SpeakStop
+            | Command::MeetingAsk { .. }
+            | Command::MeetingQuestionClose { .. }
+            | Command::MeetingQuestionHold { .. }
+            | Command::AssistantFolderAdd
+            | Command::AssistantFolderRemove { .. }
+    };
+}
+
+macro_rules! recording_orders {
+    () => {
+        Command::VoiceStart
+            | Command::VoiceEnd
+            | Command::VoiceCancel
+            | Command::VoiceRetry { .. }
+            | Command::VoiceDiscard { .. }
+            | Command::CallStart { .. }
+            | Command::CallStop
+            | Command::MeetingStart { .. }
+            | Command::MeetingPause
+            | Command::MeetingResume
+            | Command::MeetingFinish
+            | Command::MeetingDiscard { .. }
+            | Command::MicrophoneMute { .. }
+            | Command::AudioSourcesRefresh
+    };
+}
+
+macro_rules! note_orders {
+    () => {
+        Command::MeetingDelete { .. }
+            | Command::NotePrivateSave { .. }
+            | Command::NoteLibrary { .. }
+            | Command::TranscriptRetranscribe { .. }
+            | Command::TranscriptRetry { .. }
+            | Command::NoteEdit { .. }
+            | Command::NoteRegenerate { .. }
+            | Command::NoteRestoreSuperseded { .. }
+            | Command::SpeakerRename { .. }
+            | Command::MeetingLanguage { .. }
+            | Command::MeetingRename { .. }
+    };
+}
+
+macro_rules! agenda_orders {
+    () => {
+        Command::Calendar { .. }
+            | Command::CallRecord { .. }
+            | Command::CallDismiss { .. }
+            | Command::RecordingKeep { .. }
+            | Command::CallPreference { .. }
+    };
+}
+
 #[path = "commands_assistant.rs"]
 mod assistant;
 #[path = "commands_audio.rs"]
@@ -144,103 +239,33 @@ impl Runtime {
         Ok(())
     }
 
-    /// Routes one order from the app to the domain that serves it, one arm
-    /// per order. Orders served off the loop (topics, reads, agents,
-    /// attachments, reminders, voice-note audio) never reach here.
+    /// Routes one order from the app to the domain that serves it. Orders
+    /// served off the loop (topics, reads, agents, attachments, reminders,
+    /// voice-note audio) never reach here.
     pub(super) async fn command(&mut self, command: Command) -> Result<()> {
-        use orbit_core::call_detection::CallInput;
         match command {
-            Command::SubscribeTopics { .. } | Command::Read { .. } | Command::Agent { .. } => {}
-            Command::AttachmentAdd { .. }
-            | Command::AttachmentFetch { .. }
-            | Command::AttachmentSave { .. }
-            | Command::ReminderWrite { .. }
-            | Command::VoiceNoteAudio { .. } => {}
-            Command::Pair {
-                hub_url,
-                code,
-                device_name,
-            } => self.pair_command(hub_url, code, device_name).await?,
-            Command::Status => self.status_command()?,
-            Command::ErrorReports { enabled } => self.set_error_reports(enabled)?,
-            // Already in the app's report log: it only goes to the client.
-            Command::Report { report } => self
-                .error_reports
-                .report(&report, std::time::Instant::now()),
-            Command::PrivacyStop => {
-                self.privacy_stop(orbit_core::privacy_stop::UserStop::Order)
-                    .await
-            }
-            Command::Shutdown => self.shutdown_command().await?,
-            Command::Rearm => self.rearm_command().await?,
-            Command::Permissions { request } => self.permissions_command(request).await?,
-            Command::SessionOpen { id, agent_id } => self.open_session(id, agent_id).await?,
-            Command::Chat {
-                text,
-                attachments,
-                primary,
-            } => self.chat_command(text, attachments, primary).await?,
-            Command::NewSession { agent_id } => self.new_session_command(agent_id).await?,
-            Command::Handover {
-                session_id,
-                agent_id,
-                text,
-            } => self.handover_command(session_id, agent_id, text).await?,
-            Command::Interrupt => {
-                self.meeting_question_interrupted();
-                self.apply(Event::Interrupt).await?;
-            }
-            Command::Approval { approved, choice } => {
-                self.approval_command(approved, choice).await?
-            }
-            Command::Clarify {
-                answer,
-                question_id,
-            } => self.clarify_command(answer, question_id).await?,
-            Command::Speak { message_id, text } => self.speak(message_id, text)?,
-            Command::SpeakStop => self.stop_speaking().await?,
-            Command::MeetingAsk { question, minutes } => {
-                self.meeting_ask_command(question, minutes).await?
-            }
-            Command::MeetingQuestionClose { id } => self.question.close_meeting_question(&id),
-            Command::MeetingQuestionHold { id, held } => {
-                self.question.hold_meeting_question(&id, held)
-            }
-            Command::AssistantFolderAdd => self.add_assistant_folder()?,
-            Command::AssistantFolderRemove { id } => self.remove_assistant_folder(&id).await?,
-            Command::VoiceStart => self.apply(Event::VoiceStart).await?,
-            Command::VoiceEnd => self.apply(Event::VoiceEnd).await?,
-            Command::VoiceCancel => self.apply(Event::VoiceCancel).await?,
-            Command::VoiceRetry { message_id } => {
-                self.retry_voice_transcription(message_id).await?
-            }
-            Command::VoiceDiscard { message_id } => self.discard_voice_note(message_id).await?,
-            Command::CallStart { duration_minutes } => {
-                self.call_start_command(duration_minutes).await?
-            }
-            Command::CallStop => self.apply(Event::CallStop).await?,
-            Command::MeetingStart {
-                title,
-                audio,
-                duration_minutes: _,
-                event,
-            } => self.meeting_start_command(title, audio, event).await?,
-            Command::MeetingPause => self.apply(Event::PauseMeeting).await?,
-            Command::MeetingResume => self.apply(Event::ResumeMeeting).await?,
-            Command::MeetingFinish => self.apply(Event::FinishMeeting).await?,
-            Command::MeetingDiscard { recording_id } => self.discard_meeting(recording_id).await?,
-            Command::MeetingDelete { recording_id } => self.delete_meeting(recording_id).await?,
-            Command::MicrophoneMute { muted } => self.mute_microphone(muted).await?,
-            Command::AudioSourcesRefresh => self.refresh_audio_sources()?,
+            off_loop_orders!() => Ok(()),
+            command @ device_orders!() => self.device_order(command).await,
+            command @ assistant_orders!() => self.assistant_order(command).await,
+            command @ recording_orders!() => self.recording_order(command).await,
+            command @ note_orders!() => self.notes_order(command).await,
+            command @ agenda_orders!() => self.agenda_order(command).await,
+        }
+    }
+
+    /// The orders on the meetings' notes and their deletion.
+    async fn notes_order(&mut self, command: Command) -> Result<()> {
+        match command {
+            Command::MeetingDelete { recording_id } => self.delete_meeting(recording_id).await,
             Command::NotePrivateSave {
                 recording_id,
                 markdown,
                 base_revision,
             } => {
                 self.note_private_save(recording_id, markdown, base_revision)
-                    .await?
+                    .await
             }
-            Command::NoteLibrary { request } => self.note_library(request).await?,
+            Command::NoteLibrary { request } => self.note_library(request).await,
             command @ (Command::TranscriptRetranscribe { .. }
             | Command::TranscriptRetry { .. }
             | Command::NoteEdit { .. }
@@ -248,19 +273,39 @@ impl Runtime {
             | Command::NoteRestoreSuperseded { .. }
             | Command::SpeakerRename { .. }
             | Command::MeetingLanguage { .. }
-            | Command::MeetingRename { .. }) => self.note_command(command).await?,
-            Command::Calendar { request } => self.calendar_command(request)?,
-            Command::CallRecord { call_id } => {
-                self.apply_call(CallInput::Record { call_id }).await?
-            }
+            | Command::MeetingRename { .. }) => self.note_command(command).await,
+            off_loop_orders!()
+            | device_orders!()
+            | assistant_orders!()
+            | recording_orders!()
+            | agenda_orders!() => Err(misrouted()),
+        }
+    }
+
+    /// The orders on the agenda and on the calls the Mac detects.
+    async fn agenda_order(&mut self, command: Command) -> Result<()> {
+        use orbit_core::call_detection::CallInput;
+        match command {
+            Command::Calendar { request } => self.calendar_command(request),
+            Command::CallRecord { call_id } => self.apply_call(CallInput::Record { call_id }).await,
             Command::CallDismiss { call_id } => {
-                self.apply_call(CallInput::Dismiss { call_id }).await?
+                self.apply_call(CallInput::Dismiss { call_id }).await
             }
             Command::RecordingKeep { recording_id } => {
-                self.apply_call(CallInput::Keep { recording_id }).await?
+                self.apply_call(CallInput::Keep { recording_id }).await
             }
-            Command::CallPreference { preference } => self.set_call_preference(preference).await?,
+            Command::CallPreference { preference } => self.set_call_preference(preference).await,
+            off_loop_orders!()
+            | device_orders!()
+            | assistant_orders!()
+            | recording_orders!()
+            | note_orders!() => Err(misrouted()),
         }
-        Ok(())
     }
+}
+
+/// An order sent to a domain that does not serve it: `command` routes each
+/// group to its own domain, so only a routing mistake gets here.
+fn misrouted() -> anyhow::Error {
+    anyhow::anyhow!("Esta orden no es de esta parte de Orbit")
 }

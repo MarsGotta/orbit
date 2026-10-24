@@ -105,7 +105,9 @@ impl Runtime {
         );
         self.begin_audio_drain(true);
         self.helper.record_pending(&command);
-        match tokio::time::timeout(Duration::from_millis(500), self.helper.sender.send(command))
+        match self
+            .helper
+            .send_within(command, Duration::from_millis(500))
             .await
         {
             Ok(Ok(())) => Ok(()),
@@ -159,7 +161,7 @@ impl Runtime {
         {
             self.audio.remote_stream = None;
         }
-        let segments = self.capture.buffer.pause_source(pending.source)?;
+        let segments = self.capture.pause_source(pending.source)?;
         self.seal(segments)?;
         self.complete_audio_drain().await?;
         Ok(true)
@@ -210,7 +212,7 @@ impl Runtime {
         // Expiry can interrupt a recording while its stream still owes an
         // audio_stop receipt. Only now, after that receipt and the final seal,
         // can an empty capture release its recording identity.
-        if let Some(interruption) = self.capture.interruption.clone() {
+        if let Some(interruption) = self.capture.interruption().cloned() {
             Box::pin(self.close_empty_interrupted(interruption)).await?;
         }
         self.finish_call_drain().await?;
@@ -260,7 +262,9 @@ impl Runtime {
         // protects the actor from a full helper channel; it is the measured
         // native command deadline, not evidence that Orbit.app died and not a
         // deadline after which the microphone is known to be closed.
-        match tokio::time::timeout(Duration::from_millis(500), self.helper.sender.send(command))
+        match self
+            .helper
+            .send_within(command, Duration::from_millis(500))
             .await
         {
             Ok(Ok(())) => Ok(()),
@@ -294,7 +298,9 @@ impl Runtime {
         let name = kind.command();
         let command = native::command(name, json!({"id":command_id}))?;
         self.helper.record_pending(&command);
-        match tokio::time::timeout(Duration::from_millis(500), self.helper.sender.send(command))
+        match self
+            .helper
+            .send_within(command, Duration::from_millis(500))
             .await
         {
             Ok(Ok(())) => {
@@ -325,9 +331,9 @@ impl Runtime {
         self.audio.pending_starts.clear();
         self.audio.lifecycle = super::AudioLifecycle::default();
         self.state.views.draining_since_ms = None;
-        let segments = self.capture.buffer.flush(true);
+        let segments = self.capture.flush(true);
         self.seal(segments)?;
-        if let Some(interruption) = self.capture.interruption.clone() {
+        if let Some(interruption) = self.capture.interruption().cloned() {
             Box::pin(self.close_empty_interrupted(interruption)).await?;
         }
         self.finish_call_drain().await?;

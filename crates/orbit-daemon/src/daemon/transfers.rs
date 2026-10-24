@@ -39,7 +39,7 @@ impl Runtime {
         // While seals are pending the recording may still get chunks: its
         // closure waits for them. The chunks themselves go up from the
         // capture task meanwhile, without the loop.
-        if !self.capture.pending_seals.is_empty() {
+        if self.capture.seals_pending() {
             return Ok(());
         }
         self.queue_finalize().await?;
@@ -170,7 +170,7 @@ impl Runtime {
             self.transfers.finalize_ready.remove(recording);
         }
         if stored_job.kind == "chunk_upload"
-            && (self.recording_active() || !self.capture.pending_seals.is_empty())
+            && (self.recording_active() || self.capture.seals_pending())
         {
             return self.settle_chunk_off_loop(job_id, settlement, result);
         }

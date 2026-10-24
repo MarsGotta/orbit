@@ -287,9 +287,21 @@ pub fn scrub(event: Event<'static>) -> Option<Event<'static>> {
             })),
         );
     }
-    clean.exception = event
-        .exception
-        .values
+    clean.exception = clean_exceptions(event.exception.values).into();
+    let images = clean_images(&event.debug_meta.images);
+    if !images.is_empty() {
+        clean.debug_meta = std::borrow::Cow::Owned(DebugMeta {
+            sdk_info: None,
+            images,
+        });
+    }
+    Some(clean)
+}
+
+/// The exceptions by type and frames, each frame by its function, file,
+/// line and address only.
+fn clean_exceptions(exceptions: Vec<Exception>) -> Vec<Exception> {
+    exceptions
         .into_iter()
         .map(|exception| Exception {
             // The type, «panic», is a code word like the function names.
@@ -311,13 +323,13 @@ pub fn scrub(event: Event<'static>) -> Option<Event<'static>> {
             }),
             ..Exception::default()
         })
-        .collect::<Vec<_>>()
-        .into();
-    // The images by identifier, address and size; the name reduced to the
-    // file's own (the path carries the account's name), no debug file path.
-    let images: Vec<DebugImage> = event
-        .debug_meta
-        .images
+        .collect()
+}
+
+/// The images by identifier, address and size; the name reduced to the
+/// file's own (the path carries the account's name), no debug file path.
+fn clean_images(images: &[DebugImage]) -> Vec<DebugImage> {
+    images
         .iter()
         .filter_map(|image| match image {
             DebugImage::Symbolic(image) => Some(DebugImage::Symbolic(SymbolicDebugImage {
@@ -332,14 +344,7 @@ pub fn scrub(event: Event<'static>) -> Option<Event<'static>> {
             })),
             DebugImage::Apple(_) | DebugImage::Proguard(_) | DebugImage::Wasm(_) => None,
         })
-        .collect();
-    if !images.is_empty() {
-        clean.debug_meta = std::borrow::Cow::Owned(DebugMeta {
-            sdk_info: None,
-            images,
-        });
-    }
-    Some(clean)
+        .collect()
 }
 
 /// Whether a data key names a closed enumeration in the notice catalogue.

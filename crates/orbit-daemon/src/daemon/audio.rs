@@ -93,6 +93,13 @@ pub(in crate::daemon) struct AudioHandle {
     pub(in crate::daemon) inventory: super::meeting_runtime::MeetingRuntime,
 }
 
+impl AudioHandle {
+    /// The microphone stream open now, if one is.
+    pub(in crate::daemon) fn microphone_stream(&self) -> Option<&str> {
+        self.mic_stream.as_deref()
+    }
+}
+
 impl AudioLifecycle {
     fn pending(&self) -> bool {
         !self.stops.is_empty() || self.full_stop.is_some()
@@ -138,7 +145,7 @@ impl Runtime {
             anyhow::bail!("El micrófono está silenciado: reactívalo para dictar una nota de voz");
         }
         if matches!(event, Event::VoiceStart)
-            && (self.assistant.voice_task.active().is_some() || self.capture.buffer.voice.is_some())
+            && (self.assistant.voice_turn_running() || self.capture.voice_capturing())
         {
             return busy(orbit_core::refusal::Operation::Interaction);
         }
@@ -146,8 +153,8 @@ impl Runtime {
             && (self.audio.call.is_some()
                 || self.audio.mic_stream.is_some()
                 || self.audio.remote_stream.is_some()
-                || self.capture.buffer.voice.is_some()
-                || self.assistant.voice_task.active().is_some())
+                || self.capture.voice_capturing()
+                || self.assistant.voice_turn_running())
         {
             return busy(orbit_core::refusal::Operation::AudioSession);
         }

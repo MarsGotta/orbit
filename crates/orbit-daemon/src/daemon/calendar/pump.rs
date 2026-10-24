@@ -12,11 +12,7 @@ impl Runtime {
         // grant the calendar; an unknown permission is asked of the helper,
         // which knows.
         let reading_allowed = !self.state.privacy_stopped()
-            && self
-                .helper
-                .host
-                .identity()
-                .is_some_and(|host| !host.stopped)
+            && self.helper.identity().is_some_and(|host| !host.stopped)
             && orbit_core::device_bridge::CalendarPermission::from_authorization(
                 self.calendar.view.authorization,
             ) != orbit_core::device_bridge::CalendarPermission::NotGranted;
@@ -39,11 +35,7 @@ impl Runtime {
         // A write waits only for the stop and for a helper that is there; the
         // permission is the helper's to report, with EventKit's real state.
         if !self.state.privacy_stopped()
-            && self
-                .helper
-                .host
-                .identity()
-                .is_some_and(|host| !host.stopped)
+            && self.helper.identity().is_some_and(|host| !host.stopped)
             && let Some((request_id, request)) = self.calendar.write_queue.pop_front()
         {
             return Some(Job::Write {
@@ -101,7 +93,7 @@ impl Runtime {
     }
 
     pub(super) fn send_calendar_job(&mut self, job: Job) {
-        let Some(host) = self.helper.host.identity().cloned() else {
+        let Some(host) = self.helper.identity().cloned() else {
             self.calendar.parked = Some(job);
             return;
         };
@@ -124,8 +116,7 @@ impl Runtime {
             ),
             Job::Write { request, .. } => request.command(),
         };
-        let sender = self.helper.sender.clone();
-        let Ok(permit) = sender.try_reserve() else {
+        let Some(permit) = self.helper.reserve() else {
             // The channel to the helper is full for a moment. Nothing was sent;
             // the same request goes first on the next turn.
             self.calendar.parked = Some(job);

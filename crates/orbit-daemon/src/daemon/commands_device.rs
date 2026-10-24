@@ -1,8 +1,38 @@
-//! The app's orders to the device: pairing, status, exit, rearm and the
-//! system's permissions.
+//! The app's orders to the device: pairing, status, error reports, the
+//! user's stop, exit, rearm and the system's permissions.
 use super::*;
 
 impl Runtime {
+    /// Routes an order to the device.
+    pub(super) async fn device_order(&mut self, command: Command) -> Result<()> {
+        match command {
+            Command::Pair {
+                hub_url,
+                code,
+                device_name,
+            } => self.pair_command(hub_url, code, device_name).await?,
+            Command::Status => self.status_command()?,
+            Command::ErrorReports { enabled } => self.set_error_reports(enabled)?,
+            // Already in the app's report log: it only goes to the client.
+            Command::Report { report } => self
+                .error_reports
+                .report(&report, std::time::Instant::now()),
+            Command::PrivacyStop => {
+                self.privacy_stop(orbit_core::privacy_stop::UserStop::Order)
+                    .await
+            }
+            Command::Shutdown => self.shutdown_command().await?,
+            Command::Rearm => self.rearm_command().await?,
+            Command::Permissions { request } => self.permissions_command(request).await?,
+            off_loop_orders!()
+            | assistant_orders!()
+            | recording_orders!()
+            | note_orders!()
+            | agenda_orders!() => return Err(super::misrouted()),
+        }
+        Ok(())
+    }
+
     /// Pairing retires what the old pairing was asked first.
     pub(super) async fn pair_command(
         &mut self,

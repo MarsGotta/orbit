@@ -3,6 +3,53 @@
 use super::*;
 
 impl Runtime {
+    /// Routes an order to the assistant: the conversation, its answers, its
+    /// readings, the question during a meeting and the folders it may read.
+    pub(super) async fn assistant_order(&mut self, command: Command) -> Result<()> {
+        match command {
+            Command::SessionOpen { id, agent_id } => self.open_session(id, agent_id).await?,
+            Command::Chat {
+                text,
+                attachments,
+                primary,
+            } => self.chat_command(text, attachments, primary).await?,
+            Command::NewSession { agent_id } => self.new_session_command(agent_id).await?,
+            Command::Handover {
+                session_id,
+                agent_id,
+                text,
+            } => self.handover_command(session_id, agent_id, text).await?,
+            Command::Interrupt => {
+                self.meeting_question_interrupted();
+                self.apply(Event::Interrupt).await?;
+            }
+            Command::Approval { approved, choice } => {
+                self.approval_command(approved, choice).await?
+            }
+            Command::Clarify {
+                answer,
+                question_id,
+            } => self.clarify_command(answer, question_id).await?,
+            Command::Speak { message_id, text } => self.speak(message_id, text)?,
+            Command::SpeakStop => self.stop_speaking().await?,
+            Command::MeetingAsk { question, minutes } => {
+                self.meeting_ask_command(question, minutes).await?
+            }
+            Command::MeetingQuestionClose { id } => self.question.close_meeting_question(&id),
+            Command::MeetingQuestionHold { id, held } => {
+                self.question.hold_meeting_question(&id, held)
+            }
+            Command::AssistantFolderAdd => self.add_assistant_folder()?,
+            Command::AssistantFolderRemove { id } => self.remove_assistant_folder(&id).await?,
+            off_loop_orders!()
+            | device_orders!()
+            | recording_orders!()
+            | note_orders!()
+            | agenda_orders!() => return Err(super::misrouted()),
+        }
+        Ok(())
+    }
+
     /// A message from the app: refused while a voice turn runs, and checked
     /// against the hub's attachment ceilings before any frame leaves.
     pub(super) async fn chat_command(

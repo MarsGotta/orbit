@@ -44,7 +44,7 @@ impl Runtime {
         let recording = self.state.durable.capture.recording.as_ref();
         let ignored = if self.state.privacy_stopped() {
             Some("privacy_stopped")
-        } else if self.audio.mic_stream.as_deref() != Some(stream_id.as_str()) {
+        } else if self.audio.microphone_stream() != Some(stream_id.as_str()) {
             Some("other_stream")
         } else if !recording.is_some_and(|recording| {
             recording.phase == CapturePhase::Recording && recording.ended_at_ms.is_none()
@@ -54,7 +54,7 @@ impl Runtime {
             // The helper sends silence while muted; a question that still
             // arrives began before, and «Silenciar» means she is not asking.
             Some("microphone_muted")
-        } else if self.state.durable.voice.voice_active || self.capture.buffer.voice.is_some() {
+        } else if self.state.durable.voice.voice_active || self.capture.voice_capturing() {
             Some("dictating")
         } else if agent.is_none() {
             Some("agent_not_listed")
@@ -157,7 +157,7 @@ impl Runtime {
                     )
             });
         (live && !self.state.privacy_stopped() && self.state.helper_connected())
-            .then(|| self.audio.mic_stream.clone())
+            .then(|| self.audio.microphone_stream().map(str::to_owned))
             .flatten()
     }
 

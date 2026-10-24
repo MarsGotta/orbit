@@ -136,7 +136,7 @@ impl Runtime {
             SourceStage::Listing,
             "Consultando ventanas autorizadas del Mac…",
         );
-        if let Err(error) = self.helper.sender.try_send(command) {
+        if let Err(error) = self.helper.try_send(command) {
             self.source_progress(
                 &operation_id,
                 SourceStage::Failed,
@@ -161,7 +161,7 @@ impl Runtime {
             command_id,
             ticket,
             session_id: self.state.session_id().clone(),
-            host_identity: self.helper.host.identity().cloned(),
+            host_identity: self.helper.identity().cloned(),
             deadline: NATIVE_TIMEOUT.start(),
             intent: None,
         });
@@ -178,7 +178,7 @@ impl Runtime {
         let target = self.selected_source_target(token, format)?;
         let (native_command, timeout, detail) = capture_plan(format);
         let requested_at_ms = now();
-        let host_identity = self.helper.host.identity().cloned();
+        let host_identity = self.helper.identity().cloned();
         let intent = SourceIntent {
             id: id(),
             format,
@@ -203,7 +203,6 @@ impl Runtime {
         )
         .and_then(|command| {
             self.helper
-                .sender
                 .try_send(command)
                 .context("El Mac está ocupado; captura no enviada")
         });
@@ -345,8 +344,8 @@ impl Runtime {
                             .host_identity
                             .as_ref()
                             .map(|host| host.id.clone()),
-                        current_instance: self.helper.host.identity().map(|host| host.id.clone()),
-                        current_generation: self.helper.host.identity().map(|host| host.generation),
+                        current_instance: self.helper.identity().map(|host| host.id.clone()),
+                        current_generation: self.helper.identity().map(|host| host.generation),
                     },
                 }
             } else if cause == "generation_changed" {

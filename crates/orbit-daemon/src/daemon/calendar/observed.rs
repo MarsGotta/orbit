@@ -59,7 +59,7 @@ impl Runtime {
                     |pending| {
                         CalendarWaitFailure::HelperRestarted {
                             before: pending.host.clone(),
-                            after: self.helper.host.identity().cloned(),
+                            after: self.helper.identity().cloned(),
                         }
                         .refusal()
                     },
@@ -91,7 +91,7 @@ impl Runtime {
             self.calendar.reply.cancel();
             let failure = CalendarWaitFailure::HelperRestarted {
                 before: pending.host,
-                after: self.helper.host.identity().cloned(),
+                after: self.helper.identity().cloned(),
             };
             self.calendar_job_failed_detail(pending.job, failure.code(), Some(&failure.refusal()));
         }

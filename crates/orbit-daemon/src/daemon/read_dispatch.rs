@@ -16,7 +16,6 @@ impl Runtime {
         reply: ipc::ReplySender,
         revisions: BTreeMap<orbit_core::topics::TopicId, u64>,
     ) {
-        let command = Command::Read { read: read.clone() };
         let hub_page = if let orbit_core::reads::ReadRequest::Sessions { cursor } = &read {
             Some(HubPage::Sessions(cursor.clone()))
         } else if let orbit_core::reads::ReadRequest::SessionMessages { session_id, cursor } = &read
@@ -26,69 +25,15 @@ impl Runtime {
             None
         };
         if let Some(hub_page) = hub_page {
-            self.say_when_conversations_need_the_hub();
-            let context = reads::HubReadContext::capture(
-                self,
-                revisions
-                    .get(&orbit_core::topics::TopicId::Assistant)
-                    .copied()
-                    .unwrap_or(0),
-            );
-            let voice_audio = self.voice_audio_reader.clone();
-            let id = read.id();
-            let mut privacy_epoch = self.reads.privacy_epoch_rx.clone();
-            let started_at_epoch = *privacy_epoch.borrow_and_update();
-            let log_root = self.paths.root.clone();
-            self.reads.tasks.push(tokio::spawn(async move {
-                let page = async move {
-                    match hub_page {
-                        HubPage::Sessions(cursor) => context.sessions(cursor).await,
-                        HubPage::Messages(session_id, cursor) => {
-                            context.messages(session_id, cursor, voice_audio).await
-                        }
-                    }
-                };
-                let answer = cancellable_remote_read(page, privacy_epoch, started_at_epoch).await;
-                if reply
-                    .send(topic_response(
-                        request_id,
-                        revisions,
-                        Some(id),
-                        Some(answer),
-                    ))
-                    .is_err()
-                {
-                    crate::diagnostics::DiagnosticLog::in_root(&log_root)
-                        .record("ipc_reply_receiver_gone", &[("command", "read")]);
-                }
-            }));
+            self.serve_hub_page(hub_page, &read, request_id, reply, revisions);
             return;
         }
-
         // The notes are the hub's; one remote read each, off the loop.
         if let Some(remote) = self.notes_read(&read) {
-            let mut privacy_epoch = self.reads.privacy_epoch_rx.clone();
-            let started_at_epoch = *privacy_epoch.borrow_and_update();
-            let log_root = self.paths.root.clone();
-            let id = read.id();
-            self.reads.tasks.push(tokio::spawn(async move {
-                let mut reply = reply;
-                tokio::select! {
-                    _ = reply.closed() => {
-                        crate::diagnostics::DiagnosticLog::in_root(&log_root)
-                            .record("ipc_reply_receiver_gone", &[("command", "read")]);
-                    },
-                    answer = cancellable_remote_read(remote, privacy_epoch, started_at_epoch) => {
-                        if reply.send(topic_response(request_id, revisions, Some(id), Some(answer))).is_err() {
-                            crate::diagnostics::DiagnosticLog::in_root(&log_root)
-                                .record("ipc_reply_receiver_gone", &[("command", "read")]);
-                        }
-                    }
-                }
-            }));
+            self.serve_note_read(remote, &read, request_id, reply, revisions);
             return;
         }
-
+        let command = Command::Read { read: read.clone() };
         let revision = revisions
             .get(&orbit_core::topics::TopicId::Agenda)
             .copied()
@@ -104,6 +49,85 @@ impl Runtime {
             &command,
             self.diagnostics.as_ref(),
         );
+    }
+
+    /// A page of the conversations, asked of the hub off the loop and
+    /// cancelled by the user's stop.
+    fn serve_hub_page(
+        &mut self,
+        hub_page: HubPage,
+        read: &orbit_core::reads::ReadRequest,
+        request_id: String,
+        reply: ipc::ReplySender,
+        revisions: BTreeMap<orbit_core::topics::TopicId, u64>,
+    ) {
+        self.say_when_conversations_need_the_hub();
+        let context = reads::HubReadContext::capture(
+            self,
+            revisions
+                .get(&orbit_core::topics::TopicId::Assistant)
+                .copied()
+                .unwrap_or(0),
+        );
+        let voice_audio = self.voice_audio_reader.clone();
+        let id = read.id();
+        let mut privacy_epoch = self.reads.privacy_epoch_rx.clone();
+        let started_at_epoch = *privacy_epoch.borrow_and_update();
+        let log_root = self.paths.root.clone();
+        self.reads.tasks.push(tokio::spawn(async move {
+            let page = async move {
+                match hub_page {
+                    HubPage::Sessions(cursor) => context.sessions(cursor).await,
+                    HubPage::Messages(session_id, cursor) => {
+                        context.messages(session_id, cursor, voice_audio).await
+                    }
+                }
+            };
+            let answer = cancellable_remote_read(page, privacy_epoch, started_at_epoch).await;
+            if reply
+                .send(topic_response(
+                    request_id,
+                    revisions,
+                    Some(id),
+                    Some(answer),
+                ))
+                .is_err()
+            {
+                crate::diagnostics::DiagnosticLog::in_root(&log_root)
+                    .record("ipc_reply_receiver_gone", &[("command", "read")]);
+            }
+        }));
+    }
+
+    /// A read of the meetings' notes, asked of the hub off the loop; it
+    /// stops when the app stops waiting or the user's stop cancels it.
+    fn serve_note_read(
+        &mut self,
+        remote: recording_notes::reads::RemoteRead,
+        read: &orbit_core::reads::ReadRequest,
+        request_id: String,
+        reply: ipc::ReplySender,
+        revisions: BTreeMap<orbit_core::topics::TopicId, u64>,
+    ) {
+        let mut privacy_epoch = self.reads.privacy_epoch_rx.clone();
+        let started_at_epoch = *privacy_epoch.borrow_and_update();
+        let log_root = self.paths.root.clone();
+        let id = read.id();
+        self.reads.tasks.push(tokio::spawn(async move {
+            let mut reply = reply;
+            tokio::select! {
+                _ = reply.closed() => {
+                    crate::diagnostics::DiagnosticLog::in_root(&log_root)
+                        .record("ipc_reply_receiver_gone", &[("command", "read")]);
+                },
+                answer = cancellable_remote_read(remote, privacy_epoch, started_at_epoch) => {
+                    if reply.send(topic_response(request_id, revisions, Some(id), Some(answer))).is_err() {
+                        crate::diagnostics::DiagnosticLog::in_root(&log_root)
+                            .record("ipc_reply_receiver_gone", &[("command", "read")]);
+                    }
+                }
+            }
+        }));
     }
 
     /// The conversations are the hub's. Without a link to it there is

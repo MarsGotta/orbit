@@ -132,8 +132,8 @@ impl Runtime {
     /// Why Orbit refuses a write by itself: a reused identifier, the
     /// user's stop, or no calendar reader on the Mac.
     fn local_write_refusal(&self, request_id: &str) -> Option<CalendarWriteRefusal> {
-        let unavailable = !self.state.capabilities().native_helper()
-            || !self.helper.host.calendar_backend_available();
+        let unavailable =
+            !self.state.capabilities().native_helper() || !self.helper.calendar_backend_available();
         let reused = self
             .calendar
             .view

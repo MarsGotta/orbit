@@ -84,12 +84,12 @@ impl Runtime {
         // the pending list. Until then, or until it is given up, nothing new
         // is asked, so an unanswered poll never piles up there.
         if let Some((id, sent_at)) = self.computer.permission_poll.clone()
-            && self.helper.pending.contains_key(&id)
+            && self.helper.awaits_reply(&id)
         {
             if now.saturating_duration_since(sent_at) < PERMISSION_POLL_ANSWER_DEADLINE {
                 return;
             }
-            self.helper.pending.remove(&id);
+            self.helper.forget_reply(&id);
         }
         let command = match crate::native::command("status", json!({})) {
             Ok(command) => command,
@@ -101,7 +101,7 @@ impl Runtime {
                 return;
             }
         };
-        if self.helper.sender.try_send(command.clone()).is_ok() {
+        if self.helper.try_send(command.clone()).is_ok() {
             self.helper.record_pending(&command);
             self.computer.permission_poll = command["id"].as_str().map(|id| (id.to_owned(), now));
         }

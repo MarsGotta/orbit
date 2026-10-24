@@ -4,9 +4,17 @@
 #[path = "native_tests.rs"]
 mod tests;
 
+mod events;
 mod route;
 mod supervisor;
 mod wire;
+use events::EventRelay;
+pub(crate) use events::MalformedAudio;
+#[cfg(test)]
+use events::{
+    MAX_REPORTED_NATIVE_EVENTS, MAX_REPORTED_UNPAIRED_RESPONSES, native_error_field,
+    report_native_event_once, report_unpaired_response_once,
+};
 pub use route::{AudioItem, NativeRoute, RouteClosed, RoutedAudio, SEQ_FIELD};
 use supervisor::close_helper;
 pub use supervisor::{
@@ -14,13 +22,9 @@ pub use supervisor::{
 };
 pub use wire::{command, encode_command_line, wav};
 
-use crate::ipc::read_frame_with_limit;
 use anyhow::{Context, Result};
 use orbit_core::limits::{MAX_HELPER_COMMAND_LINE_BYTES, MAX_HELPER_EVENT_LINE_BYTES};
-use orbit_core::wire::native::{
-    NativeAudioIdentityRef, NativeCommandHeader, NativeEvent, NativeEventHeader,
-    NativeVersionHeader,
-};
+use orbit_core::wire::native::{NativeCommandHeader, NativeEvent, NativeEventHeader};
 use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -38,50 +42,6 @@ use tokio::{
     sync::{Mutex, mpsc, oneshot, watch},
     time::Instant,
 };
-
-/// Eight consecutive malformed frames declare the bridge dead. The exact
-/// count is a contract with the helper, not a heuristic: any frame whose
-/// bytes cannot be parsed or whose version is not 1 is malformed.
-const MAX_MALFORMED_BEFORE_BRIDGE_DOWN: u32 = 8;
-
-/// Diagnostic deduplication only: 128 names cover eight times native-v1's 13
-/// event names. Each retained name and field is clipped to 64 Unicode scalars,
-/// at most 256 UTF-8 bytes each, so keys stay below about 64 KiB. This does
-/// not limit wire input or authorize an event; further distinct bad names are
-/// still skipped.
-const MAX_REPORTED_NATIVE_EVENTS: usize = 128;
-
-/// Diagnostic deduplication only: limits the distinct unmatched response IDs
-/// tracked in memory to protect against an endless stream of garbage responses.
-/// 128 entries easily cover a burst of missing ACKs or delayed deliveries.
-/// This ceiling only governs the one-time warning log; it does not drop or
-/// suppress the delivery of the unpaired responses themselves to the daemon.
-const MAX_REPORTED_UNPAIRED_RESPONSES: usize = 128;
-
-/// Caps only the stream ID copied into a synthetic gap: native command IDs
-/// already allow 128 bytes, while the current UUID-shaped stream IDs are 36.
-/// It protects the gap queue from an untrusted long identity, not capture or
-/// the helper's event-line ceiling; an overlong identity cuts with a cause.
-const MAX_AUDIO_GAP_STREAM_ID_BYTES: usize = 128;
-
-#[derive(Debug)]
-pub(super) struct MalformedAudio {
-    field: String,
-    found: &'static str,
-    count: u32,
-}
-
-impl std::fmt::Display for MalformedAudio {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            formatter,
-            "native_audio_invalid event=audio field={} type={} count={}/{}",
-            self.field, self.found, self.count, MAX_MALFORMED_BEFORE_BRIDGE_DOWN
-        )
-    }
-}
-
-impl std::error::Error for MalformedAudio {}
 
 /// One command written to the helper, heartbeat included. A helper whose pipe
 /// is full for this long is not reading, and the bridge is declared down.
@@ -131,141 +91,6 @@ where
     bridge_inner(reader, writer, &mut commands, events, &mut stop).await
 }
 
-fn native_field_type(value: &Value, path: &serde_path_to_error::Path) -> &'static str {
-    use serde_path_to_error::Segment;
-    let mut field = Some(value);
-    for segment in path {
-        field = match segment {
-            Segment::Map { key } => field.and_then(|value| value.get(key)),
-            Segment::Seq { index } => field.and_then(|value| value.get(*index)),
-            Segment::Enum { .. } => field,
-            Segment::Unknown => None,
-        };
-    }
-    match field {
-        Some(Value::Null) => "null",
-        Some(Value::Bool(_)) => "boolean",
-        Some(Value::Number(_)) => "number",
-        Some(Value::String(_)) => "string",
-        Some(Value::Array(_)) => "array",
-        Some(Value::Object(_)) => "object",
-        None => "absent",
-    }
-}
-
-fn native_error_field(
-    value: &Value,
-    error: &serde_path_to_error::Error<serde_json::Error>,
-) -> (String, &'static str) {
-    let detail = error.inner().to_string();
-    if let Some(missing) = detail
-        .strip_prefix("missing field `")
-        .and_then(|rest| rest.split_once('`'))
-    {
-        return (missing.0.to_owned(), "absent");
-    }
-    fn locate_invalid_values(
-        value: &Value,
-        detail: &str,
-        prefix: &str,
-        pointer: &str,
-        found: &mut Vec<(String, String, &'static str)>,
-    ) {
-        match value {
-            Value::Object(fields) => fields.iter().for_each(|(name, field)| {
-                let path = if prefix.is_empty() {
-                    name.to_owned()
-                } else {
-                    format!("{prefix}.{name}")
-                };
-                let escaped = name.replace('~', "~0").replace('/', "~1");
-                locate_invalid_values(field, detail, &path, &format!("{pointer}/{escaped}"), found);
-            }),
-            Value::Array(fields) => fields.iter().enumerate().for_each(|(index, field)| {
-                locate_invalid_values(
-                    field,
-                    detail,
-                    &format!("{prefix}[{index}]"),
-                    &format!("{pointer}/{index}"),
-                    found,
-                );
-            }),
-            Value::String(text) if detail.contains(&format!("string {text:?}")) => {
-                found.push((prefix.to_owned(), pointer.to_owned(), "string"));
-            }
-            Value::Number(number)
-                if detail.contains(&format!("integer `{number}`"))
-                    || detail.contains(&format!("floating point `{number}`")) =>
-            {
-                found.push((prefix.to_owned(), pointer.to_owned(), "number"));
-            }
-            Value::Bool(boolean) if detail.contains(&format!("boolean `{boolean}`")) => {
-                found.push((prefix.to_owned(), pointer.to_owned(), "boolean"));
-            }
-            // A scalar that serde's message does not name is not the culprit.
-            Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
-        }
-    }
-    let mut candidates = Vec::new();
-    locate_invalid_values(value, &detail, "", "", &mut candidates);
-    if candidates.len() > 1 {
-        let repair = if detail.contains("expected a boolean") {
-            Some(Value::Bool(false))
-        } else if detail.contains("expected a string") {
-            Some(Value::String(String::new()))
-        } else {
-            None
-        };
-        if let Some(repair) = repair {
-            // Serde loses the path inside an internally tagged enum. On a
-            // malformed frame only, try each same-valued field with the
-            // expected type so equal numbers cannot accuse the wrong field.
-            for (field, pointer, found_type) in &candidates {
-                let mut repaired = value.clone();
-                if let Some(candidate) = repaired.pointer_mut(pointer) {
-                    *candidate = repair.clone();
-                    if serde_json::from_value::<NativeEvent>(repaired).is_ok() {
-                        return (field.clone(), found_type);
-                    }
-                }
-            }
-        }
-    }
-    if let Some((field, _, found_type)) = candidates.into_iter().next() {
-        return (field, found_type);
-    }
-    (
-        error.path().to_string(),
-        native_field_type(value, error.path()),
-    )
-}
-
-fn report_native_event_once(
-    reported: &mut BTreeSet<(String, String, &'static str)>,
-    event: &str,
-    field: &str,
-    found: &'static str,
-) -> Option<(String, String)> {
-    let event: String = event.chars().take(64).collect();
-    let field: String = field.chars().take(64).collect();
-    if reported.len() < MAX_REPORTED_NATIVE_EVENTS
-        && reported.insert((event.clone(), field.clone(), found))
-    {
-        Some((event, field))
-    } else {
-        None
-    }
-}
-
-fn report_unpaired_response_once(reported: &mut BTreeSet<String>, id: &str) -> Option<String> {
-    let id: String = id.chars().take(128).collect();
-    if reported.len() < MAX_REPORTED_UNPAIRED_RESPONSES && reported.insert(id.clone()) {
-        Some(id)
-    } else {
-        None
-    }
-}
-
 /// Relays frames both ways until the helper's side fails, the command channel
 /// closes or `stop` turns true; the last two are the orderly ends (`Ok`).
 async fn bridge_inner<R, W>(
@@ -281,163 +106,11 @@ where
 {
     // Read and write loops are independent. Cancelling read_frame on every
     // heartbeat would discard a partial JSON frame already consumed from stdin.
-    let mut consecutive_malformed: u32 = 0;
-    let mut reported_native_events = BTreeSet::new();
-    let mut reported_unpaired_responses = BTreeSet::new();
     // The bridge sends hello and heartbeat itself. Keep the same bounded
     // in-flight command index as the daemon so their replies have an owner.
     let pending_commands = Arc::new(Mutex::new(BTreeMap::<String, String>::new()));
-    let reading_commands = pending_commands.clone();
-    let read = async {
-        loop {
-            let bytes = read_frame_with_limit(&mut reader, MAX_HELPER_EVENT_LINE_BYTES).await?;
-            let mut value: Value = match serde_json::from_slice(&bytes) {
-                Ok(value) => value,
-                Err(_) => {
-                    consecutive_malformed = consecutive_malformed.saturating_add(1);
-                    if consecutive_malformed >= MAX_MALFORMED_BEFORE_BRIDGE_DOWN {
-                        anyhow::bail!(
-                            "Puente declarado caído por {} frames malformados consecutivos",
-                            consecutive_malformed
-                        );
-                    }
-                    continue;
-                }
-            };
-            if !NativeVersionHeader::from_value(&value).is_ok_and(|header| header.v == 1) {
-                consecutive_malformed = consecutive_malformed.saturating_add(1);
-                if consecutive_malformed >= MAX_MALFORMED_BEFORE_BRIDGE_DOWN {
-                    anyhow::bail!(
-                        "Puente declarado caído por {} frames malformados consecutivos",
-                        consecutive_malformed
-                    );
-                }
-                continue;
-            }
-            let Ok(header) = NativeEventHeader::from_value(&value) else {
-                if report_native_event_once(
-                    &mut reported_native_events,
-                    "<missing>",
-                    "event",
-                    "absent_or_non_string",
-                )
-                .is_some()
-                {
-                    eprintln!(
-                        "native_event_invalid event=<missing> field=event type=absent_or_non_string"
-                    );
-                }
-                continue;
-            };
-            let event_name = header.event;
-            if !NativeEvent::names().contains(&event_name) {
-                if let Some((name, _)) =
-                    report_native_event_once(&mut reported_native_events, event_name, "", "unknown")
-                {
-                    eprintln!("native_event_unknown event={name}");
-                }
-                continue;
-            }
-            let mut decoder = serde_json::Deserializer::from_slice(&bytes);
-            let typed: NativeEvent = match serde_path_to_error::deserialize(&mut decoder) {
-                Ok(event) => event,
-                Err(error) => {
-                    let (field, found) = native_error_field(&value, &error);
-                    if let Some((name, field_name)) = report_native_event_once(
-                        &mut reported_native_events,
-                        event_name,
-                        &field,
-                        found,
-                    ) {
-                        eprintln!(
-                            "native_event_invalid event={name} field={field_name} type={found}"
-                        );
-                    }
-                    if event_name == "audio" {
-                        // With no trustworthy track identity a gap cannot be
-                        // attributed. Cut immediately and carry the decode
-                        // cause to the visible helper-loss notice.
-                        let identity = match NativeAudioIdentityRef::from_value(&value) {
-                            Ok(identity) => identity,
-                            Err(_) => {
-                                return Err(MalformedAudio {
-                                    field,
-                                    found,
-                                    count: consecutive_malformed.saturating_add(1),
-                                }
-                                .into());
-                            }
-                        };
-                        if !matches!(identity.source, "mic_local" | "remote_app")
-                            || identity.stream_id.is_empty()
-                            || identity.stream_id.len() > MAX_AUDIO_GAP_STREAM_ID_BYTES
-                        {
-                            return Err(MalformedAudio {
-                                field: "source_or_stream_id".to_owned(),
-                                found: "invalid_identity",
-                                count: consecutive_malformed.saturating_add(1),
-                            }
-                            .into());
-                        }
-                        let cause =
-                            format!("native_audio_invalid event=audio field={field} type={found}");
-                        let gap = json!({
-                            "v": orbit_core::wire::native::NATIVE_PROTOCOL,
-                            "event": "gap",
-                            "source": identity.source,
-                            "stream_id": identity.stream_id,
-                            "reason": cause.clone(),
-                            "frames": 1,
-                        });
-                        if events.send(gap).await.is_err() {
-                            anyhow::bail!("Canal de eventos cerrado");
-                        }
-                        consecutive_malformed = consecutive_malformed.saturating_add(1);
-                        if consecutive_malformed >= MAX_MALFORMED_BEFORE_BRIDGE_DOWN {
-                            return Err(MalformedAudio {
-                                field,
-                                found,
-                                count: consecutive_malformed,
-                            }
-                            .into());
-                        }
-                    }
-                    continue;
-                }
-            };
-            consecutive_malformed = 0;
-
-            if let NativeEvent::Response { ref id, .. } = typed {
-                // A helper field cannot name its own order. Only an ID we
-                // actually wrote supplies the internal correlation hint.
-                if let Some(object) = value.as_object_mut() {
-                    object.remove("_bridge_command");
-                }
-                let command = reading_commands.lock().await.remove(id);
-                if let Some(command) = command {
-                    if let Some(object) = value.as_object_mut() {
-                        object.insert("_bridge_command".into(), Value::String(command));
-                    }
-                } else {
-                    if let Some(id) =
-                        report_unpaired_response_once(&mut reported_unpaired_responses, id)
-                    {
-                        eprintln!("native_response_unpaired id={id}");
-                    }
-                }
-            }
-
-            // Every frame waits for the consumer, audio included. A daemon
-            // that stops reading for a while (an 11 s stall cut a meeting on
-            // 2026-10-22) is not a dead link: while this waits it stops
-            // reading the pipe, the helper keeps the backlog in order and
-            // counts in a `gap` only what does not fit in its own room. The
-            // backlog then arrives whole, never as a gap or a lost helper.
-            if events.send(value).await.is_err() {
-                anyhow::bail!("Canal de eventos cerrado");
-            }
-        }
-    };
+    let mut relay = EventRelay::new(pending_commands.clone(), events);
+    let read = relay.run(&mut reader);
     let send = async {
         let hello = command("hello", json!({}))?;
         record_bridge_command(&pending_commands, &hello).await?;

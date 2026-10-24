@@ -299,7 +299,7 @@ impl Runtime {
         let authorization =
             if self.calendar.view.authorization == CalendarAuthorization::Unavailable {
                 CalendarAuthorization::Unavailable
-            } else if self.helper.host.identity().is_none() {
+            } else if self.helper.identity().is_none() {
                 CalendarAuthorization::Unknown
             } else if self.calendar_backend_ready() {
                 self.calendar.view.authorization
@@ -385,7 +385,7 @@ impl Runtime {
         if self.calendar.reply.ticket() != Some(&pending.ticket) {
             return Some(CalendarWaitFailure::ReplyReplaced);
         }
-        let host = self.helper.host.identity();
+        let host = self.helper.identity();
         if host.is_none_or(|host| {
             host.id != pending.host.id || host.generation != pending.host.generation
         }) {
@@ -394,7 +394,7 @@ impl Runtime {
                 after: host.cloned(),
             });
         }
-        if !self.helper.host.calendar_backend_available() {
+        if !self.helper.calendar_backend_available() {
             return Some(CalendarWaitFailure::BackendUnavailable);
         }
         if pending.job.reads() && host.is_some_and(|host| host.stopped) {
@@ -412,8 +412,8 @@ impl Runtime {
 
     fn calendar_backend_ready(&self) -> bool {
         self.state.capabilities().native_helper()
-            && self.helper.host.calendar_backend_available()
-            && self.helper.host.identity().is_some()
+            && self.helper.calendar_backend_available()
+            && self.helper.identity().is_some()
     }
 
     /// Reads `window` (now until the lookahead) for the event of a
@@ -430,9 +430,7 @@ impl Runtime {
     /// Best effort: tells the helper to retire a reply nobody will read. No
     /// data request, retry or audio stop.
     fn retire_native_calendar(&self) {
-        if self.state.capabilities().native_helper()
-            && self.helper.host.calendar_backend_available()
-        {
+        if self.state.capabilities().native_helper() && self.helper.calendar_backend_available() {
             let command = match crate::native::command(
                 "calendar_disconnect",
                 json!({"id":format!("{PREFIX}retire-{}", super::id())}),
@@ -446,10 +444,10 @@ impl Runtime {
                     return;
                 }
             };
-            match self.helper.sender.try_send(command) {
+            match self.helper.try_send(command) {
                 Ok(()) => {}
                 Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => {
-                    let capacity = self.helper.sender.max_capacity().to_string();
+                    let capacity = self.helper.channel_capacity().to_string();
                     self.log(
                         "calendar_disconnect_undelivered",
                         &[("cause", "full"), ("capacity", &capacity)],

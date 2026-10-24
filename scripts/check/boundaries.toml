@@ -5,10 +5,10 @@
 # offers and the methods of b's handle. A new edge fails the gate; add one
 # only when the design says a depends on b.
 #
-# `reaches` are the places where a domain already reaches into another's
-# internals (a field of its handle, a function it does not offer, one of its
-# submodules). The list takes no new entries and must stay exact: when the
-# code stops reaching, remove the entry.
+# No domain reaches into another's internals (a field of its handle, a
+# function it does not offer, one of its submodules), and the guard fails on
+# any reach. A `reaches` list takes no entries: what a domain needs of
+# another is a method of that domain's handle.
 
 # The core's pure decisions, one module of orbit_core::transition per domain.
 # `stops` routes the events every domain hears (a privacy stop, a cut, the
@@ -43,16 +43,3 @@ meeting_question = ["assistant", "audio", "capture_handle"]
 recording_notes = ["capture_handle"]
 sources = ["assistant", "helper"]
 transfers = ["capture_handle", "recording_notes"]
-
-[daemon.reaches]
-"audio -> assistant" = [".voice_operation", ".voice_task"]
-"audio -> capture_handle" = [".buffer", ".interruption", ".pending_seals", ".reserve_exhausted"]
-"audio -> helper" = [".sender"]
-"calendar -> helper" = [".host", ".sender"]
-"computer_control -> helper" = [".pending", ".sender"]
-"meeting_question -> assistant" = [".speak_next", ".voice_task"]
-"meeting_question -> audio" = [".mic_stream"]
-"meeting_question -> capture_handle" = [".buffer"]
-"recording_notes -> capture_handle" = [".lane"]
-"sources -> helper" = [".host", ".sender"]
-"transfers -> capture_handle" = [".pending_seals"]

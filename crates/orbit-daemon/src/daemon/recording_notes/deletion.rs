@@ -133,25 +133,14 @@ impl Runtime {
                 order: NoteOrder::Delete { discarded: true },
             })
             .await?;
-        {
-            let mut core = self.capture.lane.lock();
-            core.upload.discarded.insert(recording_id.clone());
-            if let Some(transfer) = core.upload_abort.take() {
-                transfer.abort();
-            }
-        }
+        self.capture.discard_uploads(&recording_id);
         if let Err(error) = self.apply(event).await {
             // It goes on recording: nothing of it may be deleted.
             let kept = self.notes.outbox.meeting_delete(&recording_id);
             if let Some(kept) = kept {
                 self.forget_order(lane, kept).await?;
             }
-            self.capture
-                .lane
-                .lock()
-                .upload
-                .discarded
-                .remove(&recording_id);
+            self.capture.keep_uploads(&recording_id);
             return Err(error);
         }
         self.maintain_recording_notes();

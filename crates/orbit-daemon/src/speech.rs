@@ -3,7 +3,7 @@ use crate::{
     config::{Settings, validate_hub_url},
     hub, native,
 };
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use futures_util::StreamExt;
 use serde_json::{Value, json};
@@ -62,24 +62,48 @@ pub async fn play(
     .send()
     .await?;
     if !response.status().is_success() {
-        let status = response.status();
-        let code = hub::read_refusal(response, orbit_core::limits::MAX_HUB_HTTP_BODY_BYTES)
-            .await
-            .ok()
-            .and_then(|refusal| refusal.code);
-        match code.as_deref() {
-            Some("speech_unavailable") => {
-                return Err(SpeechUnavailable {
-                    agent_name: agent_name(&settings, agent_id.as_deref()),
-                }
-                .into());
-            }
-            Some(code) => {
-                bail!("Voz no disponible ({status}, {code}); el texto se conserva")
-            }
-            None => bail!("Voz no disponible ({status}); el texto se conserva"),
-        }
+        return Err(speech_refusal(response, &settings, agent_id.as_deref()).await);
     }
+    let (content_type, provider) = clip_kind(&response)?;
+    let audio = read_clip(response).await?;
+    let command = native::command(
+        "playback_clip",
+        json!({
+            "playback_id": playback_id,
+            "mime_type": content_type,
+            "provider": provider,
+            "audio_base64": STANDARD.encode(audio),
+        }),
+    )?;
+    tokio::time::timeout(Duration::from_secs(2), native_tx.send(command)).await??;
+    Ok(())
+}
+
+/// Why the hub gave no voice: the agent's voice is unavailable, or its
+/// status with the code it named, if it named one.
+async fn speech_refusal(
+    response: reqwest::Response,
+    settings: &Settings,
+    agent_id: Option<&str>,
+) -> anyhow::Error {
+    let status = response.status();
+    let code = hub::read_refusal(response, orbit_core::limits::MAX_HUB_HTTP_BODY_BYTES)
+        .await
+        .ok()
+        .and_then(|refusal| refusal.code);
+    match code.as_deref() {
+        Some("speech_unavailable") => SpeechUnavailable {
+            agent_name: agent_name(settings, agent_id),
+        }
+        .into(),
+        Some(code) => anyhow!("Voz no disponible ({status}, {code}); el texto se conserva"),
+        None => anyhow!("Voz no disponible ({status}); el texto se conserva"),
+    }
+}
+
+/// The clip's content type and provider, as the hub declared them; only a
+/// clip is played.
+fn clip_kind(response: &reqwest::Response) -> Result<(String, String)> {
     let content_type = response
         .headers()
         .get("content-type")
@@ -107,6 +131,11 @@ pub async fn play(
     if provider.is_empty() || provider.len() > 128 {
         bail!("El hub declaró un origen de voz no válido");
     }
+    Ok((content_type, provider))
+}
+
+/// The clip's audio, refused past [`MAX_SPEECH_CLIP_BYTES`] and when empty.
+async fn read_clip(response: reqwest::Response) -> Result<Vec<u8>> {
     let mut stream = response.bytes_stream();
     let mut audio = Vec::new();
     while let Some(bytes) = stream.next().await {
@@ -119,15 +148,5 @@ pub async fn play(
     if audio.is_empty() {
         bail!("El hub entregó un clip de voz vacío");
     }
-    let command = native::command(
-        "playback_clip",
-        json!({
-            "playback_id": playback_id,
-            "mime_type": content_type,
-            "provider": provider,
-            "audio_base64": STANDARD.encode(audio),
-        }),
-    )?;
-    tokio::time::timeout(Duration::from_secs(2), native_tx.send(command)).await??;
-    Ok(())
+    Ok(audio)
 }
