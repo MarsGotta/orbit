@@ -324,8 +324,12 @@ describe("an answer Orbit reads aloud by itself", () => {
     await waitFor(() =>
       expect(screen.getAllByText("La sala Norte tiene 8 plazas.")).toHaveLength(1),
     );
-    const answer = screen.getByRole("article", { name: "Respuesta de Deimos" });
-    await userEvent.click(within(answer).getByRole("button", { name: "Parar" }));
-    expect(sent).toContainEqual({ command: "speak_stop" });
+    // The hub's copy may replace the turn's while the click lands: press
+    // «Parar» on whichever answer is shown until the order goes out.
+    await waitFor(async () => {
+      const answer = screen.getByRole("article", { name: "Respuesta de Deimos" });
+      await userEvent.click(within(answer).getByRole("button", { name: "Parar" }));
+      expect(sent).toContainEqual({ command: "speak_stop" });
+    });
   });
 });
