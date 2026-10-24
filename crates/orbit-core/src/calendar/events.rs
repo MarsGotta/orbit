@@ -154,47 +154,8 @@ impl CalendarOccurrence {
         include_event_url: bool,
     ) -> Result<(), CalendarError> {
         self.calendar.validate()?;
-        if !crate::wire::canonical_uuid(&self.observation_id)
-            || !identifier(&self.calendar_item_id)
-            || self.event_id.as_deref().is_some_and(|id| !identifier(id))
-            || !crate::wire::unix_ms(self.start_unix_ms)
-            || !crate::wire::unix_ms(self.end_unix_ms)
-            || self.end_unix_ms < self.start_unix_ms
-            || self
-                .original_occurrence_unix_ms
-                .is_some_and(|value| !crate::wire::unix_ms(value))
-            || self
-                .last_modified_unix_ms
-                .is_some_and(|value| !crate::wire::unix_ms(value))
-            || self.is_floating != self.event_timezone.is_none()
-            || self.interpreted_timezone.is_empty()
-            || self.interpreted_timezone != self.event_timezone.as_deref().unwrap_or(timezone)
-            || !["none", "confirmed", "tentative", "canceled", "unknown"]
-                .contains(&self.status.as_str())
-        {
-            return Err(CalendarError::InvalidValue);
-        }
-        if self.title.len() > MAX_TITLE_BYTES
-            || self.interpreted_timezone.len() > MAX_TIMEZONE_BYTES
-            || self
-                .event_timezone
-                .as_ref()
-                .is_some_and(|zone| zone.len() > MAX_TIMEZONE_BYTES)
-            || self
-                .event_url
-                .as_ref()
-                .is_some_and(|url| url.len() > MAX_URL_BYTES)
-            || self
-                .location
-                .as_ref()
-                .is_some_and(|location| location.len() > MAX_TITLE_BYTES)
-            || self
-                .notes
-                .as_ref()
-                .is_some_and(|notes| notes.len() > MAX_NOTES_BYTES)
-        {
-            return Err(CalendarError::LimitExceeded);
-        }
+        self.validate_identity_and_dates(timezone)?;
+        self.validate_lengths()?;
         // Notes that did not travel say so with their numbers, and
         // never alongside notes that did.
         if let Some(left_out) = self.notes_left_out
@@ -233,6 +194,57 @@ impl CalendarOccurrence {
         // guests is still one event; its size is the page's business.
         for invitee in self.invitees.iter().flatten() {
             invitee.validate()?;
+        }
+        Ok(())
+    }
+
+    /// Its identifiers, dates, time zones and status are well formed.
+    fn validate_identity_and_dates(&self, timezone: &str) -> Result<(), CalendarError> {
+        if !crate::wire::canonical_uuid(&self.observation_id)
+            || !identifier(&self.calendar_item_id)
+            || self.event_id.as_deref().is_some_and(|id| !identifier(id))
+            || !crate::wire::unix_ms(self.start_unix_ms)
+            || !crate::wire::unix_ms(self.end_unix_ms)
+            || self.end_unix_ms < self.start_unix_ms
+            || self
+                .original_occurrence_unix_ms
+                .is_some_and(|value| !crate::wire::unix_ms(value))
+            || self
+                .last_modified_unix_ms
+                .is_some_and(|value| !crate::wire::unix_ms(value))
+            || self.is_floating != self.event_timezone.is_none()
+            || self.interpreted_timezone.is_empty()
+            || self.interpreted_timezone != self.event_timezone.as_deref().unwrap_or(timezone)
+            || !["none", "confirmed", "tentative", "canceled", "unknown"]
+                .contains(&self.status.as_str())
+        {
+            return Err(CalendarError::InvalidValue);
+        }
+        Ok(())
+    }
+
+    /// Every text it carries is within its limit.
+    fn validate_lengths(&self) -> Result<(), CalendarError> {
+        if self.title.len() > MAX_TITLE_BYTES
+            || self.interpreted_timezone.len() > MAX_TIMEZONE_BYTES
+            || self
+                .event_timezone
+                .as_ref()
+                .is_some_and(|zone| zone.len() > MAX_TIMEZONE_BYTES)
+            || self
+                .event_url
+                .as_ref()
+                .is_some_and(|url| url.len() > MAX_URL_BYTES)
+            || self
+                .location
+                .as_ref()
+                .is_some_and(|location| location.len() > MAX_TITLE_BYTES)
+            || self
+                .notes
+                .as_ref()
+                .is_some_and(|notes| notes.len() > MAX_NOTES_BYTES)
+        {
+            return Err(CalendarError::LimitExceeded);
         }
         Ok(())
     }

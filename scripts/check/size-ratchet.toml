@@ -5,14 +5,8 @@
 # `python3 scripts/check/sizes.py --shrink`; never add one or raise one.
 
 [files]
-"crates/orbit-control/src/cua.rs" = 1367
-"crates/orbit-core/src/assistant_files.rs" = 806
-"crates/orbit-core/src/calendar/writes.rs" = 1053
-"crates/orbit-core/src/wire/hub.rs" = 629
-"crates/orbit-core/src/wire/native.rs" = 821
 "crates/orbit-daemon/src/daemon/startup.rs" = 607
 "crates/orbit-daemon/src/hub.rs" = 1057
-"crates/orbit-ipc/src/ipc.rs" = 963
 "server/orbit_hub/assistant/acp.py" = 846
 "server/orbit_hub/assistant/hermes.py" = 766
 "server/orbit_hub/assistant/openai.py" = 768
@@ -20,28 +14,6 @@
 "server/orbit_mcp/hub.py" = 528
 "server/orbit_mcp/refusals.py" = 507
 "server/orbit_mcp/server.py" = 649
-
-[functions."crates/orbit-control/src/cua.rs"]
-"inspect_previous_listener" = 217
-"start_engine_after_inspection" = 110
-
-[functions."crates/orbit-core/src/assistant_files.rs"]
-"admit" = 102
-
-[functions."crates/orbit-core/src/calendar/events.rs"]
-"CalendarOccurrence::validate_fields" = 83
-
-[functions."crates/orbit-core/src/calendar/pages.rs"]
-"assemble_view" = 87
-
-[functions."crates/orbit-core/src/call_detection.rs"]
-"CallDetector::advance" = 97
-
-[functions."crates/orbit-core/src/device_bridge.rs"]
-"calendar_page" = 93
-
-[functions."crates/orbit-core/src/process_listing.rs"]
-"decide_engine_listener" = 82
 
 [functions."crates/orbit-daemon/src/daemon/commands.rs"]
 "Runtime::command" = 115
@@ -68,12 +40,6 @@
 
 [functions."crates/orbit-daemon/src/speech.rs"]
 "play" = 99
-
-[functions."crates/orbit-store/src/blobs.rs"]
-"Store::recover_next" = 102
-
-[functions."crates/orbit-store/src/store.rs"]
-"Store::open" = 95
 
 [functions."server/orbit_hub/assistant/hermes.py"]
 "HermesConnection.receive" = 114

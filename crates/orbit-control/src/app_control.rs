@@ -1,4 +1,4 @@
-//! The bounded `ps` census the CUA engine cleanup asks for (`cua.rs`).
+//! The bounded `ps` census the CUA engine cleanup asks for (`cua/previous_listener.rs`).
 //!
 //! This module once also closed and opened the app from the terminal; that
 //! command line was retired on 2026-10-15 and only the engine census has a caller.

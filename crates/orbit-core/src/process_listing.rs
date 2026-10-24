@@ -161,6 +161,25 @@ pub fn decide_engine_listener(
         });
     }
 
+    decide_by_ancestry(
+        &entries,
+        listener,
+        own_user_id,
+        &expected_engine,
+        &expected_daemon,
+    )
+}
+
+/// Walks the listener's ancestors: an orphan of this bundle (its chain reaches
+/// launchd without a live daemon of the bundle) is swept with the engines of
+/// the bundle above it; a live daemon, a missing link or a cycle keeps it.
+fn decide_by_ancestry(
+    entries: &BTreeMap<u32, ProcessTreeEntry<'_>>,
+    listener: ProcessTreeEntry<'_>,
+    own_user_id: u32,
+    expected_engine: &Path,
+    expected_daemon: &Path,
+) -> EngineListenerDecision {
     let mut current = listener;
     let mut visited = BTreeSet::from([listener.pid]);
     let mut bundle_parents = Vec::<ProcessTreeEntry<'_>>::new();

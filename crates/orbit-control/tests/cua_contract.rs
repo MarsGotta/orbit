@@ -1,6 +1,7 @@
 //! Synthetic MCP fixtures: no browser, daemon or desktop API is contacted.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-#[allow(dead_code)]
+// Compiled here on its own, the module re-exports what only the crate uses.
+#[allow(dead_code, unused_imports)]
 #[path = "../src/cua.rs"]
 mod cua;
 // cua.rs takes its macOS engine census from the crate's app_control, which
@@ -10,8 +11,8 @@ mod app_control {
     pub(crate) use orbit_control::app_control::engine_process_listing;
 }
 
+use cua::engine::{PeerProbeDecision, PeerProbeFact, decide_peer_probe};
 use cua::{CuaClient, CuaConfig, LocalCua, VERIFIED_DRIVER_VERSION, resolve_driver_path};
-use cua::{PeerProbeDecision, PeerProbeFact, decide_peer_probe};
 use serde_json::{Value, json};
 use std::{
     fs,
@@ -1130,7 +1131,7 @@ async fn forked_listener_stops_with_the_connection() {
 #[test]
 fn parent_lookup_error_keeps_the_specific_cause() {
     let inner = anyhow::anyhow!("PPID ilegible: PID 42 desapareció");
-    let error = cua::parent_lookup_context(42, 7, 2, inner).to_string();
+    let error = cua::engine::parent_lookup_context(42, 7, 2, inner).to_string();
     assert!(error.contains("PID par 42"), "missing peer: {error}");
     assert!(error.contains("motor PID 7"), "missing child: {error}");
     assert!(error.contains("paso 2/4"), "missing hop: {error}");
@@ -1193,7 +1194,7 @@ fn each_peer_probe_decision_preserves_identity_and_cause() {
 
 #[test]
 fn ps_timeout_names_the_remaining_startup_budget() {
-    let message = cua::ps_timeout_message(42, Duration::from_millis(137));
+    let message = cua::engine::ps_timeout_message(42, Duration::from_millis(137));
     assert!(
         message.contains("no respondió en los 137 ms que quedaban de los 10000 ms del arranque"),
         "wrong deadline: {message}"

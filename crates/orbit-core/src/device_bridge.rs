@@ -346,7 +346,7 @@ pub fn calendar_page(
         let mut fragment = value;
         fragment["invitees"] = serde_json::Value::Array(Vec::new());
         fragment[INVITEES_CONTINUED] = serde_json::Value::Bool(true);
-        let mut size = encoded(&fragment);
+        let size = encoded(&fragment);
         if position.invitee == 0
             && let Some(left_out) = cannot_travel(event, size, budget)?
         {
@@ -357,36 +357,9 @@ pub fn calendar_page(
             };
             continue;
         }
-        let mut take = 0_usize;
-        for invitee in rest {
-            let cost = serde_json::to_vec(invitee)
-                .map_or(usize::MAX, |bytes| bytes.len())
-                .saturating_add(1);
-            if take > 0 && size.saturating_add(cost) > budget {
-                break;
-            }
-            size = size.saturating_add(cost);
-            take = take.saturating_add(1);
-        }
-        let sent = position.invitee.saturating_add(take);
-        fragment["invitees"] = serde_json::to_value(rest.get(..take).unwrap_or(rest))?;
-        let finished = sent >= invitees.len();
-        if finished && let Some(fields) = fragment.as_object_mut() {
-            fields.remove(INVITEES_CONTINUED);
-        }
+        let next = fill_fragment(&mut fragment, size, invitees, position, budget)?;
         used = used.saturating_add(encoded(&fragment));
         page.push(fragment);
-        let next = if finished {
-            CalendarPosition {
-                index: position.index.saturating_add(1),
-                invitee: 0,
-            }
-        } else {
-            CalendarPosition {
-                index: position.index,
-                invitee: sent,
-            }
-        };
         return Ok(CalendarPage {
             events: page,
             used,
@@ -399,6 +372,48 @@ pub fn calendar_page(
         used,
         next: None,
         oversized,
+    })
+}
+
+/// Puts in `fragment` (the event without its guests, `size` bytes) as many of
+/// the guests from `position` on as fit `budget`, at least one so the walk
+/// moves, and says where the walk goes on. The last fragment of an event loses
+/// its `invitees_continued` mark.
+fn fill_fragment(
+    fragment: &mut serde_json::Value,
+    mut size: usize,
+    invitees: &[crate::calendar::CalendarInvitee],
+    position: CalendarPosition,
+    budget: usize,
+) -> Result<CalendarPosition, serde_json::Error> {
+    let rest = invitees.get(position.invitee..).unwrap_or(&[]);
+    let mut take = 0_usize;
+    for invitee in rest {
+        let cost = serde_json::to_vec(invitee)
+            .map_or(usize::MAX, |bytes| bytes.len())
+            .saturating_add(1);
+        if take > 0 && size.saturating_add(cost) > budget {
+            break;
+        }
+        size = size.saturating_add(cost);
+        take = take.saturating_add(1);
+    }
+    let sent = position.invitee.saturating_add(take);
+    fragment["invitees"] = serde_json::to_value(rest.get(..take).unwrap_or(rest))?;
+    let finished = sent >= invitees.len();
+    if finished && let Some(fields) = fragment.as_object_mut() {
+        fields.remove(INVITEES_CONTINUED);
+    }
+    Ok(if finished {
+        CalendarPosition {
+            index: position.index.saturating_add(1),
+            invitee: 0,
+        }
+    } else {
+        CalendarPosition {
+            index: position.index,
+            invitee: sent,
+        }
     })
 }
 

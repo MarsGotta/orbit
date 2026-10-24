@@ -1,6 +1,11 @@
 //! Pure response budgets plus owner-local UnixStream fixtures. No daemon state,
 //! durable original, provider or OS service is modified by this projection.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+use super::client::{encode_request, validate_response};
+use super::server::{
+    MAX_BUSY_READERS, MAX_CONNECTIONS, MAX_TOPIC_SUBSCRIPTIONS, handle, handle_connection,
+    refused_response, reject_busy,
+};
 use super::*;
 
 use orbit_core::{

@@ -292,6 +292,21 @@ impl Store {
             return Err(Error::Invalid("recovery store"));
         }
         let mut report = RecoveryReport::default();
+        self.recover_files(scan, limit, &mut report)?;
+        self.check_manifests(scan, limit, &mut report)?;
+        report.limit_reached = scan.entries.peek().is_some() || !scan.manifests_complete;
+        Ok(report)
+    }
+
+    /// The next `limit` directory entries: a sealed chunk whose manifest is
+    /// missing gets it back; temporary, foreign and unreadable files are
+    /// counted and left where they are.
+    fn recover_files(
+        &mut self,
+        scan: &mut RecoveryScan,
+        limit: usize,
+        report: &mut RecoveryReport,
+    ) -> Result<()> {
         for entry in scan.entries.by_ref().take(limit) {
             report.inspected += 1;
             let entry = entry?;
@@ -317,35 +332,51 @@ impl Store {
                 report.invalid += 1;
                 continue;
             }
-            match self.read_sealed(&entry.path(), id) {
-                Ok((metadata, bytes)) => {
-                    let receipt = ChunkReceipt {
-                        metadata,
-                        bytes: bytes.len() as u64,
-                        sha256: digest(&bytes),
-                    };
-                    match self.chunk_receipt(id)? {
-                        Some(existing) if existing == receipt => {}
-                        Some(_) => report.invalid += 1,
-                        None => match self.commit_chunk(&receipt) {
-                            Ok(()) => report.recovered += 1,
-                            Err(Error::Conflict) => report.invalid += 1,
-                            Err(error) => return Err(error),
-                        },
-                    }
-                }
-                Err(
-                    Error::Authentication
-                    | Error::CorruptChunk
-                    | Error::Invalid(_)
-                    | Error::Serialization
-                    | Error::TooLarge { .. },
-                ) => report.invalid += 1,
-                Err(error) => return Err(error),
-            }
+            self.recover_sealed(&entry.path(), id, report)?;
         }
-        // File enumeration alone cannot reveal a manifest with a missing blob.
-        // Bound this second scan independently; it reads identifiers, not audio.
+        Ok(())
+    }
+
+    /// One sealed chunk on disk: its manifest is committed when absent, and a
+    /// chunk that does not open or disagrees with its manifest is invalid.
+    fn recover_sealed(&mut self, path: &Path, id: &str, report: &mut RecoveryReport) -> Result<()> {
+        match self.read_sealed(path, id) {
+            Ok((metadata, bytes)) => {
+                let receipt = ChunkReceipt {
+                    metadata,
+                    bytes: bytes.len() as u64,
+                    sha256: digest(&bytes),
+                };
+                match self.chunk_receipt(id)? {
+                    Some(existing) if existing == receipt => {}
+                    Some(_) => report.invalid += 1,
+                    None => match self.commit_chunk(&receipt) {
+                        Ok(()) => report.recovered += 1,
+                        Err(Error::Conflict) => report.invalid += 1,
+                        Err(error) => return Err(error),
+                    },
+                }
+            }
+            Err(
+                Error::Authentication
+                | Error::CorruptChunk
+                | Error::Invalid(_)
+                | Error::Serialization
+                | Error::TooLarge { .. },
+            ) => report.invalid += 1,
+            Err(error) => return Err(error),
+        }
+        Ok(())
+    }
+
+    /// File enumeration alone cannot reveal a manifest with a missing blob.
+    /// Bound this second scan independently; it reads identifiers, not audio.
+    fn check_manifests(
+        &self,
+        scan: &mut RecoveryScan,
+        limit: usize,
+        report: &mut RecoveryReport,
+    ) -> Result<()> {
         let mut statement = self
             .connection
             .prepare("SELECT id FROM chunks WHERE id > ?1 ORDER BY id LIMIT ?2")?;
@@ -378,8 +409,7 @@ impl Store {
             }
             scan.manifest_after = id;
         }
-        report.limit_reached = scan.entries.peek().is_some() || !scan.manifests_complete;
-        Ok(report)
+        Ok(())
     }
 
     pub(crate) fn chunk_path(&self, id: &str) -> PathBuf {

@@ -318,15 +318,7 @@ pub fn assemble_view(windows: Vec<WindowRead>) -> Result<CalendarSnapshot, Calen
                 .into_iter()
                 .filter(|event| event.start_unix_ms >= from),
         );
-        for omission in window.omitted {
-            match omitted
-                .iter_mut()
-                .find(|known| known.reason == omission.reason)
-            {
-                Some(known) => known.count = known.count.saturating_add(omission.count),
-                None => omitted.push(omission),
-            }
-        }
+        merge_omissions(&mut omitted, window.omitted);
         let later = window
             .oversized
             .iter()
@@ -345,12 +337,7 @@ pub fn assemble_view(windows: Vec<WindowRead>) -> Result<CalendarSnapshot, Calen
     events.sort_by(|left, right| {
         (left.start_unix_ms, left.end_unix_ms).cmp(&(right.start_unix_ms, right.end_unix_ms))
     });
-    let mut calendars: Vec<CalendarReference> = Vec::new();
-    for event in &events {
-        if !calendars.contains(&event.calendar) {
-            calendars.push(event.calendar.clone());
-        }
-    }
+    let calendars = calendars_of(&events);
     let scope = CalendarScope {
         scope_id: first.read_id.clone(),
         native_instance_id: first.native_instance_id,
@@ -380,4 +367,28 @@ pub fn assemble_view(windows: Vec<WindowRead>) -> Result<CalendarSnapshot, Calen
     };
     snapshot.validate()?;
     Ok(snapshot)
+}
+
+/// Adds a later window's omissions to the view's, one count per reason.
+fn merge_omissions(omitted: &mut Vec<CalendarOmission>, more: Vec<CalendarOmission>) {
+    for omission in more {
+        match omitted
+            .iter_mut()
+            .find(|known| known.reason == omission.reason)
+        {
+            Some(known) => known.count = known.count.saturating_add(omission.count),
+            None => omitted.push(omission),
+        }
+    }
+}
+
+/// The calendars the view's events belong to, each once, in event order.
+fn calendars_of(events: &[CalendarOccurrence]) -> Vec<CalendarReference> {
+    let mut calendars: Vec<CalendarReference> = Vec::new();
+    for event in events {
+        if !calendars.contains(&event.calendar) {
+            calendars.push(event.calendar.clone());
+        }
+    }
+    calendars
 }

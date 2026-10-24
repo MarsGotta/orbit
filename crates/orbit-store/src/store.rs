@@ -55,26 +55,7 @@ impl Store {
             regular_file_if_exists(&directory.join(filename))?;
         }
         if database.try_exists()? {
-            if !std::fs::symlink_metadata(directory)?.file_type().is_dir() {
-                return Err(Error::UnsafePath);
-            }
-            // /var is an ancestor alias on macOS. Resolve the validated
-            // directory only, retaining NOFOLLOW on the database leaf.
-            let inspected_database = std::fs::canonicalize(directory)?.join("orbit.sqlite3");
-            let inspection = Connection::open_with_flags(
-                &inspected_database,
-                rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
-                    | rusqlite::OpenFlags::SQLITE_OPEN_NOFOLLOW,
-            )?;
-            let version: i64 =
-                inspection.pragma_query_value(None, "user_version", |row| row.get(0))?;
-            if !(3..=SCHEMA_VERSION).contains(&version) {
-                return Err(Error::SchemaVersion {
-                    version,
-                    min_version: 3,
-                    max_version: SCHEMA_VERSION,
-                });
-            }
+            check_existing_schema(directory)?;
         }
         private_directory(directory)?;
         let blobs = directory.join("chunks");
@@ -104,28 +85,13 @@ impl Store {
             migrations::initialize(&mut connection, &verifier)?;
             File::open(directory)?.sync_all()?;
         }
-        let verifier: Vec<u8> = connection.query_row(
-            "SELECT value FROM settings WHERE key = 'key_check' AND length(value) <= 256",
-            [],
-            |row| row.get(0),
-        )?;
-        if cipher.decrypt(KEY_CONTEXT, &verifier)? != KEY_CHECK {
-            return Err(Error::Authentication);
-        }
         // Authenticate the key before retiring any rows or source files.
+        authenticate_key(&connection, &cipher)?;
         let version: i64 = connection.pragma_query_value(None, "user_version", |r| r.get(0))?;
         migrations::migrate(&mut connection, version)?;
         migrations::retire_meeting_mirror(&mut connection)?;
         migrations::retire_messages(&connection)?;
-        let sources = directory.join("sources");
-        // Filesystem cleanup follows the committed SQL migration and is retried
-        // on every open, including after a crash with user_version already 4.
-        match std::fs::symlink_metadata(&sources) {
-            Ok(metadata) if metadata.file_type().is_dir() => std::fs::remove_dir_all(&sources)?,
-            Ok(_) => return Err(Error::UnsafePath),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error.into()),
-        }
+        retire_sources(directory)?;
         File::open(directory)?.sync_all()?;
         let checkpoint_fullfsync: i64 =
             connection.pragma_query_value(None, "checkpoint_fullfsync", |row| row.get(0))?;
@@ -301,4 +267,54 @@ impl Store {
             })
             .optional()?)
     }
+}
+
+/// An existing database is opened at all only from a real directory and with
+/// a schema this build reads: 3 up to `SCHEMA_VERSION`.
+fn check_existing_schema(directory: &Path) -> Result<()> {
+    if !std::fs::symlink_metadata(directory)?.file_type().is_dir() {
+        return Err(Error::UnsafePath);
+    }
+    // /var is an ancestor alias on macOS. Resolve the validated
+    // directory only, retaining NOFOLLOW on the database leaf.
+    let inspected_database = std::fs::canonicalize(directory)?.join("orbit.sqlite3");
+    let inspection = Connection::open_with_flags(
+        &inspected_database,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NOFOLLOW,
+    )?;
+    let version: i64 = inspection.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    if !(3..=SCHEMA_VERSION).contains(&version) {
+        return Err(Error::SchemaVersion {
+            version,
+            min_version: 3,
+            max_version: SCHEMA_VERSION,
+        });
+    }
+    Ok(())
+}
+
+/// The key opens the store's own check value, or the store stays closed.
+fn authenticate_key(connection: &Connection, cipher: &Cipher) -> Result<()> {
+    let verifier: Vec<u8> = connection.query_row(
+        "SELECT value FROM settings WHERE key = 'key_check' AND length(value) <= 256",
+        [],
+        |row| row.get(0),
+    )?;
+    if cipher.decrypt(KEY_CONTEXT, &verifier)? != KEY_CHECK {
+        return Err(Error::Authentication);
+    }
+    Ok(())
+}
+
+/// Filesystem cleanup follows the committed SQL migration and is retried
+/// on every open, including after a crash with user_version already 4.
+fn retire_sources(directory: &Path) -> Result<()> {
+    let sources = directory.join("sources");
+    match std::fs::symlink_metadata(&sources) {
+        Ok(metadata) if metadata.file_type().is_dir() => std::fs::remove_dir_all(&sources)?,
+        Ok(_) => return Err(Error::UnsafePath),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    Ok(())
 }

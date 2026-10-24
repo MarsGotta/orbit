@@ -1,4 +1,5 @@
 //! The folders decision with the facts a helper reports, no disk.
+use super::page_fit::PAGE_ENVELOPE_BYTES;
 use super::*;
 use crate::refusal::Refusal;
 

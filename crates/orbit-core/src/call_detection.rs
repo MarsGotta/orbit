@@ -485,10 +485,26 @@ impl CallDetector {
 
     /// What time alone decides.
     fn advance(&mut self, now: i64, facts: &CallFacts, effects: &mut Vec<CallEffect>) {
+        if self.holders.is_none() {
+            return;
+        }
+        self.release_ended_calls(now);
+        self.finish_after_countdown(now, effects);
+        // A recording started meanwhile (by hand, from the calendar) answers
+        // the offer: there is nothing left to offer.
+        if facts.recording_live && self.owned.is_none() {
+            self.offer = None;
+        }
+        if let Some(app) = self.next_confirmed_call(now, facts) {
+            self.answer_call(now, app, facts, effects);
+        }
+    }
+
+    /// Releases confirmed: the call of that application is over.
+    fn release_ended_calls(&mut self, now: i64) {
         let Some(holders) = self.holders.as_mut() else {
             return;
         };
-        // Releases confirmed: the call of that application is over.
         let released: Vec<String> = holders
             .iter()
             .filter(|(_, holder)| {
@@ -504,7 +520,10 @@ impl CallDetector {
             self.offer
                 .take_if(|offer| &offer.app.bundle_id == bundle_id);
         }
-        // A countdown that ran out ends its recording.
+    }
+
+    /// A countdown that ran out ends its recording.
+    fn finish_after_countdown(&mut self, now: i64, effects: &mut Vec<CallEffect>) {
         if let Some(owned) = self.owned.take_if(|owned| {
             owned.released_at_ms.is_some_and(|released| {
                 now >= released
@@ -518,15 +537,14 @@ impl CallDetector {
                 cause: FinishCause::CallEnded,
             });
         }
-        // A recording started meanwhile (by hand, from the calendar) answers
-        // the offer: there is nothing left to offer.
-        if facts.recording_live && self.owned.is_none() {
-            self.offer = None;
-        }
-        // Calls confirmed: held for long enough and not answered yet.
-        let Some(holders) = self.holders.as_ref() else {
-            return;
-        };
+    }
+
+    /// The call to answer now: held for long enough and not answered yet,
+    /// the dedicated call application first. None while recording (those
+    /// calls are answered by the recording) or while another call waits for
+    /// its answer.
+    fn next_confirmed_call(&mut self, now: i64, facts: &CallFacts) -> Option<CallApp> {
+        let holders = self.holders.as_ref()?;
         let mut confirmed: Vec<&Holder> = holders
             .iter()
             .filter(|(bundle_id, holder)| {
@@ -537,7 +555,7 @@ impl CallDetector {
             .map(|(_, holder)| holder)
             .collect();
         if confirmed.is_empty() {
-            return;
+            return None;
         }
         if facts.recording_live || self.owned.is_some() {
             // Already recording: there is nothing to offer for these calls.
@@ -546,11 +564,11 @@ impl CallDetector {
                 .map(|holder| holder.app.bundle_id.clone())
                 .collect();
             self.handled.extend(bundles);
-            return;
+            return None;
         }
         if self.offer.is_some() || self.starting.is_some() {
             // One call at a time; the others wait for this one's answer.
-            return;
+            return None;
         }
         confirmed.sort_by(|first, second| {
             kind_rank(&first.app)
@@ -558,9 +576,18 @@ impl CallDetector {
                 .then(first.since_ms.cmp(&second.since_ms))
                 .then(first.app.bundle_id.cmp(&second.app.bundle_id))
         });
-        let Some(app) = confirmed.first().map(|holder| holder.app.clone()) else {
-            return;
-        };
+        confirmed.first().map(|holder| holder.app.clone())
+    }
+
+    /// Answers a confirmed call as the preference says: nothing, an offer,
+    /// or a recording that starts on its own.
+    fn answer_call(
+        &mut self,
+        now: i64,
+        app: CallApp,
+        facts: &CallFacts,
+        effects: &mut Vec<CallEffect>,
+    ) {
         self.handled.insert(app.bundle_id.clone());
         match facts.preference {
             CallPreference::Nothing => {}
