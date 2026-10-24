@@ -34,6 +34,7 @@ from pathlib import Path
 
 import isolated_hub
 import mac as mac_side
+import mac_engine
 import real_test
 from interface import StepFailed
 
@@ -164,7 +165,7 @@ class DryRunSystem(mac_side.System):
         if self.app_open:
             rows.append((PID, str(self.paths.app / mac_side.MEMBERS[0])))
         if self.cua.running:
-            rows.append((CUA_PID, mac_side.CUA_APP + "Contents/MacOS/CuaDriver"))
+            rows.append((CUA_PID, mac_engine.CUA_APP + "Contents/MacOS/CuaDriver"))
         return rows
 
     def signal(self, pid: int, number: int) -> None:

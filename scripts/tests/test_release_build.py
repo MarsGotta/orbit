@@ -854,7 +854,8 @@ class ReleaseBuildTests(unittest.TestCase):
         fixture = self.scratch / "source"
         for name in (
             "scripts/release/lib.sh", "scripts/release/fetch-build.sh",
-            "scripts/release/verify-macos-archive.py", "Cargo.toml",
+            "scripts/release/verify-macos-archive.py", "scripts/release/strict_zip.py",
+            "Cargo.toml",
             "crates/orbit-control/src/cua.rs", "third-party/cua-driver/LICENSE.md",
         ):
             target = fixture / name

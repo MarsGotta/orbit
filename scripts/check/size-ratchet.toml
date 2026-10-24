@@ -13,11 +13,6 @@
 "crates/orbit-daemon/src/daemon/startup.rs" = 607
 "crates/orbit-daemon/src/hub.rs" = 1057
 "crates/orbit-ipc/src/ipc.rs" = 963
-"native/macos/Sources/OrbitNative/OrbitApplication.swift" = 914
-"native/macos/Sources/OrbitNativeHost/AudioCapture.swift" = 547
-"native/macos/Sources/OrbitNativeProtocol/NativeWire.swift" = 714
-"scripts/e2e-mac/mac.py" = 796
-"scripts/release/verify-macos-archive.py" = 547
 "server/orbit_hub/assistant/acp.py" = 846
 "server/orbit_hub/assistant/hermes.py" = 766
 "server/orbit_hub/assistant/openai.py" = 768
@@ -79,29 +74,6 @@
 
 [functions."crates/orbit-store/src/store.rs"]
 "Store::open" = 95
-
-[functions."native/macos/Sources/OrbitNative/OrbitApplication.swift"]
-"OrbitApplication.audioRouteChanged" = 90
-"OrbitApplication.perform" = 160
-"OrbitApplication.receive" = 96
-
-[functions."native/macos/Sources/OrbitNativeCalendar/EventKitOccurrences.swift"]
-"EventKitCalendarReader.occurrence" = 86
-
-[functions."native/macos/Sources/OrbitNativeHost/AudioCapture.swift"]
-"SystemAudioCapture.start" = 100
-
-[functions."native/macos/Sources/OrbitNativeHost/CompressedAudioDecoder.swift"]
-"CompressedAudioDecoder.decode" = 187
-
-[functions."native/macos/Sources/OrbitNativeHost/WindowScreenshots.swift"]
-"WindowScreenshots.inventory" = 89
-
-[functions."scripts/macos/smoke-native.py"]
-"run_smoke" = 112
-
-[functions."scripts/release/verify-macos-archive.py"]
-"check_members" = 96
 
 [functions."server/orbit_hub/assistant/hermes.py"]
 "HermesConnection.receive" = 114

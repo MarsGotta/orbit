@@ -45,24 +45,13 @@ extension EventKitCalendarReader {
         try authorize(gate)
         guard let title = event.title else { throw CalendarOccurrenceOmission.missingTitle }
         try authorize(gate)
-        let status: String
-        switch event.status {
-        case .none: status = "none"
-        case .confirmed: status = "confirmed"
-        case .tentative: status = "tentative"
-        case .canceled: status = "canceled"
-        @unknown default: status = "unknown"
-        }
+        let status = Self.status(event.status)
         try authorize(gate)
         let modified = try event.lastModifiedDate.map(Self.milliseconds)
         try authorize(gate)
         let location = event.location
         try authorize(gate)
-        let rawNotes = event.notes
-        let notesBytes = rawNotes?.utf8.count ?? 0
-        let notesFit = notesBytes <= CalendarLimits.maximumNotesBytes
-        let notesLeftOut = notesFit ? nil
-            : CalendarFieldLeftOut(bytes: notesBytes, limit: CalendarLimits.maximumNotesBytes)
+        let notes = Self.boundedNotes(event.notes)
         try authorize(gate)
         let availability = Self.availability(event.availability)
         try authorize(gate)
@@ -97,7 +86,7 @@ extension EventKitCalendarReader {
                 eventTimezone: eventTimezone, interpretedTimezone: eventTimezone ?? timezone,
                 allDay: allDay, detached: detached, title: title, status: status, lastModified: modified,
                 invitees: invitees, inviteesStatus: inviteesStatus, eventURL: eventURL, eventURLStatus: eventURLStatus,
-                location: location, notes: notesFit ? rawNotes : nil, notesLeftOut: notesLeftOut,
+                location: location, notes: notes.text, notesLeftOut: notes.leftOut,
                 organizer: organizer, availability: availability, recurrence: recurrence,
                 canEdit: calendarCanEdit && !organizedBySomeoneElse, alarms: alarms)
         } catch let oversized as CalendarOversizedField {
@@ -149,6 +138,24 @@ extension EventKitCalendarReader {
         let currentUser = value.isCurrentUser
         return try CalendarInvitee(name: name, url: url, role: role, responseStatus: response,
             participantType: type, isCurrentUser: currentUser)
+    }
+
+    nonisolated static func status(_ value: EKEventStatus) -> String {
+        switch value {
+        case .none: return "none"
+        case .confirmed: return "confirmed"
+        case .tentative: return "tentative"
+        case .canceled: return "canceled"
+        @unknown default: return "unknown"
+        }
+    }
+
+    /// The notes up to `maximumNotesBytes`; longer ones are left out and
+    /// named by their size.
+    nonisolated static func boundedNotes(_ notes: String?) -> (text: String?, leftOut: CalendarFieldLeftOut?) {
+        let bytes = notes?.utf8.count ?? 0
+        guard bytes > CalendarLimits.maximumNotesBytes else { return (text: notes, leftOut: nil) }
+        return (text: nil, leftOut: CalendarFieldLeftOut(bytes: bytes, limit: CalendarLimits.maximumNotesBytes))
     }
 
     /// What decides whether Orbit edits a reminder.

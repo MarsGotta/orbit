@@ -72,7 +72,7 @@ pub(super) struct BridgeAsk {
 /// refused as busy (it once did, for up to 20 s).
 ///
 /// The kinds are what the Mac serializes on its own: the folders run apart
-/// from the helper's general lane (`OrbitApplication.swift`), the screen and
+/// from the helper's general lane (`OrbitApplicationCommands.swift`), the screen and
 /// the selected text go through that lane or the engine, the computer's
 /// tools and actions through the engine, which runs one work at a time and
 /// refuses a second (`require_computer_idle`), and the calendar through its

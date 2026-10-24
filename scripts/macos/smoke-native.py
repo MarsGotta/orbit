@@ -413,6 +413,63 @@ def test_a3_fixture_does_not_change_real_profile(root, before):
     require(profile_snapshot(root) == before, "real_profile_changed_by_fixture")
 
 
+def exchange_until_exit(process, pipes, exchange, work_deadline):
+    """Writes the queued commands and reads the helper's frames until it has
+    exited and closed both of its outputs, within the work deadline."""
+    decoder = Lines()
+    while True:
+        now = time.monotonic()
+        require(now < work_deadline, "smoke_timeout")
+        exchange.heartbeat(now)
+        pipes.wants_write(bool(exchange.outgoing))
+        for key, _ in pipes.selector.select(min(0.1, work_deadline - now)):
+            if key.data == "stdin":
+                try:
+                    written = os.write(process.stdin.fileno(), exchange.outgoing[:CHUNK])
+                except (BlockingIOError, InterruptedError):
+                    continue
+                require(written > 0, "stdin_write_failed")
+                del exchange.outgoing[:written]
+                pipes.wants_write(bool(exchange.outgoing))
+            else:
+                data = pipes.read(key.data)
+                if data is not None and key.data == "stdout":
+                    if not data:
+                        decoder.finish()
+                    for frame in decoder.feed(data):
+                        exchange.accept(frame, time.monotonic())
+        if process.poll() is not None and pipes.eof == {"stdout", "stderr"}:
+            return
+
+
+def release_owned(process, pipes, root, deadline, error):
+    """Stops the helper this run started if it still runs, closes its pipes and
+    removes the fresh state directory. Returns the error to report (a cleanup
+    failure only where none came before, except a process that would not
+    stop), how the process was stopped and whether the directory went."""
+    cleanup = "not_needed"
+    removed = False
+    if process is not None:
+        cleanup = stop_owned_process(process, pipes, deadline)
+        if cleanup != "not_needed":
+            error = error or "forced_process_cleanup"
+        if cleanup == "failed":
+            error = "process_cleanup_failed"
+        if pipes is not None:
+            pipes.close()
+        else:
+            for handle in (process.stdin, process.stdout, process.stderr):
+                if handle is not None:
+                    handle.close()
+    if root is not None and (process is None or process.poll() is not None):
+        try:
+            shutil.rmtree(root)  # Exact fresh directory owned by this invocation only.
+            removed = True
+        except OSError:
+            error = error or "temporary_cleanup_failed"
+    return error, cleanup, removed
+
+
 def run_smoke(binary, *, timeout=30.0):
     """Tests may replace Popen with a labelled synthetic peer; that is not macOS evidence."""
     require(
@@ -426,10 +483,7 @@ def run_smoke(binary, *, timeout=30.0):
     real_profile = Path.home() / "Library" / "Application Support" / "Orbit"
     real_profile_before = profile_snapshot(real_profile)
     exchange = Exchange(started)
-    decoder = Lines()
     error = None
-    cleanup = "not_needed"
-    removed = False
     try:
         selected = Path(binary)
         require(selected.is_absolute(), "binary_must_be_absolute")
@@ -452,38 +506,12 @@ def run_smoke(binary, *, timeout=30.0):
             close_fds=True,
         )
         pipes = Pipes(process)
-        while True:
-            now = time.monotonic()
-            require(now < work_deadline, "smoke_timeout")
-            exchange.heartbeat(now)
-            pipes.wants_write(bool(exchange.outgoing))
-            for key, _ in pipes.selector.select(min(0.1, work_deadline - now)):
-                if key.data == "stdin":
-                    try:
-                        written = os.write(
-                            process.stdin.fileno(), exchange.outgoing[:CHUNK]
-                        )
-                    except (BlockingIOError, InterruptedError):
-                        continue
-                    require(written > 0, "stdin_write_failed")
-                    del exchange.outgoing[:written]
-                    pipes.wants_write(bool(exchange.outgoing))
-                else:
-                    data = pipes.read(key.data)
-                    if data is not None and key.data == "stdout":
-                        if not data:
-                            decoder.finish()
-                        for frame in decoder.feed(data):
-                            exchange.accept(frame, time.monotonic())
-            if process.poll() is not None and pipes.eof == {"stdout", "stderr"}:
-                require(process.returncode == 0, "native_exit_nonzero")
-                exchange.finish()
-                require(not process.stdin.closed, "stdin_closed_before_exit")
-                check_latch(root)
-                test_a3_fixture_does_not_change_real_profile(
-                    real_profile, real_profile_before
-                )
-                break
+        exchange_until_exit(process, pipes, exchange, work_deadline)
+        require(process.returncode == 0, "native_exit_nonzero")
+        exchange.finish()
+        require(not process.stdin.closed, "stdin_closed_before_exit")
+        check_latch(root)
+        test_a3_fixture_does_not_change_real_profile(real_profile, real_profile_before)
     except SmokeError as failure:
         error = failure.code
     except KeyboardInterrupt:
@@ -491,26 +519,7 @@ def run_smoke(binary, *, timeout=30.0):
     except (OSError, ValueError, OverflowError):
         error = "runner_io_failure"
     finally:
-        if process is not None:
-            cleanup = stop_owned_process(process, pipes, deadline)
-            if cleanup != "not_needed":
-                error = error or "forced_process_cleanup"
-            if cleanup == "failed":
-                error = "process_cleanup_failed"
-            if pipes is not None:
-                pipes.close()
-            else:
-                for handle in (process.stdin, process.stdout, process.stderr):
-                    if handle is not None:
-                        handle.close()
-        if root is not None and (process is None or process.poll() is not None):
-            try:
-                shutil.rmtree(
-                    root
-                )  # Exact fresh directory owned by this invocation only.
-                removed = True
-            except OSError:
-                error = error or "temporary_cleanup_failed"
+        error, cleanup, removed = release_owned(process, pipes, root, deadline, error)
     return {
         "ok": error is None,
         "error": error,

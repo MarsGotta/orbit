@@ -97,32 +97,11 @@ package final class WindowScreenshots {
             let name = WindowPresentation.bounded(owner?.applicationName ?? "", maximumBytes: 128)
             let application = pid > 0 ? NSRunningApplication(processIdentifier: pid) : nil
             let bundleID = application?.bundleIdentifier ?? ""
-            var binding: WindowBinding?
-            var target: Target?
-            if let application, !application.isTerminated, let launchDate = application.launchDate,
-               !bundleID.isEmpty, bundleID.utf8.count <= 256,
-               owner?.bundleIdentifier == bundleID {
-                let instanceID: String
-                if let previous = applicationInstances[pid], previous.launchDate == launchDate,
-                   previous.bundleID == bundleID {
-                    instanceID = previous.id
-                } else {
-                    instanceID = UUID().uuidString.lowercased()
-                    applicationInstances[pid] = (launchDate, bundleID, instanceID)
-                }
-                if let descriptor = ObservedWindowDescriptor.observe(window: window, applicationInstanceID: instanceID,
-                                               launchDate: launchDate, bundleID: bundleID),
-                   let hash = descriptor.hash {
-                    let token = UUID().uuidString.lowercased()
-                    binding = WindowBinding(nativeInstanceID: nativeInstanceID,
-                        privacyGeneration: privacyGeneration, inventoryID: inventoryID,
-                        selectionToken: token, windowID: window.windowID, applicationPID: pid,
-                        applicationInstanceID: instanceID, descriptorHash: hash)
-                    target = Target(window: window, filter: SCContentFilter(desktopIndependentWindow: window),
-                        application: application, launchDate: launchDate, bundleID: bundleID,
-                        applicationInstanceID: instanceID, descriptor: descriptor)
-                }
-            }
+            let bound = bind(window, application: application, ownerBundleID: owner?.bundleIdentifier,
+                             pid: pid, bundleID: bundleID, inventoryID: inventoryID,
+                             privacyGeneration: privacyGeneration, instances: &applicationInstances)
+            let binding = bound?.binding
+            let target = bound?.target
             let row: [String: Any] = ["binding": binding?.fields as Any? ?? NSNull(),
                 "window_id": window.windowID, "application_pid": pid, "application_name": name,
                 "bundle_id": bundleID.utf8.count <= 256 ? bundleID : "", "title": title,
@@ -157,6 +136,38 @@ package final class WindowScreenshots {
                       "pid": String(binding.application_pid), "inventory_id": binding.inventory_id])
         }
         return result
+    }
+
+    /// The binding a window gets when its application is still the one that
+    /// owns it, and the target its capture will use; nil when that identity
+    /// cannot be told. One application instance keeps one id per inventory.
+    @MainActor private func bind(_ window: SCWindow, application: NSRunningApplication?, ownerBundleID: String?,
+                                 pid: Int32, bundleID: String, inventoryID: String, privacyGeneration: UInt64,
+                                 instances: inout [Int32: (launchDate: Date, bundleID: String, id: String)])
+        -> (binding: WindowBinding, target: Target)? {
+        guard let application, !application.isTerminated, let launchDate = application.launchDate,
+              !bundleID.isEmpty, bundleID.utf8.count <= 256,
+              ownerBundleID == bundleID else { return nil }
+        let instanceID: String
+        if let previous = instances[pid], previous.launchDate == launchDate,
+           previous.bundleID == bundleID {
+            instanceID = previous.id
+        } else {
+            instanceID = UUID().uuidString.lowercased()
+            instances[pid] = (launchDate, bundleID, instanceID)
+        }
+        guard let descriptor = ObservedWindowDescriptor.observe(window: window, applicationInstanceID: instanceID,
+                                                                launchDate: launchDate, bundleID: bundleID),
+              let hash = descriptor.hash else { return nil }
+        let token = UUID().uuidString.lowercased()
+        let binding = WindowBinding(nativeInstanceID: nativeInstanceID,
+            privacyGeneration: privacyGeneration, inventoryID: inventoryID,
+            selectionToken: token, windowID: window.windowID, applicationPID: pid,
+            applicationInstanceID: instanceID, descriptorHash: hash)
+        let target = Target(window: window, filter: SCContentFilter(desktopIndependentWindow: window),
+            application: application, launchDate: launchDate, bundleID: bundleID,
+            applicationInstanceID: instanceID, descriptor: descriptor)
+        return (binding: binding, target: target)
     }
 
     @MainActor package func capture(_ binding: WindowBinding?,

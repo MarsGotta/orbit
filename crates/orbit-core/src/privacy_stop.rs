@@ -321,7 +321,7 @@ mod tests {
     use super::*;
 
     /// Every code the helper can send, kept in sync by review of
-    /// `OrbitApplication.swift`.
+    /// `OrbitApplication*.swift`.
     const HELPER_CODES: [&str; 10] = [
         "local_hotkey",
         "shutdown",

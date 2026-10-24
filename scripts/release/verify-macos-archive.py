@@ -17,7 +17,6 @@ import argparse
 import hashlib
 import io
 import json
-import os
 import plistlib
 import re
 import stat
@@ -28,6 +27,18 @@ import zipfile
 import zlib
 from pathlib import Path
 from xml.parsers.expat import ExpatError
+
+# The strict ZIP reading lives beside this script, which runs from a checkout
+# of the commit it verifies and is loaded by path in the tests.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from strict_zip import (
+    VerificationError,
+    check_directory_budget,
+    local_payload,
+    read_limited,
+    require,
+    uncompressed_blocks,
+)
 
 # The five ceilings of an archive this script may read. The archive comes from
 # the build Mac or the download origin and is not trusted until it passes, so
@@ -147,9 +158,6 @@ DIRECTORIES = {
 CPU_TYPES = {"arm64": 0x0100000C, "x86_64": 0x01000007}
 
 
-class VerificationError(ValueError):
-    """A bounded input failed the published development-bundle contract."""
-
 
 class UniquePlistKeys(dict):
     """Do not let a second plist key silently replace security metadata."""
@@ -160,155 +168,74 @@ class UniquePlistKeys(dict):
         super().__setitem__(key, value)
 
 
-def require(condition, message):
-    if not condition:
-        raise VerificationError(message)
-
-
-def read_limited(path, limit):
-    """Read regular files only; callers must choose trusted parent directories.
-
-    On POSIX, atomically refuse a final symlink and avoid blocking on a FIFO
-    swapped into the pathname. Other platforms still check fstat before reading.
-    """
-    flags = os.O_RDONLY
-    for option in ("O_CLOEXEC", "O_NONBLOCK", "O_NOFOLLOW", "O_BINARY"):
-        flags |= getattr(os, option, 0)
-    with os.fdopen(os.open(path, flags), "rb") as source:
-        metadata = os.fstat(source.fileno())
-        require(
-            stat.S_ISREG(metadata.st_mode), "the input must be a regular file"
-        )
-        require(metadata.st_size <= limit, "input larger than the allowed limit")
-        data = source.read(limit + 1)
-    require(len(data) <= limit, "input larger than the allowed limit")
-    return data
-
-
-def check_directory_budget(data):
-    """Bound central-directory parsing BEFORE zipfile allocates a ZipInfo per entry.
-
-    ZIP64 end records and multi-disk archives are unnecessary for these bundles. The
-    strict layout also rejects appended payloads and ambiguous directory trailers.
-    """
-    end = data.rfind(b"PK\x05\x06", max(0, len(data) - 65557))
-    require(end >= 0 and end + 22 <= len(data), "ZIP end missing or truncated")
-    disk, central_disk, disk_count, count, size, offset, comment = struct.unpack_from(
-        "<HHHHIIH", data, end + 4
-    )
-    require(
-        disk == central_disk == 0 and disk_count == count, "multi-disk ZIP not supported"
-    )
-    require(
-        0 < count <= MAX_MEMBERS,
-        f"too many ZIP members or an empty archive: {count}, ceiling {MAX_MEMBERS}",
-    )
-    require(
-        offset + size == end and end + 22 + comment == len(data),
-        "ambiguous ZIP directory",
-    )
-    require(data[:4] == b"PK\x03\x04", "the ZIP does not start with a member")
-    cursor, observed = offset, 0
-    while cursor < end:
-        require(
-            cursor + 46 <= end and data[cursor : cursor + 4] == b"PK\x01\x02",
-            "invalid ZIP central header",
-        )
-        name_size, extra_size, comment_size = struct.unpack_from(
-            "<HHH", data, cursor + 28
-        )
-        cursor += 46 + name_size + extra_size + comment_size
-        observed += 1
-        require(
-            cursor <= end and observed <= MAX_MEMBERS,
-            "ZIP directory limit exceeded",
-        )
-    require(observed == count, "the ZIP count does not match its directory")
-    return count, offset
 
 
 def normalized_path(name):
     return unicodedata.normalize("NFC", name).casefold()
 
 
-def check_members(members, expected_count):
-    """Permit only the generated bundle tree; directory records are optional.
+def member_path(member):
+    """The member's path without a directory's trailing slash: a relative,
+    canonical path of printable characters, or refused."""
+    name = member.filename
+    require(
+        name == member.orig_filename and "\x00" not in name, "ZIP name with NUL"
+    )
+    require(
+        "\\" not in name and not name.startswith("/"),
+        "absolute ZIP path or one with a backslash",
+    )
+    require(len(name.encode("utf-8")) <= 1024, "ZIP name too long")
+    require(
+        all(ord(char) >= 32 and ord(char) != 127 for char in name),
+        "ZIP name with control characters",
+    )
+    path = name[:-1] if member.is_dir() else name
+    require(
+        all(part not in ("", ".", "..") for part in path.split("/")),
+        "traversal or non-canonical ZIP path",
+    )
+    return path
 
-    .DS_Store, AppleDouble and other extras are rejected, not silently ignored.
-    _CodeSignature/CodeResources may be present, but is not a verified signature.
-    """
-    require(len(members) == expected_count, "inconsistent ZIP central count")
-    paths, files, total = {}, set(), 0
-    for member in members:
-        name = member.filename
+
+def check_member_record(member):
+    """A plain file or directory with Unix modes, unencrypted, stored or
+    deflated on one disk, within the member and archive ceilings."""
+    mode = member.external_attr >> 16
+    require(member.create_system == 3, "Unix modes missing from the ZIP")
+    kind = stat.S_IFMT(mode)
+    require(kind != stat.S_IFLNK, "ZIP symbolic link not supported")
+    require(
+        kind == (stat.S_IFDIR if member.is_dir() else stat.S_IFREG),
+        "ZIP member type not supported",
+    )
+    require(
+        mode & 0o7022 == 0, "special ZIP permissions or writable by others"
+    )
+    require(not member.flag_bits & 1, "encrypted ZIP not supported")
+    require(not member.flag_bits & ~0x080E, "ZIP flags not supported")
+    require(
+        member.compress_type in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED),
+        "ZIP compression not supported",
+    )
+    require(member.volume == 0, "multi-disk ZIP member")
+    require(
+        0 <= member.file_size <= MAX_MEMBER_BYTES,
+        f"ZIP member {member.filename} of {member.file_size} B, larger than the ceiling of "
+        f"{MAX_MEMBER_BYTES} B",
+    )
+    require(
+        0 <= member.compress_size <= MAX_ZIP_BYTES, "invalid ZIP compressed size"
+    )
+    if member.compress_type == zipfile.ZIP_STORED:
         require(
-            name == member.orig_filename and "\x00" not in name, "ZIP name with NUL"
+            member.compress_size == member.file_size, "ZIP_STORED sizes differ"
         )
-        require(
-            "\\" not in name and not name.startswith("/"),
-            "absolute ZIP path or one with a backslash",
-        )
-        require(len(name.encode("utf-8")) <= 1024, "ZIP name too long")
-        require(
-            all(ord(char) >= 32 and ord(char) != 127 for char in name),
-            "ZIP name with control characters",
-        )
-        path = name[:-1] if member.is_dir() else name
-        require(
-            all(part not in ("", ".", "..") for part in path.split("/")),
-            "traversal or non-canonical ZIP path",
-        )
-        folded = normalized_path(path)
-        require(folded not in paths, "duplicate ZIP path or NFC/casefold collision")
-        paths[folded] = member.is_dir()
-        mode = member.external_attr >> 16
-        require(member.create_system == 3, "Unix modes missing from the ZIP")
-        kind = stat.S_IFMT(mode)
-        require(kind != stat.S_IFLNK, "ZIP symbolic link not supported")
-        require(
-            kind == (stat.S_IFDIR if member.is_dir() else stat.S_IFREG),
-            "ZIP member type not supported",
-        )
-        require(
-            mode & 0o7022 == 0, "special ZIP permissions or writable by others"
-        )
-        require(not member.flag_bits & 1, "encrypted ZIP not supported")
-        require(not member.flag_bits & ~0x080E, "ZIP flags not supported")
-        require(
-            member.compress_type in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED),
-            "ZIP compression not supported",
-        )
-        require(member.volume == 0, "multi-disk ZIP member")
-        require(
-            0 <= member.file_size <= MAX_MEMBER_BYTES,
-            f"ZIP member {name} of {member.file_size} B, larger than the ceiling of "
-            f"{MAX_MEMBER_BYTES} B",
-        )
-        require(
-            0 <= member.compress_size <= MAX_ZIP_BYTES, "invalid ZIP compressed size"
-        )
-        if member.compress_type == zipfile.ZIP_STORED:
-            require(
-                member.compress_size == member.file_size, "ZIP_STORED sizes differ"
-            )
-        total += member.file_size
-        require(
-            total <= MAX_TOTAL_BYTES,
-            f"ZIP content of {total} B, larger than the ceiling of {MAX_TOTAL_BYTES} B",
-        )
-        if member.is_dir():
-            require(member.file_size == 0, "ZIP directory with content")
-        else:
-            files.add(path)
-        if path in EXECUTABLES:
-            require(
-                mode & 0o555 == 0o555, "executable without read/execute permissions"
-            )
-        if path in (PLIST, ENGINE_PLIST, MANIFEST, DRIVER_LICENSE):
-            require(
-                member.file_size <= MAX_METADATA_BYTES,
-                "bundle metadata too large",
-            )
+
+
+def check_tree(paths, files, members):
+    """No path is both a file and a directory, every required file is there,
+    and nothing but the generated tree."""
     for path in paths:
         parts = path.split("/")
         require(
@@ -331,96 +258,43 @@ def check_members(members, expected_count):
         ),
         "unexpected bundle directory",
     )
-    return total
 
 
-def local_payload(data, member, boundary):
-    """Require one unambiguous local header/data/descriptor interval per member."""
-    offset = member.header_offset
-    require(
-        0 <= offset and offset + 30 <= boundary,
-        "overlapping or truncated ZIP local header",
-    )
-    (
-        signature,
-        version,
-        flags,
-        method,
-        _,
-        _,
-        crc,
-        packed,
-        unpacked,
-        name_size,
-        extra_size,
-    ) = struct.unpack_from("<4s5H3I2H", data, offset)
-    require(signature == b"PK\x03\x04", "invalid ZIP local header signature")
-    require(
-        (version, flags, method)
-        == (member.extract_version, member.flag_bits, member.compress_type),
-        "cabeceras local/central ZIP distintas",
-    )
-    start = offset + 30 + name_size + extra_size
-    end = start + member.compress_size
-    require(start <= end <= boundary, "overlapping or out-of-bounds ZIP data")
-    encoding = "utf-8" if flags & 0x0800 else "cp437"
-    require(
-        data[offset + 30 : offset + 30 + name_size] == member.filename.encode(encoding),
-        "nombre local/central ZIP distinto",
-    )
-    expected = (member.CRC, member.compress_size, member.file_size)
-    if flags & 8:
-        require(
-            (crc, packed, unpacked) in ((0, 0, 0), expected),
-            "inconsistent ZIP local sizes",
-        )
-        require(boundary - end in (12, 16), "invalid ZIP descriptor length")
-        descriptor = data[end:boundary]
-        if len(descriptor) == 16 and descriptor[:4] == b"PK\x07\x08":
-            descriptor = descriptor[4:]
-        require(
-            len(descriptor) == 12 and struct.unpack("<3I", descriptor) == expected,
-            "ZIP descriptor missing or different from the central header",
-        )
-    else:
-        require(
-            (crc, packed, unpacked) == expected,
-            "ZIP local/central sizes or CRC differ",
-        )
-        require(end == boundary, "unaccounted bytes between ZIP members")
-    return memoryview(data)[start:end]
+def check_members(members, expected_count):
+    """Permit only the generated bundle tree; directory records are optional.
 
-
-def uncompressed_blocks(payload, method):
-    """Do not use ZipExtFile: it silently clips output to a forged file_size.
-
-    Raw DEFLATE must finish exactly at the payload boundary. Each decode allocates
-    at most 64 KiB; its consumer checks actual output length and CRC, not a prefix.
+    .DS_Store, AppleDouble and other extras are rejected, not silently ignored.
+    _CodeSignature/CodeResources may be present, but is not a verified signature.
     """
-    decoder = zlib.decompressobj(-15) if method == zipfile.ZIP_DEFLATED else None
-    for offset in range(0, len(payload), 64 * 1024):
-        pending = payload[offset : offset + 64 * 1024]
-        if decoder is None:
-            yield pending
-            continue
-        while pending:
-            require(not decoder.eof, "bytes after the DEFLATE end")
-            block = decoder.decompress(pending, 64 * 1024)
-            pending = decoder.unconsumed_tail
-            require(not decoder.unused_data, "bytes left over after the DEFLATE stream")
-            yield block
-    if decoder is not None:
-        # Drain bounded internal output without flush(), whose length is only an
-        # initial buffer hint and cannot impose a hard expansion bound.
-        while not decoder.eof:
-            block = decoder.decompress(b"", 64 * 1024)
-            if not block:
-                break
-            yield block
+    require(len(members) == expected_count, "inconsistent ZIP central count")
+    paths, files, total = {}, set(), 0
+    for member in members:
+        path = member_path(member)
+        folded = normalized_path(path)
+        require(folded not in paths, "duplicate ZIP path or NFC/casefold collision")
+        paths[folded] = member.is_dir()
+        check_member_record(member)
+        total += member.file_size
         require(
-            decoder.eof and not decoder.unused_data and not decoder.unconsumed_tail,
-            "truncated or incomplete DEFLATE stream",
+            total <= MAX_TOTAL_BYTES,
+            f"ZIP content of {total} B, larger than the ceiling of {MAX_TOTAL_BYTES} B",
         )
+        if member.is_dir():
+            require(member.file_size == 0, "ZIP directory with content")
+        else:
+            files.add(path)
+        if path in EXECUTABLES:
+            require(
+                (member.external_attr >> 16) & 0o555 == 0o555,
+                "executable without read/execute permissions",
+            )
+        if path in (PLIST, ENGINE_PLIST, MANIFEST, DRIVER_LICENSE):
+            require(
+                member.file_size <= MAX_METADATA_BYTES,
+                "bundle metadata too large",
+            )
+    check_tree(paths, files, members)
+    return total
 
 
 def read_members(data, members, central_offset):
@@ -587,7 +461,7 @@ def verify_archive(path, *, architecture, commit, checksum_file, manifest=None):
         checksum in (expected_checksum, expected_checksum + b"\n"),
         "the checksum file SHA-256 or name does not match exactly",
     )
-    count, central_offset = check_directory_budget(data)
+    count, central_offset = check_directory_budget(data, MAX_MEMBERS)
     with zipfile.ZipFile(io.BytesIO(data), "r") as archive:
         members = archive.infolist()
         total = check_members(members, count)

@@ -156,7 +156,7 @@ fn table_lookup(code: &str) -> Option<CodeClass> {
 /// `application_binding_changed` carry the "only if live" refinement so the
 /// classifier can downgrade them when no audio is at risk.
 const TABLE: &[(&str, CodeClass)] = &[
-    // AudioCapture.swift: NativeFailure throws and the "error" event.
+    // AudioCapture.swift and SystemAudioCapture.swift: NativeFailure throws and the "error" event.
     ("audio_memory_unavailable", CodeClass::IntegrityFailure),
     ("microphone_already_active", CodeClass::Refused),
     ("microphone_permission_required", CodeClass::Refused),
@@ -224,7 +224,7 @@ const TABLE: &[(&str, CodeClass)] = &[
         "playback_backpressure",
         CodeClass::Degraded(DegradedKind::Backpressure),
     ),
-    // OrbitApplication.swift: channel.reject codes, NativeFailure throws
+    // OrbitApplication*.swift: channel.reject codes, NativeFailure throws
     // and "error" events.
     (
         "isolated_fixture_scope",

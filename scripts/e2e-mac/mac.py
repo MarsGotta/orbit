@@ -1,9 +1,10 @@
 """The Mac side of the real test: what runs on the test Mac, over SSH.
 
-The orchestrator on the test server copies this file, mac_controls.py and
-mac_drafts_panel.py (which it imports), the Swift scripts and the meeting
-script to `~/.orbit-pruebas/harness/` on the Mac and calls one subcommand at a
-time; each prints one JSON object and exits 0, or prints `{"error": …}` and
+The orchestrator on the test server copies this file, the modules it imports
+(mac_controls.py, mac_drafts_panel.py, mac_engine.py, mac_system.py and
+mac_waits.py), the Swift scripts and the meeting script to
+`~/.orbit-pruebas/harness/` on the Mac and calls one subcommand at a time;
+each prints one JSON object and exits 0, or prints `{"error": …}` and
 exits 1.
 
     prepare --max S           checks, BlackHole as the default input, clean data, opens Orbit Pruebas
@@ -43,22 +44,23 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
 import plistlib
 import re
 import select
 import shutil
 import signal
 import socket
-import subprocess
 import sys
 import time
 import uuid
 from pathlib import Path
 
-from mac_controls import CONTROL_WAITS, PARTS, MacFailure, notes_list
+from mac_controls import PARTS, MacFailure
 from mac_drafts_panel import COMMANDS as DRAFTS_AND_PANEL
-from mac_drafts_panel import PANEL_WAITS, RELAUNCH_WATCH_S, SOCKET_RETRY_S, DraftsAndPanel
+from mac_drafts_panel import RELAUNCH_WATCH_S, DraftsAndPanel
+from mac_engine import CuaDriver
+from mac_system import System
+from mac_waits import WAITS
 
 BUNDLE_ID = "app.orbit.companion.pruebas"
 # The last part of orbit_bundle::DATA_DIRECTORY with the feature `pruebas`
@@ -71,19 +73,8 @@ BLACKHOLE = "BlackHole 2ch"
 # What CuaDriver may do for the test, and nothing more: find Orbit Pruebas's
 # windows, read them, click, type and choose a value.
 TOOLS = ("list_windows", "get_window_state", "click", "type_text", "press_key")
-# Where the official installer puts CuaDriver's daemon; a pid is the test's
-# only if its executable is in there.
-CUA_APP = "/Applications/CuaDriver.app/"
 VALIDITY = "3h"
 IDLE = "1h"
-# How CuaDriver words a refusal on permissions (authorization.rs,
-# session_manifest.rs, the macOS permission gate).
-PERMISSION_REFUSALS = (
-    "Permission denied",
-    "outside the capability manifest",
-    "capability manifest denies",
-    "permission",
-)
 
 
 class Paths:
@@ -190,77 +181,6 @@ MONTHS = (
 )
 
 
-# ── The system: commands and processes ─────────────────────────────────────
-
-
-class System:
-    def run(self, *command: str) -> tuple[int, str, str]:
-        """Runs a command to its end: exit code, stdout and stderr."""
-        done = subprocess.run(list(command), capture_output=True, text=True, check=False)
-        return done.returncode, done.stdout, done.stderr
-
-    def run_checked(self, *command: str) -> str:
-        code, output, errors = self.run(*command)
-        if code != 0:
-            raise MacFailure(f"«{command[0]}» exited with {code}: {errors.strip()[:300]}")
-        return output
-
-    def has_command(self, name: str) -> bool:
-        return shutil.which(name) is not None
-
-    def processes(self) -> list[tuple[int, str]]:
-        output = self.run_checked("ps", "-axo", "pid=,comm=")
-        rows = []
-        for line in output.splitlines():
-            parts = line.strip().split(None, 1)
-            if len(parts) == 2 and parts[0].isdigit():
-                rows.append((int(parts[0]), parts[1]))
-        return rows
-
-    def signal(self, pid: int, number: int) -> None:
-        try:
-            os.kill(pid, number)
-        except ProcessLookupError:
-            pass
-
-    def wait_exit(self, pids: list[int], max_s: float) -> list[int]:
-        """Waits on the exit of each process (kqueue NOTE_EXIT); returns the
-        ones still alive at the bound."""
-        queue = select.kqueue()
-        alive = set()
-        for pid in pids:
-            event = select.kevent(
-                pid,
-                select.KQ_FILTER_PROC,
-                select.KQ_EV_ADD | select.KQ_EV_ONESHOT,
-                select.KQ_NOTE_EXIT,
-            )
-            try:
-                queue.control([event], 0, 0)
-                alive.add(pid)
-            except ProcessLookupError:
-                continue
-        deadline = time.monotonic() + max_s
-        while alive:
-            left = deadline - time.monotonic()
-            if left <= 0:
-                break
-            for event in queue.control(None, len(alive), left):
-                alive.discard(event.ident)
-        queue.close()
-        return sorted(alive)
-
-    def now(self) -> float:
-        return time.monotonic()
-
-    def pause(self, seconds: float) -> None:
-        time.sleep(seconds)
-
-    def local_time(self, seconds: float) -> time.struct_time:
-        """The Mac's local time, the clock the app names a conversation by."""
-        return time.localtime(seconds)
-
-
 # ── Orbit Pruebas's socket ──────────────────────────────────────────────────
 
 
@@ -352,245 +272,6 @@ class OrbitIpc:
                     yield data["topic"], data.get("knowledge") or {}
 
 
-def _value(known: dict | None):
-    if known and known.get("state") == "present":
-        return known.get("value")
-    return None
-
-
-# ── What each wait waits for ────────────────────────────────────────────────
-#
-# A predicate looks at the latest knowledge of each topic and returns the
-# result when the fact is there, None to keep waiting, or raises MacFailure
-# when what it sees means the fact will not come.
-
-
-def paired(state: dict, _arg):
-    value = _value(state.get("status")) or {}
-    if value.get("hub") == "revoked":
-        raise MacFailure("the test hub revoked this Mac")
-    return {"hub": "online"} if value.get("hub") == "online" else None
-
-
-def recording(state: dict, _arg):
-    current = (_value(state.get("recording")) or {}).get("recording") or {}
-    if current.get("phase") == "recording":
-        return {k: current.get(k) for k in ("id", "title", "audio", "started_at_ms")}
-    return None
-
-
-# Causes that do not pass while the recording goes on.
-_NOT_LISTENING = (
-    "macos_version",
-    "locale_unsupported",
-    "unavailable",
-    "failed",
-    "helper_without_phrase",
-    "no_microphone",
-    "privacy_stopped",
-)
-
-
-def listening(state: dict, _arg):
-    voice = (_value(state.get("recording")) or {}).get("voice_trigger") or {}
-    if voice.get("state") == "listening":
-        return {"voice_trigger": "listening"}
-    why = (voice.get("why") or {}) if voice.get("state") == "not_listening" else {}
-    if why.get("cause") in _NOT_LISTENING:
-        raise MacFailure(f"«Oye Deimos» is not listening: {json.dumps(why, ensure_ascii=False)}")
-    return None
-
-
-def _turn(state: dict) -> dict:
-    """The assistant's turn in progress, or the last one: what the user said
-    and Deimos's answer; the conversation itself is the hub's."""
-    return (_value(state.get("assistant")) or {}).get("turn") or {}
-
-
-def answer(state: dict, _arg):
-    """The voice question once Deimos answered it or it failed. Until then it
-    says what it saw: no question was heard, the question's stage, or an
-    answer that has not come whole."""
-    question = (_value(state.get("recording")) or {}).get("question") or {}
-    if question.get("origin") != "voice":
-        state["seen"] = (
-            "no voice question: «Oye Deimos» opened none"
-            if not question
-            else f"a question of origin «{question.get('origin')}», not voice"
-        )
-        return None
-    if question.get("stage") not in ("answered", "failed"):
-        state["seen"] = f"the voice question is at «{question.get('stage')}»"
-        return None
-    result = {k: question.get(k) for k in ("id", "question", "origin", "stage", "cause")}
-    if question["stage"] == "failed":
-        result["answer"] = ""
-        return result
-    # The answer of the turn whose request id is the question's.
-    message = _turn(state).get("answer") or {}
-    if message.get("id") != f"{question.get('id')}:assistant" or not message.get("complete"):
-        state["seen"] = (
-            "the question is answered and its answer has not arrived whole yet "
-            f"(turn {message.get('id')}, complete: {bool(message.get('complete'))})"
-        )
-        return None
-    result["answer"] = message.get("text") or ""
-    return result
-
-
-# The note states after which nothing more comes without the user
-# (orbit_core::notes::NoteState): written, given up, or no model on the hub.
-FINAL_NOTE = ("ready", "failed", "not_configured")
-
-
-def _row(state: dict, ident: str) -> dict | None:
-    """The meeting `ident` in the latest read of the list of Notes
-    (`notes_page`). A list the hub could not give is noted as what was seen,
-    and the wait goes on: the hub may come back."""
-    read = state.get("read") or {}
-    if "refusal" in read:
-        state["seen"] = f"the list of Notes could not be read: {json.dumps(read['refusal'])}"
-        return None
-    seen = f"recording {ident} is not in the list of Notes"
-    for item in read.get("items") or []:
-        if "hub_refusal" in item:
-            seen = f"the hub did not give its part of the list: {json.dumps(item['hub_refusal'])}"
-        elif item.get("recording_id") == ident:
-            return item
-    state["seen"] = seen
-    return None
-
-
-def saved(state: dict, ident):
-    current = (_value(state.get("recording")) or {}).get("recording") or {}
-    if current.get("id") == ident and current.get("phase") not in (None, "idle"):
-        if current.get("phase") == "interrupted":
-            raise MacFailure("the recording ended interrupted")
-        state["seen"] = f"the recording is still at «{current.get('phase')}»"
-        return None
-    row = _row(state, ident)
-    if row is None:
-        return None
-    local = row.get("local") or {}
-    if row.get("capture") != "closed" or local.get("phase") == "recording":
-        state["seen"] = (
-            f"the list of Notes has it open (capture «{row.get('capture')}», "
-            f"local «{local.get('phase')}»)"
-        )
-        return None
-    return {k: row.get(k) for k in ("recording_id", "title", "duration_ms", "capture")}
-
-
-def note(state: dict, ident):
-    row = _row(state, ident)
-    if row is None:
-        return None
-    headline = row.get("note") or {}
-    if headline.get("state") in FINAL_NOTE:
-        return {
-            "phase": headline["state"],
-            "short_summary": headline.get("short_summary"),
-            "recording_id": row.get("recording_id"),
-            "title": row.get("title"),
-        }
-    state["seen"] = f"transcript «{row.get('transcript')}», note «{headline.get('state', 'none')}»"
-    return None
-
-
-def chat(state: dict, text):
-    assistant = _value(state.get("assistant")) or {}
-    turn = assistant.get("turn") or {}
-    user = turn.get("user") or {}
-    if user.get("role") != "user" or user.get("text") != text:
-        return None
-    reply = turn.get("answer") or {}
-    if assistant.get("turn_in_flight") or not reply.get("complete"):
-        state["seen"] = "the turn is still in progress"
-        return None
-    return {"session": assistant.get("session_id"), "answer": reply.get("text") or ""}
-
-
-def session(state: dict, ident):
-    current = (_value(state.get("assistant")) or {}).get("session_id")
-    state["seen"] = f"the open conversation is {current}"
-    return {"session": current} if current == ident else None
-
-
-def voice_note(state: dict, _arg):
-    """The voice note's turn once Deimos answered it, or once a fact says no
-    answer will come: its transcription failed, or the turn ended without a
-    complete answer. The turn with a voice note is the test's: the turn
-    before it is the Assistant's typed message, which has none."""
-    assistant = _value(state.get("assistant")) or {}
-    turn = assistant.get("turn") or {}
-    user = turn.get("user") or {}
-    voice = user.get("voice")
-    if not isinstance(voice, dict):
-        state["seen"] = "the turn in progress is not a voice note"
-        return None
-    reply = turn.get("answer") or {}
-    result = {
-        "role": user.get("role"),
-        "transcript": voice.get("transcript"),
-        "duration_ms": voice.get("duration_ms"),
-        "audio_available": voice.get("audio_available", False),
-        "failure": voice.get("failure"),
-        "answer": reply.get("text") or "",
-        "complete": bool(reply.get("complete")),
-    }
-    if result["failure"] is not None:
-        return result
-    if result["transcript"] is None:
-        state["seen"] = "the voice note is being transcribed"
-        return None
-    if assistant.get("turn_in_flight"):
-        state["seen"] = "Deimos has not finished answering"
-        return None
-    return result
-
-
-def call_listening(state: dict, _arg):
-    """The call once it listens: the daemon says `listening` only after the
-    helper confirmed the microphone open with voice processing (CallReady).
-    A call seen and then gone ended before it listened."""
-    known = (_value(state.get("assistant")) or {}).get("call") or {}
-    if known.get("state") != "present":
-        state["seen"] = f"the call is «{known.get('state')}»"
-        return None
-    call = known.get("value")
-    if call is None:
-        if state.get("call_phase") is not None:
-            raise MacFailure(
-                f"the call ended without reaching «listening» (last phase «{state['call_phase']}»)"
-            )
-        state["seen"] = "there is no call"
-        return None
-    state["call_phase"] = call.get("phase")
-    if call.get("phase") == "listening":
-        return {k: call.get(k) for k in ("id", "phase", "started_at_ms", "expires_at_ms")}
-    state["seen"] = f"the call is still at «{call.get('phase')}»"
-    return None
-
-
-# What each wait subscribes to, its predicate, and, for a fact only a read
-# says, the read it repeats (on a change of the `notes` head and at least
-# every READ_INTERVAL_S).
-WAITS = {
-    "paired": (("status",), paired, None),
-    "recording": (("recording",), recording, None),
-    "listening": (("recording",), listening, None),
-    "answer": (("recording", "assistant"), answer, None),
-    "saved": (("recording", "notes"), saved, notes_list),
-    "note": (("notes",), note, notes_list),
-    "chat": (("assistant",), chat, None),
-    "session": (("assistant",), session, None),
-    "voice-note": (("assistant",), voice_note, None),
-    "call-listening": (("assistant",), call_listening, None),
-    **CONTROL_WAITS,
-    **PANEL_WAITS,
-}
-
-
 def session_title(moment: time.struct_time, today: time.struct_time) -> str:
     """When a conversation began, as the app's list writes it from its start
     (session-title.ts `sessionWhen`), on the Mac's clock: «Hoy, 09:53»,
@@ -656,7 +337,7 @@ def spanish_voices(listing: str) -> list[str]:
 # ── The steps ───────────────────────────────────────────────────────────────
 
 
-class Mac(DraftsAndPanel):
+class Mac(DraftsAndPanel, CuaDriver):
     def __init__(self, paths: Paths, system: System | None = None, orbit: OrbitIpc | None = None):
         self.paths = paths
         self.system = system or System()
@@ -882,7 +563,7 @@ class Mac(DraftsAndPanel):
             "restored_input": self._restore_input(),
         }
 
-    # ── CuaDriver ──
+    # ── CuaDriver: its manifest and its target (mac_engine.py runs it) ──
 
     def _app_pid(self) -> int:
         app = str(self.paths.app / MEMBERS[0])
@@ -890,11 +571,6 @@ class Mac(DraftsAndPanel):
         if len(pids) != 1:
             raise MacFailure(f"there are {len(pids)} processes of {app}, not one")
         return pids[0]
-
-    def _cua_status(self) -> str | None:
-        """`cua-driver status`, or None when no CuaDriver daemon is running."""
-        code, output, _ = self.system.run(str(self.paths.cua), "status")
-        return output if code == 0 else None
 
     def manifest(self, app_pid: int) -> str:
         """The capability manifest CuaDriver is started with: the five tools
@@ -934,84 +610,6 @@ class Mac(DraftsAndPanel):
         view to its window."""
         self.system.run_checked("open", str(self.paths.app))
         return {"activated": True}
-
-    def engine_start(self, max_s: float) -> dict:
-        """Starts CuaDriver's daemon under its own macOS identity (LaunchServices,
-        so its own Accessibility and Screen Recording grants apply), bounded by
-        the manifest, and checks that it took it."""
-        if self._cua_status() is not None:
-            raise MacFailure(
-                "a CuaDriver is already running; the test does not touch it: stop it with "
-                "«cua-driver stop» and launch the test again"
-            )
-        app_pid = self._app_pid()
-        self.paths.own.mkdir(mode=0o700, exist_ok=True)
-        descriptor = os.open(self.paths.manifest, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(descriptor, "w", encoding="utf-8") as file:
-            file.write(self.manifest(app_pid))
-        self.system.run_checked(
-            "open", "-n", "-g", "-a", "CuaDriver", "--args", "serve",
-            "--permission-mode", "bounded",
-            "--capability-manifest", str(self.paths.manifest),
-            "--approve-capability-manifest",
-        )  # fmt: skip
-        start = self.system.now()
-        while True:
-            status = self._cua_status()
-            pid = re.search(r"^\s*pid: (\d+)$", status or "", re.MULTILINE)
-            if pid is not None:
-                break
-            if self.system.now() - start > max_s:
-                raise MacFailure(f"CuaDriver did not answer within {max_s:.0f} s of starting it")
-            time.sleep(SOCKET_RETRY_S)
-        self.paths.cua_pid.write_text(pid.group(1) + "\n", encoding="utf-8")
-        mode = re.search(r"permission mode: (\w+)", status or "")
-        manifest = "capability manifest: configured=true, approved_at_startup=true, valid=true"
-        if mode is None or mode.group(1) != "bounded" or manifest not in (status or ""):
-            raise MacFailure(
-                "CuaDriver did not start in bounded mode with its manifest: "
-                + " | ".join(line.strip() for line in (status or "").splitlines()[1:])
-            )
-        return {"pid": int(pid.group(1)), "app_pid": app_pid}
-
-    def engine_call(self, tool: str, arguments: dict) -> dict:
-        """One tool call. A refusal is said by its name: the driver refusing its
-        own authorization process, or a permission the manifest or macOS does
-        not give, never a bare failure."""
-        code, output, errors = self.system.run(
-            str(self.paths.cua), "call", tool, json.dumps(arguments, ensure_ascii=False)
-        )
-        if code != 0:
-            cause = errors.strip()[:500]
-            if "own authorization process" in cause:
-                raise MacFailure(
-                    f"CuaDriver refuses to act on its own authorization process "
-                    f"(pid {arguments.get('pid')}) in {tool}: {cause}"
-                )
-            if any(mark in cause for mark in PERMISSION_REFUSALS):
-                raise MacFailure(f"CuaDriver refused {tool} for permissions: {cause}")
-            raise MacFailure(f"CuaDriver failed in {tool} (code {code}): {cause}")
-        try:
-            result = json.loads(output)
-        except ValueError:
-            result = {"text": output.strip()}
-        return {"result": result, "bytes": len(output.encode())}
-
-    def engine_stop(self, max_s: float) -> dict:
-        """Stops the CuaDriver this test started: by the pid it wrote down,
-        and only if that pid is still CuaDriver's."""
-        if not self.paths.cua_pid.exists():
-            return {"stopped": True, "pid": None}
-        pid = int(self.paths.cua_pid.read_text(encoding="utf-8").strip())
-        ours = any(
-            p == pid and command.startswith(CUA_APP) for p, command in self.system.processes()
-        )
-        if ours:
-            self.system.run(str(self.paths.cua), "--expected-pid", str(pid), "stop")
-            if self.system.wait_exit([pid], max_s):
-                self.system.signal(pid, signal.SIGTERM)
-        self.paths.cua_pid.unlink()
-        return {"stopped": True, "pid": pid}
 
     def logs(self) -> dict:
         texts = {}
