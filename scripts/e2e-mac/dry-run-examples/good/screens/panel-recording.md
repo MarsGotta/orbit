@@ -1,0 +1,9 @@
+- AXWindow "Orbit · llamada"
+  - AXWebArea
+    - AXGroup (Grabación en curso)
+      - AXStaticText = "Grabando"
+      - AXStaticText = "01:58"
+      - AXStaticText = "Solo tu micrófono"
+      - AXStaticText = "«Oye Deimos» te escucha"
+      - [1] AXButton "Preguntar a Deimos" [actions=[press]]
+      - [2] AXButton "Parar" [actions=[press]]

@@ -263,21 +263,23 @@ class Interface:
                 return time.monotonic() - start
             time.sleep(1)
 
-    def type_into(self, window: Window, field: str, text: str, contains: bool = False) -> None:
+    def typing(self, window: Window, field: str, text: str, contains: bool = False) -> dict:
+        """cua-driver's `type_text` arguments to type `text` into `field`,
+        found now, for a caller that sends them itself."""
         node = self._one(window, field, ("AXTextArea", "AXTextField"), contains)
         # In the foreground, as a person types: a background insert into web
         # content is never confirmed by the engine (cua-driver type_text).
-        self.bridge.action(
-            "type_text",
-            {
-                "pid": window.pid,
-                "window_id": window.window_id,
-                "element_index": node.index,
-                "snapshot_id": self.snapshot_id,
-                "text": text,
-                "delivery_mode": "foreground",
-            },
-        )
+        return {
+            "pid": window.pid,
+            "window_id": window.window_id,
+            "element_index": node.index,
+            "snapshot_id": self.snapshot_id,
+            "text": text,
+            "delivery_mode": "foreground",
+        }
+
+    def type_into(self, window: Window, field: str, text: str, contains: bool = False) -> None:
+        self.bridge.action("type_text", self.typing(window, field, text, contains))
 
     def choose(self, window: Window, field: str, option: str, options: tuple[str, ...]) -> None:
         """Chooses `option` in a native <select>, as a person does with the

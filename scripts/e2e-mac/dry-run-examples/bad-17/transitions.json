@@ -1,0 +1,8 @@
+{
+ "assistant-recovered": {
+  "apple-event:quit": "reopened-lost"
+ },
+ "reopened-lost": {
+  "click:Asistente": "assistant"
+ }
+}

@@ -1,6 +1,7 @@
 """The Mac side of the recording's controls in the real test: the script's
 lines said with «Silenciar» on, and the waits on «Silenciar», «Reactivar
-micrófono», «Terminar sin guardar» and «Borrar reunión».
+micrófono», «Terminar sin guardar» and «Borrar reunión». Also the failure
+every Mac-side step raises (`MacFailure`), shared with mac_drafts_panel.py.
 
 Copied to the Mac with mac.py, which imports it; runs with the Mac's python3,
 so it stays within Python 3.9. Pure: predicates over what Orbit Pruebas's
@@ -11,6 +12,11 @@ there and None, with what it saw, while it is not.
 from __future__ import annotations
 
 import json
+
+
+class MacFailure(Exception):
+    """A fact that ends a wait or a step, with its cause."""
+
 
 # The lines of the script's third part said with «Silenciar» on: three whole
 # lines, from B «Podemos preguntar…» to B «Apuntado…». Most of their words

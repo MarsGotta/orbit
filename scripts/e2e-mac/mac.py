@@ -1,8 +1,10 @@
 """The Mac side of the real test: what runs on the test Mac, over SSH.
 
-The orchestrator on the test server copies this file, mac_controls.py (which it
-imports) and the meeting script to `~/.orbit-pruebas/harness/` on the Mac and calls one subcommand at a time; each
-prints one JSON object and exits 0, or prints `{"error": …}` and exits 1.
+The orchestrator on the test server copies this file, mac_controls.py and
+mac_drafts_panel.py (which it imports), the Swift scripts and the meeting
+script to `~/.orbit-pruebas/harness/` on the Mac and calls one subcommand at a
+time; each prints one JSON object and exits 0, or prints `{"error": …}` and
+exits 1.
 
     prepare --max S           checks, BlackHole as the default input, clean data, opens Orbit Pruebas
     pair URL CODE NAME
@@ -12,6 +14,9 @@ prints one JSON object and exits 0, or prints `{"error": …}` and exits 1.
     voice-note                a voice note to Deimos: voice_start, one phrase into BlackHole, voice_end
     command call_start|call_stop  starts or stops a call with Deimos
     restore --max S           closes Orbit Pruebas and puts the previous input back
+    launch --max S            opens Orbit Pruebas again and waits for its daemon
+    draft-and-quit HOW JSON S --max S  types a draft, quits Orbit Pruebas (⌘Q or the Dock's quit)
+    panel-pointer ID over|away Q --max S  moves the pointer over the panel or away from it
     logs                      the report logs of Orbit Pruebas and the call's audio lines of daemon.log
     activate                  brings Orbit Pruebas to the front
     floating                  Orbit Pruebas's windows above the normal layer (the floating panel)
@@ -51,7 +56,9 @@ import time
 import uuid
 from pathlib import Path
 
-from mac_controls import CONTROL_WAITS, PARTS, notes_list
+from mac_controls import CONTROL_WAITS, PARTS, MacFailure, notes_list
+from mac_drafts_panel import COMMANDS as DRAFTS_AND_PANEL
+from mac_drafts_panel import PANEL_WAITS, RELAUNCH_WATCH_S, SOCKET_RETRY_S, DraftsAndPanel
 
 BUNDLE_ID = "app.orbit.companion.pruebas"
 # The last part of orbit_bundle::DATA_DIRECTORY with the feature `pruebas`
@@ -60,8 +67,6 @@ BUNDLE_ID = "app.orbit.companion.pruebas"
 # pruebas test the Rust one.
 DATA_DIRECTORY = "com.MarsGotta.OrbitPruebas"
 SCRIPT = Path(__file__).resolve().with_name("meeting-script.txt")
-# Lists a process's windows on every layer (CuaDriver lists layer 0 only).
-WINDOWS = Path(__file__).resolve().with_name("windows.swift")
 BLACKHOLE = "BlackHole 2ch"
 # What CuaDriver may do for the test, and nothing more: find Orbit Pruebas's
 # windows, read them, click, type and choose a value.
@@ -93,6 +98,9 @@ class Paths:
         # File name kept from the earlier, Spanish harness: a run of it that
         # died left the input to put back here, and the next run restores it.
         self.previous_input = self.own / "entrada-anterior"
+        # WebKit keeps the webview's local storage, the unsent drafts among
+        # it, here, outside the data directory, under the bundle identifier.
+        self.webkit = home / "Library" / "WebKit" / BUNDLE_ID
         # CuaDriver's command line, from its official installer, and what the
         # test hands it: the manifest it is bounded by and the pid it started.
         self.cua = home / ".local" / "bin" / "cua-driver"
@@ -107,9 +115,6 @@ class Paths:
 
 
 CUA_ENGINE_RELATIVE_PATH = "Helpers/Orbit Engine.app/Contents/MacOS/cua-driver"
-# How long a closed Orbit Pruebas is watched for a relaunch: the app's own
-# relaunch, after its daemon ended, takes about a second.
-RELAUNCH_WATCH_S = 5
 MEMBERS = (
     "Contents/MacOS/Orbit",
     "Contents/MacOS/OrbitNative",
@@ -120,9 +125,6 @@ MEMBERS = (
 OFFICIAL = re.compile(r"/Orbit\.app(\.anterior-[^/]+)?/Contents/MacOS/Orbit$")
 # One request line to the daemon (crates/orbit-ipc, PROTOCOL_VERSION).
 PROTOCOL = 1
-# Between two attempts to reach a socket that does not exist yet. Only
-# spaces the attempts; the bound is the caller's.
-SOCKET_RETRY_S = 0.2
 # Between two reads of a wait whose fact only a read says (the meeting saved
 # and listed, its note final: the `notes` topic is a head of revisions, not
 # the list). A change of that head reads at once; this only covers a change
@@ -186,10 +188,6 @@ MONTHS = (
     "nov",
     "dic",
 )
-
-
-class MacFailure(Exception):
-    """A fact that ends a wait or a step, with its cause."""
 
 
 # ── The system: commands and processes ─────────────────────────────────────
@@ -589,6 +587,7 @@ WAITS = {
     "voice-note": (("assistant",), voice_note, None),
     "call-listening": (("assistant",), call_listening, None),
     **CONTROL_WAITS,
+    **PANEL_WAITS,
 }
 
 
@@ -657,7 +656,7 @@ def spanish_voices(listing: str) -> list[str]:
 # ── The steps ───────────────────────────────────────────────────────────────
 
 
-class Mac:
+class Mac(DraftsAndPanel):
     def __init__(self, paths: Paths, system: System | None = None, orbit: OrbitIpc | None = None):
         self.paths = paths
         self.system = system or System()
@@ -746,16 +745,12 @@ class Mac:
         current = self.system.run_checked("SwitchAudioSource", "-c", "-t", "input").strip()
         paths.previous_input.write_text(current + "\n", encoding="utf-8")
         self.system.run_checked("SwitchAudioSource", "-t", "input", "-s", BLACKHOLE)
-        if paths.data.exists():
-            shutil.rmtree(paths.data)
-        self.system.run_checked("open", str(paths.app))
-        start = self.system.now()
-        while not self.orbit.answers():
-            if self.system.now() - start > max_s:
-                raise MacFailure(
-                    f"Orbit Pruebas's daemon did not open its socket within {max_s:.0f} s"
-                )
-            time.sleep(SOCKET_RETRY_S)
+        # Its data, and its webview's storage: a draft an earlier run left
+        # would be in the composer when the run types its own message.
+        for directory in (paths.data, paths.webkit):
+            if directory.exists():
+                shutil.rmtree(directory)
+        self.launch(max_s)
         macos = self.system.run_checked("sw_vers", "-productVersion").strip()
         # The name the microphone's turns must carry, taken where the daemon
         # takes it, never from the hub, which only repeats what the Mac sent.
@@ -940,25 +935,6 @@ class Mac:
         self.system.run_checked("open", str(self.paths.app))
         return {"activated": True}
 
-    def floating(self) -> dict:
-        """Orbit Pruebas's windows on screen above the normal layer: the
-        floating panel. CuaDriver's `list_windows` lists layer-0 windows only
-        (cua-driver 0.28.2, list_windows.rs), so the panel, always on top,
-        never appears there; WindowServer lists it (windows.swift)."""
-        app_pid = self._app_pid()
-        rows = [
-            json.loads(line)
-            for line in self.system.run_checked("swift", str(WINDOWS), str(app_pid)).splitlines()
-            if line.strip()
-        ]
-        return {
-            "windows": [
-                {"pid": app_pid, **row}
-                for row in rows
-                if row.get("layer", 0) > 0 and row.get("is_on_screen")
-            ]
-        }
-
     def engine_start(self, max_s: float) -> dict:
         """Starts CuaDriver's daemon under its own macOS identity (LaunchServices,
         so its own Accessibility and Screen Recording grants apply), bounded by
@@ -1101,8 +1077,8 @@ def main(argv: list[str], mac: Mac | None = None) -> int:
             output = mac.logs()
         elif command == "activate":
             output = mac.activate()
-        elif command == "floating":
-            output = mac.floating()
+        elif command in DRAFTS_AND_PANEL:
+            output = DRAFTS_AND_PANEL[command](mac, rest)
         elif command == "engine-start":
             _, max_s = _bound(rest)
             output = mac.engine_start(max_s)

@@ -2,9 +2,11 @@
 
 The first twelve are here; those of the recording's controls («Silenciar»,
 «Terminar sin guardar», «Borrar reunión», the menu bar) are in
-meeting_control_checks.py. Each one reads the evidence the run collected —
-the accessibility trees of what was on screen, what the daemon said over its
-socket, the report logs of the Mac and the log of the test hub — and says
+meeting_control_checks.py, those of a draft across quitting and of the panel
+under the pointer in drafts_panel_checks.py, and all_checks.py runs them all.
+Each one reads the evidence the run collected — the accessibility trees of
+what was on screen, what the daemon said over its socket, the report logs of
+the Mac and the log of the test hub — and says
 «pass», «fail» with its cause, «unchecked» when the run never got to it,
 naming the step that stopped it, or «skipped» when the harness cannot see
 what it checks at all, with that reason (skipped is not passed). No check is
@@ -600,41 +602,3 @@ CHECKS = {
     11: c11_voice_note,
     12: c12_call,
 }
-
-
-def run_checks(ev: dict) -> list[dict]:
-    """Every result. A step that failed fails the check it serves; the
-    checks it left without evidence say which step stopped them."""
-    import meeting_control_checks
-
-    names = {**NAMES, **meeting_control_checks.NAMES}
-    failed_steps = [s for s in ev.get("steps", []) if not s.get("ok", True)]
-    failures = failure_lines(ev)
-    results = []
-    for number, check in {**CHECKS, **meeting_control_checks.CHECKS}.items():
-        own = next((s for s in failed_steps if number in s.get("checks", ())), None)
-        if own is not None:
-            res = result(number, "fail", f"step «{own['name']}»: {own['cause']}", names)
-        else:
-            try:
-                ok, detail = check(ev)
-                res = result(number, "pass" if ok else "fail", detail, names)
-            except meeting_control_checks.Skipped as cause:
-                res = result(number, "skipped", str(cause), names)
-            except Unchecked as cause:
-                stop = failed_steps[0] if failed_steps else None
-                reason = (
-                    f"the test stopped at «{stop['name']}»: {stop['cause']}" if stop else str(cause)
-                )
-                res = result(number, "unchecked", reason, names)
-        if res["status"] not in ("pass", "skipped") and number != 10:
-            # What the logs said while this check's steps ran.
-            windows = [s for s in ev.get("steps", []) if number in s.get("checks", ())]
-            res["log"] = [
-                {k: f[k] for k in ("log", "code", "op")}
-                for f in failures
-                if f.get("ts") is not None
-                and any(s["start"] <= f["ts"] <= s.get("end", float("inf")) for s in windows)
-            ]
-        results.append(res)
-    return results

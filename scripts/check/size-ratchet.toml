@@ -16,7 +16,7 @@
 "native/macos/Sources/OrbitNative/OrbitApplication.swift" = 914
 "native/macos/Sources/OrbitNativeHost/AudioCapture.swift" = 547
 "native/macos/Sources/OrbitNativeProtocol/NativeWire.swift" = 714
-"scripts/e2e-mac/mac.py" = 816
+"scripts/e2e-mac/mac.py" = 796
 "scripts/release/verify-macos-archive.py" = 547
 "server/orbit_hub/assistant/acp.py" = 846
 "server/orbit_hub/assistant/hermes.py" = 766

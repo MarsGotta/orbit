@@ -12,10 +12,10 @@ What is replayed from scripts/e2e-mac/dry-run-examples/<example>/: the system
 commands of the Mac (say, SwitchAudioSource, open, ps), Orbit Pruebas's socket
 (the frames each wait sees, the reads, the commands), its logs, and
 CuaDriver's command line (`status`, `call`, `stop`: the windows, the tree of
-each screen, which screen a click leads to, and a refusal when the example
-says so), and what the test hub keeps of each recording (hub.json: the dry
-run's hub never has one). An example other than «good» holds only the files
-that differ from «good».
+each screen, which screen a click, a key, a quit or the pointer leads to, and
+a refusal when the example says so), and what the test hub keeps of each
+recording (hub.json: the dry run's hub never has one). An example other than
+«good» holds only the files that differ from «good».
 
 A dry run that passes says the logic of the test holds. It is not the real
 test and does not count as one.
@@ -92,6 +92,11 @@ class DryRunSystem(mac_side.System):
         self.signals: list[tuple[int, int]] = []
         self.pauses: list[float] = []
         self.cua = DryRunCua(example, paths.logs)
+        self.cua.on_quit = self._quit
+
+    def _quit(self) -> None:
+        """Orbit Pruebas ends, as on ⌘Q or the Apple Event «quit»."""
+        self.app_open = False
 
     def run(self, *command: str) -> tuple[int, str, str]:
         self.commands.append(list(command))
@@ -109,14 +114,23 @@ class DryRunSystem(mac_side.System):
         if command[:4] == ("open", "-n", "-g", "-a"):
             return self.cua.start(list(command))
         if command[0] == "open":
-            # Orbit Pruebas «starts»: its logs are the example's.
+            # Orbit Pruebas «starts»: its logs are the example's, and on a
+            # second start they are still the first one's (the data stays).
             self.app_open = True
             self.paths.logs.mkdir(parents=True, exist_ok=True)
             for name in ("report-daemon.log", "report-app.log", "daemon.log"):
-                (self.paths.logs / name).write_text(
-                    self.example.text(f"logs/{name}"), encoding="utf-8"
-                )
+                if not (self.paths.logs / name).exists():
+                    (self.paths.logs / name).write_text(
+                        self.example.text(f"logs/{name}"), encoding="utf-8"
+                    )
             return 0, "", ""
+        if command[0] == "osascript":
+            # The Apple Event «quit», what the Dock sends.
+            self._quit()
+            self.cua.follow("apple-event:quit")
+            return 0, "", ""
+        if command[0] == "swift" and command[1].endswith("pointer.swift"):
+            return self.cua.pointer(int(command[2]), command[3])
         if command[0] == "sw_vers":
             return 0, "26.1\n", ""
         if list(command) == ["id", "-F"]:
@@ -169,7 +183,7 @@ class DryRunOrbit:
     example. A wait that reads (the meeting saved, its note final) answers its
     reads, in order, from that wait's own `reads`; the last one stays. An
     example changes a wait with its frames (a list) or with
-    `{"frames": …, "reads": …}`."""
+    `{"frames": …, "reads": …}`, or leaves it out with null."""
 
     def __init__(self, example: Example):
         self.example = example
@@ -201,6 +215,12 @@ class DryRunOrbit:
         raise mac_side.MacFailure(f"command the dry run does not expect: {body['command']}")
 
     def subscribe(self, topics: list[str], bound_s: float, beat_s: float | None = None):
+        # A wait the example sets to null is one its run never reaches.
+        skipped = {
+            k for k, v in self.example.overrides("ipc.json").get("waits", {}).items() if v is None
+        }
+        while self.next < len(self.waits) and self.waits[self.next]["wait"] in skipped:
+            self.next += 1
         if self.next >= len(self.waits):
             raise TimeoutError
         wait = self._wait(self.waits[self.next])
@@ -256,6 +276,9 @@ class DryRunCua:
         self.transitions.update(example.overrides("transitions.json"))
         self.refusals = example.overrides("cua.json").get("refusals", {})
         self.screen = "home"
+        # What the floating panel shows: the pointer can change it.
+        self.panel = "panel"
+        self.on_quit = lambda: None
         self.running = False
         self.mode = "bounded"
         self.serve: list[str] | None = None
@@ -310,8 +333,32 @@ class DryRunCua:
         time.sleep(0.005)
 
     def _tree(self, window: int) -> str:
-        name = "panel" if window == PANEL_WINDOW else self.screen
+        name = self.panel if window == PANEL_WINDOW else self.screen
         return self.example.text(f"screens/{name}.md")
+
+    def follow(self, key: str) -> None:
+        """The main window's screen after `key`, when the example names one."""
+        target = self.transitions.get(self.screen, {}).get(key)
+        if target is not None:
+            self.screen = target
+
+    def pointer(self, window_id: int, where: str) -> tuple[int, str, str]:
+        """pointer.swift: the pointer over the panel (a 340 point card at the
+        top right of a Retina screen) or beside it."""
+        target = self.transitions.get(self.panel, {}).get(f"pointer:{where}")
+        if target is not None:
+            self.panel = target
+        inside = where == "over"
+        row = {
+            "window_id": window_id,
+            "bounds": {"x": 1084.0, "y": 49.0, "width": 340.0, "height": 300.0},
+            "before": {"x": 700.0, "y": 450.0},
+            "after": {"x": 1254.0 if inside else 1044.0, "y": 199.0},
+            "warped": True,
+            "inside": inside,
+            "scale": 2.0,
+        }
+        return 0, json.dumps(row) + "\n", ""
 
     def call(self, tool: str, arguments: dict) -> dict:
         if tool not in mac_side.TOOLS:
@@ -352,9 +399,10 @@ class DryRunCua:
                 markdown = query_filter(markdown, arguments["query"])
             return {"tree_markdown": markdown + notice, "elements": []}
         if tool == "press_key":
-            target = self.transitions.get(self.screen, {}).get(f"press_key:{arguments['key']}")
-            if target is not None:
-                self.screen = target
+            key = "+".join([*arguments.get("modifiers", []), arguments["key"]])
+            self.follow(f"press_key:{key}")
+            if key == "cmd+q":
+                self.on_quit()
             return {"ok": True}
         import ax_tree
 
@@ -445,5 +493,7 @@ def run(name: str, directory: Path | None = None) -> tuple[list[dict], Path]:
     test.bounds["screen"] = (0, "in the dry run the screens never change by themselves")
     for wait in ("hub-chunks", "hub-deleted"):
         test.bounds[wait] = (0, "in the dry run the test hub's answers are replayed")
+    # Nor does a replayed panel change with time: it is read at once.
+    test.bounds["answer-held"] = (0, "in the dry run the panel never changes by itself")
     test.hub_kept = DryRunHub(example, test.hub_kept)
     return test.run(), run_directory

@@ -1,0 +1,6 @@
+{
+ "panel": {
+  "pointer:over": "panel-recording",
+  "pointer:away": "panel-recording"
+ }
+}

@@ -29,17 +29,22 @@ sys.path.insert(0, str(ROOT / "scripts" / "e2e-mac"))
 # bound itself, never to a live service of the machine that runs the gate.
 sys.path.insert(0, str(ROOT / "server" / "tests"))
 
+import drafts_panel_checks
 import dry_run
 import interface
 import mac as mac_side
 import mac_controls
+import mac_drafts_panel
 import meeting_control_checks
 from support_network_fence import install
 
 FENCE = install()
 # Every check that can pass or fail; 16, the menu bar's, is always skipped.
-ALL = list(range(1, 16))
+ALL = [*range(1, 16), 17, 18]
 SKIPPED = {16: "skipped"}
+# A check whose evidence another one's step brings: with no answer of «Oye
+# Deimos» in the panel (7), there is none to hold under the pointer (18).
+FOLLOWS = {7: {18: "unchecked"}}
 
 
 @pytest.fixture(autouse=True)
@@ -90,11 +95,14 @@ def test_the_good_example_passes_every_check_but_the_skipped_one(good):
         "discarded",
         "deleted",
         "hub-deleted",
+        "pointer-held",
+        "answer-released",
     } <= names
     assert all("seconds" in w for w in data["waits"])
     # What the run does not cover is said in the report, every time.
     assert "Not covered:" in report
     assert "synthetic voice" in report
+    assert "second screen" in report
     # Only the call's audio lines of daemon.log come back from the Mac.
     call = (directory / "daemon-call.log").read_text(encoding="utf-8")
     events = [json.loads(line)["event"] for line in call.splitlines()]
@@ -119,9 +127,13 @@ def test_each_check_fails_against_its_spoiled_example(number, tmp_path):
     assert {n: s for n, s in seen.items() if n != number} == {
         **{n: "pass" for n in ALL if n != number},
         **SKIPPED,
+        **FOLLOWS.get(number, {}),
     }, json.dumps(results, ensure_ascii=False, indent=1)
     detail = next(r["detail"] for r in results if r["number"] == number)
     assert detail, "a failure without a cause"
+    for follower in FOLLOWS.get(number, {}):
+        why = next(r["detail"] for r in results if r["number"] == follower)
+        assert f"(check {number})" in why, why
 
 
 # ── The parts ───────────────────────────────────────────────────────────────
@@ -316,3 +328,254 @@ def test_a_deleted_meeting_whose_note_stays_open_fails_only_its_check(tmp_path):
     }, json.dumps(results, ensure_ascii=False, indent=1)
     detail = next(r["detail"] for r in results if r["number"] == 15)
     assert "still open" in detail, detail
+
+
+# ── A draft across ⌘Q and the Dock's quit, and the panel under the pointer ──
+
+
+def test_quitting_and_reopening_on_purpose_is_not_taken_for_a_relaunch(good):
+    # Check 17 quits Orbit Pruebas twice and opens it again itself: the guard
+    # of the clean-up, which fails the run when Orbit comes back after it was
+    # closed, must still see one app to close and nothing coming back.
+    _, directory = good
+    data = json.loads((directory / "report.json").read_text(encoding="utf-8"))
+    assert data["restored"]["orbit_pruebas"]["came_back"] == 0
+    assert data["restored"]["orbit_pruebas"]["closed"] >= 1
+    quits = [row["quit"] for row in data["drafts"]]
+    assert quits == ["cmd-q", "apple-event"]
+    assert all(row["came_back"] == 0 for row in data["drafts"])
+    # Each draft is its own, typed in this run right before its quit.
+    texts = [row["text"] for row in data["drafts"]]
+    assert len(set(texts)) == 2
+
+
+def test_each_quit_types_its_draft_and_confirms_it_on_screen_right_before_quitting(tmp_path):
+    example = dry_run.Example("good")
+    paths = mac_side.Paths(tmp_path)
+    system = dry_run.DryRunSystem(example, paths)
+    mac = mac_side.Mac(paths, system, dry_run.DryRunOrbit(example))
+    system.app_open = True
+    system.cua.running = True
+    system.cua.screen = "assistant"
+    typing = {
+        "pid": dry_run.PID,
+        "window_id": dry_run.MAIN_WINDOW,
+        "element_index": 6,
+        "snapshot_id": None,
+        "text": "Borrador inventado 1a2b3c",
+        "delivery_mode": "foreground",
+    }
+
+    done = mac.draft_and_quit("cmd-q", json.dumps(typing), 1.0, 1.0)
+
+    calls = [c for c in system.commands if c[0] == str(paths.cua)]
+    tools = [c[2] for c in calls]
+    # Typed, read back from the box, and only then ⌘Q: nothing between them.
+    assert tools[-3:] == ["type_text", "get_window_state", "press_key"]
+    assert json.loads(calls[-1][3])["modifiers"] == ["cmd"]
+    assert done["in_box"] is True
+    assert done["came_back"] == 0
+    assert not system.app_open
+    assert done["gap_s"] >= 0
+
+
+def test_a_draft_that_never_reached_the_box_is_not_quit_on(tmp_path):
+    # The quit tests what WebKit keeps of a draft on screen; a draft the box
+    # never showed would test nothing, and Orbit stays open.
+    example = dry_run.Example("good")
+    paths = mac_side.Paths(tmp_path)
+    system = dry_run.DryRunSystem(example, paths)
+    mac = mac_side.Mac(paths, system, dry_run.DryRunOrbit(example))
+    system.app_open = True
+    system.cua.running = True
+    # The empty composer: typing there leads to no screen showing the text.
+    system.cua.screen = "briefing"
+    typing = {"pid": dry_run.PID, "window_id": dry_run.MAIN_WINDOW, "element_index": 1}
+    typing |= {"text": "Borrador inventado 4d5e6f", "delivery_mode": "foreground"}
+
+    with pytest.raises(mac_side.MacFailure, match="did not show"):
+        mac.draft_and_quit("apple-event", json.dumps(typing), 0.0, 1.0)
+    assert system.app_open
+    assert not [c for c in system.commands if c[0] == "osascript"]
+
+
+def test_the_quit_apple_event_goes_to_orbit_pruebas_by_its_bundle_identifier(tmp_path):
+    example = dry_run.Example("good")
+    paths = mac_side.Paths(tmp_path)
+    system = dry_run.DryRunSystem(example, paths)
+    mac = mac_side.Mac(paths, system, dry_run.DryRunOrbit(example))
+    system.app_open = True
+    system.cua.running = True
+    system.cua.screen = "assistant"
+    typing = {"pid": dry_run.PID, "window_id": dry_run.MAIN_WINDOW, "element_index": 6}
+    typing |= {"text": "Borrador inventado 7a8b9c", "delivery_mode": "foreground"}
+
+    mac.draft_and_quit("apple-event", json.dumps(typing), 1.0, 1.0)
+
+    script = next(c for c in system.commands if c[0] == "osascript")[-1]
+    # Asked only while it runs: telling a closed app to quit would open it.
+    assert script == (
+        f'if application id "{mac_side.BUNDLE_ID}" is running then '
+        f'tell application id "{mac_side.BUNDLE_ID}" to quit'
+    )
+
+
+def test_prepare_clears_only_orbit_pruebas_s_own_webkit_data(tmp_path):
+    # Drafts live in WebKit's storage, outside the data directory: a draft an
+    # earlier run left would be in the box when check 8 types its message.
+    example = dry_run.Example("good")
+    paths = mac_side.Paths(tmp_path)
+    (paths.app / "Contents").mkdir(parents=True)
+    (paths.app / "Contents" / "Info.plist").write_bytes(
+        dry_run.plistlib.dumps({"CFBundleIdentifier": mac_side.BUNDLE_ID})
+    )
+    system = dry_run.DryRunSystem(example, paths)
+    mac = mac_side.Mac(paths, system, dry_run.DryRunOrbit(example))
+    left = paths.webkit / "WebsiteData" / "localstorage.sqlite3"
+    left.parent.mkdir(parents=True)
+    left.write_text("borrador de otra ejecución", encoding="utf-8")
+    users = tmp_path / "Library" / "WebKit" / "app.orbit.companion"
+    users.mkdir(parents=True)
+
+    mac.prepare(1.0)
+
+    assert paths.webkit.name == mac_side.BUNDLE_ID
+    assert not paths.webkit.exists()
+    assert users.is_dir()
+
+
+def _webkit_storage(path: Path, rows: dict[str, str]) -> None:
+    # WebKit's localStorage file: ItemTable, its values UTF-16 in a BLOB.
+    path.parent.mkdir(parents=True)
+    connection = sqlite3.connect(path)
+    connection.execute("CREATE TABLE ItemTable (key TEXT UNIQUE, value BLOB NOT NULL)")
+    for key, value in rows.items():
+        connection.execute("INSERT INTO ItemTable VALUES (?, ?)", (key, value.encode("utf-16-le")))
+    connection.commit()
+    connection.close()
+
+
+def test_the_draft_is_looked_for_in_webkit_s_own_storage(tmp_path):
+    paths = mac_side.Paths(tmp_path)
+    mac = mac_side.Mac(paths, mac_side.System(), None)
+    assert mac.web_draft("Borrador inventado") is None, "no storage: unknown, not «no»"
+    key = mac_drafts_panel.DRAFT_KEY
+    _webkit_storage(
+        paths.webkit
+        / "WebsiteData"
+        / "Default"
+        / "a1"
+        / "a1"
+        / "LocalStorage"
+        / "localstorage.sqlite3",
+        {key: json.dumps("Borrador inventado 1 Borrador inventado 2"), "otra": '"x"'},
+    )
+    assert mac.web_draft("Borrador inventado 2") is True
+    assert mac.web_draft("Borrador inventado 3") is False
+
+
+def test_the_texts_of_the_draft_check_are_the_app_s():
+    source = ROOT / "apps" / "desktop" / "src"
+    assistant = (source / "i18n" / "es" / "assistant.ts").read_text(encoding="utf-8")
+    assert f'draftRecovered: "{drafts_panel_checks.TEXTS["recovered"]}"' in assistant
+    assert f"composerLabel: `{drafts_panel_checks.TEXTS['composer']} ${{" in assistant
+    drafts = (source / "state" / "local-drafts.ts").read_text(encoding="utf-8")
+    composer = (source / "features" / "assistant" / "use-composer.ts").read_text(encoding="utf-8")
+    prefix, name = mac_drafts_panel.DRAFT_KEY.rsplit(".", 1)
+    assert f'DRAFT_PREFIX = "{prefix}.";' in drafts
+    assert f'useLocalDraft("{name}", "", asText)' in composer
+
+
+def _draft_ev(rows, screens):
+    return {"drafts": rows, "trees": screens}
+
+
+COMPOSER = """- [0] AXWindow "Orbit"
+  - [1] AXWebArea (Orbit)
+    - [4] AXLink "Asistente" [actions=[press]]
+{recovered}    - [6] AXTextArea = "{value}" (Mensaje para Deimos) [actions=[confirm]]
+"""
+RECOVERED = '    - AXStaticText = "Recuperado el borrador que no llegaste a enviar."\n'
+
+
+def test_the_draft_check_names_the_quit_that_lost_its_draft():
+    rows = [
+        {"quit": "cmd-q", "text": "Borrador uno", "gap_s": 0.4, "came_back": 0, "stored": False},
+        {"quit": "apple-event", "text": "Borrador dos", "gap_s": 0.3, "came_back": 0},
+    ]
+    screens = {
+        # ⌘Q: the box came back empty, with its placeholder.
+        "draft-after-cmd-q": COMPOSER.format(recovered="", value="Escribe a Deimos…"),
+        "draft-after-apple-event": COMPOSER.format(recovered=RECOVERED, value="Borrador dos"),
+    }
+    ok, detail = drafts_panel_checks.c17_drafts(_draft_ev(rows, screens))
+    assert not ok
+    assert "⌘Q" in detail and "Dock" not in detail
+    assert "did not have it" in detail, detail
+
+
+def test_a_draft_back_without_saying_so_or_an_earlier_one_does_not_pass():
+    rows = [
+        {"quit": "cmd-q", "text": "Borrador uno", "gap_s": 0.4, "came_back": 0},
+        {"quit": "apple-event", "text": "Borrador dos", "gap_s": 0.3, "came_back": 0},
+    ]
+    screens = {
+        "draft-after-cmd-q": COMPOSER.format(recovered="", value="Borrador uno"),
+        # Only what was there before the second draft was typed came back.
+        "draft-after-apple-event": COMPOSER.format(recovered=RECOVERED, value="Borrador uno"),
+    }
+    ok, detail = drafts_panel_checks.c17_drafts(_draft_ev(rows, screens))
+    assert not ok
+    assert "«Recuperado" in detail and "Dock" in detail, detail
+
+
+def test_orbit_coming_back_by_itself_after_a_quit_fails_the_draft_check():
+    rows = [
+        {"quit": "cmd-q", "text": "Borrador uno", "gap_s": 0.4, "came_back": 2},
+        {"quit": "apple-event", "text": "Borrador dos", "gap_s": 0.3, "came_back": 0},
+    ]
+    screens = {
+        "draft-after-cmd-q": COMPOSER.format(recovered=RECOVERED, value="Borrador uno"),
+        "draft-after-apple-event": COMPOSER.format(recovered=RECOVERED, value="Borrador dos"),
+    }
+    ok, detail = drafts_panel_checks.c17_drafts(_draft_ev(rows, screens))
+    assert not ok
+    assert "came back by itself" in detail
+
+
+def _question(**fields):
+    question = {"id": "q1", "stage": "answered", "finished_at_ms": 1, **fields}
+    return {"recording": {"state": "present", "value": {"question": question}}}
+
+
+def test_the_hold_is_the_daemon_s_and_an_answer_gone_before_it_never_comes_back():
+    held = mac_drafts_panel.pointer_held
+    state = _question()
+    assert held(state, "q1") is None
+    assert "not held" in state["seen"]
+    assert held(_question(held=True), "q1") == {"held": True}
+    for gone in ({"recording": {"state": "present", "value": {}}}, _question(id="q2")):
+        with pytest.raises(mac_side.MacFailure, match="left the panel"):
+            held(gone, "q1")
+
+
+def test_the_answer_is_released_only_once_the_daemon_lets_it_go():
+    released = mac_drafts_panel.answer_released
+    state = _question(released_at_ms=5)
+    assert released(state, "q1") is None
+    assert "still" in state["seen"]
+    assert released({"recording": {"state": "present", "value": {}}}, "q1") == {"gone": "q1"}
+
+
+def test_an_answer_still_on_screen_after_the_daemon_let_it_go_fails_the_panel_check(good):
+    _, directory = good
+    data = json.loads((directory / "report.json").read_text(encoding="utf-8"))
+    panel = (SCREENS / "good" / "screens" / "panel.md").read_text(encoding="utf-8")
+    ev = {
+        "panel_hold": data["panel_hold"],
+        "question": {"answer": "Estáis hablando del proyecto de la biblioteca municipal."},
+        "trees": {"panel-held": panel, "panel-released": panel},
+    }
+    ok, detail = drafts_panel_checks.c18_panel_hold(ev)
+    assert not ok
+    assert "still shows the answer" in detail, detail

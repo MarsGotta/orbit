@@ -12,8 +12,11 @@ Orbit Pruebas clicking and reading its interface through CuaDriver — started
 bounded to Orbit Pruebas and stopped again — with three lines of it muted
 («Silenciar»), sends Deimos a voice note and opens a call with it over Orbit
 Pruebas's socket, throws a second recording away («Terminar sin guardar»),
-deletes the first meeting («Borrar reunión»), runs the checks and cleans up,
-also when something fails. `dry-run` walks the same orchestrator
+deletes the first meeting («Borrar reunión»), quits Orbit Pruebas twice right
+after typing a draft (⌘Q, then the Dock's quit) and opens it again, runs the
+checks and cleans up, also when something fails. During the meeting it also
+moves the system's pointer over the floating panel that shows Deimos's
+answer, and away from it. `dry-run` walks the same orchestrator
 and the same checks on Linux, against the example states in
 scripts/e2e-mac/dry-run-examples/, with the real test hub on loopback and
 nothing else real: it proves the logic of the checks, never Orbit, and it is
@@ -42,12 +45,13 @@ from pathlib import Path
 DIRECTORY = Path(__file__).resolve().parent
 sys.path.insert(0, str(DIRECTORY))
 
+import all_checks
 import checks
+import drafts_panel
 import hub_traces
 import isolated_hub
 import mac as mac_side
 import mac_controls
-import meeting_control_checks
 import meeting_controls
 from interface import CuaBridge, Interface, StepFailed
 
@@ -89,7 +93,9 @@ def bounds() -> dict[str, tuple[float, str]]:
     exit_s = _rust_constant("apps/desktop/src-tauri/src/daemon_thread.rs", "DAEMON_EXIT_WAIT")
     voice_s = _rust_constant("crates/orbit-daemon/src/hub.rs", "VOICE_HUB_HTTP_TIMEOUT")
     turn_s = 180  # Orbit does not bound a Hermes turn: the test's patience
-    duration_s = 180  # the script lasts about two minutes; a third more for pauses
+    # The script lasts about two minutes, and the panel is held over a minute
+    # in the middle of it (check 18); a third more for pauses.
+    duration_s = 240
     groups = -(-duration_s // grouping.TARGET_SECONDS)
     # The hub asks for the note itself and the Mac reads it again when the
     # hub announces the change (`recording.changed`): no follow interval of
@@ -166,6 +172,7 @@ def bounds() -> dict[str, tuple[float, str]]:
             "the same bound the production hub's unit gives to stop (TimeoutStopSec=30)",
         ),
         **meeting_controls.BOUNDS,
+        **drafts_panel.bounds(_rust_constant),
     }
 
 
@@ -240,8 +247,10 @@ class RemoteMac:
                 *self.options,
                 str(DIRECTORY / "mac.py"),
                 str(DIRECTORY / "mac_controls.py"),
+                str(DIRECTORY / "mac_drafts_panel.py"),
                 str(DIRECTORY / "meeting-script.txt"),
                 str(DIRECTORY / "windows.swift"),
+                str(DIRECTORY / "pointer.swift"),
                 f"{self.host}:{REMOTE}/",
             ],
             check=True,
@@ -308,6 +317,23 @@ class RemoteMac:
     def floating(self):
         # `swift` compiles the script first: a few seconds, far under 60.
         return self._call(60, "floating")
+
+    def launch(self, max_s):
+        return self._call(max_s, "launch", "--max", str(max_s))
+
+    def draft_and_quit(self, how, typing, screen_s, close_s):
+        # Typing, reading it back, the quit, the processes' end and the 5 s
+        # relaunch watch (mac_drafts_panel.RELAUNCH_WATCH_S), all on the Mac.
+        bound = 120 + screen_s + close_s + mac_side.RELAUNCH_WATCH_S
+        return self._call(
+            bound, "draft-and-quit", how, typing, str(screen_s), "--max", str(close_s)
+        )
+
+    def panel_pointer(self, window_id, where, question, max_s):
+        # `swift` compiles pointer.swift first (as `floating`), then the wait.
+        return self._call(
+            60 + max_s, "panel-pointer", str(window_id), where, question, "--max", str(max_s)
+        )
 
     def engine_start(self, max_s):
         return self._call(max_s, "engine-start", "--max", str(max_s))
@@ -397,6 +423,7 @@ class RealTest:
             )
         )
         self.ui: Interface | None = None
+        self.main = None
 
     @contextmanager
     def step(self, name: str, checks_: tuple[int, ...] = (), critical: bool = True):
@@ -498,23 +525,7 @@ class RealTest:
         )
         ui = self.ui
         with self.step("Orbit Pruebas's window"):
-            # The window appears after the app's first paint, a little after
-            # its daemon answers; 20 s is far above the ~1 s it takes, and the
-            # engine offers no window event to wait on instead.
-            self.mac.activate()
-            deadline = time.monotonic() + 20
-            while True:
-                try:
-                    self.main = ui.windows()["main"]
-                    break
-                except StepFailed:
-                    if time.monotonic() >= deadline:
-                        raise
-                    time.sleep(0.5)
-            home = ui.read(self.main, "home", READS["home"])
-            if any("Te damos la bienvenida a Orbit" in n.texts() for n in home):
-                # The welcome's skip leaves the whole first run.
-                ui.press(self.main, "Configurarlo más tarde", ("AXButton",))
+            self.main = self.open_main("home")
 
         with self.step("start recording from the interface", (1, 2, 3, 4, 5, 6, 7)):
             # «Grabar reunión» of the sidebar, in every view (Sidebar.tsx); the
@@ -538,6 +549,7 @@ class RealTest:
         with self.step("first half of the script"):
             self.mac.say("part1")
 
+        panel = None
         with self.step("«Oye Deimos» and its answer in the panel", (7,), critical=False):
             try:
                 self.wait_mac("listening")
@@ -545,6 +557,7 @@ class RealTest:
                 # Said even if nobody listens: the meeting is the same meeting.
                 self.mac.say("question")
             self.ev["question"] = self.wait_mac("answer")
+            answered_at = time.monotonic()
             if self.ev["question"].get("stage") == "answered":
                 # The panel hides 45 s after the answer (ANSWER_SHOWN_MS).
                 panel = ui.panel(self.mac.floating, self.bounds["screen"][0])
@@ -559,6 +572,8 @@ class RealTest:
                         self.bounds["screen"][0],
                     ),
                 )
+        if panel is not None:
+            drafts_panel.panel_holds_answer(self, panel, answered_at)
 
         meeting_controls.second_half(self)
 
@@ -738,6 +753,31 @@ class RealTest:
         # With every check of the first meeting's evidence collected.
         meeting_controls.discard_second_recording(self)
         meeting_controls.delete_first_meeting(self)
+        # Last: it quits Orbit Pruebas and opens it again.
+        drafts_panel.drafts_survive_quitting(self)
+
+    def open_main(self, label: str):
+        """Orbit Pruebas's main window, brought to the front and read once as
+        `label`, past the welcome of a first run."""
+        ui = self.ui
+        # The window appears after the app's first paint, a little after
+        # its daemon answers; 20 s is far above the ~1 s it takes, and the
+        # engine offers no window event to wait on instead.
+        self.mac.activate()
+        deadline = time.monotonic() + 20
+        while True:
+            try:
+                main = ui.windows()["main"]
+                break
+            except StepFailed:
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.5)
+        home = ui.read(main, label, READS["home"])
+        if any("Te damos la bienvenida a Orbit" in n.texts() for n in home):
+            # The welcome's skip leaves the whole first run.
+            ui.press(main, "Configurarlo más tarde", ("AXButton",))
+        return main
 
     def clean_up(self) -> None:
         with self.step("stop CuaDriver", critical=False):
@@ -792,7 +832,7 @@ class RealTest:
         if self.ui is not None:
             self.ev["trees"] = self.ui.trees
             self.ev["reads"] = self.ui.reads
-        results = checks.run_checks(self.ev)
+        results = all_checks.run_checks(self.ev)
         write_report(self.directory, self.ev, results)
         if not checks.passed(results) and self.paths.hub.exists():
             # The hub's data (the synthetic meeting's audio, its transcript, its
@@ -819,6 +859,8 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
         "cua": ev.get("cua"),
         "discard": ev.get("discard"),
         "delete": ev.get("delete"),
+        "panel_hold": ev.get("panel_hold"),
+        "drafts": ev.get("drafts"),
     }
     (directory / "report.json").write_text(
         json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -830,8 +872,7 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
         for row in r.get("log", []):
             lines.append(f"    log {row['log']}: code {row['code']}, op {row['op']}")
     lines += ["", "Not covered:"]
-    not_covered = checks.NOT_COVERED + meeting_control_checks.NOT_COVERED
-    lines += [f"  {text}" for text in not_covered]
+    lines += [f"  {text}" for text in all_checks.NOT_COVERED]
     lines += ["", "Steps:"]
     for s in ev["steps"]:
         status = "ok" if s.get("ok", True) else f"FAILED: {s.get('cause')}"

@@ -48,7 +48,8 @@
   "type_text:Escribe a Deimos… Mensaje para Deimos": "assistant-typed"
  },
  "assistant-typed": {
-  "click:Enviar": "assistant-answered"
+  "click:Enviar": "assistant-answered",
+  "press_key:cmd+q": "reopened"
  },
  "assistant-answered": {
   "click:Nueva conversación": "assistant-new"
@@ -80,5 +81,17 @@
  },
  "note-delete-question": {
   "click:Borrar reunión": "meetings-empty"
+ },
+ "meetings-empty": {
+  "click:Asistente": "assistant"
+ },
+ "reopened": {
+  "click:Asistente": "assistant-recovered"
+ },
+ "assistant-recovered": {
+  "apple-event:quit": "reopened"
+ },
+ "panel": {
+  "pointer:away": "panel-recording"
  }
 }
