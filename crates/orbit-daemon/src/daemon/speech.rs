@@ -3,8 +3,9 @@ use anyhow::{Result, bail};
 use orbit_core::refusal::{Expected, Parameter, Refusal};
 use serde_json::{Value, json};
 
-/// The answer read aloud at the user's request, and the playback that
-/// carries it: the helper names that playback when it ends.
+/// The answer read aloud, at the user's request or by itself after a voice
+/// note, and the playback that carries it: the helper names that playback
+/// when it ends.
 #[derive(Debug, Clone)]
 pub(super) struct ReadAloud {
     pub(super) message_id: String,
@@ -113,20 +114,25 @@ impl Runtime {
         {
             return;
         }
-        let Some(text) = self
+        let Some((message_id, text)) = self
             .state
             .durable
             .assistant
             .turn
             .as_ref()
             .and_then(|turn| turn.answer.as_ref())
-            .map(|answer| answer.text.clone())
+            .map(|answer| (answer.id.clone(), answer.text.clone()))
         else {
             return;
         };
-        // The turn's own voice replaces an answer the user was hearing.
-        self.assistant.read_aloud = None;
-        self.play_speech(text, id());
+        // The turn's own voice replaces an answer the user was hearing, and
+        // is named like one: «Escuchar» says «Parar» while it sounds.
+        let playback_id = id();
+        self.assistant.read_aloud = Some(ReadAloud {
+            message_id,
+            playback_id: playback_id.clone(),
+        });
+        self.play_speech(text, playback_id);
     }
 
     /// Fetches `text` in the hub's voice and hands it to the helper as
@@ -323,6 +329,53 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(speaking(&runtime), serde_json::Value::Null);
+    }
+
+    /// After a voice note Orbit reads the answer by itself: «Escuchar» says
+    /// «Parar» for it as for one the user asked to hear, and «Parar» stops it.
+    #[tokio::test]
+    async fn the_answer_read_by_itself_is_named_until_it_ends_or_is_stopped() {
+        let directory = tempfile::tempdir().unwrap();
+        let (mut runtime, mut native) = speakable(directory.path());
+        crate::daemon::authority_fixture::set(
+            &mut runtime.state,
+            "capabilities.native_helper",
+            json!(true),
+        );
+        let answer = |text: &str| orbit_core::Message {
+            attachments: Vec::new(),
+            id: "nota-1:assistant".into(),
+            role: "assistant".into(),
+            text: text.into(),
+            complete: true,
+            at_ms: 2,
+            voice: None,
+        };
+        runtime.state.durable.assistant.turn = Some(orbit_core::Turn {
+            user: orbit_core::Message {
+                role: "user".into(),
+                id: "nota-1".into(),
+                ..answer("Lo que dije")
+            },
+            answer: Some(answer("La sala Norte tiene 8 plazas.")),
+        });
+        for stop in [false, true] {
+            runtime.assistant.speak_next = true;
+            runtime.start_speech();
+            assert_eq!(speaking(&runtime), "nota-1:assistant");
+            let playback = runtime.assistant.read_aloud.clone().unwrap().playback_id;
+            if stop {
+                runtime.command(Command::SpeakStop).await.unwrap();
+                let order = native.try_recv().unwrap();
+                assert_eq!(order["command"], "playback_stop");
+            } else {
+                runtime
+                    .native_event(progress(&playback, "played"))
+                    .await
+                    .unwrap();
+            }
+            assert_eq!(speaking(&runtime), serde_json::Value::Null);
+        }
     }
 
     #[tokio::test]

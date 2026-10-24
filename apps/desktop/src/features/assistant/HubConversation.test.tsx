@@ -14,6 +14,7 @@ import { MessageList } from "./MessageList";
 import { ShellSlots, useShellSlots } from "../../app/shell-slots";
 import { AssistantSessions } from "./AssistantSessions";
 import { sessionWhen } from "./session-title";
+import { es } from "../../i18n/es";
 
 /** The window's list column, where the conversations are drawn. */
 function ColumnHost() {
@@ -209,7 +210,7 @@ describe("the list and the voice notes", () => {
     expect(sent).toEqual([{ command: "voice_note_audio", message_id: "held" }]);
   });
 
-  it("plays the audio the app received for that note", async () => {
+  it("plays the audio the app received for that note when pressed, never by itself", async () => {
     // jsdom has no media playback.
     const played = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
     const note: ChatMessage = {
@@ -228,7 +229,9 @@ describe("the list and the voice notes", () => {
         "data:audio/wav;base64,UklGRg==",
       ),
     );
-    expect(played).toHaveBeenCalled();
+    expect(played).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: es.assistant.playVoiceNote }));
+    expect(played).toHaveBeenCalledTimes(1);
     played.mockRestore();
   });
 });

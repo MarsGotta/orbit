@@ -28,9 +28,10 @@ from ..assistant.backend import (
     UnreadableUpdate,
 )
 from ..assistant.deletion import one_at_a_time
+from ..assistant.delivery_markers import MarkerStream, without_markers
 from ..errors import render
 from ..interactions import pending_data
-from ..log import report
+from ..log import logger, report
 from ..protocol import HubError, emit
 from ..turns import TurnState
 
@@ -40,6 +41,9 @@ _IN_FLIGHT = {TurnState.SUBMITTING, TurnState.STREAMING, TurnState.INTERRUPTING}
 class TurnEvents:
     def __init__(self, runtime):
         self.runtime = runtime
+        # The answer each conversation streams, by its turn, whose delivery
+        # markers are held back (`delivery_markers`): one per conversation.
+        self.streams: dict[str, tuple[str, MarkerStream]] = {}
 
     async def on_event(self, agent_id: str, event: AssistantEvent) -> None:
         """One event from this device's connection to the agent `agent_id`."""
@@ -67,8 +71,10 @@ class TurnEvents:
         elif isinstance(event, TurnError):
             await self._turn_error(agent_id, key, session_id, turn_id, event)
         elif isinstance(event, MessageChunk):
-            data = {"session_id": session_id, "text": event.text}
-            await runtime.publish(emit("chat.delta", data, turn_id))
+            text = self._stream(session_id, turn_id).feed(event.text)
+            if text:
+                data = {"session_id": session_id, "text": text}
+                await runtime.publish(emit("chat.delta", data, turn_id))
         elif isinstance(event, MessageComplete):
             await self.complete(agent_id, key, session_id, turn_id, event)
         elif isinstance(event, PermissionRequested | ClarificationRequested):
@@ -85,6 +91,13 @@ class TurnEvents:
             if (work := runtime.work.get(session_id)) is not None:
                 work.record(item)
             await runtime.publish(emit("chat.item", {"session_id": session_id, **item}, turn_id))
+
+    def _stream(self, session_id: str, turn_id: str) -> MarkerStream:
+        """The turn's stream; a new turn's replaces what an earlier one left."""
+        streaming = self.streams.get(session_id)
+        if streaming is None or streaming[0] != turn_id:
+            streaming = self.streams[session_id] = (turn_id, MarkerStream())
+        return streaming[1]
 
     def _resume_progress(self, key, event) -> bool:
         """A reopen's history event, which no turn event is; True when handled."""
@@ -144,6 +157,7 @@ class TurnEvents:
         runtime = self.runtime
         if runtime.turn_ids.get(session_id) != turn_id:
             return
+        self.streams.pop(session_id, None)
         # A terminal upstream event is an observed fact, not a decision: it
         # closes the turn whatever sub-state the hub had recorded.
         runtime.store.chat.set_status(session_id, "failed")
@@ -222,7 +236,19 @@ class TurnEvents:
 
     async def complete(self, agent_id, key, session_id, turn_id, event: MessageComplete) -> None:
         runtime = self.runtime
-        text, status = event.text, event.status
+        self.streams.pop(session_id, None)
+        text, removed = without_markers(event.text)
+        if removed:
+            logger.info(
+                "delivery_markers_removed",
+                extra={
+                    "event": "delivery_markers_removed",
+                    "device": runtime.device,
+                    "session": session_id,
+                    "numbers": {"markers": removed},
+                },
+            )
+        status = event.status
         is_resumed = key in runtime.resumed_message_counts
         resumed_count = runtime.resumed_message_counts.pop(key, None)
         resume_failed = event.history_unreadable and is_resumed

@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { Tooltip } from "./Tooltip";
 
 afterEach(cleanup);
@@ -87,4 +87,40 @@ it("is not read out: the control carries its own name", () => {
   );
   fireEvent.mouseEnter(screen.getByRole("button"));
   expect(tip("Copiar")?.getAttribute("aria-hidden")).toBe("true");
+});
+
+it("stays inside the window at its edges, whatever box its control is in", () => {
+  // jsdom lays nothing out: the control sits in the window's top right
+  // corner, inside a box that clips, and the tip measures 120 × 24.
+  const right = window.innerWidth - 8;
+  const rect = (left: number, top: number, width: number, height: number) =>
+    ({
+      left,
+      top,
+      width,
+      height,
+      right: left + width,
+      bottom: top + height,
+      x: left,
+      y: top,
+    }) as DOMRect;
+  const measured = vi
+    .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+    .mockImplementation(function (this: HTMLElement) {
+      return this.hasAttribute("data-tooltip") ? rect(0, 0, 120, 24) : rect(right - 24, 4, 24, 24);
+    });
+  render(
+    <div data-testid="clipping" style={{ overflow: "hidden" }}>
+      <Tooltip text="Añadir asistente">
+        <button aria-label="Añadir asistente" type="button" />
+      </Tooltip>
+    </div>,
+  );
+  fireEvent.mouseEnter(screen.getByRole("button"));
+  const shown = tip("Añadir asistente") as HTMLElement;
+  expect(shown.dataset.placement).toBe("below");
+  expect(parseFloat(shown.style.top)).toBeGreaterThanOrEqual(28);
+  expect(parseFloat(shown.style.left) + 120).toBeLessThanOrEqual(window.innerWidth - 8);
+  expect(screen.getByTestId("clipping").contains(shown)).toBe(false);
+  measured.mockRestore();
 });

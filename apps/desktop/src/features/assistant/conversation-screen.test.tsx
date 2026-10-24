@@ -310,3 +310,22 @@ describe("nothing written is lost", () => {
     expect(box.value).toBe("");
   });
 });
+
+describe("an answer Orbit reads aloud by itself", () => {
+  // After a voice note the daemon reads the turn's answer, which it names by
+  // the turn's id; the thread shows the hub's copy of that answer, by its own.
+  it("says «Parar» on that answer while it sounds, and «Parar» stops it", async () => {
+    const note = { ...message("nota-1", "user", "Lo que dije"), voice: { duration_ms: 2_000 } };
+    const turn = [note, message("nota-1:assistant", "assistant", "La sala Norte tiene 8 plazas.")];
+    const stored = [note, message("42", "assistant", "La sala Norte tiene 8 plazas.")];
+    const { sent } = show(snapshot({ turn, speaking: "nota-1:assistant" }), () =>
+      Promise.resolve(page(stored)),
+    );
+    await waitFor(() =>
+      expect(screen.getAllByText("La sala Norte tiene 8 plazas.")).toHaveLength(1),
+    );
+    const answer = screen.getByRole("article", { name: "Respuesta de Deimos" });
+    await userEvent.click(within(answer).getByRole("button", { name: "Parar" }));
+    expect(sent).toContainEqual({ command: "speak_stop" });
+  });
+});

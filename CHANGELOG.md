@@ -7,6 +7,26 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A voice note sounds only when you press it, and the same button stops
+  it** («Reproducir nota de voz» turns to «Parar nota de voz»). Opening a
+  conversation again no longer plays the last note you heard, and leaving it
+  stops the note.
+- **An answer no longer begins with a `MEDIA:` line naming a file on the
+  hub.** When the assistant made audio with Hermes's `text_to_speech`, its
+  answer carried Hermes's tag for a messaging platform; the hub now takes
+  Hermes's delivery markers (`MEDIA:` tags, `[[audio_as_voice]]`,
+  `[[as_document]]`) out of the answer before it stores it or sends it to the
+  Mac, and its log says only how many. A voice note's turn tells the
+  assistant that Orbit reads its answer aloud, so that it answers in text.
+- **«Escuchar» says «Parar» while Orbit reads an answer aloud by itself**
+  after a voice note, as it does when you asked to hear it, and «Parar» stops
+  that reading.
+- **Tooltips stay inside the window.** At an edge they move in or go to the
+  other side of their control, and no panel or header hides them, as «Añadir
+  asistente» next to «Tus asistentes» was.
+
 ## [0.12.0] - 2026-10-24
 
 ### Upgrading

@@ -125,11 +125,12 @@ describe("under an answer", () => {
       expect(button.textContent, tools[index]).toBe("");
       expect(button.querySelector("svg"), tools[index]).not.toBeNull();
       fireEvent.mouseEnter(button.parentElement as HTMLElement);
-      expect(within(last).getByText(tools[index]!, { selector: "[data-tooltip]" })).toBeTruthy();
+      // The tip is drawn over the whole window, outside the answer.
+      expect(screen.getByText(tools[index]!, { selector: "[data-tooltip]" })).toBeTruthy();
       fireEvent.mouseLeave(button.parentElement as HTMLElement);
     }
     fireEvent.focus(buttons[3]!);
-    expect(within(last).getByText("Editar y copiar", { selector: "[data-tooltip]" })).toBeTruthy();
+    expect(screen.getByText("Editar y copiar", { selector: "[data-tooltip]" })).toBeTruthy();
   });
 
   it("Copiar turns to ✓ «Copiado» and says it once", async () => {

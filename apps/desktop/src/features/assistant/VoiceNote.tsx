@@ -108,12 +108,22 @@ function useAudioRequest(messageId: string, send: VoiceNoteProps["send"]) {
   };
 }
 
-export function VoiceNote({ audio, messageId, send, voice }: VoiceNoteProps) {
+/**
+ * A note sounds only when its button is pressed, and the same button stops it.
+ * The app keeps the audio last asked for, so a note drawn again (a
+ * conversation opened again) may come with it: that one stays silent.
+ */
+function usePlayback(
+  messageId: string,
+  send: VoiceNoteProps["send"],
+  audio: VoiceNoteAudioSnapshot | undefined,
+) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const request = useAudioRequest(messageId, send);
   const [source, setSource] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
-  const available = voice.audio_available ?? false;
+  const [playing, setPlaying] = useState(false);
+  // Pressed before its audio was here: it plays when the audio arrives.
+  const wanted = useRef(false);
 
   useEffect(() => {
     if (audio == null || source != null) return;
@@ -121,28 +131,49 @@ export function VoiceNote({ audio, messageId, send, voice }: VoiceNoteProps) {
   }, [audio, source]);
 
   useEffect(() => {
-    if (source != null) play(audioRef.current);
+    if (source == null || !wanted.current) return;
+    wanted.current = false;
+    play(audioRef.current);
   }, [source]);
 
-  const start = () => {
-    if (!available) return;
-    if (source != null) {
-      play(audioRef.current);
-      return;
+  // Leaving the conversation stops the note it was playing.
+  useEffect(() => {
+    const media = audioRef.current;
+    return () => {
+      if (media && !media.paused) media.pause();
+    };
+  }, []);
+
+  const toggle = () => {
+    const media = audioRef.current;
+    if (playing && media) {
+      media.pause();
+      media.currentTime = 0;
+    } else if (source != null) play(media);
+    else {
+      wanted.current = true;
+      request();
     }
-    request();
   };
+  return { audioRef, playing, setPlaying, source, toggle };
+}
+
+export function VoiceNote({ audio, messageId, send, voice }: VoiceNoteProps) {
+  const { audioRef, playing, setPlaying, source, toggle } = usePlayback(messageId, send, audio);
+  const [progress, setProgress] = useState(0);
+  const available = voice.audio_available ?? false;
+  const label = playing ? es.assistant.stopVoiceNote : es.assistant.playVoiceNote;
   const seconds = Math.max(0, voice.duration_ms / 1_000);
   return (
     <div className={styles.voice}>
       <div className={styles.voiceNote}>
         <button
-          aria-label={available ? es.assistant.playVoiceNote : es.assistant.audioUnavailable}
+          aria-label={available ? label : es.assistant.audioUnavailable}
           disabled={!available}
-          onClick={start}
+          onClick={toggle}
           type="button"
         >
-          <Icon name="play" size={14} />
+          <Icon name={playing ? "stop" : "play"} size={14} />
         </button>
         <span aria-hidden="true" className={styles.waveform}>
           {WAVE.map((height, index) => (
@@ -160,7 +191,12 @@ export function VoiceNote({ audio, messageId, send, voice }: VoiceNoteProps) {
       <audio
         data-testid={`voice-audio-${messageId}`}
         hidden
-        onEnded={() => setProgress(0)}
+        onEnded={() => {
+          setPlaying(false);
+          setProgress(0);
+        }}
+        onPause={() => setPlaying(false)}
+        onPlay={() => setPlaying(true)}
         onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)}
         ref={audioRef}
         src={source ?? undefined}

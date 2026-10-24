@@ -23,6 +23,8 @@ _UNKNOWN_OUTCOME = (
     "El resultado del turno anterior es incierto; abre una sesión nueva "
     "(session.new) o espera la reconciliación"
 )
+# What a voice note's turn tells the agent, and never shows the user.
+_READ_ALOUD = "[Orbit leerá tu respuesta en voz alta: contesta solo con texto, sin generar audio]"
 
 
 class TurnSender:
@@ -196,7 +198,12 @@ class TurnSender:
         tracked_input_type = runtime.input_tracker.consume(runtime.device, params.text)
         input_type = "llamada de voz en curso" if params.call_active else tracked_input_type
         sent = meeting.text if meeting is not None else params.text
-        upstream_text = f"[Orbit · {runtime.device_name} · {input_type}]\n{sent}"
+        header = f"[Orbit · {runtime.device_name} · {input_type}]"
+        if params.voice is not None and meeting is None:
+            # Orbit reads the answer to a voice note aloud: audio the agent
+            # made itself would be a file on the server Orbit never plays.
+            header += "\n" + _READ_ALOUD
+        upstream_text = f"{header}\n{sent}"
         runtime.turn_ids[session_id] = request_id
         now_ms = round(runtime.now() * 1000)
         runtime.work[session_id] = TurnWork(now_ms)

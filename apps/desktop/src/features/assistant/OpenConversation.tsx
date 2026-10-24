@@ -5,7 +5,7 @@ import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { StepWait } from "./AgentWork";
 import { ConversationHeader } from "./ConversationHeader";
 import { ConversationTools } from "./ConversationTools";
-import { turnInFlight } from "./conversation";
+import { speakingShown, turnInFlight } from "./conversation";
 import { MessageList } from "./MessageList";
 import { PendingCard } from "./PendingCard";
 import { ActivityLine, turnFailure, turnQuestion } from "./ThreadParts";
@@ -129,7 +129,7 @@ function Thread({
           listenable={readsAloud(snapshot, chat.agent_id)}
           messages={messages}
           send={send}
-          speaking={chat.speaking ?? null}
+          speaking={speakingShown(messages, chat.turn, chat.speaking ?? null)}
           voiceAudio={chat.voice_audio}
           wait={wait}
           work={chat.work}

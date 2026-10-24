@@ -28,6 +28,24 @@ export function conversationView(
   return [...stored.slice(0, at), ...turn];
 }
 
+/**
+ * The shown answer being read aloud. The daemon names an answer it reads by
+ * itself, after a voice note, by the turn's id; once the hub's copy of that
+ * turn is shown, the answer is the message after the turn's question.
+ */
+export function speakingShown(
+  messages: ChatMessage[],
+  turn: ChatMessage[],
+  speaking: string | null,
+): string | null {
+  if (speaking === null || messages.some((message) => message.id === speaking)) return speaking;
+  const question = turn.find((message) => message.role === "user");
+  if (question === undefined || !turn.some((message) => message.id === speaking)) return speaking;
+  const at = messages.findIndex((message) => message.id === question.id);
+  const shown = at < 0 ? undefined : messages[at + 1];
+  return shown?.role === "assistant" ? shown.id : speaking;
+}
+
 /** `older` before `known`, each message once. */
 export function withOlder(known: ChatMessage[], older: ChatMessage[]): ChatMessage[] {
   const ids = new Set(known.map((message) => message.id));
