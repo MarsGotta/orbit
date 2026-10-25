@@ -7,6 +7,19 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Fixed
+
+- Short Mac actions can return their durable result in the first tool call.
+  The hub waits up to 2.5 seconds, configurable with
+  `device_bridge.action_inline_wait_seconds`; slower actions keep their
+  operation id and the existing result lookup.
+- Speaking over a call answer pauses its reading at detected speech onset.
+  Words cancel that reading; noise resumes it without creating a turn. Short
+  candidates preserve carried audio, including the start of a joined turn.
+- Long answers are read in sentence parts, advancing on playback receipts.
+  Interruption cancels the remaining parts and the next answer stays audible.
+  The daemon and bundled native helper must be upgraded together for pause/resume.
+
 ### Changed
 
 - Claude and Codex assistants can be added from Orbit without hub tool tables.

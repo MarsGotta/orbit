@@ -10,6 +10,9 @@ use serde_json::{Value, json};
 pub(super) struct ReadAloud {
     pub(super) message_id: String,
     pub(super) playback_id: String,
+    remaining: std::collections::VecDeque<String>,
+    clip_done: bool,
+    current_text: String,
 }
 
 impl Runtime {
@@ -30,10 +33,20 @@ impl Runtime {
             "started" => "started",
             "played" => "played",
             "cancelled" => "cancelled",
+            "paused" => "paused",
+            "resumed" => "resumed",
             _ => "unrecognized_state",
         };
         if matches!(state, "played" | "cancelled") {
-            self.assistant.playback_ended(&playback_id);
+            if state == "played"
+                && let Some(read) = self.assistant.read_aloud.as_mut()
+                && read.playback_id == playback_id
+            {
+                read.clip_done = true;
+                self.advance_reading();
+            } else {
+                self.assistant.playback_ended(&playback_id);
+            }
         }
         self.log(
             "native_playback_progress",
@@ -49,6 +62,8 @@ impl Runtime {
     pub(super) async fn stop_playback(&mut self) -> Result<()> {
         self.assistant.speech_task.cancel();
         self.assistant.speak_next = false;
+        self.assistant.speech_paused = false;
+        self.assistant.read_aloud = None;
         self.native_send("playback_stop", json!({})).await
     }
 
@@ -82,12 +97,7 @@ impl Runtime {
         if self.link.token.is_none() {
             return Err(Refusal::NotPaired.into());
         }
-        let playback_id = id();
-        self.assistant.read_aloud = Some(ReadAloud {
-            message_id,
-            playback_id: playback_id.clone(),
-        });
-        self.play_speech(text, playback_id);
+        self.begin_reading(message_id, text);
         Ok(())
     }
 
@@ -97,6 +107,7 @@ impl Runtime {
             return Ok(());
         }
         self.assistant.speech_task.cancel();
+        self.assistant.speech_paused = false;
         self.native_send("playback_stop", json!({})).await
     }
 
@@ -127,12 +138,93 @@ impl Runtime {
         };
         // The turn's own voice replaces an answer the user was hearing, and
         // is named like one: «Escuchar» says «Parar» while it sounds.
+        self.begin_reading(message_id, text);
+    }
+
+    fn begin_reading(&mut self, message_id: String, text: String) {
+        let mut remaining = orbit_core::speech::parts(&text);
+        let Some(first) = remaining.pop_front() else {
+            return;
+        };
         let playback_id = id();
         self.assistant.read_aloud = Some(ReadAloud {
             message_id,
             playback_id: playback_id.clone(),
+            remaining,
+            clip_done: false,
+            current_text: first.clone(),
         });
-        self.play_speech(text, playback_id);
+        self.play_speech(first, playback_id);
+    }
+
+    /// Only an actual played receipt advances the bounded queue. A paused
+    /// reading may finish at the same instant as onset; it waits for the verdict.
+    fn advance_reading(&mut self) {
+        if self.assistant.speech_paused {
+            return;
+        }
+        let Some(read) = self
+            .assistant
+            .read_aloud
+            .as_mut()
+            .filter(|read| read.clip_done)
+        else {
+            return;
+        };
+        if let Some(text) = read.remaining.pop_front() {
+            let playback_id = id();
+            read.playback_id = playback_id.clone();
+            read.clip_done = false;
+            read.current_text = text.clone();
+            self.play_speech(text, playback_id);
+        } else {
+            self.assistant.read_aloud = None;
+        }
+    }
+
+    /// The decoder refused this clip before playing it. An unusually slow
+    /// provider is split further; every other failure releases the queue.
+    pub(super) fn speech_clip_refused(&mut self, command_id: &str, code: &str) -> bool {
+        let Some(read) = self
+            .assistant
+            .read_aloud
+            .as_mut()
+            .filter(|read| read.playback_id == command_id)
+        else {
+            return false;
+        };
+        if code == "clip_too_long"
+            && let Some(mut shorter) = orbit_core::speech::shorter_parts(&read.current_text)
+        {
+            shorter.append(&mut read.remaining);
+            read.remaining = shorter;
+            read.clip_done = true;
+            self.advance_reading();
+            return true;
+        }
+        self.assistant.read_aloud = None;
+        self.assistant.speech_task.cancel();
+        false
+    }
+
+    /// Tentative sound pauses only; it never cancels a reading or a request.
+    pub(super) async fn pause_call_reading(&mut self) -> Result<()> {
+        if !self.assistant.speech_paused {
+            self.native_send("playback_pause", json!({})).await?;
+            self.assistant.speech_paused = true;
+        }
+        Ok(())
+    }
+
+    /// An empty or failed transcription lets the same scheduled clip continue.
+    pub(super) async fn resume_call_reading(&mut self) -> Result<()> {
+        let capturing = self.capture.buffer.voice.is_some();
+        if self.assistant.speech_paused && !capturing {
+            self.native_send("playback_resume", json!({})).await?;
+            self.assistant.speech_paused = false;
+            self.advance_reading();
+        }
+        Ok(())
     }
 
     /// Fetches `text` in the hub's voice and hands it to the helper as
@@ -143,7 +235,6 @@ impl Runtime {
         };
         let settings = self.settings.clone();
         let development = self.development;
-        let native_tx = self.helper.sender.clone();
         let events = self.work_events.clone();
         let generation = self.state.generation();
         // The voice of the agent the answer is from: the open conversation's.
@@ -158,6 +249,9 @@ impl Runtime {
             (),
             move |ticket| {
                 tokio::spawn(async move {
+                    // One clip belongs to this ticket, never directly to the
+                    // helper queue. The loop checks the ticket before writing.
+                    let (native_tx, mut clips) = tokio::sync::mpsc::channel(1);
                     let result = crate::speech::play(
                         settings,
                         token,
@@ -170,10 +264,16 @@ impl Runtime {
                     )
                     .await;
                     let event = match result {
-                        Ok(()) => WorkResult::SpeechAvailability {
-                            ticket,
-                            voice,
-                            available: true,
+                        Ok(()) => match clips.try_recv() {
+                            Ok(command) => WorkResult::SpeechClip {
+                                ticket,
+                                voice,
+                                command,
+                            },
+                            Err(_) => WorkResult::Problem {
+                                ticket,
+                                message: "El servicio de voz no entregó un clip".into(),
+                            },
                         },
                         Err(error)
                             if error
@@ -214,6 +314,7 @@ impl crate::daemon::assistant::AssistantHandle {
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
+    use super::WorkResult;
     use orbit_core::{Message, Turn};
 
     #[tokio::test]
@@ -401,6 +502,70 @@ mod tests {
         }
         assert_eq!(orders, ["playback_stop"]);
         runtime.command(Command::SpeakStop).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_long_reading_continues_after_its_first_clip() {
+        let directory = tempfile::tempdir().unwrap();
+        let (mut runtime, _native) = speakable(directory.path());
+        runtime
+            .command(Command::Speak {
+                message_id: "long-answer".into(),
+                text: "Una frase sintética sobre la sala Norte. ".repeat(90),
+            })
+            .await
+            .unwrap();
+        let first = runtime.assistant.read_aloud.clone().unwrap().playback_id;
+        runtime
+            .native_event(progress(&first, "played"))
+            .await
+            .unwrap();
+        assert_eq!(
+            speaking(&runtime),
+            "long-answer",
+            "only the first clip ended"
+        );
+        let next = runtime.assistant.read_aloud.clone().unwrap().playback_id;
+        assert_ne!(next, first);
+        runtime.command(Command::SpeakStop).await.unwrap();
+        runtime
+            .native_event(progress(&next, "played"))
+            .await
+            .unwrap();
+        assert_eq!(speaking(&runtime), serde_json::Value::Null);
+    }
+
+    #[tokio::test]
+    async fn a_synthesized_clip_whose_ticket_was_cancelled_never_reaches_the_helper() {
+        let directory = tempfile::tempdir().unwrap();
+        let (mut runtime, mut native) = speakable(directory.path());
+        runtime
+            .command(Command::Speak {
+                message_id: "late-answer".into(),
+                text: "La sala Norte está lista.".into(),
+            })
+            .await
+            .unwrap();
+        let ticket = runtime.assistant.speech_task.ticket().cloned().unwrap();
+        runtime.command(Command::SpeakStop).await.unwrap();
+        assert_eq!(native.recv().await.unwrap()["command"], "playback_stop");
+        runtime
+            .work_event(WorkResult::SpeechClip {
+                ticket,
+                voice: "atlas".into(),
+                command: crate::native::command(
+                    "playback_clip",
+                    json!({
+                        "playback_id":"late-clip", "mime_type":"audio/wav", "provider":"synthetic",
+                        "audio_base64":"AQI="
+                    }),
+                )
+                .unwrap(),
+            })
+            .await
+            .unwrap();
+        assert!(native.try_recv().is_err());
+        assert!(runtime.assistant.read_aloud.is_none());
     }
 
     #[tokio::test]

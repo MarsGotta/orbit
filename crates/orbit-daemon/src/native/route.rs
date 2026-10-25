@@ -87,6 +87,8 @@ fn answers_no_capture_order(command: &str) -> bool {
             | "playback"
             | "playback_clip"
             | "playback_stop"
+            | "playback_pause"
+            | "playback_resume"
     ) || command.starts_with("calendar_")
         || command.starts_with("assistant_")
 }

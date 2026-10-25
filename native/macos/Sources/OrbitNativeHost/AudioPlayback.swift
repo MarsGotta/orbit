@@ -10,6 +10,7 @@ package final class AudioPlayback {
     private var formatRate: Int?
     private var resampler: PlaybackResampler?
     private var queuedFrames = 0
+    package private(set) var paused = false
     private var generation: UInt64 = 0
     package private(set) var playing = false
     package var becameIdle: (() -> Void)?
@@ -29,7 +30,11 @@ package final class AudioPlayback {
         guard candidate.accept(id: id, sequence: sequence) else {
             throw NativeFailure("stale_or_out_of_order_playback")
         }
-        if let currentID = fence.currentID, currentID != id { stop() }
+        if let currentID = fence.currentID, currentID != id {
+            let wasPaused = paused
+            stop()
+            paused = wasPaused
+        }
         if formatRate != rate {
             guard !playing, queuedFrames == 0 else { throw NativeFailure("playback_format_changed") }
             resampler = try PlaybackResampler(sourceRate: rate)
@@ -52,22 +57,23 @@ package final class AudioPlayback {
         let sourceFrames = data.count / 2
         let thisGeneration = generation
         queuedFrames += frames
-        player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
-            DispatchQueue.main.async {
+        player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] (_: AVAudioPlayerNodeCompletionCallbackType) -> Void in
+            DispatchQueue.main.async { () -> Void in
                 guard let self, self.generation == thisGeneration else { return }
                 self.queuedFrames = max(0, self.queuedFrames - frames)
                 self.playing = self.queuedFrames > 0
-                self.session.playbackActivity.update(active: self.playing, playbackID: id)
-                self.channel.send(.makePlaybackProgress(id: id, state: "played", active: self.playing,
+                let active = self.playing && !self.paused
+                self.session.playbackActivity.update(active: active, playbackID: id)
+                self.channel.send(.makePlaybackProgress(id: id, state: "played", active: active,
                     sequence: sequence, frames: UInt32(sourceFrames), renderedFrames: UInt32(frames),
                     remainingFrames: UInt32(self.queuedFrames)))
                 if !self.playing { self.becameIdle?() }
             }
         }
-        player.play()
+        if !paused { player.play() }
         playing = true
-        session.playbackActivity.update(active: true, playbackID: id)
-        channel.send(.makePlaybackProgress(id: id, state: "started", active: true, sequence: sequence))
+        session.playbackActivity.update(active: !paused, playbackID: id)
+        channel.send(.makePlaybackProgress(id: id, state: paused ? "paused" : "started", active: !paused, sequence: sequence))
         return ["playback_id": id, "sequence": sequence, "frames": sourceFrames,
                 "rendered_frames": frames, "render_sample_rate": PlaybackResampler.outputRate, "state": "queued"]
     }
@@ -88,7 +94,11 @@ package final class AudioPlayback {
         guard candidate.accept(id: clip.playbackID, sequence: 0) else {
             throw NativeFailure("stale_or_out_of_order_playback")
         }
-        if let currentID = fence.currentID, currentID != clip.playbackID { stop() }
+        if let currentID = fence.currentID, currentID != clip.playbackID {
+            let wasPaused = paused
+            stop()
+            paused = wasPaused
+        }
         guard !playing, queuedFrames == 0 else { throw NativeFailure("playback_backpressure") }
         guard let format = session.playbackFormat else {
             throw NativeFailure("unsupported_playback_format")
@@ -101,8 +111,8 @@ package final class AudioPlayback {
         let frames = Int(buffer.frameLength)
         let thisGeneration = generation
         queuedFrames = frames
-        player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
-            DispatchQueue.main.async {
+        player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] (_: AVAudioPlayerNodeCompletionCallbackType) -> Void in
+            DispatchQueue.main.async { () -> Void in
                 guard let self, self.generation == thisGeneration else { return }
                 self.queuedFrames = 0
                 self.playing = false
@@ -112,10 +122,10 @@ package final class AudioPlayback {
                 self.becameIdle?()
             }
         }
-        player.play()
+        if !paused { player.play() }
         playing = true
-        session.playbackActivity.update(active: true, playbackID: clip.playbackID)
-        channel.send(.makePlaybackProgress(id: clip.playbackID, state: "started", active: true,
+        session.playbackActivity.update(active: !paused, playbackID: clip.playbackID)
+        channel.send(.makePlaybackProgress(id: clip.playbackID, state: paused ? "paused" : "started", active: !paused,
             mimeType: clip.mimeType, provider: clip.provider))
         return [
             "playback_id": clip.playbackID, "mime_type": clip.mimeType,
@@ -124,7 +134,31 @@ package final class AudioPlayback {
         ]
     }
 
+    // Keep the scheduled buffer and its render position. A fetch that finishes
+    // while paused is queued silently until resume; stop retires both states.
+    package func pause() {
+        paused = true
+        if playing { player.pause() }
+        session.playbackActivity.update(active: false, playbackID: fence.currentID)
+        if let id = fence.currentID {
+            channel.send(.makePlaybackProgress(id: id, state: "paused", active: false))
+        }
+    }
+
+    package func resume() {
+        guard paused else { return }
+        paused = false
+        if queuedFrames > 0 {
+            player.play()
+            session.playbackActivity.update(active: true, playbackID: fence.currentID)
+            if let id = fence.currentID {
+                channel.send(.makePlaybackProgress(id: id, state: "resumed", active: true))
+            }
+        }
+    }
+
     package func stop() {
+        paused = false
         let id = queuedFrames > 0 ? fence.currentID : nil
         generation &+= 1
         session.stopPlayerIfCreated()

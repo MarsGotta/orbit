@@ -162,6 +162,10 @@ pub enum NativeCommand {
     PrivacyStop { v: u8, id: String },
     #[serde(rename = "capture_stop")]
     CaptureStop { v: u8, id: String },
+    #[serde(rename = "playback_pause")]
+    PlaybackPause { v: u8, id: String },
+    #[serde(rename = "playback_resume")]
+    PlaybackResume { v: u8, id: String },
     #[serde(rename = "playback_stop")]
     PlaybackStop { v: u8, id: String },
     #[serde(rename = "rearm")]
@@ -415,6 +419,8 @@ impl NativeCommand {
             "privacy_stop",
             "capture_stop",
             "playback_stop",
+            "playback_pause",
+            "playback_resume",
             "rearm",
             "shutdown",
             "permissions",

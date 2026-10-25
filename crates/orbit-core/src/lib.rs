@@ -36,6 +36,7 @@ pub mod refusal;
 pub mod reminders;
 pub mod series_title;
 pub mod sources;
+pub mod speech;
 pub mod topics;
 pub mod transition;
 pub mod update;

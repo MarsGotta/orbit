@@ -60,6 +60,11 @@ impl CaptureHandle {
         self.buffer.ingest_voice_frame(frame, now_ms)
     }
 
+    /// Transfer a finished candidate's PCM to the call's carried turn.
+    pub(super) fn take_voice(&mut self) -> Option<crate::capture::VoiceBuffer> {
+        self.buffer.voice.take()
+    }
+
     /// The voice turn's audio goes, unsent.
     pub(super) fn discard_voice(&mut self) {
         self.buffer.voice = None;

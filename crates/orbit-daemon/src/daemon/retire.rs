@@ -244,6 +244,8 @@ impl Runtime {
             Playback => {
                 self.assistant.speech_task.cancel();
                 self.assistant.speak_next = false;
+                self.assistant.speech_paused = false;
+                self.assistant.read_aloud = None;
             }
             Upload => {
                 self.transfers.worker.cancel();

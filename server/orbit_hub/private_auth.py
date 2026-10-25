@@ -172,7 +172,16 @@ class PrivateModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
 
+# Bounds the synchronous action response latency, not execution or receipt retention.
+# 2.5 s hides the extra MCP round trip for short actions while slow actions retain
+# their existing operation lookup. Operators can choose 0 to return immediately.
+ACTION_INLINE_WAIT_MS = 2500
+
+
 class BridgeConfiguration(PrivateModel):
+    action_inline_wait_seconds: float = Field(
+        default=ACTION_INLINE_WAIT_MS / 1000, ge=0, le=30, allow_inf_nan=False
+    )
     key_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
     credential_file: str = Field(min_length=1, max_length=4096, repr=False)
 

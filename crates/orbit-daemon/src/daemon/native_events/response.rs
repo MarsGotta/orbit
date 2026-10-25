@@ -54,6 +54,12 @@ impl Runtime {
             return self.retired_start_answered(&response).await;
         }
         if !response.ok {
+            if command_name == "playback_clip"
+                && let Some(error) = response.error.as_ref()
+                && self.speech_clip_refused(&response.id, &error.code)
+            {
+                return Ok(());
+            }
             return self.helper_order_refused(&response, &command_name).await;
         }
         self.order_answered(event, &response, &command_name).await

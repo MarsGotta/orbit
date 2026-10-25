@@ -35,12 +35,19 @@ impl Runtime {
                     self.on_work_problem(message).await?;
                 }
             }
+            WorkResult::SpeechClip {
+                ticket,
+                voice,
+                command,
+            } => {
+                Box::pin(self.on_speech_availability(ticket, voice, true, Some(command))).await?;
+            }
             WorkResult::SpeechAvailability {
                 ticket,
                 voice,
                 available,
             } => {
-                Box::pin(self.on_speech_availability(ticket, voice, available)).await?;
+                Box::pin(self.on_speech_availability(ticket, voice, available, None)).await?;
             }
             WorkResult::PhotoJpeg {
                 source_path,
@@ -92,6 +99,7 @@ impl Runtime {
         ticket: ticketed::WorkTicket,
         voice: String,
         available: bool,
+        command: Option<Value>,
     ) -> Result<()> {
         let settlement = self
             .assistant
@@ -101,6 +109,11 @@ impl Runtime {
             // The voice that did not arrive is the one that was reading.
             let agent_name = crate::speech::agent_name(&self.settings, Some(&voice));
             self.assistant.speech_voices.insert(voice, available);
+            if let Some(command) = command {
+                self.helper.record_pending(&command);
+                tokio::time::timeout(Duration::from_secs(2), self.helper.sender.send(command))
+                    .await??;
+            }
             if !available {
                 self.assistant.read_aloud = None;
                 self.on_work_problem(crate::speech::SpeechUnavailable { agent_name }.to_string())
@@ -192,7 +205,6 @@ impl Runtime {
         text: String,
     ) -> Result<()> {
         self.assistant.voice_operation = None;
-        self.assistant.speak_next = !self.recording_active();
         let over_answer = self.audio.take_over_answer_turn(&source.message_id);
         if text.trim().is_empty() {
             // Nothing was heard: noise, silence, or a person who had not
@@ -209,6 +221,7 @@ impl Runtime {
                 self.drop_unheard_voice_note(&source.message_id, "no_words")
                     .await?;
             }
+            self.resume_call_reading().await?;
             // A voice note pressed for, and silent, is said in a small line;
             // in a call nothing is said.
             self.say(if in_call {
@@ -225,6 +238,9 @@ impl Runtime {
         {
             return Ok(());
         }
+        // Interrupt retirement clears the old answer's speech request. Arm
+        // this answer only after that retirement has completed.
+        self.assistant.speak_next = !self.recording_active();
         if !self
             .ask_meeting_by_dictation(source.message_id.clone(), text.clone(), source.duration_ms)
             .await?
@@ -291,6 +307,7 @@ impl Runtime {
         // not stop him; it is kept as a note that says why.
         if let Some(turn) = self.audio.take_over_answer_turn(&operation_id) {
             self.accept_over_answer(turn, Some(failure)).await?;
+            self.resume_call_reading().await?;
             if current {
                 self.say(NoticeCode::VoiceTranscriptionFailed);
             }

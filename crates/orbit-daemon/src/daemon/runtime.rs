@@ -20,8 +20,9 @@ pub(crate) const MAX_PENDING_NATIVE: usize = 64;
 /// protects: the loop's own memory and its freedom to come back — a notice
 /// only has to exist for the loop to be woken, so 16 slots are slack for the
 /// work results of one busy turn (seal receipts, upload settlements, vertical
-/// completions), not a throughput size. What it is not: it is not an audio
-/// queue (PCM travels in the store actor's own ordered lanes) and not a
+/// completions), not a throughput size. Synthesized clips travel here once
+/// per speech ticket, independently capped at 4 MiB before base64 encoding.
+/// It is not a PCM queue (PCM travels in the store actor's lanes) or a
 /// durability bound — a `Sealed` wake-up that does not fit is dropped while
 /// its receipt stays recorded in the actor, whose collector applies it within
 /// the 1 s maintenance tick, or within `SEAL_RETRY_DELAY` after a failed seal;
@@ -37,6 +38,13 @@ pub(super) enum WorkResult {
     Problem {
         ticket: ticketed::WorkTicket,
         message: String,
+    },
+    /// A synthesized clip reaches the helper only after the loop accepts its
+    /// ticket. A cancelled worker can never enqueue audio after playback_stop.
+    SpeechClip {
+        ticket: ticketed::WorkTicket,
+        voice: String,
+        command: Value,
     },
     SpeechAvailability {
         ticket: ticketed::WorkTicket,
@@ -80,6 +88,7 @@ impl WorkResult {
                 | StoreWork::ChunkPruned { ticket, .. },
             )
             | Self::Problem { ticket, .. }
+            | Self::SpeechClip { ticket, .. }
             | Self::SpeechAvailability { ticket, .. }
             | Self::BridgeCaptureUpload { ticket, .. } => Some(ticket),
             Self::Store(StoreWork::Sealed { .. } | StoreWork::StoreProblem { .. })
@@ -109,6 +118,7 @@ impl WorkResult {
             WorkResult::Store(StoreWork::Sealed { .. }) => "seal",
             WorkResult::Store(StoreWork::StoreProblem { .. }) => "store_problem",
             WorkResult::Problem { .. } => "problem",
+            WorkResult::SpeechClip { .. } => "speech_clip",
             WorkResult::SpeechAvailability { .. } => "speech_availability",
             WorkResult::BridgeCaptureUpload { .. } => "bridge_capture_upload",
             WorkResult::PhotoJpeg { .. } => "photo_jpeg",

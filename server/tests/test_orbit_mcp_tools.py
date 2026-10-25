@@ -712,3 +712,27 @@ async def test_selected_text_uses_its_own_capability(tmp_path):
         )
     assert not result.is_error
     assert hub.device_requests[0]["capability"] == "selected_text"
+
+
+@pytest.mark.parametrize("outcome", ["performed", "failed", "unknown"])
+async def test_perform_action_accepts_inline_outcomes_in_the_lookup_shape(tmp_path, outcome):
+    from fastapi.responses import JSONResponse
+
+    from orbit_hub.bridge_outcomes import RESULT_PROTOCOL
+
+    payload = {
+        "protocol": RESULT_PROTOCOL,
+        "state": "answered",
+        "operation_id": "00000000-0000-4000-8000-000000000001",
+        "outcome": outcome,
+        "receipt": {"state": outcome, "tool": "fixture_action"},
+    }
+    hub = FakeHub(device_replies=[JSONResponse(payload)])
+    async with serving(tmp_path, hub) as (_client, server):
+        result = await server.call_tool(
+            "orbit_perform_action", {"action": {"tool": "fixture_action"}}
+        )
+    assert not result.is_error, text_of(result)
+    decoded = json.loads(result.content[0].text)
+    assert decoded == {"outcome": outcome, "receipt": payload["receipt"]}
+    assert len(hub.device_requests) == 1

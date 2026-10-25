@@ -315,6 +315,13 @@ class HubClient:
                 raise HubClientError("invalid_response", response.status_code)
             # «Pending» means the Mac has it, not that anyone is being asked.
             return _in_flight(operation_id)
+        if (
+            capability == "perform_action"
+            and response.status_code < 400
+            and payload.get("state") == "answered"
+            and "outcome" in payload
+        ):
+            return self._action_payload(payload, response.status_code)
         if payload.get("state") == "refused":
             # Old Macs' refused+code replies are deliberately no longer accepted.
             if not isinstance(payload.get("refusal"), dict):
@@ -392,6 +399,11 @@ class HubClient:
         payload = self._json_payload(response)
         if response.status_code >= 400 or payload.get("state") != "answered":
             raise _failure(payload, response.status_code)
+        return self._action_payload(payload, response.status_code)
+
+    @staticmethod
+    def _action_payload(payload: dict, status_code: int) -> dict:
+        """The same settled shape for inline and later operation results."""
         if "result" in payload or "refusal" in payload:
             validate_mac_payload("perform_action", payload)
         outcome = payload.get("outcome")
@@ -399,7 +411,7 @@ class HubClient:
             # Still running. Say that, and say where to look again.
             return _in_flight()
         if outcome not in SETTLED_OUTCOMES:
-            raise HubClientError("invalid_response", response.status_code)
+            raise HubClientError("invalid_response", status_code)
         return {
             key: value
             for key, value in payload.items()

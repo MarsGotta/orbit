@@ -44,6 +44,26 @@ final class NativeHostBehaviorTests: XCTestCase {
         }
     }
 
+    func testTentativePlaybackPauseAndResumeDoNotCreateAnAudioGraph() throws {
+        let (channel, input, output) = channel()
+        _ = (input, output)
+        let session = SharedAudioSession()
+        let playback = AudioPlayback(session: session, channel: channel)
+        for name in ["playback_pause", "playback_resume"] {
+            XCTAssertEqual(try command(name).command, name)
+        }
+        playback.pause()
+        XCTAssertTrue(playback.paused)
+        XCTAssertFalse(session.configured)
+        playback.resume()
+        XCTAssertFalse(playback.paused)
+        XCTAssertFalse(session.configured)
+        playback.pause()
+        playback.stop()
+        XCTAssertFalse(playback.paused)
+        XCTAssertFalse(session.configured)
+    }
+
     func testSelectedTextCandidateEqualityPinsEveryIdentityField() {
         let candidate = TextWindowCandidate(windowID: 7, title: "Edición", descriptorHash: "abc")
 

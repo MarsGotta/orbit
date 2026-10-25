@@ -34,7 +34,8 @@ impl Call {
     /// `count` frames of voice or silence, as the helper sends them.
     async fn frames(&mut self, count: u64, voiced: bool) -> Result<()> {
         for _ in 0..count {
-            let frame = call_frame(&self.stream, self.sequence, voiced);
+            let mut frame = call_frame(&self.stream, self.sequence, voiced);
+            mark_frame(&mut frame, self.sequence, voiced);
             self.sequence += 1;
             self.runtime.native_event(frame).await?;
         }
@@ -70,6 +71,7 @@ impl Call {
     async fn frames_over_answer(&mut self, count: u64, voiced: bool) -> Result<()> {
         for _ in 0..count {
             let mut frame = call_frame(&self.stream, self.sequence, voiced);
+            mark_frame(&mut frame, self.sequence, voiced);
             frame["playback_active"] = json!(true);
             self.sequence += 1;
             self.runtime.native_event(frame).await?;
@@ -677,3 +679,106 @@ async fn words_heard_in_a_call_turn_start_the_silence_again() -> Result<()> {
     assert_eq!(detector.last_activity_ms(), started + 61_100);
     Ok(())
 }
+
+#[tokio::test]
+async fn repeated_joins_keep_the_first_voiced_frame_and_preroll() -> Result<()> {
+    let mut call = Call::open().await?;
+    call.frames(3, false).await?;
+    call.turn().await?;
+    let first = call.operation().context("first turn")?;
+    let first_pcm = call.voice_pcm(&first)?;
+    call.transcribed("").await?;
+    for _ in 0..3 {
+        call.turn().await?;
+        let operation = call.operation().context("joined turn")?;
+        let pcm = call.voice_pcm(&operation)?;
+        assert!(
+            pcm.starts_with(&first_pcm),
+            "the earliest carried voice was lost"
+        );
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn voiced_onset_pauses_and_noise_resumes_without_cancelling() -> Result<()> {
+    let mut call = Call::open().await?;
+    call.helper_orders();
+    call.frames_over_answer(1, true).await?;
+    let mut frame = call_frame(&call.stream, call.sequence, true);
+    frame["playback_active"] = json!(true);
+    call.sequence += 1;
+    let onset = std::time::Instant::now();
+    let (handled, paused) = tokio::join!(call.runtime.native_event(frame), async {
+        let order = tokio::time::timeout(Duration::from_secs(1), call.helper.recv())
+            .await?
+            .context("pause command")?;
+        Ok::<_, anyhow::Error>((order, onset.elapsed()))
+    });
+    handled?;
+    let (order, elapsed) = paused?;
+    assert_eq!(order["command"], "playback_pause");
+    assert!(
+        elapsed < Duration::from_millis(100),
+        "pause dispatch: {elapsed:?}"
+    );
+    eprintln!("detected voiced onset to helper pause dispatch: {elapsed:?}");
+    call.frames(2, true).await?;
+    call.frames(8, false).await?;
+    call.transcribed("").await?;
+    let orders = call.helper_orders();
+    assert!(orders.iter().any(|order| order == "playback_resume"));
+    assert!(!orders.iter().any(|order| order == "playback_stop"));
+    assert!(call.runtime.state.durable.assistant.turn.is_none());
+    Ok(())
+}
+
+#[tokio::test]
+async fn accepted_barge_in_keeps_the_next_answer_audible() -> Result<()> {
+    let mut call = Call::open().await?;
+    let _hub = call.runtime.link.outbound.open(16);
+    call.runtime.state.durable.assistant.active_request = Some("synthetic-answer".into());
+    call.frames_over_answer(4, true).await?;
+    call.frames(8, false).await?;
+    call.transcribed("Espera, revisa el siguiente punto")
+        .await?;
+    assert!(
+        call.runtime.assistant.speak_next,
+        "interrupt consumed the next answer's voice"
+    );
+    Ok(())
+}
+
+fn mark_frame(frame: &mut Value, sequence: u64, voiced: bool) {
+    let sample = if voiced { 1_000 } else { 0 } + sequence as i16;
+    frame["pcm_s16le_base64"] = json!(STANDARD.encode(sample.to_le_bytes().repeat(800)));
+}
+
+#[tokio::test]
+async fn a_short_candidate_between_joined_turns_keeps_the_carried_audio() -> Result<()> {
+    let mut call = Call::open().await?;
+    call.turn().await?;
+    let first = call.operation().context("first turn")?;
+    let first_pcm = call.voice_pcm(&first)?;
+    call.transcribed("").await?;
+    // 120 ms opens a candidate but does not meet the 160 ms submission floor.
+    for _ in 0..6 {
+        let mut frame = call_frame(&call.stream, call.sequence, true);
+        frame["frames"] = json!(160);
+        frame["pcm_s16le_base64"] = json!(STANDARD.encode(1_234_i16.to_le_bytes().repeat(160)));
+        call.sequence += 1;
+        call.runtime.native_event(frame).await?;
+    }
+    call.frames(8, false).await?;
+    assert!(call.operation().is_none());
+    call.turn().await?;
+    let final_turn = call.operation().context("final turn")?;
+    assert!(
+        call.voice_pcm(&final_turn)?.starts_with(&first_pcm),
+        "short candidate lost the carried prefix"
+    );
+    Ok(())
+}
+
+#[path = "call_reading_tests.rs"]
+mod reading;

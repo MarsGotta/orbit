@@ -647,6 +647,22 @@ key, so a process on the same machine that can read that key (or run
 you do not trust away from those keys, as described for Claude Code or Codex agents above,
 and rely on macOS's permissions for what the Mac allows at all.
 
+## Short action replies
+
+In `[device_bridge]`, `action_inline_wait_seconds` defaults to `2.5` (range
+`0`–`30`). It bounds only how long `orbit_perform_action` waits for the existing
+receipt worker. A completed action returns the same outcome as
+`orbit_action_result`; a slower action returns `in_progress` and its operation
+id. `0` keeps immediate pending replies. This does not change the 30-second
+receipt deadline, repeat an input action, or remove its durable result.
+
+Read-aloud is queued by the daemon in sentence parts, with a 240-character
+ceiling per synthesis request and smaller parts when the native decoder reports
+`clip_too_long`. The helper still enforces 60 seconds per decoded clip. Only a
+`played` receipt advances the queue. A call's detected speech onset pauses the
+current clip, including one still being fetched; words cancel the whole queue,
+and an empty transcription resumes it at the paused position.
+
 ## Pair and revoke a Mac
 
 With the hub initialized, run these local administrator commands from `server/`:

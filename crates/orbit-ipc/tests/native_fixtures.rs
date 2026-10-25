@@ -48,6 +48,8 @@ fn command_name(command: &NativeCommand) -> &'static str {
         NativeCommand::PrivacyStop { .. } => "privacy_stop",
         NativeCommand::CaptureStop { .. } => "capture_stop",
         NativeCommand::PlaybackStop { .. } => "playback_stop",
+        NativeCommand::PlaybackPause { .. } => "playback_pause",
+        NativeCommand::PlaybackResume { .. } => "playback_resume",
         NativeCommand::Rearm { .. } => "rearm",
         NativeCommand::Shutdown { .. } => "shutdown",
         NativeCommand::Permissions { .. } => "permissions",

@@ -69,6 +69,7 @@ pub async fn play(
     let command = native::command(
         "playback_clip",
         json!({
+            "id": playback_id,
             "playback_id": playback_id,
             "mime_type": content_type,
             "provider": provider,

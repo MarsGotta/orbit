@@ -97,7 +97,7 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
             result = await hub_client.device_request(
                 selection.device_id, "perform_action", parameters
             )
-            return ok(text(json.dumps(result, ensure_ascii=False)))
+            return ok(text(json.dumps(_described_outcome(result), ensure_ascii=False)))
 
         return await runner.invoke(operation, device)
 

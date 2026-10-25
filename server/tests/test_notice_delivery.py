@@ -80,6 +80,9 @@ async def test_voice_working_notices_end_over_the_daemon_subscription(outcome, u
                 assert knowledge["state"] == "present", knowledge
                 received.extend(knowledge["value"]["notices"])
 
+        async def commands():
+            return device.native_commands
+
         async def observations():
             if reader_task is not None and reader_task.done():
                 reader_task.result()
@@ -124,7 +127,7 @@ async def test_voice_working_notices_end_over_the_daemon_subscription(outcome, u
                     await writer.drain()
                     reader_task = asyncio.create_task(collect(reader))
                     completed_ops, elapsed = set(), []
-                    for _ in range(3):
+                    for note_index in range(3):
                         started = time.monotonic()
                         entered.clear()
                         release.clear()
@@ -163,13 +166,21 @@ async def test_voice_working_notices_end_over_the_daemon_subscription(outcome, u
                                 item["op"] == op and item["code"] == terminal for item in items
                             ),
                         )
+                        if outcome == "answered":
+                            # Starting the next PTT cancels an unfinished speech
+                            # fetch. Hear this answer before superseding it; the
+                            # three-clip assertion must not rely on stale work.
+                            await until(
+                                commands,
+                                lambda items, expected=note_index + 1: (
+                                    sum(item["command"] == "playback_clip" for item in items)
+                                    == expected
+                                ),
+                            )
                         completed_ops.add(op)
                         elapsed.append(round(time.monotonic() - started, 3))
                     if outcome == "answered":
                         assert peer.audio_calls == 3
-
-                        async def commands():
-                            return device.native_commands
 
                         await until(
                             commands,

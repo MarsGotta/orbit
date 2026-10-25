@@ -23,6 +23,7 @@ pub(super) struct AssistantHandle {
     /// one per agent a hub has listed while the daemon runs.
     pub(super) speech_voices: BTreeMap<String, bool>,
     pub(super) speak_next: bool,
+    pub(super) speech_paused: bool,
     pub(super) speech_notice_call_id: Option<String>,
     /// The answer the user asked to hear («Escuchar»), while it plays.
     pub(super) read_aloud: Option<speech::ReadAloud>,
@@ -85,6 +86,7 @@ impl AssistantHandle {
             speech_task: ticketed::Ticketed::logical(),
             speech_voices: BTreeMap::new(),
             speak_next: false,
+            speech_paused: false,
             read_aloud: None,
             hub_attachments: None,
             handover_from: None,

@@ -63,7 +63,10 @@ impl Runtime {
         let rate = u64::from(facts.sample_rate);
         let duration_ns = frames * 1_000_000_000 / rate;
         let policy = VoicePolicy::default();
-        let responding = facts.playback_active || self.assistant.speech_task.active().is_some();
+        let responding = facts.playback_active
+            || self.assistant.speech_task.active().is_some()
+            || self.assistant.read_aloud.is_some()
+            || self.assistant.speech_paused;
         // A turn's words being asked for is not Deimos at work: noise
         // transcribed into nothing must not keep a forgotten call open.
         let transcribing = self.assistant.voice_task.active().is_some();

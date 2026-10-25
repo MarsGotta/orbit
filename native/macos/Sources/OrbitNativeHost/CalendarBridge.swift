@@ -35,7 +35,7 @@ package enum CalendarBridge {
         case .calendarSave(let wire): return .save(wire.fields.calendar_save)
         case .calendarDelete(let wire): return .delete(wire.fields.calendar_delete)
         case .hello, .heartbeat, .status, .calendarDisconnect,
-             .privacyStop, .captureStop, .playbackStop, .rearm, .shutdown,
+             .privacyStop, .captureStop, .playbackStop, .playbackPause, .playbackResume, .rearm, .shutdown,
              .permissions, .audioStart, .audioPurpose, .audioMute, .audioWakePhrase, .audioStop, .playback,
              .playbackClip, .applicationSources,
              .screenSources, .screenshot, .selectedText,

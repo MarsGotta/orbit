@@ -38,6 +38,12 @@ extension OrbitApplication {
         case .captureStop:
             respondAfterStop(command, reason: StopPolicy.daemonCutReason, latches: false,
                 failureMessage: "Captura cortada; no se pudo confirmar todo el audio previo.")
+        case .playbackPause:
+            playback.pause()
+            channel.respond(command)
+        case .playbackResume:
+            playback.resume()
+            channel.respond(command)
         case .playbackStop:
             cancelPlayback()
             channel.respond(command)
@@ -270,7 +276,7 @@ extension OrbitApplication {
         case .hello, .heartbeat, .status, .calendarDisconnect,
              .calendarSources, .calendarSnapshot, .calendarSave, .calendarDelete,
              .privacyStop, .captureStop,
-             .playbackStop, .rearm, .shutdown:
+             .playbackStop, .playbackPause, .playbackResume, .rearm, .shutdown:
             throw NativeFailure("unsupported_command")
         }
     }

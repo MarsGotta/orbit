@@ -560,8 +560,12 @@ typed arguments, then runs it: the macOS permissions are the only consent and
 there is no confirmation on top ([control policy](control-policy-v1.md)). One
 attempt only. The `{"adapter_id":"<uuid>","effect_id":"<uuid>"}` form went with
 the native adapters.
-The request route does not wait for the action to finish: after
-reserving the request in `operations`, it returns HTTP 202 with
+The request route bounds how long it waits for completion: after
+reserving the request in `operations`, it waits for the existing device-reply
+receipt worker for up to `[device_bridge].action_inline_wait_seconds` (default
+2.5, range 0–30). A result persisted within that bound returns HTTP 200 in the
+same envelope as the action-result route below, including its operation id.
+Otherwise it returns HTTP 202 with
 `{"state":"pending","outcome":"in_progress","operation_id":"<uuid>"}`.
 `in_progress` means the Mac has the action and it has not finished — it never
 means somebody is being asked to permit it. The old `awaiting_approval` outcome

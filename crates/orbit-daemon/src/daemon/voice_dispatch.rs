@@ -38,7 +38,7 @@ impl Runtime {
         }
         // A call turn begun while Deimos answered is heard before it
         // interrupts him: its words are asked for first, and until they come
-        // nothing is stopped, stored or shown (`hear_over_answer`).
+        // playback is paused, but nothing is cancelled, stored or shown.
         if !cancelled
             && self.audio.take_capture_over_answer()
             && self.state.connection() == orbit_core::Connection::Online
@@ -219,8 +219,8 @@ impl Runtime {
     }
 
     /// A call turn spoken over Deimos's answer: its words are asked for from
-    /// the audio in memory while he goes on. Nothing is interrupted, stored
-    /// or shown yet: noise, a cough or his own voice coming back would
+    /// the audio in memory while playback is paused. Nothing is cancelled,
+    /// stored or shown yet: noise, a cough or his own voice coming back would
     /// otherwise cut him off and leave a note that never transcribes
     /// (2026-10-23, Orbit 0.11.0: three such clips of 1–2 s, each refused by
     /// the provider, stayed as failed notes). The words, when they come,

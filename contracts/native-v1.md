@@ -83,6 +83,12 @@ router, host and calendar bridge receive that value. Refusals keep request ID.
   `Deimos` when both are omitted. A later order without either keeps the
   names the helper had.
 - `playback`/`playback_clip` play; `playback_stop` cancels the playback generation.
+  `playback_pause` and `playback_resume` have only the command envelope and preserve
+  the scheduled buffer and position. Pause also holds a clip fetched later until
+  resume. Stop clears the pause. These commands bypass the general command lane,
+  like stop; they require the daemon and its bundled helper from the same build.
+  `playback_progress` states `paused` and `resumed` are diagnostic, never completion;
+  only `played` advances the daemon's sentence queue.
 - `screen_sources`/`screenshot`/`selected_text` use the one-use bindings below.
 - `calendar_sources`/`calendar_snapshot` read; `calendar_save`/`calendar_delete`
   write; `calendar_disconnect` retires a pending reply without revoking TCC

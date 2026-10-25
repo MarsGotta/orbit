@@ -79,20 +79,26 @@ a delayed loop from misclassifying queued audio.
 The producer remains open during a response. Sustained onset of 200 ms opens
 an interrupting turn (`TurnAction::Begin {interrupt:true}`).
 
-While Deimos answers (his voice plays, or a turn awaits him), that turn stops
-nothing yet: energy cannot tell speech from noise, a cough or his own voice
-coming back. It is captured and its words are asked for from memory
-(`hear_over_answer`, `daemon/audio.rs`); it is not stored, shown or counted
-as a turn. Words stop him and become the turn (`accept_over_answer`); no
-words leave nothing (`voice_turn_dropped`, `no_words`, in the log). A
-transcription failure keeps the turn as a failed note without stopping him.
-Stopping him therefore waits for the end of the user's sentence and its
-transcription. Before 2026-10-23 the onset stopped him at once, and noise
-clips of 1–2 s were left as failed notes.
+While the assistant answers, onset sends `playback_pause` through the helper's
+immediate command lane. The scheduled buffer and its position stay intact,
+including when synthesis finishes after the pause. The turn is captured and
+transcribed from memory (`hear_over_answer`, `daemon/voice_dispatch.rs`); it is
+not stored, shown or counted yet. Words cancel the reading and its queued parts
+and become the turn (`accept_over_answer`). No words resume that same reading
+and leave no note (`voice_turn_dropped`, `no_words`). A transcription failure
+keeps a failed note and resumes the reading. Noise can pause playback but can
+never cancel it or open an assistant turn.
+
+Before this change, playback waited for the end of the sentence plus STT before
+stopping. The previous noise guarantee is retained by separating pause from
+cancellation. Speech requests for the next answer are armed after interrupt
+retirement, so retirement cannot silence the next answer.
 
 A turn the hub hears no words in leaves no note in any case; in a call its
 audio waits for what the user says next, which carries it (`carried`), within
-the bounds of a join.
+the bounds of a join. A candidate below the submission minimum returns both
+its own PCM and any joined prefix to `carried`; discarding it used to leave
+`joined` to be overwritten at the next onset, losing the beginning.
 
 When the user's own previous turn is still transcribing,
 `prepare_call_frame`/`joinable_turn` decide what happens to it:
@@ -134,3 +140,18 @@ Synthetic checks include `cargo test -p orbit-core voice` and
 `cargo test -p orbit-daemon --lib daemon::audio::tests::call`, including
 `daemon/call_health_tests.rs` and `daemon/call_turn_tests.rs`. They inject facts
 and time and do not call real providers. Run tests with an explicit timeout.
+
+## Sequential read-aloud
+
+The daemon splits answer text at sentences, with a 240-character ceiling and
+whitespace/Unicode-safe splits for longer sentences. It synthesizes one part at
+a time and advances only on the helper's matching `played` receipt. This belongs
+in the daemon because it owns playback position, pause and interruption; the hub
+continues to synthesize one ordinary clip per request for every speech provider.
+The native 60-second decoder ceiling remains independent. If even a short part
+exceeds it, the daemon splits that text further before retrying synthesis.
+
+A worker returns the synthesized command with its ticket to the loop. Only a
+current ticket can reach the helper, so a completed fetch delivered after an
+interrupt cannot restart playback. Cancellation retires all remaining parts;
+paused and resumed receipts never count as completion.

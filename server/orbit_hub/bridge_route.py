@@ -353,6 +353,21 @@ class BridgeService:
             task.add_done_callback(self._action_tasks.discard)
             self._active_action_operations.add(request_id)
             task.add_done_callback(lambda _task: self._active_action_operations.discard(request_id))
+            # Wait for the journal writer, not just the reply: both entry points
+            # must expose the same durable result. asyncio.wait leaves the task
+            # running at timeout or caller cancellation; it never repeats input.
+            await asyncio.wait({task}, timeout=self.configuration.action_inline_wait_seconds)
+        operation = self.store.operations.get(request.device_id, request_id)
+        if operation is not None and operation["status"] == "completed":
+            return BridgeReply(
+                200,
+                {
+                    "protocol": RESULT_PROTOCOL,
+                    "state": "answered",
+                    "operation_id": request_id,
+                    **operation["response"],
+                },
+            )
         return BridgeReply(
             202,
             {
@@ -466,6 +481,8 @@ def mount(app, service, transport_allowed):
     async def request_device(headers, body):
         reply = await service.ask(headers, body)
         payload = reply.payload
+        if payload.get("state") == "answered" and "operation_id" in payload:
+            payload = rendered_action(payload)
         if reply.status >= 400:
             payload = render(
                 payload.get("code"),

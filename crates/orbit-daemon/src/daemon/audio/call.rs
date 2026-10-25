@@ -218,8 +218,18 @@ impl Runtime {
         if submit {
             self.dispatch_voice_transcription().await
         } else {
-            self.capture.discard_voice();
-            Ok(())
+            // A subminimum candidate is not a message, but it may own the
+            // beginning of an earlier unheard turn. Put that whole prefix
+            // back rather than leaving `joined` to be overwritten at onset.
+            self.prepend_joined_call_turn();
+            if let Some(voice) = self.capture.take_voice() {
+                self.carry_into_next_turn(super::super::call::call_turn_audio(
+                    super::super::id(),
+                    voice,
+                ));
+            }
+            self.audio.take_capture_over_answer();
+            self.resume_call_reading().await
         }
     }
 

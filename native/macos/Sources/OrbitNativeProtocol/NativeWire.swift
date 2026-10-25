@@ -94,6 +94,8 @@ public enum NativeWireCommand: Decodable, Sendable {
     case calendarDelete(NativeWireEnvelope<NativeCalendarDeleteFields>)
     case privacyStop(NativeWireEnvelope<NativeEmptyFields>)
     case captureStop(NativeWireEnvelope<NativeEmptyFields>)
+    case playbackPause(NativeWireEnvelope<NativeEmptyFields>)
+    case playbackResume(NativeWireEnvelope<NativeEmptyFields>)
     case playbackStop(NativeWireEnvelope<NativeEmptyFields>)
     case rearm(NativeWireEnvelope<NativeEmptyFields>)
     case shutdown(NativeWireEnvelope<NativeEmptyFields>)
@@ -124,6 +126,7 @@ public enum NativeWireCommand: Decodable, Sendable {
         case .hello(let value), .heartbeat(let value), .status(let value),
              .calendarDisconnect(let value),
              .privacyStop(let value), .captureStop(let value), .playbackStop(let value),
+             .playbackPause(let value), .playbackResume(let value),
              .rearm(let value), .shutdown(let value), .screenSources(let value): return (value.v, value.id)
         case .calendarSources(let value): return (value.v, value.id)
         case .calendarSnapshot(let value): return (value.v, value.id)
@@ -192,6 +195,8 @@ public enum NativeWireCommand: Decodable, Sendable {
         case "calendar_delete": self = .calendarDelete(try .init(from: decoder))
         case "privacy_stop": self = .privacyStop(try .init(from: decoder))
         case "capture_stop": self = .captureStop(try .init(from: decoder))
+        case "playback_pause": self = .playbackPause(try .init(from: decoder))
+        case "playback_resume": self = .playbackResume(try .init(from: decoder))
         case "playback_stop": self = .playbackStop(try .init(from: decoder))
         case "rearm": self = .rearm(try .init(from: decoder))
         case "shutdown": self = .shutdown(try .init(from: decoder))
@@ -232,6 +237,8 @@ public enum NativeWireCommand: Decodable, Sendable {
         case .privacyStop: "privacy_stop"
         case .captureStop: "capture_stop"
         case .playbackStop: "playback_stop"
+        case .playbackPause: "playback_pause"
+        case .playbackResume: "playback_resume"
         case .rearm: "rearm"
         case .shutdown: "shutdown"
         case .permissions: "permissions"
@@ -259,7 +266,7 @@ public enum NativeWireCommand: Decodable, Sendable {
         "hello", "heartbeat", "status", "calendar_disconnect",
         "calendar_sources", "calendar_snapshot", "calendar_save", "calendar_delete",
         "privacy_stop", "capture_stop",
-        "playback_stop", "rearm", "shutdown", "permissions", "audio_start",
+        "playback_stop", "playback_pause", "playback_resume", "rearm", "shutdown", "permissions", "audio_start",
         "audio_purpose", "audio_mute", "audio_wake_phrase", "audio_stop", "playback", "playback_clip",
         "application_sources", "screen_sources",
         "screenshot", "selected_text",

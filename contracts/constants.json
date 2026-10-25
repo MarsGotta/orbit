@@ -1920,5 +1920,33 @@
     "source": "python",
     "unit": "characters",
     "value": 1000
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/private_auth.py",
+        "name": "ACTION_INLINE_WAIT_MS",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "ACTION_INLINE_WAIT_MS",
+    "resource": "inline device action response latency, not action execution",
+    "source": "registry",
+    "unit": "milliseconds",
+    "value": 2500
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/speech.rs",
+        "name": "SPEECH_PART_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "SPEECH_PART_CHARS",
+    "resource": "read-aloud synthesis text part",
+    "source": "registry",
+    "unit": "characters",
+    "value": 240
   }
 ]

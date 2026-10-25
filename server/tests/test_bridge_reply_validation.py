@@ -58,7 +58,7 @@ def test_bad_reply_is_relayed_and_mcp_reports_the_field(bridged, capability):
 
                 http.portal.call(action_settled)
                 payload = store.operations.get(owner["device_id"], request_id)["response"]
-                assert response.status_code == 202
+                assert response.status_code == 200
                 assert payload["outcome"] == "unknown"
                 assert "No repitas" in payload["next_step"]
                 lookup = json.dumps(

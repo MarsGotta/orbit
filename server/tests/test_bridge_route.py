@@ -215,7 +215,7 @@ async def test_a_refusal_from_the_mac_is_not_reported_as_an_error(bridged):
         }
 
 
-async def test_named_action_refusal_survives_in_the_pending_operation(bridged):
+async def test_named_action_refusal_survives_in_the_completed_operation(bridged):
     app, store, adapter, owner = bridged
     async with app.router.lifespan_context(app):
         await connect(app, store, adapter, owner)
@@ -248,8 +248,8 @@ async def test_named_action_refusal_survives_in_the_pending_operation(bridged):
                 if stored is not None and stored["status"] == "completed":
                     break
                 await asyncio.sleep(0.01)
-    assert response.status_code == 202
-    assert response.json()["state"] == "pending"
+    assert response.status_code == 200
+    assert response.json()["state"] == "answered"
     assert stored["response"]["outcome"] == "failed"
     assert stored["response"]["code"] == "permission_denied"
 

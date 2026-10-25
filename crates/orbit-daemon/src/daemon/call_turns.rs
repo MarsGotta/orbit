@@ -1,6 +1,6 @@
 //! A call's turns between the detector and the transcriber: what the user
 //! said before carries on in what they say next, and a turn spoken over
-//! Deimos's answer stops him only once its words are known.
+//! Deimos's answer pauses at onset and cancels only once words are known.
 use super::super::Runtime;
 use super::super::audio::VoiceCancellationCause;
 use anyhow::Result;
@@ -44,8 +44,8 @@ pub(in crate::daemon) fn call_turn_audio(
 }
 
 impl Runtime {
-    /// A turn the detector just began. Over Deimos's answer it stops nothing
-    /// and is not counted yet; otherwise it retires the turn in course, as it
+    /// A turn the detector just began. Over Deimos's answer it pauses playback
+    /// without cancelling or counting a turn; otherwise it retires the turn, as it
     /// always did. What the user said just before, still being transcribed,
     /// or a turn in which nothing was heard, goes first in it.
     pub(in crate::daemon) async fn begin_call_turn(
@@ -55,15 +55,24 @@ impl Runtime {
         began: Option<TurnDetector>,
         preroll: Vec<(Value, i64)>,
     ) -> Result<()> {
-        // Over Deimos's answer (he speaks, or works on one) a turn
-        // stops nothing yet: it is heard first (`hear_over_answer`).
+        // Over an answer, onset pauses the reading immediately. Only words
+        // cancel it (`hear_over_answer`); noise resumes the same position.
         let over_answer =
             interrupt && (responding || self.state.durable.assistant.active_request.is_some());
+        if over_answer {
+            self.pause_call_reading().await?;
+        }
         let joined = if interrupt {
             self.joinable_turn()
         } else {
             None
         };
+        let joined = joined.or_else(|| {
+            self.audio
+                .call
+                .as_mut()
+                .and_then(|call| call.carried.take())
+        });
         if interrupt && (joined.is_some() || !over_answer) {
             self.cancel_voice_transcription(if joined.is_some() {
                 VoiceCancellationCause::CallTurnJoined
@@ -93,13 +102,6 @@ impl Runtime {
                 call.detector = began;
             }
         }
-        // A turn in which nothing was heard goes on in this one.
-        let joined = joined.or_else(|| {
-            self.audio
-                .call
-                .as_mut()
-                .and_then(|call| call.carried.take())
-        });
         // Frames already in the carried turn are not heard twice.
         let carried = joined.as_ref().and_then(|turn| turn.last_sequence);
         let preroll: Vec<_> = preroll
@@ -174,7 +176,9 @@ impl Runtime {
     /// user may be saying meanwhile survives the interrupt, which retires
     /// the call's turn in course.
     pub(in crate::daemon) async fn interrupt_for_accepted_turn(&mut self) -> Result<()> {
-        let answering = self.state.durable.assistant.active_request.is_some()
+        let answering = self.assistant.speech_paused
+            || self.assistant.read_aloud.is_some()
+            || self.state.durable.assistant.active_request.is_some()
             || self.assistant.speech_task.active().is_some()
             || self
                 .audio
