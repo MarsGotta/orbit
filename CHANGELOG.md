@@ -7,7 +7,20 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-10-25
+
+### Upgrading
+
+- **Upgrade the hub first, then the Macs.** Nothing in the hub's schema or
+  wire changes; a 0.12.0 Mac keeps working with a 0.12.1 hub and the other
+  way round.
+
 ### Changed
+
+- **Every file and function is within the gate's limits**: no production
+  file over 500 lines of code and no function over 80, in Rust, Python and
+  Swift, and no domain of the daemon touches another's fields. The split
+  changes no behaviour, wire, text or generated TypeScript.
 
 - **A call lasts what a recording lasts, however it began.** From the app or
   with ⌃⌥D, a call with the assistant may last up to 4 h, and ten minutes
