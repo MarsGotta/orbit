@@ -12,8 +12,8 @@ Orbit Pruebas clicking and reading its interface through CuaDriver — started
 bounded to Orbit Pruebas and stopped again — with three lines of it muted
 («Silenciar»), sends Deimos a voice note and opens a call with it over Orbit
 Pruebas's socket, throws a second recording away («Terminar sin guardar»),
-deletes the first meeting («Borrar reunión»), quits Orbit Pruebas twice right
-after typing a draft (⌘Q, then the Dock's quit) and opens it again, runs the
+deletes the first meeting («Borrar reunión»), quits Orbit Pruebas right
+after typing a draft (the Dock's quit) and opens it again, runs the
 checks and cleans up, also when something fails. During the meeting it also
 moves the system's pointer over the floating panel that shows Deimos's
 answer, and away from it. `dry-run` walks the same orchestrator

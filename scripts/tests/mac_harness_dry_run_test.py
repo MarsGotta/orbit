@@ -366,26 +366,44 @@ def test_a_deleted_meeting_whose_note_stays_open_fails_only_its_check(tmp_path):
     assert "still open" in detail, detail
 
 
-# ── A draft across ⌘Q and the Dock's quit, and the panel under the pointer ──
+# ── A draft across the Dock's quit, and the panel under the pointer ──
 
 
 def test_quitting_and_reopening_on_purpose_is_not_taken_for_a_relaunch(good):
-    # Check 17 quits Orbit Pruebas twice and opens it again itself: the guard
-    # of the clean-up, which fails the run when Orbit comes back after it was
-    # closed, must still see one app to close and nothing coming back.
+    # Check 17 quits Orbit Pruebas once, with the Dock's quit, and opens it
+    # again itself: the guard of the clean-up, which fails the run when Orbit
+    # comes back after it was closed, must still see one app to close and
+    # nothing coming back.
     _, directory = good
     data = json.loads((directory / "report.json").read_text(encoding="utf-8"))
     assert data["restored"]["orbit_pruebas"]["came_back"] == 0
     assert data["restored"]["orbit_pruebas"]["closed"] >= 1
     quits = [row["quit"] for row in data["drafts"]]
-    assert quits == ["cmd-q", "apple-event"]
+    assert quits == ["apple-event"]
     assert all(row["came_back"] == 0 for row in data["drafts"])
-    # Each draft is its own, typed in this run right before its quit.
-    texts = [row["text"] for row in data["drafts"]]
-    assert len(set(texts)) == 2
+    # The draft is this run's own, typed right before the quit.
+    assert data["drafts"][0]["text"].startswith("Borrador de prueba ")
 
 
-def test_each_quit_types_its_draft_and_confirms_it_on_screen_right_before_quitting(tmp_path):
+def test_the_quit_is_the_dock_s_only(tmp_path):
+    # ⌘Q sent through CuaDriver never reached the app's menu on the Mac (run
+    # 20261025T150223Z): it ends in the same terminate as the Dock's quit,
+    # which the run sends instead, and asking for it is refused, not tried.
+    assert mac_drafts_panel.QUITS == ("apple-event",)
+    assert list(drafts_panel_checks.QUIT_NAMES) == ["apple-event"]
+    not_covered = " ".join(drafts_panel_checks.NOT_COVERED)
+    assert "⌘Q" in not_covered and "terminate" in not_covered
+    example = dry_run.Example("good")
+    paths = mac_side.Paths(tmp_path)
+    system = dry_run.DryRunSystem(example, paths)
+    mac = mac_side.Mac(paths, system, dry_run.DryRunOrbit(example))
+    system.app_open = True
+    with pytest.raises(mac_side.MacFailure, match="unknown quit «cmd-q»"):
+        mac.draft_and_quit("cmd-q", "{}", 1.0, 1.0)
+    assert system.commands == [] and system.app_open
+
+
+def test_the_quit_types_its_draft_and_confirms_it_on_screen_right_before_quitting(tmp_path):
     example = dry_run.Example("good")
     paths = mac_side.Paths(tmp_path)
     system = dry_run.DryRunSystem(example, paths)
@@ -402,13 +420,17 @@ def test_each_quit_types_its_draft_and_confirms_it_on_screen_right_before_quitti
         "delivery_mode": "foreground",
     }
 
-    done = mac.draft_and_quit("cmd-q", json.dumps(typing), 1.0, 1.0)
+    done = mac.draft_and_quit("apple-event", json.dumps(typing), 1.0, 1.0)
 
     calls = [c for c in system.commands if c[0] == str(paths.cua)]
     tools = [c[2] for c in calls]
-    # Typed, read back from the box, and only then ⌘Q: nothing between them.
-    assert tools[-3:] == ["type_text", "get_window_state", "press_key"]
-    assert json.loads(calls[-1][3])["modifiers"] == ["cmd"]
+    # Typed, read back from the box, and only then the quit: no other
+    # command between them.
+    assert tools[-2:] == ["type_text", "get_window_state"]
+    after = system.commands[system.commands.index(calls[-1]) + 1 :]
+    assert after[0][0] == "osascript", after
+    assert "press_key" not in tools
+    assert done["quit"] == "apple-event"
     assert done["in_box"] is True
     assert done["came_back"] == 0
     assert not system.app_open
@@ -595,49 +617,56 @@ COMPOSER = """- [0] AXWindow "Orbit"
 RECOVERED = '    - AXStaticText = "Recuperado el borrador que no llegaste a enviar."\n'
 
 
-def test_the_draft_check_names_the_quit_that_lost_its_draft():
-    rows = [
-        {"quit": "cmd-q", "text": "Borrador uno", "gap_s": 0.4, "came_back": 0, "stored": False},
-        {"quit": "apple-event", "text": "Borrador dos", "gap_s": 0.3, "came_back": 0},
-    ]
+def _draft_row(**fields):
+    return {"quit": "apple-event", "text": "Borrador uno", "gap_s": 0.3, "came_back": 0, **fields}
+
+
+def test_the_draft_check_says_the_quit_lost_its_draft():
     screens = {
-        # ⌘Q: the box came back empty, with its placeholder.
-        "draft-after-cmd-q": COMPOSER.format(recovered="", value="Escribe a Deimos…"),
-        "draft-after-apple-event": COMPOSER.format(recovered=RECOVERED, value="Borrador dos"),
+        # The box came back empty, with its placeholder.
+        "draft-after-apple-event": COMPOSER.format(recovered="", value="Escribe a Deimos…"),
     }
+    rows = [_draft_row(stored=False)]
     ok, detail = drafts_panel_checks.c17_drafts(_draft_ev(rows, screens))
     assert not ok
-    assert "⌘Q" in detail and "Dock" not in detail
+    assert "Dock" in detail and "⌘Q" not in detail, detail
     assert "did not have it" in detail, detail
 
 
 def test_a_draft_back_without_saying_so_or_an_earlier_one_does_not_pass():
-    rows = [
-        {"quit": "cmd-q", "text": "Borrador uno", "gap_s": 0.4, "came_back": 0},
-        {"quit": "apple-event", "text": "Borrador dos", "gap_s": 0.3, "came_back": 0},
-    ]
-    screens = {
-        "draft-after-cmd-q": COMPOSER.format(recovered="", value="Borrador uno"),
-        # Only what was there before the second draft was typed came back.
-        "draft-after-apple-event": COMPOSER.format(recovered=RECOVERED, value="Borrador uno"),
-    }
-    ok, detail = drafts_panel_checks.c17_drafts(_draft_ev(rows, screens))
+    unsaid = {"draft-after-apple-event": COMPOSER.format(recovered="", value="Borrador uno")}
+    ok, detail = drafts_panel_checks.c17_drafts(_draft_ev([_draft_row()], unsaid))
     assert not ok
     assert "«Recuperado" in detail and "Dock" in detail, detail
-
-
-def test_orbit_coming_back_by_itself_after_a_quit_fails_the_draft_check():
-    rows = [
-        {"quit": "cmd-q", "text": "Borrador uno", "gap_s": 0.4, "came_back": 2},
-        {"quit": "apple-event", "text": "Borrador dos", "gap_s": 0.3, "came_back": 0},
-    ]
-    screens = {
-        "draft-after-cmd-q": COMPOSER.format(recovered=RECOVERED, value="Borrador uno"),
-        "draft-after-apple-event": COMPOSER.format(recovered=RECOVERED, value="Borrador dos"),
+    # Only what was there before the draft was typed came back.
+    earlier = {
+        "draft-after-apple-event": COMPOSER.format(recovered=RECOVERED, value="Borrador cero")
     }
-    ok, detail = drafts_panel_checks.c17_drafts(_draft_ev(rows, screens))
+    ok, detail = drafts_panel_checks.c17_drafts(_draft_ev([_draft_row()], earlier))
+    assert not ok
+    assert "without the draft" in detail, detail
+
+
+def test_orbit_coming_back_by_itself_after_the_quit_fails_the_draft_check():
+    screens = {
+        "draft-after-apple-event": COMPOSER.format(recovered=RECOVERED, value="Borrador uno"),
+    }
+    ok, detail = drafts_panel_checks.c17_drafts(_draft_ev([_draft_row(came_back=2)], screens))
     assert not ok
     assert "came back by itself" in detail
+
+
+def test_the_draft_check_passes_on_the_dock_s_quit_alone():
+    screens = {
+        "draft-after-apple-event": COMPOSER.format(recovered=RECOVERED, value="Borrador uno"),
+    }
+    ok, detail = drafts_panel_checks.c17_drafts(_draft_ev([_draft_row()], screens))
+    assert ok, detail
+    assert "Dock" in detail and "⌘Q" not in detail, detail
+    # Evidence of the two quits of before is not this check's.
+    two = [_draft_row(quit="cmd-q"), _draft_row()]
+    ok, _ = drafts_panel_checks.c17_drafts(_draft_ev(two, screens))
+    assert not ok
 
 
 def _question(**fields):

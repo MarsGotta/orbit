@@ -39,13 +39,17 @@ impl VoiceState {
     }
 
     /// Said once, ten minutes before the call's ceiling, as a recording's:
-    /// what is left, what it has lasted and the ceiling.
+    /// what is left, what it has lasted and the ceiling. A call asked for
+    /// no longer than that window is never told: it would hear it as it
+    /// starts, with the window's numbers instead of its own.
     pub(super) fn ceiling_near(&mut self, now_ms: i64) -> Option<Notice> {
         let call = self.call.as_mut()?;
+        let window_ms = crate::RECORDING_CEILING_NOTICE_MINUTES * 60_000;
         let remaining_ms = call.expires_at_ms.saturating_sub(now_ms);
         if call.ceiling_notice_given
+            || call.expires_at_ms.saturating_sub(call.started_at_ms) <= window_ms
             || remaining_ms <= 0
-            || remaining_ms > crate::RECORDING_CEILING_NOTICE_MINUTES * 60_000
+            || remaining_ms > window_ms
         {
             return None;
         }

@@ -1,5 +1,5 @@
-"""Checks 17 and 18 of the real test on the Mac: a draft across ⌘Q and the
-Dock's quit, and the floating panel holding its answer under the pointer.
+"""Checks 17 and 18 of the real test on the Mac: a draft across the Dock's
+quit, and the floating panel holding its answer under the pointer.
 
 Pure functions over the evidence the steps of drafts_panel.py collect, as in
 checks.py, whose helpers they use.
@@ -12,7 +12,7 @@ import checks
 from checks import _fact, _tree
 
 NAMES = {
-    17: "A draft survives ⌘Q and the Dock's quit and comes back with «Recuperado…»",
+    17: "A draft survives the Dock's quit and comes back with «Recuperado…»",
     18: "The panel holds its answer under the pointer and lets it go after",
 }
 
@@ -27,7 +27,6 @@ TEXTS = {
 # check 7 reads it too.
 ANSWER_WHOLE = "Queda también en tu conversación"
 QUIT_NAMES = {
-    "cmd-q": "⌘Q",
     "apple-event": "the Dock's quit (the Apple Event «quit»)",
 }
 STORED = {
@@ -51,8 +50,14 @@ NOT_COVERED = (
         "drafts other than the Assistant's composer (a new calendar event, a note's "
         "summary or private notes, the personality or a skill): reaching them needs the "
         "Calendar permission or the hub's agent configuration, which the run does not "
-        "have; both quits use the composer, each with its own draft. The Dock's own menu "
-        "is not clicked: the run sends the Apple Event «quit» that menu sends."
+        "have; the quit uses the composer. The Dock's own menu is not clicked: the run "
+        "sends the Apple Event «quit» that menu sends."
+    ),
+    (
+        "⌘Q: its key, sent through CuaDriver, never reached the app's menu, so the run "
+        "cannot press it. In Orbit ⌘Q ends in the same `NSApplication terminate:` as the "
+        "Dock's quit, whose `applicationWillTerminate` tao turns into the same "
+        "`RunEvent::Exit` (apps/desktop/src-tauri/src/lib.rs): the Dock's quit exercises it."
     ),
 )
 
@@ -93,9 +98,10 @@ def c17_drafts(ev: dict) -> tuple[bool, str]:
     if wrong:
         return False, "; ".join(wrong)
     gaps = " and ".join(f"{row['gap_s']} s" for row in rows)
+    names = " and ".join(QUIT_NAMES[row["quit"]] for row in rows)
     return True, (
-        f"after ⌘Q and after the Dock's quit, each draft, typed {gaps} before quitting, came "
-        f"back in the composer with «{TEXTS['recovered']}»"
+        f"after {names}, the draft typed {gaps} before quitting came back in the composer "
+        f"with «{TEXTS['recovered']}»"
     )
 
 

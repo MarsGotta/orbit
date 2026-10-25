@@ -56,6 +56,10 @@ is in Spanish; the labels quoted below are the ones it shows.
   the phrase and hears it again at once: the line waits 1.5 s, and appears
   only if the phrase was not heard again. The daemon's log keeps every
   abandonment as before.
+- **A short call no longer says it is about to hang up as soon as it
+  starts.** The notice ten minutes before a call's 4 h ceiling is now said
+  only to a call longer than those ten minutes; a call asked for two minutes
+  hangs up at its end without it.
 
 ## [0.12.0] - 2026-10-24
 

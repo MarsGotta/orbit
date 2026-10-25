@@ -1,6 +1,6 @@
 """The Mac side of checks 17 and 18 of the real test: a draft typed in the
-Assistant's composer and Orbit Pruebas quit right after it, with ⌘Q or with
-the Dock's quit (the Apple Event «quit»), then opened again; and the system's
+Assistant's composer and Orbit Pruebas quit right after it with the Dock's
+quit (the Apple Event «quit»), then opened again; and the system's
 pointer moved over the floating panel and away from it, with the daemon's
 word on the answer it holds.
 
@@ -37,9 +37,12 @@ SOCKET_RETRY_S = 0.2
 # names against those files.
 DRAFT_PREFIX = "orbit.draft."
 DRAFT_KEY = DRAFT_PREFIX + "chat"
-# ⌘Q, as a person presses it, through CuaDriver to Orbit Pruebas's pid; and
-# the Apple Event «quit», what the Dock's «Salir» sends.
-QUITS = ("cmd-q", "apple-event")
+# The Apple Event «quit», what the Dock's «Salir» sends. ⌘Q is not one: sent
+# through CuaDriver (`press_key` q with cmd) it never reached the app's menu
+# (run 20261025T150223Z), and in Orbit both end in the same `NSApplication
+# terminate:`, whose `applicationWillTerminate` tao turns into the same
+# `RunEvent::Exit` (apps/desktop/src-tauri/src/lib.rs).
+QUITS = ("apple-event",)
 
 
 def _stored_text(value) -> str:
@@ -105,13 +108,7 @@ class DraftsAndPanel:
                 )
             time.sleep(SOCKET_RETRY_S)
 
-    def _quit(self, how: str, typing: dict) -> None:
-        if how == "cmd-q":
-            keys = {"key": "q", "modifiers": ["cmd"], "delivery_mode": "foreground"}
-            self.engine_call(
-                "press_key", {"pid": typing["pid"], "window_id": typing["window_id"], **keys}
-            )
-            return
+    def _quit(self) -> None:
         # Addressed by bundle identifier (its WebKit directory's name) and
         # asked only while it runs: telling a closed app to quit would open
         # it (scripts/release/install-on-mac.sh does the same).
@@ -137,7 +134,7 @@ class DraftsAndPanel:
         self._draft_in_box(arguments, screen_s)
         pids = self._ours()
         quit_at = self.system.now()
-        self._quit(how, arguments)
+        self._quit()
         left = self.system.wait_exit(pids, close_s)
         if left:
             raise MacFailure(
@@ -296,7 +293,7 @@ def _panel_pointer(mac, rest: list[str]) -> dict:
 # mac.py's subcommands of these steps, each with its own arguments:
 #   floating
 #   launch --max S
-#   draft-and-quit cmd-q|apple-event TYPE_TEXT_JSON SCREEN_S --max S
+#   draft-and-quit apple-event TYPE_TEXT_JSON SCREEN_S --max S
 #   panel-pointer WINDOW_ID over|away QUESTION_ID --max S
 COMMANDS = {
     "floating": _floating,

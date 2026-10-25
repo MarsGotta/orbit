@@ -93,10 +93,9 @@ class DryRunSystem(mac_side.System):
         self.signals: list[tuple[int, int]] = []
         self.pauses: list[float] = []
         self.cua = DryRunCua(example, paths.logs)
-        self.cua.on_quit = self._quit
 
     def _quit(self) -> None:
-        """Orbit Pruebas ends, as on ⌘Q or the Apple Event «quit»."""
+        """Orbit Pruebas ends, as on the Apple Event «quit»."""
         self.app_open = False
 
     def run(self, *command: str) -> tuple[int, str, str]:
@@ -279,7 +278,6 @@ class DryRunCua:
         self.screen = "home"
         # What the floating panel shows: the pointer can change it.
         self.panel = "panel"
-        self.on_quit = lambda: None
         self.running = False
         self.mode = "bounded"
         self.serve: list[str] | None = None
@@ -406,8 +404,6 @@ class DryRunCua:
         if tool == "press_key":
             key = "+".join([*arguments.get("modifiers", []), arguments["key"]])
             self.follow(f"press_key:{key}")
-            if key == "cmd+q":
-                self.on_quit()
             return {"ok": True}
         import ax_tree
 

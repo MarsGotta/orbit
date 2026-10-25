@@ -143,7 +143,7 @@ SSH:
   meeting, runs the checks and cleans up, also when something fails. It reads
   the test hub's database to check that a deleted recording left nothing there.
   It moves the system pointer over the floating panel and away, and quits and
-  reopens Orbit Pruebas twice (⌘Q, then the Dock's quit) to check a draft
+  reopens Orbit Pruebas once (the Dock's quit) to check a draft
   survives. Nobody should be using the Mac while it runs. The speech is synthesized
   with `say` into the BlackHole 2ch virtual input, so the Mac needs
   `blackhole-2ch`, `switchaudio-osx` and a Spanish system voice; the run

@@ -3,9 +3,9 @@
 18 runs inside the meeting, right after «Oye Deimos» has its answer in the
 floating panel (check 7): the system's pointer goes over the panel, stays
 there past the answer's own time, and leaves. 17 runs last, once every
-other check has its evidence: it quits Orbit Pruebas twice, each time right
-after typing a draft in the Assistant's composer, and opens it again on
-purpose.
+other check has its evidence: it quits Orbit Pruebas with the Dock's quit
+right after typing a draft in the Assistant's composer, and opens it again
+on purpose.
 
 Each step works on the RealTest of real_test.py: its interface, its Mac, its
 waits and its evidence.
@@ -108,11 +108,10 @@ def panel_holds_answer(test, panel, answered_at: float) -> None:
 
 
 def drafts_survive_quitting(test) -> None:
-    """A draft typed in the Assistant's composer, ⌘Q at once, Orbit Pruebas
-    opened again: the composer has it back and says «Recuperado…». Then the
-    same with the Dock's quit and another draft, typed after the first one
-    came back."""
-    with test.step("a draft survives ⌘Q and the Dock's quit", (17,), critical=False):
+    """A draft typed in the Assistant's composer, the Dock's quit at once,
+    Orbit Pruebas opened again: the composer has it back and says
+    «Recuperado…»."""
+    with test.step("a draft survives the Dock's quit", (17,), critical=False):
         drafts = test.ev["drafts"] = []
         for how in QUIT_NAMES:
             # Invented text, unique to this quit: no earlier draft can be it.

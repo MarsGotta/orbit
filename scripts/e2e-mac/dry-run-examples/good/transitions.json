@@ -49,7 +49,7 @@
  },
  "assistant-typed": {
   "click:Enviar": "assistant-answered",
-  "press_key:cmd+q": "reopened"
+  "apple-event:quit": "reopened"
  },
  "assistant-answered": {
   "click:Nueva conversación": "assistant-new"
@@ -87,9 +87,6 @@
  },
  "reopened": {
   "click:Asistente": "assistant-recovered"
- },
- "assistant-recovered": {
-  "apple-event:quit": "reopened"
  },
  "panel": {
   "pointer:away": "panel-recording"

@@ -1,5 +1,6 @@
 {
- "assistant-recovered": {
+ "assistant-typed": {
+  "click:Enviar": "assistant-answered",
   "apple-event:quit": "reopened-lost"
  },
  "reopened-lost": {

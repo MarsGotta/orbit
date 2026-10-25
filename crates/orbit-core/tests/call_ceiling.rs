@@ -113,3 +113,32 @@ fn both_origins_are_warned_at_three_hours_fifty_and_end_at_four() {
         );
     }
 }
+
+/// The notice is the four-hour ceiling's: a call asked for no longer than
+/// the notice's window (the real test's two minutes) is never told it is
+/// about to hang up, not even as it starts; one minute longer is told once.
+#[test]
+fn a_call_no_longer_than_the_notice_window_is_never_warned() {
+    let window = orbit_core::RECORDING_CEILING_NOTICE_MINUTES;
+    for minutes in [2, 1, window] {
+        let mut state = call_from(CallOrigin::App, minutes * MINUTE).unwrap();
+        for now in 0..minutes {
+            state = decide(&state, Event::Tick, now * MINUTE).unwrap().state;
+            assert_eq!(
+                said(&state, NoticeCode::CallCeilingNear),
+                0,
+                "{minutes} min"
+            );
+        }
+        let ended = decide(&state, Event::Tick, minutes * MINUTE).unwrap().state;
+        assert!(ended.durable.voice.call.is_none(), "{minutes} min");
+        assert_eq!(
+            said(&ended, NoticeCode::CallCeilingNear),
+            0,
+            "{minutes} min"
+        );
+    }
+    let longer = call_from(CallOrigin::App, (window + 1) * MINUTE).unwrap();
+    let warned = decide(&longer, Event::Tick, MINUTE).unwrap().state;
+    assert_eq!(said(&warned, NoticeCode::CallCeilingNear), 1);
+}

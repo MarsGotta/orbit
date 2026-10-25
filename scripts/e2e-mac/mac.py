@@ -16,7 +16,7 @@ exits 1.
     command call_start|call_stop  starts or stops a call with Deimos
     restore --max S           closes Orbit Pruebas and puts the previous input back
     launch --max S            opens Orbit Pruebas again and waits for its daemon
-    draft-and-quit HOW JSON S --max S  types a draft, quits Orbit Pruebas (⌘Q or the Dock's quit)
+    draft-and-quit HOW JSON S --max S  types a draft, quits Orbit Pruebas (the Dock's quit)
     panel-pointer ID over|away Q --max S  moves the pointer over the panel or away from it
     logs                      the report logs of Orbit Pruebas and the call's audio lines of daemon.log
     activate                  brings Orbit Pruebas to the front
@@ -145,7 +145,7 @@ VOICE_NOTE = "Deimos, contesta sólo con la palabra recibido."
 # which check 11 names; it never makes the check pass.
 BEAT_BEFORE_SPEAKING_S = 0.5
 BEAT_AFTER_SPEAKING_S = 0.7
-# A call's length when it starts (`call_start`, 1..60 minutes). Two minutes
+# A call's length when it starts (`call_start`, 1..240 minutes). Two minutes
 # cover the wait for «listening» (30 s, real_test.py bounds) plus the SSH margin
 # of that wait and of the `call_stop` after it (SSH_MARGIN_S, 30 s each);
 # `call_stop` ends it well before, and a call that outlived the step would

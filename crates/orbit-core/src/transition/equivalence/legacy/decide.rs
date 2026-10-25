@@ -1088,9 +1088,12 @@ fn decide_tick(state: &State, next: &mut State, effects: &mut Vec<Effect>, now_m
     discard::drain_timed_out(next, now_ms);
     let _ = state;
     // Mirrors the call's notice ten minutes before its ceiling, a
-    // recording's, which came after the split.
+    // recording's, which came after the split, and never for a call no
+    // longer than that window, which came after too.
     if let Some(call) = next.durable.call.as_mut()
         && !call.ceiling_notice_given
+        && call.expires_at_ms.saturating_sub(call.started_at_ms)
+            > crate::RECORDING_CEILING_NOTICE_MINUTES * 60_000
         && now_ms < call.expires_at_ms
         && call.expires_at_ms.saturating_sub(now_ms)
             <= crate::RECORDING_CEILING_NOTICE_MINUTES * 60_000
