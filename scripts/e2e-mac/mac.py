@@ -7,7 +7,7 @@ mac_waits.py), the Swift scripts and the meeting script to
 each prints one JSON object and exits 0, or prints `{"error": …}` and
 exits 1.
 
-    prepare --max S           checks, BlackHole as the default input, clean data, opens Orbit Pruebas
+    prepare --max S           checks, BlackHole as the default input, clean data and drafts, opens Orbit Pruebas
     pair URL CODE NAME
     wait WHAT [ARG] --max S   waits on a fact Orbit Pruebas publishes or answers on its socket
     read detail ID | read sessions
@@ -89,8 +89,9 @@ class Paths:
         # File name kept from the earlier, Spanish harness: a run of it that
         # died left the input to put back here, and the next run restores it.
         self.previous_input = self.own / "entrada-anterior"
-        # WebKit keeps the webview's local storage, the unsent drafts among
-        # it, here, outside the data directory, under the bundle identifier.
+        # WebKit keeps the webview's local storage here, outside the data
+        # directory, under the bundle identifier: the unsent drafts, the first
+        # run's completion, the theme.
         self.webkit = home / "Library" / "WebKit" / BUNDLE_ID
         # CuaDriver's command line, from its official installer, and what the
         # test hands it: the manifest it is bounded by and the pid it started.
@@ -426,11 +427,11 @@ class Mac(DraftsAndPanel, CuaDriver):
         current = self.system.run_checked("SwitchAudioSource", "-c", "-t", "input").strip()
         paths.previous_input.write_text(current + "\n", encoding="utf-8")
         self.system.run_checked("SwitchAudioSource", "-t", "input", "-s", BLACKHOLE)
-        # Its data, and its webview's storage: a draft an earlier run left
-        # would be in the composer when the run types its own message.
-        for directory in (paths.data, paths.webkit):
-            if directory.exists():
-                shutil.rmtree(directory)
+        # Its data, and the drafts in its webview's storage, which keeps the
+        # first run's completion and the theme besides.
+        if paths.data.exists():
+            shutil.rmtree(paths.data)
+        drafts = self.clear_web_drafts()
         self.launch(max_s)
         macos = self.system.run_checked("sw_vers", "-productVersion").strip()
         # The name the microphone's turns must carry, taken where the daemon
@@ -441,6 +442,7 @@ class Mac(DraftsAndPanel, CuaDriver):
             "previous_input": current,
             "macos": macos,
             "closed_before": before,
+            "drafts_removed": drafts,
             "owner": owner_name(full if code == 0 else None),
         }
 

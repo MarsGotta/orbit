@@ -31,6 +31,7 @@ sys.path.insert(0, str(ROOT / "server" / "tests"))
 
 import drafts_panel_checks
 import dry_run
+import first_run
 import interface
 import mac as mac_side
 import mac_controls
@@ -107,6 +108,38 @@ def test_the_good_example_passes_every_check_but_the_skipped_one(good):
     call = (directory / "daemon-call.log").read_text(encoding="utf-8")
     events = [json.loads(line)["event"] for line in call.splitlines()]
     assert events == ["call_audio_opened", "call_audio_heard"]
+
+
+def _skips(directory: Path) -> tuple[dict, str, int]:
+    """report.json, report.txt and how many times «Configurarlo más tarde»
+    was pressed: each press is found by one read of its own."""
+    data = json.loads((directory / "report.json").read_text(encoding="utf-8"))
+    report = (directory / "report.txt").read_text(encoding="utf-8")
+    presses = [r["label"] for r in data["reads"]].count(f"find {first_run.SKIP}")
+    return data, report, presses
+
+
+def test_a_run_that_opens_on_the_main_window_presses_nothing_more(good):
+    _, directory = good
+    data, report, presses = _skips(directory)
+    assert presses == 0
+    assert data["welcome_skipped"] == []
+    assert first_run.REPORTED not in report
+
+
+def test_a_first_run_s_welcome_is_skipped_with_one_press_and_said_once(good, tmp_path):
+    # Run 20261025T141530Z: Orbit Pruebas opened on its first run's welcome,
+    # painted after the window's first read, and the run looked for «Grabar
+    # reunión» there. The example's window is blank at its first read, shows
+    # the welcome at the next, and the main view once the welcome is skipped.
+    results, directory = dry_run.run("first-run", tmp_path)
+
+    assert statuses(results) == statuses(good[0]), json.dumps(results, ensure_ascii=False, indent=1)
+    data, report, presses = _skips(directory)
+    assert presses == 1
+    # Skipped once: the reopened app of check 17 kept the first run's completion.
+    assert data["welcome_skipped"] == ["home"]
+    assert report.count(first_run.REPORTED) == 1
 
 
 def test_the_dry_run_starts_and_stops_the_real_test_hub(good):
@@ -212,6 +245,9 @@ def test_the_texts_the_controls_look_for_are_the_app_s():
         assert f'"{text}"' in sources, f"{name}: «{text}» is not a text of the app"
     line = re.search(rf"`({re.escape(prefix)}\$\{{[^}}]+\}} – \$\{{[^}}]+\}})`", sources)
     assert line is not None, "the transcript's «Micrófono silenciado · … – …» changed"
+    # The first run's way out and the main window's button.
+    assert f'skipAll: "{first_run.SKIP}"' in sources
+    assert f'record: "{first_run.MAIN}"' in sources
 
 
 def test_what_the_hub_keeps_is_counted_in_every_table_that_names_it(tmp_path):
@@ -420,30 +456,6 @@ def test_the_quit_apple_event_goes_to_orbit_pruebas_by_its_bundle_identifier(tmp
     )
 
 
-def test_prepare_clears_only_orbit_pruebas_s_own_webkit_data(tmp_path):
-    # Drafts live in WebKit's storage, outside the data directory: a draft an
-    # earlier run left would be in the box when check 8 types its message.
-    example = dry_run.Example("good")
-    paths = mac_side.Paths(tmp_path)
-    (paths.app / "Contents").mkdir(parents=True)
-    (paths.app / "Contents" / "Info.plist").write_bytes(
-        dry_run.plistlib.dumps({"CFBundleIdentifier": mac_side.BUNDLE_ID})
-    )
-    system = dry_run.DryRunSystem(example, paths)
-    mac = mac_side.Mac(paths, system, dry_run.DryRunOrbit(example))
-    left = paths.webkit / "WebsiteData" / "localstorage.sqlite3"
-    left.parent.mkdir(parents=True)
-    left.write_text("borrador de otra ejecución", encoding="utf-8")
-    users = tmp_path / "Library" / "WebKit" / "app.orbit.companion"
-    users.mkdir(parents=True)
-
-    mac.prepare(1.0)
-
-    assert paths.webkit.name == mac_side.BUNDLE_ID
-    assert not paths.webkit.exists()
-    assert users.is_dir()
-
-
 def _webkit_storage(path: Path, rows: dict[str, str]) -> None:
     # WebKit's localStorage file: ItemTable, its values UTF-16 in a BLOB.
     path.parent.mkdir(parents=True)
@@ -453,6 +465,90 @@ def _webkit_storage(path: Path, rows: dict[str, str]) -> None:
         connection.execute("INSERT INTO ItemTable VALUES (?, ?)", (key, value.encode("utf-16-le")))
     connection.commit()
     connection.close()
+
+
+def _stored_keys(path: Path) -> set[str]:
+    connection = sqlite3.connect(path)
+    try:
+        return {key for (key,) in connection.execute("SELECT key FROM ItemTable")}
+    finally:
+        connection.close()
+
+
+# What WebKit keeps for Orbit Pruebas besides its drafts: the first run's
+# completion (OnboardingView.tsx), the theme (theme.ts), a dismissed update
+# notice (UpdateNotice.tsx), and a key that only looks like a draft's.
+KEPT = {
+    "orbit.onboarding.done.local": "true",
+    "orbit.ui.theme.local": "dark",
+    "orbit.update.dismissed-version": "0.0.1",
+    "orbit.drafts-elsewhere": '"no es un borrador"',
+}
+DRAFTS = {
+    "orbit.draft.chat": json.dumps("Borrador inventado de otra ejecución"),
+    "orbit.draft.note.11111111": json.dumps("Nota inventada sin enviar"),
+}
+
+
+def test_prepare_removes_only_the_drafts_from_orbit_pruebas_s_webkit_storage(tmp_path):
+    # Drafts live in WebKit's storage, outside the data directory: a draft an
+    # earlier run left would be in the box when check 8 types its message.
+    # Run 20261025T141530Z: deleting that whole storage also deleted the first
+    # run's completion, and Orbit Pruebas opened on its welcome.
+    example = dry_run.Example("good")
+    paths = mac_side.Paths(tmp_path)
+    (paths.app / "Contents").mkdir(parents=True)
+    (paths.app / "Contents" / "Info.plist").write_bytes(
+        dry_run.plistlib.dumps({"CFBundleIdentifier": mac_side.BUNDLE_ID})
+    )
+    system = dry_run.DryRunSystem(example, paths)
+    mac = mac_side.Mac(paths, system, dry_run.DryRunOrbit(example))
+    storage = paths.webkit / "WebsiteData" / "Default" / "a1" / "a1" / "LocalStorage"
+    _webkit_storage(storage / "localstorage.sqlite3", {**KEPT, **DRAFTS})
+    left = paths.data / "orbit-local.json"
+    left.parent.mkdir(parents=True)
+    left.write_text("{}", encoding="utf-8")
+    users = tmp_path / "Library" / "WebKit" / "app.orbit.companion" / "localstorage.sqlite3"
+    _webkit_storage(users, DRAFTS)
+
+    done = mac.prepare(1.0)
+
+    assert paths.webkit.name == mac_side.BUNDLE_ID
+    assert _stored_keys(storage / "localstorage.sqlite3") == set(KEPT)
+    assert done["drafts_removed"] == len(DRAFTS)
+    # The data directory is still cleared whole (the app recreated its logs).
+    assert not left.exists()
+    # The user's own Orbit is never touched.
+    assert _stored_keys(users) == set(DRAFTS)
+
+
+def test_the_drafts_clean_up_deletes_only_draft_keys(tmp_path):
+    paths = mac_side.Paths(tmp_path)
+    mac = mac_side.Mac(paths, mac_side.System(), None)
+    assert mac.clear_web_drafts() == 0, "no storage: no drafts to remove"
+    first = paths.webkit / "WebsiteData" / "Default" / "a1" / "a1" / "localstorage.sqlite3"
+    second = paths.webkit / "WebsiteData" / "Default" / "b2" / "b2" / "localstorage.sqlite3"
+    _webkit_storage(first, {**KEPT, **DRAFTS})
+    _webkit_storage(second, {"orbit.draft.chat": '"otro"', "orbit.ui.theme.local": "light"})
+
+    assert mac.clear_web_drafts() == len(DRAFTS) + 1
+
+    assert _stored_keys(first) == set(KEPT)
+    assert _stored_keys(second) == {"orbit.ui.theme.local"}
+    assert mac.clear_web_drafts() == 0
+
+
+def test_a_storage_the_clean_up_cannot_read_stops_the_run_by_name(tmp_path):
+    # A draft left in it would be in the box when check 8 types its message.
+    paths = mac_side.Paths(tmp_path)
+    mac = mac_side.Mac(paths, mac_side.System(), None)
+    broken = paths.webkit / "WebsiteData" / "localstorage.sqlite3"
+    broken.parent.mkdir(parents=True)
+    broken.write_text("no es una base de datos", encoding="utf-8")
+
+    with pytest.raises(mac_side.MacFailure, match="localstorage.sqlite3"):
+        mac.clear_web_drafts()
+    assert broken.exists()
 
 
 def test_the_draft_is_looked_for_in_webkit_s_own_storage(tmp_path):
@@ -481,8 +577,9 @@ def test_the_texts_of_the_draft_check_are_the_app_s():
     assert f"composerLabel: `{drafts_panel_checks.TEXTS['composer']} ${{" in assistant
     drafts = (source / "state" / "local-drafts.ts").read_text(encoding="utf-8")
     composer = (source / "features" / "assistant" / "use-composer.ts").read_text(encoding="utf-8")
+    assert f'DRAFT_PREFIX = "{mac_drafts_panel.DRAFT_PREFIX}";' in drafts
     prefix, name = mac_drafts_panel.DRAFT_KEY.rsplit(".", 1)
-    assert f'DRAFT_PREFIX = "{prefix}.";' in drafts
+    assert f"{prefix}." == mac_drafts_panel.DRAFT_PREFIX
     assert f'useLocalDraft("{name}", "", asText)' in composer
 
 

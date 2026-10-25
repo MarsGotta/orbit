@@ -1,6 +1,6 @@
 {
  "home": {
-  "click:Configurarlo más tarde": "briefing"
+  "click:Grabar reunión": "dialog"
  },
  "briefing": {
   "click:Grabar reunión": "dialog"

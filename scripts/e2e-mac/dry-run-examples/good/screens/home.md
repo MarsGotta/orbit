@@ -1,8 +1,12 @@
 - AXWindow "Orbit"
   - AXWebArea
-    - [1] AXButton "Configurarlo más tarde" [actions=[press]]
-    - AXStaticText = "Paso 1 de 4"
+    - AXGroup (Principal)
+      - [1] AXButton "Grabar reunión" [actions=[press]]
+      - AXLink "Hoy"
+      - AXLink "Calendario"
+      - [3] AXLink "Reuniones" [actions=[press]]
+      - [4] AXLink "Asistente" [actions=[press]]
+      - AXLink "Ajustes"
     - AXHeading
-      - AXStaticText = "Te damos la bienvenida a Orbit"
-    - AXStaticText = "En un par de minutos lo dejas listo: conectas este Mac con tu hub y eliges qué puede usar Orbit."
-    - [2] AXButton "Empezar" [actions=[press]]
+      - AXStaticText = "Hoy"
+    - [6] AXButton "Grabar reunión" [actions=[press]]

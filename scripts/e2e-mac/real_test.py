@@ -48,6 +48,7 @@ sys.path.insert(0, str(DIRECTORY))
 import all_checks
 import checks
 import drafts_panel
+import first_run
 import hub_traces
 import isolated_hub
 import mac as mac_side
@@ -143,6 +144,13 @@ def bounds() -> dict[str, tuple[float, str]]:
             ),
         ),
         "screen": (10, "the interface receives the pushed changes; covers two engine reads"),
+        "first-view": (
+            20,
+            (
+                "provisional: the webview drawing its first view once the window is listed, "
+                "not measured; the window itself appears in about a second"
+            ),
+        ),
         "chat": (
             turn_s,
             "provisional: Orbit does not bound a Hermes turn; this is the test's patience",
@@ -184,7 +192,6 @@ def bounds() -> dict[str, tuple[float, str]]:
 # words of the transcript, the summary, the messages, any pill or notice.
 # Measured sizes go to the report.
 READS: dict[str, str | None] = {
-    "home": "Te damos la bienvenida a Orbit",
     # «Transcribiendo…», «Escribiendo la nota» and «Escribiendo el resumen…»
     # all contain it.
     "note-ready": "ribiendo",
@@ -411,6 +418,8 @@ class RealTest:
                 said for part in self.script for _, said in part if said not in span["muted"]
             ],
             "muted_script": span,
+            # Where a first run's welcome was skipped (first_run.py).
+            "welcome_skipped": [],
         }
         database = hub_traces.database(paths.hub)
         # What the test hub keeps of a recording (the dry run replays it).
@@ -760,8 +769,8 @@ class RealTest:
         drafts_panel.drafts_survive_quitting(self)
 
     def open_main(self, label: str):
-        """Orbit Pruebas's main window, brought to the front and read once as
-        `label`, past the welcome of a first run."""
+        """Orbit Pruebas's main window, brought to the front and read as
+        `label`, past the welcome of a first run (first_run.py)."""
         ui = self.ui
         # The window appears after the app's first paint, a little after
         # its daemon answers; 20 s is far above the ~1 s it takes, and the
@@ -776,10 +785,11 @@ class RealTest:
                 if time.monotonic() >= deadline:
                     raise
                 time.sleep(0.5)
-        home = ui.read(main, label, READS["home"])
-        if any("Te damos la bienvenida a Orbit" in n.texts() for n in home):
-            # The welcome's skip leaves the whole first run.
-            ui.press(main, "Configurarlo más tarde", ("AXButton",))
+        start = time.monotonic()
+        first_view_s, screen_s = self.bounds["first-view"][0], self.bounds["screen"][0]
+        if first_run.past_the_welcome(ui, main, label, first_view_s, screen_s):
+            self.ev["welcome_skipped"].append(label)
+        self.measure("first-view", time.monotonic() - start)
         return main
 
     def clean_up(self) -> None:
@@ -864,6 +874,7 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
         "delete": ev.get("delete"),
         "panel_hold": ev.get("panel_hold"),
         "drafts": ev.get("drafts"),
+        "welcome_skipped": ev.get("welcome_skipped"),
     }
     (directory / "report.json").write_text(
         json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -874,6 +885,10 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
         lines.append(f"    {r['detail']}")
         for row in r.get("log", []):
             lines.append(f"    log {row['log']}: code {row['code']}, op {row['op']}")
+    if ev.get("welcome_skipped"):
+        where = ", ".join(ev["welcome_skipped"])
+        skipped = f"Orbit Pruebas {first_run.REPORTED} ({where}); «{first_run.SKIP}» skipped it."
+        lines += ["", skipped]
     lines += ["", "Not covered:"]
     lines += [f"  {text}" for text in all_checks.NOT_COVERED]
     lines += ["", "Steps:"]

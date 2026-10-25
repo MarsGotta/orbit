@@ -31,11 +31,12 @@ RELAUNCH_WATCH_S = 5
 # reads of the composer while a typed draft reaches it. Only spaces the
 # attempts; the bound is the caller's.
 SOCKET_RETRY_S = 0.2
-# The composer's draft in the webview's local storage: `DRAFT_PREFIX` of
-# state/local-drafts.ts and the composer's key (use-composer.ts). The app
-# writes it on every change, never on a timer; the dry-run test checks both
+# Every draft's key in the webview's local storage starts with `DRAFT_PREFIX`
+# of state/local-drafts.ts; the composer's is its key (use-composer.ts). The
+# app writes it on every change, never on a timer; the dry-run test checks both
 # names against those files.
-DRAFT_KEY = "orbit.draft.chat"
+DRAFT_PREFIX = "orbit.draft."
+DRAFT_KEY = DRAFT_PREFIX + "chat"
 # ⌘Q, as a person presses it, through CuaDriver to Orbit Pruebas's pid; and
 # the Apple Event «quit», what the Dock's «Salir» sends.
 QUITS = ("cmd-q", "apple-event")
@@ -156,15 +157,43 @@ class DraftsAndPanel:
             "stored": self.web_draft(arguments["text"]),
         }
 
+    def _web_storages(self) -> list[Path]:
+        """WebKit's local storage files of Orbit Pruebas, one per origin."""
+        if not self.paths.webkit.is_dir():
+            return []
+        return sorted(self.paths.webkit.rglob("localstorage.sqlite3"))
+
+    def clear_web_drafts(self) -> int:
+        """Deletes every draft (DRAFT_PREFIX) from WebKit's storage of Orbit
+        Pruebas, with the app closed, and returns how many: a draft an earlier
+        run left would be in the composer when the run types its own message.
+        Nothing else goes: the storage also keeps the first run's completion
+        (`orbit.onboarding.done.local`), and without it the app opens on its
+        welcome (run 20261025T141530Z). A file it cannot clean stops the run
+        by name, since a draft left in it would."""
+        removed = 0
+        for path in self._web_storages():
+            try:
+                connection = sqlite3.connect(str(path))
+                try:
+                    with connection:
+                        cursor = connection.execute(
+                            "DELETE FROM ItemTable WHERE substr(key, 1, ?) = ?",
+                            (len(DRAFT_PREFIX), DRAFT_PREFIX),
+                        )
+                    removed += cursor.rowcount
+                finally:
+                    connection.close()
+            except sqlite3.Error as cause:
+                raise MacFailure(f"could not remove the drafts from {path}: {cause}") from cause
+        return removed
+
     def web_draft(self, text: str) -> bool | None:
         """Whether WebKit's storage of Orbit Pruebas holds `text` in the
         composer's draft, read from its files with the app closed. None when
         there is no such file to read: unknown, never «no»."""
         read, held = False, False
-        files = (
-            self.paths.webkit.rglob("localstorage.sqlite3") if self.paths.webkit.is_dir() else []
-        )
-        for path in sorted(files):
+        for path in self._web_storages():
             try:
                 connection = sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True)
                 try:

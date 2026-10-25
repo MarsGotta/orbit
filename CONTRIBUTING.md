@@ -133,10 +133,12 @@ machine that hosts an isolated hub and Hermes profile, and drives the Mac over
 SSH:
 
 - `prepare` creates, once, the test's private credentials under
-  `~/.orbit-pruebas/`, and deletes Orbit Pruebas's own WebKit data
-  (`~/Library/WebKit/app.orbit.companion.pruebas`), where drafts live.
+  `~/.orbit-pruebas/`, and deletes only the drafts (`orbit.draft.` keys) from
+  Orbit Pruebas's own WebKit storage (`~/Library/WebKit/app.orbit.companion.pruebas`),
+  which also keeps the first run's completion and the theme.
 - `run` is the real test: it records a synthetic meeting in Orbit Pruebas by
-  clicking and reading its interface, with part of it muted, sends a voice
+  clicking and reading its interface (past a first run's welcome, skipped with
+  «Configurarlo más tarde» and said in the report), with part of it muted, sends a voice
   note, opens a call, throws a second recording away, deletes the first
   meeting, runs the checks and cleans up, also when something fails. It reads
   the test hub's database to check that a deleted recording left nothing there.

@@ -1,0 +1,8 @@
+{
+ "home": {
+  "read": "welcome"
+ },
+ "welcome": {
+  "click:Configurarlo más tarde": "briefing"
+ }
+}

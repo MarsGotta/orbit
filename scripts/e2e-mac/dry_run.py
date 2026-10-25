@@ -398,6 +398,10 @@ class DryRunCua:
                 )
             if "query" in arguments:
                 markdown = query_filter(markdown, arguments["query"])
+            if arguments["window_id"] == MAIN_WINDOW:
+                # A screen that changes once it was read: the window's first
+                # paint, before the webview drew anything.
+                self.follow("read")
             return {"tree_markdown": markdown + notice, "elements": []}
         if tool == "press_key":
             key = "+".join([*arguments.get("modifiers", []), arguments["key"]])
