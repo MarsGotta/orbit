@@ -1,7 +1,7 @@
-"""The three kinds of agent side by side: Hermes, the generic `openai` and `acp`.
+"""The three kinds of agent side by side: Hermes, the generic `openai` and official vendor.
 
 What each kind's own module does is tested beside it (`test_hermes`,
-`test_openai_assistant`, `test_assistant_acp`); here, what the hub does with
+`test_openai_assistant`, `test_official_assistants`); here, what the hub does with
 several of them at once: one `orbit.toml` with every kind, the `ready` list,
 whose voice the speech routes use, a conversation resumed with or without
 the hub's stored history, and two agents asking for approval with the same
@@ -24,7 +24,7 @@ from fastapi.testclient import TestClient
 from support_audio import wav_bytes
 
 from orbit_hub.app import create_app
-from orbit_hub.assistant import acp, openai
+from orbit_hub.assistant import openai
 from orbit_hub.assistant.agents import KINDS, Agent, Agents
 from orbit_hub.assistant.backend import (
     Capabilities,
@@ -40,6 +40,7 @@ from orbit_hub.assistant.backend import (
     TurnError,
 )
 from orbit_hub.assistant.hermes import HermesAgent, HermesSpeech
+from orbit_hub.assistant.tool_settings import ToolSettings
 from orbit_hub.protocol import ApprovalParams, HubError, SendParams
 from orbit_hub.runtime import DeviceRuntime
 
@@ -70,8 +71,7 @@ def every_kind(tmp_path, *, speech=False):
         {
             "id": "vega",
             "name": "Vega",
-            "kind": "acp",
-            "agent": "claude-code",
+            "kind": "claude-code",
             # Executable and never run: no session is opened here.
             "command": [sys.executable],
             "orbit_mcp_config": str(mcp_config),
@@ -90,7 +90,7 @@ def hub(settings, store):
 
 
 def test_every_kind_is_registered():
-    assert sorted(KINDS) == ["acp", "hermes", "openai"]
+    assert sorted(KINDS) == ["claude-code", "codex", "hermes", "openai"]
 
 
 def test_one_file_configures_every_kind_without_reading_any_file(environment, tmp_path):
@@ -110,13 +110,13 @@ def test_one_file_configures_every_kind_without_reading_any_file(environment, tm
     assert [(agent.id, agent.name, agent.kind) for agent in configured] == [
         ("atlas", "Atlas", "hermes"),
         ("lyra", "Lyra", "openai"),
-        ("vega", "Vega", "acp"),
+        ("vega", "Vega", "claude-code"),
     ]
     hermes, generic, coding = (agent.settings for agent in configured)
     assert hermes == HermesAgent("atlas-profile")
     assert isinstance(generic, openai.OpenAIAgentSettings)
     assert (generic.base_url, generic.orbit_mcp_config) == ("https://ia.example/v1", tmp_path / "missing.toml")  # fmt: skip
-    assert coding == acp.AcpAgentSettings(
+    assert coding == ToolSettings(
         agent="claude-code",
         command=("/no/such/adapter",),
         orbit_mcp_config=tmp_path / "missing.toml",
@@ -149,7 +149,7 @@ def test_a_file_an_agent_needs_is_refused_when_the_hub_starts(
     ("change", "refusal"),
     [
         ({"kind": "openai", "profile": "x"}, r'entry 2 \(id "lyra"\): unknown keys \(1\): profile'),
-        ({"kind": "acp"}, r'entry 2 \(id "lyra"\): unknown keys for kind acp'),
+        ({"kind": "codex"}, r'entry 2 \(id "lyra"\): unknown keys for codex'),
         (
             {"provider": "gemini"},
             r'entry 2 \(id "lyra"\): provider: must be "openai" or "anthropic"',
@@ -183,7 +183,7 @@ def test_ready_lists_every_kind_with_what_it_accepts(environment, tmp_path, spee
     assert ready["default_agent_id"] == "atlas"
     assert ready["assistant_name"] == "Atlas"
     # Each with its profile (none chosen yet: no description and the colours
-    # in turn), and an ACP agent with the account Orbit can sign in.
+    # in turn), and an official vendor agent with the account Orbit can sign in.
     profile = {"description": "", "removable": False}
     assert ready["agents"] == [
         {
@@ -206,11 +206,11 @@ def test_ready_lists_every_kind_with_what_it_accepts(environment, tmp_path, spee
             "color": "c2",
             **profile,
         },
-        # An ACP agent that declares no image input is named the files instead.
+        # An official vendor agent that declares no image input is named the files instead.
         {
             "id": "vega",
             "name": "Vega",
-            "kind": "acp",
+            "kind": "claude-code",
             "capabilities": ["images", "resume"],
             "service": "claude-code",
             "color": "c3",
@@ -373,7 +373,7 @@ def test_a_default_agent_without_a_voice_refuses_both_routes_naming_it(
     body = response.json()
     assert body["code"] == "speech_not_configured"
     assert body["refusal"]["agent_id"] == "vega"
-    assert "Vega" in body["message"] and "acp" in body["message"]
+    assert "Vega" in body["message"] and "claude-code" in body["message"]
 
 
 def test_a_generic_default_agent_dictates_but_without_speech_does_not_read_aloud(
@@ -552,7 +552,7 @@ async def test_an_expiry_retires_only_the_request_of_the_agent_that_sent_it(envi
 
 
 async def test_a_resume_hands_the_stored_history_only_to_an_agent_that_keeps_none(environment):
-    """Hermes and ACP agents reload their own conversation; the generic one
+    """Hermes and official vendor agents reload their own conversation; the generic one
     keeps none and continues the one the hub stores."""
     _, store, _ = environment
     owner = device(store)["device_id"]
@@ -741,7 +741,7 @@ async def test_a_connection_lost_while_resuming_names_the_agent(environment):
 def test_loading_the_configuration_imports_no_model_or_agent_library(tmp_path):
     """The administrator's commands (`pair-code`, `devices`, `revoke`) load the
     configuration and nothing more. The generic agent's model libraries take
-    more than a second to import, and the ACP SDK of Claude Code and Codex a
+    more than a second to import, and the official vendor SDK of Claude Code and Codex a
     quarter of one: only building that kind's backend imports them."""
     config = tmp_path / "orbit.toml"
     entries = "".join(
@@ -764,7 +764,7 @@ def test_loading_the_configuration_imports_no_model_or_agent_library(tmp_path):
         "from orbit_hub.config import Settings\n"
         "configured, _ = Settings.load(Path(sys.argv[1])).agent_configurations()\n"
         "print(','.join(agent.kind for agent in configured))\n"
-        "print(','.join(sorted({'pydantic_ai', 'openai', 'anthropic', 'acp'} & set(sys.modules))))\n"
+        "print(','.join(sorted({'pydantic_ai', 'openai', 'anthropic', 'claude_agent_sdk'} & set(sys.modules))))\n"
     )
     loaded = subprocess.run(
         [sys.executable, "-c", script, str(config)],
@@ -775,4 +775,4 @@ def test_loading_the_configuration_imports_no_model_or_agent_library(tmp_path):
         check=False,
     )
     assert loaded.returncode == 0, loaded.stderr
-    assert loaded.stdout.splitlines() == ["hermes,openai,acp", ""]
+    assert loaded.stdout.splitlines() == ["hermes,openai,claude-code", ""]

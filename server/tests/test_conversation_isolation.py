@@ -28,7 +28,7 @@ from orbit_hub.assistant.hermes import HermesAgent
 from orbit_hub.protocol import ApprovalParams, HubError, InterruptParams, SendParams
 from orbit_hub.runtime import DeviceRuntime
 
-# Far under any agent's start budget (ACP's is 150 s); far over the hub's own
+# Far under any agent's start budget (official vendor's is 150 s); far over the hub's own
 # work for a turn of a double.
 BUDGET_SECONDS = 2
 
@@ -267,7 +267,7 @@ async def test_a_slow_reopen_of_one_conversation_does_not_delay_another(environm
         _, first = await send(runtime, "Primera")
         _, second = await send(runtime, "Segunda")
         # The agent gave the first conversation's process up between turns, as
-        # an idle ACP session does: its next turn reopens it (`session/load`).
+        # an idle official vendor session does: its next turn reopens it (`session/load`).
         [live] = [key[1] for key, held in runtime.bindings.items() if held == first["session_id"]]
         vega.connections[0].live_sessions.discard(live)
         reopening = asyncio.create_task(send(runtime, "Sigo", session=first["session_id"]))

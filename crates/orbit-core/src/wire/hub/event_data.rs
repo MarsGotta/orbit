@@ -318,12 +318,16 @@ pub struct RefusalData {
     pub max_requests: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub acp_code: Option<i64>,
+    /// JSON-RPC error code from an official assistant tool. The older
+    /// optional field above remains readable for already deployed hubs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rpc_code: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exit_status: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_reason: Option<String>,
     /// When an agent's plan comes back from its limit
-    /// (`agent_limit_reached`), when its adapter said.
+    /// (`agent_limit_reached`), when its official tool said.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resets_at_ms: Option<u64>,
 }

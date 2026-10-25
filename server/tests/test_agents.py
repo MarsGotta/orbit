@@ -255,7 +255,7 @@ def test_agents_load_from_toml(tmp_path):
         (
             ({**TWO_AGENTS[0], "kind": "telepathy"},),
             "",
-            r'\[\[agents\]\] entry 1 \(id "deimos"\): unknown kind "telepathy"; known kinds: acp, hermes, openai',
+            r'\[\[agents\]\] entry 1 \(id "deimos"\): unknown kind "telepathy"; known kinds: claude-code, codex, hermes, openai',
         ),
         (
             ({"id": "deimos", "name": "Deimos", "kind": "hermes"},),

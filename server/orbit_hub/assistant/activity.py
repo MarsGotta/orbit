@@ -17,7 +17,7 @@ MAX_ITEM_LABEL_CHARS = 500
 # What a tool step used, for the summary («Usó la pantalla y el calendario»):
 # a noun phrase, or a tool's own name, which upstream bounds nowhere.
 MAX_ITEM_SUBJECT_CHARS = 80
-# Why a step failed, in the agent's words: one line, as `acp.MAX_AGENT_REASON_CHARS`.
+# Why a step failed, in the agent's words: one line, as `the vendor refusal bound`.
 MAX_ITEM_CAUSE_CHARS = 300
 # The steps of a plan the Mac lists. Each update carries the whole plan, so
 # this bounds every frame of it; the label still counts every step.

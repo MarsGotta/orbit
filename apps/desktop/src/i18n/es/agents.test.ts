@@ -50,9 +50,9 @@ describe("a hub refusal of an agent's configuration", () => {
   });
 
   it("names an unknown code with its status and every number", () => {
-    expect(agentRefusalText(refusal("agent_busy", 409, { retry_after_ms: 500, kind: "acp" }))).toBe(
-      "El hub rechazó la orden (agent_busy, HTTP 409): kind: acp, retry_after_ms: 500.",
-    );
+    expect(
+      agentRefusalText(refusal("agent_busy", 409, { retry_after_ms: 500, kind: "codex" })),
+    ).toBe("El hub rechazó la orden (agent_busy, HTTP 409): kind: codex, retry_after_ms: 500.");
   });
 
   it("does not invent a number the hub did not send", () => {

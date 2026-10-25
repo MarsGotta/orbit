@@ -1,9 +1,9 @@
 """A control of one conversation never waits behind another agent's slow start.
 
 Two agents on one hub. The first answers a turn that keeps streaming; the
-second takes long to open a session, as an ACP agent does while Node, the
-agent's binary and its MCP servers start (up to `acp.START_TIMEOUT_SECONDS`
-plus `acp.OPEN_TIMEOUT_SECONDS`), or an `openai` agent while orbit-mcp starts
+second takes long to open a session, as an official vendor agent does while Node, the
+agent's binary and its MCP servers start (up to `official_tools.START_TIMEOUT_SECONDS`
+plus `official_tools.OPEN_TIMEOUT_SECONDS`), or an `openai` agent while orbit-mcp starts
 (`openai_tools.TOOLS_START_TIMEOUT_SECONDS`). Interrupting or answering the first
 agent's conversation meanwhile does not wait for the second agent; a control
 on the conversation being opened still waits for it, so it applies to the turn
@@ -101,7 +101,7 @@ def two_agents(started, release):
             Agent(
                 "orion",
                 "Orión",
-                "acp",
+                "claude-code",
                 None,
                 Backend(lambda on_event: SlowStartConnection(on_event, started, release)),
             ),

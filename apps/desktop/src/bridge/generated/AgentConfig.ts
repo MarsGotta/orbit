@@ -9,6 +9,6 @@ import type { SkillsConfig } from "./SkillsConfig";
  */
 export type AgentConfig = { agent_id: string, 
 /**
- * `hermes`, `openai`, `acp`, or a kind this Mac does not know yet.
+ * `hermes`, `openai`, `claude-code`, `codex`, or a kind this Mac does not know yet.
  */
 kind: string, personality: PersonalityConfig, access: AccessConfig, skills: SkillsConfig, };

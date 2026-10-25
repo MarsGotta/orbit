@@ -181,10 +181,9 @@ def skilled_agents(environment, tmp_path):
             {
                 "id": "lyra",
                 "name": "Lyra",
-                "kind": "acp",
-                "agent": "claude-code",
+                "kind": "claude-code",
                 # Never started: `assistant` serves every agent in these tests.
-                "command": [str(tmp_path / "claude-agent-acp")],
+                "command": [str(tmp_path / "claude")],
                 "orbit_mcp_config": str(tmp_path / "mcp.toml"),
             },
         ),
@@ -319,7 +318,7 @@ def signed_attachment_read(owner, attachment_id, agent_id=None):
 
 async def test_an_agent_reads_the_files_of_its_own_conversations_only(bridged_agents):
     """orbit-mcp names its agent in every signed read (`ORBIT_MCP_AGENT`,
-    always set for `openai` and `acp` agents). An attachment read naming it
+    always set for `openai` and official vendor agents). An attachment read naming it
     reaches the file when it belongs to a conversation of that agent, and is
     not found for another agent, as a file of another Mac is."""
     app, store = bridged_agents

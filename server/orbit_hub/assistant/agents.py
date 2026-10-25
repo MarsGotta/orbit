@@ -68,8 +68,8 @@ class Agent:
 
     @property
     def service(self) -> str:
-        """What answers: `claude-code` or `codex` for an `acp` agent, else its kind."""
-        return self.settings.agent if self.kind == "acp" else self.kind
+        """What answers: `claude-code` or `codex` for an official-tool agent, else its kind."""
+        return self.kind
 
     def voice(self) -> SpeechBackend:
         """The agent's speech, or the refusal that names the agent and why it has none."""
@@ -99,9 +99,9 @@ class Agent:
         ]
 
 
-# Builds an agent added from Orbit: its configuration is the hub's adapter
+# Builds an agent added from Orbit: its configuration is the hub's official tool
 # for the service with the hub's own id; refused with `ValueError` when the
-# adapter's command cannot start.
+# tool's command cannot start.
 AgentBuilder = Callable[[AgentConfiguration], Agent]
 
 
@@ -123,14 +123,14 @@ class Agents:
         default_id: str,
         *,
         roster: Roster | None = None,
-        adapters: Mapping[str, Any] | None = None,
+        tools: Mapping[str, Any] | None = None,
         build: AgentBuilder | None = None,
     ):
         self.by_id = {agent.id: agent for agent in agents}
         self.default = self.by_id[default_id]
         self.roster = roster
-        # The services an agent can be added with: an `[acp_adapters]` table each.
-        self.adapters = dict(adapters or {})
+        # The services an agent can be added with: an `[assistant_tools]` table each.
+        self.tools = dict(tools or {})
         self.build = build
         self.configured_names = {agent.id: agent.name for agent in agents}
         self.profiles: dict[str, Profile] = {}
@@ -168,7 +168,7 @@ class Agents:
         it, an agent has none. Raises `ValueError` naming the agent and the
         cause when one cannot be built or there are more than `MAX_AGENTS`."""
         configured, default_id = settings.agent_configurations()
-        adapters = settings.adapter_settings()
+        tools = settings.assistant_tool_settings()
 
         def instructions(agent_id: str) -> InstructionSource:
             if configs is None:
@@ -197,17 +197,17 @@ class Agents:
             )
         profiles = roster.profiles() if roster is not None else {}
         for entry in added:
-            if entry.service not in adapters:
+            if entry.service not in tools:
                 raise ValueError(
                     f"agent {entry.agent_id!r} was added from Orbit as {entry.service}, and "
-                    f"[acp_adapters.{entry.service}] is missing: restore it to start the hub"
+                    f"[assistant_tools.{entry.service}] is missing: restore it to start the hub"
                 )
             profile = profiles.get(entry.agent_id)
             name = profile.name if profile is not None else entry.agent_id
             agents.append(
-                build(AgentConfiguration(entry.agent_id, name, "acp", adapters[entry.service]))
+                build(AgentConfiguration(entry.agent_id, name, entry.service, tools[entry.service]))
             )
-        registry = cls(agents, default_id, roster=roster, adapters=adapters, build=build)
+        registry = cls(agents, default_id, roster=roster, tools=tools, build=build)
         registry.added = {entry.agent_id for entry in added}
         return registry
 
@@ -265,7 +265,7 @@ class Agents:
         }
         if (backend := agent.integration.public()) is not None:
             public["backend"] = backend
-        if agent.kind == "acp":
+        if agent.kind in SERVICE_NAMES:
             account = self.accounts.get(agent.id, UNKNOWN_ACCOUNT)
             public["account"] = account.state
             if account.email is not None:
@@ -283,14 +283,14 @@ class Agents:
         return {
             "agents": self.public(),
             "default_agent_id": self.primary_id,
-            "addable_agents": list(self.adapters),
+            "addable_agents": list(self.tools),
         }
 
     def _listen(self, agent: Agent) -> None:
         """Every Mac learns when the agent's backend fails to start or starts
-        again; an ACP backend tells the registry what it learns of its account."""
+        again; an official backend tells the registry what it learns of its account."""
         agent.integration.changed = lambda: self.changed()
-        if agent.kind == "acp" and hasattr(agent.backend, "observe"):
+        if agent.kind in SERVICE_NAMES and hasattr(agent.backend, "observe"):
             agent.backend.observe = partial(self.observe, agent.id)
 
     def _rename(self, agent: Agent, name: str) -> None:
@@ -343,11 +343,11 @@ class Agents:
         self.changed()
 
     def add(self, service: str, profile: Profile, now_ms: int) -> Agent:
-        """Add a Claude Code or Codex agent on the hub's adapter for `service`."""
-        if service not in self.adapters:
+        """Add a Claude Code or Codex agent on the hub's official tool for `service`."""
+        if service not in self.tools:
             raise HubError(
                 "agent_adapter_missing",
-                f"Este hub no tiene instalado el adaptador de {SERVICE_NAMES.get(service, service)}: "
+                f"Este hub no tiene instalada la herramienta oficial de {SERVICE_NAMES.get(service, service)}: "
                 "pídeselo a quien gestiona tu hub",
                 http_status=409,
                 numbers={"service": service},
@@ -365,14 +365,14 @@ class Agents:
             raise HubError("agent_add_unsupported", "Este hub no puede añadir asistentes")
         try:
             agent = self.build(
-                AgentConfiguration(agent_id, profile.name, "acp", self.adapters[service])
+                AgentConfiguration(agent_id, profile.name, service, self.tools[service])
             )
         except ValueError as exc:
             # The command the operator configured does not start: the cause
             # names the path, the hub's own configuration, never the Mac's.
             raise HubError(
                 "agent_adapter_missing",
-                f"El adaptador de {SERVICE_NAMES[service]} no arranca en este hub ({exc}): "
+                f"La herramienta oficial de {SERVICE_NAMES[service]} no arranca en este hub ({exc}): "
                 "pídeselo a quien gestiona tu hub",
                 http_status=409,
                 numbers={"service": service},
@@ -411,7 +411,7 @@ class Agents:
 
     def observe(self, agent_id: str, fact: str, **values: Any) -> None:
         """What the hub learned of an agent's account, from its sign-in, its
-        adapter or a turn; published when it changed. The facts:
+        tool or a turn; published when it changed. The facts:
 
         - `signed_in`: a sign-in finished; `signed_out`: a sign-out did.
         - `answered`: a turn ended with an answer, so the account works and
@@ -420,7 +420,7 @@ class Agents:
           session expired, unless it never had one.
         - `limit`: the plan's limit; `until_ms` when the provider said when
           it resets.
-        - `status`: the adapter's `_auth/status_update`, `kind` (`none`
+        - `status`: the tool's account report, `kind` (`none`
           for no account), and the account's `email` and `plan` when given.
         - `usage`: the plan's use the provider reported, `used_percent`,
           `window` and `resets_at_ms`; kept in memory, the latest only.

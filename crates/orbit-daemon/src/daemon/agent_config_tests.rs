@@ -10,7 +10,7 @@ use orbit_core::agent_config::{
 use orbit_core::refusal::{Refusal, Service};
 use serde_json::json;
 
-const CONFIG: &str = r#"{"agent_id":"vega","kind":"acp",
+const CONFIG: &str = r#"{"agent_id":"vega","kind":"codex",
  "personality":{"text":"Sé breve.","editable":true,"max_bytes":65536},
  "access":{"groups":{"screen":true,"control":true,"calendar":true,"meetings":true,"files":true},
    "editable":true},
@@ -120,7 +120,7 @@ async fn the_config_and_a_skill_come_back_as_the_hub_wrote_them() -> Result<()> 
     let AgentOutcome::Config { config } = outcome else {
         panic!("expected the config, got {outcome:?}")
     };
-    assert_eq!(config.kind, "acp");
+    assert_eq!(config.kind, "codex");
     assert!(!config.skills.editable);
     assert_eq!(
         config.skills.cause.as_deref(),
@@ -258,7 +258,7 @@ async fn a_config_out_of_contract_is_an_invalid_reply_not_an_empty_one() -> Resu
         AgentCall::Config {
             agent_id: "vega".into(),
         },
-        json_response("200 OK", r#"{"agent_id":"vega","kind":"acp"}"#),
+        json_response("200 OK", r#"{"agent_id":"vega","kind":"codex"}"#),
     )
     .await?;
     assert!(

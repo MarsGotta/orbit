@@ -77,7 +77,7 @@ class OrbitTools(AbstractToolset[None]):
             env={
                 "ORBIT_MCP_CONFIG": str(self.settings.orbit_mcp_config),
                 # Which agent asks, so orbit-mcp can offer each its own tools;
-                # the same variable an ACP agent's orbit-mcp receives.
+                # the same variable an official vendor agent's orbit-mcp receives.
                 "ORBIT_MCP_AGENT": self.agent.id,
             },
         )

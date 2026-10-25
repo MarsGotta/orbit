@@ -8,8 +8,8 @@ from typing import Any, ClassVar, Literal
 from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass
 
-from .assistant.acp_settings import AcpAgentSettings, parse_adapter
 from .assistant.agent_kinds import AgentConfiguration, configured_agents
+from .assistant.tool_settings import ToolSettings, parse_assistant_tool
 from .error_reports import ErrorReportsConfiguration
 from .meeting_diarization import DiarizationConfiguration
 from .meeting_transcription import MeetingTranscriptionConfiguration
@@ -31,10 +31,10 @@ class Settings:
     # `[[agents]]` as TOML read them; each kind reads its own keys.
     agents: tuple[dict[str, Any], ...] | None = None
     default_agent: str | None = None
-    # `[acp_adapters.claude-code]` and `[acp_adapters.codex]`: the adapter the
+    # `[assistant_tools.claude-code]` and `[assistant_tools.codex]`: the official tool the
     # hub starts for each agent of that service added from Orbit. Without a
     # table, that service cannot be added.
-    acp_adapters: dict[str, dict[str, Any]] | None = None
+    assistant_tools: dict[str, dict[str, Any]] | None = None
     hermes_ws_auth: Literal["token"] = "token"
     allow_insecure_localhost: bool = False
     allowed_hosts: tuple[str, ...] = ("localhost", "127.0.0.1")
@@ -69,13 +69,13 @@ class Settings:
             )
         protected_url(self.hermes_url, allow_insecure_localhost=self.allow_insecure_localhost)
         self.agent_configurations()
-        self.adapter_settings()
+        self.assistant_tool_settings()
 
-    def adapter_settings(self) -> dict[str, AcpAgentSettings]:
-        """The adapter of each service agents can be added with, in the order written."""
+    def assistant_tool_settings(self) -> dict[str, ToolSettings]:
+        """The official tool of each service agents can be added with, in the order written."""
         return {
-            service: parse_adapter(service, keys)
-            for service, keys in (self.acp_adapters or {}).items()
+            service: parse_assistant_tool(service, keys)
+            for service, keys in (self.assistant_tools or {}).items()
         }
 
     def agent_configurations(self) -> tuple[tuple[AgentConfiguration, ...], str]:

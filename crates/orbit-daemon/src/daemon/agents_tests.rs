@@ -444,7 +444,7 @@ fn a_voice_beside_the_default() -> Value {
     json!({"event":"ready", "data": {
         "device_id": DEVICE, "hub_protocol": 1, "assistant_name": "Vega",
         "agents": [
-            {"id":"vega","name":"Vega","kind":"acp","capabilities":["resume"]},
+            {"id":"vega","name":"Vega","kind":"codex","capabilities":["resume"]},
             {"id":"atlas","name":"Atlas","kind":"hermes","capabilities":["voice","resume"]}
         ],
         "default_agent_id": "vega"
@@ -573,7 +573,7 @@ fn three_voices() -> Value {
         "agents": [
             {"id":"deimos","name":"Deimos","kind":"hermes","capabilities":["voice","resume"]},
             {"id":"atlas","name":"Atlas","kind":"hermes","capabilities":["voice","resume"]},
-            {"id":"nova","name":"Nova","kind":"acp","capabilities":["resume"]}
+            {"id":"nova","name":"Nova","kind":"codex","capabilities":["resume"]}
         ],
         "default_agent_id": "deimos"
     }})
@@ -804,7 +804,7 @@ fn many_agents(count: usize) -> Value {
         .map(|index| {
             json!({"id": format!("agente-{index:025}"),
                 "name": format!("{index:02}{}", "𝔸".repeat(46)),
-                "kind": "acp", "capabilities": ["images", "voice", "resume"],
+                "kind": "codex", "capabilities": ["images", "voice", "resume"],
                 "service": "claude-code", "description": "𝔸".repeat(90), "color": "c4",
                 "removable": true, "account": "signed_out",
                 "account_email": "a".repeat(128), "plan": "𝔸".repeat(16),
@@ -885,7 +885,7 @@ async fn a_changed_list_replaces_the_one_the_mac_had() -> Result<()> {
             "agents": [
                 {"id":"deimos","name":"Eris","kind":"hermes","capabilities":["voice"],
                  "service":"hermes","description":"Tu asistente","color":"c3","removable":false},
-                {"id":"codex-1a2b3c4d","name":"Nova","kind":"acp","capabilities":["images"],
+                {"id":"codex-1a2b3c4d","name":"Nova","kind":"codex","capabilities":["images"],
                  "service":"codex","description":"","color":"c2","removable":true,
                  "account":"expired","limit":{"until_ms":1_790_000_000_000_i64}}
             ],

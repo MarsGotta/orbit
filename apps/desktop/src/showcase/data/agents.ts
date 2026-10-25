@@ -45,7 +45,7 @@ const deimos: AgentConfig = {
 
 const claudeCode: AgentConfig = {
   agent_id: "claude-code",
-  kind: "acp",
+  kind: "codex",
   personality: {
     text: "Trabajas en el repositorio de reservas de Nubaria. Explica cada cambio antes de hacerlo y ejecuta los tests al terminar.",
     editable: true,

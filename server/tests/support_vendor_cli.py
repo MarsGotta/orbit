@@ -1,15 +1,7 @@
-"""An invented Claude Code and Codex sign-in, run as the adapter by the sign-in tests.
+"""Invented official Claude and Codex sign-in executables.
 
-The hub starts an agent's adapter with the vendor's sign-in after it
-(`--cli auth login …` for Claude Code, `cli login --device-auth` for Codex);
-this script answers the way those tools do, as read from claude-agent-acp
-0.94.0 and codex-acp 2.2.2, with invented addresses, codes and an invented
-token. No vendor is reached.
-
-Flags before the sign-in's own arguments: `--record PATH` writes the
-arguments and the home it was given as JSON lines; `--gate PATH` makes the
-Codex sign-in wait until that file exists, as the real one waits for the
-user; `--deny` makes it fail the way an account without device codes does.
+Flags before vendor arguments select an isolated fixture, never a live CLI.
+The fake writes an invented account in the directory supplied by the hub.
 """
 
 import json
@@ -47,14 +39,14 @@ def main():
             handle.write(
                 json.dumps({"arguments": arguments, "home": home, "pid": os.getpid()}) + "\n"
             )
-    if arguments[:3] == ["--cli", "auth", "login"]:
+    if arguments[:2] == ["auth", "login"]:
         claude_login(home)
-    elif arguments[:3] == ["--cli", "auth", "logout"]:
+    elif arguments[:2] == ["auth", "logout"]:
         remove(os.path.join(home, ".credentials.json"))
         print("Successfully logged out from your Anthropic account.")
-    elif arguments[:3] == ["cli", "login", "--device-auth"]:
+    elif arguments[:2] == ["login", "--device-auth"]:
         codex_login(home, gate, deny)
-    elif arguments[:2] == ["cli", "logout"]:
+    elif arguments[:1] == ["logout"]:
         remove(os.path.join(home, "auth.json"))
         print("Successfully logged out", file=sys.stderr)
     else:

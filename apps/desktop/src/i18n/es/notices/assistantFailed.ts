@@ -103,18 +103,49 @@ function providerFailure(data: NoticeData, name: string): string | undefined {
   }
 }
 
-/** Why a Claude Code or Codex agent left its turn unfinished (ACP's stop reasons). */
+/** Why a Claude Code or Codex agent left its turn unfinished. */
 function unfinished(stopReason: Value, name: string): string {
   switch (stopReason) {
     case "max_tokens":
       return `${name} llegó a su máximo de tokens de respuesta antes de terminar. Pide una respuesta más corta o divide la pregunta.`;
     case "max_turn_requests":
+    case "error_max_turns":
       return `${name} llegó a su máximo de peticiones al modelo en un turno antes de terminar. ${NARROWER}`;
     case "refusal":
       return `${name} se negó a seguir con este turno.`;
+    case "error_max_budget_usd":
+      return `${name} llegó al presupuesto máximo configurado para el turno.`;
+    case "error_max_structured_output_retries":
+      return `${name} no consiguió una respuesta con el formato solicitado.`;
     default:
       return `${name} paró el turno sin terminarlo.`;
   }
+}
+
+function rejected(data: NoticeData, name: string): string {
+  const causes: Record<string, string> = {
+    billing_error: "no pudo usar la facturación de la cuenta",
+    invalid_request: "rechazó el formato de la petición",
+    server_error: "informó de un fallo del servicio de Claude",
+    model_capacity: "no tiene capacidad disponible para ese modelo",
+    contextWindowExceeded: "agotó su ventana de contexto",
+    rateLimitExceeded: "recibió demasiadas peticiones",
+    sessionBudgetExceeded: "agotó el presupuesto de la sesión",
+    sandboxError: "no pudo ejecutar dentro de su aislamiento",
+    flexUnavailable: "no tiene capacidad Flex disponible",
+    serverOverloaded: "informó de que el servicio está saturado",
+    cyberPolicy: "rechazó el turno por su política de ciberseguridad",
+    misalignmentPolicyViolation: "rechazó el turno por su política de seguridad",
+    tooManyDenials: "paró tras demasiadas denegaciones",
+    internalServerError: "informó de un fallo interno de Codex",
+    badRequest: "rechazó el formato de la petición",
+    threadRollbackFailed: "no pudo restaurar el estado del hilo",
+  };
+  const reason = typeof data.stop_reason === "string" ? causes[data.stop_reason] : undefined;
+  const rpcCode = data.rpc_code ?? data.acp_code;
+  const detail = rpcCode === undefined ? "" : ` (código ${code(rpcCode)})`;
+  const status = data.provider_status === undefined ? "" : ` (HTTP ${code(data.provider_status)})`;
+  return `${name} ${reason ?? "rechazó el turno"}${detail}${status}. ${ASK_ADMIN}`;
 }
 
 /**
@@ -126,7 +157,7 @@ function agentFailure(data: NoticeData, name: string): string | undefined {
     case "agent_auth_required":
       return `${name} no tiene la sesión iniciada en el hub, o caducó. Inicia sesión otra vez en sus ajustes; si tu hub no lo permite, pídeselo a quien lo gestiona.`;
     case "agent_rejected":
-      return `${name} rechazó el turno (código ${code(data.acp_code)}). ${ASK_ADMIN}`;
+      return rejected(data, name);
     case "agent_stopped": {
       if (amount(data.exit_status) !== undefined)
         return `${name} se detuvo durante el turno (código de salida ${code(data.exit_status)}). Vuelve a preguntar.`;

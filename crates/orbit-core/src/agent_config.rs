@@ -94,7 +94,7 @@ pub struct SkillsConfig {
 )]
 pub struct AgentConfig {
     pub agent_id: String,
-    /// `hermes`, `openai`, `acp`, or a kind this Mac does not know yet.
+    /// `hermes`, `openai`, `claude-code`, `codex`, or a kind this Mac does not know yet.
     pub kind: String,
     pub personality: PersonalityConfig,
     pub access: AccessConfig,

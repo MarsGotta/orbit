@@ -30,7 +30,7 @@ afterEach(() => {
 function config(agentId: string, editable: boolean): AgentConfig {
   return {
     agent_id: agentId,
-    kind: editable ? "acp" : "hermes",
+    kind: editable ? "codex" : "hermes",
     personality: {
       text: "Explica cada cambio antes de hacerlo.",
       editable,

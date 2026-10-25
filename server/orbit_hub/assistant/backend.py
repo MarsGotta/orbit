@@ -1,24 +1,9 @@
-"""The interface between the hub's runtime and the assistant that answers.
+"""The vendor-independent contract between the runtime and its assistants.
 
-Shaped after the Agent Client Protocol (ACP), which Hermes, Claude Code and
-Codex adapters speak: a connection carries sessions; a session takes turns
-made of content blocks; a turn streams typed updates, may ask for permission
-or for a clarification, and can be cancelled. The ACP names, for whoever
-writes the next backend:
-
-    create_session        session/new
-    resume_session        session/load (Hermes: session.resume)
-    prompt                session/prompt
-    cancel                session/cancel
-    PermissionRequested   session/request_permission
-    MessageChunk          session/update agent_message_chunk
-    ActivityItem          session/update tool_call, tool_call_update, plan,
-                          agent_thought_chunk
-    MessageComplete       the session/prompt response (stop reason)
-
-It carries only what the runtime uses today. Everything here is internal to
-the hub: the Mac's protocol (`contracts/hub-v1.md`) is built from these types
-by the runtime and does not change with the backend.
+Connections hold sessions, sessions accept turns of content blocks, and turns
+emit typed text, activity and human requests. Vendor backends translate their
+own protocol here. The runtime builds the Mac protocol (contracts/hub-v1.md)
+from these types, independently of the backend.
 """
 
 from collections.abc import Awaitable, Callable, Sequence
@@ -40,7 +25,7 @@ class Capabilities:
     # A stored session reopens by its stored id after its live id is gone.
     resume: bool
     # The backend keeps each conversation and reloads it itself on resume
-    # (Hermes's `session.resume`, ACP's `session/load`); a load still under way
+    # (a vendor's session or thread resume); a load still under way
     # says so in `ResumedSession.loading_history` and ends with `HistoryLoaded`.
     # False: it keeps none, and the hub hands it the conversation it stores
     # when it resumes.
@@ -255,8 +240,8 @@ class PlanStep:
 
 @dataclass(frozen=True)
 class ActivityItem:
-    """One step of the agent's work in a turn: ACP's `tool_call` and
-    `tool_call_update`, `plan` and `agent_thought_chunk`; Hermes's `tool.*`,
+    """One step of the agent's work: official SDK tool/thinking blocks,
+    app-server items and plans; Hermes's `tool.*`,
     `todo.updated`, `reasoning.available` and `subagent.*`; pydantic-ai's
     tool calls, tool results and thinking parts (`openai`). The runtime
     publishes it as `chat.item`, labelled by `activity`.

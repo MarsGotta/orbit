@@ -1,30 +1,10 @@
-"""Signing a Claude Code or Codex agent in and out from Orbit.
+"""Sign in and out with each vendor's official executable.
 
-The hub runs each vendor's own sign-in, through the adapter the agent
-already runs on (`--cli` and `cli` start the bundled `claude` and `codex`),
-with the agent's own configuration folder as its home. It reads the
-sign-in's output only for the address the user opens in the browser and,
-for Codex, the one-time code shown there; the Mac opens that address.
-The vendor's tool writes the account's credentials into the agent's folder:
-the hub never reads, logs or returns them, and none of the tool's output
-reaches a log or a Mac beyond that address and code.
-
-What each tool does, read from claude-agent-acp 0.94.0 (Claude Code CLI
-2.1.303) and codex-acp 2.2.2 (Codex 0.160.1):
-
-- Claude Code, `claude auth login --claudeai` (or `--console`, for an
-  adapter started with `--hide-claude-auth`, which refuses subscriptions):
-  prints «If the browser didn't open, visit: <URL>» and then waits on its
-  input for the code the browser's page shows, `<code>#<state>`, which the
-  Mac sends (`submit_code`). «Login successful.» and exit 0 when it is
-  done; it has no timeout of its own. An earlier sign-in is replaced only
-  once the new one succeeds, so it runs in the agent's own folder.
-- Codex, `codex login --device-auth`: prints an address and a one-time
-  code that expires in 15 minutes, polls until the user enters it, and
-  exits 0 when signed in. It first deletes the account it had, so it runs
-  in a home of its own inside the agent's folder, and only a finished
-  sign-in's `auth.json` is moved into the agent's home: a cancelled or
-  failed one leaves the agent as it was.
+The CLI alone writes credentials into the agent's private account folder.
+Orbit forwards only the sign-in address and one-time code, never credentials
+or diagnostic output. Codex signs in in a temporary home: an unsuccessful
+attempt must not destroy the existing account. The completed auth.json is
+moved whole without being read.
 """
 
 from __future__ import annotations
@@ -43,7 +23,8 @@ from uuid import uuid4
 
 from ..errors import HubError
 from ..log import report
-from .acp_settings import HOME_FOLDERS, AcpAgentSettings
+from .tool_settings import HOME_FOLDERS, ToolSettings
+from .tool_settings import environment as tool_environment
 
 if TYPE_CHECKING:
     from ..config import Settings
@@ -56,7 +37,7 @@ if TYPE_CHECKING:
 SIGN_IN_TIMEOUT_SECONDS = 15 * 60
 # How long the tool may take to show its address. Not measured against the
 # real tools (none runs in development): a generous budget for a Node start
-# and one request to the vendor, the same as an agent's start (`acp`).
+# and one request to the vendor, the same as an agent's start (`official_tools`).
 URL_TIMEOUT_SECONDS = 30
 # Signing out revokes the account at the vendor: one request, then exit.
 SIGN_OUT_TIMEOUT_SECONDS = 30
@@ -116,8 +97,8 @@ class Attempt:
         return data
 
 
-def acp_settings_of(agent: Agent) -> AcpAgentSettings:
-    if agent.kind != "acp":
+def tool_settings_of(agent: Agent) -> ToolSettings:
+    if agent.kind not in HOME_FOLDERS:
         raise HubError(
             "sign_in_unsupported",
             f"{agent.name} no inicia sesión desde Orbit: lo configura quien gestiona tu hub",
@@ -127,29 +108,21 @@ def acp_settings_of(agent: Agent) -> AcpAgentSettings:
     return agent.settings
 
 
-def login_arguments(settings: AcpAgentSettings) -> list[str]:
-    """The vendor's sign-in, through the agent's own adapter."""
+def login_arguments(settings: ToolSettings) -> list[str]:
+    """The official executable, using the subscription's own sign-in."""
     if settings.agent == "claude-code":
-        # An adapter that refuses subscriptions takes a Console account.
-        mode = "--console" if "--hide-claude-auth" in settings.command else "--claudeai"
-        return [*settings.command, "--cli", "auth", "login", mode]
-    return [*settings.command, "cli", "login", "--device-auth"]
+        return [*settings.command, "auth", "login", "--claudeai"]
+    return [*settings.command, "login", "--device-auth"]
 
 
-def logout_arguments(settings: AcpAgentSettings) -> list[str]:
+def logout_arguments(settings: ToolSettings) -> list[str]:
     if settings.agent == "claude-code":
-        return [*settings.command, "--cli", "auth", "logout"]
-    return [*settings.command, "cli", "logout"]
+        return [*settings.command, "auth", "logout"]
+    return [*settings.command, "logout"]
 
 
-def environment(settings: AcpAgentSettings, home: Path) -> dict[str, str]:
-    """What the vendor's tool receives: the agent's own environment and its home."""
-    from acp import default_environment
-
-    variables = default_environment()
-    variables.update({name: os.environ[name] for name in settings.env if name in os.environ})
-    variables["CLAUDE_CONFIG_DIR" if settings.agent == "claude-code" else "CODEX_HOME"] = str(home)
-    return variables
+def environment(settings: ToolSettings, home: Path) -> dict[str, str]:
+    return tool_environment(settings, home)
 
 
 def private_folder(path: Path) -> None:
@@ -183,7 +156,7 @@ class SignIns:
 
     async def start(self, agent_id: str) -> dict:
         agent = self.agents.get(agent_id)
-        settings = acp_settings_of(agent)
+        settings = tool_settings_of(agent)
         current = self.attempts.get(agent.id)
         if current is not None and current.state == "waiting":
             return current.public()
@@ -227,7 +200,7 @@ class SignIns:
 
     def status(self, agent_id: str) -> dict:
         agent = self.agents.get(agent_id)
-        acp_settings_of(agent)
+        tool_settings_of(agent)
         attempt = self.attempts.get(agent.id)
         if attempt is None:
             raise HubError(
@@ -280,7 +253,7 @@ class SignIns:
         """The vendor's own sign-out, which revokes the account and deletes
         its credentials from the agent's folder."""
         agent = self.agents.get(agent_id)
-        settings = acp_settings_of(agent)
+        settings = tool_settings_of(agent)
         await self.cancel(agent.id)
         folder, home = self.folders(agent, settings.agent)
         if not home.is_dir():

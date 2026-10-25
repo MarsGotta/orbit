@@ -191,6 +191,7 @@ impl Runtime {
                         (NoticeKey::MaxTokens, unsigned(refusal.max_tokens)),
                         (NoticeKey::MaxRequests, unsigned(refusal.max_requests)),
                         (NoticeKey::AcpCode, signed(refusal.acp_code)),
+                        (NoticeKey::RpcCode, signed(refusal.rpc_code)),
                         (NoticeKey::ExitStatus, signed(refusal.exit_status)),
                         (NoticeKey::StopReason, refusal.stop_reason.clone()),
                         (NoticeKey::ResetsAtMs, unsigned(refusal.resets_at_ms)),

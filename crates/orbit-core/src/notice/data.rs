@@ -131,7 +131,7 @@ notice_keys! {
     DurationMs,
     MinimumMs,
     // The numbers and closed tokens of a turn that ended without an answer
-    // (hub-v1: the generic agent's and an ACP agent's causes).
+    // (hub-v1: generic providers and official assistant tools).
     ProviderStatus,
     RetryAfterMs,
     TimeoutMs,
@@ -140,6 +140,7 @@ notice_keys! {
     MaxTokens,
     MaxRequests,
     AcpCode,
+    RpcCode,
     ExitStatus,
     StopReason,
     ResetsAtMs,

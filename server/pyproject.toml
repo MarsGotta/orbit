@@ -3,7 +3,7 @@ name = "orbit-hub"
 version = "0.12.1"
 description = "Orbit hub: the authenticated bridge between Orbit devices and a Hermes assistant profile"
 requires-python = ">=3.11"
-dependencies = ["agent-client-protocol==0.12.1", "cryptography", "fastapi", "httpx", "mcp>=2.2,<3", "pydantic", "pydantic-ai-slim[anthropic,openai]==2.59.0", "pypdfium2==5.14.0", "PyYAML==6.0.3", "sentry-sdk==2.71.0", "uvicorn", "websockets"]
+dependencies = ["claude-agent-sdk==0.2.174", "cryptography", "fastapi", "httpx", "mcp>=2.2,<3", "pydantic", "pydantic-ai-slim[anthropic,openai]==2.59.0", "pypdfium2==5.14.0", "PyYAML==6.0.3", "sentry-sdk==2.71.0", "uvicorn", "websockets"]
 
 [project.scripts]
 orbit-hub = "orbit_hub.cli:main"

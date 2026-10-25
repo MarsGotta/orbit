@@ -7,7 +7,7 @@ reopening the agent's session to their commit. `lock` takes its controls
 each runs whole, in arrival order. A control waits for the sends of its own
 conversation admitted before it (`admitted`), so it applies to the turn sent
 before it, and never for another conversation: a slow start, reopen or
-answer of one conversation (up to minutes for an ACP agent) holds only that
+answer of one conversation (up to minutes for an official vendor agent) holds only that
 conversation.
 
 A send that opens a new conversation has nothing to wait for: it gets locks

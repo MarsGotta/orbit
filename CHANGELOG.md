@@ -7,6 +7,25 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Changed
+
+- Assistants added from Orbit use Anthropic's official Python Claude Agent
+  SDK and the official Codex app-server. Streaming, activity, approvals,
+  clarifications, stop, account sign-in and the plan-limit handover keep the
+  existing hub/Mac contract. Third-party ACP adapters are removed.
+
+### Upgrading
+
+- **Self-hosters: upgrade the hub first.** `[acp_adapters]` becomes
+  `[assistant_tools]`. Install the official `claude` and `codex` executables
+  and point each service's `command` at its absolute path. The hub installs
+  `claude-agent-sdk==0.2.174` from its lockfile; Node ACP packages are no longer
+  needed. Keep `orbit_mcp_config`, `env`, agent ids and the existing account
+  folders. Manually configured vendor agents use `kind = "claude-code"` or
+  `kind = "codex"` and drop `agent`. Adapter-specific flags must be removed.
+  Some old adapter conversation ids cannot be resumed by the vendor; their
+  stored Orbit history remains available. See the self-hosting guide.
+
 ## [0.12.1] - 2026-10-25
 
 ### Upgrading

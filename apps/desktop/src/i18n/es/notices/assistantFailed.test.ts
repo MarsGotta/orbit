@@ -143,6 +143,18 @@ describe("a turn a Claude Code or Codex agent ended without an answer", () => {
   });
 
   it("names the agent's error code, and that it answered what the hub cannot read", () => {
+    expect(said({ code: "agent_rejected", stop_reason: "model_capacity" }, "Vega")).toBe(
+      "Vega no tiene capacidad disponible para ese modelo. Vuelve a intentarlo; si se repite, avisa a quien gestiona tu hub.",
+    );
+    expect(said({ code: "agent_rejected", stop_reason: "serverOverloaded" }, "Vega")).toBe(
+      "Vega informó de que el servicio está saturado. Vuelve a intentarlo; si se repite, avisa a quien gestiona tu hub.",
+    );
+    expect(said({ code: "agent_rejected", rpc_code: "-32602" }, "Vega")).toBe(
+      "Vega rechazó el turno (código -32602). Vuelve a intentarlo; si se repite, avisa a quien gestiona tu hub.",
+    );
+    expect(said({ code: "agent_rejected" }, "Vega")).toBe(
+      "Vega rechazó el turno. Vuelve a intentarlo; si se repite, avisa a quien gestiona tu hub.",
+    );
     expect(said({ code: "agent_rejected", acp_code: "-32603" }, "Vega")).toBe(
       "Vega rechazó el turno (código -32603). Vuelve a intentarlo; si se repite, avisa a quien gestiona tu hub.",
     );

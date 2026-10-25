@@ -208,7 +208,7 @@ Tools: `orbit_devices`, `orbit_windows`, `orbit_screenshot`,
 `orbit_meetings`, `orbit_transcript`, `orbit_note`, `orbit_files_list`,
 `orbit_files_search`, `orbit_files_read`, `orbit_attachment` (a file the
 user attached to a message, by the id the message gives) and `orbit_skill`,
-which loads an `openai` or `acp` agent's enabled skill.
+which loads an `openai` or official vendor agent's enabled skill.
 Each agent's access groups (`orbit_hub/assistant/access.py`) decide which of
 them it lists and runs: the translator knows its agent from `ORBIT_MCP_AGENT`
 and the hub checks the same groups on every private request. Each agent's

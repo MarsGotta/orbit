@@ -164,7 +164,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         HubAgent {
                             id: "codex-1a2b3c4d".into(),
                             name: "Nova".into(),
-                            kind: "acp".into(),
+                            kind: "codex".into(),
                             capabilities: vec!["images".into(), "resume".into()],
                             service: Some("codex".into()),
                             description: Some("Programa conmigo".into()),

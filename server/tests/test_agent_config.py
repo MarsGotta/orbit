@@ -1,6 +1,6 @@
 """Settings › Agents over HTTP: personality, skills and access groups of each agent.
 
-An `openai` and an `acp` agent keep theirs in the hub's database; a `hermes`
+An `openai` and an official vendor agent keep theirs in the hub's database; a `hermes`
 agent's personality and skills are its profile's, reached through a fake
 Hermes panel (`support_hermes_panel`), never a real Hermes. Every refusal is
 checked with its code and its scalar numbers, as the Mac decodes them.
@@ -44,8 +44,7 @@ def entries(tmp_path):
         {
             "id": "vega",
             "name": "Vega",
-            "kind": "acp",
-            "agent": "codex",
+            "kind": "codex",
             # Executable and never run: no session opens here.
             "command": [sys.executable],
             "orbit_mcp_config": str(mcp_config),
@@ -89,7 +88,7 @@ def refusal(response, status, code):
 # Agents whose personality and skills the hub keeps -----------------------------
 
 
-@pytest.mark.parametrize(("agent_id", "kind"), [("lyra", "openai"), ("vega", "acp")])
+@pytest.mark.parametrize(("agent_id", "kind"), [("lyra", "openai"), ("vega", "codex")])
 def test_an_agent_nobody_configured_reads_empty_and_with_every_group_on(hub, agent_id, kind):
     client, headers, _, _ = hub
     response = client.get(f"/v1/agents/{agent_id}/config", headers=headers)

@@ -7,7 +7,7 @@ names that id; the turn then binds it to its message and so to its session,
 the conversation's single source. What reaches the agent depends on the file:
 
 - an image goes as an image to an agent that takes images (Hermes through
-  `image.attach_bytes`, an ACP agent as an image content block);
+  `image.attach_bytes`, an official vendor agent as an image content block);
 - a PDF goes as its text, extracted here with pypdfium2, and the pages that
   have almost no text (a scan, a figure) as images;
 - a text file is named in the turn and read with the `orbit_attachment` tool
@@ -46,7 +46,7 @@ MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
 MAX_MESSAGE_ATTACHMENTS = 10
 # One message's bytes, added over its files. What it protects: the hub's
 # memory while it builds one turn (every file decrypted, images base64-encoded
-# for the agent: 32 MiB become about 43 MiB in an ACP prompt line). Why
+# for the agent: 32 MiB become about 43 MiB in an official vendor prompt line). Why
 # 32 MiB: one full-size file and a few small ones; not measured. It does not
 # limit a single file, which has its own ceiling.
 MAX_MESSAGE_ATTACHMENT_BYTES = 32 * 1024 * 1024
@@ -89,7 +89,7 @@ MAX_TURN_PDF_CHARS = 48_000
 
 KIND_IMAGE, KIND_PDF, KIND_TEXT = "image", "pdf", "text"
 # The images an agent can take: what Hermes stages (`_allowed_image_extensions`
-# without BMP, which no ACP agent names) and what the Claude and Codex
+# without BMP, which no official vendor agent names) and what the Claude and Codex
 # adapters pass on.
 _IMAGES = (
     (b"\x89PNG\r\n\x1a\n", "image/png"),

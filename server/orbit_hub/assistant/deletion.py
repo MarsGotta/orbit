@@ -103,7 +103,7 @@ def _deletes(segment: list[str], depth: int) -> bool:
             for at, arg in enumerate(args)
         )
     if name in SHELLS:
-        # `-c` alone or among other short flags (`bash -lc`, as codex-acp runs).
+        # `-c` alone or among other short flags (`bash -lc`, as Codex runs).
         at = next(
             (at for at, arg in enumerate(args) if re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", arg)),
             None,

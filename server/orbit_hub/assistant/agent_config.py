@@ -1,7 +1,7 @@
 """Each agent's personality, skills and access groups, kept in the hub's database.
 
 Access groups are the hub's for every kind of agent. Personality and skills
-are the hub's for `openai` and `acp` agents (`StoredAdmin`); a `hermes`
+are the hub's for `openai` and official vendor agents (`StoredAdmin`); a `hermes`
 agent's live in its Hermes profile and are reached through Hermes's panel
 (`hermes_panel`). Personality and skill files are encrypted like the rest of
 the hub's content; the skill names and the access switches are not content.
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 # One personality. What it protects: the model's context, which an `openai`
 # agent is sent on every turn beside the conversation (16 KiB is about 4,000
-# tokens, an eighth of a 32,000-token window), and what an `acp` agent is
+# tokens, an eighth of a 32,000-token window), and what an official vendor agent is
 # told at each session. Why 16 KiB: pages of Markdown, far more
 # than a character and its manners take; procedures belong in skills, which
 # have their own bound. It does not bound skills or the conversation.
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS agent_access (
 
 @dataclass(frozen=True)
 class AgentInstructions:
-    """What an `openai` or `acp` agent is told at a turn or a session: its
+    """What an `openai` or official vendor agent is told at a turn or a session: its
     personality and its enabled skills."""
 
     personality: str
@@ -60,7 +60,7 @@ def no_instructions() -> AgentInstructions:
 
 
 # orbit-mcp's tool that hands an agent one of its enabled skills'
-# instructions, for every kind whose skills the hub keeps (`openai`, `acp`).
+# instructions, for every kind whose skills the hub keeps (`openai`, official vendor).
 SKILL_TOOL = "orbit_skill"
 SKILLS_INSTRUCTIONS = (
     "Your skills (agentskills.io). Each line is a skill's name and when to use it. "
@@ -69,11 +69,9 @@ SKILLS_INSTRUCTIONS = (
 )
 # The longest `instructions_text` can be: the personality at its bound, the
 # preface, and `MAX_SKILLS` lines of `- name: description` at the standard's
-# maxima, four bytes a character. What it protects: Codex reads only
-# `project_doc_max_bytes` of its AGENTS.md (32 KiB by default in Codex
-# 0.160.1) and drops the rest without a word, so the hub tells it to read
-# this much. It does not bound what an `openai` or Claude Code agent is told;
-# the personality's and the skills' own bounds do.
+# maxima, four bytes a character. This describes the largest instruction
+# payload given to an SDK or app-server, independent of conversation history.
+# Personality and skill bounds provide the actual admission limits.
 MAX_INSTRUCTIONS_TEXT_BYTES = (
     MAX_PERSONALITY_BYTES
     + len("\n\n")
@@ -88,7 +86,7 @@ def instructions_text(current: AgentInstructions) -> str | None:
     has neither: the personality, then each enabled skill by name and
     description, to be loaded with `SKILL_TOOL`. Every kind the hub keeps
     them for is told this same text: an `openai` agent at every turn, Claude
-    Code in its session's system prompt, Codex in its AGENTS.md."""
+    Code in its session's system prompt, Codex in its developer instructions."""
     parts = []
     if current.personality.strip():
         parts.append(current.personality)
@@ -285,7 +283,7 @@ class AgentAdmin(Protocol):
 
 
 class StoredAdmin:
-    """An `openai` or `acp` agent's personality and skills, in the hub's database."""
+    """An `openai` or official vendor agent's personality and skills, in the hub's database."""
 
     def __init__(self, configs: AgentConfigStore, agent_id: str):
         self.configs, self.agent_id = configs, agent_id

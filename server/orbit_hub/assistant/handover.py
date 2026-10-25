@@ -7,7 +7,7 @@ The new conversation is marked with the one it came from; the old one stays
 as it was, with its agent.
 
 What the new agent is told is a copy, in the first turn's text: a backend
-that keeps its own history (Hermes, ACP) keeps it from there; the hub's
+that keeps its own history (Hermes, official vendor) keeps it from there; the hub's
 stored conversation holds only the question, as the user sees it.
 """
 

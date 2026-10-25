@@ -172,16 +172,14 @@ without an answer: `error` on the same turn with `session_id`, a Spanish
 (`timeout_ms` when an Orbit tool never answered; its outcome is unknown),
 `assistant_turn_too_long` (`max_requests`), `assistant_provider_error` and
 `assistant_failed`.
-An ACP agent (`kind = "acp"`) names its causes the same way: `agent_auth_required`
-(its session on the server expired or never began: sign in from Orbit, see
-[Assistants from Orbit](#assistants-from-orbit)), `agent_limit_reached` (its
-plan's limit; `resets_at_ms` when the adapter said when it resets, and the
-message quotes the agent's own sentence, which may say it), `agent_rejected`
-(`acp_code`; the message quotes the agent's reason, bounded), `agent_stopped`
-(`exit_status` when its process ended, or `max_bytes` when one of its messages
-crossed that ceiling), `agent_protocol`, and `agent_turn_unfinished`
-(`stop_reason`: `max_tokens`, `max_turn_requests` or `refusal`). What the agent
-said before it stopped was streamed live and is not stored as its answer.
+Official Claude Code (`kind = "claude-code"`) and Codex (`kind = "codex"`)
+agents keep the same causes: `agent_auth_required` (sign in from Orbit),
+`agent_limit_reached` (the plan's limit, with `resets_at_ms` when supplied),
+`agent_rejected` (`rpc_code` for a rejected Codex protocol request),
+`agent_stopped`, `agent_protocol`, and `agent_turn_unfinished` (`stop_reason`).
+Diagnostics and credential-bearing vendor output are never relayed. Text
+streamed before failure is not stored as a final answer. The Mac's existing
+save-question and main-assistant handover flow still handles plan limits.
 Any agent's start (its connection, or a session opening or reopening) that has
 not finished after 300 s is refused as `agent_start_timeout` (`agent_id`,
 `timeout_ms`) and what it had started is stopped; a slow or broken agent holds
@@ -250,8 +248,7 @@ Hermes: `tool.start`/`tool.complete` (`is_error` is `failed` with the
 result as its cause), `todo.updated` and the `todo` tool's result,
 `reasoning.available`, `subagent.start`/`progress`/`tool`/`complete`.
 `reasoning.delta` is the thought itself and `thinking.delta` a spinner's
-text: neither is relayed. ACP: `tool_call`, `tool_call_update`, `plan` and
-`agent_thought_chunk` (a streamed thought is one reasoning item, completed with
+text: neither is relayed. Official vendors: SDK tool blocks and thinking, app-server items and plans (a streamed thought is one reasoning item, completed with
 its whole text when anything else arrives). The OpenAI-compatible assistant
 (`kind = "openai"`): each tool call is an item from the call to its result
 (`failed` with the cause when the tool refused or the model must retry it),
@@ -271,12 +268,11 @@ takes a question as current by the turn in `id`.
 `approval.required` carries `choices`, the answers the agent offers, in
 the hub's vocabulary: `once`, `session` (this conversation), `always`,
 `deny`. Hermes offers `once` and `deny` and, when allowed, `session` and
-`always`; an ACP agent's options are `once` (`allow_once`), `always`
-(`allow_always`) and `deny` (`reject_once`, else `reject_always`). `choices`
+`always`; official vendor agents offer `once` and `deny`. `choices`
 absent means `once` and `deny`. A request whose command deletes files
 (`server/orbit_hub/assistant/deletion.py`: `rm`, `unlink`, `rmdir`, `shred`,
 `trash`, `git rm`/`git clean`, `find -delete`, also behind `sudo`, `xargs`,
-`sh -c` or in a chain; for ACP, also a tool call of kind `delete`) is approved
+`sh -c` or in a chain) is approved
 one at a time: the hub offers only `once` and `deny` of what the agent
 offered, refuses `session` and `always` with `approval_not_allowed`, and adds
 `deletes` to `approval.required` and to its snapshot item, with `paths`, the
@@ -396,7 +392,7 @@ to a hub that listed its agents. Without the field (a 0.9.0 Mac) it is the
 default agent's voice. An unknown id yields `404 agent_not_found` with
 `agent_id` and `agent_ids`. Dictation (`/v1/audio/transcribe`) stays the
 default agent's: it is the user's input to whichever agent they talk to, not
-an agent's voice, and an agent of kind `acp` has none of its own. An agent
+an agent's voice, and an agent of kind `claude-code` or `codex` has none of its own. An agent
 without a voice of its own (`voice` absent from its `capabilities` in `ready`)
 is read aloud in the default agent's voice. When neither has one, read-aloud
 yields `503 speech_not_configured` naming the agent asked for (`agent_id` among
@@ -1203,14 +1199,14 @@ can advertise them; see the [self-hosting guide](../docs/self-hosting.md).
 
 A hub can offer several agents, each an assistant with its own backend: a
 Hermes profile, a model the hub runs against an OpenAI-compatible or Anthropic
-API, or Claude Code or Codex over the Agent Client Protocol. The addition is
+API, or Claude through the official Agent SDK or Codex through app-server. The addition is
 optional on both sides: a 0.9.0 Mac keeps working against a hub with agents,
 and a Mac with agents keeps working against a 0.9.0 hub.
 
 **`ready`** adds `agents`, the hub's agents in its order, and
 `default_agent_id`. Each agent is `{id, name, kind, capabilities}`: `id` is
 stable, `[a-z0-9-]`, 1 to 32 characters; `name` is what the app shows and what
-the wake phrase hears («Oye Atlas»); `kind` is `hermes`, `openai` or `acp`,
+the wake phrase hears («Oye Atlas»); `kind` is `hermes`, `openai`, `claude-code` or `codex`,
 and a Mac must accept any other text there;
 `capabilities` lists what the agent accepts today, out of `images`, `voice`
 and `resume`. `assistant_name` stays, with the default agent's name, for Macs
@@ -1296,14 +1292,13 @@ them answers `404` with no `code`.
 
 Where each kind keeps them:
 
-- `openai` and `acp`: the hub's database (personality and skill files
+- `openai` and Claude Code or Codex: the hub's database (personality and skill files
   encrypted). The agent is told its personality and the name and
   description of each enabled skill, and loads a skill's instructions with
   `orbit-mcp`'s `orbit_skill` (see [Access groups](#access-groups)) when it
-  needs them. An `openai` agent is told at every turn; Claude Code in each
-  session's `_meta.systemPrompt.append` (`session/new` and `session/load`);
-  Codex in the `AGENTS.md` of its folder, written before each session opens.
-  A conversation already open keeps what it started with.
+  needs them. An `openai` agent receives instructions on every turn; Claude
+  receives an appended system prompt through the official SDK on every turn;
+  Codex receives `developerInstructions` when opening or resuming a thread.
 - `hermes`: the profile's own `SOUL.md` and skills, through Hermes's panel
   (see Hermes refusals below). Nothing of them is stored in the hub.
 - Access groups: the hub's, for every kind.
@@ -1379,13 +1374,13 @@ the standard's rules on its two required fields, and keeps any other key
 
 The route's `{name}` is held to the same name rules. Orbit admits only ASCII
 letters, where the standard admits any lowercase letter: the name is a folder
-in an `acp` agent's directory and a segment of this URL.
+in a Hermes profile and a segment of this URL.
 
 ### Bounds and refusals
 
 - Personality: 16 KiB of UTF-8. It is sent to an `openai` agent's model on
   every turn (about 4,000 tokens, an eighth of a 32,000-token window) and
-  read by an `acp` agent at each session.
+  read by a Claude Code or Codex agent at each session.
 - One `SKILL.md`: 64 KiB. The standard asks for under 500 lines; Hermes's
   longest bundled skill measured 35,175 bytes.
 - Skills per agent: 128. It bounds this read (under 1 MiB even at the
@@ -1448,7 +1443,7 @@ a configuration of the agent's tools: nothing is asked at each use, nothing
 expires, and macOS's permission stays the decision about the Mac.
 
 It is enforced twice. `orbit-mcp` knows its agent from `ORBIT_MCP_AGENT`,
-which the hub sets for `openai` and `acp` agents and a Hermes profile's MCP
+which the hub sets for `openai` and Claude Code or Codex agents and a Hermes profile's MCP
 configuration sets for a `hermes` agent; without it, the default agent. It
 asks `POST /internal/v1/agent/access`, signed with the device-bridge key over
 `{"protocol":"orbit_device_bridge_v1","agent_id"?:"lyra"}`, which answers
@@ -1456,7 +1451,7 @@ asks `POST /internal/v1/agent/access`, signed with the device-bridge key over
 (no `agent_id`: the default agent, named in the answer). `orbit-mcp` then
 lists no tool of a group that is off, and refuses one called anyway with
 `agent_access_disabled`; it lists `orbit_skill` only when `skills_in_hub`
-is true (`openai` and `acp` agents; a `hermes` agent's skills are its
+is true (`openai` and Claude Code or Codex agents; a `hermes` agent's skills are its
 profile's). When the hub cannot say, it offers every tool and the hub
 decides. It reads the answer again after 10 s.
 
@@ -1503,16 +1498,16 @@ in `ready` has none of these routes (`404` with no `code`) and takes no
 | `description` | at most 90 characters, possibly empty |
 | `color` | `c1` to `c4`; until someone chooses one, the four in turn by position |
 | `removable` | added from Orbit, so Orbit can remove it |
-| `account` | only for `acp` agents: `signed_in`, `signed_out`, `expired` (it refused for want of a sign-in after having one) or `unknown` (the hub has not learned it yet) |
-| `account_email`, `plan` | only when the agent's adapter said them (`_auth/status_update`) |
+| `account` | only for Claude Code or Codex agents: `signed_in`, `signed_out`, `expired` (it refused for want of a sign-in after having one) or `unknown` (the hub has not learned it yet) |
+| `account_email`, `plan` | only when the official tool reports safe account metadata |
 | `limit` | only while the plan is at its limit: `{"until_ms": integer\|null}`, null when the provider did not say when it resets; a Mac treats one whose time has passed as over |
 | `backend` | only while the agent's last start failed (its connection or a new session): `{"state":"failed","code":"agent_start_failed","at_ms":1790000000000}`, `code` being the refusal that start ended with; gone once a start succeeds. Any kind of agent may have it; a Mac before it ignores it |
-| `usage` | only when the provider reported it: `{"used_percent": 0-100, "window": "five_hour"\|"seven_day"\|…\|null, "resets_at_ms": integer\|null}`. Today only Claude Code with a claude.ai subscription reports it, when it changes; Codex reports none, so a Codex agent has no usage |
+| `usage` | only when the provider reported it: `{"used_percent": 0-100, "window": "five_hour"\|"seven_day"\|…\|null, "resets_at_ms": integer\|null}`. Claude reports fractional utilization by window; Codex reports window percentages and reset times. Missing means unknown |
 
 `default_agent_id` is the **primary**: the agent a turn without `agent_id`
 goes to, and the one the wake phrase without a name, the floating panel and
 «Preguntar» use. `assistant_name` is the primary's name. `addable_agents`
-lists the services the hub has an adapter for, possibly none.
+lists the services the hub has an official executable configured for, possibly none.
 
 `agents.changed` (`id:null`) is sent to every connected device whenever the
 list changes: a profile, an agent added or removed, a sign-in or sign-out, an
@@ -1526,7 +1521,7 @@ exactly as `ready` gives them; a Mac before it ignores the event.
   "agents":[
     {"id":"atlas","name":"Atlas","kind":"hermes","capabilities":["images","voice","resume"],
      "service":"hermes","description":"Tu asistente de siempre","color":"c1","removable":false},
-    {"id":"codex-1a2b3c4d","name":"Nova","kind":"acp","capabilities":["images","resume"],
+    {"id":"codex-1a2b3c4d","name":"Nova","kind":"codex","capabilities":["images","resume"],
      "service":"codex","description":"Programa conmigo","color":"c2","removable":true,
      "account":"signed_in","limit":{"until_ms":1790000000000}}],
   "default_agent_id":"atlas","addable_agents":["codex"]}}
@@ -1549,7 +1544,7 @@ All use the device bearer token. Each write answers the whole list as
 - `POST /v1/agents`
   `{"service":"codex","name":"Nova","description":"","color":"c2","access":{"screen":true,"control":false,"calendar":true,"meetings":true,"files":true}}`
   → `201` with `agent_id`. The Mac chooses only the service, the profile and
-  the access groups: the command comes from the hub's `[acp_adapters]`, and
+  the access groups: the command comes from the hub's `[assistant_tools]`, and
   the id (`codex-` or `claude-` and eight hex digits) and its folder are the
   hub's. It starts signed out. A hub offers at most 32 agents, its
   configuration's and the added ones together, and refuses to start with
@@ -1597,7 +1592,7 @@ A failed one has `cause` and, when the tool ended with one, `exit_status`:
 | `exited` | the tool ended with an error the hub does not tell apart |
 | `not_started` | the tool did not start (also refused at once as `sign_in_failed`) |
 
-The hub runs the vendor's tool through the agent's own adapter, in the
+The hub runs the vendor's tool through the configured official executable, in the
 agent's folder; the tool writes the account's credentials there. The hub
 never reads, logs or returns them, and nothing of the tool's output reaches a
 Mac or a log but the address, the code and the cause.
@@ -1625,11 +1620,11 @@ it was. Nothing to carry is `handover_no_question` (`messages`).
 | 409 | `agent_name_taken` | `field`, `agent_id` (the agent already called that) |
 | 409 | `agent_primary_required` | `agent_id` |
 | 403 | `agent_add_unsupported` | `service` (`hermes`, `openai`: the UI says «Pídeselo a quien gestiona tu hub») |
-| 409 | `agent_adapter_missing` | `service`: no `[acp_adapters]` table for it, or its command does not start |
+| 409 | `agent_adapter_missing` | `service`: no `[assistant_tools]` table for it, or its command does not start |
 | 409 | `too_many_agents` | `count`, `max` |
 | 403 | `agent_not_removable` | `agent_id`: from the hub's configuration |
 | 500 | `agent_folder_not_removed` | `agent_id`, `errno`; the agent stays |
-| 409 | `sign_in_unsupported` | `agent_id`, `kind` (not an `acp` agent) |
+| 409 | `sign_in_unsupported` | `agent_id`, `kind` (not a Claude Code or Codex agent) |
 | 404 | `sign_in_not_found` | `agent_id` |
 | 409 | `sign_in_not_waiting_for_code` | `agent_id` |
 | 422 | `sign_in_code_invalid` | `agent_id`, `characters` |
@@ -1709,7 +1704,7 @@ counts in its notice (`bytes`, `max_bytes`, `stored`, `count`, `max`).
 
 **What reaches the agent.** The turn's text names every file with its kind,
 size and id. An image goes as an image to an agent that takes them (Hermes:
-`image.attach_bytes` with a data URL before `prompt.submit`; ACP: an image
+`image.attach_bytes` with a data URL before `prompt.submit`; Official vendors: an image
 content block when the agent declares `promptCapabilities.image`; `openai`:
 an image part after the text when the agent has `images = true`; otherwise
 the text names it and says the agent cannot see it, since `orbit_attachment`

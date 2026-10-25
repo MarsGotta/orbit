@@ -28,11 +28,11 @@ ALL_ON = {"screen": True, "control": True, "calendar": True, "meetings": True, "
 
 
 def with_adapters(settings, tmp_path, *services):
-    """The hub's `[acp_adapters]`: an executable that exists, and orbit-mcp's TOML path."""
+    """The hub's `[assistant_tools]`: an executable that exists, and orbit-mcp's TOML path."""
     return replace(
         settings,
         agents=TWO_AGENTS,
-        acp_adapters={
+        assistant_tools={
             service: {"command": [sys.executable], "orbit_mcp_config": str(tmp_path / "mcp.toml")}
             for service in services
         },
@@ -210,7 +210,7 @@ def test_an_agent_added_from_orbit_runs_the_hubs_adapter(environment, tmp_path):
     assert phobos == {
         "id": added,
         "name": "Phobos",
-        "kind": "acp",
+        "kind": "codex",
         "capabilities": ["images", "voice", "resume"],
         "service": "codex",
         "description": "Programa conmigo",
@@ -258,9 +258,9 @@ def test_an_adapter_that_cannot_start_is_refused_naming_the_service(environment,
     settings, store, _adapter = environment
     settings = replace(
         with_adapters(settings, tmp_path),
-        acp_adapters={
+        assistant_tools={
             "codex": {
-                "command": [str(tmp_path / "missing-codex-acp")],
+                "command": [str(tmp_path / "missing-codex")],
                 "orbit_mcp_config": str(tmp_path / "mcp.toml"),
             }
         },

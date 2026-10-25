@@ -1,7 +1,7 @@
 """Signing a Claude Code or Codex agent in and out from Orbit.
 
 The vendor's tool is `support_vendor_cli.py`, an invented sign-in that
-prints what claude-agent-acp's and codex-acp's do and writes an invented
+prints what the official Claude and Codex CLIs do and writes an invented
 token where they would. What runs for real is the hub: its routes, its
 process handling and its reading of the tool's output. Addresses, codes,
 accounts and the token are invented.
@@ -110,7 +110,7 @@ def signing(environment, tmp_path, caplog):
 
     def hub(*flags, claude_flags=()):
         configured = replace(
-            settings, acp_adapters=adapters(tmp_path, *flags, claude_flags=claude_flags)
+            settings, assistant_tools=adapters(tmp_path, *flags, claude_flags=claude_flags)
         )
         return Hub(configured, store, adapter)
 
@@ -122,6 +122,8 @@ def assert_no_token(hub, settings, caplog, capfd):
     printed = capfd.readouterr()
     for text in [*hub.said, caplog.text, printed.out, printed.err]:
         assert TOKEN not in text
+    for database in settings.data_dir.glob("hub.sqlite3*"):
+        assert TOKEN.encode() not in database.read_bytes()
     folder = settings.data_dir / "agents"
     assert any(TOKEN in path.read_text() for path in folder.rglob("*") if path.is_file())
 
@@ -151,21 +153,21 @@ def test_claude_signs_in_with_the_code_its_page_shows(signing, tmp_path, caplog,
     assert ares["account"] == "signed_in"
     # The adapter the hub configured, with the subscription's sign-in, in the agent's home.
     [login] = records(tmp_path)
-    assert login["arguments"] == ["--cli", "auth", "login", "--claudeai"]
+    assert login["arguments"] == ["auth", "login", "--claudeai"]
     assert login["home"] == str(settings.data_dir / "agents" / agent / "claude-config")
     credentials = settings.data_dir / "agents" / agent / "claude-config" / ".credentials.json"
     assert credentials.stat().st_mode & 0o777 == 0o600
     assert_no_token(hub, settings, caplog, capfd)
 
 
-def test_an_adapter_that_refuses_subscriptions_signs_in_with_a_console_account(signing, tmp_path):
+def test_claude_uses_the_official_subscription_login(signing, tmp_path):
     open_hub, _settings = signing
-    with open_hub(claude_flags=["--hide-claude-auth"]) as hub:
+    with open_hub() as hub:
         agent = hub.add("claude-code", "Ares")
         hub.call("POST", f"/v1/agents/{agent}/sign-in")
         hub.call("DELETE", f"/v1/agents/{agent}/sign-in")
     [login] = records(tmp_path)
-    assert login["arguments"][-1] == "--console"
+    assert login["arguments"] == ["auth", "login", "--claudeai"]
 
 
 def test_codex_signs_in_with_a_device_code(signing, tmp_path, caplog, capfd):
@@ -260,8 +262,8 @@ def test_signing_out_runs_the_vendors_sign_out(signing, tmp_path):
     [phobos] = [a for a in signed_out.json()["agents"] if a["id"] == agent]
     assert phobos["account"] == "signed_out"
     assert [record["arguments"] for record in records(tmp_path)] == [
-        ["cli", "login", "--device-auth"],
-        ["cli", "logout"],
+        ["login", "--device-auth"],
+        ["logout"],
     ]
     assert not (settings.data_dir / "agents" / agent / "codex-home" / "auth.json").exists()
 
@@ -283,7 +285,7 @@ def test_an_agent_orbit_cannot_sign_in_says_so(signing):
 
 def test_what_the_hub_learns_of_an_account_is_published(environment, tmp_path):
     settings, store, adapter = environment
-    settings = replace(settings, acp_adapters=adapters(tmp_path))
+    settings = replace(settings, assistant_tools=adapters(tmp_path))
     agents = Agents.from_settings(settings, adapter, adapter, None, Roster(store))
     added = agents.add("codex", Profile("Phobos", "", "c2"), 1).id
     published = []
@@ -365,7 +367,7 @@ def test_an_account_fact_the_disk_refuses_still_reaches_the_macs(environment, tm
     import sqlite3
 
     settings, store, adapter = environment
-    settings = replace(settings, acp_adapters=adapters(tmp_path))
+    settings = replace(settings, assistant_tools=adapters(tmp_path))
     roster = Roster(store)
     agents = Agents.from_settings(settings, adapter, adapter, None, roster)
     added = agents.add("codex", Profile("Phobos", "", "c2"), 1).id

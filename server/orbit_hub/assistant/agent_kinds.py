@@ -49,9 +49,10 @@ import re
 import unicodedata
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
-from . import acp_settings, hermes, openai_settings
+from . import hermes, openai_settings, tool_settings
 from .agent_config import AgentAdmin, AgentConfigStore, AgentInstructions, StoredAdmin
 from .backend import AssistantBackend
 from .hermes_panel import HermesPanelAdmin
@@ -94,14 +95,11 @@ def _openai_speech(settings: Settings, agent: AgentConfiguration) -> SpeechBacke
     return openai.build_speech(settings, agent)
 
 
-# The ACP SDK of Claude Code and Codex takes a quarter of a second or more to
-# import: only a hub that builds an `acp` agent imports it.
-def _acp_backend(
-    settings: Settings, agent: AgentConfiguration, instructions: InstructionSource
-) -> AssistantBackend:
-    from . import acp
+# Vendor SDK imports belong only to a hub that actually builds these agents.
+def _official_backend(settings, agent, instructions) -> AssistantBackend:
+    from .official_tools import build_backend
 
-    return acp.build_backend(settings, agent, instructions)
+    return build_backend(settings, agent, instructions)
 
 
 def stored_admin(settings: Settings, agent: Any, configs: AgentConfigStore) -> AgentAdmin:
@@ -120,8 +118,15 @@ KINDS: dict[str, AgentKind] = {
     "openai": AgentKind(
         openai_settings.parse_settings, _openai_backend, _openai_speech, stored_admin
     ),
-    # Claude Code and Codex speak no audio over ACP: no dictation, no read-aloud.
-    "acp": AgentKind(acp_settings.parse_settings, _acp_backend, _no_speech, stored_admin),
+    "claude-code": AgentKind(
+        partial(tool_settings.parse_tool, "claude-code"),
+        _official_backend,
+        _no_speech,
+        stored_admin,
+    ),
+    "codex": AgentKind(
+        partial(tool_settings.parse_tool, "codex"), _official_backend, _no_speech, stored_admin
+    ),
 }
 
 # The id of the one agent a configuration without `[[agents]]` has. Sessions

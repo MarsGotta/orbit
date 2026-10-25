@@ -1354,10 +1354,14 @@ async fn a_failed_turn_keeps_its_numbers_and_stop_reason_in_the_notice() -> Resu
             json!({"code": "agent_rejected", "acp_code": "-32603"}),
         ),
         (
+            json!({"code": "agent_rejected", "rpc_code": -32602, "retry": {"kind": "never"}}),
+            json!({"code": "agent_rejected", "rpc_code": "-32602"}),
+        ),
+        (
             json!({"code": "agent_stopped", "exit_status": 3, "retry": {"kind": "never"}}),
             json!({"code": "agent_stopped", "exit_status": "3"}),
         ),
-        // The plan's limit, with when it resets when the adapter said.
+        // The plan's limit, with when it resets when the official tool said.
         (
             json!({"code": "agent_limit_reached", "resets_at_ms": 1_790_000_000_000_u64,
                 "retry": {"kind": "never"}}),

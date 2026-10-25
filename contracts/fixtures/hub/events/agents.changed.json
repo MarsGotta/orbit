@@ -21,7 +21,7 @@
       {
         "id": "codex-1a2b3c4d",
         "name": "Nova",
-        "kind": "acp",
+        "kind": "codex",
         "capabilities": [
           "images",
           "resume"

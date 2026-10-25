@@ -24,7 +24,7 @@ T = TypeVar("T")
 # conversation that wait for it, and the Mac that waits for their answer,
 # from a backend that never answers its start. Why 300 s: it is Home
 # Assistant's cut for an integration's setup, and it is above every bound the
-# backends keep themselves (an ACP agent: 30 s to start its process and 120 s
+# backends keep themselves (an official vendor agent: 30 s to start its process and 120 s
 # to open or reload a session; orbit-mcp for an `openai` agent: 30 s; Hermes:
 # 25 s to connect and 30 s for an RPC), so it never cuts a start they would
 # finish. It does not bound a turn, a history load (`RESUME_HISTORY_TIMEOUT_

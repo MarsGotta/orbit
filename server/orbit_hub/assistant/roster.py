@@ -6,12 +6,12 @@ The profile is how Orbit shows and calls an agent: its name (what «Oye
 {nombre}» hears), a description, a colour and whether it is the primary, the
 one that answers when no agent is named. It is stored over what `orbit.toml`
 says and changes nothing of the agent itself: renaming a Hermes agent never
-touches Hermes, and an `openai` or `acp` agent is still told its personality,
+touches Hermes, and an `openai` or official vendor agent is still told its personality,
 not its name.
 
-Agents added from Orbit are Claude Code or Codex agents (`acp`). The Mac
+Agents added from Orbit use the official Claude Code or Codex tool. The Mac
 chooses only the service, the profile and the access groups; the command that
-runs comes from the hub's `[acp_adapters]` table, never from the Mac, and the
+runs comes from the hub's `[assistant_tools]` table, never from the Mac, and the
 id and folder are the hub's own. They live here beside the ones `orbit.toml`
 lists; those cannot be removed from Orbit.
 
@@ -85,7 +85,7 @@ class Account:
     # the provider said.
     limited: bool = False
     until_ms: int | None = None
-    # What the agent's adapter says of the account it runs with
+    # What the agent's official tool says of the account it runs with
     # (`_auth/status_update`): the account's address and the plan's name.
     email: str | None = None
     plan: str | None = None
