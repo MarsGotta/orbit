@@ -139,6 +139,20 @@ step "uv sync --locked (the version's environment, from the commit's uv.lock)" b
 python="$target/.venv/bin/python"
 step "compiling orbit_hub and orbit_mcp" "$python" -I -m compileall -q "$target/orbit_hub" "$target/orbit_mcp"
 
+# The pin travels with the committed server, so old releases never acquire a
+# newer binary when this script changes. No activation or provider connection.
+# Five minutes bounds the whole transfer, including a stalled release host.
+step "downloading and verifying the pinned official Codex" \
+	timeout 300 "$python" -I -m orbit_hub.assistant.codex_distribution "$target"
+codex_version=$("$python" -I -c 'import sys,tomllib; print(tomllib.load(open(sys.argv[1],"rb"))["version"])' "$target/codex-release.toml")
+codex_sha256=$("$python" -I -c 'import sys,tomllib; print(tomllib.load(open(sys.argv[1],"rb"))["sha256"])' "$target/codex-release.toml")
+# A private throwaway home prevents even a --version probe reading an account.
+mkdir -m 700 "$target/.codex-check"
+codex_reported=$(env -i PATH="$PATH" HOME="$target/.codex-check" CODEX_HOME="$target/.codex-check" \
+	timeout 60 "$target/bin/codex" --version) || hub_fail "the shipped Codex cannot run on this platform: $target/bin/codex"
+rm -rf -- "$target/.codex-check"
+[[ "$codex_reported" == "codex-cli $codex_version" ]] || hub_fail "the shipped Codex reports '$codex_reported'; expected codex-cli $codex_version."
+
 # --- Check what was built ------------------------------------------------------
 
 # Each check runs under `timeout 60`. Measured on this server (10 runs each):
@@ -183,6 +197,8 @@ commit_date=$(git -C "$repo" show -s --format=%cI "$commit")
 	printf 'commit_date=%s\n' "$commit_date"
 	printf 'published_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 	printf 'python=%s\n' "$python_version"
+	printf 'codex=%s\n' "$codex_version"
+	printf 'codex_asset_sha256=%s\n' "$codex_sha256"
 } >"$target/RELEASE.partial"
 mv -- "$target/RELEASE.partial" "$target/RELEASE"
 # Symlinks are left alone: .venv/bin/python points at the shared interpreter.

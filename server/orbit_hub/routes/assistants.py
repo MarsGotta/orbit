@@ -107,7 +107,7 @@ def mount(
         if sent.service not in SERVICE_NAMES:
             raise HubError(
                 "agent_add_unsupported",
-                "Un asistente de este tipo no se añade desde Orbit: pídeselo a quien gestiona tu hub",
+                "Este tipo se añade en tu hub; Hermes se crea a partir de un perfil de Hermes",
                 http_status=403,
                 numbers={"service": sent.service},
             )

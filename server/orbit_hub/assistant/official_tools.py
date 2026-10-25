@@ -19,6 +19,7 @@ from .backend import (
     TurnFailed,
 )
 from .sign_in import private_folder
+from .tool_availability import ToolUnavailable
 from .tool_interactions import ToolInteractions
 from .tool_settings import HOME_FOLDERS, environment
 
@@ -38,15 +39,13 @@ def build_backend(hub, agent, instructions=no_instructions):
     path = Path(agent.settings.command[0])
     cause = None
     if not path.exists():
-        cause = "does not exist"
+        cause = "no existe"
     elif not path.is_file():
-        cause = "is not a file"
+        cause = "no es un archivo"
     elif not os.access(path, os.X_OK):
-        cause = "is not executable"
+        cause = "no tiene permiso de ejecución"
     if cause:
-        raise ValueError(
-            f"agent {agent.id!r}: {agent.kind} `command` official executable {path} {cause}"
-        )
+        raise ToolUnavailable(path, cause, agent.id, agent.kind)
     return OfficialBackend(hub, agent, instructions)
 
 

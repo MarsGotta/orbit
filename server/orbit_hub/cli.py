@@ -91,6 +91,9 @@ def serve(settings: Settings, args) -> None:
     import uvicorn
 
     from .app import create_app
+    from .assistant.local_mcp import listener_url, prepare
+
+    settings = prepare(settings, listener_url(settings, args))
 
     uvicorn.run(
         create_app(settings),

@@ -48,7 +48,7 @@ _AFTER_FIX = {
     "skill_invalid",
     "too_many_skills",
     # Assistants from Orbit: the user changes the profile, signs in, or the
-    # operator installs the adapter first.
+    # owner republishes the hub to restore a missing official tool.
     "agent_profile_invalid",
     "agent_name_taken",
     "agent_primary_required",

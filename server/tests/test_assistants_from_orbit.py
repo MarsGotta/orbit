@@ -79,7 +79,7 @@ def test_ready_carries_each_agents_profile_and_the_primary(environment, tmp_path
     with hub(settings, store, adapter) as http, socket(http, paired) as ws:
         ready = ws.receive_json()["data"]
     assert ready["default_agent_id"] == "deimos"
-    assert ready["addable_agents"] == ["codex"]
+    assert ready["addable_agents"] == ["codex", "claude-code"]
     assert [
         (agent["id"], agent["service"], agent["description"], agent["color"], agent["removable"])
         for agent in ready["agents"]
@@ -232,7 +232,6 @@ def test_an_agent_added_from_orbit_runs_the_hubs_adapter(environment, tmp_path):
     [
         (new_agent("hermes"), 403, "agent_add_unsupported", {"service": "hermes"}),
         (new_agent("openai"), 403, "agent_add_unsupported", {"service": "openai"}),
-        (new_agent("claude-code"), 409, "agent_adapter_missing", {"service": "claude-code"}),
         (new_agent(name="lyra"), 409, "agent_name_taken", {"agent_id": "lyra"}),
         # Nothing the Mac sends becomes a command or a path.
         ({**new_agent(), "command": ["/bin/sh", "-c", "id"]}, 400, "invalid_agent_config", {}),
@@ -269,7 +268,11 @@ def test_an_adapter_that_cannot_start_is_refused_naming_the_service(environment,
     with pytest.raises(Exception) as refused:
         registry.add("codex", registry_profile("Phobos"), 1)
     assert refused.value.code == "agent_adapter_missing"
-    assert refused.value.numbers == {"service": "codex"}
+    assert refused.value.numbers == {
+        "service": "codex",
+        "path": str(tmp_path / "missing-codex"),
+        "cause": "no existe",
+    }
     assert list(registry.by_id) == ["deimos", "lyra"]
 
 

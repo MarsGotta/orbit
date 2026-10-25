@@ -9,6 +9,14 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ### Changed
 
+- Claude and Codex assistants can be added from Orbit without hub tool tables.
+  Claude uses the CLI bundled with Claude Agent SDK 0.2.174; hub publication
+  ships official Codex 0.164.0 after checking its pinned SHA-256. The hub
+  generates MCP configuration and private bridge keys; existing tool overrides
+  still work. Missing tools name their path and cause and suggest republishing.
+- Hermes setup copy explains that assistants are created on the hub from a
+  Hermes profile and then appear in Orbit.
+
 - Assistants added from Orbit use Anthropic's official Python Claude Agent
   SDK and the official Codex app-server. Streaming, activity, approvals,
   clarifications, stop, account sign-in and the plan-limit handover keep the
@@ -17,11 +25,10 @@ is in Spanish; the labels quoted below are the ones it shows.
 ### Upgrading
 
 - **Self-hosters: upgrade the hub first.** `[acp_adapters]` becomes
-  `[assistant_tools]`. Install the official `claude` and `codex` executables
-  and point each service's `command` at its absolute path. The hub installs
-  `claude-agent-sdk==0.2.174` from its lockfile; Node ACP packages are no longer
-  needed. Keep `orbit_mcp_config`, `env`, agent ids and the existing account
-  folders. Manually configured vendor agents use `kind = "claude-code"` or
+  optional `[assistant_tools]` overrides. Publishing the hub supplies the
+  official tools; Node ACP packages are no longer needed. Existing
+  `orbit_mcp_config`, `env`, agent ids and account folders keep working.
+  Manually configured vendor agents use `kind = "claude-code"` or
   `kind = "codex"` and drop `agent`. Adapter-specific flags must be removed.
   Some old adapter conversation ids cannot be resumed by the vendor; their
   stored Orbit history remains available. See the self-hosting guide.

@@ -23,6 +23,7 @@ from uuid import uuid4
 
 from ..errors import HubError
 from ..log import report
+from .tool_availability import launch_failure
 from .tool_settings import HOME_FOLDERS, ToolSettings
 from .tool_settings import environment as tool_environment
 
@@ -184,12 +185,7 @@ class SignIns:
             )
         except OSError as exc:
             self._end(attempt, "failed", "not_started")
-            raise HubError(
-                "sign_in_failed",
-                f"No arrancó el inicio de sesión de {agent.name} en el hub ({exc.strerror})",
-                http_status=502,
-                numbers={"agent_id": agent.id, "cause": "not_started"},
-            ) from None
+            raise launch_failure(settings.agent, settings.command[0], exc) from None
         attempt.task = asyncio.create_task(self._run(attempt, home))
         try:
             async with asyncio.timeout(URL_TIMEOUT_SECONDS):

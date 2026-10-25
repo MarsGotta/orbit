@@ -91,11 +91,11 @@ describe("a hub refusal of an assistant's profile, its adding or its sign-in", (
     ],
     [
       refusal("agent_add_unsupported", 403, { service: "hermes" }),
-      "Este tipo no se añade desde Orbit. Pídeselo a quien gestiona tu hub.",
+      "Este tipo se añade en tu hub; Hermes se crea a partir de un perfil de Hermes.",
     ],
     [
       refusal("agent_adapter_missing", 409, { service: "codex" }),
-      "Tu hub no tiene el adaptador de codex instalado o no arranca. Pídeselo a quien gestiona tu hub.",
+      "Codex no está disponible en tu hub. Publica de nuevo el hub para instalarlo.",
     ],
     [
       refusal("too_many_agents", 409, { count: 32, max: 32 }),

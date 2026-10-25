@@ -11,7 +11,7 @@ not its name.
 
 Agents added from Orbit use the official Claude Code or Codex tool. The Mac
 chooses only the service, the profile and the access groups; the command that
-runs comes from the hub's `[assistant_tools]` table, never from the Mac, and the
+runs is shipped by the hub or overridden in `[assistant_tools]`, never supplied by the Mac. The
 id and folder are the hub's own. They live here beside the ones `orbit.toml`
 lists; those cannot be removed from Orbit.
 

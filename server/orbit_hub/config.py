@@ -9,7 +9,7 @@ from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass
 
 from .assistant.agent_kinds import AgentConfiguration, configured_agents
-from .assistant.tool_settings import ToolSettings, parse_assistant_tool
+from .assistant.tool_settings import ToolSettings, default_tools, parse_assistant_tool
 from .error_reports import ErrorReportsConfiguration
 from .meeting_diarization import DiarizationConfiguration
 from .meeting_transcription import MeetingTranscriptionConfiguration
@@ -32,8 +32,8 @@ class Settings:
     agents: tuple[dict[str, Any], ...] | None = None
     default_agent: str | None = None
     # `[assistant_tools.claude-code]` and `[assistant_tools.codex]`: the official tool the
-    # hub starts for each agent of that service added from Orbit. Without a
-    # table, that service cannot be added.
+    # hub starts for each agent added from Orbit. Optional overrides of the
+    # bundled/shipped commands, generated MCP configuration and environment.
     assistant_tools: dict[str, dict[str, Any]] | None = None
     hermes_ws_auth: Literal["token"] = "token"
     allow_insecure_localhost: bool = False
@@ -72,10 +72,15 @@ class Settings:
         self.assistant_tool_settings()
 
     def assistant_tool_settings(self) -> dict[str, ToolSettings]:
-        """The official tool of each service agents can be added with, in the order written."""
-        return {
-            service: parse_assistant_tool(service, keys)
+        """Both official services, with operator overrides when supplied."""
+        defaults = default_tools(self.data_dir)
+        overrides = {
+            service: parse_assistant_tool(service, keys, defaults.get(service))
             for service, keys in (self.assistant_tools or {}).items()
+        }
+        return {
+            **overrides,
+            **{key: value for key, value in defaults.items() if key not in overrides},
         }
 
     def agent_configurations(self) -> tuple[tuple[AgentConfiguration, ...], str]:

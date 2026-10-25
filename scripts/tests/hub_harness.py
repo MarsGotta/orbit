@@ -29,6 +29,8 @@ import threading
 import unittest
 from pathlib import Path
 
+from codex_fixture import write_codex_fixture
+
 ROOT = Path(__file__).resolve().parents[2]
 HUB_SCRIPTS = ROOT / "scripts" / "hub"
 LIB = HUB_SCRIPTS / "lib.sh"
@@ -675,6 +677,7 @@ class HubSandbox:
                 "*.key",
             ),
         )
+        self.codex_checksum = write_codex_fixture(self.root, self.repo / "server")
         self.git("init", "-q", "-b", "main")
         return self.commit("server of this tree")
 

@@ -8,6 +8,7 @@ from contextlib import suppress
 
 from ..errors import HubError
 from .official_tools import MAX_AGENT_MESSAGE_BYTES, START_TIMEOUT_SECONDS
+from .tool_availability import launch_failure
 
 # A broken server must not accumulate tasks waiting for human input. Sixteen
 # concurrent callbacks allow batched questions across a turn; not a turn cap.
@@ -49,10 +50,8 @@ class CodexRpc:
                 start_new_session=True,
                 limit=MAX_AGENT_MESSAGE_BYTES,
             )
-        except OSError:
-            raise HubError(
-                "agent_start_failed", f"No arrancó Codex: {self.backend.settings.command[0]}"
-            ) from None
+        except OSError as exc:
+            raise launch_failure("codex", self.backend.settings.command[0], exc) from None
         if self.closed:
             await self.stop_process()
             raise HubError("agent_stopped", "Codex se cerró durante su arranque")

@@ -40,6 +40,7 @@ from .roster import (
     profile_refusal,
 )
 from .speech import SpeechBackend
+from .tool_availability import ToolUnavailable, missing
 
 if TYPE_CHECKING:
     from ..config import Settings
@@ -129,7 +130,7 @@ class Agents:
         self.by_id = {agent.id: agent for agent in agents}
         self.default = self.by_id[default_id]
         self.roster = roster
-        # The services an agent can be added with: an `[assistant_tools]` table each.
+        # Both shipped services, with any `[assistant_tools]` overrides applied.
         self.tools = dict(tools or {})
         self.build = build
         self.configured_names = {agent.id: agent.name for agent in agents}
@@ -200,7 +201,7 @@ class Agents:
             if entry.service not in tools:
                 raise ValueError(
                     f"agent {entry.agent_id!r} was added from Orbit as {entry.service}, and "
-                    f"[assistant_tools.{entry.service}] is missing: restore it to start the hub"
+                    "this release does not support that service"
                 )
             profile = profiles.get(entry.agent_id)
             name = profile.name if profile is not None else entry.agent_id
@@ -347,8 +348,7 @@ class Agents:
         if service not in self.tools:
             raise HubError(
                 "agent_adapter_missing",
-                f"Este hub no tiene instalada la herramienta oficial de {SERVICE_NAMES.get(service, service)}: "
-                "pídeselo a quien gestiona tu hub",
+                f"Este hub no ofrece {SERVICE_NAMES.get(service, service)}; publica de nuevo el hub",
                 http_status=409,
                 numbers={"service": service},
             )
@@ -368,15 +368,9 @@ class Agents:
                 AgentConfiguration(agent_id, profile.name, service, self.tools[service])
             )
         except ValueError as exc:
-            # The command the operator configured does not start: the cause
-            # names the path, the hub's own configuration, never the Mac's.
-            raise HubError(
-                "agent_adapter_missing",
-                f"La herramienta oficial de {SERVICE_NAMES[service]} no arranca en este hub ({exc}): "
-                "pídeselo a quien gestiona tu hub",
-                http_status=409,
-                numbers={"service": service},
-            ) from None
+            path = self.tools[service].command[0]
+            cause = exc.cause if isinstance(exc, ToolUnavailable) else str(exc)
+            raise missing(service, path, cause) from None
         self._roster().add(Added(agent_id, service), profile, now_ms)
         self.by_id[agent_id] = agent
         self.added.add(agent_id)

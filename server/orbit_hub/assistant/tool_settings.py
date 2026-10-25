@@ -2,8 +2,11 @@
 
 import os
 import re
+import sys
+import sysconfig
 from collections.abc import Mapping
 from dataclasses import dataclass
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +25,29 @@ class ToolSettings:
     command: tuple[str, ...]
     orbit_mcp_config: Path
     env: tuple[str, ...] = ()
+
+
+def bundled_command(service: str) -> tuple[str, ...]:
+    if service == "claude-code":
+        package = find_spec("claude_agent_sdk")
+        root = (
+            Path(package.origin).parent
+            if package and package.origin
+            else Path(sysconfig.get_path("purelib")) / "claude_agent_sdk"
+        )
+        return (str(root / "_bundled" / "claude"),)
+    # publish.sh places the pinned official binary beside this release's venv.
+    # Never search PATH: that could silently select an unvalidated protocol.
+    return (str(Path(sys.prefix).parent / "bin" / "codex"),)
+
+
+def default_tools(data_dir: Path) -> dict[str, ToolSettings]:
+    return {
+        service: ToolSettings(
+            service, bundled_command(service), data_dir.resolve() / "assistant-mcp.toml"
+        )
+        for service in SERVICES
+    }
 
 
 def parse_tool(service: str, raw: Mapping[str, Any]) -> ToolSettings:
@@ -52,13 +78,21 @@ def parse_tool(service: str, raw: Mapping[str, Any]) -> ToolSettings:
     return ToolSettings(service, tuple(command), Path(path), tuple(env))
 
 
-def parse_assistant_tool(service: str, raw: Any) -> ToolSettings:
+def parse_assistant_tool(
+    service: str, raw: Any, defaults: ToolSettings | None = None
+) -> ToolSettings:
     where = f"[assistant_tools.{service}]"
     if service not in SERVICES:
         raise ValueError(f"{where}: unknown service; expected claude-code or codex")
     if not isinstance(raw, Mapping):
         raise ValueError(f"{where} must be a table")  # noqa: TRY004 - configuration refusal
     try:
+        if defaults is not None:
+            raw = {
+                "command": list(defaults.command),
+                "orbit_mcp_config": str(defaults.orbit_mcp_config),
+                **raw,
+            }
         return parse_tool(service, raw)
     except ValueError as exc:
         raise ValueError(f"{where}: {exc}") from None

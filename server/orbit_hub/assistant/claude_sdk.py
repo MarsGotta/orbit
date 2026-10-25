@@ -35,6 +35,7 @@ from .backend import ActivityItem, ImageBlock, MessageChunk, MessageComplete, Te
 from .claude_transport import ConfiguredTransport
 from .deletion import command_deletion
 from .official_tools import MAX_AGENT_MESSAGE_BYTES, OPEN_TIMEOUT_SECONDS, VendorProcess
+from .tool_availability import launch_failure
 
 
 # SDK diagnostics may contain a malformed CLI frame or stderr. A filter is
@@ -125,7 +126,11 @@ class ClaudeProcess(VendorProcess):
             raise self.refusal(
                 "agent_stopped", "terminó su proceso durante el turno", numbers
             ) from None
-        except CLIConnectionError:
+        except CLIConnectionError as exc:
+            if isinstance(exc.__cause__, OSError):
+                raise launch_failure(
+                    "claude-code", self.backend.settings.command[0], exc.__cause__
+                ) from None
             raise self.refusal(
                 "agent_start_failed", f"no pudo conectar con {self.backend.settings.command[0]}"
             ) from None

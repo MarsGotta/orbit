@@ -108,7 +108,7 @@ class PublishedReleaseTests(unittest.TestCase):
             relative = path.relative_to(self.release)
             if ".git" in relative.parts:
                 self.fail(f"the release carries {relative}")
-            if relative.parts[0] in (".venv", "RELEASE") or "__pycache__" in relative.parts:
+            if relative.parts[0] in (".venv", "RELEASE", "bin") or "__pycache__" in relative.parts:
                 continue
             if path.is_file():
                 found[relative] = path.read_bytes()
@@ -130,6 +130,16 @@ class PublishedReleaseTests(unittest.TestCase):
         for name, version in installed.items():
             self.assertEqual(lock.get(name), version, f"{name} {version} is not what uv.lock pins")
         self.assertEqual(sorted(DEV_ONLY & set(installed)), [], "it carries development tools")
+
+    def test_codex_is_downloaded_from_the_pinned_asset_and_sealed(self):
+        binary = self.release / "bin" / "codex"
+        self.assertTrue(binary.is_file(), "publish must ship Codex beside the venv")
+        result = subprocess.run([str(binary), "--version"], capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.stdout.strip(), "codex-cli 0.164.0")
+        fields = release_fields(self.release / "RELEASE")
+        self.assertEqual(fields.get("codex"), "0.164.0")
+        self.assertEqual(fields.get("codex_asset_sha256"), self.sandbox.codex_checksum)
+        self.assertFalse(binary.stat().st_mode & 0o222)
 
     def test_the_release_says_its_version_commit_and_date(self):
         fields = release_fields(self.release / "RELEASE")

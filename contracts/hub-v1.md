@@ -1544,7 +1544,8 @@ All use the device bearer token. Each write answers the whole list as
 - `POST /v1/agents`
   `{"service":"codex","name":"Nova","description":"","color":"c2","access":{"screen":true,"control":false,"calendar":true,"meetings":true,"files":true}}`
   → `201` with `agent_id`. The Mac chooses only the service, the profile and
-  the access groups: the command comes from the hub's `[assistant_tools]`, and
+  the access groups: the command comes from the hub's shipped tools or optional
+  `[assistant_tools]` override, and
   the id (`codex-` or `claude-` and eight hex digits) and its folder are the
   hub's. It starts signed out. A hub offers at most 32 agents, its
   configuration's and the added ones together, and refuses to start with
@@ -1619,8 +1620,8 @@ it was. Nothing to carry is `handover_no_question` (`messages`).
 | 422 | `agent_profile_invalid` | `field` (`name`, `description`, `color`), `rule` (`empty`, `too_long`, `control_characters`, `unknown_color`), `characters`, `max_characters` |
 | 409 | `agent_name_taken` | `field`, `agent_id` (the agent already called that) |
 | 409 | `agent_primary_required` | `agent_id` |
-| 403 | `agent_add_unsupported` | `service` (`hermes`, `openai`: the UI says «Pídeselo a quien gestiona tu hub») |
-| 409 | `agent_adapter_missing` | `service`: no `[assistant_tools]` table for it, or its command does not start |
+| 403 | `agent_add_unsupported` | `service` (`hermes`, `openai`: added on the hub; Hermes uses a Hermes profile) |
+| 409 | `agent_adapter_missing` | `service`, `path`, `cause`: the bundled/shipped or overridden executable is missing or cannot run; republish the hub (older hubs send only `service`) |
 | 409 | `too_many_agents` | `count`, `max` |
 | 403 | `agent_not_removable` | `agent_id`: from the hub's configuration |
 | 500 | `agent_folder_not_removed` | `agent_id`, `errno`; the agent stays |

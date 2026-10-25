@@ -77,20 +77,21 @@ export const assistantsGearCopy = {
     },
     hermes: {
       title: "Hermes en tu hub",
-      text: "Lo prepara quien gestiona tu hub, a través del API Gateway de tu empresa.",
+      text: "Se crea en tu hub a partir de un perfil de Hermes. Después aparece en Orbit.",
       tag: "Hermes",
     },
   } as Record<string, { title: string; text: string; tag: string }>,
-  notOffered: "Tu hub no tiene instalado este servicio. Pídeselo a quien gestiona tu hub.",
+  notOffered:
+    "Esta versión de tu hub no incluye el servicio. Publica de nuevo el hub para instalarlo.",
   connectTitle: (vendor: string) => `Conecta tu cuenta de ${vendor}`,
   connectLead: "Orbit usará tu plan para este asistente. Lo que gastes cuenta en tu suscripción.",
   connectHint:
     "Se abre tu navegador. Orbit no ve tu contraseña: solo recibe permiso para usar tu plan.",
   hubKindTitle: "Un asistente de tu hub",
   hubKindLead: "Este tipo no se crea desde Orbit.",
-  askHub: "Pídeselo a quien gestiona tu hub",
+  askHub: "Añádelo en tu hub",
   askHubText:
-    "Los asistentes con Hermes se crean en el hub (por ejemplo, detrás del API Gateway de tu empresa). Cuando lo añadan, aparecerá aquí solo.",
+    "Crea el asistente en tu hub a partir de un perfil de Hermes. No se añade desde Orbit; cuando lo añadas al hub, aparecerá aquí.",
   preparing: "Preparando el asistente en tu hub…",
   nameTitle: "Ponle nombre",
   nameLead: (name: string) => `Así le llamarás en Orbit y en las reuniones («Oye ${name}, …»).`,

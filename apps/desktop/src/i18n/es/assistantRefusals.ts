@@ -28,11 +28,15 @@ export const assistantRefusals: Record<string, (n: Numbers) => string | undefine
   agent_primary_required: () =>
     "Siempre hay un asistente principal: haz principal a otro para que este deje de serlo.",
   agent_add_unsupported: () =>
-    "Este tipo no se añade desde Orbit. Pídeselo a quien gestiona tu hub.",
+    "Este tipo se añade en tu hub; Hermes se crea a partir de un perfil de Hermes.",
   agent_adapter_missing: (n) => {
     const service = text(n, "service");
     if (service === undefined) return undefined;
-    return `Tu hub no tiene el adaptador de ${service} instalado o no arranca. Pídeselo a quien gestiona tu hub.`;
+    const vendor = service === "claude-code" ? "Claude" : service === "codex" ? "Codex" : service;
+    const path = text(n, "path");
+    const cause = text(n, "cause");
+    const detail = path && cause ? `: ${path} (${cause})` : "";
+    return `${vendor} no está disponible en tu hub${detail}. Publica de nuevo el hub para instalarlo.`;
   },
   too_many_agents: (n) => {
     const agents = count(n, "count");

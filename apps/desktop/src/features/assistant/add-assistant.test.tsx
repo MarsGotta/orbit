@@ -118,21 +118,21 @@ describe("«Añadir un asistente»", () => {
     expect(window.location.hash).toBe(`#/assistant/${NEW_ID}`);
   });
 
-  it("asks the hub's manager for a Hermes assistant", async () => {
+  it("explains that a Hermes assistant is added on the hub", async () => {
     renderAssistant(assistantSnapshot(), { agent: hub });
     await userEvent.click(within(dialog()).getByRole("radio", { name: /Hermes en tu hub/ }));
     await userEvent.click(within(dialog()).getByRole("button", { name: "Continuar" }));
-    expect(within(dialog()).getByText("Pídeselo a quien gestiona tu hub")).toBeTruthy();
+    expect(within(dialog()).getByText("Añádelo en tu hub")).toBeTruthy();
     expect(
       (within(dialog()).getByRole("button", { name: "Continuar" }) as HTMLButtonElement).disabled,
     ).toBe(true);
   });
 
-  it("says when the hub has no adapter for a service", async () => {
+  it("asks to republish a hub that does not offer the service", async () => {
     renderAssistant(assistantSnapshot({}, { addable: ["codex"] }), { agent: hub });
     expect(
       within(dialog()).getByText(
-        "Tu hub no tiene instalado este servicio. Pídeselo a quien gestiona tu hub.",
+        "Esta versión de tu hub no incluye el servicio. Publica de nuevo el hub para instalarlo.",
       ),
     ).toBeTruthy();
     expect(
