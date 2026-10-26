@@ -7,6 +7,8 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+## [0.12.4] - 2026-10-26
+
 ### Changed
 
 - Calls and meeting recordings have no four-hour ceiling or ten-minute warning.
