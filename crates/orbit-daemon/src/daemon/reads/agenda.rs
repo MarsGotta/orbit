@@ -62,7 +62,7 @@ pub(super) fn agenda_range(
 ) -> Knowledge<Page<serde_json::Value>> {
     let snapshot = match agenda_snapshot(runtime, start_ms, end_ms) {
         Ok(snapshot) => snapshot,
-        Err(answer) => return answer,
+        Err(answer) => return *answer,
     };
     let after = match cursor_value(cursor.as_ref(), |cursor| {
         if let Cursor::StartAndId { start_ms, id } = cursor {
@@ -122,7 +122,7 @@ pub(super) fn agenda_snapshot(
     runtime: &Runtime,
     start_ms: i64,
     end_ms: i64,
-) -> Result<&orbit_core::calendar::CalendarSnapshot, Knowledge<Page<serde_json::Value>>> {
+) -> Result<&orbit_core::calendar::CalendarSnapshot, Box<Knowledge<Page<serde_json::Value>>>> {
     if (CalendarWindow {
         start_unix_ms: start_ms,
         end_unix_ms: end_ms,
@@ -130,7 +130,7 @@ pub(super) fn agenda_snapshot(
     .validate()
     .is_err()
     {
-        return Err(Knowledge::Absent {
+        return Err(Box::new(Knowledge::Absent {
             refusal: Refusal::InvalidParameter {
                 parameter: Parameter::Request,
                 expected: Expected::CalendarRange {
@@ -140,7 +140,7 @@ pub(super) fn agenda_snapshot(
                     max_ms: MAX_UNIX_MS,
                 },
             },
-        });
+        }));
     }
     if runtime
         .calendar
@@ -149,24 +149,24 @@ pub(super) fn agenda_snapshot(
         .is_none_or(|range| range.start_unix_ms == start_ms && range.end_unix_ms == end_ms)
         && let Some(refusal) = &runtime.calendar.read_failure
     {
-        return Err(Knowledge::Absent {
+        return Err(Box::new(Knowledge::Absent {
             refusal: refusal.clone(),
-        });
+        }));
     }
     match runtime.calendar_access() {
-        Knowledge::Unknown { why } => return Err(Knowledge::Unknown { why }),
-        Knowledge::Absent { refusal } => return Err(Knowledge::Absent { refusal }),
+        Knowledge::Unknown { why } => return Err(Box::new(Knowledge::Unknown { why })),
+        Knowledge::Absent { refusal } => return Err(Box::new(Knowledge::Absent { refusal })),
         Knowledge::Present { .. } => {}
     }
     let Some(snapshot) = runtime.calendar.complete.as_deref() else {
-        return Err(Knowledge::Unknown {
+        return Err(Box::new(Knowledge::Unknown {
             why: Pending::NotObservedYet,
-        });
+        }));
     };
     if snapshot.window.start_unix_ms != start_ms || snapshot.window.end_unix_ms != end_ms {
-        return Err(Knowledge::Unknown {
+        return Err(Box::new(Knowledge::Unknown {
             why: Pending::NotObservedYet,
-        });
+        }));
     }
     Ok(snapshot)
 }

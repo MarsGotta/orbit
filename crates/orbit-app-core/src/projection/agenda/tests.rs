@@ -75,6 +75,7 @@ fn fixture(reverse: bool, with_pages: bool) -> TopicCache {
                     total: 2,
                     revision: 1,
                     store_version: None,
+                    handed_over_from: None,
                 },
                 as_of_ms: None
             },
@@ -117,6 +118,7 @@ fn fixture(reverse: bool, with_pages: bool) -> TopicCache {
                 total: 2,
                 revision: 1,
                 store_version: None,
+                handed_over_from: None,
             },
             as_of_ms: None
         },

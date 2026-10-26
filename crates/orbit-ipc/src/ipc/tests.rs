@@ -255,6 +255,7 @@ fn oversized_read_page_becomes_a_numbered_absence() {
                 total: 1,
                 revision: 3,
                 store_version: None,
+                handed_over_from: None,
             },
             as_of_ms: None,
         }),

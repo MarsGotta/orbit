@@ -18,7 +18,7 @@ code?: string,
  */
 expects_code: boolean, expires_at_ms?: number, 
 /**
- * Why it failed: `device_code_disabled`, `expired`, `code_rejected`,
+ * Why it failed: `plan_required`, `device_code_disabled`, `expired`, `code_rejected`,
  * `timed_out`, `no_url`, `exited`…
  */
 cause?: string, exit_status?: number, };

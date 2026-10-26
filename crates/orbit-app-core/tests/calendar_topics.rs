@@ -263,6 +263,7 @@ fn project(fixture: &CalendarFixture) -> AppSnapshot {
                             total: calendars.len() as u64,
                             revision: 3,
                             store_version: None,
+                            handed_over_from: None,
                         },
                         as_of_ms: None
                     }
@@ -289,6 +290,7 @@ fn project(fixture: &CalendarFixture) -> AppSnapshot {
                             total: native.events.len() as u64 + u64::from(view.hidden_events),
                             revision: 3,
                             store_version: None,
+                            handed_over_from: None,
                         },
                         as_of_ms: None
                     }

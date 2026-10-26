@@ -349,6 +349,7 @@ async fn oversized_agenda_reply_names_the_ipc_envelope_and_its_exact_bytes() -> 
             total: 1,
             revision: 7,
             store_version: None,
+            handed_over_from: None,
         },
         as_of_ms: Some(snapshot.observed_at_unix_ms),
     };

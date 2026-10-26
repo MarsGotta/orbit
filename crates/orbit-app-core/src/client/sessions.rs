@@ -90,6 +90,7 @@ impl DaemonClient {
                         total: value.total,
                         revision: value.revision,
                         store_version: value.store_version,
+                        handed_over_from: value.handed_over_from,
                     },
                     as_of_ms,
                 })

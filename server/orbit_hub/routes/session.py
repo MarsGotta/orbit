@@ -48,25 +48,18 @@ def mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_
     async def sessions(request: Request, before: str | None = None, limit: int | None = None):
         # The most recent conversations, a page of at most
         # SESSION_LIST_LIMIT, and how many the hub holds.
-        device = identity(request)
+        identity(request)
         if before:
             try:
                 canonical_uuid(before)
             except ValueError as exc:
                 raise HubError("invalid_request", "Cursor de sesiones no válido") from exc
         page, total, next_cursor = store.chat.sessions_after(
-            device, before or None, bounded_limit(limit, SESSION_LIST_LIMIT, "sesiones")
+            None, before or None, bounded_limit(limit, SESSION_LIST_LIMIT, "sesiones")
         )
-        # The conversation each was handed over from, when it was (`handover`).
-        handed = handover.origins(store, [row["id"] for row in page])
-        sessions = [
-            {
-                **row,
-                "agent_id": agents.owner(row),
-                **({"handed_over_from": handed[row["id"]]} if row["id"] in handed else {}),
-            }
-            for row in page
-        ]
+        # Origins are read on opening: repeating them in 128 rows would exceed
+        # the Mac's 32 KiB list bound even though the messages read has room.
+        sessions = [{**row, "agent_id": agents.owner(row)} for row in page]
         return {"sessions": sessions, "total": total, "next": next_cursor}
 
     @app.get("/v1/sessions/{session_id}/messages")
@@ -74,20 +67,22 @@ def mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_
         session_id: str, request: Request, before: int | None = None, limit: int | None = None
     ):
         # The Mac reads a conversation from here, newest page first.
-        device = identity(request)
+        # Pairing authenticates the owner for read-only conversation access
+        # across Macs. Runtime session bindings remain device-scoped.
+        identity(request)
         page = await in_store(
             store_executor,
             store.chat.session_messages,
-            device,
+            None,
             session_id,
             before,
             bounded_limit(limit, SESSION_MESSAGES_PAGE_LIMIT, "mensajes"),
         )
-        handed = handover.origins(store, [session_id])
+        handed = await in_store(store_executor, handover.origin, store, session_id)
         return {
             **page,
             "agent_id": agents.owner(page),
-            **({"handed_over_from": handed[session_id]} if session_id in handed else {}),
+            **({"handed_over_from": handed} if handed is not None else {}),
         }
 
 

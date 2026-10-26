@@ -14,6 +14,7 @@ fn oversized_page_is_absent_before_any_transport_receives_it() -> Result<()> {
             total: 1,
             revision: 3,
             store_version: None,
+            handed_over_from: None,
         },
         as_of_ms: None,
     };

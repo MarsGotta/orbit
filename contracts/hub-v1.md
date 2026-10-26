@@ -11,7 +11,9 @@ one-use and short-lived; create/revoke through the hub's local admin CLI.
 "message_count":integer}],"total":integer,"next":string|null}`, newest first,
 at most 128 rows per page. `next` is the next page's `before`. `last_at_ms` is
 the last message's creation time, or the session's if empty. The app renders
-the date as the visible title.
+the date as the visible title. Every paired Mac can list the owner's conversations
+across devices. These authenticated reads do not grant another device's live
+runtime binding.
 
 `GET /v1/sessions/{id}/messages?before=&limit=` returns
 `{"messages":[{"id":integer,"role":"user"|"assistant","text":string,
@@ -1670,6 +1672,7 @@ A failed one has `cause` and, when the tool ended with one, `exit_status`:
 | cause | |
 |---|---|
 | `device_code_disabled` | the ChatGPT account does not allow sign-in with a device code (its security settings) |
+| `plan_required` | the vendor explicitly requires an eligible subscription; see [versioned evidence](../docs/architecture/assistant-sign-in.md) |
 | `expired` | the vendor's code expired before the user finished |
 | `code_rejected` | the code pasted into Orbit was not accepted |
 | `login_disabled` | the vendor's configuration forbids this way of signing in |
@@ -1694,10 +1697,15 @@ about 8,000 tokens, a quarter of a 32,000-token window, oldest first; those
 left out are counted in it), and then the question. An empty `text` carries over the old
 conversation's unanswered question (the user's messages after its last
 answer); a `text` that repeats it is carried once. The new conversation keeps
-only the question as the user's message, and its rows (`GET /v1/sessions`, the
-page of `GET /v1/sessions/{id}/messages`) carry
+only the question as the user's message. Its message pages
+(`GET /v1/sessions/{id}/messages`) carry
 `"handed_over_from":{"session_id":"…","agent_id":"…"}`. The old one stays as
-it was. Nothing to carry is `handover_no_question` (`messages`).
+it was. The session list omits this origin to stay within its 32 KiB Mac read;
+the Mac restores it when opening the conversation. Authenticated paired Macs
+can list and read the owner's conversations across devices; live runtime
+session bindings and writes remain scoped to their originating device.
+Nothing to carry is
+`handover_no_question` (`messages`).
 
 ### Refusals
 

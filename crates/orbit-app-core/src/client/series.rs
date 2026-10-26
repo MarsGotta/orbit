@@ -168,6 +168,7 @@ mod tests {
                 next: None,
                 revision: 0,
                 store_version: None,
+                handed_over_from: None,
             },
             as_of_ms: None,
         });

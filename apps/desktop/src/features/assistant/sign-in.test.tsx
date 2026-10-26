@@ -133,6 +133,44 @@ describe("an expired session", () => {
 });
 
 describe("a sign-in that fails", () => {
+  it.each([
+    [
+      PHOBOS,
+      "ChatGPT",
+      "Esta cuenta no tiene el plan que pide Codex. Inicia sesión con una cuenta de ChatGPT Plus, Pro, Business, Edu o Enterprise.",
+    ],
+    [
+      ARES,
+      "Claude",
+      "Esta cuenta no tiene el plan que pide Claude Code. Inicia sesión con una cuenta de Claude Pro, Max, Team o Enterprise.",
+    ],
+  ])("names the eligible plans for $0.name", async (agent, vendor, copy) => {
+    window.location.hash = `#/assistant/${agent.id}`;
+    renderAssistant(
+      assistantSnapshot(
+        { agent_id: agent.id },
+        {
+          agents: [DEIMOS, { ...PHOBOS, account: "signed_out" }, ARES],
+        },
+      ),
+      {
+        agent: () => ({
+          outcome: "sign_in",
+          attempt: attempt({
+            agent_id: agent.id,
+            state: "failed",
+            cause: "plan_required",
+          }),
+        }),
+      },
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: `Iniciar sesión en ${vendor}` }),
+    );
+    expect(await screen.findByText(copy)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Volver a intentarlo" })).toBeTruthy();
+  });
+
   it("says the vendor's cause the hub names", async () => {
     window.location.hash = `#/assistant/${PHOBOS.id}`;
     renderAssistant(

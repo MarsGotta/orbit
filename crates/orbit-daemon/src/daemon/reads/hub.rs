@@ -201,12 +201,13 @@ impl HubReadContext {
             .into_iter()
             .map(|message| session_message(message, &held))
             .collect::<Vec<_>>();
-        bounded_page(
+        bounded_conversation_page(
             &messages,
             next,
             total,
             self.revision,
             ReadId::SessionMessages,
+            page.handed_over_from.map(Box::new),
         )
     }
 }
@@ -270,6 +271,17 @@ pub(in crate::daemon) fn bounded_page<T: Serialize>(
     revision: u64,
     read: ReadId,
 ) -> Knowledge<Page<serde_json::Value>> {
+    bounded_conversation_page(items, next, total, revision, read, None)
+}
+
+fn bounded_conversation_page<T: Serialize>(
+    items: &[T],
+    next: Option<Cursor>,
+    total: u64,
+    revision: u64,
+    read: ReadId,
+    handed_over_from: Option<Box<orbit_core::topics::SessionOrigin>>,
+) -> Knowledge<Page<serde_json::Value>> {
     let items = match items
         .iter()
         .map(serde_json::to_value)
@@ -285,6 +297,7 @@ pub(in crate::daemon) fn bounded_page<T: Serialize>(
             total,
             revision,
             store_version: None,
+            handed_over_from,
         },
         as_of_ms: None,
     };

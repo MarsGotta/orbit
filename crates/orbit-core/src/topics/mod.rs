@@ -115,6 +115,12 @@ impl TopicFrame {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SessionOrigin {
+    pub session_id: String,
+    pub agent_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Page<T> {
     pub items: Vec<T>,
     pub next: Option<Cursor>,
@@ -124,6 +130,10 @@ pub struct Page<T> {
     /// was read. Other topic pages omit it until they use that read contract.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub store_version: Option<u64>,
+    /// Only conversation message reads carry this durable origin. Keeping it
+    /// here avoids repeating it in the 32 KiB session list. Older peers omit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub handed_over_from: Option<Box<SessionOrigin>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

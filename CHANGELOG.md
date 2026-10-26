@@ -28,6 +28,11 @@ is in Spanish; the labels quoted below are the ones it shows.
   recording Mac when the hub has several, and explains where pending audio
   must be uploaded. Assistant reads share the same history and preserve
   meetings that start together across paginated results.
+- Assistant sign-in distinguishes an explicit subscription requirement and names
+  the eligible ChatGPT or Claude plans in Spanish.
+- Reopening a handed-over conversation restores its continuation line from the
+  hub's message read, without enlarging the conversation list. Paired Macs can
+  list and read the owner's conversations across devices.
 
 ## [0.12.4] - 2026-10-26
 

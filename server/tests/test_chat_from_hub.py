@@ -230,20 +230,31 @@ def test_the_messages_page_keeps_limit_bytes_and_next(environment):
     assert seen == [f"{index:02d}" for index in range(30)]
 
 
-def test_another_devices_conversation_is_not_found(environment):
+def test_paired_macs_read_conversations_but_unpaired_requests_cannot(environment):
     _, store, _ = environment
-    stranger = device(store, "Otra Mac")
+    first_mac = device(store, "Primer Mac")
     session = store.chat.create_session(
-        stranger["device_id"], "default", "runtime", "stored", "epoch", 1000.0
+        first_mac["device_id"], "default", "runtime", "stored", "epoch", 1000.0
     )
-    owner = device(store, "Sample Mac")
-    headers = {"Authorization": "Bearer " + owner["token"]}
+    store.chat.append_message(session, "user", "Revisemos el hotel Brisa", now_ms=STARTED_MS)
+    second_mac = device(store, "Segundo Mac")
+    headers = {"Authorization": "Bearer " + second_mac["token"]}
 
     with client(environment) as http:
         response = http.get(f"/v1/sessions/{session}/messages", headers=headers)
+        unpaired = http.get(f"/v1/sessions/{session}/messages")
+        invalid = http.get(
+            f"/v1/sessions/{session}/messages",
+            headers={"Authorization": "Bearer synthetic-unpaired-token"},
+        )
+        missing = http.get(f"/v1/sessions/{uuid4()}/messages", headers=headers)
 
-    assert response.status_code == 404
-    assert response.json()["code"] == "session_not_found"
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+    assert response.json()["messages"][0]["text"] == "Revisemos el hotel Brisa"
+    assert unpaired.status_code == invalid.status_code == 401
+    assert missing.status_code == 404
+    assert missing.json()["code"] == "session_not_found"
 
 
 def test_the_session_list_says_when_each_conversation_started_and_last_spoke(environment):

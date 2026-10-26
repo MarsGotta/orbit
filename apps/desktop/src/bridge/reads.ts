@@ -7,7 +7,14 @@ export type AssistantCursor = { kind: "id"; id: string } | { kind: "index"; inde
 export type ReadPage<T> =
   | {
       state: "present";
-      value: { items: T[]; next: AssistantCursor | null; total: number; revision: number };
+      value: {
+        items: T[];
+        next: AssistantCursor | null;
+        total: number;
+        revision: number;
+        /** Only message reads carry a conversation's durable handover origin. */
+        handed_over_from?: { session_id: string; agent_id: string };
+      };
       as_of_ms: number | null;
     }
   | { state: "absent"; refusal: Refusal }

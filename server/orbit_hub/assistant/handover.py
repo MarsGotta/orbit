@@ -96,18 +96,13 @@ def record(store: Store, session_id: str, from_session_id: str, from_agent_id: s
         )
 
 
-def origins(store: Store, session_ids: Sequence[str]) -> dict[str, dict]:
-    """`handed_over_from` of each of these conversations that has one."""
-    if not session_ids:
-        return {}
-    marks = ",".join("?" * len(session_ids))
+def origin(store: Store, session_id: str) -> dict | None:
+    """The durable origin of one opened conversation, never of a list page."""
     with store.read_snapshot() as db:
-        rows = db.execute(
-            "SELECT session_id,from_session_id,from_agent_id FROM session_handovers"
-            f" WHERE session_id IN ({marks})",
-            tuple(session_ids),
-        ).fetchall()
-    return {
-        row["session_id"]: {"session_id": row["from_session_id"], "agent_id": row["from_agent_id"]}
-        for row in rows
-    }
+        row = db.execute(
+            "SELECT from_session_id,from_agent_id FROM session_handovers WHERE session_id=?",
+            (session_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    return {"session_id": row["from_session_id"], "agent_id": row["from_agent_id"]}

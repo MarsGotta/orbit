@@ -226,6 +226,7 @@ mod tests {
                     total: 0,
                     revision: 3,
                     store_version: None,
+                    handed_over_from: None,
                 },
                 as_of_ms: None,
             }
@@ -288,6 +289,7 @@ mod tests {
                     total: 0,
                     revision: 3,
                     store_version: None,
+                    handed_over_from: None,
                 },
                 as_of_ms: None,
             },
@@ -338,6 +340,7 @@ mod tests {
                 total: 0,
                 revision: 1,
                 store_version: None,
+                handed_over_from: None,
             },
             as_of_ms: None,
         };

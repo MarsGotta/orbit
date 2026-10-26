@@ -112,6 +112,8 @@ pub struct HubMessages {
     pub next: Option<i64>,
     /// Every message the conversation holds.
     pub total: u64,
+    #[serde(default)]
+    pub handed_over_from: Option<orbit_core::topics::SessionOrigin>,
 }
 
 /// The hub refused a read with a status: its HTTP status and, when it said

@@ -14,6 +14,7 @@ fn accumulated_page_size_matches_serialized_json_at_the_ceiling()
             total: 3,
             revision: 7,
             store_version: None,
+            handed_over_from: None,
         },
         as_of_ms: Some(1_800_000_000_000),
     };

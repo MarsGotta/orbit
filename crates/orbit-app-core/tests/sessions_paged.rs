@@ -44,6 +44,7 @@ struct TestHub {
 #[derive(Clone, Copy)]
 enum HubBehavior {
     Paged,
+    OlderHub,
     Repeated,
     MissingCursor,
     Oversized,
@@ -147,12 +148,18 @@ async fn answer(
     let body = if path == "/v1/pair" {
         json!({"device_id": DEVICE_ID, "token": TOKEN})
     } else if path.starts_with("/v1/sessions/") && path.ends_with("/messages") {
-        json!({"messages": [
+        let mut page = json!({"messages": [
             {"id": 1, "role": "user", "text": "Hola", "at_ms": 1_700_000_000_000_i64,
                 "kind": "voice", "duration_ms": 1_500, "client_id": "voice-sessions"},
             {"id": 2, "role": "assistant", "text": "Hola, Alina", "at_ms": 1_700_000_001_000_i64,
                 "kind": "text"}
-        ], "next": null, "total": 2})
+        ], "next": null, "total": 2});
+        if !matches!(behavior, HubBehavior::OlderHub) {
+            page["handed_over_from"] = json!({
+                "session_id": "00000000-0000-4000-8000-000000000009", "agent_id": "selene"
+            });
+        }
+        page
     } else if path.starts_with("/v1/sessions") {
         sessions_requests.fetch_add(1, Ordering::SeqCst);
         if matches!(behavior, HubBehavior::Stalled) {
@@ -476,5 +483,33 @@ async fn an_opened_conversation_reaches_the_app_with_its_messages() -> Result<()
     assert!(!voice.audio_available, "this Mac never held that audio");
     assert_eq!(value.items[0].id, "voice-sessions");
     assert_eq!(value.total, 2);
+    assert_eq!(
+        serde_json::to_value(&value)?["handed_over_from"],
+        json!({
+            "session_id": "00000000-0000-4000-8000-000000000009", "agent_id": "selene"
+        })
+    );
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_older_hub_without_a_handover_origin_still_opens() -> Result<(), Box<dyn Error>> {
+    let hub = hub(HubBehavior::OlderHub).await?;
+    let (_directory, _daemon, app) = paired_client(&hub).await?;
+    let answer = tokio::time::timeout(
+        READ_BUDGET,
+        app.read_session_messages_page("00000000-0000-4000-8000-000000000001".into(), None),
+    )
+    .await??;
+    let Knowledge::Present { value, .. } = answer else {
+        panic!("the older hub's conversation was not read: {answer:?}")
+    };
+    assert_eq!(value.total, 2);
+    assert!(
+        !serde_json::to_value(&value)?
+            .as_object()
+            .unwrap()
+            .contains_key("handed_over_from")
+    );
     Ok(())
 }

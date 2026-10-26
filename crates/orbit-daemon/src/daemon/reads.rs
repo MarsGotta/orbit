@@ -200,6 +200,7 @@ fn finish_page(items: Vec<serde_json::Value>, total: usize) -> Page<serde_json::
         total: total as u64,
         revision: 0,
         store_version: None,
+        handed_over_from: None,
     }
 }
 
@@ -291,6 +292,7 @@ fn paginate<T: Serialize>(
         total,
         revision,
         store_version: None,
+        handed_over_from: None,
     };
     let Ok(base_bytes) = serde_json::to_vec(&Knowledge::Present {
         value: &page,

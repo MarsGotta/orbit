@@ -30,6 +30,7 @@ def main():
     arguments = sys.argv[1:]
     record = flag(arguments, "--record")
     gate = flag(arguments, "--gate")
+    plan_refusal = flag(arguments, "--plan-refusal")
     deny = "--deny" in arguments
     if deny:
         arguments.remove("--deny")
@@ -40,12 +41,12 @@ def main():
                 json.dumps({"arguments": arguments, "home": home, "pid": os.getpid()}) + "\n"
             )
     if arguments[:2] == ["auth", "login"]:
-        claude_login(home)
+        claude_login(home, plan_refusal)
     elif arguments[:2] == ["auth", "logout"]:
         remove(os.path.join(home, ".credentials.json"))
         print("Successfully logged out from your Anthropic account.")
     elif arguments[:2] == ["login", "--device-auth"]:
-        codex_login(home, gate, deny)
+        codex_login(home, gate, deny, plan_refusal)
     elif arguments[:1] == ["logout"]:
         remove(os.path.join(home, "auth.json"))
         print("Successfully logged out", file=sys.stderr)
@@ -53,7 +54,7 @@ def main():
         sys.exit(2)
 
 
-def claude_login(home):
+def claude_login(home, plan_refusal):
     print("Opening browser to sign in…")
     print(f"If the browser didn't open, visit: {CLAUDE_URL}")
     print("Paste code here if prompted > ", end="", flush=True)
@@ -61,11 +62,14 @@ def claude_login(home):
     if pasted != PASTED:
         print("Login failed: Authentication failed: Invalid authorization code", file=sys.stderr)
         sys.exit(1)
+    if plan_refusal:
+        print(f"Login failed: {plan_refusal}", file=sys.stderr)
+        sys.exit(1)
     write(os.path.join(home, ".credentials.json"), {"claudeAiOauth": {"accessToken": TOKEN}})
     print("Login successful.")
 
 
-def codex_login(home, gate, deny):
+def codex_login(home, gate, deny, plan_refusal):
     # Codex signs the account it had out before anything else.
     remove(os.path.join(home, "auth.json"))
     print("\nWelcome to Codex [v\x1b[90m0.160.1\x1b[0m]")
@@ -73,6 +77,9 @@ def codex_login(home, gate, deny):
     print(f"   \x1b[94m{CODEX_URL}\x1b[0m\n")
     print("2. Enter this one-time code \x1b[90m(expires in 15 minutes)\x1b[0m")
     print("   \x1b[94mABCD-1234\x1b[0m", flush=True)
+    if plan_refusal:
+        print(f"Error logging in with device code: {plan_refusal}", file=sys.stderr)
+        sys.exit(1)
     if deny:
         print(
             "Error logging in with device code: device code login is not enabled for this "

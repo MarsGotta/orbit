@@ -235,6 +235,62 @@ def test_a_failed_sign_in_says_its_cause(signing):
     }
 
 
+@pytest.mark.parametrize(
+    ("service", "refusal"),
+    [
+        (
+            "codex",
+            "To use Codex with your ChatGPT plan, upgrade to Plus: https://chatgpt.com/explore/plus.",
+        ),
+        ("claude-code", "Claude subscription required."),
+    ],
+)
+def test_a_plan_refusal_has_its_own_cause(signing, service, refusal):
+    open_hub, settings = signing
+    with open_hub("--plan-refusal", refusal) as hub:
+        agent = hub.add(service, "Selene")
+        previous = settings.data_dir / "agents" / agent / "codex-home" / "auth.json"
+        if service == "codex":
+            previous.parent.mkdir(parents=True, mode=0o700)
+            previous.write_text("synthetic-previous-account")
+        hub.call("POST", f"/v1/agents/{agent}/sign-in")
+        if service == "claude-code":
+            hub.call("POST", f"/v1/agents/{agent}/sign-in/code", code=PASTED)
+        failed = hub.outcome(agent)
+        assert hub.agent(agent)["account"] == "signed_out"
+    assert failed == {
+        "agent_id": agent,
+        "state": "failed",
+        "cause": "plan_required",
+        "exit_status": 1,
+    }
+    assert not list((settings.data_dir / "agents" / agent).glob("sign-in-*"))
+    if service == "codex":
+        assert previous.read_text() == "synthetic-previous-account"
+
+
+@pytest.mark.parametrize(
+    ("service", "refusal"),
+    [
+        ("codex", "device auth failed with status 403 Forbidden"),
+        ("codex", "You've hit your usage limit. Upgrade to Plus to continue using Codex"),
+        (
+            "claude-code",
+            "Your organization has disabled Claude subscription access for Claude Code",
+        ),
+    ],
+)
+def test_other_vendor_refusals_are_not_missing_plans(signing, service, refusal):
+    open_hub, _settings = signing
+    with open_hub("--plan-refusal", refusal) as hub:
+        agent = hub.add(service, "Selene")
+        hub.call("POST", f"/v1/agents/{agent}/sign-in")
+        if service == "claude-code":
+            hub.call("POST", f"/v1/agents/{agent}/sign-in/code", code=PASTED)
+        failed = hub.outcome(agent)
+    assert (failed["state"], failed["cause"]) == ("failed", "exited")
+
+
 def test_a_wrong_code_fails_the_sign_in_with_its_cause(signing):
     open_hub, _settings = signing
     with open_hub() as hub:

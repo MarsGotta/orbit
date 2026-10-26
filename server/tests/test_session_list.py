@@ -95,19 +95,20 @@ def test_five_hundred_conversations_continue_by_cursor(environment):
     assert seen == list(reversed(opened))
 
 
-def test_cursor_respects_device_and_equal_creation_times(environment):
+def test_cursor_is_shared_between_macs_and_respects_equal_creation_times(environment):
     _, store, _ = environment
     owner = device(store, "owner")
     other = device(store, "other")
     foreign = _open_conversations(store, other["device_id"], 1)[0]
     with client(environment) as http:
-        refused = http.get(
+        shared = http.get(
             "/v1/sessions",
             params={"before": foreign},
             headers={"Authorization": "Bearer " + owner["token"]},
         )
-    assert refused.status_code == 404
-    assert refused.json()["code"] == "session_not_found"
+    assert shared.status_code == 200
+    assert shared.json()["sessions"] == []
+    assert shared.json()["total"] == 1
 
     tied = _open_conversations(store, owner["device_id"], PUBLISHED_DAEMON_MAX_SESSIONS + 1, 0)
     with client(environment) as http:
@@ -121,8 +122,8 @@ def test_cursor_respects_device_and_equal_creation_times(environment):
             params={"before": first["next"]},
             headers={"Authorization": "Bearer " + owner["token"]},
         ).json()
-    assert [row["id"] for row in first["sessions"] + second["sessions"]] == sorted(tied)
-    assert first["total"] == second["total"] == len(tied)
+    assert [row["id"] for row in first["sessions"] + second["sessions"]] == sorted([foreign, *tied])
+    assert first["total"] == second["total"] == len(tied) + 1
     assert second["next"] is None
 
 
@@ -159,17 +160,17 @@ def test_listing_deletes_nothing(environment):
     assert _session_rows(store, paired["device_id"]) == CONVERSATIONS
 
 
-def test_a_short_list_is_whole_and_counts_only_this_mac(environment):
+def test_a_short_list_is_whole_and_counts_all_the_owners_macs(environment):
     _, store, _ = environment
     paired = device(store)
     other = device(store, "otro")
     opened = _open_conversations(store, paired["device_id"], 3)
-    _open_conversations(store, other["device_id"], 5)
+    other_opened = _open_conversations(store, other["device_id"], 5)
 
     with client(environment) as http:
         body = http.get(
             "/v1/sessions", headers={"Authorization": "Bearer " + paired["token"]}
         ).json()
 
-    assert body["total"] == 3
-    assert [session["id"] for session in body["sessions"]] == list(reversed(opened))
+    assert body["total"] == 8
+    assert {session["id"] for session in body["sessions"]} == set(opened + other_opened)

@@ -54,19 +54,24 @@ class ChatRepository:
             )
         return session_id
 
-    def session(self, device: str, session_id: str) -> dict:
+    def session(self, device: str | None, session_id: str) -> dict:
+        """A device's binding, or an owner read (`None`) after HTTP authentication."""
         with self.store.reading() as db:
             row = db.execute(
-                "SELECT * FROM sessions WHERE device_id=? AND id=?", (device, session_id)
+                "SELECT * FROM sessions WHERE id=? AND (? IS NULL OR device_id=?)",
+                (session_id, device, device),
             ).fetchone()
         if row is None:
             raise HubError("session_not_found", _UNKNOWN_SESSION)
         return dict(row)
 
     def sessions_after(
-        self, device: str, before: str | None, limit: int = SESSION_LIST_LIMIT
+        self, device: str | None, before: str | None, limit: int = SESSION_LIST_LIMIT
     ) -> tuple[list[dict], int, str | None]:
-        """One page of the device's conversations, newest first, after `before`.
+        """One page of conversations, newest first, after `before`.
+
+        `None` reads the owner's conversations across paired Macs. Runtime
+        callers still pass their device to select its own session bindings.
 
         Each row says when it started, when its last message was written (its
         start while it has none, or none with a time), how many it holds and
@@ -76,8 +81,8 @@ class ChatRepository:
             anchor = None
             if before is not None:
                 anchor = db.execute(
-                    "SELECT created,id FROM sessions WHERE device_id=? AND id=?",
-                    (device, before),
+                    "SELECT created,id FROM sessions WHERE id=? AND (? IS NULL OR device_id=?)",
+                    (before, device, device),
                 ).fetchone()
                 if anchor is None:
                     raise HubError("session_not_found", _UNKNOWN_SESSION)
@@ -88,14 +93,15 @@ class ChatRepository:
                 " (SELECT created_at_ms FROM messages m WHERE m.session_id=s.id"
                 "  ORDER BY m.id DESC LIMIT 1) AS last_ms,"
                 " (SELECT COUNT(*) FROM messages m WHERE m.session_id=s.id) AS count"
-                " FROM sessions s WHERE s.device_id=? "
+                " FROM sessions s WHERE (? IS NULL OR s.device_id=?) "
                 "AND (? IS NULL OR s.created < ? OR (s.created = ? AND s.id > ?)) "
                 "ORDER BY s.created DESC, s.id ASC LIMIT ?",
-                (device, before, created, created, before, limit + 1),
+                (device, device, before, created, created, before, limit + 1),
             ).fetchall()
             total = int(
                 db.execute(
-                    "SELECT COUNT(*) AS total FROM sessions WHERE device_id=?", (device,)
+                    "SELECT COUNT(*) AS total FROM sessions WHERE (? IS NULL OR device_id=?)",
+                    (device, device),
                 ).fetchone()["total"]
             )
         page = [
@@ -169,14 +175,15 @@ class ChatRepository:
                 self.store.attachments.bind(db, session_id, cursor.lastrowid, list(attachments))
 
     def session_messages(
-        self, device: str, session_id: str, before: int | None, limit: int
+        self, device: str | None, session_id: str, before: int | None, limit: int
     ) -> dict:
         """One page of a conversation, oldest first, ending before `before`.
 
         Newest messages first fill the page up to `limit` and
         `SESSION_MESSAGES_PAGE_BYTES` of JSON, whole; `next` reads the ones
-        before and `total` counts the conversation's. A conversation of
-        another device is `session_not_found`. `agent_id` is the session's
+        before and `total` counts the conversation's. Passing a device scopes
+        runtime access to it; `None` is an authenticated owner read across Macs.
+        `agent_id` is the session's
         (None: stored before agents existed).
         """
         session = self.session(device, session_id)

@@ -50,6 +50,7 @@ fn projects_the_engine_catalogue_and_nothing_to_approve() {
                 total: 2,
                 revision: 1,
                 store_version: None,
+                handed_over_from: None,
             },
             as_of_ms: None
         }

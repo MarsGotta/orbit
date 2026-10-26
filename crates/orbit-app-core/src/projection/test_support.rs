@@ -258,6 +258,7 @@ pub(crate) fn projected_briefing(fixture: &BriefingFixture, now_ms: i64) -> Valu
                 next: None,
                 revision: 1,
                 store_version: None,
+                handed_over_from: None,
             },
             as_of_ms: None
         }

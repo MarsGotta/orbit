@@ -69,6 +69,35 @@ function atLimit(agents = [DEIMOS, limited, ARES]) {
 }
 
 describe("an assistant at its plan's limit", () => {
+  it.each(["the same Mac next day", "another Mac"])(
+    "reads the handover when reopened on %s",
+    async () => {
+      vi.setSystemTime(NOW + 86_400_000);
+      // Neither Mac remembers a handover; only the hub's message read carries it.
+      const read = vi.fn(() =>
+        Promise.resolve({
+          state: "present",
+          value: {
+            items: [question],
+            next: null,
+            total: 1,
+            revision: 1,
+            handed_over_from: { session_id: "s-tarifas", agent_id: PHOBOS.id },
+          },
+          as_of_ms: null,
+        } as MessagesPage),
+      );
+      renderAssistant(assistantSnapshot({ session_id: "s-nueva", agent_id: DEIMOS.id }), {
+        messages: read,
+      });
+      expect(
+        await screen.findByText("Sigues con Deimos · le hemos pasado esta conversación"),
+      ).toBeTruthy();
+      expect(within(screen.getByTestId("top-bar")).getByText("sigue desde Phobos")).toBeTruthy();
+      expect(read).toHaveBeenCalledWith("s-nueva", null);
+    },
+  );
+
   it("says so with its time, keeps the question and offers the others", async () => {
     atLimit();
     const card = (

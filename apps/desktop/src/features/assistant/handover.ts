@@ -54,7 +54,13 @@ export function useHandoverBinding(chat: Pick<ChatSnapshot, "session_id" | "agen
   }, [chat.agent_id, chat.session_id, pending]);
 }
 
-/** The agent the open conversation continues from, when it was handed over in this run. */
+/** Refresh the in-memory hint from the hub when this conversation opens. */
+export function rememberHandover(sessionId: string, fromAgent: string | undefined): void {
+  if (fromAgent === undefined) return;
+  useHandovers.setState((state) => ({ from: { ...state.from, [sessionId]: fromAgent } }));
+}
+
+/** The agent the open conversation continues from, read from the hub or this run's handover. */
 export function useHandedOverFrom(sessionId: string | null): string | undefined {
   return useHandovers((state) => (sessionId === null ? undefined : state.from[sessionId]));
 }

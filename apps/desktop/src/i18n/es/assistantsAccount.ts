@@ -39,6 +39,10 @@ export const assistantsAccountCopy = {
         return `Cancelaste el inicio de sesión. ${name} sigue como estaba.`;
       case "device_code_disabled":
         return `Tu cuenta de ${vendor} no permite iniciar sesión con un código. Actívalo en la seguridad de tu cuenta y vuelve a intentarlo.`;
+      case "plan_required":
+        return vendor === "Claude"
+          ? "Esta cuenta no tiene el plan que pide Claude Code. Inicia sesión con una cuenta de Claude Pro, Max, Team o Enterprise."
+          : "Esta cuenta no tiene el plan que pide Codex. Inicia sesión con una cuenta de ChatGPT Plus, Pro, Business, Edu o Enterprise.";
       case "expired":
         return `El código de ${vendor} caducó antes de que terminaras. Vuelve a intentarlo.`;
       case "code_rejected":

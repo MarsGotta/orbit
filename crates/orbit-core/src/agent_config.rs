@@ -258,7 +258,7 @@ pub struct SignInAttempt {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "ts", ts(optional, type = "number"))]
     pub expires_at_ms: Option<i64>,
-    /// Why it failed: `device_code_disabled`, `expired`, `code_rejected`,
+    /// Why it failed: `plan_required`, `device_code_disabled`, `expired`, `code_rejected`,
     /// `timed_out`, `no_url`, `exited`…
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "ts", ts(optional))]

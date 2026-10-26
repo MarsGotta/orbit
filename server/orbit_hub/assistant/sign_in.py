@@ -58,6 +58,9 @@ DEVICE_CODE = re.compile(r"[A-Z0-9]{3,12}(?:-[A-Z0-9]{3,12}){0,3}")
 # What a tool's failure says, as a cause the Mac can tell apart. The hub
 # keeps only the cause, never the tool's text.
 CAUSES = (
+    # Explicit requirements only: HTTP 403 alone can also mean pending device auth.
+    ("to use codex with your chatgpt plan, upgrade to plus", "plan_required"),
+    ("claude subscription required", "plan_required"),
     ("not enabled", "device_code_disabled"),
     ("timed out", "expired"),
     ("login is disabled", "login_disabled"),

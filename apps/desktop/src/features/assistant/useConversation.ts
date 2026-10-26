@@ -13,6 +13,7 @@ import {
   withPendingVoice,
 } from "./conversation";
 import { useRememberedOpening } from "./first-lines";
+import { rememberHandover } from "./handover";
 
 type Reader = NonNullable<DaemonPort["readSessionMessages"]>;
 
@@ -51,12 +52,11 @@ function useNewestReads(inFlight: boolean) {
  */
 export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
   const sessionId = chat.session_id;
-  const inFlight = turnInFlight(chat);
   const [stored, setStored] = useState<ChatMessage[]>([]);
   const [older, setOlder] = useState<AssistantCursor | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [newestToken, readNewestAgain] = useNewestReads(inFlight);
+  const [newestToken, readNewestAgain] = useNewestReads(turnInFlight(chat));
   // The conversation whose newest page answered, and whether it was read:
   // until then nothing is known about it, which is not «no messages».
   const [answered, setAnswered] = useState<{ sessionId: string; read: boolean } | null>(null);
@@ -75,6 +75,7 @@ export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
           return;
         }
         setError(null);
+        rememberHandover(sessionId, answer.value.handed_over_from?.agent_id);
         setStored((known) => withNewest(known, answer.value.items));
         setOlder((cursor) => (newestToken === 0 ? answer.value.next : cursor));
       })
@@ -103,7 +104,7 @@ export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
       .finally(() => setLoading(false));
   }, [loading, older, read, sessionId]);
 
-  const messages = conversationView(stored, chat.turn, inFlight);
+  const messages = conversationView(stored, chat.turn, turnInFlight(chat));
   const first = firstPage(read !== undefined && sessionId !== null, sessionId, answered);
   // With no older page, the thread holds the conversation's start.
   useRememberedOpening(sessionId, first === "read" && older === null ? messages : null);

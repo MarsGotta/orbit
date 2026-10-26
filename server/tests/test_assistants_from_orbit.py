@@ -39,9 +39,9 @@ def with_adapters(settings, tmp_path, *services):
     )
 
 
-def hub(settings, store, adapter):
+def hub(settings, store, adapter, now=1001):
     return TestClient(
-        create_app(settings, store=store, assistant=adapter, speech=adapter, now=lambda: 1001),
+        create_app(settings, store=store, assistant=adapter, speech=adapter, now=lambda: now),
         base_url="https://localhost",
     )
 
@@ -358,7 +358,10 @@ def prompts(adapter):
     ]
 
 
-def test_a_conversation_is_handed_over_with_its_unanswered_question(environment, tmp_path):
+@pytest.mark.parametrize("another_mac", [False, True])
+def test_a_conversation_is_handed_over_with_its_unanswered_question(
+    environment, tmp_path, another_mac
+):
     settings, store, adapter = environment
     settings = with_adapters(settings, tmp_path)
     paired = device(store)
@@ -398,8 +401,16 @@ def test_a_conversation_is_handed_over_with_its_unanswered_question(environment,
     assert page["agent_id"] == "deimos"
     assert page["handed_over_from"] == {"session_id": source, "agent_id": "lyra"}
     by_id = {row["id"]: row for row in rows}
-    assert by_id[new]["handed_over_from"] == {"session_id": source, "agent_id": "lyra"}
+    assert "handed_over_from" not in by_id[new]
     assert "handed_over_from" not in by_id[source]
+    # After the hub restarts, both Macs read the same durable origin on opening.
+    reader = device(store, "Segundo Mac") if another_mac else paired
+    with hub(settings, store, adapter, now=1001 + 86_400) as http:
+        reopened = http.get(f"/v1/sessions/{new}/messages", headers=auth(reader))
+        assert reopened.status_code == 200, reopened.json()
+        assert reopened.json()["handed_over_from"] == page["handed_over_from"]
+        unauthenticated = http.get(f"/v1/sessions/{new}/messages")
+        assert unauthenticated.status_code == 401
 
 
 def test_a_handover_keeps_the_newest_messages_within_its_ceiling(environment, tmp_path):
