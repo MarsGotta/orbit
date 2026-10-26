@@ -7,6 +7,10 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+## [0.12.3] - 2026-10-26
+
+A hub-only release: the Mac app stays at 0.12.2.
+
 ### Fixed
 
 - Hub Codex assistants disable account plugins/connectors, browser/computer
