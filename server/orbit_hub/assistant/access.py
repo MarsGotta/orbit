@@ -6,11 +6,10 @@ turned it off in Settings → Agents; that is a configuration of the agent's
 tools, asked nothing at use and never expiring, and macOS's own permission
 stays the decision about the Mac.
 
-It is enforced twice: `orbit-mcp` neither lists nor runs a tool of a group its
-agent has off, and the hub refuses a bridge request of such a group with the
-agent and the group. Both trust the agent id `orbit-mcp` sends, signed with
-the bridge key: it configures a cooperative agent's tools, and it is not a
-boundary against a hostile process that holds that key on the same machine.
+Jailed assistants authenticate with per-agent bridge keys; the hub derives their
+identity from the verified key. The operator's translator keeps its configured
+bridge key and agent selection for compatibility.
+
 """
 
 from __future__ import annotations
@@ -123,3 +122,23 @@ class AgentAccess:
         resolved, groups = self.groups(agent_id)
         if not groups[group]:
             raise PrivateError(403, "agent_access_disabled", {"agent_id": resolved, "group": group})
+
+    def bridge_credential(self, key_id, protocol):
+        """Only live official agents may authenticate using generated keys."""
+        from pathlib import Path
+
+        from ..private_auth import read_key
+
+        name = "device" if protocol == "orbit_device_bridge_v1" else "meetings"
+        for agent in self.agents.by_id.values():
+            if agent.kind not in {"claude-code", "codex"}:
+                continue
+            if key_id == f"agent-{agent.id}-{name}":
+                path = Path(agent.backend.folder) / "bridge" / f"{name}.key"
+                if path.exists():
+                    return read_key(path, PrivateError), agent.id
+        return None
+
+    def bridge_available(self):
+        """Generated bridge keys become usable as agents are added at runtime."""
+        return any(agent.kind in {"claude-code", "codex"} for agent in self.agents.by_id.values())

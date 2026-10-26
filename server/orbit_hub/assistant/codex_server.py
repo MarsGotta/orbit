@@ -10,7 +10,7 @@ import base64
 from ..errors import HubError
 from .agent_config import instructions_text
 from .backend import ActivityItem, ImageBlock, MessageChunk, PlanStep, TextBlock
-from .codex_rpc import CodexRpc, RpcError
+from .codex_rpc import MAX_SERVER_REQUESTS, CodexRpc, RpcError
 from .deletion import command_deletion
 from .official_tools import OPEN_TIMEOUT_SECONDS, VendorProcess
 
@@ -21,7 +21,8 @@ class CodexProcess(VendorProcess):
         self.finished = None
         self.turn_ready = asyncio.Event()
         self.rate_info = {}
-        self.rpc = CodexRpc(self.backend, self.notification, self.server_request)
+        self.host_items = {}
+        self.rpc = CodexRpc(self.backend, self.notification, self.server_request, self.jail_prefix)
         try:
             await self.rpc.open()
             # This endpoint returns only safe account metadata (type, email,
@@ -30,13 +31,15 @@ class CodexProcess(VendorProcess):
             if "account" in account:
                 self.account(account["account"])
             params = {
-                "cwd": str(self.backend.folder),
-                "approvalPolicy": "on-request",
+                "cwd": str(self.workspace),
+                "approvalPolicy": "untrusted",
                 "approvalsReviewer": "user",
-                "sandbox": "read-only",
+                "sandbox": "danger-full-access",
                 "developerInstructions": instructions_text(self.backend.instructions()) or "",
                 "config": {
-                    "features.shell_tool": False,
+                    "features.shell_tool": True,
+                    # The outer jail is the only kernel sandbox. Codex cannot
+                    # create a nested bwrap namespace under Ubuntu AppArmor.
                     "web_search": "disabled",
                     # Replace the map, including any servers in CODEX_HOME.
                     "mcp_servers": {"orbit": {**self.backend.mcp_server(), "required": True}},
@@ -64,6 +67,7 @@ class CodexProcess(VendorProcess):
         if self.turn is not None:
             raise self.refusal("turn_in_progress", "ya tiene un turno en curso")
         self.turn_ready.clear()
+        self.host_items.clear()
         self.turn_id = None
         super().start_turn(blocks)
         self.rate_limit(self.rate_info)
@@ -169,6 +173,15 @@ class CodexProcess(VendorProcess):
 
     async def item(self, item, completed):
         kind = item.get("type")
+        if kind == "fileChange":
+            if completed:
+                self.host_items.pop(item["id"], None)
+            else:
+                # Retain only files awaiting completion/approval, bounded by
+                # the same callback ceiling as the RPC transport.
+                if len(self.host_items) >= MAX_SERVER_REQUESTS:
+                    raise HubError("agent_protocol", "Codex superó 16 ediciones simultáneas")
+                self.host_items[item["id"]] = item
         phase = "completed" if completed else "started"
         if item.get("status") in {"failed", "declined"}:
             phase = "failed"
@@ -177,6 +190,10 @@ class CodexProcess(VendorProcess):
                 kind
             )
             arguments = item.get("arguments")
+            if kind == "commandExecution":
+                arguments = {"command": item.get("command"), "cwd": item.get("cwd")}
+            elif kind == "fileChange":
+                arguments = {"paths": [change.get("path") for change in item.get("changes", [])]}
             await self.connection.emit(
                 ActivityItem(
                     self.session_id,
@@ -246,10 +263,23 @@ class CodexProcess(VendorProcess):
             raise HubError("agent_protocol", "Codex pidió una acción fuera de su turno")
         if method in {"item/commandExecution/requestApproval", "item/fileChange/requestApproval"}:
             command = params.get("command") or ""
+            if method == "item/commandExecution/requestApproval" and not command:
+                return {"decision": "decline"}
             reason = params.get("reason") or ""
             description = (
-                f"Ejecutar: {command}. {reason}" if command else f"Editar archivos: {reason}"
+                f"Ejecutar: {command}. {reason}"
+                if command
+                else "Editar archivos: "
+                + ", ".join(
+                    change.get("path", "")
+                    for change in self.host_items.get(params.get("itemId"), {}).get("changes", [])
+                )
+                + f". {reason}"
             )
+            arguments = {**params, "item": self.host_items.get(params.get("itemId"), {})}
+            # A file approval must name its files in the card.
+            if method == "item/fileChange/requestApproval" and not arguments["item"]:
+                return {"decision": "decline"}
             choice = await self.interactions.permission(description, command_deletion(command))
             return {"decision": "accept" if choice == "once" else "decline"}
         if method == "item/tool/requestUserInput":

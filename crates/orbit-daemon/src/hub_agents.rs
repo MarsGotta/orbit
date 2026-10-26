@@ -130,7 +130,8 @@ impl Answer {
             | AgentCall::SignInStatus { .. }
             | AgentCall::SignInCode { .. }
             | AgentCall::SignInCancel { .. } => Some(Self::SignIn),
-            AgentCall::Personality { .. }
+            AgentCall::WorkingFolder { .. }
+            | AgentCall::Personality { .. }
             | AgentCall::Access { .. }
             | AgentCall::SkillSave { .. }
             | AgentCall::SkillEnabled { .. }

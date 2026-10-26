@@ -120,6 +120,20 @@ def tool_label(name: str, arguments: dict | None) -> tuple[str, str]:
     arguments = arguments if isinstance(arguments, dict) else {}
     tool = orbit_tool(name)
     if tool is None:
+        if name in {"Bash", "command"}:
+            command = one_line(arguments.get("command"), MAX_ITEM_LABEL_CHARS - 12)
+            return (
+                f"Ejecutando: {command}" if command else "Ejecutando una orden"
+            ), "la terminal del hub"
+        if name in {"Edit", "Write", "NotebookEdit", "edit"}:
+            paths = arguments.get("paths") or [
+                arguments.get("file_path") or arguments.get("notebook_path")
+            ]
+            label = one_line(
+                ", ".join(path for path in paths if isinstance(path, str)),
+                MAX_ITEM_LABEL_CHARS - 10,
+            )
+            return (f"Editando: {label}" if label else "Editando archivos"), "archivos del hub"
         own = one_line(name, MAX_ITEM_SUBJECT_CHARS) or "herramienta"
         return own, own
     if tool in _FIXED:

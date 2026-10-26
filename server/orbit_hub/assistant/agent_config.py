@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS agent_personalities (
 CREATE TABLE IF NOT EXISTS agent_skills (
     agent_id TEXT NOT NULL, name TEXT NOT NULL, enabled INTEGER NOT NULL, body BLOB NOT NULL,
     PRIMARY KEY(agent_id,name));
+CREATE TABLE IF NOT EXISTS agent_workspaces (
+    agent_id TEXT PRIMARY KEY, body BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS agent_access (
     agent_id TEXT PRIMARY KEY, groups TEXT NOT NULL);
 """
@@ -131,6 +133,36 @@ class AgentConfigStore:
 
     def __init__(self, store: Store):
         self.store = store
+
+    def working_folder(self, agent_id: str) -> str | None:
+        with self.store.read_snapshot() as db:
+            row = db.execute(
+                "SELECT body FROM agent_workspaces WHERE agent_id=?", (agent_id,)
+            ).fetchone()
+        return (
+            self.store.decrypt(row["body"], f"agent-workspace:{agent_id}").decode() if row else None
+        )
+
+    def working_folders(self) -> list[tuple[str, str]]:
+        with self.store.read_snapshot() as db:
+            rows = db.execute("SELECT agent_id,body FROM agent_workspaces").fetchall()
+        return [
+            (
+                row["agent_id"],
+                self.store.decrypt(row["body"], f"agent-workspace:{row['agent_id']}").decode(),
+            )
+            for row in rows
+        ]
+
+    def set_working_folder(self, agent_id: str, path: str) -> None:
+        data = path.encode()
+        self.store.ensure_capacity(len(data))
+        with self.store.transaction() as db:
+            db.execute(
+                "INSERT INTO agent_workspaces(agent_id,body) VALUES(?,?)"
+                " ON CONFLICT(agent_id) DO UPDATE SET body=excluded.body",
+                (agent_id, self.store.encrypt(data, f"agent-workspace:{agent_id}")),
+            )
 
     # Access, for every kind.
 

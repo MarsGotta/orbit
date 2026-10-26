@@ -96,6 +96,10 @@ pub struct AgentConfig {
     pub agent_id: String,
     /// `hermes`, `openai`, `claude-code`, `codex`, or a kind this Mac does not know yet.
     pub kind: String,
+    /// Absolute hub workspace; absent on older hubs and other agent kinds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub working_folder: Option<String>,
     pub personality: PersonalityConfig,
     pub access: AccessConfig,
     pub skills: SkillsConfig,
@@ -127,6 +131,10 @@ pub struct SkillDocument {
 pub enum AgentCall {
     Config {
         agent_id: String,
+    },
+    WorkingFolder {
+        agent_id: String,
+        path: String,
     },
     Personality {
         agent_id: String,
@@ -274,6 +282,7 @@ impl AgentCall {
     pub fn agent_id(&self) -> Option<&str> {
         match self {
             Self::Config { agent_id }
+            | Self::WorkingFolder { agent_id, .. }
             | Self::Personality { agent_id, .. }
             | Self::Access { agent_id, .. }
             | Self::Skill { agent_id, .. }
@@ -302,6 +311,9 @@ impl AgentCall {
         };
         let (method, segments, body) = match self {
             Self::Config { .. } => (HubMethod::Get, agent(&["config"]), None),
+            Self::WorkingFolder { path, .. } => {
+                working_folder_route(agent(&["working-folder"]), path)
+            }
             Self::Personality { text, .. } => (
                 HubMethod::Put,
                 agent(&["personality"]),
@@ -484,3 +496,14 @@ pub enum AgentOutcome {
 
 #[cfg(test)]
 mod tests;
+
+fn working_folder_route(
+    segments: Vec<String>,
+    path: &str,
+) -> (HubMethod, Vec<String>, Option<serde_json::Value>) {
+    (
+        HubMethod::Put,
+        segments,
+        Some(serde_json::json!({ "path": path })),
+    )
+}

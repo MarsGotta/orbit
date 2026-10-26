@@ -18,6 +18,8 @@ from ..assistant.agent_config import (
 )
 from ..assistant.agents import KINDS, Agents
 from ..assistant.skills import MAX_SKILL_BYTES, MAX_SKILLS, check_name, parse, size_refusal
+from ..assistant.workspaces import MAX_WORKING_FOLDER_BYTES, WorkspacePolicy
+from ..errors import HubError
 from ..notes.http import parse as parse_body
 
 # A request body's ceiling is its text's, escaped as JSON: a control character
@@ -37,6 +39,10 @@ class Strict(BaseModel):
 
 class Personality(Strict):
     text: str
+
+
+class WorkingFolder(Strict):
+    path: str
 
 
 class Groups(Strict):
@@ -70,6 +76,7 @@ def mount(app, settings, agents: Agents, configs: AgentConfigStore, identity, bo
         return {
             "agent_id": agent.id,
             "kind": agent.kind,
+            **working_folder_config(settings, agent, configs),
             # Every kind lets Orbit change all three today; a field a kind did
             # not would say `editable: false` and its `cause`.
             "personality": {
@@ -93,6 +100,8 @@ def mount(app, settings, agents: Agents, configs: AgentConfigStore, identity, bo
     async def read_configuration(agent_id: str, request: Request):
         identity(request)
         return JSONResponse(await configuration(agents.get(agent_id)))
+
+    mount_workspaces(app, settings, agents, configs, identity, bounded_body, configuration)
 
     @app.put("/v1/agents/{agent_id}/personality")
     async def write_personality(agent_id: str, request: Request):
@@ -150,3 +159,32 @@ def mount(app, settings, agents: Agents, configs: AgentConfigStore, identity, bo
         agent = agents.get(agent_id)
         await admin(agent).delete_skill(name)
         return JSONResponse(await configuration(agent))
+
+
+def mount_workspaces(app, settings, agents, configs, identity, bounded_body, configuration):
+    @app.put("/v1/agents/{agent_id}/working-folder")
+    async def write_working_folder(agent_id: str, request: Request):
+        identity(request)
+        agent = agents.get(agent_id)
+        if agent.kind not in {"claude-code", "codex"}:
+            raise HubError(
+                "invalid_working_folder",
+                "Este asistente no usa una carpeta de trabajo del hub",
+                http_status=400,
+                numbers={"cause": "este asistente no usa una carpeta de trabajo del hub"},
+            )
+        path = parse_body(
+            await bounded_body(request, 6 * MAX_WORKING_FOLDER_BYTES + 1024),
+            WorkingFolder,
+            "invalid_agent_config",
+            "Carpeta de trabajo",
+        ).path
+        validated = WorkspacePolicy(settings, agent.id, configs).validate(path)
+        configs.set_working_folder(agent.id, str(validated))
+        return JSONResponse(await configuration(agent))
+
+
+def working_folder_config(settings, agent, configs):
+    if agent.kind not in {"claude-code", "codex"}:
+        return {}
+    return {"working_folder": WorkspacePolicy(settings, agent.id, configs).configured()}

@@ -69,8 +69,9 @@ def sign_request(protocol, path, key_id, key, body, *, issued_at_ms, nonce):
 class Authenticator:
     """Event-loop-owned, with no await between verification and nonce admission."""
 
-    def __init__(self, key_id, key, *, protocol, path, header_prefix, failure):
+    def __init__(self, key_id, key, *, protocol, path, header_prefix, failure, credentials=None):
         self.key_id, self._key = key_id, key
+        self._credentials = credentials
         self._protocol, self._path = protocol, path
         self._prefix = header_prefix
         self._failure = failure
@@ -124,10 +125,10 @@ class Authenticator:
             except UnicodeError:
                 raise self._failure(401, "unauthorized") from None
         key_id, issued, nonce, signature = (values[name] for name in HEADER_NAMES)
+        key, agent_id = self.credential(key_id)
         try:
             if (
-                self._key is None
-                or key_id != self.key_id
+                key is None
                 or re.fullmatch(r"[A-Za-z0-9_-]{1,64}", key_id) is None
                 or re.fullmatch(r"0|[1-9][0-9]{0,14}", issued) is None
                 or int(issued) > MAX_UNIX_MS
@@ -138,7 +139,7 @@ class Authenticator:
         except (ValueError, TypeError):
             raise self._failure(401, "unauthorized") from None
         expected = hmac.new(
-            self._key,
+            key,
             signing_bytes(self._protocol, self._path, key_id, int(issued), nonce, body),
             hashlib.sha256,
         ).hexdigest()
@@ -160,6 +161,23 @@ class Authenticator:
         if len(self._nonces) >= MAX_NONCES:
             raise self._failure(429, "consumer_busy")
         self._nonces[nonce] = (issued, monotonic_now)
+        if agent_id is not None and body:
+            try:
+                claimed = json.loads(body).get("agent_id")
+            except (ValueError, AttributeError, UnicodeError, RecursionError):
+                raise self._failure(400, "invalid_request") from None
+            if claimed is not None and claimed != agent_id:
+                raise self._failure(403, "agent_identity_mismatch")
+        return agent_id
+
+    def credential(self, key_id):
+        if self._credentials is not None:
+            bound = self._credentials(key_id, self._protocol)
+            if bound is not None:
+                return bound
+        if key_id == self.key_id:
+            return self._key, None
+        return None, None
 
 
 def canonical(value: dict) -> bytes:

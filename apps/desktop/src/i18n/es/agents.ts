@@ -43,6 +43,10 @@ function listed(numbers: Numbers): string {
 
 /** The words of each refusal; `undefined` when a number it needs is missing. */
 const refusals: Record<string, (numbers: Numbers) => string | undefined> = {
+  invalid_working_folder: (n) => {
+    const cause = text(n, "cause");
+    return cause === undefined ? undefined : `La carpeta de trabajo ${cause}`;
+  },
   agent_not_found: (n) => {
     const agent = text(n, "agent_id");
     if (agent === undefined) return undefined;
@@ -145,6 +149,11 @@ export const agents = {
     personality: "Personalidad",
     personalityLabel: (name: string) => `Personalidad de ${name}`,
     savePersonality: "Guardar",
+    workingFolder: "Carpeta de trabajo",
+    workingFolderLabel: "Carpeta de trabajo en el hub",
+    workingFolderHelp:
+      "Ruta absoluta del servidor donde empieza a trabajar. Los cambios se aplican al abrir una conversación.",
+    saveWorkingFolder: "Guardar carpeta",
     access: "Qué puede usar",
     accessHelp: "macOS sigue decidiendo sobre este Mac; esto solo limita a este agente.",
     skills: "Habilidades",

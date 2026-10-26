@@ -1327,6 +1327,11 @@ Orbit change the field; when it is `false`, the field also carries `cause`, a
 Spanish sentence. Every kind lets Orbit change all three today, so it is
 always `true`; a Mac must still honour `false`.
 
+Claude Code and Codex configurations additionally return `working_folder`, an
+absolute hub path, encrypted alongside personality and skills. It is absent for
+other kinds and on older hubs; an absent field must not be replaced with a Mac
+path. Its default is `<data_dir>-workspaces/<agent_id>`, outside account storage.
+
 `GET /v1/agents/{agent_id}/skills/{name}` →
 `{"name","description","enabled","content"}`, `content` being the whole
 `SKILL.md`.
@@ -1336,6 +1341,14 @@ always `true`; a Mac must still honour `false`.
 Each write answers `200` with the agent's whole configuration, exactly as
 `GET …/config`. A refused write changes nothing.
 
+- `PUT /v1/agents/{agent_id}/working-folder` `{"path":"/home/example/project"}`
+  for Claude Code and Codex. The hub requires an absolute existing directory,
+  resolves symlinks and `..`, and rejects protected data/key paths, other agents'
+  workspaces, the owner's home and its ancestors, and the installed hub code/venv.
+  A folder containing a protected path is refused too. Invalid paths return `400 invalid_working_folder`
+  with a Spanish `cause` in `refusal`, which the Mac shows beside the field.
+  The path ceiling is 4096 UTF-8 bytes; the body ceiling is 6 × that plus 1 KiB.
+  Accepted changes apply to newly opened or resumed runners.
 - `PUT /v1/agents/{agent_id}/personality` `{"text":"…"}`. An empty text
   clears it.
 - `PUT /v1/agents/{agent_id}/access`
@@ -1466,9 +1479,14 @@ before). A request of a group that is off is `403 agent_access_disabled` with
 `agent_id` and `group`; an `agent_id` the hub does not have is `404
 agent_not_found` with `agent_id` and `agent_ids`. Neither reaches the Mac.
 
-Both checks trust the agent id `orbit-mcp` signs with the bridge key: the
-groups configure a cooperative agent's tools, and they are not a boundary
-against a hostile process on the same machine that holds that key.
+Jailed Claude and Codex translators use separate per-agent device and meetings
+keys. After verifying the signature the hub derives the agent id from the key;
+an omitted id becomes that agent, and another claimed id is refused with
+`403 agent_identity_mismatch`. This applies to every device/access/skill,
+action-result, meetings and attachment route. The operator's original bridge
+keys retain their existing default-agent and explicit-agent selection behavior
+for Hermes and other operator-configured translators. Those keys must remain
+inaccessible to jailed assistants.
 
 ## Storage
 
@@ -1723,8 +1741,8 @@ page by page, up to 48,000 characters per turn, and its pages with fewer than
 (`orbit_meetings_bridge_v1`), `{device_id,attachment_id,after_index?,agent_id?}`:
 an image whole (`data_base64`), the text of a PDF or a text file in pages of
 48,000 characters with `after_index`, `next_after_index` and `total_chars`.
-`agent_id` is the agent orbit-mcp serves (`ORBIT_MCP_AGENT`; none is the
-default agent): only a file sent in a conversation of that agent is read,
+`agent_id` is the agent orbit-mcp serves (`ORBIT_MCP_AGENT`; omitted means the
+key's bound agent, or the default with an operator key): only a file sent in a conversation of that agent is read,
 anything else is `404 attachment_not_found`, and an unknown agent is `404
 agent_not_found`.
 

@@ -26,8 +26,9 @@ class RpcError(Exception):
 
 
 class CodexRpc:
-    def __init__(self, backend, notification, request):
+    def __init__(self, backend, notification, request, jail_prefix):
         self.backend, self.notification, self.request = backend, notification, request
+        self.jail_prefix = jail_prefix
         self.process = None
         self.reader = None
         self.pending = {}
@@ -40,12 +41,13 @@ class CodexRpc:
     async def open(self):
         try:
             self.process = await asyncio.create_subprocess_exec(
+                *self.jail_prefix,
                 *self.backend.settings.command,
                 "app-server",
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL,
-                cwd=self.backend.folder,
+                cwd=self.backend.workspaces.current(),
                 env=self.backend.environment(),
                 start_new_session=True,
                 limit=MAX_AGENT_MESSAGE_BYTES,

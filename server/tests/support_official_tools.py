@@ -12,6 +12,9 @@ import time
 from pathlib import Path
 from uuid import uuid4
 
+sys.path.insert(0, str(Path(__file__).parent))
+import support_workspace_actions as actions
+
 SECRET = "invented-vendor-credential-never-export"
 
 
@@ -53,6 +56,7 @@ def main():
             "home": os.environ.get("CODEX_HOME") or os.environ.get("CLAUDE_CONFIG_DIR"),
             "withheld": os.environ.get("ORBIT_TOOL_WITHHELD"),
             "pid": os.getpid(),
+            "cwd": os.getcwd(),
         }
     )
     print(SECRET, file=sys.stderr, flush=True)
@@ -66,6 +70,7 @@ def claude(args):
     session = next(a.split("=", 1)[1] for a in args if a.startswith(("--resume=", "--session-id=")))
     server = json.loads(args[args.index("--mcp-config") + 1])["mcpServers"]["orbit"]
     waiting = None
+    hook_id = None
 
     def result(**changes):
         send(
@@ -87,6 +92,10 @@ def claude(args):
         if msg["type"] == "control_request":
             sub = msg["request"]["subtype"]
             if sub == "initialize":
+                hooks = msg["request"].get("hooks") or {}
+                record({"sdk_hooks": hooks})
+                if hooks.get("PreToolUse"):
+                    hook_id = hooks["PreToolUse"][0]["hookCallbackIds"][0]
                 marker = Path(os.environ["ORBIT_TOOL_RECORD"]).with_name("hold-start")
                 while marker.exists():
                     time.sleep(0.01)
@@ -168,6 +177,10 @@ def claude(args):
             )
             if "WAIT" in text:
                 continue
+            if "ACTION" in text:
+                waiting = "host-hook" if hook_id else "host"
+                actions.claude_start(send, hook_id)
+                continue
             editing = "EDIT" in text
             waiting = "orbit"
             send(
@@ -185,10 +198,27 @@ def claude(args):
         elif msg["type"] == "control_response":
             response = msg["response"]["response"]
             record({"claude_response": response})
-            if waiting == "orbit":
+            if waiting == "host-hook":
+                decision = response["hookSpecificOutput"]["permissionDecision"]
+                record({"hook_decision": decision})
+                if decision == "deny":
+                    actions.claude_end(send, record, False)
+                    result()
+                elif decision == "allow":
+                    actions.claude_end(send, record, True)
+                    result()
+                else:
+                    assert decision == "ask"
+                    waiting = "host"
+                    actions.claude_permission(send)
+            elif waiting == "host":
+                actions.claude_end(send, record, response["behavior"] == "allow")
+                result()
+            elif waiting == "orbit":
                 assert response["behavior"] == "allow"
                 waiting = claude_tools(server, editing)
             elif waiting in ("command", "edit"):
+                actions.claude_end_legacy(send, response["behavior"] == "allow")
                 waiting = "question"
                 send(
                     {
@@ -262,6 +292,24 @@ def claude_tools(server, editing):
         }
     )
     waiting = "edit" if editing else "command"
+    send(
+        {
+            "type": "assistant",
+            "message": {
+                "model": "fixture",
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "id": "command-1",
+                        "name": "Edit" if editing else "Bash",
+                        "input": {"file_path": "fixture.md"}
+                        if editing
+                        else {"command": "echo fixture"},
+                    }
+                ],
+            },
+        }
+    )
     send(
         {
             "type": "control_request",
@@ -397,6 +445,10 @@ def codex():
             notify("item/agentMessage/delta", itemId="text-1", delta="Hola. ")
             if "WAIT" in text:
                 continue
+            if "ACTION" in text:
+                waiting = "host"
+                host_item = actions.codex_start(send, notify, thread, turn)
+                continue
             asyncio.run(orbit_tool(server))
             item = {
                 "id": "orbit-1",
@@ -409,6 +461,8 @@ def codex():
             notify("item/started", item=item)
             notify("item/completed", item={**item, "status": "completed"})
             waiting = "edit" if "EDIT" in text else "command"
+            host_item = actions.codex_legacy_item(waiting)
+            notify("item/started", item=host_item)
             send(
                 {
                     "id": "permission-1",
@@ -429,7 +483,19 @@ def codex():
             end("interrupted")
         elif method is None and "id" in msg:
             record({"codex_response": msg})
-            if waiting in ("command", "edit"):
+            if waiting == "host":
+                actions.codex_end(record, notify, host_item, msg["result"]["decision"] == "accept")
+                end()
+            elif waiting in ("command", "edit"):
+                notify(
+                    "item/completed",
+                    item={
+                        **host_item,
+                        "status": "completed"
+                        if msg["result"]["decision"] == "accept"
+                        else "declined",
+                    },
+                )
                 waiting = "question"
                 send(
                     {

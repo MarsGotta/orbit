@@ -157,19 +157,24 @@ class BridgeService:
     def start(self):
         if self._closed:
             raise BridgeError(503, "unavailable")
-        if self.auth is not None or self.configuration is None:
+        if self.auth is not None or (self.configuration is None and self.access is None):
             return
-        key = read_key(self.configuration.credential_file, BridgeError)
+        key = (
+            read_key(self.configuration.credential_file, BridgeError)
+            if self.configuration
+            else None
+        )
 
-        # One key, one authenticator per route: a signature names its path.
+        # One authenticator per route: a signature names its path.
         def authenticator(path):
             return Authenticator(
-                self.configuration.key_id,
+                self.configuration.key_id if self.configuration else None,
                 key,
                 protocol=PROTOCOL,
                 path=path,
                 header_prefix=HEADER_PREFIX,
                 failure=BridgeError,
+                credentials=self.access.bridge_credential if self.access else None,
             )
 
         self.auth = authenticator(PATH)
@@ -191,7 +196,11 @@ class BridgeService:
         self._active_action_operations.clear()
 
     def check(self):
-        if self._closed or self.auth is None:
+        if (
+            self._closed
+            or self.auth is None
+            or (self.configuration is None and not (self.access and self.access.bridge_available()))
+        ):
             raise BridgeError(503, "unavailable")
 
     def devices(self, headers) -> list[dict]:
@@ -216,8 +225,10 @@ class BridgeService:
 
     async def ask(self, headers, body) -> BridgeReply:
         self.check()
-        self.auth.admit(headers, body, int(self.timestamp()), self.monotonic())
+        identity = self.auth.admit(headers, body, int(self.timestamp()), self.monotonic())
         request = self._request(body)
+        if identity is not None:
+            request = request.model_copy(update={"agent_id": identity})
         group = CAPABILITY_GROUP.get(request.capability)
         if self.access is not None and group is not None:
             self.access.require(request.agent_id, group)
@@ -402,11 +413,15 @@ class BridgeService:
 
     def action_result(self, headers, body) -> dict:
         self.check()
-        self.action_result_auth.admit(headers, body, int(self.timestamp()), self.monotonic())
+        identity = self.action_result_auth.admit(
+            headers, body, int(self.timestamp()), self.monotonic()
+        )
         try:
             request = ActionResultRequest.model_validate_json(body)
         except (ValueError, TypeError, UnicodeError, RecursionError):
             raise BridgeError(400, "invalid_request") from None
+        if identity is not None:
+            request = request.model_copy(update={"agent_id": identity})
         if self.access is not None:
             self.access.require(request.agent_id, "control")
         operation = self.store.operations.get(request.device_id, request.operation_id)
@@ -439,11 +454,13 @@ class BridgeService:
     def agent_access(self, headers, body) -> dict:
         """The groups of the agent orbit-mcp serves, so it lists only theirs."""
         self.check()
-        self.access_auth.admit(headers, body, int(self.timestamp()), self.monotonic())
+        identity = self.access_auth.admit(headers, body, int(self.timestamp()), self.monotonic())
         try:
             request = AccessRequest.model_validate_json(body)
         except (ValueError, TypeError, UnicodeError, RecursionError):
             raise BridgeError(400, "invalid_request") from None
+        if identity is not None:
+            request = request.model_copy(update={"agent_id": identity})
         if self.access is None:
             raise BridgeError(503, "unavailable")
         agent = self.access.agent(request.agent_id)
@@ -460,11 +477,13 @@ class BridgeService:
     def agent_skill(self, headers, body) -> dict:
         """One enabled skill's instructions for the agent orbit-mcp serves."""
         self.check()
-        self.skill_auth.admit(headers, body, int(self.timestamp()), self.monotonic())
+        identity = self.skill_auth.admit(headers, body, int(self.timestamp()), self.monotonic())
         try:
             request = SkillRequest.model_validate_json(body)
         except (ValueError, TypeError, UnicodeError, RecursionError):
             raise BridgeError(400, "invalid_request") from None
+        if identity is not None:
+            request = request.model_copy(update={"agent_id": identity})
         if self.access is None:
             raise BridgeError(503, "unavailable")
         agent_id, skill = self.access.skill(request.agent_id, request.name)

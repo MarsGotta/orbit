@@ -26,6 +26,8 @@ class Settings:
     hermes_credential_file: Path
     meeting_transcription: MeetingTranscriptionConfiguration
     # The implicit agent's, when there is no `[[agents]]` (`assistant.agents`).
+    config_file: Path | None = None
+    tls_key_file: Path | None = None
     profile: str = "default"
     assistant_name: str = "Deimos"
     # `[[agents]]` as TOML read them; each kind reads its own keys.
@@ -119,4 +121,5 @@ class Settings:
             values["profile"] = os.environ["ORBIT_HUB_PROFILE"]
         if "ORBIT_HUB_ASSISTANT_NAME" in os.environ:
             values["assistant_name"] = os.environ["ORBIT_HUB_ASSISTANT_NAME"]
+        values["config_file"] = path.resolve()
         return cls(**values)

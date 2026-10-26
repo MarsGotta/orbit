@@ -493,3 +493,51 @@ function folderFile(path: string, text: string): File {
   });
   return file;
 }
+
+describe("the assistant's hub working folder", () => {
+  it.each([
+    [
+      "/home/example",
+      "no puede ser la carpeta personal del usuario del hub ni una de sus antecesoras",
+    ],
+    ["/home", "no puede ser la carpeta personal del usuario del hub ni una de sus antecesoras"],
+    ["/opt/orbit/app", "se solapa con el código instalado del hub o su entorno de Python"],
+    [
+      "/opt/orbit",
+      "se solapa con datos o credenciales protegidos, o con la carpeta de otro asistente",
+    ],
+    ["/home/example/missing", "no existe en el hub"],
+  ])("keeps the refusal for %s beside the field", async (path, cause) => {
+    replies.set("config:vega", {
+      outcome: "config",
+      config: { ...vegaConfig(), kind: "codex", working_folder: "/home/example/projects" },
+    });
+    replies.set("working_folder", {
+      outcome: "refused",
+      refusal: {
+        code: "invalid_working_folder",
+        status: 400,
+        numbers: { cause },
+      },
+    });
+    await renderVega();
+    const field = screen.getByRole("textbox", {
+      name: "Carpeta de trabajo en el hub",
+    }) as HTMLInputElement;
+    expect(field.value).toBe("/home/example/projects");
+    fireEvent.change(field, { target: { value: path } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar carpeta" }));
+    await waitFor(() =>
+      expect(calls[1]).toEqual({
+        call: "working_folder",
+        agent_id: "vega",
+        path,
+      }),
+    );
+    const region = screen.getByRole("region", { name: "Carpeta de trabajo" });
+    expect((await within(region).findByRole("alert")).textContent).toBe(
+      `La carpeta de trabajo ${cause}`,
+    );
+    expect(field.value).toBe(path);
+  });
+});

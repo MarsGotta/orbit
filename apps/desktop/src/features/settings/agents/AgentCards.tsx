@@ -7,6 +7,7 @@ import { AccessCard } from "./AccessCard";
 import styles from "./Agents.module.css";
 import { copy } from "./parts";
 import { PersonalityCard } from "./PersonalityCard";
+import { WorkingFolderCard } from "./WorkingFolderCard";
 import { SkillsCard } from "./SkillsCard";
 import { type AgentPort, useAgentConfig } from "./use-agent-config";
 
@@ -63,6 +64,9 @@ export function AgentCards({ agent, target }: { agent: AgentPort; target: Agent 
         saving={personalitySave}
         {...props}
       />
+      {config.working_folder !== undefined && (
+        <WorkingFolderCard key={config.working_folder} path={config.working_folder} {...props} />
+      )}
       <AccessCard access={config.access} {...props} />
       <SkillsCard read={skill} say={say} skills={config.skills} {...props} />
     </div>

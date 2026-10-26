@@ -31,3 +31,18 @@ def launch_failure(service: str, path: str, error: OSError) -> HubError:
         errno.EACCES: "no tiene permiso de ejecución",
     }.get(error.errno, f"el sistema rechazó el arranque (errno {error.errno})")
     return missing(service, path, cause)
+
+
+def validate_linux_executable(service, path):
+    """Retain exec-format diagnostics when bwrap becomes the direct child.
+
+    The Linux kernel accepts ELF and scripts with an interpreter line; unlike
+    some shells it does not execute headerless text. No vendor is run here.
+    """
+    try:
+        with Path(path).open("rb") as handle:
+            header = handle.read(4)
+        if not (header.startswith(b"#!") or header == b"\x7fELF"):
+            raise OSError(errno.ENOEXEC, "invalid executable format")
+    except OSError as error:
+        raise launch_failure(service, str(path), error) from None

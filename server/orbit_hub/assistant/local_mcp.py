@@ -84,3 +84,48 @@ def listener_url(settings, args) -> str:
     if ":" in host:
         host = f"[{host}]"
     return f"{'https' if args.tls_cert else 'http'}://{host}:{args.port}"
+
+
+def prepare_agent(template: Path, folder: Path, agent_id: str):
+    """Each jailed translator gets only its own two keys, never the template's.
+
+    Read configuration addresses and device aliases, not operator credentials.
+    The original translator configuration is kept for Hermes and API agents.
+    """
+    import tomllib
+
+    bridge_folder = folder / "bridge"
+    private_folder(bridge_folder)
+    if not template.exists():
+        return  # Existing missing-MCP refusal is produced when tools start.
+    with template.open("rb") as handle:
+        config = tomllib.load(handle)
+    lines = [
+        f"hub_url = {json.dumps(config['hub_url'])}",
+        f"default_device = {json.dumps(config.get('default_device', 'Orbit'))}",
+        "[devices]",
+    ]
+    for name, value in config.get("devices", {}).items():
+        lines.append(f"{json.dumps(name)} = {json.dumps(value)}")
+    for name, section in (("device", "device_bridge"), ("meetings", "meetings")):
+        key = _bridge(bridge_folder, name, None)
+        lines.extend(
+            (
+                f"[{section}]",
+                f'key_id = "agent-{agent_id}-{name}"',
+                f"key_file = {json.dumps(key.credential_file)}",
+            )
+        )
+    path = bridge_folder / "mcp.toml"
+    # Never replace a symlink that could redirect the jailed mount's source.
+    if path.is_symlink():
+        raise ValueError("Agent translator configuration must not be a symlink")
+    with tempfile.NamedTemporaryFile(mode="w", dir=bridge_folder, delete=False) as handle:
+        temporary = Path(handle.name)
+        try:
+            handle.write("\n".join(lines) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+            os.replace(temporary, path)
+        finally:
+            temporary.unlink(missing_ok=True)

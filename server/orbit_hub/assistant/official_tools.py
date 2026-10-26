@@ -22,6 +22,7 @@ from .sign_in import private_folder
 from .tool_availability import ToolUnavailable
 from .tool_interactions import ToolInteractions
 from .tool_settings import HOME_FOLDERS, environment
+from .workspaces import WorkspacePolicy
 
 # One personal hub needs only a few concurrent conversations. Four vendor
 # processes bound host RAM/CPU, not stored sessions; idle runners are evicted.
@@ -53,8 +54,10 @@ class OfficialBackend:
     capabilities = Capabilities(images=True, resume=True, history=True, voice=False)
 
     def __init__(self, hub, agent, instructions):
+        self.hub, self.agent = hub, agent
         self.agent_id, self.agent_name = agent.id, agent.name
         self.settings, self.instructions = agent.settings, instructions
+        self.workspaces = WorkspacePolicy(hub, agent.id)
         self.folder = hub.data_dir / "agents" / agent.id
         self.config_dir = self.folder / HOME_FOLDERS[agent.kind]
         self.processes = []
@@ -68,14 +71,14 @@ class OfficialBackend:
         return OfficialConnection(self, on_event)
 
     def environment(self):
-        return environment(self.settings, self.config_dir)
+        return {**environment(self.settings, self.config_dir), "TMPDIR": "/tmp"}
 
     def mcp_server(self):
         return {
             "command": sys.executable,
             "args": ["-m", "orbit_mcp.cli"],
             "env": {
-                "ORBIT_MCP_CONFIG": str(self.settings.orbit_mcp_config),
+                "ORBIT_MCP_CONFIG": str(self.folder / "bridge" / "mcp.toml"),
                 "ORBIT_MCP_AGENT": self.agent_id,
             },
         }
@@ -97,8 +100,18 @@ class OfficialBackend:
                 await idle.stop()
             for path in (self.folder.parent, self.folder, self.config_dir):
                 private_folder(path)
+            from .jail import launch
+            from .local_mcp import prepare_agent
+
+            await asyncio.to_thread(
+                prepare_agent, self.settings.orbit_mcp_config, self.folder, self.agent_id
+            )
+            prefix = await launch(
+                self.hub, self.agent, self.workspaces.current(), self.workspaces.configs
+            )
             runner = ClaudeProcess if self.settings.agent == "claude-code" else CodexProcess
             process = runner(self, connection, stored_id)
+            process.jail_prefix = prefix
             self.processes.append(process)
         try:
             await process.open()
@@ -174,6 +187,7 @@ class OfficialConnection:
 class VendorProcess:
     def __init__(self, backend, connection, stored_id):
         self.backend, self.connection = backend, connection
+        self.workspace = backend.workspaces.current()
         self.session_id = stored_id or str(uuid4())
         self.resuming = stored_id is not None
         self.interactions = ToolInteractions(self.session_id, connection.emit)

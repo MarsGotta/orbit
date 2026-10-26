@@ -88,11 +88,14 @@ def serve(settings: Settings, args) -> None:
         )
     if bool(args.tls_cert) != bool(args.tls_key):
         raise ValueError("TLS requires both --tls-cert and --tls-key")
+    from dataclasses import replace
+
     import uvicorn
 
     from .app import create_app
     from .assistant.local_mcp import listener_url, prepare
 
+    settings = replace(settings, tls_key_file=args.tls_key)
     settings = prepare(settings, listener_url(settings, args))
 
     uvicorn.run(

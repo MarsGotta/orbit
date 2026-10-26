@@ -177,7 +177,7 @@ class Agents:
             return lambda: configs.instructions(agent_id)
 
         def build(agent: AgentConfiguration) -> Agent:
-            return Agent(
+            built = Agent(
                 agent.id,
                 agent.name,
                 agent.kind,
@@ -187,6 +187,10 @@ class Agents:
                 else KINDS[agent.kind].backend(settings, agent, instructions(agent.id)),
                 speech if speech is not None else KINDS[agent.kind].speech(settings, agent),
             )
+
+            if agent.kind in SERVICE_NAMES and hasattr(built.backend, "workspaces"):
+                built.backend.workspaces.configs = configs
+            return built
 
         agents = [build(agent) for agent in configured]
         added = roster.added() if roster is not None else []

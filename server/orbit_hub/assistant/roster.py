@@ -213,6 +213,7 @@ class Roster:
                 "agent_profiles",
                 "agent_accounts",
                 "agent_access",
+                "agent_workspaces",
                 "agent_personalities",
                 "agent_skills",
             ):

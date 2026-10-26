@@ -171,7 +171,7 @@ def test_turn_streams_tools_approval_clarification_and_resumes(official, tmp_pat
             assert done["text"] == "Hola. Hecho."
             assert done["status"] == "completed" and done["persisted"] is True
             page = http.get(f"/v1/sessions/{session}/messages", headers=headers).json()
-            assert page["messages"][-1]["work"]["tools"] == 1
+            assert page["messages"][-1]["work"]["tools"] == 2
         # A new hub process/connection must load by the vendor's durable id.
         with (
             client() as http,
@@ -218,7 +218,7 @@ def test_turn_streams_tools_approval_clarification_and_resumes(official, tmp_pat
         }
         assert "--setting-sources=" in starts[0]["args"]
         assert "--strict-mcp-config" in starts[0]["args"]
-        assert starts[0]["args"][starts[0]["args"].index("--tools") + 1] == "AskUserQuestion"
+        assert starts[0]["args"][starts[0]["args"].index("--tools") + 1] == "default"
     else:
         assert any(r.get("method") == "thread/resume" for r in records)
         assert any(
@@ -227,8 +227,10 @@ def test_turn_streams_tools_approval_clarification_and_resumes(official, tmp_pat
         )
         started = next(r["params"] for r in records if r.get("method") == "thread/start")
         told = started["developerInstructions"]
-        assert started["sandbox"] == "read-only" and started["approvalPolicy"] == "on-request"
-        assert started["config"]["features.shell_tool"] is False
+        assert (
+            started["sandbox"] == "danger-full-access" and started["approvalPolicy"] == "untrusted"
+        )
+        assert started["config"]["features.shell_tool"] is True
         assert set(started["config"]["mcp_servers"]) == {"orbit"}
         content = next(r["params"]["input"] for r in records if r.get("method") == "turn/start")
         image = next(b for b in content if b["type"] == "image")

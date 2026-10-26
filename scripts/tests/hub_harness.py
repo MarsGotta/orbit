@@ -415,6 +415,9 @@ class HubSandbox:
             self.bin / "journalctl", FAKE_JOURNALCTL.replace("@STATE@", state_literal)
         )
         self._write_executable(self.bin / "ps", FAKE_PS.replace("@STATE@", state_literal))
+        # Publication probes use a deterministic double; real kernel isolation
+        # is exercised by the hub's bwrap acceptance test.
+        self._write_executable(self.bin / "bwrap", "#!/bin/sh\n# ORBIT_HUB_FAKE_BWRAP\nexit 0\n")
         self.hermes = self.bin / "hermes"
         self._write_executable(
             self.hermes,

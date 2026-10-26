@@ -35,6 +35,14 @@ repo=${ORBIT_REPO:-$(git -C "$HUB_SCRIPTS_DIR" rev-parse --show-toplevel 2>/dev/
 uv=${ORBIT_UV:-$(command -v uv || printf '%s' "$HOME/.local/bin/uv")}
 [[ -x "$uv" ]] || hub_fail "cannot find uv ($uv); set ORBIT_UV."
 
+# Probe the server's namespace policy before building any release. This does
+# not contact a vendor, read a credential or change a shared service.
+command -v bwrap >/dev/null || hub_fail "bubblewrap is required; install bubblewrap on the hub server."
+if ! timeout 10 bwrap --ro-bind / / --dev /dev --proc /proc --tmpfs /tmp \
+    --unshare-pid --die-with-parent --new-session -- /bin/true; then
+    hub_fail "bubblewrap cannot create a jail; allow user namespaces and review Ubuntu AppArmor's bwrap-userns-restrict profile."
+fi
+
 # --- What is being published ---------------------------------------------------
 
 # A release comes from a commit, never from the working tree. A tree with

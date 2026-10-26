@@ -22,6 +22,17 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ### Changed
 
+- Official assistants run in a required bubblewrap jail with read-only host
+  files, hidden hub/owner credentials and control sockets, private `/tmp` and
+  `/proc`, and only their working folder and vendor home writable. Startup and
+  hub publication fail closed if the jail cannot be created. Each assistant
+  has separate read-only MCP bridge credentials bound to its authenticated
+  identity. Commands and edits request Mac cards (Codex `untrusted`, with its
+  internal sandbox disabled); Claude's local reads/searches do not. Working
+  folders reject protected paths, the owner's home and installed hub code.
+  **Trabajó…** retains commands and edited filenames. Self-hosting documents
+  the remaining vendor-approval, credential, network and later-execution limits.
+
 - Claude and Codex assistants can be added from Orbit without hub tool tables.
   Claude uses the CLI bundled with Claude Agent SDK 0.2.174; hub publication
   ships official Codex 0.164.0 after checking its pinned SHA-256. The hub

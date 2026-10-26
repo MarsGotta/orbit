@@ -417,3 +417,21 @@ fn a_sign_in_reads_with_its_address_code_and_outcome() {
         serde_json::from_value(json!({"agent_id": "vega", "state": "paused"})).expect("tolerant");
     assert_eq!(newer.state, SignInState::Unknown);
 }
+
+#[test]
+fn workspace_is_an_optional_hub_path_and_sent_unchanged() {
+    let mut value = config_json();
+    let old: AgentConfig = serde_json::from_value(value.clone()).expect("older hub");
+    assert_eq!(old.working_folder, None);
+    value["working_folder"] = json!("/home/example/project");
+    let new: AgentConfig = serde_json::from_value(value).expect("workspace");
+    assert_eq!(new.working_folder.as_deref(), Some("/home/example/project"));
+    let call = AgentCall::WorkingFolder {
+        agent_id: "vega".into(),
+        path: "/home/example/project".into(),
+    };
+    let route = call.route();
+    assert_eq!(route.method, HubMethod::Put);
+    assert_eq!(route.segments, ["v1", "agents", "vega", "working-folder"]);
+    assert_eq!(route.body, Some(json!({"path": "/home/example/project"})));
+}

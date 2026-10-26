@@ -268,3 +268,31 @@ async def connect_bridge(app, store, adapter, owner):
     runtime.subscribe()
     app.state.device_bridge.runtimes[owner["device_id"]] = runtime
     return runtime
+
+
+@pytest.fixture(autouse=True)
+def fake_vendor_jail(tmp_path, monkeypatch):
+    """Protocol tests use fake vendors and a fake process prefix.
+
+    Real isolation acceptance explicitly locates /usr/bin/bwrap and uses the
+    same production argument builder; no mocked namespace can establish it.
+    """
+    import sys
+    from pathlib import Path
+
+    binary = tmp_path / "bwrap"
+    runner = Path(__file__).with_name("support_jail.py")
+    binary.write_text(
+        f'#!{sys.executable}\nimport runpy\nrunpy.run_path({str(runner)!r}, run_name="__main__")\n'
+    )
+    binary.chmod(0o700)
+    from orbit_hub.assistant import jail
+
+    original = jail.shutil.which
+    monkeypatch.setattr(
+        jail.shutil,
+        "which",
+        lambda name, *a, **kw: (
+            str(binary) if name == "bwrap" and not kw else original(name, *a, **kw)
+        ),
+    )

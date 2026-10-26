@@ -72,15 +72,20 @@ class MeetingsBridgeService:
         self.notes.initialize()
 
     def start(self) -> None:
-        if self.configuration is None:
+        if self.configuration is None and self.access is None:
             return
-        key = read_key(self.configuration.credential_file, MeetingsBridgeError)
+        key = (
+            read_key(self.configuration.credential_file, MeetingsBridgeError)
+            if self.configuration
+            else None
+        )
         common = {
-            "key_id": self.configuration.key_id,
+            "key_id": self.configuration.key_id if self.configuration else None,
             "key": key,
             "protocol": PROTOCOL,
             "header_prefix": HEADER_PREFIX,
             "failure": MeetingsBridgeError,
+            "credentials": self.access.bridge_credential if self.access else None,
         }
         self.list_auth = Authenticator(path=LIST_PATH, **common)
         self.transcript_auth = Authenticator(path=TRANSCRIPT_PATH, **common)
@@ -90,16 +95,23 @@ class MeetingsBridgeService:
     def close(self) -> None:
         self.list_auth = self.transcript_auth = self.note_auth = self.attachment_auth = None
 
+    def check(self):
+        if self.list_auth is None or (
+            self.configuration is None and not (self.access and self.access.bridge_available())
+        ):
+            raise MeetingsBridgeError(503, "unavailable")
+
     def attachment(self, headers, body: bytes) -> dict:
         """One file the user attached, as `orbit_attachment` hands it to the agent:
         an image whole, the text of a PDF or a text file a page at a time."""
-        if self.attachment_auth is None:
-            raise MeetingsBridgeError(503, "unavailable")
-        self.attachment_auth.admit(headers, body, int(self.now() * 1000), monotonic())
+        self.check()
+        identity = self.attachment_auth.admit(headers, body, int(self.now() * 1000), monotonic())
         try:
             request = AttachmentRequest.model_validate_json(body)
         except (ValueError, TypeError, UnicodeError, RecursionError):
             raise MeetingsBridgeError(400, "invalid_request") from None
+        if identity is not None:
+            request = request.model_copy(update={"agent_id": identity})
         if self.access is not None:
             self._require_own(request)
         try:
@@ -153,13 +165,14 @@ class MeetingsBridgeService:
         `more` says whether older meetings in the window were left for the next
         call, which continues with `before_ms` set to the last one's start.
         """
-        if self.list_auth is None:
-            raise MeetingsBridgeError(503, "unavailable")
-        self.list_auth.admit(headers, body, int(self.now() * 1000), monotonic())
+        self.check()
+        identity = self.list_auth.admit(headers, body, int(self.now() * 1000), monotonic())
         try:
             request = ListRequest.model_validate_json(body)
         except (ValueError, TypeError, UnicodeError, RecursionError):
             raise MeetingsBridgeError(400, "invalid_request") from None
+        if identity is not None:
+            request = request.model_copy(update={"agent_id": identity})
         if self.access is not None:
             self.access.require(request.agent_id, "meetings")
         device = request.device_id
@@ -184,13 +197,14 @@ class MeetingsBridgeService:
 
     def note(self, headers, body: bytes) -> dict:
         """The note as the user sees it, or its state with the numbers that explain it."""
-        if self.note_auth is None:
-            raise MeetingsBridgeError(503, "unavailable")
-        self.note_auth.admit(headers, body, int(self.now() * 1000), monotonic())
+        self.check()
+        identity = self.note_auth.admit(headers, body, int(self.now() * 1000), monotonic())
         try:
             request = NoteRequest.model_validate_json(body)
         except (ValueError, TypeError, UnicodeError, RecursionError):
             raise MeetingsBridgeError(400, "invalid_request") from None
+        if identity is not None:
+            request = request.model_copy(update={"agent_id": identity})
         if self.access is not None:
             self.access.require(request.agent_id, "meetings")
         device, recording = request.device_id, request.recording_id
@@ -272,13 +286,14 @@ class MeetingsBridgeService:
         the device owner's for the local microphone, and the answer says when
         the Mac has not said who that is yet.
         """
-        if self.transcript_auth is None:
-            raise MeetingsBridgeError(503, "unavailable")
-        self.transcript_auth.admit(headers, body, int(self.now() * 1000), monotonic())
+        self.check()
+        identity = self.transcript_auth.admit(headers, body, int(self.now() * 1000), monotonic())
         try:
             request = TranscriptRequest.model_validate_json(body)
         except (ValueError, TypeError, UnicodeError, RecursionError):
             raise MeetingsBridgeError(400, "invalid_request") from None
+        if identity is not None:
+            request = request.model_copy(update={"agent_id": identity})
         if self.access is not None:
             self.access.require(request.agent_id, "meetings")
         device, recording = request.device_id, request.recording_id

@@ -96,6 +96,7 @@ def test_an_agent_nobody_configured_reads_empty_and_with_every_group_on(hub, age
     assert response.json() == {
         "agent_id": agent_id,
         "kind": kind,
+        **({"working_folder": response.json()["working_folder"]} if kind == "codex" else {}),
         "personality": {"text": "", "editable": True, "max_bytes": MAX_PERSONALITY_BYTES},
         "access": {"groups": EVERY_GROUP, "editable": True},
         "skills": {

@@ -11,4 +11,8 @@ export type AgentConfig = { agent_id: string,
 /**
  * `hermes`, `openai`, `claude-code`, `codex`, or a kind this Mac does not know yet.
  */
-kind: string, personality: PersonalityConfig, access: AccessConfig, skills: SkillsConfig, };
+kind: string, 
+/**
+ * Absolute hub workspace; absent on older hubs and other agent kinds.
+ */
+working_folder?: string, personality: PersonalityConfig, access: AccessConfig, skills: SkillsConfig, };

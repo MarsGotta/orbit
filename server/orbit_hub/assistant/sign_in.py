@@ -123,7 +123,7 @@ def logout_arguments(settings: ToolSettings) -> list[str]:
 
 
 def environment(settings: ToolSettings, home: Path) -> dict[str, str]:
-    return tool_environment(settings, home)
+    return {**tool_environment(settings, home), "TMPDIR": "/tmp"}
 
 
 def private_folder(path: Path) -> None:
@@ -171,18 +171,38 @@ class SignIns:
             attempt.home = folder / f"sign-in-{uuid4().hex}"
             private_folder(attempt.home)
         self.attempts[agent.id] = attempt
+        from .jail import launch
+        from .workspaces import WorkspacePolicy
+
+        policy = WorkspacePolicy(
+            self.settings,
+            agent.id,
+            getattr(getattr(agent.backend, "workspaces", None), "configs", None),
+        )
+        workspace = policy.current()
         try:
+            prefix = await launch(
+                self.settings,
+                agent,
+                workspace,
+                policy.configs,
+                vendor_home=attempt.home or home,
+            )
             attempt.process = await asyncio.create_subprocess_exec(
+                *prefix,
                 *login_arguments(settings),
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=environment(settings, attempt.home or home),
-                cwd=folder,
+                cwd=workspace,
                 # Its own process group, so cancelling reaches what it started.
                 start_new_session=True,
                 limit=MAX_LINE_BYTES,
             )
+        except HubError:
+            self._end(attempt, "failed", "jail_unavailable")
+            raise
         except OSError as exc:
             self._end(attempt, "failed", "not_started")
             raise launch_failure(settings.agent, settings.command[0], exc) from None
@@ -251,18 +271,29 @@ class SignIns:
         agent = self.agents.get(agent_id)
         settings = tool_settings_of(agent)
         await self.cancel(agent.id)
-        folder, home = self.folders(agent, settings.agent)
+        _folder, home = self.folders(agent, settings.agent)
         if not home.is_dir():
             self.agents.observe(agent.id, "signed_out")
             return
+        from .jail import launch
+        from .workspaces import WorkspacePolicy
+
+        policy = WorkspacePolicy(
+            self.settings,
+            agent.id,
+            getattr(getattr(agent.backend, "workspaces", None), "configs", None),
+        )
+        workspace = policy.current()
+        prefix = await launch(self.settings, agent, workspace, policy.configs, vendor_home=home)
         try:
             process = await asyncio.create_subprocess_exec(
+                *prefix,
                 *logout_arguments(settings),
                 stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
                 env=environment(settings, home),
-                cwd=folder,
+                cwd=workspace,
                 start_new_session=True,
             )
         except OSError as exc:

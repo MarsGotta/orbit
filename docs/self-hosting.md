@@ -198,6 +198,101 @@ read-aloud; a Claude Code or Codex agent has no voice. Without one, the hub refu
 request with `speech_not_configured`, naming the agent and why, and `ready`
 does not list `voice` among that agent's capabilities.
 
+### Host tools and working folders
+
+Claude Code assistants expose the SDK's complete `claude_code` tool preset,
+including Bash, Read, Edit, Write, Glob and Grep. Orbit keeps `default`
+permissions, installs a `PreToolUse` hook that requests permission for commands,
+edits and network tools, and sends the decision through `can_use_tool` to the
+existing Mac approval cards. Local reads and searches run without a card.
+Commands and edits must receive **Permitir** before Orbit allows them;
+**No**, interruption and disconnection do not grant access.
+Orbit's MCP tools keep their existing access groups and macOS permissions.
+
+An assistant's settings page includes **Carpeta de trabajo en el hub**. This
+is an absolute directory on the server, never a Mac folder picker. The hub
+normalizes symlinks and `..`, requires an existing directory, and refuses the
+data directory, storage key, another assistant's work folder and any ancestor
+that would include them. Refusals appear beside the field without discarding
+what was typed. Paths are encrypted in SQLite's `agent_workspaces`, beside
+personality and skills. Older Macs ignore the additional configuration field;
+older hubs leave the field absent. Upgrade the hub first.
+
+The default is each assistant's private directory under
+`<data_dir>-workspaces/<agent_id>`: for `data_dir = /opt/orbit/data`, that is
+`/opt/orbit/data-workspaces/<agent_id>`. The hub user needs permission to create
+this sibling directory. Account homes remain under `data_dir/agents`; work
+must be outside that boundary so even the default cannot expose credentials.
+Folder changes apply when a conversation opens or resumes; active runners keep
+their original folder. The hub validates again when starting a runner.
+
+Claude and Codex run inside a **bubblewrap jail**, including their shell
+children, sign-in/out processes and Orbit's MCP translator. Install `bubblewrap`
+on the Linux hub. Publication probes namespace creation and refuses to publish
+if it fails. Assistant startup also probes its complete mount list and fails
+closed with Spanish installation or Ubuntu AppArmor guidance, retaining the
+`agent_adapter_missing` code understood by older Macs.
+
+The jail exposes the server root read-only, a fresh `/dev`, a private `/tmp`
+(`TMPDIR=/tmp`), and a PID namespace with its own `/proc`: the hub's processes
+and their environments are absent. The network stays shared so both vendors
+and their commands can reach the network. `/run/systemd/resolve` remains
+readable for Ubuntu's `/etc/resolv.conf`; the whole of `/run` is not hidden.
+
+Only the chosen working folder, the assistant's own vendor home under
+`data_dir/agents/<id>` and its private `/tmp` are writable. Empty, read-only
+mounts hide the hub's data, all configured secret locations (including its
+configuration, TLS key, processing and provider keys), other assistants' work
+folders and the default workspace tree. The assistant's own working folder
+and vendor home are then bound back; its private `bridge` folder is bound
+read-only. Existing owner credentials are hidden: `.ssh`, `.gnupg`, `.claude`,
+`.claude.json`, `.codex`, `.config/gh`, `.config/gcloud`, `.aws`, `.azure`,
+`.kube`, `.docker`, `.netrc`, `.npmrc`, `.pypirc`, `.git-credentials`,
+`.password-store` and `.local/share/keyrings`. Files are masked with `/dev/null`.
+User-session control (`/run/user/<uid>`), Docker and containerd sockets, and
+LXD's `/var/snap/lxd/common/lxd` and `/var/lib/lxd` are hidden too.
+A workspace cannot overlap those locations, the installed hub source or venv,
+or be the owner's home or an ancestor of it. This prevents writable startup
+files from affecting a later process outside the jail.
+
+Commands and edits require a Mac approval card; reads and local searches do
+not. **Trabajó…** shows each command and edited filename, including declined
+or failed work. Claude's pre-tool hook asks for all tools except an explicit
+list of local reads and the session's own to-do list, tasks and subagents; the same rule applies to subagent tools. Orbit MCP
+tools retain their existing access groups and macOS permissions rather than
+adding duplicate cards. See the [tool classification](architecture/assistant-jail.md).
+Codex starts with `approvalPolicy = untrusted`, `sandbox = danger-full-access`
+and the user as reviewer. Its own Linux sandbox cannot nest under Ubuntu's
+AppArmor bubblewrap profile; the outer jail supplies kernel enforcement.
+
+The exact Codex 0.164.0 source differs from descriptions of older releases:
+[`render_decision_for_unmatched_command_for_platform`](https://github.com/openai/codex/blob/rust-v0.164.0/codex-rs/core/src/exec_policy.rs)
+prompts for every unmatched command under `UnlessTrusted`. Only an explicit
+execution-policy allow rule can skip that prompt; there is no hard-coded safe
+command list in this function. [`assess_patch_safety`](https://github.com/openai/codex/blob/rust-v0.164.0/codex-rs/core/src/safety.rs)
+returns `AskUser` for every nonempty patch with `UnlessTrusted`. Empty patches
+are rejected. Orbit accepts only one-use approval responses, never policy
+amendments or session-wide approvals. Vendor approval behavior remains a
+vendor contract, tested locally with deterministic protocol doubles.
+
+Each jailed assistant has separate device and meetings bridge keys and a
+translator TOML in `data_dir/agents/<id>/bridge`. The hub authenticates the
+agent from that key, fills an omitted agent id and refuses another claimed id.
+Only that agent's bridge directory is visible in its jail. The operator's
+translator configuration and existing shared bridge keys continue to serve
+Hermes and operator-configured translators as before.
+
+**Limits:** a script or project modification left in the working folder runs
+with the owner's permissions if the owner later runs it outside the jail.
+Each assistant can read its own vendor credentials. Other readable files
+outside the hidden paths, including project `.env` files, remain readable;
+network access can transmit readable content and reach network services.
+The jail does not undo an approved action, enforce vendor tool semantics,
+or isolate remote services reachable through the shared network. An existing
+hard link inside a writable folder to a file outside it shares that file's
+inode; path mounts cannot distinguish the two names. Do not
+interpret synthetic CLI tests as acceptance with a real account and Mac.
+
 Each agent starts on its own: a slow or broken one holds only the turn that
 asked for it, never another agent or another conversation. A start (the
 agent's connection, or a session opening or reopening) still running after
@@ -482,16 +577,15 @@ writes personality files into the account directory. An existing Codex
 `AGENTS.md` from an older hub is no longer needed and can be removed by the
 operator after upgrading.
 
-Both vendors launch this hub's `orbit-mcp` over stdio, with `ORBIT_MCP_CONFIG`
-set to `orbit_mcp_config` and `ORBIT_MCP_AGENT` set to the agent id. Claude
-has only MCP tools and `AskUserQuestion`, with no user/project settings and
-strict MCP configuration. Codex uses a read-only sandbox, disabled shell and
-web search, user approvals, and the configured Orbit MCP server. If a vendor
-asks to approve a command or edit, Orbit forwards it to the existing approval
-flow (`once` or `deny`). Questions use the existing clarification flow.
-These are tool restrictions, not an OS security boundary: a vendor process
-running as the hub's user has that user's file access. Use an isolated service
-user/wrapper and explicit file permissions if stronger isolation is needed.
+Both vendors launch this hub's `orbit-mcp` over stdio inside their bubblewrap
+jail. `ORBIT_MCP_CONFIG` names their own read-only translator TOML under
+`data_dir/agents/<id>/bridge`, and `ORBIT_MCP_AGENT` selects that same agent.
+The hub verifies the selection against the key's identity. Claude exposes its
+native tools with no user/project settings and strict MCP configuration.
+Codex exposes its native shell and edits, uses `untrusted` approvals and the
+outer jail instead of its own nested sandbox. Approval requests use the
+existing `once`/`deny` flow; questions use the existing clarification flow.
+See [the jail and its limits](#host-tools-and-working-folders).
 
 At most four runners per agent are held at once; an idle runner can be evicted.
 Claude uses the SDK's `session_id` for a new conversation and `resume` for
@@ -640,12 +734,13 @@ neither listed nor run by `orbit-mcp`, and the hub refuses its bridge
 requests with `agent_access_disabled`, the agent and the group.
 `orbit_skill` belongs to no group: it reads the agent's own skills.
 
-Access groups configure an agent's tools; they are not a security boundary.
-Both checks trust the agent id that `orbit-mcp` signs with the bridge's HMAC
-key, so a process on the same machine that can read that key (or run
-`orbit-mcp` with another `ORBIT_MCP_AGENT`) can use any group. Keep agents
-you do not trust away from those keys, as described for Claude Code or Codex agents above,
-and rely on macOS's permissions for what the Mac allows at all.
+Jailed Claude and Codex translators have per-agent HMAC credentials: the hub
+derives their identity from the key and refuses another claimed id with
+`agent_identity_mismatch`. Their keys cannot select the Hermes agent. The
+operator's existing bridge keys retain their agent-selection behavior for
+Hermes and operator-configured translators; any process with one of those
+keys can still select any agent. Those keys remain hidden from jailed
+assistants. macOS permissions decide what the Mac allows.
 
 ## Short action replies
 

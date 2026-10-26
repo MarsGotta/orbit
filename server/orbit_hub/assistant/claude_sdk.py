@@ -16,6 +16,7 @@ from claude_agent_sdk import (
     ClaudeSDKClient,
     CLIConnectionError,
     CLIJSONDecodeError,
+    HookMatcher,
     PermissionResultAllow,
     PermissionResultDeny,
     ProcessError,
@@ -36,6 +37,34 @@ from .claude_transport import ConfiguredTransport
 from .deletion import command_deletion
 from .official_tools import MAX_AGENT_MESSAGE_BYTES, OPEN_TIMEOUT_SECONDS, VendorProcess
 from .tool_availability import launch_failure
+
+# Pinned Claude Code 2.1.310 preset: local reads and searches, and the
+# session's own bookkeeping (its to-do list, its tasks and subagents), which
+# changes nothing outside it. Unknown tools, including future additions,
+# require a card. The hook also runs for subagent tools, so a subagent's
+# Bash/Edit calls still ask.
+WITHOUT_CARD = frozenset(
+    {
+        "Read",
+        "Glob",
+        "Grep",
+        "LS",
+        "NotebookRead",
+        "TaskOutput",
+        "TaskGet",
+        "TaskList",
+        "ToolSearch",
+        "ListAgents",
+        "CronList",
+        "TodoWrite",
+        "TaskCreate",
+        "TaskUpdate",
+        "TaskStop",
+        "KillShell",
+        "Task",
+        "Agent",
+    }
+)
 
 
 # SDK diagnostics may contain a malformed CLI frame or stderr. A filter is
@@ -76,11 +105,14 @@ class ClaudeProcess(VendorProcess):
         variables.update(self.backend.environment())
         return ClaudeAgentOptions(
             cli_path=self.backend.settings.command[0],
-            cwd=self.backend.folder,
+            cwd=self.workspace,
             env=variables,
             session_id=None if self.resuming else self.session_id,
             resume=self.session_id if self.resuming else None,
-            tools=["AskUserQuestion"],
+            tools={"type": "preset", "preset": "claude_code"},
+            # 2.1.310 omits Glob/Grep on Linux unless explicitly allowed.
+            allowed_tools=["Read", "Glob", "Grep"],
+            hooks={"PreToolUse": [HookMatcher(hooks=[self.before_tool])]},
             setting_sources=[],
             strict_mcp_config=True,
             mcp_servers={"orbit": self.backend.mcp_server()},
@@ -99,7 +131,9 @@ class ClaudeProcess(VendorProcess):
     async def execute(self, blocks):
         self.tools, self.streamed, self.error = {}, False, None
         options = self.options()
-        transport = ConfiguredTransport(self.backend.settings.command, options)
+        transport = ConfiguredTransport(
+            [*self.jail_prefix, *self.backend.settings.command], options
+        )
         self.client = ClaudeSDKClient(options=options, transport=transport)
         try:
             # Start and close the SDK from this task: its structured resources
@@ -244,10 +278,17 @@ class ClaudeProcess(VendorProcess):
             if delta.get("type") == "text_delta" and isinstance(delta.get("text"), str):
                 self.streamed = True
                 await self.chunk(delta["text"])
-        elif isinstance(message, AssistantMessage) and message.parent_tool_use_id is None:
-            self.error = message.error or self.error
+        elif isinstance(message, AssistantMessage):
+            top_level = message.parent_tool_use_id is None
+            if top_level:
+                self.error = message.error or self.error
             for block in message.content:
-                if isinstance(block, SdkTextBlock) and not self.streamed and not message.error:
+                if (
+                    isinstance(block, SdkTextBlock)
+                    and top_level
+                    and not self.streamed
+                    and not message.error
+                ):
                     await self.chunk(block.text)
                 elif isinstance(block, ToolUseBlock):
                     self.tools[block.id] = (block.name, block.input)
@@ -256,7 +297,7 @@ class ClaudeProcess(VendorProcess):
                             self.session_id, block.id, "tool", "started", block.name, block.input
                         )
                     )
-                elif isinstance(block, ThinkingBlock):
+                elif isinstance(block, ThinkingBlock) and top_level:
                     await self.connection.emit(
                         ActivityItem(
                             self.session_id,
@@ -286,11 +327,23 @@ class ClaudeProcess(VendorProcess):
         self.text.append(text)
         await self.connection.emit(MessageChunk(self.session_id, text))
 
+    async def before_tool(self, event, tool_use_id, context):
+        tool = event["tool_name"]
+        if tool.startswith("mcp__orbit__") or tool == "AskUserQuestion":
+            return {}
+        return {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "allow" if tool in WITHOUT_CARD else "ask",
+                "permissionDecisionReason": "Las órdenes, ediciones y la red requieren permiso en Orbit",
+            }
+        }
+
     async def can_use_tool(self, tool, arguments, context):
         # Orbit's MCP access groups and local system permissions already
         # decide these effects. Do not ask for the same permission twice.
         # strict_mcp_config ensures this namespace is our configured server.
-        if tool.startswith("mcp__orbit__"):
+        if tool.startswith("mcp__orbit__") or tool in WITHOUT_CARD:
             return PermissionResultAllow(updated_input=arguments)
         if tool == "AskUserQuestion":
             questions = arguments.get("questions", [])
@@ -299,7 +352,14 @@ class ClaudeProcess(VendorProcess):
                 return PermissionResultDeny(message="Turno interrumpido", interrupt=True)
             mapped = {q["question"]: answers[str(q.get("id", i))] for i, q in enumerate(questions)}
             return PermissionResultAllow(updated_input={**arguments, "answers": mapped})
-        action = arguments.get("command") or arguments.get("file_path") or context.title or tool
+        action = (
+            arguments.get("command")
+            or arguments.get("file_path")
+            or arguments.get("notebook_path")
+            or arguments.get("url")
+            or getattr(context, "title", None)
+            or tool
+        )
         description = f"Permiso para {tool}: {action}"
         deletion = command_deletion(arguments.get("command", ""))
         choice = await self.interactions.permission(description, deletion)

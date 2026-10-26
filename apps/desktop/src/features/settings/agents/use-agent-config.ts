@@ -9,7 +9,7 @@ import { agentFailureText, agentRefusalText } from "../../../i18n/es/agents";
 export type AgentPort = (call: AgentCall) => Promise<AgentAnswer>;
 
 /** Where an order was given, so its outcome is said there. */
-export type Place = "personality" | "access" | "skills";
+export type Place = "personality" | "access" | "skills" | "working_folder";
 
 export type Feedback =
   { place: Place; kind: "saving" | "saved" } | { place: Place; kind: "error"; text: string };
