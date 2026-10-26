@@ -254,6 +254,6 @@ fn topic(runtime: &Runtime, id: orbit_core::topics::TopicId) -> orbit_core::topi
 #[cfg(test)]
 mod response_budget_tests;
 
-mod silence;
 #[cfg(test)]
 mod conversation_switch_tests;
+mod silence;

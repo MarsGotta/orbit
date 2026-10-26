@@ -32,7 +32,6 @@ is in Spanish; the labels quoted below are the ones it shows.
   the conversation list marks turns waiting for their owner. Voice notes still
   being recorded or transcribed explain the wait without an error code. Vendor
   retries appear as waits instead of «está pensando…».
-
 - «Nueva conversación» starts without notes from earlier new-conversation
   views. Unsent notes stay on this Mac and reach their own hub conversation
   when delivery becomes possible, without changing the open view.
