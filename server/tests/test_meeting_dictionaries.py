@@ -293,13 +293,17 @@ def test_bounds_ownership_encryption_and_no_terms_in_logs(environment, caplog):
         # Another wrong spelling is still accepted when the term list is full.
         correct(http, headers, recording, dictionary, "otra forma", "Término privado QZX94")
         foreign = {"Authorization": "Bearer " + stranger["token"]}
-        assert http.get("/v1/meeting-dictionaries", headers=foreign).json()["dictionaries"] == []
+        assert (
+            http.get("/v1/meeting-dictionaries", headers=foreign).json()["dictionaries"][0]["id"]
+            == dictionary
+        )
         response = http.post(
             "/v1/meeting-dictionaries/orders",
             headers=foreign,
             json={"action": "save", "dictionary_id": dictionary, "name": "Otra"},
         )
-        assert response.status_code == 200  # Same id belongs to a different device.
+        assert response.status_code == 200  # Same dictionary, retaining its original device key.
+        assert response.json()["name"] == "Otra"
         with store.read_snapshot() as db:
             blobs = [bytes(r[0]) for r in db.execute("SELECT body FROM meeting_dictionaries")]
         assert all(b"QZX94" not in blob and b"wrong" not in blob for blob in blobs)

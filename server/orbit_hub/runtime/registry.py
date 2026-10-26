@@ -54,10 +54,8 @@ class Runtimes(dict[str, DeviceRuntime]):
         self.offer_all(emit("agents.changed", self.agents.listing()))
 
     def recording_changed(self, device: str, recording: str) -> None:
-        """Tell the owning device's connections, and no other, to read it again."""
-        runtime = self.get(device)
-        if runtime is not None:
-            runtime.offer(emit("recording.changed", {"recording_id": recording}))
+        """Every connected Mac reads the person's changed meeting again."""
+        self.offer_all(emit("recording.changed", {"recording_id": recording}))
 
     async def close(self) -> None:
         await asyncio.gather(*(runtime.close() for runtime in self.values()))

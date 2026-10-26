@@ -31,6 +31,7 @@ from .bridge import (
     validation_detail,
 )
 from .config import Config, Credentials
+from .meeting_requests import listing as meeting_listing
 
 # The hub waiter ends at 30 s; five more seconds let its named refusal return.
 # This is the translator's HTTP wait, not a retry of an input action.
@@ -475,12 +476,15 @@ class HubClient:
             raise _walk_failure(exc) from None
 
     async def meetings(
-        self, device_id: str, since_ms: int, limit: int, before_ms: int | None = None
+        self,
+        device_id: str,
+        since_ms: int,
+        limit: int,
+        before_ms: int | None = None,
+        before_id: str | None = None,
     ) -> dict:
-        """One page of the device's meetings, newest first, and whether more remain."""
-        request = {"device_id": device_id, "since_ms": since_ms, "limit": limit}
-        if before_ms is not None:
-            request["before_ms"] = before_ms
+        """One page of the person's meetings, newest first, and whether more remain."""
+        request = meeting_listing(device_id, since_ms, limit, before_ms, before_id)
         payload = await self._meetings_call(LIST_PATH, request, device_id)
         if not replies.listing_valid(payload):
             raise HubClientError("invalid_response")

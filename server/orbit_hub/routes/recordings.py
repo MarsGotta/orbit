@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from ..errors import HubError
 from ..identifiers import canonical_uuid
 from ..log import in_store
+from ..meetings.ownership import device_for
 from ..notes.models import EventContext
 from ..protocol import RecordingManifest
 
@@ -88,6 +89,12 @@ def mount(
             recording_id = canonical_uuid(recording_id)
         except ValueError as exc:
             raise HubError("invalid_recording", "ID de grabación no válido") from exc
+
+        def owner():
+            with store.read_snapshot() as db:
+                return device_for(db, recording_id, device)
+
+        device = await in_store(store_executor, owner)
         retry_at = now()
         requeued = await in_store(
             store_executor, store.groups.retry, device, recording_id, retry_at

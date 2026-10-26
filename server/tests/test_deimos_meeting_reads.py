@@ -560,3 +560,28 @@ async def test_the_largest_listing_fits_whole_and_says_how_to_continue(environme
     text = result.content[0].text
     assert text.count("S" * 1000) == 20
     assert "before_ms=11000" in text.splitlines()[-1]
+
+
+async def test_assistant_tool_continues_across_macs_with_the_same_start(environment, tmp_path):
+    _, store, _ = environment
+    owners = [device(store)["device_id"] for _ in range(2)]
+    recordings = {finished_meeting(store, owners[index % 2]) for index in range(21)}
+    async with deimos(environment, tmp_path, owners[1]) as server:
+        first = await server.call_tool("orbit_meetings", {})
+        assert not first.is_error, text_of(first)
+        text = first.content[0].text
+        cursor = re.search(r"before_ms=(\d+).*before_id=([0-9a-f-]{36})", text)
+        assert cursor is not None, text
+        second = await server.call_tool(
+            "orbit_meetings",
+            {
+                "before_ms": int(cursor[1]),
+                "before_id": cursor[2],
+            },
+        )
+        assert not second.is_error, text_of(second)
+        found = set(re.findall(r"grabación ([0-9a-f-]{36})", text + second.content[0].text))
+        assert found == recordings
+        invalid = await server.call_tool("orbit_meetings", {"before_ms": 1000, "before_id": "bad"})
+        assert invalid.is_error
+        assert "before_id" in text_of(invalid)

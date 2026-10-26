@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from ..errors import HubError
 from ..identifiers import canonical_uuid
 from ..log import in_store
+from ..meetings.ownership import device_for
 from .custom_templates import LinkRequest, TemplateDraft, UnlinkRequest
 from .http import parse
 from .models import MAX_TEMPLATE_ID_CHARS, TEMPLATE_ID_PATTERN, EditRequest, GenerateRequest
@@ -30,13 +31,23 @@ def mount(app, worker, identity, bounded_body, store_executor, now, recording_ch
         except ValueError:
             raise HubError("invalid_note_request", "Identificador de grabación no válido") from None
 
+    async def recording_device(request, recording):
+        caller = identity(request)
+
+        def reading():
+            with repository.store.read_snapshot() as db:
+                return device_for(db, recording, caller)
+
+        return await run(reading)
+
     async def parsed(request: Request, model):
         body = await bounded_body(request, MAX_REQUEST_BYTES)
         return parse(body, model, "invalid_note_request", "Petición de nota")
 
     @app.post("/v1/recordings/{recording_id}/note")
     async def request_note(recording_id: str, request: Request):
-        device, recording = identity(request), recording_of(recording_id)
+        recording = recording_of(recording_id)
+        device = await recording_device(request, recording)
         payload = await parsed(request, GenerateRequest)
         document = await run(
             lambda: repository.request(
@@ -49,12 +60,14 @@ def mount(app, worker, identity, bounded_body, store_executor, now, recording_ch
 
     @app.get("/v1/recordings/{recording_id}/note")
     async def read_note(recording_id: str, request: Request):
-        device, recording = identity(request), recording_of(recording_id)
+        recording = recording_of(recording_id)
+        device = await recording_device(request, recording)
         return JSONResponse(await run(repository.document, device, recording))
 
     @app.put("/v1/recordings/{recording_id}/note/edits")
     async def edit_note(recording_id: str, request: Request):
-        device, recording = identity(request), recording_of(recording_id)
+        recording = recording_of(recording_id)
+        device = await recording_device(request, recording)
         payload = await parsed(request, EditRequest)
         document = await run(repository.edit, device, recording, payload, now())
         recording_changed(device, recording)

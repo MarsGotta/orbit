@@ -3,6 +3,7 @@ use orbit_core::notes::{Capture, LocalRecording, NoteHeadline};
 
 fn row(local: Option<LocalPhase>, transcript: TranscriptState) -> MeetingRow {
     MeetingRow {
+        recorded_on: None,
         recording_id: "6f2b7d5a-9c41-4b7e-8d3f-1a2b3c4d5e6f".into(),
         title: "Comité de dirección".into(),
         started_at_ms: 1_800_000_000_000,
@@ -155,4 +156,16 @@ fn a_note_seen_being_written_and_then_ready_is_news_once() {
         "a failed note is no longer being written"
     );
     assert_eq!(follow_writing(&mut writing, &ready), None);
+}
+
+#[test]
+fn recording_device_survives_hub_list_and_app_projection() {
+    let mut wire = serde_json::to_value(row(None, TranscriptState::Ready)).unwrap();
+    wire["recorded_on"] = serde_json::json!({"device_id": "recording-mac", "name": "Mac de Alba"});
+    let row = serde_json::from_value(wire.clone()).unwrap();
+    let projected = project_row(row, 1_800_000_000_000, &LocalZone::utc());
+    assert_eq!(
+        serde_json::to_value(projected).unwrap()["recorded_on"],
+        wire["recorded_on"]
+    );
 }

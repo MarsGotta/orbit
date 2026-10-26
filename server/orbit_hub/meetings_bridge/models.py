@@ -32,6 +32,8 @@ class ListRequest(PrivateModel):
     # Continue a listing that answered `more: true`, from before the
     # start of the last meeting it returned.
     before_ms: int | None = Field(default=None, ge=1, le=2**63 - 1)
+    # Tie-break for meetings from different Macs that started together.
+    before_id: RecordingId | None = None
     agent_id: str | None = AGENT_ID
 
 

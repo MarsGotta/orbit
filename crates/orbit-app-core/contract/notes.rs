@@ -31,6 +31,10 @@ app_type! {
 
 app_type! {
     pub struct NoteListItem {
+        /// The recording Mac, when this personal hub has several devices.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub recorded_on: Option<orbit_core::notes::RecordedOn>,
         pub recording_id: String,
         /// The meeting's title (decided 2026-10-17): the same in the list and
         /// in the open note.
@@ -294,6 +298,10 @@ app_type! {
 
 app_type! {
     pub struct OpenNoteSnapshot {
+        /// The recording Mac, when this personal hub has several devices.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub recorded_on: Option<orbit_core::notes::RecordedOn>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub dictionary: Option<orbit_core::notes::MeetingDictionary>,

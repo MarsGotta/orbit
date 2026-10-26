@@ -1,4 +1,4 @@
-"""Bounded reads of a paired device's meetings.
+"""Bounded reads of the personal hub's meetings.
 
 The assistant sees the meetings unless its agent has the `meetings` access
 group off (Settings › Agents, `assistant.access`): a configuration of that
@@ -16,8 +16,8 @@ from time import monotonic
 
 from ..attachments import KIND_IMAGE, KIND_PDF, pdf_text
 from ..errors import HubError
+from ..meetings import ownership, turns, views
 from ..meetings import repository as meetings
-from ..meetings import turns, views
 from ..meetings.note_state import progress
 from ..meetings.open_recordings import pending_audio
 from ..notes import NoteRepository
@@ -163,7 +163,7 @@ class MeetingsBridgeService:
         """Newest first by start, the open ones included, `limit` at a time.
 
         `more` says whether older meetings in the window were left for the next
-        call, which continues with `before_ms` set to the last one's start.
+        call, which continues with `before_ms` and `before_id` of the last row.
         """
         self.check()
         identity = self.list_auth.admit(headers, body, int(self.now() * 1000), monotonic())
@@ -185,6 +185,7 @@ class MeetingsBridgeService:
                     device,
                     request.before_ms,
                     request.limit,
+                    request.before_id,
                     since_ms=request.since_ms,
                 )
             except _DAMAGED:
@@ -209,6 +210,7 @@ class MeetingsBridgeService:
             self.access.require(request.agent_id, "meetings")
         device, recording = request.device_id, request.recording_id
         with self.store.read_snapshot() as db:
+            device = ownership.device_for(db, recording, device)
             is_open = self._recording(db, device, recording) is None
             document = views.note_document(self.notes, db, device, recording)
             if document is None:
@@ -299,6 +301,7 @@ class MeetingsBridgeService:
         device, recording = request.device_id, request.recording_id
         live = None
         with self.store.read_snapshot() as db:
+            device = ownership.device_for(db, recording, device)
             final = self._recording(db, device, recording)
             try:
                 transcript = turns.read(

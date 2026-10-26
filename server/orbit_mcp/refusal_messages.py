@@ -110,7 +110,7 @@ ERROR_MESSAGES = {
     "skills_not_in_hub": "Orbit no guarda las skills de este agente: son las de su perfil de Hermes, que se cargan con sus propias herramientas.",
     # A recording and its note, read from the hub. Each state of a note
     # that is not there has its own code; none of them means an empty meeting.
-    "recording_not_found": "Esa grabación no existe en el hub para ese Mac: ni ha llegado audio suyo ni está cerrada. Revisa el identificador con orbit_meetings.",
+    "recording_not_found": "Esa grabación no existe en el hub: ni ha llegado su audio ni está cerrada. Revisa el identificador con orbit_meetings.",
     "note_not_requested": "Nadie ha pedido todavía la nota de esa grabación desde el Mac, así que no existe. No significa que la reunión no tenga contenido: su transcripción se lee con orbit_transcript.",
     "note_not_configured": "El hub no tiene configurado el modelo que escribe las notas, así que la de esa grabación no se ha escrito. No es un fallo de la reunión: su transcripción se lee con orbit_transcript.",
     "note_waiting_transcript": "La nota de esa grabación espera a que termine su transcripción; todavía no hay nota que leer. Lo transcrito hasta ahora se lee con orbit_transcript.",

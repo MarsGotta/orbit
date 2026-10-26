@@ -163,7 +163,7 @@ def render_meetings(payload: dict, since_ms: int) -> str:
             "que empezó antes (hora UTC):"
         )
     ]
-    last_start = None
+    last_start = last_recording = None
     for meeting in payload["meetings"]:
         if not isinstance(meeting, dict):
             raise HubClientError("invalid_response")
@@ -182,7 +182,7 @@ def render_meetings(payload: dict, since_ms: int) -> str:
         ):
             raise HubClientError("invalid_response")
         if started is not None:
-            last_start = started
+            last_start, last_recording = started, recording
         if capture == "open":
             received = meeting.get("last_audio_received_ms")
             began = utc_minute(started) if started is not None else "a una hora desconocida"
@@ -204,7 +204,7 @@ def render_meetings(payload: dict, since_ms: int) -> str:
     if payload["more"] and last_start is not None:
         lines.append(
             f"Hay más reuniones en ese periodo; se muestran las {MEETINGS_PER_ANSWER} que "
-            f"empezaron más tarde. Sigue con before_ms={last_start}."
+            f"empezaron más tarde. Sigue con before_ms={last_start}, before_id={last_recording}."
         )
     return "\n".join(lines)
 

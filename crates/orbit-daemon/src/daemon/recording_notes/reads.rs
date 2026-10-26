@@ -93,6 +93,7 @@ impl Runtime {
             .filter(|recording| self.state.durable.discarding() != Some(recording.id.as_str()))
         {
             rows.push(MeetingRow {
+                recorded_on: None,
                 recording_id: recording.id.clone(),
                 title: recording.title.clone(),
                 started_at_ms: recording.started_at_ms,
@@ -127,6 +128,7 @@ impl Runtime {
                 .as_i64()
                 .unwrap_or(started_at_ms);
             rows.push(MeetingRow {
+                recorded_on: None,
                 recording_id: recording_id.to_owned(),
                 title: manifest["title"]
                     .as_str()
@@ -354,6 +356,14 @@ async fn list_page(
         }
         Err(refusal) => return absent(refusal),
     };
+    for mine in &mut local {
+        if let Some(row) = hub_rows
+            .iter()
+            .find(|row| row.recording_id == mine.recording_id)
+        {
+            mine.recorded_on.clone_from(&row.recorded_on);
+        }
+    }
     let next = hub_rows
         .last()
         .filter(|_| more)
@@ -416,6 +426,7 @@ async fn detail(
             // Recorded on this Mac and not readable on the hub (not there
             // yet, or the hub cannot be reached): what the Mac knows.
             Some(row) => MeetingDocument {
+                recorded_on: row.recorded_on.clone(),
                 dictionary: None,
                 recording_id: row.recording_id.clone(),
                 title: row.title.clone(),
@@ -453,7 +464,9 @@ async fn detail(
         // user gave is hidden by this.
         document.title.clone_from(&row.title);
     }
-    document.event = local.event;
+    if local.event.is_some() {
+        document.event = local.event;
+    }
     if let Some(private) = local.private {
         // What the user typed and the hub has not confirmed yet.
         document.private_notes = PrivateNotes {

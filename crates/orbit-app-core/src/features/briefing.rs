@@ -841,6 +841,7 @@ mod tests {
         ));
 
         let previous = crate::NoteListItem {
+            recorded_on: None,
             recording_id: "earlier-meeting".into(),
             title: event.title.clone(),
             started_at_ms: event.start_unix_ms - 86_400_000,
@@ -1129,6 +1130,7 @@ mod tests {
         assert!(topics.remember_read(&request, TopicId::Agenda, answer));
         let linked_notes = (0..100)
             .map(|index| crate::NoteListItem {
+                recorded_on: None,
                 recording_id: format!("linked-{index}"),
                 title: event.title.clone(),
                 started_at_ms: now - 86_400_000 + index * 60_000,

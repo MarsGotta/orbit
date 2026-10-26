@@ -448,11 +448,16 @@ Signatures cover exact method, path and body. Each route has its own
 `Authenticator`; a signature for one route cannot open another. Invalid
 signatures yield 401. A valid HMAC key is the sole requirement.
 
+Meeting reads cover the personal hub's whole history, including recordings
+from revoked devices. The request's device identifies the assistant context,
+not a meeting-visibility boundary. Stored rows and encryption contexts retain
+the original recording device; pairing and device credentials are unchanged.
+
 A recording is `capture:"open"` while the hub has chunks but no final manifest.
 This does not assert that anyone is still speaking; include the last audio
 receipt time.
 
-`meetings/list` takes `{device_id,since_ms,limit,before_ms?}` (`limit` 1–100) and
+`meetings/list` takes `{device_id,since_ms,limit,before_ms?,before_id?}` (`limit` 1–100) and
 returns `{"meetings":[…],"more":bool}`, latest start first, including open
 recordings. Rows contain
 `{recording_id,title,started_at_ms,duration_ms,capture,transcript,note}`.
@@ -463,7 +468,10 @@ may be null (unknown, not zero). `transcript` is `ready|pending|partial|failed`.
 `queued` (`retry_at_ms,attempts,cause` and last-failure numbers),
 `generating` (`attempt`), `failed` (`attempts,cause` and numbers), or `ready`.
 Written notes also include the UI's `title`/`short_summary` and `revision`.
-Continue `more:true` with `before_ms` equal to the last start.
+Rows optionally add `recorded_on:{device_id,name}` when the hub has paired
+more than one Mac, including revoked ones. Continue `more:true` with
+`before_ms` and `before_id` equal to the last start and recording ID. The
+optional ID preserves meetings that started together on different Macs.
 
 `meetings/transcript` takes `{device_id,recording_id,format,after_index?}` and
 returns `{text,after_index,next_after_index,total_chars,incomplete_groups,
@@ -477,8 +485,7 @@ Names/times match the Mac's `GET /v1/recordings/{uuid}/turns`: relative start,
 no empty groups, consecutive same-voice turns merged, local mic named after
 the owner, explicit user renames, otherwise “Otra persona”.
 `speaker_names:"profile"` means the owner is known; otherwise `"tracks"` with
-“Micrófono local”. Pages allow 1 MiB; `after_index` continues without mixing
-devices. Past-end requests yield `after_index_out_of_range`
+“Micrófono local”. Pages allow 1 MiB; `after_index` continues within the chosen recording. Past-end requests yield `after_index_out_of_range`
 `{after_index,total_chars}`.
 
 `meetings/note` takes `{device_id,recording_id}` and returns the same note the
@@ -789,7 +796,8 @@ the provider. Unassigned chunks have `state:"awaiting_group"` and no text.
 
 ### Note templates and assignment
 
-All routes use the device bearer token and expose only that device's data.
+All routes use a paired device bearer token and share the personal hub's
+templates and series assignments. Existing storage keys remain unchanged.
 
 - `GET /v1/note-templates` →
   `{"templates":[{id,name,context,sections:[{name,instructions}],builtin,forked_from,updated_at_ms}]}`.
@@ -833,6 +841,10 @@ notes are read from the hub when generating.
 ### Meetings for the Mac
 
 Device bearer authentication; errors include `code`, numbered `refusal` and `op`.
+All paired devices read and edit every meeting in this personal hub. The
+original recorder remains the storage key, including after its revocation.
+Pairing, upload and finalization remain device-specific. See the
+[read-scope audit](../docs/architecture/personal-meetings.md).
 
 - `PUT /v1/device/profile` `{owner_name}` (1–128 characters, one line) →
   `{owner_name}`. The local mic uses it, otherwise “Micrófono local”.
@@ -858,6 +870,11 @@ Device bearer authentication; errors include `code`, numbered `refusal` and `op`
   Null means neither text nor configured language; never “auto”.
   During language change, `retranscribing:{language,done,total}` counts newly
   returned groups against those requested by that change.
+  List rows and the document optionally add `recorded_on:{device_id,name}`
+  when more than one Mac has paired, revoked devices included. Documents may
+  also add `event:{title,starts_at_ms,ends_at_ms,attendees,calendar_item_id}`
+  from the shared manifest. The app names the recording Mac and explains
+  that pending audio must upload from there.
   `note` is null or `{state,revision,attempts,next_attempt_ms,error,
   template_id,note,edited:{sections},superseded_available,updated_at_ms}`.
 - `GET /v1/recordings/{uuid}/turns?offset=` →
@@ -890,7 +907,7 @@ Device bearer authentication; errors include `code`, numbered `refusal` and `op`
   private text is preserved at revision 0.
 - `GET /v1/series/previous-meeting?calendar_item_id=&before_ms=` →
   `{calendar_item_id,before_ms,previous}`: the latest closed meeting (not a
-  voice call, not an open recording) whose manifest event carries that series
+  voice call, not an open recording) across every device whose manifest event carries that series
   key and that started before `before_ms`, latest start then highest recording
   ID. Hoy shows its open tasks as «Pendiente de la última vez» for the next
   meeting of the series. `previous` is null when the series has no such
@@ -921,7 +938,7 @@ Device bearer authentication; errors include `code`, numbered `refusal` and `op`
   (the link of `PUT /v1/note-template-links`) and these dictionaries (`select`
   with `use_for_series:true`; null or `[]` leaves the series without one) in one
   transaction: either both are saved or neither. `dictionary_ids` in the reply
-  is in the device's dictionary order and `dictionary_id` is its first, or null.
+  is in the person's dictionary order and `dictionary_id` is its first, or null.
   The body carries one of the two fields, never both. The meeting's own dictionary
   choice is cleared so it follows its series; written notes keep their template
   until written again. Refusals name their cause and numbers, and nothing is
@@ -938,25 +955,27 @@ Device bearer authentication; errors include `code`, numbered `refusal` and `op`
   answers 404 without a code; the Mac names it `hub_route_missing`.
 - `DELETE /v1/recordings/{uuid}` → `{recording_id,deleted:true}`: «Borrar
   reunión» and «Terminar sin guardar». See [Deleting a recording](#deleting-a-recording).
-- WebSocket `recording.changed {recording_id}` reaches only the owning device's
-  connections after closure, group completion/failure, note state/edit changes,
+- WebSocket `recording.changed {recording_id}` reaches every connected Mac after closure, group completion/failure, note state/edit changes,
   names, private notes, title or language changes, or its deletion;
   retranscribed groups notify on return. Fixture: `contracts/fixtures/hub/events/recording.changed.json`,
   consumed as `HubEventKind::RecordingChanged`.
 
-Unknown or cross-device recordings yield `404 recording_not_found`.
+Unknown recordings yield `404 recording_not_found`. A legacy UUID shared
+by two recording devices yields `409 recording_id_ambiguous` with
+`matches_at_least`, rather than selecting an arbitrary meeting.
 Template content never enters logs.
 
 ### Deleting a recording
 
-`DELETE /v1/recordings/{uuid}` deletes one recording of the authenticated
-device and everything made from it, in one transaction: its chunks, their
+`DELETE /v1/recordings/{uuid}` authenticates the caller, resolves the original
+recording device, and deletes that recording and everything made from it in
+one transaction: its chunks, their
 transcription jobs and receipts, its transcription groups and their text, the
 manifest, the final pass, its transcript and voices, the note with its tasks
 and edits, the speakers' names and per-turn corrections, the private notes,
 the title, the language and the meeting's own choice of dictionaries. The
-device's dictionaries themselves stay, the series' among them, and so do its
-templates, their links to series, its profile and its conversations. The hub
+person's dictionaries themselves stay, the series' among them, and so do the
+templates, their links to series, device profiles and conversations. The hub
 keeps meeting audio in its database, so no file is removed; the nightly copy
 keeps the database from before the delete for its retention
 ([self-hosting](../docs/self-hosting.md)). The log line `recording_deleted`
@@ -964,16 +983,17 @@ carries counts only.
 
 - Answer `200 {recording_id, deleted: true}`, also for a recording deleted
   before or never received: the Mac may have thrown one away before any chunk
-  reached the hub. Another device's recording of the same id is not touched.
+  reached the hub. Repeated deletes resolve the original device from its tombstone.
 - The hub keeps the identity (`deleted_recordings`: device, recording, time;
   no content), so nothing of it comes back: a later `PUT /v1/chunks/{id}` or
   `POST …/finalize` for it is refused `409 recording_deleted`, and the other
-  meeting routes answer it `404`, as a recording the device does not hold. A
+  meeting routes answer it `404`, as a recording the hub no longer holds. A
   final pass or a note that was being written when it was deleted ends
   without writing anything.
 - Refusals: `400 invalid_parameters` `{field:"recording_id"}`,
-  `401 unauthorized`, `403 revoked`. Nothing else refuses a delete.
-- The owning device's connections get `recording.changed {recording_id}`, and
+  `401 unauthorized`, `403 revoked` (caller), or `409 recording_id_ambiguous`
+  `{matches_at_least}` for a legacy UUID collision.
+- Every connected Mac gets `recording.changed {recording_id}`, and
   read the list again without it.
 - **`ready`** adds `recording_delete: true`. A 0.11 hub sends no such field
   and answers the route `405 invalid_request` (FastAPI's answer to an unknown
@@ -994,17 +1014,21 @@ restarts; see [storage](../docs/architecture/storage.md).
 with their only consumer, the terminal's context query. They answer
 404. The index table a hub kept for them is left in place, unread.
 
-Device revocation closes active sockets and rejects uploads. Administrative
+Device revocation closes active sockets and rejects uploads. It does not
+remove the person's meetings or stop processing audio already on the hub. Administrative
 operations are local CLI commands, not exposed to the device transport.
 
 ## Meeting dictionaries
 
-Both routes use the device bearer token and access only its dictionaries.
+Both routes use a paired device bearer token and share the person's dictionaries.
+Updates retain each dictionary's original device storage/encryption key.
+A legacy duplicate dictionary UUID refuses mutation as `409 dictionary_id_ambiguous`
+with `matches_at_least`, rather than overwriting an arbitrary copy.
 Names, terms, wrong forms and series titles/keys share an AES-GCM body; neither
 errors nor logs include that content.
 
 A meeting, or a series, uses several dictionaries. Their order is always the
-device's dictionary order, the order of `GET /v1/meeting-dictionaries` (oldest
+person's dictionary order, the order of `GET /v1/meeting-dictionaries` (oldest
 first), whatever order a request names them in. When two of a meeting's
 dictionaries correct the same heard form (case-insensitively) to different
 words, the first in that order wins; adding such a word answers with a
@@ -1024,7 +1048,7 @@ it sends one dictionary.
     sets the meeting's own list; `[]` removes it and the meeting inherits its
     series' list. With `use_for_series:true` the series' list becomes exactly
     these (`[]` releases the series) and the meeting's own list is cleared.
-    Reply: `{dictionaries:[…]}`, the chosen ones in device order.
+    Reply: `{dictionaries:[…]}`, the chosen ones in the person's order.
     The single form `{…,dictionary_id:string|null,…}` is a list of one (null:
     `[]`) and replies as before: the dictionary, or `{dictionary_id:null}`.
   - `{action:"correct",recording_id,dictionary_ids:[string],wrong,correct,name?:string|null}`
@@ -1069,7 +1093,7 @@ no dictionary or series data.
 Meeting documents add `dictionary:{dictionary_id:string|null,
 dictionary_ids:[string],source:"requested"|"series"|null,
 series:{calendar_item_id,title}|null}`. `dictionary_ids` is the meeting's list
-in device order (its own, else its series'), `dictionary_id` its first or null.
+in the person's order (its own, else its series'), `dictionary_id` its first or null.
 An empty list means no dictionary; an absent `dictionary` means unknown, for
 example an older hub or a Mac without the hub read, and an absent
 `dictionary_ids` a hub up to 0.10.1.
@@ -1112,7 +1136,8 @@ for resending and report the transport cause.
 
 ## Request transcription again
 
-`POST /v1/recordings/{id}/final-pass` uses the owning device's bearer token.
+`POST /v1/recordings/{id}/final-pass` accepts any paired device's bearer token
+and resolves the recording's original storage device.
 The hub runs the pass; the Mac only asks for it and reads its state.
 It creates a pass or requeues a terminal `completed`/`failed` pass.
 An already `queued`/`running` pass is not duplicated.
@@ -1146,7 +1171,7 @@ The microphone track name is retained.
 
 Before queueing, refusals are `400 recording_still_open`,
 `409 meeting_audio_unreadable` (`groups,total` for invalid audio), and
-`409 diarization_not_configured`. Unknown/cross-device IDs remain
+`409 diarization_not_configured`. Unknown IDs remain
 `404 recording_not_found`. Failures retain prior text and carry code, phase and
 the cause's measured numbers: `final_pass_timeout` `{timeout_ms}` (it took
 longer than the hub allows), `final_audio_invalid` (audio the hub cannot read),

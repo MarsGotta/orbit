@@ -58,7 +58,7 @@ def exists(db, device: str, recording: str) -> bool:
 
 def require(db, device: str, recording: str) -> None:
     if not exists(db, device, recording):
-        raise HubError("recording_not_found", "Grabación no disponible para este dispositivo")
+        raise HubError("recording_not_found", "La grabación no está en el hub")
 
 
 def person_name(value: str, field: str) -> str:

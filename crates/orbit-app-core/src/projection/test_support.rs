@@ -196,6 +196,7 @@ pub(crate) fn recording_summary(
     started_at_ms: i64,
 ) -> crate::NoteListItem {
     crate::NoteListItem {
+        recorded_on: None,
         recording_id: recording_id.into(),
         title: title.into(),
         started_at_ms,

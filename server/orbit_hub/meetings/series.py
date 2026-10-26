@@ -59,9 +59,8 @@ def previous(
     (`action_items: null`), never an empty list.
     """
     by_series = by_title = None
-    for row in db.execute(
-        "SELECT recording, body FROM recording_manifests WHERE device_id=?", (device,)
-    ).fetchall():
+    for row in db.execute("SELECT device_id, recording, body FROM recording_manifests").fetchall():
+        device = row["device_id"]
         manifest = json.loads(store.decrypt(row["body"], f"manifest:{device}:{row['recording']}"))
         started = manifest.get("started_at_ms")
         if (
@@ -75,17 +74,17 @@ def previous(
         event = manifest.get("event")
         if isinstance(event, dict) and event.get("calendar_item_id") == series:
             if by_series is None or key > by_series[0]:
-                by_series = (key, manifest)
+                by_series = (key, manifest, device)
         elif (
             title is not None
             and (by_title is None or key > by_title[0])
             and _titled(store, db, device, row["recording"], manifest, started, title)
         ):
-            by_title = (key, manifest)
+            by_title = (key, manifest, device)
     found = by_series or by_title
     if found is None:
         return None
-    (started, recording), manifest = found
+    (started, recording), manifest, device = found
     return {
         "recording_id": recording,
         "title": views.named(store, db, device, recording, views.title(manifest, started)),

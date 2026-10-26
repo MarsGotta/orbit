@@ -70,9 +70,24 @@ pub struct LocalRecording {
     pub pending_chunks: Option<u64>,
 }
 
+/// The original recording Mac, retained even after it is revoked.
+/// Absent from older hubs and when only one Mac has ever been paired.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+)]
+pub struct RecordedOn {
+    pub device_id: String,
+    pub name: String,
+}
+
 /// One meeting of `GET /v1/recordings`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MeetingRow {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recorded_on: Option<RecordedOn>,
     pub recording_id: String,
     pub title: String,
     pub started_at_ms: i64,
@@ -328,7 +343,8 @@ pub enum SpeakerRenameScope {
     },
 }
 
-/// «Mac»: the calendar event the recording was started from.
+/// The calendar event the recording was started from, read from the hub
+/// or supplied locally while this Mac is still uploading its manifest.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MeetingEvent {
     #[serde(default)]
@@ -343,6 +359,8 @@ pub struct MeetingEvent {
 /// `GET /v1/recordings/{id}`, with what this Mac adds to it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MeetingDocument {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recorded_on: Option<RecordedOn>,
     #[serde(default)]
     pub dictionary: Option<MeetingDictionary>,
     pub recording_id: String,
@@ -363,7 +381,7 @@ pub struct MeetingDocument {
     /// «Mac».
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub local: Option<LocalRecording>,
-    /// «Mac».
+    /// The shared calendar context, or this Mac's pending context.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub event: Option<MeetingEvent>,
     /// «Mac»: the hub could not be read and this document is what the Mac

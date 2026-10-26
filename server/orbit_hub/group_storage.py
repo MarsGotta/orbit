@@ -75,8 +75,7 @@ class GroupRepository:
                 """SELECT DISTINCT c.device_id,c.recording,c.track
                 FROM chunks c JOIN transcription_jobs j ON j.device_id=c.device_id AND j.chunk_id=c.id
                 LEFT JOIN transcription_group_chunks m ON m.device_id=c.device_id AND m.chunk_id=c.id
-                JOIN devices d ON d.id=c.device_id
-                WHERE m.chunk_id IS NULL AND j.state IN ('pending','running') AND d.revoked=0
+                WHERE m.chunk_id IS NULL AND j.state IN ('pending','running')
                 ORDER BY c.device_id,c.recording,c.track LIMIT 8"""
             ).fetchall()
             for track in tracks:
@@ -108,8 +107,8 @@ class GroupRepository:
         self.prepare(now)
         with self.store.transaction() as db:
             row = db.execute(
-                """SELECT g.* FROM transcription_groups g JOIN devices d ON d.id=g.device_id
-                WHERE g.state='pending' AND g.next_attempt<=? AND d.revoked=0
+                """SELECT g.* FROM transcription_groups g
+                WHERE g.state='pending' AND g.next_attempt<=?
                 ORDER BY g.next_attempt,g.created,g.first_sequence LIMIT 1""",
                 (now,),
             ).fetchone()

@@ -154,6 +154,7 @@ pub(crate) fn note(revision: u64) -> Value {
 impl Hub {
     fn row(document: &Value) -> Value {
         json!({
+            "recorded_on": document["recorded_on"],
             "recording_id": document["recording_id"], "title": document["title"],
             "started_at_ms": document["started_at_ms"], "duration_ms": document["duration_ms"],
             "capture": document["capture"], "transcript": document["transcript"]["state"],

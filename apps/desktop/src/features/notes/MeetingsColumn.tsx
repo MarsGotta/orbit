@@ -33,6 +33,13 @@ function Row({ note, open, send }: { note: NoteListItem; open: boolean; send: Se
         <span className={styles.rowTitle}>{note.title}</span>
         <time dateTime={new Date(note.started_at_ms).toISOString()}>{rowTime(note)}</time>
       </span>
+      {note.recorded_on && (
+        <span className={styles.rowLine}>
+          <span className={styles.rowText} title={es.notes.recordedOn(note.recorded_on.name)}>
+            {es.notes.recordedOn(note.recorded_on.name)}
+          </span>
+        </span>
+      )}
       <span className={styles.rowLine} data-tone={line.tone}>
         {line.tone === "working" && <Spinner size={12} />}
         {(line.tone === "failed" || line.tone === "live") && (

@@ -1,4 +1,4 @@
-"""The device's views of its meetings: the list, one recording's document, its turns.
+"""The personal hub's meetings: the list, one recording's document, its turns.
 
 Read inside the caller's snapshot. The list's rows are shared with Deimos's
 meetings bridge, which adds its own numbers to them.
@@ -11,7 +11,7 @@ from ..meeting_final_pass import status as final_status
 from ..notes.view import as_seen
 from ..protocol import MAX_RECORDING_TITLE_CHARACTERS, HubError
 from ..transcription_failure import durable_details
-from . import dictionaries, repository, turns
+from . import dictionaries, ownership, repository, turns
 from .note_state import progress
 from .open_recordings import open_capture, open_recordings, pending_audio, voice_note
 
@@ -64,7 +64,7 @@ def open_title(notes, db, device: str, recording: str, started: int | None) -> s
     return title({}, started)
 
 
-def rows(store, notes, db, device: str) -> list[dict]:
+def _device_rows(store, notes, db, device: str) -> list[dict]:
     """Every meeting of the device, closed and open, newest first by start.
 
     A voice call (`kind: voice_call`) is not a meeting and is left out, and
@@ -111,6 +111,26 @@ def rows(store, notes, db, device: str) -> list[dict]:
                 "last_audio_received_ms": capture["last_audio_received_ms"],
             }
         )
+    entries.sort(
+        key=lambda entry: (
+            -(_UNKNOWN_START if entry["started_at_ms"] is None else entry["started_at_ms"]),
+            entry["recording_id"],
+        )
+    )
+    return entries
+
+
+def rows(store, notes, db, device: str) -> list[dict]:
+    """All of the person's meetings, retaining each recording's storage key.
+
+    `device` is the authenticated caller, not a visibility filter. Revoked
+    recording devices are deliberately included.
+    """
+    entries = []
+    for owner in db.execute("SELECT id FROM devices ORDER BY created,id").fetchall():
+        provenance = ownership.recorded_on(store, db, owner["id"])
+        for entry in _device_rows(store, notes, db, owner["id"]):
+            entries.append({**entry, **provenance, "_device": owner["id"]})
     entries.sort(
         key=lambda entry: (
             -(_UNKNOWN_START if entry["started_at_ms"] is None else entry["started_at_ms"]),
@@ -232,6 +252,7 @@ def listing(
         )
     ]
     for entry in entries[:limit]:
+        device = entry.pop("_device")
         entry["transcript"] = transcript_state(db, device, entry["recording_id"])
         entry["note"] = note_summary(notes, db, device, entry["recording_id"])
     return {"meetings": entries[:limit], "more": len(entries) > limit}
@@ -277,6 +298,28 @@ def speakers(transcript: turns.Transcript) -> list[dict]:
     ]
 
 
+def meeting_event(manifest: dict) -> dict:
+    """The shared calendar context. Older manifests may lack event times;
+    then the actual recording times keep that context readable by the Mac.
+    """
+    event = manifest.get("event")
+    if not isinstance(event, dict) or not event.get("calendar_item_id"):
+        return {}
+    return {
+        "event": {
+            "calendar_item_id": event["calendar_item_id"],
+            "title": event.get("title", ""),
+            "starts_at_ms": manifest["started_at_ms"]
+            if event.get("starts_at_ms") is None
+            else event["starts_at_ms"],
+            "ends_at_ms": manifest["finalized_at_ms"]
+            if event.get("ends_at_ms") is None
+            else event["ends_at_ms"],
+            "attendees": event.get("attendees", []),
+        }
+    }
+
+
 def heading(store, notes, db, device: str, recording: str) -> dict:
     """A recording's title, start, length and whether it is still open."""
     row = db.execute(
@@ -287,6 +330,7 @@ def heading(store, notes, db, device: str, recording: str) -> dict:
         manifest = _manifest(store, device, recording, row["body"])
         started = manifest["started_at_ms"]
         return {
+            **meeting_event(manifest),
             "title": named(store, db, device, recording, title(manifest, started)),
             "started_at_ms": started,
             "duration_ms": max(0, manifest["finalized_at_ms"] - started),
@@ -373,6 +417,7 @@ def document(store, notes, db, device: str, recording: str, *, default_language)
         progress["retranscribing"] = repeating
     return {
         "recording_id": recording,
+        **ownership.recorded_on(store, db, device),
         "dictionary": dictionaries.resolve(store, db, device, recording)[1],
         **head,
         "language": transcript.language,

@@ -36,13 +36,13 @@ NOTE_DESCRIPTION = (
 )
 
 
-def _recording(value) -> str:
+def _recording(value, field: str = "recording_id") -> str:
     try:
         return canonical_uuid(value)
     except ValueError:
         raise HubClientError(
             "invalid_parameters",
-            detail={"refusal": {"code": "invalid_parameters", "parameter": "recording_id"}},
+            detail={"refusal": {"code": "invalid_parameters", "parameter": field}},
         ) from None
 
 
@@ -60,13 +60,13 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
 
     @server.tool(
         description=(
-            "Lista las reuniones grabadas en el Mac de quien usa Orbit, de la que empezó más tarde a la "
+            "Lista las reuniones de quien usa Orbit en todos sus Mac, de la que empezó más tarde a la "
             "que empezó antes, incluida la que esté en curso (marcada EN CURSO). Cada una "
             "dice el estado real de su nota —lista con su título y resumen corto, "
             "escribiéndose, esperando la transcripción, en cola, fallida con su causa, sin "
             "pedir o sin modelo configurado— y el de su transcripción. Devuelve "
             f"{meetings.MEETINGS_PER_ANSWER} como máximo; si hay más lo dice y da el "
-            "before_ms con el que seguir. since_days (1–365, 7 por defecto) acota el periodo."
+            "before_ms y before_id con los que seguir. since_days (1–365, 7 por defecto) acota el periodo."
         ),
         structured_output=False,
     )
@@ -74,12 +74,17 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
         device: str | None = None,
         since_days: int | None = None,
         before_ms: int | None = None,
+        before_id: str | None = None,
     ) -> CallToolResult:
         async def operation(select):
             selection = await select()
             since_ms = _since_ms(runner.clock, since_days, before_ms)
             listing = await hub_client.meetings(
-                selection.device_id, since_ms, meetings.MEETINGS_PER_ANSWER, before_ms
+                selection.device_id,
+                since_ms,
+                meetings.MEETINGS_PER_ANSWER,
+                before_ms,
+                None if before_id is None else _recording(before_id, "before_id"),
             )
             return ok(text(meetings.render_meetings(listing, since_ms)))
 

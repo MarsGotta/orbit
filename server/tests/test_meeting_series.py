@@ -148,10 +148,10 @@ async def test_a_series_without_an_earlier_meeting_says_so(bench):
             "before_ms": NEXT_MS,
             "previous": None,
         }
-        # Another device's meetings of the same series are not this one's.
+        # Every paired device reads the same series history.
         stranger = device(bench.store, "otro")
         other = previous(http, {"Authorization": "Bearer " + stranger["token"]}, OTHER_SERIES)
-        assert other.json()["previous"] is None
+        assert other.json()["previous"]["note"]["action_items"]
 
 
 async def test_a_previous_note_not_written_has_no_tasks_yet_rather_than_none(bench):

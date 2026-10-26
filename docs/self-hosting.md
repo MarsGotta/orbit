@@ -816,11 +816,15 @@ A code is one-use and expires after 300 seconds by default; `pair-code --ttl`
 accepts 30–600 seconds. Enter `https://hub.example:8788` (or your proxy's HTTPS
 origin) and the code on the Mac. Network access alone does not pair a device.
 The token is revocable and device-scoped; the hub stores its hash, and the Mac
-stores the token in Keychain.
+stores the token in Keychain. All paired Macs share this person's meeting
+history, notes, transcripts, dictionaries and series assignments. Each meeting
+keeps the recording device's storage key; no migration or sharing switch is needed.
 
 Revocation rejects new work/uploads and closes the device's sockets. It requests
 interruption of the device's Hermes sessions; it cannot undo effects already
-performed. Quitting the Mac app does not itself revoke the token.
+performed. Meetings recorded by that Mac remain visible and editable from
+other paired devices, and the hub can still process their already uploaded
+audio. Quitting the Mac app does not itself revoke the token.
 
 Confirm with consented fixtures: pairing, a chat reply, a short recorded meeting,
 transcription and note readiness, then the local privacy stop and explicit local

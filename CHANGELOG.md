@@ -21,6 +21,13 @@ is in Spanish; the labels quoted below are the ones it shows.
   channel and hands it to the daemon loop before later fallback events.
 - The installer log parser test isolates its shell, tools, environment and
   scratch directory; failed fixture installs report status, output and log.
+- Every paired Mac sees the personal hub's meetings, notes, transcripts and
+  previous-meeting tasks, including meetings recorded by revoked devices.
+  Renaming, deleting, retranscribing and correcting them works from any Mac;
+  recordings keep their original device storage keys. Reuniones names the
+  recording Mac when the hub has several, and explains where pending audio
+  must be uploaded. Assistant reads share the same history and preserve
+  meetings that start together across paginated results.
 
 ## [0.12.4] - 2026-10-26
 

@@ -78,6 +78,7 @@ function dataLine(note: OpenNoteSnapshot, row?: NoteListItem): string {
     .filter((guest) => !guest.is_self)
     .map((guest) => (guest.name || guest.email).split(/\s+/)[0] ?? guest.email);
   if (others.length > 0) parts.push(es.noteScreen.withPeople(others));
+  if (note.recorded_on) parts.push(es.notes.recordedOn(note.recorded_on.name));
   return parts.join(" · ");
 }
 
@@ -107,6 +108,9 @@ export function NoteHeader({
       <NoteTitle key={note.recording_id} note={note} send={send} />
       {note.summary && <p className={styles.shortSummary}>{note.summary.short_summary}</p>}
       <p className={styles.dataLine}>{dataLine(note, row)}</p>
+      {note.capture === "open" && note.recorded_on && (
+        <p className={styles.dataLine}>{es.notes.pendingAudioOn(note.recorded_on.name)}</p>
+      )}
       <div className={styles.headActions}>
         <Button onClick={onAsk} size={36} variant="outline">
           <span className={styles.askIcon}>

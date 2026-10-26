@@ -1242,3 +1242,42 @@ async fn the_series_template_and_dictionary_go_together_and_a_refusal_keeps_its_
     );
     Ok(())
 }
+
+#[tokio::test]
+async fn another_macs_meeting_keeps_its_device_and_series_from_the_hub() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _) = fixture(directory.path())?;
+    let hub = paired(&mut runtime).await?;
+    let provenance = json!({"device_id": "another-mac", "name": "Mac de Alba"});
+    let event = json!({"title": "Diseño semanal", "starts_at_ms": START,
+        "ends_at_ms": START + 60_000, "calendar_item_id": "weekly-design", "attendees": []});
+    {
+        let mut value = fake_hub::document(RECORDING, "Diseño semanal", START);
+        value["recorded_on"] = provenance.clone();
+        value["event"] = event.clone();
+        lock(&hub).documents.insert(RECORDING.into(), value);
+    }
+    let read = serde_json::to_value(document(&runtime).await?)?;
+    assert_eq!(read["recorded_on"], provenance);
+    assert_eq!(read["event"], event);
+    assert!(read["local"].is_null());
+    Ok(())
+}
+
+#[tokio::test]
+async fn local_upload_progress_preserves_the_hubs_recording_device_label() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _) = fixture(directory.path())?;
+    let hub = paired(&mut runtime).await?;
+    uploading(&mut runtime, RECORDING, START)?;
+    let provenance = json!({"device_id": DEVICE, "name": "Mac de Alba"});
+    {
+        let mut value = fake_hub::document(RECORDING, "Diseño semanal", START);
+        value["recorded_on"] = provenance.clone();
+        lock(&hub).documents.insert(RECORDING.into(), value);
+    }
+    let list = read(&runtime, ReadRequest::NotesPage { cursor: None }).await?;
+    assert_eq!(list.items[0]["recorded_on"], provenance);
+    assert_eq!(list.items[0]["local"]["phase"], "uploading");
+    Ok(())
+}

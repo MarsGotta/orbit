@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 from ..identifiers import canonical_uuid
 from ..protocol import HubError
-from . import repository
+from . import ownership, repository
 
 # Settings loads the whole list. 32 named vocabularies cover separate projects;
 # the independent byte ceiling below keeps that list readable by the Mac.
@@ -210,12 +210,10 @@ def named_ids(order, *, required: bool, code: str = "invalid_dictionary_order") 
 
 
 def listing(store, db, device: str) -> list[dict]:
-    """Every dictionary of the device, oldest first: the order that decides conflicts."""
+    """Every dictionary of the person, oldest first: the order that decides conflicts."""
     return [
-        json.loads(store.decrypt(row["body"], f"dictionary:{device}:{row['id']}"))
-        for row in db.execute(
-            "SELECT id,body FROM meeting_dictionaries WHERE device_id=? ORDER BY rowid", (device,)
-        )
+        json.loads(store.decrypt(row["body"], f"dictionary:{row['device_id']}:{row['id']}"))
+        for row in db.execute("SELECT device_id,id,body FROM meeting_dictionaries ORDER BY rowid")
     ]
 
 
@@ -444,6 +442,8 @@ def conflicts(chosen: list[dict], targets: list[dict], wrong: str, right: str) -
 
 def execute(store, device: str, order: Save | Select | Correct | Remove | RemoveCorrection) -> dict:
     with store.transaction() as db:
+        if isinstance(order, (Select, Correct)):
+            device = ownership.device_for(db, order.recording_id, device)
         dictionaries = listing(store, db, device)
         if isinstance(order, Save):
             answer = save(dictionaries, order)
@@ -579,21 +579,29 @@ def save_all(store, db, device: str, dictionaries: list[dict]) -> None:
                     "dictionary_id": dictionary["id"],
                 },
             )
-    sealed = [
-        (
-            d["id"],
-            store.encrypt(
-                json.dumps(d, ensure_ascii=False).encode(), f"dictionary:{device}:{d['id']}"
-            ),
+    sealed = []
+    for dictionary in dictionaries:
+        identity = dictionary["id"]
+        owners = db.execute(
+            "SELECT device_id FROM meeting_dictionaries WHERE id=? LIMIT 2", (identity,)
+        ).fetchall()
+        if len(owners) > 1:
+            raise HubError(
+                "dictionary_id_ambiguous",
+                "Hay dos diccionarios con el mismo identificador",
+                http_status=409,
+                numbers={"matches_at_least": len(owners)},
+            )
+        owner = owners[0]["device_id"] if owners else device
+        body = store.encrypt(
+            json.dumps(dictionary, ensure_ascii=False).encode(), f"dictionary:{owner}:{identity}"
         )
-        for d in dictionaries
-    ]
-    store.ensure_capacity(sum(len(body) for _, body in sealed))
-    for identity, body in sealed:
-        db.execute(
-            "INSERT INTO meeting_dictionaries VALUES (?,?,?) ON CONFLICT(device_id,id) DO UPDATE SET body=excluded.body",
-            (device, identity, body),
-        )
+        sealed.append((owner, identity, body))
+    store.ensure_capacity(sum(len(body) for _, _, body in sealed))
+    db.executemany(
+        "INSERT INTO meeting_dictionaries VALUES (?,?,?) ON CONFLICT(device_id,id) DO UPDATE SET body=excluded.body",
+        sealed,
+    )
 
 
 def mount(app, store, identity, bounded_body, run):

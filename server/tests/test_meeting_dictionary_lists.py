@@ -160,7 +160,8 @@ def test_a_single_assignment_from_the_previous_schema_becomes_a_list_of_one(envi
                         assert chosen["dictionary_id"] == dictionary
                         assert chosen["source"] == "requested"
                     else:
-                        assert chosen["dictionary_ids"] == series
+                        # The last assignment applies to this shared series on every Mac.
+                        assert chosen["dictionary_ids"] == [second]
                         assert chosen["source"] == "series"
                 # A list of one can now grow.
                 recording, (owner, dictionary, *_) = next(iter(assigned.items()))

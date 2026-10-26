@@ -109,7 +109,9 @@ async def test_a_meeting_question_keeps_the_newest_whole_lines_and_counts_the_re
 
 
 @pytest.mark.parametrize("whose", ["another_device", "nobody"])
-async def test_a_meeting_question_about_a_recording_that_is_not_this_devices(environment, whose):
+async def test_a_meeting_question_shares_another_macs_recording_but_refuses_unknown(
+    environment, whose
+):
     _, store, adapter = environment
     owner = device(store, "Sample Mac")["device_id"]
     other = device(store, "Otra Mac")["device_id"]
@@ -121,8 +123,8 @@ async def test_a_meeting_question_about_a_recording_that_is_not_this_devices(env
     NoteRepository(store).initialize()
     runtime = runtime_at(store, adapter, owner, STARTED_MS + 60_000)
 
-    with pytest.raises(HubError) as refused:
-        await runtime.handle(
+    async def ask():
+        return await runtime.handle(
             "chat.send",
             SendParams.model_validate(
                 {
@@ -133,8 +135,14 @@ async def test_a_meeting_question_about_a_recording_that_is_not_this_devices(env
             str(uuid4()),
         )
 
-    assert refused.value.code == "meeting_not_found"
-    assert not adapter.connections, "a refused question must not reach Hermes"
+    if whose == "another_device":
+        await ask()
+        assert "Ajeno" in adapter.connections[0].calls[-1][1]["text"]
+    else:
+        with pytest.raises(HubError) as refused:
+            await ask()
+        assert refused.value.code == "meeting_not_found"
+        assert not adapter.connections, "a refused question must not reach the assistant"
 
 
 async def test_new_rows_carry_their_time_kind_and_the_macs_id(environment):

@@ -13,6 +13,9 @@ export function listOf(items: string[]): string {
 export const notes = {
   notes: {
     section: "Reuniones",
+    recordedOn: (name: string) => `Grabada en ${name}`,
+    pendingAudioOn: (name: string) =>
+      `El audio pendiente debe subirse desde ${name}. Mantén Orbit abierto allí hasta que termine.`,
     listLabel: "Lista de reuniones",
     refresh: "Actualizar",
     loadMore: "Cargar más reuniones",

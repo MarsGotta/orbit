@@ -183,7 +183,7 @@ async def test_a_deleted_meeting_leaves_nothing_on_the_hub_and_the_rest_stays(hu
     assert again.status_code == 200 and again.json() == deleted.json()
     assert traces(store, paired["device_id"], recording) == {}
     assert document.status_code == 404 and document.json()["code"] == "recording_not_found"
-    assert [row["recording_id"] for row in listed["meetings"]] == [kept]
+    assert {row["recording_id"] for row in listed["meetings"]} == {kept, theirs}
     # The other meeting, the other Mac's, and the dictionary with its
     # correction are the hub's still.
     assert traces(store, paired["device_id"], kept) == kept_before
@@ -243,17 +243,17 @@ async def test_a_recording_the_hub_never_had_is_deleted_too_and_stays_away(hub):
     assert late.status_code == 409 and late.json()["code"] == "recording_deleted"
 
 
-async def test_another_device_deletes_nothing_of_this_one(hub):
+async def test_another_device_deletes_the_persons_meeting(hub):
     app, store = hub
     paired, other = device(store), device(store, name="otro Mac")
     recording = meeting(store, paired["device_id"], texts=TEXTS)
-    before = traces(store, paired["device_id"], recording)
+    assert traces(store, paired["device_id"], recording)
     async with running_client(app) as http:
         foreign = await http.delete(f"/v1/recordings/{recording}", headers=bearer(other))
         mine = await http.get(f"/v1/recordings/{recording}", headers=bearer(paired))
     assert foreign.status_code == 200
-    assert mine.status_code == 200
-    assert traces(store, paired["device_id"], recording) == before
+    assert mine.status_code == 404
+    assert traces(store, paired["device_id"], recording) == {}
 
 
 async def test_a_bad_identifier_is_refused_with_its_field(hub):

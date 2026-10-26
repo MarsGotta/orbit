@@ -42,16 +42,16 @@ def test_jobs_recover_and_transcript_is_immutable(environment):
             assert b"SYNTHETIC-TRANSCRIPT-CANARY" not in path.read_bytes()
     other = device(store)
     with client(environment) as http:
-        forbidden = http.get(
+        shared = http.get(
             f"/v1/recordings/{recording}/turns",
             headers={"Authorization": "Bearer " + other["token"]},
         )
-    assert forbidden.status_code == 404
-    assert forbidden.json()["code"] == "recording_not_found"
+    assert shared.status_code == 200
+    assert shared.json()["turns"][0]["text"] == "SYNTHETIC-TRANSCRIPT-CANARY"
     assert job["audio"] == wav_fixture()
 
 
-def test_failed_job_backoff_and_revocation(environment):
+def test_failed_job_backoff_and_revocation_preserves_the_persons_work(environment):
     _, store, _ = environment
     owner = device(store)["device_id"]
     insert_job(store, owner)
@@ -61,7 +61,9 @@ def test_failed_job_backoff_and_revocation(environment):
     assert store.groups.claim(1011)["attempts"] == 1
     store.recover_interrupted()
     store.devices.revoke(owner)
-    assert store.groups.claim(2000) is None
+    retried = store.groups.claim(2000)
+    assert retried is not None
+    assert retried["device_id"] == owner and retried["attempts"] == 2
 
 
 async def test_interactive_has_priority_and_worker_stays_serial(environment):

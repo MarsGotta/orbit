@@ -4,10 +4,11 @@
 transcript, what the final pass made of it, its note with its tasks, its
 speakers, its private notes, its title, its language and its choice of
 dictionaries leave the hub in one transaction. The dictionaries themselves
-stay: they are the device's, shared by the meetings and series that use them.
+stay: they are the person's, shared by the meetings and series that use them.
 
-Only the named recording of the asking device, by its identity, never by a
-pattern. The hub keeps every recording in its database, the audio included,
+Only the named recording, resolved by the authenticated route to its original
+device, never by a pattern. The hub keeps every recording in its database,
+the audio included,
 so there are no files to remove. A row in `deleted_recordings` (identities
 and a time, no content) refuses a chunk or a closure that arrives late, so
 the recording cannot come back half, and answers a second delete as done.
@@ -74,9 +75,6 @@ def delete(store, device: str, recording: str, now: float) -> dict[str, int]:
     """
     removed: dict[str, int] = {}
     with store.transaction() as db:
-        active = db.execute("SELECT revoked FROM devices WHERE id=?", (device,)).fetchone()
-        if active is None or active["revoked"]:
-            raise HubError("revoked", "Dispositivo revocado")
         for table in _BY_CHUNK:
             removed[table] = db.execute(
                 f"DELETE FROM {table} WHERE device_id=? AND chunk_id IN ({_CHUNKS})",

@@ -739,16 +739,14 @@ async def test_http_close_runs_the_durable_pass_before_the_note(environment, tmp
         assert sum(b'name="timestamp_granularities[]"' in r.content for r in requests) == 2
 
 
-def test_explicit_final_pass_is_device_scoped_and_requires_closed_audio(environment):
+def test_explicit_final_pass_from_any_paired_mac_requires_closed_audio(environment):
     _, store, _ = environment
     owner, other = device(store), device(store)
     identity = meeting(store, owner["device_id"], texts=TEXTS, finalize=False)
     with client(environment) as http:
         path = f"/v1/recordings/{identity}/final-pass"
-        assert (
-            http.post(path, headers={"Authorization": "Bearer " + other["token"]}).status_code
-            == 404
-        )
+        shared = http.post(path, headers={"Authorization": "Bearer " + other["token"]})
+        assert shared.status_code == 400 and shared.json()["code"] == "recording_still_open"
         response = http.post(path, headers={"Authorization": "Bearer " + owner["token"]})
         assert response.status_code == 400 and response.json()["code"] == "recording_still_open"
     assert store._db.execute("SELECT count(*) FROM recording_final_passes").fetchone()[0] == 0

@@ -354,3 +354,15 @@ fn the_muted_stretches_reach_the_open_transcript() {
         serde_json::to_value(project_open_note(hub_document(), Ok(vec![]), None)).unwrap();
     assert!(projected["transcript"].get("muted_microphone").is_none());
 }
+
+#[test]
+fn recording_device_survives_hub_document_and_app_projection() {
+    let mut wire = serde_json::to_value(hub_document()).unwrap();
+    wire["recorded_on"] = serde_json::json!({"device_id": "recording-mac", "name": "Mac de Alba"});
+    let document = serde_json::from_value(wire.clone()).unwrap();
+    let note = crate::projection::note::project_open_note(document, Ok(Vec::new()), None);
+    assert_eq!(
+        serde_json::to_value(note).unwrap()["recorded_on"],
+        wire["recorded_on"]
+    );
+}

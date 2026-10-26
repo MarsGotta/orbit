@@ -1,4 +1,4 @@
-"""The device's routes for its meetings, authenticated as every device route.
+"""The personal hub's meeting routes, authenticated with a paired device token.
 
 Every refusal is a `HubError` with its code and numbers; the app's handler
 renders it in the step-2 format, with the request's `op`.
@@ -17,7 +17,7 @@ from ..log import current_op, get_logger, in_store
 from ..notes.http import parse
 from ..notes.models import MAX_PRIVATE_NOTES_CHARS, MAX_SPEAKERS, TemplateId
 from ..notes.series_key import SeriesKeyError, valid_series_key
-from . import deletion, dictionaries, repository, series, turns, views
+from . import deletion, dictionaries, ownership, repository, series, turns, views
 
 logger = get_logger(__name__)
 
@@ -167,6 +167,10 @@ class _Routes:
 
         return await self.run(reading)
 
+    async def recording_device(self, request, recording):
+        caller = self.identity(request)
+        return await self.read(lambda db: ownership.device_for(db, recording, caller))
+
     def transcript(self, db, device, recording):
         repository.require(db, device, recording)
         return turns.read(self.store, db, device, recording, default_language=self.default_language)
@@ -200,6 +204,7 @@ def mount(
     dictionaries.mount(app, store, identity, bounded_body, routes.run)
     _mount_listing(app, routes)
     _mount_recording(app, routes)
+    _mount_final_pass(app, routes)
     _mount_user_edits(app, routes)
 
 
@@ -266,7 +271,8 @@ def _mount_listing(app, routes: _Routes):
     @app.put("/v1/recordings/{recording_id}/series")
     async def put_series(recording_id: str, request: Request):
         """The template and the dictionaries of the meeting's series, saved together."""
-        device, recording = routes.identity(request), recording_of(recording_id)
+        recording = recording_of(recording_id)
+        device = await routes.recording_device(request, recording)
         payload = await routes.body_of(request, SeriesRequest, MAX_SMALL_BODY_BYTES)
         chosen = dictionaries.named_ids(payload, required=False, code="invalid_parameters")
         saved = await routes.run(
@@ -288,7 +294,8 @@ def _mount_recording(app, routes: _Routes):
 
     @app.get("/v1/recordings/{recording_id}")
     async def read_recording(recording_id: str, request: Request):
-        device, recording = routes.identity(request), recording_of(recording_id)
+        recording = recording_of(recording_id)
+        device = await routes.recording_device(request, recording)
         return JSONResponse(
             await routes.read(
                 lambda db: views.document(
@@ -306,7 +313,8 @@ def _mount_recording(app, routes: _Routes):
     async def delete_recording(recording_id: str, request: Request):
         """«Borrar reunión» and «Terminar sin guardar»: the recording and all
         that was made from it; done again, or never held, is done too."""
-        device, recording = routes.identity(request), recording_of(recording_id)
+        recording = recording_of(recording_id)
+        device = await routes.recording_device(request, recording)
         removed = await routes.run(
             lambda: deletion.delete(routes.store, device, recording, routes.now())
         )
@@ -330,7 +338,8 @@ def _mount_recording(app, routes: _Routes):
 
     @app.get("/v1/recordings/{recording_id}/turns")
     async def read_turns(recording_id: str, request: Request, offset: str | None = None):
-        device, recording = routes.identity(request), recording_of(recording_id)
+        recording = recording_of(recording_id)
+        device = await routes.recording_device(request, recording)
         start = integer(offset, "offset", default=0, minimum=0, maximum=2**31 - 1)
         return JSONResponse(
             await routes.read(
@@ -340,7 +349,8 @@ def _mount_recording(app, routes: _Routes):
 
     @app.put("/v1/recordings/{recording_id}/speakers")
     async def put_speakers(recording_id: str, request: Request):
-        device, recording = routes.identity(request), recording_of(recording_id)
+        recording = recording_of(recording_id)
+        device = await routes.recording_device(request, recording)
         payload = await routes.body_of(request, SpeakersRequest, MAX_SMALL_BODY_BYTES)
         before = await routes.read(lambda db: routes.transcript(db, device, recording))
         keys = {speaker.key for speaker in before.speakers}
@@ -359,11 +369,14 @@ def _mount_recording(app, routes: _Routes):
         routes.recording_changed(device, recording)
         return JSONResponse({"speakers": views.speakers(after)})
 
+
+def _mount_final_pass(app, routes: _Routes):
     @app.post("/v1/recordings/{recording_id}/final-pass")
     async def request_final_pass(recording_id: str, request: Request):
         from ..meeting_final_pass import FinalPassRepository
 
-        device, recording = routes.identity(request), recording_of(recording_id)
+        recording = recording_of(recording_id)
+        device = await routes.recording_device(request, recording)
         await routes.run(
             lambda: FinalPassRepository(routes.store).request(
                 device, recording, configured=routes.diarization_configured
@@ -380,7 +393,8 @@ def _mount_user_edits(app, routes: _Routes):
 
     @app.put("/v1/recordings/{recording_id}/private-notes")
     async def put_private_notes(recording_id: str, request: Request):
-        device, recording = routes.identity(request), recording_of(recording_id)
+        recording = recording_of(recording_id)
+        device = await routes.recording_device(request, recording)
         payload = await routes.body_of(request, PrivateNotesRequest, MAX_PRIVATE_NOTES_BODY_BYTES)
         revision = await routes.run(
             lambda: repository.save_private_notes(
@@ -393,7 +407,8 @@ def _mount_user_edits(app, routes: _Routes):
     @app.put("/v1/recordings/{recording_id}/title")
     async def put_title(recording_id: str, request: Request):
         """The user's name for the meeting; an empty one gives it back its own."""
-        device, recording = routes.identity(request), recording_of(recording_id)
+        recording = recording_of(recording_id)
+        device = await routes.recording_device(request, recording)
         payload = await routes.body_of(request, TitleRequest, MAX_SMALL_BODY_BYTES)
         await routes.run(
             lambda: repository.set_title(
@@ -414,7 +429,8 @@ def _mount_user_edits(app, routes: _Routes):
         is complete, with its template; the user's edits are set aside as when the
         template changes.
         """
-        device, recording = routes.identity(request), recording_of(recording_id)
+        recording = recording_of(recording_id)
+        device = await routes.recording_device(request, recording)
         payload = await routes.body_of(request, LanguageRequest, MAX_SMALL_BODY_BYTES)
         repeated = await routes.run(
             lambda: repository.change_language(

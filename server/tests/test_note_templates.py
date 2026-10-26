@@ -108,7 +108,7 @@ async def test_bounds_are_the_builtin_ones_and_refusals_carry_the_numbers(enviro
         assert bad_id.json()["code"] == "invalid_note_template"
 
 
-async def test_a_device_never_sees_another_devices_templates(environment):
+async def test_every_device_sees_the_persons_templates(environment):
     _, store, _ = environment
     async with hub(environment) as (client, headers, _owner, _app, _model):
         mine = await client.put("/v1/note-templates/mia", json=draft(), headers=headers)
@@ -116,7 +116,7 @@ async def test_a_device_never_sees_another_devices_templates(environment):
         other = device(store, name="otro")
         theirs = {"Authorization": "Bearer " + other["token"]}
         listing = (await client.get("/v1/note-templates", headers=theirs)).json()["templates"]
-        assert "mia" not in {t["id"] for t in listing}
+        assert "mia" in {t["id"] for t in listing}
 
 
 async def test_the_number_of_custom_templates_is_bounded_with_its_numbers(environment):

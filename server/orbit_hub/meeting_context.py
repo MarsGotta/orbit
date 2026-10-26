@@ -10,7 +10,7 @@ went with it.
 
 from dataclasses import dataclass
 
-from .meetings import repository, turns
+from .meetings import ownership, repository, turns
 from .meetings.open_recordings import pending_audio
 from .meetings.turns import Line, render
 from .protocol import HubError
@@ -104,12 +104,13 @@ def read_meeting(store, device: str, recording: str) -> tuple[list[Line], int | 
     """The recording's named lines (`turns.read`), its wall-clock start and the
     chunks still untranscribed, in one snapshot.
 
-    A recording this device does not hold is `meeting_not_found`: another
-    device's recordings are never read, nor said to exist.
+    The caller's device authenticates the conversation. Meeting content is
+    the person's, read with the original recording device's storage key.
     """
     with store.read_snapshot() as db:
+        device = ownership.device_for(db, recording, device)
         if not repository.exists(db, device, recording):
-            raise HubError("meeting_not_found", "La reunión no es de este dispositivo")
+            raise HubError("meeting_not_found", "La reunión todavía no ha llegado al hub")
         transcript = turns.read(store, db, device, recording)
         pending = pending_audio(store, db, device, recording)["pending_chunks"]
     return transcript.lines(), transcript.started_at_ms, pending

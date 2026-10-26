@@ -2,8 +2,13 @@
 import type { NoteDayGroup } from "./NoteDayGroup";
 import type { NoteHeadlineSnapshot } from "./NoteHeadlineSnapshot";
 import type { NoteListState } from "./NoteListState";
+import type { RecordedOn } from "./RecordedOn";
 
-export type NoteListItem = { recording_id: string, 
+export type NoteListItem = { 
+/**
+ * The recording Mac, when this personal hub has several devices.
+ */
+recorded_on?: RecordedOn, recording_id: string, 
 /**
  * The meeting's title (decided 2026-10-17): the same in the list and
  * in the open note.

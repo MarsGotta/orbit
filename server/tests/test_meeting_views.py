@@ -556,7 +556,7 @@ async def test_c6_private_notes_refuse_an_old_revision_and_the_note_reads_them(h
 # The routes' own refusals and bounds.
 
 
-async def test_the_routes_refuse_other_devices_unknown_recordings_and_bad_input(hub):
+async def test_the_routes_share_meetings_and_refuse_unknown_recordings_and_bad_input(hub):
     app, store, _model, _clock = hub
     paired, other = device(store), device(store, name="otro")
     recording = meeting(store, paired["device_id"], texts=TEXTS)
@@ -573,7 +573,7 @@ async def test_the_routes_refuse_other_devices_unknown_recordings_and_bad_input(
         offset = await http.get(
             f"/v1/recordings/{recording}/turns", params={"offset": -1}, headers=bearer(paired)
         )
-    assert foreign.status_code == 404 and foreign.json()["code"] == "recording_not_found"
+    assert foreign.status_code == 200 and foreign.json()["recording_id"] == recording
     assert missing.status_code == 404 and missing.json()["op"]
     assert empty.status_code == 400 and empty.json()["refusal"]["field"] == "owner_name"
     assert long.status_code == 400 and long.json()["refusal"]["max"] == 128
@@ -748,7 +748,7 @@ def upload_headers(paired, recording, track, sequence, body, marker_start):
     }
 
 
-async def test_c5_each_change_reaches_the_owning_device_and_no_other(environment, tmp_path):
+async def test_c5_each_change_reaches_every_paired_device(environment, tmp_path):
     settings, store, adapter = environment
     stt = GatedStt()
     model = FakeModel()
@@ -783,9 +783,10 @@ async def test_c5_each_change_reaches_the_owning_device_and_no_other(environment
                     assert json.loads(await socket.recv())["event"] == "ready"
 
                 async def changed(what):
-                    frame = json.loads(await wait_for(mine.recv(), what))
-                    assert frame["event"] == "recording.changed", frame
-                    assert frame["data"] == {"recording_id": recording}
+                    for socket in (mine, theirs):
+                        frame = json.loads(await wait_for(socket.recv(), what))
+                        assert frame["event"] == "recording.changed", frame
+                        assert frame["data"] == {"recording_id": recording}
                     return (
                         await http.get(f"/v1/recordings/{recording}", headers=bearer(paired))
                     ).json()
@@ -854,7 +855,7 @@ async def test_c5_each_change_reaches_the_owning_device_and_no_other(environment
                 document = await changed("el aviso de las notas privadas")
                 assert document["private_notes"]["revision"] == 1
 
-                # The other device heard nothing: its first frame is its own pong.
+                # Every change reached both devices; neither has leftover frames.
                 await theirs.send(json.dumps({"v": 1, "id": str(uuid4()), "method": "ping"}))
                 frame = json.loads(await wait_for(theirs.recv(), "el pong del otro dispositivo"))
                 assert frame["event"] == "pong", frame

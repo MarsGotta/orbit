@@ -2,7 +2,9 @@
 
 The Mac keeps no copy of hub conversations, meetings or notes. It stores what it
 produces and still needs to deliver, plus local voice-note audio. See the
-[overview](README.md) for the hub's ownership.
+[overview](README.md) for the hub's ownership. Meeting history is shared across
+all paired Macs; [personal meetings](personal-meetings.md) records the read-scope
+decisions and how the original recording device remains the storage key.
 
 `orbit-store` is an effects adapter. It receives a 32-byte key from the daemon;
 it does not open Keychain, read clocks, decide permissions or use the network.

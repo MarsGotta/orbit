@@ -47,6 +47,7 @@ pub(crate) fn project_row(row: MeetingRow, now_ms: i64, zone: &LocalZone) -> Not
         NoteState::Unknown => None,
     });
     NoteListItem {
+        recorded_on: row.recorded_on,
         group: note_day_group(row.started_at_ms, now_ms, zone),
         recording_id: row.recording_id,
         title: row.title,

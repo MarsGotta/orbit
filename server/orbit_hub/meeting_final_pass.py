@@ -151,8 +151,7 @@ class FinalPassRepository:
         with self.store.transaction() as db:
             row = db.execute(
                 "SELECT f.device_id,f.recording FROM recording_final_passes f "
-                "JOIN devices d ON d.id=f.device_id WHERE f.state='queued' "
-                "AND d.revoked=0 ORDER BY f.rowid LIMIT 1"
+                "WHERE f.state='queued' ORDER BY f.rowid LIMIT 1"
             ).fetchone()
             if row is None:
                 return None

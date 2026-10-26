@@ -8,8 +8,13 @@ import type { NoteSeriesLinkSnapshot } from "./NoteSeriesLinkSnapshot";
 import type { NoteSpeakerSnapshot } from "./NoteSpeakerSnapshot";
 import type { NoteSummarySnapshot } from "./NoteSummarySnapshot";
 import type { NoteTranscriptSnapshot } from "./NoteTranscriptSnapshot";
+import type { RecordedOn } from "./RecordedOn";
 
-export type OpenNoteSnapshot = { dictionary?: MeetingDictionary, 
+export type OpenNoteSnapshot = { 
+/**
+ * The recording Mac, when this personal hub has several devices.
+ */
+recorded_on?: RecordedOn, dictionary?: MeetingDictionary, 
 /**
  * Absent in older snapshots: absence does not mean closed.
  */

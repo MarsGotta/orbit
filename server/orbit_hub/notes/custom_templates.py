@@ -1,7 +1,7 @@
 """The user's own note templates and the series each one is assigned to.
 
-Per paired device. A custom template is encrypted at rest and has the same
-bounds as the built-in ones (`templates.py`). The built-ins are never changed:
+Shared across the personal hub; existing device storage keys are preserved.
+A custom template is encrypted at rest and has the same bounds as the built-in ones (`templates.py`). The built-ins are never changed:
 editing one means saving a custom copy that names where it came from
 (`forked_from`). Ids are chosen by the client, so creating one is a `PUT` that
 a lost receipt can repeat without making two.
@@ -29,7 +29,7 @@ from .templates import (
     builtin,
 )
 
-# Custom templates per device. What it protects: the Settings list the user
+# Custom templates per personal hub. What it protects: the Settings list the user
 # scrolls and the listing the daemon reads on every connection. Why this size:
 # six built-ins plus 32 of their own is more kinds of meeting than anyone keeps a
 # template for. What it is not: a bound on one template, which has its own.
@@ -43,7 +43,7 @@ MAX_CUSTOM_TEMPLATES = 32
 # reach it, and then the refusal says how many bytes and how many are allowed.
 # What it is not: the per-template bounds, which are the built-ins'.
 MAX_TEMPLATE_LISTING_BYTES = 768 * 1024
-# Assignments per device. What it protects: `GET /v1/note-template-links`,
+# Assignments per personal hub. What it protects: `GET /v1/note-template-links`,
 # which must also fit the daemon's 1 MiB body. Why this size: 256 links with
 # the longest series key (1 024 bytes) are about 300 KiB; a calendar has a few
 # dozen recurring series. What it is not: a limit on how many series have
@@ -127,20 +127,29 @@ class TemplateRepository:
         return self.store.encrypt(_encoded(value), f"note-template:{device}:{template_id}")
 
     def _open(self, device: str, row) -> dict:
-        body = self.store.decrypt(row["body"], f"note-template:{device}:{row['id']}")
+        body = self.store.decrypt(row["body"], f"note-template:{row['device_id']}:{row['id']}")
         return json.loads(body)
 
     def _customs(self, db, device: str) -> list[dict]:
         rows = db.execute(
-            "SELECT id, body FROM note_templates WHERE device_id=? ORDER BY created, id",
-            (device,),
+            "SELECT device_id,id,body,updated FROM note_templates ORDER BY created,id,device_id",
         ).fetchall()
-        return [self._open(device, row) for row in rows]
+        # Older Macs could create the same client-chosen id independently.
+        # One public id resolves to the most recently edited stored template.
+        by_id, versions = {}, {}
+        for row in rows:
+            value = self._open(device, row)
+            version = (row["updated"], row["device_id"])
+            if value["id"] not in versions or version > versions[value["id"]]:
+                by_id[value["id"]] = value
+                versions[value["id"]] = version
+        return list(by_id.values())
 
     def _custom(self, db, device: str, template_id: str) -> dict | None:
         row = db.execute(
-            "SELECT id, body FROM note_templates WHERE device_id=? AND id=?",
-            (device, template_id),
+            "SELECT device_id,id,body FROM note_templates WHERE id=? "
+            "ORDER BY updated DESC,device_id DESC LIMIT 1",
+            (template_id,),
         ).fetchone()
         return None if row is None else self._open(device, row)
 
@@ -202,6 +211,12 @@ class TemplateRepository:
                 http_status=413,
                 numbers={"bytes": size, "max_bytes": MAX_TEMPLATE_LISTING_BYTES},
             )
+        with self.store.read_snapshot() as db:
+            row = db.execute(
+                "SELECT device_id FROM note_templates WHERE id=? ORDER BY updated DESC,device_id DESC LIMIT 1",
+                (template_id,),
+            ).fetchone()
+            device = row["device_id"] if row else device
         sealed = self._seal(device, template_id, template)
         self.store.ensure_capacity(len(sealed))
         with self.store.transaction() as db:
@@ -218,22 +233,20 @@ class TemplateRepository:
         if builtin(template_id) is not None:
             raise builtin_refusal(template_id)
         with self.store.transaction() as db:
-            deleted = db.execute(
-                "DELETE FROM note_templates WHERE device_id=? AND id=?", (device, template_id)
-            ).rowcount
+            deleted = db.execute("DELETE FROM note_templates WHERE id=?", (template_id,)).rowcount
             released = db.execute(
-                "DELETE FROM note_template_links WHERE device_id=? AND template_id=?",
-                (device, template_id),
+                "DELETE FROM note_template_links WHERE template_id=?",
+                (template_id,),
             ).rowcount
-        return {"template_id": template_id, "deleted": deleted == 1, "links_released": released}
+        return {"template_id": template_id, "deleted": deleted > 0, "links_released": released}
 
     def links(self, device: str) -> dict:
         with self.store.read_snapshot() as db:
             rows = db.execute(
                 "SELECT series, template_id, updated FROM note_template_links "
-                "WHERE device_id=? ORDER BY series",
-                (device,),
+                "ORDER BY updated,device_id",
             ).fetchall()
+        rows = sorted({row["series"]: row for row in rows}.values(), key=lambda row: row["series"])
         return {
             "links": [
                 {
@@ -258,8 +271,8 @@ class TemplateRepository:
         if builtin(template_id) is None and self._custom(db, device, template_id) is None:
             raise not_found(template_id)
         count = db.execute(
-            "SELECT count(*) FROM note_template_links WHERE device_id=? AND series<>?",
-            (device, series),
+            "SELECT count(DISTINCT series) FROM note_template_links WHERE series<>?",
+            (series,),
         ).fetchone()[0]
         if count >= MAX_TEMPLATE_LINKS:
             raise HubError(
@@ -269,6 +282,11 @@ class TemplateRepository:
                 http_status=409,
                 numbers={"links": count, "max_links": MAX_TEMPLATE_LINKS},
             )
+        owner = db.execute(
+            "SELECT device_id FROM note_template_links WHERE series=? ORDER BY updated DESC,device_id DESC LIMIT 1",
+            (series,),
+        ).fetchone()
+        device = owner["device_id"] if owner else device
         self.store.ensure_capacity(len(series.encode()) + 128)
         db.execute(
             "INSERT INTO note_template_links(device_id,series,template_id,updated) "
@@ -285,9 +303,9 @@ class TemplateRepository:
     def unlink(self, device: str, series: str) -> dict:
         with self.store.transaction() as db:
             deleted = db.execute(
-                "DELETE FROM note_template_links WHERE device_id=? AND series=?", (device, series)
+                "DELETE FROM note_template_links WHERE series=?", (series,)
             ).rowcount
-        return {"calendar_item_id": series, "deleted": deleted == 1}
+        return {"calendar_item_id": series, "deleted": deleted > 0}
 
     def find(self, device: str, template_id: str) -> Template | None:
         fixed = builtin(template_id)
@@ -317,8 +335,9 @@ class TemplateRepository:
         if series is not None:
             with self.store.read_snapshot() as db:
                 row = db.execute(
-                    "SELECT template_id FROM note_template_links WHERE device_id=? AND series=?",
-                    (device, series),
+                    "SELECT template_id FROM note_template_links WHERE series=? "
+                    "ORDER BY updated DESC,device_id DESC LIMIT 1",
+                    (series,),
                 ).fetchone()
             linked = self.find(device, row["template_id"]) if row is not None else None
             if linked is not None:

@@ -131,6 +131,7 @@ pub(crate) fn project_open_note(
     let seen = project_seen(document.note, pending_sections);
     let transcript = project_transcript(document.transcript, document.language, turns, error);
     OpenNoteSnapshot {
+        recorded_on: document.recorded_on,
         dictionary: document.dictionary,
         capture: Some(document.capture),
         recording_id: document.recording_id,
