@@ -11,6 +11,9 @@ pub(super) struct AssistantHandle {
     /// One voice turn worker; a second turn cannot start while one runs.
     pub(super) voice_task: ticketed::Ticketed<()>,
     pub(super) voice_operation: Option<String>,
+    /// A detached note's chat request, until the answer ends. The next
+    /// waiting note must not collide with that answer in the same session.
+    pub(super) background_voice_request: Option<String>,
     /// Voice turns left without a trace since the daemon started (nothing
     /// heard, or carried by the next turn): the count the log carries.
     pub(super) dropped_voice_turns: u64,
@@ -82,6 +85,7 @@ impl AssistantHandle {
             interrupted_turns: Default::default(),
             voice_task: ticketed::Ticketed::logical(),
             voice_operation: None,
+            background_voice_request: None,
             dropped_voice_turns: 0,
             speech_task: ticketed::Ticketed::logical(),
             speech_voices: BTreeMap::new(),

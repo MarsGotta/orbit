@@ -20,6 +20,8 @@ fn classify(event: &Event) -> (usize, bool) {
         Event::SubmitVoice { .. } => (2, false),
         Event::VoiceStored { .. } => (3, false),
         Event::VoiceFailed { .. } => (39, false),
+        Event::VoiceSession { .. } => (53, false),
+        Event::VoiceResume { .. } => (54, false),
         Event::Session { .. } => (4, false),
         Event::HubTransportReady => (38, false),
         Event::HubDisconnected => (37, false),
@@ -75,7 +77,7 @@ fn classify(event: &Event) -> (usize, bool) {
         Event::DiscardMeeting { .. } => (52, false),
     }
 }
-const VARIANTS: usize = 56;
+const VARIANTS: usize = 58;
 
 #[test]
 fn voice_transcription_retires_with_authority_but_survives_hub_link_changes() {
@@ -207,6 +209,11 @@ fn samples() -> Vec<Event> {
         }),
         Event::VoiceDiscard { id: "v".into() },
         Event::VoiceUnheard { id: "v".into() },
+        Event::VoiceResume { id: "v".into() },
+        Event::VoiceSession {
+            message_id: "v".into(),
+            session_id: "s".into(),
+        },
         Event::CallStart {
             id: "c".into(),
             duration_ms: 600_000,

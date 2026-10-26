@@ -131,6 +131,16 @@ impl DurableState {
         for notice in crate::silence::recovered_notices(&self.notice_log) {
             self.set_notice(notice);
         }
+        self.pending_voice
+            .retain(|note| !note.obsolete_sessionless());
+        if self.session_id.is_none()
+            && self
+                .turn
+                .as_ref()
+                .is_some_and(|turn| crate::pending_voice::obsolete_voice_message(&turn.user))
+        {
+            self.turn = None;
+        }
         use crate::privacy_stop::StopRequester;
         match (self.privacy_stopped, self.privacy_stop_by) {
             // The hub decides a revocation again at the next connection; a
@@ -228,7 +238,12 @@ pub fn belongs_to(note: &crate::PendingVoiceNote, durable: &DurableState) -> boo
         Some(VoiceNoteConversation {
             session_id: None,
             agent_id,
-        }) => durable.session_id.is_none() && durable.agent_id == *agent_id,
-        None => durable.session_id.is_none(),
+            abandoned_draft,
+        }) => {
+            abandoned_draft.is_none()
+                && durable.session_id.is_none()
+                && durable.agent_id == *agent_id
+        }
+        None => false,
     }
 }

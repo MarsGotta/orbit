@@ -83,10 +83,7 @@ impl Runtime {
             // The joined turn goes on in this one: its own note,
             // whose audio this turn now carries, leaves the
             // conversation instead of staying as «Va junto…».
-            let open_turn = self.state.durable.assistant.turn.as_ref();
-            if let Some(joined) = joined.as_ref()
-                && open_turn.is_some_and(|turn| turn.user.id == joined.operation_id)
-            {
+            if let Some(joined) = joined.as_ref() {
                 self.drop_unheard_voice_note(&joined.operation_id, "joined_next_turn")
                     .await?;
             }

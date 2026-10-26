@@ -10,7 +10,7 @@ use crate::daemon::audio::tests::fixture;
 
 /// The helper's side of a voice note: it starts, delivers `frames` samples
 /// at 8 kHz, and confirms the stop that `end` asks for.
-async fn record(
+pub(in crate::daemon) async fn record(
     runtime: &mut Runtime,
     helper: &mut mpsc::Receiver<Value>,
     frames: usize,
@@ -535,6 +535,112 @@ async fn a_note_discarded_during_a_recording_leaves_the_lane_armed() -> Result<(
         meeting_jobs(&runtime)?,
         before,
         "the meeting's jobs went with the note"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_abandoned_new_views_waiting_note_is_sent_into_its_own_session() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut helper) = fixture(directory.path())?;
+    runtime.link.token = Some(TOKEN.into());
+    crate::daemon::authority_fixture::set(
+        &mut runtime.state,
+        "connection",
+        json!(orbit_core::Connection::Offline),
+    );
+    record(&mut runtime, &mut helper, 8_000, Command::VoiceEnd).await?;
+    let note = runtime
+        .state
+        .durable
+        .assistant
+        .turn
+        .as_ref()
+        .context("note")?
+        .user
+        .id
+        .clone();
+    record(&mut runtime, &mut helper, 8_000, Command::VoiceEnd).await?;
+    let second = runtime
+        .state
+        .durable
+        .assistant
+        .turn
+        .as_ref()
+        .context("second note")?
+        .user
+        .id
+        .clone();
+    runtime.apply(Event::NewSession { agent_id: None }).await?;
+    assert!(published_pending_voice(&runtime)?.is_empty());
+    crate::daemon::authority_fixture::set(
+        &mut runtime.state,
+        "connection",
+        json!(orbit_core::Connection::Online),
+    );
+    let mut outbound = runtime.link.outbound.open(16);
+    runtime.run_maintenance().await;
+    assert_eq!(
+        runtime.assistant.voice_operation.as_deref(),
+        Some(note.as_str())
+    );
+    let ticket = runtime
+        .assistant
+        .voice_task
+        .ticket()
+        .cloned()
+        .context("ticket")?;
+    runtime
+        .work_event(WorkResult::Capture(
+            crate::daemon::CaptureWork::Transcribed {
+                ticket,
+                source: crate::daemon::audio::VoiceSource {
+                    recording_id: note.clone(),
+                    chunk_id: format!("{note}-mic_local-0"),
+                    session_id: None,
+                    message_id: note.clone(),
+                    duration_ms: 1_000,
+                },
+                text: "Una pregunta pendiente".into(),
+            },
+        ))
+        .await?;
+    let sent = outbound.recv().await.context("chat.send")?;
+    assert_eq!(sent["method"], "chat.send");
+    assert!(sent["params"]["session_id"].is_null());
+    runtime
+        .hub_event(HubEvent::Frame(json!({"event":"chat.session","id":note,
+        "data":{"session_id":"waiting-notes-session"}})))
+        .await?;
+    assert!(
+        runtime.state.session_id().is_none(),
+        "the fresh view must remain new"
+    );
+    assert!(published_pending_voice(&runtime)?.is_empty());
+    assert_eq!(runtime.state.durable.assistant.pending_voice.len(), 1);
+    runtime.run_maintenance().await;
+    assert!(
+        runtime.assistant.voice_operation.is_none(),
+        "the next note must wait for the background answer"
+    );
+    runtime
+        .hub_event(HubEvent::Frame(json!({"event":"chat.completed", "id":note,
+        "data":{"session_id":"waiting-notes-session", "text":"Respuesta sintética"}})))
+        .await?;
+    runtime.run_maintenance().await;
+    assert_eq!(
+        runtime.assistant.voice_operation.as_deref(),
+        Some(second.as_str())
+    );
+    let pending = &runtime.state.durable.assistant.pending_voice[0];
+    assert_eq!(
+        pending
+            .conversation
+            .as_ref()
+            .context("conversation")?
+            .session_id
+            .as_deref(),
+        Some("waiting-notes-session")
     );
     Ok(())
 }

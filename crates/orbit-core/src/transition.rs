@@ -50,6 +50,16 @@ pub enum Event {
         text: String,
         duration_ms: u64,
     },
+    /// A background voice note reached its own hub conversation. This
+    /// receipt never changes the open view.
+    VoiceSession {
+        message_id: String,
+        session_id: String,
+    },
+    /// Resume an unsent note of a view that was left, without opening it.
+    VoiceResume {
+        id: String,
+    },
     VoiceStored {
         id: String,
         duration_ms: u64,
@@ -335,16 +345,14 @@ fn route(n: &mut DurableState, views: &mut Views, e: Event, cx: &mut Step) -> Re
         Event::Approval { turn_id, approval } => assistant::approval(a, &turn_id, approval, cx),
         Event::Interrupt => assistant::interrupt(a, cx),
         Event::Failure { code, numbers } => assistant::failure(a, &code, numbers, cx),
-        Event::SubmitVoice {
-            id,
-            text,
-            duration_ms,
-        } => assistant::submit_voice(a, id, text, duration_ms, cx)?,
-        Event::VoiceStored { id, duration_ms } => assistant::voice_stored(a, id, duration_ms, cx)?,
-        Event::VoiceRetry { id } => assistant::voice_retry(a, &id, cx)?,
-        Event::VoiceDiscard { id } => assistant::voice_discard(a, &id)?,
-        Event::VoiceUnheard { id } => assistant::forget_voice_note(a, &id),
-        Event::VoiceFailed { id, failure } => assistant::voice_failed(a, &id, failure),
+        event @ (Event::SubmitVoice { .. }
+        | Event::VoiceResume { .. }
+        | Event::VoiceSession { .. }
+        | Event::VoiceStored { .. }
+        | Event::VoiceRetry { .. }
+        | Event::VoiceDiscard { .. }
+        | Event::VoiceUnheard { .. }
+        | Event::VoiceFailed { .. }) => assistant::voice_event(a, event, cx)?,
         Event::StartMeeting { id, title, audio } => capture::start(c, id, title, audio, cx)?,
         Event::CaptureStarted => capture::started(c, cx)?,
         Event::PauseMeeting => capture::pause(c, cx)?,

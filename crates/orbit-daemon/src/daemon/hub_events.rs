@@ -62,6 +62,7 @@ impl Runtime {
     }
 
     async fn on_hub_disconnected(&mut self) -> Result<()> {
+        self.assistant.background_voice_request = None;
         // The engine and a claimed input do not depend on the hub.
         // A request still waiting on the hub is released below.
         // This path also retires pending bridge and journal work. A later
@@ -164,6 +165,16 @@ impl Runtime {
     }
 
     async fn on_hub_decoded_frame(&mut self, frame: WireHubEvent) -> Result<()> {
+        if self.settle_detached_voice_frame(&frame) {
+            return Ok(());
+        }
+        if let HubEventKind::ChatSession(data) = &frame.kind
+            && self
+                .detached_voice_session(frame.id.as_deref(), &data.session_id)
+                .await?
+        {
+            return Ok(());
+        }
         if !self.admits_hub_frame(&frame) {
             return Ok(());
         }

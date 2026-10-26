@@ -78,11 +78,11 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
             // Only a conversation the hub names for the first time: one
             // opened without an agent is from before agents, and the hub
             // keeps it with whichever agent is its default.
-            if state.durable.session_id.is_none() && next.durable.agent_id.is_none() {
-                next.durable.agent_id = agent_id;
-            }
             if state.durable.session_id.is_none() {
                 adopt_new_conversation_notes(&mut next, &id);
+            }
+            if state.durable.session_id.is_none() && next.durable.agent_id.is_none() {
+                next.durable.agent_id = agent_id;
             }
             next.durable.session_id = Some(id);
         }
@@ -97,6 +97,7 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
             next.durable.agent_id = agent_id;
         }
         Event::DeviceChanged => {
+            voice_notes::abandon_new_view(&mut next);
             authority_change = Some(AuthorityChange::Device);
             next.durable.session_id = None;
             next.durable.agent_id = None;
@@ -146,6 +147,9 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
             duration_ms,
             now_ms,
         )?,
+        Event::VoiceSession { .. } | Event::VoiceResume { .. } => {
+            unreachable!("background delivery has dedicated contract tests")
+        }
         Event::VoiceStored { id, duration_ms } => {
             decide_voice_stored(state, &mut next, id, duration_ms, now_ms)?
         }
@@ -283,6 +287,7 @@ fn decide_new_session(next: &mut State) {
     // The turn is retired while its conversation is still the open one, so
     // a note it keeps stays that conversation's.
     retire_turn(next);
+    voice_notes::abandon_new_view(next);
     next.durable.session_id = None;
     next.durable.pending_approval = None;
 }
@@ -290,6 +295,7 @@ fn decide_new_session(next: &mut State) {
 /// The conversation's messages are the hub's; the app reads them.
 fn decide_open_session(next: &mut State, id: String) {
     retire_turn(next);
+    voice_notes::abandon_new_view(next);
     next.durable.pending_approval = None;
     next.durable.session_id = Some(id);
 }

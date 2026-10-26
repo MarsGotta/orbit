@@ -915,3 +915,118 @@ async fn the_questions_own_playback_never_restarts_its_answer_clock() -> Result<
     assert!(!call.alive());
     Ok(())
 }
+
+#[tokio::test]
+async fn joining_a_retired_note_removes_it_and_keeps_its_audio() -> Result<()> {
+    let mut call = Call::open().await?;
+    call.turn().await?;
+    let first = call.operation().context("first turn")?;
+    let pcm = call.voice_pcm(&first)?;
+    call.runtime
+        .apply(Event::VoiceStored {
+            id: "temporary-note".into(),
+            duration_ms: 20_000,
+        })
+        .await?;
+    call.runtime
+        .apply(Event::VoiceUnheard {
+            id: "temporary-note".into(),
+        })
+        .await?;
+    call.turn().await?;
+    assert!(
+        call.runtime
+            .state
+            .durable
+            .assistant
+            .pending_voice
+            .iter()
+            .all(|note| note.message.id != first)
+    );
+    let next = call.operation().context("next turn")?;
+    assert!(call.voice_pcm(&next)?.starts_with(&pcm));
+    assert!(call.runtime.voice_note_audio(&first).is_err());
+    Ok(())
+}
+
+#[tokio::test]
+async fn short_provider_refusals_are_silent_but_long_ones_can_be_discarded() -> Result<()> {
+    for (frames, omitted, over_answer) in [(3, true, false), (200, false, false), (3, true, true)] {
+        let mut call = Call::open().await?;
+        if over_answer {
+            call.frames_over_answer(frames, true).await?;
+        } else {
+            call.frames(frames, true).await?;
+        }
+        call.frames(8, false).await?;
+        let operation = call.operation().context("transcription")?;
+        if omitted && !over_answer {
+            assert_eq!(
+                call.runtime
+                    .state
+                    .durable
+                    .assistant
+                    .turn
+                    .as_ref()
+                    .and_then(|turn| turn.user.voice.as_ref())
+                    .context("stored short clip")?
+                    .duration_ms,
+                1_000
+            );
+        }
+        let ticket = call
+            .runtime
+            .assistant
+            .voice_task
+            .ticket()
+            .cloned()
+            .context("ticket")?;
+        let before = call.runtime.state.durable.notice_log.records().len();
+        call.runtime
+            .work_event(WorkResult::Capture(
+                crate::daemon::CaptureWork::VoiceProblem {
+                    ticket,
+                    operation_id: operation.clone(),
+                    failure: orbit_core::VoiceTranscriptionFailure::local(
+                        "transcription_provider_refused",
+                    ),
+                },
+            ))
+            .await?;
+        if omitted {
+            assert!(call.runtime.state.durable.assistant.turn.is_none());
+            assert!(
+                call.runtime
+                    .state
+                    .durable
+                    .assistant
+                    .pending_voice
+                    .is_empty()
+            );
+            assert!(failed_since(&call.runtime, before).is_empty());
+            assert!(call.runtime.voice_note_audio(&operation).is_err());
+            assert_eq!(call.runtime.assistant.dropped_voice_turns, 1);
+            assert_eq!(
+                call.runtime.state.notice_code(),
+                Some(orbit_core::notice::NoticeCode::VoiceNotHeard)
+            );
+            assert!(
+                call.runtime
+                    .state
+                    .durable
+                    .assistant
+                    .active_request
+                    .is_none()
+            );
+        } else {
+            assert!(call.runtime.state.durable.assistant.turn.is_some());
+            call.runtime
+                .command(Command::VoiceDiscard {
+                    message_id: operation,
+                })
+                .await?;
+            assert!(call.runtime.state.durable.assistant.turn.is_none());
+        }
+    }
+    Ok(())
+}

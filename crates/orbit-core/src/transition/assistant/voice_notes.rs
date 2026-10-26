@@ -17,7 +17,11 @@ pub(super) fn adopt_new_conversation_notes(assistant: &mut AssistantState, id: &
         .pending_voice
         .iter_mut()
         .filter_map(|note| note.conversation.as_mut())
-        .filter(|conversation| conversation.session_id.is_none() && conversation.agent_id == agent)
+        .filter(|conversation| {
+            conversation.session_id.is_none()
+                && conversation.abandoned_draft.is_none()
+                && conversation.agent_id == agent
+        })
     {
         conversation.session_id = Some(id.to_owned());
     }
@@ -155,6 +159,7 @@ fn keep_pending_voice(assistant: &mut AssistantState, message: Message) {
     let conversation = crate::VoiceNoteConversation {
         session_id: assistant.session_id.clone(),
         agent_id: assistant.agent_id.clone(),
+        abandoned_draft: None,
     };
     let pending = &mut assistant.pending_voice;
     if pending.iter().all(|kept| kept.message.id != message.id) {
@@ -300,7 +305,11 @@ pub(in crate::transition) fn voice_failed(
                 .filter(|voice| voice.transcript.is_none())
         })
     {
-        voice.failure = Some(failure);
+        if crate::omit_voice_failure(voice.duration_ms, &failure) {
+            forget_voice_note(assistant, id);
+        } else {
+            voice.failure = Some(failure);
+        }
     }
 }
 

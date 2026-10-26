@@ -223,13 +223,18 @@ impl Runtime {
                     .await?;
             }
             self.resume_call_reading().await?;
-            // A voice note pressed for, and silent, is said in a small line;
-            // in a call nothing is said.
-            self.say(if in_call {
-                NoticeCode::VoiceNotHeard
-            } else {
-                NoticeCode::VoiceNotRecognized
-            });
+            // A longer empty voice note is said in a small line; short
+            // clips and call noise close the operation silently.
+            self.say(
+                if in_call || source.duration_ms < orbit_core::SHORT_REFUSED_VOICE_MS {
+                    NoticeCode::VoiceNotHeard
+                } else {
+                    NoticeCode::VoiceNotRecognized
+                },
+            );
+            return Ok(());
+        }
+        if self.send_detached_voice_text(&source, text.clone()).await? {
             return Ok(());
         }
         // Only transcribed words can answer the presence question.
@@ -314,7 +319,44 @@ impl Runtime {
         }
         // A turn spoken over Deimos's answer that could not be heard does
         // not stop him; it is kept as a note that says why.
-        if let Some(turn) = self.audio.take_over_answer_turn(&operation_id) {
+        let over_answer = self.audio.take_over_answer_turn(&operation_id);
+        let duration_ms = over_answer
+            .as_ref()
+            .map(|turn| turn.duration_ms)
+            .or_else(|| {
+                self.state
+                    .durable
+                    .assistant
+                    .turn
+                    .iter()
+                    .map(|turn| &turn.user)
+                    .chain(
+                        self.state
+                            .durable
+                            .assistant
+                            .pending_voice
+                            .iter()
+                            .map(|note| &note.message),
+                    )
+                    .find(|message| message.id == operation_id)
+                    .and_then(|message| message.voice.as_ref())
+                    .map(|voice| voice.duration_ms)
+            });
+        if duration_ms.is_some_and(|duration| orbit_core::omit_voice_failure(duration, &failure)) {
+            if let Some(turn) = over_answer {
+                self.carry_into_next_turn(call::call_turn_audio(turn.operation_id, turn.voice));
+            } else if let Some(audio) = self.audio.take_submitted_call_turn(&operation_id) {
+                self.carry_into_next_turn(audio);
+            }
+            self.drop_unheard_voice_note(&operation_id, "short_refused")
+                .await?;
+            self.resume_call_reading().await?;
+            if current {
+                self.say(NoticeCode::VoiceNotHeard);
+            }
+            return Ok(());
+        }
+        if let Some(turn) = over_answer {
             self.accept_over_answer(turn, Some(failure)).await?;
             self.resume_call_reading().await?;
             if current {

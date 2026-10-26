@@ -127,8 +127,8 @@ pub(super) async fn run_with_helper_inner(
     );
     error_reports.report_panics();
     let key = storage_key(&paths, development)?;
-    let store = store_actor::StoreActor::open_bootstrap(&paths.store, key)?;
-    let saved = load_saved(&store, &settings)?;
+    let mut store = store_actor::StoreActor::open_bootstrap(&paths.store, key)?;
+    let saved = load_saved(&mut store, &settings)?;
     let mut process = open_process(&paths, signals, instance, socket_enabled, local).await?;
     let boot = runtime_build::Boot {
         paths,
@@ -152,8 +152,18 @@ pub(super) async fn run_with_helper_inner(
     .await
 }
 
-fn load_saved(store: &Store, settings: &Settings) -> Result<Saved> {
+fn load_saved(store: &mut Store, settings: &Settings) -> Result<Saved> {
     let saved_state = store.load_snapshot::<DurableState>()?;
+    let obsolete = saved_state
+        .as_ref()
+        .map(|state| state.assistant.obsolete_voice_note_ids())
+        .unwrap_or_default();
+    // Delete authenticated voice-note audio before publishing the migrated
+    // snapshot. On failure the old snapshot still names it, so next startup
+    // retries the cleanup, as stored-ledger retirement does.
+    for id in &obsolete {
+        store.discard_voice_note(id)?;
+    }
     let restart_interrupted_live_capture = saved_state
         .as_ref()
         .and_then(|saved| saved.capture.recording.as_ref())
@@ -175,6 +185,9 @@ fn load_saved(store: &Store, settings: &Settings) -> Result<Saved> {
         .unwrap_or_default();
     state.durable.notice_log.begin_turn(startup_op);
     state.views.account = Some(account_summary(settings));
+    if !obsolete.is_empty() {
+        store.save_snapshot(&state.durable)?;
+    }
     Ok(Saved {
         state,
         restart_interrupted_live_capture,
@@ -435,3 +448,7 @@ async fn recover_runtime(
     runtime.state.views.recovery = orbit_core::RecoveryStatus::Ready;
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "voice_recovery_tests.rs"]
+mod voice_recovery_tests;

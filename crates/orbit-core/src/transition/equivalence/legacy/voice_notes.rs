@@ -17,7 +17,11 @@ pub(super) fn adopt_new_conversation_notes(next: &mut State, id: &str) {
         .pending_voice
         .iter_mut()
         .filter_map(|note| note.conversation.as_mut())
-        .filter(|conversation| conversation.session_id.is_none() && conversation.agent_id == agent)
+        .filter(|conversation| {
+            conversation.session_id.is_none()
+                && conversation.abandoned_draft.is_none()
+                && conversation.agent_id == agent
+        })
     {
         conversation.session_id = Some(id.to_owned());
     }
@@ -103,6 +107,7 @@ pub(super) fn keep_pending_voice(next: &mut State, message: Message) {
     let conversation = crate::VoiceNoteConversation {
         session_id: next.durable.session_id.clone(),
         agent_id: next.durable.agent_id.clone(),
+        abandoned_draft: None,
     };
     let pending = &mut next.durable.pending_voice;
     if pending.iter().all(|kept| kept.message.id != message.id) {
@@ -252,6 +257,34 @@ pub(super) fn decide_voice_failed(next: &mut State, id: &str, failure: VoiceTran
                 .filter(|voice| voice.transcript.is_none())
         })
     {
-        voice.failure = Some(failure);
+        if crate::omit_voice_failure(voice.duration_ms, &failure) {
+            forget_voice_note(next, id);
+        } else {
+            voice.failure = Some(failure);
+        }
+    }
+}
+
+// Intentional new-view ownership change since the refactor baseline.
+pub(super) fn abandon_new_view(next: &mut State) {
+    let draft = next
+        .durable
+        .pending_voice
+        .iter()
+        .find(|note| {
+            note.conversation
+                .as_ref()
+                .is_some_and(|c| c.session_id.is_none() && c.abandoned_draft.is_none())
+        })
+        .map(|note| note.message.id.clone());
+    for conversation in next
+        .durable
+        .pending_voice
+        .iter_mut()
+        .filter_map(|note| note.conversation.as_mut())
+    {
+        if conversation.session_id.is_none() && conversation.abandoned_draft.is_none() {
+            conversation.abandoned_draft = draft.clone();
+        }
     }
 }

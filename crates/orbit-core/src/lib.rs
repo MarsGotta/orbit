@@ -44,7 +44,9 @@ pub mod voice;
 pub mod window_text;
 
 pub use model::*;
-pub use pending_voice::{PendingVoiceNote, VoiceNoteConversation};
+pub use pending_voice::{
+    PendingVoiceNote, SHORT_REFUSED_VOICE_MS, VoiceNoteConversation, omit_voice_failure,
+};
 pub use transition::{Decision, Effect, Event, decide};
 pub use voice::{CallOrigin, CallPhase, CallState};
 

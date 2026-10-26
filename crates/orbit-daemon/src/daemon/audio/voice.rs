@@ -128,13 +128,14 @@ impl Runtime {
             // A turn spoken over Deimos's answer reached no one and was never
             // stored: the change that stops its transcription retires it.
             let _ = self.audio.take_over_answer_turn(operation_id);
-            if let Some(voice) = self
-                .state
-                .durable
-                .assistant
-                .turn
-                .as_mut()
-                .and_then(|turn| turn.untranscribed_voice_mut(operation_id))
+            if !matches!(cause, VoiceCancellationCause::CallTurnJoined)
+                && let Some(voice) = self
+                    .state
+                    .durable
+                    .assistant
+                    .turn
+                    .as_mut()
+                    .and_then(|turn| turn.untranscribed_voice_mut(operation_id))
             {
                 voice.failure = Some(orbit_core::VoiceTranscriptionFailure::local(cause.code()));
             }

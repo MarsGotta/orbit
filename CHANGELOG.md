@@ -19,6 +19,16 @@ is in Spanish; the labels quoted below are the ones it shows.
   room noise does not keep a forgotten recording open. Mac real-test check 19
   verifies an unanswered question saves the meeting and its hub chunks.
 
+### Fixed
+
+- «Nueva conversación» starts without notes from earlier new-conversation
+  views. Unsent notes stay on this Mac and reach their own hub conversation
+  when delivery becomes possible, without changing the open view.
+- Joined call fragments leave no failed note; their audio remains in the
+  next turn. Refused or empty clips shorter than three seconds disappear
+  silently, while longer refused notes keep «Descartar». Loading saved state
+  removes old session-less fragments of these kinds and their local audio.
+
 ## [0.12.3] - 2026-10-26
 
 A hub-only release: the Mac app stays at 0.12.2.

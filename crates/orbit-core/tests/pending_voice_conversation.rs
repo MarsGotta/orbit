@@ -245,9 +245,9 @@ fn an_unheard_note_leaves_without_a_trace() {
 }
 
 /// Orbit 0.11.0 kept waiting notes without their conversation. They load,
-/// and with their conversation unknown they show only in a new one.
+/// and old short refused notes are removed before a new view is shown.
 #[test]
-fn a_note_kept_by_the_previous_version_shows_only_in_a_new_conversation() {
+fn an_old_short_refused_note_is_removed_on_recovery() {
     let mut saved = serde_json::to_value(&online().durable).unwrap();
     saved["pending_voice"] = serde_json::json!([{
         "id": "nota-antigua", "role": "user", "text": "", "complete": true,
@@ -256,7 +256,7 @@ fn a_note_kept_by_the_previous_version_shows_only_in_a_new_conversation() {
     }]);
     let durable: DurableState = serde_json::from_value(saved).unwrap();
     let restarted: State = durable.recovered().into();
-    assert_eq!(shown(&restarted), ["nota-antigua"]);
+    assert!(shown(&restarted).is_empty());
     let existing = open(&restarted, "conversacion-a");
     assert!(shown(&existing).is_empty());
     let named = decide(
@@ -273,4 +273,219 @@ fn a_note_kept_by_the_previous_version_shows_only_in_a_new_conversation() {
         shown(&named).is_empty(),
         "no conversation adopts a note of unknown origin"
     );
+}
+
+#[test]
+fn a_later_new_view_never_adopts_an_earlier_views_note() {
+    let noted = failed_note(&online(), "earlier-note");
+    let fresh = decide(&noted, Event::NewSession { agent_id: None }, 4)
+        .unwrap()
+        .state;
+    assert!(shown(&fresh).is_empty());
+    assert_eq!(fresh.durable.assistant.pending_voice.len(), 1);
+    let named = decide(
+        &fresh,
+        Event::Session {
+            id: "later-session".into(),
+            agent_id: None,
+        },
+        5,
+    )
+    .unwrap()
+    .state;
+    assert!(shown(&named).is_empty());
+    assert_eq!(named.durable.assistant.pending_voice.len(), 1);
+}
+
+#[test]
+fn recovery_removes_only_sessionless_joined_and_short_refused_or_empty_notes() {
+    let mut saved = serde_json::to_value(&online().durable).unwrap();
+    let cases = [
+        (
+            "joined",
+            20_000,
+            "voice_transcription_joined_next_turn",
+            None,
+            None,
+        ),
+        (
+            "refused",
+            1_000,
+            "transcription_provider_refused",
+            None,
+            None,
+        ),
+        (
+            "old-refused",
+            2_000,
+            "transcription_http_error",
+            Some(400),
+            None,
+        ),
+        ("empty", 1_000, "voice_transcription_empty", None, None),
+        ("long", 20_000, "transcription_provider_refused", None, None),
+        (
+            "boundary",
+            3_000,
+            "transcription_provider_refused",
+            None,
+            None,
+        ),
+        ("offline", 1_000, "voice_hub_unreachable", None, None),
+        (
+            "other-error",
+            1_000,
+            "transcription_http_error",
+            Some(503),
+            None,
+        ),
+        (
+            "assigned",
+            1_000,
+            "transcription_provider_refused",
+            None,
+            Some("known-session"),
+        ),
+    ];
+    saved["pending_voice"] =
+        serde_json::json!(cases.map(|(id, duration, code, provider, session)| {
+            serde_json::json!({"id":id,"role":"user","text":"","complete":true,
+            "conversation":{"session_id":session},
+            "voice":{"duration_ms":duration,"failure":{"code":code,"provider_status":provider},
+                "audio_available":true}})
+        }));
+    let loaded: DurableState = serde_json::from_value(saved).unwrap();
+    let recovered = loaded.recovered();
+    let ids: Vec<_> = recovered
+        .assistant
+        .pending_voice
+        .iter()
+        .map(|note| note.message.id.as_str())
+        .collect();
+    assert_eq!(
+        ids,
+        ["long", "boundary", "offline", "other-error", "assigned"]
+    );
+    assert_eq!(
+        recovered.clone().recovered().assistant.pending_voice,
+        recovered.assistant.pending_voice,
+        "migration is idempotent"
+    );
+}
+
+#[test]
+fn a_detached_draft_survives_restart_and_its_receipt_names_only_its_notes() {
+    let noted = failed_note(&online(), "first-draft");
+    let fresh = decide(&noted, Event::NewSession { agent_id: None }, 4)
+        .unwrap()
+        .state;
+    let saved = serde_json::to_value(&fresh.durable).unwrap();
+    let restarted: State = serde_json::from_value::<DurableState>(saved)
+        .unwrap()
+        .recovered()
+        .into();
+    assert!(shown(&restarted).is_empty());
+    let new_note = failed_note(&online_from(&restarted), "second-draft");
+    let named = decide(
+        &new_note,
+        Event::VoiceSession {
+            message_id: "first-draft".into(),
+            session_id: "background-session".into(),
+        },
+        8,
+    )
+    .unwrap()
+    .state;
+    assert!(named.session_id().is_none());
+    assert_eq!(
+        named.durable.assistant.turn.as_ref().unwrap().user.id,
+        "second-draft"
+    );
+    assert!(named.durable.assistant.pending_voice.is_empty());
+}
+
+fn online_from(state: &State) -> State {
+    decide(state, Event::Connect(Connection::Online), 5)
+        .unwrap()
+        .state
+}
+
+#[test]
+fn background_delivery_groups_only_the_notes_of_the_abandoned_view() {
+    let first = failed_note(&online(), "first-note");
+    let second = failed_note(&first, "second-note");
+    let fresh = decide(&second, Event::NewSession { agent_id: None }, 4)
+        .unwrap()
+        .state;
+    let current = failed_note(&fresh, "current-note");
+    let named = decide(
+        &current,
+        Event::VoiceSession {
+            message_id: "first-note".into(),
+            session_id: "old-views-session".into(),
+        },
+        5,
+    )
+    .unwrap()
+    .state;
+    assert!(shown(&named).is_empty());
+    assert_eq!(named.durable.assistant.pending_voice.len(), 1);
+    let remaining = &named.durable.assistant.pending_voice[0];
+    assert_eq!(remaining.message.id, "second-note");
+    assert_eq!(
+        remaining
+            .conversation
+            .as_ref()
+            .unwrap()
+            .session_id
+            .as_deref(),
+        Some("old-views-session")
+    );
+    assert_eq!(
+        named.durable.assistant.turn.as_ref().unwrap().user.id,
+        "current-note"
+    );
+    assert_eq!(shown(&open(&named, "old-views-session")), ["second-note"]);
+}
+
+#[test]
+fn recovery_removes_an_old_sessionless_fragment_in_the_current_turn_too() {
+    for session_id in [None, Some("existing-session")] {
+        let noted = failed_note(&online(), "stored-note");
+        let mut saved = serde_json::to_value(&noted.durable).unwrap();
+        saved["session_id"] = serde_json::json!(session_id);
+        saved["turn"]["user"]["voice"]["failure"]["code"] =
+            serde_json::json!("transcription_provider_refused");
+        let recovered = serde_json::from_value::<DurableState>(saved)
+            .unwrap()
+            .recovered();
+        assert_eq!(recovered.assistant.turn.is_some(), session_id.is_some());
+    }
+}
+
+#[test]
+fn a_default_agents_note_is_adopted_when_the_first_turn_names_its_agent() {
+    let noted = failed_note(&online(), "default-agent-note");
+    let typed = decide(
+        &noted,
+        Event::Submit {
+            id: "first-text".into(),
+            text: "Una pregunta sintética".into(),
+            attachments: Vec::new(),
+        },
+        4,
+    )
+    .unwrap()
+    .state;
+    let named = decide(
+        &typed,
+        Event::Session {
+            id: "default-session".into(),
+            agent_id: Some("synthetic-default-agent".into()),
+        },
+        5,
+    )
+    .unwrap()
+    .state;
+    assert_eq!(shown(&named), ["default-agent-note"]);
 }

@@ -2004,5 +2004,19 @@
     "source": "rust",
     "unit": "milliseconds",
     "value": 30000
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/transcription_failure.py",
+        "name": "NO_SPEECH_REFUSAL_MAX_MS",
+        "unit": "ms"
+      }
+    ],
+    "name": "SHORT_REFUSED_VOICE_MS",
+    "resource": "refused or empty noise omitted below this duration",
+    "source": "rust",
+    "unit": "ms",
+    "value": 3000
   }
 ]

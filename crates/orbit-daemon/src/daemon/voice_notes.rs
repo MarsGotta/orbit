@@ -23,7 +23,7 @@ impl Runtime {
 
     /// The chunk id and WAV of the voice note `message_id`, while this Mac
     /// still holds them; what playback and «Reintentar transcripción» read.
-    fn stored_voice_note(&self, message_id: &str) -> Result<Option<(String, Vec<u8>)>> {
+    pub(super) fn stored_voice_note(&self, message_id: &str) -> Result<Option<(String, Vec<u8>)>> {
         let Ok(chunks) = self.reader.list_chunks(message_id, None, 2) else {
             return Ok(None);
         };
@@ -166,6 +166,7 @@ impl Runtime {
             || durable.assistant.pending_approval.is_some()
             || self.assistant.voice_task.active().is_some()
             || self.capture.buffer.voice.is_some()
+            || self.assistant.background_voice_request.is_some()
         {
             return Ok(());
         }
@@ -187,13 +188,27 @@ impl Runtime {
             // Only the open conversation's: a note waiting in another is
             // sent when that one is open, never into this one.
             .chain(durable.open_conversation_pending_voice().filter(waits))
+            .chain(
+                durable
+                    .assistant
+                    .pending_voice
+                    .iter()
+                    .filter(|note| self.detached_voice_can_resume(note))
+                    .map(|note| &note.message)
+                    .filter(waits),
+            )
             .map(|message| message.id.clone())
             .next()
         else {
             return Ok(());
         };
         self.log("waiting_voice_note_sent", &[]);
-        if let Err(error) = self.retry_voice_transcription(message_id.clone()).await {
+        let result = if self.detached_voice_note(&message_id).is_some() {
+            self.resume_detached_voice_note(&message_id).await
+        } else {
+            self.retry_voice_transcription(message_id.clone()).await
+        };
+        if let Err(error) = result {
             // Not sent again by itself: its WAV is gone or the hub refused
             // the retry. It stays listed, with «Reintentar».
             self.log(

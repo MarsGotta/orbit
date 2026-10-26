@@ -49,6 +49,20 @@ The current turn is the only conversation content in `DurableState.turn`.
 Startup reports `AssistantTurnLostByRestart` if a restart interrupted it.
 Conversation pages come from `GET /v1/sessions/{id}/messages`.
 
+Pending voice notes belong to one conversation. Before the hub names a new
+conversation, only notes spoken in that open view can be adopted. Leaving the
+view records an `abandoned_draft` group using its first note's id. Those notes
+stay hidden locally; unsent ones are transcribed and sent into their own hub
+conversation when the link is available, without navigating the open view.
+The hub's history shows delivered messages. A missing delivery receipt leaves
+an unconfirmed local note and never causes an automatic resend.
+
+Startup removes session-less joined fragments and refused or empty clips
+shorter than `SHORT_REFUSED_VOICE_MS` (three seconds). It deletes their
+voice-note audio through the authenticated discard path before saving the
+recovered snapshot; a failed cleanup is retried on the next startup. Notes
+already assigned to a hub conversation and all other notes are preserved.
+
 ### Jobs
 
 `orbit_store::QUEUE_KINDS` declares six kinds:

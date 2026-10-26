@@ -12,12 +12,10 @@ use crate::notice::{Notice, NoticeCode, NoticeKey};
 use crate::pending_voice::PendingVoiceNote;
 
 mod chat;
+mod voice_drafts;
 mod voice_notes;
 
 pub(super) use chat::{approval, completed, delta, submit};
-pub(super) use voice_notes::{
-    forget_voice_note, submit_voice, voice_discard, voice_failed, voice_retry, voice_stored,
-};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AssistantState {
@@ -38,6 +36,25 @@ pub struct AssistantState {
 }
 
 impl AssistantState {
+    /// Old session-less fragments to remove on load, including their audio.
+    /// Notes already owned by a hub conversation are preserved verbatim.
+    pub fn obsolete_voice_note_ids(&self) -> Vec<String> {
+        self.pending_voice
+            .iter()
+            .filter(|note| note.obsolete_sessionless())
+            .map(|note| note.message.id.clone())
+            .chain(
+                self.turn
+                    .iter()
+                    .filter(|turn| {
+                        self.session_id.is_none()
+                            && crate::pending_voice::obsolete_voice_message(&turn.user)
+                    })
+                    .map(|turn| turn.user.id.clone()),
+            )
+            .collect()
+    }
+
     pub(super) fn turn_in_flight(&self) -> bool {
         self.active_request.is_some()
     }
@@ -65,6 +82,16 @@ impl AssistantState {
     /// A restart forgets the turn in flight and its question; a voice note
     /// that was still being transcribed says the restart interrupted it.
     pub(crate) fn recovered(&mut self) -> Option<Notice> {
+        let obsolete = self.obsolete_voice_note_ids();
+        self.pending_voice
+            .retain(|note| !obsolete.contains(&note.message.id));
+        if self
+            .turn
+            .as_ref()
+            .is_some_and(|turn| obsolete.contains(&turn.user.id))
+        {
+            self.turn = None;
+        }
         for voice in self
             .turn
             .iter_mut()
@@ -102,11 +129,12 @@ pub(super) fn session(
     {
         cx.authority(AuthorityChange::Conversation);
     }
+    if first {
+        // Match the view's agent before the hub resolves its default agent.
+        voice_notes::adopt_new_conversation_notes(assistant, &id);
+    }
     if first && assistant.agent_id.is_none() {
         assistant.agent_id = agent_id;
-    }
-    if first {
-        voice_notes::adopt_new_conversation_notes(assistant, &id);
     }
     assistant.session_id = Some(id);
 }
@@ -128,6 +156,7 @@ pub(super) fn open_session(
 ) {
     cx.authority(AuthorityChange::Conversation);
     voice_notes::retire_turn(assistant);
+    voice_drafts::abandon_new_view(assistant);
     assistant.pending_approval = None;
     assistant.session_id = Some(id);
     assistant.agent_id = agent_id;
@@ -136,6 +165,7 @@ pub(super) fn open_session(
 /// The paired device changed: nothing of the conversation is its.
 pub(super) fn device_changed(assistant: &mut AssistantState, cx: &mut Step) {
     cx.authority(AuthorityChange::Device);
+    voice_drafts::abandon_new_view(assistant);
     assistant.session_id = None;
     assistant.agent_id = None;
     assistant.active_request = None;
@@ -187,6 +217,37 @@ fn fail_turn(assistant: &mut AssistantState, notice: impl Into<Notice>, cx: &mut
 /// conversation's.
 fn leave_conversation(assistant: &mut AssistantState) {
     voice_notes::retire_turn(assistant);
+    voice_drafts::abandon_new_view(assistant);
     assistant.session_id = None;
     assistant.pending_approval = None;
+}
+
+/// Voice-note events share the assistant's state and no other domain's.
+pub(super) fn voice_event(
+    assistant: &mut AssistantState,
+    event: super::Event,
+    cx: &mut Step,
+) -> Result<(), crate::refusal::Refusal> {
+    use super::Event;
+    match event {
+        Event::SubmitVoice {
+            id,
+            text,
+            duration_ms,
+        } => voice_notes::submit_voice(assistant, id, text, duration_ms, cx)?,
+        Event::VoiceResume { id } => voice_drafts::resume_detached_voice(assistant, &id, cx)?,
+        Event::VoiceSession {
+            message_id,
+            session_id,
+        } => voice_drafts::voice_session(assistant, &message_id, &session_id),
+        Event::VoiceStored { id, duration_ms } => {
+            voice_notes::voice_stored(assistant, id, duration_ms, cx)?
+        }
+        Event::VoiceRetry { id } => voice_notes::voice_retry(assistant, &id, cx)?,
+        Event::VoiceDiscard { id } => voice_notes::voice_discard(assistant, &id)?,
+        Event::VoiceUnheard { id } => voice_notes::forget_voice_note(assistant, &id),
+        Event::VoiceFailed { id, failure } => voice_notes::voice_failed(assistant, &id, failure),
+        _ => unreachable!("voice event router"),
+    }
+    Ok(())
 }

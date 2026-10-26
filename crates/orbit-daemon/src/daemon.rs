@@ -99,6 +99,7 @@ mod transfers;
 mod turn;
 mod turn_watch;
 mod upload_outcome;
+mod voice_background;
 mod voice_dispatch;
 mod voice_notes;
 mod window_attachment;

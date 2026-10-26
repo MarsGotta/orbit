@@ -593,49 +593,54 @@ async fn occupied_voice_worker_returns_typed_capacity_with_numbers() -> Result<(
 }
 
 /// No words in a voice note is silence, not a failure (2026-10-23): the
-/// note leaves the conversation, and the composer's small line says that
-/// nothing was heard.
+/// note leaves the conversation silently when it is short.
 #[tokio::test]
 async fn an_empty_transcription_leaves_the_voice_note_without_a_failure() -> Result<()> {
-    let directory = tempfile::tempdir()?;
-    let (mut runtime, _receiver) = fixture(directory.path())?;
-    runtime
-        .apply(Event::VoiceStored {
-            id: "voice-message".into(),
-            duration_ms: 1_000,
-        })
-        .await?;
-    runtime.assistant.voice_operation = Some("voice-message".into());
-    let ticket = pending_work(
-        &mut runtime.assistant.voice_task,
-        runtime.state.generation(),
-        (),
-    )?;
-    runtime
-        .work_event(WorkResult::Capture(
-            crate::daemon::CaptureWork::Transcribed {
-                ticket,
-                source: VoiceSource {
-                    recording_id: "voice-recording".into(),
-                    chunk_id: "voice-source".into(),
-                    session_id: Some("session".into()),
-                    message_id: "voice-message".into(),
-                    duration_ms: 0,
+    for duration_ms in [1_000, 20_000] {
+        let directory = tempfile::tempdir()?;
+        let (mut runtime, _receiver) = fixture(directory.path())?;
+        runtime
+            .apply(Event::VoiceStored {
+                id: "voice-message".into(),
+                duration_ms,
+            })
+            .await?;
+        runtime.assistant.voice_operation = Some("voice-message".into());
+        let ticket = pending_work(
+            &mut runtime.assistant.voice_task,
+            runtime.state.generation(),
+            (),
+        )?;
+        runtime
+            .work_event(WorkResult::Capture(
+                crate::daemon::CaptureWork::Transcribed {
+                    ticket,
+                    source: VoiceSource {
+                        recording_id: "voice-recording".into(),
+                        chunk_id: "voice-source".into(),
+                        session_id: Some("session".into()),
+                        message_id: "voice-message".into(),
+                        duration_ms,
+                    },
+                    text: String::new(),
                 },
-                text: String::new(),
-            },
-        ))
-        .await?;
-    assert!(
-        runtime.state.durable.assistant.turn.is_none(),
-        "the silent note stayed: {:?}",
-        runtime.state.durable.assistant.turn
-    );
-    assert!(runtime.state.durable.assistant.pending_voice.is_empty());
-    assert_eq!(
-        runtime.state.durable.notice_code(),
-        Some(orbit_core::notice::NoticeCode::VoiceNotRecognized)
-    );
+            ))
+            .await?;
+        assert!(
+            runtime.state.durable.assistant.turn.is_none(),
+            "the silent note stayed: {:?}",
+            runtime.state.durable.assistant.turn
+        );
+        assert!(runtime.state.durable.assistant.pending_voice.is_empty());
+        assert_eq!(
+            runtime.state.durable.notice_code(),
+            Some(if duration_ms < orbit_core::SHORT_REFUSED_VOICE_MS {
+                orbit_core::notice::NoticeCode::VoiceNotHeard
+            } else {
+                orbit_core::notice::NoticeCode::VoiceNotRecognized
+            })
+        );
+    }
     Ok(())
 }
 
