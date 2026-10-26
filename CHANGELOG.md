@@ -7,6 +7,8 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-10-26
+
 ### Fixed
 
 - Short Mac actions can return their durable result in the first tool call.
@@ -22,40 +24,50 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ### Changed
 
-- Official assistants run in a required bubblewrap jail with read-only host
-  files, hidden hub/owner credentials and control sockets, private `/tmp` and
-  `/proc`, and only their working folder and vendor home writable. Startup and
-  hub publication fail closed if the jail cannot be created. Each assistant
-  has separate read-only MCP bridge credentials bound to its authenticated
-  identity. Commands and edits request Mac cards (Codex `untrusted`, with its
-  internal sandbox disabled); Claude's local reads/searches do not. Working
-  folders reject protected paths, the owner's home and installed hub code.
-  **Trabajó…** retains commands and edited filenames. Self-hosting documents
-  the remaining vendor-approval, credential, network and later-execution limits.
-
+- Assistants added from Orbit use Anthropic's official Python Claude Agent
+  SDK and the official Codex app-server. Streaming, activity, approvals,
+  clarifications, stop, account sign-in and the plan-limit handover keep the
+  existing hub/Mac contract. Third-party ACP adapters are removed.
 - Claude and Codex assistants can be added from Orbit without hub tool tables.
   Claude uses the CLI bundled with Claude Agent SDK 0.2.174; hub publication
   ships official Codex 0.164.0 after checking its pinned SHA-256. The hub
   generates MCP configuration and private bridge keys; existing tool overrides
   still work. Missing tools name their path and cause and suggest republishing.
+- Official assistants work on the hub with their own tools, in a working
+  folder chosen on their page in Orbit, inside a required bubblewrap jail.
+  - Host files are read-only. Hub and owner credentials and control sockets
+    are hidden, and `/tmp` and `/proc` are private. Only the working folder
+    and the vendor home can be written.
+  - Startup and hub publication fail closed if the jail cannot be created.
+  - Each assistant has separate read-only MCP bridge credentials, bound to
+    its authenticated identity.
+  - Commands and edits request Mac cards (Codex `untrusted`, with its
+    internal sandbox disabled). Claude's local reads and searches, and its
+    own to-do list, tasks and subagents, don't.
+  - Working folders reject protected paths, the owner's home and the
+    installed hub code.
+  - **Trabajó…** keeps the commands and the edited filenames.
+  - The self-hosting guide documents the remaining limits: vendor approval,
+    credentials, network and later execution.
 - Hermes setup copy explains that assistants are created on the hub from a
   Hermes profile and then appear in Orbit.
 
-- Assistants added from Orbit use Anthropic's official Python Claude Agent
-  SDK and the official Codex app-server. Streaming, activity, approvals,
-  clarifications, stop, account sign-in and the plan-limit handover keep the
-  existing hub/Mac contract. Third-party ACP adapters are removed.
-
 ### Upgrading
 
-- **Self-hosters: upgrade the hub first.** `[acp_adapters]` becomes
-  optional `[assistant_tools]` overrides. Publishing the hub supplies the
-  official tools; Node ACP packages are no longer needed. Existing
-  `orbit_mcp_config`, `env`, agent ids and account folders keep working.
-  Manually configured vendor agents use `kind = "claude-code"` or
-  `kind = "codex"` and drop `agent`. Adapter-specific flags must be removed.
-  Some old adapter conversation ids cannot be resumed by the vendor; their
-  stored Orbit history remains available. See the self-hosting guide.
+- **Self-hosters: upgrade the hub first.**
+  - `[acp_adapters]` becomes optional `[assistant_tools]` overrides.
+  - Publishing the hub supplies the official tools; Node ACP packages are
+    no longer needed.
+  - Existing `orbit_mcp_config`, `env`, agent ids and account folders keep
+    working.
+  - Manually configured vendor agents use `kind = "claude-code"` or
+    `kind = "codex"` and drop `agent`. Adapter-specific flags must be removed.
+  - Some old adapter conversation ids can't be resumed by the vendor; their
+    stored Orbit history stays available.
+  - See the self-hosting guide.
+- **The hub host needs bubblewrap.** It must be able to create unprivileged
+  user namespaces. On Ubuntu, that is the `bwrap-userns-restrict` AppArmor
+  profile.
 
 ## [0.12.1] - 2026-10-25
 
