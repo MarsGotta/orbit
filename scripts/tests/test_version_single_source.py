@@ -54,9 +54,10 @@ class SingleSourceTests(unittest.TestCase):
             path = ROOT / name
             if name in allowed or path.suffix not in MANIFESTS or not path.is_file():
                 continue
-            if name.endswith(("Cargo.lock", "pnpm-lock.yaml")):
+            if name.endswith(("Cargo.lock", "pnpm-lock.yaml")) or name == "server/codex-release.toml":
                 # Lockfiles state the resolved versions of dependencies, not
-                # a version of Orbit; pnpm's is generated like Cargo's.
+                # a version of Orbit; pnpm's is generated like Cargo's. The
+                # Codex pin is a dependency too, guarded by its checksum.
                 continue
             text = path.read_text(encoding="utf-8", errors="replace")
             for pattern in (STATEMENT, PLIST_STATEMENT):
