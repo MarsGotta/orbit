@@ -30,6 +30,7 @@ pub struct Question {
     epoch: String,
     asked_at_ms: Option<i64>,
     reset_at_ms: Option<i64>,
+    voiced_frames: [Option<u64>; 2],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,6 +41,16 @@ pub enum Outcome {
     Withdraw,
 }
 
+/// Unknown preserves a pending deadline but cannot ask or close. Only positive
+/// activity withdraws it. A fresh quiet sample may close an expired question
+/// even when a delivery gap restarted the pre-question quiet interval.
+#[derive(Debug, Clone, Copy)]
+pub enum Observation {
+    Unknown,
+    Active,
+    Quiet { can_ask: bool },
+}
+
 impl Question {
     pub fn pending(&self) -> bool {
         self.asked_at_ms.is_some()
@@ -48,28 +59,39 @@ impl Question {
         self.asked_at_ms = None;
         self.reset_at_ms = Some(now_ms);
     }
-    pub fn observe(
-        &mut self,
-        owner: &str,
-        epoch: &str,
-        quiet: bool,
-        wait_ms: i64,
-        now: i64,
-    ) -> Outcome {
-        let replaced_pending = (self.owner != owner || self.epoch != epoch) && self.pending();
-        if self.owner != owner || self.epoch != epoch {
+    fn bind(&mut self, owner: &str, epoch: Option<&str>) {
+        if self.owner != owner {
             *self = Self {
                 owner: owner.into(),
-                epoch: epoch.into(),
                 ..Self::default()
             };
         }
-        if !quiet {
-            return if self.asked_at_ms.take().is_some() || replaced_pending {
-                Outcome::Withdraw
-            } else {
-                Outcome::None
-            };
+        if let Some(epoch) = epoch.filter(|epoch| *epoch != self.epoch) {
+            self.epoch = epoch.into();
+            self.voiced_frames = [None; 2];
+        }
+    }
+    pub fn observe(
+        &mut self,
+        owner: &str,
+        observation: Observation,
+        wait_ms: i64,
+        now: i64,
+    ) -> Outcome {
+        self.bind(owner, None);
+        match observation {
+            Observation::Unknown => return Outcome::None,
+            Observation::Active => {
+                let pending = self.pending();
+                self.keep(now);
+                return if pending {
+                    Outcome::Withdraw
+                } else {
+                    Outcome::None
+                };
+            }
+            Observation::Quiet { can_ask } if !self.pending() && !can_ask => return Outcome::None,
+            Observation::Quiet { .. } => {}
         }
         if let Some(asked) = self.asked_at_ms {
             if now < asked {
@@ -84,6 +106,50 @@ impl Question {
             return Outcome::Ask;
         }
         Outcome::None
+    }
+    pub fn observe_recording(
+        &mut self,
+        owner: &str,
+        signal: Option<&RecordingSignalView>,
+        muted: bool,
+        now: i64,
+    ) -> Outcome {
+        self.bind(owner, signal.map(|s| s.capture_epoch_id.as_str()));
+        let observation = signal.map_or(Observation::Unknown, |s| {
+            let mut quiet = false;
+            let mut active = false;
+            for (index, track) in [Some(&s.mic_local), s.remote_app.as_ref()]
+                .into_iter()
+                .enumerate()
+            {
+                let Some(track) = track else { continue };
+                let ignored = index == 0 && muted;
+                let fresh = fresh_quiet_ms(track);
+                if let Some(frames) = track.voiced_frames.filter(|_| fresh.is_some()) {
+                    let previous = self.voiced_frames[index].replace(frames);
+                    active |= !ignored && frames > previous.unwrap_or(0);
+                }
+                if !ignored {
+                    let side_quiet = fresh.is_some();
+                    quiet = if index == 0 || muted {
+                        side_quiet
+                    } else {
+                        quiet && side_quiet
+                    };
+                }
+            }
+            if active {
+                Observation::Active
+            } else if quiet {
+                Observation::Quiet {
+                    can_ask: recording_quiet(s, muted)
+                        && self.reset_allows(now, RECORDING_SILENCE_MS as i64),
+                }
+            } else {
+                Observation::Unknown
+            }
+        });
+        self.observe(owner, observation, RECORDING_ANSWER_MS, now)
     }
     pub fn reset_allows(&self, now: i64, pause: i64) -> bool {
         self.reset_at_ms
@@ -123,16 +189,19 @@ pub fn recording_quiet(signal: &RecordingSignalView, muted: bool) -> bool {
     }
 }
 fn track_quiet(track: &TrackSignalView) -> bool {
-    matches!(
+    fresh_quiet_ms(track).is_some_and(|quiet| quiet >= RECORDING_SILENCE_MS)
+}
+fn fresh_quiet_ms(track: &TrackSignalView) -> Option<u64> {
+    (matches!(
         track.condition,
         crate::audio_signal::SignalCondition::Receiving
             | crate::audio_signal::SignalCondition::LowSignal
     ) && track
         .since_last_samples_ms
         .is_some_and(|age| age < SAMPLE_DELIVERY_TIMEOUT_MS)
-        && track
-            .speech_quiet_ms
-            .is_some_and(|quiet| quiet >= RECORDING_SILENCE_MS)
+        && track.voiced_frames.is_some())
+    .then_some(track.speech_quiet_ms)
+    .flatten()
 }
 
 /// A saved question cannot retain a live countdown after recovery. Withdraw it

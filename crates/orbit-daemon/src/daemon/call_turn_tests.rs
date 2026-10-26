@@ -1030,3 +1030,33 @@ async fn short_provider_refusals_are_silent_but_long_ones_can_be_discarded() -> 
     }
     Ok(())
 }
+
+#[tokio::test]
+async fn queued_audio_holds_the_calls_question_until_a_fresh_observation() -> Result<()> {
+    let mut call = Call::open().await?;
+    call.runtime.link.token = None;
+    let started = call.started_at_ms()?;
+    call.frames_at(started + 30_000, 1, false).await?;
+    call.runtime.check_silence_at(started + 30_000).await?;
+    assert!(call.runtime.state.views.silence_questions.call.pending());
+    call.runtime.audio.queued_native_events = 1;
+    call.runtime.check_silence_at(started + 45_000).await?;
+    assert!(call.alive());
+    assert!(call.runtime.state.views.silence_questions.call.pending());
+    call.runtime.audio.queued_native_events = 0;
+    call.frames_at(started + 46_000, 1, false).await?;
+    call.runtime.check_silence_at(started + 46_000).await?;
+    assert!(!call.alive());
+    assert_eq!(
+        call.runtime
+            .state
+            .durable
+            .notice_log
+            .records()
+            .iter()
+            .filter(|n| n.code == orbit_core::notice::NoticeCode::CallSilenceQuestion)
+            .count(),
+        1
+    );
+    Ok(())
+}

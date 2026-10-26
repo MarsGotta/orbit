@@ -23,14 +23,20 @@ def bounds(rust_constant) -> dict[str, tuple[float, str]]:
     )
     drain = rust_constant("crates/orbit-core/src/lib.rs", "FINALIZING_TIMEOUT_MS") / 1000
     http = rust_constant("crates/orbit-daemon/src/hub.rs", "HUB_HTTP_TIMEOUT_SECONDS")
+    # The real run re-asked every 3–16 s. That is not a PCM delivery bound.
+    # Allow one answer interval for a positive post-expiry observation; absence
+    # remains a test timeout, never permission for production to close.
     return {
         "silence-question": (
             quiet + delivery,
             "RECORDING_SILENCE_MS plus SAMPLE_DELIVERY_TIMEOUT_MS for the tick and pushed notice",
         ),
         "silence-saved": (
-            answer + drain + http,
-            "RECORDING_ANSWER_MS plus FINALIZING_TIMEOUT_MS and HUB_HTTP_TIMEOUT_SECONDS for normal closure/list delivery",
+            2 * answer + delivery + drain + http,
+            (
+                "RECORDING_ANSWER_MS to answer, one more answer interval for a fresh quiet observation, "
+                "SAMPLE_DELIVERY_TIMEOUT_MS for its tick, then FINALIZING_TIMEOUT_MS and HUB_HTTP_TIMEOUT_SECONDS for normal save"
+            ),
         ),
         "silence-hub": (
             drain + http,

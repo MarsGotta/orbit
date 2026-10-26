@@ -50,7 +50,7 @@ const base = {
   call_ceiling_near: { class: "silent" },
   call_silence_resolved: { class: "silent" },
   call_silence_question: {
-    class: "fixable",
+    class: "working",
     text: () => "¿Sigues ahí? Si no dices nada, cuelgo en 15 segundos",
     actions: [
       { label: "Seguir", command: { command: "call_keep" } },

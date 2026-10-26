@@ -4,7 +4,7 @@
 macro_rules! recording_notices {
     ([$next:ident $(, $rest:ident)*] ; $($entries:tt)*) => {
         $next! { [$($rest),*] ; $($entries)*
-            RecordingSilenceQuestion = 163 => Fixable,
+            RecordingSilenceQuestion = 163 => Working,
             RecordingSilenceResolved = 164 => Silent,
             CaptureStarting = 0 => Silent,
             RecordingStarted = 1 => Silent,

@@ -33,9 +33,17 @@ pub(in crate::transition) fn silence(
 ) -> Result<(), Refusal> {
     if let Some(live) = &n.voice.call {
         let q = &mut views.silence_questions.call;
-        let quiet = call.is_some_and(|f| !f.busy && f.silent_ms >= CALL_SILENCE_MS)
-            && q.reset_allows(cx.now_ms, CALL_SILENCE_MS);
-        match q.observe(&live.id, "", quiet, CALL_ANSWER_MS, cx.now_ms) {
+        let observation = call.map_or(Observation::Unknown, |f| {
+            if f.busy {
+                Observation::Active
+            } else {
+                Observation::Quiet {
+                    can_ask: f.silent_ms >= CALL_SILENCE_MS
+                        && q.reset_allows(cx.now_ms, CALL_SILENCE_MS),
+                }
+            }
+        });
+        match q.observe(&live.id, observation, CALL_ANSWER_MS, cx.now_ms) {
             Outcome::Ask => {
                 say(cx, NoticeCode::CallSilenceQuestion, "call-silence");
                 cx.effect(Effect::AskCallPresence);
@@ -52,12 +60,9 @@ pub(in crate::transition) fn silence(
     }
     if let Some(live) = &n.capture.recording {
         let q = &mut views.silence_questions.recording;
-        let signal = recording.filter(|s| s.recording_id == live.id);
-        let quiet = live.phase == CapturePhase::Recording
-            && signal.is_some_and(|s| recording_quiet(s, muted))
-            && q.reset_allows(cx.now_ms, RECORDING_SILENCE_MS as i64);
-        let epoch = signal.map_or("", |s| s.capture_epoch_id.as_str());
-        match q.observe(&live.id, epoch, quiet, RECORDING_ANSWER_MS, cx.now_ms) {
+        let signal = recording
+            .filter(|s| live.phase == CapturePhase::Recording && s.recording_id == live.id);
+        match q.observe_recording(&live.id, signal, muted, cx.now_ms) {
             Outcome::Ask => say(
                 cx,
                 NoticeCode::RecordingSilenceQuestion,

@@ -15,7 +15,7 @@ impl Runtime {
             .call
             .as_ref()
             .filter(|c| c.closing_at_ms.is_none())
-            .map(|c| {
+            .and_then(|c| {
                 let prompt = self.presence_question_playback();
                 let speaking = !prompt
                     && (c.playback_active
@@ -28,17 +28,15 @@ impl Runtime {
                     && silent_ms
                         < orbit_core::silence::CALL_SILENCE_MS
                             + orbit_core::voice::VoicePolicy::default().maximum_turn_ms as i64;
-                CallQuiet {
-                    silent_ms,
-                    busy: speaking
-                        || user_turn
-                        || self.microphone_muted()
-                        || self.audio.queued_native_events > 0
-                        || self.state.durable.assistant.active_request.is_some()
-                        || self.state.durable.assistant.pending_approval.is_some()
-                        || self.computer.work.active().is_some()
-                        || c.last_audio.elapsed() >= call::CALL_AUDIO_SILENCE_LIMIT,
-                }
+                let busy = speaking
+                    || user_turn
+                    || self.state.durable.assistant.active_request.is_some()
+                    || self.state.durable.assistant.pending_approval.is_some()
+                    || self.computer.work.active().is_some();
+                let observed = !self.microphone_muted()
+                    && self.audio.queued_native_events == 0
+                    && c.last_audio.elapsed() < call::CALL_AUDIO_SILENCE_LIMIT;
+                (observed || busy).then_some(CallQuiet { silent_ms, busy })
             });
         let recording = (self.audio.queued_native_events == 0)
             .then(|| self.recording_signal_view())
@@ -133,6 +131,7 @@ pub(super) async fn finish_silent_meeting_fixture(runtime: &mut Runtime) -> Resu
         since_last_samples_ms: Some(0),
         low_signal_ms: 150_000,
         speech_quiet_ms: Some(150_000),
+        voiced_frames: Some(0),
     };
     let signal = RecordingSignalView {
         recording_id,

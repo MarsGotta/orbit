@@ -75,7 +75,7 @@ export const capture = {
   recording_ceiling_reached: { class: "silent" },
   recording_silence_resolved: { class: "silent" },
   recording_silence_question: {
-    class: "fixable",
+    class: "working",
     text: () => "¿Sigue la reunión? La termino y la guardo en 30 s",
     actions: [
       { label: "Seguir grabando", command: { command: "meeting_keep" } },

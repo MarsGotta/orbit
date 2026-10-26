@@ -86,6 +86,10 @@ pub struct TrackSignalView {
     /// Separate from low_signal_ms: room noise is not a dead microphone.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub speech_quiet_ms: Option<u64>,
+    /// Cumulative voiced frames, including speech followed by quiet between
+    /// observations. Gaps do not erase positive speech evidence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voiced_frames: Option<u64>,
 }
 
 /// At most two tracks. The adapter supplies and validates both identities;
@@ -108,6 +112,7 @@ pub struct TrackSignalMonitor {
     sample_rate: Option<u32>,
     low_frames: u64,
     speech_quiet_frames: u64,
+    voiced_frames: u64,
 }
 
 impl TrackSignalMonitor {
@@ -119,6 +124,7 @@ impl TrackSignalMonitor {
             sample_rate: None,
             low_frames: 0,
             speech_quiet_frames: 0,
+            voiced_frames: 0,
         }
     }
 
@@ -147,6 +153,9 @@ impl TrackSignalMonitor {
         }
         let threshold = u64::from(crate::voice::VoicePolicy::default().rms_threshold);
         let voiced = signal.sum_squared_amplitudes >= signal.frames * threshold * threshold;
+        if voiced {
+            self.voiced_frames = self.voiced_frames.saturating_add(signal.frames);
+        }
         if discontinuous || voiced {
             self.speech_quiet_frames = 0;
         }
@@ -169,6 +178,7 @@ impl TrackSignalMonitor {
             since_last_samples_ms: None,
             low_signal_ms: 0,
             speech_quiet_ms: None,
+            voiced_frames: None,
         };
         let reference = self.last_samples_at_ms.unwrap_or(self.started_at_ms);
         let Some(elapsed) = now_ms.checked_sub(reference) else {
@@ -181,6 +191,7 @@ impl TrackSignalMonitor {
             view.condition = SignalCondition::AwaitingSamples;
         } else {
             view.low_signal_ms = self.low_signal_ms();
+            view.voiced_frames = Some(self.voiced_frames);
             view.speech_quiet_ms = self
                 .sample_rate
                 .map(|rate| duration_ms(self.speech_quiet_frames, rate));

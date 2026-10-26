@@ -738,7 +738,13 @@ def test_silence_waits_follow_the_rust_constants(monkeypatch):
     )
     finalizing = original("crates/orbit-core/src/lib.rs", "FINALIZING_TIMEOUT_MS") / 1000
     http = original("crates/orbit-daemon/src/hub.rs", "HUB_HTTP_TIMEOUT_SECONDS")
-    assert waits["silence-saved"][0] == 47 + finalizing + http
+    assert (
+        waits["silence-saved"][0]
+        == 2 * 47
+        + original("crates/orbit-core/src/audio_signal.rs", "SAMPLE_DELIVERY_TIMEOUT_MS") / 1000
+        + finalizing
+        + http
+    )
     assert waits["silence-hub"][0] == finalizing + http
 
 
@@ -796,3 +802,32 @@ def test_silence_question_wait_rejects_unknown_old_resolved_or_ended_recordings(
     for phase in ("finalizing", "idle", "interrupted"):
         with pytest.raises(mac_side.MacFailure, match="before its question"):
             wait(state(phase=phase), "test-meeting")
+
+
+@pytest.mark.parametrize("code", ("recording_silence_question", "call_silence_question"))
+def test_check_ten_accepts_a_question_but_rejects_actual_failures(code):
+    import checks
+
+    def evidence(code, notice_class):
+        return {
+            "logs": {
+                "report-daemon.log": json.dumps(
+                    {
+                        "code": code,
+                        "class": notice_class,
+                        "op": "test-question",
+                        "data": {},
+                        "ts": "2026-10-26T10:00:00Z",
+                    }
+                )
+            }
+        }
+
+    assert checks.c10_no_failures(evidence(code, "working"))[0]
+    for failed, notice_class in (
+        ("recording_close_unconfirmed", "failed"),
+        ("track_stopped", "fixable"),
+    ):
+        assert not checks.c10_no_failures(evidence(failed, notice_class))[0]
+    # Even a question must be rejected if a producer still reports it as a failure.
+    assert not checks.c10_no_failures(evidence(code, "fixable"))[0]

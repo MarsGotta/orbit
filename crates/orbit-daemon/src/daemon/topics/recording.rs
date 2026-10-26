@@ -189,6 +189,7 @@ mod tests {
                 since_last_samples_ms: Some(0),
                 low_signal_ms: 0,
                 speech_quiet_ms: None,
+                voiced_frames: None,
             },
             remote_app: None,
         });
@@ -280,6 +281,7 @@ mod tests {
             since_last_samples_ms: Some(0),
             low_signal_ms: 0,
             speech_quiet_ms: None,
+            voiced_frames: None,
         };
         state.views.recording_signal = Some(RecordingSignalView {
             recording_id: "recording-1".into(),

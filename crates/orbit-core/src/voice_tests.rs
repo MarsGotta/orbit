@@ -232,6 +232,7 @@ fn run(
             transcribed_until = None;
             if words(ms) {
                 detector.heard_words();
+                question.keep(ms as i64);
             }
         }
         let action;
@@ -254,8 +255,12 @@ fn run(
         }
         let silent = ms as i64 - detector.last_activity_ms();
         let quiet = silent >= crate::silence::CALL_SILENCE_MS;
-        if question.observe("call", "", quiet, crate::silence::CALL_ANSWER_MS, ms as i64)
-            == crate::silence::Outcome::Close
+        if question.observe(
+            "call",
+            crate::silence::Observation::Quiet { can_ask: quiet },
+            crate::silence::CALL_ANSWER_MS,
+            ms as i64,
+        ) == crate::silence::Outcome::Close
         {
             return Run {
                 detector,

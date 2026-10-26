@@ -70,6 +70,7 @@ fn signal(low: u64) -> TrackSignalView {
         since_last_samples_ms: Some(0),
         low_signal_ms: low,
         speech_quiet_ms: Some(low),
+        voiced_frames: Some(u64::from(low == 0)),
     }
 }
 fn check_meeting(s: &State, now: i64, mic: u64, remote: u64, muted: bool) -> orbit_core::Decision {
@@ -139,7 +140,9 @@ fn words_and_continue_reset_but_noise_does_not() {
             .call
             .is_none()
     );
-    let words = check_call(&asked, 31_000, 0, false).state;
+    // The daemon emits CallKeep after transcription confirms words; detector
+    // activity alone could be noise and cannot answer the question.
+    let words = decide(&asked, Event::CallKeep, 31_000).unwrap().state;
     assert!(
         check_call(&words, 45_000, 14_000, false)
             .state
@@ -273,7 +276,7 @@ fn recording_continue_voice_or_unknown_prevents_close_and_time_alone_never_ends(
 }
 
 #[test]
-fn stale_unknown_or_missing_sides_withdraw_the_question_and_never_stop() {
+fn stale_unknown_or_missing_sides_preserve_the_question_and_never_stop() {
     let asked = check_meeting(&meeting(), 120_000, 120_000, 120_000, false).state;
     for condition in [
         SignalCondition::Unknown,
@@ -294,7 +297,7 @@ fn stale_unknown_or_missing_sides_withdraw_the_question_and_never_stop() {
         };
         let d = decide(&asked, event, 150_000).unwrap();
         assert!(d.effects.is_empty());
-        assert!(!d.state.views.silence_questions.recording.pending());
+        assert!(d.state.views.silence_questions.recording.pending());
         assert_eq!(
             d.state.durable.capture.recording.unwrap().phase,
             orbit_core::CapturePhase::Recording
@@ -411,9 +414,174 @@ fn legacy_signal_without_speech_observation_cannot_close_a_recording() {
     };
     let decision = check_levels(&asked, observation, 150_000);
     assert!(decision.effects.is_empty());
-    assert!(!decision.state.views.silence_questions.recording.pending());
+    assert!(decision.state.views.silence_questions.recording.pending());
     assert_eq!(
         decision.state.durable.capture.recording.unwrap().phase,
         orbit_core::CapturePhase::Recording
+    );
+}
+
+fn burst_signal(
+    mic: &orbit_core::audio_signal::TrackSignalMonitor,
+    remote: &orbit_core::audio_signal::TrackSignalMonitor,
+    now: u64,
+) -> RecordingSignalView {
+    RecordingSignalView {
+        recording_id: "meeting".into(),
+        capture_epoch_id: "bursts".into(),
+        mic_local: mic.view(now),
+        remote_app: Some(remote.view(now)),
+    }
+}
+
+#[test]
+fn silent_bursts_keep_one_question_and_close_at_the_original_deadline() {
+    use orbit_core::audio_signal::{TrackSignalMonitor, measure_s16le};
+    let quiet = measure_s16le(&vec![0; 16_000]).unwrap();
+    let mut mic = TrackSignalMonitor::new(0);
+    let mut remote = TrackSignalMonitor::new(0);
+    for second in 1..=120 {
+        assert!(mic.observe(quiet, 8_000, second * 1_000));
+        assert!(remote.observe(quiet, 8_000, second * 1_000));
+    }
+    let mut state = check_levels(&meeting(), burst_signal(&mic, &remote, 120_000), 120_000).state;
+    assert!(state.views.silence_questions.recording.pending());
+    for second in 121..=150 {
+        assert!(mic.observe(quiet, 8_000, second * 1_000));
+        if second % 5 == 0 {
+            assert!(remote.observe(quiet, 8_000, second * 1_000));
+        }
+        let decision = if second % 5 == 1 {
+            decide(
+                &state,
+                Event::CheckSilence {
+                    call: None,
+                    recording: None,
+                    microphone_muted: false,
+                },
+                (second * 1_000) as i64,
+            )
+            .unwrap()
+        } else {
+            check_levels(
+                &state,
+                burst_signal(&mic, &remote, second * 1_000),
+                (second * 1_000) as i64,
+            )
+        };
+        state = decision.state;
+        if second < 150 {
+            assert!(
+                state.views.silence_questions.recording.pending(),
+                "second {second}"
+            );
+        }
+    }
+    assert_eq!(
+        state
+            .durable
+            .notice_log
+            .records()
+            .iter()
+            .filter(|n| n.code == NoticeCode::RecordingSilenceQuestion)
+            .count(),
+        1
+    );
+    assert_eq!(
+        state.durable.capture.recording.unwrap().phase,
+        orbit_core::CapturePhase::Finalizing
+    );
+}
+
+#[test]
+fn an_expired_question_waits_for_fresh_quiet_instead_of_a_new_two_minutes() {
+    let asked = check_meeting(&meeting(), 120_000, 120_000, 120_000, false).state;
+    let mut missing = signal(150_000);
+    missing.condition = SignalCondition::DeliveryDelayed;
+    missing.speech_quiet_ms = None;
+    let observation = RecordingSignalView {
+        recording_id: "meeting".into(),
+        capture_epoch_id: "epoch".into(),
+        mic_local: missing,
+        remote_app: Some(signal(150_000)),
+    };
+    let expired = check_levels(&asked, observation, 150_000);
+    assert!(expired.effects.is_empty());
+    assert!(expired.state.views.silence_questions.recording.pending());
+    let fresh = check_meeting(&expired.state, 152_000, 1_000, 152_000, false);
+    assert_eq!(
+        fresh.state.durable.capture.recording.unwrap().phase,
+        orbit_core::CapturePhase::Finalizing
+    );
+}
+
+#[test]
+fn a_call_question_survives_unknown_observations_and_noise_without_reasking() {
+    let asked = check_call(&call(), 30_000, 30_000, false).state;
+    let missing = decide(
+        &asked,
+        Event::CheckSilence {
+            call: None,
+            recording: None,
+            microphone_muted: false,
+        },
+        45_000,
+    )
+    .unwrap();
+    assert!(missing.effects.is_empty());
+    assert!(missing.state.views.silence_questions.call.pending());
+    let noisy = check_call(&missing.state, 46_000, 0, false);
+    assert!(noisy.state.durable.voice.call.is_none());
+    assert!(!noisy.effects.contains(&Effect::AskCallPresence));
+}
+
+#[test]
+fn presence_questions_are_waiting_for_the_person_rather_than_failures() {
+    use orbit_core::notice::NoticeClass;
+    for code in [
+        NoticeCode::CallSilenceQuestion,
+        NoticeCode::RecordingSilenceQuestion,
+    ] {
+        assert_eq!(code.class(), NoticeClass::Working);
+    }
+}
+
+#[test]
+fn speech_between_observations_withdraws_even_if_followed_by_quiet() {
+    use orbit_core::audio_signal::{TrackSignalMonitor, measure_s16le};
+    let quiet = measure_s16le(&vec![0; 16_000]).unwrap();
+    let speech = measure_s16le(&vec![500_i16.to_le_bytes(); 4_000].concat()).unwrap();
+    let mut mic = TrackSignalMonitor::new(0);
+    let mut remote = TrackSignalMonitor::new(0);
+    for second in 1..=120 {
+        assert!(mic.observe(quiet, 8_000, second * 1_000));
+        assert!(remote.observe(quiet, 8_000, second * 1_000));
+    }
+    for microphone in [true, false] {
+        let mut mic = mic.clone();
+        let mut remote = remote.clone();
+        let asked = check_levels(&meeting(), burst_signal(&mic, &remote, 120_000), 120_000).state;
+        let side = if microphone { &mut mic } else { &mut remote };
+        assert!(side.observe(speech, 8_000, 125_000));
+        assert!(side.observe(quiet, 8_000, 125_500));
+        // The other side is stale. Positive speech still cancels the question;
+        // a subsequent quiet buffer cannot erase that evidence.
+        let decision = check_levels(&asked, burst_signal(&mic, &remote, 125_500), 125_500);
+        assert!(!decision.state.views.silence_questions.recording.pending());
+        assert_eq!(
+            decision.state.notice_code(),
+            Some(NoticeCode::RecordingSilenceResolved)
+        );
+        assert!(decision.effects.is_empty());
+    }
+}
+
+#[test]
+fn a_muted_microphones_voice_does_not_withdraw_the_meeting_question() {
+    let asked = check_meeting(&meeting(), 120_000, 120_000, 120_000, false).state;
+    let decision = check_meeting(&asked, 150_000, 0, 1_000, true);
+    assert_eq!(
+        decision.state.durable.capture.recording.unwrap().phase,
+        orbit_core::CapturePhase::Finalizing
     );
 }

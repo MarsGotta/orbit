@@ -164,9 +164,9 @@ export const noticeClass = {
   wake_phrase_question_received: "silent",
   wake_phrase_question_ignored: "silent",
   call_ceiling_near: "silent",
-  call_silence_question: "fixable",
+  call_silence_question: "working",
   call_silence_resolved: "silent",
-  recording_silence_question: "fixable",
+  recording_silence_question: "working",
   recording_silence_resolved: "silent",
   unknown: "failed",
 } as const satisfies Record<NoticeCode, NoticeClass>;

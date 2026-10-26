@@ -32,6 +32,7 @@ pub(crate) fn track(condition: SignalCondition, frames: u64, elapsed_ms: u64) ->
         since_last_samples_ms: Some(elapsed_ms),
         low_signal_ms: 0,
         speech_quiet_ms: None,
+        voiced_frames: None,
     }
 }
 

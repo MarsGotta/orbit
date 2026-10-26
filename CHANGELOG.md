@@ -21,6 +21,12 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ### Fixed
 
+- Pending silence questions survive missing or stale audio without repeating or
+  restarting their answer window. Recordings close only on fresh quiet after
+  expiry; positive voice or «Seguir grabando» keeps them going. Call questions
+  likewise wait for usable observations, and noise cannot answer them. Their
+  notices are waiting questions, rather than failures.
+
 - Meeting transcripts keep each track's utterances whole during overlapping
   speech and short interjections, including in already recorded meetings.
   Pauses longer than one second start a new turn only when another voice

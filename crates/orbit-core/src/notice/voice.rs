@@ -20,7 +20,7 @@ macro_rules! voice_notices {
             /// Nothing was heard in a call's turn (the hub found no words): it was
             /// dropped without a word to the user, or waits for what they say next.
             VoiceNotHeard = 47 => Silent,
-            CallSilenceQuestion = 161 => Fixable,
+            CallSilenceQuestion = 161 => Working,
             CallSilenceResolved = 162 => Silent,
             CallStarting = 69 => Silent,
             CallActive = 70 => Silent,

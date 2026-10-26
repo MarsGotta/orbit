@@ -21,6 +21,7 @@ for (const [code, text, labels, commands] of [
   it(`${code} presents both choices and sends their orders`, () => {
     const op = code === "call_silence_question" ? "call-silence" : "recording-silence";
     const shown = receive([], { kind: "notice", notice: { code, op } });
+    expect(shown.messages[0]?.class).toBe("working");
     const onAction = vi.fn();
     render(
       <NoticeBanner

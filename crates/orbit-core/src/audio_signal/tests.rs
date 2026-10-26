@@ -62,6 +62,7 @@ fn no_samples_wait_then_delay_without_claiming_low_signal() {
                 since_last_samples_ms: None,
                 low_signal_ms: 0,
                 speech_quiet_ms: None,
+                voiced_frames: None,
             }
         );
     }
