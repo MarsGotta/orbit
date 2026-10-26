@@ -21,7 +21,7 @@ agent_id?: string,
  * The turn in progress, or the last one until another begins:
  * the user's message and the answer as it arrives.
  */
-turn: Array<ChatMessage>, 
+turn: Array<ChatMessage>, waiting_sessions?: { [key in string]?: string }, history_revision?: number, 
 /**
  * Voice notes this Mac keeps for the hub (spoken with it away, or
  * whose transcription failed) that a later turn replaced, oldest

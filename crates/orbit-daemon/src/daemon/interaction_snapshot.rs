@@ -142,6 +142,7 @@ impl Runtime {
         &mut self,
         snapshot: &SnapshotData,
     ) -> Result<()> {
+        self.remember_waiting_sessions(snapshot);
         let Some((selected, session, turn_state)) = self.snapshot_turn(snapshot)? else {
             return Ok(());
         };
@@ -168,6 +169,10 @@ impl Runtime {
                 .context("Turno activo sin identidad")?;
             uuid::Uuid::parse_str(turn_id).context("Identidad de turno incompatible")?;
             next.durable.assistant.active_request = Some(turn_id.into());
+            if let Some(turn) = &session.turn {
+                next.durable.assistant.turn = Some(recovered_turn(turn, turn_id)?);
+            }
+            self.assistant.retry = retry_activity(session.retry.as_deref());
             if let Some(question) = pending.first() {
                 next.durable.assistant.pending_approval = Some(recovered_approval(question)?);
                 next.set_notice(
@@ -186,6 +191,7 @@ impl Runtime {
                 next.set_notice(self.scoped(NoticeCode::AssistantOutcomeUnknown));
             }
             next.durable.assistant.active_request = None;
+            self.assistant.retry = None;
         }
         self.store_actor.snapshot(&next).await?;
         if !turn_state.keeps_response_visible()
@@ -197,4 +203,74 @@ impl Runtime {
         self.assistant.snapshot_revision = Some(revision);
         Ok(())
     }
+}
+
+/// Only closed progress tokens reach presentation, never provider diagnostics.
+pub(in crate::daemon) fn retry_activity(
+    kind: Option<&str>,
+) -> Option<orbit_core::topics::assistant::Activity> {
+    use orbit_core::topics::assistant::Activity;
+    match kind {
+        Some("retrying_openai") => Some(Activity::RetryingOpenai),
+        Some("retrying_anthropic") => Some(Activity::RetryingAnthropic),
+        _ => None,
+    }
+}
+
+impl Runtime {
+    fn remember_waiting_sessions(&mut self, snapshot: &SnapshotData) {
+        if snapshot.sessions.len() > 128
+            || self
+                .assistant
+                .waiting_revision
+                .is_some_and(|r| snapshot.revision < r)
+        {
+            return;
+        }
+        self.assistant.waiting_revision = Some(snapshot.revision);
+        // A targeted observation is partial; absence never clears another session.
+        if snapshot.omitted == Some(false) {
+            self.assistant.waiting_sessions.clear();
+        }
+        for session in &snapshot.sessions {
+            self.assistant.waiting_sessions.remove(&session.session_id);
+            if let Some(pending) = session
+                .pending
+                .iter()
+                .find(|p| p.state == "pending" && matches!(p.kind.as_str(), "approval" | "clarify"))
+                && self.assistant.waiting_sessions.len() < 128
+            {
+                self.assistant
+                    .waiting_sessions
+                    .insert(session.session_id.clone(), pending.kind.clone());
+            }
+        }
+    }
+}
+
+/// The observed turn has the selected identity and the existing text ceilings.
+fn recovered_turn(turn: &orbit_core::Turn, turn_id: &str) -> Result<orbit_core::Turn> {
+    if turn.user.id != turn_id {
+        bail!("Snapshot de turno con user.id distinto de turn_id");
+    }
+    for (field, text, max_bytes) in [
+        (
+            "user.text",
+            turn.user.text.as_str(),
+            orbit_core::MAX_TEXT_BYTES,
+        ),
+        (
+            "answer.text",
+            turn.answer.as_ref().map_or("", |a| a.text.as_str()),
+            orbit_core::MAX_TEXT_BYTES * 3,
+        ),
+    ] {
+        if text.len() > max_bytes {
+            bail!(
+                "Snapshot {field} de {} bytes; se admiten {max_bytes}",
+                text.len()
+            );
+        }
+    }
+    Ok(turn.clone())
 }

@@ -99,7 +99,6 @@ async fn new_and_open_session_retire_the_same_local_verticals() -> Result<()> {
 #[tokio::test]
 async fn each_session_blocker_names_its_cause() -> Result<()> {
     for (cause, operation) in [
-        ("turn", orbit_core::refusal::Operation::Chat),
         ("buffer", orbit_core::refusal::Operation::Audio),
         (
             "transcription",
@@ -110,7 +109,6 @@ async fn each_session_blocker_names_its_cause() -> Result<()> {
             let directory = tempfile::tempdir()?;
             let (mut runtime, _native) = fixture(directory.path())?;
             match cause {
-                "turn" => runtime.state.durable.assistant.active_request = Some("turn".into()),
                 "buffer" => runtime.capture.buffer.begin_voice()?,
                 "transcription" => {
                     runtime.assistant.voice_task.attach_test(

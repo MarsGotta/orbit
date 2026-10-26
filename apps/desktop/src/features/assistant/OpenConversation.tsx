@@ -65,8 +65,11 @@ function Tail({
   const failure = turnFailure(snapshot, messages, es);
   return (
     <>
-      {(chat.activity === "transcribing" || (!working && !streaming)) && (
-        <ActivityLine activity={chat.activity} />
+      {(chat.pending !== null ||
+        (chat.activity?.startsWith("retrying_") ?? false) ||
+        chat.activity === "transcribing" ||
+        (!working && !streaming)) && (
+        <ActivityLine activity={chat.activity} pending={chat.pending} />
       )}
       {chat.pending && <PendingCard onDecided={onDecided} pending={chat.pending} send={send} />}
       {decision !== null && chat.pending === null && (

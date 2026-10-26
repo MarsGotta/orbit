@@ -207,9 +207,7 @@ impl Runtime {
 
     pub(super) fn ensure_conversation_can_change(&self) -> Result<()> {
         use orbit_core::refusal::{Operation, Refusal};
-        let operation = if self.state.durable.assistant.active_request.is_some() {
-            Some(Operation::Chat)
-        } else if self.capture.buffer.voice.is_some() {
+        let operation = if self.capture.buffer.voice.is_some() {
             Some(Operation::Audio)
         } else if self.assistant.voice_task.active().is_some() {
             Some(Operation::VoiceTranscription)

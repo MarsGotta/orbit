@@ -88,7 +88,7 @@ async def _request(socket: Socket, frame, request_id) -> None:
             frame.method, params.session_id, params.turn_id, getattr(params, "request_id", "")
         )
         cached = _reserve_control(socket, frame, params, request_id, safety_target)
-    elif frame.method != "ping":
+    elif frame.method not in {"ping", "chat.observe"}:
         cached = socket.store.operations.reserve(
             socket.device, request_id, frame.model_dump(exclude={"op"})
         )
@@ -107,7 +107,7 @@ async def _request(socket: Socket, frame, request_id) -> None:
         # cancelled: its receipt is durable and a submit that may have
         # reached the agent is not retried.
         in_lane(socket, answer)
-    elif frame.method == "ping":
+    elif frame.method in {"ping", "chat.observe"}:
         await answer()
     else:
         in_conversation_lane(socket, params.session_id, answer)

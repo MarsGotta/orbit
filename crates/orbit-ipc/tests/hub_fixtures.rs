@@ -5,6 +5,7 @@ use std::{collections::BTreeSet, error::Error, fs, path::Path};
 fn request_name(frame: &HubRequest) -> Option<&str> {
     match frame {
         HubRequest::ChatSend { .. } => Some("chat.send"),
+        HubRequest::ChatObserve { .. } => Some("chat.observe"),
         HubRequest::ChatInterrupt { .. } => Some("chat.interrupt"),
         HubRequest::ApprovalRespond { .. } => Some("approval.respond"),
         HubRequest::ClarifyRespond { .. } => Some("clarify.respond"),
@@ -64,6 +65,7 @@ fn every_hub_variant_has_one_consumed_fixture() -> Result<(), Box<dyn Error>> {
     let events = root.join("events");
     let expected_requests: BTreeSet<String> = [
         "chat.send",
+        "chat.observe",
         "chat.interrupt",
         "approval.respond",
         "clarify.respond",

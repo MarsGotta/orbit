@@ -34,6 +34,9 @@ pub struct ReadyData {
     /// from a 0.11 hub, to which the Mac sends no delete.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recording_delete: Option<bool>,
+    /// Read-only live-turn observation; absent on older hubs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chat_observe: Option<bool>,
     #[serde(default)]
     pub device_id: Option<String>,
     #[serde(default)]
@@ -208,6 +211,10 @@ pub struct SnapshotSession {
     pub turn_id: Option<String>,
     pub status: String,
     pub pending: Vec<PendingInteraction>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn: Option<crate::Turn>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retry: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SnapshotData {

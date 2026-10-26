@@ -86,7 +86,7 @@ export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
     return () => {
       current = false;
     };
-  }, [newestToken, read, sessionId]);
+  }, [newestToken, read, sessionId, chat.history_revision]);
 
   const loadOlder = useCallback(() => {
     if (!read || sessionId === null || older === null || loading) return;

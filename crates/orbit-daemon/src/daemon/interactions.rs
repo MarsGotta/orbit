@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use std::collections::VecDeque;
 
 #[path = "interaction_snapshot.rs"]
-mod snapshot;
+pub(super) mod snapshot;
 
 /// Bounds volatile interrupted-turn identities so repeated local churn cannot
 /// grow daemon memory forever. 128 covers one identity for every session in

@@ -49,6 +49,7 @@ class Frame(StrictModel):
     id: str
     method: Literal[
         "chat.send",
+        "chat.observe",
         "chat.interrupt",
         "approval.respond",
         "clarify.respond",
@@ -288,6 +289,7 @@ class RecordingManifest(StrictModel):
 
 PARAMETERS = {
     "chat.send": SendParams,
+    "chat.observe": SessionParams,
     "chat.interrupt": InterruptParams,
     "approval.respond": ApprovalParams,
     "clarify.respond": ClarifyParams,

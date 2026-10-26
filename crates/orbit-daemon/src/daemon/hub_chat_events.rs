@@ -9,6 +9,13 @@ impl Runtime {
         if self.state.session_id().as_deref() == Some(data.session_id.as_str())
             && !data.text.trim().is_empty()
         {
+            if let Some(activity) =
+                crate::daemon::interactions::snapshot::retry_activity(Some(&data.kind))
+            {
+                self.assistant.retry = Some(activity);
+            } else if data.kind == "thinking" {
+                self.assistant.retry = None;
+            }
             // The hub's progress line is about the conversation; the
             // chat shows the turn, so it is only recorded.
             self.say(NoticeCode::AssistantProgress);
@@ -16,6 +23,7 @@ impl Runtime {
     }
 
     pub(super) async fn on_hub_chat_delta(&mut self, data: DeltaData) -> Result<()> {
+        self.assistant.retry = None;
         if let Some(request_id) = self.state.durable.assistant.active_request.clone() {
             self.apply(Event::Delta {
                 request_id,
@@ -46,6 +54,7 @@ impl Runtime {
             }
             return;
         };
+        self.assistant.retry = None;
         self.work_of(&turn_id).record(item);
     }
 
@@ -80,6 +89,7 @@ impl Runtime {
     }
 
     pub(super) async fn on_hub_chat_completed(&mut self, data: &CompletedData) -> Result<()> {
+        self.assistant.retry = None;
         if let Some(request_id) = self.state.durable.assistant.active_request.clone() {
             self.end_work(&request_id);
             if data.status.as_deref() == Some("error") {
@@ -126,6 +136,7 @@ impl Runtime {
         };
         let (choices, questions) =
             super::interactions::offered(data.choices.as_ref(), data.questions.as_ref());
+        self.assistant.retry = None;
         self.apply(Event::Approval {
             turn_id: turn_id.into(),
             approval: Approval {

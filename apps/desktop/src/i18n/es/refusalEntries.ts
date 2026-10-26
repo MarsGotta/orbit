@@ -1,3 +1,4 @@
+import { busyEntry } from "./busy";
 import type { RecoveryStep } from "../../bridge/generated/RecoveryStep";
 import { fields, helperRefused, helperReplyInvalid } from "./refusalDetails";
 import { attachmentRefusalText } from "./attachments";
@@ -132,7 +133,7 @@ export const refusalEntries: Record<RefusalCode, RefusalEntry> = {
   daemon_reply_invalid: { class: "failed", text: daemonReply },
   calendar_read_limit: { class: "fixable", text: calendarLimit },
 
-  busy: failed,
+  busy: busyEntry,
   calendar_backend_unavailable: failed,
   device_reply_invalid: failed,
   device_reply_timeout: failed,

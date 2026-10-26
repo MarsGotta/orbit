@@ -157,7 +157,7 @@ pub(super) fn open_session(
     cx.authority(AuthorityChange::Conversation);
     voice_notes::retire_turn(assistant);
     voice_drafts::abandon_new_view(assistant);
-    assistant.pending_approval = None;
+    assistant.retire_request();
     assistant.session_id = Some(id);
     assistant.agent_id = agent_id;
 }
@@ -219,7 +219,7 @@ fn leave_conversation(assistant: &mut AssistantState) {
     voice_notes::retire_turn(assistant);
     voice_drafts::abandon_new_view(assistant);
     assistant.session_id = None;
-    assistant.pending_approval = None;
+    assistant.retire_request();
 }
 
 /// Voice-note events share the assistant's state and no other domain's.

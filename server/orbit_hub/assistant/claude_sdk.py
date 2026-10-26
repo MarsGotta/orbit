@@ -33,7 +33,14 @@ from claude_agent_sdk import (
 from claude_agent_sdk import TextBlock as SdkTextBlock
 
 from .agent_config import instructions_text
-from .backend import ActivityItem, ImageBlock, MessageChunk, MessageComplete, TextBlock
+from .backend import (
+    ActivityItem,
+    ImageBlock,
+    MessageChunk,
+    MessageComplete,
+    StatusNotice,
+    TextBlock,
+)
 from .claude_transport import ConfiguredTransport
 from .deletion import command_deletion
 from .official_tools import MAX_AGENT_MESSAGE_BYTES, OPEN_TIMEOUT_SECONDS, VendorProcess
@@ -273,6 +280,14 @@ class ClaudeProcess(VendorProcess):
             if message.data.get("session_id") != self.session_id:
                 raise self.refusal("agent_protocol", "cambió el id de la conversación")
             self.resuming = True
+        elif isinstance(message, SystemMessage) and message.subtype == "api_retry":
+            await self.connection.emit(
+                StatusNotice(
+                    self.session_id,
+                    "retrying_anthropic",
+                    "Anthropic tarda en contestar; reintentando",
+                )
+            )
         elif isinstance(message, RateLimitEvent):
             info = message.rate_limit_info
             reset = info.resets_at * 1000 if info.resets_at is not None else None

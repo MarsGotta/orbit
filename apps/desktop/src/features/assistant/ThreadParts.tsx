@@ -52,13 +52,21 @@ export function turnFailureCode(snapshot: AppSnapshot): string | undefined {
 }
 
 /** «Deimos está pensando…», with its three dots. */
-export function ActivityLine({ activity }: { activity: AppSnapshot["chat"]["activity"] }) {
+export function ActivityLine({
+  activity,
+  pending,
+}: {
+  activity: AppSnapshot["chat"]["activity"];
+  pending?: AppSnapshot["chat"]["pending"];
+}) {
   const es = useSpanish();
   if (!activity) return null;
   const labels = {
     transcribing: es.assistant.transcribingVoice,
     thinking: es.assistant.thinking,
     responding: es.assistant.responding,
+    retrying_openai: es.assistant.retryingOpenai,
+    retrying_anthropic: es.assistant.retryingAnthropic,
   };
   return (
     <p className={styles.activity} role="status">
@@ -67,7 +75,11 @@ export function ActivityLine({ activity }: { activity: AppSnapshot["chat"]["acti
         <i />
         <i />
       </span>
-      {labels[activity]}
+      {pending
+        ? pending.kind === "approval"
+          ? es.assistant.awaitingPermission
+          : es.assistant.awaitingAnswer
+        : labels[activity]}
     </p>
   );
 }

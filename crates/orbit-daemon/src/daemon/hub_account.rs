@@ -139,7 +139,23 @@ impl Runtime {
             agent_id,
         })
         .await?;
+        self.observe_conversation().await?;
         self.say(NoticeCode::SessionOpened);
+        Ok(())
+    }
+    /// A read only request: navigation never cancels or resumes a hub turn.
+    pub(super) async fn observe_conversation(&mut self) -> Result<()> {
+        if let Some(session) = self.state.session_id().clone()
+            && self.assistant.supports_observe
+            && self.link.outbound.is_some()
+        {
+            self.send(hub::command(
+                &super::id(),
+                "chat.observe",
+                serde_json::json!({"session_id": session}),
+            )?)
+            .await?;
+        }
         Ok(())
     }
 }

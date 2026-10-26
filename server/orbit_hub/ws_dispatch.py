@@ -24,7 +24,7 @@ _SNAPSHOT_AFTER = {"approval.respond", "clarify.respond", "chat.interrupt"}
 async def dispatch(socket: Socket, frame, params, request_id, safety_target) -> None:
     """Answer one request frame with the reader loop's error contract."""
     safe_control = safety_target is not None
-    mutating = frame.method != "ping"
+    mutating = frame.method not in {"ping", "chat.observe"}
     runtime = socket.runtime
     try:
         try:

@@ -117,6 +117,8 @@ fn empty_chat() -> ChatSnapshot {
         session_id: None,
         agent_id: None,
         turn: Vec::new(),
+        waiting_sessions: Default::default(),
+        history_revision: None,
         pending_voice: None,
         voice_audio: None,
         pending_contract: None,

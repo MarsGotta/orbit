@@ -2018,5 +2018,33 @@
     "source": "rust",
     "unit": "ms",
     "value": 3000
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/runtime/observation.py",
+        "name": "MAX_PREVIEW_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_PREVIEW_BYTES",
+    "resource": "live answer preview in a selected conversation observation",
+    "source": "registry",
+    "unit": "bytes",
+    "value": 98304
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/runtime/observation.py",
+        "name": "MAX_PREVIEWS",
+        "unit": "previews"
+      }
+    ],
+    "name": "MAX_PREVIEWS",
+    "resource": "per-device live answer preview memory cardinality",
+    "source": "registry",
+    "unit": "previews",
+    "value": 64
   }
 ]

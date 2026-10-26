@@ -204,6 +204,8 @@ class TurnSender:
             # made itself would be a file on the server Orbit never plays.
             header += "\n" + _READ_ALOUD
         upstream_text = f"{header}\n{sent}"
+        runtime.events.previews.pop(session_id, None)
+        runtime.events.retries.pop(session_id, None)
         runtime.turn_ids[session_id] = request_id
         now_ms = round(runtime.now() * 1000)
         runtime.work[session_id] = TurnWork(now_ms)

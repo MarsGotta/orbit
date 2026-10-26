@@ -51,6 +51,9 @@ impl Runtime {
     async fn on_hub_connected(&mut self) -> Result<()> {
         self.apply(Event::HubTransportReady).await?;
         self.assistant.snapshot_revision = None;
+        self.assistant.waiting_sessions.clear();
+        self.assistant.waiting_revision = None;
+        self.assistant.retry = None;
         self.link.protocol_version = None;
         self.link.unrecognized_events.clear();
         self.assistant.interaction_response = None;
@@ -111,8 +114,32 @@ impl Runtime {
     /// conversation; anything else about another turn is stale.
     fn admits_hub_frame(&self, frame: &WireHubEvent) -> bool {
         let frame_id = frame.id.as_deref();
+        if matches!(frame.kind, HubEventKind::Error(_))
+            && frame_id != self.state.durable.assistant.active_request.as_deref()
+            && frame_id
+                .is_some_and(|id| self.assistant.detached_requests.iter().any(|old| old == id))
+        {
+            return false;
+        }
+
+        if let HubEventKind::ChatStatus(data) = &frame.kind
+            && (frame_id.is_some() || data.kind.starts_with("retrying_"))
+            && (self.state.durable.assistant.active_request.is_none()
+                || frame_id != self.state.durable.assistant.active_request.as_deref())
+        {
+            return false;
+        }
         let turn_session = match &frame.kind {
             HubEventKind::ChatSession(_) => None,
+            HubEventKind::ChatStatus(data) => Some(data.session_id.as_str()),
+            HubEventKind::Error(_)
+                if self.state.session_id().is_none()
+                    && frame_id.is_some()
+                    && frame_id == self.state.durable.assistant.active_request.as_deref() =>
+            {
+                None
+            }
+            HubEventKind::Error(data) => data.session_id.as_deref(),
             HubEventKind::ChatDelta(data) => data.session_id.as_deref(),
             HubEventKind::ChatCompleted(data) => data.session_id.as_deref(),
             HubEventKind::ApprovalRequired(data) | HubEventKind::ClarifyRequired(data) => {
@@ -122,12 +149,10 @@ impl Runtime {
             HubEventKind::Ready(_)
             | HubEventKind::Pong(_)
             | HubEventKind::ChatInterrupted(_)
-            | HubEventKind::ChatStatus(_)
             | HubEventKind::InteractionResolved(_)
             | HubEventKind::InteractionExpired(_)
             | HubEventKind::DeviceRequest(_)
             | HubEventKind::StateSnapshot(_)
-            | HubEventKind::Error(_)
             | HubEventKind::Revoked(_)
             | HubEventKind::RecordingChanged(_)
             | HubEventKind::StorageStatus(_)

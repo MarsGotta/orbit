@@ -9,7 +9,7 @@ import base64
 
 from ..errors import HubError
 from .agent_config import instructions_text
-from .backend import ActivityItem, ImageBlock, MessageChunk, PlanStep, TextBlock
+from .backend import ActivityItem, ImageBlock, MessageChunk, PlanStep, StatusNotice, TextBlock
 from .codex_policy import thread_config
 from .codex_rpc import MAX_SERVER_REQUESTS, CodexRpc, RpcError
 from .deletion import command_deletion
@@ -163,7 +163,13 @@ class CodexProcess(VendorProcess):
             return
         if self.turn is None or params.get("threadId") != self.session_id:
             return
-        if method == "item/agentMessage/delta":
+        if method == "error" and params.get("willRetry") is True:
+            await self.connection.emit(
+                StatusNotice(
+                    self.session_id, "retrying_openai", "OpenAI tarda en contestar; reintentando"
+                )
+            )
+        elif method == "item/agentMessage/delta":
             text = params.get("delta")
             if isinstance(text, str):
                 self.text.append(text)

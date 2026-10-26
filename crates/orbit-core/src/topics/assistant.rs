@@ -29,6 +29,8 @@ pub enum Activity {
     Transcribing,
     Thinking,
     Responding,
+    RetryingOpenai,
+    RetryingAnthropic,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -60,6 +62,11 @@ pub struct Value {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pending_voice: Vec<crate::Message>,
     pub pending: Option<Approval>,
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub waiting_sessions: std::collections::BTreeMap<String, String>,
+    /// The selected session's last hub state revision, to refresh its history.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub history_revision: Option<u64>,
     pub voice_active: bool,
     pub turn_in_flight: bool,
     pub activity: Option<Activity>,

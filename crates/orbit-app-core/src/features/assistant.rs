@@ -57,6 +57,8 @@ pub fn project(input: &FeatureInput<'_>) -> View {
             .map(|message| chat_message(message, false))
             .collect()
     });
+    view.waiting_sessions.clone_from(&value.waiting_sessions);
+    view.history_revision = value.history_revision;
     view.pending_contract = value.pending.as_ref().map(pending_contract);
     view.work = value.work.as_deref().cloned();
     // Voice input is the daemon's microphone. Whether the hub's voice can
@@ -79,6 +81,8 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         Activity::Transcribing => AssistantActivity::Transcribing,
         Activity::Thinking => AssistantActivity::Thinking,
         Activity::Responding => AssistantActivity::Responding,
+        Activity::RetryingOpenai => AssistantActivity::RetryingOpenai,
+        Activity::RetryingAnthropic => AssistantActivity::RetryingAnthropic,
     });
     view
 }
@@ -91,6 +95,8 @@ fn unobserved(input: &FeatureInput<'_>) -> View {
         session_id: None,
         agent_id: None,
         turn: Vec::new(),
+        waiting_sessions: Default::default(),
+        history_revision: None,
         pending_voice: None,
         voice_audio: input.local.voice_audio.clone(),
         pending_contract: None,

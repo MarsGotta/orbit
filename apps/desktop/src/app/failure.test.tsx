@@ -55,9 +55,9 @@ describe("the generic failure says what could not be done", () => {
 
 describe("«Reintentar» sends the failed order again, when repeating it is safe", () => {
   it("offers the order when the refusal says it can be repeated", () => {
-    expect(refused({ code: "busy", retry: { kind: "after_ms", ms: 500 } }).failure?.retry).toEqual(
-      SAVE,
-    );
+    expect(
+      refused({ code: "timeout", retry: { kind: "after_ms", ms: 500 } }).failure?.retry,
+    ).toEqual(SAVE);
     expect(refused({ code: "expired", retry: { kind: "after_fix" } }).failure?.retry).toEqual(SAVE);
   });
 
@@ -80,7 +80,7 @@ describe("«Reintentar» sends the failed order again, when repeating it is safe
       send: (command, op) => {
         sent.push([command, op]);
         return refuse
-          ? Promise.reject({ refusal: { code: "busy", retry: { kind: "after_fix" } } })
+          ? Promise.reject({ refusal: { code: "timeout", retry: { kind: "after_fix" } } })
           : Promise.resolve({
               revision: { epoch: 1, counter: 1 },
               delivery: { state: "reflected" },
@@ -102,7 +102,7 @@ describe("«Reintentar» sends the failed order again, when repeating it is safe
 describe("the failure notice", () => {
   it("says what failed, what to do and the code, with «Reintentar» first", () => {
     const onRetry = vi.fn();
-    const message = refused({ code: "busy", retry: { kind: "after_fix" } });
+    const message = refused({ code: "timeout", retry: { kind: "after_fix" } });
     render(
       <NoticeBanner
         messages={[message]}
@@ -147,7 +147,7 @@ describe("the failure notice", () => {
 
   it("inside the view that sent the order, the failure has the same two actions", () => {
     const onRetry = vi.fn();
-    const message = refused({ code: "busy", retry: { kind: "after_fix" } });
+    const message = refused({ code: "timeout", retry: { kind: "after_fix" } });
     render(
       <FailureActionsProvider messages={[message]} onRetry={onRetry}>
         <ViewError error={message.text} />
@@ -159,3 +159,22 @@ describe("the failure notice", () => {
     expect(within(failure).getByRole("button", { name: /Copiar el código/ })).toBeTruthy();
   });
 });
+
+it.each(["audio", "voice_transcription"])(
+  "the %s navigation wait has no code or retry banner",
+  (operation) => {
+    const message = refused({ code: "busy", operation, retry: { kind: "after_fix" } });
+    render(
+      <NoticeBanner
+        messages={[message]}
+        onAction={vi.fn()}
+        onDismiss={vi.fn()}
+        onRetry={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/Espera a que termine/)).toBeTruthy();
+    expect(screen.queryByText(/comparte el código/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Copiar el código/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reintentar" })).toBeNull();
+  },
+);

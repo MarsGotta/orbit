@@ -5,6 +5,7 @@ use super::*;
 impl Runtime {
     pub(super) async fn on_hub_ready(&mut self, data: &ReadyData) -> Result<()> {
         self.link.protocol_version = data.hub_protocol;
+        self.assistant.supports_observe = data.chat_observe == Some(true);
         if !self.settings.device_id.as_deref().is_some_and(|expected| {
             !expected.is_empty() && data.device_id.as_deref() == Some(expected)
         }) {
@@ -52,6 +53,7 @@ impl Runtime {
             self.notes.deletions.hub_deletes = Some(data.recording_delete == Some(true));
             self.notes.notes_hub_ready();
             self.apply(Event::Connect(Connection::Online)).await?;
+            self.observe_conversation().await?;
             if let Some(storage) = &data.storage {
                 self.on_hub_storage(storage);
             }

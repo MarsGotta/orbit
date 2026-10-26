@@ -3,7 +3,7 @@ import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 
 /** A turn is in flight while Deimos thinks or answers it. */
 export function turnInFlight(chat: AppSnapshot["chat"]): boolean {
-  return chat.activity === "thinking" || chat.activity === "responding";
+  return chat.activity != null && chat.activity !== "transcribing";
 }
 
 /**
@@ -23,9 +23,13 @@ export function conversationView(
 ): ChatMessage[] {
   const question = turn.find((message) => message.role === "user");
   const at = question ? stored.findIndex((message) => message.id === question.id) : -1;
-  if (at === -1) return [...stored, ...turn];
+  const savedQuestion = stored[at];
+  if (savedQuestion === undefined) return [...stored, ...turn];
   if (!streaming && at < stored.length - 1) return stored;
-  return [...stored.slice(0, at), ...turn];
+  return [
+    ...stored.slice(0, at),
+    ...turn.map((message) => (message.id === savedQuestion.id ? savedQuestion : message)),
+  ];
 }
 
 /**

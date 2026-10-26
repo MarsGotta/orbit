@@ -218,3 +218,18 @@ describe("repeated notices", () => {
     expect(second).toHaveLength(2);
   });
 });
+
+it.each(["audio", "voice_transcription"])(
+  "navigation waits for %s without a shareable code",
+  (operation) => {
+    const { messages, report } = receive([], {
+      kind: "refusal",
+      op: OP,
+      refusal: { code: "busy", operation, retry: { kind: "after_fix" } },
+    });
+    expect(only(messages)?.class).toBe("working");
+    expect(only(messages)?.text).toContain("nota de voz");
+    expect(only(messages)?.text).not.toContain("código");
+    expect(report?.class).toBe("working");
+  },
+);

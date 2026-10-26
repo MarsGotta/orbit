@@ -21,6 +21,7 @@ class MethodRoute(Enum):
 
 METHODS = {
     "chat.send": MethodRoute.SUBMIT_LANE,
+    "chat.observe": MethodRoute.RUNTIME,
     "chat.interrupt": MethodRoute.RUNTIME,
     "approval.respond": MethodRoute.RUNTIME,
     "clarify.respond": MethodRoute.RUNTIME,

@@ -11,6 +11,7 @@ from orbit_hub.protocol import HUB_PROTOCOL, PARAMETERS, Frame
 ROOT = Path(__file__).resolve().parents[2] / "contracts" / "fixtures" / "hub"
 REQUESTS = {
     "chat.send",
+    "chat.observe",
     "chat.interrupt",
     "approval.respond",
     "clarify.respond",

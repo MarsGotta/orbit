@@ -49,6 +49,7 @@ export interface Row {
   agent?: Agent;
   open: boolean;
   session?: ChatSessionSummary;
+  waiting?: string;
 }
 
 /** The rows of the list: each listed one, and the open one before the hub lists it. */
@@ -67,6 +68,7 @@ export function useRows(snapshot: AppSnapshot, items: ChatSessionSummary[]): Row
     agent: agentOf(sessionAgent(session, primaryId)),
     open: session.id === openId,
     session,
+    waiting: chat.waiting_sessions?.[session.id],
   }));
   const listed = items.find((session) => session.id === openId);
   // A conversation begun a moment ago is not listed yet: its question names it.
@@ -102,6 +104,7 @@ function ConversationRow({
   send: (command: AppCommand) => unknown;
   now: number;
 }) {
+  const es = useSpanish();
   const when = sessionWhen(row.at, now);
   const name = named ? row.agent?.name : undefined;
   return (
@@ -130,6 +133,11 @@ function ConversationRow({
           <span className={styles.time}>{clock.format(new Date(row.at))}</span>
         </span>
         {name !== undefined && <span className={styles.agent}>{name}</span>}
+        {row.waiting !== undefined && (
+          <span className={styles.agent}>
+            {row.waiting === "approval" ? es.assistant.waitsPermission : es.assistant.asksSomething}
+          </span>
+        )}
       </span>
     </a>
   );

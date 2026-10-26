@@ -133,7 +133,8 @@ adds the meeting's last `minutes` of transcript and keeps only the question and
 `meeting_not_found`), `chat.interrupt` (`session_id`,`turn_id`), `approval.respond`
 (`session_id`,`request_id`,`approved`,`turn_id`, and optionally `choice`: one of
 the request's `choices`; see [Choices](#choices-and-questions)), `clarify.respond`
-(`session_id`,`request_id`,`answer`,`question_id` optional), `ping`.
+(`session_id`,`request_id`,`answer`,`question_id` optional), `chat.observe`
+(`session_id`, read only), `ping`.
 `calendar.ask` and the routes of the hub's copy of the agenda are retired;
 since 2026-10-15 the hub no longer keeps a notice for them and refuses
 them like any other method or route outside this contract. The only way
@@ -195,6 +196,37 @@ open; a subsequent `chat.send` is rejected only by the original cause, never by
 `chat.status` warning (`kind:"warning"`), never propagated to the transport
 reader, and leaves the session in its current state.
 
+`ready.chat_observe:true` advertises `chat.observe`. Opening a conversation reads
+its turn without starting, resuming or interrupting a vendor session. This read
+is answered directly in the socket reader, bypassing mutation receipts and
+conversation lanes. Ownership is checked against the authenticated device. Older
+hubs omit the flag; Macs keep reading their stored history without this method.
+
+`chat.observe` returns `state.snapshot` with the read's UUID, one session and
+`omitted:true` (other sessions are outside that read). A live session optionally
+carries `turn:{user,answer}`: messages with `id`, `role`, `text`, `at_ms`, `complete`
+and optional `attachments`. The user is read from the stored history; the answer
+is a preview of up to 96 KiB of UTF-8. The final answer stays in history without
+that preview limit. The pending interactions use the same snapshot shape below.
+Navigation only detaches the Mac's selected request; late frames count only for
+the selected conversation and original turn UUID. No chat interrupt is sent.
+The Mac reads history again when the selected session's hub revision changes,
+including when completion races its opening history read.
+
+Retry notifications use `chat.status.kind:retrying_openai|retrying_anthropic` and
+an optional `retry` of the same value in session snapshots. Codex emits `error`
+with `willRetry:true`, `threadId`, `turnId` and `error` ([app-server source](https://github.com/openai/codex/blob/main/codex-rs/app-server-protocol/src/protocol/v2/notification.rs)).
+Claude emits `system` / `api_retry` with `attempt`, `max_retries`,
+`retry_delay_ms`, `error_status`, `error`, `uuid`, `session_id` and optional
+`no_response` timing; its Python SDK forwards this as a `SystemMessage`
+([retry events](https://code.claude.com/docs/en/headless#handle-api-retries)).
+Claude can omit the first two credential-helper retries for HTTP 401/403;
+Orbit labels a retry only when its event arrives.
+Both remain in progress. Orbit shows a fixed Spanish wait, never raw provider
+diagnostics; text, tool activity or an owner question clears the retry state. A terminal refusal still
+ends the turn with its structured cause. Pending approvals and clarifications
+are shown as waiting for permission or an answer and marked in the session list.
+
 `state.snapshot` has `id:null` and data:
 
 ```json
@@ -206,8 +238,7 @@ pending-request, resolution, expiry and completion events. Reconnection receives
 one before new events if the runtime has sessions. Revisions are monotonic within
 that runtime; clients reset revision tracking on a new WebSocket connection and
 reconcile only their selected session, never pick an arbitrary session or resume.
-History also carries the current selected `session_snapshot`, or null when no
-live snapshot exists. Snapshots include at most 64 sessions and 128 pending items
+Opening a conversation reads its selected live state through `chat.observe`. Snapshots include at most 64 sessions and 128 pending items
 per session, approximately 100 KiB combined data; `omitted:true` exposes bounds.
 Unknown expiry stays null. Clarify items use `question`, `choices`, and optionally
 bounded `questions` with qids; answered qids leave the next snapshot.

@@ -23,6 +23,12 @@ pub enum HubRequest {
         id: String,
         params: ChatSendParams,
     },
+    #[serde(rename = "chat.observe")]
+    ChatObserve {
+        v: u8,
+        id: String,
+        params: SessionData,
+    },
     #[serde(rename = "chat.interrupt")]
     ChatInterrupt {
         v: u8,
@@ -138,6 +144,11 @@ impl HubRequest {
                 id,
                 params: typed(params, method)?,
             },
+            "chat.observe" => Self::ChatObserve {
+                v: HUB_PROTOCOL,
+                id,
+                params: typed(params, method)?,
+            },
             "chat.interrupt" => Self::ChatInterrupt {
                 v,
                 id,
@@ -184,6 +195,7 @@ impl HubRequest {
             .to_owned();
         const NAMES: &[&str] = &[
             "chat.send",
+            "chat.observe",
             "chat.interrupt",
             "approval.respond",
             "clarify.respond",

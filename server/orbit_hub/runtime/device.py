@@ -33,6 +33,7 @@ from .controls import Controls
 from .conversation import Conversations
 from .events import TurnEvents
 from .inputs import TurnInputTracker
+from .observation import observe
 from .resume import LiveKey, Resumes
 from .send import TurnSender
 from .work import TurnWork
@@ -155,6 +156,11 @@ class DeviceRuntime:
                     "turn_id": turn_id,
                     "status": binding["status"],
                     "pending": pending,
+                    **(
+                        {"retry": self.events.retries[session_id]}
+                        if session_id in self.events.retries
+                        else {}
+                    ),
                 }
             )
         self._snapshot_cache = {"revision": self.revision, "sessions": sessions, "omitted": omitted}
@@ -368,6 +374,8 @@ class DeviceRuntime:
         )
 
     async def handle(self, method: str, params, request_id: str) -> tuple[str, dict]:
+        if method == "chat.observe":
+            return "state.snapshot", observe(self, params.session_id)
         if method == "ping":
             return "pong", {}
         if method == "chat.send":

@@ -17,6 +17,8 @@ pub fn assistant_value() -> Value {
         agent_id: None,
         turn: None,
         pending: None,
+        waiting_sessions: Default::default(),
+        history_revision: None,
         voice_active: false,
         pending_voice: Vec::new(),
         turn_in_flight: false,

@@ -213,6 +213,19 @@ def claude(args):
                     },
                 }
             )
+            if "RETRY" in text:
+                send(
+                    {
+                        "type": "system",
+                        "subtype": "api_retry",
+                        "session_id": session,
+                        "attempt": 1,
+                        "max_retries": 10,
+                        "retry_delay_ms": 100,
+                        "error_status": 529,
+                        "error": "overloaded",
+                    }
+                )
             if "WAIT" in text:
                 continue
             if "ACTION" in text:
@@ -496,6 +509,12 @@ def codex():
                 notify("item/agentMessage/delta", itemId="text-1", delta="Hecho.")
                 end()
                 continue
+            if "RETRY" in text:
+                notify(
+                    "error",
+                    willRetry=True,
+                    error={"message": SECRET, "codexErrorInfo": "serverOverloaded"},
+                )
             if "WAIT" in text:
                 continue
             if "ACTION" in text:

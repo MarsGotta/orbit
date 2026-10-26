@@ -33,6 +33,8 @@ app_type! {
         Transcribing,
         Thinking,
         Responding,
+        RetryingOpenai,
+        RetryingAnthropic,
     }
 }
 
@@ -209,6 +211,12 @@ app_type! {
         /// The turn in progress, or the last one until another begins:
         /// the user's message and the answer as it arrives.
         pub turn: Vec<ChatMessage>,
+        #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+        #[ts(as = "Option<std::collections::BTreeMap<String, String>>", optional)]
+        pub waiting_sessions: std::collections::BTreeMap<String, String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(type = "number", optional)]
+        pub history_revision: Option<u64>,
         /// Voice notes this Mac keeps for the hub (spoken with it away, or
         /// whose transcription failed) that a later turn replaced, oldest
         /// first: shown, each with «Reintentar transcripción».

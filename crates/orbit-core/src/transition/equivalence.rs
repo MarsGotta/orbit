@@ -174,7 +174,13 @@ fn unchanged_rules_match_the_flat_model_after_duration_retirement() {
             let event = event(&mut rng, &state);
             let name = variant(&event);
             let new = decide(&state, event.clone(), now_ms);
-            let main = legacy::decide::decide(&old, event, now_ms);
+            let navigated = matches!(event, Event::NewSession { .. } | Event::OpenSession { .. });
+            let mut main = legacy::decide::decide(&old, event, now_ms);
+            // Navigation now detaches the selected turn. The frozen pre-split
+            // reducer retained that identity; every other decision stays equivalent.
+            if navigated && let Ok(main) = &mut main {
+                main.state.durable.active_request = None;
+            }
             steps += 1;
             match (new, main) {
                 (Err(new), Err(main)) => {

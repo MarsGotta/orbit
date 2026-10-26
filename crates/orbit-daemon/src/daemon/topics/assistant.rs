@@ -25,6 +25,13 @@ impl ProjectTopic for Projector {
                 .cloned()
                 .collect(),
             pending: state.durable.assistant.pending_approval.clone(),
+            history_revision: source
+                .runtime
+                .and_then(|runtime| runtime.assistant.snapshot_revision),
+            waiting_sessions: source
+                .runtime
+                .map(|runtime| runtime.assistant.waiting_sessions.clone())
+                .unwrap_or_default(),
             voice_active: state.durable.voice.voice_active,
             turn_in_flight: state.durable.assistant.active_request.is_some(),
             activity: activity(source),
@@ -97,6 +104,12 @@ fn activity(source: &TopicSource<'_>) -> Option<Activity> {
         return Some(Activity::Transcribing);
     }
     let request_id = source.state.durable.assistant.active_request.as_ref()?;
+    if let Some(retry) = source
+        .runtime
+        .and_then(|runtime| runtime.assistant.retry.clone())
+    {
+        return Some(retry);
+    }
     let responding = source
         .state
         .durable

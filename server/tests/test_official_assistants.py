@@ -507,3 +507,31 @@ def test_initializing_runners_are_busy_until_their_sessions_open(official, tmp_p
         assert len(starts()) == 4
         assert decision[0]["event"] == "error", decision
         assert decision[0]["data"]["code"] == "agent_process_limit"
+
+
+def test_vendor_retry_is_a_wait_and_observation_keeps_it(official, tmp_path):
+    vendor, _, _, _, headers, client = official
+    frames = []
+    with mcp_hub() as url:
+        write_mcp_config(tmp_path, url)
+        with (
+            client() as http,
+            http.websocket_connect("wss://localhost/v1/ws", headers=headers) as ws,
+        ):
+            until(ws, "ready", frames)
+            turn = send(ws, "chat.send", text="RETRY WAIT")
+            session = until(ws, "chat.session", frames)["session_id"]
+            until(ws, "chat.delta", frames)
+            send(ws, "chat.observe", session_id=session)
+            # A read acknowledgement is a barrier after queued vendor updates.
+            while True:
+                observed = until(ws, "state.snapshot", frames)
+                if observed["sessions"] and "retry" in observed["sessions"][0]:
+                    break
+            send(ws, "chat.interrupt", session_id=session, turn_id=turn)
+            until(ws, "chat.completed", frames)
+            expected = "retrying_openai" if vendor == "codex" else "retrying_anthropic"
+            assert any(
+                f["event"] == "chat.status" and f["data"]["kind"] == expected for f in frames
+            )
+            assert observed["sessions"][0]["retry"] == expected

@@ -110,6 +110,14 @@ impl Runtime {
             && self.state.durable.assistant.active_request.as_deref() != Some(turn)
         {
             self.end_work(turn);
+            if change == Some(AuthorityChange::Conversation) {
+                self.assistant.work = None;
+                self.assistant.retry = None;
+                if self.assistant.detached_requests.len() == 128 {
+                    self.assistant.detached_requests.pop_front();
+                }
+                self.assistant.detached_requests.push_back(turn.to_owned());
+            }
         }
         self.retire_before_snapshot(change, plan).await?;
         force_snapshot |= std::mem::take(&mut self.persisted.force_once);

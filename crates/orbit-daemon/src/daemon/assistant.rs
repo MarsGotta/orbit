@@ -43,6 +43,13 @@ pub(super) struct AssistantHandle {
     pub(super) window_attachment: Option<window_attachment::PendingWindow>,
     /// The revision of the last chat snapshot the hub sent.
     pub(super) snapshot_revision: Option<u64>,
+    pub(super) supports_observe: bool,
+    /// At most 128 detached request UUIDs, matching snapshot admission. This
+    /// suppresses late submission errors without keeping conversation content.
+    pub(super) detached_requests: std::collections::VecDeque<String>,
+    pub(super) waiting_sessions: BTreeMap<String, String>,
+    pub(super) waiting_revision: Option<u64>,
+    pub(super) retry: Option<orbit_core::topics::assistant::Activity>,
 }
 
 impl AssistantHandle {
@@ -96,6 +103,11 @@ impl AssistantHandle {
             handover_from: None,
             window_attachment: None,
             snapshot_revision: None,
+            supports_observe: false,
+            detached_requests: Default::default(),
+            waiting_sessions: BTreeMap::new(),
+            waiting_revision: None,
+            retry: None,
             speech_notice_call_id: None,
             work: None,
         }
@@ -137,6 +149,7 @@ impl Runtime {
         // The work shown is this turn's from now on: the last
         // turn's never stands for it.
         self.assistant.work.take_if(|work| work.turn_id != id);
+        self.assistant.retry = None;
         // The turn's id is the Mac's id for the user's message,
         // kept in the hub's row so the app finds their turn by it.
         let params = serde_json::to_value(orbit_core::wire::hub::ChatSendParams {

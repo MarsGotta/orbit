@@ -143,6 +143,7 @@ def ready(services: Services, socket: Socket) -> dict:
             # Absent from a 0.11 hub, which cannot delete a recording: the Mac
             # then deletes nothing and says so (contracts/hub-v1.md).
             "recording_delete": True,
+            "chat_observe": True,
         },
     )
 

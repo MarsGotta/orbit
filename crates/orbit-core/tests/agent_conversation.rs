@@ -2,7 +2,7 @@
 //! began, or the one the hub listed it with when it was opened again.
 #![allow(clippy::unwrap_used)]
 
-use orbit_core::{Event, State, decide};
+use orbit_core::{Connection, Event, State, decide};
 
 fn after(state: &State, event: Event) -> State {
     decide(state, event, 1).unwrap().state
@@ -169,4 +169,56 @@ fn a_failed_turn_keeps_its_numbers_and_closed_tokens_in_its_notice() {
     assert_eq!(token(NoticeKey::AcpCode), Token::new("-32603").unwrap());
     assert_eq!(token(NoticeKey::StopReason), Token::new("refusal").unwrap());
     assert_eq!(token(NoticeKey::ExitStatus), Token::unrecognized());
+}
+
+#[test]
+fn navigation_detaches_a_turn_without_interrupting_the_hub()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut state = decide(&State::default(), Event::Connect(Connection::Online), 0)?.state;
+    state = decide(
+        &state,
+        Event::OpenSession {
+            id: "left".into(),
+            agent_id: None,
+        },
+        1,
+    )?
+    .state;
+    state = decide(
+        &state,
+        Event::Submit {
+            id: "turn".into(),
+            text: "Question".into(),
+            attachments: Vec::new(),
+        },
+        2,
+    )?
+    .state;
+    for event in [
+        Event::NewSession { agent_id: None },
+        Event::OpenSession {
+            id: "other".into(),
+            agent_id: None,
+        },
+    ] {
+        let decision = decide(&state, event, 3)?;
+        assert!(decision.state.durable.assistant.active_request.is_none());
+        assert!(decision.state.durable.assistant.turn.is_none());
+        assert!(
+            !decision
+                .effects
+                .iter()
+                .any(|effect| matches!(effect, orbit_core::Effect::Interrupt))
+        );
+        let late = decide(
+            &decision.state,
+            Event::Delta {
+                request_id: "turn".into(),
+                text: "Late answer".into(),
+            },
+            4,
+        )?;
+        assert!(late.state.durable.assistant.turn.is_none());
+    }
+    Ok(())
 }

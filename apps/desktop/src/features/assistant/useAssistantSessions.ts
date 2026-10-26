@@ -66,9 +66,12 @@ export function useAssistantSessions(
   const [retryToken, setRetryToken] = useState(0);
   // The first page is read whatever happens; then again once a turn has ended.
   const loaded = useRef(false);
+  const previousSession = useRef(sessionId);
   loaded.current = state.loaded;
   useEffect(() => {
-    if (streaming && loaded.current) return;
+    const changedSession = previousSession.current !== sessionId;
+    previousSession.current = sessionId;
+    if (streaming && loaded.current && !changedSession) return;
     let current = true;
     setState((previous) => ({ ...previous, loading: Boolean(read), error: null }));
     if (read) {

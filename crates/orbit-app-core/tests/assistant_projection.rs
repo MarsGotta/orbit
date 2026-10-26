@@ -42,6 +42,11 @@ fn projects_each_active_phase_and_clears_it_with_the_turn() {
         (Activity::Transcribing, AssistantActivity::Transcribing),
         (Activity::Thinking, AssistantActivity::Thinking),
         (Activity::Responding, AssistantActivity::Responding),
+        (Activity::RetryingOpenai, AssistantActivity::RetryingOpenai),
+        (
+            Activity::RetryingAnthropic,
+            AssistantActivity::RetryingAnthropic,
+        ),
     ] {
         let mut value = assistant_topic::assistant_value();
         value.turn_in_flight = true;

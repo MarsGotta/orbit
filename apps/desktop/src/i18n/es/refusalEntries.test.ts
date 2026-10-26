@@ -49,3 +49,16 @@ it("the generation that interrupted a read reaches the person", () => {
     "La lectura empezó en la generación 7 y el Mac está en la 8. Vuelve a pedirla si sigue haciendo falta.",
   );
 });
+
+it.each(["audio", "voice_transcription"])(
+  "%s is a calm wait without a failure code",
+  (operation) => {
+    const entry = refusalEntries.busy;
+    expect(entry.class).toBe("working");
+    expect(entry.text?.({ code: "busy", operation, retry: { kind: "after_fix" } })).toBe(
+      operation === "audio"
+        ? "Espera a que termine la nota de voz."
+        : "Espera a que termine la transcripción de la nota de voz.",
+    );
+  },
+);

@@ -32,7 +32,7 @@ function inProgress(snapshot: AppSnapshot): number {
 /** An assistant is working on an answer: thinking it or writing it. */
 function assistantWorking(snapshot: AppSnapshot): boolean {
   const activity = snapshot.chat.activity;
-  return activity === "thinking" || activity === "responding";
+  return activity != null && activity !== "transcribing";
 }
 
 /** While a recording or a call goes on, its card takes the place of «Grabar reunión». */

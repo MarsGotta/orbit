@@ -235,3 +235,141 @@ describe("the list and the voice notes", () => {
     played.mockRestore();
   });
 });
+
+it("names a pending approval and a vendor retry as waits", async () => {
+  const view = render(
+    <AssistantView
+      error={null}
+      send={() => undefined}
+      snapshot={snapshot({
+        activity: "thinking",
+        pending: { kind: "approval", id: "permit", text: "Permit?", choices: [] },
+      })}
+    />,
+  );
+  expect(await screen.findByText("Deimos espera tu permiso")).toBeTruthy();
+  expect(screen.queryByText("Deimos está pensando…")).toBeNull();
+  view.rerender(
+    <AssistantView
+      error={null}
+      send={() => undefined}
+      snapshot={snapshot({ activity: "retrying_openai" as AppSnapshot["chat"]["activity"] })}
+    />,
+  );
+  expect(await screen.findByText("OpenAI tarda en contestar; reintentando")).toBeTruthy();
+});
+
+it("marks a conversation waiting for its owner while another is open", async () => {
+  render(
+    <ShellSlots>
+      <ColumnHost />
+      <AssistantSessions
+        read={() =>
+          Promise.resolve({
+            state: "present",
+            value: {
+              items: [{ id: "left", created_at_ms: 1, last_at_ms: 1, message_count: 1 }],
+              next: null,
+              total: 1,
+              revision: 1,
+            },
+            as_of_ms: null,
+          })
+        }
+        send={() => undefined}
+        snapshot={snapshot({ session_id: "other", waiting_sessions: { left: "approval" } })}
+      />
+    </ShellSlots>,
+  );
+  expect(await screen.findByText("espera tu permiso")).toBeTruthy();
+});
+
+it("refreshes history when a left turn finishes during the opening read", async () => {
+  const read = vi
+    .fn()
+    .mockResolvedValueOnce(page([message("turn", "user", "Question")]))
+    .mockResolvedValue(
+      page([message("turn", "user", "Question"), message("answer", "assistant", "Finished away")]),
+    );
+  const view = render(
+    <AssistantView
+      error={null}
+      send={() => undefined}
+      readMessages={read}
+      snapshot={snapshot({ session_id: "left", history_revision: 1 })}
+    />,
+  );
+  expect(await screen.findByText("Question")).toBeTruthy();
+  view.rerender(
+    <AssistantView
+      error={null}
+      send={() => undefined}
+      readMessages={read}
+      snapshot={snapshot({ session_id: "left", history_revision: 2 })}
+    />,
+  );
+  expect(await screen.findByText("Finished away")).toBeTruthy();
+});
+
+it("keeps a stored voice note's playback when its live answer is observed again", () => {
+  const stored = {
+    ...message("turn", "user", "Question"),
+    voice: { duration_ms: 4000, transcript: "Question", audio_available: true },
+  };
+  const observed = { ...stored, voice: { ...stored.voice, audio_available: false } };
+  expect(conversationView([stored], [observed], true)[0]?.voice?.audio_available).toBe(true);
+});
+
+it("names an unanswered clarification as a wait for the owner's answer", async () => {
+  render(
+    <AssistantView
+      error={null}
+      send={() => undefined}
+      snapshot={snapshot({
+        activity: "thinking",
+        pending: {
+          kind: "clarify",
+          id: "question",
+          text: "Which date?",
+          choices: [],
+          questions: [],
+        },
+      })}
+    />,
+  );
+  expect(await screen.findByText("Deimos espera tu respuesta")).toBeTruthy();
+  expect(screen.queryByText("Deimos está pensando…")).toBeNull();
+});
+
+it("refreshes the list when opening a running turn so the left permission remains listed", async () => {
+  const read = vi
+    .fn()
+    .mockResolvedValueOnce({
+      state: "present",
+      value: { items: [], next: null, total: 0, revision: 1 },
+      as_of_ms: null,
+    })
+    .mockResolvedValue({
+      state: "present",
+      value: {
+        items: [{ id: "left", created_at_ms: 1, last_at_ms: 1, message_count: 1 }],
+        next: null,
+        total: 1,
+        revision: 2,
+      },
+      as_of_ms: null,
+    });
+  const list = (chat: Partial<AppSnapshot["chat"]>) => (
+    <ShellSlots>
+      <ColumnHost />
+      <AssistantSessions read={read} send={() => undefined} snapshot={snapshot(chat)} />
+    </ShellSlots>
+  );
+  const view = render(list({ session_id: "left", activity: "thinking" }));
+  await waitFor(() => expect(read).toHaveBeenCalledTimes(1));
+  view.rerender(
+    list({ session_id: "other", activity: "thinking", waiting_sessions: { left: "approval" } }),
+  );
+  expect(await screen.findByText("espera tu permiso")).toBeTruthy();
+  expect(read).toHaveBeenCalledTimes(2);
+});

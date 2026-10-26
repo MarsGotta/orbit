@@ -36,6 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 "attachments":["00000000-0000-4000-8000-000000000905"]
             }),
         ),
+        ("chat.observe", json!({"session_id":session})),
         ("chat.interrupt", json!({"session_id":session,"turn_id":id})),
         (
             "approval.respond",
@@ -134,6 +135,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }),
                 storage: Some(storage),
                 recording_delete: Some(true),
+                chat_observe: None,
                 device_id: Some("device-1".into()),
                 hub_protocol: Some(1),
                 hub_version: Some("0.3.12".into()),

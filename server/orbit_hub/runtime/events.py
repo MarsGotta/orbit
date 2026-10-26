@@ -34,6 +34,7 @@ from ..interactions import pending_data
 from ..log import logger, report
 from ..protocol import HubError, emit
 from ..turns import TurnState
+from .observation import remember_preview
 
 _IN_FLIGHT = {TurnState.SUBMITTING, TurnState.STREAMING, TurnState.INTERRUPTING}
 
@@ -43,6 +44,8 @@ class TurnEvents:
         self.runtime = runtime
         # The answer each conversation streams, by its turn, whose delivery
         # markers are held back (`delivery_markers`): one per conversation.
+        self.previews: dict[str, str] = {}
+        self.retries: dict[str, str] = {}
         self.streams: dict[str, tuple[str, MarkerStream]] = {}
 
     async def on_event(self, agent_id: str, event: AssistantEvent) -> None:
@@ -73,6 +76,8 @@ class TurnEvents:
         elif isinstance(event, MessageChunk):
             text = self._stream(session_id, turn_id).feed(event.text)
             if text:
+                remember_preview(self.previews, session_id, text)
+                self.progress(session_id)
                 data = {"session_id": session_id, "text": text}
                 await runtime.publish(emit("chat.delta", data, turn_id))
         elif isinstance(event, MessageComplete):
@@ -84,6 +89,7 @@ class TurnEvents:
         elif isinstance(event, StatusNotice):
             await self.status(session_id, turn_id, event.kind, event.text)
         elif isinstance(event, ActivityItem):
+            self.progress(session_id)
             # Live only: neither stored nor in the snapshot. A Mac that
             # reconnects mid-turn sees the steps that follow. Their count
             # and what they used stay with the answer (`runtime.work`).
@@ -133,6 +139,10 @@ class TurnEvents:
             }
             await runtime.publish(emit("error", data, runtime.turn_ids.get(session_id)))
         runtime.forget_requests(lost)
+        for session_id in lost:
+            self.streams.pop(session_id, None)
+            self.previews.pop(session_id, None)
+            self.retries.pop(session_id, None)
         runtime.resumed_message_counts = {
             key: count
             for key, count in runtime.resumed_message_counts.items()
@@ -145,9 +155,19 @@ class TurnEvents:
         }
         await runtime.changed()
 
+    def progress(self, session_id: str) -> None:
+        if self.retries.pop(session_id, None) is not None:
+            self.runtime.touched()
+
     async def status(self, session_id: str, turn_id: str | None, kind: str, text: str) -> None:
+        if kind in {"retrying_openai", "retrying_anthropic"}:
+            self.retries[session_id] = kind
+        elif kind == "thinking":
+            self.retries.pop(session_id, None)
         data = {"session_id": session_id, "kind": kind, "text": text}
         await self.runtime.publish(emit("chat.status", data, turn_id))
+        if kind in {"retrying_openai", "retrying_anthropic", "thinking"}:
+            await self.runtime.changed()
 
     async def fail_turn(
         self, agent_id: str, session_id: str, turn_id: str, failure: TurnFailed | None = None
@@ -158,6 +178,8 @@ class TurnEvents:
         if runtime.turn_ids.get(session_id) != turn_id:
             return
         self.streams.pop(session_id, None)
+        self.previews.pop(session_id, None)
+        self.retries.pop(session_id, None)
         # A terminal upstream event is an observed fact, not a decision: it
         # closes the turn whatever sub-state the hub had recorded.
         runtime.store.chat.set_status(session_id, "failed")
@@ -237,6 +259,8 @@ class TurnEvents:
     async def complete(self, agent_id, key, session_id, turn_id, event: MessageComplete) -> None:
         runtime = self.runtime
         self.streams.pop(session_id, None)
+        self.previews.pop(session_id, None)
+        self.retries.pop(session_id, None)
         text, removed = without_markers(event.text)
         if removed:
             logger.info(
@@ -310,6 +334,7 @@ class TurnEvents:
 
     async def requested(self, session_id, turn_id, event) -> None:
         runtime = self.runtime
+        self.progress(session_id)
         kind, name = (
             ("approval", "approval.required")
             if isinstance(event, PermissionRequested)

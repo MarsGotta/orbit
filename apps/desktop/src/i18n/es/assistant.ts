@@ -113,6 +113,10 @@ export function assistantCopy(assistantName: string) {
     assistant: {
       ...base.assistant,
       thinking: `${assistantName} está pensando…`,
+      awaitingPermission: `${assistantName} espera tu permiso`,
+      awaitingAnswer: `${assistantName} espera tu respuesta`,
+      retryingOpenai: "OpenAI tarda en contestar; reintentando",
+      retryingAnthropic: "Anthropic tarda en contestar; reintentando",
       responding: `${assistantName} está respondiendo…`,
       noHermesVoice: `${assistantName} contesta por texto`,
       // The list of conversations.
