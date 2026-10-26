@@ -7,6 +7,7 @@ import signal
 from contextlib import suppress
 
 from ..errors import HubError
+from .codex_policy import startup_arguments
 from .official_tools import MAX_AGENT_MESSAGE_BYTES, START_TIMEOUT_SECONDS
 from .tool_availability import launch_failure
 
@@ -44,6 +45,7 @@ class CodexRpc:
                 *self.jail_prefix,
                 *self.backend.settings.command,
                 "app-server",
+                *startup_arguments(self.backend.workspaces.current()),
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL,

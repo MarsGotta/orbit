@@ -12,7 +12,31 @@ import tarfile
 import tempfile
 import tomllib
 import urllib.request
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+
+
+def extract_package(tar, release, expected):
+    """Validate the entire pinned inventory before writing any executable."""
+    files = [member for member in tar.getmembers() if not member.isdir()]
+    found = {member.name for member in files}
+    missing, extra = set(expected) - found, found - set(expected)
+    if missing or extra:
+        raise ValueError(
+            f"Codex package inventory mismatch: missing {sorted(missing)}, unexpected {sorted(extra)}"
+        )
+    if len(found) != len(files):
+        raise ValueError("Codex package contains duplicate file members")
+    for member in files:
+        path = PurePosixPath(member.name)
+        if not member.isfile() or path.is_absolute() or ".." in path.parts:
+            raise ValueError(f"Codex package member {member.name} is not a safe regular file")
+    for member in files:
+        destination = release / member.name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        # No extractall, archive links, ownership or arbitrary mode bits.
+        with tar.extractfile(member) as source, destination.open("xb") as target:
+            shutil.copyfileobj(source, target)
+        destination.chmod(0o755 if member.mode & 0o111 else 0o644)
 
 
 def install(release: Path) -> dict:
@@ -40,15 +64,7 @@ def install(release: Path) -> dict:
             )
         archive.seek(0)
         with tarfile.open(fileobj=archive, mode="r:gz") as tar:
-            member = tar.getmember(pin["member"])
-            if not member.isfile():
-                raise ValueError(f"Codex asset member {pin['member']} is not a regular file")
-            binary = release / "bin" / "codex"
-            binary.parent.mkdir(exist_ok=True)
-            # Extract only the exact regular file, never archive paths/links.
-            with tar.extractfile(member) as source, binary.open("xb") as destination:
-                shutil.copyfileobj(source, destination)
-            binary.chmod(0o755)
+            extract_package(tar, release, pin["members"])
     return pin
 
 

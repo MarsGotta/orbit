@@ -7,6 +7,26 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Fixed
+
+- Hub Codex assistants disable account plugins/connectors, browser/computer
+  integrations, external hooks, automatic installs and approval reviewers at
+  startup and every thread start/resume. Cached plugins are ignored, ancestor
+  project configuration stays untrusted, and connection retries are finite.
+  Codex and Claude turns can remain silent while reasoning without a hub
+  inactivity deadline.
+- Claude assistants explicitly disable claude.ai connectors, exclude user and
+  project settings/plugins/hooks, and retain only Orbit's configured MCP and
+  its SDK permission hook, while preserving subscription sign-in.
+- Codex provider connection failures retain their structured cause and HTTP status.
+
+### Upgrading
+
+- Republish the hub to install the complete pinned official Codex CLI package,
+  including `codex-code-mode-host`, package metadata, bundled paths and resources.
+  Publication verifies its checksum and every file before sealing the release.
+  Upgrade the hub first; the Mac protocol is unchanged.
+
 ## [0.12.2] - 2026-10-26
 
 ### Fixed

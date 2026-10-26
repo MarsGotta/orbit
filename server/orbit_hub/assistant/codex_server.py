@@ -10,6 +10,7 @@ import base64
 from ..errors import HubError
 from .agent_config import instructions_text
 from .backend import ActivityItem, ImageBlock, MessageChunk, PlanStep, TextBlock
+from .codex_policy import thread_config
 from .codex_rpc import MAX_SERVER_REQUESTS, CodexRpc, RpcError
 from .deletion import command_deletion
 from .official_tools import OPEN_TIMEOUT_SECONDS, VendorProcess
@@ -37,10 +38,9 @@ class CodexProcess(VendorProcess):
                 "sandbox": "danger-full-access",
                 "developerInstructions": instructions_text(self.backend.instructions()) or "",
                 "config": {
-                    "features.shell_tool": True,
+                    **thread_config(self.workspace),
                     # The outer jail is the only kernel sandbox. Codex cannot
                     # create a nested bwrap namespace under Ubuntu AppArmor.
-                    "web_search": "disabled",
                     # Replace the map, including any servers in CODEX_HOME.
                     "mcp_servers": {"orbit": {**self.backend.mcp_server(), "required": True}},
                 },
@@ -111,6 +111,10 @@ class CodexProcess(VendorProcess):
             return status
         error = turn.get("error") or {}
         mark = error.get("codexErrorInfo")
+        details = {}
+        if isinstance(mark, dict) and len(mark) == 1:
+            mark, details = next(iter(mark.items()))
+            details = details if isinstance(details, dict) else {}
         if mark == "usageLimitExceeded":
             raise self.limit_failure()
         if mark == "unauthorized":
@@ -129,12 +133,19 @@ class CodexProcess(VendorProcess):
             "internalServerError": "informó de un fallo interno de Codex",
             "badRequest": "rechazó el formato de la petición",
             "threadRollbackFailed": "no pudo restaurar el estado del hilo",
+            "httpConnectionFailed": "no pudo conectar con el proveedor tras sus reintentos",
+            "httpResponseStreamConnectionFailed": "no pudo abrir la respuesta del proveedor",
+            "responseStreamDisconnected": "perdió la conexión de respuesta del proveedor",
+            "responseStreamLimitExceeded": "agotó los reintentos de la respuesta del proveedor",
         }
         known = mark if isinstance(mark, str) and mark in causes else None
+        numbers = {"stop_reason": known} if known else {}
+        if known and type(details.get("httpStatusCode")) is int:
+            numbers["http_status_code"] = details["httpStatusCode"]
         raise self.refusal(
             "agent_rejected",
             causes[known] if known else "no informó de la causa estructurada del fallo",
-            {"stop_reason": known} if known else None,
+            numbers or None,
         )
 
     async def notification(self, method, params):

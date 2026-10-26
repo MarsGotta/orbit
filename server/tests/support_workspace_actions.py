@@ -6,7 +6,27 @@ name protected fixture folders. The execution record is the observable effect.
 
 import json
 import os
+import tomllib
 from pathlib import Path
+
+
+def codex_extensions(config, record, phase):
+    """Model the pinned loader's plugin gate and exact-dir trust before repo fallback."""
+    home = Path(os.environ["CODEX_HOME"])
+    stored = home / "config.toml"
+    saved = tomllib.loads(stored.read_text()) if stored.exists() else {}
+    features = {**saved.get("features", {}), **config.get("features", {})}
+    effective = {**config, **{f"features.{k}": v for k, v in features.items()}}
+    if effective.get("features.plugins", True):
+        for manifest in home.glob("plugins/cache/**/plugin.json"):
+            record({"loaded_plugin": json.loads(manifest.read_text())["name"], "phase": phase})
+    projects = saved.get("projects", {})
+    projects.update(config.get("projects", {}))
+    work = Path.cwd()
+    for parent in (work, *work.parents):
+        local = parent / ".codex/config.toml"
+        if local.is_file() and projects.get(str(parent), {}).get("trust_level") == "trusted":
+            record({"loaded_project_config": str(local), "phase": phase})
 
 
 def operation():

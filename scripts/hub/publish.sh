@@ -148,7 +148,11 @@ python="$target/.venv/bin/python"
 step "compiling orbit_hub and orbit_mcp" "$python" -I -m compileall -q "$target/orbit_hub" "$target/orbit_mcp"
 
 # The pin travels with the committed server, so old releases never acquire a
-# newer binary when this script changes. No activation or provider connection.
+# newer package when this script changes. Keep its bin/, codex-path/,
+# codex-resources/ and codex-package.json together: upstream discovers sibling
+# executables and resources relative to the running bin/codex. The installer
+# checks the complete regular-file inventory before writing any executable.
+# No activation or provider connection.
 # Five minutes bounds the whole transfer, including a stalled release host.
 step "downloading and verifying the pinned official Codex" \
 	timeout 300 "$python" -I -m orbit_hub.assistant.codex_distribution "$target"

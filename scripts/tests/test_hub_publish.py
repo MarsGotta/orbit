@@ -108,7 +108,7 @@ class PublishedReleaseTests(unittest.TestCase):
             relative = path.relative_to(self.release)
             if ".git" in relative.parts:
                 self.fail(f"the release carries {relative}")
-            if relative.parts[0] in (".venv", "RELEASE", "bin") or "__pycache__" in relative.parts:
+            if relative.parts[0] in (".venv", "RELEASE", "bin", "codex-path", "codex-resources", "codex-package.json") or "__pycache__" in relative.parts:
                 continue
             if path.is_file():
                 found[relative] = path.read_bytes()
@@ -140,6 +140,15 @@ class PublishedReleaseTests(unittest.TestCase):
         self.assertEqual(fields.get("codex"), "0.164.0")
         self.assertEqual(fields.get("codex_asset_sha256"), self.sandbox.codex_checksum)
         self.assertFalse(binary.stat().st_mode & 0o222)
+
+    def test_the_complete_official_package_layout_is_preserved(self):
+        members = Path(__file__).with_name("codex-package-members.txt").read_text().splitlines()
+        for member in members:
+            path = self.release / member
+            self.assertTrue(path.is_file(), f"missing official package member: {member}")
+            self.assertFalse(path.stat().st_mode & 0o222)
+        for member in ("bin/codex-code-mode-host", "codex-path/rg", "codex-resources/bwrap"):
+            self.assertTrue(os.access(self.release / member, os.X_OK))
 
     def test_the_release_says_its_version_commit_and_date(self):
         fields = release_fields(self.release / "RELEASE")

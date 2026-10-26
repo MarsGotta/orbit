@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import time
+import tomllib
 from pathlib import Path
 from uuid import uuid4
 
@@ -49,6 +50,12 @@ def main():
         print("2.1.303 (Claude Code)")
         return
     vendor = "codex" if args[:1] == ["app-server"] else "claude-code"
+    if vendor == "codex":
+        config = {}
+        for i, arg in enumerate(args):
+            if arg == "-c":
+                config.update(tomllib.loads(args[i + 1]))
+        actions.codex_extensions(config, record, "startup")
     record(
         {
             "vendor": vendor,
@@ -57,6 +64,8 @@ def main():
             "withheld": os.environ.get("ORBIT_TOOL_WITHHELD"),
             "pid": os.getpid(),
             "cwd": os.getcwd(),
+            "account_connectors": os.environ.get("ENABLE_CLAUDEAI_MCP_SERVERS"),
+            "plugin_dirs": os.environ.get("CLAUDE_CODE_PLUGIN_DIRS"),
         }
     )
     print(SECRET, file=sys.stderr, flush=True)
@@ -161,6 +170,35 @@ def claude(args):
                     }
                 )
                 result(is_error=True)
+                continue
+            if "SILENT" in text:
+                send({"type": "system", "subtype": "init", "session_id": session})
+                send(
+                    {
+                        "type": "stream_event",
+                        "uuid": str(uuid4()),
+                        "session_id": session,
+                        "event": {
+                            "type": "content_block_delta",
+                            "index": 0,
+                            "delta": {"type": "text_delta", "text": "Hola. "},
+                        },
+                    }
+                )
+                silent_interval()
+                send(
+                    {
+                        "type": "stream_event",
+                        "uuid": str(uuid4()),
+                        "session_id": session,
+                        "event": {
+                            "type": "content_block_delta",
+                            "index": 0,
+                            "delta": {"type": "text_delta", "text": "Hecho."},
+                        },
+                    }
+                )
+                result()
                 continue
             send({"type": "system", "subtype": "init", "session_id": session})
             send(
@@ -379,6 +417,7 @@ def codex():
             )
         elif method in ("thread/start", "thread/resume"):
             record({"method": method, "params": params})
+            actions.codex_extensions(params["config"], record, method)
             thread = params.get("threadId", thread)
             server = params["config"]["mcp_servers"]["orbit"]
             send(
@@ -426,6 +465,15 @@ def codex():
             if "CAPACITY" in text:
                 end("failed", {"message": SECRET, "codexErrorInfo": "serverOverloaded"})
                 continue
+            if "NETWORK" in text:
+                end(
+                    "failed",
+                    {
+                        "message": SECRET,
+                        "codexErrorInfo": {"httpConnectionFailed": {"httpStatusCode": 503}},
+                    },
+                )
+                continue
             if "LIMIT" in text:
                 notify(
                     "account/rateLimits/updated",
@@ -443,6 +491,11 @@ def codex():
                 end("failed", {"message": SECRET, "codexErrorInfo": "unauthorized"})
                 continue
             notify("item/agentMessage/delta", itemId="text-1", delta="Hola. ")
+            if "SILENT" in text:
+                silent_interval()
+                notify("item/agentMessage/delta", itemId="text-1", delta="Hecho.")
+                end()
+                continue
             if "WAIT" in text:
                 continue
             if "ACTION" in text:
@@ -522,6 +575,14 @@ def codex():
             else:
                 notify("item/agentMessage/delta", itemId="text-1", delta="Hecho.")
                 end()
+
+
+def silent_interval():
+    # The test advances the hub clock while the fake cannot emit any frames.
+    # Only this explicit release permits the provider's final answer.
+    release = Path(os.environ["ORBIT_TOOL_RECORD"]).with_name("release-silent-turn")
+    while not release.exists():
+        time.sleep(0.01)
 
 
 def broken_output(text):

@@ -7,6 +7,7 @@ turns resume the same vendor session from the agent's configuration folder.
 
 import asyncio
 import base64
+import json
 import logging
 import os
 
@@ -103,6 +104,15 @@ class ClaudeProcess(VendorProcess):
         # this agent's signed-in account or enable diagnostic transcripts.
         variables = dict.fromkeys(os.environ, "")
         variables.update(self.backend.environment())
+        # Empty is not false for the bundled CLI's connector gate.
+        variables["ENABLE_CLAUDEAI_MCP_SERVERS"] = "false"
+        # Explicit env allowlists must not reintroduce plugin side-loading.
+        for name in variables:
+            if (
+                name.startswith("CLAUDE_CODE_PLUGIN_")
+                or name == "CLAUDE_CODE_DESKTOP_SKILLS_PLUGIN_DIR"
+            ):
+                variables[name] = ""
         return ClaudeAgentOptions(
             cli_path=self.backend.settings.command[0],
             cwd=self.workspace,
@@ -115,6 +125,10 @@ class ClaudeProcess(VendorProcess):
             hooks={"PreToolUse": [HookMatcher(hooks=[self.before_tool])]},
             setting_sources=[],
             strict_mcp_config=True,
+            # User/project plugin enablement and hooks come from settings
+            # sources, which are empty. No plugin directories are supplied.
+            plugins=[],
+            settings=json.dumps({"disableClaudeAiConnectors": True}),
             mcp_servers={"orbit": self.backend.mcp_server()},
             system_prompt={
                 "type": "preset",

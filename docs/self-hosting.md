@@ -532,13 +532,19 @@ one from Orbit and sign in with its official account flow; no
   Python package, without searching `PATH` or assuming a venv location.
 - `kind = "codex"` runs the official **codex-cli 0.164.0** `app-server` over
   stdio JSON-RPC v2. `scripts/hub/publish.sh` downloads OpenAI's
-  [`codex-x86_64-unknown-linux-musl.tar.gz`](https://github.com/openai/codex/releases/tag/rust-v0.164.0)
-  and verifies its pinned SHA-256 before extracting the regular executable to
-  `<release>/bin/codex`, beside `.venv`. The archive's SHA-256 is
-  `90dd0b03b28afcb7fa733a4f73b413db2916a47347efd43fb669cc1c774ee8e4`.
-  The pin is in `server/codex-release.toml`, copied from the published commit.
-  OpenAI's official [PyPI runtime](https://pypi.org/project/openai-codex-cli-bin/)
-  currently stops at 0.163.0, so it cannot supply the required version.
+  [`codex-package-x86_64-unknown-linux-musl.tar.gz`](https://github.com/openai/codex/releases/tag/rust-v0.164.0)
+  and verifies SHA-256
+  `3ec55053109608d5038f7e50750f7d25f768dfd740fef071aa710e2559b63aac`.
+  It preserves the complete official layout beside `.venv`: `bin/codex`,
+  `bin/codex-code-mode-host`, `codex-path/rg`, `codex-package.json` and
+  `codex-resources/` (bubblewrap and the voice runtime, including licenses).
+  All 43 regular files are required by the pinned inventory in
+  `server/codex-release.toml`; missing, extra, duplicate or linked file members
+  fail publication. The standalone app-server package lacks `codex login`,
+  which Orbit also needs, so the complete CLI package supplies both login and
+  the `app-server` subcommand. Upstream discovers siblings and resources
+  relative to `bin/codex`. The jail's read-only root already exposes the whole
+  installed release; no writable bind or additional host path is needed.
 
 The Linux x86_64 Claude SDK wheel's SHA-256 is
 `728592effdfe63e96fbad7ba3b2ddf642e3aad344e73692b429898fbfcb33f12`
@@ -546,12 +552,50 @@ The Linux x86_64 Claude SDK wheel's SHA-256 is
 `b73676430af12f97316a798b8371f81d640f90a58bdcb8f3ce56a835bb47df56`.
 Other SDK platforms have their own wheel hashes in the lockfile.
 
-Publishing fails on a Codex checksum mismatch, unsupported server platform or
+Publishing fails on a Codex checksum or inventory mismatch, unsupported server platform or
 failed isolated `--version` check, removes the incomplete release, and starts
 no service or account session. The sealed `RELEASE` records the Codex version
 and asset checksum. The Codex protocol fixtures were generated with 0.164.0;
 update those fixtures and run real account acceptance when changing the pin.
 No Node adapter is involved.
+
+The hub applies a reviewed Codex feature policy at process startup **and at
+every thread start/resume**. It disables account apps/connectors, plugins
+(including an existing cache), browser/computer tools, hooks, dependency
+installation, tool suggestions, delegation, image generation, automatic
+approval reviewers, daemon auto-start and unbounded connection retries.
+Core shell/unified execution, `apply_patch`, `view_image` and Orbit's MCP remain.
+Intrinsic vendor bookkeeping and MCP tool discovery remain; discovery sees
+only Orbit's server. No browser or desktop-control tool reaches the Mac except
+through Orbit's own permissioned MCP tools. See the
+[complete flag decisions and upstream exceptions](architecture/hub-tool-policy.md).
+
+Every ancestor of the selected working folder has an invocation-local
+`projects.<path>.trust_level = "untrusted"` override. The pinned loader checks
+these entries before repository trust fallback, so old trusted repository
+entries cannot activate parent/project `.codex/config.toml`, hooks or exec
+policies. The hub does not write trust to the assistant's account configuration.
+Hooks are also feature-disabled, and the legacy `notify` command is empty.
+
+Codex may retry only within its bounded upstream retry policy (four HTTP
+attempts, five stream reconnections with the pinned defaults). Codex and Claude
+turns have no hub inactivity or total-duration deadline: reasoning can take
+minutes without emitting a visible event. Startup and protocol request
+acknowledgements keep their separate timeouts.
+Terminal provider failures preserve their structured reason and HTTP status,
+without returning raw provider diagnostics.
+
+Claude has no claude.ai account connectors: the hub forces
+`ENABLE_CLAUDEAI_MCP_SERVERS=false` and the CLI setting
+`disableClaudeAiConnectors=true`. Empty `setting_sources` excludes user,
+project and local settings, including their hooks and plugin enablement.
+`plugins=[]` supplies no explicit plugins; ambient plugin-directory variables
+are cleared. `strict_mcp_config=True` restricts MCP to the explicitly supplied
+Orbit server. The hub's own SDK `PreToolUse` permission hook remains active.
+Subscription OAuth remains available; `--bare` would disable it and is not used.
+Managed machine policy still belongs to the host administrator and must be
+reviewed on the real hub; synthetic tests do not establish account inventory
+or organization policy.
 
 Anthropic supports the Agent SDK with [your own Claude plan](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan).
 Orbit does not read subscription tokens or implement provider authentication.

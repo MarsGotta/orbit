@@ -230,7 +230,7 @@ def test_turn_streams_tools_approval_clarification_and_resumes(official, tmp_pat
         assert (
             started["sandbox"] == "danger-full-access" and started["approvalPolicy"] == "untrusted"
         )
-        assert started["config"]["features.shell_tool"] is True
+        assert started["config"]["features"]["shell_tool"] is True
         assert set(started["config"]["mcp_servers"]) == {"orbit"}
         content = next(r["params"]["input"] for r in records if r.get("method") == "turn/start")
         image = next(b for b in content if b["type"] == "image")
