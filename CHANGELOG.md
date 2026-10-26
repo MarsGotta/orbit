@@ -21,6 +21,12 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ### Fixed
 
+- Meeting transcripts keep each track's utterances whole during overlapping
+  speech and short interjections, including in already recorded meetings.
+  Pauses longer than one second start a new turn only when another voice
+  speaks during the gap; monologues retain the minute paragraph window even
+  through long pauses. Saved corrections, voice names and named-turn
+  intervals remain attached to their words in the app and assistant reads.
 - Conversations can be opened or started while another assistant turn continues
   on the hub. Returning restores its live answer, pending permission or question;
   the conversation list marks turns waiting for their owner. Voice notes still

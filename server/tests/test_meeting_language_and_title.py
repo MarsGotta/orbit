@@ -259,8 +259,10 @@ async def test_english_on_a_finished_meeting_repeats_every_group_and_writes_the_
     assert [group["language"] for group in groups(store, recording)] == ["en"] * 4
     assert done["language"] == "en"
     assert done["transcript"].get("retranscribing") is None
-    # The empty group said something this time: four turns, one per group.
-    assert [turn["text"] for turn in after] == [ENGLISH] * 4
+    # The empty group said something this time. Both groups of each track
+    # read together, retaining all four groups' words in two complete turns.
+    assert [turn["speaker_key"] for turn in after] == ["mic_local", "remote_app"]
+    assert [turn["text"] for turn in after] == [f"{ENGLISH} {ENGLISH}"] * 2
     # The note again, in English, and the user's edits set aside.
     assert len(model.calls) == 2
     assert "Escribes en inglés" in model.calls[-1]["messages"][0]["content"]

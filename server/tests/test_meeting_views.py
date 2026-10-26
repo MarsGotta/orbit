@@ -424,7 +424,7 @@ async def test_c4_finalizing_a_meeting_asks_for_its_note_and_the_worker_writes_i
     system, user = (message["content"] for message in model.calls[0]["messages"])
     assert f"Título previsto: {TITLE}" in user
     assert "notas privadas de Alina" in system
-    assert "Alina: Hablamos del presupuesto." in user
+    assert "Alina: Abrimos el comité. Hablamos del presupuesto." in user
     assert note["template_id"] is None and note["note"]["template_source"] == "default"
     # A voice call is not a meeting: no note, and not in the meetings list.
     assert call_document["note"] is None
@@ -651,7 +651,11 @@ async def test_turn_pages_stay_under_their_byte_ceiling_and_lose_nothing(hub, mo
             offset = body["next_offset"]
     assert len(pages) > 1
     assert all(len(page["turns"]) >= 1 for page in pages)
-    assert sum(len(page["turns"]) for page in pages) == pages[0]["total"] == 4
+    assert sum(len(page["turns"]) for page in pages) == pages[0]["total"] == 2
+    assert [turn["text"] for page in pages for turn in page["turns"]] == [
+        " ".join(["uno"] * 40 + ["dos"] * 40),
+        " ".join(["tres"] * 40 + ["cuatro"]),
+    ]
 
 
 # The language the transcriber says, or the configured one; never «auto».

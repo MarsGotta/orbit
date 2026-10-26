@@ -2046,5 +2046,19 @@
     "source": "registry",
     "unit": "previews",
     "value": 64
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/meetings/bounds.py",
+        "name": "MAX_UTTERANCE_PAUSE_MS",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "MAX_UTTERANCE_PAUSE_MS",
+    "resource": "read-time silence allowing another voice to take a turn only when it speaks during the gap; unoccupied pauses keep the paragraph window, separate from word-to-voice filtering",
+    "source": "python",
+    "unit": "milliseconds",
+    "value": 1000
   }
 ]

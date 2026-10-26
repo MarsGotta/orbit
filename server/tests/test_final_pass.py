@@ -172,7 +172,7 @@ async def test_final_words_split_voices_and_all_readers_use_the_same_names(envir
     from support_notes import write_note
 
     from orbit_hub.meeting_final_pass import FinalPassRepository
-    from orbit_hub.meetings import turns
+    from orbit_hub.meetings import repository, turns
     from orbit_hub.meetings_bridge.service import MeetingsBridgeService
 
     _, store, _ = environment
@@ -238,10 +238,11 @@ async def test_final_words_split_voices_and_all_readers_use_the_same_names(envir
         )
         page = http.get(path + "/turns", headers=headers).json()
         remote_turns = [t for t in page["turns"] if t["speaker_key"] != "mic_local"]
-        assert [(t["at_ms"], t["speaker_key"]) for t in remote_turns] == [
-            (1000, "voice_1"),
-            (11000, "voice_2"),
-            (21000, "voice_2"),
+        # Naming the last word as the preceding voice joins their otherwise
+        # unoccupied pause. All three words retain their chosen voice.
+        assert [(t["at_ms"], t["speaker_key"], t["text"]) for t in remote_turns] == [
+            (1000, "voice_1", "Uno."),
+            (11000, "voice_2", "Dos. Tres."),
         ]
         stale = http.put(
             path + "/speakers",
@@ -258,14 +259,25 @@ async def test_final_words_split_voices_and_all_readers_use_the_same_names(envir
     prompt = note_worker.client.calls[0]["messages"][-1]["content"]
     with store.read_snapshot() as db:
         after = turns.read(store, db, owner["device_id"], identity)
+        changes = repository.speaker_changes(store, db, owner["device_id"], identity)
+    assert changes["turns"] == [
+        {"track": "remote_app", "start_ms": 21000, "end_ms": 22000, "speaker_key": "voice_2"}
+    ]
+    assert [(s.text, s.speaker_key) for s in after.segments if s.track == "remote_app"] == [
+        ("Uno.", "voice_1"),
+        ("Dos.", "voice_2"),
+        ("Tres.", "voice_2"),
+    ]
     text = MeetingsBridgeService._render(after, "text")
     assert text in prompt
     segments = [
         json.loads(line) for line in MeetingsBridgeService._render(after, "segments").splitlines()
     ]
     assert [
-        (s["at_ms"], s["speaker_key"], s["speaker"]) for s in segments if s["track"] == "remote_app"
-    ] == [(1000, "voice_1", "Lucía"), (11000, "voice_2", "Pedro"), (21000, "voice_2", "Pedro")]
+        (s["at_ms"], s["speaker_key"], s["speaker"], s["text"])
+        for s in segments
+        if s["track"] == "remote_app"
+    ] == [(1000, "voice_1", "Lucía", "Uno."), (11000, "voice_2", "Pedro", "Dos. Tres.")]
     # A manual repeat transcribes again, reusing the successful voice intervals.
     repo.request(owner["device_id"], identity)
     assert await worker.run_once()

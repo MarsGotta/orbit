@@ -12,10 +12,12 @@ the rest is pure.
 
 import json
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from itertools import groupby
 
 from . import dictionaries, repository
 from . import muted as mute
+from .bounds import MAX_UTTERANCE_PAUSE_MS
 from .open_recordings import length_ms, open_capture
 
 # How the local microphone is named before the Mac has said who owns it
@@ -24,11 +26,10 @@ LOCAL_TRACK_NAME = "Micrófono local"
 # How the transcript names a voice nobody has named. The note never makes it
 # the owner of a task: a task without a known person has no owner.
 UNKNOWN_SPEAKER = "Otra persona"
-# Consecutive groups of one voice that start within this window of the turn's
-# first group are one turn. A group closes every 20 s of audio
-# (`grouping.TARGET_SECONDS`), so a turn joins at most three groups: a minute of
-# one person speaking reads as one paragraph, and a longer one breaks at the
-# next minute so its time stays near what it says.
+# Bound a continuous monologue's paragraph by the start of its words/groups:
+# a minute reads together, then a new paragraph keeps its time near its text.
+# This is not the silence threshold or a limit on recording duration. Draft
+# groups normally cover 20 s (`grouping.TARGET_SECONDS`); three fill a minute.
 MERGE_WINDOW_MS = 60_000
 # The tracks a recording can carry (`routes/captures.py`), in the order the
 # speakers are listed: the Mac's microphone, then the meeting's audio.
@@ -44,7 +45,7 @@ class Speaker:
 
 @dataclass(frozen=True)
 class Segment:
-    """One transcribed group with words in it, timed from the recording's start."""
+    """A draft group or final word, timed from the recording's start."""
 
     at_ms: int
     track: str
@@ -96,28 +97,56 @@ def speaker_name(key: str, track: str, renames: dict[str, str], owner: str | Non
 
 
 def merge_segments(segments: list[Segment]) -> list[Segment]:
-    """One interval per turn, shared by the app, corrections and Deimos."""
+    """One utterance interval per turn, shared by all transcript consumers.
+
+    Other-track overlap cannot interrupt a sentence. A long pause only closes
+    it when another track actually speaks in that gap; otherwise monologues
+    retain the original minute window. Same-track voice/name changes remain
+    boundaries, preserving saved named-word intervals applied before grouping.
+    Drafts have group timing only: silence inside a group is unknown.
+    """
     turns: list[Segment] = []
-    for segment in sorted(segments, key=lambda s: (s.at_ms, s.track)):
-        last = turns[-1] if turns else None
-        if (
-            last is not None
-            and last.speaker_key == segment.speaker_key
-            and last.track == segment.track
-            and segment.at_ms - last.at_ms < MERGE_WINDOW_MS
-        ):
-            turns[-1] = Segment(
-                last.at_ms,
-                last.track,
-                last.speaker_key,
-                last.text + " " + segment.text,
-                last.first_index,
-                segment.last_index,
-                last.language,
-                max(last.end_ms or last.at_ms + 1, segment.end_ms or segment.at_ms + 1),
+    latest: dict[str, int] = {}
+    heard_until: dict[str, int] = {}
+    ordered = sorted(segments, key=lambda s: (s.at_ms, s.track))
+    for _, simultaneous in groupby(ordered, key=lambda s: s.at_ms):
+        simultaneous = list(simultaneous)
+        for segment in simultaneous:
+            index = latest.get(segment.track)
+            last = turns[index] if index is not None else None
+            pause_taken = (
+                last is not None
+                and last.end_ms is not None
+                and segment.at_ms - last.end_ms > MAX_UTTERANCE_PAUSE_MS
+                and any(
+                    end > last.end_ms
+                    for track, end in heard_until.items()
+                    if track != segment.track
+                )
             )
-        else:
-            turns.append(segment)
+            if (
+                last is not None
+                and last.speaker_key == segment.speaker_key
+                and segment.at_ms - last.at_ms < MERGE_WINDOW_MS
+                and not pause_taken
+            ):
+                turns[index] = replace(
+                    last,
+                    text=last.text + " " + segment.text,
+                    first_index=min(last.first_index, segment.first_index),
+                    last_index=max(last.last_index, segment.last_index),
+                    end_ms=max(last.end_ms or last.at_ms + 1, segment.end_ms or segment.at_ms + 1),
+                )
+            else:
+                latest[segment.track] = len(turns)
+                turns.append(segment)
+        # Speech must start strictly before the resuming word to occupy its
+        # pause. Defer equal starts together so track tie order cannot decide.
+        # Keep real segment ends, including speech that began before the gap.
+        for segment in simultaneous:
+            heard_until[segment.track] = max(
+                heard_until.get(segment.track, 0), segment.end_ms or segment.at_ms + 1
+            )
     return turns
 
 
