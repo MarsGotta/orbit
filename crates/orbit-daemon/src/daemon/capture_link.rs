@@ -214,17 +214,18 @@ impl Runtime {
     /// because the task's channel is closed (the task is down): what the
     /// task handed over before it went down came first, and is served first.
     pub(super) async fn capture_barrier(&mut self, seq: Option<u64>) {
-        let Some(seq) = seq else {
-            self.serve_forwarded(None).await;
-            return;
-        };
         let deadline = std::time::Instant::now() + BARRIER_BOUND;
         loop {
-            self.serve_forwarded(Some(seq)).await;
             let (reached, running) = {
                 let core = self.capture.lane.lock();
-                (core.consumed_through >= seq, core.task_running)
+                (
+                    seq.is_some_and(|seq| core.consumed_through >= seq),
+                    core.handing_over || (seq.is_some() && core.task_running),
+                )
             };
+            // Read progress first: every item up to that position is already
+            // queued, so the drain below cannot miss one racing the barrier.
+            self.serve_forwarded(seq).await;
             if reached || !running {
                 return;
             }

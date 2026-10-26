@@ -7,6 +7,13 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Fixed
+
+- Capture task restart exhaustion preserves audio already accepted by its
+  channel and hands it to the daemon loop before later fallback events.
+- The installer log parser test isolates its shell, tools, environment and
+  scratch directory; failed fixture installs report status, output and log.
+
 ## [0.12.4] - 2026-10-26
 
 ### Changed

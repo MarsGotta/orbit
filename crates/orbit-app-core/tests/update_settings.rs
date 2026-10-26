@@ -312,6 +312,42 @@ fn latest_start_without_result_does_not_reuse_an_older_success() -> Result<(), B
     Ok(())
 }
 
+/// The fixture must not run shell startup hooks or tools from its caller.
+/// A competing tool named bash can exit silently before install.sh starts.
+#[test]
+fn installer_log_fixture_ignores_parent_shell_environment() -> Result<(), Box<dyn Error>> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let directory = tempfile::tempdir()?;
+    let shell = directory.path().join("bash");
+    fs::write(&shell, "#!/bin/sh\nexit 73\n")?;
+    fs::set_permissions(&shell, fs::Permissions::from_mode(0o755))?;
+    let hook = directory.path().join("startup.sh");
+    fs::write(&hook, "exit 74\n")?;
+    let output = Command::new(std::env::current_exe()?)
+        .args([
+            "--exact",
+            "parser_reads_a_log_written_by_the_real_installer",
+            "--nocapture",
+        ])
+        .env(
+            "PATH",
+            format!("{}:/usr/bin:/bin", directory.path().display()),
+        )
+        .env("BASH_ENV", &hook)
+        .env("ENV", &hook)
+        .env("BASH_FUNC_ps%%", "() { exit 75; }")
+        .output()?;
+    assert!(
+        output.status.success(),
+        "status: {}; stdout: {}; stderr: {}",
+        output.status,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    Ok(())
+}
+
 #[test]
 fn parser_reads_a_log_written_by_the_real_installer() -> Result<(), Box<dyn Error>> {
     use std::os::unix::fs::PermissionsExt;
@@ -340,14 +376,21 @@ fn parser_reads_a_log_written_by_the_real_installer() -> Result<(), Box<dyn Erro
         fs::write(&path, format!("#!/bin/bash\n{body}"))?;
         fs::set_permissions(path, fs::Permissions::from_mode(0o755))?;
     }
-    let path = format!("{}:{}", bin.display(), std::env::var("PATH")?);
-    let output = Command::new("bash")
+    // The parser fixture has no dependency on the caller's shell, hooks,
+    // exported functions, installer options or scratch directory. Inherit none.
+    let scratch = home.path().join("scratch");
+    fs::create_dir(&scratch)?;
+    let path = format!("{}:/usr/bin:/bin", bin.display());
+    let output = Command::new("/bin/bash")
         .arg("--posix")
         .arg(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../scripts/release/install.sh"
         ))
+        .env_clear()
         .env("HOME", home.path())
+        .env("TMPDIR", scratch)
+        .env("LC_ALL", "C")
         .env(
             "ORBIT_APPLICATIONS_DIR",
             home.path().join("system-applications"),
@@ -355,12 +398,15 @@ fn parser_reads_a_log_written_by_the_real_installer() -> Result<(), Box<dyn Erro
         .env("PATH", path)
         .env("ORBIT_INSTALL_BASE", "fixture.invalid")
         .output()?;
+    let log = fs::read_to_string(home.path().join("Library/Logs/Orbit/instalador.log"));
     assert!(
         output.status.success(),
-        "{}",
+        "status: {}; stdout: {}; stderr: {}; installer log: {log:?}",
+        output.status,
+        String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    let log = fs::read_to_string(home.path().join("Library/Logs/Orbit/instalador.log"))?;
+    let log = log?;
     assert!(log.contains("Inicio "));
     assert!(log.contains("resultado|0.1.0|"));
     let parsed = UpdateService::last_installation_at(home.path())?.ok_or("missing result")?;

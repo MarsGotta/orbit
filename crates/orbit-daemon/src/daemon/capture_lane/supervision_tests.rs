@@ -201,6 +201,48 @@ async fn a_capture_task_past_its_budget_stays_down_and_the_loop_keeps_the_meetin
     Ok(())
 }
 
+/// Backlog exists before the worker starts: no scheduler timing decides how
+/// many frames are still queued when the fourth panic closes the channel.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn exhausted_capture_preserves_frames_already_accepted_by_the_route() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut commands) = fixture(directory.path())?;
+    let stream = start(&mut runtime, &mut commands).await?;
+    let panics = u32::try_from(RESTART_BUDGET + 1)?;
+    runtime.capture.lane.inject_panics(panics, 0);
+    let (audio, receiver) = mpsc::channel(crate::native::NATIVE_EVENTS_CAPACITY);
+    let (events_tx, events) = mpsc::channel(crate::native::NATIVE_EVENTS_CAPACITY);
+    let route = NativeRoute::new(events_tx, audio.clone());
+    for sequence in 0..u64::from(panics) + 40 {
+        route
+            .send(frame(&stream, sequence, FRAMES))
+            .await
+            .map_err(|_| anyhow::anyhow!("route closed before the task started"))?;
+    }
+    let mut task =
+        test_support::spawn_task_receiving(&runtime, super::task::CAPTURE_TICK, receiver)?;
+    tokio::time::timeout(TASK_JAM, audio.closed()).await?;
+    task.stop();
+    let mut meeting = Meeting {
+        runtime,
+        stream,
+        route,
+        events,
+        task,
+        next: u64::from(panics) + 40,
+        _commands: commands,
+    };
+    meeting.turn().await;
+    assert_eq!(meeting.gaps(), Some(u64::from(panics)));
+    // Forty accepted frames survive independently of future fallback traffic.
+    meeting.runtime.store_actor.run(|_| Ok(())).await?;
+    assert_eq!(meeting.sealed()?, 4, "accepted backlog was lost");
+    meeting.feed(20, true).await?;
+    meeting.sealed_at_least(6).await?;
+    assert_eq!(meeting.phase(), Some(orbit_core::CapturePhase::Recording));
+    Ok(())
+}
+
 /// Acknowledges every chunk PUT and records its id.
 fn synthetic_hub(
     listener: tokio::net::TcpListener,

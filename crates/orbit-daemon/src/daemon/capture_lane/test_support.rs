@@ -27,6 +27,16 @@ pub(in crate::daemon) fn spawn_task_ticking(
     tick: Duration,
 ) -> Result<(CaptureTask, mpsc::Sender<RoutedAudio>)> {
     let (audio_tx, audio) = mpsc::channel(crate::native::NATIVE_EVENTS_CAPACITY);
+    let task = spawn_task_receiving(runtime, tick, audio)?;
+    Ok((task, audio_tx))
+}
+
+/// Starts on a channel the fixture may fill before the task can run.
+pub(in crate::daemon) fn spawn_task_receiving(
+    runtime: &Runtime,
+    tick: Duration,
+    audio: mpsc::Receiver<RoutedAudio>,
+) -> Result<CaptureTask> {
     runtime.capture.lane.lock().upload = runtime.upload_view();
     let parts = TaskParts {
         lane: runtime.capture.lane.clone(),
@@ -42,7 +52,7 @@ pub(in crate::daemon) fn spawn_task_ticking(
         tick,
         supervision: runtime.supervision.clone(),
     };
-    Ok((CaptureTask::spawn(parts)?, audio_tx))
+    Ok(CaptureTask::spawn(parts)?)
 }
 
 /// One frame as the bridge hands it to the task, at its place `seq`.

@@ -110,6 +110,8 @@ pub(super) struct LaneCore {
     pub(super) upload_abort: Option<tokio::task::AbortHandle>,
     /// The task is running; a barrier does not wait for one that is gone.
     pub(super) task_running: bool,
+    /// The exhausted task is handing its accepted backlog to the loop.
+    pub(super) handing_over: bool,
     /// The loop has ended: the task reads and drops whatever still comes, so
     /// the helper's last frames cannot hold its own closure.
     pub(super) discard: bool,

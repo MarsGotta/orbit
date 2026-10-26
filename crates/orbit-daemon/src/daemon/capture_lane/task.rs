@@ -191,6 +191,46 @@ impl Held {
         }
     }
 
+    /// Close admission, then preserve every accepted item before the receiver
+    /// goes away. A later bridge send falls back to the loop, whose barrier
+    /// waits for this handover so it cannot overtake the accepted backlog.
+    async fn hand_over_backlog(&mut self) {
+        let lane = self.task.lane.clone();
+        lane.lock().handing_over = true;
+        self.audio.close();
+        while let Some(routed) = self.audio.recv().await {
+            // Wait for room as usual. An explicit stop releases backpressure:
+            // only the bounded input tail can then join the forwarded queue.
+            loop {
+                let room = {
+                    let core = lane.lock();
+                    core.discard || core.forwarded.len() < FORWARD_CAPACITY
+                };
+                if room {
+                    break;
+                }
+                lane.wake_loop();
+                lane.task_woken().await;
+            }
+            {
+                let mut core = lane.lock();
+                match routed.item {
+                    AudioItem::Frame(frame) => {
+                        fast::forward(&mut core, routed.seq, ForwardedItem::Event(frame));
+                    }
+                    AudioItem::Marker { .. } => core.last_control = routed.seq,
+                }
+                core.consumed_through = routed.seq;
+                core.backlog = self.audio.len();
+            }
+            lane.wake_loop();
+            lane.wake_progress();
+        }
+        lane.lock().handing_over = false;
+        lane.wake_loop();
+        lane.wake_progress();
+    }
+
     /// After a panic, before the relaunch: the loop serves every frame until
     /// it arms the lane again, and the frame in hand, which may or may not
     /// have reached the recording, is declared a hole of its track. The
@@ -229,6 +269,7 @@ fn supervise(runtime: &tokio::runtime::Runtime, mut held: Held, stopped: &watch:
         }
         held.after_panic();
         if held.supervision.panicked(Actor::CaptureTask) == Verdict::GiveUp {
+            runtime.block_on(held.hand_over_backlog());
             return;
         }
     }
