@@ -53,7 +53,7 @@ fn call_frame(stream: &str, sequence: u64, voiced: bool) -> Value {
 }
 
 #[tokio::test]
-async fn expired_call_tick_does_not_claim_the_user_interrupted_its_voice_note() -> Result<()> {
+async fn retired_call_deadline_never_cancels_its_voice_note() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime
@@ -94,9 +94,9 @@ async fn expired_call_tick_does_not_claim_the_user_interrupted_its_voice_note() 
             .as_ref()
             .and_then(|voice| voice.failure.as_ref())
             .map(|failure| failure.code.as_str()),
-        Some("voice_transcription_call_stopped_automatically")
+        None
     );
-    assert!(runtime.assistant.voice_task.active().is_none());
+    assert!(runtime.assistant.voice_task.active().is_some());
     Ok(())
 }
 
@@ -228,7 +228,7 @@ async fn automatic_call_stops_keep_their_own_reason() -> Result<()> {
 }
 
 #[tokio::test]
-async fn expired_detector_frame_routes_its_reason_into_the_voice_snapshot() -> Result<()> {
+async fn retired_detector_deadline_never_cancels_its_voice_note() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut helper) = fixture(directory.path())?;
     let stream = start_call(&mut runtime, &mut helper).await?;
@@ -255,10 +255,7 @@ async fn expired_detector_frame_routes_its_reason_into_the_voice_snapshot() -> R
     let action = runtime
         .prepare_call_frame(&call_frame(&stream, 0, false), expires_at_ms)
         .await?;
-    assert_eq!(
-        action,
-        orbit_core::voice::TurnAction::Stop(orbit_core::voice::StopReason::Expired)
-    );
+    assert_eq!(action, orbit_core::voice::TurnAction::None);
     let saved = runtime
         .fixture_store
         .load_snapshot::<orbit_core::State>()?
@@ -275,7 +272,7 @@ async fn expired_detector_frame_routes_its_reason_into_the_voice_snapshot() -> R
             .as_ref()
             .and_then(|voice| voice.failure.as_ref())
             .map(|failure| failure.code.as_str()),
-        Some("voice_transcription_call_stopped_automatically")
+        None
     );
     Ok(())
 }
@@ -664,17 +661,11 @@ async fn barge_in_invalidates_stt_operation_without_stopping_original_capture() 
     Ok(())
 }
 
-/// ⌃⌥D and the app start a call of the same length, a recording's four
-/// hours, and each says where it began. The app reads both from the call
-/// itself («quedan 3 h 59 min», «⌃⌥D cuelga»).
+/// Both start sources retain their origin without a duration deadline.
 #[tokio::test]
 async fn a_hotkey_call_and_an_app_call_carry_their_origin_and_length() -> Result<()> {
-    use orbit_core::{CallOrigin, voice::CALL_MINUTES};
-    assert_eq!(CALL_MINUTES, 240);
-    for (hotkey, origin, minutes) in [
-        (true, CallOrigin::Hotkey, CALL_MINUTES),
-        (false, CallOrigin::App, CALL_MINUTES),
-    ] {
+    use orbit_core::CallOrigin;
+    for (hotkey, origin) in [(true, CallOrigin::Hotkey), (false, CallOrigin::App)] {
         let directory = tempfile::tempdir()?;
         let (mut runtime, _helper) = fixture(directory.path())?;
         crate::daemon::authority_fixture::set(
@@ -699,11 +690,7 @@ async fn a_hotkey_call_and_an_app_call_carry_their_origin_and_length() -> Result
             .as_ref()
             .context("call absent")?;
         assert_eq!(call.origin, origin, "hotkey: {hotkey}");
-        assert_eq!(
-            call.expires_at_ms - call.started_at_ms,
-            i64::from(minutes) * 60_000,
-            "hotkey: {hotkey}"
-        );
+        assert_eq!(call.expires_at_ms, i64::MAX, "hotkey: {hotkey}");
     }
     Ok(())
 }

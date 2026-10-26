@@ -54,6 +54,7 @@ import isolated_hub
 import mac as mac_side
 import mac_controls
 import meeting_controls
+import silence_recording
 from interface import CuaBridge, Interface, StepFailed
 
 ROOT = DIRECTORY.parents[1]
@@ -181,6 +182,7 @@ def bounds() -> dict[str, tuple[float, str]]:
         ),
         **meeting_controls.BOUNDS,
         **drafts_panel.bounds(_rust_constant),
+        **silence_recording.bounds(_rust_constant),
     }
 
 
@@ -258,6 +260,7 @@ class RemoteMac:
                 str(DIRECTORY / "mac_engine.py"),
                 str(DIRECTORY / "mac_system.py"),
                 str(DIRECTORY / "mac_waits.py"),
+                str(DIRECTORY / "mac_silence.py"),
                 str(DIRECTORY / "meeting-script.txt"),
                 str(DIRECTORY / "windows.swift"),
                 str(DIRECTORY / "pointer.swift"),
@@ -765,6 +768,7 @@ class RealTest:
         # With every check of the first meeting's evidence collected.
         meeting_controls.discard_second_recording(self)
         meeting_controls.delete_first_meeting(self)
+        silence_recording.record_without_answer(self)
         # Last: it quits Orbit Pruebas and opens it again.
         drafts_panel.drafts_survive_quitting(self)
 
@@ -873,6 +877,7 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
         "discard": ev.get("discard"),
         "delete": ev.get("delete"),
         "panel_hold": ev.get("panel_hold"),
+        "silence": ev.get("silence"),
         "drafts": ev.get("drafts"),
         "welcome_skipped": ev.get("welcome_skipped"),
     }

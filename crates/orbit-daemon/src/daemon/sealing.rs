@@ -296,10 +296,8 @@ impl Runtime {
         }
     }
 
-    /// Permission/call expiry sends capture commands, so Tick belongs to
-    /// capture maintenance. It runs after a ready deferred finish. A
-    /// recording the Tick interrupted keeps why, and is closed: the ceiling
-    /// or a «Terminar» never confirmed, neither goes on.
+    /// Silence questions and drain acknowledgements belong to capture upkeep.
+    /// Both finish through the normal drain; missing signal facts keep capture.
     async fn tick_capture(&mut self) -> Result<()> {
         let before_tick = self
             .state
@@ -308,6 +306,7 @@ impl Runtime {
             .recording
             .as_ref()
             .map(|recording| (recording.id.clone(), recording.phase.clone()));
+        Box::pin(self.check_silence()).await?;
         let tick_result = Box::pin(self.apply(orbit_core::Event::Tick)).await;
         let tick_cause =
             before_tick.and_then(|(id, phase)| tick_interruption(&self.state, &id, phase));
@@ -364,8 +363,7 @@ impl Runtime {
     }
 }
 
-/// Why the Tick interrupted recording `id`, which was in `phase` before it:
-/// past its ceiling while live, or a finish never confirmed.
+/// Only an unconfirmed close can now be interrupted by Tick.
 fn tick_interruption(
     state: &orbit_core::State,
     id: &str,
@@ -379,13 +377,12 @@ fn tick_interruption(
         return None;
     }
     match phase {
-        orbit_core::CapturePhase::Starting | orbit_core::CapturePhase::Recording => {
-            Some(orbit_core::RecordingInterruptionCause::RecordingExpired)
-        }
         orbit_core::CapturePhase::Finalizing => {
             Some(orbit_core::RecordingInterruptionCause::CaptureFinalizeTimedOut)
         }
         orbit_core::CapturePhase::Idle
+        | orbit_core::CapturePhase::Starting
+        | orbit_core::CapturePhase::Recording
         | orbit_core::CapturePhase::Paused
         | orbit_core::CapturePhase::Interrupted => None,
     }

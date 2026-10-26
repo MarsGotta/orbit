@@ -1,0 +1,13 @@
+- [0] AXWindow "Orbit"
+  - [1] AXWebArea
+    - [2] AXButton "Grabar reunión" [actions=[press]]
+    - [3] AXLink "Reuniones" [actions=[press]]
+    - [4] AXLink "Asistente" [actions=[press]]
+    - [5] AXHeading "Reuniones"
+      - [6] AXStaticText = "Reuniones"
+    - [7] AXButton "Actualizar" [actions=[press]]
+    - [8] AXHeading "Hoy"
+      - [9] AXStaticText = "Hoy"
+    - [10] AXLink "Reunión 16/10/26, 10:12 10:12" [actions=[press]]
+      - [11] AXStaticText = "Reunión 16/10/26, 10:12"
+      - [12] AXStaticText = "10:12"

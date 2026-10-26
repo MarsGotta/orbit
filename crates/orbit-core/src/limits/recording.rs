@@ -4,6 +4,30 @@ use super::Limit;
 
 pub(super) fn limits() -> Vec<Limit> {
     vec![
+        Limit {
+            name: "CALL_SILENCE_MS",
+            value: crate::silence::CALL_SILENCE_MS as u64,
+            unit: "milliseconds",
+            resource: "call silence before a presence question",
+        },
+        Limit {
+            name: "CALL_ANSWER_MS",
+            value: crate::silence::CALL_ANSWER_MS as u64,
+            unit: "milliseconds",
+            resource: "call presence answer window",
+        },
+        Limit {
+            name: "RECORDING_SILENCE_MS",
+            value: crate::silence::RECORDING_SILENCE_MS,
+            unit: "milliseconds",
+            resource: "recording silence before a presence question",
+        },
+        Limit {
+            name: "RECORDING_ANSWER_MS",
+            value: crate::silence::RECORDING_ANSWER_MS as u64,
+            unit: "milliseconds",
+            resource: "recording presence answer window",
+        },
         // The stretches one recording's microphone may be muted, which its
         // closing manifest declares; the hub admits as many
         // (server/orbit_hub/protocol.py).

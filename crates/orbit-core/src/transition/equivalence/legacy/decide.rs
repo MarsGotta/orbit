@@ -1,6 +1,6 @@
-//! main's `decide`, copied verbatim from `transition.rs` before the state
-//! was split by domain: only its imports differ. Test-only: the property
-//! test compares every decision of the new `decide` with this one.
+//! Flat-model regression oracle for unchanged policies. Duration retirement is
+//! mirrored explicitly; the new silence policy has public transition tests in
+//! `tests/silence_close.rs` instead of a second implementation here.
 #![allow(clippy::all, dead_code)]
 use super::model::State;
 use crate::FINALIZING_TIMEOUT_MS;
@@ -34,6 +34,9 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
     let mut effects = Vec::new();
     let mut authority_change = None;
     match event {
+        Event::CallKeep | Event::RecordingKeep | Event::CheckSilence { .. } => {
+            unreachable!("new policy tested through public transitions")
+        }
         Event::Connecting => {
             if state.durable.privacy_stopped || state.durable.connection == Connection::Revoked {
                 return Err(Refusal::PrivacyStopped { since_ms: None });
@@ -671,7 +674,7 @@ fn decide_capture_start(
         title,
         started_at_ms: now_ms,
         ended_at_ms: None,
-        expires_at_ms: now_ms.saturating_add(i64::from(crate::RECORDING_CEILING_MINUTES) * 60_000),
+        expires_at_ms: i64::MAX,
         application_pid,
         audio,
         phase: CapturePhase::Starting,
@@ -750,7 +753,7 @@ fn decide_capture_resume(
     state: &State,
     next: &mut State,
     effects: &mut Vec<Effect>,
-    now_ms: i64,
+    _now_ms: i64,
 ) -> Result<(), Refusal> {
     if state.durable.call.is_some() {
         return Err(Refusal::Busy {
@@ -771,12 +774,6 @@ fn decide_capture_resume(
         return Err(Refusal::InvalidParameter {
             parameter: crate::refusal::Parameter::Request,
             expected: crate::refusal::Expected::OpenRecording,
-        });
-    }
-    if recording.expires_at_ms <= now_ms {
-        return Err(Refusal::Expired {
-            resource: crate::refusal::Resource::Recording,
-            expired_at_ms: None,
         });
     }
     if !matches!(
@@ -980,22 +977,12 @@ fn decide_call(
                 });
             }
             // Mirrors the one call ceiling, a recording's (it was an hour).
-            let allowed_duration_ms = 60_000..=i64::from(crate::voice::CALL_MINUTES) * 60_000;
-            if !allowed_duration_ms.contains(&duration_ms) {
-                return Err(Refusal::InvalidParameter {
-                    parameter: crate::refusal::Parameter::Duration,
-                    expected: crate::refusal::Expected::DurationRange {
-                        actual_ms: duration_ms,
-                        min_ms: *allowed_duration_ms.start(),
-                        max_ms: *allowed_duration_ms.end(),
-                    },
-                });
-            }
+            let _ = duration_ms;
             next.durable.call = Some(crate::voice::CallState {
                 id,
                 phase: crate::voice::CallPhase::Starting,
                 started_at_ms: now_ms,
-                expires_at_ms: now_ms.saturating_add(duration_ms),
+                expires_at_ms: i64::MAX,
                 turns: 0,
                 origin,
                 ceiling_notice_given: false,
@@ -1084,102 +1071,9 @@ fn decide_privacy_rearm(state: &State, next: &mut State) -> Result<(), Refusal> 
     Ok(())
 }
 
-fn decide_tick(state: &State, next: &mut State, effects: &mut Vec<Effect>, now_ms: i64) {
+fn decide_tick(state: &State, next: &mut State, _effects: &mut Vec<Effect>, now_ms: i64) {
     discard::drain_timed_out(next, now_ms);
     let _ = state;
-    // Mirrors the call's notice ten minutes before its ceiling, a
-    // recording's, which came after the split, and never for a call no
-    // longer than that window, which came after too.
-    if let Some(call) = next.durable.call.as_mut()
-        && !call.ceiling_notice_given
-        && call.expires_at_ms.saturating_sub(call.started_at_ms)
-            > crate::RECORDING_CEILING_NOTICE_MINUTES * 60_000
-        && now_ms < call.expires_at_ms
-        && call.expires_at_ms.saturating_sub(now_ms)
-            <= crate::RECORDING_CEILING_NOTICE_MINUTES * 60_000
-    {
-        call.ceiling_notice_given = true;
-        let remaining_ms = call.expires_at_ms.saturating_sub(now_ms);
-        let notice = Notice::new(NoticeCode::CallCeilingNear)
-            .with(NoticeKey::Remaining, (remaining_ms + 59_999) / 60_000)
-            .with(
-                NoticeKey::Minutes,
-                now_ms.saturating_sub(call.started_at_ms).max(0) / 60_000,
-            )
-            .with(
-                NoticeKey::Max,
-                call.expires_at_ms.saturating_sub(call.started_at_ms).max(0) / 60_000,
-            );
-        next.set_notice(notice);
-    }
-    if next
-        .durable
-        .call
-        .as_ref()
-        .is_some_and(|call| call.expires_at_ms <= now_ms)
-    {
-        next.durable.call = None;
-        next.durable.active_request = None;
-        next.durable.pending_approval = None;
-        effects.extend([Effect::StopCall, Effect::StopPlayback, Effect::Interrupt]);
-        next.set_notice(NoticeCode::CallExpired);
-    }
-    // Said once, before the ceiling, with the minutes left: room to finish
-    // the recording and start another.
-    if let Some(recording) = next.durable.recording.as_mut()
-        && !recording.ceiling_notice_given
-        && matches!(
-            recording.phase,
-            CapturePhase::Recording | CapturePhase::Starting
-        )
-        && now_ms < recording.expires_at_ms
-        && recording.expires_at_ms.saturating_sub(now_ms)
-            <= crate::RECORDING_CEILING_NOTICE_MINUTES * 60_000
-    {
-        recording.ceiling_notice_given = true;
-        let remaining_ms = recording.expires_at_ms.saturating_sub(now_ms);
-        let notice = Notice::new(NoticeCode::RecordingCeilingNear)
-            .with(NoticeKey::Remaining, (remaining_ms + 59_999) / 60_000)
-            .with(
-                NoticeKey::Minutes,
-                now_ms.saturating_sub(recording.started_at_ms).max(0) / 60_000,
-            )
-            .with(
-                NoticeKey::Max,
-                recording
-                    .expires_at_ms
-                    .saturating_sub(recording.started_at_ms)
-                    .max(0)
-                    / 60_000,
-            );
-        next.set_notice(notice);
-    }
-    if next.durable.recording.as_ref().is_some_and(|r| {
-        r.expires_at_ms <= now_ms
-            && matches!(r.phase, CapturePhase::Recording | CapturePhase::Starting)
-    }) {
-        interrupt_recording(next);
-        effects.push(Effect::StopCapture);
-        let has_fragments = next
-            .durable
-            .recording
-            .as_ref()
-            .is_some_and(|recording| recording.sealed_chunks > 0);
-        // The safety ceiling, in whole minutes: there is no permission to
-        // expire.
-        let minutes = next.durable.recording.as_ref().map_or(0, |recording| {
-            recording
-                .expires_at_ms
-                .saturating_sub(recording.started_at_ms)
-                .max(0)
-                / 60_000
-        });
-        next.set_notice(
-            Notice::new(NoticeCode::RecordingCeilingReached)
-                .with(NoticeKey::Minutes, minutes)
-                .with(NoticeKey::Fragments, has_fragments),
-        );
-    }
     // Bound the wait for the Mac's drain ACK. If the confirmation does
     // not arrive, the recording falls back to `Interrupted` with a registered
     // gap so the next tick or a later review can detect it.

@@ -272,13 +272,10 @@ fn an_unreadable_preference_carries_its_cause() {
     );
 }
 
-/// The limits a recording has, ahead of time: before any recording the
-/// app knows the one safety ceiling («Graba hasta 4 h»), and during one,
-/// until when it records at most («hasta las 15:40») — the daemon's
-/// deadline, never a copy of the constant.
+/// Retired presentation fields cannot advertise a recording duration ceiling.
 #[test]
-fn a_recording_says_its_limit_before_starting_and_its_end_while_it_runs() {
-    let manual = orbit_core::RECORDING_CEILING_MINUTES;
+fn a_recording_has_no_limit_or_predicted_end_even_with_an_old_deadline() {
+    let manual = 0;
     assert_eq!(crate::AppSnapshot::default().meeting.limit_minutes, manual);
     let idle = project_meeting_topic(&head(None));
     assert_eq!(idle.limit_minutes, manual);
@@ -289,9 +286,9 @@ fn a_recording_says_its_limit_before_starting_and_its_end_while_it_runs() {
         ..recording(CapturePhase::Recording)
     })));
     assert_eq!(running.limit_minutes, manual);
-    assert_eq!(running.ends_at_ms, Some(1_000 + 78 * 60_000));
+    assert_eq!(running.ends_at_ms, None);
     let wire = serde_json::to_value(&running).expect("meeting wire");
-    assert_eq!(wire["limit_minutes"], 240);
+    assert_eq!(wire["limit_minutes"], 0);
 }
 
 /// «Micrófono silenciado» is what the daemon's topic says, never assumed.

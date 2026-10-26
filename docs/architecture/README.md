@@ -128,10 +128,14 @@ Start from a calendar event, `⌃⌥M` or the recording prompt after a call app 
 used the microphone for 3 seconds (`CALL_CONFIRM_MS`). A recording accepted from
 call detection stops after the app releases the microphone and a visible
 countdown expires. A manually started recording does not stop for that reason.
-No recording stops at its calendar event's end; every recording, whatever
-started it, stops at the latest at one safety ceiling of four hours
-(`RECORDING_CEILING_MINUTES`), announced once ten minutes before. While the hub
-does not answer, the recording continues: sealed chunks wait on the Mac and are
+No recording stops at its calendar event's end or at a duration ceiling.
+After two minutes below the call speech threshold (500 RMS S16) in both recorded
+sides, Orbit asks whether to
+keep recording; thirty seconds without voice or «Seguir grabando» finishes
+through the normal audio drain and save. A muted microphone is ignored. Missing,
+delayed or unknown samples keep recording; the window never decides a stop.
+See [silence questions](silence-questions.md). While the hub does not answer,
+the recording continues: sealed chunks wait on the Mac and are
 uploaded when the hub answers again.
 
 1. The helper supplies `mic_local` and `remote_app` PCM. The daemon seals an
@@ -190,7 +194,7 @@ transcripción» sends the stored WAV again; if this Mac no longer holds it, the
 refusal says the audio is missing. During a meeting, dictation becomes
 a question about that meeting; it does not play the response aloud.
 
-`⌃⌥D` authorizes a call of up to 4 hours, a recording's ceiling. The helper starts VoiceProcessing; the daemon
+`⌃⌥D` authorizes a call without a duration ceiling. The helper starts VoiceProcessing; the daemon
 validates its ACK and every frame's provenance. A pure detector segments turns.
 Derived turn audio stays local, while the continuous `voice_call` original is
 uploaded; it is not listed as a meeting and gets no meeting note. Barge-in joins

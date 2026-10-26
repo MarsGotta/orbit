@@ -70,3 +70,20 @@ fn permission_refusal(state: PermissionState, permission: Permission) -> Option<
         }
     }
 }
+
+/// Observed helper facts, routed together to keep the coordinator small.
+pub(super) fn event(capabilities: &mut crate::Capabilities, event: crate::Event) {
+    match event {
+        crate::Event::HelperReady => ready(capabilities),
+        crate::Event::HelperLost => lost(capabilities),
+        crate::Event::PermissionObserved {
+            microphone,
+            screen,
+            accessibility,
+            calendar,
+        } => observed(capabilities, [microphone, screen, accessibility], calendar),
+        crate::Event::CalendarAuthorization(value) => calendar(capabilities, value),
+        crate::Event::HelperStopUndelivered => stop_undelivered(capabilities),
+        _ => {}
+    }
+}

@@ -145,18 +145,17 @@ async fn deimos_speaking_a_minute_after_the_users_last_turn_keeps_the_call() -> 
         .await?;
     assert_eq!(action, orbit_core::voice::TurnAction::None);
     assert!(call_alive(&runtime), "the call stopped while Deimos spoke");
-    // He stops at +61 s; a minute of the user's silence after that does stop it.
-    let action = runtime
-        .prepare_call_frame(&call_frame(&stream, 1, false), started + 121_000)
+    runtime.link.token = None;
+    runtime
+        .prepare_call_frame(&call_frame(&stream, 1, false), started + 91_000)
         .await?;
-    assert_eq!(
-        action,
-        orbit_core::voice::TurnAction::Stop(orbit_core::voice::StopReason::Idle)
-    );
+    runtime.check_silence_at(started + 91_000).await?;
+    assert!(call_alive(&runtime));
+    assert!(runtime.state.views.silence_questions.call.pending());
+    runtime
+        .prepare_call_frame(&call_frame(&stream, 2, false), started + 106_000)
+        .await?;
+    runtime.check_silence_at(started + 106_000).await?;
     assert!(!call_alive(&runtime));
-    let line = last_logged(directory.path(), "call_stopped_idle")?;
-    assert_eq!(line["cause"], "idle", "{line}");
-    assert_eq!(line["user_silent_ms"], "60000", "{line}");
-    assert_eq!(line["deimos_speaking"], "false", "{line}");
     Ok(())
 }

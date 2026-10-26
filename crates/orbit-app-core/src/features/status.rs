@@ -71,8 +71,7 @@ pub struct StatusSettingsView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub error_reports: Option<bool>,
-    /// How long a call lasts at most, from the app or with ⌃⌥D, in
-    /// minutes, for «Cuánto dura cada cosa»: orbit-core's `voice::CALL_MINUTES`.
+    /// Retired compatibility field: zero means no duration ceiling.
     pub call_minutes: u16,
 }
 
@@ -159,7 +158,7 @@ fn unread_settings(calendar_total: Option<u32>) -> StatusSettingsView {
         },
         privacy_stopped: false,
         error_reports: None,
-        call_minutes: orbit_core::voice::CALL_MINUTES,
+        call_minutes: 0,
     }
 }
 

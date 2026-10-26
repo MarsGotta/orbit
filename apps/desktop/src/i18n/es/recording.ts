@@ -1,5 +1,3 @@
-import { duration } from "./duration";
-
 export const recording = {
   // «Silenciar»: the recording's or the call's microphone, never the other
   // side of the call. The card says it once the Mac confirmed it.
@@ -46,8 +44,8 @@ export const recording = {
     searchAgain: "Volver a buscar",
     playingNow: "Suenan ahora:",
     wholeApplication: "Se graba la app entera, no una sola pestaña del navegador.",
-    limit: (minutes: number, until: string) =>
-      `Graba hasta ${duration(minutes)}, hasta las ${until}. Si cierras la ventana, sigue grabando.`,
+    limit:
+      "Si cierras la ventana, sigue grabando. Tras 2 min de silencio, te pregunta si terminar.",
     cancel: "Cancelar",
     record: "Empezar a grabar",
     startPending: "Empezando…",

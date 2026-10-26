@@ -141,6 +141,24 @@ impl Runtime {
         self.begin_reading(message_id, text);
     }
 
+    pub(super) fn ask_call_presence(&mut self) {
+        let voice = self.reading_voice();
+        let available = self.settings.hub_agents.as_ref().is_none_or(|roster| {
+            roster
+                .agent(&voice)
+                .is_none_or(|agent| agent.voice != Some(false))
+        });
+        if available
+            && self.link.token.is_some()
+            && self.state.connection() == orbit_core::Connection::Online
+        {
+            self.begin_reading(
+                "call-presence".into(),
+                "¿Sigues ahí? Si no dices nada, cuelgo en 15 segundos".into(),
+            );
+        }
+    }
+
     fn begin_reading(&mut self, message_id: String, text: String) {
         let mut remaining = orbit_core::speech::parts(&text);
         let Some(first) = remaining.pop_front() else {

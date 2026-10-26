@@ -1,5 +1,4 @@
 import { esAssistant } from "../es-assistant";
-import { duration } from "./duration";
 import { voiceFailureDetail, voiceFailureText } from "./voice-failures";
 
 const secondsFormat = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
@@ -70,14 +69,6 @@ const base = {
 } as const;
 
 /** «1 minuto», «1 min 30 s», «2 minutos»: the silence that hangs a call up. */
-function silenceText(ms: number): string {
-  const seconds = Math.max(1, Math.round(ms / 1_000));
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
-  if (minutes === 0) return `${rest} s`;
-  if (rest !== 0) return `${minutes} min ${rest} s`;
-  return minutes === 1 ? "1 minuto" : `${minutes} minutos`;
-}
 
 /** What the composer says while it cannot send: why, and that the text stays. */
 function keptWhile(reason: string): string {
@@ -110,8 +101,8 @@ function callCopy(assistantName: string) {
     interrupt: "Interrúmpele hablando cuando quieras",
     seeConversation: "Ver la conversación",
     minimised: "Llamada minimizada",
-    limits: (minutesLeft: number, silenceMs: number) =>
-      `${minutesLeft < 1 ? "Queda menos de 1 min" : `Quedan ${duration(minutesLeft)}`} · se cuelga sola tras ${silenceText(silenceMs)} sin que hables · ⌃⌥D cuelga desde cualquier app`,
+    limits:
+      "Tras 30 s de silencio, te pregunta si seguir; sin respuesta, cuelga en 15 s · ⌃⌥D cuelga desde cualquier app",
   } as const;
 }
 

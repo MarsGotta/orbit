@@ -3,12 +3,10 @@ use super::{CaptureState, discard, recording_in, wrong_state};
 use crate::model::{CapturePhase, Recording, TrackProgress};
 use crate::notice::{Notice, NoticeCode, NoticeKey};
 use crate::protocol::MeetingAudio;
-use crate::refusal::{Expected, Operation, Parameter, Refusal, Resource};
+use crate::refusal::{Expected, Operation, Parameter, Refusal};
 use crate::transition::{Effect, Step, helper};
 
-/// A recording starts. It runs until finished, stopped or cut, or at most
-/// [`crate::RECORDING_CEILING_MINUTES`]: nothing that starts it sets when
-/// it stops.
+/// A recording starts without a duration bound. Only a finish or cut stops it.
 pub(in crate::transition) fn start(
     capture: &mut CaptureState,
     id: String,
@@ -48,7 +46,7 @@ pub(in crate::transition) fn start(
         title,
         started_at_ms: now_ms,
         ended_at_ms: None,
-        expires_at_ms: now_ms.saturating_add(i64::from(crate::RECORDING_CEILING_MINUTES) * 60_000),
+        expires_at_ms: i64::MAX,
         application_pid,
         audio,
         phase: CapturePhase::Starting,
@@ -114,12 +112,6 @@ pub(in crate::transition) fn resume(
     let recording = recording_in(capture)?;
     if recording.ended_at_ms.is_some() {
         return Err(not_open());
-    }
-    if recording.expires_at_ms <= cx.now_ms {
-        return Err(Refusal::Expired {
-            resource: Resource::Recording,
-            expired_at_ms: None,
-        });
     }
     if !matches!(
         recording.phase,

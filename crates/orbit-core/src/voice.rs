@@ -17,6 +17,7 @@ pub struct CallState {
     pub id: String,
     pub phase: CallPhase,
     pub started_at_ms: i64,
+    /// Retired wire field: new calls use i64::MAX; never a duration decision.
     pub expires_at_ms: i64,
     pub turns: u64,
     /// How the call began. A state saved before this was said loads as
@@ -24,13 +25,13 @@ pub struct CallState {
     /// no live call is ever named by that default.
     #[serde(default)]
     pub origin: CallOrigin,
-    /// The person was told the call nears its ceiling: said once.
+    /// Retired snapshot field, retained for old readers. Never consulted.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub ceiling_notice_given: bool,
 }
 
 /// How a call began: from the app («Llamar», «Llamar a Orbit») or with
-/// ⌃⌥D from any app. Both last [`CALL_MINUTES`] at most, and ⌃⌥D hangs up
+/// ⌃⌥D from any app. Both last [the retired duration field] at most, and ⌃⌥D hangs up
 /// the call it started.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -39,18 +40,6 @@ pub enum CallOrigin {
     App,
     Hotkey,
 }
-
-/// How long a call may last, in minutes, from the app or with ⌃⌥D.
-///
-/// Protects: a microphone left streaming to Orbit by a call nobody hangs up.
-/// A forgotten call ends much sooner, a minute without the user's words
-/// (`VoicePolicy::idle_timeout_ms`); this is the bound behind that one. Why
-/// a recording's ceiling ([`crate::RECORDING_CEILING_MINUTES`], four hours),
-/// the same constant: one rule for whatever keeps the microphone open, with
-/// the same notice ten minutes before ([`crate::RECORDING_CEILING_NOTICE_MINUTES`]).
-/// Two lengths by origin (an hour, a quarter of an hour) had no reason of
-/// their own. It does not limit how many calls there are.
-pub const CALL_MINUTES: u16 = crate::RECORDING_CEILING_MINUTES;
 
 /// The shortest stretch of speech that can hold a word, a «sí» or a «no».
 /// A call turn needs this much speech to be submitted, and a voice note
@@ -87,16 +76,6 @@ pub struct VoicePolicy {
     pub release_ms: u64,
     pub minimum_speech_ms: u64,
     pub maximum_turn_ms: u64,
-    /// The user's silence that ends a call by itself: a minute without a
-    /// word from them while Deimos is neither working on an answer nor
-    /// speaking it. Words, not sound: a turn the hub finds no words in (a
-    /// fan, a television) is silence too, or a forgotten call in a noisy room
-    /// would stay open until its ceiling. It protects the user from an open
-    /// microphone streaming to Orbit after the conversation is over. It is
-    /// not the time Deimos takes (counted as the user's, it cut a call 20 s
-    /// into his spoken answer on 2026-10-18), not muted time, and not the
-    /// daemon's check that audio is still arriving (`CALL_AUDIO_SILENCE_LIMIT`).
-    pub idle_timeout_ms: i64,
     pub rms_threshold: u16,
 }
 
@@ -109,7 +88,6 @@ impl Default for VoicePolicy {
             release_ms: 700,
             minimum_speech_ms: MINIMUM_SPEECH_MS,
             maximum_turn_ms: 20_000,
-            idle_timeout_ms: 60_000,
             rms_threshold: 500,
         }
     }
@@ -129,9 +107,9 @@ pub enum StopReason {
     GenerationChanged,
     ProcessingLost,
     Discontinuity,
+    /// Historical cancellation reason; new calls do not expire by duration.
     Expired,
-    /// No words from the user for `idle_timeout_ms` with no answer from
-    /// Deimos in course.
+    /// Retired immediate idle stop, kept for historical cancellation records.
     Idle,
     /// No audio arriving from the Mac at all: the daemon's own check, not
     /// the user's silence (their silence is still audio).
@@ -159,7 +137,6 @@ pub struct VoiceObservation {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TurnDetector {
     generation: u64,
-    expires_at_ms: i64,
     last_activity_ms: i64,
     /// When the last frame arrived, in the frames' received time.
     last_frame_ms: i64,
@@ -176,10 +153,9 @@ pub struct TurnDetector {
 impl TurnDetector {
     /// Called only after an explicit, durable local CallStart authorization.
     /// This constructor does not grant device access or attest native processing.
-    pub fn authorized(generation: u64, started_at_ms: i64, expires_at_ms: i64) -> Self {
+    pub fn authorized(generation: u64, started_at_ms: i64, _expires_at_ms: i64) -> Self {
         Self {
             generation,
-            expires_at_ms,
             last_activity_ms: started_at_ms,
             last_frame_ms: started_at_ms,
             last_monotonic_ns: None,
@@ -221,9 +197,8 @@ impl TurnDetector {
         next
     }
 
-    /// Why `frame` stops the call, if it does. The call's ceiling counts
-    /// whatever happens in it.
-    fn refusal(&self, policy: VoicePolicy, frame: &VoiceObservation) -> Option<StopReason> {
+    /// Why the frame cannot be accepted: integrity and authority only.
+    fn refusal(&self, _policy: VoicePolicy, frame: &VoiceObservation) -> Option<StopReason> {
         if self.stopped || !frame.authorized {
             Some(StopReason::Unauthorized)
         } else if frame.generation != self.generation {
@@ -237,32 +212,9 @@ impl TurnDetector {
                 .is_some_and(|previous| frame.monotonic_ns < previous)
         {
             Some(StopReason::Discontinuity)
-        } else if frame.received_at_ms >= self.expires_at_ms {
-            Some(StopReason::Expired)
-        } else if self.idle(policy, frame) {
-            Some(StopReason::Idle)
         } else {
             None
         }
-    }
-
-    /// No words for `idle_timeout_ms`, Deimos neither working nor speaking,
-    /// the microphone not muted. A turn in course (being captured, or its
-    /// words asked for) may still bring words, so it holds the hang-up, but
-    /// for one turn's length at most (`maximum_turn_ms`): noise that keeps
-    /// opening turns cannot keep a forgotten call open.
-    fn idle(&self, policy: VoicePolicy, frame: &VoiceObservation) -> bool {
-        if frame.response_active || frame.muted {
-            return false;
-        }
-        let silent = frame.received_at_ms.saturating_sub(self.last_activity_ms);
-        let turn_in_course = self.capturing || frame.transcribing;
-        let held = if turn_in_course {
-            i64::try_from(policy.maximum_turn_ms).unwrap_or(i64::MAX)
-        } else {
-            0
-        };
-        silent >= policy.idle_timeout_ms.saturating_add(held)
     }
 
     /// Pure transition: the caller retains the previous value on adapter failure.

@@ -41,7 +41,7 @@ from support_network_fence import install
 
 FENCE = install()
 # Every check that can pass or fail; 16, the menu bar's, is always skipped.
-ALL = [*range(1, 16), 17, 18]
+ALL = [*range(1, 16), 17, 18, 19]
 SKIPPED = {16: "skipped"}
 # A check whose evidence another one's step brings: with no answer of «Oye
 # Deimos» in the panel (7), there is none to hold under the pointer (18).
@@ -705,3 +705,94 @@ def test_an_answer_still_on_screen_after_the_daemon_let_it_go_fails_the_panel_ch
     ok, detail = drafts_panel_checks.c18_panel_hold(ev)
     assert not ok
     assert "still shows the answer" in detail, detail
+
+
+def test_silent_recording_closes_normally_and_keeps_hub_chunks(good):
+    results, directory = good
+    assert statuses(results).get(19) == "pass"
+    data = json.loads((directory / "report.json").read_text(encoding="utf-8"))
+    evidence = data["silence"]
+    assert evidence["saved"]["recording_id"] == evidence["recording"]["id"]
+    assert evidence["saved"]["capture"] == "closed"
+    assert evidence["hub"]["rows"]["chunks"] > 0
+    assert {"silence-question", "silence-saved", "silence-hub"} <= {
+        wait["wait"] for wait in data["waits"]
+    }
+
+
+def test_silence_waits_follow_the_rust_constants(monkeypatch):
+    import real_test
+
+    original = real_test._rust_constant
+    values = {"RECORDING_SILENCE_MS": 165_000, "RECORDING_ANSWER_MS": 47_000}
+    monkeypatch.setattr(
+        real_test,
+        "_rust_constant",
+        lambda path, name: values[name] if name in values else original(path, name),
+    )
+    waits = real_test.bounds()
+    assert (
+        waits["silence-question"][0]
+        == 165
+        + original("crates/orbit-core/src/audio_signal.rs", "SAMPLE_DELIVERY_TIMEOUT_MS") / 1000
+    )
+    finalizing = original("crates/orbit-core/src/lib.rs", "FINALIZING_TIMEOUT_MS") / 1000
+    http = original("crates/orbit-daemon/src/hub.rs", "HUB_HTTP_TIMEOUT_SECONDS")
+    assert waits["silence-saved"][0] == 47 + finalizing + http
+    assert waits["silence-hub"][0] == finalizing + http
+
+
+@pytest.mark.parametrize("missing", ("question", "saved", "hub", "list"))
+def test_silence_check_requires_positive_question_save_and_hub_evidence(good, missing):
+    import silence_recording
+
+    _, directory = good
+    data = json.loads((directory / "report.json").read_text(encoding="utf-8"))
+    ev = {
+        "silence": data["silence"],
+        "trees": {
+            label: (SCREENS / "good" / "screens" / f"{screen}.md").read_text(encoding="utf-8")
+            for label, screen in (
+                ("silence-question", "silence-recording"),
+                ("silence-meetings", "silence-meetings"),
+            )
+        },
+    }
+    if missing == "list":
+        ev["trees"]["silence-meetings"] = ""
+    else:
+        ev["silence"][missing] = {}
+    ok, _ = silence_recording.c19_saved(ev)
+    assert not ok
+
+
+def test_silence_question_wait_rejects_unknown_old_resolved_or_ended_recordings():
+    import mac_silence
+
+    def state(phase="recording", codes=("recording_silence_question",)):
+        return {
+            "recording": {
+                "state": "present",
+                "value": {"recording": {"id": "test-meeting", "phase": phase}},
+            },
+            "notices": {
+                "state": "present",
+                "value": {"notices": [{"code": code} for code in codes]},
+            },
+        }
+
+    wait = mac_silence.silence_question
+    assert wait(state(), "test-meeting")["code"] == "recording_silence_question"
+    assert wait({}, "test-meeting") is None
+    assert wait(state(), "another-meeting") is None
+    assert wait(state(codes=()), "test-meeting") is None
+    assert (
+        wait(
+            state(codes=("recording_silence_question", "recording_silence_resolved")),
+            "test-meeting",
+        )
+        is None
+    )
+    for phase in ("finalizing", "idle", "interrupted"):
+        with pytest.raises(mac_side.MacFailure, match="before its question"):
+            wait(state(phase=phase), "test-meeting")

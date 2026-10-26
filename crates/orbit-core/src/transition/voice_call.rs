@@ -8,7 +8,7 @@
 use super::{Effect, Step, helper};
 use crate::model::MAX_PENDING_VOICE_NOTES;
 use crate::notice::{Notice, NoticeCode, NoticeKey};
-use crate::refusal::{EngineCause, Expected, Operation, Parameter, Refusal, Resource};
+use crate::refusal::{EngineCause, Operation, Refusal, Resource};
 use crate::voice::{CallOrigin, CallPhase, CallState, ShortVoiceNote};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -36,48 +36,6 @@ impl VoiceState {
     /// The voice note being recorded is dropped, if there was one.
     pub(super) fn drop_voice_note(&mut self) -> bool {
         std::mem::take(&mut self.voice_active)
-    }
-
-    /// Said once, ten minutes before the call's ceiling, as a recording's:
-    /// what is left, what it has lasted and the ceiling. A call asked for
-    /// no longer than that window is never told: it would hear it as it
-    /// starts, with the window's numbers instead of its own.
-    pub(super) fn ceiling_near(&mut self, now_ms: i64) -> Option<Notice> {
-        let call = self.call.as_mut()?;
-        let window_ms = crate::RECORDING_CEILING_NOTICE_MINUTES * 60_000;
-        let remaining_ms = call.expires_at_ms.saturating_sub(now_ms);
-        if call.ceiling_notice_given
-            || call.expires_at_ms.saturating_sub(call.started_at_ms) <= window_ms
-            || remaining_ms <= 0
-            || remaining_ms > window_ms
-        {
-            return None;
-        }
-        call.ceiling_notice_given = true;
-        Some(
-            Notice::new(NoticeCode::CallCeilingNear)
-                .with(NoticeKey::Remaining, (remaining_ms + 59_999) / 60_000)
-                .with(
-                    NoticeKey::Minutes,
-                    now_ms.saturating_sub(call.started_at_ms).max(0) / 60_000,
-                )
-                .with(
-                    NoticeKey::Max,
-                    call.expires_at_ms.saturating_sub(call.started_at_ms).max(0) / 60_000,
-                ),
-        )
-    }
-
-    /// The call reached its end: it is over.
-    pub(super) fn expire_call(&mut self, now_ms: i64) -> bool {
-        let expired = self
-            .call
-            .as_ref()
-            .is_some_and(|call| call.expires_at_ms <= now_ms);
-        if expired {
-            self.call = None;
-        }
-        expired
     }
 
     /// Revoke live call authority, not its durable original's lifecycle.
@@ -176,22 +134,12 @@ pub(super) fn call_start(
     if voice.in_call() || voice.voice_active || before.assistant.turn_in_flight() {
         return Err(busy(Operation::AudioSession));
     }
-    let allowed_duration_ms = 60_000..=i64::from(crate::voice::CALL_MINUTES) * 60_000;
-    if !allowed_duration_ms.contains(&duration_ms) {
-        return Err(Refusal::InvalidParameter {
-            parameter: Parameter::Duration,
-            expected: Expected::DurationRange {
-                actual_ms: duration_ms,
-                min_ms: *allowed_duration_ms.start(),
-                max_ms: *allowed_duration_ms.end(),
-            },
-        });
-    }
+    let _ = duration_ms; // Retired wire parameter; calls have no duration bound.
     voice.call = Some(CallState {
         id,
         phase: CallPhase::Starting,
         started_at_ms: cx.now_ms,
-        expires_at_ms: cx.now_ms.saturating_add(duration_ms),
+        expires_at_ms: i64::MAX,
         turns: 0,
         origin,
         ceiling_notice_given: false,

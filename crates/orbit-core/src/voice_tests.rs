@@ -96,7 +96,7 @@ fn barge_needs_longer_evidence_and_does_not_change_generation() {
     assert_eq!(next.generation, 5);
 }
 #[test]
-fn continuous_sound_is_bounded_and_silence_expires_without_auto_resume() {
+fn turns_are_bounded_but_silence_and_old_deadlines_never_stop_the_detector() {
     let policy = VoicePolicy::default();
     let mut state = TurnDetector::authorized(5, 0, 120_000);
     let mut last = TurnAction::None;
@@ -108,23 +108,22 @@ fn continuous_sound_is_bounded_and_silence_expires_without_auto_resume() {
         TurnDetector::authorized(5, 0, 120_000)
             .observe(policy, frame(3000, false))
             .1,
-        TurnAction::Stop(StopReason::Idle)
+        TurnAction::None
     );
     assert_eq!(
         TurnDetector::authorized(5, 0, 100)
             .observe(policy, frame(5, true))
             .1,
-        TurnAction::Stop(StopReason::Expired)
+        TurnAction::None
     );
 }
 /// A call of 2026-10-18 stopped `idle` 20 s into Deimos's spoken answer,
 /// after ~40 s of tool work: a minute after the user's last turn.
-/// Deimos working or speaking is not the user's silence; the minute counts from
-/// when he is done.
+/// Assistant work advances the last activity used by the presence question.
 #[test]
 fn deimos_working_or_speaking_is_not_user_silence() {
     let policy = VoicePolicy::default();
-    let idle = policy.idle_timeout_ms as u64;
+    let idle = crate::silence::CALL_SILENCE_MS as u64;
     let at = |ms: u64, response_active: bool| VoiceObservation {
         monotonic_ns: ms * 1_000_000,
         received_at_ms: ms as i64,
@@ -142,7 +141,7 @@ fn deimos_working_or_speaking_is_not_user_silence() {
     assert_eq!(action, TurnAction::None);
     assert_eq!(
         state.observe(policy, at(idle + 20_000 + idle, false)).1,
-        TurnAction::Stop(StopReason::Idle)
+        TurnAction::None
     );
 }
 #[test]
@@ -154,12 +153,11 @@ fn pcm_energy_is_bounded_and_not_a_name_or_wake_word() {
 
 /// A muted microphone sends silence: no turn opens however loud a frame
 /// claims to be, and the muted time is not the user's silence that hangs
-/// up; that silence counts again from the unmute. The call's ceiling still
-/// counts while muted.
+/// up; silence counts again from the unmute, without a duration ceiling.
 #[test]
 fn a_muted_microphone_opens_no_turn_and_is_not_user_silence() {
     let policy = VoicePolicy::default();
-    let idle = policy.idle_timeout_ms as u64;
+    let idle = crate::silence::CALL_SILENCE_MS as u64;
     let muted = |ms: u64, voiced: bool| VoiceObservation {
         monotonic_ns: ms * 1_000_000,
         received_at_ms: ms as i64,
@@ -184,14 +182,14 @@ fn a_muted_microphone_opens_no_turn_and_is_not_user_silence() {
     let (_, action) = state.observe(policy, unmuted(4 * idle));
     assert_eq!(
         action,
-        TurnAction::Stop(StopReason::Idle),
-        "the silence counts again from the unmute"
+        TurnAction::None,
+        "the detector reports silence; the question policy decides closure"
     );
     let expiring = TurnDetector::authorized(5, 0, 1_000);
     assert_eq!(
         expiring.observe(policy, muted(1_000, false)).1,
-        TurnAction::Stop(StopReason::Expired),
-        "the call's ceiling counts while muted"
+        TurnAction::None,
+        "the retired ceiling cannot close a muted call"
     );
 }
 
@@ -228,6 +226,7 @@ fn run(
     let mut transcribed_until = None;
     let mut turns = 0;
     let mut ms = from_ms;
+    let mut question = crate::silence::Question::default();
     while ms < to_ms {
         if transcribed_until.is_some_and(|until| ms >= until) {
             transcribed_until = None;
@@ -253,6 +252,17 @@ fn run(
             TurnAction::Stop(other) => panic!("stopped as {other:?} at {ms} ms"),
             TurnAction::None => {}
         }
+        let silent = ms as i64 - detector.last_activity_ms();
+        let quiet = silent >= crate::silence::CALL_SILENCE_MS;
+        if question.observe("call", "", quiet, crate::silence::CALL_ANSWER_MS, ms as i64)
+            == crate::silence::Outcome::Close
+        {
+            return Run {
+                detector,
+                stopped_at_ms: Some(ms),
+                turns,
+            };
+        }
         ms += 20;
     }
     Run {
@@ -264,11 +274,11 @@ fn run(
 
 /// A forgotten call in a room with a fan that starts now and then, or a
 /// television: the noise opens turns, the hub finds no words in them, and
-/// the call hangs up a minute after the last words as it would in silence.
+/// the question closes it after 30 s plus the 15 s answer window.
 /// Energy alone kept such a call open until its ceiling.
 #[test]
-fn a_forgotten_call_with_noise_only_turns_hangs_up_after_a_minute_without_words() {
-    let idle = VoicePolicy::default().idle_timeout_ms as u64;
+fn a_noisy_call_asks_then_hangs_up_without_words() {
+    let idle = crate::silence::CALL_SILENCE_MS as u64;
     let run = run(
         TurnDetector::authorized(5, 0, 4 * 3_600_000),
         (0, 4 * idle),
@@ -277,12 +287,12 @@ fn a_forgotten_call_with_noise_only_turns_hangs_up_after_a_minute_without_words(
         1_000,
         |_| false,
     );
-    assert!(run.turns >= 10, "the noise opened {} turns", run.turns);
+    assert_eq!(run.turns, 9, "one burst every 5 s before the 45 s closure");
     let stopped = run
         .stopped_at_ms
         .expect("a call with only noise never hung up");
     assert!(
-        (idle..idle + 5_000).contains(&stopped),
+        (idle + 15_000..idle + 20_000).contains(&stopped),
         "hung up at {stopped} ms"
     );
 }
@@ -293,7 +303,7 @@ fn a_forgotten_call_with_noise_only_turns_hangs_up_after_a_minute_without_words(
 #[test]
 fn unbroken_noise_holds_the_hang_up_for_one_turn_at_most() {
     let policy = VoicePolicy::default();
-    let idle = policy.idle_timeout_ms as u64;
+    let idle = crate::silence::CALL_SILENCE_MS as u64;
     let run = run(
         TurnDetector::authorized(5, 0, 4 * 3_600_000),
         (0, 4 * idle),
@@ -305,18 +315,17 @@ fn unbroken_noise_holds_the_hang_up_for_one_turn_at_most() {
         .stopped_at_ms
         .expect("unbroken noise kept the call open");
     assert!(
-        (idle..=idle + policy.maximum_turn_ms).contains(&stopped),
+        (idle + 15_000..=idle + 15_000 + policy.maximum_turn_ms).contains(&stopped),
         "hung up at {stopped} ms"
     );
 }
 
 /// The person speaks now and then, with the same noise around: their words
-/// keep the call going; once they stop, it hangs up a minute after the last
-/// ones, noise or not.
+/// keep the call going; after they stop, the unanswered question closes it.
 #[test]
 fn words_keep_a_call_going_and_noise_does_not() {
-    let idle = VoicePolicy::default().idle_timeout_ms as u64;
-    // Words in the turns heard in the first five minutes, every half minute.
+    let idle = crate::silence::CALL_SILENCE_MS as u64;
+    // Words in the first five quiet intervals, every half minute.
     let talked = 5 * idle;
     let speaking = run(
         TurnDetector::authorized(5, 0, 4 * 3_600_000),
@@ -337,7 +346,7 @@ fn words_keep_a_call_going_and_noise_does_not() {
     );
     let stopped = silent.stopped_at_ms.expect("noise kept the call open");
     assert!(
-        (last_words + idle..last_words + idle + 5_000).contains(&stopped),
+        (last_words + idle + 15_000..last_words + idle + 20_000).contains(&stopped),
         "hung up at {stopped} ms, words last at {last_words} ms"
     );
 }

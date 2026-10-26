@@ -124,6 +124,9 @@ impl DurableState {
     /// it, and says so, once its helper is ready (`cut_recovery`). Each
     /// domain recovers its own part; what they say is said in this order.
     pub fn recovered(mut self) -> Self {
+        for notice in crate::silence::recovered_notices(&self.notice_log) {
+            self.set_notice(notice);
+        }
         let privacy = self.privacy.recovered();
         self.link = HubLinkState::default();
         self.capabilities = Capabilities::default();

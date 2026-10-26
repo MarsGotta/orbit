@@ -5,7 +5,6 @@
 
 use super::*;
 use crate::daemon::audio::tests::fixture;
-use crate::daemon::turn::said;
 use base64::{Engine, engine::general_purpose::STANDARD};
 
 pub(super) fn frame(stream: &str, sequence: u64, frames: usize) -> Value {
@@ -275,29 +274,16 @@ async fn a_meeting_cut_by_the_mac_going_to_sleep_is_closed_and_said() -> Result<
     Ok(())
 }
 
-/// A recording that reaches the safety ceiling stops for good: the cut
-/// recovery closes it at the end of what was recorded and never reopens it.
+/// A silence timeout drains and saves every recorded chunk without reopening.
 #[tokio::test]
-async fn a_meeting_at_the_safety_ceiling_is_closed_not_resumed() -> Result<()> {
+async fn a_silent_meeting_is_saved_with_its_chunks_and_not_resumed() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     let stream = start(&mut runtime, &mut receiver).await?;
     runtime.handle_native_event(frame(&stream, 0, 8_000)).await;
     runtime.handle_native_event(frame(&stream, 1, 8_000)).await;
     crate::daemon::audio::tests::settle_seal_receipts(&mut runtime).await?;
-    runtime
-        .state
-        .durable
-        .capture
-        .recording
-        .as_mut()
-        .context("recording absent")?
-        .expires_at_ms = now() - 1;
-    runtime.apply(Event::Tick).await?;
-    assert!(said::has(
-        &runtime.state,
-        orbit_core::notice::NoticeCode::RecordingCeilingReached
-    ));
+    crate::daemon::silence::finish_silent_meeting_fixture(&mut runtime).await?;
     for _ in 0..3 {
         while let Ok(command) = receiver.try_recv() {
             assert_ne!(
@@ -326,7 +312,7 @@ async fn a_meeting_at_the_safety_ceiling_is_closed_not_resumed() -> Result<()> {
         .context("recording absent")?;
     assert!(
         recording.ended_at_ms.is_some(),
-        "the recording at its ceiling stayed open: {recording:?}"
+        "the silent recording stayed open: {recording:?}"
     );
     assert!(
         runtime

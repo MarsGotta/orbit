@@ -39,11 +39,11 @@ const MICROPHONE_SOURCE: &str = "mic_local";
 /// stay open looking as if it listened. Why 3 s: it is the window in which
 /// the helper declares the same loss on its side (`no_capture_frames` in
 /// `AudioCapture.swift`); the two are independent and need not agree. What it
-/// is not: the user's silence, which is still audio and has its own minute
-/// (`VoicePolicy::idle_timeout_ms`), and not a budget for the daemon's loop:
+/// is not: conversational silence (the presence question), or a budget for
+/// the daemon's loop:
 /// frames waiting in the loop's queue are audio arriving, so a loop that was
 /// held reads them before this is judged.
-const CALL_AUDIO_SILENCE_LIMIT: Duration = Duration::from_secs(3);
+pub(super) const CALL_AUDIO_SILENCE_LIMIT: Duration = Duration::from_secs(3);
 
 /// Keeps unanswered call-start identities after hangup so a late success can
 /// still be stopped after the diagnostic command index evicts it. 64 matches
@@ -58,7 +58,6 @@ pub(super) struct CallRuntime {
     pipeline_id: Option<String>,
     preroll: VecDeque<(Value, i64, u64)>,
     preroll_ns: u64,
-    started: Instant,
     pub(in crate::daemon) last_audio: Instant,
     pub(in crate::daemon) closing_at_ms: Option<i64>,
     gaps: u64,
@@ -74,7 +73,7 @@ pub(super) struct CallRuntime {
     voiced_run_ns: u64,
     longest_voiced_run_ns: u64,
     /// Whether the last frame said Deimos's voice was playing.
-    playback_active: bool,
+    pub(super) playback_active: bool,
     /// The last turn sent to transcription, and the one the turn being
     /// captured now carries.
     submitted: Option<CallTurnAudio>,
@@ -112,7 +111,6 @@ impl CallRuntime {
             pipeline_id: None,
             preroll: VecDeque::new(),
             preroll_ns: 0,
-            started: Instant::now(),
             last_audio: Instant::now(),
             closing_at_ms: None,
             gaps: 0,
@@ -235,6 +233,7 @@ impl crate::daemon::audio::AudioHandle {
 
     /// The main loop's facts at the start of a tick, before maintenance runs.
     pub(super) fn note_loop_tick(&mut self, queued_native_events: usize, last_tick: Duration) {
+        self.queued_native_events = queued_native_events;
         if let Some(call) = self.call.as_mut() {
             call.queued_native_events = queued_native_events;
             call.last_tick = last_tick;

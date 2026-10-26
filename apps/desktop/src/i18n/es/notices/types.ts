@@ -19,7 +19,12 @@ export type Worded = "fixable" | "working" | "done";
  * a cause the person can act on (`text` answers only for those).
  */
 export type Entry<C extends NoticeClass> = C extends Worded
-  ? { class: C; text: (data: NoticeData) => string; action?: NoticeAction }
+  ? {
+      class: C;
+      text: (data: NoticeData) => string;
+      actions?: readonly NoticeAction[];
+      action?: NoticeAction;
+    }
   : C extends "failed"
     ? { class: C; text?: (data: NoticeData) => string | undefined }
     : { class: C };
@@ -40,7 +45,7 @@ export function worded<C extends Worded>(
   kind: C,
   text: string,
   action?: NoticeAction,
-): { class: C; text: () => string; action?: NoticeAction } {
+): { class: C; text: () => string; actions?: readonly NoticeAction[]; action?: NoticeAction } {
   return action ? { class: kind, text: () => text, action } : { class: kind, text: () => text };
 }
 

@@ -35,5 +35,15 @@
    "rows": {},
    "deleted": true
   }
+ ],
+ "9f1c2d3e-0000-4000-8000-000000000003": [
+  {
+   "rows": {
+    "chunks": 150,
+    "chunk_receipts": 150,
+    "recording_manifests": 1
+   },
+   "deleted": false
+  }
  ]
 }

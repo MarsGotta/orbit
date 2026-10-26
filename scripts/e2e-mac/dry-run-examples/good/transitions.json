@@ -83,12 +83,30 @@
   "click:Borrar reunión": "meetings-empty"
  },
  "meetings-empty": {
-  "click:Asistente": "assistant"
+  "click:Asistente": "assistant",
+  "click:Grabar reunión": "silence-dialog"
  },
  "reopened": {
   "click:Asistente": "assistant-recovered"
  },
  "panel": {
   "pointer:away": "panel-recording"
+ },
+ "silence-dialog": {
+  "click:Solo mi micrófono Para una reunión en persona.": "silence-dialog-microphone"
+ },
+ "silence-dialog-microphone": {
+  "click:Empezar a grabar": "silence-recording"
+ },
+ "silence-recording": {
+  "read": "silence-saved",
+  "click:Asistente": "assistant"
+ },
+ "silence-saved": {
+  "click:Reuniones": "silence-meetings",
+  "click:Asistente": "assistant"
+ },
+ "silence-meetings": {
+  "click:Asistente": "assistant"
  }
 }

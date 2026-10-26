@@ -1,4 +1,3 @@
-import { duration } from "../duration";
 import { openSettings, worded, type Entries, type NoticeData } from "./types";
 
 const asked: Record<string, string> = {
@@ -47,21 +46,16 @@ const base = {
     { label: "Buscar actualización", command: { command: "update_check" } },
   ),
 
-  call_expired: worded("fixable", "La llamada llegó a su límite. Empieza otra si quieres seguir."),
-  // Ten minutes before a call's ceiling, as a recording's (`recording_ceiling_near`).
-  call_ceiling_near: {
+  call_expired: { class: "silent" },
+  call_ceiling_near: { class: "silent" },
+  call_silence_resolved: { class: "silent" },
+  call_silence_question: {
     class: "fixable",
-    text: (data) => {
-      const { remaining, minutes, max } = data;
-      if (typeof remaining !== "number") {
-        return "La llamada se colgará pronto: llega a su máximo. Si quieres seguir, empieza otra.";
-      }
-      const facts =
-        typeof minutes === "number" && typeof max === "number"
-          ? `: lleva ${duration(minutes)}, el máximo es ${duration(max)}`
-          : "";
-      return `La llamada se colgará en ${duration(remaining)}${facts}. Si quieres seguir, empieza otra.`;
-    },
+    text: () => "¿Sigues ahí? Si no dices nada, cuelgo en 15 segundos",
+    actions: [
+      { label: "Seguir", command: { command: "call_keep" } },
+      { label: "Colgar", command: { command: "call_stop" } },
+    ],
   },
   call_preference_unreadable: worded(
     "fixable",

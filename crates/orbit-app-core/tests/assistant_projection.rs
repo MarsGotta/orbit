@@ -180,13 +180,12 @@ fn voice_input_does_not_depend_on_read_aloud() {
 }
 
 /// A call started with ⌃⌥D is in the app's snapshot as one from the app is:
-/// every view reads when it hangs up by itself, how it began, the agent it
-/// talks to and the silence that ends it, from the daemon's facts and
-/// orbit-core's constants, never from a copy in the interface.
+/// it keeps the unbounded sentinel, origin, agent and earliest idle hangup
+/// from the daemon and core constants.
 #[test]
-fn a_hotkey_call_says_when_it_ends_how_it_began_and_with_whom() {
+fn a_hotkey_call_has_no_duration_deadline_and_keeps_origin_and_agent() {
     let started_at_ms = 1_700_000_000_000;
-    let expires_at_ms = started_at_ms + i64::from(orbit_core::voice::CALL_MINUTES) * 60_000;
+    let expires_at_ms = i64::MAX;
     let mut value = assistant_topic::assistant_value();
     value.agent_id = Some("atlas".into());
     value.call = Knowledge::Present {
@@ -204,17 +203,17 @@ fn a_hotkey_call_says_when_it_ends_how_it_began_and_with_whom() {
     let call = assistant_topic::snapshot(value, PermissionState::Granted)
         .call
         .expect("the hotkey call must be projected");
-    assert_eq!(call.expires_at_ms, started_at_ms + 240 * 60_000);
+    assert_eq!(call.expires_at_ms, i64::MAX);
     assert_eq!(call.origin, orbit_app_core::CallOrigin::Hotkey);
     assert_eq!(call.agent_id.as_deref(), Some("atlas"));
     assert_eq!(
         call.idle_hangup_ms,
-        orbit_core::voice::VoicePolicy::default().idle_timeout_ms
+        orbit_core::silence::CALL_SILENCE_MS + orbit_core::silence::CALL_ANSWER_MS
     );
     let wire = serde_json::to_value(&call).expect("the call serializes");
     assert_eq!(wire["origin"], "hotkey");
     assert_eq!(wire["expires_at_ms"], expires_at_ms);
-    assert_eq!(wire["idle_hangup_ms"], 60_000);
+    assert_eq!(wire["idle_hangup_ms"], 45_000);
 
     // From the app, with the default agent: no agent named, «app».
     let mut value = assistant_topic::assistant_value();

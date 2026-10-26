@@ -61,6 +61,7 @@ fn no_samples_wait_then_delay_without_claiming_low_signal() {
                 received_frames: 0,
                 since_last_samples_ms: None,
                 low_signal_ms: 0,
+                speech_quiet_ms: None,
             }
         );
     }
@@ -226,4 +227,26 @@ fn views_round_trip_with_snake_case_conditions_and_an_absent_unrequested_track()
     let decoded: RecordingSignalView =
         serde_json::from_value(encoded).unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(decoded, view);
+}
+
+#[test]
+fn room_noise_is_quiet_for_speech_but_not_a_low_signal_warning() {
+    let mut monitor = TrackSignalMonitor::new(0);
+    for second in 1..=120 {
+        assert!(monitor.observe(signal(250, 8_000), 8_000, second * 1_000));
+    }
+    let room = monitor.view(120_000);
+    assert_eq!(room.condition, SignalCondition::Receiving);
+    assert_eq!(room.low_signal_ms, 0);
+    assert_eq!(room.speech_quiet_ms, Some(120_000));
+    for (index, voice) in [500, 900].into_iter().enumerate() {
+        let at = 121_000 + index as u64 * 2_000;
+        assert!(monitor.observe(signal(voice, 8_000), 8_000, at));
+        assert_eq!(monitor.view(at).speech_quiet_ms, Some(0));
+        assert!(monitor.observe(signal(499, 8_000), 8_000, at + 1_000));
+        assert_eq!(monitor.view(at + 1_000).speech_quiet_ms, Some(1_000));
+    }
+    assert_eq!(monitor.view(127_000).speech_quiet_ms, None);
+    assert!(monitor.observe(signal(250, 8_000), 8_000, 127_000));
+    assert_eq!(monitor.view(127_000).speech_quiet_ms, Some(1_000));
 }

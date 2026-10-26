@@ -86,7 +86,9 @@ it("an untitled recording is «Reunión HH:MM» and the limit is said before it 
     "Reunión 14:30",
   );
   expect(
-    screen.getByText("Graba hasta 4 h, hasta las 18:30. Si cierras la ventana, sigue grabando."),
+    screen.getByText(
+      "Si cierras la ventana, sigue grabando. Tras 2 min de silencio, te pregunta si terminar.",
+    ),
   ).toBeTruthy();
 });
 

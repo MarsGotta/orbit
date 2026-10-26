@@ -78,6 +78,9 @@ pub(in crate::daemon) struct AudioLifecycle {
 /// opened, and the starts and stops the helper has yet to answer.
 #[derive(Default)]
 pub(in crate::daemon) struct AudioHandle {
+    /// Unread helper facts at the last loop tick: silence cannot be decided
+    /// before they are consumed (they may include fresh voice).
+    pub(in crate::daemon) queued_native_events: usize,
     pub(in crate::daemon) lifecycle: AudioLifecycle,
     /// The call with the assistant while it runs.
     pub(in crate::daemon) call: Option<super::call::CallRuntime>,

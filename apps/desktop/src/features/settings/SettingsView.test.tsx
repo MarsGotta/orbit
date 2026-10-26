@@ -416,9 +416,9 @@ describe("Grabación y llamadas", () => {
     ).toBe(true);
   });
 
-  it("says how long a recording lasts from the daemon's own ceiling, and the four shortcuts", () => {
+  it("shows shortcuts without a retired duration ceiling", () => {
     renderSettings({ section: "grabacion", overrides: { meeting: { limit_minutes: 45 } } });
-    expect(screen.getByText("hasta 45 min")).toBeTruthy();
+    expect(screen.queryByText("hasta 45 min")).toBeNull();
     const shortcuts = screen.getByRole("region", { name: "Atajos desde cualquier app" });
     expect(
       within(shortcuts)

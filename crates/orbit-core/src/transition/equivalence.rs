@@ -148,7 +148,7 @@ fn ready() -> State {
 }
 
 #[test]
-fn the_new_decide_decides_exactly_as_mains() {
+fn unchanged_rules_match_the_flat_model_after_duration_retirement() {
     let mut rng = Rng(0x0A1B_2C3D_4E5F_6071);
     let starts = starts();
     let mut accepted: BTreeMap<String, u64> = BTreeMap::new();

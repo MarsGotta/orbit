@@ -70,7 +70,7 @@ impl Runtime {
         // A turn's words being asked for is not Deimos at work: noise
         // transcribed into nothing must not keep a forgotten call open.
         let transcribing = self.assistant.voice_task.active().is_some();
-        let working = self.state.durable.assistant.active_request.is_some();
+        let working = self.call_assistant_working();
         let waiting = transcribing || working;
         let observation = VoiceObservation {
             generation: self.state.generation(),
@@ -80,7 +80,7 @@ impl Runtime {
             duration_ns,
             received_at_ms,
             voiced: energy_exceeds(&pcm, policy.rms_threshold),
-            response_active: responding || working,
+            response_active: (responding && !self.presence_question_playback()) || working,
             transcribing,
             muted: self.microphone_muted(),
         };

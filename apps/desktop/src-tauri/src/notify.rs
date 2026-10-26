@@ -18,6 +18,7 @@ const MAIN_LABEL: &str = "main";
 static WATCHER: Mutex<Watcher> = Mutex::new(Watcher {
     in_flight: false,
     pending: None,
+    last_notice_sequence: 0,
 });
 
 /// A turn that worked at least this long ends with a notification when Orbit
@@ -46,6 +47,7 @@ pub fn duration_text(ms: u64) -> String {
 /// What the assistant frames said last, to tell what changed.
 #[derive(Debug, Default)]
 pub struct Watcher {
+    last_notice_sequence: u64,
     in_flight: bool,
     pending: Option<String>,
 }
@@ -134,17 +136,82 @@ pub fn follow<R: tauri::Runtime>(app: &tauri::AppHandle<R>, chat: &ChatSnapshot)
     let Some(notice) = notice else {
         return;
     };
+    post(app, notice, false);
+}
+
+/// The existing macOS notification channel also alerts a silence question,
+/// even while the window is in front. System notification permission applies.
+pub fn follow_silence<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    notices: &[orbit_core::notice::Notice],
+) {
+    let pending = WATCHER
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .observe_silence(notices);
+    for notice in pending {
+        post(app, notice, true);
+    }
+}
+
+fn post<R: tauri::Runtime>(app: &tauri::AppHandle<R>, notice: TurnNotice, sound: bool) {
     // Absent under Tauri's mock runtime, where the plugin is not installed.
     let Some(notifications) = app.try_state::<tauri_plugin_notification::Notification<R>>() else {
         return;
     };
-    if let Err(error) = notifications
+    let builder = notifications
         .builder()
         .title(notice.title)
-        .body(notice.body)
-        .show()
-    {
+        .body(notice.body);
+    let builder = if sound {
+        builder.sound("NSUserNotificationDefaultSoundName")
+    } else {
+        builder
+    };
+    if let Err(error) = builder.show() {
         eprintln!("No se pudo mostrar el aviso de macOS: {error}");
+    }
+}
+
+impl Watcher {
+    pub fn observe_silence(&mut self, notices: &[orbit_core::notice::Notice]) -> Vec<TurnNotice> {
+        use orbit_core::notice::NoticeCode;
+        let mut result = Vec::new();
+        for notice in notices {
+            let Some(sequence) = notice
+                .sequence
+                .filter(|seq| *seq > self.last_notice_sequence)
+            else {
+                continue;
+            };
+            let (body, resolved) = match notice.code {
+                NoticeCode::CallSilenceQuestion => (
+                    "¿Sigues ahí? Si no dices nada, cuelgo en 15 segundos",
+                    NoticeCode::CallSilenceResolved,
+                ),
+                NoticeCode::RecordingSilenceQuestion => (
+                    "¿Sigue la reunión? La termino y la guardo en 30 s",
+                    NoticeCode::RecordingSilenceResolved,
+                ),
+                _ => continue,
+            };
+            if notices.iter().any(|later| {
+                later.sequence.is_some_and(|seq| seq > sequence) && later.code == resolved
+            }) {
+                continue;
+            }
+            result.push(TurnNotice {
+                title: "Orbit".into(),
+                body: body.into(),
+            });
+        }
+        self.last_notice_sequence = notices
+            .iter()
+            .filter_map(|n| n.sequence)
+            .max()
+            .unwrap_or(self.last_notice_sequence)
+            .max(self.last_notice_sequence);
+        result
     }
 }
 

@@ -286,22 +286,21 @@ pub enum Command {
     VoiceNoteAudio {
         message_id: String,
     },
-    /// A call from the app. `duration_minutes` absent: the app's length,
-    /// [`crate::voice::CALL_MINUTES`], so the interface keeps no copy of it.
+    /// A call from the app. The retired duration argument is ignored.
     CallStart {
         #[serde(default = "default_call_minutes")]
         #[cfg_attr(feature = "ts", ts(as = "Option<u16>", optional))]
         duration_minutes: u16,
     },
     CallStop,
+    CallKeep,
+    MeetingKeep,
     #[cfg_attr(feature = "ts", ts(skip))]
     MeetingStart {
         title: String,
         #[serde(default)]
         audio: MeetingAudio,
-        /// Accepted from older senders and ignored: every recording runs
-        /// to the one safety ceiling ([`crate::RECORDING_CEILING_MINUTES`]),
-        /// whatever started it.
+        /// Retired duration argument, accepted and ignored.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         duration_minutes: Option<u16>,
         /// The calendar event the recording belongs to, by its stable
@@ -373,6 +372,7 @@ impl Command {
             | Self::MeetingStart { .. }
             | Self::MeetingPause
             | Self::MeetingResume
+            | Self::MeetingKeep
             | Self::MeetingFinish
             | Self::MeetingDiscard { .. }
             | Self::MicrophoneMute { .. } => Some(FeatureId::Recording),
@@ -398,6 +398,7 @@ impl Command {
             | Self::SpeakStop
             | Self::VoiceNoteAudio { .. }
             | Self::CallStart { .. }
+            | Self::CallKeep
             | Self::CallStop
             | Self::Approval { .. }
             | Self::Clarify { .. } => Some(FeatureId::Assistant),
@@ -427,7 +428,7 @@ pub fn recording_title(title: String, now_ms: i64, utc_offset_ms: Option<i64>) -
 }
 
 fn default_call_minutes() -> u16 {
-    crate::voice::CALL_MINUTES
+    0
 }
 
 fn default_meeting_minutes() -> u16 {
@@ -627,7 +628,7 @@ mod topic_contract_tests {
         }));
         assert!(
             matches!(command, Ok(Command::CallStart { duration_minutes })
-                if duration_minutes == crate::voice::CALL_MINUTES),
+                if duration_minutes == 0),
             "{command:?}"
         );
         let command = serde_json::from_value::<Command>(serde_json::json!({

@@ -240,7 +240,7 @@ fn old_delta_after_interrupt_is_ignored() {
 }
 
 #[test]
-fn recording_duration_ceiling_expires_and_resume_does_not_extend_it() {
+fn a_recording_can_pause_and_resume_after_five_hours_without_a_ceiling() {
     let state = State {
         durable: crate::DurableState {
             capabilities: Capabilities {
@@ -264,16 +264,10 @@ fn recording_duration_ceiling_expires_and_resume_does_not_extend_it() {
     .unwrap()
     .state;
     let state = decide(&state, Event::CaptureStarted, 0).unwrap().state;
-    let ceiling_ms = i64::from(crate::RECORDING_CEILING_MINUTES) * 60_000;
-    let expired = decide(&state, Event::Tick, ceiling_ms).unwrap();
-    assert!(expired.effects.contains(&Effect::StopCapture));
-    assert_eq!(
-        decide(&expired.state, Event::ResumeMeeting, ceiling_ms + 1).unwrap_err(),
-        Refusal::Expired {
-            resource: crate::refusal::Resource::Recording,
-            expired_at_ms: None
-        }
-    );
+    let late = decide(&state, Event::Tick, 5 * 3_600_000).unwrap();
+    assert!(!late.effects.contains(&Effect::StopCapture));
+    let paused = decide(&late.state, Event::PauseMeeting, 5 * 3_600_000 + 1).unwrap();
+    assert!(decide(&paused.state, Event::ResumeMeeting, 5 * 3_600_000 + 2).is_ok());
 }
 
 #[test]
@@ -638,30 +632,23 @@ fn finish_meeting_while_privacy_stopped_closes_the_recording_locally() {
     }
 }
 
-/// A recording that reaches its ceiling says so with the
-/// minutes it was started with; there is no permission to expire.
+/// Old persisted deadlines never stop a recording or emit retired notices.
 #[test]
-fn a_recording_at_its_ceiling_says_its_minutes() {
+fn a_recording_ignores_its_retired_expiry() {
     let mut recording = recording_in_phase(CapturePhase::Recording);
     recording.started_at_ms = 0;
     recording.expires_at_ms = 240 * 60_000;
-    let decision = decide(&state_with_recording(recording), Event::Tick, 240 * 60_000).unwrap();
+    let decision = decide(&state_with_recording(recording), Event::Tick, 5 * 3_600_000).unwrap();
+    assert!(decision.effects.is_empty());
     assert_eq!(
-        decision.state.durable.notice,
-        Some(
-            Notice {
-                sequence: Some(1),
-                ..Notice::new(NoticeCode::RecordingCeilingReached)
-            }
-            .with(NoticeKey::Minutes, 240_i64)
-            .with(NoticeKey::Fragments, true)
-        )
+        decision.state.durable.capture.recording.unwrap().phase,
+        CapturePhase::Recording
     );
 }
 
-/// Whatever starts a recording, it stops only at the safety ceiling.
+/// No start source gives a recording a duration deadline.
 #[test]
-fn a_meeting_runs_to_the_safety_ceiling() {
+fn a_meeting_starts_without_a_duration_deadline() {
     let mut state = state_with_recording(recording_in_phase(CapturePhase::Idle));
     state.durable.capture.recording = None;
     state.durable.capabilities.screen_state = PermissionState::Granted;
@@ -676,50 +663,21 @@ fn a_meeting_runs_to_the_safety_ceiling() {
     )
     .unwrap();
     let recording = decision.state.durable.capture.recording.unwrap();
-    assert_eq!(
-        recording.expires_at_ms,
-        5_000 + i64::from(crate::RECORDING_CEILING_MINUTES) * 60_000
-    );
-    assert_eq!(crate::RECORDING_CEILING_MINUTES, 240);
+    assert_eq!(recording.expires_at_ms, i64::MAX);
 }
 
-/// Ten minutes before the ceiling the person is told once how long is
-/// left, how long it has recorded and the ceiling; the recording goes on.
+/// Retired warnings never appear even when a saved deadline is near.
 #[test]
-fn the_ceiling_is_announced_once_ten_minutes_before() {
+fn retired_ceiling_notices_are_never_emitted() {
     let mut recording = recording_in_phase(CapturePhase::Recording);
-    recording.started_at_ms = 0;
     recording.expires_at_ms = 240 * 60_000;
-    let state = state_with_recording(recording);
-    let early = decide(&state, Event::Tick, 229 * 60_000).unwrap().state;
-    assert_eq!(early.durable.notice, state.durable.notice);
-    let warned = decide(&early, Event::Tick, 230 * 60_000).unwrap().state;
-    assert_eq!(
-        warned.durable.notice,
-        Some(
-            Notice {
-                sequence: Some(1),
-                ..Notice::new(NoticeCode::RecordingCeilingNear)
-            }
-            .with(NoticeKey::Remaining, 10_i64)
-            .with(NoticeKey::Minutes, 230_i64)
-            .with(NoticeKey::Max, 240_i64)
-        )
-    );
-    let recording = warned.durable.capture.recording.as_ref().unwrap();
-    assert_eq!(recording.phase, CapturePhase::Recording);
-    let again = decide(&warned, Event::Tick, 231 * 60_000).unwrap().state;
-    assert_eq!(again.durable.notice, warned.durable.notice, "said once");
-    assert_eq!(
-        again
-            .durable
-            .notice_log
-            .records()
-            .iter()
-            .filter(|notice| notice.code == NoticeCode::RecordingCeilingNear)
-            .count(),
-        1
-    );
+    let mut state = state_with_recording(recording);
+    for minute in [229, 230, 231, 240, 300] {
+        let decision = decide(&state, Event::Tick, minute * 60_000).unwrap();
+        assert!(decision.effects.is_empty());
+        assert_eq!(decision.state.durable.notice, state.durable.notice);
+        state = decision.state;
+    }
 }
 
 #[test]

@@ -1,0 +1,6 @@
+- [0] AXWindow "Orbit"
+  - [1] AXWebArea
+    - [2] AXButton "Grabar reunión" [actions=[press]]
+    - [3] AXLink "Reuniones" [actions=[press]]
+    - [4] AXLink "Asistente" [actions=[press]]
+    - [5] AXStaticText = "Reunión guardada"

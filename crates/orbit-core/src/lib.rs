@@ -57,3 +57,5 @@ pub mod wire;
 pub const FINALIZING_TIMEOUT_MS: i64 = 15_000;
 
 pub mod features;
+
+pub mod silence;

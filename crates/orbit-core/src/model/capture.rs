@@ -41,6 +41,7 @@ pub struct Recording {
     pub started_at_ms: i64,
     #[serde(default)]
     pub ended_at_ms: Option<i64>,
+    /// Retired wire field: new recordings use i64::MAX; never consulted.
     pub expires_at_ms: i64,
     pub application_pid: Option<i32>,
     #[serde(default)]
@@ -56,8 +57,7 @@ pub struct Recording {
     /// version that never tracked the wait keeps loading.
     #[serde(default)]
     pub finalizing_since_ms: Option<i64>,
-    /// Whether the person was told the recording is about to reach its
-    /// ceiling: said once. Absent in a snapshot from an older version.
+    /// Retired snapshot field retained for old readers. Never consulted.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub ceiling_notice_given: bool,
     /// Where the person muted the microphone («Silenciar»), from the
@@ -65,25 +65,6 @@ pub struct Recording {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub muted_spans: Vec<crate::microphone_mute::MutedSpan>,
 }
-
-/// How long any recording may run, whatever started it: by hand, the menu
-/// bar, ⌃⌥M, an event in Hoy or the calendar, or a detected call.
-///
-/// Protects: a recording somebody forgot, or a call whose end the Mac never
-/// saw, which would otherwise keep recording and uploading for ever. It is
-/// not meant to cut meetings and nothing about a meeting sets it, not even
-/// its calendar event: an event's end once stopped a meeting that ran over.
-/// Why four hours: meetings of two hours must be kept whole, and four leaves
-/// as much again for one that runs over. The app says it before a recording
-/// starts («Graba hasta 4 h») from the snapshot, never from a copy. A voice
-/// call with the assistant has the same ceiling (`voice::CALL_MINUTES` is
-/// this constant). It does not bound the audio kept on the Mac or what the
-/// hub accepts.
-pub const RECORDING_CEILING_MINUTES: u16 = 240;
-
-/// How long before [`RECORDING_CEILING_MINUTES`] the person is told, once,
-/// that the recording will stop: room to finish it and start another.
-pub const RECORDING_CEILING_NOTICE_MINUTES: i64 = 10;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TrackProgress {
@@ -109,6 +90,7 @@ pub enum RecordingInterruptionCause {
     MicrophonePermissionRequired,
     ScreenPermissionRequired,
     CaptureStartRefused,
+    /// Historical saved cause; new recordings do not expire by duration.
     RecordingExpired,
     CaptureFinalizeTimedOut,
     HelperCaptureStop,

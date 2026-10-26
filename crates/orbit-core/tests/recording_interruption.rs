@@ -5,7 +5,7 @@ use orbit_core::{
 };
 
 /// Every recording's safety ceiling, in milliseconds.
-const CEILING_MS: i64 = orbit_core::RECORDING_CEILING_MINUTES as i64 * 60_000;
+const RETIRED_EXPIRY: i64 = i64::MAX;
 
 fn microphone_ready() -> State {
     let online = decide(&State::default(), Event::Connect(Connection::Online), 0)
@@ -75,7 +75,7 @@ fn pending_recording_refusal_names_identity_phase_and_numbers() {
         encoded,
         serde_json::json!({
             "code":"pending_recording", "id":"pending-307", "title":"Reunión pendiente", "phase":"interrupted",
-            "sealed_chunks":2, "gaps":1, "expires_at_ms":1_000 + CEILING_MS, "retry":{"kind":"after_fix"}
+            "sealed_chunks":2, "gaps":1, "expires_at_ms":RETIRED_EXPIRY, "retry":{"kind":"after_fix"}
         })
     );
 }
@@ -162,7 +162,7 @@ fn recording_for_tick_copy() -> State {
 }
 
 #[test]
-fn expiry_names_saved_fragments_only_when_there_are_any() {
+fn retired_expiry_keeps_every_fragment_and_never_closes() {
     let recording = recording_for_tick_copy();
     for has_chunk in [false, true] {
         let recording = if has_chunk {
@@ -170,22 +170,12 @@ fn expiry_names_saved_fragments_only_when_there_are_any() {
         } else {
             recording.clone()
         };
-        let expired = decide(&recording, Event::Tick, 1_000 + CEILING_MS)
-            .unwrap()
-            .state;
-        let notice = expired.durable.notice.clone().unwrap();
-        assert_eq!(notice.code, NoticeCode::RecordingCeilingReached);
-        assert_eq!(
-            notice.data.get(&NoticeKey::Fragments),
-            Some(&DataValue::Bool(has_chunk)),
-            "expiry with has_chunk={has_chunk}: {notice:?}"
-        );
-        if !has_chunk {
-            let closed = decide(&expired, Event::EmptyCaptureClosed, 1_001 + CEILING_MS)
-                .unwrap()
-                .state;
-            assert_eq!(closed.notice_code(), Some(NoticeCode::RecordingEmpty));
-        }
+        let late = decide(&recording, Event::Tick, 5 * 3_600_000).unwrap();
+        assert!(late.effects.is_empty());
+        let kept = late.state.durable.capture.recording.unwrap();
+        assert_eq!(kept.phase, CapturePhase::Recording);
+        assert_eq!(kept.sealed_chunks, u64::from(has_chunk));
+        assert_eq!(kept.ended_at_ms, None);
     }
 }
 

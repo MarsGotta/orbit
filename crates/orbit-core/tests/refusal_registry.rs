@@ -312,7 +312,7 @@ fn resource_sizes_keep_the_existing_retry_policy() {
 }
 
 #[test]
-fn decisions_preserve_actual_text_and_the_call_duration_bound() {
+fn decisions_preserve_actual_text_and_ignore_retired_call_duration() {
     use orbit_core::{Connection, Event, State, decide};
     let online = decide(&State::default(), Event::Connect(Connection::Online), 0)
         .unwrap()
@@ -387,22 +387,10 @@ fn decisions_preserve_actual_text_and_the_call_duration_bound() {
         },
         0,
     )
-    .unwrap_err();
+    .unwrap();
     assert_eq!(
-        call.clone(),
-        Refusal::InvalidParameter {
-            parameter: Parameter::Duration,
-            expected: Expected::DurationRange {
-                actual_ms: 14_400_001,
-                min_ms: 60_000,
-                max_ms: 14_400_000
-            },
-        }
-    );
-    let call_wire = serde_json::to_value(call).unwrap();
-    assert_eq!(
-        call_wire["expected"],
-        json!({"kind":"duration_range","actual_ms":14_400_001,"min_ms":60_000,"max_ms":14_400_000})
+        call.state.durable.voice.call.unwrap().expires_at_ms,
+        i64::MAX
     );
 }
 

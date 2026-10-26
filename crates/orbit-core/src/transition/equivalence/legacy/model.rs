@@ -128,6 +128,9 @@ impl DurableState {
     /// recording that was live is left interrupted here; the daemon resumes
     /// it, and says so, once its helper is ready (`cut_recovery`).
     pub fn recovered(mut self) -> Self {
+        for notice in crate::silence::recovered_notices(&self.notice_log) {
+            self.set_notice(notice);
+        }
         use crate::privacy_stop::StopRequester;
         match (self.privacy_stopped, self.privacy_stop_by) {
             // The hub decides a revocation again at the next connection; a

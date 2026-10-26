@@ -153,3 +153,24 @@ fn a_short_turn_after_a_long_one_is_not_timed_by_the_long_ones_work() {
         "the turn worked 2 s; the notice is timed by the previous turn's work"
     );
 }
+
+#[test]
+fn silence_questions_notify_once_including_the_foreground_without_content() {
+    use orbit_core::notice::{Notice, NoticeCode};
+    let mut watcher = Watcher::default();
+    let mut call = Notice::new(NoticeCode::CallSilenceQuestion);
+    call.sequence = Some(8);
+    let first = watcher.observe_silence(&[call.clone()]);
+    assert_eq!(first.len(), 1);
+    assert_eq!(
+        first[0].body,
+        "¿Sigues ahí? Si no dices nada, cuelgo en 15 segundos"
+    );
+    assert!(watcher.observe_silence(&[call]).is_empty());
+    let mut meeting = Notice::new(NoticeCode::RecordingSilenceQuestion);
+    meeting.sequence = Some(9);
+    assert_eq!(
+        watcher.observe_silence(&[meeting])[0].body,
+        "¿Sigue la reunión? La termino y la guardo en 30 s"
+    );
+}

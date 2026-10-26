@@ -4,6 +4,8 @@
 macro_rules! recording_notices {
     ([$next:ident $(, $rest:ident)*] ; $($entries:tt)*) => {
         $next! { [$($rest),*] ; $($entries)*
+            RecordingSilenceQuestion = 163 => Fixable,
+            RecordingSilenceResolved = 164 => Silent,
             CaptureStarting = 0 => Silent,
             RecordingStarted = 1 => Silent,
             RecordingPaused = 2 => Silent,
@@ -14,11 +16,10 @@ macro_rules! recording_notices {
             RecordingFinished = 4 => Silent,
             /// «Terminar sin guardar» finished: nothing recorded stays.
             RecordingDiscarded = 5 => Done,
-            /// The recording will reach the safety ceiling soon: said once, with
-            /// the minutes left, those recorded and the ceiling.
-            RecordingCeilingNear = 6 => Fixable,
-            /// The recording reached the safety ceiling.
-            RecordingCeilingReached = 7 => Fixable,
+            /// Retired wire code: accepted silently, never emitted.
+            RecordingCeilingNear = 6 => Silent,
+            /// Retired wire code: accepted silently, never emitted.
+            RecordingCeilingReached = 7 => Silent,
             /// The Mac did not confirm closing the recording in time.
             RecordingCloseUnconfirmed = 8 => Failed,
             RecordingInterruptedByRestart = 9 => Failed,

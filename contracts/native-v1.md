@@ -579,7 +579,7 @@ The daemon shows the microphone muted only once an answer says so; an answer
 without it (a refusal, a helper that does not know the order or the field)
 is said as `microphone_mute_refused` with its code. While muted the daemon
 opens no call turn, does not count the time as the user's silence that hangs
-up (the call's ceiling still counts), refuses a voice note and ignores an
+up, refuses a voice note and ignores an
 `assistant_question` (`microphone_muted`). A meeting's muted stretches go to
 the hub in its closing manifest (`muted_spans`, hub-v1).
 

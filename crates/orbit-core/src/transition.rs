@@ -115,9 +115,7 @@ pub enum Event {
         approval: Approval,
     },
     Interrupt,
-    /// A recording starts. It runs until finished, stopped or cut, or at
-    /// most [`crate::RECORDING_CEILING_MINUTES`]: nothing that starts it
-    /// sets when it stops.
+    /// A recording starts without a duration bound.
     StartMeeting {
         id: String,
         title: String,
@@ -155,6 +153,13 @@ pub enum Event {
         origin: crate::voice::CallOrigin,
     },
     CallStop,
+    CallKeep,
+    RecordingKeep,
+    CheckSilence {
+        call: Option<crate::silence::CallQuiet>,
+        recording: Option<Box<crate::audio_signal::RecordingSignalView>>,
+        microphone_muted: bool,
+    },
     CallReady,
     CallPhase(crate::voice::CallPhase),
     CallTurnStarted,
@@ -213,6 +218,7 @@ pub enum Event {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Effect {
+    AskCallPresence,
     /// One turn to Deimos (`chat.send`). `voice` when it is a voice note;
     /// `meeting` when it is a question about a meeting, which the daemon
     /// fills in (the hub adds the transcript).
@@ -289,6 +295,7 @@ pub fn decide(state: &State, event: Event, now_ms: i64) -> Result<Decision, Refu
     };
     route(&mut next.durable, &mut next.views, event, &mut step)?;
     capture::settle(&mut next.durable.capture);
+    stops::retire_questions(&next.durable, &mut next.views, &mut step);
     for notice in step.notices {
         next.set_notice(notice);
     }
@@ -309,16 +316,11 @@ fn route(n: &mut DurableState, views: &mut Views, e: Event, cx: &mut Step) -> Re
         Event::Connect(connection) => stops::connect(n, connection, cx),
         Event::HubTransportReady => cx.authority(AuthorityChange::HubTransportReady),
         Event::HubDisconnected => stops::hub_disconnected(n, cx),
-        Event::HelperReady => helper::ready(h),
-        Event::HelperLost => helper::lost(h),
-        Event::PermissionObserved {
-            microphone,
-            screen,
-            accessibility,
-            calendar,
-        } => helper::observed(h, [microphone, screen, accessibility], calendar),
-        Event::CalendarAuthorization(calendar) => helper::calendar(h, calendar),
-        Event::HelperStopUndelivered => helper::stop_undelivered(h),
+        event @ (Event::HelperReady
+        | Event::HelperLost
+        | Event::PermissionObserved { .. }
+        | Event::CalendarAuthorization(_)
+        | Event::HelperStopUndelivered) => helper::event(h, event),
         Event::Session { id, agent_id } => assistant::session(a, id, agent_id, cx),
         Event::NewSession { agent_id } => assistant::new_session(a, agent_id, cx),
         Event::OpenSession { id, agent_id } => assistant::open_session(a, id, agent_id, cx),
@@ -367,6 +369,9 @@ fn route(n: &mut DurableState, views: &mut Views, e: Event, cx: &mut Step) -> Re
             origin,
         } => voice_call::call_start(v, id, duration_ms, origin, cx)?,
         Event::CallStop => stops::call_stop(n, cx),
+        event @ (Event::CallKeep | Event::RecordingKeep | Event::CheckSilence { .. }) => {
+            stops::silence_event(n, views, event, cx)?
+        }
         Event::CallReady => voice_call::call_ready(v, cx),
         Event::CallPhase(phase) => voice_call::call_phase(v, phase),
         Event::CallTurnStarted => voice_call::call_turn_started(v),

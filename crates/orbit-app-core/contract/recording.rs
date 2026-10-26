@@ -346,14 +346,10 @@ app_type! {
         pub title: Option<String>,
         #[ts(type = "number | null")]
         pub started_at_ms: Option<i64>,
-        /// The latest the recording in progress records until (Unix ms),
-        /// the daemon's deadline («hasta las 15:40»): its start plus the
-        /// safety ceiling, whatever started it. No calendar event moves it.
+        /// Retired compatibility field; no predicted recording end.
         #[ts(type = "number | null")]
         pub ends_at_ms: Option<i64>,
-        /// The longest any recording may run, in minutes, said before one
-        /// starts («Graba hasta 4 h»): orbit-core's
-        /// `RECORDING_CEILING_MINUTES`, which the interface never copies.
+        /// Retired compatibility field: zero means no duration ceiling.
         pub limit_minutes: u16,
         pub audio: MeetingAudioKind,
         pub tracks: Vec<MeetingTrackSnapshot>,

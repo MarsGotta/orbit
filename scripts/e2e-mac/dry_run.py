@@ -437,7 +437,9 @@ class DryRunHub:
     staying."""
 
     def __init__(self, example: Example, read):
-        self.answers = {k: list(v) for k, v in example.json("hub.json").items()}
+        answers = example.base("hub.json")
+        answers.update(example.overrides("hub.json"))
+        self.answers = {k: list(v) for k, v in answers.items()}
         self.read = read
 
     def __call__(self, recording: str) -> dict:
@@ -492,7 +494,7 @@ def run(name: str, directory: Path | None = None) -> tuple[list[dict], Path]:
     # A replayed screen never changes: reading it again could not help. Nor
     # does a replayed hub.
     test.bounds["screen"] = (0, "in the dry run the screens never change by themselves")
-    for wait in ("hub-chunks", "hub-deleted"):
+    for wait in ("hub-chunks", "hub-deleted", "silence-hub"):
         test.bounds[wait] = (0, "in the dry run the test hub's answers are replayed")
     # Nor does a replayed panel change with time: it is read at once.
     test.bounds["answer-held"] = (0, "in the dry run the panel never changes by itself")

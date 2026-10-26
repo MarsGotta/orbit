@@ -5,7 +5,7 @@ import { RadioList } from "../../design/RadioList";
 import { useSpanish } from "../../i18n/AssistantCopy";
 import { es as base } from "../../i18n/es";
 import { useHeldChoice } from "../../state/use-held-choice";
-import { Group, List, Row, SectionHeading } from "./layout";
+import { Group, List, SectionHeading } from "./layout";
 import styles from "./SettingsView.module.css";
 
 type Send = (command: AppCommand) => unknown;
@@ -57,23 +57,6 @@ export function RecordingSection({ send, snapshot }: { send: Send; snapshot: App
       />
       <Group label={base.settings.whenCall}>
         <CallPreferenceList preference={snapshot.meeting.call_preference} send={send} />
-      </Group>
-      <Group label={base.settings.durations}>
-        <List>
-          {/* orbit-core's own numbers, from the snapshot, never a copy. */}
-          {(
-            [
-              [base.settings.recordingLasts, snapshot.meeting.limit_minutes],
-              [base.settings.callLasts, snapshot.settings.call_minutes],
-            ] as const
-          ).map(([title, minutes]) => (
-            <Row
-              aside={<span className={styles.value}>{base.settings.lastsUpTo(minutes)}</span>}
-              key={title}
-              title={title}
-            />
-          ))}
-        </List>
       </Group>
       <Group label={base.settings.shortcuts}>
         <List>

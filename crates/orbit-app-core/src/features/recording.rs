@@ -178,7 +178,7 @@ fn call_snapshot(
             orbit_core::CallOrigin::Hotkey => crate::CallOrigin::Hotkey,
         },
         agent_id: value.agent_id.clone(),
-        idle_hangup_ms: orbit_core::voice::VoicePolicy::default().idle_timeout_ms,
+        idle_hangup_ms: orbit_core::silence::CALL_SILENCE_MS + orbit_core::silence::CALL_ANSWER_MS,
         microphone_muted: value.microphone_muted,
     }
 }
@@ -234,8 +234,7 @@ pub enum RecordingCommand {
         #[serde(default)]
         #[ts(as = "Option<String>", optional)]
         title: String,
-        /// Accepted from an older interface and ignored: every recording
-        /// runs to the one safety ceiling (`orbit_core::RECORDING_CEILING_MINUTES`).
+        /// Retired duration argument, accepted and ignored.
         #[serde(default, skip_serializing)]
         #[ts(skip)]
         minutes: Option<u16>,

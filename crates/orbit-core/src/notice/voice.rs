@@ -20,16 +20,17 @@ macro_rules! voice_notices {
             /// Nothing was heard in a call's turn (the hub found no words): it was
             /// dropped without a word to the user, or waits for what they say next.
             VoiceNotHeard = 47 => Silent,
+            CallSilenceQuestion = 161 => Fixable,
+            CallSilenceResolved = 162 => Silent,
             CallStarting = 69 => Silent,
             CallActive = 70 => Silent,
             CallStopped = 71 => Silent,
             CallStoppedByConnection = 72 => Failed,
-            CallExpired = 73 => Fixable,
+            CallExpired = 73 => Silent,
             CallClosed = 74 => Silent,
             CallDrainUnconfirmed = 75 => Failed,
-            /// The call hangs up in a few minutes, at its ceiling (`remaining`,
-            /// `minutes` it has lasted, its `max`): said once, as a recording's.
-            CallCeilingNear = 160 => Fixable,
+            /// Retired wire code: accepted silently, never emitted.
+            CallCeilingNear = 160 => Silent,
             VoiceNotRecognized = 116 => Fixable,
             /// A voice note was not transcribed. It loses nothing: the note stays in
             /// the conversation with its audio, its cause and what to do, so the

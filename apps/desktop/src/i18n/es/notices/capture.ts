@@ -1,22 +1,5 @@
 import { macPermissions } from "../permissions";
-import { duration as span } from "../duration";
 import { systemPrivacy, worded, type Entries, type NoticeData } from "./types";
-
-function minutes(data: NoticeData): string {
-  return typeof data.minutes === "number" ? span(data.minutes) : "su máximo";
-}
-
-function ceilingNear(data: NoticeData): string {
-  const { remaining, minutes: recorded, max } = data;
-  if (typeof remaining !== "number") {
-    return "La grabación se parará pronto: llega a su máximo. Si la reunión sigue, termínala y empieza otra.";
-  }
-  const facts =
-    typeof recorded === "number" && typeof max === "number"
-      ? `: lleva ${span(recorded)}, el máximo es ${span(max)}`
-      : "";
-  return `La grabación se parará en ${span(remaining)}${facts}. Si la reunión sigue, termínala y empieza otra.`;
-}
 
 /** Why a cut happened, in the person's words; an unknown code is shown as it is. */
 const CUT_CAUSES: Record<string, string> = {
@@ -88,11 +71,16 @@ export const capture = {
         : "El audio de la otra app dejó de grabarse y no se pudo recuperar; tu micrófono sigue grabando.",
   },
   recording_discarded: worded("done", "Reunión descartada"),
-  recording_ceiling_near: { class: "fixable", text: ceilingNear },
-  recording_ceiling_reached: {
+  recording_ceiling_near: { class: "silent" },
+  recording_ceiling_reached: { class: "silent" },
+  recording_silence_resolved: { class: "silent" },
+  recording_silence_question: {
     class: "fixable",
-    text: (data) =>
-      `La grabación llegó a su máximo de ${minutes(data)}. Empieza otra si la reunión sigue.`,
+    text: () => "¿Sigue la reunión? La termino y la guardo en 30 s",
+    actions: [
+      { label: "Seguir grabando", command: { command: "meeting_keep" } },
+      { label: "Terminar", command: { command: "meeting_finish" } },
+    ],
   },
   microphone_permission_missing: worded(
     "fixable",

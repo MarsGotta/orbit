@@ -81,6 +81,11 @@ pub struct TrackSignalView {
     /// Sample duration of the current low-energy run, not elapsed wall time.
     /// Zero when delivery is delayed or the supplied clock cannot be compared.
     pub low_signal_ms: u64,
+    /// Delivered samples below the call's speech threshold. None means the
+    /// producer did not supply this observation or delivery is not usable.
+    /// Separate from low_signal_ms: room noise is not a dead microphone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub speech_quiet_ms: Option<u64>,
 }
 
 /// At most two tracks. The adapter supplies and validates both identities;
@@ -102,6 +107,7 @@ pub struct TrackSignalMonitor {
     received_frames: u64,
     sample_rate: Option<u32>,
     low_frames: u64,
+    speech_quiet_frames: u64,
 }
 
 impl TrackSignalMonitor {
@@ -112,6 +118,7 @@ impl TrackSignalMonitor {
             received_frames: 0,
             sample_rate: None,
             low_frames: 0,
+            speech_quiet_frames: 0,
         }
     }
 
@@ -138,6 +145,14 @@ impl TrackSignalMonitor {
         if signal.is_low_signal() {
             self.low_frames = self.low_frames.saturating_add(signal.frames);
         }
+        let threshold = u64::from(crate::voice::VoicePolicy::default().rms_threshold);
+        let voiced = signal.sum_squared_amplitudes >= signal.frames * threshold * threshold;
+        if discontinuous || voiced {
+            self.speech_quiet_frames = 0;
+        }
+        if !voiced {
+            self.speech_quiet_frames = self.speech_quiet_frames.saturating_add(signal.frames);
+        }
         self.received_frames = self.received_frames.saturating_add(signal.frames);
         self.last_samples_at_ms = Some(received_at_ms);
         self.sample_rate = Some(sample_rate);
@@ -153,6 +168,7 @@ impl TrackSignalMonitor {
             received_frames: self.received_frames,
             since_last_samples_ms: None,
             low_signal_ms: 0,
+            speech_quiet_ms: None,
         };
         let reference = self.last_samples_at_ms.unwrap_or(self.started_at_ms);
         let Some(elapsed) = now_ms.checked_sub(reference) else {
@@ -165,6 +181,9 @@ impl TrackSignalMonitor {
             view.condition = SignalCondition::AwaitingSamples;
         } else {
             view.low_signal_ms = self.low_signal_ms();
+            view.speech_quiet_ms = self
+                .sample_rate
+                .map(|rate| duration_ms(self.speech_quiet_frames, rate));
             view.condition = if view.low_signal_ms >= LOW_SIGNAL_THRESHOLD_MS {
                 SignalCondition::LowSignal
             } else {
@@ -178,9 +197,13 @@ impl TrackSignalMonitor {
         let Some(rate) = self.sample_rate else {
             return 0;
         };
-        let duration = u128::from(self.low_frames) * 1_000 / u128::from(rate);
-        u64::try_from(duration).unwrap_or(u64::MAX)
+        duration_ms(self.low_frames, rate)
     }
+}
+
+fn duration_ms(frames: u64, rate: u32) -> u64 {
+    let duration = u128::from(frames) * 1_000 / u128::from(rate);
+    u64::try_from(duration).unwrap_or(u64::MAX)
 }
 
 #[cfg(test)]

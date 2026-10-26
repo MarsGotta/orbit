@@ -4,20 +4,17 @@ See the [overview](README.md#voice-note-and-call) for the hub/Hermes flow.
 
 ## Authorization and processing
 
-`CallStart` (`⌃⌥D`) is explicit local authorization for 1 minute to 4 hours
-(`orbit-core/src/transition/voice_call.rs`). A call lasts `CALL_MINUTES`, which is
-a recording's ceiling (`RECORDING_CEILING_MINUTES`, 240), from the app unless the
-order names a length and always from `⌃⌥D`. Ten minutes before it ends the call
-says so once (`call_ceiling_near`, as `recording_ceiling_near`).
-The call keeps its origin (`app` or `hotkey`), and the app's call snapshot
-carries its deadline (`expires_at_ms`), origin, agent and the idle hang-up
-(`idle_hangup_ms`) to every view. An open recording yields `PendingRecording`;
-another call, voice note or active turn yields `AudioSessionBusy`.
+`CallStart` (`⌃⌥D`) is explicit local authorization without a duration ceiling
+(`orbit-core/src/transition/voice_call.rs`). Retired duration arguments are
+accepted and ignored. The call keeps its origin (`app` or `hotkey`), agent and
+start time. Legacy deadline fields remain readable but do not authorize a stop.
+An open recording yields `PendingRecording`; another call, voice note or active
+turn yields `AudioSessionBusy`.
 The daemon persists Starting before requesting a VoiceProcessing microphone.
 API support is not proof of actual processing: the ACK must report mode, actual
 enablement, bypass off, AGC off, `shared_engine` playback reference and pipeline
 identity (`CallStartReceipt`, `daemon/call_receipts.rs`). Every frame must retain that
-provenance. A change/loss stops the call; privacy, disconnect, failure and expiry
+provenance. A change/loss stops the call; privacy, disconnect and failure
 never auto-resume it.
 
 One producer feeds both the continuous original and derived turns. Silence is
@@ -36,7 +33,7 @@ authorization or proof of echo cancellation. `VoicePolicy::default` sets:
 - Turn end after 700 ms silence; minimum speech 160 ms, maximum turn 20 seconds.
   Final audio is kept before interactive STT starts.
 - Integer RMS 500/32768, still uncalibrated on real microphones.
-- One minute of user silence ends the call, under the rules below.
+- Silence questions use these observations, separately from segmentation.
 
 Hermes transcribes turns through `POST /v1/audio/transcribe`. Their encrypted
 audio stays local (`upload_allowed:false`). Text travels as `chat.send` with
@@ -46,19 +43,11 @@ agent has no voice of its own. Transcription stays the default agent's.
 
 ## Automatic stops
 
-`StopReason` (`orbit-core/src/voice.rs`) distinguishes `unauthorized`,
-`generation_changed`, `processing_lost`, `discontinuity`, `expired`, `idle` and
-`no_audio`.
+The [silence question](silence-questions.md) asks after 30 seconds without
+words or assistant work, then hangs up after 15 unanswered seconds. Words and
+«Seguir» reset it. Short presence replies stay local; «Cuelga» hangs up.
+`expired` and the old immediate `idle` stop are retired historical reason tokens.
 
-- **`idle`:** 60 seconds without the user's words (`VoicePolicy::idle_timeout_ms`).
-  Words, not energy: a turn's transcription with text restarts the minute
-  (`TurnDetector::heard_words`); a turn the hub finds no words in (noise, a
-  television) does not. Active playback, speech generation or a request the
-  assistant works on advances activity on each frame, so the minute begins
-  after the response ends, and muted time never counts. A turn in course
-  (captured, or its words asked for) holds the hang-up for at most one turn's
-  length (`maximum_turn_ms`), so unbroken noise cannot keep a call open. It
-  closes a microphone left open after the conversation.
 - **`no_audio`:** three seconds with no microphone frames
   (`CALL_AUDIO_SILENCE_LIMIT`, `daemon/call.rs`). This measures producer health,
   not user silence, which still generates audio. Maintenance judges it only

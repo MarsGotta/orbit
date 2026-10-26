@@ -26,7 +26,6 @@ attachments?: AttachmentLimits, hub: SettingsHubSnapshot, helper_connected: bool
  */
 error_reports?: boolean, 
 /**
- * How long a call lasts at most, from the app or with ⌃⌥D, in
- * minutes, for «Cuánto dura cada cosa»: orbit-core's `voice::CALL_MINUTES`.
+ * Retired compatibility field: zero means no duration ceiling.
  */
 call_minutes: number, };

@@ -248,8 +248,7 @@ app_type! {
         pub speaking: bool,
         #[serde(default, skip_serializing_if = "is_false")]
         pub voice_unavailable: bool,
-        /// When the call hangs up by itself at its ceiling (Unix ms): the
-        /// interface counts «quedan 55 min» down to it.
+        /// Retired deadline field, kept for compatibility; only elapsed time is shown.
         #[ts(type = "number")]
         pub expires_at_ms: i64,
         /// How it began: «Llamar» in the app, or ⌃⌥D from any app.
@@ -259,8 +258,7 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub agent_id: Option<String>,
-        /// The user's silence that hangs it up by itself («se cuelga sola
-        /// tras 1 minuto sin que hables»), from orbit-core's voice policy.
+        /// Earliest hangup without an answer: quiet interval plus answer window.
         #[ts(type = "number")]
         pub idle_hangup_ms: i64,
         /// «Silenciar»: the assistant does not hear the user, who still
@@ -271,7 +269,7 @@ app_type! {
 }
 
 app_type! {
-    /// How a call began. Both last orbit-core's `CALL_MINUTES` at most,
+    /// How a call began. Neither has a duration ceiling,
     /// already in `expires_at_ms`.
     #[serde(rename_all = "snake_case")]
     pub enum CallOrigin {

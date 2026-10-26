@@ -42,6 +42,9 @@ fn classify(event: &Event) -> (usize, bool) {
         Event::VoiceEnd => (18, false),
         Event::CallStart { .. } => (19, false),
         Event::CallStop => (20, false),
+        Event::CallKeep => (53, false),
+        Event::RecordingKeep => (54, false),
+        Event::CheckSilence { .. } => (55, false),
         Event::CallReady => (21, false),
         Event::CallPhase(_) => (22, false),
         Event::CallTurnStarted => (23, false),
@@ -72,7 +75,7 @@ fn classify(event: &Event) -> (usize, bool) {
         Event::DiscardMeeting { .. } => (52, false),
     }
 }
-const VARIANTS: usize = 53;
+const VARIANTS: usize = 56;
 
 #[test]
 fn voice_transcription_retires_with_authority_but_survives_hub_link_changes() {
@@ -210,6 +213,13 @@ fn samples() -> Vec<Event> {
             origin: orbit_core::CallOrigin::App,
         },
         Event::CallStop,
+        Event::CallKeep,
+        Event::RecordingKeep,
+        Event::CheckSilence {
+            call: None,
+            recording: None,
+            microphone_muted: false,
+        },
         Event::CallReady,
         Event::CallPhase(CallPhase::Listening),
         Event::CallTurnStarted,

@@ -9,6 +9,7 @@ import { failures, type FailedNoticeCode } from "../i18n/es/failures";
 import { failureCode, genericFailure, repeatable, failure, worded, type Failure } from "./failure";
 import { refusalEntries } from "../i18n/es/refusalEntries";
 import { waits } from "../i18n/es/waits";
+import { closedData, token } from "./report-data";
 import type { ViewId } from "../state/ui";
 
 /** Where a command's refusal is shown: the view, overlay or panel that sent it. */
@@ -24,6 +25,7 @@ export interface Message {
   op: string;
   class: VisibleClass;
   text: string;
+  actions?: readonly NoticeAction[];
   action?: NoticeAction;
   place?: Place;
   /** A refused order's function and command; the next accepted order clears it. */
@@ -62,30 +64,15 @@ export type Incoming =
 
 export type Context = Pick<Message, "place" | "feature" | "command">;
 
-const TOKEN = /^[a-z0-9_.-]{1,64}$/;
-
 export function newOp(): string {
   return crypto.randomUUID();
-}
-
-/** Only numbers, booleans and tokens leave for the log; anything else is dropped. */
-function closedData(data: NoticeData | undefined): NoticeData {
-  const kept: NoticeData = {};
-  for (const [key, value] of Object.entries(data ?? {}) as [keyof NoticeData, unknown][]) {
-    if (typeof value === "number" || typeof value === "boolean") kept[key] = value;
-    else if (typeof value === "string" && TOKEN.test(value)) kept[key] = value;
-  }
-  return kept;
-}
-
-function token(code: string): string {
-  return TOKEN.test(code) ? code : "unrecognized";
 }
 
 interface Presented {
   op: string;
   class: VisibleClass | "silent";
   text: string;
+  actions?: readonly NoticeAction[];
   action?: NoticeAction;
   failure?: Failure;
   report: Report | null;
@@ -113,7 +100,14 @@ function presentNotice(notice: Notice, assistantName?: string): Presented {
     const what = noticeFailure(notice.code as FailedNoticeCode);
     return worded(failure(op, null, what), entry.text?.(data));
   }
-  return { op, class: entry.class, text: entry.text(data), action: entry.action, report: null };
+  return {
+    op,
+    class: entry.class,
+    text: entry.text(data),
+    action: entry.action,
+    actions: entry.actions,
+    report: null,
+  };
 }
 
 function refusalEntry(refusal: Refusal) {
@@ -219,13 +213,16 @@ export function receive(
   const shown = present(incoming, context, assistantName);
   if (shown.class === "silent") {
     const kept = messages.filter(
-      (message) => message.op !== shown.op || message.class !== "working",
+      (message) =>
+        message.op !== shown.op ||
+        (message.class !== "working" && !["call-silence", "recording-silence"].includes(shown.op)),
     );
     return { messages: kept, report: shown.report };
   }
   const message: Message = { op: shown.op, class: shown.class, text: shown.text, ...context };
   if (incoming.kind === "refusal") message.refusalCode = incoming.refusal.code;
   if (shown.action) message.action = shown.action;
+  if (shown.actions) message.actions = shown.actions;
   if (shown.failure) message.failure = shown.failure;
   const others = messages.filter(
     (existing) =>

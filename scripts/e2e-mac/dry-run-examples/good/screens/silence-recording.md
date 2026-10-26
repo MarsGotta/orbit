@@ -1,0 +1,10 @@
+- [0] AXWindow "Orbit"
+  - [1] AXWebArea
+    - [2] AXButton "Grabar reunión" [actions=[press]]
+    - [3] AXLink "Reuniones" [actions=[press]]
+    - [4] AXLink "Asistente" [actions=[press]]
+    - [5] AXStaticText = "Grabando 02:00"
+    - [6] AXGroup (Aviso de Orbit)
+      - [7] AXStaticText = "¿Sigue la reunión? La termino y la guardo en 30 s"
+      - [8] AXButton "Seguir grabando" [actions=[press]]
+      - [9] AXButton "Terminar" [actions=[press]]

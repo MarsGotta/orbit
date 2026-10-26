@@ -2,6 +2,8 @@ use orbit_core::features::FeatureId;
 use serde_json::{Value, json};
 pub fn cases() -> Vec<(Value, FeatureId)> {
     vec![
+        (json!({"command":"call_keep"}), FeatureId::Assistant),
+        (json!({"command":"meeting_keep"}), FeatureId::Recording),
         (
             json!({"command":"calendar","request":{"action":"read","window":{"start_unix_ms":1792058400000_i64,"end_unix_ms":1792060200000_i64}}}),
             FeatureId::Agenda,

@@ -13,7 +13,7 @@ pub(super) use persist::{DurableSnapshot, Persisted};
 impl Runtime {
     pub(super) async fn apply(&mut self, event: Event) -> Result<()> {
         let at_ms = now();
-        let voice = call_stop_voice_for(&self.state, &event, at_ms);
+        let voice = call_stop_voice_for(&event);
         self.apply_with_call_stop_voice_at(event, voice, at_ms)
             .await
     }
@@ -138,6 +138,10 @@ impl Runtime {
         voice: CallStopVoice,
     ) -> Result<()> {
         match effect {
+            Effect::AskCallPresence => {
+                self.ask_call_presence();
+                Ok(())
+            }
             Effect::Interrupt => {
                 self.interrupt_turn(interrupted_request, false).await;
                 Ok(())
@@ -161,6 +165,10 @@ impl Runtime {
     /// `audio` and `call`.
     pub(super) async fn effect(&mut self, effect: Effect) -> Result<()> {
         match effect {
+            Effect::AskCallPresence => {
+                self.ask_call_presence();
+                Ok(())
+            }
             Effect::SendText {
                 id,
                 text,
@@ -198,22 +206,10 @@ impl Runtime {
     }
 }
 
-/// The voice a call stopped by `event` keeps: an expired call cancels it,
-/// a link change keeps its transcription, a cut says so, and anything else
-/// is an interruption.
-fn call_stop_voice_for(state: &State, event: &Event, at_ms: i64) -> CallStopVoice {
-    if matches!(event, Event::Tick)
-        && state
-            .durable
-            .voice
-            .call
-            .as_ref()
-            .is_some_and(|call| call.expires_at_ms <= at_ms)
-    {
-        CallStopVoice::Cancel(VoiceCancellationCause::AutomaticCallStop(
-            orbit_core::voice::StopReason::Expired,
-        ))
-    } else if matches!(
+/// A link change keeps the transcription; a cut names itself; an explicit
+/// hangup or unanswered question cancels it through the same interruption.
+fn call_stop_voice_for(event: &Event) -> CallStopVoice {
+    if matches!(
         event,
         Event::Connect(Connection::Offline | Connection::Connecting | Connection::Online)
             | Event::HubDisconnected

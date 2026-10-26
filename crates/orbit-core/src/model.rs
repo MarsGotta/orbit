@@ -96,6 +96,8 @@ impl PermissionState {
 }
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Views {
+    #[serde(skip)]
+    pub silence_questions: Box<crate::silence::SilenceQuestions>,
     #[serde(default)]
     pub source_inventory: Option<crate::sources::WindowInventory>,
     #[serde(default)]

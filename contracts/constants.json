@@ -1948,5 +1948,61 @@
     "source": "registry",
     "unit": "characters",
     "value": 240
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/silence.rs",
+        "name": "CALL_SILENCE_MS",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "CALL_SILENCE_MS",
+    "resource": "call silence before a presence question",
+    "source": "rust",
+    "unit": "milliseconds",
+    "value": 30000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/silence.rs",
+        "name": "CALL_ANSWER_MS",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "CALL_ANSWER_MS",
+    "resource": "call presence answer window",
+    "source": "rust",
+    "unit": "milliseconds",
+    "value": 15000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/silence.rs",
+        "name": "RECORDING_SILENCE_MS",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "RECORDING_SILENCE_MS",
+    "resource": "recording silence before a presence question",
+    "source": "rust",
+    "unit": "milliseconds",
+    "value": 120000
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/silence.rs",
+        "name": "RECORDING_ANSWER_MS",
+        "unit": "milliseconds"
+      }
+    ],
+    "name": "RECORDING_ANSWER_MS",
+    "resource": "recording presence answer window",
+    "source": "rust",
+    "unit": "milliseconds",
+    "value": 30000
   }
 ]

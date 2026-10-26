@@ -629,10 +629,9 @@ async fn a_call_transcription_always_closes_even_after_another_operations_notice
 
 /// A forgotten call in a room with a fan that starts now and then: every
 /// burst of noise opens a turn, the hub finds no words in it, and the call
-/// still hangs up a minute after it began, as it would in silence. Its
-/// sound kept such a call open until its ceiling.
+/// still closes after an unanswered question. Noise cannot answer it.
 #[tokio::test]
-async fn a_forgotten_call_whose_turns_hold_no_words_hangs_up_after_a_minute() -> Result<()> {
+async fn a_forgotten_noisy_call_asks_and_then_hangs_up_without_words() -> Result<()> {
     let mut call = Call::open().await?;
     let started = call.started_at_ms()?;
     for burst in 0..5 {
@@ -642,17 +641,13 @@ async fn a_forgotten_call_whose_turns_hold_no_words_hangs_up_after_a_minute() ->
         call.transcribed("").await?;
         assert!(call.alive(), "hung up {} s in", burst * 10);
     }
-    call.frames_at(started + 59_900, 1, false).await?;
-    assert!(call.alive(), "hung up before a minute");
-    call.frames_at(started + 60_000, 1, false).await?;
-    assert!(
-        !call.alive(),
-        "a minute of noise without words kept the call"
-    );
-    assert!(crate::daemon::turn::said::mentions(
-        &call.runtime.state,
-        "idle"
-    ));
+    call.runtime.link.token = None;
+    call.runtime.check_silence_at(started + 50_000).await?;
+    assert!(call.alive());
+    assert!(call.runtime.state.views.silence_questions.call.pending());
+    call.frames_at(started + 65_000, 1, false).await?;
+    call.runtime.check_silence_at(started + 65_000).await?;
+    assert!(!call.alive(), "noise without words never answers");
     Ok(())
 }
 
@@ -782,3 +777,141 @@ async fn a_short_candidate_between_joined_turns_keeps_the_carried_audio() -> Res
 
 #[path = "call_reading_tests.rs"]
 mod reading;
+
+/// Public helper frames and transcription results, no real audio or provider.
+#[tokio::test]
+async fn presence_words_stay_local_and_other_words_are_a_normal_turn() -> Result<()> {
+    for reply in [
+        "sí",
+        "sigo",
+        "aquí",
+        "espera",
+        "mantén",
+        "no cuelgues",
+        "¿Qué hora es?",
+    ] {
+        let mut call = Call::open().await?;
+        let mut hub = call.runtime.link.outbound.open(16);
+        call.runtime.link.token = None; // Notice-only fallback, no speech request.
+        let started = call.started_at_ms()?;
+        call.frames_at(started + 30_000, 1, false).await?;
+        call.runtime.check_silence_at(started + 30_000).await?;
+        assert!(call.runtime.state.views.silence_questions.call.pending());
+        assert!(call.runtime.assistant.read_aloud.is_none());
+        call.runtime.link.token = Some("synthetic-token".into());
+        call.frames_at(started + 31_000, 4, true).await?;
+        call.frames_at(started + 31_400, 8, false).await?;
+        call.transcribed(reply).await?;
+        assert!(call.alive(), "{reply}");
+        assert!(!call.runtime.state.views.silence_questions.call.pending());
+        if reply == "¿Qué hora es?" {
+            assert_eq!(hub.try_recv()?["params"]["text"], reply);
+        } else {
+            assert!(
+                hub.try_recv().is_err(),
+                "presence sent to assistant: {reply}"
+            );
+            assert!(
+                call.runtime
+                    .state
+                    .durable
+                    .assistant
+                    .active_request
+                    .is_none()
+            );
+        }
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn presence_noise_never_answers_and_cuelga_uses_normal_hangup() -> Result<()> {
+    for reply in ["", ".", "Cuelga"] {
+        let mut call = Call::open().await?;
+        let _hub = call.runtime.link.outbound.open(16);
+        call.runtime.link.token = None;
+        let started = call.started_at_ms()?;
+        call.frames_at(started + 30_000, 1, false).await?;
+        call.runtime.check_silence_at(started + 30_000).await?;
+        call.runtime.link.token = Some("synthetic-token".into());
+        call.frames_at(started + 31_000, 4, true).await?;
+        call.frames_at(started + 31_400, 8, false).await?;
+        call.transcribed(reply).await?;
+        if reply != "Cuelga" {
+            assert!(call.alive());
+            assert!(call.runtime.state.views.silence_questions.call.pending());
+            call.frames_at(started + 45_000, 1, false).await?;
+            call.runtime.check_silence_at(started + 45_000).await?;
+        }
+        assert!(!call.alive(), "{reply}");
+        assert!(call.helper_orders().contains(&"audio_stop".into()));
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn silence_question_waits_for_speech_thought_and_mac_action() -> Result<()> {
+    for work in ["speech", "thought", "action"] {
+        let mut call = Call::open().await?;
+        let _hub = call.runtime.link.outbound.open(16);
+        call.runtime.link.token = None;
+        let started = call.started_at_ms()?;
+        call.frames_at(started + 30_000, 1, false).await?;
+        call.runtime.link.token = Some("synthetic-token".into());
+        match work {
+            "speech" => call.frames_over_answer(1, false).await?,
+            "thought" => {
+                call.runtime
+                    .apply(Event::Submit {
+                        id: "thinking-turn".into(),
+                        text: "Resume el plan".into(),
+                        attachments: vec![],
+                    })
+                    .await?
+            }
+            _ => {
+                pending_work(
+                    &mut call.runtime.computer.work,
+                    call.runtime.state.generation(),
+                    (),
+                )?;
+            }
+        }
+        call.runtime.check_silence_at(started + 60_000).await?;
+        assert!(call.alive());
+        assert!(
+            !call.runtime.state.views.silence_questions.call.pending(),
+            "{work}"
+        );
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_questions_own_playback_never_restarts_its_answer_clock() -> Result<()> {
+    let mut call = Call::open().await?;
+    call.runtime.link.token = None;
+    let started = call.started_at_ms()?;
+    call.frames_at(started + 30_000, 1, false).await?;
+    call.runtime.check_silence_at(started + 30_000).await?;
+    // A frame queued before the question finished still says playback_active.
+    // Its later delivery must not turn the question itself into assistant work.
+    let mut queued = call_frame(&call.stream, call.sequence, false);
+    call.sequence += 1;
+    queued["playback_active"] = json!(true);
+    call.runtime
+        .on_native_audio_at(&mut queued, started + 33_000)
+        .await?;
+    call.runtime
+        .native_event(
+            json!({"v":1, "event":"playback_progress", "playback_id":"presence-clip",
+        "state":"played", "playback_active":false}),
+        )
+        .await?;
+    call.runtime.check_silence_at(started + 33_000).await?;
+    assert!(call.runtime.state.views.silence_questions.call.pending());
+    call.frames_at(started + 45_000, 1, false).await?;
+    call.runtime.check_silence_at(started + 45_000).await?;
+    assert!(!call.alive());
+    Ok(())
+}

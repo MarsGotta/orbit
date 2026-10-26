@@ -80,20 +80,11 @@ function show(current: CallSnapshot | null) {
 }
 
 describe("the limits of a call", () => {
-  it("says the minutes left, the silence that hangs up and the shortcut", () => {
-    expect(callLimits(call(), NOW)).toBe(
-      "Quedan 55 min · se cuelga sola tras 1 minuto sin que hables · ⌃⌥D cuelga desde cualquier app",
-    );
-    expect(callLimits(call({ idle_hangup_ms: 90_000 }), NOW)).toContain(
-      "tras 1 min 30 s sin que hables",
-    );
-  });
-
-  it("says the hours left of a call that has them", () => {
-    expect(callLimits(call({ expires_at_ms: NOW + 239 * 60_000 }), NOW)).toMatch(
-      /^Quedan 3 h 59 min · /,
-    );
-    expect(callLimits(call({ expires_at_ms: NOW + 240 * 60_000 }), NOW)).toMatch(/^Quedan 4 h · /);
+  it("explains the question and answer windows regardless of retired duration fields", () => {
+    const words =
+      "Tras 30 s de silencio, te pregunta si seguir; sin respuesta, cuelga en 15 s · ⌃⌥D cuelga desde cualquier app";
+    expect(callLimits()).toBe(words);
+    expect(callLimits()).not.toMatch(/Quedan|límite/);
   });
 });
 
@@ -106,7 +97,7 @@ describe("the call view", () => {
     expect(screen.getByText("Tú: ¿Qué hotel va peor comparado con septiembre?")).toBeTruthy();
     expect(screen.getByText("Ribera Aeropuerto va 16 puntos por debajo.")).toBeTruthy();
     expect(screen.getByText("Puede ver tu pantalla")).toBeTruthy();
-    expect(screen.getByText(/^Quedan 55 min/)).toBeTruthy();
+    expect(screen.getByText(/^Tras 30 s de silencio/)).toBeTruthy();
   });
 
   it("the bars rest while the user speaks", () => {

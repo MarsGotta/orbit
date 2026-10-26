@@ -90,7 +90,7 @@ fn idle_meeting() -> MeetingSnapshot {
         title: None,
         started_at_ms: None,
         ends_at_ms: None,
-        limit_minutes: orbit_core::RECORDING_CEILING_MINUTES,
+        limit_minutes: 0,
         audio: MeetingAudioKind::System,
         tracks: Vec::new(),
         upload: MeetingUploadSnapshot {

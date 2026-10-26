@@ -1,4 +1,3 @@
-import { duration } from "./duration";
 import { macPermissions } from "./permissions";
 import { settingsLists } from "./settingsLists";
 import { globalShortcuts } from "./shortcuts";
@@ -92,10 +91,6 @@ const base = {
     // Grabación y llamadas
     whenCall: "Cuando empieces una videollamada",
     whenCallLabel: "Al detectar una llamada",
-    durations: "Cuánto dura cada cosa",
-    recordingLasts: "Una grabación, la empiece quien la empiece",
-    callLasts: `Una llamada, desde la app o con ${globalShortcuts.call}`,
-    lastsUpTo: (minutes: number) => `hasta ${duration(minutes)}`,
     shortcuts: "Atajos desde cualquier app",
 
     // Asistentes: a summary; each one's own settings are behind its gear.

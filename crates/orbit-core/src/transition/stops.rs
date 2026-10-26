@@ -112,19 +112,10 @@ pub(super) fn call_stop(n: &mut DurableState, cx: &mut Step) {
     }
 }
 
-/// The clock: a discard that will not drain, a call near or at its end,
-/// then the recording's ceiling and its unconfirmed close.
+/// The clock bounds drains and unconfirmed closes, never recording duration.
 pub(super) fn tick(n: &mut DurableState, cx: &mut Step) {
     capture::drain_timed_out(&mut n.capture, cx);
-    if let Some(notice) = n.voice.ceiling_near(cx.now_ms) {
-        cx.say(notice);
-    }
-    if n.voice.expire_call(cx.now_ms) {
-        n.assistant.retire_request();
-        cx.effects([Effect::StopCall, Effect::StopPlayback, Effect::Interrupt]);
-        cx.say(NoticeCode::CallExpired);
-    }
-    capture::tick_ceiling(&mut n.capture, cx);
+    capture::tick_close(&mut n.capture, cx);
 }
 
 /// The helper refused an `audio_start` for a non-stop reason: the capture
@@ -198,3 +189,7 @@ fn capture_refused_notice(reason: &str, otherwise: NoticeCode) -> Notice {
         _ => Notice::new(otherwise).with_token(NoticeKey::Cause, reason),
     }
 }
+
+#[path = "stops/silence.rs"]
+mod silence;
+pub(super) use silence::{retire_questions, silence_event};

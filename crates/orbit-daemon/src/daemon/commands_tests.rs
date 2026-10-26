@@ -95,10 +95,9 @@ async fn a_long_title_refusal_names_the_title_its_length_and_the_maximum() -> Re
     Ok(())
 }
 
-/// Every recording runs to the one safety ceiling, whatever its sender
-/// asked: a duration from an older sender is accepted and has no effect.
+/// Old clients can send a duration; it imposes no deadline.
 #[tokio::test]
-async fn every_recording_runs_to_the_one_safety_ceiling() -> Result<()> {
+async fn retired_recording_duration_cannot_set_a_stop_time() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     runtime
@@ -117,9 +116,9 @@ async fn every_recording_runs_to_the_one_safety_ceiling() -> Result<()> {
         .as_ref()
         .context("recording absent")?;
     assert_eq!(
-        recording.expires_at_ms - recording.started_at_ms,
-        240 * 60_000,
-        "a recording stops only at the safety ceiling"
+        recording.expires_at_ms,
+        i64::MAX,
+        "a recording has no duration ceiling"
     );
     Ok(())
 }

@@ -11,11 +11,11 @@ use crate::model::{CapturePhase, Recording};
 use crate::notice::{Notice, NoticeCode, NoticeKey};
 use crate::refusal::{Expected, Parameter, Refusal};
 
-mod ceiling;
+mod closing;
 mod discard;
 mod meeting;
 
-pub(super) use ceiling::tick_ceiling;
+pub(super) use closing::tick_close;
 pub(super) use discard::{discard, drain_timed_out, settle};
 pub(super) use meeting::{
     cut_closed, empty_closed, finalized, finish, pause, resume, start, started,

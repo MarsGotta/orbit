@@ -206,7 +206,8 @@ impl Runtime {
     ) -> Result<()> {
         self.assistant.voice_operation = None;
         let over_answer = self.audio.take_over_answer_turn(&source.message_id);
-        if text.trim().is_empty() {
+        let no_call_words = self.audio.call.is_some() && !text.chars().any(char::is_alphanumeric);
+        if text.trim().is_empty() || no_call_words {
             // Nothing was heard: noise, silence, or a person who had not
             // finished. Never a failure: the turn leaves no note, and in a
             // call its audio waits for what the user says next.
@@ -231,8 +232,12 @@ impl Runtime {
             });
             return Ok(());
         }
-        // Words keep a call going; sound alone does not (`idle_timeout_ms`).
-        self.audio.note_call_words();
+        // Only transcribed words can answer the presence question.
+        if self.answer_call_presence(&text).await? {
+            self.drop_unheard_voice_note(&source.message_id, "presence_reply")
+                .await?;
+            return Ok(());
+        }
         if let Some(turn) = over_answer
             && !self.accept_over_answer(turn, None).await?
         {
@@ -256,6 +261,10 @@ impl Runtime {
     }
 
     async fn on_work_problem(&mut self, message: String) -> Result<()> {
+        if self.presence_question_speaking() {
+            self.assistant.read_aloud = None;
+            return Ok(()); // The visible notice and its sound remain sufficient.
+        }
         let call_id = self
             .state
             .durable

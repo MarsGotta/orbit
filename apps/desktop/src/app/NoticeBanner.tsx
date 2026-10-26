@@ -14,7 +14,7 @@ export interface NoticeBannerProps {
 export function NoticeBanner({ messages, onAction, onDismiss, onRetry }: NoticeBannerProps) {
   return (
     <>
-      {messages.map(({ op, class: kind, text, action, failure }) => (
+      {messages.map(({ op, class: kind, text, action, actions, failure }) => (
         <Toast
           key={op}
           kind={kind}
@@ -26,11 +26,11 @@ export function NoticeBanner({ messages, onAction, onDismiss, onRetry }: NoticeB
             failure ? (
               <FailureActions failure={failure} onRetry={onRetry} op={op} />
             ) : (
-              action && (
-                <button onClick={() => onAction(action)} type="button">
-                  {action.label}
+              (actions ?? (action ? [action] : undefined))?.map((choice) => (
+                <button key={choice.label} onClick={() => onAction(choice)} type="button">
+                  {choice.label}
                 </button>
-              )
+              ))
             )
           }
         />

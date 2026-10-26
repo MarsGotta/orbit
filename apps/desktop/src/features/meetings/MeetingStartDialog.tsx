@@ -35,10 +35,9 @@ export function MeetingStartDialog(props: MeetingStartDialogProps) {
   const start = useStart(snapshot, { error, onErrorDismiss }, onClose);
   const blockerId = useId();
   const statusId = useId();
-  const { meeting, system_timezone: zone } = snapshot;
+  const { system_timezone: zone } = snapshot;
   const blocker = startBlocker(snapshot, choice.field.source);
   const { audio } = choice;
-  const limitUntil = clock(now + meeting.limit_minutes * 60_000, zone);
   const footer = (
     <StartFooter
       describedBy={blocker ? blockerId : audio === null ? statusId : undefined}
@@ -75,7 +74,7 @@ export function MeetingStartDialog(props: MeetingStartDialogProps) {
           title={title}
         />
         <AudioSourceField {...choice.field} statusId={statusId} />
-        <p className={styles.meta}>{es.meeting.limit(meeting.limit_minutes, limitUntil)}</p>
+        <p className={styles.meta}>{es.meeting.limit}</p>
         {start.refusal !== null && (
           <p className={styles.refusal} role="alert">
             {start.refusal}

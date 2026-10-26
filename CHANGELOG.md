@@ -7,6 +7,18 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Changed
+
+- Calls and meeting recordings have no four-hour ceiling or ten-minute warning.
+  Calls ask after 30 seconds without conversation or assistant work and hang up
+  after 15 unanswered seconds; short presence replies stay local. Recordings
+  ask after two minutes of quiet on both sides and finish and save after 30
+  unanswered seconds. Voice or «Seguir» keeps them going; missing observations
+  keep a recording open. Muting the microphone counts only the meeting audio.
+  Recording silence uses the call speech threshold (500 RMS S16), so ordinary
+  room noise does not keep a forgotten recording open. Mac real-test check 19
+  verifies an unanswered question saves the meeting and its hub chunks.
+
 ## [0.12.3] - 2026-10-26
 
 A hub-only release: the Mac app stays at 0.12.2.

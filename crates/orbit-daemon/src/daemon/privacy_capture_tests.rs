@@ -855,11 +855,9 @@ async fn an_evicted_audio_stop_ack_still_cuts_and_closes_the_microphone() {
     assert!(!notice.contains("No se corta nada"), "{notice}");
 }
 
-/// Expiry is capture upkeep because applying `Tick` sends the
-/// capture's `audio_stop`. A delivery deadline names that order and 500 ms in
-/// Spanish, then the whole-capture stop is retried once the helper drains.
+/// A retired deadline must not send even a failed stop to a stalled helper.
 #[tokio::test]
-async fn tick_expiry_with_a_stalled_audio_stop_closes_the_microphone() {
+async fn retired_expiry_never_stops_audio_even_when_the_helper_is_stalled() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -879,25 +877,23 @@ async fn tick_expiry_with_a_stalled_audio_stop_closes_the_microphone() {
     runtime.helper.sender = stalled_native;
 
     runtime.run_maintenance().await;
-    let notice = said(&runtime).join(" | ");
-    assert!(notice.contains("audio_stop"), "{notice}");
-    assert!(notice.contains("500 ms"), "{notice}");
-    assert!(!notice.contains("deadline has elapsed"), "{notice}");
-    assert!(!notice.contains("No se corta nada"), "{notice}");
-    assert!(runtime.state.capabilities().native_helper());
     assert!(stalled.try_recv().is_ok());
-
-    let (native, mut recovered) = mpsc::channel(8);
-    runtime.helper.sender = native;
-    runtime.run_maintenance().await;
-    let cut =
-        crate::daemon::audio::tests::take_helper_command(&mut recovered, "capture_stop").unwrap();
-    runtime
-        .handle_native_event(json!({"event":"response","id":cut["id"],"ok":true,
-            "result":{"drain_complete":true}}))
-        .await;
-    assert!(runtime.audio.mic_stream.is_none());
-    assert!(!runtime.audio.audio_is_draining());
+    assert!(
+        stalled.try_recv().is_err(),
+        "a retired deadline sent an audio stop"
+    );
+    assert!(runtime.audio.mic_stream.is_some());
+    assert_eq!(
+        runtime
+            .state
+            .durable
+            .capture
+            .recording
+            .as_ref()
+            .unwrap()
+            .phase,
+        orbit_core::CapturePhase::Recording
+    );
 }
 
 #[tokio::test]

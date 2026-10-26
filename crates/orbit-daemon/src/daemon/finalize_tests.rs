@@ -818,7 +818,7 @@ async fn second_refusal_keeps_first_cause_and_wait_notice() -> Result<()> {
 }
 
 #[tokio::test]
-async fn expiry_closes_empty_capture_and_admits_call() -> Result<()> {
+async fn retired_expiry_keeps_an_empty_capture_without_observations() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, _receiver) = fixture(directory.path())?;
     // This test has no hub token: keep the closure's unrelated upload worker
@@ -852,42 +852,18 @@ async fn expiry_closes_empty_capture_and_admits_call() -> Result<()> {
         .recording
         .as_ref()
         .context("recording absent")?;
-    assert_eq!(recording.phase, CapturePhase::Interrupted);
-    assert!(
-        recording.ended_at_ms.is_some(),
-        "expired empty capture stayed open"
-    );
-    let closure = runtime
-        .fixture_store
-        .get_job("finalize-expired")?
-        .context("closure absent")?;
-    assert_eq!(
-        closure.payload["interruption"]["cause"],
-        "recording_expired"
-    );
-    assert!(
-        said::has(&runtime.state, NoticeCode::RecordingCeilingReached),
-        "{:?}",
-        runtime.state.durable.notice_log
-    );
-    let ceiling = runtime
-        .state
-        .durable
-        .notice_log
-        .records()
-        .iter()
-        .find(|notice| notice.code == NoticeCode::RecordingCeilingReached)
-        .context("ceiling notice")?;
-    assert_eq!(
-        ceiling.data.get(&orbit_core::notice::NoticeKey::Minutes),
-        Some(&orbit_core::notice::DataValue::Int(0))
-    );
-    admit_call_after_empty_capture(&mut runtime, "after-expiry").await?;
+    assert_eq!(recording.phase, CapturePhase::Recording);
+    assert_eq!(recording.ended_at_ms, None);
+    assert!(runtime.fixture_store.get_job("finalize-expired")?.is_none());
+    assert!(!said::has(
+        &runtime.state,
+        NoticeCode::RecordingCeilingReached
+    ));
     Ok(())
 }
 
 #[tokio::test]
-async fn live_expiry_closes_after_the_empty_audio_drain() -> Result<()> {
+async fn silence_timeout_closes_after_the_whole_normal_audio_drain() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
     start(&mut runtime, &mut receiver, "live-expired").await?;
@@ -895,16 +871,7 @@ async fn live_expiry_closes_after_the_empty_audio_drain() -> Result<()> {
         let fixture_value = serde_json::json!(orbit_core::Connection::Offline);
         crate::daemon::authority_fixture::set(&mut runtime.state, "connection", fixture_value);
     }
-    runtime
-        .state
-        .durable
-        .capture
-        .recording
-        .as_mut()
-        .context("recording absent")?
-        .expires_at_ms = 0;
-
-    runtime.run_maintenance().await;
+    crate::daemon::silence::finish_silent_meeting_fixture(&mut runtime).await?;
     let stop = receive_helper_command(&mut receiver, "audio_stop").await?;
     assert_eq!(
         runtime
@@ -936,9 +903,11 @@ async fn live_expiry_closes_after_the_empty_audio_drain() -> Result<()> {
         .fixture_store
         .get_job("finalize-live-expired")?
         .context("closure absent")?;
-    assert_eq!(
-        closure.payload["interruption"]["cause"],
-        "recording_expired"
+    assert!(
+        closure
+            .payload
+            .get("interruption")
+            .is_none_or(serde_json::Value::is_null)
     );
     admit_call_after_empty_capture(&mut runtime, "after-live-expiry").await?;
     Ok(())

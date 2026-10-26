@@ -74,7 +74,7 @@ fn projects_pending_call_and_voice_note_from_topic_frames() {
             "speaking": true,
             "expires_at_ms": 1_700_003_600_000_i64,
             "origin": "app",
-            "idle_hangup_ms": 60_000,
+            "idle_hangup_ms": 45_000,
         })
     );
 

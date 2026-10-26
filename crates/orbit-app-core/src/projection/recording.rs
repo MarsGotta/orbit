@@ -252,8 +252,8 @@ fn project_meeting_parts(
         recording_id: recording.map(|recording| recording.id.clone()),
         title: recording.map(|recording| recording.title.clone()),
         started_at_ms: recording.map(|recording| recording.started_at_ms),
-        ends_at_ms: recording.map(|recording| recording.expires_at_ms),
-        limit_minutes: orbit_core::RECORDING_CEILING_MINUTES,
+        ends_at_ms: None,
+        limit_minutes: 0,
         audio,
         tracks: project_tracks(recording, signal),
         upload: MeetingUploadSnapshot {

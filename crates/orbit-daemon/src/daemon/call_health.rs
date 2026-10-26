@@ -25,19 +25,12 @@ impl Runtime {
         else {
             return Ok(());
         };
-        let authorized = Duration::from_millis(
-            call.authorization
-                .expires_at_ms
-                .saturating_sub(call.authorization.started_at_ms) as u64,
-        );
         // A frame still in the loop's queue was sent; absence is judged only
         // once nothing is waiting.
         let no_audio =
             call.last_audio.elapsed() > CALL_AUDIO_SILENCE_LIMIT && call.queued_native_events == 0;
         let reason = if no_audio {
             StopReason::NoAudio
-        } else if call.started.elapsed() >= authorized {
-            StopReason::Expired
         } else {
             return Ok(());
         };
@@ -57,7 +50,7 @@ impl Runtime {
         let limit_ms = if reason == StopReason::NoAudio {
             CALL_AUDIO_SILENCE_LIMIT.as_millis().to_string()
         } else {
-            VoicePolicy::default().idle_timeout_ms.to_string()
+            orbit_core::silence::CALL_SILENCE_MS.to_string()
         };
         self.log(
             "call_stopped_idle",

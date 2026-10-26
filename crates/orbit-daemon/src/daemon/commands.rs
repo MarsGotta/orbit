@@ -60,6 +60,8 @@ macro_rules! recording_orders {
             | Command::VoiceRetry { .. }
             | Command::VoiceDiscard { .. }
             | Command::CallStart { .. }
+            | Command::CallKeep
+            | Command::MeetingKeep
             | Command::CallStop
             | Command::MeetingStart { .. }
             | Command::MeetingPause

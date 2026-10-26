@@ -13,6 +13,7 @@ import json
 
 from mac_controls import CONTROL_WAITS, MacFailure, notes_list
 from mac_drafts_panel import PANEL_WAITS
+from mac_silence import silence_question
 
 
 def _value(known: dict | None):
@@ -249,6 +250,8 @@ WAITS = {
     "session": (("assistant",), session, None),
     "voice-note": (("assistant",), voice_note, None),
     "call-listening": (("assistant",), call_listening, None),
+    "silence-question": (("recording", "notices"), silence_question, None),
+    "silence-saved": (("recording", "notes"), saved, notes_list),
     **CONTROL_WAITS,
     **PANEL_WAITS,
 }

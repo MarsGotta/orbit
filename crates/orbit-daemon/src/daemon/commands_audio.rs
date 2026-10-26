@@ -17,6 +17,8 @@ impl Runtime {
             Command::CallStart { duration_minutes } => {
                 self.call_start_command(duration_minutes).await?
             }
+            Command::CallKeep => self.keep_call_command().await?,
+            Command::MeetingKeep => self.apply(Event::RecordingKeep).await?,
             Command::CallStop => self.apply(Event::CallStop).await?,
             Command::MeetingStart {
                 title,

@@ -8,14 +8,9 @@ import { mmss } from "../../time-format";
 import { useNow } from "../../use-now";
 import styles from "./Call.module.css";
 
-/**
- * The limits of a call, in view before they are reached: the whole minutes
- * left before it hangs up at its ceiling, the user's silence that hangs it
- * up, and the shortcut that hangs up from any app.
- */
-export function callLimits(call: CallSnapshot, nowMs: number): string {
-  const minutesLeft = Math.max(0, Math.floor((call.expires_at_ms - nowMs) / 60_000));
-  return es.call.limits(minutesLeft, call.idle_hangup_ms);
+/** The pause and answer window, without an overall call duration. */
+export function callLimits(): string {
+  return es.call.limits;
 }
 
 /** The bars that move only while the agent speaks; still while the user does. */
@@ -136,7 +131,7 @@ export function CallView({
             {copy.design.hangUp}
           </Button>
         </div>
-        {call !== null && <p className={styles.limits}>{callLimits(call, now)}</p>}
+        {call !== null && <p className={styles.limits}>{callLimits()}</p>}
       </div>
     </section>
   );

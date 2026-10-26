@@ -145,18 +145,14 @@ VOICE_NOTE = "Deimos, contesta sólo con la palabra recibido."
 # which check 11 names; it never makes the check pass.
 BEAT_BEFORE_SPEAKING_S = 0.5
 BEAT_AFTER_SPEAKING_S = 0.7
-# A call's length when it starts (`call_start`, 1..240 minutes). Two minutes
-# cover the wait for «listening» (30 s, real_test.py bounds) plus the SSH margin
-# of that wait and of the `call_stop` after it (SSH_MARGIN_S, 30 s each);
-# `call_stop` ends it well before, and a call that outlived the step would
-# end by itself, not stay open.
-CALL_MINUTES = 2
+# Calls have no duration ceiling. The harness explicitly hangs up; an
+# unanswered silence question is the fallback, using the Mac's own policy.
 # The commands the test sends besides `pair`, and their bodies
 # (orbit_core::protocol::Command).
 COMMANDS = {
     "voice_start": {"command": "voice_start"},
     "voice_end": {"command": "voice_end"},
-    "call_start": {"command": "call_start", "duration_minutes": CALL_MINUTES},
+    "call_start": {"command": "call_start"},
     "call_stop": {"command": "call_stop"},
 }
 # The daemon.log events the test brings back (call.rs): the call's

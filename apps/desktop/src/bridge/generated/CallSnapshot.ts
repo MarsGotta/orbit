@@ -6,8 +6,7 @@ import type { CallOrigin } from "./CallOrigin";
  */
 export type CallSnapshot = { started_at_ms: number, seeing_screen: boolean, last_line: string | null, speaking: boolean, voice_unavailable?: boolean, 
 /**
- * When the call hangs up by itself at its ceiling (Unix ms): the
- * interface counts «quedan 55 min» down to it.
+ * Retired deadline field, kept for compatibility; only elapsed time is shown.
  */
 expires_at_ms: number, 
 /**
@@ -20,8 +19,7 @@ origin: CallOrigin,
  */
 agent_id?: string, 
 /**
- * The user's silence that hangs it up by itself («se cuelga sola
- * tras 1 minuto sin que hables»), from orbit-core's voice policy.
+ * Earliest hangup without an answer: quiet interval plus answer window.
  */
 idle_hangup_ms: number, 
 /**
