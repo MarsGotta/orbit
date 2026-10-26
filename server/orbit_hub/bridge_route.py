@@ -268,20 +268,25 @@ class BridgeService:
             )
         return request
 
+    def _device_frame(self, request, request_id):
+        # The authenticated id has already replaced the caller's claim. Take
+        # the name from the hub registry, including the operator's default.
+        agent = self.access.agent(request.agent_id) if self.access is not None else None
+        return emit(
+            "device.request",
+            {
+                "request_id": request_id,
+                "capability": request.capability,
+                "parameters": request.parameters,
+                **({"agent": {"id": agent.id, "name": agent.name}} if agent else {}),
+            },
+        )
+
     async def _question(self, request, request_id, runtime, waiter) -> dict:
         """Put the question to the Mac and wait, bounded, for its answer."""
         started_waiting = self.monotonic()
         try:
-            await runtime.publish(
-                emit(
-                    "device.request",
-                    {
-                        "request_id": request_id,
-                        "capability": request.capability,
-                        "parameters": request.parameters,
-                    },
-                )
-            )
+            await runtime.publish(self._device_frame(request, request_id))
             answer = await asyncio.wait_for(waiter, REQUEST_TIMEOUT_SECONDS)
             # A real reply is stronger activity evidence than an open socket.
             # Keep the durable inventory current for both answers and refusals.
@@ -339,16 +344,7 @@ class BridgeService:
         payload = request.model_dump(mode="json")
         self.store.operations.reserve(request.device_id, request_id, payload)
         try:
-            await runtime.publish(
-                emit(
-                    "device.request",
-                    {
-                        "request_id": request_id,
-                        "capability": request.capability,
-                        "parameters": request.parameters,
-                    },
-                )
-            )
+            await runtime.publish(self._device_frame(request, request_id))
         except Exception:  # noqa: BLE001 - persist a fixed outcome, never exception text
             report(
                 event="device_action_publish_failed",

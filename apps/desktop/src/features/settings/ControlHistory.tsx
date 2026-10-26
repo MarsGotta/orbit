@@ -70,6 +70,8 @@ export function ControlHistory({ control }: { control?: ComputerControlSnapshot 
   const unreadable =
     control.history.length === 0 && control.history_error != null && control.history_error !== "";
   const now = Date.now();
+  const showAgents =
+    new Set(control.history.flatMap((entry) => (entry.agent ? [entry.agent.id] : []))).size > 1;
   return (
     <List>
       {problem !== null && (
@@ -87,6 +89,7 @@ export function ControlHistory({ control }: { control?: ComputerControlSnapshot 
         return (
           <div className={styles.history} key={entry.operation_id}>
             <span className={styles.historyApp}>{entry.application}</span>
+            {showAgents && entry.agent && <span className={styles.meta}>{entry.agent.name}</span>}
             <span className={styles.historyAsked}>{entry.requested}</span>
             <span className={styles.meta}>{historyTime(entry.at_ms, now)}</span>
             <span className={styles.historyOutcome} data-tone={outcome.tone}>

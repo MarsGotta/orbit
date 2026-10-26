@@ -23,7 +23,7 @@ store/
   orbit.sqlite3           SQLite database, plus WAL/SHM
   chunks/                 encrypted file per audio chunk
 cua/                      engine socket and temporary desktop screenshot
-computer-control.json     control history, at most 256 rows
+computer-control.json     control history, at most 256 rows and 256 KiB
 logs/                     daemon.log, report-daemon.log, report-app.log, updates.log (1 MiB each)
 ```
 

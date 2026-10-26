@@ -29,10 +29,11 @@ impl Runtime {
         &mut self,
         call: ToolCall,
         channel: &str,
+        agent: Option<orbit_core::computer_control::ControlAgent>,
     ) -> std::result::Result<(), ComputerStartError> {
         let call = self.computer.engine_tool_call(call)?;
         let authority = self.admit_engine_tool(&call)?;
-        let operation_id = self.record_tool_attempt(&call, channel)?;
+        let operation_id = self.record_tool_attempt(&call, channel, agent)?;
         let mut service = self
             .computer
             .service
@@ -116,6 +117,7 @@ impl Runtime {
         &mut self,
         call: &ToolCall,
         channel: &str,
+        agent: Option<orbit_core::computer_control::ControlAgent>,
     ) -> std::result::Result<String, ComputerStartError> {
         let operation_id = id();
         let history = ControlHistoryEntry::new(
@@ -126,6 +128,7 @@ impl Runtime {
             ControlOutcome::Unknown,
         )
         .and_then(|entry| entry.from_channel(channel))
+        .and_then(|entry| entry.from_agent(agent))
         .map_err(|_| ComputerStartError::InvalidHistory)?;
         self.upsert_control_history(history.clone())
             .map_err(ComputerStartError::Storage)?;

@@ -371,6 +371,14 @@ the stored message and public events retain only the original text.
 same connection; the current adapter performs no destructive prompt probe and
 therefore submits once without the field.
 
+Every `device.request` event includes optional `agent: {id, name}` metadata.
+The hub resolves it from the authenticated bridge credential and its agent
+registry, never from a caller-supplied display name. The operator's key keeps
+its configured agent selection (the default when omitted). The Mac preserves
+this identity and the name at request time in action history. Events from older
+hubs omit `agent`; Macs treat that absence as an unknown author, not as the
+current default assistant. Older Macs ignore this additive field.
+
 An answered or refused `/internal/v1/device/request` updates the active device's
 durable `last_seen`; a timeout does not fabricate activity.
 

@@ -1,5 +1,8 @@
 //! One synthetic MCP peer for catalogue, permissions, captures and desktop files.
 use super::*;
+
+// A declared tool at the production name ceiling, for history budget tests.
+pub(super) const LONG_TOOL: &str = "fixture_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 use base64::Engine as _;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -154,7 +157,7 @@ impl FakeEngine {
                                 }
                             }
                             "launch_app" | "bring_to_front" | "click" | "type_text"
-                            | "press_key" | "scroll" | INVENTED_TOOL => {
+                            | "press_key" | "scroll" | INVENTED_TOOL | LONG_TOOL => {
                                 if self.hang_input {
                                     continue;
                                 }

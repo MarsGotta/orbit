@@ -119,11 +119,36 @@ where
     Ok(serde_json::from_value(serde_json::Value::String(word)).unwrap_or(ControlOutcome::Unknown))
 }
 
+/// The hub-authenticated author, named as it was when the action was asked.
+/// At most 256 serialized bytes keep twenty authors within 5 KiB of the
+/// control topic. This fits a hub id (32 ASCII bytes), a 48-scalar Unicode
+/// name (up to 192 bytes), and JSON; it does not limit assistant profiles.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+)]
+pub struct ControlAgent {
+    pub id: String,
+    pub name: String,
+}
+
+impl ControlAgent {
+    pub fn is_valid(&self) -> bool {
+        bounded_plain(&self.id, 256)
+            && bounded_plain(&self.name, 256)
+            && serde_json::to_vec(self).is_ok_and(|bytes| bytes.len() <= 256)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 // Not `deny_unknown_fields`: entries recorded with the retired frictionless
 // marker keep their place in the record rather than invalidating the file.
 pub struct ControlHistoryEntry {
     pub operation_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent: Option<ControlAgent>,
     pub requested: String,
     pub application: String,
     #[serde(default = "unknown_channel")]
@@ -143,6 +168,7 @@ impl ControlHistoryEntry {
     ) -> Result<Self, &'static str> {
         let value = Self {
             operation_id: operation_id.into(),
+            agent: None,
             requested: requested.into(),
             application: application.into(),
             channel: "local".into(),
@@ -157,11 +183,21 @@ impl ControlHistoryEntry {
     }
 
     pub fn is_valid(&self) -> bool {
-        bounded_plain(&self.operation_id, 128)
+        self.agent.as_ref().is_none_or(ControlAgent::is_valid)
+            && bounded_plain(&self.operation_id, 128)
             && bounded_plain(&self.requested, MAX_TOOL_NAME_BYTES)
             && bounded_plain(&self.application, 256)
             && bounded_plain(&self.channel, MAX_CONTROL_CHANNEL_BYTES)
             && self.at_ms >= 0
+    }
+
+    pub fn from_agent(mut self, agent: Option<ControlAgent>) -> Result<Self, &'static str> {
+        self.agent = agent;
+        if self.is_valid() {
+            Ok(self)
+        } else {
+            Err("invalid control history agent")
+        }
     }
 
     pub fn from_channel(mut self, channel: &str) -> Result<Self, &'static str> {

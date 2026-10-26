@@ -98,6 +98,7 @@ fn from_topic(
         history: history
             .iter()
             .map(|entry| crate::ControlHistorySnapshot {
+                agent: entry.agent.clone(),
                 operation_id: entry.operation_id.clone(),
                 requested: entry.requested.clone(),
                 application: entry.application.clone(),
@@ -413,6 +414,41 @@ mod topic_tests {
         assert_eq!(view.history[0].outcome, "unknown");
         assert_eq!(view.stage, "", "no stage names on the topic path");
         assert!(view.engine_tools.is_empty());
+    }
+
+    #[test]
+    fn action_authors_reach_the_app_view_from_the_control_topic() {
+        let snapshot = crate::AppSnapshot::empty(1, crate::DaemonConnection::Ready);
+        let mut head = ready_head();
+        let TopicData::Control(Knowledge::Present { value, .. }) = &mut head else {
+            panic!("control fixture");
+        };
+        let Knowledge::Present { value: history, .. } = &mut value.history else {
+            panic!("history fixture");
+        };
+        history.recent = [
+            serde_json::json!({"id":"atlas", "name":"Atlas"}),
+            serde_json::json!({"id":"vega", "name":"Vega"}),
+        ]
+        .into_iter()
+        .map(|agent| {
+            let mut entry = serde_json::to_value(history_entry().expect("history fixture"))
+                .expect("serialized history fixture");
+            entry["agent"] = agent;
+            serde_json::from_value(entry).expect("attributed history fixture")
+        })
+        .collect();
+        let topics = cache_with_control(head);
+        let view = project(&input(&snapshot, &topics)).expect("control view");
+        let encoded = serde_json::to_value(view).expect("serialized control view");
+        assert_eq!(
+            encoded["history"][0]["agent"],
+            serde_json::json!({"id":"atlas", "name":"Atlas"})
+        );
+        assert_eq!(
+            encoded["history"][1]["agent"],
+            serde_json::json!({"id":"vega", "name":"Vega"})
+        );
     }
 
     #[test]

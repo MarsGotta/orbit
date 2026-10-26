@@ -23,19 +23,19 @@ use serde::{Deserialize, Serialize};
 /// subscriber's frame allocation and actor serialization time, using the
 /// measured payloads; none limits stored data or grants permission.
 ///
-/// Twenty control rows use 4 KiB, and the assistant's folders at their
-/// costliest (eight 1024-byte paths of control characters, six bytes each
-/// once escaped, with their causes) about 51 KiB: 80 KiB holds both
+/// Twenty control rows with bounded authors, and the assistant's folders at
+/// their costliest (eight 1024-byte paths of control characters, six bytes
+/// each once escaped, with their causes) fit together within 80 KiB
 /// (`maximal_recent_record_fits_the_control_topic_ceiling`). It excludes
 /// the paged tool catalog and limits neither the record nor the files.
 pub const MAX_BYTES: usize = 80 * 1024;
 /// Published as soon as it changes.
 pub const MIN_INTERVAL_MS: u64 = 0;
 
-/// How many history entries the head carries. An entry measured 203 B, so
-/// twenty fill ~4 KiB of the 16 KiB ceiling; this bounds the frame the daemon
-/// republishes on every control change, not the record, whose
-/// 256 entries (50.7 KiB measured) are the paged `ControlHistory` read.
+/// How many history entries the head carries. Twenty leave room for folders
+/// within the topic ceiling, including authors (see the maximal-head test).
+/// This bounds each published frame, not the durable record; its remaining
+/// entries are available through the paged `ControlHistory` read.
 pub const RECENT_HISTORY: usize = 20;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -351,12 +351,17 @@ mod tests {
         let entry = ControlHistoryEntry::new(
             &"i".repeat(128),
             &"r".repeat(128),
-            &"a".repeat(256),
+            &"\"".repeat(256),
             1_000,
             crate::computer_control::ControlOutcome::Performed,
         )
         .map_err(std::io::Error::other)?
         .from_channel(&"c".repeat(64))
+        .map_err(std::io::Error::other)?
+        .from_agent(Some(crate::computer_control::ControlAgent {
+            id: "i".repeat(128),
+            name: "\"".repeat(48),
+        }))
         .map_err(std::io::Error::other)?;
         let data = crate::topics::TopicData::Control(Knowledge::Present {
             value: Value {

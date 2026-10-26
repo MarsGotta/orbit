@@ -259,6 +259,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         (
             "device.request",
             event(HubEventKind::DeviceRequest(DeviceRequestData {
+                agent: None,
                 request_id: "device-1".into(),
                 request: BridgeRequest::Screenshot {
                     parameters: ScreenshotParameters::default(),

@@ -49,6 +49,9 @@ app_type! {
 
 app_type! {
     pub struct ControlHistorySnapshot {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub agent: Option<orbit_core::computer_control::ControlAgent>,
         pub operation_id: String,
         pub requested: String,
         pub application: String,

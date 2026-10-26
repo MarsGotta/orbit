@@ -15,10 +15,15 @@ by the helper as three-valued knowledge.
 Authorization is not per application and does not expire. There is no shortlist,
 frictionless mode or per-action confirmation.
 
-Private `computer-control.json` retains at most 256 history rows: operation ID,
-requested tool, application, time and outcome (`performed`, `cancelled`, `unknown`
-or `failed`). It contains no arguments, typed text, conversations or credentials.
-An outcome unknown to this version reads as `unknown`.
+Private `computer-control.json` retains the newest rows within both 256 entries
+and 256 KiB: operation ID, requested tool, application, channel, optional
+hub-authenticated agent (`id`, `name`), time and outcome (`performed`,
+`cancelled`, `unknown` or `failed`). It contains no arguments, typed text,
+conversations or credentials.
+An outcome unknown to this version reads as `unknown`. Entries written before
+agent attribution remain readable with no author; no default is inferred.
+The display name is the one supplied by the hub when the request arrived, so
+renaming or removing an assistant does not relabel earlier actions.
 
 Permission withdrawal/privacy stop first removes live authority, aborts the
 worker and clears pending preparations. Neither path repeats input with an

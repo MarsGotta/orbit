@@ -2,6 +2,10 @@
 //! recorded before it is made, with its outcome once known.
 use super::*;
 
+// Bounds the private file's read allocation and atomic writes, not the number
+// of actions an assistant can perform. Retain newest rows within both budgets.
+const MAX_CONTROL_STATE_BYTES: usize = 256 * 1024;
+
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct DurableControlState {
@@ -35,7 +39,7 @@ impl Runtime {
             }
             Err(error) => return Err(error.into()),
         };
-        if bytes.len() > 256 * 1024 {
+        if bytes.len() > MAX_CONTROL_STATE_BYTES {
             bail!("El estado local de control supera 256 KiB");
         }
         let value: DurableControlState = serde_json::from_slice(&bytes)?;
@@ -56,7 +60,7 @@ impl Runtime {
             bail!("El estado local de control no es válido");
         }
         let bytes = serde_json::to_vec(value)?;
-        if bytes.len() > 256 * 1024 {
+        if bytes.len() > MAX_CONTROL_STATE_BYTES {
             bail!("El estado local de control supera 256 KiB");
         }
         crate::config::atomic_private_write(&self.control_state_path(), &bytes)
@@ -76,6 +80,11 @@ impl Runtime {
             state.history.insert(0, entry);
         }
         state.history.truncate(MAX_CONTROL_HISTORY);
+        let mut bytes = serde_json::to_vec(&state)?.len();
+        while bytes > MAX_CONTROL_STATE_BYTES {
+            let oldest = state.history.pop().context("control history size")?;
+            bytes -= serde_json::to_vec(&oldest)?.len() + usize::from(!state.history.is_empty());
+        }
         self.save_control_state(&state)
     }
 }

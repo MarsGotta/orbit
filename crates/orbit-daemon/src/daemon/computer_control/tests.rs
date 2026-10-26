@@ -110,6 +110,7 @@ async fn general_worker_checks_revocation_before_calling_the_tool() -> Result<()
                 arguments: json!({"bundle_id":"com.example.fixture"}),
             },
             "fixture",
+            None,
         )?;
         let authority = h
             .runtime
@@ -148,6 +149,7 @@ async fn other_revocation_answers_remote_action_with_its_cause() -> Result<()> {
         .assistant
         .bridge_requests
         .put(super::super::BridgeAsk {
+            agent: None,
             for_attachment: false,
             id: "remote-revocation".into(),
             capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -190,6 +192,7 @@ async fn computer_retirement_keeps_non_control_bridge_requests() -> Result<()> {
             .assistant
             .bridge_requests
             .put(super::super::BridgeAsk {
+                agent: None,
                 for_attachment: false,
                 id: "unrelated-reading".into(),
                 capability,
@@ -241,6 +244,7 @@ async fn each_authority_revocation_answers_deimos_with_its_cause() -> Result<()>
             .assistant
             .bridge_requests
             .put(super::super::BridgeAsk {
+                agent: None,
                 for_attachment: false,
                 id: "authority-change".into(),
                 capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -286,6 +290,7 @@ async fn engine_refusal_reports_full_and_retired_hub() -> Result<()> {
     let logs = tempfile::tempdir()?;
     said::trace(&mut h.runtime, logs.path());
     let ask = super::super::BridgeAsk {
+        agent: None,
         for_attachment: false,
         id: "engine-refusal".into(),
         capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -523,6 +528,7 @@ async fn an_engine_tool_requires_macos_accessibility() -> Result<()> {
                 arguments: json!({"bundle_id": "com.apple.calculator"}),
             },
             "fixture",
+            None,
         )
         .err()
         .context("without Accessibility nothing runs")?
@@ -547,6 +553,7 @@ async fn an_engine_tool_requires_macos_accessibility() -> Result<()> {
             arguments: json!({"bundle_id": "com.apple.calculator"}),
         },
         "fixture",
+        None,
     )?;
     h.finish().await?;
     assert_eq!(h.calls("launch_app"), 1);
@@ -570,6 +577,7 @@ impl Mac {
                 arguments: json!({"bundle_id": "com.example.fixture"}),
             },
             "fixture",
+            None,
         )?;
         tokio::time::timeout(Duration::from_secs(1), async {
             while self.calls("launch_app") == 0 {
@@ -863,6 +871,7 @@ async fn real_engine_failure_handler_never_replies_with_system_text() -> Result<
         .assistant
         .bridge_requests
         .put(super::super::BridgeAsk {
+            agent: None,
             for_attachment: false,
             id: "engine-error".into(),
             capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -907,6 +916,7 @@ async fn failed_active_action_replies_with_uncertain_outcome() -> Result<()> {
             .assistant
             .bridge_requests
             .put(super::super::BridgeAsk {
+                agent: None,
                 for_attachment: false,
                 id: "11111111-1111-4111-8111-111111111111".into(),
                 capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -979,6 +989,7 @@ async fn an_engine_failure_leaves_its_cause_and_a_report_line() -> Result<()> {
         .assistant
         .bridge_requests
         .put(super::super::BridgeAsk {
+            agent: None,
             for_attachment: false,
             id: "whole-window-read".into(),
             capability: orbit_core::device_bridge::Capability::PerformAction,
@@ -997,7 +1008,7 @@ async fn an_engine_failure_leaves_its_cause_and_a_report_line() -> Result<()> {
         orbit_core::notice::ReportSource::Daemon,
     );
     h.runtime
-        .call_engine_tool(call, "fixture")
+        .call_engine_tool(call, "fixture", None)
         .map_err(|error| anyhow::anyhow!("{error:?}"))?;
     h.finish().await?;
 
@@ -1087,3 +1098,117 @@ fn permission_reason(runtime: &Runtime) -> String {
 
 #[path = "engine_exit_tests.rs"]
 mod engine_exit_tests;
+
+#[tokio::test]
+async fn remote_actions_keep_each_agent_in_durable_history() -> Result<()> {
+    let mut h = Mac::new(false).await?;
+    let agents = [
+        json!({"id":"atlas", "name":"Atlas"}),
+        json!({"id":"vega", "name":"Vega"}),
+        Value::Null,
+    ];
+    for (index, agent) in agents.iter().enumerate() {
+        let mut request = json!({"request_id":format!("remote-{index}"),
+        "capability":"perform_action", "parameters":{"action":{
+            "tool":"launch_app", "arguments":{"bundle_id":"com.example.fixture"}
+        }}});
+        if !agent.is_null() {
+            request["agent"] = agent.clone();
+        }
+        h.runtime.device_request_raw(&request).await?;
+        h.finish().await?;
+        let page = crate::daemon::reads::dispatch(
+            &mut h.runtime,
+            orbit_core::reads::ReadRequest::ControlHistory { cursor: None },
+            1,
+        );
+        let orbit_core::topics::Knowledge::Present { value, .. } = page else {
+            bail!("history must remain readable");
+        };
+        assert_eq!(value.items[0]["agent"], *agent);
+        assert_eq!(value.items[0]["outcome"], "performed");
+    }
+    let bytes = std::fs::read(h.runtime.control_state_path())?;
+    let stored: Value = serde_json::from_slice(&bytes)?;
+    for (entry, agent) in stored["history"]
+        .as_array()
+        .context("history")?
+        .iter()
+        .zip(agents.iter().rev())
+    {
+        assert_eq!(entry["agent"], *agent);
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn history_written_before_agent_attribution_is_still_readable() -> Result<()> {
+    let mut h = Mac::new(false).await?;
+    std::fs::write(
+        h.runtime.control_state_path(),
+        serde_json::to_vec(&json!({
+            "schema":1, "history":[{"operation_id":"old-action", "requested":"launch_app",
+                "application":"com.example.fixture", "at_ms":1, "outcome":"performed"}]
+        }))?,
+    )?;
+    let page = crate::daemon::reads::dispatch(
+        &mut h.runtime,
+        orbit_core::reads::ReadRequest::ControlHistory { cursor: None },
+        1,
+    );
+    let orbit_core::topics::Knowledge::Present { value, .. } = page else {
+        bail!("old history must load");
+    };
+    assert_eq!(value.items.len(), 1);
+    assert!(value.items[0]["agent"].is_null());
+    Ok(())
+}
+
+#[tokio::test]
+async fn attributed_actions_fit_the_existing_history_file_budget() -> Result<()> {
+    let mut h = Mac::with_engine(FakeEngine {
+        tools: json!(tools_named(&[
+            "list_apps",
+            "list_windows",
+            "get_window_state",
+            "get_desktop_state",
+            LONG_TOOL,
+        ])),
+        ..FakeEngine::default()
+    })
+    .await?;
+    let mut newest_operation = String::new();
+    for index in 0..MAX_CONTROL_HISTORY {
+        let (hub, mut replies) = mpsc::channel(16);
+        h.runtime.link.outbound.install(hub);
+        h.runtime.device_request_raw(&json!({
+            "request_id":format!("remote-{index}"), "capability":"perform_action",
+            "agent":{"id":"a".repeat(128), "name":"\"".repeat(48)},
+            "parameters":{"action":{"tool":LONG_TOOL, "arguments":{"application":"\"".repeat(256)}}}
+        })).await?;
+        assert!(
+            h.runtime.computer.work.active().is_some(),
+            "action {index} was not admitted: {:?}",
+            replies.try_recv()
+        );
+        newest_operation = h
+            .runtime
+            .computer
+            .active_general
+            .as_ref()
+            .context("active action")?
+            .operation_id
+            .clone();
+        h.finish().await?;
+        assert_eq!(h.calls(LONG_TOOL), 1);
+        h.calls.calls.lock().expect("fixture lock").clear();
+    }
+    let bytes = std::fs::read(h.runtime.control_state_path())?;
+    assert!(bytes.len() <= 256 * 1024);
+    let history = h.runtime.control_history()?;
+    assert!(!history.is_empty());
+    assert!(history.len() < MAX_CONTROL_HISTORY);
+    assert_eq!(history[0].operation_id, newest_operation);
+    assert_eq!(history[0].outcome, ControlOutcome::Performed);
+    Ok(())
+}

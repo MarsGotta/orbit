@@ -48,7 +48,7 @@ export const assistantsGearCopy = {
   borrowedVoice: (primary: string) =>
     `No tiene voz propia: Orbit lee sus respuestas con la voz de ${primary}.`,
   history: "Lo que han hecho tus asistentes en este Mac",
-  historyShared: "Tu hub todavía no dice qué asistente hizo cada cosa: aquí está lo de todos.",
+  historyShared: "Las acciones de todos tus asistentes, con su nombre cuando hay más de uno.",
   remove: (name: string) => `Quitar a ${name} de Orbit`,
   removeQuestion: (name: string) => `¿Quitar a ${name}?`,
   removeText:

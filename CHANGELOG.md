@@ -7,6 +7,14 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Added
+
+- Mac action history keeps the requesting assistant's hub-authenticated identity
+  and display name. Settings shows the author on each attributed action when
+  more than one assistant appears in the history; older hubs and stored entries
+  remain readable without a name. Retention fits both the existing row count
+  and file size budgets, evicting the oldest entries as needed.
+
 ### Fixed
 
 - Capture task restart exhaustion preserves audio already accepted by its

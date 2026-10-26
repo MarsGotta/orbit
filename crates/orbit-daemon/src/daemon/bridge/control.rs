@@ -45,7 +45,7 @@ impl Runtime {
             parameter: Parameter::Request,
             expected: Expected::ValidSelection,
         })?;
-        self.call_engine_tool(call, "Deimos (canal no indicado)")
+        self.call_engine_tool(call, "hub", ask.agent.clone())
             .map_err(|error| self.bridge_computer_start_failure(error))
     }
 

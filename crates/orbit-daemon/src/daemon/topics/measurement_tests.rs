@@ -110,6 +110,7 @@ fn worst_case(runtime: &mut Runtime) -> anyhow::Result<()> {
     }
     let history: Vec<_> = (0..MAX_CONTROL_HISTORY)
         .map(|i| ControlHistoryEntry {
+            agent: None,
             operation_id: format!("{i:03}{}", "o".repeat(125)),
             requested: "r".repeat(128),
             application: "\"".repeat(256),

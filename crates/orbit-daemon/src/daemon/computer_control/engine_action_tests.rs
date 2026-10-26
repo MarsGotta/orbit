@@ -33,6 +33,7 @@ async fn a_tool_orbit_does_not_know_still_reaches_the_engine() -> Result<()> {
             arguments: json!({}),
         },
         "local",
+        None,
     )?;
     h.finish().await?;
     assert_eq!(h.calls(INVENTED_TOOL), 1);
@@ -51,7 +52,7 @@ async fn without_an_engine_a_remote_action_answers_the_cause() -> Result<()> {
     assert!(!h.runtime.computer.engine_is_ready());
     let error = h
         .runtime
-        .call_engine_tool(launch(), "local")
+        .call_engine_tool(launch(), "local", None)
         .expect_err("no engine means no action");
     let message = error.to_string();
     assert!(
@@ -66,7 +67,7 @@ async fn without_an_engine_a_remote_action_answers_the_cause() -> Result<()> {
 #[tokio::test]
 async fn the_privacy_stop_still_cuts_an_engine_action() -> Result<()> {
     let mut h = Mac::new(true).await?;
-    h.runtime.call_engine_tool(launch(), "local")?;
+    h.runtime.call_engine_tool(launch(), "local", None)?;
     tokio::task::yield_now().await;
     h.runtime.command(Command::PrivacyStop).await?;
     assert!(h.runtime.computer.work.active().is_none());
@@ -85,7 +86,7 @@ async fn the_privacy_stop_still_cuts_an_engine_action() -> Result<()> {
 #[tokio::test]
 async fn withdrawing_accessibility_marks_inflight_work_unknown_and_records_it() -> Result<()> {
     let mut h = Mac::new(true).await?;
-    h.runtime.call_engine_tool(launch(), "local")?;
+    h.runtime.call_engine_tool(launch(), "local", None)?;
     tokio::task::yield_now().await;
     {
         let fixture_value = serde_json::json!(orbit_core::PermissionState::Denied);
@@ -115,7 +116,7 @@ async fn withdrawing_accessibility_marks_inflight_work_unknown_and_records_it() 
 #[tokio::test]
 async fn the_record_keeps_what_was_asked_and_how_it_ended() -> Result<()> {
     let mut h = Mac::new(false).await?;
-    h.runtime.call_engine_tool(launch(), "local")?;
+    h.runtime.call_engine_tool(launch(), "local", None)?;
     h.finish().await?;
     let history = h.runtime.control_history()?;
     let entry = history.first().context("one recorded action")?;

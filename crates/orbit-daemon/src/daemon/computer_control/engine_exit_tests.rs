@@ -110,6 +110,7 @@ async fn exit_during_input_keeps_one_uncertain_receipt_and_never_replays() -> Re
             arguments: json!({"bundle_id":"fixture"}),
         },
         "fixture",
+        None,
     )?;
     h.finish().await?;
     assert_exit_notice(&h.runtime, "exit", 29)?;

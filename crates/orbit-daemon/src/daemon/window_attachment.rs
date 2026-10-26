@@ -200,6 +200,7 @@ impl Runtime {
             return;
         }
         let ask = BridgeAsk {
+            agent: None,
             id: format!("window-{}", uuid::Uuid::new_v4()),
             capability: orbit_core::device_bridge::Capability::Screenshot,
             application: None,

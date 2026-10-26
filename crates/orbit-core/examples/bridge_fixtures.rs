@@ -266,6 +266,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let event = HubEvent {
             id: None,
             kind: HubEventKind::DeviceRequest(DeviceRequestData {
+                agent: None,
                 request_id: id.into(),
                 request,
             }),

@@ -18,6 +18,8 @@ where
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DeviceRequestData {
     pub request_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent: Option<crate::computer_control::ControlAgent>,
     #[serde(flatten)]
     pub request: BridgeRequest,
 }

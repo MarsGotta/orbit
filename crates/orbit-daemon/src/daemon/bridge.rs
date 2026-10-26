@@ -41,6 +41,7 @@ pub(super) use refusals::BridgeReleaseReason;
 /// be reported as whatever was asked for last.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct BridgeAsk {
+    pub(super) agent: Option<orbit_core::computer_control::ControlAgent>,
     pub(super) id: String,
     pub(super) capability: Capability,
     pub(super) application: Option<String>,

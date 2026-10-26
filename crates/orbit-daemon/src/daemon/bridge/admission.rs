@@ -227,6 +227,7 @@ impl Runtime {
             return self.refuse_bridge_admission(&request_id, &refusal).await;
         }
         let ask = BridgeAsk {
+            agent: data.agent.clone(),
             for_attachment: false,
             id: request_id.clone(),
             capability,

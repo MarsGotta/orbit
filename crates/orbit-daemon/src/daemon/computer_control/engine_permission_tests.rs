@@ -411,6 +411,7 @@ async fn the_privacy_stop_still_cuts_an_action_in_flight() -> Result<()> {
             arguments: json!({"bundle_id": "com.apple.calculator"}),
         },
         "local",
+        None,
     )?;
     tokio::time::timeout(Duration::from_secs(1), async {
         while h.calls("launch_app") == 0 {
@@ -443,6 +444,7 @@ async fn the_privacy_stop_still_cuts_an_action_in_flight() -> Result<()> {
             arguments: json!({"bundle_id": "com.apple.calculator"}),
         },
         "local",
+        None,
     );
     assert!(
         refused.is_err(),
@@ -612,6 +614,7 @@ async fn another_conversation_does_not_cut_an_action_in_flight() -> Result<()> {
             arguments: json!({"bundle_id": "com.apple.calculator"}),
         },
         "local",
+        None,
     )?;
     h.runtime
         .open_session("another-session".into(), None)

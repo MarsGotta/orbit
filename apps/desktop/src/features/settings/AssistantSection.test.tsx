@@ -164,7 +164,7 @@ describe("Ajustes › Asistentes", () => {
     expect(select.value).toBe("deimos");
   });
 
-  it("the folders are the same for all, and what they did says why it has no avatars", () => {
+  it("the folders and action history are shared by all assistants", () => {
     show();
     const folders = screen.getByRole("region", { name: "Carpetas que pueden leer" });
     expect(
@@ -175,7 +175,7 @@ describe("Ajustes › Asistentes", () => {
     const history = screen.getByRole("region", { name: "Lo que han hecho en este Mac" });
     expect(
       within(history).getByText(
-        "Tu hub todavía no dice qué asistente hizo cada cosa: aquí está lo de todos.",
+        "Las acciones de todos tus asistentes, con su nombre cuando hay más de uno.",
       ),
     ).toBeTruthy();
   });
@@ -186,5 +186,49 @@ describe("Ajustes › Asistentes", () => {
       screen.getByText("Todavía no se conocen los agentes del hub: aparecen al conectar con él."),
     ).toBeTruthy();
     expect(screen.queryByRole("combobox")).toBeNull();
+  });
+});
+
+describe("Mac action attribution", () => {
+  const agents = [
+    { id: "atlas", name: "Atlas" },
+    { id: "vega", name: "Vega" },
+  ];
+  function historyView(authors: ((typeof agents)[number] | undefined)[]) {
+    const view = snapshot([]);
+    view.computer_control!.history = authors.map((agent, index) => ({
+      operation_id: `action-${index}`,
+      requested: `launch_${index}`,
+      application: "Fixture",
+      at_ms: 1,
+      outcome: "performed",
+      channel: "remote",
+      ...{ agent },
+    }));
+    return view;
+  }
+
+  it("names each action's own assistant when the history has several", () => {
+    show(historyView([...agents, undefined]));
+    const history = screen.getByRole("region", { name: "Lo que han hecho en este Mac" });
+    agents.forEach((agent, index) => {
+      const action = within(history).getByText(`launch_${index}`).parentElement!;
+      expect(within(action).getByText(agent.name)).toBeTruthy();
+    });
+    expect(within(history).getByText("launch_2").parentElement!.textContent).not.toMatch(
+      /Atlas|Vega/,
+    );
+    expect(within(history).queryByText(/Tu hub todavía no dice/)).toBeNull();
+  });
+
+  it.each([
+    [agents[0], agents[0]],
+    [undefined, undefined],
+  ])("does not add names for one assistant or a hub without attribution (%j)", (...authors) => {
+    show(historyView(authors));
+    const history = screen.getByRole("region", { name: "Lo que han hecho en este Mac" });
+    expect(within(history).queryByText("Atlas")).toBeNull();
+    expect(within(history).queryByText("Vega")).toBeNull();
+    expect(within(history).getByText("launch_0")).toBeTruthy();
   });
 });

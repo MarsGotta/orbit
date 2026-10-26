@@ -252,6 +252,7 @@ async fn an_engine_that_connects_while_the_helper_captures_fails_nothing() -> Re
         .assistant
         .bridge_requests
         .put(crate::daemon::BridgeAsk {
+            agent: None,
             for_attachment: false,
             id: "full-screen-1".into(),
             capability: orbit_core::device_bridge::Capability::Screenshot,
@@ -298,6 +299,7 @@ async fn the_front_window_is_not_the_cursor_overlay() -> Result<()> {
     let mut runtime = h.runtime;
     let listing = json!({"structured": windows_with_the_cursor_overlay_in_front()});
     let ask = |application: Option<&str>| crate::daemon::BridgeAsk {
+        agent: None,
         for_attachment: false,
         id: "window-1".into(),
         capability: orbit_core::device_bridge::Capability::Screenshot,
@@ -572,7 +574,7 @@ async fn a_desktop_click_on_the_fitted_image_lands_on_the_screen_pixel() -> Resu
 
     let refused = h
         .runtime
-        .call_engine_tool(click(640, 415), "fixture")
+        .call_engine_tool(click(640, 415), "fixture", None)
         .err()
         .context("a desktop click was sent without a delivered capture")?
         .to_string();
@@ -590,7 +592,8 @@ async fn a_desktop_click_on_the_fitted_image_lands_on_the_screen_pixel() -> Resu
     h.finish().await?;
     reply(&mut frames, "full-screen-1").await?;
 
-    h.runtime.call_engine_tool(click(640, 415), "fixture")?;
+    h.runtime
+        .call_engine_tool(click(640, 415), "fixture", None)?;
     h.finish().await?;
     let clicks = record.calls_of("click");
     assert_eq!(clicks.len(), 1);
@@ -602,7 +605,7 @@ async fn a_desktop_click_on_the_fitted_image_lands_on_the_screen_pixel() -> Resu
 
     let outside = h
         .runtime
-        .call_engine_tool(click(1280, 10), "fixture")
+        .call_engine_tool(click(1280, 10), "fixture", None)
         .err()
         .context("a click outside the image was sent")?
         .to_string();
