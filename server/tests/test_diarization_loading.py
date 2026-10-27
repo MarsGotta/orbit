@@ -12,8 +12,9 @@ from orbit_hub import diarization_process
 
 
 @pytest.mark.parametrize("requirement", ["safe_globals", "config_file"])
+@pytest.mark.parametrize("bound", [None, 1, 4])
 def test_runtime_loading_uses_the_bundle_config_and_only_three_trusted_globals(
-    tmp_path, requirement
+    tmp_path, requirement, bound
 ):
     modules = tmp_path / "modules"
     task = modules / "pyannote" / "audio" / "core"
@@ -54,7 +55,9 @@ class Pipeline:
     def to(self, device):
         assert device == "cpu"
 
-    def __call__(self, path):
+    def __call__(self, path, **kwargs):
+        expected = os.environ["EXPECTED_BOUND"]
+        assert kwargs == ({"max_speakers": int(expected)} if expected else {})
         assert self.segmentation_batch_size == self.embedding_batch_size == 4
         annotation = SimpleNamespace(itertracks=lambda **kwargs: [
             (SimpleNamespace(start=0, end=1), 0, "A")])
@@ -70,8 +73,14 @@ class Pipeline:
             "synthetic.wav",
             str(bundle),
             str(tmp_path / "gpu.lock"),
+            *([] if bound is None else [str(bound)]),
         ],
-        env={**os.environ, "PYTHONPATH": str(modules), "LOADING_REQUIREMENT": requirement},
+        env={
+            **os.environ,
+            "PYTHONPATH": str(modules),
+            "LOADING_REQUIREMENT": requirement,
+            "EXPECTED_BOUND": "" if bound is None else str(bound),
+        },
         capture_output=True,
         text=True,
         timeout=30,

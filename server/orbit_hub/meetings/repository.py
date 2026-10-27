@@ -15,6 +15,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS recording_final_passes (
     device_id TEXT NOT NULL REFERENCES devices(id), recording TEXT NOT NULL,
     state TEXT NOT NULL, error TEXT, progress TEXT, kept_draft TEXT,
+    refresh_voices INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY(device_id,recording));
 CREATE TABLE IF NOT EXISTS recording_final_transcripts (
     device_id TEXT NOT NULL REFERENCES devices(id), recording TEXT NOT NULL,

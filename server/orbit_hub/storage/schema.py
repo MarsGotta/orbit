@@ -126,6 +126,11 @@ def migrate(db, encrypt: Callable[[bytes, str], bytes]) -> None:
     # What a completed pass kept of the draft (`meeting_final_pass.status`).
     if "kept_draft" not in _columns(db, "recording_final_passes"):
         db.execute("ALTER TABLE recording_final_passes ADD COLUMN kept_draft TEXT")
+    # Only an explicit retranscription refreshes existing voice intervals.
+    if "refresh_voices" not in _columns(db, "recording_final_passes"):
+        db.execute(
+            "ALTER TABLE recording_final_passes ADD COLUMN refresh_voices INTEGER NOT NULL DEFAULT 0"
+        )
     db.executescript(DICTIONARIES_SCHEMA)
     migrate_dictionaries(db)
     # The recordings each device deleted, so that none comes back half.

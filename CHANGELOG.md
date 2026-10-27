@@ -7,6 +7,14 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Fixed
+
+- Meeting voice separation uses the linked calendar's invitees, excluding the
+  owner, as its remote-speaker ceiling. «Volver a transcribir» also separates
+  voices again and preserves user names by matching earlier word times; merged
+  voices keep the larger named voice and retain the other names as aliases.
+  Existing meetings are left alone until retranscription is requested.
+
 ## [0.12.5] - 2026-10-27
 
 ### Added

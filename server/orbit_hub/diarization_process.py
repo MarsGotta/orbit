@@ -33,7 +33,8 @@ def main():
             pipeline.segmentation_batch_size = 4
             pipeline.embedding_batch_size = 4
             pipeline.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-            output = pipeline(sys.argv[1])
+            bound = {"max_speakers": int(sys.argv[4])} if len(sys.argv) > 4 else {}
+            output = pipeline(sys.argv[1], **bound)
             # Exclusive intervals make word attribution deterministic in overlaps.
             spans = [
                 {

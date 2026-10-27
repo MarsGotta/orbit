@@ -1,15 +1,15 @@
 """Explicit real boundary check for the reviewer; excluded from normal test discovery.
 
-Requires ORBIT_DIARIZATION_WAV (synthetic mono 16 kHz WAV),
+Requires ORBIT_DIARIZATION_WAV (explicit mono 16 kHz WAV fixture),
 ORBIT_DIARIZATION_PYTHON and ORBIT_DIARIZATION_BUNDLE (the `[diarization]`
 python and bundle of the hub under test) and ORBIT_DIARIZATION_GPU_LOCK (the
 exact lock used by Whisper). Never run in CI.
-Only counts and timings leave this check; no audio or transcript is saved.
+Optional ORBIT_DIARIZATION_MAX_SPEAKERS sets the calendar ceiling.
+Only the voice count leaves this check; no audio or transcript is saved.
 """
 
 import asyncio
 import os
-import time
 import wave
 from pathlib import Path
 
@@ -31,14 +31,15 @@ async def test_real_local_diarization_boundary():
         with wave.open(audio, "rb") as wav:
             assert (wav.getnchannels(), wav.getsampwidth(), wav.getframerate()) == (1, 2, 16000)
             duration_ms = wav.getnframes() * 1000 // 16000
-        began = time.monotonic()
+        bound = os.environ.get("ORBIT_DIARIZATION_MAX_SPEAKERS")
+        options = {} if bound is None else {"max_speakers": int(bound)}
+        if bound is not None:
+            assert int(bound) >= 1
         async with asyncio.timeout(duration_ms / 500 + 600):
-            result = await separate(configuration, audio.fileno(), duration_ms)
+            result = await separate(configuration, audio.fileno(), duration_ms, **options)
     assert result["spans"] and set(result) == {"spans"}
-    print(
-        {
-            "voices": len({span["voice"] for span in result["spans"]}),
-            "audio_ms": duration_ms,
-            "elapsed_seconds": round(time.monotonic() - began, 3),
-        }
-    )
+    print({"voices": len({span["voice"] for span in result["spans"]})})
+
+
+if __name__ == "__main__":
+    asyncio.run(test_real_local_diarization_boundary())

@@ -127,7 +127,7 @@ def fake_separator(tmp_path, *, exit_status=0, malformed=False):
     )
 
 
-def fake_whisper(*, missing_words=False, status=200):
+def fake_whisper(*, missing_words=False, status=200, zero_duration=False):
     requests = []
 
     async def answer(request):
@@ -143,6 +143,9 @@ def fake_whisper(*, missing_words=False, status=200):
             {"start": 11, "end": 12, "word": "Dos."},
             {"start": 21, "end": 22, "word": "Tres."},
         ]
+        if zero_duration:
+            words = [{**word, "end": word["start"]} for word in words]
+            words[0] = {**words[0], "start": 0, "end": 0}
         return httpx.Response(
             status,
             json={
@@ -278,11 +281,21 @@ async def test_final_words_split_voices_and_all_readers_use_the_same_names(envir
         for s in segments
         if s["track"] == "remote_app"
     ] == [(1000, "voice_1", "Lucía", "Uno."), (11000, "voice_2", "Pedro", "Dos. Tres.")]
-    # A manual repeat transcribes again, reusing the successful voice intervals.
+    # A manual repeat reclusters as well; user names and turn overrides survive.
     repo.request(owner["device_id"], identity)
     assert await worker.run_once()
     assert len(requests) == 4
-    assert store._db.execute("SELECT body FROM recording_voices").fetchone()[0] == blob
+    with store.read_snapshot() as db:
+        repeated = turns.read(store, db, owner["device_id"], identity)
+    assert [(s.text, s.speaker_key) for s in repeated.segments if s.track == "remote_app"] == [
+        ("Uno.", "voice_1"),
+        ("Dos.", "voice_2"),
+        ("Tres.", "voice_2"),
+    ]
+    assert [(s.key, s.name) for s in repeated.speakers if s.track == "remote_app"] == [
+        ("voice_1", "Lucía"),
+        ("voice_2", "Pedro"),
+    ]
 
 
 @pytest.mark.parametrize(

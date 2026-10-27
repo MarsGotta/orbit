@@ -12,6 +12,7 @@ from .group_storage import GroupRepository
 from .log import report, supervised
 from .meeting_diarization import separate
 from .meeting_transcription import REQUEST_TIMEOUT_SECONDS
+from .meeting_voice_identity import publish_voices, speaker_bound
 from .meetings import muted, open_recordings, repository, turns
 from .protocol import HubError
 
@@ -139,9 +140,9 @@ class FinalPassRepository:
                 )
             return (
                 db.execute(
-                    "INSERT INTO recording_final_passes(device_id,recording,state) "
-                    "VALUES (?,?,'queued') ON CONFLICT(device_id,recording) DO UPDATE SET "
-                    "state='queued',error=NULL WHERE state IN ('failed','completed')",
+                    "INSERT INTO recording_final_passes(device_id,recording,state,refresh_voices) "
+                    "VALUES (?,?,'queued',1) ON CONFLICT(device_id,recording) DO UPDATE SET "
+                    "state='queued',error=NULL,refresh_voices=1 WHERE state IN ('failed','completed')",
                     (device, recording),
                 ).rowcount
                 > 0
@@ -150,7 +151,7 @@ class FinalPassRepository:
     def claim(self):
         with self.store.transaction() as db:
             row = db.execute(
-                "SELECT f.device_id,f.recording FROM recording_final_passes f "
+                "SELECT f.device_id,f.recording,f.refresh_voices FROM recording_final_passes f "
                 "WHERE f.state='queued' ORDER BY f.rowid LIMIT 1"
             ).fetchone()
             if row is None:
@@ -161,7 +162,8 @@ class FinalPassRepository:
                 "WHERE device_id=? AND recording=?",
                 (
                     json.dumps({"done_ms": 0, "total_ms": sum(lengths.values())}),
-                    *tuple(row),
+                    row["device_id"],
+                    row["recording"],
                 ),
             )
             chosen = repository.language(db, row["device_id"], row["recording"])
@@ -170,6 +172,7 @@ class FinalPassRepository:
                 "language": chosen[0] if chosen else None,
                 "lengths": lengths,
                 "muted": muted.read(self.store, db, row["device_id"], row["recording"]),
+                "max_speakers": speaker_bound(self.store, db, row["device_id"], row["recording"]),
             }
 
     def advance(self, job, progress):
@@ -182,14 +185,6 @@ class FinalPassRepository:
 
     def complete(self, job, result):
         device, recording = job["device_id"], job["recording"]
-        voices = {"spans": result["spans"]}
-        text = {key: result[key] for key in ("words", "audio_ms", "language")}
-        # What a model heard in the microphone's muted silence is not speech.
-        text["words"] = muted.heard(job.get("muted", ()), text["words"])
-        sealed = repository._seal(self.store, voices, f"recording-voices:{device}:{recording}")
-        transcript = repository._seal(
-            self.store, text, f"recording-final-transcript:{device}:{recording}"
-        )
         with self.store.transaction() as db:
             running = db.execute(
                 "SELECT 1 FROM recording_final_passes WHERE device_id=? AND recording=? "
@@ -201,21 +196,12 @@ class FinalPassRepository:
             chosen = repository.language(db, device, recording)
             if chosen is not None and chosen[0] != job["language"]:
                 return  # A language change already queued its replacement.
-            self.store.ensure_capacity(len(sealed) + len(transcript))
-            # Voice identity survives retranscription in another language.
-            db.execute(
-                "INSERT OR IGNORE INTO recording_voices VALUES (?,?,?)", (device, recording, sealed)
-            )
-            db.execute(
-                "INSERT INTO recording_final_transcripts VALUES (?,?,?) "
-                "ON CONFLICT(device_id,recording) DO UPDATE SET body=excluded.body",
-                (device, recording, transcript),
-            )
+            publish_voices(self.store, db, job, result)
             # Absent when nothing of the draft was kept, as from every hub before.
             kept = result.get("kept_draft") or {}
             db.execute(
                 "UPDATE recording_final_passes SET state='completed',error=NULL,progress=NULL,"
-                "kept_draft=? WHERE device_id=? AND recording=?",
+                "kept_draft=?,refresh_voices=0 WHERE device_id=? AND recording=?",
                 (json.dumps(kept) if kept.get("spans") else None, device, recording),
             )
 
@@ -457,6 +443,8 @@ class FinalPassWorker:
                 "diarization_not_configured", "Falta la configuración local de separación"
             )
         run.existing = await self.run(self.repository.voices, job)
+        if job.get("refresh_voices"):
+            run.existing = None
         run.result = {
             "spans": [],
             "words": [],
@@ -518,7 +506,15 @@ class FinalPassWorker:
                 result["kept_draft"][key] += kept[key]
             if track == "remote_app" and run.existing is None:
                 run.phase = "diarization"
-                result.update(await separate(self.configuration, audio.fileno(), duration_ms))
+                bound = run.job.get("max_speakers")
+                result.update(
+                    await separate(
+                        self.configuration,
+                        audio.fileno(),
+                        duration_ms,
+                        **({"max_speakers": bound} if bound is not None else {}),
+                    )
+                )
             result["words"].extend(attribute(words, result["spans"], track))
             result["audio_ms"] = max(result["audio_ms"], duration_ms)
 
