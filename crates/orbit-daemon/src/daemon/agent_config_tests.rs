@@ -12,7 +12,7 @@ use serde_json::json;
 
 const CONFIG: &str = r#"{"agent_id":"vega","kind":"codex",
  "personality":{"text":"Sé breve.","editable":true,"max_bytes":65536},
- "access":{"groups":{"screen":true,"control":true,"calendar":true,"meetings":true,"files":true},
+ "access":{"groups":{"screen":true,"control":true,"calendar":true,"meetings":true,"files":true, "notes": true},
    "editable":true},
  "skills":{"editable":false,"cause":"Las skills de este agente viven en su carpeta",
    "max_skills":64,"max_skill_bytes":32768,
@@ -42,6 +42,7 @@ async fn each_call_reaches_its_route_with_the_device_credential() -> Result<()> 
         calendar: true,
         meetings: true,
         files: false,
+        notes: true,
     };
     let orders = [
         (
@@ -60,7 +61,7 @@ async fn each_call_reaches_its_route_with_the_device_credential() -> Result<()> 
             "PUT /v1/agents/vega/access HTTP/1.1",
             Some(
                 json!({"groups": {"screen": false, "control": false, "calendar": true,
-                                   "meetings": true, "files": false}}),
+                                   "meetings": true, "files": false, "notes": true}}),
             ),
         ),
         (
@@ -311,6 +312,7 @@ async fn a_hub_that_hangs_up_after_the_order_is_not_called_unreachable() -> Resu
                 calendar: true,
                 meetings: true,
                 files: true,
+                notes: true,
             },
         },
         Vec::new(),
@@ -346,6 +348,7 @@ async fn assistant_calls_come_back_with_the_id_or_the_sign_in() -> Result<()> {
                 calendar: true,
                 meetings: true,
                 files: true,
+            notes: true,
             },
         },
         json_response(

@@ -3,6 +3,8 @@ import { listen } from "@tauri-apps/api/event";
 import type { AppBootstrap, AppCommand, CommandReceipt, FeatureId } from "./generated";
 import type { AgentAnswer } from "./generated/AgentAnswer";
 import type { AgentCall } from "./generated/AgentCall";
+import type { VaultCall } from "./generated/VaultCall";
+import type { VaultOutcome } from "./generated/VaultOutcome";
 import type { DaemonPort, FrameListener, Report, Unsubscribe } from "./port";
 import type { AssistantCursor, MessagesPage, SessionPage } from "./reads";
 
@@ -32,6 +34,10 @@ export class TauriPort implements DaemonPort {
   }
   agent(call: AgentCall): Promise<AgentAnswer> {
     return invoke<AgentAnswer>("orbit_agent", { call });
+  }
+
+  vault(call: VaultCall): Promise<VaultOutcome> {
+    return invoke<VaultOutcome>("orbit_vault", { call });
   }
 
   snapshot(): Promise<AppBootstrap> {

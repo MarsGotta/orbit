@@ -13,11 +13,14 @@ import { missingPermissions } from "./Permissions";
 import { PrivacySection } from "./PrivacySection";
 import { RecordingSection } from "./RecordingSection";
 import { NoteTemplates } from "./templates/NoteTemplates";
+import { VaultSettingsView } from "../vault/VaultSettingsView";
+import type { VaultPort } from "../vault/api";
 import styles from "./SettingsView.module.css";
 
 export interface SettingsViewProps {
   /** The assistants' call to the hub (the primary); absent where it cannot be made. */
   agent?: AgentPort;
+  vault?: VaultPort;
   error: string | null;
   onReopenOnboarding: (mode?: "pair") => void;
   send: (command: AppCommand) => unknown;
@@ -30,6 +33,7 @@ export interface SettingsViewProps {
 
 function Section({
   agent,
+  vault,
   error,
   onReopenOnboarding,
   send,
@@ -63,6 +67,8 @@ function Section({
           <MeetingDictionaries library={snapshot.notes?.library} send={send} />
         </>
       );
+    case "notas":
+      return <VaultSettingsView port={vault} />;
   }
 }
 

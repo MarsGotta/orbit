@@ -1723,6 +1723,11 @@
         "orbit_transcript",
         "orbit_note"
       ],
+      "notes": [
+        "orbit_notes_search",
+        "orbit_note_read",
+        "orbit_notes_index"
+      ],
       "screen": [
         "orbit_windows",
         "orbit_screenshot",
@@ -2116,5 +2121,164 @@
     "source": "registry",
     "unit": "seconds",
     "value": 30
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/vault/models.py",
+        "name": "MAX_NOTE_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "VAULT_MAX_NOTE_BYTES",
+    "resource": "one vault note, independently of the method word count",
+    "source": "python",
+    "unit": "bytes",
+    "value": 262144
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/vault/models.py",
+        "name": "MAX_PAGE_SIZE",
+        "unit": "entries"
+      }
+    ],
+    "name": "VAULT_MAX_PAGE_SIZE",
+    "resource": "one vault listing page",
+    "source": "python",
+    "unit": "entries",
+    "value": 100
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/vault/models.py",
+        "name": "MAX_SCAN_ENTRIES",
+        "unit": "entries"
+      }
+    ],
+    "name": "VAULT_MAX_SCAN_ENTRIES",
+    "resource": "vault catalogue traversal work",
+    "source": "python",
+    "unit": "entries",
+    "value": 10000
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/vault/models.py",
+        "name": "MAX_SCAN_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "VAULT_MAX_SCAN_BYTES",
+    "resource": "vault content-search and backlink I/O per request",
+    "source": "python",
+    "unit": "bytes",
+    "value": 16777216
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/vault/models.py",
+        "name": "MAX_UPSTREAM_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "VAULT_MAX_UPSTREAM_BYTES",
+    "resource": "one Fast Note Sync JSON envelope",
+    "source": "python",
+    "unit": "bytes",
+    "value": 1703936
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/vault/models.py",
+        "name": "MAX_REQUEST_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "VAULT_MAX_REQUEST_BYTES",
+    "resource": "vault settings and read request envelope",
+    "source": "python",
+    "unit": "bytes",
+    "value": 16384
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/vault/method.py",
+        "name": "MAX_NOTE_WORDS",
+        "unit": "words"
+      }
+    ],
+    "name": "VAULT_MAX_NOTE_WORDS",
+    "resource": "future proposed vault fiche body",
+    "source": "python",
+    "unit": "words",
+    "value": 400
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/vault/models.py",
+        "name": "MAX_RESPONSE_BYTES",
+        "unit": "bytes"
+      },
+      {
+        "file": "crates/orbit-core/src/vault/index.rs",
+        "name": "MAX_VAULT_RESPONSE_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "VAULT_RESPONSE_BYTES",
+    "resource": "vault raw Markdown and parsed read response including JSON escaping",
+    "source": "registry",
+    "unit": "bytes",
+    "value": 4194304
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/vault/models.py",
+        "name": "CONNECTOR_SECONDS",
+        "unit": "seconds"
+      }
+    ],
+    "name": "VAULT_CONNECTOR_SECONDS",
+    "resource": "whole Fast Note Sync read budget",
+    "source": "python",
+    "unit": "seconds",
+    "value": 7
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/vault/models.py",
+        "name": "MAX_READS",
+        "unit": "requests"
+      }
+    ],
+    "name": "VAULT_MAX_READS",
+    "resource": "simultaneous vault scan memory and thread pool admission",
+    "source": "python",
+    "unit": "requests",
+    "value": 2
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/vault/models.py",
+        "name": "MAX_FOLDER_DEPTH",
+        "unit": "levels"
+      }
+    ],
+    "name": "VAULT_FOLDER_DEPTH",
+    "resource": "folder traversal file descriptors and recursion stack",
+    "source": "python",
+    "unit": "levels",
+    "value": 64
   }
 ]

@@ -9,7 +9,7 @@ describe("the views that stay", () => {
     window.location.hash = "";
   });
 
-  it("the sidebar offers Hoy, Calendario, Reuniones, Asistente and Ajustes, nothing else", () => {
+  it("the sidebar offers Hoy, Calendario, Reuniones, Notas, Asistente and Ajustes", () => {
     const snapshot = {
       chat: { pending: null },
       notes: { list: [] },
@@ -29,7 +29,7 @@ describe("the views that stay", () => {
     const labels = within(sidebar)
       .getAllByRole("link")
       .map((link) => link.textContent);
-    expect(labels).toEqual(["Hoy", "Calendario", "Reuniones", "Asistente", "Ajustes"]);
+    expect(labels).toEqual(["Hoy", "Calendario", "Reuniones", "Notas", "Asistente", "Ajustes"]);
   });
 
   it("opening the app without a route shows Hoy", () => {
@@ -43,7 +43,7 @@ describe("the views that stay", () => {
   });
 
   it("a route of a view that left shows Hoy", () => {
-    for (const route of ["#/vault", "#/search", "#/people", "#/dev/estado", "#/design"]) {
+    for (const route of ["#/search", "#/people", "#/dev/estado", "#/design"]) {
       window.location.hash = route;
       const stop = ui.initializeUiStore();
       try {
@@ -53,4 +53,15 @@ describe("the views that stay", () => {
       }
     }
   });
+});
+
+it("the vault route opens Notas independently of meeting notes", () => {
+  window.location.hash = "#/vault/n/personas%2Faster.md";
+  const stop = ui.initializeUiStore();
+  try {
+    expect(ui.useUiStore.getState().view).toBe("vault");
+  } finally {
+    stop();
+    window.location.hash = "";
+  }
 });

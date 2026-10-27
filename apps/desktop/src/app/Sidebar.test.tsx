@@ -53,6 +53,7 @@ describe("the sidebar", () => {
       ["Hoy", "#/briefing"],
       ["Calendario", "#/calendar"],
       ["Reuniones", "#/notes"],
+      ["Notas", "#/vault"],
       ["Asistente", "#/assistant"],
       ["Ajustes", "#/settings"],
     ]);

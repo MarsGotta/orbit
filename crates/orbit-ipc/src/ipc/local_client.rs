@@ -117,6 +117,7 @@ impl LocalClient {
             }
             Reply::Topics(_)
             | Reply::VoiceNoteAudio(_)
+            | Reply::Vault(_)
             | Reply::Agent(_)
             | Reply::Attachment(_) => {
                 bail!("El daemon entregó otra clase de respuesta a una orden")
@@ -141,6 +142,7 @@ impl LocalClient {
                 None => bail!("El daemon entregó una orden en lugar de la lectura"),
             },
             Reply::VoiceNoteAudio(_) => bail!("El daemon entregó audio en lugar de la lectura"),
+            Reply::Vault(_) => bail!("El daemon entregó un vault en lugar de la lectura"),
             Reply::Agent(_) => bail!("El daemon entregó un agente en lugar de la lectura"),
             Reply::Attachment(_) => bail!("El daemon entregó un adjunto en lugar de la lectura"),
         }
@@ -173,6 +175,7 @@ impl LocalClient {
                 None => bail!("El daemon entregó una orden en lugar del audio"),
             },
             Reply::Topics(_) => bail!("El daemon entregó una lectura en lugar del audio"),
+            Reply::Vault(_) => bail!("El daemon entregó un vault en lugar de la lectura"),
             Reply::Agent(_) => bail!("El daemon entregó un agente en lugar del audio"),
             Reply::Attachment(_) => bail!("El daemon entregó un adjunto en lugar del audio"),
         }
@@ -193,9 +196,27 @@ impl LocalClient {
                 Some(refusal) => Err(refusal.into()),
                 None => bail!("El daemon entregó una orden en lugar del agente"),
             },
-            Reply::Topics(_) | Reply::VoiceNoteAudio(_) | Reply::Attachment(_) => {
+            Reply::Topics(_)
+            | Reply::VoiceNoteAudio(_)
+            | Reply::Attachment(_)
+            | Reply::Vault(_) => {
                 bail!("El daemon entregó otra clase de respuesta al agente")
             }
+        }
+    }
+
+    /// One hub-owned vault call. Never retained or retried by the Mac.
+    pub async fn vault(
+        &self,
+        call: orbit_core::vault::VaultCall,
+    ) -> Result<orbit_core::vault::VaultOutcome> {
+        match self.call(Command::Vault { call }, None).await? {
+            Reply::Vault(response) => Ok(response.outcome),
+            Reply::Command(response) => match response.refusal {
+                Some(refusal) => Err(refusal.into()),
+                None => bail!("El daemon rechazó la lectura del vault sin causa"),
+            },
+            _ => bail!("El daemon entregó otra clase de respuesta al vault"),
         }
     }
 
@@ -225,7 +246,7 @@ impl LocalClient {
                 Some(refusal) => Err(refusal.into()),
                 None => bail!("El daemon entregó una orden en lugar del adjunto"),
             },
-            Reply::Topics(_) | Reply::VoiceNoteAudio(_) | Reply::Agent(_) => {
+            Reply::Topics(_) | Reply::VoiceNoteAudio(_) | Reply::Vault(_) | Reply::Agent(_) => {
                 bail!("El daemon entregó otra clase de respuesta en lugar del adjunto")
             }
         }

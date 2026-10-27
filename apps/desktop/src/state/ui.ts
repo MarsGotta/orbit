@@ -1,9 +1,10 @@
 import { create } from "zustand";
 
-export type ViewId = "briefing" | "calendar" | "notes" | "assistant" | "settings";
+export type ViewId = "briefing" | "calendar" | "notes" | "vault" | "assistant" | "settings";
 
 /** The sections of Ajustes, each with its own route: `#/settings/{section}`. */
-export type SettingsSection = "general" | "privacidad" | "grabacion" | "asistentes" | "reuniones";
+export type SettingsSection =
+  "general" | "privacidad" | "grabacion" | "asistentes" | "reuniones" | "notas";
 
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   "general",
@@ -11,12 +12,20 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   "grabacion",
   "asistentes",
   "reuniones",
+  "notas",
 ];
 
 /** Routes of sections that were renamed, kept so an old link still opens its section. */
 const RENAMED_SECTIONS: Readonly<Record<string, SettingsSection>> = { asistente: "asistentes" };
 
-const VIEWS: readonly ViewId[] = ["briefing", "calendar", "notes", "assistant", "settings"];
+const VIEWS: readonly ViewId[] = [
+  "briefing",
+  "calendar",
+  "notes",
+  "vault",
+  "assistant",
+  "settings",
+];
 
 /** The route of a view; Ajustes without a section opens General. */
 export function routeFor(view: ViewId): string {

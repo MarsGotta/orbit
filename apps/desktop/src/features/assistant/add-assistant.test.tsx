@@ -110,7 +110,14 @@ describe("«Añadir un asistente»", () => {
     expect(calls).toContainEqual({
       call: "access",
       agent_id: NEW_ID,
-      groups: { screen: true, control: false, calendar: true, meetings: true, files: true },
+      groups: {
+        screen: true,
+        control: false,
+        calendar: true,
+        meetings: true,
+        files: true,
+        notes: true,
+      },
     });
 
     expect(await within(dialog()).findByText("Eris está listo")).toBeTruthy();

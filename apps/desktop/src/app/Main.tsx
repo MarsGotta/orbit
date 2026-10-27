@@ -25,6 +25,7 @@ const lazy: typeof reactLazy = (load) => {
 
 const CalendarView = lazy(() => import("../features/calendar/CalendarView"));
 const NotesView = lazy(() => import("../features/notes/NotesView"));
+const VaultView = lazy(() => import("../features/vault/VaultView"));
 const AssistantView = lazy(() => import("../features/assistant/AssistantView"));
 const SettingsView = lazy(() => import("../features/settings/SettingsView"));
 
@@ -50,6 +51,7 @@ export interface MainProps {
   readSessionMessages?: DaemonPort["readSessionMessages"];
   readSessionsPage?: DaemonPort["readSessionsPage"];
   agent?: DaemonPort["agent"];
+  vault?: DaemonPort["vault"];
   view: ViewId;
   settingsSection: SettingsSection;
 }
@@ -67,6 +69,7 @@ function View({
   readSessionMessages,
   readSessionsPage,
   agent,
+  vault,
   view,
   settingsSection,
 }: MainProps) {
@@ -83,6 +86,8 @@ function View({
   if (view === "notes") {
     return <NotesView error={error} onRecord={onRecord} send={send} snapshot={snapshot} />;
   }
+  if (view === "vault")
+    return <VaultView owner={snapshot.settings.profile?.name ?? undefined} port={vault} />;
   if (view === "assistant") {
     const reads = { readMessages: readSessionMessages, readSessions: readSessionsPage };
     return <AssistantView agent={agent} error={error} send={send} snapshot={snapshot} {...reads} />;
@@ -93,6 +98,7 @@ function View({
     const onSection = (section: SettingsSection) => useUiStore.getState().openSettings(section);
     const settings = {
       agent,
+      vault,
       error,
       onReopenOnboarding,
       send,

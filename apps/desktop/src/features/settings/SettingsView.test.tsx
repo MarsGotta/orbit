@@ -80,7 +80,7 @@ function open(section: string) {
 afterEach(cleanup);
 
 describe("the index", () => {
-  it("lists the five sections and opens General without a section", () => {
+  it("lists the six sections and opens General without a section", () => {
     renderSettings();
     const index = screen.getByRole("navigation", { name: "Secciones de ajustes" });
     expect(
@@ -93,6 +93,7 @@ describe("the index", () => {
       "Grabación y llamadas",
       "Asistentes",
       "Reuniones",
+      "Notas",
     ]);
     expect(
       within(index).getByRole("button", { name: "General" }).getAttribute("aria-current"),

@@ -2,6 +2,18 @@ use super::*;
 use orbit_core::agent_config::AgentCall;
 
 impl DaemonClient {
+    /// A vault call carries no credential back; the hub is the only store.
+    pub async fn vault(
+        &self,
+        call: orbit_core::vault::VaultCall,
+    ) -> Result<orbit_core::vault::VaultOutcome, AppError> {
+        self.inner
+            .daemon
+            .vault(call)
+            .await
+            .map_err(|error| AppError::from_daemon(error.as_ref()))
+    }
+
     /// Ajustes › Agentes: one read or order of an agent's configuration,
     /// answered when the hub answers. Nothing is kept here: the hub is the
     /// single source, and the screen reads it again after an order.

@@ -16,6 +16,9 @@ Details: [process chain](process-chain.md), [local storage](storage.md),
 
 ## Components
 
+The [read-only Markdown vault](vault.md) owns connector configuration, the
+hub's encrypted working copy, its reading index and the `notes` tool group.
+
 | Component | Location | Owns | Must not do |
 |---|---|---|---|
 | UI | `apps/desktop/src`, React/Vite in WKWebView | Views and Spanish product copy in `src/i18n/` | Business decisions, hub traffic, `@tauri-apps/*` imports outside `src/bridge/` |

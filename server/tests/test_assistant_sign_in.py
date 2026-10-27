@@ -26,7 +26,14 @@ from orbit_hub.assistant.agents import Agents
 from orbit_hub.assistant.roster import Profile, Roster
 
 CLI = Path(__file__).with_name("support_vendor_cli.py")
-ALL_ON = {"screen": True, "control": True, "calendar": True, "meetings": True, "files": True}
+ALL_ON = {
+    "screen": True,
+    "control": True,
+    "calendar": True,
+    "meetings": True,
+    "files": True,
+    "notes": True,
+}
 # Waits observe the sign-in's outcome; load delays it instead of failing it.
 WAIT_SECONDS = DAEMON_E2E_TIMEOUT_SECONDS
 

@@ -3,7 +3,10 @@ engine cause, and the words for the numbers that follow them."""
 
 # Every message names a control Orbit actually has today: a message that sends
 # the user to a switch or a step that no longer exists is worse than a generic one.
+from .notes_refusals import MESSAGES as NOTES_MESSAGES
+
 ERROR_MESSAGES = {
+    **NOTES_MESSAGES,
     "encode_failed": "Orbit no pudo codificar la respuesta de esa lectura.",
     "helper_reply_invalid": "La respuesta del helper no cumple el contrato; se indica el campo y la forma esperada. Su contenido sigue sin conocerse.",
     "read_interrupted": "La lectura se interrumpió por la causa indicada; su contenido sigue sin conocerse.",
@@ -212,6 +215,14 @@ ENGINE_CAUSE_MESSAGES = {
 # The refusal's fields that are said, with the words they are said with, in
 # the order they are said.
 FIELD_LABELS = {
+    "max_page_size": "máximo de entradas por página",
+    "max_page": "máxima página",
+    "entries": "entradas",
+    "max_entries": "máximo de entradas",
+    "max_depth": "máximo de niveles",
+    "upstream_code": "código de Fast Note Sync",
+    "upstream_status": "estado HTTP de Fast Note Sync",
+    "timeout_seconds": "plazo en segundos",
     "resource": "recurso",
     "bytes": "tamaño",
     "chars": "caracteres",

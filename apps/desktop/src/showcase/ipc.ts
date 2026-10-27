@@ -1,3 +1,5 @@
+import { vaultAnswer } from "./vault";
+import type { VaultCall } from "../bridge/generated/VaultCall";
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import type { AppCommand, CommandReceipt } from "../bridge/generated";
@@ -130,6 +132,7 @@ function handler(daemon: Daemon, scenario: Scenario, connected: () => void) {
       scenario.stall === true
         ? new Promise(() => undefined)
         : page(daemon.hub.messages[String(args.sessionId)] ?? []),
+    orbit_vault: (args) => vaultAnswer(args.call as VaultCall, scenario.id === "vault-connect"),
     orbit_agent: (args) => {
       const call = args.call as AgentCall;
       const answered = scenario.agent?.(call, daemon.views) ?? null;

@@ -22,6 +22,7 @@ const DEFAULT_ACCESS: AccessGroups = {
   calendar: true,
   meetings: true,
   files: true,
+  notes: true,
 };
 
 /** The service's own name, made unique among the others: it is how it is called until renamed. */

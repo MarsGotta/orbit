@@ -1,0 +1,136 @@
+.view {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  overflow: auto;
+  padding: 24px 28px;
+  gap: 20px;
+}
+.heading h1 {
+  font-size: var(--o-font-24);
+  margin: 0 0 8px;
+}
+.heading p,
+.path {
+  color: var(--o-ink2);
+  margin: 0;
+}
+.connection {
+  border: 1px solid var(--o-line);
+  border-radius: 10px;
+  padding: 14px 18px;
+  background: var(--o-surface);
+}
+.connection summary {
+  cursor: pointer;
+}
+.settings {
+  display: grid;
+  gap: 14px;
+  max-width: 560px;
+}
+.selectLabel {
+  display: grid;
+  gap: 6px;
+  font-size: var(--o-font-13);
+}
+.selectLabel select {
+  background: var(--o-raised);
+  color: var(--o-ink);
+  border: 1px solid var(--o-line2);
+  border-radius: 6px;
+  height: 36px;
+  padding: 0 10px;
+  font: inherit;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(190px, 260px) minmax(0, 1fr);
+  flex: 1;
+  min-height: 320px;
+}
+.browser {
+  padding-right: 20px;
+  border-right: 1px solid var(--o-line);
+  overflow-wrap: anywhere;
+}
+.browser h2,
+.reader h2 {
+  font-size: var(--o-font-14);
+  margin-top: 24px;
+}
+.search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 8px;
+}
+.search > :first-child {
+  width: 100%;
+}
+.tree {
+  list-style: none;
+  padding-left: 14px;
+}
+.tree li {
+  margin: 8px 0;
+}
+.tree summary {
+  cursor: pointer;
+}
+.noteButton {
+  background: transparent;
+  color: var(--o-accText);
+  border: 0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  padding: 3px 0;
+  overflow-wrap: anywhere;
+}
+.noteButton:hover {
+  text-decoration: underline;
+}
+.noteButton:focus-visible,
+.tree summary:focus-visible {
+  outline: 2px solid var(--o-accText);
+  outline-offset: 3px;
+}
+.reader {
+  padding: 0 28px;
+  max-width: 840px;
+  min-width: 0;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.reader pre {
+  overflow: auto;
+  background: var(--o-surface);
+  padding: 12px;
+  border-radius: 6px;
+}
+.path {
+  font-size: var(--o-font-12);
+}
+.empty {
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+@media (max-width: 850px) {
+  .workspace {
+    grid-template-columns: minmax(150px, 210px) minmax(0, 1fr);
+  }
+  .view {
+    padding: 16px;
+  }
+  .reader {
+    padding: 0 16px;
+  }
+}

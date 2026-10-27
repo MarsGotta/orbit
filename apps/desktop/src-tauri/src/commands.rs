@@ -45,6 +45,14 @@ pub async fn orbit_agent(
     client.agent(call).await
 }
 
+#[tauri::command]
+pub async fn orbit_vault(
+    call: orbit_core::vault::VaultCall,
+    client: State<'_, DaemonClient>,
+) -> Result<orbit_core::vault::VaultOutcome, AppError> {
+    client.vault(call).await
+}
+
 pub use orbit_app_core::PanelOrder;
 
 /// The floating panel's orders: answering a call, asking Deimos, and

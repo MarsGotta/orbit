@@ -223,6 +223,11 @@ pub enum Command {
     Agent {
         call: crate::agent_config::AgentCall,
     },
+    /// Hub-owned vault settings and read-only notes, answered off the loop.
+    #[cfg_attr(feature = "ts", ts(skip))]
+    Vault {
+        call: crate::vault::VaultCall,
+    },
     /// «Enviar informes de errores anónimos»: the user's choice, kept by the
     /// daemon with its settings. Off until they turn it on.
     ErrorReports {
@@ -408,6 +413,7 @@ impl Command {
             | Self::SubscribeTopics { .. }
             | Self::Read { .. }
             | Self::Agent { .. }
+            | Self::Vault { .. }
             | Self::Report { .. }
             | Self::Shutdown => None,
         }

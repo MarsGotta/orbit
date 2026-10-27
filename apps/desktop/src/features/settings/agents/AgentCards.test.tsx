@@ -45,7 +45,14 @@ function vegaConfig(): AgentConfig {
     kind: "openai",
     personality: { text: "Sé breve.", editable: true, max_bytes: 65536, cause: null },
     access: {
-      groups: { screen: true, control: false, calendar: true, meetings: true, files: true },
+      groups: {
+        screen: true,
+        control: false,
+        calendar: true,
+        meetings: true,
+        files: true,
+        notes: true,
+      },
       editable: true,
       cause: null,
     },
@@ -70,7 +77,14 @@ function atlasConfig(): AgentConfig {
       cause: "La personalidad es el SOUL.md del perfil",
     },
     access: {
-      groups: { screen: true, control: true, calendar: true, meetings: true, files: true },
+      groups: {
+        screen: true,
+        control: true,
+        calendar: true,
+        meetings: true,
+        files: true,
+        notes: true,
+      },
       editable: false,
       cause: "Hermes decide sus herramientas",
     },
@@ -147,7 +161,7 @@ describe("an assistant's cards", () => {
     );
     expect(access.textContent).toContain("Pulsar, escribir y abrir apps por ti");
     expect(access.textContent).toContain("Leer tu agenda");
-    expect(access.textContent).toContain("Leer tus reuniones, notas y transcripciones");
+    expect(access.textContent).toContain("Leer tus reuniones, sus notas y transcripciones");
     expect(access.textContent).toContain("Leer las carpetas que elijas aquí abajo");
     // The tools' internal names are not for the screen.
     expect(access.textContent).not.toContain("orbit_");
@@ -163,7 +177,14 @@ describe("an assistant's cards", () => {
     expect(calls[1]).toEqual({
       call: "access",
       agent_id: "vega",
-      groups: { screen: true, control: true, calendar: true, meetings: true, files: true },
+      groups: {
+        screen: true,
+        control: true,
+        calendar: true,
+        meetings: true,
+        files: true,
+        notes: true,
+      },
     });
     expect(calls[2]).toEqual({ call: "config", agent_id: "vega" });
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -173,7 +194,7 @@ describe("an assistant's cards", () => {
   it("shows a Hermes agent as it is, everything disabled", async () => {
     render(<AgentCards agent={agent} target={ATLAS} />);
     await loaded();
-    for (const group of ["Pantalla", "Usar el Mac", "Calendario", "Reuniones y notas"]) {
+    for (const group of ["Pantalla", "Usar el Mac", "Calendario", "Reuniones", "Notas"]) {
       expect(screen.getByRole("switch", { name: group }).hasAttribute("disabled")).toBe(true);
     }
     expect(

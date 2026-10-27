@@ -12,6 +12,7 @@ macro_rules! off_loop_orders {
         Command::SubscribeTopics { .. }
             | Command::Read { .. }
             | Command::Agent { .. }
+            | Command::Vault { .. }
             | Command::AttachmentAdd { .. }
             | Command::AttachmentFetch { .. }
             | Command::AttachmentSave { .. }

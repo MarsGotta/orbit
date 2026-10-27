@@ -40,6 +40,7 @@ class Groups(Strict):
     calendar: bool
     meetings: bool
     files: bool
+    notes: bool = True
 
 
 class ProfileBody(Strict):

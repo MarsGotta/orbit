@@ -1,4 +1,4 @@
-"""What each agent may use of Orbit's tools: five access groups, each on or off.
+"""What each agent may use of Orbit's tools: six access groups, each on or off.
 
 A group is a set of `orbit-mcp` tools and the device-bridge capabilities (or
 meeting reads) those tools ask the hub for. Every group is on unless the user
@@ -20,7 +20,7 @@ from ..errors import PrivateError
 from .skills import Skill
 
 # In the order Settings shows them.
-GROUPS = ("screen", "control", "calendar", "meetings", "files")
+GROUPS = ("screen", "control", "calendar", "meetings", "files", "notes")
 
 # The orbit-mcp tools no group gates: `orbit_devices` names the Macs, which
 # every tool needs to choose one; `orbit_attachment` reads a file the user
@@ -38,6 +38,7 @@ TOOLS = MappingProxyType(
         "calendar": ("orbit_calendar",),
         "meetings": ("orbit_meetings", "orbit_transcript", "orbit_note"),
         "files": ("orbit_files_list", "orbit_files_search", "orbit_files_read"),
+        "notes": ("orbit_notes_search", "orbit_note_read", "orbit_notes_index"),
     }
 )
 TOOL_GROUP = MappingProxyType({tool: group for group, tools in TOOLS.items() for tool in tools})

@@ -94,6 +94,9 @@ TOOL_NAMES = (
     "orbit_transcript",
     # The note of a recording, as the user sees it.
     "orbit_note",
+    "orbit_notes_search",
+    "orbit_note_read",
+    "orbit_notes_index",
     # The folders the user gave the assistant, read-only.
     "orbit_files_list",
     "orbit_files_search",

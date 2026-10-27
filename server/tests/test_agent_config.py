@@ -21,7 +21,14 @@ from orbit_hub.assistant.agent_config import MAX_PERSONALITY_BYTES, AgentConfigS
 from orbit_hub.assistant.skills import MAX_SKILL_BYTES, MAX_SKILLS, parse
 
 PROFILE = "atlas-perfil"
-EVERY_GROUP = {"screen": True, "control": True, "calendar": True, "meetings": True, "files": True}
+EVERY_GROUP = {
+    "screen": True,
+    "control": True,
+    "calendar": True,
+    "meetings": True,
+    "files": True,
+    "notes": True,
+}
 
 
 def skill_md(name, description="Resume la semana en cinco puntos.", body="1. Lee.\n2. Resume.\n"):
@@ -285,7 +292,7 @@ def test_access_groups_are_kept_per_agent_for_every_kind(hub, agent_id):
     assert AgentConfigStore(store).access(agent_id) == groups
     other = next(other for other in ("lyra", "vega") if other != agent_id)
     assert AgentConfigStore(store).access(other) == EVERY_GROUP
-    # The five, as booleans: a missing or extra group is refused, not guessed.
+    # The original five remain required booleans; a partial update is refused.
     partial = client.put(
         f"/v1/agents/{agent_id}/access", headers=headers, json={"groups": {"screen": True}}
     )
@@ -410,3 +417,13 @@ def test_an_unreachable_hermes_is_named_apart_from_a_refusal(environment, tmp_pa
     assert numbers == {"route": "GET /api/profiles/{name}/soul"}
     # The agents the hub keeps itself do not depend on Hermes.
     assert client.get("/v1/agents/lyra/config", headers=headers).status_code == 200
+
+
+def test_an_older_mac_cannot_reenable_notes_by_omitting_the_new_group(hub):
+    client, headers, _, store = hub
+    configs = AgentConfigStore(store)
+    configs.set_access("lyra", {**configs.access("lyra"), "notes": False})
+    groups = {key: True for key in configs.access("lyra") if key != "notes"}
+    response = client.put("/v1/agents/lyra/access", headers=headers, json={"groups": groups})
+    assert response.status_code == 200, response.text
+    assert response.json()["access"]["groups"]["notes"] is False

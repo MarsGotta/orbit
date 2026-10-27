@@ -12,7 +12,7 @@ fn config_json() -> serde_json::Value {
         "personality": {"text": "# Vega\n\nBreve.", "editable": true, "max_bytes": 65536},
         "access": {
             "groups": {"screen": true, "control": false, "calendar": true,
-                       "meetings": true, "files": false},
+                       "meetings": true, "files": false, "notes": true},
             "editable": false,
             "cause": "Hermes decide las herramientas de este perfil"
         },
@@ -45,6 +45,7 @@ fn the_hub_config_reads_with_each_field_and_its_cause() {
             calendar: true,
             meetings: true,
             files: false,
+            notes: true,
         }
     );
     assert_eq!(config.skills.max_skills, 64);
@@ -72,6 +73,7 @@ fn each_call_names_its_route_method_and_body() {
         calendar: true,
         meetings: false,
         files: true,
+        notes: true,
     };
     let cases = [
         (
@@ -100,7 +102,7 @@ fn each_call_names_its_route_method_and_body() {
             vec!["v1", "agents", "vega", "access"],
             Some(
                 json!({"groups": {"screen": false, "control": true, "calendar": true,
-                                   "meetings": false, "files": true}}),
+                                   "meetings": false, "files": true, "notes": true}}),
             ),
         ),
         (
@@ -301,6 +303,7 @@ fn each_assistant_call_names_its_route_method_and_body() {
         calendar: true,
         meetings: true,
         files: true,
+        notes: true,
     };
     let cases = [
         (
@@ -331,7 +334,7 @@ fn each_assistant_call_names_its_route_method_and_body() {
             Some(
                 json!({"service": "codex", "name": "Nova", "description": "", "color": "c3",
                         "access": {"screen": true, "control": false, "calendar": true,
-                                   "meetings": true, "files": true}}),
+                                   "meetings": true, "files": true, "notes": true}}),
             ),
         ),
         (

@@ -93,6 +93,12 @@ export function Sidebar(props: SidebarProps) {
           meta={working > 0 ? es.shell.inProgress(working) : undefined}
         />
         <SidebarItem
+          active={view === "vault"}
+          href={routeFor("vault")}
+          icon="notes"
+          label="Notas"
+        />
+        <SidebarItem
           active={view === "assistant"}
           alert={snapshot.chat.pending ? { tone: "rec", text: es.shell.needsYou } : undefined}
           href={routeFor("assistant")}
@@ -107,12 +113,18 @@ export function Sidebar(props: SidebarProps) {
         icon="settings"
         label={es.shell.settings}
       />
-      <div className={styles.person}>
-        <span aria-hidden="true" className={styles.initial}>
-          {name.charAt(0).toUpperCase()}
-        </span>
-        <span className={styles.name}>{name}</span>
-      </div>
+      <Person name={name} />
     </nav>
+  );
+}
+
+function Person({ name }: { name: string }) {
+  return (
+    <div className={styles.person}>
+      <span aria-hidden="true" className={styles.initial}>
+        {name.charAt(0).toUpperCase()}
+      </span>
+      <span className={styles.name}>{name}</span>
+    </div>
   );
 }

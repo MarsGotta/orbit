@@ -1,3 +1,4 @@
+import { vaultScenarios } from "./scenarios/vault";
 import { assistantsScenarios } from "./scenarios/assistants";
 import { assistantsGearScenarios } from "./scenarios/assistants-gear";
 import { assistantsLimitScenarios } from "./scenarios/assistants-limit";
@@ -31,6 +32,7 @@ export const scenarios: Scenario[] = [
   ...hoyScenarios,
   ...calendarScenarios,
   ...notesScenarios,
+  ...vaultScenarios,
   ...noteMenuScenarios,
   ...editorScenarios,
   ...noteWordScenarios,

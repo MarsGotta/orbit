@@ -10,7 +10,6 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 
-from ..assistant import access
 from ..assistant.agent_config import (
     MAX_PERSONALITY_BYTES,
     AgentConfigStore,
@@ -29,7 +28,7 @@ from ..notes.http import parse as parse_body
 # code and numbers.
 PERSONALITY_BODY_BYTES = 6 * MAX_PERSONALITY_BYTES + 1024
 SKILL_BODY_BYTES = 6 * MAX_SKILL_BYTES + 1024
-# Five booleans or one: far under 1 KiB.
+# Access-group booleans or one: far under 1 KiB.
 SMALL_BODY_BYTES = 1024
 
 
@@ -51,6 +50,7 @@ class Groups(Strict):
     calendar: bool
     meetings: bool
     files: bool
+    notes: bool = True
 
 
 class Access(Strict):
@@ -120,7 +120,10 @@ def mount(app, settings, agents: Agents, configs: AgentConfigStore, identity, bo
         identity(request)
         agent = agents.get(agent_id)
         groups = body(Access, await bounded_body(request, SMALL_BODY_BYTES), "Acceso").groups
-        configs.set_access(agent.id, {group: getattr(groups, group) for group in access.GROUPS})
+        # An older Mac does not know `notes`; preserve its stored choice.
+        configs.set_access(
+            agent.id, {**configs.access(agent.id), **groups.model_dump(exclude_unset=True)}
+        )
         return JSONResponse(await configuration(agent))
 
     @app.get("/v1/agents/{agent_id}/skills/{name}")

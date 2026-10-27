@@ -54,7 +54,14 @@ pub enum Reply {
     VoiceNoteAudio(VoiceNoteAudioResponse),
     Topics(TopicResponse),
     Agent(AgentResponse),
+    Vault(orbit_core::vault::VaultResponse),
     Attachment(AttachmentResponse),
+}
+
+impl From<orbit_core::vault::VaultResponse> for Reply {
+    fn from(response: orbit_core::vault::VaultResponse) -> Self {
+        Self::Vault(response)
+    }
 }
 
 impl From<AttachmentResponse> for Reply {

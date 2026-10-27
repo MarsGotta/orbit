@@ -14,7 +14,14 @@ const deimos: AgentConfig = {
     cause: "La personalidad es el SOUL.md del perfil de Hermes",
   },
   access: {
-    groups: { screen: true, control: true, calendar: true, meetings: true, files: true },
+    groups: {
+      screen: true,
+      control: true,
+      calendar: true,
+      meetings: true,
+      files: true,
+      notes: true,
+    },
     editable: false,
     cause: "Hermes decide sus herramientas",
   },
@@ -53,7 +60,14 @@ const claudeCode: AgentConfig = {
     cause: null,
   },
   access: {
-    groups: { screen: false, control: false, calendar: false, meetings: true, files: true },
+    groups: {
+      screen: false,
+      control: false,
+      calendar: false,
+      meetings: true,
+      files: true,
+      notes: true,
+    },
     editable: true,
     cause: null,
   },

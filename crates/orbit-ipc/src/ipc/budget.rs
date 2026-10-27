@@ -29,6 +29,9 @@ pub(super) fn encode_reply(reply: Reply) -> Result<Vec<u8>> {
         // The hub's answer is read whole up to `MAX_HUB_HTTP_BODY_BYTES`;
         // the reply line keeps the command response's own ceiling.
         Reply::Agent(response) => encode_with_limit(&response, MAX_COMMAND_RESPONSE_BYTES),
+        Reply::Vault(response) => {
+            encode_with_limit(&response, orbit_core::vault::MAX_VAULT_RESPONSE_BYTES)
+        }
         Reply::Attachment(response) => {
             encode_with_limit(&response, MAX_ATTACHMENT_RESPONSE_FRAME_BYTES)
         }

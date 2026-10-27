@@ -70,8 +70,9 @@ describe("the glossary", () => {
       "Pantalla",
       "Usar el Mac",
       "Calendario",
-      "Reuniones y notas",
+      "Reuniones",
       "Archivos",
+      "Notas",
     ]);
     for (const { description } of accessGroups) expect(description).not.toMatch(/orbit_/);
     // Each one is changed from its conversation; Ajustes › Asistentes sums them up.

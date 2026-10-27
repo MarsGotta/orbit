@@ -128,6 +128,14 @@ async fn answer(
     let body = String::from_utf8_lossy(&bytes[header_end..]).into_owned();
     let (status, reply) = if path == "/v1/pair" {
         ("200 OK", json!({"device_id": DEVICE_ID, "token": TOKEN}))
+    } else if path.starts_with("/v1/vault/") {
+        seen.lock().unwrap().push(Seen {
+            method: method.clone(),
+            path: path.clone(),
+            authorization,
+            body: body.clone(),
+        });
+        vault_reply(&path, &body)
     } else if path.starts_with("/v1/agents/") {
         seen.lock().unwrap().push(Seen {
             method: method.clone(),
@@ -149,6 +157,65 @@ async fn answer(
     Ok(())
 }
 
+fn vault_reply(path: &str, body: &str) -> (&'static str, Value) {
+    if path.ends_with("config") {
+        return (
+            "200 OK",
+            json!({"configured":true,"kind":"folder","path":"/invented/Garden",
+            "has_token":false,"link_style":"markdown","maintenance_model":"fixture/model",
+            "maintenance_enabled":false}),
+        );
+    }
+    let request: Value = serde_json::from_str(body).unwrap_or(Value::Null);
+    if request["path"] == "large.md" {
+        return (
+            "413 Payload Too Large",
+            json!({"code":"vault_note_too_large",
+            "message":"La nota supera el máximo indicado.",
+            "refusal":{"code":"vault_note_too_large","bytes":262145,"max_bytes":262144}}),
+        );
+    }
+    (
+        "200 OK",
+        json!({"path":"personas/ada.md","frontmatter":{"type":"persona","title":"Ada"},
+        "body":"A gardener.","raw":"# Ada\nA gardener.","outlinks":[],"synthesized":false,
+        "citations":[],"tasks":[],"dependencies":[],"queries":[],"history":[]}),
+    )
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn vault_calls_cross_app_actor_http_and_back_without_echoing_credentials()
+-> Result<(), Box<dyn Error>> {
+    use orbit_core::vault::{VaultCall, VaultOutcome};
+    let hub = hub().await?;
+    let (_directory, _daemon, app) = paired_client(&hub).await?;
+    let configured = tokio::time::timeout(CALL_BUDGET, app.vault(VaultCall::Config)).await??;
+    assert!(!serde_json::to_string(&configured)?.contains(TOKEN));
+    assert!(
+        matches!(configured, VaultOutcome::Config { configuration } if configuration.maintenance_model == "fixture/model")
+    );
+    let call: VaultCall = serde_json::from_value(
+        json!({"call":"read","request":{"operation":"read","path":"personas/ada.md"}}),
+    )?;
+    let read = tokio::time::timeout(CALL_BUDGET, app.vault(call)).await??;
+    assert!(matches!(read, VaultOutcome::Note { note } if note.body == "A gardener."));
+    let call: VaultCall = serde_json::from_value(
+        json!({"call":"read","request":{"operation":"read","path":"large.md"}}),
+    )?;
+    let refused = tokio::time::timeout(CALL_BUDGET, app.vault(call)).await??;
+    assert!(
+        matches!(refused, VaultOutcome::Refused { code, numbers, .. } if code == "vault_note_too_large" && numbers["bytes"] == 262145 && numbers["max_bytes"] == 262144)
+    );
+    let seen = hub.seen.lock().unwrap();
+    assert_eq!(seen.len(), 3);
+    assert!(
+        seen.iter().all(
+            |request| request.authorization.as_deref() == Some("bearer synthetic-agents-token")
+        )
+    );
+    Ok(())
+}
+
 fn agent_reply(method: &str, path: &str, body: &str) -> (&'static str, Value) {
     match (method, path) {
         ("GET", "/v1/agents/vega/config") => (
@@ -157,7 +224,7 @@ fn agent_reply(method: &str, path: &str, body: &str) -> (&'static str, Value) {
                 "agent_id": "vega", "kind": "openai",
                 "personality": {"text": "Sé breve.", "editable": true, "max_bytes": 65536},
                 "access": {"groups": {"screen": true, "control": false, "calendar": true,
-                                      "meetings": true, "files": true}, "editable": true},
+                                      "meetings": true, "files": true, "notes": true}, "editable": true},
                 "skills": {"editable": true, "max_skills": 2, "max_skill_bytes": 32768,
                            "items": [{"name": "resumen-diario",
                                       "description": "Resume el día.", "enabled": true}]}
@@ -282,7 +349,7 @@ async fn the_config_an_order_and_a_refusal_cross_the_mac_whole() -> Result<(), B
     assert_eq!(
         serde_json::from_str::<Value>(&seen[1].body)?,
         json!({"groups": {"screen": true, "control": true, "calendar": true,
-                          "meetings": true, "files": true}})
+                          "meetings": true, "files": true, "notes": true}})
     );
     Ok(())
 }

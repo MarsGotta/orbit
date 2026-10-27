@@ -11,6 +11,7 @@ pub mod error_reports;
 pub mod hub;
 pub mod hub_agents;
 pub mod hub_notes;
+pub mod hub_vault;
 pub use orbit_ipc as ipc;
 pub mod native;
 pub use orbit_ipc::permissions;

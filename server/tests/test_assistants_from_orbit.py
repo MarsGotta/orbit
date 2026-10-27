@@ -24,7 +24,14 @@ TWO_AGENTS = (
     {"id": "deimos", "name": "Deimos", "kind": "hermes", "profile": "deimos-profile"},
     {"id": "lyra", "name": "Lyra", "kind": "hermes", "profile": "lyra-profile"},
 )
-ALL_ON = {"screen": True, "control": True, "calendar": True, "meetings": True, "files": True}
+ALL_ON = {
+    "screen": True,
+    "control": True,
+    "calendar": True,
+    "meetings": True,
+    "files": True,
+    "notes": True,
+}
 
 
 def with_adapters(settings, tmp_path, *services):

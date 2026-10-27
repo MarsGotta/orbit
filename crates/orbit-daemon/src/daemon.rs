@@ -80,6 +80,7 @@ mod recording_notes;
 mod retire;
 mod sealing;
 mod shutdown;
+mod vault;
 use bridge::{BridgeAsk, BridgeKind, BridgeReleaseReason, BridgeSlots};
 use kernel::DurableSnapshot;
 pub use shutdown::{SHUTDOWN_BUDGET, SNAPSHOT_RECEIPT_GRACE};

@@ -12,7 +12,7 @@ const base = {
       asistentes:
         "Cada asistente se edita desde su conversación: el lápiz cambia su nombre, descripción y color; el engranaje abre el resto de sus ajustes.",
       reuniones:
-        "Cómo se escriben las notas de tus reuniones y qué palabras corrige la transcripción.",
+        "Cómo se escriben las notas de tus reuniones y qué palabras corrige la transcripción. Lo que pasa después a tu vault está en Ajustes › Notas.",
     },
     index: "Secciones de ajustes",
     missing: (count: number) => (count === 1 ? "Falta 1" : `Faltan ${count}`),

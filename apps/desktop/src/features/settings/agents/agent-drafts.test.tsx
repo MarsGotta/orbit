@@ -35,7 +35,14 @@ function config(): AgentConfig {
     kind: "openai",
     personality: { text: "Sé breve.", editable: true, max_bytes: 65536, cause: null },
     access: {
-      groups: { screen: true, control: false, calendar: true, meetings: true, files: true },
+      groups: {
+        screen: true,
+        control: false,
+        calendar: true,
+        meetings: true,
+        files: true,
+        notes: true,
+      },
       editable: true,
       cause: null,
     },

@@ -32,7 +32,8 @@ export const paletteGroups: readonly PaletteGroup[] = ["actions", "goTo", "priva
 const views: readonly [ViewId, IconName][] = [
   ["briefing", "briefing"],
   ["calendar", "calendar"],
-  ["notes", "notes"],
+  ["notes", "meetings"],
+  ["vault", "notes"],
   ["assistant", "assistant"],
   ["settings", "settings"],
 ];

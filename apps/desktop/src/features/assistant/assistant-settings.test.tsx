@@ -38,7 +38,14 @@ function config(agentId: string, editable: boolean): AgentConfig {
       cause: editable ? null : "La personalidad es el SOUL.md del perfil de Hermes",
     },
     access: {
-      groups: { screen: false, control: false, calendar: true, meetings: true, files: true },
+      groups: {
+        screen: false,
+        control: false,
+        calendar: true,
+        meetings: true,
+        files: true,
+        notes: true,
+      },
       editable,
       cause: editable ? null : "Hermes decide sus herramientas",
     },

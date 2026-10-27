@@ -1,0 +1,594 @@
+.view {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.reading {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+.content {
+  padding: 32px;
+  min-width: 0;
+}
+.heading {
+  margin-bottom: 24px;
+}
+.heading h1,
+.create h1 {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+.heading p,
+.create > p {
+  color: var(--o-ink2);
+  line-height: 1.6;
+  margin: 0 0 10px;
+}
+.content h2 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--o-ink2);
+  margin: 26px 0 12px;
+}
+.content h2 small {
+  color: var(--o-ink3);
+  font-weight: 400;
+  margin-left: 8px;
+}
+.content a,
+.about a,
+.noteContent a {
+  color: var(--o-accText);
+  text-decoration: none;
+}
+.content a:hover,
+.about a:hover,
+.noteContent a:hover {
+  text-decoration: underline;
+}
+.muted {
+  color: var(--o-ink3);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.search {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.search > :first-child {
+  flex: 1;
+}
+.homeGrid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 28px;
+}
+.projects {
+  display: grid;
+  gap: 10px;
+}
+.project {
+  display: block;
+  padding: 16px;
+  background: var(--o-surface);
+  border: 1px solid var(--o-line);
+  border-radius: 12px;
+  color: var(--o-ink) !important;
+  text-decoration: none !important;
+}
+.project:hover {
+  border-color: var(--o-line2);
+}
+.project > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.project strong {
+  font-size: 14px;
+}
+.project p {
+  margin: 10px 0;
+  color: var(--o-ink2);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.project small {
+  color: var(--o-ink3);
+  font-size: 12px;
+}
+.state {
+  margin-left: auto;
+  border-radius: 20px;
+  white-space: nowrap;
+  padding: 4px 8px;
+  font-size: 11px;
+  background: var(--o-raised);
+  color: var(--o-ink2);
+}
+.state[data-state="en marcha"] {
+  background: var(--o-okSoft);
+  color: var(--o-ok);
+}
+.state[data-state="en riesgo"] {
+  background: var(--o-warnSoft);
+  color: var(--o-warn);
+}
+.minorLink {
+  float: right;
+  font-size: 12px;
+  font-weight: 400;
+}
+.activity {
+  list-style: none;
+  padding: 0;
+}
+.activity li {
+  display: flex;
+  gap: 9px;
+  margin: 14px 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.activity small,
+.task small,
+.sources small,
+.about small {
+  display: block;
+  color: var(--o-ink3);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.tasks {
+  padding: 0;
+  margin: 12px 0;
+  list-style: none;
+  border: 1px solid var(--o-line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--o-surface);
+}
+.task {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--o-line);
+  line-height: 1.45;
+  font-size: 13px;
+}
+.task:last-child {
+  border-bottom: 0;
+}
+.task > input {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  accent-color: var(--o-acc);
+  opacity: 1;
+  margin: 0;
+}
+.taskText {
+  flex: 1;
+  min-width: 0;
+}
+.taskText > a {
+  color: var(--o-ink);
+}
+.taskText > a[data-done="true"] {
+  text-decoration: line-through;
+  color: var(--o-ink3);
+}
+.due {
+  color: var(--o-ink3);
+  white-space: nowrap;
+  font-size: 11px;
+}
+.due[data-late="true"] {
+  color: var(--o-recText);
+}
+.avatar {
+  display: inline-grid;
+  flex: 0 0 22px;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--o-c1s);
+  color: var(--o-c1);
+  font-size: 10px;
+  font-weight: 600;
+}
+.team {
+  display: flex;
+}
+.team .avatar + .avatar {
+  margin-left: -5px;
+  border: 1px solid var(--o-bg);
+}
+.filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+.filters button {
+  background: transparent;
+  border: 1px solid var(--o-line2);
+  color: var(--o-ink2);
+  padding: 6px 11px;
+  border-radius: 20px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+.filters button[aria-pressed="true"] {
+  border-color: var(--o-accText);
+  background: var(--o-accSoft);
+  color: var(--o-ink);
+}
+.filters button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.embedded {
+  margin: 10px 0 20px;
+}
+.noteLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  flex: 1;
+  min-height: 0;
+}
+.noteContent {
+  min-width: 0;
+  padding: 32px 36px;
+  line-height: 1.65;
+}
+.noteContent > h1 {
+  font-size: 26px;
+  letter-spacing: -0.02em;
+  margin: 10px 0 6px;
+  line-height: 1.3;
+}
+.description {
+  color: var(--o-ink2);
+  margin: 8px 0 26px;
+}
+.type {
+  display: inline-block;
+  color: var(--o-c1);
+  background: var(--o-c1s);
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.type[data-type="proyecto"] {
+  color: var(--o-c2);
+  background: var(--o-c2s);
+}
+.type[data-type="decision"] {
+  color: var(--o-c4);
+  background: var(--o-c4s);
+}
+.top {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.top > code {
+  color: var(--o-ink3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  max-width: 220px;
+}
+.top > span {
+  margin-left: auto;
+  color: var(--o-ink3);
+  font-size: 11px;
+}
+.top > button {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.properties {
+  font-size: 13px;
+  margin: 22px 0;
+}
+.properties > div {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 12px;
+  margin: 8px 0;
+}
+.properties dt {
+  color: var(--o-ink3);
+}
+.properties dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.about {
+  border-left: 1px solid var(--o-line);
+  padding: 20px;
+  min-width: 0;
+  color: var(--o-ink2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.about h3 {
+  color: var(--o-ink2);
+  font-weight: 600;
+  font-size: 13px;
+  margin: 0 0 14px;
+}
+.about section {
+  margin-top: 28px;
+}
+.about .properties {
+  font-size: 12px;
+  margin: 0;
+}
+.about .properties > div {
+  grid-template-columns: 92px minmax(0, 1fr);
+}
+.tag {
+  display: inline-block;
+  background: var(--o-raised);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin: 0 3px 3px 0;
+}
+.sources {
+  padding: 0;
+  list-style: none;
+}
+.sources li {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+.sources small {
+  overflow-wrap: anywhere;
+}
+.citation {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  background: var(--o-raised);
+  color: var(--o-ink2) !important;
+  font-size: 10px;
+  border-radius: 4px;
+  padding: 0 3px;
+  text-decoration: none !important;
+}
+.backlinks {
+  list-style: none;
+  padding: 0;
+}
+.backlinks li {
+  margin: 14px 0;
+}
+.backlinks p {
+  margin: 2px 0;
+  color: var(--o-ink3);
+}
+.backlinks small {
+  display: inline;
+  margin-left: 5px;
+}
+.markdown {
+  border-top: 1px solid var(--o-line);
+  padding-top: 12px;
+}
+.markdown h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 24px 0 14px;
+}
+.markdown h3 {
+  font-size: 16px;
+}
+.markdown p,
+.markdown li {
+  font-size: 14px;
+  line-height: 1.7;
+}
+.markdown ul,
+.markdown ol {
+  padding-left: 20px;
+}
+.markdown .tasks {
+  padding: 0;
+}
+.markdown blockquote {
+  border-left: 3px solid var(--o-line2);
+  padding-left: 16px;
+  margin: 18px 0;
+  color: var(--o-ink2);
+}
+.markdown table {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.markdown td,
+.markdown th {
+  border: 1px solid var(--o-line);
+  padding: 6px;
+}
+.codeBlock {
+  overflow: auto;
+}
+.codeBlock > code,
+.raw pre {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--o-surface);
+  border: 1px solid var(--o-line);
+  border-radius: 8px;
+  padding: 16px;
+  font:
+    12px/1.7 ui-monospace,
+    Menlo,
+    monospace;
+  color: var(--o-ink2);
+}
+.raw pre {
+  margin: 10px 0 22px;
+}
+.dependency {
+  border: 1px solid var(--o-line);
+  border-radius: 10px;
+  margin: 18px 0;
+  padding-bottom: 10px;
+}
+.blockLabel {
+  font-size: 12px;
+  color: var(--o-ink3);
+  border-bottom: 1px solid var(--o-line);
+  padding: 10px;
+  margin: 0;
+}
+.diagramScroll {
+  padding: 14px;
+  overflow: auto;
+}
+.dependency details {
+  margin: 0 14px;
+  font-size: 12px;
+}
+.mapArea {
+  position: relative;
+  min-height: 460px;
+}
+.graph {
+  width: 100%;
+  min-height: 420px;
+}
+.graph g[role="button"] {
+  cursor: pointer;
+}
+.graph g:focus-visible {
+  outline: 2px solid var(--o-accText);
+}
+.mapCard {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 280px;
+  padding: 18px;
+  border-radius: 12px;
+  background: var(--o-surface);
+  border: 1px solid var(--o-line2);
+  font-size: 13px;
+}
+.mapCard h2 {
+  margin: 6px 0;
+  color: var(--o-ink);
+}
+.mapCard p {
+  color: var(--o-ink2);
+  line-height: 1.5;
+}
+.create {
+  margin: 0 auto;
+  padding: 44px 32px;
+  max-width: 820px;
+  width: 100%;
+  overflow: auto;
+}
+.create h2 {
+  font-size: 13px;
+  color: var(--o-ink2);
+  margin-top: 26px;
+}
+.pagination {
+  padding: 16px 32px;
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--o-ink3);
+  font-size: 11px;
+}
+.connection {
+  border: 1px solid var(--o-line);
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+.connection summary {
+  cursor: pointer;
+  font-size: 13px;
+}
+.linkOptions {
+  border: 0;
+  display: flex;
+  gap: 18px;
+  padding: 10px 0 0;
+  font-size: 12px;
+}
+.linkOptions label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.linkOptions input {
+  accent-color: var(--o-acc);
+}
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  overflow: hidden;
+}
+@media (max-width: 1250px) {
+  .homeGrid {
+    grid-template-columns: 1fr;
+  }
+  .noteLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .about {
+    border-left: 0;
+    border-top: 1px solid var(--o-line);
+  }
+  .noteContent,
+  .content {
+    padding: 24px;
+  }
+  .top > code,
+  .top > span {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .graph * {
+    transition: none;
+  }
+}

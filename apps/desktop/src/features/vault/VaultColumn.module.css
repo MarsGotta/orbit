@@ -1,0 +1,142 @@
+.column {
+  width: 272px;
+  flex: 0 0 272px;
+  background: var(--o-side);
+  border-right: 1px solid var(--o-line);
+  display: flex;
+  flex-direction: column;
+}
+.column > h2 {
+  font-size: 15px;
+  padding: 0 18px;
+  height: 52px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--o-line);
+}
+.contents {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 14px 8px 0;
+}
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 10px 14px;
+  font-size: 14px;
+}
+.identity small {
+  display: block;
+  color: var(--o-ink3);
+  font-size: 12px;
+  margin-top: 3px;
+}
+.initial {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--o-c2s);
+  color: var(--o-c2);
+  font-weight: 600;
+}
+.row,
+.note {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--o-ink2);
+  text-decoration: none;
+  cursor: pointer;
+  text-align: left;
+}
+.row:hover,
+.note:hover {
+  background: var(--o-hover);
+}
+.row[aria-current],
+.note[aria-current] {
+  background: var(--o-raised);
+  color: var(--o-ink);
+}
+.note {
+  padding-left: 32px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--o-ink3);
+}
+.caption {
+  color: var(--o-ink3);
+  font-size: 12px;
+  margin: 24px 10px 6px;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  background: var(--o-ink2);
+}
+.dot[data-folder="personas"] {
+  background: var(--o-c1);
+}
+.dot[data-folder="proyectos"] {
+  background: var(--o-c2);
+}
+.dot[data-folder="decisiones"] {
+  background: var(--o-c4);
+}
+.dot[data-folder="temas"] {
+  background: var(--o-c3);
+}
+.dot[data-folder="consultas"] {
+  background: var(--o-accText);
+}
+.dot[data-folder="fuentes"] {
+  background: var(--o-ink3);
+}
+.footer {
+  border-top: 1px solid var(--o-line);
+  margin: auto -8px 0;
+  padding: 12px 18px;
+  display: grid;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--o-ink3);
+}
+.footer a {
+  display: flex;
+  gap: 8px;
+  color: var(--o-ink2);
+  text-decoration: none;
+}
+.footer code {
+  margin-left: auto;
+  font-size: 11px;
+}
+.empty {
+  margin: 12px;
+  color: var(--o-ink2);
+  line-height: 1.6;
+}
+
+.nested {
+  padding-left: 14px;
+}

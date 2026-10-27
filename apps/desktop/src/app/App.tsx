@@ -48,6 +48,7 @@ export interface AppContentProps {
   readSessionsPage?: DaemonPort["readSessionsPage"];
   readSessionMessages?: DaemonPort["readSessionMessages"];
   agent?: DaemonPort["agent"];
+  vault?: DaemonPort["vault"];
   view: ViewId;
   settingsSection: SettingsSection;
 }
@@ -83,6 +84,7 @@ function AppContent(props: AppContentProps) {
           <FailureActionsProvider messages={props.messages} onRetry={props.retry}>
             <Main
               agent={props.agent}
+              vault={props.vault}
               crash={props.crash}
               error={props.error}
               onRecord={onRecord}
@@ -166,6 +168,7 @@ export function App({ port }: { port: DaemonPort }) {
       <AssistantCopy name={conversationAgentName(snapshot)}>
         <AppContent
           agent={agent}
+          vault={port.vault}
           palette={palette}
           crash={crash}
           dismiss={dismiss}

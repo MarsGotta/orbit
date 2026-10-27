@@ -6,9 +6,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-/// The five groups of Orbit's tools an agent may use. All five travel
-/// together, on reads and writes: a group missing from a hub's answer is
-/// unknown, never off, so it fails the read instead of reading as `false`.
+/// Orbit's tool access groups. The original groups remain required; a
+/// missing original group fails the read instead of being treated as off.
+/// The newer notes group uses its historical on default for an older hub.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -21,6 +21,14 @@ pub struct AccessGroups {
     pub calendar: bool,
     pub meetings: bool,
     pub files: bool,
+    // A pre-vault hub has no notes group. Keep the historical default on;
+    // the current hub still enforces every read and stores its choice.
+    #[serde(default = "notes_enabled")]
+    pub notes: bool,
+}
+
+fn notes_enabled() -> bool {
+    true
 }
 
 /// The agent's personality (Markdown) and whether its kind lets Orbit
@@ -140,7 +148,7 @@ pub enum AgentCall {
         agent_id: String,
         text: String,
     },
-    /// The five groups as the user left them; a switch is the decision.
+    /// The six groups as the user left them; a switch is the decision.
     Access {
         agent_id: String,
         groups: AccessGroups,

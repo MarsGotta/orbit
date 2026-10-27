@@ -7,8 +7,31 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Added
+
+- Read-only «Notas»: connect a hub folder or Fast Note Sync, browse the vault,
+  read fiches and original Markdown with sources and backlinks, inspect tasks
+  and dependency/link maps, and choose the link style and future hub-job model.
+  Credentials and the hub working copy are encrypted. Assistants get three
+  read tools behind the new `notes` access group. No note writes or model jobs run.
+
 ### Fixed
 
+- Meeting voice separation uses the linked calendar's invitees, excluding the
+  owner, as its remote-speaker ceiling. «Volver a transcribir» also separates
+  voices again and preserves user names by matching earlier word times; merged
+  voices keep the larger named voice and retain the other names as aliases.
+  Existing meetings are left alone until retranscription is requested.
+- Official assistants mask secret files discovered by name under optional
+  `[assistant_tools.jail] secret_roots`, including secrets in a working folder
+  within a configured root. Discovery skips dependency and cache trees, bounds
+  depth and visited entries, and reports partial scans in Spanish while
+  preserving startup and ordinary neighboring files.
+- Secret discovery runs in the background at hub startup and every ten minutes,
+  caching readable files per root. The first assistant start waits up to thirty
+  seconds for discovery and refuses if it is unavailable; warm starts use the
+  cache and skip deleted files. Registered discovery bounds now accommodate the
+  measured service tree with room for growth.
 
 ## [0.12.5] - 2026-10-27
 

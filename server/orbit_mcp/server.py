@@ -14,7 +14,7 @@ from orbit_hub.log import get_logger
 from .config import Config
 from .hub import HubClient, HubClientError, validate_parameters
 from .refusals import error_result
-from .tools import agenda, attachments, control, devices, folders, recordings, screen, skills
+from .tools import agenda, attachments, control, devices, folders, notes, recordings, screen, skills
 from .tools.control import general_action
 from .tools.runner import ToolRunner
 
@@ -27,7 +27,7 @@ logger = get_logger("orbit_hub.orbit_mcp.server")
 ACCESS_CACHE_SECONDS = 10.0
 
 # The tool families in the order their tools are listed.
-TOOL_FAMILIES = (devices, screen, control, agenda, folders, recordings, attachments, skills)
+TOOL_FAMILIES = (devices, screen, control, agenda, folders, recordings, notes, attachments, skills)
 
 
 class OrbitMCPServer(MCPServer):

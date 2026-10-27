@@ -1,6 +1,8 @@
 import type { AppBootstrap, AppCommand, CommandReceipt, FeatureFrame } from "./generated";
 import type { AgentAnswer } from "./generated/AgentAnswer";
 import type { AgentCall } from "./generated/AgentCall";
+import type { VaultCall } from "./generated/VaultCall";
+import type { VaultOutcome } from "./generated/VaultOutcome";
 import type { NoticeClass } from "./generated/NoticeClass";
 import type { NoticeData } from "../i18n/es/notices";
 import type { AssistantCursor, MessagesPage, SessionPage } from "./reads";
@@ -31,6 +33,7 @@ export interface DaemonPort {
   readSessionMessages?(sessionId: string, cursor: AssistantCursor | null): Promise<MessagesPage>;
   /** Ajustes › Agentes: one read or order of an agent's configuration on the hub. */
   agent?(call: AgentCall): Promise<AgentAnswer>;
+  vault?(call: VaultCall): Promise<VaultOutcome>;
   /** The main window hands over what it holds before Orbit quits (`state/quit-flush.ts`). */
   onFlushBeforeQuit?(flush: () => Promise<void>): Promise<Unsubscribe>;
   /** The floating panel opens a link of Deimos's answer. */

@@ -10,6 +10,7 @@ fn off_loop(command: &Command) -> bool {
         Command::SubscribeTopics { .. }
             | Command::Read { .. }
             | Command::Agent { .. }
+            | Command::Vault { .. }
             | Command::AttachmentAdd { .. }
             | Command::AttachmentFetch { .. }
             | Command::AttachmentSave { .. }
@@ -67,6 +68,8 @@ impl MainLoop<'_> {
             runtime.serve_read(read.clone(), id, reply, board.revisions());
         } else if let Command::Agent { call } = command {
             runtime.serve_agent(call.clone(), id, reply);
+        } else if let Command::Vault { call } = command {
+            runtime.serve_vault(call.clone(), id, reply);
         } else if matches!(
             command,
             Command::AttachmentAdd {

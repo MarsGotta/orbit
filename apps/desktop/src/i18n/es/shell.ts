@@ -19,6 +19,7 @@ function sidebarCopy(assistantName: string) {
       briefing: "Hoy",
       calendar: "Calendario",
       notes: "Reuniones",
+      vault: "Notas",
       assistant: "Asistente",
       settings: "Ajustes",
       inProgress: (count: number) => `${count} en curso`,
@@ -39,6 +40,7 @@ function sidebarCopy(assistantName: string) {
         grabacion: "Grabación y llamadas",
         asistentes: "Asistentes",
         reuniones: "Reuniones",
+        notas: "Notas",
       },
     },
   } as const;

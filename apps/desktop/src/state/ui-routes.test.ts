@@ -17,13 +17,14 @@ function openedAt(hash: string) {
 }
 
 describe("the routes of Ajustes", () => {
-  it("has exactly the five sections, each with its own route", () => {
+  it("has the six sections, each with its own route", () => {
     expect(ui.SETTINGS_SECTIONS).toEqual([
       "general",
       "privacidad",
       "grabacion",
       "asistentes",
       "reuniones",
+      "notas",
     ]);
     for (const section of ui.SETTINGS_SECTIONS) {
       expect(ui.settingsRoute(section)).toBe(`#/settings/${section}`);

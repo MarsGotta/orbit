@@ -65,6 +65,7 @@ describe("what the palette offers", () => {
       "Hoy",
       "Calendario",
       "Reuniones",
+      "Notas",
       "Asistente",
       "Ajustes",
       "Parar todo",

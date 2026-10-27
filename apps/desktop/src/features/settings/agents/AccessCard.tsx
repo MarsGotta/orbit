@@ -7,7 +7,7 @@ import { copy, FeedbackLine, NotEditable, type OrderProps } from "./parts";
 /**
  * «Qué puede usar»: one switch per group of Orbit's tools, each named by
  * what it lets the agent do. A switch is configuration: it is sent as it is
- * flipped, with all five groups, and nothing asks again.
+ * flipped, with all access groups, and nothing asks again.
  */
 export function AccessCard({
   access,

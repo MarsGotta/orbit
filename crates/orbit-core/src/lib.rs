@@ -40,6 +40,7 @@ pub mod speech;
 pub mod topics;
 pub mod transition;
 pub mod update;
+pub mod vault;
 pub mod voice;
 pub mod window_text;
 

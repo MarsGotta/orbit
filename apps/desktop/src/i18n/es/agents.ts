@@ -26,10 +26,11 @@ export const accessGroups: ReadonlyArray<{
   { group: "calendar", label: "Calendario", description: "Leer tu agenda" },
   {
     group: "meetings",
-    label: "Reuniones y notas",
-    description: "Leer tus reuniones, notas y transcripciones",
+    label: "Reuniones",
+    description: "Leer tus reuniones, sus notas y transcripciones",
   },
   { group: "files", label: "Archivos", description: "Leer las carpetas que elijas aquí abajo" },
+  { group: "notes", label: "Notas", description: "Buscar y leer las notas de tu vault en el hub" },
 ];
 
 /** Every number as `key: value`, for a refusal this screen has no words for. */
