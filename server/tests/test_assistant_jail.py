@@ -292,13 +292,26 @@ def test_real_jail_hides_secrets_and_confines_writes(environment, kernel_root, m
     settings, agent, work, vendor, _, other, home = fixture_paths(
         environment, kernel_root, monkeypatch
     )
+    secret_root = kernel_root / "stacks"
+    secret_root.mkdir()
+    (secret_root / ".env").write_text("invented service secret")
+    (secret_root / "config.toml").write_text("invented tool configuration")
+    (secret_root / "readme.txt").write_text("public neighbor")
+    work = secret_root / "project"
+    work.mkdir()
+    (work / ".env.local").write_text("invented workspace secret")
+    settings = replace(settings, assistant_tools={"jail": {"secret_roots": [str(secret_root)]}})
     dock = kernel_root / "docker.sock"
     with socket.socket(socket.AF_UNIX) as sock:
         sock.bind(str(dock))
         monkeypatch.setattr("orbit_hub.assistant.jail.escape_paths", lambda: (dock,))
         parent = os.getpid()
         script = """import os, pathlib, socket, sys
-hidden, other, ssh, dock, outside, work, vendor, parent = sys.argv[1:]
+hidden, other, ssh, dock, outside, work, vendor, parent, secrets = sys.argv[1:]
+for path in (pathlib.Path(secrets, '.env'), pathlib.Path(secrets, 'config.toml'),
+             pathlib.Path(work, '.env.local')):
+    assert path.read_bytes() == b'', 'secret readable: ' + str(path)
+assert pathlib.Path(secrets, 'readme.txt').read_text() == 'public neighbor'
 for path, name in ((hidden, 'secret'), (other, 'secret'), (ssh, 'key')):
     try:
         pathlib.Path(path, name).read_text()
@@ -350,6 +363,7 @@ assert os.environ['TMPDIR'] == '/tmp'
                 str(work),
                 str(vendor),
                 str(parent),
+                str(secret_root),
             ],
             capture_output=True,
             check=False,

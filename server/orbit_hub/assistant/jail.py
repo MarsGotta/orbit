@@ -15,6 +15,8 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from ..errors import HubError
+from .jail_secret_cache import INITIAL_SCAN_WAIT_SECONDS, SecretScanUnavailable
+from .jail_secrets import excluded
 from .tool_settings import HOME_FOLDERS
 
 OWNER_CREDENTIALS = (
@@ -157,9 +159,20 @@ def arguments(settings, agent, working_folder, configs=None, *, vendor_home=None
             args.extend(("--ro-bind", "/dev/null", str(path)))
     if bridge.is_dir():
         args.extend(("--ro-bind", str(bridge), str(bridge)))
-    args.extend(
-        ("--bind", str(work), str(work), "--bind", str(vendor), str(vendor), "--chdir", str(work))
-    )
+    args.extend(("--bind", str(work), str(work), "--bind", str(vendor), str(vendor)))
+    try:
+        secrets = settings.assistant_jail_cache.paths()
+    except SecretScanUnavailable as error:
+        raise unavailable(str(error)) from None
+    resolved_vendor = vendor.resolve()
+    for path in secrets:
+        if (
+            not excluded(path, work, resolved_vendor, masked)
+            and path.is_file()
+            and os.access(path, os.R_OK)
+        ):
+            args.extend(("--ro-bind", "/dev/null", str(path)))
+    args.extend(("--chdir", str(work)))
     return args
 
 
@@ -171,6 +184,19 @@ def unavailable(cause, status=None):
         "y el perfil de AppArmor de Ubuntu (bwrap-userns-restrict) para permitir bubblewrap"
     )
     numbers = {"cause": cause}
+    if cause.startswith("secret_scan_"):
+        reasons = {
+            "secret_scan_timeout": (
+                f"la revisión de secretos del hub no terminó en {INITIAL_SCAN_WAIT_SECONDS} segundos"
+            ),
+            "secret_scan_failed": "no se pudo completar la revisión de secretos del hub",
+            "secret_scan_not_ready": "la revisión de secretos del hub aún no ha terminado",
+        }
+        message = (
+            f"No se puede aislar al asistente todavía: {reasons[cause]}. "
+            "Vuelve a intentarlo en unos instantes"
+        )
+        numbers["wait_limit_seconds"] = INITIAL_SCAN_WAIT_SECONDS
     if status is not None:
         numbers["exit_status"] = status
     # Existing Macs already render this stable adapter refusal and its message.
@@ -178,7 +204,13 @@ def unavailable(cause, status=None):
 
 
 async def launch(settings, agent, working_folder, configs=None, *, vendor_home=None):
-    args = arguments(settings, agent, working_folder, configs, vendor_home=vendor_home)
+    try:
+        await settings.assistant_jail_cache.wait_ready()
+    except SecretScanUnavailable as error:
+        raise unavailable(str(error)) from None
+    args = await asyncio.to_thread(
+        arguments, settings, agent, working_folder, configs, vendor_home=vendor_home
+    )
     binary = shutil.which("bwrap")
     if binary is None:
         raise unavailable("missing")

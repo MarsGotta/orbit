@@ -98,6 +98,19 @@ def parse_assistant_tool(
         raise ValueError(f"{where}: {exc}") from None
 
 
+def parse_jail(raw: Mapping[str, Any]) -> tuple[Path, ...]:
+    """Optional host folders; never infer private infrastructure locations."""
+    where = "[assistant_tools.jail]"
+    if unknown := sorted(set(raw) - {"secret_roots"}):
+        raise ValueError(f"{where}: unknown keys: {', '.join(unknown)}")
+    roots = raw.get("secret_roots", [])
+    if not isinstance(roots, list) or any(
+        not isinstance(root, str) or not os.path.isabs(root) for root in roots
+    ):
+        raise ValueError(f"{where}: `secret_roots` must be a list of absolute folder paths")
+    return tuple(dict.fromkeys(Path(root).resolve() for root in roots))
+
+
 def environment(settings: ToolSettings, home: Path) -> dict[str, str]:
     variables = {
         name: os.environ[name] for name in (*SAFE_VARIABLES, *settings.env) if name in os.environ

@@ -2060,5 +2060,61 @@
     "source": "python",
     "unit": "milliseconds",
     "value": 1000
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/assistant/jail_secrets.py",
+        "name": "MAX_SECRET_ENTRIES",
+        "unit": "entries"
+      }
+    ],
+    "name": "MAX_SECRET_ENTRIES",
+    "resource": "background secret discovery per root; over three times the measured 592505 entries",
+    "source": "registry",
+    "unit": "entries",
+    "value": 2000000
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/assistant/jail_secrets.py",
+        "name": "MAX_SECRET_DEPTH",
+        "unit": "levels"
+      }
+    ],
+    "name": "MAX_SECRET_DEPTH",
+    "resource": "background secret discovery directory depth; twice the measured maximum depth of eight",
+    "source": "registry",
+    "unit": "levels",
+    "value": 16
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/assistant/jail_secret_cache.py",
+        "name": "SECRET_SCAN_REFRESH_SECONDS",
+        "unit": "seconds"
+      }
+    ],
+    "name": "SECRET_SCAN_REFRESH_SECONDS",
+    "resource": "background secret discovery freshness; a measured 3.7 to 6.9 second walk must not run on every assistant start",
+    "source": "registry",
+    "unit": "seconds",
+    "value": 600
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/assistant/jail_secret_cache.py",
+        "name": "INITIAL_SCAN_WAIT_SECONDS",
+        "unit": "seconds"
+      }
+    ],
+    "name": "INITIAL_SCAN_WAIT_SECONDS",
+    "resource": "first assistant admission wait; more than four times the worst observed 6.9 second secret scan, never admission without an initial snapshot",
+    "source": "registry",
+    "unit": "seconds",
+    "value": 30
   }
 ]

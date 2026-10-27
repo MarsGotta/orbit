@@ -2,6 +2,7 @@
 
 import os
 import tomllib
+from functools import cached_property
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
@@ -9,7 +10,7 @@ from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass
 
 from .assistant.agent_kinds import AgentConfiguration, configured_agents
-from .assistant.tool_settings import ToolSettings, default_tools, parse_assistant_tool
+from .assistant.tool_settings import ToolSettings, default_tools, parse_assistant_tool, parse_jail
 from .error_reports import ErrorReportsConfiguration
 from .meeting_diarization import DiarizationConfiguration
 from .meeting_transcription import MeetingTranscriptionConfiguration
@@ -36,6 +37,7 @@ class Settings:
     # `[assistant_tools.claude-code]` and `[assistant_tools.codex]`: the official tool the
     # hub starts for each agent added from Orbit. Optional overrides of the
     # bundled/shipped commands, generated MCP configuration and environment.
+    # `[assistant_tools.jail]` optionally adds host secret discovery roots.
     assistant_tools: dict[str, dict[str, Any]] | None = None
     hermes_ws_auth: Literal["token"] = "token"
     allow_insecure_localhost: bool = False
@@ -72,6 +74,16 @@ class Settings:
         protected_url(self.hermes_url, allow_insecure_localhost=self.allow_insecure_localhost)
         self.agent_configurations()
         self.assistant_tool_settings()
+        self.assistant_jail_roots()
+
+    def assistant_jail_roots(self) -> tuple[Path, ...]:
+        return parse_jail((self.assistant_tools or {}).get("jail", {}))
+
+    @cached_property
+    def assistant_jail_cache(self):
+        from .assistant.jail_secret_cache import SecretCache
+
+        return SecretCache(self.assistant_jail_roots(), self.data_dir)
 
     def assistant_tool_settings(self) -> dict[str, ToolSettings]:
         """Both official services, with operator overrides when supplied."""
@@ -79,6 +91,7 @@ class Settings:
         overrides = {
             service: parse_assistant_tool(service, keys, defaults.get(service))
             for service, keys in (self.assistant_tools or {}).items()
+            if service != "jail"
         }
         return {
             **overrides,

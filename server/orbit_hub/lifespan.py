@@ -23,6 +23,7 @@ def lifespan(hub: Hub, owned_store: bool, release: str):
         try:
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
             hub.store.recover_interrupted()
+            settings.assistant_jail_cache.start()
             hub.device_bridge.start()
             hub.meetings_bridge.start()
             hub.transcriptions.start()
@@ -80,6 +81,7 @@ async def shutdown(hub: Hub, owned_store: bool, descriptor: int, loops) -> None:
         await hub.sign_ins.close()
         await hub.runtimes.close()
     finally:
+        await hub.settings.assistant_jail_cache.close()
         try:
             hub.device_bridge.close()
             hub.meetings_bridge.close()

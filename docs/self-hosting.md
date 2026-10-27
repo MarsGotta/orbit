@@ -255,6 +255,44 @@ A workspace cannot overlap those locations, the installed hub source or venv,
 or be the owner's home or an ancestor of it. This prevents writable startup
 files from affecting a later process outside the jail.
 
+Optionally list server folders whose secret files should also be hidden:
+
+```toml
+[assistant_tools.jail]
+secret_roots = ["/srv/example/stacks"]
+```
+
+The list defaults to empty and requires absolute paths. The hub searches in
+the background at startup and every ten minutes, caching results per root.
+It matches by filename only, without reading contents: `.env*`,
+`credentials*`, `.npmrc`, `.netrc`, `*.pem`, `*.key`, standard SSH private-key
+names (`id_rsa`, `id_dsa`, `id_ecdsa`, `id_ed25519` and their `_sk` variants),
+`token`, `config.toml`, `auth.json` and `settings*.json`. It binds `/dev/null`
+over each discovered file after opening the writable working folder, so
+**secrets in a working folder inside a secret root are hidden too**. Ordinary
+neighboring files stay readable. The vendor account home and `/tmp` are excluded
+to preserve sign-in and private temporary files. Directory symlinks are not
+followed; matching file symlinks mask their resolved file when it is not excluded.
+
+Each root is searched to sixteen directory levels below the root and at most
+2,000,000 visited entries, including files, directories and skipped entries.
+These bounds allow room above a measured tree of 592,505 entries with matching
+files at depths 2–8; a names-only walk took 3.7–6.9 seconds. Only files the hub
+user can read are masked; unreadable files are already protected by that user's
+permissions. Deleted files are removed from the mount list at admission.
+`node_modules`, `.git`, `.hg`, `.svn`, `.venv`, `venv`, `virtualenv`, `.cache`,
+`__pycache__`, tool caches, `.tox`, `.nox`, `build` and `dist` are skipped.
+Reaching either bound emits one Spanish hub warning for that root with the
+bound and counts; the assistant still starts with the files found so far hidden.
+Warm assistant starts use the cached list without walking the tree. Until the
+first scan finishes they wait at most thirty seconds, then refuse calmly if
+no snapshot is available. A failed refresh retains the preceding snapshot.
+New files are discovered at the next scan and masked for subsequent assistant
+starts; existing processes retain their original mounts. This is bounded
+periodic discovery, not continuous monitoring or complete host secret detection:
+files outside the roots or in skipped or unvisited paths may remain readable.
+Choose specific service roots and review warnings when configuring the hub.
+
 Commands and edits require a Mac approval card; reads and local searches do
 not. **Trabajó…** shows each command and edited filename, including declined
 or failed work. Claude's pre-tool hook asks for all tools except an explicit
