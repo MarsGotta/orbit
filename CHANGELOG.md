@@ -7,6 +7,8 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+## [0.12.5] - 2026-10-27
+
 ### Added
 
 - Mac action history keeps the requesting assistant's hub-authenticated identity
