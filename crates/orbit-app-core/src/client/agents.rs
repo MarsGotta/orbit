@@ -24,6 +24,10 @@ impl DaemonClient {
             .agent(call.clone())
             .await
             .map_err(|error| AppError::from_daemon(error.as_ref()))?;
+        let mut call = call;
+        if let AgentCall::TranscriptionSave { api_key, .. } = &mut call {
+            *api_key = None;
+        }
         Ok(crate::AgentAnswer { call, outcome })
     }
 }

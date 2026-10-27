@@ -94,7 +94,7 @@ impl Runtime {
                     "note_order_unsent",
                     &[("order", order.name()), ("cause", &cause.to_string())],
                 );
-                let notice = if matches!(order, NoteOrder::Retranscribe) {
+                let notice = if matches!(order, NoteOrder::Retranscribe { .. }) {
                     unconfirmed(cause)
                 } else {
                     Notice::new(NoticeCode::NoteChangeUnsent)
@@ -128,7 +128,7 @@ impl Runtime {
             let mut notice = Notice::new(NoticeCode::MeetingAudioUnreadable)
                 .with(NoticeKey::Count, *groups)
                 .with(NoticeKey::Total, *total);
-            if matches!(order, NoteOrder::Retranscribe) {
+            if matches!(order, NoteOrder::Retranscribe { .. }) {
                 notice = notice
                     .with_token(NoticeKey::Code, "meeting_audio_unreadable")
                     .with(NoticeKey::Status, u64::from(status));
@@ -137,21 +137,21 @@ impl Runtime {
             return;
         }
         let missing_turn = code.as_deref() == Some("turn_no_longer_exists");
-        let mut notice = Notice::new(if matches!(order, NoteOrder::Retranscribe) {
+        let mut notice = Notice::new(if matches!(order, NoteOrder::Retranscribe { .. }) {
             NoticeCode::TranscriptRetranscribeRefused
         } else if missing_turn {
             NoticeCode::TurnNoLongerExists
         } else {
             NoticeCode::NoteChangeRefused
         });
-        if !matches!(order, NoteOrder::Retranscribe) {
+        if !matches!(order, NoteOrder::Retranscribe { .. }) {
             notice = notice.with_token(NoticeKey::Step, order_name);
         }
         notice = notice.with(NoticeKey::Status, u64::from(status));
         if let Some(code) = &code {
             notice = notice.with_token(NoticeKey::Code, code);
         }
-        if missing_turn && !matches!(order, NoteOrder::Retranscribe) {
+        if missing_turn && !matches!(order, NoteOrder::Retranscribe { .. }) {
             for (name, key) in [("at_ms", NoticeKey::AtMs), ("turns", NoticeKey::Turns)] {
                 if let Some(value) = numbers.get(name) {
                     notice = notice.with(key, *value);

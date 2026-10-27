@@ -1,3 +1,5 @@
+import type { TranscriptionModel } from "../../bridge/generated/TranscriptionModel";
+import { TranscriptionModelChoice } from "../settings/TranscriptionModelChoice";
 import { useEffect, useState } from "react";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
@@ -36,12 +38,14 @@ export function useRetranscribe(note: OpenNoteSnapshot, send: Send) {
   else if (asked) phase = "queued";
   else if (pass?.state === "failed" && !closed) phase = "failed";
   else if (seen && pass?.state === "completed" && !closed) phase = "done";
-  const start = () => {
+  const start = (model?: TranscriptionModel) => {
     setAsked(true);
     setClosed(false);
-    sent(send, { command: "transcript_retranscribe", recording_id: note.recording_id }).catch(() =>
-      setAsked(false),
-    );
+    sent(send, {
+      command: "transcript_retranscribe",
+      recording_id: note.recording_id,
+      ...(model ? { model } : {}),
+    }).catch(() => setAsked(false));
   };
   return { phase, start, close: () => setClosed(true) };
 }
@@ -71,17 +75,25 @@ export function RedoTranscriptButton({
   library?: NoteLibrarySnapshot | null;
   note: OpenNoteSnapshot;
   phase: RedoPhase;
-  onConfirm: () => void;
+  onConfirm: (model?: TranscriptionModel) => void;
 }) {
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   const [asking, setAsking] = useState(false);
+  const previous = note.transcript.final_pass?.model;
+  const [model, setModel] = useState<TranscriptionModel | undefined>(
+    previous === "whisper" ? "mai" : previous === "mai" ? "whisper" : undefined,
+  );
   if (note.capture !== "closed") return null;
   return (
     <>
       <Button
         aria-expanded={asking}
         disabled={phase === "queued" || phase === "running"}
-        onClick={() => setAsking(!asking)}
+        onClick={() => {
+          if (!asking)
+            setModel(previous === "whisper" ? "mai" : previous === "mai" ? "whisper" : undefined);
+          setAsking(!asking);
+        }}
         ref={setAnchor}
         size={36}
         variant="outline"
@@ -97,11 +109,12 @@ export function RedoTranscriptButton({
           onClose={() => setAsking(false)}
           onConfirm={() => {
             setAsking(false);
-            onConfirm();
+            onConfirm(model);
           }}
           title={es.notes.retranscribeTitle}
         >
           {question(note, library)}
+          <TranscriptionModelChoice model={model} onChange={setModel} />
         </ConfirmCard>
       )}
     </>
@@ -151,7 +164,7 @@ export function RedoStatus({
           )}
           {phase === "failed" && (
             <ProgressCard failed onClose={onClose}>
-              {es.notes.finalPassFailed(pass?.error ?? null, pass?.timeout_ms)}
+              {failureLine(pass)}
             </ProgressCard>
           )}
         </div>
@@ -183,4 +196,8 @@ export function RedoStatus({
       )}
     </>
   );
+}
+
+function failureLine(pass: OpenNoteSnapshot["transcript"]["final_pass"]) {
+  return es.notes.finalPassFailed(pass?.error ?? null, pass?.timeout_ms, pass?.provider_status);
 }

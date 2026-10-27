@@ -137,6 +137,13 @@ pub struct SkillDocument {
     ts(export_to = "../../apps/desktop/src/bridge/generated/")
 )]
 pub enum AgentCall {
+    TranscriptionSettings,
+    TranscriptionSave {
+        model: crate::transcription_config::TranscriptionModel,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        api_key: Option<crate::transcription_config::TranscriptionKey>,
+    },
     Config {
         agent_id: String,
     },
@@ -304,7 +311,7 @@ impl AgentCall {
             | Self::SignInCode { agent_id, .. }
             | Self::SignInCancel { agent_id }
             | Self::SignOut { agent_id } => Some(agent_id),
-            Self::Add { .. } => None,
+            Self::Add { .. } | Self::TranscriptionSettings | Self::TranscriptionSave { .. } => None,
         }
     }
 
@@ -318,6 +325,11 @@ impl AgentCall {
                 .collect::<Vec<_>>()
         };
         let (method, segments, body) = match self {
+            Self::TranscriptionSettings => transcription_route(HubMethod::Get, None),
+            Self::TranscriptionSave { model, api_key } => transcription_route(
+                HubMethod::Put,
+                Some(serde_json::json!({ "model": model, "api_key": api_key })),
+            ),
             Self::Config { .. } => (HubMethod::Get, agent(&["config"]), None),
             Self::WorkingFolder { path, .. } => {
                 working_folder_route(agent(&["working-folder"]), path)
@@ -350,13 +362,7 @@ impl AgentCall {
                 color,
                 primary,
                 ..
-            } => (
-                HubMethod::Put,
-                agent(&["profile"]),
-                Some(serde_json::json!({
-                    "name": name, "description": description, "color": color, "primary": primary
-                })),
-            ),
+            } => profile_route(agent(&["profile"]), name, description, color, *primary),
             Self::Add {
                 service,
                 name,
@@ -477,6 +483,9 @@ impl AgentRefusal {
     ts(export_to = "../../apps/desktop/src/bridge/generated/")
 )]
 pub enum AgentOutcome {
+    TranscriptionSettings {
+        settings: crate::transcription_config::TranscriptionSettings,
+    },
     Config {
         config: AgentConfig,
     },
@@ -513,5 +522,34 @@ fn working_folder_route(
         HubMethod::Put,
         segments,
         Some(serde_json::json!({ "path": path })),
+    )
+}
+
+fn transcription_route(
+    method: HubMethod,
+    body: Option<serde_json::Value>,
+) -> (HubMethod, Vec<String>, Option<serde_json::Value>) {
+    (
+        method,
+        ["v1", "settings", "transcription"]
+            .map(str::to_owned)
+            .into(),
+        body,
+    )
+}
+
+fn profile_route(
+    segments: Vec<String>,
+    name: &str,
+    description: &str,
+    color: &str,
+    primary: bool,
+) -> (HubMethod, Vec<String>, Option<serde_json::Value>) {
+    (
+        HubMethod::Put,
+        segments,
+        Some(
+            serde_json::json!({"name": name, "description": description, "color": color, "primary": primary}),
+        ),
     )
 }

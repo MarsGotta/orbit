@@ -377,9 +377,12 @@ def _mount_final_pass(app, routes: _Routes):
 
         recording = recording_of(recording_id)
         device = await routes.recording_device(request, recording)
+        from ..transcription_preferences import final_pass_model
+
+        model = await final_pass_model(request)
         await routes.run(
             lambda: FinalPassRepository(routes.store).request(
-                device, recording, configured=routes.diarization_configured
+                device, recording, configured=routes.diarization_configured, model=model
             )
         )
         # The note stays as it is: «Rehacer resumen» is its own order

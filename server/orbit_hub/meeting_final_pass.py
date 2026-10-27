@@ -45,13 +45,15 @@ def status(db, device, recording):
     and their summed length (`meeting_transcript_integrity.choose`).
     """
     row = db.execute(
-        "SELECT state,error,progress,kept_draft FROM recording_final_passes "
+        "SELECT state,error,progress,kept_draft,model FROM recording_final_passes "
         "WHERE device_id=? AND recording=?",
         (device, recording),
     ).fetchone()
     if row is None:
         return None
     found = {"state": row["state"], "error": json.loads(row["error"]) if row["error"] else None}
+    if row["model"] is not None:
+        found["model"] = row["model"]
     if row["state"] == "running" and row["progress"]:
         found["progress"] = json.loads(row["progress"])
     if row["state"] == "completed" and row["kept_draft"]:
@@ -104,7 +106,7 @@ class FinalPassRepository:
     def __init__(self, store):
         self.store = store
 
-    def request(self, device, recording, *, configured=True):
+    def request(self, device, recording, *, configured=True, model=None):
         with self.store.transaction() as db:
             repository.require(db, device, recording)
             closed = db.execute(
@@ -140,28 +142,30 @@ class FinalPassRepository:
                 )
             return (
                 db.execute(
-                    "INSERT INTO recording_final_passes(device_id,recording,state,refresh_voices) "
-                    "VALUES (?,?,'queued',1) ON CONFLICT(device_id,recording) DO UPDATE SET "
-                    "state='queued',error=NULL,refresh_voices=1 WHERE state IN ('failed','completed')",
-                    (device, recording),
+                    "INSERT INTO recording_final_passes(device_id,recording,state,refresh_voices,model) "
+                    "VALUES (?,?,'queued',1,?) ON CONFLICT(device_id,recording) DO UPDATE SET "
+                    "state='queued',error=NULL,refresh_voices=1,model=excluded.model "
+                    "WHERE state IN ('failed','completed')",
+                    (device, recording, model),
                 ).rowcount
                 > 0
             )
 
-    def claim(self):
+    def claim(self, default_model=None):
         with self.store.transaction() as db:
             row = db.execute(
-                "SELECT f.device_id,f.recording,f.refresh_voices FROM recording_final_passes f "
+                "SELECT f.device_id,f.recording,f.refresh_voices,f.model FROM recording_final_passes f "
                 "WHERE f.state='queued' ORDER BY f.rowid LIMIT 1"
             ).fetchone()
             if row is None:
                 return None
             lengths = planned_lengths(self.store, db, row["device_id"], row["recording"])
             db.execute(
-                "UPDATE recording_final_passes SET state='running',progress=? "
+                "UPDATE recording_final_passes SET state='running',progress=?,model=? "
                 "WHERE device_id=? AND recording=?",
                 (
                     json.dumps({"done_ms": 0, "total_ms": sum(lengths.values())}),
+                    row["model"] or default_model,
                     row["device_id"],
                     row["recording"],
                 ),
@@ -169,6 +173,7 @@ class FinalPassRepository:
             chosen = repository.language(db, row["device_id"], row["recording"])
             return {
                 **dict(row),
+                "model": row["model"] or default_model,
                 "language": chosen[0] if chosen else None,
                 "lengths": lengths,
                 "muted": muted.read(self.store, db, row["device_id"], row["recording"]),
@@ -397,7 +402,7 @@ class FinalPassWorker:
                 await asyncio.sleep(1)
 
     async def run_once(self):
-        job = await self.run(self.repository.claim)
+        job = await self.run(self.repository.claim, getattr(self.transcriber, "model", None))
         if job is None:
             return False
         run = _Pass(job, self.clock(), dict(job["lengths"]))
@@ -456,9 +461,9 @@ class FinalPassWorker:
             run.result.update(run.existing)
         from .meetings.dictionaries import prompt, terms_for
 
-        run.vocabulary = prompt(
-            await self.run(terms_for, self.repository.store, job["device_id"], job["recording"])
-        )
+        terms = await self.run(terms_for, self.repository.store, job["device_id"], job["recording"])
+        run.vocabulary = prompt(terms)
+        job["terms"] = [term["correct"] for term in terms]
         for track in TRACKS:
             run.phase = f"audio_{track}"
             with memory_file() as audio:
@@ -477,7 +482,7 @@ class FinalPassWorker:
         await self.run(self.repository.complete, job, run.result)
 
     async def _track(self, run, track, audio, wav):
-        """One prepared track: its windows through Whisper, the draft it keeps,
+        """One prepared track: its windows through the selected transcriber, the draft it keeps,
         and the voices of the remote one."""
         result = run.result
         frames = wav.getnframes()
@@ -495,7 +500,7 @@ class FinalPassWorker:
             + (2 * len(ends) + 1) * REQUEST_TIMEOUT_SECONDS
         )
         async with asyncio.timeout(run.budget):
-            run.phase = f"whisper_{track}"
+            run.phase = f"{run.job.get('model') or 'whisper'}_{track}"
             words = await self._words(run, wav, ends)
             groups = await self.run(self.repository.draft, run.job, track)
             # Where the final lost a draft span or loops over
@@ -525,11 +530,23 @@ class FinalPassWorker:
             pcm = wav.readframes(end - wav.tell())
             window_ms = len(pcm) * 1000 // 32000
             encoded = await self.run(encode_window, pcm)
-            text = await self.transcriber.transcribe(
+            transcriber = (
+                self.transcriber.for_model(run.job["model"])
+                if hasattr(self.transcriber, "for_model")
+                else self.transcriber
+            )
+            from .openrouter_transcription import OpenRouterTranscriber
+
+            text = await transcriber.transcribe(
                 encoded,
                 run.job["language"],
                 final=True,
                 **({"prompt": run.vocabulary} if run.vocabulary else {}),
+                **(
+                    {"terms": run.job["terms"]}
+                    if isinstance(transcriber, OpenRouterTranscriber)
+                    else {}
+                ),
             )
             run.result["language"] = text.language or run.result["language"]
             words.extend(_in_track_time(text.words, offset, window_ms))

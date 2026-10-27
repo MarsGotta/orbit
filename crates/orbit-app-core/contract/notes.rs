@@ -466,9 +466,15 @@ pub struct ReminderRead {
 
 app_type! {
     pub struct NoteFinalPassSnapshot {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub model: Option<orbit_core::transcription_config::TranscriptionModel>,
         pub state: orbit_core::notes::FinalPassState,
         /// The hub's failure code; diagnostic details stay on the hub.
         pub error: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional, type = "number")]
+        pub provider_status: Option<u64>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional, type = "number")]
         pub timeout_ms: Option<u64>,

@@ -136,7 +136,7 @@ async fn answer(
             body: body.clone(),
         });
         vault_reply(&path, &body)
-    } else if path.starts_with("/v1/agents/") {
+    } else if path.starts_with("/v1/agents/") || path == "/v1/settings/transcription" {
         seen.lock().unwrap().push(Seen {
             method: method.clone(),
             path: path.clone(),
@@ -218,6 +218,9 @@ async fn vault_calls_cross_app_actor_http_and_back_without_echoing_credentials()
 
 fn agent_reply(method: &str, path: &str, body: &str) -> (&'static str, Value) {
     match (method, path) {
+        ("GET" | "PUT", "/v1/settings/transcription") => {
+            ("200 OK", json!({ "model": "mai", "key_configured": true }))
+        }
         ("GET", "/v1/agents/vega/config") => (
             "200 OK",
             json!({
@@ -373,6 +376,36 @@ async fn an_unpaired_mac_says_so_without_asking_any_hub() -> Result<(), Box<dyn 
         AgentOutcome::Failed {
             refusal: Refusal::NotPaired
         }
+    );
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn transcription_settings_cross_the_mac_and_the_key_never_returns()
+-> Result<(), Box<dyn Error>> {
+    let hub = hub().await?;
+    let (_directory, _daemon, app) = paired_client(&hub).await?;
+    let call: AgentCall = serde_json::from_value(json!({
+        "call": "transcription_save", "model": "mai", "api_key": "invented-provider-secret"
+    }))?;
+    let answer = tokio::time::timeout(CALL_BUDGET, app.agent(call)).await??;
+    assert!(matches!(
+        answer.outcome,
+        AgentOutcome::TranscriptionSettings { .. }
+    ));
+    assert!(!serde_json::to_string(&answer)?.contains("invented-provider-secret"));
+    assert!(!format!("{answer:?}").contains("invented-provider-secret"));
+    let requests = hub.seen.lock().unwrap();
+    let request = requests.last().unwrap();
+    assert_eq!(request.method, "PUT");
+    assert_eq!(request.path, "/v1/settings/transcription");
+    assert_eq!(
+        request.authorization.as_deref(),
+        Some("bearer synthetic-agents-token")
+    );
+    assert_eq!(
+        serde_json::from_str::<Value>(&request.body)?["api_key"],
+        "invented-provider-secret"
     );
     Ok(())
 }

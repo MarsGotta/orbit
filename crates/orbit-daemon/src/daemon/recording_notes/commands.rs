@@ -42,7 +42,7 @@ impl Runtime {
             | NoteOrder::Write { .. }
             | NoteOrder::RestoreSuperseded
             | NoteOrder::RetryTranscript
-            | NoteOrder::Retranscribe
+            | NoteOrder::Retranscribe { .. }
             | NoteOrder::Delete { .. }) => other,
         };
         self.queue_order(QueuedOrder::Meeting {

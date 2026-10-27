@@ -131,6 +131,13 @@ def migrate(db, encrypt: Callable[[bytes, str], bytes]) -> None:
         db.execute(
             "ALTER TABLE recording_final_passes ADD COLUMN refresh_voices INTEGER NOT NULL DEFAULT 0"
         )
+    from ..transcription_preferences import SCHEMA as TRANSCRIPTION_SCHEMA
+
+    db.executescript(TRANSCRIPTION_SCHEMA)
+    if "model" not in _columns(db, "transcription_groups"):
+        db.execute("ALTER TABLE transcription_groups ADD COLUMN model TEXT")
+    if "model" not in _columns(db, "recording_final_passes"):
+        db.execute("ALTER TABLE recording_final_passes ADD COLUMN model TEXT")
     db.executescript(DICTIONARIES_SCHEMA)
     migrate_dictionaries(db)
     # The recordings each device deleted, so that none comes back half.

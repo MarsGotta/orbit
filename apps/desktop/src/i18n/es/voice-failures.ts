@@ -1,3 +1,5 @@
+import { transcriptionRefusals } from "./transcription";
+
 /** Why a voice note was not transcribed, in the words and weight the user reads. */
 
 export interface VoiceFailure {
@@ -74,6 +76,8 @@ export function voiceFailureText(failure: VoiceFailure): string {
   // wire/stored name kept for compatibility with 0.9.0
   if (failure.code === "voice_transcription_interrupted_by_mars")
     return "Interrumpiste la transcripción.";
+  const cause = transcriptionRefusals[failure.code];
+  if (cause) return `${cause} La nota sigue guardada en el Mac: reinténtalo.`;
   const stopped = STOPPED_BEFORE_TRANSCRIPTION[failure.code];
   if (stopped) return stopped;
   if (providerRefusedAudio(failure))

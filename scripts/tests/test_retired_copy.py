@@ -61,7 +61,13 @@ def retired_copy():
                 continue
             lines = path.read_text(encoding="utf-8").splitlines()
             for number, line in enumerate(lines, start=1):
-                if RETIRED.search(line):
+                # The model comparison explicitly names what changes; the
+                # existing redo action keeps the brand's «Rehacer transcripción».
+                comparison = (
+                    path.relative_to(ROOT).as_posix() == "apps/desktop/src/i18n/es/transcription.ts"
+                    and line.strip() == 'compare: "Volver a transcribir con…",'
+                )
+                if RETIRED.search(line) and not comparison:
                     found.append(f"{path.relative_to(ROOT)}:{number}: {line.strip()}")
     return found
 

@@ -438,3 +438,19 @@ fn workspace_is_an_optional_hub_path_and_sent_unchanged() {
     assert_eq!(route.segments, ["v1", "agents", "vega", "working-folder"]);
     assert_eq!(route.body, Some(json!({"path": "/home/example/project"})));
 }
+
+#[test]
+fn transcription_preferences_use_hub_routes_and_keys_are_redacted() {
+    let read: AgentCall = serde_json::from_value(json!({"call": "transcription_settings"}))
+        .expect("valid transcription fixture");
+    assert_eq!(read.route().segments, ["v1", "settings", "transcription"]);
+    let save: AgentCall = serde_json::from_value(json!({
+        "call": "transcription_save", "model": "mai", "api_key": "invented-secret"
+    }))
+    .expect("valid transcription fixture");
+    assert_eq!(
+        save.route().body.expect("valid transcription fixture")["api_key"],
+        "invented-secret"
+    );
+    assert!(!format!("{save:?}").contains("invented-secret"));
+}

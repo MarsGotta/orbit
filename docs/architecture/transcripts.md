@@ -10,6 +10,12 @@ of recognition state; ready additionally requires all chunks transcribed.
 Recognition failure does not make a complete capture incomplete. Automatic text
 is a draft, not verification of what was said.
 
+## Model choice
+
+The person chooses hub Whisper (default) or MAI-Transcribe-2 through OpenRouter
+in Ajustes › Reuniones › Transcripción. See [model selection](transcription-models.md)
+for all audio paths, encrypted credentials, data policy, comparison and acceptance.
+
 ## Mac responsibilities
 
 - Seal one second per track (`mic_local`/`remote_app`) and upload with
@@ -27,8 +33,10 @@ is a draft, not verification of what was said.
 - Publish `PUT /v1/device/profile` with the Mac account's owner name for the
   local microphone (`daemon/recording_notes.rs`).
 
-Voice notes and derived call turns use Hermes' interactive
-`POST /v1/audio/transcribe`; their audio stays on the Mac. The continuous call
+Voice notes and derived call turns use the hub's interactive
+`POST /v1/audio/transcribe`: the existing default agent STT for Whisper, or MAI
+when selected. Their durable audio stays on the Mac; transcription sends a copy
+to the chosen provider. The continuous call
 original uploads as `voice_call` without a meeting note.
 
 ## Draft groups

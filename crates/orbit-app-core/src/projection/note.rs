@@ -286,28 +286,7 @@ fn project_transcript(
     error: Option<String>,
 ) -> NoteTranscriptSnapshot {
     NoteTranscriptSnapshot {
-        final_pass: transcript
-            .final_pass
-            .map(|final_pass| NoteFinalPassSnapshot {
-                state: final_pass.state,
-                timeout_ms: final_pass
-                    .error
-                    .as_ref()
-                    .and_then(|cause| cause.details.get("timeout_ms"))
-                    .and_then(serde_json::Value::as_u64),
-                error: final_pass.error.map(|cause| cause.code),
-                progress: final_pass
-                    .progress
-                    .map(|progress| NoteFinalPassProgressSnapshot {
-                        done_ms: progress.done_ms,
-                        total_ms: progress.total_ms,
-                        remaining_ms: progress.remaining_ms,
-                    }),
-                kept_draft: final_pass.kept_draft.map(|kept| NoteKeptDraftSnapshot {
-                    spans: kept.spans,
-                    duration_ms: kept.duration_ms,
-                }),
-            }),
+        final_pass: transcript.final_pass.map(project_final_pass),
         unmatched_speaker_names: (transcript.unmatched_speaker_names > 0)
             .then_some(transcript.unmatched_speaker_names),
         language,
@@ -358,3 +337,32 @@ fn project_transcript(
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests;
+
+fn project_final_pass(final_pass: orbit_core::notes::FinalPass) -> NoteFinalPassSnapshot {
+    NoteFinalPassSnapshot {
+        model: final_pass.model,
+        state: final_pass.state,
+        provider_status: final_pass
+            .error
+            .as_ref()
+            .and_then(|cause| cause.details.get("provider_status"))
+            .and_then(serde_json::Value::as_u64),
+        timeout_ms: final_pass
+            .error
+            .as_ref()
+            .and_then(|cause| cause.details.get("timeout_ms"))
+            .and_then(serde_json::Value::as_u64),
+        error: final_pass.error.map(|cause| cause.code),
+        progress: final_pass
+            .progress
+            .map(|progress| NoteFinalPassProgressSnapshot {
+                done_ms: progress.done_ms,
+                total_ms: progress.total_ms,
+                remaining_ms: progress.remaining_ms,
+            }),
+        kept_draft: final_pass.kept_draft.map(|kept| NoteKeptDraftSnapshot {
+            spans: kept.spans,
+            duration_ms: kept.duration_ms,
+        }),
+    }
+}

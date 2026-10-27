@@ -129,6 +129,7 @@ class GroupRepository:
             "device_id": row["device_id"],
             "recording": row["recording"],
             "group_id": row["id"],
+            "model": row["model"],
             "attempts": row["attempts"],
             "manifest": manifest,
             "language": None if chosen is None else chosen["language"],

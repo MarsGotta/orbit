@@ -1,3 +1,4 @@
+import { transcriptionRefusals } from "./transcription";
 import type { AccessGroups } from "../../bridge/generated/AccessGroups";
 import type { AgentRefusal } from "../../bridge/generated/AgentRefusal";
 import type { RefusalNumber } from "../../bridge/generated/RefusalNumber";
@@ -44,6 +45,9 @@ function listed(numbers: Numbers): string {
 
 /** The words of each refusal; `undefined` when a number it needs is missing. */
 const refusals: Record<string, (numbers: Numbers) => string | undefined> = {
+  ...Object.fromEntries(
+    Object.entries(transcriptionRefusals).map(([code, value]) => [code, () => value]),
+  ),
   invalid_working_folder: (n) => {
     const cause = text(n, "cause");
     return cause === undefined ? undefined : `La carpeta de trabajo ${cause}`;

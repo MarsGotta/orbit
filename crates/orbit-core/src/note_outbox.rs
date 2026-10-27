@@ -53,7 +53,10 @@ pub enum NoteOrder {
         scope: SpeakerRenameScope,
     },
     RetryTranscript,
-    Retranscribe,
+    Retranscribe {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        model: Option<crate::transcription_config::TranscriptionModel>,
+    },
     /// The meeting's language.
     Language {
         language: String,
@@ -77,7 +80,10 @@ impl NoteOrder {
     /// command that gives none.
     pub fn of_command(command: Command) -> Option<(String, Self)> {
         Some(match command {
-            Command::TranscriptRetranscribe { recording_id } => (recording_id, Self::Retranscribe),
+            Command::TranscriptRetranscribe {
+                recording_id,
+                model,
+            } => (recording_id, Self::Retranscribe { model }),
             Command::TranscriptRetry { recording_id } => (recording_id, Self::RetryTranscript),
             Command::NoteEdit {
                 recording_id,
@@ -128,7 +134,7 @@ impl NoteOrder {
             Self::RestoreSuperseded => "restore_superseded",
             Self::Rename { .. } => "rename",
             Self::RetryTranscript => "retry_transcript",
-            Self::Retranscribe => "retranscribe",
+            Self::Retranscribe { .. } => "retranscribe",
             Self::Language { .. } => "language",
             Self::Title { .. } => "title",
             Self::Delete { .. } => "delete",
@@ -151,7 +157,7 @@ impl NoteOrder {
             | Self::Write { .. }
             | Self::RestoreSuperseded
             | Self::RetryTranscript
-            | Self::Retranscribe
+            | Self::Retranscribe { .. }
             | Self::Language { .. }
             | Self::Title { .. }
             | Self::Delete { .. }) => other.name().to_owned(),
@@ -171,7 +177,7 @@ impl NoteOrder {
             other @ (Self::Write { .. }
             | Self::RestoreSuperseded
             | Self::RetryTranscript
-            | Self::Retranscribe
+            | Self::Retranscribe { .. }
             | Self::Language { .. }
             | Self::Title { .. }
             | Self::Delete { .. }) => vec![other.name().to_owned()],
@@ -307,7 +313,7 @@ impl QueuedOrder {
         !matches!(
             self,
             Self::Meeting {
-                order: NoteOrder::Write { .. } | NoteOrder::Retranscribe,
+                order: NoteOrder::Write { .. } | NoteOrder::Retranscribe { .. },
                 ..
             } | Self::Library {
                 request: LibraryRequest::Dictionary { .. }
@@ -366,7 +372,7 @@ pub fn lay_over<'a>(
             | NoteOrder::Write { .. }
             | NoteOrder::RestoreSuperseded
             | NoteOrder::RetryTranscript
-            | NoteOrder::Retranscribe
+            | NoteOrder::Retranscribe { .. }
             | NoteOrder::Delete { .. } => {}
         }
     }

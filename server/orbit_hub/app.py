@@ -61,6 +61,7 @@ def create_app(
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.allowed_hosts))
     app.state.store = store
     app.state.notes = hub.notes
+    app.state.final_passes = hub.final_passes
     app.state.device_bridge = hub.device_bridge
     http_boundary.install(app, settings, store)
     mount_routes(app, hub)
@@ -108,6 +109,9 @@ def _mount_meetings(app: FastAPI, hub: composition.Hub, identity, transport) -> 
     mount_meetings_bridge(app, hub.meetings_bridge, transport)
     session.mount(app, store, hub.agents, identity, bounded_body, now, hub.pair_attempts, executor)
     health.mount(app, hub.settings)
+    from .transcription_preferences import mount as mount_transcription
+
+    mount_transcription(app, hub.transcriptions.meetings, identity, bounded_body, executor)
 
 
 def _mount_devices(app: FastAPI, hub: composition.Hub, identity) -> None:

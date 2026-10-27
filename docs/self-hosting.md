@@ -30,6 +30,12 @@ Hermes and provider compatibility must be checked against your installed
 versions. Passing tests against synthetic peers does not establish that a live
 Hermes profile, audio device or provider works.
 
+Meeting transcription defaults to the existing hub Whisper service. A paired
+person can instead choose MAI-Transcribe-2 in Ajustes › Reuniones › Transcripción,
+with an encrypted OpenRouter key on the hub. This also selects MAI for voice
+notes and call utterances. See [transcription models](architecture/transcription-models.md)
+for audio transfer, zero data retention, compatibility and manual acceptance.
+
 ## Environment and configuration
 
 The hub loads TOML with `orbit-hub --config /absolute/path/orbit.toml`. The

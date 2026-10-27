@@ -3,9 +3,10 @@ import type { AgentConfig } from "./AgentConfig";
 import type { AgentRefusal } from "./AgentRefusal";
 import type { SignInAttempt } from "./SignInAttempt";
 import type { SkillDocument } from "./SkillDocument";
+import type { TranscriptionSettings } from "./TranscriptionSettings";
 
 /**
  * What came of one call. `Failed` is the Mac's side: it could not ask the
  * hub (not paired, privacy stop, no link) or could not read its answer.
  */
-export type AgentOutcome = { "outcome": "config", config: AgentConfig, } | { "outcome": "skill", skill: SkillDocument, } | { "outcome": "done" } | { "outcome": "added", agent_id: string, } | { "outcome": "sign_in", attempt: SignInAttempt, } | { "outcome": "refused", refusal: AgentRefusal, } | { "outcome": "failed", refusal: Record<string, unknown>, };
+export type AgentOutcome = { "outcome": "transcription_settings", settings: TranscriptionSettings, } | { "outcome": "config", config: AgentConfig, } | { "outcome": "skill", skill: SkillDocument, } | { "outcome": "done" } | { "outcome": "added", agent_id: string, } | { "outcome": "sign_in", attempt: SignInAttempt, } | { "outcome": "refused", refusal: AgentRefusal, } | { "outcome": "failed", refusal: Record<string, unknown>, };

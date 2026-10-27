@@ -69,6 +69,12 @@ def from_provider(error: Exception, *, timeout_ms: int, connect_timeout_ms: int)
 
 
 def durable_code(error: HubError) -> str:
+    if (
+        error.code != "transcription_http_error"
+        and error.numbers
+        and "provider_status" in error.numbers
+    ):
+        return f"{error.code}_status_{error.numbers['provider_status']}"
     if error.code == "transcription_http_error" and error.numbers:
         return f"transcription_http_{error.numbers['provider_status']}"
     if error.code == "transcription_timeout" and error.numbers:
@@ -81,6 +87,10 @@ def durable_code(error: HubError) -> str:
 def durable_details(code: str | None) -> dict[str, int | str]:
     if code is None:
         return {"cause": "transcription_cause_missing"}
+    if "_status_" in code:
+        cause, status = code.rsplit("_status_", 1)
+        if status.isdecimal() and 100 <= int(status) <= 599:
+            return {"cause": cause, "provider_status": int(status)}
     if code.startswith("transcription_http_"):
         status = code.removeprefix("transcription_http_")
         if status.isdecimal() and 100 <= int(status) <= 599:

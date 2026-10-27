@@ -1829,3 +1829,22 @@ with the `SKILL.md` body after its frontmatter. Nothing reaches a Mac.
 | 404 | `skill_not_enabled` | `agent_id`, `name`, `enabled` (the agent's enabled skills, comma-joined in name order; empty when none) |
 | 409 | `skills_not_in_hub` | `agent_id`, `kind` (`hermes`: its skills are its profile's) |
 | 404 | `agent_not_found` | `agent_id`, `agent_ids` |
+
+
+## Hub transcription preference
+
+Authenticated paired devices share one preference. `GET /v1/settings/transcription`
+returns `model` (`whisper` by default, or `mai`) and `key_configured` (boolean).
+`PUT` accepts those model values and an optional write-only `api_key` (1–4096
+characters, request body at most 25 KiB). Omission preserves the current key.
+The hub validates a replacement key or MAI selection with synthetic audio before
+saving the encrypted credential; no key is returned. Refusals retain the typed
+cause and `provider_status` or timeout numbers, without upstream response text.
+
+`POST /v1/recordings/{id}/final-pass` optionally accepts `{ "model": "whisper" }`
+or `{ "model": "mai" }` (at most 256 bytes). An empty body remains compatible
+with earlier Macs. The chosen model applies to this pass only and does not
+regenerate the note. `transcript.final_pass.model`, when present, reports the
+model pinned to that job. All windows and retries keep their original model.
+See [transcription models](../docs/architecture/transcription-models.md) for
+provider shapes, privacy policy and the complete audio-path inventory.

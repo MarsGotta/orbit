@@ -91,7 +91,7 @@ fn a_dictionary_order_never_replaces_another_and_is_not_sent_twice() {
     assert_eq!(correction.target(), None);
     assert_eq!(correction.lane(), Lane::Library);
     assert!(!correction.repeatable());
-    assert!(!meeting(NoteOrder::Retranscribe).repeatable());
+    assert!(!meeting(NoteOrder::Retranscribe { model: None }).repeatable());
     assert!(
         !meeting(NoteOrder::Write {
             template_id: "general".into()
@@ -190,7 +190,10 @@ fn a_delete_is_one_order_of_its_meeting_and_a_discard_stays_one() -> Result<(), 
         asked.superseded_by(thrown).deletes(),
         Some((RECORDING, true))
     );
-    assert_eq!(meeting(NoteOrder::Retranscribe).deletes(), None);
+    assert_eq!(
+        meeting(NoteOrder::Retranscribe { model: None }).deletes(),
+        None
+    );
     // An order written without `discarded` reads as a plain delete.
     let older: QueuedOrder = serde_json::from_value(json!({
         "lane": "meeting", "recording_id": RECORDING, "order": {"order": "delete"}

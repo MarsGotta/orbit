@@ -745,7 +745,11 @@ async def test_http_close_runs_the_durable_pass_before_the_note(environment, tmp
         assert response.status_code == 200, response.text
         await wait_for(ready.wait(), "la nota escrita después de la pasada final")
         document = (await http.get(f"/v1/recordings/{identity}", headers=headers)).json()
-        assert document["transcript"]["final_pass"] == {"state": "completed", "error": None}
+        assert document["transcript"]["final_pass"] == {
+            "state": "completed",
+            "error": None,
+            "model": "whisper",
+        }
         assert document["note"]["state"] == "ready"
         assert len(model.calls) == 1
         assert "Persona 1: Uno." in model.calls[0]["messages"][-1]["content"]

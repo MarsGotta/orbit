@@ -422,11 +422,15 @@ impl NoteHub {
     }
 
     /// `POST /v1/recordings/{id}/final-pass`.
-    pub async fn final_pass(&self, recording: &str) -> Answer<Value> {
+    pub async fn final_pass(
+        &self,
+        recording: &str,
+        model: Option<orbit_core::transcription_config::TranscriptionModel>,
+    ) -> Answer<Value> {
         self.send(
             reqwest::Method::POST,
             self.recording(recording, &["final-pass"]),
-            None,
+            model.map(|model| serde_json::json!({ "model": model })),
         )
         .await
     }

@@ -96,19 +96,23 @@ class TranscriptionWorker:
             self.interactive.put_nowait(Utterance(device, body, future))
             self.prepare_signal.set()
         except asyncio.QueueFull as exc:
-            raise HubError("rate_limited", "Cola Whisper llena; conserva el audio") from exc
+            raise HubError(
+                "rate_limited", "Cola de transcripción llena; conserva el audio"
+            ) from exc
         try:
             return await asyncio.wait_for(future, INTERACTIVE_TRANSCRIPTION_TIMEOUT_SECONDS)
         except TimeoutError as exc:
             timeout_ms = INTERACTIVE_TRANSCRIPTION_TIMEOUT_SECONDS * 1000
             raise HubError(
                 "transcription_timeout",
-                f"Whisper tardó más de {timeout_ms} ms",
+                f"La transcripción tardó más de {timeout_ms} ms",
                 http_status=504,
                 numbers={"timeout_ms": timeout_ms},
             ) from exc
 
-    async def transcribe_meeting(self, audio: bytes, language: str | None = None, prompt: str = ""):
+    async def transcribe_meeting(
+        self, audio: bytes, language: str | None = None, prompt: str = "", terms=(), model=None
+    ):
         """Send durable meeting audio only through its dedicated transcriber.
 
         A configured meeting transcriber that fails is NOT retried through the
@@ -118,7 +122,14 @@ class TranscriptionWorker:
         audio stays durable so it can be retried once the endpoint is back.
         """
         return await self.meetings.transcribe(
-            audio, language, **({"prompt": prompt} if prompt else {})
+            audio,
+            language,
+            **({"prompt": prompt} if prompt else {}),
+            **(
+                {"terms": terms, "model": model}
+                if getattr(self.meetings, "accepts_terms", False)
+                else {}
+            ),
         )
 
     async def _run(self):
@@ -131,7 +142,11 @@ class TranscriptionWorker:
                 try:
                     if not self.store.devices.is_active(request.device):
                         raise HubError("revoked", "Dispositivo revocado")
-                    text = await self.speech.transcribe(request.body)
+                    text = (
+                        await self.meetings.interactive(self.speech, request.body)
+                        if hasattr(self.meetings, "interactive")
+                        else await self.speech.transcribe(request.body)
+                    )
                     if not request.result.done():
                         request.result.set_result(text)
                 except HubError as exc:
@@ -160,7 +175,11 @@ class TranscriptionWorker:
                 continue
             try:
                 result = await self.transcribe_meeting(
-                    job["audio"], job.get("language"), job.get("prompt", "")
+                    job["audio"],
+                    job.get("language"),
+                    job.get("prompt", ""),
+                    job.get("terms", ()),
+                    job.get("model"),
                 )
                 self.store.groups.finish(job, result.text, result.language)
                 await self._meeting_finished(job)
@@ -203,7 +222,16 @@ class TranscriptionWorker:
 
             job = self.store.groups.claim(self.now())
             if job is not None:
-                job["prompt"] = prompt(terms_for(self.store, job["device_id"], job["recording"]))
+                if hasattr(self.meetings, "model") and job.get("model") is None:
+                    job["model"] = self.meetings.model
+                    with self.store.transaction() as db:
+                        db.execute(
+                            "UPDATE transcription_groups SET model=? WHERE device_id=? AND id=?",
+                            (job["model"], job["device_id"], job["group_id"]),
+                        )
+                terms = terms_for(self.store, job["device_id"], job["recording"])
+                job["prompt"] = prompt(terms)
+                job["terms"] = [term["correct"] for term in terms]
             return job
 
         loop = asyncio.get_running_loop()

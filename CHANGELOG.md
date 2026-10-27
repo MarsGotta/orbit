@@ -14,6 +14,7 @@ is in Spanish; the labels quoted below are the ones it shows.
   and dependency/link maps, and choose the link style and future hub-job model.
   Credentials and the hub working copy are encrypted. Assistants get three
   read tools behind the new `notes` access group. No note writes or model jobs run.
+- Choose hub Whisper or MAI-Transcribe-2 through OpenRouter in meeting settings, with an encrypted, validated hub credential, an explicit audio privacy notice, and per-meeting model comparisons.
 
 ### Fixed
 

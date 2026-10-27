@@ -19,13 +19,13 @@ from .captures import CaptureStore
 from .config import Settings
 from .device_bridge import Bridge as DeviceBridge
 from .meeting_final_pass import FinalPassWorker
-from .meeting_transcription import MeetingTranscriber
 from .meetings_bridge.service import MeetingsBridgeService
 from .notes import NoteRepository, NotesWorker
 from .processing import open_client as open_processing_client
 from .runtime import Runtimes, TurnInputTracker
 from .storage import Store
 from .transcription import TranscriptionWorker
+from .transcription_preferences import Transcriber
 
 
 @dataclass
@@ -111,7 +111,7 @@ def _meetings(hub: Hub, processing_client) -> None:
     """The meetings' transcription, final pass and notes, and their bridge."""
     settings, store, now = hub.settings, hub.store, hub.now
     # Durable meetings use hub-owned STT; Hermes remains interactive-only.
-    meeting_transcriber = MeetingTranscriber(settings.meeting_transcription)
+    meeting_transcriber = Transcriber(store, settings.meeting_transcription)
     # What a transcript group stored without a language reads as.
     hub.meeting_language = meeting_transcriber.configuration.language
     hub.meetings_bridge = MeetingsBridgeService(

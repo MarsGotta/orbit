@@ -1,3 +1,4 @@
+import { transcriptionRefusals } from "./transcription";
 import { mmss } from "../../time-format";
 
 // Reuniones: the list of meetings and the transcript of one. Each meeting
@@ -69,7 +70,9 @@ export const notes = {
     },
     retranscribed: "Transcripción rehecha.",
     retranscribedRedo: "Transcripción rehecha. Rehaz el resumen para que la nota la use.",
-    finalPassFailed: (code: string | null, timeoutMs?: number) => {
+    finalPassFailed: (code: string | null, timeoutMs?: number, providerStatus?: number) => {
+      if (code && transcriptionRefusals[code])
+        return `${transcriptionRefusals[code]}${providerStatus === undefined ? "" : ` (HTTP ${providerStatus})`} Se conserva la transcripción anterior.`;
       if (code === "final_pass_incomplete")
         return "La transcripción nueva perdía partes de la anterior, así que se conserva la anterior.";
       if (code === "final_pass_timeout") {

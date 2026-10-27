@@ -2,12 +2,13 @@
 import type { FinalPassState } from "./FinalPassState";
 import type { NoteFinalPassProgressSnapshot } from "./NoteFinalPassProgressSnapshot";
 import type { NoteKeptDraftSnapshot } from "./NoteKeptDraftSnapshot";
+import type { TranscriptionModel } from "./TranscriptionModel";
 
-export type NoteFinalPassSnapshot = { state: FinalPassState, 
+export type NoteFinalPassSnapshot = { model?: TranscriptionModel, state: FinalPassState, 
 /**
  * The hub's failure code; diagnostic details stay on the hub.
  */
-error: string | null, timeout_ms?: number, 
+error: string | null, provider_status?: number, timeout_ms?: number, 
 /**
  * How far a running pass got, as the hub measures it; absent while
  * queued, before it measured, or from a hub up to 0.10.1.

@@ -55,6 +55,9 @@ pub enum Command {
     },
     TranscriptRetranscribe {
         recording_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        model: Option<crate::transcription_config::TranscriptionModel>,
     },
     TranscriptRetry {
         recording_id: String,

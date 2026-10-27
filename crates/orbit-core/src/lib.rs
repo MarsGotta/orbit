@@ -38,6 +38,7 @@ pub mod series_title;
 pub mod sources;
 pub mod speech;
 pub mod topics;
+pub mod transcription_config;
 pub mod transition;
 pub mod update;
 pub mod vault;
