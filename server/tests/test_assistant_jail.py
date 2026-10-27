@@ -310,7 +310,13 @@ def test_real_jail_hides_secrets_and_confines_writes(environment, kernel_root, m
 hidden, other, ssh, dock, outside, work, vendor, parent, secrets = sys.argv[1:]
 for path in (pathlib.Path(secrets, '.env'), pathlib.Path(secrets, 'config.toml'),
              pathlib.Path(work, '.env.local')):
-    assert path.read_bytes() == b'', 'secret readable: ' + str(path)
+    # The /dev/null bind is nodev in an unprivileged namespace, so opening
+    # it is refused; either way the secret's bytes never reach the jail.
+    try:
+        content = path.read_bytes()
+    except PermissionError:
+        content = b''
+    assert content == b'', 'secret readable: ' + str(path)
 assert pathlib.Path(secrets, 'readme.txt').read_text() == 'public neighbor'
 for path, name in ((hidden, 'secret'), (other, 'secret'), (ssh, 'key')):
     try:
