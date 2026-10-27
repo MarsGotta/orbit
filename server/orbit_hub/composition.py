@@ -9,6 +9,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
+from .ai.registry import Registry
 from .assistant.access import AgentAccess
 from .assistant.agent_config import AgentConfigStore
 from .assistant.agents import Agents
@@ -60,6 +61,7 @@ class Hub:
     notes: NotesWorker | None = None
     final_passes: FinalPassWorker | None = None
     transcriptions: TranscriptionWorker | None = None
+    ai: Registry | None = None
     pair_attempts: dict[str, tuple[float, int]] = field(default_factory=dict)
 
 
@@ -103,6 +105,11 @@ def build(settings: Settings, store: Store, assistant, speech, now, processing_c
         device_bridge,
         asyncio.Event(),
     )
+    hub.ai = Registry(store, settings)
+    hub.ai.migrate()
+    from .ai.consumers import wire_agents
+
+    wire_agents(hub)
     _meetings(hub, processing_client)
     return hub
 
@@ -126,6 +133,9 @@ def _meetings(hub: Hub, processing_client) -> None:
     notes_signal: asyncio.Event = asyncio.Event()
     if processing_client is None and settings.processing is not None:
         processing_client = open_processing_client(settings.processing)
+    from .ai.consumers import FunctionProcessing
+
+    processing_client = FunctionProcessing(hub.ai, processing_client)
     changed = hub.runtimes.recording_changed
     hub.notes = NotesWorker(
         NoteRepository(store),

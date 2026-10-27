@@ -111,7 +111,7 @@ def migrate(db, encrypt: Callable[[bytes, str], bytes]) -> None:
     """Create what is missing and add the columns older databases lack."""
     db.executescript(_CORE_SCHEMA)
     _migrate_core(db)
-    db.execute("PRAGMA user_version=9")
+    db.execute("PRAGMA user_version=10")
     db.executescript(GROUP_SCHEMA)
     if "language" not in _columns(db, "transcription_groups"):
         # The language each group was transcribed in. Groups stored
@@ -134,6 +134,9 @@ def migrate(db, encrypt: Callable[[bytes, str], bytes]) -> None:
     from ..transcription_preferences import SCHEMA as TRANSCRIPTION_SCHEMA
 
     db.executescript(TRANSCRIPTION_SCHEMA)
+    from ..ai.registry import SCHEMA as AI_SCHEMA
+
+    db.executescript(AI_SCHEMA)
     if "model" not in _columns(db, "transcription_groups"):
         db.execute("ALTER TABLE transcription_groups ADD COLUMN model TEXT")
     if "model" not in _columns(db, "recording_final_passes"):

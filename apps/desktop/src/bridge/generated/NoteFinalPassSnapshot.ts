@@ -2,9 +2,8 @@
 import type { FinalPassState } from "./FinalPassState";
 import type { NoteFinalPassProgressSnapshot } from "./NoteFinalPassProgressSnapshot";
 import type { NoteKeptDraftSnapshot } from "./NoteKeptDraftSnapshot";
-import type { TranscriptionModel } from "./TranscriptionModel";
 
-export type NoteFinalPassSnapshot = { model?: TranscriptionModel, state: FinalPassState, 
+export type NoteFinalPassSnapshot = { model?: string, state: FinalPassState, 
 /**
  * The hub's failure code; diagnostic details stay on the hub.
  */

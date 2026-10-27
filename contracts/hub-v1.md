@@ -1831,9 +1831,48 @@ with the `SKILL.md` body after its frontmatter. Nothing reaches a Mac.
 | 404 | `agent_not_found` | `agent_id`, `agent_ids` |
 
 
+## Hub AI settings
+
+Every route below requires a paired, active device. Choices are hub-wide,
+independent by function and override operator defaults without editing TOML.
+
+- `GET /v1/settings/ai` returns `providers` and `functions`. Public providers
+  have `id`, `name`, `kind` (`hub`, `local`, `openrouter`), nullable `base_url`,
+  `key_configured`, and `models` (`id`, `capabilities`). Capabilities are
+  `text`, `tools`, `transcription`, `word_timestamps`, `speech`.
+- `PUT /v1/settings/ai/providers/{id}` accepts `name`, `kind`, `base_url`, an
+  optional write-only `api_key` and optional corrected `models`. The hub
+  validates discovery and capabilities before saving. Corrections refer only
+  to discovered models and cannot invalidate an existing function choice.
+  Omitting the key preserves it only for the same URL. `hub` and `operator`
+  are reserved; OpenRouter uses the `openrouter` ID and fixed API URL.
+- `PUT /v1/settings/ai/functions/{function}` accepts `provider_id` and `model`.
+  Function IDs are `meeting_transcription`, `listening`, `speech`,
+  `meeting_notes`, `vault`, `assistants`; required capabilities are respectively
+  `word_timestamps`, `transcription`, `speech`, `text`, `text`, `tools`.
+  `provider_id: operator` restores the configured default. Diarization is
+  pyannote and has no selectable function.
+
+Both writes return the public settings document. Public function rows contain
+`id`, `provider_id`, `model`, `capability`, and a Spanish `privacy` line naming
+where audio or text goes. A non-loopback endpoint is off-hub even on the LAN.
+No provider key is returned or echoed in an app answer. Subscription accounts
+are read from the existing assistant status and cannot be function providers.
+
+Provider validation has a 20-second total deadline, 32 local or 2048 cloud
+models, and 2 MiB per catalog/probe response. Provider settings requests admit
+at most 1 MiB; the encrypted registry admits 512 KiB and 64 providers. Shared
+label/URL/key limits are in `constants.json`. Concurrent settings writes
+refuse with `429 ai_settings_busy`; no save is retried automatically.
+Credential, transport, catalog, capability, count and size refusals use typed
+`ai_*` causes and scalar status/count/byte/deadline facts, never upstream text.
+See [AI settings](../docs/architecture/ai-settings.md) for defaults, consumers
+and the migration from the earlier transcription preference.
+
 ## Hub transcription preference
 
-Authenticated paired devices share one preference. `GET /v1/settings/transcription`
+This compatibility route controls meeting transcription and listening together.
+Authenticated paired devices share its preference. `GET /v1/settings/transcription`
 returns `model` (`whisper` by default, or `mai`) and `key_configured` (boolean).
 `PUT` accepts those model values and an optional write-only `api_key` (1–4096
 characters, request body at most 25 KiB). Omission preserves the current key.

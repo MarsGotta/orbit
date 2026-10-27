@@ -35,6 +35,16 @@ class Preferences:
         self.store = store
 
     def read(self):
+        from .ai.registry import Registry
+
+        registry = Registry(self.store)
+        document = registry.read()
+        if document["providers"] or document["functions"]:
+            selected = document["functions"].get("meeting_transcription", {})
+            return {
+                "model": "mai" if selected.get("provider_id") == "openrouter" else "whisper",
+                "api_key": document["providers"].get("openrouter", {}).get("api_key"),
+            }
         with self.store.read_snapshot() as db:
             row = db.execute("SELECT body FROM transcription_preferences WHERE id=1").fetchone()
             return (
@@ -57,6 +67,10 @@ class Preferences:
                 (sealed,),
             )
 
+        from .ai.registry import Registry
+
+        Registry(self.store).legacy(model, key)
+
 
 class Transcriber:
     """Select once per request/pass. Whisper's existing request stays untouched."""
@@ -69,10 +83,39 @@ class Transcriber:
         self.configuration = self.whisper.configuration
 
     @property
+    def requires_default_speech(self):
+        from .ai.registry import Registry
+
+        return "listening" not in Registry(self.preferences.store).read()["functions"]
+
+    @property
     def model(self):
-        return self.preferences.read()["model"]
+        from .ai.registry import Registry
+
+        selected = Registry(self.preferences.store).selected("meeting_transcription")
+        if selected:
+            if (
+                selected["kind"] == "openrouter"
+                and selected["model"] == "microsoft/mai-transcribe-2"
+            ):
+                return "mai"
+            return json.dumps({"provider_id": selected["id"], "model": selected["model"]})
+        return "whisper"
 
     def for_model(self, model):
+        if model not in ("whisper", "mai"):
+            from .ai.consumers import transcriber
+            from .ai.registry import Registry
+
+            choice = json.loads(model)
+            provider = (
+                Registry(self.preferences.store).read()["providers"].get(choice["provider_id"])
+            )
+            if provider is None:
+                raise HubError(
+                    "ai_provider_missing", "El proveedor de esta transcripción ya no existe"
+                )
+            return transcriber({**provider, "model": choice["model"]}, self.configuration)
         if model == "whisper":
             return self.whisper
         key = self.preferences.read()["api_key"]
@@ -90,12 +133,30 @@ class Transcriber:
         return await selected.transcribe(audio, language, final=final, prompt=prompt, **options)
 
     async def interactive(self, speech, audio):
-        if self.model == "whisper":
+        from .ai.consumers import transcriber
+        from .ai.registry import Registry
+        from .assistant.hermes_speech import TRANSCRIPTION_TIMEOUT_SECONDS
+
+        registry = Registry(self.preferences.store)
+        if registry.read()["functions"].get("listening", {}).get("provider_id") == "hub":
+            return (
+                await MeetingTranscriber(
+                    self.configuration, timeout=TRANSCRIPTION_TIMEOUT_SECONDS
+                ).transcribe(audio)
+            ).text
+        provider = registry.selected("listening")
+        if provider is None:
             return await speech.transcribe(audio)
-        selected = self.for_model("mai")
+        if provider["kind"] != "openrouter" or provider["model"] != "microsoft/mai-transcribe-2":
+            return (
+                await transcriber(
+                    provider, self.configuration, timeout=TRANSCRIPTION_TIMEOUT_SECONDS
+                ).transcribe(audio)
+            ).text
+        selected = OpenRouterTranscriber(provider["api_key"], self.configuration)
         # Same 180 s provider budget as existing interactive STT, inside the
         # worker's 240 s queue+inference budget and the Mac's 250 s HTTP budget.
-        selected.timeout = 180
+        selected.timeout = TRANSCRIPTION_TIMEOUT_SECONDS
         return (await selected.transcribe(audio)).text
 
 

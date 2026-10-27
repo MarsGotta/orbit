@@ -53,7 +53,9 @@ def status(db, device, recording):
         return None
     found = {"state": row["state"], "error": json.loads(row["error"]) if row["error"] else None}
     if row["model"] is not None:
-        found["model"] = row["model"]
+        found["model"] = (
+            json.loads(row["model"])["model"] if row["model"].startswith("{") else row["model"]
+        )
     if row["state"] == "running" and row["progress"]:
         found["progress"] = json.loads(row["progress"])
     if row["state"] == "completed" and row["kept_draft"]:

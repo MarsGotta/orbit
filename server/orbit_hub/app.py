@@ -112,6 +112,9 @@ def _mount_meetings(app: FastAPI, hub: composition.Hub, identity, transport) -> 
     from .transcription_preferences import mount as mount_transcription
 
     mount_transcription(app, hub.transcriptions.meetings, identity, bounded_body, executor)
+    from .ai.routes import mount as mount_ai
+
+    mount_ai(app, hub.ai, identity, bounded_body, executor, hub.agents.changed)
 
 
 def _mount_devices(app: FastAPI, hub: composition.Hub, identity) -> None:

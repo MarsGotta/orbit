@@ -5,12 +5,13 @@ import { useSpanish } from "../../i18n/AssistantCopy";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { PermissionsStep } from "./OnboardingAccessSteps";
 import { castOf } from "./cast";
+import { AIStep } from "./OnboardingAIStep";
 import { AssistantsStep } from "./OnboardingAssistantsStep";
 import { OnboardingFrame, StepAction } from "./OnboardingFrame";
 import { PairStep, ReadyStep, WelcomeStep } from "./OnboardingSteps";
 
 const completionKey = "orbit.onboarding.done.local";
-const STEPS = 5;
+const STEPS = 6;
 /** The pairing code's digits (hub-v1 «Pairing»: six, once, five minutes). */
 const CODE_DIGITS = 6;
 
@@ -154,6 +155,7 @@ export function OnboardingView(props: Props) {
       port={props.agent}
       send={send}
     />,
+    <AIStep agent={props.agent} key="ai" />,
     <ReadyStep
       cast={cast}
       deviceName={hub.device_name ?? fields.deviceName}

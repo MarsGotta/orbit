@@ -5,7 +5,7 @@ One job at a time: the processing model has one slot.
 
 import asyncio
 from collections.abc import Callable
-from contextlib import suppress
+from contextlib import nullcontext, suppress
 
 from ..log import report, stop_if_asked, supervised
 from ..meeting_final_pass import note_ready, status
@@ -79,7 +79,7 @@ class NotesWorker:
 
     @property
     def configured(self) -> bool:
-        return self.client is not None
+        return self.client is not None and getattr(self.client, "configured", True)
 
     async def _run(self, function, *args):
         return await asyncio.get_running_loop().run_in_executor(self.executor, function, *args)
@@ -87,7 +87,7 @@ class NotesWorker:
     def start(self) -> None:
         self.repository.initialize()
         self.repository.recover_interrupted(self.now())
-        if self.client is not None:
+        if self.configured:
             self.repository.requeue_unconfigured(self.now())
         self._task = asyncio.create_task(supervised("notes", self._loop))
 
@@ -154,7 +154,7 @@ class NotesWorker:
                 self.repository.wait_transcript, job, now + WAIT_TRANSCRIPT_SECONDS, now
             )
             return
-        if self.client is None:
+        if not self.configured:
             await self._fail(job, ProcessingError("processing_not_configured"))
             return
         # Read now, not when the note was asked for: a voice or the meeting
@@ -204,12 +204,19 @@ class NotesWorker:
             await self._run(self.repository.fail, job, error, self.now(), None)
 
     async def _write(self, template, inputs, lines, transcript, source):
-        settings = self.client.configuration
+        session = (
+            self.client.session() if hasattr(self.client, "session") else nullcontext(self.client)
+        )
+        async with session as client:
+            return await self._write_with(client, template, inputs, lines, transcript, source)
+
+    async def _write_with(self, client, template, inputs, lines, transcript, source):
+        settings = client.configuration
         budget = transcript_budget(settings.context_tokens, settings.max_completion_tokens, inputs)
         parts = split(lines, budget)
         duration = transcript.audio_ms
         if len(parts) == 1:
-            completion = await self.client.complete_json(
+            completion = await client.complete_json(
                 purpose="note",
                 messages=note_messages(template, inputs, lines, duration),
                 schema_name="orbit_note",
@@ -218,14 +225,14 @@ class NotesWorker:
         else:
             partials = []
             for index, part in enumerate(parts):
-                answer = await self.client.complete_json(
+                answer = await client.complete_json(
                     purpose="note_part",
                     messages=part_messages(template, inputs, part, index, len(parts)),
                     schema_name="orbit_note_part",
                     schema=answer_schema(template, partial=True),
                 )
                 partials.append(partial_for_reduce(answer.content, template))
-            completion = await self.client.complete_json(
+            completion = await client.complete_json(
                 purpose="note_reduce",
                 messages=reduce_messages(template, inputs, partials, duration),
                 schema_name="orbit_note",

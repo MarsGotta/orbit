@@ -190,7 +190,7 @@ pub struct MissingAudio {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FinalPass {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub model: Option<crate::transcription_config::TranscriptionModel>,
+    pub model: Option<String>,
     pub state: FinalPassState,
     pub error: Option<HubCause>,
     /// How far a running pass got. `None`: not running, not measured yet,

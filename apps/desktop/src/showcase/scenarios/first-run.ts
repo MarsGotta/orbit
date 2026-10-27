@@ -38,7 +38,7 @@ export const firstRunScenarios: Scenario[] = [
     id: "primera-vez-bienvenida",
     state: "1 · Bienvenida",
     description:
-      "Paso 1 de 5: qué hace Orbit, los pasos que vienen, que todo se para con ⌃⌥Esc y «Empezar».",
+      "Paso 1 de 6: qué hace Orbit, los pasos que vienen, que todo se para con ⌃⌥Esc y «Empezar».",
   }),
   firstRun({
     id: "primera-vez-emparejar",
@@ -136,22 +136,24 @@ export const firstRunScenarios: Scenario[] = [
   }),
   firstRun({
     id: "primera-vez-listo",
-    state: "5 · Todo listo",
+    state: "6 · Todo listo",
     description:
       "El resumen con su punto verde o ámbar (el hub, «3 de 4 concedidos · falta Calendarios», «Deimos (principal) y Phobos») y los tres atajos.",
     views: pairedMac,
     steps: [
       ...pairedToAssistants,
       { click: "role=button[name='Continuar']" },
+      { click: "role=button[name='Continuar']" },
       { wait: "role=button[name='Empezar a usar Orbit']" },
     ],
   }),
   firstRun({
     id: "primera-vez-listo-falta",
-    state: "5 · Todo listo, falta todo",
+    state: "6 · Todo listo, falta todo",
     description: "Saltado todo: el resumen dice en ámbar lo que falta y dónde hacerlo después.",
     steps: [
       ...toAssistants,
+      { click: "role=button[name='Continuar']" },
       { click: "role=button[name='Continuar']" },
       { wait: "role=button[name='Empezar a usar Orbit']" },
     ],

@@ -112,6 +112,7 @@ async fn refusal(response: reqwest::Response) -> Box<AgentOutcome> {
 
 /// What an accepted call answers that the Mac reads.
 enum Answer {
+    AiSettings,
     TranscriptionSettings,
     Config,
     Skill,
@@ -124,6 +125,9 @@ impl Answer {
     /// answers with nothing it reads: it is done, and the screen reads again.
     fn of(call: &AgentCall) -> Option<Self> {
         match call {
+            AgentCall::AiSettings
+            | AgentCall::AiProviderSave { .. }
+            | AgentCall::AiFunctionSave { .. } => Some(Self::AiSettings),
             AgentCall::TranscriptionSettings | AgentCall::TranscriptionSave { .. } => {
                 Some(Self::TranscriptionSettings)
             }
@@ -148,6 +152,9 @@ impl Answer {
 
     fn read(self, bytes: &[u8]) -> Result<AgentOutcome, Box<AgentOutcome>> {
         let outcome = match self {
+            Self::AiSettings => {
+                serde_json::from_slice(bytes).map(|settings| AgentOutcome::AiSettings { settings })
+            }
             Self::TranscriptionSettings => serde_json::from_slice(bytes)
                 .map(|settings| AgentOutcome::TranscriptionSettings { settings }),
             Self::Config => {

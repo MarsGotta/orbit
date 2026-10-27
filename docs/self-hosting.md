@@ -30,11 +30,15 @@ Hermes and provider compatibility must be checked against your installed
 versions. Passing tests against synthetic peers does not establish that a live
 Hermes profile, audio device or provider works.
 
-Meeting transcription defaults to the existing hub Whisper service. A paired
-person can instead choose MAI-Transcribe-2 in Ajustes › Reuniones › Transcripción,
-with an encrypted OpenRouter key on the hub. This also selects MAI for voice
-notes and call utterances. See [transcription models](architecture/transcription-models.md)
-for audio transfer, zero data retention, compatibility and manual acceptance.
+Meeting transcription defaults to the existing hub Whisper service. In
+Ajustes › IA, a paired person can add OpenRouter or multiple OpenAI-compatible
+endpoints and choose a provider/model independently for each function.
+Provider keys are validated and encrypted on the hub and never returned to a
+Mac. Existing transcription preferences migrate at hub startup, including
+MAI listening when previously selected. New meeting choices do not change
+voice-note or call listening. `orbit.toml` remains the operator's default.
+See [AI settings](architecture/ai-settings.md) and
+[transcription models](architecture/transcription-models.md).
 
 ## Environment and configuration
 
@@ -436,8 +440,8 @@ context_tokens = 131072
 ```
 
 Choose the model's actual context size. The credential stays on the hub.
-Without `[processing]`, transcription still works and notes report
-`not_configured`. Optional `[error_reports] dsn = "…"` enables your Sentry
+Without `[processing]` or an app choice for meeting notes in Ajustes › IA,
+transcription still works and notes report `not_configured`. Optional `[error_reports] dsn = "…"` enables your Sentry
 destination; omit the table to send no reports.
 
 ## Hermes and orbit-mcp

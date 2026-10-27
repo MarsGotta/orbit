@@ -136,7 +136,7 @@ async fn answer(
             body: body.clone(),
         });
         vault_reply(&path, &body)
-    } else if path.starts_with("/v1/agents/") || path == "/v1/settings/transcription" {
+    } else if path.starts_with("/v1/agents/") || path.starts_with("/v1/settings/") {
         seen.lock().unwrap().push(Seen {
             method: method.clone(),
             path: path.clone(),
@@ -218,6 +218,10 @@ async fn vault_calls_cross_app_actor_http_and_back_without_echoing_credentials()
 
 fn agent_reply(method: &str, path: &str, body: &str) -> (&'static str, Value) {
     match (method, path) {
+        (_, path) if path.starts_with("/v1/settings/ai") => (
+            "200 OK",
+            json!({"providers": [{"id":"cedar","name":"Cedro","kind":"local","base_url":"http://127.0.0.1:8080/v1","key_configured":true,"models":[{"id":"cedar","capabilities":["text","tools"]}]}],"functions":[{"id":"assistants","provider_id":"cedar","model":"cedar","capability":"tools","privacy":"El texto se queda en tu hub."}]}),
+        ),
         ("GET" | "PUT", "/v1/settings/transcription") => {
             ("200 OK", json!({ "model": "mai", "key_configured": true }))
         }
@@ -406,6 +410,47 @@ async fn transcription_settings_cross_the_mac_and_the_key_never_returns()
     assert_eq!(
         serde_json::from_str::<Value>(&request.body)?["api_key"],
         "invented-provider-secret"
+    );
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn ai_settings_cross_the_mac_without_echoing_provider_credentials()
+-> Result<(), Box<dyn Error>> {
+    let hub = hub().await?;
+    let (_directory, _daemon, app) = paired_client(&hub).await?;
+    let call: AgentCall = serde_json::from_value(json!({
+        "call":"ai_provider_save", "provider_id":"cedar", "provider": {
+            "name":"Cedro", "kind":"local", "base_url":"http://127.0.0.1:8080/v1", "api_key":"invented-ai-provider-secret"
+        }
+    }))?;
+    assert!(!format!("{call:?}").contains("invented-ai-provider-secret"));
+    let answer = tokio::time::timeout(CALL_BUDGET, app.agent(call)).await??;
+    assert!(matches!(answer.outcome, AgentOutcome::AiSettings { .. }));
+    assert!(!serde_json::to_string(&answer)?.contains("invented-ai-provider-secret"));
+    let read = tokio::time::timeout(CALL_BUDGET, app.agent(AgentCall::AiSettings)).await??;
+    assert!(matches!(read.outcome, AgentOutcome::AiSettings { .. }));
+    let call = serde_json::from_value(
+        json!({"call":"ai_function_save","function":"assistants","choice":{"provider_id":"cedar","model":"cedar"}}),
+    )?;
+    let changed = tokio::time::timeout(CALL_BUDGET, app.agent(call)).await??;
+    assert!(matches!(changed.outcome, AgentOutcome::AiSettings { .. }));
+    let seen = hub.seen.lock().unwrap();
+    assert_eq!(
+        seen.iter().map(|r| r.path.as_str()).collect::<Vec<_>>(),
+        [
+            "/v1/settings/ai/providers/cedar",
+            "/v1/settings/ai",
+            "/v1/settings/ai/functions/assistants"
+        ]
+    );
+    assert_eq!(
+        serde_json::from_str::<Value>(&seen[0].body)?["api_key"],
+        "invented-ai-provider-secret"
+    );
+    assert!(
+        seen.iter()
+            .all(|r| r.authorization.as_deref() == Some("bearer synthetic-agents-token"))
     );
     Ok(())
 }

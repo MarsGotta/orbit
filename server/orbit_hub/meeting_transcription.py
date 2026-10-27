@@ -115,14 +115,29 @@ class MeetingTranscriptionConfiguration(BaseModel):
 class MeetingTranscriber:
     """Calls an OpenAI-compatible transcription endpoint with its own prompt."""
 
-    def __init__(self, configuration, *, client_factory=None):
+    def __init__(
+        self,
+        configuration,
+        *,
+        client_factory=None,
+        credential=None,
+        timeout=None,
+    ):
         self.configuration = MeetingTranscriptionConfiguration.model_validate(configuration)
+        self._timeout = timeout
+        self._credential = credential
         self._client_factory = client_factory or self._default_client
+
+    @property
+    def request_timeout(self):
+        return REQUEST_TIMEOUT_SECONDS if self._timeout is None else self._timeout
 
     def _default_client(self):
         return httpx.AsyncClient(
-            timeout=httpx.Timeout(REQUEST_TIMEOUT_SECONDS, connect=CONNECT_TIMEOUT_SECONDS),
+            timeout=httpx.Timeout(self.request_timeout, connect=CONNECT_TIMEOUT_SECONDS),
             follow_redirects=False,
+            trust_env=False,
+            headers={"Authorization": "Bearer " + self._credential} if self._credential else {},
         )
 
     def form(self, language: str | None = None, prompt: str = "") -> dict:
@@ -206,7 +221,7 @@ class MeetingTranscriber:
             report(event="meeting_transcription_failed", code="transcription_failed")
             raise from_provider(
                 exc,
-                timeout_ms=int(REQUEST_TIMEOUT_SECONDS * 1000),
+                timeout_ms=int(self.request_timeout * 1000),
                 connect_timeout_ms=int(CONNECT_TIMEOUT_SECONDS * 1000),
             ) from exc
 

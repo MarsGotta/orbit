@@ -3,6 +3,7 @@ pub mod actions;
 pub mod agent_config;
 pub mod agent_work;
 pub mod agents;
+pub mod ai_config;
 pub mod assistant_files;
 pub mod attachments;
 pub mod audio_gap;

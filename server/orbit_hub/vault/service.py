@@ -56,7 +56,15 @@ class Vault:
 
     def public(self):
         config = self.configuration()
-        return config.public() if config else {"configured": False}
+        if config is None:
+            return {"configured": False}
+        from ..ai.registry import Registry
+
+        selected = Registry(self.store).selected("vault")
+        result = config.public()
+        if selected:
+            result["maintenance_model"] = selected["model"]
+        return result
 
     def configure(self, config):
         previous = self.configuration()

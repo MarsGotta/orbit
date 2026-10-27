@@ -1,9 +1,11 @@
 # Transcription model selection
 
-The hub owns one preference shared by every paired Mac. Ajustes › Reuniones ›
-Transcripción reads and writes it through the existing authenticated, typed app
-bridge. `whisper` is the default; `mai` selects `microsoft/mai-transcribe-2`.
-There is no device-side provider client or credential cache.
+The hub owns independent function choices shared by every paired Mac in
+Ajustes › IA. Meeting transcription and listening for voice notes/calls can
+select different providers. `whisper` retains the configured hub transcriber;
+`mai` selects `microsoft/mai-transcribe-2`. Local OpenAI-compatible providers
+are also available; see [AI settings](ai-settings.md). There is no device-side
+provider client or credential cache.
 
 ## Audio paths
 
@@ -14,7 +16,8 @@ There is no device-side provider client or credential cache.
 | Voice notes, dictated input and derived call utterances (`POST /v1/audio/transcribe`) | Existing default agent STT (Hermes or its configured speech adapter) | OpenRouter JSON STT, each existing utterance segment |
 | Meeting question wake phrase (`SpeechPhraseListener.swift`) | Apple's on-device SpeechAnalyzer | Unchanged: on-device SpeechAnalyzer |
 
-No path must remain on Whisper when MAI is selected. The wake-phrase listener
+Each row follows its own function choice; changing meetings does not change
+listening. No meeting path must remain on Whisper when MAI is selected for it. The wake-phrase listener
 remains on Apple speech recognition because it detects the local trigger and
 collects the spoken question with low latency; it does not generate the hub's
 saved transcript. Meeting speaker separation remains local pyannote on the
@@ -28,10 +31,13 @@ independently of Whisper's shorter glossary prompt. Transcription style is
 
 ## Credentials and failure
 
-`transcription_preferences` contains one AES-GCM encrypted JSON document,
-using the hub storage key and its own authenticated context, just like assistant
-credentials. Only the selected model and a `key_configured` boolean leave the
-hub. A replacement key is validated by a real transcription of 250 ms of
+The canonical credential lives in the encrypted `ai_settings` registry, using
+the hub storage key and its own authenticated context. At load, older
+`transcription_preferences` data migrates once, retaining both the existing
+key and the earlier meeting/listening behavior. The legacy transcription
+route remains for older Macs; a legacy save updates both function choices.
+Public provider records expose only `key_configured`, never the key.
+A replacement key is validated by a real transcription of 250 ms of
 synthetic silence before saving. This can incur a small provider charge. A failed
 validation preserves the existing key and preference; provider bodies are never
 returned or logged. Key, permission, balance, throttling and transport failures

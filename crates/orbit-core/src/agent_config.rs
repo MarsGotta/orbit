@@ -137,6 +137,15 @@ pub struct SkillDocument {
     ts(export_to = "../../apps/desktop/src/bridge/generated/")
 )]
 pub enum AgentCall {
+    AiSettings,
+    AiProviderSave {
+        provider_id: String,
+        provider: crate::ai_config::AiProviderInput,
+    },
+    AiFunctionSave {
+        function: String,
+        choice: crate::ai_config::AiChoice,
+    },
     TranscriptionSettings,
     TranscriptionSave {
         model: crate::transcription_config::TranscriptionModel,
@@ -311,20 +320,26 @@ impl AgentCall {
             | Self::SignInCode { agent_id, .. }
             | Self::SignInCancel { agent_id }
             | Self::SignOut { agent_id } => Some(agent_id),
-            Self::Add { .. } | Self::TranscriptionSettings | Self::TranscriptionSave { .. } => None,
+            Self::AiSettings
+            | Self::AiProviderSave { .. }
+            | Self::AiFunctionSave { .. }
+            | Self::Add { .. }
+            | Self::TranscriptionSettings
+            | Self::TranscriptionSave { .. } => None,
         }
     }
 
     pub fn route(&self) -> HubRoute {
-        let agent = |tail: &[&str]| {
-            ["v1", "agents"]
-                .into_iter()
-                .chain(self.agent_id())
-                .chain(tail.iter().copied())
-                .map(str::to_owned)
-                .collect::<Vec<_>>()
-        };
+        let agent = |tail: &[&str]| agent_segments(self.agent_id(), tail);
         let (method, segments, body) = match self {
+            Self::AiSettings => crate::ai_config::read_route(),
+            Self::AiProviderSave {
+                provider_id,
+                provider,
+            } => crate::ai_config::provider_route(provider_id, provider),
+            Self::AiFunctionSave { function, choice } => {
+                crate::ai_config::function_route(function, choice)
+            }
             Self::TranscriptionSettings => transcription_route(HubMethod::Get, None),
             Self::TranscriptionSave { model, api_key } => transcription_route(
                 HubMethod::Put,
@@ -483,6 +498,9 @@ impl AgentRefusal {
     ts(export_to = "../../apps/desktop/src/bridge/generated/")
 )]
 pub enum AgentOutcome {
+    AiSettings {
+        settings: crate::ai_config::AiSettings,
+    },
     TranscriptionSettings {
         settings: crate::transcription_config::TranscriptionSettings,
     },
@@ -552,4 +570,13 @@ fn profile_route(
             serde_json::json!({"name": name, "description": description, "color": color, "primary": primary}),
         ),
     )
+}
+
+fn agent_segments(agent_id: Option<&str>, tail: &[&str]) -> Vec<String> {
+    ["v1", "agents"]
+        .into_iter()
+        .chain(agent_id)
+        .chain(tail.iter().copied())
+        .map(str::to_owned)
+        .collect()
 }

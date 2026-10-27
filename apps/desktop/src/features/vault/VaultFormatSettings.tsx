@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { VaultSettings } from "../../bridge/generated/VaultSettings";
 import { Button } from "../../design/Button";
-import { Field } from "../../design/Field";
 import { vaultCopy as copy } from "../../i18n/es/vault";
 import { Group, List, Row } from "../settings/layout";
 import { message, request, type VaultPort } from "./api";
@@ -17,7 +16,7 @@ function useFormat({
   saved: (value: VaultSettings) => void;
 }) {
   const [linkStyle, setLinkStyle] = useState(configuration.link_style);
-  const [model, setModel] = useState(configuration.maintenance_model);
+  const model = configuration.maintenance_model;
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
   const save = async () => {
@@ -39,7 +38,7 @@ function useFormat({
       setBusy(false);
     }
   };
-  return { linkStyle, setLinkStyle, model, setModel, busy, feedback, save };
+  return { linkStyle, setLinkStyle, model, busy, feedback, save };
 }
 export function FormatSettings({
   configuration,
@@ -50,7 +49,7 @@ export function FormatSettings({
   port?: VaultPort;
   saved: (value: VaultSettings) => void;
 }) {
-  const { linkStyle, setLinkStyle, model, setModel, busy, feedback, save } = useFormat({
+  const { linkStyle, setLinkStyle, model, busy, feedback, save } = useFormat({
     configuration,
     port,
     saved,
@@ -78,7 +77,7 @@ export function FormatSettings({
           </Row>
         </List>
       </Group>
-      <Maintainer model={model} setModel={setModel} busy={busy} />
+      <Maintainer model={model} />
       <div className={styles.actions}>
         <Button disabled={busy} onClick={() => void save()} size={36} variant="accent">
           {busy ? "Comprobando…" : "Guardar configuración"}
@@ -89,15 +88,7 @@ export function FormatSettings({
   );
 }
 
-function Maintainer({
-  model,
-  setModel,
-  busy,
-}: {
-  model: string;
-  setModel: (value: string) => void;
-  busy: boolean;
-}) {
+function Maintainer({ model }: { model: string }) {
   return (
     <Group
       help="Un trabajo del hub con su propio modelo. No se ejecuta en esta fase."
@@ -105,14 +96,8 @@ function Maintainer({
     >
       <List>
         <Row title="Trabajo del hub">
-          <Field
-            disabled={busy}
-            help="Identificador del proveedor y modelo; sus credenciales se configuran en el hub."
-            label="Modelo de mantenimiento"
-            onChange={(event) => setModel(event.target.value)}
-            placeholder="proveedor/modelo"
-            value={model}
-          />
+          <p>{model || "Sin modelo configurado"}</p>
+          <a href="#/settings/ia">Elegir modelo en Ajustes › IA</a>
         </Row>
         <Row help={copy.schemaHelp} title="Esquema SCHEMA.md">
           <a href={noteRoute("SCHEMA.md")}>Leer el esquema</a>

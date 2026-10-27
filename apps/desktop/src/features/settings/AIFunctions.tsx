@@ -1,0 +1,81 @@
+import type { AiFunction } from "../../bridge/generated/AiFunction";
+import type { AiProvider } from "../../bridge/generated/AiProvider";
+import { aiCopy as copy } from "../../i18n/es/ai";
+import { Group, List, Row } from "./layout";
+import type { useAISettings } from "./use-ai-settings";
+import styles from "./SettingsView.module.css";
+
+type View = ReturnType<typeof useAISettings>;
+function FunctionRow({
+  fn,
+  providers,
+  view,
+}: {
+  fn: AiFunction;
+  providers: AiProvider[];
+  view: View;
+}) {
+  const options = providers.flatMap((provider) =>
+    provider.models
+      .filter((model) => model.capabilities.includes(fn.capability))
+      .map((model) => ({
+        provider_id: provider.id,
+        model: model.id,
+        label: `${provider.name} · ${model.id}`,
+      })),
+  );
+  const selected = JSON.stringify([fn.provider_id, fn.model]);
+  const operator = JSON.stringify(["operator", "default"]);
+  return (
+    <Row title={copy.functions[fn.id] ?? fn.id} help={fn.privacy}>
+      <div className={`${styles.select} ${styles.aiSelect}`}>
+        <select
+          aria-label={copy.functions[fn.id] ?? fn.id}
+          disabled={view.busy}
+          value={fn.provider_id === "operator" ? operator : selected}
+          onChange={(e) => {
+            const [provider_id, model] = JSON.parse(e.target.value) as [string, string];
+            void view.call({
+              call: "ai_function_save",
+              function: fn.id,
+              choice: { provider_id, model },
+            });
+          }}
+        >
+          <option value={operator}>
+            {copy.operator}
+            {fn.provider_id === "operator" ? ` · ${fn.model}` : ""}
+          </option>
+          {options.map((option) => (
+            <option
+              key={JSON.stringify([option.provider_id, option.model])}
+              value={JSON.stringify([option.provider_id, option.model])}
+            >
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {view.errorPlace === fn.id && view.error.length > 0 && <p role="alert">{view.error}</p>}
+      {fn.id === "vault" && <p>Se guarda para el próximo trabajo de destilado y revisión.</p>}
+      {fn.id === "assistants" && (
+        <p>
+          Se aplica a los asistentes compatibles con OpenAI; el modelo debe admitir herramientas.
+        </p>
+      )}
+    </Row>
+  );
+}
+export function AIFunctions({ view }: { view: View }) {
+  if (view.settings === null) return null;
+  return (
+    <Group label="Funciones" help="Cada función usa su elección; las demás conservan la suya.">
+      <List busy={view.busy}>
+        {view.settings.functions.map((fn) => (
+          <FunctionRow key={fn.id} fn={fn} providers={view.settings?.providers ?? []} view={view} />
+        ))}
+        <Row title="Separación de voces" help="pyannote en tu hub · No se cambia desde aquí." />
+      </List>
+    </Group>
+  );
+}

@@ -41,6 +41,7 @@ function sidebarCopy(assistantName: string) {
         asistentes: "Asistentes",
         reuniones: "Reuniones",
         notas: "Notas",
+        ia: "IA",
       },
     },
   } as const;

@@ -70,7 +70,7 @@ it("keeps a settings refusal in place and clears the token after submitting", as
   await waitFor(() => expect((screen.getByLabelText("Token") as HTMLInputElement).value).toBe(""));
 });
 
-it("64 stores link style and job model while every writing/maintenance switch stays inert", async () => {
+it("64 stores link style and links to the AI model choice while maintenance stays inert", async () => {
   const port = vi.fn<VaultPort>(async (call) => ({
     outcome: "config",
     configuration:
@@ -78,9 +78,9 @@ it("64 stores link style and job model while every writing/maintenance switch st
   }));
   render(<VaultSettingsView port={port} />);
   fireEvent.click(await screen.findByLabelText("[[Wikilinks]]"));
-  fireEvent.change(screen.getByLabelText("Modelo de mantenimiento"), {
-    target: { value: "fixture/provider-model" },
-  });
+  expect(
+    screen.getByRole("link", { name: "Elegir modelo en Ajustes › IA" }).getAttribute("href"),
+  ).toBe("#/settings/ia");
   fireEvent.click(screen.getByRole("button", { name: "Guardar configuración" }));
   await waitFor(() =>
     expect(port).toHaveBeenCalledWith(
@@ -88,7 +88,7 @@ it("64 stores link style and job model while every writing/maintenance switch st
         call: "configure",
         configuration: expect.objectContaining({
           link_style: "wikilink",
-          maintenance_model: "fixture/provider-model",
+          maintenance_model: "",
         }),
       }),
     ),

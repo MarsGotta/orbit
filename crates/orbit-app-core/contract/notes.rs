@@ -468,7 +468,7 @@ app_type! {
     pub struct NoteFinalPassSnapshot {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
-        pub model: Option<orbit_core::transcription_config::TranscriptionModel>,
+        pub model: Option<String>,
         pub state: orbit_core::notes::FinalPassState,
         /// The hub's failure code; diagnostic details stay on the hub.
         pub error: Option<String>,

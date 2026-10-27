@@ -17,12 +17,13 @@ function openedAt(hash: string) {
 }
 
 describe("the routes of Ajustes", () => {
-  it("has the six sections, each with its own route", () => {
+  it("has the seven sections, each with its own route", () => {
     expect(ui.SETTINGS_SECTIONS).toEqual([
       "general",
       "privacidad",
       "grabacion",
       "asistentes",
+      "ia",
       "reuniones",
       "notas",
     ]);

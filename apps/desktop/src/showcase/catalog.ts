@@ -1,3 +1,4 @@
+import { aiScenarios } from "./scenarios/ai";
 import { vaultScenarios } from "./scenarios/vault";
 import { assistantsScenarios } from "./scenarios/assistants";
 import { assistantsGearScenarios } from "./scenarios/assistants-gear";
@@ -48,6 +49,7 @@ export const scenarios: Scenario[] = [
   ...grabarScenarios,
   ...panelScenarios,
   ...settingsScenarios,
+  ...aiScenarios,
   ...firstRunScenarios,
   ...paletteScenarios,
   ...designScenarios,

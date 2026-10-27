@@ -86,13 +86,13 @@ function show(view: AppView, port = hub().port) {
 }
 
 const press = (name: string) => fireEvent.click(screen.getByRole("button", { name }));
-const progress = () => screen.getByText(/^Paso \d de 5 · /).textContent;
+const progress = () => screen.getByText(/^Paso \d de 6 · /).textContent;
 
 function toAssistants() {
   press("Empezar");
   press(screen.queryByRole("button", { name: "Continuar" }) ? "Continuar" : "Emparejar después");
   press("Continuar");
-  expect(progress()).toBe("Paso 4 de 5 · Asistentes");
+  expect(progress()).toBe("Paso 4 de 6 · Asistentes");
 }
 
 const row = (name: string) =>
@@ -129,7 +129,7 @@ describe("«Tus asistentes»", () => {
     expect(screen.getByText("Conecta al menos uno para elegir el principal.")).toBeTruthy();
     expect(screen.queryByRole("radiogroup")).toBeNull();
     fireEvent.click(within(row("Deimos")).getByRole("button", { name: "Emparejar el hub" }));
-    expect(progress()).toBe("Paso 2 de 5 · Tu hub");
+    expect(progress()).toBe("Paso 2 de 6 · Tu hub");
   });
 
   it("signs a subscription in through the hub: the browser opens and the row waits for it", async () => {
@@ -231,6 +231,7 @@ describe("«Todo listo» sums up", () => {
     show(snapshot());
     toAssistants();
     press("Continuar");
+    press("Continuar");
     expect(summary()).toEqual([
       ["Tu hubhub.nubaria.example · este Mac se llama «Mac de Lucía»", "ok"],
       ["Permisos3 de 4 concedidos · falta Calendarios", "warn"],
@@ -254,6 +255,7 @@ describe("«Todo listo» sums up", () => {
     );
     toAssistants();
     press("Continuar");
+    press("Continuar");
     expect(summary()).toEqual([
       ["Tu hubSin emparejar. Hazlo cuando quieras en Ajustes › General.", "warn"],
       [
@@ -267,6 +269,7 @@ describe("«Todo listo» sums up", () => {
   it("calls the primary by its name in the shortcut", () => {
     show(snapshot({ primary: PHOBOS.id }));
     toAssistants();
+    press("Continuar");
     press("Continuar");
     expect(summary()[2]).toEqual(["AsistentesDeimos y Phobos (principal)", "ok"]);
     expect(screen.getByText("Hablar con Phobos")).toBeTruthy();

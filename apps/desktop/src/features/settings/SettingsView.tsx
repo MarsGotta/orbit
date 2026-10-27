@@ -11,7 +11,7 @@ import { SectionHeading } from "./layout";
 import { MeetingDictionaries } from "./MeetingDictionaries";
 import { missingPermissions } from "./Permissions";
 import { PrivacySection } from "./PrivacySection";
-import { TranscriptionSettings } from "./TranscriptionSettings";
+import { AISettings } from "./AISettings";
 import { RecordingSection } from "./RecordingSection";
 import { NoteTemplates } from "./templates/NoteTemplates";
 import { VaultSettingsView } from "../vault/VaultSettingsView";
@@ -59,7 +59,6 @@ function Section({
             lead={es.settings.leads.reuniones}
             title={es.shell.settingsSections.reuniones}
           />
-          <TranscriptionSettings agent={agent} />
           <NoteTemplates
             daemon={snapshot.connection.daemon}
             error={error}
@@ -69,6 +68,8 @@ function Section({
           <MeetingDictionaries library={snapshot.notes?.library} send={send} />
         </>
       );
+    case "ia":
+      return <AISettings agent={agent} snapshot={snapshot} />;
     case "notas":
       return <VaultSettingsView port={vault} />;
   }

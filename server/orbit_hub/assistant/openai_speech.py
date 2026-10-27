@@ -22,7 +22,10 @@ SPEECH_CONNECT_TIMEOUT_SECONDS = 10
 class OpenAISpeech:
     """Dictation by the hub's meeting transcriber; read-aloud by `speech`, if any."""
 
-    def __init__(self, agent: "AgentConfiguration", transcriber: MeetingTranscriber):
+    def __init__(
+        self, agent: "AgentConfiguration", transcriber: MeetingTranscriber, *, credential=None
+    ):
+        self._credential = credential
         self.agent, self.settings, self.transcriber = agent, agent.settings, transcriber
 
     async def transcribe(self, audio: bytes) -> str:
@@ -38,7 +41,7 @@ class OpenAISpeech:
                 http_status=503,
                 numbers={"agent_id": self.agent.id},
             )
-        headers = {}
+        headers = {"Authorization": "Bearer " + self._credential} if self._credential else {}
         if speech.api_key_file is not None:
             key = read_api_key(
                 f'agent "{self.agent.id}".speech', "api_key_file", speech.api_key_file
@@ -51,6 +54,7 @@ class OpenAISpeech:
                         SPEECH_TIMEOUT_SECONDS, connect=SPEECH_CONNECT_TIMEOUT_SECONDS
                     ),
                     follow_redirects=False,
+                    trust_env=False,
                 ) as client,
                 client.stream(
                     "POST",

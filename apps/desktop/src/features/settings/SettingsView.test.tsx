@@ -80,7 +80,7 @@ function open(section: string) {
 afterEach(cleanup);
 
 describe("the index", () => {
-  it("lists the six sections and opens General without a section", () => {
+  it("lists the seven sections and opens General without a section", () => {
     renderSettings();
     const index = screen.getByRole("navigation", { name: "Secciones de ajustes" });
     expect(
@@ -92,6 +92,7 @@ describe("the index", () => {
       "Privacidad y permisos",
       "Grabación y llamadas",
       "Asistentes",
+      "IA",
       "Reuniones",
       "Notas",
     ]);

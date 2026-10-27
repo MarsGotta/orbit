@@ -24,11 +24,8 @@ def mount(
     @app.post("/v1/audio/transcribe")
     async def transcribe(request: Request):
         device = identity(request)
-        if (
-            not hasattr(transcriptions.meetings, "model")
-            or transcriptions.meetings.model == "whisper"
-        ):
-            agents.default.voice()
+        if getattr(transcriptions.meetings, "requires_default_speech", True):
+            agents.default.voice(listening=True)
         body = await bounded_body(request, settings.max_audio_bytes, "audio")
         validate_wav(body)
         try:

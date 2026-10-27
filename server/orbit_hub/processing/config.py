@@ -31,7 +31,7 @@ class ProcessingConfiguration(BaseModel):
 
     endpoint: str = Field(min_length=1, max_length=512)
     model: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:/@-]*$")
-    credential_file: Path
+    credential_file: Path | None
     # "off" asks templates that support it (llama.cpp, vLLM) not to reason
     # first: measured on Qwen, a two-hour note took 30 s instead of 75 s and
     # stayed valid. "provider_default" sends nothing, for providers that reject
@@ -46,7 +46,9 @@ class ProcessingConfiguration(BaseModel):
 
     @field_validator("credential_file")
     @classmethod
-    def absolute_credential(cls, value: Path) -> Path:
+    def absolute_credential(cls, value: Path | None) -> Path | None:
+        if value is None:
+            return None
         value = value.expanduser()
         if not value.is_absolute():
             raise ValueError("processing.credential_file must be an absolute path")

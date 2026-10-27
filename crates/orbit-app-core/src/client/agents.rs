@@ -28,6 +28,9 @@ impl DaemonClient {
         if let AgentCall::TranscriptionSave { api_key, .. } = &mut call {
             *api_key = None;
         }
+        if let AgentCall::AiProviderSave { provider, .. } = &mut call {
+            provider.api_key = None;
+        }
         Ok(crate::AgentAnswer { call, outcome })
     }
 }

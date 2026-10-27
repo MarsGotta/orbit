@@ -4,13 +4,14 @@ export type ViewId = "briefing" | "calendar" | "notes" | "vault" | "assistant" |
 
 /** The sections of Ajustes, each with its own route: `#/settings/{section}`. */
 export type SettingsSection =
-  "general" | "privacidad" | "grabacion" | "asistentes" | "reuniones" | "notas";
+  "general" | "privacidad" | "grabacion" | "asistentes" | "reuniones" | "notas" | "ia";
 
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   "general",
   "privacidad",
   "grabacion",
   "asistentes",
+  "ia",
   "reuniones",
   "notas",
 ];

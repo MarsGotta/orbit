@@ -72,13 +72,15 @@ class Agent:
         """What answers: `claude-code` or `codex` for an official-tool agent, else its kind."""
         return self.kind
 
-    def voice(self) -> SpeechBackend:
+    def voice(self, *, listening=False) -> SpeechBackend:
         """The agent's speech, or the refusal that names the agent and why it has none."""
-        if self.speech is None:
+        unavailable = getattr(self.speech, "no_dictation" if listening else "unvoiced", False)
+        if self.speech is None or unavailable:
             raise HubError(
                 "speech_not_configured",
-                f"{self.name} («{self.id}») no tiene voz: los agentes de tipo {self.kind} "
-                "no dictan ni leen en voz alta",
+                f"{self.name} («{self.id}») no tiene {'escucha' if listening else 'voz'}: "
+                f"el asistente de tipo {self.kind} no tiene "
+                f"{'dictado configurado' if listening else 'voz para leer en voz alta'}",
                 http_status=503,
                 numbers={"agent_id": self.id},
             )
@@ -93,7 +95,7 @@ class Agent:
             name
             for name, accepted in (
                 ("images", capabilities.images),
-                ("voice", capabilities.voice),
+                ("voice", capabilities.voice or getattr(self.speech, "overridden", False)),
                 ("resume", capabilities.resume),
             )
             if accepted

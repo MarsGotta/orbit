@@ -39,19 +39,20 @@ function show(props: Partial<Parameters<typeof OnboardingView>[0]> = {}) {
 }
 
 const press = (name: string) => fireEvent.click(screen.getByRole("button", { name }));
-const progress = () => screen.getByText(/^Paso \d de 5 · /).textContent;
+const progress = () => screen.getByText(/^Paso \d de 6 · /).textContent;
 
 describe("the first run says where it is", () => {
-  it("«Paso N de 5 · {paso}» and five bars, the current one marked and the future ones closed", () => {
+  it("«Paso N de 6 · {paso}» and six bars, the current one marked and the future ones closed", () => {
     show();
-    expect(progress()).toBe("Paso 1 de 5 · Bienvenida");
+    expect(progress()).toBe("Paso 1 de 6 · Bienvenida");
     const bars = within(screen.getByRole("list", { name: "Pasos" })).getAllByRole("button");
     expect(bars.map((bar) => bar.getAttribute("aria-label"))).toEqual([
       "Paso 1: Bienvenida",
       "Paso 2: Tu hub",
       "Paso 3: Permisos",
       "Paso 4: Asistentes",
-      "Paso 5: Listo",
+      "Paso 5: Tu IA",
+      "Paso 6: Listo",
     ]);
     expect(bars[0]?.getAttribute("aria-current")).toBe("step");
     expect(bars.slice(1).every((bar) => (bar as HTMLButtonElement).disabled)).toBe(true);
@@ -76,7 +77,8 @@ describe("the first run says where it is", () => {
       "2Tu hubConecta este Mac con el hub donde se guardan tus reuniones.",
       "3PermisosMicrófono, pantalla, accesibilidad y calendarios.",
       "4AsistentesDeimos viene con tu hub; los demás, con tu suscripción.",
-      "5ListoTres atajos para empezar.",
+      "5Tu IAEmpieza con tu hub o añade un proveedor.",
+      "6ListoTres atajos para empezar.",
     ]);
     expect(
       screen.getByText("Tú decides qué ve y oye Orbit. Lo paras todo al instante con ⌃⌥Esc."),
@@ -104,20 +106,20 @@ describe("the first run says where it is", () => {
   it("«Empezar» goes on, «Atrás» comes back, and a bar returns to a step already seen", () => {
     show();
     press("Empezar");
-    expect(progress()).toBe("Paso 2 de 5 · Tu hub");
+    expect(progress()).toBe("Paso 2 de 6 · Tu hub");
     press("Atrás");
-    expect(progress()).toBe("Paso 1 de 5 · Bienvenida");
+    expect(progress()).toBe("Paso 1 de 6 · Bienvenida");
     press("Empezar");
     press("Emparejar después");
-    expect(progress()).toBe("Paso 3 de 5 · Permisos");
+    expect(progress()).toBe("Paso 3 de 6 · Permisos");
     press("Continuar");
-    expect(progress()).toBe("Paso 4 de 5 · Asistentes");
+    expect(progress()).toBe("Paso 4 de 6 · Asistentes");
     // A step not reached yet cannot be jumped to.
     expect(
-      (screen.getByRole("button", { name: "Paso 5: Listo" }) as HTMLButtonElement).disabled,
+      (screen.getByRole("button", { name: "Paso 6: Listo" }) as HTMLButtonElement).disabled,
     ).toBe(true);
     press("Paso 1: Bienvenida");
-    expect(progress()).toBe("Paso 1 de 5 · Bienvenida");
+    expect(progress()).toBe("Paso 1 de 6 · Bienvenida");
   });
 
   it("«Atrás» on every step after the first, the last one too", () => {
@@ -126,9 +128,11 @@ describe("the first run says where it is", () => {
     press("Emparejar después");
     press("Continuar");
     press("Continuar");
-    expect(progress()).toBe("Paso 5 de 5 · Listo");
+    expect(progress()).toBe("Paso 5 de 6 · Tu IA");
+    press("Continuar");
+    expect(progress()).toBe("Paso 6 de 6 · Listo");
     press("Atrás");
-    expect(progress()).toBe("Paso 4 de 5 · Asistentes");
+    expect(progress()).toBe("Paso 5 de 6 · Tu IA");
   });
 
   it("«Configurarlo más tarde» leaves the whole first run from any step before the last", () => {
@@ -192,7 +196,7 @@ describe("pairing with the hub", () => {
     );
     expect(screen.queryByRole("button", { name: "Emparejar después" })).toBeNull();
     press("Continuar");
-    expect(progress()).toBe("Paso 3 de 5 · Permisos");
+    expect(progress()).toBe("Paso 3 de 6 · Permisos");
   });
 
   it("a code without six digits is not sent: the field says how many it has", () => {
@@ -235,7 +239,7 @@ describe("pairing with the hub", () => {
       />,
     );
     expect(screen.getByRole("alert").textContent).toBe(`No se pudo emparejar${failure}`);
-    expect(progress()).toBe("Paso 2 de 5 · Tu hub");
+    expect(progress()).toBe("Paso 2 de 6 · Tu hub");
     expect(screen.getByRole("button", { name: "Emparejar" })).toBeTruthy();
     expect(screen.queryByRole("status")).toBeNull();
   });
@@ -256,7 +260,7 @@ describe("pairing with the hub", () => {
     );
     expect(screen.queryByRole("button", { name: "Emparejar" })).toBeNull();
     press("Continuar");
-    expect(progress()).toBe("Paso 3 de 5 · Permisos");
+    expect(progress()).toBe("Paso 3 de 6 · Permisos");
   });
 });
 
@@ -358,7 +362,9 @@ describe("all set", () => {
     press("Emparejar después");
     press("Continuar");
     press("Continuar");
-    expect(progress()).toBe("Paso 5 de 5 · Listo");
+    expect(progress()).toBe("Paso 5 de 6 · Tu IA");
+    press("Continuar");
+    expect(progress()).toBe("Paso 6 de 6 · Listo");
     expect(screen.getByRole("heading", { name: "Todo listo" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Configurarlo más tarde" })).toBeNull();
     expect(

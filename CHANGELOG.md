@@ -9,12 +9,18 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ### Added
 
+- «Ajustes › IA» and the «Tu IA» onboarding step: encrypted hub provider
+  credentials, bounded OpenAI-compatible discovery and editable capabilities,
+  independent model choices for meetings, listening, speech, meeting notes,
+  future vault maintenance and compatible assistants, and explicit off-hub
+  privacy notices. Existing OpenRouter credentials migrate on hub startup;
+  operator defaults and assistant subscriptions remain available.
 - Read-only «Notas»: connect a hub folder or Fast Note Sync, browse the vault,
   read fiches and original Markdown with sources and backlinks, inspect tasks
   and dependency/link maps, and choose the link style and future hub-job model.
   Credentials and the hub working copy are encrypted. Assistants get three
   read tools behind the new `notes` access group. No note writes or model jobs run.
-- Choose hub Whisper or MAI-Transcribe-2 through OpenRouter in meeting settings, with an encrypted, validated hub credential, an explicit audio privacy notice, and per-meeting model comparisons.
+- Choose hub Whisper or MAI-Transcribe-2 through OpenRouter in AI settings, with an encrypted, validated hub credential, an explicit audio privacy notice, and per-meeting model comparisons.
 
 ### Fixed
 

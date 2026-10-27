@@ -6,7 +6,7 @@ const base = {
   stepOf: (step: number, total: number, name: string) => `Paso ${step} de ${total} · ${name}`,
   stepsLabel: "Pasos",
   stepLabel: (step: number, name: string) => `Paso ${step}: ${name}`,
-  stepNames: ["Bienvenida", "Tu hub", "Permisos", "Asistentes", "Listo"],
+  stepNames: ["Bienvenida", "Tu hub", "Permisos", "Asistentes", "Tu IA", "Listo"],
   welcome: "Te damos la bienvenida a Orbit",
   welcomeBody:
     "En un par de minutos lo dejas listo: conectas este Mac con tu hub, eliges qué puede usar Orbit y con qué asistentes vas a hablar.",
@@ -108,6 +108,7 @@ export function onboardingCopy(assistantName: string) {
               ? `${hub} viene con tu hub; los demás, con tu suscripción.`
               : `${hub} viene con tu hub; ${listOf(others)}, con tu suscripción.`,
         },
+        { title: "Tu IA", body: "Empieza con tu hub o añade un proveedor." },
         { title: "Listo", body: "Tres atajos para empezar." },
       ],
       pairBody: (hub: string) =>

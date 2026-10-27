@@ -58,7 +58,8 @@
 
 .bars {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: var(--o-space-6);
   margin: var(--o-space-8) 0 0;
   padding: 0;

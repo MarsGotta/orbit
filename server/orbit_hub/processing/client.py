@@ -143,7 +143,7 @@ class ProcessingClient:
         transport: httpx.AsyncBaseTransport | None = None,
     ):
         secret = credential.get_secret_value()
-        if not 1 <= len(secret) <= 8192 or any(ord(c) < 33 or ord(c) > 126 for c in secret):
+        if not 0 <= len(secret) <= 8192 or any(ord(c) < 33 or ord(c) > 126 for c in secret):
             raise ValueError("processing credential must be one printable token")
         self.configuration = configuration
         self._credential = credential
@@ -199,11 +199,12 @@ class ProcessingClient:
 
     async def _post(self, body: bytes) -> tuple[bytes, int]:
         headers = {
-            "Authorization": "Bearer " + self._credential.get_secret_value(),
             "Content-Type": "application/json",
             "Accept": "application/json",
             "Accept-Encoding": "identity",
         }
+        if self._credential.get_secret_value():
+            headers["Authorization"] = "Bearer " + self._credential.get_secret_value()
         timeout = self.configuration.timeout_seconds
         try:
             async with (

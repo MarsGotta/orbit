@@ -2280,5 +2280,62 @@
     "source": "python",
     "unit": "levels",
     "value": 64
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/ai/types.py",
+        "name": "MAX_AI_PROVIDER_NAME_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "apps/desktop/src/features/settings/ai-limits.ts",
+        "name": "MAX_AI_PROVIDER_NAME_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_AI_PROVIDER_NAME_CHARS",
+    "resource": "AI provider display name",
+    "source": "registry",
+    "unit": "characters",
+    "value": 80
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/ai/types.py",
+        "name": "MAX_AI_PROVIDER_URL_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "apps/desktop/src/features/settings/ai-limits.ts",
+        "name": "MAX_AI_PROVIDER_URL_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_AI_PROVIDER_URL_CHARS",
+    "resource": "AI provider base URL",
+    "source": "registry",
+    "unit": "characters",
+    "value": 2048
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/ai/types.py",
+        "name": "MAX_AI_PROVIDER_KEY_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "apps/desktop/src/features/settings/ai-limits.ts",
+        "name": "MAX_AI_PROVIDER_KEY_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "MAX_AI_PROVIDER_KEY_CHARS",
+    "resource": "AI provider write-only key",
+    "source": "registry",
+    "unit": "characters",
+    "value": 4096
   }
 ]

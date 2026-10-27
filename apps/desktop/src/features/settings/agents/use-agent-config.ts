@@ -40,6 +40,7 @@ async function ask(agent: AgentPort, call: AgentCall): Promise<Result> {
       case "skill":
         return { kind: "skill", skill: outcome.skill };
       // `added` and `sign_in` answer the assistant calls, which this screen does not make.
+      case "ai_settings":
       case "transcription_settings":
       case "done":
       case "added":

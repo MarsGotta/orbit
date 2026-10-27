@@ -447,6 +447,7 @@ class OpenAIConnection:
             current = self.backend.instructions()
             async with self.backend.agent_loop.run_stream_events(
                 prompt,
+                model=self.backend.model_choice(),
                 message_history=history,
                 instructions=instructions_text(current),
                 toolsets=[self._tools],
@@ -543,6 +544,7 @@ class OpenAIBackend:
         self.agent, self.settings = agent, agent.settings
         # The personality and enabled skills the hub keeps for this agent.
         self.instructions = instructions
+        self.model_choice = lambda: None
         # Images: the turn's own and the tools' screenshots, when
         # `settings.images` says the model reads them. History: the hub's own
         # (see the module). Voice: read-aloud configured.
