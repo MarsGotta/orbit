@@ -1,6 +1,5 @@
 import type { VaultMeta } from "../../bridge/generated/VaultMeta";
-import { vaultCopy as copy } from "../../i18n/es/vault";
-import { COLORS } from "./type-colors";
+import { COLORS, typeLabel } from "./type-colors";
 export function MapNode({
   note,
   x,
@@ -18,7 +17,7 @@ export function MapNode({
 }) {
   return (
     <g
-      aria-label={`${note.title} · ${copy.types[note.type as keyof typeof copy.types] ?? note.type} · ${note.links.length + note.backlink_count} enlaces`}
+      aria-label={`${note.title} · ${typeLabel(note.type, note.role)} · ${note.links.length + note.backlink_count} enlaces`}
       aria-pressed={selected === note.path}
       data-isolated={note.links.length + note.backlink_count === 0}
 
@@ -36,7 +35,7 @@ export function MapNode({
       <circle
         cx={x}
         cy={y}
-        fill={COLORS[note.type] ?? COLORS.nota}
+        fill={COLORS[note.role] ?? COLORS.note}
         r={Math.min(14, 5 + 0.9 * (note.links.length + note.backlink_count))}
         stroke={note.path === selected ? "var(--o-ink)" : "none"}
         strokeWidth="2"

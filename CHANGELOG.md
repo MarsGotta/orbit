@@ -7,6 +7,20 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Changed
+
+- Vault files use English defaults and Obsidian Tasks syntax. Each vault can
+  define type roles, folders and field aliases in `SCHEMA.md` frontmatter;
+  malformed schemas and unsupported query lines show Spanish reading notices.
+  Person, project and source views follow roles, including custom type names.
+  OKF lifecycle (`status`) stays separate from project progress (`stage`);
+  only `stage` and `start` can be renamed. Concept types, provenance actors
+  and timestamps receive advisory conformance diagnostics without refusing
+  reads. Reserved indexes use OKF Markdown lists, and logs preserve prose.
+  Unknown frontmatter keys remain intact for future writes. Upgrade the hub
+  before the Mac, and update both for the new reading contract.
+
+
 ## [0.12.9] - 2026-10-28
 
 ### Fixed

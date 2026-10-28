@@ -23,7 +23,8 @@ are refused. The reader preserves original Markdown, including unknown
 properties; method validation is advisory, with a 400-word warning.
 
 The index reads properties, internal Markdown/wikilinks, source citations,
-task lines, task anchors, dependencies, query blocks, schema folder rules,
+Obsidian Tasks markers, independent block ids, vault-wide Tasks id dependencies,
+Tasks query blocks and schema frontmatter,
 root OKF version and log records. Missing targets do not become invented
 notes. The supplied design vault, including its missing references, is the
 synthetic acceptance fixture. All connector tests use local peers.
@@ -55,6 +56,49 @@ link endpoints return `NoteLinkItem[]` (`path`, `context`, `isEmbed`,
 `linkText`). Only content/path or counts are used; upstream messages and
 link contexts are not relayed.
 
-[OKF 0.2](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md)
+[OKF 0.2](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
 defines actor/time records and source provenance. The vault's `SCHEMA.md`
 defines its own templates; `docs/vault/AGENTS.md` is a one-page method template.
+
+Type names and field names belong to each vault. `SCHEMA.md` frontmatter
+maps types to roles and optional folders, and maps only the project fields `stage` and `start` to the vault's
+field names. OKF fields keep their names. Its body is free prose. Missing keys use English defaults; an
+invalid schema yields a Spanish notice and all defaults. Undeclared types
+remain readable with role `note`. The app chooses person/project/source
+behavior and colors by role. Parsed properties are separate from original
+frontmatter, so field aliases never rewrite the raw Markdown view.
+
+A note read builds the bounded vault index to resolve task owners, dependencies
+and query results across notes. Query results are bounded to the existing
+100-entry page ceiling and report truncation. Task ids and block ids remain
+independent. Unknown query lines are reported in place and do not suppress
+understood filters. No localized file syntax is recognized.
+
+Upgrade the hub before the Mac for this reading-contract change. Upgrade both
+for the role-based views and Tasks queries; older Mac versions do not understand
+the new query records or customized roles. No data migration or vault writes
+are performed. The English acceptance vault uses invented people and content.
+
+OKF lifecycle is separate from project progress: `status` accepts `draft`,
+`stable` and `deprecated`, defaulting to `stable`; `stage` describes project
+progress. The catalogue's `modified_at` comes only from `generated.at`.
+`verified` is normalized to a list in parsed properties, with a bare mapping
+accepted as a single event. Original frontmatter, including all unknown keys
+at every depth, remains intact for future round-trips.
+
+Each note carries typed advisory `conformance` data (`conformant`, plus issues
+with a field, code and Spanish explanation). Missing concept types, invalid
+lifecycle, malformed actor identifiers and timestamps without explicit offsets
+are reported there; they never refuse metadata reads or add UI warnings.
+`SCHEMA.md`, `README.md` and `AGENTS.md` are concepts and need a non-empty type,
+even though the control concepts remain outside the ordinary catalogue view.
+The schema body is unconstrained prose; the examples use `type: schema`.
+
+Only `index.md` and `log.md` are reserved at every directory level. A root
+index may carry `okf_version` frontmatter; other indexes contain only headed
+lists (`* [Title](/path.md) - description`). Synthesized indexes use the same
+form with absolute Markdown path links. Logs have no frontmatter; date-grouped
+entries retain newest-first file order. Orbit's structured entries still parse,
+while other prose entries survive in activity records' `text` and render as
+plain text. Markdown remains the default writing link style; wikilinks remain
+readable.

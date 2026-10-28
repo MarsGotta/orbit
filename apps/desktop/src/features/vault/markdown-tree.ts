@@ -56,13 +56,7 @@ export function remarkVault(note: VaultNote) {
   return () => (root: Node) => {
     const walk = (node: Node) => {
       if (node.type === "link" || node.type === "code" || node.type === "inlineCode") return;
-      let dependencySection = false;
       node.children = node.children?.flatMap((child) => {
-        if (child.type === "heading")
-          dependencySection =
-            child.children?.some((text) => text.value === "Dependencias") === true;
-        if (dependencySection && child.type === "list" && note.dependencies.length > 0)
-          return [{ type: "code", lang: "dependencias", value: "" }];
         if (child.type === "footnoteDefinition") return [];
         if (child.type === "footnoteReference") {
           const citation = note.citations.find((c) => c.id.toLowerCase() === child.identifier);

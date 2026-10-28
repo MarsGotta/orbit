@@ -177,7 +177,8 @@ fn vault_reply(path: &str, body: &str) -> (&'static str, Value) {
     }
     (
         "200 OK",
-        json!({"path":"personas/ada.md","frontmatter":{"type":"persona","title":"Ada"},
+        json!({"path":"People/ada.md","type":"person","role":"person",
+        "properties":{},"schema_warnings":[],"conformance":{"conformant":true,"issues":[]},"dependency_tasks":[],"frontmatter":{"type":"person","title":"Ada"},
         "body":"A gardener.","raw":"# Ada\nA gardener.","outlinks":[],"synthesized":false,
         "citations":[],"tasks":[],"dependencies":[],"queries":[],"history":[]}),
     )
@@ -195,7 +196,7 @@ async fn vault_calls_cross_app_actor_http_and_back_without_echoing_credentials()
         matches!(configured, VaultOutcome::Config { configuration } if configuration.maintenance_model == "fixture/model")
     );
     let call: VaultCall = serde_json::from_value(
-        json!({"call":"read","request":{"operation":"read","path":"personas/ada.md"}}),
+        json!({"call":"read","request":{"operation":"read","path":"People/ada.md"}}),
     )?;
     let read = tokio::time::timeout(CALL_BUDGET, app.vault(call)).await??;
     assert!(matches!(read, VaultOutcome::Note { note } if note.body == "A gardener."));

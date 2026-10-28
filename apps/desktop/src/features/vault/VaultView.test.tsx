@@ -41,8 +41,8 @@ it("52 explains connection, validates settings and reaches the reading column", 
   });
   fireEvent.click(screen.getByRole("button", { name: "Comprobar y conectar" }));
   await screen.findByRole("complementary", { name: "Tu vault" });
-  fireEvent.click(await screen.findByRole("link", { name: "Javier Ortega" }));
-  expect(await screen.findByRole("heading", { name: "Javier Ortega" })).not.toBeNull();
+  fireEvent.click(await screen.findByRole("link", { name: "Ada Vale" }));
+  expect(await screen.findByRole("heading", { name: "Ada Vale" })).not.toBeNull();
   expect(await screen.findByRole("complementary", { name: "Sobre esta nota" })).not.toBeNull();
 });
 

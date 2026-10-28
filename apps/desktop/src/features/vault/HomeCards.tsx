@@ -8,7 +8,7 @@ export function ProjectCards({ catalog }: { catalog: VaultCatalog }) {
       <h2>{copy.projects}</h2>
       <div className={styles.projects}>
         {catalog.notes
-          .filter((note) => note.type === "proyecto")
+          .filter((note) => note.role === "project")
           .map((note) => (
             <a className={styles.project} href={noteRoute(note.path)} key={note.path}>
               <div>
@@ -25,7 +25,7 @@ export function ProjectCards({ catalog }: { catalog: VaultCatalog }) {
             </a>
           ))}
       </div>
-      {!catalog.notes.some((note) => note.type === "proyecto") && (
+      {!catalog.notes.some((note) => note.role === "project") && (
         <p className={styles.muted}>No hay proyectos en esta página del índice.</p>
       )}
     </section>
@@ -42,10 +42,21 @@ export function RecentActivity({ catalog }: { catalog: VaultCatalog }) {
               {event.by.charAt(0).toUpperCase()}
             </span>
             <div>
-              {event.by} · {event.action} ·{" "}
-              {event.path === "" ? event.title : <a href={noteRoute(event.path)}>{event.title}</a>}
+              {event.text !== "" ? (
+                event.text
+              ) : (
+                <>
+                  {event.by} · {event.action} ·{" "}
+                  {event.path === "" ? (
+                    event.title
+                  ) : (
+                    <a href={noteRoute(event.path)}>{event.title}</a>
+                  )}
+                </>
+              )}
               <small>
-                {event.date} · {event.time}
+                {event.date}
+                {event.time !== "" ? ` · ${event.time}` : ""}
                 {event.detail === "" ? "" : ` · ${event.detail}`}
               </small>
             </div>

@@ -148,6 +148,12 @@ wire! {
 wire! {
     pub struct VaultNote {
         pub path: String,
+        pub r#type: String, pub role: String,
+        #[cfg_attr(feature = "ts", ts(type = "Record<string, unknown>"))]
+        pub properties: BTreeMap<String, serde_json::Value>,
+        pub schema_warnings: Vec<String>,
+        pub conformance: VaultConformance,
+        pub dependency_tasks: Vec<VaultTask>,
         #[cfg_attr(feature = "ts", ts(type = "Record<string, unknown>"))]
         pub frontmatter: BTreeMap<String, serde_json::Value>,
         pub body: String,

@@ -2,9 +2,17 @@ import { DependencyNode } from "./DependencyNode";
 import type { VaultNote } from "../../bridge/generated/VaultNote";
 import styles from "./VaultReading.module.css";
 
+function taskReference(task: VaultNote["tasks"][number]) {
+  return `${task.file}#${task.id || task.block_id || `line-${task.line}`}`;
+}
 function layout(note: VaultNote) {
   const ids = [
-    ...new Set(note.dependencies.flatMap((edge) => [edge.prerequisite, edge.dependent])),
+    ...new Set([
+      ...(typeof note.properties.start === "string" && note.properties.start !== ""
+        ? [`${note.path}#milestone-start`]
+        : []),
+      ...note.dependencies.flatMap((edge) => [edge.prerequisite, edge.dependent]),
+    ]),
   ];
   const ranks = new Map(ids.map((id) => [id, 0]));
   for (let pass = 0; pass < ids.length; pass += 1) {
@@ -23,16 +31,16 @@ function layout(note: VaultNote) {
     const rank = ranks.get(id) ?? 0;
     const row = rows.get(rank) ?? 0;
     rows.set(rank, row + 1);
-    const task = note.tasks.find((task) => `${task.file}#${task.block_id}` === id);
+    const task = note.dependency_tasks.find((task) => taskReference(task) === id);
     const label =
       task?.text ??
-      (id.endsWith("#milestone-arranque")
-        ? "Arranque del piloto"
+      (id.endsWith("#milestone-start")
+        ? `Arranque${typeof note.properties.start === "string" ? ` · ${note.properties.start}` : ""}`
         : `Referencia: ${id.split("#").pop() ?? id}`);
     const blocked = note.dependencies.some(
       (edge) =>
         edge.dependent === id &&
-        note.tasks.find((t) => `${t.file}#${t.block_id}` === edge.prerequisite)?.done !== true,
+        note.dependency_tasks.find((t) => taskReference(t) === edge.prerequisite)?.done !== true,
     );
     return {
       id,
@@ -42,7 +50,7 @@ function layout(note: VaultNote) {
       state:
         task?.done === true
           ? "done"
-          : id.endsWith("#milestone-arranque")
+          : id.endsWith("#milestone-start")
             ? "milestone"
             : blocked
               ? "blocked"

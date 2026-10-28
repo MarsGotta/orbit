@@ -47,27 +47,27 @@ async def test_indexes_design_notes_citations_tasks_dependencies_and_log(design_
     client, _, store = design_vault
     overview = await read(client, "catalog")
     titles = {n["title"] for n in overview["notes"]}
-    assert {"Javier Ortega", "Piloto Hoteles Ribera"} <= titles
-    person = await read(client, "read", path="personas/javier-ortega.md")
+    assert {"Ada Vale", "Garden Pilot"} <= titles
+    person = await read(client, "read", path="People/ada-vale.md")
     assert person["raw"].startswith("---\n")
     assert person["citations"][0]["id"] == "r1021"
     assert person["citations"][0]["number"] == 1
-    assert person["queries"] == [{"kind": "tareas", "filters": {"persona": "Javier Ortega"}}]
-    assert any(link["path"] == "personas/marta-ibanez.md" for link in person["outlinks"])
-    tasks = await read(client, "tasks", query="Javier Ortega")
-    assert any(task["done"] and task["block_id"] == "cache-tarifas" for task in tasks["tasks"])
-    assert all(task["who"] == "Javier Ortega" for task in tasks["tasks"])
-    project = await read(client, "read", path="proyectos/piloto-hoteles-ribera.md")
+    assert person["queries"][0]["kind"] == "tasks"
+    assert person["queries"][0]["lines"] == ["not done", "description includes Ada Vale"]
+    assert any(link["path"] == "People/cora-moss.md" for link in person["outlinks"])
+    tasks = await read(client, "tasks", query="Ada Vale")
+    assert any(task["done"] and task["block_id"] == "cache-rates" for task in tasks["tasks"])
+    assert all(task["who"] == "Ada Vale" for task in tasks["tasks"])
+    project = await read(client, "read", path="Projects/garden-pilot.md")
     assert len(project["tasks"]) == 5
     assert any(
-        dep["prerequisite"].endswith("#cache-tarifas")
-        and dep["dependent"].endswith("#demo-aeropuerto")
+        dep["prerequisite"].endswith("#cache-rates") and dep["dependent"].endswith("#airport-demo")
         for dep in project["dependencies"]
     )
     assert any(dep["relation"] == "after" for dep in project["dependencies"])
     assert overview["okf_version"] == "0.2"
     assert overview["schema"]["path"] == "SCHEMA.md"
-    assert overview["recent"][0]["action"] == "aplicar"
+    assert overview["recent"][0]["action"] == "apply"
     assert (await read(client, "catalog", page_size=1))["next_page"] == 2
     with store.read_snapshot() as db:
         assert db.execute("SELECT COUNT(*) FROM vault_working_copy").fetchone()[0] > 0
@@ -107,10 +107,10 @@ async def test_working_copy_reuses_unchanged_notes_but_never_returns_deleted_con
     monkeypatch.setattr(Folder, "read", tracked)
     await read(client, "catalog")
     first = len(calls)
-    await read(client, "read", path="personas/javier-ortega.md")
+    await read(client, "read", path="People/ada-vale.md")
     assert len(calls) == first
     # Work on a new synthetic note: the supplied fixture stays byte-identical.
-    temporary = root / "nota-temporal.md"
+    temporary = root / "temporary-note.md"
     temporary.write_text("# Temporary\nOne.")
     assert (await read(client, "read", path=temporary.name))["body"].endswith("One.")
     temporary.write_text("# Temporary\nTwo, changed.")
@@ -122,21 +122,19 @@ async def test_working_copy_reuses_unchanged_notes_but_never_returns_deleted_con
     assert response.status_code == 404
 
 
-def test_design_validator_has_eight_types_and_only_warns_on_long_fiches():
+def test_method_defaults_and_long_fiche_warning():
     from orbit_hub.vault import METHOD_SCHEMA, validate_note
 
     assert set(METHOD_SCHEMA["types"]) == {
-        "persona",
-        "proyecto",
-        "organizacion",
-        "decision",
-        "tema",
-        "consulta",
-        "nota",
-        "fuente",
+        "person",
+        "project",
+        "meeting",
+        "topic",
+        "source",
+        "journal",
     }
     result = validate_note(
-        {"type": "proyecto", "title": "Garden", "estado": "en marcha", "arranque": "2026-10-27"},
+        {"type": "project", "title": "Garden", "stage": "active", "start": "2026-10-27"},
         "word " * 401,
     )
     assert result["errors"] == []
@@ -147,9 +145,9 @@ def test_design_validator_has_eight_types_and_only_warns_on_long_fiches():
     "fields,code",
     [
         ({"type": {}}, "invalid_type"),
-        ({"type": "persona", "rol": 45}, "invalid_rol"),
-        ({"type": "proyecto", "estado": "other"}, "invalid_estado"),
-        ({"type": "fuente", "duracion_min": -1}, "invalid_duracion_min"),
+        ({"type": "person", "tags": 45}, "invalid_tags"),
+        ({"type": "project", "start": "other"}, "invalid_start"),
+        ({"type": "source", "sources": -1}, "invalid_sources"),
     ],
 )
 def test_method_validates_typed_properties_without_throwing_on_input(fields, code):
@@ -164,25 +162,25 @@ async def test_source_properties_from_safe_frontmatter_validate_without_coercing
     from orbit_hub.vault import validate_note
 
     client, _, _ = design_vault
-    path = "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md"
+    path = "Sources/Meetings/2026-10-21-garden-review.md"
     note = await read(client, "read", path=path)
     assert validate_note(note["frontmatter"], note["body"], path=path)["errors"] == []
 
 
-async def test_dependencies_resolve_note_paths_and_wikilink_task_owners(design_vault):
+async def test_dependencies_resolve_across_notes_and_wikilink_owners(design_vault):
     client, root, _ = design_vault
-    note = root / "proyectos/synthetic-links.md"
+    note = root / "Projects/synthetic-links.md"
     note.write_text(
-        "---\ntype: proyecto\n---\n## Tareas\n- [ ] Plan · [[Javier Ortega|Javier]] · para el 2026-10-30 ^plan\n## Dependencias\nEl **arranque** depende de [Javier](/personas/javier-ortega.md).\nEl **arranque** depende de [outside](https://example.test/note.md#^no).\n"
+        "---\ntype: project\n---\n- [ ] Plan [[Ada Vale|Ada]] 📅 2026-10-30 🆔 plan ⛔ cache-rates ^plan\n"
     )
     try:
-        result = await read(client, "read", path="proyectos/synthetic-links.md")
-        assert result["tasks"][0]["who"] == "Javier"
-        assert result["tasks"][0]["who_path"] == "personas/javier-ortega.md"
+        result = await read(client, "read", path="Projects/synthetic-links.md")
+        assert result["tasks"][0]["who"] == "Ada"
+        assert result["tasks"][0]["who_path"] == "People/ada-vale.md"
         assert result["dependencies"] == [
             {
-                "prerequisite": "personas/javier-ortega.md",
-                "dependent": "proyectos/synthetic-links.md#milestone-arranque",
+                "prerequisite": "Projects/garden-pilot.md#cache-rates",
+                "dependent": "Projects/synthetic-links.md#plan",
                 "relation": "requires",
             }
         ]

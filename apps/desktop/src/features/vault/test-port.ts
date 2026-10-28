@@ -38,11 +38,11 @@ export function fixturePort() {
         page: {
           entries: [
             {
-              path: "proyectos/piloto-hoteles-ribera.md",
+              path: "Projects/garden-pilot.md",
               kind: "note",
-              title: "Piloto Hoteles Ribera",
-              type: "proyecto",
-              snippet: "Con Javier Ortega",
+              title: "Garden Pilot",
+              type: "project",
+              snippet: "Con Ada Vale",
             },
           ],
           next_page: null,

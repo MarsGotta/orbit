@@ -29,19 +29,12 @@ def prose(body):
     return re.sub(r"(?ms)^(`{3,}|~{3,})[^\n]*\n.*?^\1\s*$|`[^`\n]*`", "", body)
 
 
-def query_blocks(body):
-    blocks = []
-    for match in re.finditer(r"(?m)^```(tareas|dependencias)\s*\n(.*?)^```\s*$", body, re.DOTALL):
-        filters = {}
-        for line in match[2].splitlines():
-            key, separator, value = line.partition(":")
-            if separator and key.strip() in {"persona", "proyecto", "estado"}:
-                filters[key.strip()] = value.strip()
-        blocks.append({"kind": match[1], "filters": filters})
-    return blocks
+# Only Tasks metadata is removed from the description; links stay in their original order.
+MARKER = re.compile(r"📅|⏳|🛫|✅|⏫|🔼|🔽|🔁|🆔|⛔")
+TASK_LINK = re.compile(r"\[\[([^\]\n]+)\]\]|\[([^\]\n]+)\]\(<?([^\s)>]+)>?(?:\s+\"[^\"]*\")?\)")
 
 
-def tasks(path, fields, body, line_offset=0, paths=()):
+def tasks(path, fields, body, line_offset=0, paths=(), people=(), role="note"):
     result, fenced = [], False
     sources = {c["id"]: c for c in citations(fields, body)}
     for number, line in enumerate(body.splitlines(), 1):
@@ -51,14 +44,11 @@ def tasks(path, fields, body, line_offset=0, paths=()):
         if fenced or not match:
             continue
         raw = match[2]
-        who, who_path = _assignee(path, raw, paths)
+        who, who_path = _assignee(path, raw, paths, people)
         block = re.search(r"\s\^([\w-]+)\s*$", raw)
-        when = re.search(r"(?:para el|hecha el) (\d{4}-\d{2}-\d{2})", raw)
         citation = re.search(r"\[\^([^\]]+)\]", raw)
         source_id = citation[1] if citation else ""
-        text = re.sub(r"\s*(?:\[\^[^\]]+\]|\^[\w-]+)\s*", "", raw.split(" · ", 1)[0]).strip()
-        done = match[1].lower() == "x"
-        value = when[1] if when and _date(when[1]) else ""
+        text, metadata = _metadata(raw)
         result.append(
             {
                 "file": path,
@@ -67,18 +57,69 @@ def tasks(path, fields, body, line_offset=0, paths=()):
                 "text": text,
                 "who": who,
                 "who_path": who_path,
-                "due": "" if done else value,
-                "done": done,
-                "done_at": value if done else "",
-                "project": path if fields.get("type") == "proyecto" else "",
+                "done": match[1].lower() == "x",
+                "project": path if role == "project" else "",
                 "source_id": source_id,
                 "source": sources.get(source_id, {}).get("resource", ""),
+                "tags": re.findall(r"(?<![\w/])#[\w/-]+", raw),
+                **metadata,
             }
         )
     return result
 
 
-def _date(value):
+def _metadata(raw):
+    values = {
+        "due": "",
+        "scheduled": "",
+        "start": "",
+        "done_at": "",
+        "priority": "",
+        "recurrence": "",
+        "id": "",
+        "depends_on": [],
+    }
+    dates = {"📅": "due", "⏳": "scheduled", "🛫": "start", "✅": "done_at"}
+    clean = re.sub(r"\[\^[^\]]+\]", " ", raw)
+    clean = re.sub(r"\s+\^[\w-]+\s*$", "", clean)
+    spans = []
+    markers = list(MARKER.finditer(clean))
+    for index, marker in enumerate(markers):
+        start = marker.end()
+        end = markers[index + 1].start() if index + 1 < len(markers) else len(clean)
+        tail, symbol = clean[start:end], marker[0]
+        used = 0
+        if symbol in dates:
+            match = re.match(r"\s*(\d{4}-\d{2}-\d{2})", tail)
+            if match and valid_date(match[1]):
+                values[dates[symbol]], used = match[1], match.end()
+        elif symbol in {"⏫", "🔼", "🔽"}:
+            values["priority"] = symbol
+        elif symbol == "🔁":
+            values["recurrence"], used = tail.strip(), len(tail)
+        else:
+            match = re.match(r"\s*([A-Za-z0-9_-]+(?:\s*,\s*[A-Za-z0-9_-]+)*)", tail)
+            if match:
+                value, used = match[1], match.end()
+                if symbol == "🆔":
+                    values["id"] = value
+                else:
+                    values["depends_on"] = [v.strip() for v in value.split(",")]
+        spans.append((marker.start(), start + used))
+    for start, end in reversed(spans):
+        clean = clean[:start] + clean[end:]
+    clean = TASK_LINK.sub(_link_label, clean)
+    return re.sub(r"\s+", " ", clean).strip(), values
+
+
+def _link_label(match):
+    if match[1] is not None:
+        target, _, label = match[1].partition("|")
+        return label or target
+    return match[2]
+
+
+def valid_date(value):
     try:
         date.fromisoformat(value)
         return True
@@ -86,74 +127,67 @@ def _date(value):
         return False
 
 
-def _assignee(path, raw, paths):
-    if " · " not in raw:
-        return "", ""
-    tail = raw.split(" · ", 1)[1]
-    link = LINK.search(tail)
-    if link:
-        return link[1], resolve(path, link[2], paths) or ""
-    wiki = re.search(r"\[\[([^\]\n]+)\]\]", tail)
-    if wiki:
-        target, _, label = wiki[1].partition("|")
-        return label or target, resolve(path, target, paths, wiki=True) or ""
+def _assignee(path, raw, paths, people):
+    for link in TASK_LINK.finditer(prose(raw)):
+        if link[1] is not None:
+            target, _, label = link[1].partition("|")
+            resolved = resolve(path, target, paths, wiki=True)
+            label = label or target
+        else:
+            label, resolved = link[2], resolve(path, link[3], paths)
+        if resolved in people:
+            return label, resolved
     return "", ""
 
 
-def _reference(path, target, paths):
-    resolved = resolve(path, target, paths)
-    if resolved is None:
-        return None
-    if "#^" in target:
-        anchor = target.split("#^", 1)[1]
-        return resolved + "#" + anchor if re.fullmatch(r"[\w-]+", anchor) else None
-    return resolved
-
-
-def dependencies(path, body, paths=()):
-    section = re.search(r"(?ms)^## Dependencias\s*\n(.*?)(?=^## |\Z)", body)
-    if section is None:
-        return []
-    result = []
-    for line in section[1].splitlines():
-        refs = [ref for match in LINK.finditer(line) if (ref := _reference(path, match[2], paths))]
-        milestone = path + "#milestone-arranque"
-        if "va después del arranque" in line:
-            result.extend(
-                {"prerequisite": milestone, "dependent": ref, "relation": "after"} for ref in refs
-            )
-        elif "depende de" in line or "dependía de" in line:
-            before = re.split(r"depend(?:e|ía) de", line, maxsplit=1)[0]
-            # An initial task link names the dependent; otherwise it is the
-            # project's named milestone, whose date is the arranque property.
-            initial = LINK.search(before)
-            dependent = refs.pop(0) if initial is not None and refs else milestone
-            result.extend(
-                {"prerequisite": ref, "dependent": dependent, "relation": "requires"}
-                for ref in refs
-            )
-    return result
-
-
 def activities(body):
-    result, day = [], ""
+    result, pending, day = [], [], ""
+
+    def flush():
+        if pending:
+            result.append(_activity(day, text="\n".join(pending)))
+            pending.clear()
+
     for line in body.splitlines():
-        if re.match(r"^## \d{4}-\d{2}-\d{2}$", line):
+        if re.fullmatch(r"## \d{4}-\d{2}-\d{2}", line) and valid_date(line[3:]):
+            flush()
             day = line[3:]
-        match = re.match(r"^- (\d{2}:\d{2}) · ([^·]+) · (.+)$", line)
-        if match is None:
+        elif line.startswith("# ") and not day:
             continue
-        pieces = match[3].split(" · ", 2)
-        link = LINK.search(pieces[0])
-        result.append(
-            {
-                "date": day,
-                "time": match[1],
-                "action": match[2].strip(),
-                "title": link[1] if link else pieces[0],
-                "path": link[2].lstrip("/") if link else "",
-                "by": pieces[1] if len(pieces) > 1 else "",
-                "detail": pieces[2] if len(pieces) > 2 else "",
-            }
-        )
+        elif not line.strip():
+            flush()
+        elif match := re.match(r"^- (\d{2}:\d{2}) · ([^·]+) · (.+)$", line):
+            flush()
+            pieces = match[3].split(" · ", 2)
+            link = LINK.search(pieces[0])
+            result.append(
+                _activity(
+                    day,
+                    time=match[1],
+                    action=match[2].strip(),
+                    title=link[1] if link else pieces[0],
+                    path=link[2].lstrip("/") if link else "",
+                    by=pieces[1] if len(pieces) > 1 else "",
+                    detail=pieces[2] if len(pieces) > 2 else "",
+                )
+            )
+        else:
+            if re.match(r"^[-*+] ", line):
+                flush()
+            pending.append(line)
+    flush()
     return result
+
+
+def _activity(day, **values):
+    return {
+        "date": day,
+        "time": "",
+        "action": "",
+        "title": "",
+        "path": "",
+        "by": "",
+        "detail": "",
+        "text": "",
+        **values,
+    }

@@ -1,10 +1,14 @@
+import { vaultCopy as copy } from "../../i18n/es/vault";
+
 export const COLORS: Record<string, string> = {
-  persona: "var(--o-c1)",
-  proyecto: "var(--o-c2)",
-  decision: "var(--o-c4)",
-  tema: "var(--o-c3)",
-  organizacion: "var(--o-ink2)",
-  fuente: "var(--o-ink3)",
-  consulta: "var(--o-accText)",
-  nota: "var(--o-ink2)",
+  person: "var(--o-c1)",
+  project: "var(--o-c2)",
+  meeting: "var(--o-c4)",
+  topic: "var(--o-c3)",
+  source: "var(--o-ink3)",
+  journal: "var(--o-accText)",
+  note: "var(--o-ink2)",
 };
+export function typeLabel(type: string, role: string) {
+  return type === role ? (copy.types[role as keyof typeof copy.types] ?? type) : type;
+}

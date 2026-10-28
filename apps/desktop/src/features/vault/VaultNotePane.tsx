@@ -6,6 +6,8 @@ import { Button } from "../../design/Button";
 import { vaultCopy as copy } from "../../i18n/es/vault";
 import { readFilter, type VaultPort } from "./api";
 import { AboutNote } from "./AboutNote";
+import { typeLabel } from "./type-colors";
+import { DependencyDiagram } from "./DependencyDiagram";
 import { NoteProperties } from "./NoteProperties";
 import { noteRoute, type VaultRoute } from "./route";
 import { useVaultRead } from "./use-vault-read";
@@ -81,25 +83,31 @@ function ReadNote({
     typeof note.frontmatter.title === "string"
       ? note.frontmatter.title
       : (note.path.split("/").pop() ?? note.path);
-  const type = typeof note.frontmatter.type === "string" ? note.frontmatter.type : "nota";
+  const type = note.type;
   return (
     <>
       <NoteBar note={note} title={title} markdown={markdown} />
       <div className={styles.noteLayout}>
         <article className={styles.noteContent}>
-          <span className={styles.type} data-type={type}>
-            {copy.types[type as keyof typeof copy.types] ?? type}
+          <span className={styles.type} data-type={note.role}>
+            {typeLabel(type, note.role)}
           </span>
           <h1>{title}</h1>
-          {typeof note.frontmatter.description === "string" && (
-            <p className={styles.description}>{note.frontmatter.description}</p>
+          {typeof note.properties.description === "string" && (
+            <p className={styles.description}>{note.properties.description}</p>
           )}
-          <NoteProperties note={note} notes={catalog.notes} />
+          <NoteProperties note={note} notes={catalog.notes} fieldNames={catalog.schema.fields} />
+          {note.schema_warnings.map((warning) => (
+            <p role="alert" key={warning}>
+              {warning}
+            </p>
+          ))}
           {markdown ? (
             <RawNote note={note} />
           ) : (
             <>
               <VaultMarkdown note={note} notes={catalog.notes} port={port} />
+              {note.role === "project" && <DependencyDiagram note={note} />}
             </>
           )}
           <p className={styles.muted}>{copy.readOnly}</p>

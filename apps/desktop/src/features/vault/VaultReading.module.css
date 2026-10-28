@@ -122,11 +122,11 @@
   background: var(--o-raised);
   color: var(--o-ink2);
 }
-.state[data-state="en marcha"] {
+.state[data-state="active"] {
   background: var(--o-okSoft);
   color: var(--o-ok);
 }
-.state[data-state="en riesgo"] {
+.state[data-state="at risk"] {
   background: var(--o-warnSoft);
   color: var(--o-warn);
 }
@@ -280,11 +280,11 @@
   font-size: 12px;
   line-height: 1.5;
 }
-.type[data-type="proyecto"] {
+.type[data-type="project"] {
   color: var(--o-c2);
   background: var(--o-c2s);
 }
-.type[data-type="decision"] {
+.type[data-type="meeting"] {
   color: var(--o-c4);
   background: var(--o-c4s);
 }
