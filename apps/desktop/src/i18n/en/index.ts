@@ -1,3 +1,5 @@
+import { aiPrivacy } from "./aiPrivacy";
+import { agentActivity } from "./agentActivity";
 import { interfaceCopy } from "./interface";
 import { defineCatalogue } from "../catalogue";
 import { assistantsCopy, vendorOf, shortDay } from "./assistants";
@@ -46,6 +48,8 @@ export { globalShortcuts };
 export function english(assistantName = "Deimos") {
   return defineCatalogue({
     ...interfaceCopy,
+    agentActivity,
+    aiPrivacy,
     extras: {
       assistantsCopy,
       vendorOf,

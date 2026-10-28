@@ -5,11 +5,11 @@ in its event (`notes/series_key.py`); a recording started without an event has
 none. Two things go by it here:
 
 - the earlier meeting of a series and the tasks of its note, done or not, which
-  Hoy shows as «Pendiente de la última vez» for the next meeting of the series;
+  Today shows as “Pending from last time” for the next meeting of the series;
   failing that, the earlier meeting of the same title (`title_key`): one
   recorded by hand with the event's title carries no series;
 - the template and the dictionaries of the series, saved together in one
-  transaction («Usar lo mismo en toda la serie»).
+  transaction (“Use the same for the whole series”).
 
 The meeting's language is not a property of its series: it lives in one place,
 the recording (`PUT /v1/recordings/{id}/language`).

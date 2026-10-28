@@ -387,7 +387,7 @@ class MeetingsBridgeService:
 
     @staticmethod
     def _render(transcript: turns.Transcript, format: str) -> str:
-        """`text`: one line per turn, «[hh:mm:ss] Nombre: texto», as the Mac and
+        """`text`: one line per turn, “[hh:mm:ss] Name: text”, as the Mac and
         the note's model read it. `segments`: one JSON object per transcribed
         group per line. A long line can span pages; offsets count characters
         of the rendered text in both formats."""

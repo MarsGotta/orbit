@@ -35,17 +35,17 @@ async def test_an_attached_text_reads_a_page_at_a_time(environment, tmp_path):
         first = await server.call_tool(
             "orbit_attachment", {"device": DEFAULT_DEVICE, "attachment_id": attachment["id"]}
         )
-        following = int(text_of(first).split("sigue con after_index ")[1].split(".")[0])
+        following = int(text_of(first).split("continue with after_index ")[1].split(".")[0])
         second = await server.call_tool(
             "orbit_attachment",
             {"device": DEFAULT_DEVICE, "attachment_id": attachment["id"], "after_index": following},
         )
     assert not first.is_error and not second.is_error, text_of(first)
     head, page = text_of(first).split("\n", 1)
-    assert head.startswith("Adjunto «itinerario.txt» (text/plain, ")
+    assert head.startswith("Attachment «itinerario.txt» (text/plain, ")
     assert page == text[:following]
     assert text_of(second).split("\n", 1)[1] == text[following:]
-    assert "hasta el final" in text_of(second)
+    assert "to the end" in text_of(second)
 
 
 async def test_an_attached_image_comes_back_as_an_image(environment, tmp_path):
@@ -60,7 +60,7 @@ async def test_an_attached_image_comes_back_as_an_image(environment, tmp_path):
     [image, said] = result.content
     assert (image.type, image.mime_type) == ("image", "image/png")
     assert base64.b64decode(image.data) == PNG
-    assert said.text == f"Adjunto «foto.png» (image/png, {len(PNG)} bytes)."
+    assert said.text == f"Attachment «foto.png» (image/png, {len(PNG)} bytes)."
 
 
 async def test_an_attached_pdf_reads_as_its_text_by_page(environment, tmp_path):
@@ -88,4 +88,4 @@ async def test_an_attachment_of_another_device_is_not_found(environment, tmp_pat
             "orbit_attachment", {"device": DEFAULT_DEVICE, "attachment_id": attachment["id"]}
         )
     assert result.is_error
-    assert text_of(result).startswith("attachment_not_found: Ese adjunto no está en el hub")
+    assert text_of(result).startswith("attachment_not_found: That attachment is not in the hub")

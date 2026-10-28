@@ -15,12 +15,7 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
 
     @server.tool(
         description=(
-            "La agenda de quien usa Orbit, leída de su Mac en el momento de preguntar, de todos sus "
-            "calendarios. Acepta cualquier rango en una sola llamada: un día, el mes que "
-            "viene, diciembre, el año pasado o un año entero; Orbit lo lee entero por dentro "
-            "y devuelve todos los eventos. Es la herramienta que hay que usar para cualquier "
-            "pregunta sobre su agenda. start_ms y end_ms son milisegundos desde 1970 (UTC), "
-            "con end_ms posterior a start_ms."
+            "The Orbit user’s agenda, read directly from their Mac at the time of asking, across all their calendars. Accepts any range in one call: a day, next month, December, last year or an entire year; Orbit reads the whole range internally and returns every event. Use this tool for any question about their agenda. start_ms and end_ms are milliseconds since 1970 (UTC), with end_ms later than start_ms."
         ),
         structured_output=False,
     )

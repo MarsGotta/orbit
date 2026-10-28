@@ -16,8 +16,7 @@ from .runner import ToolRunner, ok, text
 def _configured_lines(config: Config) -> list[str]:
     """The file's names, when the hub has no device listing to give."""
     return [
-        f"- {name}{' (predeterminado)' if name == config.default_device else ''}"
-        " — configurado en el fichero"
+        f"- {name}{' (default)' if name == config.default_device else ''} — configured in the file"
         for name in config.devices
     ]
 
@@ -37,13 +36,13 @@ def _device_line(config: Config, device: DeviceSummary, default_id: str | None) 
     aliases = [name for name, device_id in config.devices.items() if device_id == device.id]
     markers = []
     if aliases:
-        markers.append("fichero: " + ", ".join(aliases))
+        markers.append("file: " + ", ".join(aliases))
     if device.id == default_id:
-        markers.append("predeterminado")
+        markers.append("default")
     suffix = f" — {', '.join(markers)}" if markers else ""
     return (
-        f"- {device.name} — conectado {'sí' if device.connected else 'no'} — "
-        f"visto por última vez {seen_ago(device.last_seen)}{suffix}"
+        f"- {device.name} — connected {'yes' if device.connected else 'no'} — "
+        f"last seen {seen_ago(device.last_seen)}{suffix}"
     )
 
 
@@ -51,7 +50,7 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
     hub_client = runner.hub_client
 
     @server.tool(
-        description="Enumera los Mac conocidos por el hub, su conexión y cuándo se vieron.",
+        description="Lists the Macs known to the hub, their connection state and when they were last seen.",
         structured_output=False,
     )
     async def orbit_devices() -> CallToolResult:
@@ -63,9 +62,9 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
                 if exc.status != 404 or not active_config.devices:
                     raise
                 lines = _configured_lines(active_config)
-                return ok(text("Dispositivos de Orbit:\n" + "\n".join(lines)))
+                return ok(text("Orbit devices:\n" + "\n".join(lines)))
             default_id = _default_id(active_config, devices)
             lines = [_device_line(active_config, device, default_id) for device in devices]
-            return ok(text("Dispositivos de Orbit:\n" + ("\n".join(lines) or "Ninguno.")))
+            return ok(text("Orbit devices:\n" + ("\n".join(lines) or "None.")))
 
         return await runner.invoke(operation)

@@ -80,7 +80,7 @@ def template_id_of(value: str) -> str:
     if len(value) > MAX_TEMPLATE_ID_CHARS or re.fullmatch(TEMPLATE_ID_PATTERN, value) is None:
         raise HubError(
             "invalid_note_template",
-            f"Invalid template identifier: lowercase letters, digits, «-» or «_», up to {MAX_TEMPLATE_ID_CHARS} caracteres",
+            f"Invalid template identifier: lowercase letters, digits, «-» or «_», up to {MAX_TEMPLATE_ID_CHARS} characters",
             numbers={"field": "id", "max": MAX_TEMPLATE_ID_CHARS},
         )
     return value

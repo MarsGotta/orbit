@@ -167,8 +167,10 @@ def test_a_whole_turn_streams_and_calls_an_orbit_mcp_tool(environment, orbit_hub
         "session_id": session,
         "item_id": "call-sintetico-1",
         "kind": "tool",
-        "label": "Mirando los Mac de Orbit",
-        "subject": "los Mac",
+        "label": "Looking at the Orbit Macs",
+        "subject": "the Macs",
+        "label_copy": {"code": "orbit_devices"},
+        "subject_code": "macs",
     }
     assert by_event["chat.item"] == [
         {**look, "phase": "started"},
@@ -200,7 +202,7 @@ def test_a_whole_turn_streams_and_calls_an_orbit_mcp_tool(environment, orbit_hub
     assert system["role"] == "system" and "You are Lyra" in system["content"]
     assert user == {
         "role": "user",
-        "content": "[Orbit · Portátil de Prueba · texto]\n¿Qué equipos tengo?",
+        "content": "[Orbit · Portátil de Prueba · text]\n¿Qué equipos tengo?",
     }
     tool_result = second["messages"][-1]
     assert tool_result["role"] == "tool"
@@ -242,7 +244,7 @@ def test_a_conversation_continues_from_the_hub_after_a_restart(environment, orbi
     assert [(message["role"], message["content"]) for message in later[1:]] == [
         ("user", "La excursión es el martes."),
         ("assistant", "Apuntado."),
-        ("user", "[Orbit · Portátil de Prueba · texto]\n¿Qué día era?"),
+        ("user", "[Orbit · Portátil de Prueba · text]\n¿Qué día era?"),
     ]
     # No key file: an OpenAI-compatible server that needs none gets the placeholder.
     assert provider.headers[0]["authorization"] == f"Bearer {backend_module.NO_API_KEY}"
@@ -472,7 +474,7 @@ async def test_a_tool_refusal_reaches_the_model_to_read(environment, tmp_path):
     )
     tool_result = provider.requests[1]["messages"][-1]
     assert tool_result["role"] == "tool"
-    assert "Grabación de pantalla" in tool_result["content"]
+    assert "Screen Recording" in tool_result["content"]
 
 
 @pytest.mark.parametrize("images", [True, False])
@@ -535,7 +537,7 @@ async def test_an_orbit_mcp_refusal_is_a_failed_tool_item_with_its_cause(environ
     assert (started.phase, failed.phase) == ("started", "failed")
     assert failed.item_id == started.item_id == "call-sintetico-1"
     assert failed.tool == "orbit_windows"
-    assert "Grabación de pantalla" in failed.cause
+    assert "Screen Recording" in failed.cause
 
 
 async def test_a_call_the_model_must_retry_is_a_failed_item_with_the_cause(
@@ -739,7 +741,7 @@ def test_an_attached_image_reaches_the_model_after_the_text_and_then_by_its_id(
     held = provider.requests[1]["messages"][1]
     assert held["role"] == "user"
     assert (
-        f"[Orbit · image «mapa de la excursión.png» (adjunto {image}) was included in this message and is not resent; to view it again use orbit_attachment with that ID]"
+        f"[Orbit · image «mapa de la excursión.png» (attachment {image}) was included in this message and is not resent; to view it again use orbit_attachment with that ID]"
     ) in held["content"]
 
 

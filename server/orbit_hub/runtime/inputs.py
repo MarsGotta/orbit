@@ -24,5 +24,5 @@ class TurnInputTracker:
     def consume(self, device: str, text: str) -> str:
         evidence = self.transcriptions.pop(device, None)
         if evidence is not None and evidence[0] >= self.now() and evidence[1] == text:
-            return "nota de voz transcrita"
-        return "texto"
+            return "transcribed voice note"
+        return "text"

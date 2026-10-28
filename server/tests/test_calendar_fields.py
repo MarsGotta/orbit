@@ -109,17 +109,17 @@ def _rendered(**extra):
 def test_deimos_reads_the_new_fields_in_the_event_line():
     text = _rendered(**NEW_FIELDS)
     line = next(line for line in text.splitlines() if "Revisión semanal" in line)
-    assert "en Sala 3" in line
-    assert "provisional" in line
-    assert "organiza Ada" in line
-    assert "se repite cada 2 semanas" in line
-    assert "miércoles" in line and "último viernes" in line
-    assert "10 veces" in line
-    assert "2 reglas" in line
-    assert "no se puede cambiar desde Orbit" in line
-    assert "notas: Orden del día: / revisar el plan" in line
+    assert "in Sala 3" in line
+    assert "tentative" in line
+    assert "organized by Ada" in line
+    assert "repeats every 2 weeks" in line
+    assert "Wednesday" in line and "last Friday" in line
+    assert "10 times" in line
+    assert "2 rules" in line
+    assert "cannot be changed from Orbit" in line
+    assert "notes: Orden del día: / revisar el plan" in line
     left_out = _rendered(notes_left_out={"bytes": 40_000, "limit": 32_768})
-    assert "notas de 40000 bytes, más de las 32768 que viajan" in left_out
+    assert "notes of 40000 bytes, more than the 32768 that can be delivered" in left_out
 
 
 def test_deimos_reads_the_reminders_of_an_event():
@@ -133,8 +133,8 @@ def test_deimos_reads_the_reminders_of_an_event():
     line = next(
         line
         for line in _rendered(alarms_minutes=[10, 0, 60, 1440], alarms_not_editable=2).splitlines()
-        if "avisos" in line
+        if "alarms" in line
     )
-    assert "avisos: al empezar, 10 min antes, 1 h antes, 1 día antes" in line
-    assert "2 avisos más que Orbit no edita" in line
-    assert "avisos" not in _rendered()
+    assert "alarms: at the start, 10 min before, 1 h before, 1 day before" in line
+    assert "2 more alarms Orbit does not edit" in line
+    assert "alarms" not in _rendered()

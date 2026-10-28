@@ -105,7 +105,7 @@ async def test_rust_daemon_pair_chat_privacy_recording_and_recovery():
                     assert turn_of(state)[-1]["text"] == "Respuesta final sintética E2E_BASE"
                     assert hermes.prompts == ["E2E_BASE"]
                     # The turn reached Hermes saying where it came from.
-                    assert hermes.contexts == ["[Orbit · Synthetic E2E device · texto]"]
+                    assert hermes.contexts == ["[Orbit · Synthetic E2E device · text]"]
 
                     # Provider failures must not promote partial output to a completed answer.
                     await device.request({"command": "chat", "text": "E2E_ERROR"})

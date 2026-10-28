@@ -333,7 +333,7 @@ async def test_audio_the_hub_cannot_read_refuses_with_its_cause_and_changes_noth
     assert body["code"] == "meeting_audio_unreadable"
     assert body["refusal"]["groups"] == 1 and body["refusal"]["total"] == 4
     assert body["refusal"]["cause"] == "invalid_group_audio"
-    assert "1 de 4" in body["message"]
+    assert "1 of 4" in body["message"]
     assert groups(store, recording) == before
     assert document["language"] == "es"
 

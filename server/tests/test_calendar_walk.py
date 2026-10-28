@@ -111,7 +111,7 @@ def titles(body: str) -> list[str]:
 def calendar_body(result):
     assert len(result.content) == 2
     assert all(block.type == "text" for block in result.content)
-    assert result.content[1].text == "Se usó «portatil»: es el único Mac conectado."
+    assert result.content[1].text == "Selected «portatil»: it is the only connected Mac."
     return result.content[0].text
 
 
@@ -161,16 +161,14 @@ async def test_a_month_in_three_pages_is_one_call_and_one_answer(tmp_path):
     # The first line is the whole summary: count, range in the Mac's zone and
     # calendars, so that a preview of the answer already says what came.
     assert body.splitlines()[0] == (
-        "Agenda: 8 eventos del jue 1 oct 2026 00:00 al sáb 31 oct 2026 23:00 "
-        "(hora de Europe/Madrid, la del Mac), en 3 calendarios, leída en el Mac el "
-        "mié 30 sep 2026 23:59."
+        "Agenda: 8 events from Thu 1 Oct 2026 00:00 to Sat 31 Oct 2026 23:00 (time in Europe/Madrid, the Mac’s zone), in 3 calendars, read on the Mac at Wed 30 Sep 2026 23:59."
     )
     # Nothing tells Deimos the answer is short because of Orbit.
     for words in ("range_fully_read", "unread_from", "incompleto", "sigue desde"):
         assert words not in body, (words, body)
     # And a reader can tell whether it received all of it: the count opens and
     # closes the answer, so a copy cut short downstream does not pass for whole.
-    assert body.rstrip().endswith("Fin de la lectura: 8 eventos.")
+    assert body.rstrip().endswith("End of read: 8 events.")
 
 
 async def test_a_single_page_answer_costs_one_request(tmp_path):
@@ -188,8 +186,8 @@ async def test_an_empty_range_is_an_answer_not_an_error(tmp_path):
     body = calendar_body(result)
     assert not result.is_error, body
     assert event_lines(body) == []
-    assert body.startswith("Agenda: 0 eventos del ")
-    assert body.rstrip().endswith("Fin de la lectura: 0 eventos.")
+    assert body.startswith("Agenda: 0 events from ")
+    assert body.rstrip().endswith("End of read: 0 events.")
 
 
 async def test_a_cursor_that_does_not_advance_is_not_followed_forever(tmp_path):
@@ -202,7 +200,7 @@ async def test_a_cursor_that_does_not_advance_is_not_followed_forever(tmp_path):
     assert result.is_error, body
     assert body.startswith("invalid_response:"), body
     # The refusal names its cause and carries the positions, not only a code.
-    assert f"[{OCTOBER_MS}, 0, 0]" in body and "sin avanzar" in body, body
+    assert f"[{OCTOBER_MS}, 0, 0]" in body and "without advancing" in body, body
     assert len(hub.device_requests) == 1
 
 
@@ -241,10 +239,10 @@ async def test_an_event_split_across_pages_comes_back_whole(tmp_path):
     lines = event_lines(body)
     assert len(lines) == 2
     # One event, every guest of both fragments, in order; never a fragment.
-    guests = [f"persona{i} (acepta)" for i in range(6)]
-    assert "con @example.invalid: " + ", ".join(guests) in lines[0], lines[0]
+    guests = [f"persona{i} (accepted)" for i in range(6)]
+    assert "with @example.invalid: " + ", ".join(guests) in lines[0], lines[0]
     assert "invitees_continued" not in body
-    assert body.rstrip().endswith("Fin de la lectura: 2 eventos.")
+    assert body.rstrip().endswith("End of read: 2 events.")
 
 
 async def test_d4_an_event_that_could_not_travel_is_named_by_itself(tmp_path):
@@ -268,12 +266,11 @@ async def test_d4_an_event_that_could_not_travel_is_named_by_itself(tmp_path):
     body = calendar_body(answer)
     assert not answer.is_error, body
     assert titles(body) == ["Evento 0", "Evento 1", "Evento 2"]
-    assert "1 eventos más no pudieron viajar por su tamaño" in body.splitlines()[0]
+    assert "1 more events could not be delivered because of their size" in body.splitlines()[0]
     assert (
-        "dom 4 oct 2026 00:00–dom 4 oct 2026 01:00 · id item-500 · calendario calendar-1: "
-        "el título ocupa 120000 bytes y en una página caben 98304."
+        "Sun 4 Oct 2026 00:00–Sun 4 Oct 2026 01:00 · id item-500 · calendar calendar-1: the title takes 120000 bytes and one page allows 98304."
     ) in body
-    assert body.rstrip().endswith("Fin de la lectura: 3 eventos.")
+    assert body.rstrip().endswith("End of read: 3 events.")
 
 
 async def test_a_cursor_inside_one_event_must_still_move_forward(tmp_path):
@@ -295,7 +292,7 @@ async def test_a_cursor_inside_one_event_must_still_move_forward(tmp_path):
 @pytest.mark.parametrize(
     ("code", "must_say", "must_not_say"),
     [
-        ("calendar_backend_unavailable", "EventKit", "permiso"),
+        ("calendar_backend_unavailable", "EventKit", "permission"),
     ],
 )
 async def test_each_missing_condition_arrives_as_itself(tmp_path, code, must_say, must_not_say):
@@ -307,7 +304,7 @@ async def test_each_missing_condition_arrives_as_itself(tmp_path, code, must_say
     assert body.startswith(f"{code}:"), body
     assert must_say in body, body
     assert must_not_say not in body.split("lo que diga el Mac")[0], body
-    assert "Fin de la lectura" not in body, body
+    assert "End of read" not in body, body
 
 
 @pytest.mark.parametrize(
@@ -315,7 +312,7 @@ async def test_each_missing_condition_arrives_as_itself(tmp_path, code, must_say
     [
         (
             {"code": "calendar_read_limit", "cause": {"kind": "page", "max_bytes": 786432}},
-            "límites",
+            "limits",
         ),
         (
             {
@@ -327,24 +324,24 @@ async def test_each_missing_condition_arrives_as_itself(tmp_path, code, must_say
                     "max_timezone_bytes": 128,
                 },
             },
-            "límites",
+            "limits",
         ),
         (
             {
                 "code": "read_interrupted",
                 "cause": {"kind": "calendar_expired", "deadline_ms": 30000},
             },
-            "interrumpió",
+            "interrupted",
         ),
         ({"code": "helper_refused", "helper_code": "calendar_read_failed"}, "EventKit"),
-        ({"code": "helper_refused", "helper_code": "calendar_invalidated"}, "cambió"),
+        ({"code": "helper_refused", "helper_code": "calendar_invalidated"}, "changed"),
         (
             {"code": "helper_reply_invalid", "field": "calendar", "expected": "page"},
-            "no cumple el contrato",
+            "violates the contract",
         ),
         (
             {"code": "read_interrupted", "cause": {"kind": "calendar_generation_changed"}},
-            "generación",
+            "generation",
         ),
         (
             {
@@ -352,17 +349,17 @@ async def test_each_missing_condition_arrives_as_itself(tmp_path, code, must_say
                 "field": "response",
                 "expected": "reply_before_deadline",
             },
-            "no cumple el contrato",
+            "violates the contract",
         ),
         (
             {"code": "read_interrupted", "cause": {"kind": "calendar_helper_stopped"}},
-            "helper de Orbit está detenido",
+            "Orbit helper is stopped",
         ),
         (
             {"code": "read_interrupted", "cause": {"kind": "calendar_reply_replaced"}},
-            "otra lectura",
+            "another agenda read",
         ),
-        ({"code": "helper_refused", "helper_code": "calendar_clock_unavailable"}, "reloj"),
+        ({"code": "helper_refused", "helper_code": "calendar_clock_unavailable"}, "clock"),
     ],
 )
 async def test_calendar_failure_is_named_and_never_an_empty_agenda(tmp_path, refusal, must_say):
@@ -375,9 +372,9 @@ async def test_calendar_failure_is_named_and_never_an_empty_agenda(tmp_path, ref
     assert result.is_error, body
     assert body.startswith(f"{code}:"), body
     assert must_say in body, body
-    assert "respuesta no válida" not in body and "Orbit rechazó la petición" not in body, body
+    assert "invalid response" not in body and "Orbit refused the request" not in body, body
     assert notice in body, body
-    assert "Fin de la lectura" not in body, body
+    assert "End of read" not in body, body
 
 
 async def test_a_mac_that_is_not_connected_is_named_as_that(tmp_path):
@@ -386,7 +383,7 @@ async def test_a_mac_that_is_not_connected_is_named_as_that(tmp_path):
         result = await ask(server)
     body = text_of(result)
     assert result.is_error, body
-    assert body.startswith("device_unavailable: El Mac no está conectado a Orbit."), body
+    assert body.startswith("device_unavailable: The Mac is not connected to Orbit."), body
 
 
 async def test_a_mac_that_is_not_paired_is_named_as_that(tmp_path):

@@ -132,7 +132,7 @@ class FinalPassRepository:
             if unreadable:
                 raise HubError(
                     "meeting_audio_unreadable",
-                    f"The hub cannot read the audio for {unreadable} de {total} grupos",
+                    f"The hub cannot read the audio for {unreadable} of {total} groups",
                     http_status=409,
                     numbers={"groups": unreadable, "total": total},
                 )

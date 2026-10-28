@@ -92,7 +92,7 @@ def test_bad_reply_is_relayed_and_mcp_reports_the_field(bridged, capability):
             translated = error_result(error.value).content[0].text
             assert field in translated and "0.7.0-test" in translated
             if capability == "screen_sources":
-                assert "lista" in translated
+                assert "list" in translated
 
 
 @pytest.mark.parametrize("bad_id", [None, 4, "", "r" * 161])
@@ -118,7 +118,7 @@ def test_unreadable_reply_id_does_not_claim_a_live_question(bridged, bad_id):
             )
             error = ws.receive_json()["data"]
             assert error["refusal"]["field"] == "request_id"
-            assert "1 a 160" in error["refusal"]["expected"]
+            assert "1 to 160" in error["refusal"]["expected"]
             assert request_id in app.state.device_bridge.bridge.pending
             ws.send_json(
                 {
@@ -244,7 +244,7 @@ def test_malformed_unknown_reply_id_still_gets_a_field_refusal(bridged):
 def test_missing_mac_version_is_named_without_broken_grammar():
     with pytest.raises(HubClientError) as error:
         validate_mac_payload("screen_sources", {"result": {"windows": 7}})
-    assert "versión del Mac: no comunicada" in error_result(error.value).content[0].text
+    assert "Mac version: not reported" in error_result(error.value).content[0].text
 
 
 async def test_unanswered_action_expires_with_injected_deadline_and_frees_slot(bridged):

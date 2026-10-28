@@ -134,7 +134,7 @@ def failure(exc):
         enabled = str(numbers.get("enabled")).replace(",", ", ") or "none"
         message = f"Agent «{numbers.get('agent_id')}» has no enabled skill named «{numbers.get('name')}»; enabled skills: {enabled}"
     if code == "skills_not_in_hub" and numbers is not None:
-        message = f"Agent «{numbers.get('agent_id')}» es de tipo {numbers.get('kind')}: its skills come from its Hermes profile, not Orbit storage"
+        message = f"Agent «{numbers.get('agent_id')}» is of type {numbers.get('kind')}: its skills come from its Hermes profile, not Orbit storage"
     if detail is not None:
         message = f"Parameter {detail['field']} must be {detail['expected']}."
     payload = render(

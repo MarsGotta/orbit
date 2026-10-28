@@ -133,7 +133,7 @@ def bounded_limit(limit: int | None, maximum: int, what: str) -> int:
     if not 1 <= limit <= maximum:
         raise HubError(
             "invalid_request",
-            f"The limit of {what} va de 1 a {maximum}",
+            f"The limit of {what} ranges from 1 to {maximum}",
             numbers={"limit": limit, "max": maximum},
         )
     return limit

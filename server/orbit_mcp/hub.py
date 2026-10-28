@@ -53,8 +53,8 @@ CATALOGUE_PAGES = 64
 # to the assistant. The user granted Orbit the use of their computer in macOS;
 # nothing downstream of that is waiting on them.
 IN_FLIGHT_OUTCOMES = frozenset({IN_FLIGHT_OUTCOME})
-IN_FLIGHT_NOTICE = "La acción ya está en curso en el Mac."
-IN_FLIGHT_NEXT_STEP = "Consulta su desenlace con orbit_action_result y este operation_id."
+IN_FLIGHT_NOTICE = "The action is already running on the Mac."
+IN_FLIGHT_NEXT_STEP = "Check its outcome with orbit_action_result and this operation_id."
 # These are journal reads, including receipts saved before 0.6, not states a
 # current Mac may emit. Removing old values would make durable receipts unreadable.
 SETTLED_OUTCOMES = frozenset({"performed", "unknown", "failed", "expired", "rejected"})
@@ -137,9 +137,9 @@ def validate_parameters(capability, parameters):
             and error.errors()[0]["type"] == "extra_forbidden"
         ):
             details["expected"] = (
-                "application, title y full_screen"
+                "application, title and full_screen"
                 if capability == "screenshot"
-                else "application y title"
+                else "application and title"
             )
         if capability == "perform_action":
             action = parameters.get("action") if isinstance(parameters, dict) else parameters
@@ -181,7 +181,7 @@ def validate_mac_payload(capability, payload):
             model.model_validate(payload.get("result"))
     except ValidationError as error:
         details = validation_detail(error, prefix)
-        details["device_version"] = payload.get("device_version") or "no comunicada"
+        details["device_version"] = payload.get("device_version") or "not reported"
         raise HubClientError(
             "device_reply_invalid",
             detail={
@@ -455,8 +455,8 @@ class HubClient:
                         {
                             **exc.detail,
                             "walk_notice": (
-                                f"Orbit empezó la lectura {attempts} veces y el Mac la perdió "
-                                "las mismas veces antes de terminarla."
+                                f"Orbit started the read {attempts} times and the Mac lost it "
+                                "each time before finishing it."
                             ),
                         },
                     ) from None

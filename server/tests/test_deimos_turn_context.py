@@ -25,7 +25,7 @@ async def test_text_turn_declares_orbit_only_to_hermes(environment):
     assert method == "prompt.submit"
     assert prompt == {
         "session_id": next(iter(runtime.bindings))[1],
-        "text": "[Orbit · Sample Mac · texto]\nHola, Deimos",
+        "text": "[Orbit · Sample Mac · text]\nHola, Deimos",
     }
     assert said(store, owner, receipt["session_id"]) == [
         {"role": "user", "text": "Hola, Deimos"},
@@ -52,9 +52,7 @@ async def test_active_call_reaches_only_the_hermes_header(environment):
 
     method, prompt = adapter.connections[0].calls[-1]
     assert method == "prompt.submit"
-    assert prompt["text"] == (
-        "[Orbit · Sample Mac · llamada de voz en curso]\nHola durante la llamada"
-    )
+    assert prompt["text"] == ("[Orbit · Sample Mac · ongoing voice call]\nHola durante la llamada")
     assert said(store, owner, receipt["session_id"]) == [
         {"role": "user", "text": "Hola durante la llamada"},
         {"role": "assistant", "text": "respuesta sintética"},
@@ -62,7 +60,7 @@ async def test_active_call_reaches_only_the_hermes_header(environment):
     public_frames = []
     while not published.empty():
         public_frames.append(published.get_nowait())
-    assert "llamada de voz en curso" not in json.dumps(public_frames, ensure_ascii=False)
+    assert "ongoing voice call" not in json.dumps(public_frames, ensure_ascii=False)
 
 
 def test_transcription_marker_is_device_scoped_and_consumed(environment):
@@ -87,9 +85,7 @@ def test_transcription_marker_is_device_scoped_and_consumed(environment):
                 }
             )
             [ws.receive_json() for _ in range(5)]
-        assert (
-            adapter.connections[0].calls[-1][1]["text"].startswith("[Orbit · Otra Mac · texto]\n")
-        )
+        assert adapter.connections[0].calls[-1][1]["text"].startswith("[Orbit · Otra Mac · text]\n")
 
         with http.websocket_connect("wss://localhost/v1/ws", headers=owner_headers) as ws:
             assert ws.receive_json()["event"] == "ready"
@@ -111,7 +107,7 @@ def test_transcription_marker_is_device_scoped_and_consumed(environment):
             assert (
                 adapter.connections[1]
                 .calls[-1][1]["text"]
-                .startswith("[Orbit · Sample Mac · nota de voz transcrita]\n")
+                .startswith("[Orbit · Sample Mac · transcribed voice note]\n")
             )
 
             ws.send_json(
@@ -126,7 +122,7 @@ def test_transcription_marker_is_device_scoped_and_consumed(environment):
             assert (
                 adapter.connections[1]
                 .calls[-1][1]["text"]
-                .startswith("[Orbit · Sample Mac · texto]\n")
+                .startswith("[Orbit · Sample Mac · text]\n")
             )
 
 

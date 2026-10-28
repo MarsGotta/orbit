@@ -160,10 +160,10 @@ async def tcp_server(app):
 
 
 # Every chat turn reaches Hermes behind one line saying where it came
-# from, e.g. `[Orbit · Sample Mac · texto]`; the transcript the user sees has none.
+# from, e.g. `[Orbit · Sample Mac · text]`; the transcript the user sees has none.
 TURN_CONTEXT = re.compile(
-    r"\[Orbit · (?P<device>[^\n]+) · (?P<input>texto|nota de voz transcrita|"
-    r"llamada de voz en curso)\]\n"
+    r"\[Orbit · (?P<device>[^\n]+) · (?P<input>text|transcribed voice note|"
+    r"ongoing voice call)\]\n"
 )
 
 

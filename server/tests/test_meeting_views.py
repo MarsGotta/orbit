@@ -2,7 +2,7 @@
 
 The defects these cover (issues 1 to 4) came from the
 Mac rebuilding what the hub already knew: absolute times, every voice called
-«Hablante sin identificar», empty entries and «Idioma: Automático». Here the
+“Unidentified speaker”, empty entries and “Language: Automatic”. Here the
 hub computes the turns once, for the device routes and for Deimos's bridge,
 and the tests read them through the real routes over the real store. The
 model is a fake (`support_notes.FakeModel`); the meeting STT in the WebSocket

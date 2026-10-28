@@ -85,6 +85,76 @@ pub struct WorkStep {
     pub status: WorkStepStatus,
 }
 
+/// Activity labels this Mac knows how to render. A future key keeps the
+/// English wire label, so a newer hub does not require an immediate Mac update.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivityLabelCode {
+    ClickApp,
+    Click,
+    Type,
+    Keys,
+    ScrollApp,
+    Scroll,
+    OpenApp,
+    Open,
+    ActionTool,
+    Action,
+    CommandValue,
+    Command,
+    EditValue,
+    Edit,
+    ScreenshotApp,
+    Screenshot,
+    Plan,
+    OrbitDevices,
+    OrbitWindows,
+    OrbitLook,
+    OrbitSelectedText,
+    OrbitControlTools,
+    OrbitActionResult,
+    OrbitCalendar,
+    OrbitNotesSearch,
+    OrbitNoteRead,
+    OrbitNotesIndex,
+    OrbitMeetings,
+    OrbitTranscript,
+    OrbitNote,
+    OrbitFilesList,
+    OrbitFilesSearch,
+    OrbitFilesRead,
+    OrbitAttachment,
+    OrbitSkill,
+    #[serde(other)]
+    Unknown,
+}
+
+/// Catalogue key and bounded values for an activity label. The label remains
+/// an English fallback for a Mac that does not know this key.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+)]
+pub struct ActivityCopy {
+    pub code: ActivityLabelCode,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub value: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub done: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub total: Option<u32>,
+}
+
 /// One step, as its last `chat.item` described it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -97,6 +167,12 @@ pub struct WorkItem {
     pub kind: WorkKind,
     pub phase: WorkPhase,
     pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub label_copy: Option<ActivityCopy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub subject_code: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "ts", ts(optional))]
     pub subject: Option<String>,
@@ -144,11 +220,37 @@ impl WorkItem {
                     .bytes()
                     .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
         });
+        let label_copy = data
+            .label_copy
+            .as_ref()
+            .filter(|copy| copy.code != ActivityLabelCode::Unknown)
+            .map(|copy| ActivityCopy {
+                code: copy.code,
+                value: copy
+                    .value
+                    .as_deref()
+                    .map(|value| cut(value, MAX_ITEM_LABEL_CHARS)),
+                done: copy.done,
+                total: copy.total,
+            });
+        // The generated catalogue covers every known code. Keep the English
+        // fallback only for an unknown code or upstream text, within the existing
+        // topic ceiling; old Macs still receive the full fallback on the hub wire.
+        let label = if label_copy.is_some() {
+            String::new()
+        } else {
+            cut(&data.label, MAX_ITEM_LABEL_CHARS)
+        };
         Some(Self {
             id: cut(&data.item_id, MAX_ITEM_ID_CHARS),
             kind,
             phase: known(&data.phase)?,
-            label: cut(&data.label, MAX_ITEM_LABEL_CHARS),
+            label,
+            label_copy,
+            subject_code: data
+                .subject_code
+                .as_deref()
+                .map(|code| cut(code, MAX_ITEM_SUBJECT_CHARS)),
             subject: data
                 .subject
                 .as_deref()
@@ -180,6 +282,9 @@ pub struct AgentWork {
     pub tools: u32,
     /// What those tools used, each once, in order.
     pub subjects: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub subject_codes: Option<std::collections::BTreeMap<String, String>>,
 }
 
 impl AgentWork {
@@ -191,6 +296,7 @@ impl AgentWork {
             items: Vec::new(),
             tools: 0,
             subjects: Vec::new(),
+            subject_codes: Default::default(),
         }
     }
 
@@ -210,6 +316,11 @@ impl AgentWork {
                 && !self.subjects.contains(subject)
             {
                 self.subjects.push(subject.clone());
+                if let Some(code) = &item.subject_code {
+                    self.subject_codes
+                        .get_or_insert_with(Default::default)
+                        .insert(subject.clone(), code.clone());
+                }
             }
         }
         match index {
@@ -251,6 +362,9 @@ pub struct WorkSummary {
     pub ended_at_ms: u64,
     pub tools: u32,
     pub subjects: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub subject_codes: Option<std::collections::BTreeMap<String, String>>,
 }
 
 #[cfg(test)]
@@ -263,10 +377,51 @@ mod tests {
             kind: WorkKind::Tool,
             phase,
             label: format!("Usando {subject}"),
+            label_copy: None,
+            subject_code: None,
             subject: Some(subject.into()),
             steps: Vec::new(),
             cause: None,
         }
+    }
+
+    #[test]
+    fn catalogue_metadata_survives_the_wire_and_live_summary()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let data: crate::wire::hub::ItemData = serde_json::from_value(serde_json::json!({
+            "session_id": "s", "item_id": "t", "kind": "tool", "phase": "completed",
+            "label": "Looking at Sample", "label_copy": {"code": "screenshot_app", "value": "Sample"},
+            "subject": "the screen", "subject_code": "screen"
+        }))?;
+        let item = WorkItem::from_wire(&data).ok_or("expected a known work item")?;
+        assert!(
+            item.label.is_empty(),
+            "known copy carries the label without duplicating it"
+        );
+        let copy = item.label_copy.as_ref().ok_or("expected activity copy")?;
+        assert_eq!(copy.code, ActivityLabelCode::ScreenshotApp);
+        assert_eq!(copy.value.as_deref(), Some("Sample"));
+        let mut work = AgentWork::new("turn", 0);
+        work.record(item);
+        assert_eq!(
+            work.subject_codes
+                .as_ref()
+                .and_then(|codes| codes.get("the screen"))
+                .map(String::as_str),
+            Some("screen")
+        );
+        let future: crate::wire::hub::ItemData = serde_json::from_value(serde_json::json!({
+            "session_id": "s", "item_id": "future", "kind": "tool", "phase": "started",
+            "label": "A future label in English", "label_copy": {"code": "future_code"}
+        }))?;
+        let future = WorkItem::from_wire(&future).ok_or("expected a future work item")?;
+        assert_eq!(future.label, "A future label in English");
+        assert!(future.label_copy.is_none());
+        let old: WorkSummary = serde_json::from_value(serde_json::json!({
+            "started_at_ms": 0, "ended_at_ms": 1, "tools": 1, "subjects": ["the screen"]
+        }))?;
+        assert!(old.subject_codes.is_none());
+        Ok(())
     }
 
     #[test]
@@ -314,6 +469,8 @@ mod tests {
             kind: "plan".into(),
             phase: "progress".into(),
             label: "ñ".repeat(MAX_ITEM_LABEL_CHARS + 5),
+            label_copy: None,
+            subject_code: None,
             subject: None,
             steps: Some(
                 (0..MAX_PLAN_STEPS + 2)
@@ -353,6 +510,8 @@ mod tests {
             kind: "tool".into(),
             phase: "started".into(),
             label: "Mirando la pantalla".into(),
+            label_copy: None,
+            subject_code: None,
             subject: None,
             steps: Some(vec![step()]),
             cause: None,

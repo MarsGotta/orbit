@@ -5,27 +5,27 @@ from __future__ import annotations
 
 _ROLE = {
     "required": "",
-    "optional": "opcional",
-    "chair": "organiza",
-    "non_participant": "no participa",
-    "unknown": "rol desconocido",
+    "optional": "optional",
+    "chair": "organizer",
+    "non_participant": "non-participant",
+    "unknown": "unknown role",
 }
 _RESPONSE = {
-    "accepted": "acepta",
-    "declined": "rechaza",
-    "tentative": "provisional",
-    "pending": "pendiente",
-    "delegated": "delega",
-    "completed": "completado",
-    "in_process": "en curso",
-    "unknown": "respuesta desconocida",
+    "accepted": "accepted",
+    "declined": "declined",
+    "tentative": "tentative",
+    "pending": "pending",
+    "delegated": "delegated",
+    "completed": "completed",
+    "in_process": "in progress",
+    "unknown": "unknown response",
 }
 _KIND = {
     "person": "",
-    "room": "sala",
-    "resource": "recurso",
-    "group": "grupo",
-    "unknown": "tipo desconocido",
+    "room": "room",
+    "resource": "resource",
+    "group": "group",
+    "unknown": "unknown type",
 }
 
 
@@ -34,7 +34,7 @@ def _invitee(value: dict) -> tuple[str | None, str]:
 
     A guest with an email is written by the part before the @ under its
     domain, with the name in front only when it is not that part; the rest by
-    their address. The parenthesis says «tú», the role unless required, the
+    their address. The parenthesis says “you”, the role unless required, the
     response, the kind unless a person, and an address that is not the email.
     """
     email = value.get("email") if isinstance(value.get("email"), str) else None
@@ -48,7 +48,7 @@ def _invitee(value: dict) -> tuple[str | None, str]:
         who = email
     notes = []
     if value.get("is_current_user") is True:
-        notes.append("tú")
+        notes.append("you")
     role = value.get("role")
     notes.append(_ROLE.get(role, str(role)) if isinstance(role, str) else "")
     response = value.get("response_status")

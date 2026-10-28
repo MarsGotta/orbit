@@ -9,7 +9,7 @@ from pydantic_core import PydanticCustomError
 
 def present_value(value):
     if value is None:
-        raise ValueError("Un campo presente no puede ser nulo")
+        raise ValueError("A present field cannot be null")
     return value
 
 
@@ -81,11 +81,9 @@ class ToolAction(WireModel):
         min_length=1,
         max_length=MAX_TOOL_NAME_BYTES,
         pattern=r"^[A-Za-z0-9_-]+$",
-        description="Nombre del catálogo orbit_control_tools; 1 a 128 letras ASCII, cifras, _ o -.",
+        description="Name from the orbit_control_tools catalogue; 1 to 128 ASCII letters, digits, _ or -.",
     )
-    arguments: dict = Field(
-        default={}, description="Argumentos de la herramienta; vacío por defecto."
-    )
+    arguments: dict = Field(default={}, description="Tool arguments; empty by default.")
 
 
 class PerformActionParameters(WireModel):
@@ -101,7 +99,7 @@ class PerformActionParameters(WireModel):
         if size > MAX_ACTION_BYTES:
             raise PydanticCustomError(
                 "action_size",
-                "Acción demasiado grande",
+                "Action too large",
                 {"field": "action", "bytes": size, "max_bytes": MAX_ACTION_BYTES},
             )
         return self
@@ -111,7 +109,7 @@ def bounded_read_id(value):
     if value is not None and not 0 < len(value.encode("utf-8")) <= MAX_READ_ID_BYTES:
         raise PydanticCustomError(
             "cursor_size",
-            "Identidad de lectura fuera de límite",
+            "Read identity exceeds the limit",
             {"bytes": len(value.encode("utf-8")), "max_bytes": MAX_READ_ID_BYTES},
         )
     return value
@@ -136,10 +134,10 @@ class CalendarReadParameters(WireModel):
         if self.end_ms <= self.start_ms:
             raise PydanticCustomError(
                 "calendar_range",
-                "Rango inválido",
+                "Invalid range",
                 {
                     "field": "end_ms",
-                    "expected": "posterior a start_ms",
+                    "expected": "later than start_ms",
                     "start_ms": self.start_ms,
                     "end_ms": self.end_ms,
                 },
@@ -149,14 +147,14 @@ class CalendarReadParameters(WireModel):
             value is None for value in cursor
         ):
             for field, required in (
-                ("read_id", "texto"),
-                ("after_ms", "entero en milisegundos"),
-                ("after_index", "entero no negativo"),
+                ("read_id", "text"),
+                ("after_ms", "integer milliseconds"),
+                ("after_index", "nonnegative integer"),
             ):
                 if getattr(self, field) is None:
                     raise PydanticCustomError(
                         "calendar_cursor",
-                        "Cursor incompleto",
+                        "Incomplete cursor",
                         {"field": field, "expected": required},
                     )
         return self
@@ -169,10 +167,10 @@ def bounded_path(value):
     if not value.startswith("/") or size > MAX_PATH_BYTES or "\x00" in value:
         raise PydanticCustomError(
             "folder_path",
-            "Ruta inválida",
+            "Invalid path",
             {
                 "field": "path",
-                "expected": f"ruta absoluta de hasta {MAX_PATH_BYTES} bytes",
+                "expected": f"absolute path of at most {MAX_PATH_BYTES} bytes",
                 "bytes": size,
                 "max_bytes": MAX_PATH_BYTES,
             },
@@ -203,10 +201,10 @@ class FilesSearchParameters(WireModel):
         if not value.strip() or size > MAX_QUERY_BYTES:
             raise PydanticCustomError(
                 "search_query",
-                "Búsqueda inválida",
+                "Invalid search",
                 {
                     "field": "query",
-                    "expected": f"texto de 1 a {MAX_QUERY_BYTES} bytes",
+                    "expected": f"text of 1 to {MAX_QUERY_BYTES} bytes",
                     "bytes": size,
                     "max_bytes": MAX_QUERY_BYTES,
                 },
@@ -494,8 +492,8 @@ class FilesReadResult(WireModel):
             if getattr(self, field) is None:
                 raise PydanticCustomError(
                     "file_content",
-                    "Lectura incompleta",
-                    {"field": field, "expected": f"campo de {self.content}"},
+                    "Incomplete read",
+                    {"field": field, "expected": f"field of {self.content}"},
                 )
         return self
 
@@ -531,32 +529,32 @@ def validation_detail(error, prefix):
     location = ".".join(str(part) for part in first["loc"])
     field = ".".join(part for part in (prefix, location) if part)
     expected = {
-        "list_type": "lista",
-        "string_type": "texto",
-        "int_type": "entero",
-        "bool_type": "verdadero o falso",
-        "dict_type": "objeto",
-        "model_type": "objeto",
-        "extra_forbidden": "ninguna clave adicional",
-        "missing": "campo obligatorio",
-        "greater_than_equal": "entero no negativo",
-        "string_pattern_mismatch": f"nombre ASCII de 1 a {MAX_TOOL_NAME_BYTES} bytes con letras, cifras, _ o -",
-        "string_too_long": "texto dentro del límite indicado",
-    }.get(first["type"], "valor válido del contrato")
+        "list_type": "list",
+        "string_type": "text",
+        "int_type": "integer",
+        "bool_type": "true or false",
+        "dict_type": "object",
+        "model_type": "object",
+        "extra_forbidden": "no additional keys",
+        "missing": "required field",
+        "greater_than_equal": "nonnegative integer",
+        "string_pattern_mismatch": f"ASCII name of 1 to {MAX_TOOL_NAME_BYTES} bytes with letters, digits, _ or -",
+        "string_too_long": "text within the stated limit",
+    }.get(first["type"], "valid contract value")
     context = first.get("ctx", {})
     numbers = {key: value for key, value in context.items() if type(value) is int}
     if first["type"] == "missing":
         expected = {
-            "action": "objeto",
-            "action.tool": "texto",
-            "start_ms": "entero",
-            "end_ms": "entero",
+            "action": "object",
+            "action.tool": "text",
+            "start_ms": "integer",
+            "end_ms": "integer",
         }.get(location, expected)
     if first["type"] == "string_too_long":
         numbers = {"chars": len(first["input"]), "max_chars": context["max_length"]}
-        expected = f"texto de hasta {context['max_length']} caracteres"
+        expected = f"text of at most {context['max_length']} characters"
     if first["type"] == "value_error" and location in {"application", "title", "full_screen"}:
-        expected = "verdadero o falso" if location == "full_screen" else "texto"
+        expected = "true or false" if location == "full_screen" else "text"
     if first["type"] in {
         "calendar_cursor",
         "calendar_range",

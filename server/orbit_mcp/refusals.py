@@ -46,7 +46,7 @@ def mac_sentence(detail) -> str:
     if not isinstance(notice, str):
         return ""
     notice = " ".join("".join(c for c in notice if c.isprintable() or c.isspace()).split())
-    return re.sub(r"(?:/Users/|/home/|\$HOME)[^\s,;)]*", "[ruta local]", notice[:MAC_NOTICE_CHARS])
+    return re.sub(r"(?:/Users/|/home/|\$HOME)[^\s,;)]*", "[local path]", notice[:MAC_NOTICE_CHARS])
 
 
 def _refusal_sentence(detail) -> str:
@@ -56,7 +56,7 @@ def _refusal_sentence(detail) -> str:
     legacy_cause = refusal.get("text") if refusal.get("code") == "legacy" else None
     fields = []
     if isinstance(legacy_cause, str):
-        fields.append(f"causa del Mac: {mac_sentence({'mac_notice': legacy_cause})}")
+        fields.append(f"Mac cause: {mac_sentence({'mac_notice': legacy_cause})}")
     for key, label in FIELD_LABELS.items():
         value = refusal.get(key)
         if isinstance(value, (str, int, dict)) and not isinstance(value, bool):
@@ -92,16 +92,15 @@ def _device_unavailable(code: str, selection: DeviceSelection) -> CallToolResult
     if newer:
         latest = max(newer, key=lambda candidate: (candidate.paired_at, candidate.id))
         message = (
-            f"El Mac no está conectado a Orbit. {name} se volvió a emparejar hace "
-            f"{seen_ago(latest.paired_at).removeprefix('hace ')}; usa la nueva identidad."
+            f"The Mac is not connected to Orbit. {name} was paired again "
+            f"{seen_ago(latest.paired_at)}; use the new identity."
         )
     elif device is not None:
         message = (
-            f"El Mac no está conectado a Orbit. {name} fue visto por última vez "
-            f"{seen_ago(device.last_seen)}."
+            f"The Mac is not connected to Orbit. {name} was last seen {seen_ago(device.last_seen)}."
         )
     else:
-        message = f"El Mac no está conectado a Orbit: {name}."
+        message = f"The Mac is not connected to Orbit: {name}."
     return CallToolResult(content=[_text_content(f"{code}: {message}")], isError=True)
 
 
@@ -120,7 +119,7 @@ def _spoken_code(code: str, detail) -> str:
 def _upstream_failed(message, refusal: dict, detail: dict):
     # Capability models are checked by this consumer before rendering their fields.
     if refusal.get("service") == "hub" and detail.get("capability") == "screenshot":
-        return "El Mac no pudo entregar la captura a Orbit. Comprueba su conexión antes de volver a pedirla."
+        return "The Mac could not deliver the screenshot to Orbit. Check its connection before requesting it again."
     return message
 
 
@@ -154,37 +153,37 @@ def _timeout(message, refusal: dict, detail: dict):
 
 
 RECOVERY_STEPS = {
-    "chunks": "fragmentos",
-    "upload_jobs": "subidas pendientes",
-    "snapshot": "instantánea",
-    "environment": "preparación del servicio",
-    "operations": "operaciones pendientes",
-    "call_preference": "preferencia al detectar una llamada",
+    "chunks": "chunks",
+    "upload_jobs": "pending uploads",
+    "snapshot": "snapshot",
+    "environment": "service preparation",
+    "operations": "pending operations",
+    "call_preference": "call detection preference",
 }
 
 
 def _recovering(message, refusal: dict, detail: dict):
-    step = RECOVERY_STEPS.get(refusal.get("step"), "desconocido")
-    return f"El almacén se está recuperando: paso {step}; la orden no se aplicó. Espera a que termine la recuperación."
+    step = RECOVERY_STEPS.get(refusal.get("step"), "unknown")
+    return f"The store is recovering: step {step}; the command was not applied. Wait for recovery to finish."
 
 
 def _skill_not_enabled(message, refusal: dict, detail: dict):
     if not isinstance(refusal.get("name"), str):
         return message
     enabled = refusal.get("enabled")
-    listed = enabled.replace(",", ", ") if isinstance(enabled, str) and enabled else "ninguna"
+    listed = enabled.replace(",", ", ") if isinstance(enabled, str) and enabled else "none"
     return (
-        f"Este agente no tiene activada en Orbit ninguna skill llamada «{refusal['name']}». "
-        f"Las activadas son: {listed}."
+        f"This agent has no skill enabled in Orbit named «{refusal['name']}». "
+        f"Enabled skills: {listed}."
     )
 
 
 BUSY_OPERATIONS = {
-    "chat": "No se puede cambiar de conversación: hay un turno en curso; interrúmpelo o espera a que termine.",
-    "audio": "No se puede cambiar de conversación: hay una nota de voz en el búfer; termínala o interrúmpela.",
-    "voice_transcription": "No se puede cambiar de conversación: la transcripción de voz sigue en curso; espera o interrúmpela.",
-    "audio_session": "Finaliza PTT o la grabación actual antes de cambiar a la ruta de llamada.",
-    "audio_drain": "El audio anterior sigue drenándose o esperando almacenamiento durable; espera antes de continuar.",
+    "chat": "Cannot switch conversations: a turn is in progress; interrupt it or wait for it to finish.",
+    "audio": "Cannot switch conversations: a voice note is buffered; finish or interrupt it.",
+    "voice_transcription": "Cannot switch conversations: voice transcription is still running; wait or interrupt it.",
+    "audio_session": "Finish PTT or the current recording before switching to the call route.",
+    "audio_drain": "Previous audio is still draining or waiting for durable storage; wait before continuing.",
 }
 
 
@@ -195,28 +194,28 @@ def _busy(message, refusal: dict, detail: dict):
 
 def _too_large(message, refusal: dict, detail: dict):
     if refusal.get("resource") == "ipc_response":
-        return "La respuesta supera el tamaño admitido. La orden pudo haberse aplicado; consulta el resultado antes de repetirla."
+        return "The response exceeds the supported size. The command may have been applied; check the result before repeating it."
     return message
 
 
 WIRE_FIELD_WORDS = {
-    "object": "un objeto",
-    "boolean": "verdadero o falso",
-    "nonnegative_integer": "un entero no negativo",
-    "unix_milliseconds_integer": "un entero en milisegundos desde 1970",
-    "string": "texto",
+    "object": "an object",
+    "boolean": "true or false",
+    "nonnegative_integer": "a nonnegative integer",
+    "unix_milliseconds_integer": "integer milliseconds since 1970",
+    "string": "text",
 }
 
 
 def _selection_message(expected: dict) -> str:
     message = (
-        "No hay ventanas que coincidan con los filtros."
+        "No windows match the filters."
         if expected.get("reason") == "window_not_found"
-        else "Las ventanas coincidentes no se pueden seleccionar."
+        else "The matching windows cannot be selected."
     )
     return (
         message
-        + f" {expected.get('windows')} ventanas, {expected.get('matching')} coincidencias, {expected.get('selectable')} seleccionables y {expected.get('omitted')} omitidas. Vuelve a listar las ventanas antes de elegir otra."
+        + f" {expected.get('windows')} windows, {expected.get('matching')} matches, {expected.get('selectable')} selectable and {expected.get('omitted')} omitted. List windows again before choosing another."
     )
 
 
@@ -227,30 +226,28 @@ def _invalid_parameter(message, refusal: dict, detail: dict):
         return message
     kind = expected.get("kind")
     if kind == "open_recording":
-        return (
-            "Inicia otra grabación; la anterior ya tiene un cierre durable y no puede reanudarse."
-        )
+        return "Start another recording; the previous one is durably closed and cannot be resumed."
     if kind == "wire_field":
         field, required = expected.get("field"), expected.get("expected")
-        return f"{field} debe ser {WIRE_FIELD_WORDS.get(required, required)}."
+        return f"{field} must be {WIRE_FIELD_WORDS.get(required, required)}."
     if kind == "selection_filters":
-        return f"Filtro {expected.get('unknown')} desconocido; se admiten {', '.join(expected.get('allowed', []))}."
+        return f"Filter {expected.get('unknown')} is unknown; allowed values: {', '.join(expected.get('allowed', []))}."
     if kind == "desktop_frame":
-        return "Pide antes una captura con full_screen=true: las coordenadas de escritorio necesitan esa imagen."
+        return "Request a screenshot with full_screen=true first: desktop coordinates require that image."
     if kind == "desktop_coordinate":
-        return f"La coordenada {expected.get('axis')}={expected.get('received')} queda fuera de la captura de {expected.get('image_width')} × {expected.get('image_height')} píxeles; corrígela antes de repetir."
+        return f"Coordinate {expected.get('axis')}={expected.get('received')} is outside the screenshot of {expected.get('image_width')} × {expected.get('image_height')} pixels; correct it before retrying."
     if kind == "selection":
         return _selection_message(expected)
     if kind == "calendar_range":
-        return f"Rango de calendario inválido: se exige {expected.get('min_ms')} ≤ start_ms={expected.get('start_ms')} < end_ms={expected.get('end_ms')} ≤ {expected.get('max_ms')}."
+        return f"Invalid calendar range: requires {expected.get('min_ms')} ≤ start_ms={expected.get('start_ms')} < end_ms={expected.get('end_ms')} ≤ {expected.get('max_ms')}."
     if kind == "calendar_cursor":
-        return "Para seguir una lectura de agenda hacen falta read_id no vacío, after_ms y after_index; corrige el cursor con los datos recibidos."
+        return "Continuing an agenda read requires a nonempty read_id, after_ms and after_index; correct the cursor using the received data."
     if kind == "full_screen_filters":
-        return "full_screen=true no admite filtros de aplicación ni de título."
+        return "full_screen=true does not support application or title filters."
     if kind == "tool_call":
-        return "La acción del motor no cumple el contrato: revisa el nombre, el objeto de argumentos y sus tamaños antes de repetirla."
+        return "The engine action violates the contract: check the name, argument object and their sizes before retrying."
     if kind == "title_length":
-        return f"El título tiene {expected.get('characters')} caracteres; máximo {expected.get('max_characters')}."
+        return f"The title has {expected.get('characters')} characters; maximum {expected.get('max_characters')}."
     return message
 
 
@@ -259,20 +256,20 @@ def _transcription_cause(refusal: dict) -> str:
     provider_status = refusal.get("provider_status")
     timeout_ms = refusal.get("timeout_ms")
     if type(provider_status) is int:
-        return f"El servicio devolvió HTTP {provider_status}."
+        return f"The service returned HTTP {provider_status}."
     if cause == "transcription_connection_timeout" and type(timeout_ms) is int:
-        return f"La conexión con el servicio tardó más de {timeout_ms} ms."
+        return f"The service connection took longer than {timeout_ms} ms."
     if type(timeout_ms) is int:
-        return f"El servicio tardó más de {timeout_ms} ms."
+        return f"The service took longer than {timeout_ms} ms."
     causes = {
-        "transcription_protocol_error": "El servicio cortó la respuesta antes de completarla.",
-        "transcription_queued": "El grupo de audio está en cola.",
-        "transcription_in_progress": "El grupo de audio se está transcribiendo.",
-        "transcription_group_not_ready": "El grupo de audio aún no está preparado.",
+        "transcription_protocol_error": "The service cut off the response before completing it.",
+        "transcription_queued": "The audio group is queued.",
+        "transcription_in_progress": "The audio group is being transcribed.",
+        "transcription_group_not_ready": "The audio group is not ready yet.",
     }
     if isinstance(cause, str) and cause in causes:
         return causes[cause]
-    return f"Causa: {cause}." if isinstance(cause, str) else "Causa ausente en el hub."
+    return f"Cause: {cause}." if isinstance(cause, str) else "Cause missing from the hub."
 
 
 def _transcription_retry(refusal: dict) -> str:
@@ -281,19 +278,19 @@ def _transcription_retry(refusal: dict) -> str:
         return ""
     try:
         retry_time = datetime.fromtimestamp(retry_at_ms // 1000, tz=UTC)
-        return f" Próximo intento programado para {retry_time:%Y-%m-%d %H:%M:%S} UTC."
+        return f" Next attempt scheduled for {retry_time:%Y-%m-%d %H:%M:%S} UTC."
     except (OverflowError, OSError, ValueError):
         remaining = max(0, (retry_at_ms - int(time.time() * 1000)) // 1000)
-        return f" Próximo intento programado dentro de {remaining} segundos."
+        return f" Next attempt scheduled in {remaining} seconds."
 
 
 def _transcription(message, refusal: dict, detail: dict):
     """A transcript not there yet or failed: its cause, its attempts and the next one."""
     attempts = refusal.get("attempts")
     if type(attempts) is int and refusal.get("phase") == "running":
-        count_text = f" El intento {attempts} está en curso."
+        count_text = f" Attempt {attempts} is in progress."
     else:
-        count_text = f" {attempts} intentos." if type(attempts) is int else ""
+        count_text = f" {attempts} attempts." if type(attempts) is int else ""
     return f"{message} {_transcription_cause(refusal)}{count_text}{_transcription_retry(refusal)}"
 
 
@@ -318,9 +315,9 @@ def _too_many(message, refusal: dict, detail: dict):
     count, maximum = refusal.get("count"), refusal.get("max")
     if type(count) is int and type(maximum) is int:
         return (
-            f"El hub ya guarda {maximum} capturas pendientes de este Mac; esta subida "
-            f"sería la número {count}. Espera a que se consuman o caduquen: cada una "
-            f"se guarda como máximo {int(CAPTURE_TTL_SECONDS)} s."
+            f"The hub already holds {maximum} pending screenshots from this Mac; this upload "
+            f"would be number {count}. Wait for them to be consumed or expire: each "
+            f"is kept for at most {int(CAPTURE_TTL_SECONDS)} s."
         )
     return message
 
@@ -363,9 +360,9 @@ def _known_devices(error: UnknownDevice) -> str:
         if normalized in seen:
             continue
         seen.add(normalized)
-        marker = " (predeterminado)" if device.id == error.default_device_id else ""
+        marker = " (default)" if device.id == error.default_device_id else ""
         known.append(f"{device.name}{marker}")
-    return f"Conozco: {', '.join(known) if known else 'ninguno'}."
+    return f"Known Macs: {', '.join(known) if known else 'none'}."
 
 
 def error_result(
@@ -381,7 +378,7 @@ def error_result(
     if isinstance(refusal, dict) and code in REFINED_MESSAGES:
         message = REFINED_MESSAGES[code](message, refusal, detail)
     if message is None:
-        message = f"El código {spoken_code} no tiene frase en este traductor."
+        message = f"Code {spoken_code} has no sentence in this translator."
     if code in files.REFUSALS and isinstance(refusal, dict):
         message = files.refusal_message(code, refusal)
     else:

@@ -163,15 +163,15 @@ async def test_orbit_note_returns_the_note_with_the_user_edits_applied(environme
     assert "Comité, versión de Alina" in text
     assert "Alina reescribió este punto" in text and "cerrar el presupuesto" in text
     assert "- punto 1" not in text
-    assert "Quien usa Orbit editó el título y las secciones" in text
+    assert "The Orbit user edited the title and the sections" in text
     # The model's own parts that the user did not touch.
     assert "Resumen corto." in text
-    assert "[hecha] Lucía: Enviar el acta" in text
+    assert "[done] Lucía: Enviar el acta" in text
     assert "Aprobado" in text
-    assert "Temas abiertos" in text and "Ninguno." in text
+    assert "Open questions" in text and "None." in text
     # Their private notes, the template, the model and the date it was written.
-    assert f"Notas privadas de Alina\n{PRIVATE_NOTES}" in text
-    assert "plantilla General" in text
+    assert f"Private notes by Alina\n{PRIVATE_NOTES}" in text
+    assert "template General" in text
     assert "qwen3.8-flash-next" in text
     assert "1970-01-01 00:16 UTC" in text
 
@@ -202,8 +202,8 @@ async def test_orbit_note_of_a_failed_note_names_the_cause_with_its_numbers(envi
     text = text_of(result)
     assert result.is_error
     assert text.startswith("note_failed: ")
-    assert "8192 tokens" in text
-    assert "1 intento" in text
+    assert "8192 response-token limit" in text
+    assert "1 attempt" in text
     # Absent is not «no»: a note nobody asked for is not an empty note.
     assert never.is_error
     assert text_of(never).startswith("note_not_requested: ")
@@ -259,17 +259,17 @@ async def test_orbit_meetings_lists_the_meeting_in_progress_and_each_notes_state
     lines = {line.split(" · ")[0]: line for line in text.splitlines() if line.startswith("- ")}
     # The one in progress is listed, first, and says it is not closed.
     in_progress = next(line for line in text.splitlines() if live in line)
-    assert in_progress.startswith("- EN CURSO")
-    assert "el Mac aún no la ha cerrado" in in_progress
-    assert "3 s de audio recibido" in in_progress
+    assert in_progress.startswith("- IN PROGRESS")
+    assert "the Mac has not closed it yet" in in_progress
+    assert "3 s of audio received" in in_progress
     assert text.splitlines()[1] == in_progress
     # Each finished one with the real state of its note.
     ready = next(line for line in lines.values() if written in line)
-    assert "nota lista: «Comité» — Resumen corto." in ready
+    assert "note ready: «Comité» — Resumen corto." in ready
     absent = next(line for line in lines.values() if unrequested in line)
-    assert "nota sin pedir" in absent
+    assert "note not requested" in absent
     broken = next(line for line in lines.values() if failed in line)
-    assert "nota fallida" in broken and "HTTP 401" in broken
+    assert "note failed" in broken and "HTTP 401" in broken
 
 
 async def test_orbit_transcript_of_a_meeting_in_progress_is_partial_and_uses_the_notes_names(
@@ -300,8 +300,8 @@ async def test_orbit_transcript_of_a_meeting_in_progress_is_partial_and_uses_the
     text = text_of(result)
     assert not result.is_error, text
     first = text.splitlines()[0]
-    assert first.startswith("Transcripción parcial: la reunión sigue en curso")
-    assert "4 fragmentos" in first and "2 s de audio" in first
+    assert first.startswith("Partial transcript: the meeting is still in progress")
+    assert "4 chunks" in first and "2 s of audio" in first
     assert "Alina: Hola, empezamos." in text
     assert "Otra persona: Vale, adelante." in text
     assert "Speaker" not in text and "mic_local" not in text
@@ -343,7 +343,7 @@ async def test_a_finished_transcript_names_diarized_voices_as_the_device_does(
     # Before the Mac says who owns it, the local microphone is the track, and
     # the answer says why.
     assert "Micrófono local: Abrimos el comité." in text_of(before)
-    assert text_of(before).splitlines()[0].startswith("Hablantes sin nombre")
+    assert text_of(before).splitlines()[0].startswith("Unnamed speakers")
 
 
 async def test_bounds_a_long_transcript_is_paged_for_deimos_with_its_numbers(environment, tmp_path):
@@ -361,7 +361,7 @@ async def test_bounds_a_long_transcript_is_paged_for_deimos_with_its_numbers(env
             "orbit_transcript", {"device": DEFAULT_DEVICE, "recording_id": identity}
         )
         header = text_of(first).splitlines()[0]
-        assert header.startswith("Página: caracteres 0–")
+        assert header.startswith("Page: characters 0–")
         following = int(header.rsplit("after_index=", 1)[1].rstrip("."))
         second = await server.call_tool(
             "orbit_transcript",
@@ -375,7 +375,7 @@ async def test_bounds_a_long_transcript_is_paged_for_deimos_with_its_numbers(env
     # What protects Deimos: Hermes keeps a tool result whole up to 50 000 characters.
     assert len(text_of(first)) <= 50_000
     assert not second.is_error
-    assert f"Página: caracteres {following}–" in text_of(second).splitlines()[0]
+    assert f"Page: characters {following}–" in text_of(second).splitlines()[0]
     assert beyond.is_error
     assert text_of(beyond).startswith("after_index_out_of_range: ")
     assert "1000000000" in text_of(beyond)
@@ -404,17 +404,17 @@ async def test_deimos_reconstructs_a_transcript_of_at_least_three_pages(environm
             assert len(rendered) <= 50_000
             header, separator, text = rendered.partition("\n")
             assert separator
-            match = re.fullmatch(r"Página: caracteres (\d+)–(\d+) de (\d+)(.*)", header)
+            match = re.fullmatch(r"Page: characters (\d+)–(\d+) of (\d+)(.*)", header)
             assert match, header
             start, end, total = map(int, match.group(1, 2, 3))
             assert start == cursor and cursor < end <= total
             assert total == len(expected)
             assert len(text) == end - start
             pages.append(text)
-            if match[4] == "; es la última.":
+            if match[4] == "; this is the last page.":
                 assert end == total
                 break
-            continuation = re.fullmatch(r"\. Sigue con after_index=(\d+)\.", match[4])
+            continuation = re.fullmatch(r"\. Continue with after_index=(\d+)\.", match[4])
             assert continuation, header
             cursor = int(continuation[1])
             assert cursor == end
@@ -454,8 +454,8 @@ async def test_deimos_receives_failed_transcription_cause(environment, tmp_path)
     assert result.is_error
     message = text_of(result)
     assert "HTTP 503" in message
-    assert "5 intentos" in message
-    assert "no se reintentará automáticamente" in message.lower()
+    assert "5 attempts" in message
+    assert "will not retry automatically" in message.lower()
 
 
 async def test_deimos_receives_completed_text_and_missing_track_cause(environment, tmp_path):
@@ -467,10 +467,10 @@ async def test_deimos_receives_completed_text_and_missing_track_cause(environmen
     assert not result.is_error
     message = text_of(result)
     assert "Texto completado de micrófono." in message
-    assert "remote_app, fragmentos 0–0" in message
+    assert "remote_app, chunks 0–0" in message
     assert "HTTP 503" in message
-    assert "5 intentos" in message
-    assert "no se reintentará automáticamente" in message.lower()
+    assert "5 attempts" in message
+    assert "will not retry automatically" in message.lower()
 
 
 async def test_deimos_receives_pending_retry_details(environment, tmp_path):
@@ -482,9 +482,9 @@ async def test_deimos_receives_pending_retry_details(environment, tmp_path):
     assert result.is_error
     message = text_of(result)
     assert "300000 ms" in message
-    assert "2 intentos" in message
+    assert "2 attempts" in message
     assert "1970-01-01 00:17:10 UTC" in message
-    assert "ms Unix" not in message
+    assert "Unix ms" not in message
 
 
 async def test_a_long_note_is_paged_without_losing_sections_or_private_notes(environment, tmp_path):
@@ -514,7 +514,7 @@ async def test_a_long_note_is_paged_without_losing_sections_or_private_notes(env
             )
             assert not result.is_error, text_of(result)
             pages.append(text_of(result))
-            marker = next(line for line in pages[-1].splitlines() if line.startswith("Página:"))
+            marker = next(line for line in pages[-1].splitlines() if line.startswith("Page:"))
             if "after_index=" not in marker:
                 break
             after = int(marker.rsplit("after_index=", 1)[1].rstrip("."))
@@ -556,7 +556,7 @@ async def test_the_largest_listing_fits_whole_and_says_how_to_continue(environme
     assert len(text_of(result)) <= 50_000
     assert len(result.content) == 2
     assert all(block.type == "text" for block in result.content)
-    assert "portatil" in result.content[1].text and "fichero" in result.content[1].text
+    assert "portatil" in result.content[1].text and "file" in result.content[1].text
     text = result.content[0].text
     assert text.count("S" * 1000) == 20
     assert "before_ms=11000" in text.splitlines()[-1]
@@ -580,7 +580,7 @@ async def test_assistant_tool_continues_across_macs_with_the_same_start(environm
             },
         )
         assert not second.is_error, text_of(second)
-        found = set(re.findall(r"grabación ([0-9a-f-]{36})", text + second.content[0].text))
+        found = set(re.findall(r"recording ([0-9a-f-]{36})", text + second.content[0].text))
         assert found == recordings
         invalid = await server.call_tool("orbit_meetings", {"before_ms": 1000, "before_id": "bad"})
         assert invalid.is_error

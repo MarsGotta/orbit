@@ -44,7 +44,7 @@ async def test_stdio_client_lists_every_tool_and_calls_devices_end_to_end(tmp_pa
     assert not result.is_error
     text = _text_of(result)
     assert DEFAULT_DEVICE in text and OTHER_DEVICE in text
-    assert "predeterminad" in text.lower()
+    assert "default" in text.lower()
     # The configured names, never the identifiers behind them.
     assert DEVICES[DEFAULT_DEVICE] not in text
     assert DEVICES[OTHER_DEVICE] not in text

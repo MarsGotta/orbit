@@ -53,9 +53,7 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
 
     @server.tool(
         description=(
-            "Lista las herramientas de control que el motor declara en ese Mac, con su "
-            "descripción y su esquema de argumentos. Es la lista autoritativa: "
-            "orbit_perform_action sólo acepta nombres que salgan de aquí. No ejecuta nada."
+            "Lists the control tools the engine declares on that Mac, with their descriptions and argument schemas. This is the authoritative list: orbit_perform_action only accepts names from it. Executes nothing."
         ),
         structured_output=False,
     )
@@ -70,20 +68,14 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
             ):
                 raise HubClientError("invalid_response")
             if not tools:
-                return ok(text("El motor de ese Mac no declara ninguna herramienta."))
+                return ok(text("That Mac's engine declares no tools."))
             return ok(text(json.dumps(tools, ensure_ascii=False)))
 
         return await runner.invoke(operation, device)
 
     @server.tool(
         description=(
-            "Ejecuta una herramienta del motor en ese Mac. El nombre y los argumentos son "
-            "los que declara orbit_control_tools; Orbit los pasa tal cual. Quien usa Orbit ya "
-            "concedió en macOS el uso de su ordenador: nadie tiene que decir que sí otra vez. Si la "
-            "acción sigue en marcha responde «in_progress» con su operation_id —quiere decir "
-            "en curso, no que espere a nadie— y su desenlace se lee con orbit_action_result. "
-            "Sin motor disponible responde que no lo está, con la causa, y no lo intenta por "
-            "otro camino."
+            "Runs an engine tool on that Mac. The name and arguments are those declared by orbit_control_tools; Orbit passes them unchanged. The Orbit user already granted use of their computer in macOS: nobody needs to approve again. If the action is still running, returns in_progress with its operation_id — this means running, not waiting for anyone — and its outcome is read with orbit_action_result. If the engine is unavailable, reports that with its cause and does not try another path."
         ),
         structured_output=False,
     )
@@ -103,10 +95,7 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
 
     @server.tool(
         description=(
-            "Consulta el desenlace de una acción pedida con orbit_perform_action. "
-            "Distingue en curso, ejecución, resultado desconocido y "
-            "fallo. «in_progress» significa que sigue ejecutándose en el Mac. "
-            "También lee los recibos históricos guardados por versiones anteriores."
+            "Reads the outcome of an action requested with orbit_perform_action. Distinguishes in progress, executed, unknown outcome and failed. in_progress means it is still running on the Mac. Also reads historical receipts saved by older versions."
         ),
         structured_output=False,
     )

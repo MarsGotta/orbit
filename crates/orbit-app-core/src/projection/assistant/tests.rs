@@ -96,6 +96,8 @@ fn the_agents_questions_and_its_work_are_projected_as_they_came() {
         kind: orbit_core::agent_work::WorkKind::Tool,
         phase: orbit_core::agent_work::WorkPhase::Started,
         label: "Leyendo el calendario".into(),
+        label_copy: None,
+        subject_code: None,
         subject: Some("el calendario".into()),
         steps: Vec::new(),
         cause: None,

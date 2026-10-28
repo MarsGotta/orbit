@@ -48,7 +48,7 @@ async def test_a_capture_that_could_not_be_uploaded_says_so(tmp_path, tool):
 
     assert result.is_error
     rendered = text_of(result)
-    # Not a timeout, and not the generic "revisa el código y la configuración".
+    # Not a timeout, and not the generic “check the code and configuration”.
     assert "no_answer" not in rendered
-    assert "entregar la captura" in rendered
-    assert "upstream_failed" in rendered and "servicio: hub" in rendered
+    assert "deliver the screenshot" in rendered
+    assert "upstream_failed" in rendered and "service: hub" in rendered

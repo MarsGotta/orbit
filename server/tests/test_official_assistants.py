@@ -186,7 +186,7 @@ def test_turn_streams_tools_approval_clarification_and_resumes(official, tmp_pat
     assert any(f["event"] == "chat.delta" and f["data"]["text"] == "Hola. " for f in frames)
     items = [f["data"] for f in frames if f["event"] == "chat.item"]
     assert any(
-        i["label"] == "Mirando los Mac de Orbit" and i["phase"] == "completed" for i in items
+        i["label"] == "Looking at the Orbit Macs" and i["phase"] == "completed" for i in items
     )
     assert said(store, paired["device_id"], session)[1]["text"] == "Hola. Hecho."
     records = [json.loads(line) for line in (tmp_path / "record.jsonl").read_text().splitlines()]

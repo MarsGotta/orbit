@@ -50,12 +50,26 @@ wire_type! {
     }
 }
 wire_type! {
+    pub struct PrivacyCopy {
+        pub code: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        pub material: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        pub destination: Option<String>,
+    }
+}
+wire_type! {
     pub struct AiFunction {
         pub id: String,
         pub provider_id: String,
         pub model: String,
         pub capability: String,
         pub privacy: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        pub privacy_copies: Option<Vec<PrivacyCopy>>,
     }
 }
 wire_type! {

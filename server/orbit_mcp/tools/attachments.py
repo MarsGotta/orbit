@@ -28,16 +28,16 @@ def _attachment_content(payload: dict, start: int) -> CallToolResult:
     if attachment["kind"] == "image":
         return ok(
             ImageContent(type="image", data=payload["data_base64"], mimeType=attachment["mime"]),
-            text(f"Adjunto {head}."),
+            text(f"Attachment {head}."),
         )
     end = start + len(payload["text"])
     following = payload.get("next_after_index")
     where = (
-        f"caracteres {start}–{end} de {payload['total_chars']}; sigue con after_index {following}"
+        f"characters {start}–{end} of {payload['total_chars']}; continue with after_index {following}"
         if following is not None
-        else f"caracteres {start}–{end} de {payload['total_chars']}, hasta el final"
+        else f"characters {start}–{end} of {payload['total_chars']}, to the end"
     )
-    return ok(text(f"Adjunto {head}, {where}.\n{payload['text']}"))
+    return ok(text(f"Attachment {head}, {where}.\n{payload['text']}"))
 
 
 def register(server: MCPServer, runner: ToolRunner) -> None:
@@ -45,11 +45,10 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
 
     @server.tool(
         description=(
-            "Lee un fichero que quien usa Orbit adjuntó a un mensaje, por el id que el "
-            "mensaje da de cada adjunto. Una imagen llega como imagen; el texto de un PDF o "
-            "de un fichero de texto llega por páginas de hasta "
-            f"{MAX_ANSWER_CHARS} caracteres, y la primera línea dice cuáles son y el "
-            "after_index con el que seguir."
+            "Reads a file the Orbit user attached to a message, using the id the message "
+            "gives for each attachment. Images arrive as images; PDF or text-file text is "
+            f"paginated with up to {MAX_ANSWER_CHARS} characters, and the first line states "
+            "the range and after_index to continue."
         ),
         structured_output=False,
     )

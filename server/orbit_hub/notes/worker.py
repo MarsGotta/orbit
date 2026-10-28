@@ -174,6 +174,9 @@ class NotesWorker:
                 job, ProcessingError("note_template_not_found", template_id=inputs.template_id)
             )
             return
+        from .templates import for_meeting
+
+        template = for_meeting(template, inputs.language)
         lines = transcript.lines()
         if not lines:
             await self._fail(job, ProcessingError("transcript_empty", segments=transcript.groups))

@@ -17,6 +17,9 @@ English and Spanish; labels quoted below may use either language.
 - Render briefing causes from codes and numeric facts in the selected interface
   language. Use locale plural rules for counted text, keep catalogue keys in
   English, and reject inline copy inside nested Markdown render callbacks.
+- Use English for assistant tool help, results and model instructions. Keep meeting
+  notes in the meeting language, and render AI privacy help and assistant progress
+  from English and Spanish catalogue codes with English fallbacks for older Macs.
 
 - The Mac menu bar, application menus, notifications and the Rust side's
   copy follow the interface language and update when it changes.

@@ -128,10 +128,10 @@ OWN_NAMES = {
 
 
 def language_block(inputs: NoteInputs) -> str:
-    """The last thing the model reads. The prompt is written in
-    Spanish and a meeting may be half in another language: one phrase at the
-    top of the system message was not enough, and a meeting changed to
-    English got its note rewritten in Spanish (Qwen, 2026-10-18)."""
+    """Repeat the meeting language after the data. A system-only cue once
+    rewrote an English meeting's note in Spanish (Qwen, 2026-10-18).
+    The instructions are English; transcript and private notes may be in
+    another language, so the final cue explicitly covers every output field."""
     code = inputs.language[:2]
     named = LANGUAGE_NAMES.get(code, inputs.language)
     own = OWN_NAMES.get(code)
@@ -298,7 +298,7 @@ def build_note(
             or (inputs.event.title if inputs.event else "")
         )
         return GeneratedNote(
-            title=title or "Reunión",
+            title=title or ("Reunión" if inputs.language.startswith("es") else "Meeting"),
             short_summary=(content.get("short_summary") or "").strip(),
             sections=tuple(
                 Section(name=section.name, markdown=str(sections[key]).strip())
@@ -327,11 +327,11 @@ def partial_for_reduce(content: dict, template: Template) -> dict:
     """A partial note keyed by section name, the shape the reduce pass reads."""
     sections = content.get("sections") or {}
     return {
-        "secciones": {
+        "sections": {
             section.name: sections.get(key, "")
             for key, section in zip(section_keys(template), template.sections, strict=True)
         },
-        "tareas": content.get("action_items") or [],
-        "decisiones": content.get("decisions") or [],
-        "temas_abiertos": content.get("open_topics") or [],
+        "action_items": content.get("action_items") or [],
+        "decisions": content.get("decisions") or [],
+        "open_topics": content.get("open_topics") or [],
     }

@@ -61,7 +61,7 @@ async def test_the_three_tools_exist_with_spanish_descriptions_and_their_paramet
         assert name in tools, name
         assert set(tools[name].input_schema["properties"]) == parameters, name
         description = tools[name].description
-        assert "carpeta" in description and "Deimos" not in description, description
+        assert "folder" in description and "Deimos" not in description, description
 
 
 async def test_a_path_outside_the_folders_names_it_and_every_folder(tmp_path):
@@ -82,7 +82,7 @@ async def test_a_path_outside_the_folders_names_it_and_every_folder(tmp_path):
     assert result.is_error, body
     assert body.startswith("outside_folders: "), body
     assert SECRET in body and PROJECTS in body and NOTES in body, body
-    assert "[ruta local]" not in body
+    assert "[local path]" not in body
     assert hub.device_requests[0]["capability"] == "files_read"
     assert hub.device_requests[0]["parameters"] == {"path": SECRET}
 
@@ -99,7 +99,7 @@ async def test_a_link_out_of_a_folder_says_where_it_leads(tmp_path):
     )
     body = text_of(result)
     assert result.is_error
-    assert link in body and SECRET in body and "lleva" in body, body
+    assert link in body and SECRET in body and "leads" in body, body
 
 
 async def test_a_file_too_large_says_both_sizes(tmp_path):
@@ -141,7 +141,7 @@ async def test_a_folder_whose_bookmark_no_longer_opens_says_why(tmp_path):
     )
     body = text_of(result)
     assert result.is_error
-    assert NOTES in body and "NSCocoaErrorDomain" in body and "Ajustes" in body, body
+    assert NOTES in body and "NSCocoaErrorDomain" in body and "Settings" in body, body
 
 
 async def test_without_folders_it_says_where_to_add_them(tmp_path):
@@ -149,7 +149,7 @@ async def test_without_folders_it_says_where_to_add_them(tmp_path):
         tmp_path, refused({"code": "no_folders"}), "orbit_files_search", {"query": "plan"}
     )
     body = text_of(result)
-    assert result.is_error and "Añadir carpeta" in body, body
+    assert result.is_error and "Add folder" in body, body
 
 
 async def test_the_folders_are_listed_with_their_state(tmp_path):
@@ -174,7 +174,7 @@ async def test_the_folders_are_listed_with_their_state(tmp_path):
     )
     body = text_of(result)
     assert not result.is_error, body
-    assert PROJECTS in body and NOTES in body and "no se puede leer" in body, body
+    assert PROJECTS in body and NOTES in body and "cannot be read" in body, body
     assert hub.device_requests[0]["parameters"] == {}
 
 
@@ -201,7 +201,7 @@ async def test_a_folder_listing_gives_whole_paths_and_where_to_go_on(tmp_path):
     assert not result.is_error, body
     assert f"{PROJECTS}/plan.md" in body and "2048" in body, body
     assert f"{PROJECTS}/informes/" in body
-    assert "enlace" in body
+    assert "link" in body
     assert "after_index=3" in body and "203" in body, body
     assert hub.device_requests[0]["parameters"] == {"path": PROJECTS}
 
@@ -235,7 +235,7 @@ async def test_a_search_says_its_matches_and_what_stopped_it(tmp_path):
     body = text_of(result)
     assert not result.is_error, body
     assert f"{PROJECTS}/plan.md:3" in body and "El presupuesto del trimestre." in body, body
-    assert "20000" in body and "carpeta más concreta" in body, body
+    assert "20000" in body and "narrower folder" in body, body
     assert hub.device_requests[0]["parameters"] == {"query": "presupuesto", "content": True}
 
 
@@ -282,8 +282,8 @@ async def test_a_pdf_arrives_as_its_pages_text(tmp_path):
     )
     body = text_of(result)
     assert not result.is_error, body
-    assert "Página 3 de 12" in body and "Capítulo tres." in body, body
-    assert "sin texto" in body
+    assert "Page 3 of 12" in body and "Capítulo tres." in body, body
+    assert "no text" in body
     assert "after_page=4" in body, body
     assert hub.device_requests[0]["parameters"] == {
         "path": f"{PROJECTS}/manual.pdf",
@@ -376,7 +376,7 @@ def test_a_listing_asked_past_its_end_says_so_instead_of_an_impossible_range():
         }
     )
     assert "101–100" not in text, text
-    assert "5 entradas" in text and "after_index=100" in text, text
+    assert "5 entries" in text and "after_index=100" in text, text
 
 
 async def test_a_folder_request_that_ran_out_of_time_does_not_ask_to_check_a_result(tmp_path):
@@ -391,8 +391,8 @@ async def test_a_folder_request_that_ran_out_of_time_does_not_ask_to_check_a_res
     body = text_of(result)
     assert result.is_error
     assert body.startswith("timeout: "), body
-    assert "consulta su resultado" not in body, body
-    assert "carpetas del asistente" in body and "20000" in body, body
+    assert "check its result" not in body, body
+    assert "assistant's folders" in body and "20000" in body, body
 
 
 async def test_a_helper_restart_during_a_folder_request_is_not_called_a_source_read(tmp_path):
@@ -404,5 +404,5 @@ async def test_a_helper_restart_during_a_folder_request_is_not_called_a_source_r
     )
     body = text_of(result)
     assert result.is_error
-    assert "fuente" not in body, body
-    assert "carpetas del asistente" in body, body
+    assert "source" not in body, body
+    assert "assistant's folders" in body, body

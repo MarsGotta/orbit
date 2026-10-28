@@ -48,7 +48,7 @@ async def bounded_body(request: Request, maximum: int, resource: str = "hub_requ
         if len(body) + len(piece) > maximum:
             raise HubError(
                 "too_large",
-                "Carga demasiado grande",
+                "Payload too large",
                 numbers={
                     "resource": resource,
                     "bytes": len(body) + len(piece),

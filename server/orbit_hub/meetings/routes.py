@@ -60,7 +60,7 @@ class TitleRequest(Strict):
 
 
 class SeriesRequest(Strict):
-    """«Usar lo mismo en toda la serie»: no dictionary leaves the series without one.
+    """“Use the same for the whole series”: no dictionary leaves the series without one.
 
     `dictionary_id` is one, as Macs up to 0.10.1 send it; `dictionary_ids`
     is the whole list. One of the two (`dictionaries.named_ids`).
@@ -311,7 +311,7 @@ def _mount_recording(app, routes: _Routes):
 
     @app.delete("/v1/recordings/{recording_id}")
     async def delete_recording(recording_id: str, request: Request):
-        """«Borrar reunión» and «Terminar sin guardar»: the recording and all
+        """“Delete meeting” and “End without saving”: the recording and all
         that was made from it; done again, or never held, is done too."""
         recording = recording_of(recording_id)
         device = await routes.recording_device(request, recording)

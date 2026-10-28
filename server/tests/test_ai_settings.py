@@ -192,7 +192,7 @@ async def test_load_migrates_legacy_key_and_separates_function_choices(environme
         functions = {f["id"]: f for f in result["functions"]}
         assert functions["meeting_transcription"]["provider_id"] == "openrouter"
         assert functions["listening"]["provider_id"] == "openrouter"
-        assert "Microsoft a través de OpenRouter" in functions["meeting_transcription"]["privacy"]
+        assert "Microsoft through OpenRouter" in functions["meeting_transcription"]["privacy"]
         assert KEY not in json.dumps(result)
         assert (
             await select(http, owner, "meeting_transcription", "hub", "whisper")
@@ -211,7 +211,7 @@ async def test_privacy_includes_non_loopback_network(environment):
             {"kind": "local", "base_url": "https://100.64.0.1/v1", "name": "Cedro"},
             "voice",
         )
-        == "El texto sale a Cedro, fuera de tu hub, por tu red o Internet."
+        == "The text is sent to Cedro, outside your hub, over your network or the Internet."
     )
     assert (
         privacy_line(
@@ -219,7 +219,7 @@ async def test_privacy_includes_non_loopback_network(environment):
             {"kind": "local", "base_url": "http://127.0.0.1:10000/v1", "name": "Cedro"},
             "audio",
         )
-        == "El audio se queda en tu hub."
+        == "The audio stays on your hub."
     )
 
 
@@ -536,4 +536,4 @@ async def test_operator_privacy_names_the_configured_destination(environment):
         result = (await http.get("/v1/settings/ai", headers=bearer(owner))).json()
         note = next(f for f in result["functions"] if f["id"] == "meeting_notes")
         assert "model.example.test" in note["privacy"]
-        assert "fuera de tu hub" in note["privacy"]
+        assert "outside your hub" in note["privacy"]

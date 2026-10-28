@@ -27,7 +27,7 @@ def device_reply(socket: Socket, frame, request_id) -> None:
                 "invalid_request",
                 "The request_id field must be text of 1 to 160 characters.",
                 request_id,
-                numbers={"field": "request_id", "expected": "texto de 1 a 160 caracteres"},
+                numbers={"field": "request_id", "expected": "text of 1 to 160 characters"},
             )
         )
         return

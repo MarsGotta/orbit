@@ -27,13 +27,13 @@ def _screenshot_content(
     if not isinstance(result["data_base64"], str):
         raise HubClientError("invalid_response")
     details = (
-        f"Captura de {result['application']} — {result['title']} "
+        f"Screenshot of {result['application']} — {result['title']} "
         f"({result['width']} × {result['height']})."
     )
     if isinstance(result.get("coordinates"), str):
         details += f" {result['coordinates']}"
     if windows is not None:
-        details += f" Ventanas disponibles: {json.dumps(windows, ensure_ascii=False)}"
+        details += f" Available windows: {json.dumps(windows, ensure_ascii=False)}"
     return ok(
         ImageContent(type="image", data=result["data_base64"], mimeType="image/png"),
         text(details),
@@ -53,7 +53,7 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
     hub_client = runner.hub_client
 
     @server.tool(
-        description="Lista las ventanas visibles de un Mac mediante Orbit.",
+        description="Lists the visible windows on a Mac through Orbit.",
         structured_output=False,
     )
     async def orbit_windows(device: str | None = None) -> CallToolResult:
@@ -69,8 +69,7 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
 
     @server.tool(
         description=(
-            "Obtiene una captura PNG; application y title eligen una ventana, sin ambos usa "
-            "la ventana en primer plano, y full_screen=true pide el escritorio completo al motor."
+            "Gets a PNG screenshot; application and title select a window, neither selects the foreground window, and full_screen=true requests the entire desktop from the engine."
         ),
         structured_output=False,
     )
@@ -93,7 +92,7 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
         return await runner.invoke(operation, device)
 
     @server.tool(
-        description="Mira la pantalla: lista las ventanas y captura la ventana en primer plano.",
+        description="Looks at the screen: lists the windows and captures the foreground window.",
         structured_output=False,
     )
     async def orbit_look(device: str | None = None) -> CallToolResult:
@@ -109,7 +108,7 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
         return await runner.invoke(operation, device)
 
     @server.tool(
-        description="Lee el texto seleccionado en una ventana concreta o en la ventana en primer plano.",
+        description="Reads the selected text in a specific window or the foreground window.",
         structured_output=False,
     )
     async def orbit_selected_text(
@@ -128,7 +127,7 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
                 raise HubClientError("invalid_response")
             return ok(
                 text(
-                    f"Texto seleccionado en {result['application']} — {result['title']}:\n"
+                    f"Selected text in {result['application']} — {result['title']}:\n"
                     f"{result['text']}"
                 )
             )

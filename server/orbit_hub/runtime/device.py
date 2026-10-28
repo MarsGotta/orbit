@@ -88,7 +88,7 @@ class DeviceRuntime:
         self.sender = TurnSender(self)
 
     def agent_name(self, agent_id: str | None, *, starts: bool = False) -> str:
-        """The agent as the user knows it, for a message; «el asistente» when
+        """The agent as the user knows it, for a message; “the assistant” when
         the runtime does not know which agent, or it left the configuration.
         `starts`: the name opens the sentence."""
         agent = self.agents.by_id.get(agent_id)

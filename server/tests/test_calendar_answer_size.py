@@ -44,8 +44,8 @@ def reading_of(events):
 
 # (name, events a working day, guest mix, events, guests, JSON chars, text chars)
 MONTHS = [
-    ("típico", 8, TYPICAL, 210, 1_171, 402_366, 100_446),
-    ("cargado", 17, HEAVY, 435, 7_328, 1_865_589, 367_160),
+    ("typical", 8, TYPICAL, 210, 1_171, 402_366, 100_847),
+    ("busy", 17, HEAVY, 435, 7_328, 1_865_589, 368_671),
 ]
 
 
@@ -66,10 +66,10 @@ def test_a_month_of_agenda_in_characters(name, per_day, mix, count, guests, as_j
     assert len(text) < HERMES_HARD_CUT_CHARS
     preview = text[:HERMES_PREVIEW_CHARS]
     first, per_day_line = preview.splitlines()[:2]
-    assert first.startswith(f"Agenda: {count} eventos del ")
-    assert "en 28 calendarios" in first
-    assert per_day_line.startswith("Por día: ") and per_day_line.endswith(".")
-    assert text.rstrip().endswith(f"Fin de la lectura: {count} eventos.")
+    assert first.startswith(f"Agenda: {count} events from ")
+    assert "in 28 calendars" in first
+    assert per_day_line.startswith("By day: ") and per_day_line.endswith(".")
+    assert text.rstrip().endswith(f"End of read: {count} events.")
 
 
 @pytest.mark.parametrize(("name", "per_day", "mix"), [(m[0], m[1], m[2]) for m in MONTHS])

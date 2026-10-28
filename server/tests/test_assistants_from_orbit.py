@@ -399,9 +399,7 @@ def test_a_conversation_is_handed_over_with_its_unanswered_question(
         page = http.get(f"/v1/sessions/{new}/messages", headers=auth(paired)).json()
     [sent] = prompts(adapter)
     assert "You are taking over the conversation with Lyra" in sent
-    assert (
-        "Usuario: ¿Cuántas habitaciones libres hay?\nLyra: Quedan doce en el hotel Brisa." in sent
-    )
+    assert "User: ¿Cuántas habitaciones libres hay?\nLyra: Quedan doce en el hotel Brisa." in sent
     assert sent.endswith("\n¿Y para el fin de semana?")
     assert sent.count("¿Y para el fin de semana?") == 1
     # The new conversation keeps the question as the user sees it, and where it came from.
@@ -430,7 +428,7 @@ def test_a_handover_keeps_the_newest_messages_within_its_ceiling(environment, tm
     ]
     turn = handover_turn(messages, 300, "¿Seguimos?", "Lyra")
     assert turn is not None
-    carried = [line for line in turn.text.splitlines() if line.startswith(("Usuario:", "Lyra:"))]
+    carried = [line for line in turn.text.splitlines() if line.startswith(("User:", "Lyra:"))]
     assert sum(len(line) + 1 for line in carried) <= MAX_HANDOVER_CHARS
     # The newest are kept, and the rest are counted, with the ceiling.
     assert carried[-1].startswith("Lyra: 0079")
@@ -478,7 +476,7 @@ def test_a_handover_carries_the_question_once_when_the_mac_repeats_it():
     assert repeated.text.count("¿Qué toca hoy?") == 1
     assert repeated.text.endswith("\n¿Qué toca hoy?")
     # A new question keeps the old one in the copy, unanswered.
-    assert "Usuario: ¿Qué toca hoy?" in other.text
+    assert "User: ¿Qué toca hoy?" in other.text
     assert other.text.endswith("\nMejor, ¿qué toca mañana?")
 
 

@@ -59,7 +59,7 @@ def mount(app, registry, identity, bounded_body, executor, changed=lambda: None)
         ):
             raise HubError("ai_provider_invalid", "Invalid provider identifier")
         if (provider.kind == "openrouter") != (provider_id == "openrouter"):
-            raise HubError("ai_provider_invalid", "OpenRouter usa su propio registro de proveedor")
+            raise HubError("ai_provider_invalid", "OpenRouter uses its own provider registry")
         if provider.kind == "openrouter" and provider.base_url != OPENROUTER_URL:
             raise HubError("ai_provider_invalid", "The OpenRouter URL cannot be changed")
         refuse_busy(lock)

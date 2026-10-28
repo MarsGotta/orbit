@@ -179,7 +179,7 @@ def test_a_chat_message_refused_before_it_was_stored_can_be_sent_again(environme
     """A question about a meeting whose audio has not reached the hub yet is
     refused (`meeting_not_found`) and nothing is stored, but ws.py:297 already
     reserved its id: when the Mac sends the same message again once the audio
-    is there, the hub answers `outcome_unknown` ("no se repetirá") for a message
+    is there, the hub answers `outcome_unknown` (“will not be repeated”) for a message
     it never kept."""
     _, store, _ = environment
     owner = device(store)
@@ -201,7 +201,7 @@ def test_a_chat_message_refused_before_it_was_stored_can_be_sent_again(environme
 
 def test_a_chat_message_the_full_disk_refused_is_said_with_its_cause(environment, monkeypatch):
     """The person's message could not be stored (disk full): the Mac is told
-    `internal_error` "No se pudo completar la operación; no se repetirá"."""
+    `internal_error` “The operation could not be completed; it will not be repeated”."""
     _, store, _ = environment
     owner = device(store)
     original = store.chat.append_message

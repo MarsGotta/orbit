@@ -59,7 +59,7 @@ async def test_orbit_mcp_refuses_a_tool_of_a_group_turned_off_if_called_anyway(t
     assert result.is_error
     text = text_of(result)
     assert text.startswith("agent_access_disabled: ")
-    assert "agente: default" in text and "acceso: screen" in text
+    assert "agent id: default" in text and "access group: screen" in text
     # Nothing reached the Mac for the refused tool; another group's still does.
     assert [request["capability"] for request in hub.device_requests] == ["calendar_read"]
     assert "agent_access_disabled" not in text_of(allowed)

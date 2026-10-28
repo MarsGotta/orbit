@@ -394,7 +394,15 @@ async fn a_turn_and_its_work_at_their_ceilings_fit_the_topic() {
         id: format!("{index:02}{}", "\u{1}".repeat(MAX_ITEM_ID_CHARS - 2)),
         kind,
         phase: WorkPhase::Failed,
-        label: wide(MAX_ITEM_LABEL_CHARS),
+        // Known copy replaces the English fallback when the wire is decoded.
+        label: String::new(),
+        label_copy: Some(orbit_core::agent_work::ActivityCopy {
+            code: orbit_core::agent_work::ActivityLabelCode::OrbitSelectedText,
+            value: Some(wide(MAX_ITEM_LABEL_CHARS)),
+            done: Some(u32::MAX),
+            total: Some(u32::MAX),
+        }),
+        subject_code: Some(wide(MAX_ITEM_SUBJECT_CHARS)),
         subject: Some(format!("{index:02}{}", wide(MAX_ITEM_SUBJECT_CHARS - 2))),
         steps: Vec::new(),
         cause: Some(wide(MAX_ITEM_CAUSE_CHARS)),

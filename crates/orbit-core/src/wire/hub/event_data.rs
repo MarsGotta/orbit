@@ -163,6 +163,10 @@ pub struct ItemData {
     pub phase: String,
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label_copy: Option<crate::agent_work::ActivityCopy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subject_code: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subject: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub steps: Option<Vec<ItemStep>>,

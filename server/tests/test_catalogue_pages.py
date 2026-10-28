@@ -144,7 +144,7 @@ async def test_catalogue_without_required_counters_names_the_missing_field(tmp_p
     assert listed.is_error
     assert "device_reply_invalid" in text_of(listed)
     assert "result.after_index" in text_of(listed)
-    assert "campo obligatorio" in text_of(listed)
+    assert "required field" in text_of(listed)
     assert len(hub.device_requests) == 1
 
 
@@ -226,4 +226,4 @@ async def test_a_catalogue_that_changes_mid_walk_is_named_not_mixed(tmp_path):
 
     assert result.is_error
     assert "catalogue_changed" in text_of(result)
-    assert "catálogo" in text_of(result).lower()
+    assert "catalogue" in text_of(result).lower()

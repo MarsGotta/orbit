@@ -63,7 +63,7 @@ def queries(body, all_tasks):
         matches = [task for task in all_tasks if all(check(task) for check in checks)]
         if len(matches) > MAX_PAGE_SIZE:
             warnings.append(
-                f"The query shows {MAX_PAGE_SIZE} de {len(matches)} tasks; narrow the filters to see the rest."
+                f"The query shows {MAX_PAGE_SIZE} of {len(matches)} tasks; narrow the filters to see the rest."
             )
         if len(matches) > MAX_PAGE_SIZE:
             diagnostics.append(

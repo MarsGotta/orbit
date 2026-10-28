@@ -387,7 +387,7 @@ def test_a_text_file_is_named_for_orbit_attachment(environment, tmp_path):
             until(ws, send(ws, "", attachments=[notes["id"]]), "chat.completed")
     [(_, _, prompt)] = [call for call in hermes.calls if call[1] == "prompt.submit"]
     assert (
-        f"«lista.md» · texto · {len(NOTES)} B · id {notes['id']}: read it with orbit_attachment"
+        f"«lista.md» · text · {len(NOTES)} B · id {notes['id']}: read it with orbit_attachment"
         in (prompt["text"])
     )
     assert "botas" not in prompt["text"]

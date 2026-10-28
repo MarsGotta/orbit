@@ -62,9 +62,9 @@ async def test_internal_error_keeps_its_server_message_when_cause_matches_a_nati
         result = await server.call_tool("orbit_control_tools", {"device": DEFAULT_DEVICE})
     body = text_of(result)
     assert result.is_error, body
-    assert "Orbit encontró un fallo interno al preparar la respuesta" in body, body
-    assert "Orbit no pudo construir" not in body, body
-    assert "causa: native_command_invalid" in body, body
+    assert "Orbit encountered an internal failure while preparing the response" in body, body
+    assert "Orbit could not construct" not in body, body
+    assert "cause: native_command_invalid" in body, body
 
 
 @pytest.mark.parametrize(
@@ -102,7 +102,7 @@ async def test_modern_invalid_parameter_keeps_the_specific_field(tmp_path, detai
             "no_answer",
             "timeout",
             {"operation": "interaction", "waited_ms": 31000, "deadline_ms": 30000},
-            "El Mac no contestó",
+            "The Mac did not answer",
         ),
     ],
 )
@@ -251,20 +251,20 @@ async def test_rejections_and_timeouts_are_tool_results_and_service_continues(tm
         offline = await server.call_tool("orbit_screenshot", arguments)
         assert offline.is_error
         assert "device_unavailable" in text_of(offline)
-        assert "El Mac no está conectado a Orbit" in text_of(offline)
+        assert "The Mac is not connected to Orbit" in text_of(offline)
 
         refused = await server.call_tool("orbit_screenshot", arguments)
         assert refused.is_error
         # The current Mac names the permission; its sentence still travels with it.
         assert "permission_not_granted" in text_of(refused)
-        assert "Grabación de pantalla" in text_of(refused)
-        assert "no autorizado" not in text_of(refused).lower()
-        assert "Grabación de pantalla" in text_of(refused)
+        assert "Screen Recording" in text_of(refused)
+        assert "unauthorized" not in text_of(refused).lower()
+        assert "Screen Recording" in text_of(refused)
 
         late = await server.call_tool("orbit_screenshot", arguments)
         assert late.is_error
         assert "no_answer" in text_of(late)
-        assert "El Mac no contestó a tiempo" in text_of(late)
+        assert "The Mac did not answer in time" in text_of(late)
 
         # The process never falls over on the hub's say-so: the next call is served.
         recovered = await server.call_tool("orbit_screenshot", arguments)
@@ -321,8 +321,8 @@ async def test_duplicate_name_uses_the_newest_connected_identity_and_says_so(tmp
     assert not result.is_error
     assert hub.device_requests[0]["device_id"] == newer_id
     text = text_of(result).lower()
-    assert "varias identidades" in text
-    assert "conectada más reciente" in text
+    assert "several identities" in text
+    assert "most recently connected" in text
 
 
 async def test_devices_names_connection_and_last_seen_without_ids(tmp_path):
@@ -356,9 +356,9 @@ async def test_devices_names_connection_and_last_seen_without_ids(tmp_path):
 
     assert not result.is_error
     text = text_of(result)
-    assert "Sample Mac — conectado sí — visto por última vez hace" in text
-    assert "Mac de viaje — conectado no — visto por última vez hace" in text
-    assert "fichero: favorito" in text
+    assert "Sample Mac — connected yes — last seen" in text
+    assert "Mac de viaje — connected no — last seen" in text
+    assert "file: favorito" in text
     assert connected_id not in text and disconnected_id not in text
 
 
@@ -380,7 +380,7 @@ async def test_recent_bridge_activity_is_described_as_less_than_a_minute(tmp_pat
         result = await server.call_tool("orbit_devices", {})
 
     assert not result.is_error
-    assert "visto por última vez hace menos de un minuto" in text_of(result)
+    assert "last seen less than a minute ago" in text_of(result)
 
 
 # The sharing switch is gone and the agenda now shares itself,
@@ -433,7 +433,7 @@ async def test_unknown_device_names_known_macs_and_marks_the_default(tmp_path):
     assert result.is_error
     text = text_of(result)
     assert "unknown_device" in text
-    assert "Conozco: Sample Mac (predeterminado), Mac de viaje" in text
+    assert "Known Macs: Sample Mac (default), Mac de viaje" in text
     assert hub.device_requests == []
 
 
@@ -454,8 +454,8 @@ async def test_revoked_identity_is_not_listed_or_resolved_by_name(tmp_path):
         retired = await server.call_tool("orbit_windows", {"device": "Mac retirado"})
 
     text = text_of(listing)
-    assert "Sample Mac — conectado sí" in text
-    assert "predeterminado" in text
+    assert "Sample Mac — connected yes" in text
+    assert "default" in text
     assert "Mac retirado" not in text
     assert retired.is_error
     assert "unknown_device" in text_of(retired)
@@ -495,11 +495,11 @@ async def test_a_full_screen_tells_deimos_what_its_coordinates_are(tmp_path):
 @pytest.mark.parametrize(
     "active,connected,default_connected,explicit,expected,reason",
     [
-        (True, True, False, None, OTHER_DEVICE, "turno"),
-        (True, True, True, None, OTHER_DEVICE, "turno"),
-        (False, True, False, None, OTHER_DEVICE, "único"),
-        (False, False, False, None, DEFAULT_DEVICE, "fichero"),
-        (False, True, True, None, DEFAULT_DEVICE, "fichero"),
+        (True, True, False, None, OTHER_DEVICE, "turn"),
+        (True, True, True, None, OTHER_DEVICE, "turn"),
+        (False, True, False, None, OTHER_DEVICE, "only"),
+        (False, False, False, None, DEFAULT_DEVICE, "file"),
+        (False, True, True, None, DEFAULT_DEVICE, "file"),
         (True, True, False, DEFAULT_DEVICE, DEFAULT_DEVICE, None),
     ],
 )
@@ -554,7 +554,7 @@ async def test_orbit_mcp_does_not_name_one_agent_to_every_agent(tmp_path):
     async with serving(tmp_path, hub) as (_client, server):
         result = await server.call_tool("orbit_screenshot", {})
     assert not result.is_error, text_of(result)
-    assert "turno" in text_of(result)
+    assert "turn" in text_of(result)
     assert "Deimos" not in text_of(result)
     assert "Deimos" not in (server.instructions or "")
 
@@ -565,9 +565,9 @@ async def test_a_changed_window_tells_deimos_to_request_it_again(tmp_path):
         result = await server.call_tool("orbit_screenshot", {})
     assert result.is_error
     text = text_of(result).lower()
-    assert "ventana cambió" in text
-    assert "vuelve a pedir" in text
-    assert "no conoce" not in text
+    assert "window changed" in text
+    assert "request the window or screenshot again" in text
+    assert "does not recognize" not in text
 
 
 async def test_automatic_selection_refreshes_the_inventory_while_named_reads_keep_the_cache(
@@ -642,9 +642,9 @@ async def test_action_without_arguments_reaches_hub_with_empty_object(tmp_path, 
             {"tool": "click", "arguments": "PRIVATE_VALUE"},
             "action.arguments",
             "arguments",
-            "objeto",
+            "object",
         ),
-        ([], "action", "list", "objeto"),
+        ([], "action", "list", "object"),
     ],
 )
 async def test_action_refusal_names_field_keys_and_shape_without_values(
@@ -675,17 +675,17 @@ async def test_untranslated_code_says_phrase_missing_and_keeps_mac_detail(tmp_pa
         result = await server.call_tool("orbit_selected_text", {})
     body = text_of(result)
     assert result.is_error
-    assert "new_native_cause" in body and "no tiene frase" in body
+    assert "new_native_cause" in body and "has no sentence" in body
     assert "3 ventanas, 0 coincidencias" in body
-    assert "revisa sus versiones" not in body
+    assert "Check the hub and Mac versions" not in body
 
 
 @pytest.mark.parametrize(
     "code,phrase",
     [
-        ("selected_text_empty", "rango de selección vacío"),
-        ("selected_text_not_exposed", "no se sabe si hay texto seleccionado"),
-        ("selected_text_unavailable", "no se sabe si hay texto seleccionado"),
+        ("selected_text_empty", "empty selection range"),
+        ("selected_text_not_exposed", "whether text is selected is unknown"),
+        ("selected_text_unavailable", "whether text is selected is unknown"),
     ],
 )
 async def test_selection_absence_exposure_and_read_failure_have_distinct_phrases(
