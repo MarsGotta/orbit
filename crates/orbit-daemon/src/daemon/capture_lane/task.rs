@@ -74,9 +74,16 @@ impl CaptureTask {
     pub(in crate::daemon) fn spawn(parts: TaskParts) -> std::io::Result<Self> {
         let (stop, stopped) = watch::channel(false);
         let lane = parts.lane.clone();
+        // Running from the spawn, not from the thread's first turn: a barrier
+        // right after it waits for the frames already queued for the task
+        // instead of finding it not started (seen under load).
+        // It says the task is gone when the thread ends, or if it never starts.
+        lane.lock().task_running = true;
+        let running = Running(lane.clone());
         let thread = std::thread::Builder::new()
             .name(CAPTURE_THREAD_NAME.into())
             .spawn(move || {
+                let _running = running;
                 match tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()

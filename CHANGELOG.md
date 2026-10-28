@@ -32,6 +32,9 @@ English and Spanish; labels quoted below may use either language.
 
 ### Fixed
 
+- A freshly started capture task counts as running from its start, so the
+  loop waits for the frames queued for it instead of passing them by under
+  load.
 - Audio gaps, damaged frames and device format changes keep meeting recordings
   running. Real capture cuts keep retrying with backoff, and macOS notifications
   report prolonged cuts, recovery and automatic closure after two minutes away.
