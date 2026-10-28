@@ -7,6 +7,8 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+## [0.12.7] - 2026-10-28
+
 ### Fixed
 
 - Secret discovery skips folders the hub's user can neither list nor enter,
